@@ -21,6 +21,8 @@ namespace Fodinae.Assets.Scripts.Game
         private bool _isMetadataLoaded = false;
         private CancellationTokenSource _cts;
         private float _targetAngle = 0f;
+        private Vector3 _targetPosition;
+        [SerializeField] private float _moveSpeed = 15f;
 
         public ushort BotId => _botId;
         public int PlayerId => _playerId;
@@ -31,6 +33,18 @@ namespace Fodinae.Assets.Scripts.Game
         {
             get => _targetAngle - VISUAL_ROTATION_OFFSET;
             set => _targetAngle = value + VISUAL_ROTATION_OFFSET;
+        }
+
+        public Vector3 TargetPosition
+        {
+            get => _targetPosition;
+            set => _targetPosition = value;
+        }
+
+        public float MoveSpeed
+        {
+            get => _moveSpeed;
+            set => _moveSpeed = value;
         }
 
         private void Awake()
@@ -55,6 +69,7 @@ namespace Fodinae.Assets.Scripts.Game
                 LoadSkin();
             }
             _targetAngle = transform.eulerAngles.z;
+            _targetPosition = transform.position;
 
             // Register this robot if it's the player (or has a pre-set botId)
             if (gameObject.CompareTag("Player"))
@@ -71,6 +86,15 @@ namespace Fodinae.Assets.Scripts.Game
             {
                 float newAngle = Mathf.MoveTowardsAngle(currentAngle, _targetAngle, _rotationSpeed * Time.deltaTime);
                 transform.rotation = Quaternion.Euler(0, 0, newAngle);
+            }
+
+            if (Vector3.Distance(transform.position, _targetPosition) > 0.001f)
+            {
+                transform.position = Vector3.MoveTowards(transform.position, _targetPosition, _moveSpeed * Time.deltaTime);
+            }
+            else if (transform.position != _targetPosition)
+            {
+                transform.position = _targetPosition;
             }
         }
 
@@ -116,7 +140,7 @@ namespace Fodinae.Assets.Scripts.Game
         public void SetPosition(ushort x, ushort y)
         {
             // Align to 1.0 unit grid (centers)
-            transform.position = new Vector3(x + 0.5f, y + 0.5f, 0);
+            _targetPosition = new Vector3(x + 0.5f, y + 0.5f, 0);
         }
 
         public void SetRotation(byte rotation)

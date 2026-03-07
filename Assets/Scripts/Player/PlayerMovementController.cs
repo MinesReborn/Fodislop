@@ -21,6 +21,7 @@ namespace Fodinae.Assets.Scripts.Player
         [SerializeField] private InputActionReference _moveActionReference;
 
         private Vector2 _moveInput;
+        private bool _isMoving = false;
 
         private void OnEnable()
         {
@@ -46,6 +47,25 @@ namespace Fodinae.Assets.Scripts.Player
                 rb.freezeRotation = true;
             }
             _robot = GetComponent<Robot>();
+            if (_robot != null)
+            {
+                _robot.MoveSpeed = _moveSpeed;
+            }
+        }
+
+        private void Start()
+        {
+            // Align to grid center on start
+            Vector3 targetGridPos = new Vector3(
+                Mathf.Floor(transform.position.x) + 0.5f,
+                Mathf.Floor(transform.position.y) + 0.5f,
+                transform.position.z
+            );
+            transform.position = targetGridPos;
+            if (_robot != null)
+            {
+                _robot.TargetPosition = targetGridPos;
+            }
         }
 
         private void Update()
@@ -84,39 +104,42 @@ namespace Fodinae.Assets.Scripts.Player
 
         private void ApplyMovement()
         {
-            if (_moveInput != Vector2.zero)
-            {
-                // Move the transform directly for testing
-                Vector3 movement = new Vector3(_moveInput.x, _moveInput.y, 0f) * (_moveSpeed * Time.deltaTime);
-                transform.position += movement;
+            if (_robot == null) return;
 
-                // Determine cardinal direction (0: Right, 90: Up, 180: Left, 270: Down)
-                if (_robot != null)
+            if (_isMoving)
+            {
+                if (Vector3.Distance(transform.position, _robot.TargetPosition) < 0.001f)
                 {
-                    if (Mathf.Abs(_moveInput.x) > Mathf.Abs(_moveInput.y))
-                    {
-                        _robot.TargetAngle = _moveInput.x > 0 ? 0f : 180f; // Right or Left
-                    }
-                    else
-                    {
-                        _robot.TargetAngle = _moveInput.y > 0 ? 90f : 270f; // Up or Down
-                    }
+                    _isMoving = false;
                 }
             }
 
-            // Align to grid if not moving (or always align to nearest center for simplicity now)
-            // But user asked "make the player align to the terrain grid"
-            // If we want it to snap, we could do it here.
-            // However, smooth movement usually doesn't snap every frame unless it's tile-based.
-            // Let's at least make sure it stays on the grid logically or snaps when close to zero input.
-            if (_moveInput == Vector2.zero)
+            if (!_isMoving)
             {
-                Vector3 targetPos = transform.position;
-                targetPos.x = Mathf.Floor(targetPos.x) + 0.5f;
-                targetPos.y = Mathf.Floor(targetPos.y) + 0.5f;
+                if (_moveInput != Vector2.zero)
+                {
+                    Vector2Int direction = Vector2Int.zero;
+                    if (Mathf.Abs(_moveInput.x) > Mathf.Abs(_moveInput.y))
+                    {
+                        direction.x = _moveInput.x > 0 ? 1 : -1;
+                    }
+                    else
+                    {
+                        direction.y = _moveInput.y > 0 ? 1 : -1;
+                    }
 
-                // Smoothly slide to the center of the cell
-                transform.position = Vector3.MoveTowards(transform.position, targetPos, _moveSpeed * Time.deltaTime);
+                    if (direction != Vector2Int.zero)
+                    {
+                        _robot.TargetPosition = transform.position + new Vector3(direction.x, direction.y, 0f);
+                        _isMoving = true;
+
+                        // Determine cardinal direction (0: Right, 90: Up, 180: Left, 270: Down)
+                        if (direction.x != 0)
+                            _robot.TargetAngle = direction.x > 0 ? 0f : 180f;
+                        else
+                            _robot.TargetAngle = direction.y > 0 ? 90f : 270f;
+                    }
+                }
             }
         }
 
