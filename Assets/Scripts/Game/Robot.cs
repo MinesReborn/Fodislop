@@ -14,11 +14,11 @@ namespace Fodinae.Assets.Scripts.Game
         [SerializeField] private string _nickname;
         [SerializeField] private string _skinPath;
         [SerializeField] private string _tailPath;
-        [SerializeField] private float _rotationSpeed = 720f;
+        [SerializeField] private float _rotationSpeed = 1080f;
 
         private bool _isMetadataLoaded = false;
         private CancellationTokenSource _cts;
-        private Quaternion _targetRotation = Quaternion.identity;
+        private float _targetAngle = 0f;
 
         public ushort BotId => _botId;
         public int PlayerId => _playerId;
@@ -38,7 +38,7 @@ namespace Fodinae.Assets.Scripts.Game
             {
                 LoadSkin();
             }
-            _targetRotation = transform.rotation;
+            _targetAngle = transform.eulerAngles.z;
 
             // Register this robot if it's the player (or has a pre-set botId)
             if (gameObject.CompareTag("Player"))
@@ -50,9 +50,11 @@ namespace Fodinae.Assets.Scripts.Game
 
         private void Update()
         {
-            if (transform.rotation != _targetRotation)
+            float currentAngle = transform.eulerAngles.z;
+            if (!Mathf.Approximately(currentAngle, _targetAngle))
             {
-                transform.rotation = Quaternion.RotateTowards(transform.rotation, _targetRotation, _rotationSpeed * Time.deltaTime);
+                float newAngle = Mathf.MoveTowardsAngle(currentAngle, _targetAngle, _rotationSpeed * Time.deltaTime);
+                transform.rotation = Quaternion.Euler(0, 0, newAngle);
             }
         }
 
@@ -104,7 +106,7 @@ namespace Fodinae.Assets.Scripts.Game
         public void SetRotation(byte rotation)
         {
             // 0: Right (0), 1: Up (90), 2: Left (180), 3: Down (270)
-            float angle = rotation switch
+            _targetAngle = rotation switch
             {
                 0 => 0f,
                 1 => 90f,
@@ -112,7 +114,6 @@ namespace Fodinae.Assets.Scripts.Game
                 3 => 270f,
                 _ => 0f
             };
-            _targetRotation = Quaternion.Euler(0, 0, angle);
         }
 
         private void LoadSkin()

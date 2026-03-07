@@ -12,9 +12,9 @@ namespace Fodinae.Assets.Scripts.Player
     {
         [Header("Movement Settings")]
         [SerializeField] private float _moveSpeed = 15f;
-        [SerializeField] private float _rotationSpeed = 720f;
+        [SerializeField] private float _rotationSpeed = 1080f;
         
-        private Quaternion _targetRotation = Quaternion.identity;
+        private float _targetAngle = 0f;
 
         [Header("Input Dependencies")]
         [Tooltip("Optional: Drag the Move action from the Input Action asset here. If empty, falls back to direct keyboard polling.")]
@@ -38,9 +38,18 @@ namespace Fodinae.Assets.Scripts.Player
             }
         }
 
+        private void Awake()
+        {
+            var rb = GetComponent<Rigidbody2D>();
+            if (rb != null)
+            {
+                rb.freezeRotation = true;
+            }
+        }
+
         private void Start()
         {
-            _targetRotation = transform.rotation;
+            _targetAngle = transform.eulerAngles.z;
         }
 
         private void Update()
@@ -86,22 +95,22 @@ namespace Fodinae.Assets.Scripts.Player
                 transform.position += movement;
 
                 // Determine cardinal direction (0: Right, 90: Up, 180: Left, 270: Down)
-                float angle;
                 if (Mathf.Abs(_moveInput.x) > Mathf.Abs(_moveInput.y))
                 {
-                    angle = _moveInput.x > 0 ? 0f : 180f; // Right or Left
+                    _targetAngle = _moveInput.x > 0 ? 0f : 180f; // Right or Left
                 }
                 else
                 {
-                    angle = _moveInput.y > 0 ? 90f : 270f; // Up or Down
+                    _targetAngle = _moveInput.y > 0 ? 90f : 270f; // Up or Down
                 }
-                _targetRotation = Quaternion.Euler(0, 0, angle);
             }
 
-            // Smoothly rotate towards the target rotation
-            if (transform.rotation != _targetRotation)
+            // Smoothly rotate towards the target angle
+            float currentAngle = transform.eulerAngles.z;
+            if (!Mathf.Approximately(currentAngle, _targetAngle))
             {
-                transform.rotation = Quaternion.RotateTowards(transform.rotation, _targetRotation, _rotationSpeed * Time.deltaTime);
+                float newAngle = Mathf.MoveTowardsAngle(currentAngle, _targetAngle, _rotationSpeed * Time.deltaTime);
+                transform.rotation = Quaternion.Euler(0, 0, newAngle);
             }
 
             // Align to grid if not moving (or always align to nearest center for simplicity now)
