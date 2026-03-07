@@ -107,7 +107,7 @@ namespace MinesServer.Networking.Connection.Client
                     OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { robotPos })));
 
                     // Send robot metadata after a delay to show loading state
-                    HandleRobotMetadataMock(mockBotId).Forget();
+                    HandleRobotInfoMock(mockBotId).Forget();
 
                     OnReceived?.Invoke(new ServerPacket(new AggressionStatePacket(false)));
                     OnReceived?.Invoke(new ServerPacket(new AutoMineStatePacket(false)));
@@ -552,10 +552,10 @@ namespace MinesServer.Networking.Connection.Client
             return map;
         }
 
-        private async UniTaskVoid HandleRobotMetadataMock(ushort botId)
+        private async UniTaskVoid HandleRobotInfoMock(ushort botId)
         {
             await UniTask.Delay(2000); // 2 second delay to see "loading" state
-            OnReceived?.Invoke(new ServerPacket(new RobotMetadataPacket(botId, "BeeBot", "skin/bee.png")));
+            OnReceived?.Invoke(new ServerPacket(new RobotInfoPacket(botId, 999, "skin/bee.png", "", "BeeBot")));
         }
 
         private async UniTaskVoid HandleAssetRequest(RuntimeAssetRequestPacket runtimeAssets)

@@ -20,17 +20,21 @@ namespace Fodinae.Assets.Scripts.Networking
         }
     }
 
-    public class RobotMetadataPacket : IServerPacketPayload
+    public class RobotInfoPacket : IServerPacketPayload
     {
         public ushort BotId { get; set; }
-        public string Nickname { get; set; }
-        public string SkinPath { get; set; }
+        public int PlayerId { get; set; }
+        public string Skin { get; set; }
+        public string Tail { get; set; }
+        public string Name { get; set; }
 
-        public RobotMetadataPacket(ushort botId, string nickname, string skinPath)
+        public RobotInfoPacket(ushort botId, int playerId, string skin, string tail, string name)
         {
             BotId = botId;
-            Nickname = nickname;
-            SkinPath = skinPath;
+            PlayerId = playerId;
+            Skin = skin;
+            Tail = tail;
+            Name = name;
         }
     }
 }

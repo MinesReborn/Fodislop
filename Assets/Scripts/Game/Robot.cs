@@ -8,14 +8,17 @@ namespace Fodinae.Assets.Scripts.Game
     public class Robot : MonoBehaviour
     {
         [SerializeField] private ushort _botId;
+        [SerializeField] private int _playerId;
         [SerializeField] private SpriteRenderer _spriteRenderer;
         [SerializeField] private string _nickname;
         [SerializeField] private string _skinPath;
+        [SerializeField] private string _tailPath;
 
         private bool _isMetadataLoaded = false;
         private CancellationTokenSource _cts;
 
         public ushort BotId => _botId;
+        public int PlayerId => _playerId;
         public string Nickname => _nickname;
         public bool IsMetadataLoaded => _isMetadataLoaded;
 
@@ -46,10 +49,12 @@ namespace Fodinae.Assets.Scripts.Game
             }
         }
 
-        public void SetMetadata(string nickname, string skinPath)
+        public void SetMetadata(int playerId, string nickname, string skinPath, string tailPath)
         {
+            _playerId = playerId;
             _nickname = nickname;
             _skinPath = skinPath;
+            _tailPath = tailPath;
             _isMetadataLoaded = true;
 
             if (_spriteRenderer != null)

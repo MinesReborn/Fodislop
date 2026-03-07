@@ -100,9 +100,9 @@ namespace Fodinae.Assets.Scripts.Networking
             {
                 HandleHBPacket(hbPacket);
             }
-            else if (packet.Payload is RobotMetadataPacket robotMetadataPacket)
+            else if (packet.Payload is RobotInfoPacket robotInfoPacket)
             {
-                HandleRobotMetadataPacket(robotMetadataPacket);
+                HandleRobotInfoPacket(robotInfoPacket);
             }
             else if (packet.Payload is OpenWindowPacket openWindowPacket)
             {
@@ -175,10 +175,10 @@ namespace Fodinae.Assets.Scripts.Networking
             }
         }
 
-        private void HandleRobotMetadataPacket(RobotMetadataPacket packet)
+        private void HandleRobotInfoPacket(RobotInfoPacket packet)
         {
-            Debug.Log($"[PacketHandler] Handling RobotMetadataPacket for BotId: {packet.BotId}, Nickname: {packet.Nickname}");
-            RobotManager.Instance.UpdateRobotMetadata(packet.BotId, packet.Nickname, packet.SkinPath);
+            Debug.Log($"[PacketHandler] Handling RobotInfoPacket for BotId: {packet.BotId}, Name: {packet.Name}");
+            RobotManager.Instance.UpdateRobotMetadata(packet.BotId, packet.PlayerId, packet.Name, packet.Skin, packet.Tail);
         }
 
         private void HandleHBPacket(HBPacket hbPacket)
