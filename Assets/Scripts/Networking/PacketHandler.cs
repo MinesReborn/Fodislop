@@ -189,7 +189,7 @@ namespace Fodinae.Assets.Scripts.Networking
 
         private void HandlePlayerInfoPacket(PlayerInfoPacket packet)
         {
-            Debug.Log($"[PacketHandler] Handling PlayerInfoPacket for BotId: {packet.BotId}, PlayerId: {packet.PlayerId}, Name: {packet.Name}");
+            Debug.Log($"[PacketHandler] Handling PlayerInfoPacket for BotId: {packet.BotId}, PlayerId: {packet.PlayerId}, Name: {packet.Nickname}");
             RobotManager.Instance.LocalPlayerBotId = packet.BotId;
 
             var playerObj = GameObject.FindGameObjectWithTag("Player");

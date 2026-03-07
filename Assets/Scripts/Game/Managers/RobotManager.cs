@@ -25,8 +25,8 @@ namespace Fodinae.Assets.Scripts.Game.Managers
         }
 
         [SerializeField] private GameObject _robotPrefab;
-        private Dictionary<ushort, Robot> _robots = new();
-        public ushort LocalPlayerBotId { get; set; }
+        private Dictionary<uint, Robot> _robots = new();
+        public uint LocalPlayerBotId { get; set; }
 
         private void Awake()
         {
@@ -45,7 +45,7 @@ namespace Fodinae.Assets.Scripts.Game.Managers
             _robots[robot.BotId] = robot;
         }
 
-        public Robot GetOrCreateRobot(ushort botId)
+        public Robot GetOrCreateRobot(uint botId)
         {
             if (_robots.TryGetValue(botId, out var robot))
             {
@@ -91,20 +91,20 @@ namespace Fodinae.Assets.Scripts.Game.Managers
             return robot;
         }
 
-        public void UpdateRobotPosition(ushort botId, ushort x, ushort y, byte rotation)
+        public void UpdateRobotPosition(uint botId, ushort x, ushort y, byte rotation)
         {
             var robot = GetOrCreateRobot(botId);
             robot.SetPosition(x, y);
             robot.SetRotation(rotation);
         }
 
-        public void UpdateRobotMetadata(ushort botId, int playerId, string nickname, string skinPath, string tailPath)
+        public void UpdateRobotMetadata(uint botId, int playerId, string nickname, string skinPath, string tailPath)
         {
             var robot = GetOrCreateRobot(botId);
             robot.SetMetadata(playerId, nickname, skinPath, tailPath);
         }
 
-        public void RemoveRobot(ushort botId)
+        public void RemoveRobot(uint botId)
         {
             if (_robots.TryGetValue(botId, out var robot))
             {

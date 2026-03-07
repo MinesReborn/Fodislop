@@ -8,7 +8,7 @@ namespace Fodinae.Assets.Scripts.Game
 {
     public class Robot : MonoBehaviour
     {
-        [SerializeField] private ushort _botId;
+        [SerializeField] private uint _botId;
         [SerializeField] private int _playerId;
         [SerializeField] private SpriteRenderer _spriteRenderer;
         [SerializeField] private string _nickname;
@@ -24,7 +24,7 @@ namespace Fodinae.Assets.Scripts.Game
         private Vector3 _targetPosition;
         [SerializeField] private float _moveSpeed = 15f;
 
-        public ushort BotId => _botId;
+        public uint BotId => _botId;
         public int PlayerId => _playerId;
         public string Nickname => _nickname;
         public bool IsMetadataLoaded => _isMetadataLoaded;
@@ -99,7 +99,7 @@ namespace Fodinae.Assets.Scripts.Game
             }
         }
 
-        public void Initialize(ushort botId)
+        public void Initialize(uint botId)
         {
             _botId = botId;
             RobotManager.Instance.RegisterRobot(this);
