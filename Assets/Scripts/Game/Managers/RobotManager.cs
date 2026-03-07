@@ -25,7 +25,8 @@ namespace Fodinae.Assets.Scripts.Game.Managers
         }
 
         [SerializeField] private GameObject _robotPrefab;
-        private Dictionary<ushort, Robot> _robots = new();
+        private Dictionary<uint, Robot> _robots = new();
+        public uint LocalPlayerBotId { get; set; }
 
         private void Awake()
         {
@@ -44,11 +45,27 @@ namespace Fodinae.Assets.Scripts.Game.Managers
             _robots[robot.BotId] = robot;
         }
 
-        public Robot GetOrCreateRobot(ushort botId)
+        public Robot GetOrCreateRobot(uint botId)
         {
             if (_robots.TryGetValue(botId, out var robot))
             {
                 return robot;
+            }
+
+            // If this is the local player, try to find the existing robot in the scene
+            if (botId != 0 && botId == LocalPlayerBotId)
+            {
+                var playerObj = GameObject.FindGameObjectWithTag("Player");
+                if (playerObj != null)
+                {
+                    robot = playerObj.GetComponent<Robot>();
+                    if (robot != null)
+                    {
+                        robot.Initialize(botId);
+                        _robots[botId] = robot;
+                        return robot;
+                    }
+                }
             }
 
             GameObject robotGo;
@@ -74,20 +91,20 @@ namespace Fodinae.Assets.Scripts.Game.Managers
             return robot;
         }
 
-        public void UpdateRobotPosition(ushort botId, ushort x, ushort y, byte rotation)
+        public void UpdateRobotPosition(uint botId, ushort x, ushort y, byte rotation)
         {
             var robot = GetOrCreateRobot(botId);
             robot.SetPosition(x, y);
             robot.SetRotation(rotation);
         }
 
-        public void UpdateRobotMetadata(ushort botId, int playerId, string nickname, string skinPath, string tailPath)
+        public void UpdateRobotMetadata(uint botId, int playerId, string nickname, string skinPath, string tailPath)
         {
             var robot = GetOrCreateRobot(botId);
             robot.SetMetadata(playerId, nickname, skinPath, tailPath);
         }
 
-        public void RemoveRobot(ushort botId)
+        public void RemoveRobot(uint botId)
         {
             if (_robots.TryGetValue(botId, out var robot))
             {

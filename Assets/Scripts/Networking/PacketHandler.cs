@@ -1,10 +1,12 @@
 using Fodinae.Assets.Scripts.Game.Managers;
 using Fodinae.Assets.Scripts.Game;
 using Fodinae.Assets.Scripts.Networking.Connection;
+using Fodinae.Assets.Scripts.Player;
 using MinesServer.Networking.Server;
 using MinesServer.Networking.Server.Packets;
 using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.GUI;
+using MinesServer.Networking.Server.Packets.Information;
 using MinesServer.Networking.Server.Packets.World;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -104,6 +106,10 @@ namespace Fodinae.Assets.Scripts.Networking
             {
                 HandleRobotInfoPacket(robotInfoPacket);
             }
+            else if (packet.Payload is PlayerInfoPacket playerInfoPacket)
+            {
+                HandlePlayerInfoPacket(playerInfoPacket);
+            }
             else if (packet.Payload is OpenWindowPacket openWindowPacket)
             {
                 HandleOpenWindowPacket(openWindowPacket);
@@ -181,6 +187,28 @@ namespace Fodinae.Assets.Scripts.Networking
             RobotManager.Instance.UpdateRobotMetadata(packet.BotId, packet.PlayerId, packet.Name, packet.Skin, packet.Tail);
         }
 
+        private void HandlePlayerInfoPacket(PlayerInfoPacket packet)
+        {
+            Debug.Log($"[PacketHandler] Handling PlayerInfoPacket for BotId: {packet.BotId}, PlayerId: {packet.PlayerId}, Name: {packet.Nickname}");
+            RobotManager.Instance.LocalPlayerBotId = packet.BotId;
+
+            var playerObj = GameObject.FindGameObjectWithTag("Player");
+            if (playerObj != null)
+            {
+                var robot = playerObj.GetComponent<Robot>();
+                if (robot != null)
+                {
+                    robot.Initialize(packet.BotId);
+                }
+
+                var controller = playerObj.GetComponent<PlayerMovementController>();
+                if (controller != null)
+                {
+                    controller.Initialize(packet.BotId);
+                }
+            }
+        }
+
         private void HandleHBPacket(HBPacket hbPacket)
         {
             bool hasMapData = false;
@@ -192,6 +220,20 @@ namespace Fodinae.Assets.Scripts.Networking
                 {
                     Debug.Log($"[PacketHandler] Processing RobotPositionPacket for BotId: {robotPositionPacket.BotId}");
                     RobotManager.Instance.UpdateRobotPosition(robotPositionPacket.BotId, robotPositionPacket.X, robotPositionPacket.Y, robotPositionPacket.Rotation);
+
+                    // If this is the local player, update the server position in the movement controller
+                    if (robotPositionPacket.BotId != 0 && robotPositionPacket.BotId == RobotManager.Instance.LocalPlayerBotId)
+                    {
+                        var player = GameObject.FindGameObjectWithTag("Player");
+                        if (player != null)
+                        {
+                            var controller = player.GetComponent<PlayerMovementController>();
+                            if (controller != null)
+                            {
+                                controller.UpdateServerPosition(new Vector2Int(robotPositionPacket.X, robotPositionPacket.Y));
+                            }
+                        }
+                    }
                 }
                 else if (p is MapRegionPacket mapRegionPacket)
                 {

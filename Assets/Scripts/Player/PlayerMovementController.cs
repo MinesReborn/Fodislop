@@ -14,6 +14,10 @@ namespace Fodinae.Assets.Scripts.Player
         [Header("Movement Settings")]
         [SerializeField] private float _moveSpeed = 15f;
         
+        public uint BotId { get; private set; }
+        public Vector2Int ServerPosition { get; private set; }
+        public Vector2Int ClientPosition { get; private set; }
+
         private Robot _robot;
 
         [Header("Input Dependencies")]
@@ -72,6 +76,17 @@ namespace Fodinae.Assets.Scripts.Player
         {
             ReadInput();
             ApplyMovement();
+            ClientPosition = new Vector2Int(Mathf.FloorToInt(transform.position.x), Mathf.FloorToInt(transform.position.y));
+        }
+
+        public void Initialize(uint botId)
+        {
+            BotId = botId;
+        }
+
+        public void UpdateServerPosition(Vector2Int position)
+        {
+            ServerPosition = position;
         }
 
         private void ReadInput()
