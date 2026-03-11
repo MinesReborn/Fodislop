@@ -1,4 +1,5 @@
 using Fodinae.Assets.Scripts.Game;
+using Fodinae.Assets.Scripts.Game.Managers;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -145,9 +146,25 @@ namespace Fodinae.Assets.Scripts.Player
 
                     if (direction != Vector2Int.zero)
                     {
-                        _robot.TargetPosition = transform.position + new Vector3(direction.x, direction.y, 0f);
-                        _isMoving = true;
+                        // Check if the target cell is passable
+                        Vector2Int targetPos = new Vector2Int(
+                            Mathf.FloorToInt(transform.position.x + direction.x),
+                            Mathf.FloorToInt(transform.position.y + direction.y)
+                        );
 
+                        var cellType = MapStorage.Instance.GetCell(targetPos.x, targetPos.y);
+                        var cellConfig = MapManager.Instance.GetCellConfig(cellType);
+
+                        // Bit 0: Passable (1: Passable, 0: Impassable)
+                        bool isPassable = (cellConfig.Properties & 1) != 0;
+
+                        if (isPassable)
+                        {
+                            _robot.TargetPosition = transform.position + new Vector3(direction.x, direction.y, 0f);
+                            _isMoving = true;
+                        }
+
+                        // Always update orientation even if blocked
                         // Determine cardinal direction (0: Right, 90: Up, 180: Left, 270: Down)
                         if (direction.x != 0)
                             _robot.TargetAngle = direction.x > 0 ? 0f : 180f;

@@ -68,7 +68,6 @@ namespace Fodinae.Assets.Scripts
             _errorTexture.name = "Error_Texture";
 
             ConnectionManager.Instance.OnPacketReceived += OnPacketReceived;
-            ConnectionManager.Instance.Connect();
         }
 
         private void OnPacketReceived(ServerPacket obj)

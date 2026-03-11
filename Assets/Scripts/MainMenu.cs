@@ -36,6 +36,10 @@ public class MainMenu : MonoBehaviour
 
     private void OnPlayButtonClicked()
     {
+        if (ConnectionManager.Instance.Connection == null || ConnectionManager.Instance.Connection.ConnectionStatus == MinesServer.Networking.Shared.ConnectionStatus.Disconnected)
+        {
+            ConnectionManager.Instance.Connect();
+        }
         SendPacket(new OpenHelpClickPacket());
         // Optionally, hide the main menu after clicking play
         _mainMenuContainer.style.display = DisplayStyle.None;
@@ -43,6 +47,10 @@ public class MainMenu : MonoBehaviour
 
     private void OnPlayComplexButtonClicked()
     {
+        if (ConnectionManager.Instance.Connection == null || ConnectionManager.Instance.Connection.ConnectionStatus == MinesServer.Networking.Shared.ConnectionStatus.Disconnected)
+        {
+            ConnectionManager.Instance.Connect();
+        }
         SendPacket(new OpenSettingsClickPacket());
         // Optionally, hide the main menu after clicking play
         _mainMenuContainer.style.display = DisplayStyle.None;
