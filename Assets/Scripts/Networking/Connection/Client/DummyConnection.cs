@@ -337,7 +337,7 @@ namespace MinesServer.Networking.Connection.Client
                     AnimationSpeed = 0,
                     Color = unchecked((int)0xFF808080), // Default gray
                     FrameOffset = 0,
-                    Properties = 0
+                    Properties = CellConfigProperties.None
                 };
             }
 
@@ -348,7 +348,7 @@ namespace MinesServer.Networking.Connection.Client
                 AnimationSpeed = 0,
                 Color = unchecked((int)0xFF808080), // Gray
                 FrameOffset = 22,
-                Properties = (byte)CellConfigProperties.Passable
+                Properties = CellConfigProperties.Passable
             };
 
             configs[(int)CellType.Road] = new CellConfigurationPacket
@@ -357,7 +357,7 @@ namespace MinesServer.Networking.Connection.Client
                 AnimationSpeed = 0,
                 Color = unchecked((int)0xFFCCCCCC), // Light gray
                 FrameOffset = 0,
-                Properties = (byte)CellConfigProperties.Passable
+                Properties = CellConfigProperties.Passable
             };
 
             configs[(int)CellType.Boulder1] = new CellConfigurationPacket
@@ -366,7 +366,7 @@ namespace MinesServer.Networking.Connection.Client
                 AnimationSpeed = 0,
                 Color = unchecked((int)0xFF000000), // Black
                 FrameOffset = 0,
-                Properties = (byte)CellConfigProperties.None
+                Properties = CellConfigProperties.None
             };
 
             configs[(int)CellType.WhiteSand] = new CellConfigurationPacket
@@ -375,7 +375,7 @@ namespace MinesServer.Networking.Connection.Client
                 AnimationSpeed = 0,
                 Color = unchecked((int)0xFFFFFF00), // Yellow
                 FrameOffset = 0,
-                Properties = (byte)CellConfigProperties.Passable
+                Properties = CellConfigProperties.Passable
             };
 
             configs[(int)CellType.DarkWhiteSand] = new CellConfigurationPacket
@@ -384,7 +384,7 @@ namespace MinesServer.Networking.Connection.Client
                 AnimationSpeed = 0,
                 Color = unchecked((int)0xFFCCCC00), // Dark yellow
                 FrameOffset = 0,
-                Properties = (byte)CellConfigProperties.Passable
+                Properties = CellConfigProperties.Passable
             };
 
             configs[(int)CellType.GrayAcid] = new CellConfigurationPacket
@@ -393,7 +393,7 @@ namespace MinesServer.Networking.Connection.Client
                 AnimationSpeed = 0,
                 Color = unchecked((int)0xFF00FF00), // Green
                 FrameOffset = 0,
-                Properties = 0
+                Properties = CellConfigProperties.None
             };
 
             configs[(int)CellType.PurpleAcid] = new CellConfigurationPacket
@@ -402,7 +402,7 @@ namespace MinesServer.Networking.Connection.Client
                 AnimationSpeed = 0,
                 Color = unchecked((int)0xFF800080), // Purple
                 FrameOffset = 0,
-                Properties = 0
+                Properties = CellConfigProperties.None
             };
 
             configs[(int)CellType.Lava] = new CellConfigurationPacket
@@ -411,7 +411,7 @@ namespace MinesServer.Networking.Connection.Client
                 AnimationSpeed = 0,
                 Color = unchecked((int)0xFFFF4500), // OrangeRed
                 FrameOffset = 0,
-                Properties = 0
+                Properties = CellConfigProperties.None
             };
 
             return configs;
