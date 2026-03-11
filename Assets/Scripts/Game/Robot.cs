@@ -53,7 +53,7 @@ namespace Fodinae.Assets.Scripts.Game
             if (_spriteRenderer == null)
                 _spriteRenderer = GetComponent<SpriteRenderer>();
 
-            transform.localScale = new Vector3(0.5f, 0.5f, 1f);
+            transform.localScale = Vector3.one;
 
             var rb = GetComponent<Rigidbody2D>();
             if (rb != null)
@@ -165,7 +165,8 @@ namespace Fodinae.Assets.Scripts.Game
 
             if (_spriteRenderer != null)
             {
-                var sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f), 16f);
+                // Create sprite with center pivot and PPU matching texture width to occupy exactly 1x1 units
+                var sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f), texture.width);
                 _spriteRenderer.sprite = sprite;
             }
         }
