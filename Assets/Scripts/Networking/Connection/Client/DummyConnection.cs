@@ -1,8 +1,10 @@
 using Cysharp.Threading.Tasks;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets;
+using MinesServer.Networking.Client.Packets.Actions;
 using MinesServer.Networking.Client.Packets.Connection;
 using MinesServer.Networking.Client.Packets.GUI;
+using MinesServer.Networking.Client.Packets.Movement;
 using MinesServer.Networking.Client.Packets.Utilities;
 using MinesServer.Networking.Server.Packets;
 using MinesServer.Networking.Server.Packets.Connection;
@@ -18,6 +20,7 @@ using MinesServer.Networking.Shared;
 using MinesServer.Networking.Shared.Packets;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace MinesServer.Networking.Connection.Client
@@ -146,7 +149,7 @@ namespace MinesServer.Networking.Connection.Client
         public void SendMockWindow(bool comprehensive)
         {
             var windowPacket = comprehensive ? CreateComprehensiveMockWindow() : CreateMockWindow();
-            OnReceived?.Invoke(new ServerPacket(windowPacket));
+            //OnReceived?.Invoke(new ServerPacket(windowPacket));
         }
 
         private OpenWindowPacket CreateMockWindow()
@@ -579,7 +582,6 @@ namespace MinesServer.Networking.Connection.Client
             float radius = 3.0f;
 
             // Send initial info
-            OnReceived?.Invoke(new ServerPacket(new PlayerInfoPacket(1000, botId, "CircularBot")));
             OnReceived?.Invoke(new ServerPacket(new RobotInfoPacket(botId, 1000, "skin/bee.png", "", "CircularBot")));
 
             while (_status == ConnectionStatus.Connected)
