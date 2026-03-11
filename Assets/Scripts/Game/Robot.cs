@@ -137,13 +137,13 @@ namespace Fodinae.Assets.Scripts.Game
 
         public void SetRotation(byte rotation)
         {
-            // 0: Right (0), 1: Up (90), 2: Left (180), 3: Down (270)
+            // 0: Down (270), 1: Left (180), 2: Up (90), 3: Right (0)
             TargetAngle = rotation switch
             {
-                0 => 0f,
-                1 => 90f,
-                2 => 180f,
-                3 => 270f,
+                0 => 270f,
+                1 => 180f,
+                2 => 90f,
+                3 => 0f,
                 _ => 0f
             };
         }

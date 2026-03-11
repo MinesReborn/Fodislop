@@ -1,5 +1,9 @@
 using Fodinae.Assets.Scripts.Game;
 using Fodinae.Assets.Scripts.Game.Managers;
+using Fodinae.Assets.Scripts.Networking.Connection;
+using MinesServer.Data;
+using MinesServer.Networking.Client.Packets.Actions;
+using MinesServer.Networking.Client.Packets.Movement;
 using MinesServer.Networking.Server.Packets.Connection;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -28,6 +32,7 @@ namespace Fodinae.Assets.Scripts.Player
 
         private Vector2 _moveInput;
         private bool _isMoving = false;
+        private Direction? _lastSentDirection;
 
         private void OnEnable()
         {
@@ -147,6 +152,22 @@ namespace Fodinae.Assets.Scripts.Player
 
                     if (direction != Vector2Int.zero)
                     {
+                        Direction packetDirection = direction.x switch
+                        {
+                            1 => Direction.Right,
+                            -1 => Direction.Left,
+                            _ => direction.y > 0 ? Direction.Up : Direction.Down
+                        };
+
+                        ushort currentX = (ushort)Mathf.FloorToInt(transform.position.x);
+                        ushort currentY = (ushort)Mathf.FloorToInt(transform.position.y);
+
+                        if (_lastSentDirection != packetDirection)
+                        {
+                            ConnectionManager.Instance.SendPacket(new ActionClientPacket(currentX, currentY, new RotatePacket(packetDirection)));
+                            _lastSentDirection = packetDirection;
+                        }
+
                         // Check if the target cell is passable
                         Vector2Int targetPos = new Vector2Int(
                             Mathf.FloorToInt(transform.position.x + direction.x),
@@ -163,6 +184,7 @@ namespace Fodinae.Assets.Scripts.Player
                         {
                             _robot.TargetPosition = transform.position + new Vector3(direction.x, direction.y, 0f);
                             _isMoving = true;
+                            ConnectionManager.Instance.SendPacket(new ActionClientPacket(currentX, currentY, new MovePacket((ushort)targetPos.x, (ushort)targetPos.y)));
                         }
 
                         // Always update orientation even if blocked

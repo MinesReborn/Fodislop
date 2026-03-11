@@ -77,6 +77,15 @@ namespace MinesServer.Networking.Connection.Client
 
         public void SendAsync(ClientPacket packet)
         {
+            if (packet.Data is ActionClientPacket actionPacket)
+            {
+                Debug.Log($"[DummyConnection] Received ActionClientPacket: X={actionPacket.X}, Y={actionPacket.Y}, Payload={actionPacket.Payload.GetType().Name}");
+                if (actionPacket.Payload is MovePacket move)
+                    Debug.Log($"  - Move to ({move.X}, {move.Y})");
+                else if (actionPacket.Payload is RotatePacket rotate)
+                    Debug.Log($"  - Rotate to {rotate.Direction}");
+            }
+
             switch (packet.Data)
             {
                 case ClientHelloPacket clientHello:
@@ -577,7 +586,16 @@ namespace MinesServer.Networking.Connection.Client
             {
                 int x = centerX + Mathf.RoundToInt(Mathf.Cos(angle) * radius);
                 int y = centerY + Mathf.RoundToInt(Mathf.Sin(angle) * radius);
-                byte rotation = (byte)((Mathf.Atan2(Mathf.Sin(angle), Mathf.Cos(angle)) * Mathf.Rad2Deg + 360) % 360 / 90);
+                float angleDeg = (Mathf.Atan2(Mathf.Sin(angle), Mathf.Cos(angle)) * Mathf.Rad2Deg + 360) % 360;
+
+                // 0: Down (270), 1: Left (180), 2: Up (90), 3: Right (0)
+                byte rotation = angleDeg switch
+                {
+                    > 225 and <= 315 => 0, // Down
+                    > 135 and <= 225 => 1, // Left
+                    > 45 and <= 135 => 2,  // Up
+                    _ => 3                 // Right
+                };
 
                 var robotPos = new RobotPositionPacket(botId, (ushort)x, (ushort)y, rotation);
                 OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { robotPos })));

@@ -68,6 +68,11 @@ namespace Fodinae.Assets.Scripts.Networking.Connection
             SendAsync(new ClientHelloPacket(0, "Windows", 10, "fingerprint", "token"));
         }
 
+        public void SendPacket(IRootClientPacket packet)
+        {
+            SendAsync(packet);
+        }
+
         private void SendAsync(IRootClientPacket packet)
         {
             Connection.SendAsync(new ClientPacket((uint)DateTimeOffset.UtcNow.Ticks, packet));
