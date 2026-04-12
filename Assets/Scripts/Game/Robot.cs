@@ -53,7 +53,8 @@ namespace Fodinae.Assets.Scripts.Game
             if (_spriteRenderer == null)
                 _spriteRenderer = GetComponent<SpriteRenderer>();
 
-            transform.localScale = Vector3.one;
+            transform.localScale = new Vector3(0.5f, 0.5f, 1f);
+            _targetPosition = transform.position;
 
             var rb = GetComponent<Rigidbody2D>();
             if (rb != null)
@@ -64,13 +65,21 @@ namespace Fodinae.Assets.Scripts.Game
 
         private void Start()
         {
+            // Snap to grid center on start to prevent misalignment
+            Vector3 snappedPos = new Vector3(
+                Mathf.Floor(transform.position.x) + 0.5f,
+                Mathf.Floor(transform.position.y) + 0.5f,
+                transform.position.z
+            );
+            transform.position = snappedPos;
+            _targetPosition = snappedPos;
+
             // If pre-configured (like in Player prefab), load skin immediately
             if (!string.IsNullOrEmpty(_skinPath))
             {
                 LoadSkin();
             }
             _targetAngle = transform.eulerAngles.z;
-            _targetPosition = transform.position;
 
             // Register this robot if it's the player (or has a pre-set botId)
             if (gameObject.CompareTag("Player"))

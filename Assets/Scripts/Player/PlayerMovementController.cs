@@ -203,7 +203,8 @@ namespace Fodinae.Assets.Scripts.Player
                         if (isPassable)
                         {
                             // Movement animation in Unity (Y is positive going up)
-                            _robot.TargetPosition = transform.position + new Vector3(direction.x, direction.y, 0f);
+                            // Use absolute grid coordinates to ensure alignment
+                            _robot.TargetPosition = new Vector3(targetUnityX + 0.5f, targetUnityY + 0.5f, transform.position.z);
                             _isMoving = true;
                             ConnectionManager.Instance.SendPacket(new ActionClientPacket(currentX, currentServerY, new MovePacket(targetServerX, targetServerY)));
                         }
