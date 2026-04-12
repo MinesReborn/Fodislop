@@ -256,8 +256,7 @@ namespace Fodinae.Assets.Scripts.Game.Managers
             }
 
             // Frame height is defined in tiles, each tile is 16x16 pixels
-            // Properties field contains the frame height in tiles
-            return (int)config.Properties * 16;
+            return (int)config.FrameOffset * 16;
         }
 
         /// <summary>

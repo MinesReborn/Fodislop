@@ -69,8 +69,8 @@ public static class PersistentAssetCache
         }
     }
 
-    private static string GetAssetPath(string filename) => Path.Combine(_cachePath, filename);
-    private static string GetETagPath(string filename) => Path.Combine(_cachePath, filename + ".etag");
+    private static string GetAssetPath(string filename) => Path.Combine(_cachePath, filename.TrimStart('/'));
+    private static string GetETagPath(string filename) => Path.Combine(_cachePath, filename.TrimStart('/') + ".etag");
 
     public static byte[] GetAsset(string filename)
     {

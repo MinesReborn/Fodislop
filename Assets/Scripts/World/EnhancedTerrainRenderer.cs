@@ -281,8 +281,22 @@ namespace Fodinae.Assets.Scripts.World
 
         private async UniTask<Texture2D> GetAtlasTextureForCoordinate(AtlasCoordinate coord)
         {
-            // For now, return null - this would need to be implemented
-            // based on how you determine which atlas contains this coordinate
+            // The coordinate doesn't store a reference to the atlas texture,
+            // but WorldTextureManager can find it.
+            // We need to find which atlas contains the cell type that produced this coordinate.
+            // This is a bit inefficient, but without a CellType in AtlasCoordinate, it's necessary.
+
+            // Actually, we can just iterate through all atlases in WorldTextureManager
+            var atlases = WorldTextureManager.Instance.GetAllAtlases();
+            foreach (var atlas in atlases)
+            {
+                // AtlasCoordinate contains AtlasWidth and AtlasHeight which should match the texture
+                var texture = await atlas.GetAtlasTexture();
+                if (texture != null && texture.width == coord.AtlasWidth && texture.height == coord.AtlasHeight)
+                {
+                    return texture;
+                }
+            }
             return null;
         }
 
@@ -367,7 +381,19 @@ namespace Fodinae.Assets.Scripts.World
                     atlasTriangles[atlasIndex].Add(triIndex3 + vertexOffset);
                 }
 
-                // Add UVs
+                // Add UVs (Update for animations)
+                for (int i = 0; i < chunkMesh.Cells.Count; i++)
+                {
+                    var cell = chunkMesh.Cells[i];
+                    if (MapManager.Instance.HasAnimation(cell.CellType))
+                    {
+                        var coord = WorldTextureManager.Instance.GetCellTextureCoordinateSync(cell.CellType, cell.WorldPosition.x, cell.WorldPosition.y);
+                        if (coord != AtlasCoordinate.Empty)
+                        {
+                            UpdateCellUVs(chunkMesh, cell.VertexStartIndex, coord);
+                        }
+                    }
+                }
                 combinedUVs.AddRange(chunkMesh.UVs);
 
                 // Add atlas indices

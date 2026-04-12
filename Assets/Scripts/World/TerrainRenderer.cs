@@ -334,7 +334,19 @@ namespace Fodinae.Assets.Scripts.World
                     combinedTriangles.Add(triangle + vertexOffset);
                 }
 
-                // Add UVs
+                // Add UVs (Update for animations)
+                for (int i = 0; i < chunkMesh.Cells.Count; i++)
+                {
+                    var cell = chunkMesh.Cells[i];
+                    if (MapManager.Instance.HasAnimation(cell.CellType))
+                    {
+                        var coord = WorldTextureManager.Instance.GetCellTextureCoordinateSync(cell.CellType, cell.WorldPosition.x, cell.WorldPosition.y);
+                        if (coord != AtlasCoordinate.Empty)
+                        {
+                            UpdateCellUVs(chunkMesh, cell.VertexStartIndex, coord);
+                        }
+                    }
+                }
                 combinedUVs.AddRange(chunkMesh.UVs);
 
                 // Add atlas indices
@@ -363,20 +375,21 @@ namespace Fodinae.Assets.Scripts.World
 
             if (atlases.Any())
             {
+                // In single-material mode, we only support the first atlas
                 var mainAtlas = atlases.First();
                 var atlasTexture = await mainAtlas.GetAtlasTexture();
 
                 if (atlasTexture != null)
                 {
-                    if (_meshRenderer.material == null || _meshRenderer.material.shader.name != "Universal Render Pipeline/Unlit")
+                    if (_meshRenderer.sharedMaterial == null || _meshRenderer.sharedMaterial.shader.name != "Universal Render Pipeline/Unlit")
                     {
                         // Use Unlit shader for terrain cells to avoid lighting issues
                         _meshRenderer.material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
                     }
 
-                    _meshRenderer.material.SetTexture("_BaseMap", atlasTexture);
-                    _meshRenderer.material.mainTextureScale = Vector2.one;
-                    _meshRenderer.material.mainTextureOffset = Vector2.zero;
+                    _meshRenderer.sharedMaterial.SetTexture("_BaseMap", atlasTexture);
+                    _meshRenderer.sharedMaterial.mainTextureScale = Vector2.one;
+                    _meshRenderer.sharedMaterial.mainTextureOffset = Vector2.zero;
                 }
             }
         }
