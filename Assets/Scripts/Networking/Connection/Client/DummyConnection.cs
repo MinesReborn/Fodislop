@@ -402,7 +402,7 @@ namespace MinesServer.Networking.Connection.Client
             configs[(int)CellType.GrayAcid] = new CellConfigurationPacket
             {
                 Animation = CellAnimationType.None,
-                AnimationSpeed = 100,
+                AnimationSpeed = 10,
                 Color = unchecked((int)0xFF00FF00), // Green
                 FrameOffset = 1,
                 Properties = CellConfigProperties.None
@@ -411,7 +411,7 @@ namespace MinesServer.Networking.Connection.Client
             configs[(int)CellType.PurpleAcid] = new CellConfigurationPacket
             {
                 Animation = CellAnimationType.None,
-                AnimationSpeed = 100,
+                AnimationSpeed = 10,
                 Color = unchecked((int)0xFF800080), // Purple
                 FrameOffset = 1,
                 Properties = CellConfigProperties.None
@@ -420,7 +420,7 @@ namespace MinesServer.Networking.Connection.Client
             configs[(int)CellType.Lava] = new CellConfigurationPacket
             {
                 Animation = CellAnimationType.None,
-                AnimationSpeed = 100,
+                AnimationSpeed = 10,
                 Color = unchecked((int)0xFFFF4500), // OrangeRed
                 FrameOffset = 1,
                 Properties = CellConfigProperties.None
