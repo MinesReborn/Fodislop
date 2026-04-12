@@ -99,6 +99,8 @@ namespace Fodinae.Assets.Scripts.World
                 return AtlasCoordinate.Empty;
             }
 
+            // Optimization: If it's Empty and not yet in cache, it might be about to be loaded
+            // But we should try to return something if possible.
             if (_textureCache.TryGetTexture(cellType, out var textureInfo))
             {
                 var variation = CalculateVariation(textureInfo, globalX, globalY);
@@ -199,6 +201,7 @@ namespace Fodinae.Assets.Scripts.World
 
             if (texture != null)
             {
+                if (cellType == CellType.Empty) Debug.Log($"[WorldTextureManager] Successfully loaded texture for Empty cell (32.png)");
                 await AddTextureToAtlas(cellType, texture);
             }
             else
@@ -253,7 +256,7 @@ namespace Fodinae.Assets.Scripts.World
             _textureCache.AddTexture(cellType, textureInfo);
 
             await _currentAtlas.UpdateAtlasTexture();
-            OnTextureLoaded?.Invoke($"/cells/{(int)cellType}.png", texture);
+            OnTextureLoaded?.Invoke($"cells/{(int)cellType}.png", texture);
         }
 
         private CellVariation CalculateVariation(CellTextureInfo textureInfo, int globalX, int globalY)

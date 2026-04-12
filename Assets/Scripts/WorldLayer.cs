@@ -74,6 +74,7 @@ public class WorldLayer<T> : IDisposable
                 int w = reader.ReadInt32();
                 int h = reader.ReadInt32();
                 int s = reader.ReadInt32();
+                int r = reader.ReadInt32(); // Read Reserved to align with offset table
 
                 // Read Offset Table
                 // We read the entire table into RAM (approx 28MB for 60k^2 map).
