@@ -111,7 +111,7 @@ namespace Fodinae.Assets.Scripts.World
                     byte speed = MapManager.Instance.GetAnimationSpeed(cellType);
                     if (speed == 0) speed = 5; // Default speed if not provided
 
-                    frameIndex = (int)(Time.time * speed) % textureInfo.AnimationFrames;
+                    frameIndex = (int)(Time.realtimeSinceStartup * speed) % textureInfo.AnimationFrames;
                     frameHeight = MapManager.Instance.GetAnimationFrameHeight(cellType);
                 }
 

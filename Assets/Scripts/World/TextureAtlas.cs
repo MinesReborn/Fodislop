@@ -113,20 +113,17 @@ namespace Fodinae.Assets.Scripts.World
 
             // Calculate wrapped position within the SUB-ATLAS (or frame)
             int wrappedX = ((globalX % tilesPerRow) + tilesPerRow) % tilesPerRow;
-            int wrappedY = ((globalY % tilesPerColumn) + tilesPerColumn) % tilesPerColumn;
+            // Invert Y wrapping for bottom-to-top texture sampling with top-to-bottom server coords
+            int wrappedY = (tilesPerColumn - 1) - (((globalY % tilesPerColumn) + tilesPerColumn) % tilesPerColumn);
 
             // Calculate the absolute atlas position by adding the sub-atlas base position
             int atlasX = subAtlasX + (wrappedX * terrainTileSize);
             // Add frame offset: subAtlasY + wrapped cell offset + current frame offset
             int atlasY = subAtlasY + (wrappedY * terrainTileSize) + (frameIndex * (frameHeightPixels > 0 ? frameHeightPixels : 0));
 
-            // Apply variation offset if needed (using 8-pixel offsets inside the 16x16 tile)
-            int variationX = variation.Horizontal ? terrainTileSize / 2 : 0;
-            int variationY = variation.Vertical ? terrainTileSize / 2 : 0;
-
             return new AtlasCoordinate(
-                atlasX + variationX,
-                atlasY + variationY,
+                atlasX,
+                atlasY,
                 terrainTileSize,  // We only want to render one 16x16 tile
                 terrainTileSize,
                 Size,             // Full atlas width
