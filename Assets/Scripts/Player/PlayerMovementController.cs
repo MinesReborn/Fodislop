@@ -160,12 +160,15 @@ namespace Fodinae.Assets.Scripts.Player
                             _ => direction.y > 0 ? Direction.Up : Direction.Down
                         };
 
-                        ushort currentX = (ushort)Mathf.Clamp(Mathf.FloorToInt(transform.position.x), 0, ushort.MaxValue);
-                        ushort currentY = (ushort)Mathf.Clamp(Mathf.FloorToInt(transform.position.y), 0, ushort.MaxValue);
+                        int currentUnityX = Mathf.FloorToInt(transform.position.x);
+                        int currentUnityY = Mathf.FloorToInt(transform.position.y);
+
+                        ushort currentX = (ushort)Mathf.Clamp(currentUnityX, 0, ushort.MaxValue);
+                        ushort currentServerY = (ushort)Mathf.Clamp(MapManager.Instance.WorldHeight - 1 - currentUnityY, 0, ushort.MaxValue);
 
                         if (_lastSentDirection != packetDirection)
                         {
-                            ConnectionManager.Instance.SendPacket(new ActionClientPacket(currentX, currentY, new RotatePacket(packetDirection)));
+                            ConnectionManager.Instance.SendPacket(new ActionClientPacket(currentX, currentServerY, new RotatePacket(packetDirection)));
                             _lastSentDirection = packetDirection;
                         }
                         
@@ -173,27 +176,26 @@ namespace Fodinae.Assets.Scripts.Player
                         // Data Y usually increases downwards (0 at top).
                         // If the user says Y increases when going up, this is inverted relative to standard screen space.
                         // We will keep Y change relative to Unity transform (positive is up) and clamp against map dimensions.
-                        int targetX = currentX + direction.x;
-                        int targetY = currentY + direction.y; // Match Unity's movement
+                        int targetUnityX = currentUnityX + direction.x;
+                        int targetUnityY = currentUnityY + direction.y; // Match Unity's movement
 
                         // Fetch world bounds from MapStorage
                         var layer = MapStorage.Instance.cellLayer;
                         if (layer == null) return;
                         
-                        int mapWidth = layer.WidthChunks * layer.ChunkSize;
-                        int mapHeight = layer.HeightChunks * layer.ChunkSize;
+                        int mapWidth = MapManager.Instance.WorldWidth;
+                        int mapHeight = MapManager.Instance.WorldHeight;
 
                         // Strict boundary enforcement using clamping
-                        if (targetX < 0 || targetX >= mapWidth || targetY < 0 || targetY >= mapHeight)
+                        if (targetUnityX < 0 || targetUnityX >= mapWidth || targetUnityY < 0 || targetUnityY >= mapHeight)
                         {
                             return; 
                         }
 
+                        ushort targetServerX = (ushort)targetUnityX;
+                        ushort targetServerY = (ushort)(MapManager.Instance.WorldHeight - 1 - targetUnityY);
 
-                        ushort targetDataX = (ushort)targetX;
-                        ushort targetDataY = (ushort)targetY;
-
-                        var cellType = MapStorage.Instance.GetCell(targetDataX, targetDataY);
+                        var cellType = MapStorage.Instance.GetCell(targetServerX, targetServerY);
                         var cellConfig = MapManager.Instance.GetCellConfig(cellType);
 
                         bool isPassable = ((CellConfigProperties)cellConfig.Properties).HasFlag(CellConfigProperties.Passable);
@@ -203,7 +205,7 @@ namespace Fodinae.Assets.Scripts.Player
                             // Movement animation in Unity (Y is positive going up)
                             _robot.TargetPosition = transform.position + new Vector3(direction.x, direction.y, 0f);
                             _isMoving = true;
-                            ConnectionManager.Instance.SendPacket(new ActionClientPacket(currentX, currentY, new MovePacket(targetDataX, targetDataY)));
+                            ConnectionManager.Instance.SendPacket(new ActionClientPacket(currentX, currentServerY, new MovePacket(targetServerX, targetServerY)));
                         }
 
 

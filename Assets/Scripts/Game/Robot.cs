@@ -132,7 +132,9 @@ namespace Fodinae.Assets.Scripts.Game
         public void SetPosition(ushort x, ushort y)
         {
             // Align to 1.0 unit grid (centers)
-            _targetPosition = new Vector3(x + 0.5f, y + 0.5f, 0);
+            // Invert Y: Server Y 0 is at the top, Unity Y increases upwards
+            float unityY = (MapManager.Instance.WorldHeight - 1 - y) + 0.5f;
+            _targetPosition = new Vector3(x + 0.5f, unityY, 0);
         }
 
         public void SetRotation(byte rotation)
