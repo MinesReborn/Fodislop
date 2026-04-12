@@ -53,7 +53,7 @@ namespace Fodinae.Assets.Scripts.Game
             if (_spriteRenderer == null)
                 _spriteRenderer = GetComponent<SpriteRenderer>();
 
-            transform.localScale = new Vector3(0.5f, 0.5f, 1f);
+            transform.localScale = Vector3.one;
             _targetPosition = transform.position;
 
             var rb = GetComponent<Rigidbody2D>();

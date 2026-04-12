@@ -74,7 +74,8 @@ namespace Fodinae.Assets.Scripts
         {
             if (obj.Payload is RuntimeAssetPacket assetPacket)
             {
-                if (_pendingRequests.TryRemove(assetPacket.Filename, out var tcs))
+                string filename = assetPacket.Filename.TrimStart('/');
+                if (_pendingRequests.TryRemove(filename, out var tcs))
                 {
                     if (assetPacket.Contents.Length == 0 && !string.IsNullOrEmpty(assetPacket.ETag))
                     {
@@ -115,6 +116,7 @@ namespace Fodinae.Assets.Scripts
 
         public async UniTask<Texture2D> GetTextureAsync(string filename, CancellationToken cancellationToken = default)
         {
+            filename = filename.TrimStart('/');
             string etag = null;
             if (HasAsset(filename))
             {

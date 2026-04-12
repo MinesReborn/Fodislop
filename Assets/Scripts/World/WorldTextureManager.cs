@@ -186,7 +186,7 @@ namespace Fodinae.Assets.Scripts.World
 
         private async UniTask LoadTexture(CellType cellType)
         {
-            var filename = $"/cells/{(int)cellType}.png";
+            var filename = $"cells/{(int)cellType}.png";
 
             var cachedTexture = _textureCache.GetCachedTexture(cellType);
             if (cachedTexture != null)
@@ -338,10 +338,6 @@ namespace Fodinae.Assets.Scripts.World
 
         private Color GetFallbackColor(CellType cellType)
         {
-            // Specifically for Empty cells, we want a dark gray background regardless of server minimap color
-            if (cellType == CellType.Empty)
-                return new Color(0.2f, 0.2f, 0.2f);
-
             if (MapManager.Instance != null)
             {
                 var serverColor = MapManager.Instance.GetCellMinimapColor(cellType);
@@ -350,6 +346,7 @@ namespace Fodinae.Assets.Scripts.World
 
             return cellType switch
             {
+                CellType.Empty => new Color(0.2f, 0.2f, 0.2f),
                 CellType.Road => new Color(0.8f, 0.8f, 0.8f),
                 CellType.Boulder1 => Color.black,
                 CellType.WhiteSand => new Color(1f, 0.92f, 0.8f),
