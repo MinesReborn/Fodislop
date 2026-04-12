@@ -209,6 +209,7 @@ namespace Fodinae.Assets.Scripts.World
                     {
                         LocalPosition = new Vector2Int(x, y),
                         WorldPosition = new Vector2Int(worldX, worldY),
+                        ServerPosition = new Vector2Int(worldX, serverY),
                         CellType = cellType,
                         VertexStartIndex = vertexIndex
                     });
@@ -229,7 +230,7 @@ namespace Fodinae.Assets.Scripts.World
 
             // Get texture coordinates for all cells in the chunk
             var textureTasks = chunkMesh.Cells.Select(cell => 
-                WorldTextureManager.Instance.GetCellTextureCoordinate(cell.CellType, cell.WorldPosition.x, cell.WorldPosition.y)
+                WorldTextureManager.Instance.GetCellTextureCoordinate(cell.CellType, cell.ServerPosition.x, cell.ServerPosition.y)
             ).ToArray();
 
             var textureCoordinates = await UniTask.WhenAll(textureTasks);
@@ -241,6 +242,12 @@ namespace Fodinae.Assets.Scripts.World
                 var coord = textureCoordinates[i];
 
                 if (coord == AtlasCoordinate.Empty) continue;
+
+                // Track animated cells for per-frame UV updates
+                if (WorldTextureManager.Instance.HasAnimations(cell.CellType))
+                {
+                    chunkMesh.AnimatedCells.Add(cell);
+                }
 
                 // Find or create material for this atlas
                 int atlasIndex = GetAtlasIndex(coord);
@@ -293,9 +300,35 @@ namespace Fodinae.Assets.Scripts.World
                 return;
             }
 
-            BatchMeshes();
+            if (_enableBatching)
+            {
+                BatchMeshes();
+            }
+            else
+            {
+                // In non-batching mode, still update animations for each chunk mesh
+                foreach (var chunk in _chunkMeshes.Values)
+                {
+                    UpdateChunkAnimations(chunk);
+                }
+            }
             
             _ = UpdateRendererMaterial();
+        }
+
+        private void UpdateChunkAnimations(ChunkMesh chunkMesh)
+        {
+            if (chunkMesh.AnimatedCells.Count == 0) return;
+
+            // In standard renderer, we update UVs in the chunkMesh and they get batched next
+            foreach (var cell in chunkMesh.AnimatedCells)
+            {
+                var coord = WorldTextureManager.Instance.GetCellTextureCoordinateSync(cell.CellType, cell.ServerPosition.x, cell.ServerPosition.y);
+                if (coord != AtlasCoordinate.Empty)
+                {
+                    UpdateCellUVs(chunkMesh, cell.VertexStartIndex, coord);
+                }
+            }
         }
 
         private void BatchMeshes()
@@ -334,7 +367,16 @@ namespace Fodinae.Assets.Scripts.World
                     combinedTriangles.Add(triangle + vertexOffset);
                 }
 
-                // Add UVs
+                // Add UVs (Update for animations)
+                for (int i = 0; i < chunkMesh.AnimatedCells.Count; i++)
+                {
+                    var cell = chunkMesh.AnimatedCells[i];
+                    var coord = WorldTextureManager.Instance.GetCellTextureCoordinateSync(cell.CellType, cell.ServerPosition.x, cell.ServerPosition.y);
+                    if (coord != AtlasCoordinate.Empty)
+                    {
+                        UpdateCellUVs(chunkMesh, cell.VertexStartIndex, coord);
+                    }
+                }
                 combinedUVs.AddRange(chunkMesh.UVs);
 
                 // Add atlas indices
@@ -348,6 +390,7 @@ namespace Fodinae.Assets.Scripts.World
             _mesh.vertices = combinedVertices.ToArray();
             _mesh.triangles = combinedTriangles.ToArray();
             _mesh.uv = combinedUVs.ToArray();
+            _mesh.UploadMeshData(false); // Optimize update
             _mesh.RecalculateNormals();
             
             // Move GameObject to camera position to complete world-to-local transform
@@ -363,20 +406,21 @@ namespace Fodinae.Assets.Scripts.World
 
             if (atlases.Any())
             {
+                // In single-material mode, we only support the first atlas
                 var mainAtlas = atlases.First();
                 var atlasTexture = await mainAtlas.GetAtlasTexture();
 
                 if (atlasTexture != null)
                 {
-                    if (_meshRenderer.material == null || _meshRenderer.material.shader.name != "Universal Render Pipeline/Unlit")
+                    if (_meshRenderer.sharedMaterial == null || _meshRenderer.sharedMaterial.shader.name != "Universal Render Pipeline/Unlit")
                     {
                         // Use Unlit shader for terrain cells to avoid lighting issues
                         _meshRenderer.material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
                     }
 
-                    _meshRenderer.material.SetTexture("_BaseMap", atlasTexture);
-                    _meshRenderer.material.mainTextureScale = Vector2.one;
-                    _meshRenderer.material.mainTextureOffset = Vector2.zero;
+                    _meshRenderer.sharedMaterial.SetTexture("_BaseMap", atlasTexture);
+                    _meshRenderer.sharedMaterial.mainTextureScale = Vector2.one;
+                    _meshRenderer.sharedMaterial.mainTextureOffset = Vector2.zero;
                 }
             }
         }
@@ -405,6 +449,7 @@ namespace Fodinae.Assets.Scripts.World
         {
             public Vector2Int LocalPosition;
             public Vector2Int WorldPosition;
+            public Vector2Int ServerPosition;
             public CellType CellType;
             public int VertexStartIndex;
         }
@@ -418,6 +463,7 @@ namespace Fodinae.Assets.Scripts.World
             public List<Vector2> UVs;
             public List<int> AtlasIndices;
             public List<CellInfo> Cells;
+            public List<CellInfo> AnimatedCells;
 
             public ChunkMesh(Vector2Int chunkPosition, int chunkSize, float cellSize)
             {
@@ -427,6 +473,7 @@ namespace Fodinae.Assets.Scripts.World
                 UVs = new List<Vector2>();
                 AtlasIndices = new List<int>();
                 Cells = new List<CellInfo>();
+                AnimatedCells = new List<CellInfo>();
             }
         }
     }

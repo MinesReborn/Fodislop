@@ -221,6 +221,7 @@ namespace Fodinae.Assets.Scripts.World
                     {
                         LocalPosition = new Vector2Int(x, y),
                         WorldPosition = new Vector2Int(worldX, worldY),
+                        ServerPosition = new Vector2Int(worldX, serverY),
                         CellType = cellType,
                         VertexStartIndex = vertexIndex
                     });
@@ -241,7 +242,7 @@ namespace Fodinae.Assets.Scripts.World
 
             // Get texture coordinates for all cells in the chunk
             var textureTasks = chunkMesh.Cells.Select(cell => 
-                WorldTextureManager.Instance.GetCellTextureCoordinate(cell.CellType, cell.WorldPosition.x, cell.WorldPosition.y)
+                WorldTextureManager.Instance.GetCellTextureCoordinate(cell.CellType, cell.ServerPosition.x, cell.ServerPosition.y)
             ).ToArray();
 
             var textureCoordinates = await UniTask.WhenAll(textureTasks);
@@ -253,6 +254,12 @@ namespace Fodinae.Assets.Scripts.World
                 var coord = textureCoordinates[i];
 
                 if (coord == AtlasCoordinate.Empty) continue;
+
+                // Track animated cells for per-frame UV updates
+                if (WorldTextureManager.Instance.HasAnimations(cell.CellType))
+                {
+                    chunkMesh.AnimatedCells.Add(cell);
+                }
 
                 // Get atlas texture for this coordinate
                 var atlasTexture = await GetAtlasTextureForCoordinate(coord);
@@ -281,8 +288,22 @@ namespace Fodinae.Assets.Scripts.World
 
         private async UniTask<Texture2D> GetAtlasTextureForCoordinate(AtlasCoordinate coord)
         {
-            // For now, return null - this would need to be implemented
-            // based on how you determine which atlas contains this coordinate
+            // The coordinate doesn't store a reference to the atlas texture,
+            // but WorldTextureManager can find it.
+            // We need to find which atlas contains the cell type that produced this coordinate.
+            // This is a bit inefficient, but without a CellType in AtlasCoordinate, it's necessary.
+
+            // Actually, we can just iterate through all atlases in WorldTextureManager
+            var atlases = WorldTextureManager.Instance.GetAllAtlases();
+            foreach (var atlas in atlases)
+            {
+                // AtlasCoordinate contains AtlasWidth and AtlasHeight which should match the texture
+                var texture = await atlas.GetAtlasTexture();
+                if (texture != null && texture.width == coord.AtlasWidth && texture.height == coord.AtlasHeight)
+                {
+                    return texture;
+                }
+            }
             return null;
         }
 
@@ -311,9 +332,29 @@ namespace Fodinae.Assets.Scripts.World
             }
             else
             {
+                // In non-batching mode, still update animations for each chunk mesh
+                foreach (var chunk in _chunkMeshes.Values)
+                {
+                    UpdateChunkAnimations(chunk);
+                }
+
                 // Use first chunk as primary mesh for simplicity
                 var firstChunk = _chunkMeshes.Values.First();
                 ApplyChunkMeshToRenderer(firstChunk);
+            }
+        }
+
+        private void UpdateChunkAnimations(ChunkMesh chunkMesh)
+        {
+            if (chunkMesh.AnimatedCells.Count == 0) return;
+
+            foreach (var cell in chunkMesh.AnimatedCells)
+            {
+                var coord = WorldTextureManager.Instance.GetCellTextureCoordinateSync(cell.CellType, cell.ServerPosition.x, cell.ServerPosition.y);
+                if (coord != AtlasCoordinate.Empty)
+                {
+                    UpdateCellUVs(chunkMesh, cell.VertexStartIndex, coord);
+                }
             }
         }
 
@@ -367,7 +408,16 @@ namespace Fodinae.Assets.Scripts.World
                     atlasTriangles[atlasIndex].Add(triIndex3 + vertexOffset);
                 }
 
-                // Add UVs
+                // Add UVs (Update for animations)
+                for (int i = 0; i < chunkMesh.AnimatedCells.Count; i++)
+                {
+                    var cell = chunkMesh.AnimatedCells[i];
+                    var coord = WorldTextureManager.Instance.GetCellTextureCoordinateSync(cell.CellType, cell.ServerPosition.x, cell.ServerPosition.y);
+                    if (coord != AtlasCoordinate.Empty)
+                    {
+                        UpdateCellUVs(chunkMesh, cell.VertexStartIndex, coord);
+                    }
+                }
                 combinedUVs.AddRange(chunkMesh.UVs);
 
                 // Add atlas indices
@@ -381,6 +431,7 @@ namespace Fodinae.Assets.Scripts.World
             _mesh.Clear();
             _mesh.vertices = combinedVertices.ToArray();
             _mesh.uv = combinedUVs.ToArray();
+            _mesh.UploadMeshData(false); // Optimize update
 
             // Set sub-meshes for different atlas materials
             int maxAtlasIndex = atlasTriangles.Keys.Count > 0 ? atlasTriangles.Keys.Max() : 0;
@@ -434,6 +485,7 @@ namespace Fodinae.Assets.Scripts.World
         {
             public Vector2Int LocalPosition;
             public Vector2Int WorldPosition;
+            public Vector2Int ServerPosition;
             public CellType CellType;
             public int VertexStartIndex;
         }
@@ -447,6 +499,7 @@ namespace Fodinae.Assets.Scripts.World
             public List<Vector2> UVs;
             public List<int> AtlasIndices;
             public List<CellInfo> Cells;
+            public List<CellInfo> AnimatedCells;
 
             public ChunkMesh(Vector2Int chunkPosition, int chunkSize, float cellSize)
             {
@@ -456,6 +509,7 @@ namespace Fodinae.Assets.Scripts.World
                 UVs = new List<Vector2>();
                 AtlasIndices = new List<int>();
                 Cells = new List<CellInfo>();
+                AnimatedCells = new List<CellInfo>();
             }
         }
     }

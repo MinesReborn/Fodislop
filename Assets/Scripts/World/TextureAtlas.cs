@@ -80,7 +80,12 @@ namespace Fodinae.Assets.Scripts.World
             return GetCoordinate(cellType, CellVariation.None);
         }
 
-        public AtlasCoordinate GetWrappedCoordinate(CellType cellType, int globalX, int globalY, CellVariation variation)
+        public bool ContainsCell(CellType cellType)
+        {
+            return _cells.ContainsKey(cellType);
+        }
+
+        public AtlasCoordinate GetWrappedCoordinate(CellType cellType, int globalX, int globalY, CellVariation variation, int frameHeightPixels = 0, int frameIndex = 0)
         {
             if (!_cells.TryGetValue(cellType, out var cell))
             {
@@ -98,26 +103,27 @@ namespace Fodinae.Assets.Scripts.World
 
             // How many 16x16 tiles fit in the SUB-ATLAS width and height
             int tilesPerRow = subAtlasWidth / terrainTileSize;
-            int tilesPerColumn = subAtlasHeight / terrainTileSize;
+
+            // If frameHeightPixels is provided, it defines the wrapping boundary for animations
+            int effectiveSubAtlasHeight = frameHeightPixels > 0 ? frameHeightPixels : subAtlasHeight;
+            int tilesPerColumn = effectiveSubAtlasHeight / terrainTileSize;
 
             if (tilesPerRow <= 0) tilesPerRow = 1;
             if (tilesPerColumn <= 0) tilesPerColumn = 1;
 
-            // Calculate wrapped position within the SUB-ATLAS
+            // Calculate wrapped position within the SUB-ATLAS (or frame)
             int wrappedX = ((globalX % tilesPerRow) + tilesPerRow) % tilesPerRow;
-            int wrappedY = ((globalY % tilesPerColumn) + tilesPerColumn) % tilesPerColumn;
+            // Invert Y wrapping for bottom-to-top texture sampling with top-to-bottom server coords
+            int wrappedY = (tilesPerColumn - 1) - (((globalY % tilesPerColumn) + tilesPerColumn) % tilesPerColumn);
 
             // Calculate the absolute atlas position by adding the sub-atlas base position
             int atlasX = subAtlasX + (wrappedX * terrainTileSize);
-            int atlasY = subAtlasY + (wrappedY * terrainTileSize);
-
-            // Apply variation offset if needed (using 8-pixel offsets inside the 16x16 tile)
-            int variationX = variation.Horizontal ? terrainTileSize / 2 : 0;
-            int variationY = variation.Vertical ? terrainTileSize / 2 : 0;
+            // Add frame offset: subAtlasY + wrapped cell offset + current frame offset
+            int atlasY = subAtlasY + (wrappedY * terrainTileSize) + (frameIndex * (frameHeightPixels > 0 ? frameHeightPixels : 0));
 
             return new AtlasCoordinate(
-                atlasX + variationX,
-                atlasY + variationY,
+                atlasX,
+                atlasY,
                 terrainTileSize,  // We only want to render one 16x16 tile
                 terrainTileSize,
                 Size,             // Full atlas width

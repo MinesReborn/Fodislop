@@ -122,6 +122,43 @@ namespace Fodinae.Assets.Scripts.World
             if (_worldLayer != null && _currentState == InitializationState.ReadyForRendering)
             {
                 UpdateVisibleChunks();
+                UpdateAnimations();
+            }
+        }
+
+        private void UpdateAnimations()
+        {
+            foreach (var chunkObj in _chunkObjects.Values)
+            {
+                if (chunkObj.GameObject == null || chunkObj.AnimatedCells == null || chunkObj.AnimatedCells.Count == 0)
+                    continue;
+
+                var meshFilter = chunkObj.GameObject.GetComponent<MeshFilter>();
+                if (meshFilter == null || meshFilter.sharedMesh == null) continue;
+
+                var mesh = meshFilter.sharedMesh;
+                var uvs = new List<Vector2>();
+                mesh.GetUVs(0, uvs);
+
+                bool changed = false;
+                foreach (var cell in chunkObj.AnimatedCells)
+                {
+                    var coord = WorldTextureManager.Instance.GetCellTextureCoordinateSync(cell.CellType, cell.ServerPosition.x, cell.ServerPosition.y);
+                    if (coord != AtlasCoordinate.Empty)
+                    {
+                        uvs[cell.VertexStartIndex] = new Vector2(coord.U1, coord.V1);
+                        uvs[cell.VertexStartIndex + 1] = new Vector2(coord.U2, coord.V1);
+                        uvs[cell.VertexStartIndex + 2] = new Vector2(coord.U2, coord.V2);
+                        uvs[cell.VertexStartIndex + 3] = new Vector2(coord.U1, coord.V2);
+                        changed = true;
+                    }
+                }
+
+                if (changed)
+                {
+                    mesh.SetUVs(0, uvs);
+                    mesh.UploadMeshData(false);
+                }
             }
         }
 
@@ -253,7 +290,8 @@ namespace Fodinae.Assets.Scripts.World
                 _chunkObjects[chunkPos] = new ChunkObject
                 {
                     Position = chunkPos,
-                    GameObject = go
+                    GameObject = go,
+                    AnimatedCells = chunkMesh.AnimatedCells
                 };
             }
             catch (Exception ex)
@@ -305,7 +343,7 @@ namespace Fodinae.Assets.Scripts.World
                     mesh.Triangles.Add(vertexIndex + 3);
                     mesh.Triangles.Add(vertexIndex + 2);
 
-                    mesh.Cells.Add(new CellInfo { CellType = cell, VertexStartIndex = vertexIndex, WorldPosition = new Vector2Int(wx, wy) });
+                    mesh.Cells.Add(new CellInfo { CellType = cell, VertexStartIndex = vertexIndex, WorldPosition = new Vector2Int(wx, wy), ServerPosition = new Vector2Int(wx, MapManager.Instance.WorldHeight - 1 - wy) });
                     vertexIndex += 4;
                 }
             }
@@ -318,12 +356,18 @@ namespace Fodinae.Assets.Scripts.World
             if (mesh.Cells.Count == 0) return;
 
             var coords = await UniTask.WhenAll(mesh.Cells.Select(c =>
-                WorldTextureManager.Instance.GetCellTextureCoordinate(c.CellType, c.WorldPosition.x, c.WorldPosition.y)));
+                WorldTextureManager.Instance.GetCellTextureCoordinate(c.CellType, c.ServerPosition.x, c.ServerPosition.y)));
 
             for (int i = 0; i < mesh.Cells.Count; i++)
             {
                 var c = mesh.Cells[i];
                 var uv = coords[i];
+
+                if (WorldTextureManager.Instance.HasAnimations(c.CellType))
+                {
+                    mesh.AnimatedCells.Add(c);
+                }
+
                 if (uv == AtlasCoordinate.Empty) continue;
 
                 mesh.UVs[c.VertexStartIndex] = new Vector2(uv.U1, uv.V1);
@@ -437,7 +481,7 @@ namespace Fodinae.Assets.Scripts.World
             }
         }
 
-        private class CellInfo { public Vector2Int LocalPosition, WorldPosition; public CellType CellType; public int VertexStartIndex; }
+        private class CellInfo { public Vector2Int LocalPosition, WorldPosition, ServerPosition; public CellType CellType; public int VertexStartIndex; }
         private class ChunkMesh
         {
             public Vector2Int ChunkPosition;
@@ -445,6 +489,7 @@ namespace Fodinae.Assets.Scripts.World
             public List<int> Triangles = new();
             public List<Vector2> UVs = new();
             public List<CellInfo> Cells = new();
+            public List<CellInfo> AnimatedCells = new();
             public ChunkMesh(Vector2Int p) { ChunkPosition = p; }
         }
 
@@ -452,6 +497,7 @@ namespace Fodinae.Assets.Scripts.World
         {
             public Vector2Int Position;
             public GameObject GameObject;
+            public List<CellInfo> AnimatedCells;
         }
     }
 }

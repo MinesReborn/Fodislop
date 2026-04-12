@@ -83,7 +83,16 @@ namespace Fodinae.Assets.Scripts.World
 
         public event Action<string, Texture2D> OnTextureLoaded;
 
-        public async UniTask<AtlasCoordinate> GetCellTextureCoordinate(CellType cellType, int globalX, int globalY)
+        public bool HasAnimations(CellType cellType)
+        {
+            if (_textureCache.TryGetTexture(cellType, out var textureInfo))
+            {
+                return textureInfo.AnimationFrames > 1;
+            }
+            return false;
+        }
+
+        public AtlasCoordinate GetCellTextureCoordinateSync(CellType cellType, int globalX, int globalY)
         {
             if (cellType == CellType.Unloaded || cellType == CellType.Pregener)
             {
@@ -93,7 +102,42 @@ namespace Fodinae.Assets.Scripts.World
             if (_textureCache.TryGetTexture(cellType, out var textureInfo))
             {
                 var variation = CalculateVariation(textureInfo, globalX, globalY);
-                return _currentAtlas.GetWrappedCoordinate(cellType, globalX, globalY, variation);
+
+                int frameIndex = 0;
+                int frameHeight = 0;
+
+                if (textureInfo.AnimationFrames > 1)
+                {
+                    byte speed = MapManager.Instance.GetAnimationSpeed(cellType);
+                    if (speed == 0) speed = 5; // Default speed if not provided
+
+                    frameIndex = (int)(Time.realtimeSinceStartup * speed) % textureInfo.AnimationFrames;
+                    frameHeight = MapManager.Instance.GetAnimationFrameHeight(cellType);
+                }
+
+                // Find which atlas contains this cell
+                foreach (var atlas in _atlases)
+                {
+                    if (atlas.ContainsCell(cellType))
+                    {
+                        return atlas.GetWrappedCoordinate(cellType, globalX, globalY, variation, frameHeight, frameIndex);
+                    }
+                }
+            }
+
+            return AtlasCoordinate.Empty;
+        }
+
+        public async UniTask<AtlasCoordinate> GetCellTextureCoordinate(CellType cellType, int globalX, int globalY)
+        {
+            if (cellType == CellType.Unloaded || cellType == CellType.Pregener)
+            {
+                return AtlasCoordinate.Empty;
+            }
+
+            if (_textureCache.TryGetTexture(cellType, out var textureInfo))
+            {
+                return GetCellTextureCoordinateSync(cellType, globalX, globalY);
             }
 
             if (_pendingRequests.TryGetValue(cellType, out var request))
@@ -101,8 +145,7 @@ namespace Fodinae.Assets.Scripts.World
                 await request.Task;
                 if (_textureCache.TryGetTexture(cellType, out textureInfo))
                 {
-                    var variation = CalculateVariation(textureInfo, globalX, globalY);
-                    return _currentAtlas.GetWrappedCoordinate(cellType, globalX, globalY, variation);
+                    return GetCellTextureCoordinateSync(cellType, globalX, globalY);
                 }
             }
 
@@ -116,8 +159,7 @@ namespace Fodinae.Assets.Scripts.World
 
                 if (_textureCache.TryGetTexture(cellType, out textureInfo))
                 {
-                    var variation = CalculateVariation(textureInfo, globalX, globalY);
-                    return _currentAtlas.GetWrappedCoordinate(cellType, globalX, globalY, variation);
+                    return GetCellTextureCoordinateSync(cellType, globalX, globalY);
                 }
             }
             catch (Exception ex)
@@ -129,8 +171,7 @@ namespace Fodinae.Assets.Scripts.World
 
                 if (_textureCache.TryGetTexture(cellType, out textureInfo))
                 {
-                    var variation = CalculateVariation(textureInfo, globalX, globalY);
-                    return _currentAtlas.GetWrappedCoordinate(cellType, globalX, globalY, variation);
+                    return GetCellTextureCoordinateSync(cellType, globalX, globalY);
                 }
 
                 return AtlasCoordinate.Empty;
@@ -174,13 +215,15 @@ namespace Fodinae.Assets.Scripts.World
             // It could be a large sub-atlas for Torus wrapping (e.g., 512x352).
             // Passing the full texture ensures it's packed correctly.
 
+            int frameHeight = MapManager.Instance.GetAnimationFrameHeight(cellType);
+
             var textureInfo = new CellTextureInfo
             {
                 CellType = cellType,
                 BaseTexture = texture,
-                HasVariations = false, // DISABLED FAILSAFE: Prevents sampling out of bounds into transparent padding!
+                HasVariations = texture.width >= 32, // Only wide textures support variations
                 VariationCount = 1,
-                AnimationFrames = 1,
+                AnimationFrames = frameHeight > 0 ? texture.height / frameHeight : 1,
                 FramesPerRow = 1,
                 FrameSize = 16
             };
@@ -231,6 +274,16 @@ namespace Fodinae.Assets.Scripts.World
         public List<TextureAtlas> GetAllAtlases()
         {
             return _atlases;
+        }
+
+        public TextureAtlas GetAtlasForCell(CellType cellType)
+        {
+            foreach (var atlas in _atlases)
+            {
+                if (atlas.ContainsCell(cellType))
+                    return atlas;
+            }
+            return null;
         }
 
         public void Clear()
