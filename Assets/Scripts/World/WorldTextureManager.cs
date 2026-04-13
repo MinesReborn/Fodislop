@@ -186,7 +186,13 @@ namespace Fodinae.Assets.Scripts.World
 
         private async UniTask LoadTexture(CellType cellType)
         {
-            var filename = $"/cells/{(int)cellType}.png";
+            var filename = $"cells/{(int)cellType}.png";
+
+            // FIX: If the cell type is Empty, force it to map strictly to 32.png
+            if (cellType == CellType.Empty)
+            {
+                filename = "cells/32.png";
+            }
 
             var cachedTexture = _textureCache.GetCachedTexture(cellType);
             if (cachedTexture != null)
@@ -195,10 +201,19 @@ namespace Fodinae.Assets.Scripts.World
                 return;
             }
 
-            var texture = await ClientAssetLoader.Instance.GetTextureAsync(filename);
+            Texture2D texture = null;
+            try
+            {
+                texture = await ClientAssetLoader.Instance.GetTextureAsync(filename);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[WorldTextureManager] Warning loading {filename}: {ex.Message}");
+            }
 
             if (texture != null)
             {
+                if (cellType == CellType.Empty) Debug.Log($"[WorldTextureManager] Successfully loaded texture for Empty cell (32.png)");
                 await AddTextureToAtlas(cellType, texture);
             }
             else
@@ -210,10 +225,6 @@ namespace Fodinae.Assets.Scripts.World
         private async UniTask AddTextureToAtlas(CellType cellType, Texture2D texture)
         {
             await UniTask.SwitchToMainThread();
-
-            // IMPORTANT: DO NOT resize the texture! 
-            // It could be a large sub-atlas for Torus wrapping (e.g., 512x352).
-            // Passing the full texture ensures it's packed correctly.
 
             int frameHeight = MapManager.Instance.GetAnimationFrameHeight(cellType);
 
@@ -253,7 +264,7 @@ namespace Fodinae.Assets.Scripts.World
             _textureCache.AddTexture(cellType, textureInfo);
 
             await _currentAtlas.UpdateAtlasTexture();
-            OnTextureLoaded?.Invoke($"/cells/{(int)cellType}.png", texture);
+            OnTextureLoaded?.Invoke($"cells/{(int)cellType}.png", texture);
         }
 
         private CellVariation CalculateVariation(CellTextureInfo textureInfo, int globalX, int globalY)

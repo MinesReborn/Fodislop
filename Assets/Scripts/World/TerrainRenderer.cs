@@ -13,30 +13,26 @@ namespace Fodinae.Assets.Scripts.World
     /// <summary>
     /// Renders terrain using a flat 2D mesh with one quad per cell.
     /// Integrates with the dynamic texture atlas system for efficient rendering.
-    /// </summary>
-    [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
+    /// </summary>[RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
     public class TerrainRenderer : MonoBehaviour
     {
         [Header("Configuration")]
         [Tooltip("Reference to the world layer containing cell data")]
         [SerializeField] private WorldLayer<CellType> _worldLayer;
-        
+
         [Tooltip("Chunk size for mesh generation (should match WorldLayer chunk size)")]
-        [SerializeField] private int _chunkSize = 32;
-        
-        [Tooltip("Render distance in chunks from camera")]
+        [SerializeField] private int _chunkSize = 32; [Tooltip("Render distance in chunks from camera")]
         [SerializeField] private int _renderDistance = 10;
-        
+
         [Tooltip("Cell size in world units")]
         [SerializeField] private float _cellSize = 1.0f;
-        
+
         [Tooltip("Enable debug visualization")]
         [SerializeField] private bool _debugMode = false;
 
         [Header("Performance")]
-        [Tooltip("Enable mesh batching for better performance")]
-        [SerializeField] private bool _enableBatching = true;
-        
+        [Tooltip("Enable mesh batching for better performance")][SerializeField] private bool _enableBatching = true;
+
         [Tooltip("Maximum chunks to batch together")]
         [SerializeField] private int _maxBatchSize = 16;
 
@@ -47,7 +43,7 @@ namespace Fodinae.Assets.Scripts.World
         public readonly ConcurrentDictionary<Vector2Int, ChunkMesh> _chunkMeshes = new();
         public readonly List<Material> _atlasMaterials = new();
         public readonly HashSet<Vector2Int> _visibleChunks = new();
-        
+
         private Camera _mainCamera;
         private Vector2Int _lastCameraChunk = Vector2Int.zero;
         private bool _isInitialized = false;
@@ -63,7 +59,7 @@ namespace Fodinae.Assets.Scripts.World
 
             _meshFilter = GetComponent<MeshFilter>();
             _meshRenderer = GetComponent<MeshRenderer>();
-            
+
             if (_meshFilter == null || _meshRenderer == null)
             {
                 Debug.LogError("TerrainRenderer requires MeshFilter and MeshRenderer components");
@@ -74,15 +70,29 @@ namespace Fodinae.Assets.Scripts.World
             _mesh = new Mesh();
             _mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32; // Enable 32-bit indices
             _meshFilter.mesh = _mesh;
-            
+
             _mainCamera = Camera.main;
-            
+
             // Initialize with default material
             var defaultMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            SetupTransparentMaterial(defaultMaterial);
             _meshRenderer.material = defaultMaterial;
             _atlasMaterials.Add(defaultMaterial);
 
             _isInitialized = true;
+        }
+
+        private void SetupTransparentMaterial(Material mat)
+        {
+            if (mat == null) return;
+            mat.SetFloat("_Surface", 1.0f);
+            mat.SetFloat("_Blend", 0.0f);
+            mat.SetOverrideTag("RenderType", "Transparent");
+            mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetFloat("_ZWrite", 0.0f);
+            mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
         }
 
         private void Update()
@@ -145,10 +155,10 @@ namespace Fodinae.Assets.Scripts.World
             if (_chunkMeshes.ContainsKey(chunkPos)) return;
 
             var chunkMesh = new ChunkMesh(chunkPos, _chunkSize, _cellSize);
-            
+
             // Generate vertices and triangles for the chunk
             await GenerateChunkGeometry(chunkMesh);
-            
+
             // Get texture coordinates for all cells in the chunk
             await GenerateChunkTextures(chunkMesh);
 
@@ -229,7 +239,7 @@ namespace Fodinae.Assets.Scripts.World
             if (chunkMesh.Cells.Count == 0) return;
 
             // Get texture coordinates for all cells in the chunk
-            var textureTasks = chunkMesh.Cells.Select(cell => 
+            var textureTasks = chunkMesh.Cells.Select(cell =>
                 WorldTextureManager.Instance.GetCellTextureCoordinate(cell.CellType, cell.ServerPosition.x, cell.ServerPosition.y)
             ).ToArray();
 
@@ -251,7 +261,7 @@ namespace Fodinae.Assets.Scripts.World
 
                 // Find or create material for this atlas
                 int atlasIndex = GetAtlasIndex(coord);
-                
+
                 // Update UV coordinates for this cell's quad
                 UpdateCellUVs(chunkMesh, cell.VertexStartIndex, coord);
 
@@ -312,7 +322,7 @@ namespace Fodinae.Assets.Scripts.World
                     UpdateChunkAnimations(chunk);
                 }
             }
-            
+
             _ = UpdateRendererMaterial();
         }
 
@@ -341,11 +351,11 @@ namespace Fodinae.Assets.Scripts.World
             var combinedAtlasIndices = new List<int>();
 
             int vertexOffset = 0;
-            
+
             // Camera-relative origin for centering
             Vector3 cameraWorldPos = _mainCamera.transform.position;
             // Snap cameraWorldPos to avoid precision issues if needed, but here we just center
-            
+
             foreach (var chunkMesh in _chunkMeshes.Values)
             {
                 // World position of the chunk's bottom-left corner
@@ -392,7 +402,7 @@ namespace Fodinae.Assets.Scripts.World
             _mesh.uv = combinedUVs.ToArray();
             _mesh.UploadMeshData(false); // Optimize update
             _mesh.RecalculateNormals();
-            
+
             // Move GameObject to camera position to complete world-to-local transform
             transform.position = cameraWorldPos;
         }
@@ -415,7 +425,9 @@ namespace Fodinae.Assets.Scripts.World
                     if (_meshRenderer.sharedMaterial == null || _meshRenderer.sharedMaterial.shader.name != "Universal Render Pipeline/Unlit")
                     {
                         // Use Unlit shader for terrain cells to avoid lighting issues
-                        _meshRenderer.material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+                        var mat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+                        SetupTransparentMaterial(mat);
+                        _meshRenderer.material = mat;
                     }
 
                     _meshRenderer.sharedMaterial.SetTexture("_BaseMap", atlasTexture);
@@ -430,7 +442,7 @@ namespace Fodinae.Assets.Scripts.World
             if (!_debugMode || _worldLayer == null) return;
 
             Gizmos.color = Color.yellow;
-            
+
             foreach (var chunkPos in _visibleChunks)
             {
                 var center = new Vector3(
@@ -438,7 +450,7 @@ namespace Fodinae.Assets.Scripts.World
                     chunkPos.y * _chunkSize * _cellSize + (_chunkSize * _cellSize / 2),
                     0
                 );
-                
+
                 var size = new Vector3(_chunkSize * _cellSize, _chunkSize * _cellSize, 0.1f);
                 Gizmos.DrawWireCube(center, size);
             }

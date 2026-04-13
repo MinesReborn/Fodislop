@@ -14,11 +14,9 @@ namespace Fodinae.Assets.Scripts.World
     {
         [Header("Material Configuration")]
         [Tooltip("Base material template for atlas rendering")]
-        [SerializeField] private Material _baseMaterialTemplate;
-        
-        [Tooltip("Shader property name for the main texture")]
+        [SerializeField] private Material _baseMaterialTemplate; [Tooltip("Shader property name for the main texture")]
         [SerializeField] private string _texturePropertyName = "_BaseMap";
-        
+
         [Tooltip("Shader property name for the atlas texture")]
         [SerializeField] private string _atlasTexturePropertyName = "_AtlasTexture";
 
@@ -37,6 +35,16 @@ namespace Fodinae.Assets.Scripts.World
             {
                 // Create a default material if none provided
                 _baseMaterialTemplate = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+
+                // Ensure it supports transparency
+                _baseMaterialTemplate.SetFloat("_Surface", 1.0f);
+                _baseMaterialTemplate.SetFloat("_Blend", 0.0f);
+                _baseMaterialTemplate.SetOverrideTag("RenderType", "Transparent");
+                _baseMaterialTemplate.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                _baseMaterialTemplate.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                _baseMaterialTemplate.SetFloat("_ZWrite", 0.0f);
+                _baseMaterialTemplate.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                _baseMaterialTemplate.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
             }
 
             // Create initial material
@@ -61,7 +69,7 @@ namespace Fodinae.Assets.Scripts.World
             // Create new material for this atlas
             index = _nextAtlasIndex++;
             CreateAtlasMaterial(index, atlasTexture);
-            
+
             _textureToAtlasIndex[atlasTexture] = index;
             return index;
         }
@@ -75,7 +83,7 @@ namespace Fodinae.Assets.Scripts.World
         {
             var material = new Material(_baseMaterialTemplate);
             material.name = $"AtlasMaterial_{index}";
-            
+
             if (atlasTexture != null)
             {
                 material.SetTexture(_atlasTexturePropertyName, atlasTexture);
@@ -119,7 +127,7 @@ namespace Fodinae.Assets.Scripts.World
             {
                 var atlas = atlases[i];
                 var texture = atlas.GetAtlasTexture().GetAwaiter().GetResult();
-                
+
                 if (texture != null)
                 {
                     int index = GetAtlasMaterialIndex(texture);
@@ -144,7 +152,7 @@ namespace Fodinae.Assets.Scripts.World
             _atlasMaterials.Clear();
             _textureToAtlasIndex.Clear();
             _nextAtlasIndex = 0;
-            
+
             // Recreate default material
             CreateAtlasMaterial(0, null);
         }

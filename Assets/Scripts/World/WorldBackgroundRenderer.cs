@@ -92,13 +92,15 @@ namespace Fodinae.Assets.Scripts.World
             _backgroundMaterial.SetColor("_Color", Color.white); // For Sprites/Default fallback
             _backgroundMaterial.SetFloat("_Surface", 1f); // Transparent
             _backgroundMaterial.SetFloat("_Blend", 0f); // Alpha blending
+            _backgroundMaterial.SetOverrideTag("RenderType", "Transparent");
             _backgroundMaterial.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
             _backgroundMaterial.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
             _backgroundMaterial.SetFloat("_ZWrite", 0f);
             _backgroundMaterial.SetFloat("_Cull", 0f); // Render both faces
+            _backgroundMaterial.DisableKeyword("_ALPHAPREMULTIPLY_ON");
             _backgroundMaterial.EnableKeyword("_ALPHABLEND_ON");
             _backgroundMaterial.DisableKeyword("_ALPHATEST_ON");
-            _backgroundMaterial.renderQueue = 3000;
+            _backgroundMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
 
             var pos = transform.position;
             pos.z = 0f; // Force Z to 0

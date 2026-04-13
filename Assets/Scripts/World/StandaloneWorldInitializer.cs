@@ -15,17 +15,15 @@ namespace Fodinae.Assets.Scripts.World
         [Header("Standalone Configuration")]
         [Tooltip("Enable automatic standalone world creation")]
         [SerializeField] private bool _enableStandaloneMode = true;
-        
+
         [Tooltip("Test world dimensions")]
         [SerializeField] private int _testWorldWidth = 128;
-        [SerializeField] private int _testWorldHeight = 128;
-        
-        [Tooltip("Test world name")]
+        [SerializeField] private int _testWorldHeight = 128; [Tooltip("Test world name")]
         [SerializeField] private string _testWorldName = "Standalone_Test_World";
-        
+
         [Tooltip("Check interval for initialization timeout")]
         [SerializeField] private float _checkInterval = 2.0f;
-        
+
         [Header("Debug Settings")]
         [Tooltip("Enable detailed logging")]
         [SerializeField] private bool _enableDebugLogging = true;
@@ -38,7 +36,7 @@ namespace Fodinae.Assets.Scripts.World
         void Awake()
         {
             if (!_enableStandaloneMode) return;
-            
+
             _mapManager = GetComponent<MapManager>();
             if (_mapManager == null)
             {
@@ -59,11 +57,11 @@ namespace Fodinae.Assets.Scripts.World
             {
                 _isInitialized = true;
                 Debug.Log("[StandaloneWorldInitializer] Standalone world initialization successful!");
-                
+
                 // Trigger MapManager events to notify other systems
                 _mapManager.OnWorldInitialized?.Invoke();
                 _mapManager.OnWorldDataLoaded?.Invoke();
-                
+
                 enabled = false; // Disable further checks
             }
         }
@@ -71,7 +69,7 @@ namespace Fodinae.Assets.Scripts.World
         void OnEnable()
         {
             if (!_enableStandaloneMode) return;
-            
+
             // Start the initialization check process
             InvokeRepeating(nameof(CheckInitializationTimeout), _checkInterval, _checkInterval);
         }
@@ -116,7 +114,7 @@ namespace Fodinae.Assets.Scripts.World
             }
 
             _initializationAttempted = true;
-            
+
             if (_enableDebugLogging)
             {
                 Debug.Log($"[StandaloneWorldInitializer] Attempting standalone world initialization: {_testWorldName}");
@@ -155,14 +153,14 @@ namespace Fodinae.Assets.Scripts.World
             // Create basic cell configurations for testing
             // This provides minimal configuration for common cell types
             var configurations = new CellConfigurationPacket[256]; // Standard CellType enum size
-            
+
             for (int i = 0; i < configurations.Length; i++)
             {
                 configurations[i] = new CellConfigurationPacket
                 {
                     Animation = 0, // No animation
                     AnimationSpeed = 0,
-                    Color = unchecked((int)0xFFFFFFFF), // White default
+                    Color = unchecked((int)0x00000000), // Transparent default instead of white
                     FrameOffset = 0,
                     Properties = 0
                 };
@@ -269,7 +267,7 @@ namespace Fodinae.Assets.Scripts.World
         private void OnWorldDataLoaded()
         {
             Debug.Log("StandaloneWorldInitializer: World data loaded, notifying renderer");
-            
+
             // Notify renderer that world is ready
             var renderer = FindObjectOfType<WorldBackgroundRenderer>();
             if (renderer != null)

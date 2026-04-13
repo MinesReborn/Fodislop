@@ -74,7 +74,8 @@ namespace Fodinae.Assets.Scripts
         {
             if (obj.Payload is RuntimeAssetPacket assetPacket)
             {
-                if (_pendingRequests.TryRemove(assetPacket.Filename, out var tcs))
+                string filename = assetPacket.Filename.TrimStart('/');
+                if (_pendingRequests.TryRemove(filename, out var tcs))
                 {
                     if (assetPacket.Contents.Length == 0 && !string.IsNullOrEmpty(assetPacket.ETag))
                     {
@@ -115,6 +116,7 @@ namespace Fodinae.Assets.Scripts
 
         public async UniTask<Texture2D> GetTextureAsync(string filename, CancellationToken cancellationToken = default)
         {
+            filename = filename.TrimStart('/');
             string etag = null;
             if (HasAsset(filename))
             {
@@ -133,6 +135,10 @@ namespace Fodinae.Assets.Scripts
             catch (OperationCanceledException)
             {
                 Debug.LogWarning($"[ClientAssetLoader] Timeout or cancelled while requesting texture: {filename}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[ClientAssetLoader] Error fetching asset {filename}: {ex.Message}");
             }
 
             if (cancellationToken.IsCancellationRequested) return null;
@@ -178,6 +184,23 @@ namespace Fodinae.Assets.Scripts
                     return await existingTcs.Task;
                 }
                 return null;
+            }
+
+            // FIX: Gracefully handle offline/standalone mode!
+            // If there's no connection, immediately fetch from local Texture Storage Manager instead of crashing.
+            if (ConnectionManager.Instance == null || ConnectionManager.Instance.Connection == null ||
+                ConnectionManager.Instance.Connection.ConnectionStatus != MinesServer.Networking.Shared.ConnectionStatus.Connected)
+            {
+                _pendingRequests.TryRemove(filename, out _);
+
+                // Directly attempt to load from local storage
+                var localData = await Fodinae.Assets.Scripts.Networking.Connection.Client.TextureStorageManager.Instance.GetTextureData(filename);
+                if (localData != null)
+                {
+                    return localData;
+                }
+
+                throw new Exception($"No active connection and no local texture found for {filename}");
             }
 
             var assetEntry = new RuntimeAssetEntryPacket(filename, etag ?? "");
