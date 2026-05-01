@@ -171,6 +171,17 @@ namespace Fodinae.Assets.Scripts.Player
                             ConnectionManager.Instance.SendPacket(new ActionClientPacket(currentX, currentServerY, new RotatePacket(packetDirection)));
                             _lastSentDirection = packetDirection;
                         }
+
+                        if (direction.x != 0)
+                            _robot.TargetAngle = direction.x > 0 ? 0f : 180f;
+                        else
+                            _robot.TargetAngle = direction.y > 0 ? 90f : 270f;
+
+                        bool isShiftPressed = Keyboard.current != null && Keyboard.current.shiftKey.isPressed;
+                        if (isShiftPressed)
+                        {
+                            return;
+                        }
                         
                         // Y axis in Unity increases upwards. 
                         // Data Y usually increases downwards (0 at top).
@@ -208,12 +219,6 @@ namespace Fodinae.Assets.Scripts.Player
                             _isMoving = true;
                             ConnectionManager.Instance.SendPacket(new ActionClientPacket(currentX, currentServerY, new MovePacket(targetServerX, targetServerY)));
                         }
-
-
-                        if (direction.x != 0)
-                            _robot.TargetAngle = direction.x > 0 ? 0f : 180f;
-                        else
-                            _robot.TargetAngle = direction.y > 0 ? 90f : 270f;
                     }
                 }
             }

@@ -23,6 +23,7 @@ namespace Fodinae.Assets.Scripts.Game
         private float _targetAngle = 0f;
         private Vector3 _targetPosition;
         [SerializeField] private float _moveSpeed = 15f;
+        private float _tremor = 0f;
 
         public uint BotId => _botId;
         public int PlayerId => _playerId;
@@ -91,21 +92,56 @@ namespace Fodinae.Assets.Scripts.Game
 
         private void Update()
         {
-            float currentAngle = transform.eulerAngles.z;
-            if (!Mathf.Approximately(currentAngle, _targetAngle))
+            Vector3 position = transform.position;
+            float renderDistance = Vector2.Distance(position, _targetPosition);
+            float num = 0.9f - renderDistance * 0.01f;
+            if (num < 0.5f)
             {
-                float newAngle = Mathf.MoveTowardsAngle(currentAngle, _targetAngle, _rotationSpeed * Time.deltaTime);
-                transform.rotation = Quaternion.Euler(0, 0, newAngle);
+                num = 0.5f;
             }
 
-            if (Vector3.Distance(transform.position, _targetPosition) > 0.001f)
+            if (renderDistance > 28f)
             {
-                transform.position = Vector3.MoveTowards(transform.position, _targetPosition, _moveSpeed * Time.deltaTime);
+                position = _targetPosition;
             }
-            else if (transform.position != _targetPosition)
+            else
             {
-                transform.position = _targetPosition;
+                float num2 = 1f - num;
+                position.x = num * position.x + num2 * _targetPosition.x;
+                position.y = num * position.y + num2 * _targetPosition.y;
             }
+
+            if (_tremor > 0.01f)
+            {
+                _tremor *= 0.8f;
+                position.x += _tremor * (Random.value - 0.5f);
+                position.y += _tremor * (Random.value - 0.5f);
+            }
+            transform.position = position;
+
+            float currentAngle = transform.eulerAngles.z;
+            float targetAngle = _targetAngle;
+
+            if (currentAngle - targetAngle > 180f)
+            {
+                targetAngle += 360f;
+            }
+            if (currentAngle - targetAngle < -180f)
+            {
+                targetAngle -= 360f;
+            }
+
+            float num4 = 12f * Time.unscaledDeltaTime;
+            if (num4 > 1f) num4 = 1f;
+
+            float nowRotationAngle = (1f - num4) * currentAngle + num4 * targetAngle;
+
+            if (_skinPath != "1")
+            {
+                nowRotationAngle += 6.6f * renderDistance * (0.5f - Random.value);
+            }
+
+            transform.rotation = Quaternion.Euler(0, 0, nowRotationAngle);
         }
 
         public void Initialize(uint botId)
