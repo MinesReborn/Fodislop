@@ -114,7 +114,7 @@ namespace MinesServer.Networking.Connection.Client
                     // Send mock robot position first (loading state)
                     ushort mockBotId = 456;
                     OnReceived?.Invoke(new ServerPacket(new PlayerInfoPacket(999, mockBotId, "Darkar25")));
-                    var robotPos = new RobotPositionPacket(mockBotId, 50, 50, 0);
+                    var robotPos = new RobotPositionPacket(mockBotId, 25, 50, 0);
                     OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { robotPos })));
 
                     // Send robot metadata after a delay to show loading state
