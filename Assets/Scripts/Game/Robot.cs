@@ -22,7 +22,7 @@ namespace Fodinae.Assets.Scripts.Game
         private const float VISUAL_ROTATION_OFFSET = -90f;
         private const float BASE_SMOOTH_TIME = 0.2f;
         private const float REFERENCE_MOVE_SPEED = 15f;
-        private const float MIN_SMOOTH_TIME = 0.15f;
+        private const float MIN_SMOOTH_TIME = 0.05f;
 
         private bool _isMetadataLoaded = false;
         private CancellationTokenSource _cts;
@@ -134,7 +134,11 @@ namespace Fodinae.Assets.Scripts.Game
         private void Update()
         {
             float renderDistance = Vector2.Distance(_smoothPosition, _targetPosition);
-            float smoothTime = Mathf.Max(MIN_SMOOTH_TIME, BASE_SMOOTH_TIME * (REFERENCE_MOVE_SPEED / Mathf.Max(1f, _moveSpeed)));
+
+            // Distance-dependent smoothing: snappier when close, smoother when far.
+            // This maintains responsiveness at slow speeds while allowing corner-cutting at high speeds.
+            float targetSmoothTime = BASE_SMOOTH_TIME * (REFERENCE_MOVE_SPEED / Mathf.Max(1f, _moveSpeed));
+            float smoothTime = Mathf.Lerp(MIN_SMOOTH_TIME, targetSmoothTime, Mathf.Clamp01(renderDistance / 2f));
 
             if (renderDistance > 28f)
             {
