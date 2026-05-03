@@ -27,6 +27,7 @@ namespace Fodinae.Assets.Scripts.Game.Managers
         [SerializeField] private GameObject _robotPrefab;
         private Dictionary<uint, Robot> _robots = new();
         public uint LocalPlayerBotId { get; set; }
+        public static bool ShowDebugVisuals { get; set; }
 
         private void Awake()
         {

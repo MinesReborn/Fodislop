@@ -29,6 +29,7 @@ namespace Fodinae.Assets.Scripts.Game
         private float _targetAngle = 0f;
         private float _smoothAngle = 0f;
         private Vector3 _targetPosition;
+        private Vector3 _serverPosition;
         private Vector3 _smoothPosition;
         private Vector3 _currentVelocity;
         private float _currentAngularVelocity;
@@ -67,6 +68,7 @@ namespace Fodinae.Assets.Scripts.Game
 
             transform.localScale = Vector3.one;
             _targetPosition = transform.position;
+            _serverPosition = transform.position;
             _smoothPosition = transform.position;
             _smoothAngle = transform.eulerAngles.z;
 
@@ -109,6 +111,7 @@ namespace Fodinae.Assets.Scripts.Game
             );
             transform.position = snappedPos;
             _targetPosition = snappedPos;
+            _serverPosition = snappedPos;
             _smoothPosition = snappedPos;
             _smoothAngle = transform.eulerAngles.z;
 
@@ -176,6 +179,37 @@ namespace Fodinae.Assets.Scripts.Game
             transform.rotation = Quaternion.Euler(0, 0, nowRotationAngle);
 
             UpdateLabelsPosition();
+
+            if (RobotManager.ShowDebugVisuals)
+            {
+                DrawDebugVisuals();
+            }
+        }
+
+        private void DrawDebugVisuals()
+        {
+            // Server Position: Red (size 1.0)
+            DrawDebugBox(_serverPosition, 1.0f, Color.red);
+
+            // Client/Target Position: Blue (size 0.9)
+            DrawDebugBox(_targetPosition, 0.9f, Color.blue);
+
+            // Visual Position: Cyan (size 0.8)
+            DrawDebugBox(transform.position, 0.8f, Color.cyan);
+        }
+
+        private void DrawDebugBox(Vector3 center, float size, Color color)
+        {
+            float halfSize = size * 0.5f;
+            Vector3 topLeft = center + new Vector3(-halfSize, halfSize, 0);
+            Vector3 topRight = center + new Vector3(halfSize, halfSize, 0);
+            Vector3 bottomLeft = center + new Vector3(-halfSize, -halfSize, 0);
+            Vector3 bottomRight = center + new Vector3(halfSize, -halfSize, 0);
+
+            Debug.DrawLine(topLeft, topRight, color);
+            Debug.DrawLine(topRight, bottomRight, color);
+            Debug.DrawLine(bottomRight, bottomLeft, color);
+            Debug.DrawLine(bottomLeft, topLeft, color);
         }
 
         private void UpdateLabelsPosition()
@@ -233,7 +267,15 @@ namespace Fodinae.Assets.Scripts.Game
         public void SetPosition(ushort x, ushort y)
         {
             float unityY = (MapManager.Instance.WorldHeight - 1 - y) + 0.5f;
-            _targetPosition = new Vector3(x + 0.5f, unityY, 0);
+            _serverPosition = new Vector3(x + 0.5f, unityY, 0);
+
+            // Only update target position from server for remote robots.
+            // Local player manages its own target position via PlayerMovementController.
+            // If the local player is too far from server position, we should snap.
+            if (!IsLocalPlayer || Vector3.Distance(_targetPosition, _serverPosition) > 2.0f)
+            {
+                _targetPosition = _serverPosition;
+            }
         }
 
         public void SetRotation(byte rotation)

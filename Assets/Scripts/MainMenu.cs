@@ -1,3 +1,4 @@
+using Fodinae.Assets.Scripts.Game.Managers;
 using Fodinae.Assets.Scripts.Networking.Connection;
 using MinesServer.Networking.Client;
 using MinesServer.Networking.Client.Packets;
@@ -36,6 +37,7 @@ public class MainMenu : MonoBehaviour
 
     private void OnPlayButtonClicked()
     {
+        RobotManager.ShowDebugVisuals = false;
         if (ConnectionManager.Instance.Connection == null || ConnectionManager.Instance.Connection.ConnectionStatus == MinesServer.Networking.Shared.ConnectionStatus.Disconnected)
         {
             ConnectionManager.Instance.Connect();
@@ -47,6 +49,7 @@ public class MainMenu : MonoBehaviour
 
     private void OnPlayComplexButtonClicked()
     {
+        RobotManager.ShowDebugVisuals = true;
         if (ConnectionManager.Instance.Connection == null || ConnectionManager.Instance.Connection.ConnectionStatus == MinesServer.Networking.Shared.ConnectionStatus.Disconnected)
         {
             ConnectionManager.Instance.Connect();
