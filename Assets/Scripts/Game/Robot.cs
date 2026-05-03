@@ -20,13 +20,16 @@ namespace Fodinae.Assets.Scripts.Game
         [SerializeField] private float _rotationSpeed = 1080f;
 
         private const float VISUAL_ROTATION_OFFSET = -90f;
-        private const float BASE_SMOOTH_TIME = 0.1f;
+        private const float BASE_SMOOTH_TIME = 0.2f;
         private const float REFERENCE_MOVE_SPEED = 15f;
+        private const float MIN_SMOOTH_TIME = 0.15f;
 
         private bool _isMetadataLoaded = false;
         private CancellationTokenSource _cts;
         private float _targetAngle = 0f;
+        private float _smoothAngle = 0f;
         private Vector3 _targetPosition;
+        private Vector3 _smoothPosition;
         private Vector3 _currentVelocity;
         private float _currentAngularVelocity;
         [SerializeField] private float _moveSpeed = 15f;
@@ -64,6 +67,8 @@ namespace Fodinae.Assets.Scripts.Game
 
             transform.localScale = Vector3.one;
             _targetPosition = transform.position;
+            _smoothPosition = transform.position;
+            _smoothAngle = transform.eulerAngles.z;
 
             var rb = GetComponent<Rigidbody2D>();
             if (rb != null)
@@ -108,6 +113,8 @@ namespace Fodinae.Assets.Scripts.Game
             );
             transform.position = snappedPos;
             _targetPosition = snappedPos;
+            _smoothPosition = snappedPos;
+            _smoothAngle = transform.eulerAngles.z;
 
             // If pre-configured (like in Player prefab), load skin immediately
             if (!string.IsNullOrEmpty(_skinPath))
@@ -126,33 +133,34 @@ namespace Fodinae.Assets.Scripts.Game
 
         private void Update()
         {
-            Vector3 position = transform.position;
-            float renderDistance = Vector2.Distance(position, _targetPosition);
-            float smoothTime = BASE_SMOOTH_TIME * (REFERENCE_MOVE_SPEED / Mathf.Max(1f, _moveSpeed));
+            float renderDistance = Vector2.Distance(_smoothPosition, _targetPosition);
+            float smoothTime = Mathf.Max(MIN_SMOOTH_TIME, BASE_SMOOTH_TIME * (REFERENCE_MOVE_SPEED / Mathf.Max(1f, _moveSpeed)));
 
             if (renderDistance > 28f)
             {
-                position = _targetPosition;
+                _smoothPosition = _targetPosition;
+                _smoothAngle = _targetAngle;
                 _currentVelocity = Vector3.zero;
+                _currentAngularVelocity = 0f;
             }
             else
             {
-                position = Vector3.SmoothDamp(position, _targetPosition, ref _currentVelocity, smoothTime);
+                _smoothPosition = Vector3.SmoothDamp(_smoothPosition, _targetPosition, ref _currentVelocity, smoothTime);
             }
 
+            Vector3 finalPosition = _smoothPosition;
             if (_tremor > 0.01f)
             {
                 _tremor *= Mathf.Pow(0.8f, Time.deltaTime / 0.016f);
-                position.x += _tremor * (Random.value - 0.5f);
-                position.y += _tremor * (Random.value - 0.5f);
+                finalPosition.x += _tremor * (Random.value - 0.5f);
+                finalPosition.y += _tremor * (Random.value - 0.5f);
             }
-            transform.position = position;
+            transform.position = finalPosition;
 
-            float currentAngle = transform.eulerAngles.z;
             float targetAngle = _targetAngle;
+            _smoothAngle = Mathf.SmoothDampAngle(_smoothAngle, targetAngle, ref _currentAngularVelocity, smoothTime);
 
-            float nowRotationAngle = Mathf.SmoothDampAngle(currentAngle, targetAngle, ref _currentAngularVelocity, smoothTime);
-
+            float nowRotationAngle = _smoothAngle;
             if (_skinPath != "1")
             {
                 nowRotationAngle += 6.6f * renderDistance * (0.5f - Random.value);
