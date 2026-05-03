@@ -16,13 +16,13 @@ namespace Fodinae.Assets.Scripts.Game
         private TextMesh _nicknameText;
         [SerializeField] private string _nickname;
         [SerializeField] private string _skinPath;
-        [SerializeField] private string _tailPath;
-        [SerializeField] private float _rotationSpeed = 1080f;
+        [SerializeField] private string _tailPath; [SerializeField] private float _rotationSpeed = 1080f;
 
         private const float VISUAL_ROTATION_OFFSET = -90f;
-        private const float BASE_SMOOTH_TIME = 0.2f;
-        private const float REFERENCE_MOVE_SPEED = 15f;
+
         private const float MIN_SMOOTH_TIME = 0.05f;
+        private const float MAX_SMOOTH_TIME = 0.15f;
+        private const float REFERENCE_MOVE_SPEED = 25f;
 
         private bool _isMetadataLoaded = false;
         private CancellationTokenSource _cts;
@@ -81,7 +81,6 @@ namespace Fodinae.Assets.Scripts.Game
 
         private void InitializeVisualElements()
         {
-            // Create Nickname TextMesh
             var textGo = new GameObject("Nickname");
             textGo.transform.SetParent(transform);
             _nicknameText = textGo.AddComponent<TextMesh>();
@@ -91,11 +90,9 @@ namespace Fodinae.Assets.Scripts.Game
             _nicknameText.characterSize = 0.1f;
             _nicknameText.color = Color.white;
 
-            // Ensure text is rendered on top
             var textRenderer = textGo.GetComponent<MeshRenderer>();
             textRenderer.sortingOrder = 100;
 
-            // Create Clan Icon SpriteRenderer
             var clanGo = new GameObject("ClanIcon");
             clanGo.transform.SetParent(transform);
             _clanRenderer = clanGo.AddComponent<SpriteRenderer>();
@@ -105,7 +102,6 @@ namespace Fodinae.Assets.Scripts.Game
 
         private void Start()
         {
-            // Snap to grid center on start to prevent misalignment
             Vector3 snappedPos = new Vector3(
                 Mathf.Floor(transform.position.x) + 0.5f,
                 Mathf.Floor(transform.position.y) + 0.5f,
@@ -116,17 +112,14 @@ namespace Fodinae.Assets.Scripts.Game
             _smoothPosition = snappedPos;
             _smoothAngle = transform.eulerAngles.z;
 
-            // If pre-configured (like in Player prefab), load skin immediately
             if (!string.IsNullOrEmpty(_skinPath))
             {
                 LoadMetadataAssets();
             }
             _targetAngle = transform.eulerAngles.z;
 
-            // Register this robot if it's the player (or has a pre-set botId)
             if (gameObject.CompareTag("Player"))
             {
-                // Note: The player's botId might be set later, but for now we register with its current botId
                 RobotManager.Instance.RegisterRobot(this);
             }
         }
@@ -135,10 +128,14 @@ namespace Fodinae.Assets.Scripts.Game
         {
             float renderDistance = Vector2.Distance(_smoothPosition, _targetPosition);
 
-            // Distance-dependent smoothing: snappier when close, smoother when far.
-            // This maintains responsiveness at slow speeds while allowing corner-cutting at high speeds.
-            float targetSmoothTime = BASE_SMOOTH_TIME * (REFERENCE_MOVE_SPEED / Mathf.Max(1f, _moveSpeed));
-            float smoothTime = Mathf.Lerp(MIN_SMOOTH_TIME, targetSmoothTime, Mathf.Clamp01(renderDistance / 2f));
+            // 1. Base smooth time now scales PROPORTIONALLY with speed.
+            // Slower = snappier/tighter (low smooth time). Faster = momentum/curves (higher smooth time).
+            float speedRatio = Mathf.Clamp01(_moveSpeed / REFERENCE_MOVE_SPEED);
+            float targetSmoothTime = Mathf.Lerp(MIN_SMOOTH_TIME, MAX_SMOOTH_TIME, speedRatio);
+
+            // 2. Distance factor: get extra snappy when very close to the target (e.g. moving exactly 1 cell and stopping)
+            float distanceRatio = Mathf.Clamp01(renderDistance / 2f);
+            float smoothTime = Mathf.Lerp(MIN_SMOOTH_TIME, targetSmoothTime, distanceRatio);
 
             if (renderDistance > 28f)
             {
@@ -149,9 +146,14 @@ namespace Fodinae.Assets.Scripts.Game
             }
             else
             {
-                _smoothPosition = Vector3.SmoothDamp(_smoothPosition, _targetPosition, ref _currentVelocity, smoothTime);
+                // 3. Max Visual Speed limits the catch-up rate. 
+                // Setting it to 1.25x of logical speed allows it to easily catch up without wildly slingshotting,
+                // bridging the gaps between server "ticks" smoothly when running continuously.
+                float maxVisualSpeed = Mathf.Max(_moveSpeed * 1.25f, 5f);
+                _smoothPosition = Vector3.SmoothDamp(_smoothPosition, _targetPosition, ref _currentVelocity, smoothTime, maxVisualSpeed, Time.deltaTime);
             }
 
+            // Apply tremor logic
             Vector3 finalPosition = _smoothPosition;
             if (_tremor > 0.01f)
             {
@@ -161,8 +163,9 @@ namespace Fodinae.Assets.Scripts.Game
             }
             transform.position = finalPosition;
 
+            // Apply rotation smoothing (now limits turning rate using your previously unused _rotationSpeed field)
             float targetAngle = _targetAngle;
-            _smoothAngle = Mathf.SmoothDampAngle(_smoothAngle, targetAngle, ref _currentAngularVelocity, smoothTime);
+            _smoothAngle = Mathf.SmoothDampAngle(_smoothAngle, targetAngle, ref _currentAngularVelocity, smoothTime, _rotationSpeed, Time.deltaTime);
 
             float nowRotationAngle = _smoothAngle;
             if (_skinPath != "1")
@@ -179,14 +182,12 @@ namespace Fodinae.Assets.Scripts.Game
         {
             if (_nicknameText != null)
             {
-                // Position: to the right of the body, slightly higher than center
                 _nicknameText.transform.position = transform.position + new Vector3(0.6f, 0.5f, 0);
                 _nicknameText.transform.rotation = Quaternion.identity;
             }
 
             if (_clanRenderer != null)
             {
-                // Position: to the right of the body, slightly lower than center
                 _clanRenderer.transform.position = transform.position + new Vector3(0.6f, -0.5f, 0);
                 _clanRenderer.transform.rotation = Quaternion.identity;
             }
@@ -198,8 +199,6 @@ namespace Fodinae.Assets.Scripts.Game
             RobotManager.Instance.RegisterRobot(this);
 
             _isMetadataLoaded = false;
-            // Set to a "loading" or default state if needed
-            // Maybe dim the sprite or show a placeholder
             if (_spriteRenderer != null)
             {
                 _spriteRenderer.color = new Color(1, 1, 1, 0.5f);
@@ -233,15 +232,12 @@ namespace Fodinae.Assets.Scripts.Game
 
         public void SetPosition(ushort x, ushort y)
         {
-            // Align to 1.0 unit grid (centers)
-            // Invert Y: Server Y 0 is at the top, Unity Y increases upwards
             float unityY = (MapManager.Instance.WorldHeight - 1 - y) + 0.5f;
             _targetPosition = new Vector3(x + 0.5f, unityY, 0);
         }
 
         public void SetRotation(byte rotation)
         {
-            // 0: Down (270), 1: Left (180), 2: Up (90), 3: Right (0)
             TargetAngle = rotation switch
             {
                 0 => 270f,

@@ -132,7 +132,7 @@ namespace MinesServer.Networking.Connection.Client
                     OnReceived?.Invoke(new ServerPacket(new GeologyPacket(5, 10, CellType.Lava, "Lava")));
                     OnReceived?.Invoke(new ServerPacket(new LevelPacket(12345)));
                     OnReceived?.Invoke(new ServerPacket(new MovementSpeedPacket(new Dictionary<CellType, ushort> {
-                        [CellType.Empty] = 200,
+                        [CellType.Empty] = 20,
                         [CellType.Road] = 100
                     })));
                     break;
