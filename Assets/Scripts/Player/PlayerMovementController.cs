@@ -161,6 +161,10 @@ namespace Fodinae.Assets.Scripts.Player
 
                     var currentCellType = MapStorage.Instance.GetCell(currentX, currentServerY);
                     float cooldown = MapManager.Instance.GetMoveCooldown(currentCellType);
+                    if (cooldown > 0)
+                    {
+                        _robot.MoveSpeed = 1f / cooldown;
+                    }
                     if (Time.time - _lastMoveTime < cooldown)
                     {
                         return;

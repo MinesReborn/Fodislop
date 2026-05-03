@@ -16,15 +16,22 @@ namespace Fodinae.Assets.Scripts.Game
         private TextMesh _nicknameText;
         [SerializeField] private string _nickname;
         [SerializeField] private string _skinPath;
-        [SerializeField] private string _tailPath;
-        [SerializeField] private float _rotationSpeed = 1080f;
+        [SerializeField] private string _tailPath; [SerializeField] private float _rotationSpeed = 1080f;
 
         private const float VISUAL_ROTATION_OFFSET = -90f;
+
+        private const float MIN_SMOOTH_TIME = 0.05f;
+        private const float MAX_SMOOTH_TIME = 0.15f;
+        private const float REFERENCE_MOVE_SPEED = 25f;
 
         private bool _isMetadataLoaded = false;
         private CancellationTokenSource _cts;
         private float _targetAngle = 0f;
+        private float _smoothAngle = 0f;
         private Vector3 _targetPosition;
+        private Vector3 _smoothPosition;
+        private Vector3 _currentVelocity;
+        private float _currentAngularVelocity;
         [SerializeField] private float _moveSpeed = 15f;
         private float _tremor = 0f;
 
@@ -60,6 +67,8 @@ namespace Fodinae.Assets.Scripts.Game
 
             transform.localScale = Vector3.one;
             _targetPosition = transform.position;
+            _smoothPosition = transform.position;
+            _smoothAngle = transform.eulerAngles.z;
 
             var rb = GetComponent<Rigidbody2D>();
             if (rb != null)
@@ -72,7 +81,6 @@ namespace Fodinae.Assets.Scripts.Game
 
         private void InitializeVisualElements()
         {
-            // Create Nickname TextMesh
             var textGo = new GameObject("Nickname");
             textGo.transform.SetParent(transform);
             _nicknameText = textGo.AddComponent<TextMesh>();
@@ -82,11 +90,9 @@ namespace Fodinae.Assets.Scripts.Game
             _nicknameText.characterSize = 0.1f;
             _nicknameText.color = Color.white;
 
-            // Ensure text is rendered on top
             var textRenderer = textGo.GetComponent<MeshRenderer>();
             textRenderer.sortingOrder = 100;
 
-            // Create Clan Icon SpriteRenderer
             var clanGo = new GameObject("ClanIcon");
             clanGo.transform.SetParent(transform);
             _clanRenderer = clanGo.AddComponent<SpriteRenderer>();
@@ -96,7 +102,6 @@ namespace Fodinae.Assets.Scripts.Game
 
         private void Start()
         {
-            // Snap to grid center on start to prevent misalignment
             Vector3 snappedPos = new Vector3(
                 Mathf.Floor(transform.position.x) + 0.5f,
                 Mathf.Floor(transform.position.y) + 0.5f,
@@ -104,68 +109,65 @@ namespace Fodinae.Assets.Scripts.Game
             );
             transform.position = snappedPos;
             _targetPosition = snappedPos;
+            _smoothPosition = snappedPos;
+            _smoothAngle = transform.eulerAngles.z;
 
-            // If pre-configured (like in Player prefab), load skin immediately
             if (!string.IsNullOrEmpty(_skinPath))
             {
                 LoadMetadataAssets();
             }
             _targetAngle = transform.eulerAngles.z;
 
-            // Register this robot if it's the player (or has a pre-set botId)
             if (gameObject.CompareTag("Player"))
             {
-                // Note: The player's botId might be set later, but for now we register with its current botId
                 RobotManager.Instance.RegisterRobot(this);
             }
         }
 
         private void Update()
         {
-            Vector3 position = transform.position;
-            float renderDistance = Vector2.Distance(position, _targetPosition);
-            float num = 0.9f - renderDistance * 0.01f;
-            if (num < 0.5f)
-            {
-                num = 0.5f;
-            }
+            float renderDistance = Vector2.Distance(_smoothPosition, _targetPosition);
+
+            // 1. Base smooth time now scales PROPORTIONALLY with speed.
+            // Slower = snappier/tighter (low smooth time). Faster = momentum/curves (higher smooth time).
+            float speedRatio = Mathf.Clamp01(_moveSpeed / REFERENCE_MOVE_SPEED);
+            float targetSmoothTime = Mathf.Lerp(MIN_SMOOTH_TIME, MAX_SMOOTH_TIME, speedRatio);
+
+            // 2. Distance factor: get extra snappy when very close to the target (e.g. moving exactly 1 cell and stopping)
+            float distanceRatio = Mathf.Clamp01(renderDistance / 2f);
+            float smoothTime = Mathf.Lerp(MIN_SMOOTH_TIME, targetSmoothTime, distanceRatio);
 
             if (renderDistance > 28f)
             {
-                position = _targetPosition;
+                _smoothPosition = _targetPosition;
+                _smoothAngle = _targetAngle;
+                _currentVelocity = Vector3.zero;
+                _currentAngularVelocity = 0f;
             }
             else
             {
-                float num2 = 1f - num;
-                position.x = num * position.x + num2 * _targetPosition.x;
-                position.y = num * position.y + num2 * _targetPosition.y;
+                // 3. Max Visual Speed limits the catch-up rate. 
+                // Setting it to 1.25x of logical speed allows it to easily catch up without wildly slingshotting,
+                // bridging the gaps between server "ticks" smoothly when running continuously.
+                float maxVisualSpeed = Mathf.Max(_moveSpeed * 1.25f, 5f);
+                _smoothPosition = Vector3.SmoothDamp(_smoothPosition, _targetPosition, ref _currentVelocity, smoothTime, maxVisualSpeed, Time.deltaTime);
             }
 
+            // Apply tremor logic
+            Vector3 finalPosition = _smoothPosition;
             if (_tremor > 0.01f)
             {
-                _tremor *= 0.8f;
-                position.x += _tremor * (Random.value - 0.5f);
-                position.y += _tremor * (Random.value - 0.5f);
+                _tremor *= Mathf.Pow(0.8f, Time.deltaTime / 0.016f);
+                finalPosition.x += _tremor * (Random.value - 0.5f);
+                finalPosition.y += _tremor * (Random.value - 0.5f);
             }
-            transform.position = position;
+            transform.position = finalPosition;
 
-            float currentAngle = transform.eulerAngles.z;
+            // Apply rotation smoothing (now limits turning rate using your previously unused _rotationSpeed field)
             float targetAngle = _targetAngle;
+            _smoothAngle = Mathf.SmoothDampAngle(_smoothAngle, targetAngle, ref _currentAngularVelocity, smoothTime, _rotationSpeed, Time.deltaTime);
 
-            if (currentAngle - targetAngle > 180f)
-            {
-                targetAngle += 360f;
-            }
-            if (currentAngle - targetAngle < -180f)
-            {
-                targetAngle -= 360f;
-            }
-
-            float num4 = 12f * Time.unscaledDeltaTime;
-            if (num4 > 1f) num4 = 1f;
-
-            float nowRotationAngle = (1f - num4) * currentAngle + num4 * targetAngle;
-
+            float nowRotationAngle = _smoothAngle;
             if (_skinPath != "1")
             {
                 nowRotationAngle += 6.6f * renderDistance * (0.5f - Random.value);
@@ -180,14 +182,12 @@ namespace Fodinae.Assets.Scripts.Game
         {
             if (_nicknameText != null)
             {
-                // Position: to the right of the body, slightly higher than center
                 _nicknameText.transform.position = transform.position + new Vector3(0.6f, 0.5f, 0);
                 _nicknameText.transform.rotation = Quaternion.identity;
             }
 
             if (_clanRenderer != null)
             {
-                // Position: to the right of the body, slightly lower than center
                 _clanRenderer.transform.position = transform.position + new Vector3(0.6f, -0.5f, 0);
                 _clanRenderer.transform.rotation = Quaternion.identity;
             }
@@ -199,8 +199,6 @@ namespace Fodinae.Assets.Scripts.Game
             RobotManager.Instance.RegisterRobot(this);
 
             _isMetadataLoaded = false;
-            // Set to a "loading" or default state if needed
-            // Maybe dim the sprite or show a placeholder
             if (_spriteRenderer != null)
             {
                 _spriteRenderer.color = new Color(1, 1, 1, 0.5f);
@@ -234,15 +232,12 @@ namespace Fodinae.Assets.Scripts.Game
 
         public void SetPosition(ushort x, ushort y)
         {
-            // Align to 1.0 unit grid (centers)
-            // Invert Y: Server Y 0 is at the top, Unity Y increases upwards
             float unityY = (MapManager.Instance.WorldHeight - 1 - y) + 0.5f;
             _targetPosition = new Vector3(x + 0.5f, unityY, 0);
         }
 
         public void SetRotation(byte rotation)
         {
-            // 0: Down (270), 1: Left (180), 2: Up (90), 3: Right (0)
             TargetAngle = rotation switch
             {
                 0 => 270f,
