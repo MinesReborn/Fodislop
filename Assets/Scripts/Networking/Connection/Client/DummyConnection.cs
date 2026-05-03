@@ -21,6 +21,7 @@ using MinesServer.Networking.Shared.Packets;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Fodinae.Assets.Scripts.UI;
 using UnityEngine;
 
 namespace MinesServer.Networking.Connection.Client
@@ -54,12 +55,16 @@ namespace MinesServer.Networking.Connection.Client
             ConnectAsync().Forget();
         }
 
-        private async UniTaskVoid ConnectAsync()
-        {
-            await UniTask.Delay(100);
-            _status = ConnectionStatus.Connected;
-            OnConnected?.Invoke();
-        }
+private async UniTaskVoid ConnectAsync()
+{
+    await UniTask.Delay(100);
+    _status = ConnectionStatus.Connected;
+    OnConnected?.Invoke();
+
+    // Instantiate minimap placeholder UI
+    var minimapObj = new GameObject("MinimapRoot");
+    minimapObj.AddComponent<MinimapPlaceholder>();
+}
 
         public void Disconnect()
         {
@@ -108,8 +113,8 @@ namespace MinesServer.Networking.Connection.Client
                 case ClientHelloPacket clientHello:
                     // Send world initialization with proper cell configurations
                     var cellConfigs = CreateTestCellConfigurations();
-                    const int testWorldWidth = 100;
-                    const int testWorldHeight = 100;
+                    const int testWorldWidth = 500;
+                    const int testWorldHeight = 500;
                     OnReceived?.Invoke(new ServerPacket(new WorldInitPacket(
                         "pallada",
                         "Pallada",

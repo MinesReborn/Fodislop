@@ -259,17 +259,6 @@ namespace Fodinae.Assets.Scripts.World
             {
                 status.AppendLine("MapStorage: Not available");
             }
-
-            if (_renderer != null)
-            {
-                status.AppendLine($"Renderer: Configured={_renderer.IsProperlyConfigured()}, Chunks={_renderer.GetVisibleChunkCount()}");
-                status.AppendLine($"Textures: Loaded={_renderer.AreTexturesLoaded()}, Atlas={_renderer.IsAtlasApplied()}");
-            }
-            else
-            {
-                status.AppendLine("Renderer: Not available");
-            }
-
             return status.ToString();
         }
 

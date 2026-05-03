@@ -81,29 +81,28 @@ namespace Fodinae.Assets.Scripts.World
             var shader = Shader.Find("Universal Render Pipeline/Unlit");
             if (shader == null)
             {
-                shader = Shader.Find("Sprites/Default"); // Fail-safe shader
+                shader = Shader.Find("Sprites/Default");
             }
 
             _backgroundMaterial = new Material(shader);
             _backgroundMaterial.name = "WorldBackgroundMaterial";
 
-            // Fail-safe URP Transparent Blending (prevents aggressive alpha clipping invisibility)
             _backgroundMaterial.SetColor("_BaseColor", Color.white);
-            _backgroundMaterial.SetColor("_Color", Color.white); // For Sprites/Default fallback
-            _backgroundMaterial.SetFloat("_Surface", 1f); // Transparent
-            _backgroundMaterial.SetFloat("_Blend", 0f); // Alpha blending
+            _backgroundMaterial.SetColor("_Color", Color.white);
+            _backgroundMaterial.SetFloat("_Surface", 1f);
+            _backgroundMaterial.SetFloat("_Blend", 0f);
             _backgroundMaterial.SetOverrideTag("RenderType", "Transparent");
-            _backgroundMaterial.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            _backgroundMaterial.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            _backgroundMaterial.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            _backgroundMaterial.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
             _backgroundMaterial.SetFloat("_ZWrite", 0f);
-            _backgroundMaterial.SetFloat("_Cull", 0f); // Render both faces
+            _backgroundMaterial.SetFloat("_Cull", 0f);
             _backgroundMaterial.DisableKeyword("_ALPHAPREMULTIPLY_ON");
             _backgroundMaterial.EnableKeyword("_ALPHABLEND_ON");
             _backgroundMaterial.DisableKeyword("_ALPHATEST_ON");
-            _backgroundMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            _backgroundMaterial.renderQueue = (int)RenderQueue.Transparent;
 
             var pos = transform.position;
-            pos.z = 0f; // Force Z to 0
+            pos.z = 0f;
             transform.position = pos;
 
             ApplyAtlas();
@@ -214,7 +213,6 @@ namespace Fodinae.Assets.Scripts.World
 
             var newVisible = new HashSet<Vector2Int>();
 
-            // Frustum-based chunk calculation
             float camHeight = _mainCamera.orthographicSize * 2f;
             float camWidth = camHeight * _mainCamera.aspect;
 
@@ -277,6 +275,7 @@ namespace Fodinae.Assets.Scripts.World
 
                 await GenerateTextures(chunkMesh);
 
+                // Create background chunk GameObject
                 var go = new GameObject($"Chunk_{chunkPos.x}_{chunkPos.y}");
                 go.transform.SetParent(this.transform, false);
                 go.layer = this.gameObject.layer;
@@ -287,15 +286,15 @@ namespace Fodinae.Assets.Scripts.World
                 var filter = go.AddComponent<MeshFilter>();
                 var renderer = go.AddComponent<MeshRenderer>();
 
-                renderer.sharedMaterial = _backgroundMaterial; // Ensures all chunks use the exact same texture
+                renderer.sharedMaterial = _backgroundMaterial;
                 renderer.sortingOrder = _sortingOrder;
                 renderer.shadowCastingMode = ShadowCastingMode.Off;
                 renderer.receiveShadows = false;
-                renderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
-                renderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+                renderer.lightProbeUsage = LightProbeUsage.Off;
+                renderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
 
                 var mesh = new Mesh();
-                mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+                mesh.indexFormat = IndexFormat.UInt32;
                 mesh.SetVertices(chunkMesh.Vertices);
                 mesh.SetTriangles(chunkMesh.Triangles, 0);
                 mesh.SetUVs(0, chunkMesh.UVs);
@@ -310,6 +309,66 @@ namespace Fodinae.Assets.Scripts.World
                     GameObject = go,
                     AnimatedCells = chunkMesh.AnimatedCells
                 };
+
+                // Create foreground mesh only if there are non-empty cells
+                if (chunkMesh.Cells.Any(c => c.CellType != CellType.Empty))
+                {
+                    var fgGo = new GameObject($"Chunk_{chunkPos.x}_{chunkPos.y}_FG");
+                    fgGo.transform.SetParent(go.transform, false);
+                    fgGo.layer = this.gameObject.layer;
+
+                    var fgFilter = fgGo.AddComponent<MeshFilter>();
+                    var fgRenderer = fgGo.AddComponent<MeshRenderer>();
+
+                    fgRenderer.sharedMaterial = _backgroundMaterial;
+                    fgRenderer.sortingOrder = _sortingOrder + 1;
+                    fgRenderer.shadowCastingMode = ShadowCastingMode.Off;
+                    fgRenderer.receiveShadows = false;
+                    fgRenderer.lightProbeUsage = LightProbeUsage.Off;
+                    fgRenderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
+
+                    var fgMesh = new Mesh();
+                    fgMesh.indexFormat = IndexFormat.UInt32;
+
+                    var fgVertices = new List<Vector3>();
+                    var fgTriangles = new List<int>();
+                    var fgUVs = new List<Vector2>();
+                    int fgIndex = 0;
+
+                    for (int i = 0; i < chunkMesh.Cells.Count; i++)
+                    {
+                        var cell = chunkMesh.Cells[i];
+                        if (cell.CellType == CellType.Empty) continue;
+
+                        int baseIndex = cell.VertexStartIndex;
+                        fgVertices.Add(chunkMesh.Vertices[baseIndex]);
+                        fgVertices.Add(chunkMesh.Vertices[baseIndex + 1]);
+                        fgVertices.Add(chunkMesh.Vertices[baseIndex + 2]);
+                        fgVertices.Add(chunkMesh.Vertices[baseIndex + 3]);
+
+                        fgTriangles.Add(fgIndex);
+                        fgTriangles.Add(fgIndex + 2);
+                        fgTriangles.Add(fgIndex + 1);
+                        fgTriangles.Add(fgIndex);
+                        fgTriangles.Add(fgIndex + 3);
+                        fgTriangles.Add(fgIndex + 2);
+
+                        fgUVs.Add(chunkMesh.UVs[baseIndex]);
+                        fgUVs.Add(chunkMesh.UVs[baseIndex + 1]);
+                        fgUVs.Add(chunkMesh.UVs[baseIndex + 2]);
+                        fgUVs.Add(chunkMesh.UVs[baseIndex + 3]);
+
+                        fgIndex += 4;
+                    }
+
+                    fgMesh.SetVertices(fgVertices);
+                    fgMesh.SetTriangles(fgTriangles, 0);
+                    fgMesh.SetUVs(0, fgUVs);
+                    fgMesh.RecalculateBounds();
+                    fgMesh.RecalculateNormals();
+
+                    fgFilter.mesh = fgMesh;
+                }
             }
             catch (Exception ex)
             {
@@ -428,7 +487,7 @@ namespace Fodinae.Assets.Scripts.World
         public bool IsAtlasApplied() => _atlasTextureApplied;
         public string GetRendererState() => _currentState.ToString();
         private void OnWorldInitialized() => _currentState = InitializationState.WaitingForWorldData;
-        private void OnWorldDataLoaded() { ForceInitialization(); } // Clear and redraw with new world!
+        private void OnWorldDataLoaded() { ForceInitialization(); }
 
         private void CheckFallbackInitialization()
         {
@@ -498,7 +557,13 @@ namespace Fodinae.Assets.Scripts.World
             }
         }
 
-        private class CellInfo { public Vector2Int LocalPosition, WorldPosition, ServerPosition; public CellType CellType; public int VertexStartIndex; }
+        private class CellInfo
+        {
+            public Vector2Int LocalPosition, WorldPosition, ServerPosition;
+            public CellType CellType;
+            public int VertexStartIndex;
+        }
+
         private class ChunkMesh
         {
             public Vector2Int ChunkPosition;

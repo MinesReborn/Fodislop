@@ -98,10 +98,10 @@ namespace Fodinae.Assets.Scripts.World
             int subAtlasWidth = cell.Rectangle.Width;
             int subAtlasHeight = cell.Rectangle.Height;
 
-            // Use 16x16 as the tile size for terrain rendering
-            const int terrainTileSize = 16;
+            // Use 32x32 as the tile size for terrain rendering
+            const int terrainTileSize = 32;
 
-            // How many 16x16 tiles fit in the SUB-ATLAS width and height
+            // How many 32x32 tiles fit in the SUB-ATLAS width and height
             int tilesPerRow = subAtlasWidth / terrainTileSize;
 
             // If frameHeightPixels is provided, it defines the wrapping boundary for animations
@@ -124,7 +124,7 @@ namespace Fodinae.Assets.Scripts.World
             return new AtlasCoordinate(
                 atlasX,
                 atlasY,
-                terrainTileSize,  // We only want to render one 16x16 tile
+                terrainTileSize,  // We only want to render one 32x32 tile
                 terrainTileSize,
                 Size,             // Full atlas width
                 Size              // Full atlas height
