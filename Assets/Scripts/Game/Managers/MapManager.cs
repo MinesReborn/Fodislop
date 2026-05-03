@@ -222,7 +222,7 @@ namespace Fodinae.Assets.Scripts.Game.Managers
         {
             if (_cellMoveSpeeds.TryGetValue(cellType, out ushort speed) && speed > 0)
             {
-                return 10.0f / speed;
+                return speed / 1000f;
             }
             return 0f;
         }

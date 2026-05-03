@@ -131,6 +131,10 @@ namespace MinesServer.Networking.Connection.Client
                     OnReceived?.Invoke(new ServerPacket(new BasketPacket(123, new[] { 1L, 2L, 3L, 4L, 5L, 6L })));
                     OnReceived?.Invoke(new ServerPacket(new GeologyPacket(5, 10, CellType.Lava, "Lava")));
                     OnReceived?.Invoke(new ServerPacket(new LevelPacket(12345)));
+                    OnReceived?.Invoke(new ServerPacket(new MovementSpeedPacket(new Dictionary<CellType, ushort> {
+                        [CellType.Empty] = 200,
+                        [CellType.Road] = 100
+                    })));
                     break;
                 case RuntimeAssetRequestPacket runtimeAssets:
                     HandleAssetRequest(runtimeAssets).Forget();
