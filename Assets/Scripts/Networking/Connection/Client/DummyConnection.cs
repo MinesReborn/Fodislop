@@ -37,6 +37,11 @@ namespace MinesServer.Networking.Connection.Client
         public event Action OnDisconnecting;
         public event Action OnConnecting;
 
+        private const ushort mockBotId = 456;
+        private ushort x = 0;
+        private ushort y = 0;
+        private Direction rot = Direction.Up;
+
         public void Connect()
         {
             if (_status != ConnectionStatus.Disconnected)
@@ -84,9 +89,18 @@ namespace MinesServer.Networking.Connection.Client
             {
                 Debug.Log($"[DummyConnection] Received ActionClientPacket: X={actionPacket.X}, Y={actionPacket.Y}, Payload={actionPacket.Payload.GetType().Name}");
                 if (actionPacket.Payload is MovePacket move)
+                {
                     Debug.Log($"  - Move to ({move.X}, {move.Y})");
+                    x = move.X;
+                    y = move.Y;
+                    OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { new RobotPositionPacket(mockBotId, move.X, move.Y, (byte)rot) })));
+                }
                 else if (actionPacket.Payload is RotatePacket rotate)
+                {
                     Debug.Log($"  - Rotate to {rotate.Direction}");
+                    rot = rotate.Direction;
+                    OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { new RobotPositionPacket(mockBotId, x, y, (byte)rotate.Direction) })));
+                }
             }
 
             switch (packet.Data)
@@ -112,7 +126,6 @@ namespace MinesServer.Networking.Connection.Client
                     // Send other initial packets
 
                     // Send mock robot position first (loading state)
-                    ushort mockBotId = 456;
                     OnReceived?.Invoke(new ServerPacket(new PlayerInfoPacket(999, mockBotId, "Darkar25")));
                     var robotPos = new RobotPositionPacket(mockBotId, 25, 50, 0);
                     OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { robotPos })));
