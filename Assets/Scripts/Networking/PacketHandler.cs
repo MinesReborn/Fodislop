@@ -110,6 +110,10 @@ namespace Fodinae.Assets.Scripts.Networking
             {
                 HandlePlayerInfoPacket(playerInfoPacket);
             }
+            else if (packet.Payload is MovementSpeedPacket movementSpeedPacket)
+            {
+                HandleMovementSpeedPacket(movementSpeedPacket);
+            }
             else if (packet.Payload is OpenWindowPacket openWindowPacket)
             {
                 HandleOpenWindowPacket(openWindowPacket);
@@ -207,6 +211,12 @@ namespace Fodinae.Assets.Scripts.Networking
                     controller.Initialize(packet.BotId);
                 }
             }
+        }
+
+        private void HandleMovementSpeedPacket(MovementSpeedPacket packet)
+        {
+            Debug.Log($"[PacketHandler] Handling MovementSpeedPacket with {packet.CooldownMap.Count} entries");
+            MapManager.Instance.UpdateMovementSpeeds(packet);
         }
 
         private void HandleHBPacket(HBPacket hbPacket)

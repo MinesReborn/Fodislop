@@ -32,6 +32,7 @@ namespace Fodinae.Assets.Scripts.Player
 
         private Vector2 _moveInput;
         private bool _isMoving = false;
+        private float _lastMoveTime;
         private Direction? _lastSentDirection;
 
         private void OnEnable()
@@ -168,10 +169,18 @@ namespace Fodinae.Assets.Scripts.Player
                         ushort currentX = (ushort)Mathf.Clamp(currentUnityX, 0, ushort.MaxValue);
                         ushort currentServerY = (ushort)Mathf.Clamp(MapManager.Instance.WorldHeight - 1 - currentUnityY, 0, ushort.MaxValue);
 
+                        var currentCellType = MapStorage.Instance.GetCell(currentX, currentServerY);
+                        float cooldown = MapManager.Instance.GetMoveCooldown(currentCellType);
+                        if (Time.time - _lastMoveTime < cooldown)
+                        {
+                            return;
+                        }
+
                         if (_lastSentDirection != packetDirection)
                         {
                             ConnectionManager.Instance.SendPacket(new ActionClientPacket(currentX, currentServerY, new RotatePacket(packetDirection)));
                             _lastSentDirection = packetDirection;
+                            _lastMoveTime = Time.time;
                         }
 
                         if (direction.x != 0)
@@ -220,6 +229,7 @@ namespace Fodinae.Assets.Scripts.Player
                             _robot.TargetPosition = new Vector3(targetUnityX + 0.5f, targetUnityY + 0.5f, transform.position.z);
                             _isMoving = true;
                             ClientPosition = new Vector2Int(targetUnityX, targetUnityY);
+                            _lastMoveTime = Time.time;
                             ConnectionManager.Instance.SendPacket(new ActionClientPacket(currentX, currentServerY, new MovePacket(targetServerX, targetServerY)));
                         }
                     }

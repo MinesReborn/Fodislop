@@ -1,6 +1,8 @@
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
+using MinesServer.Networking.Server.Packets.Information;
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Fodinae.Assets.Scripts.Game.Managers
@@ -29,6 +31,7 @@ namespace Fodinae.Assets.Scripts.Game.Managers
     public Action OnWorldDataLoaded;
 
     private CellConfigurationPacket[] cellConfigurations;
+    private Dictionary<CellType, ushort> _cellMoveSpeeds = new();
     private string worldCodeName;
     private string worldDisplayName;
     private ushort width;
@@ -206,6 +209,23 @@ namespace Fodinae.Assets.Scripts.Game.Managers
             Debug.LogError("[MapManager] MapStorage still not ready after delay - terrain rendering will remain broken");
         }
     }
+
+        public void UpdateMovementSpeeds(MovementSpeedPacket packet)
+        {
+            foreach (var entry in packet.CooldownMap)
+            {
+                _cellMoveSpeeds[entry.Key] = entry.Value;
+            }
+        }
+
+        public float GetMoveCooldown(CellType cellType)
+        {
+            if (_cellMoveSpeeds.TryGetValue(cellType, out ushort speed) && speed > 0)
+            {
+                return 10.0f / speed;
+            }
+            return 0f;
+        }
 
         public CellConfigurationPacket GetCellConfig(CellType cellType)
         {
