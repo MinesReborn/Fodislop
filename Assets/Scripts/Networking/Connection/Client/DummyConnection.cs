@@ -570,7 +570,7 @@ namespace MinesServer.Networking.Connection.Client
         private async UniTaskVoid HandleRobotInfoMock(ushort botId)
         {
             await UniTask.Delay(2000); // 2 second delay to see "loading" state
-            OnReceived?.Invoke(new ServerPacket(new RobotInfoPacket(botId, 999, "skin/bee.png", "clan/1.png", "BeeBot")));
+            OnReceived?.Invoke(new ServerPacket(new RobotInfoPacket(botId, 999, 1, "skin/bee.png", "tail/default.png", "BeeBot")));
         }
 
         private async UniTaskVoid RunCircularRobot(ushort botId)
@@ -582,7 +582,7 @@ namespace MinesServer.Networking.Connection.Client
             float radius = 3.0f;
 
             // Send initial info
-            OnReceived?.Invoke(new ServerPacket(new RobotInfoPacket(botId, 1000, "skin/bee.png", "clan/2.png", "CircularBot")));
+            OnReceived?.Invoke(new ServerPacket(new RobotInfoPacket(botId, 1000, 0, "skin/bee.png", "tail/default.png", "CircularBot")));
 
             while (_status == ConnectionStatus.Connected)
             {

@@ -10,6 +10,7 @@ namespace Fodinae.Assets.Scripts.Game
     {
         [SerializeField] private uint _botId;
         [SerializeField] private int _playerId;
+        [SerializeField] private byte _clanId;
         [SerializeField] private SpriteRenderer _spriteRenderer;
         private SpriteRenderer _clanRenderer;
         private TextMesh _nicknameText;
@@ -29,6 +30,7 @@ namespace Fodinae.Assets.Scripts.Game
 
         public uint BotId => _botId;
         public int PlayerId => _playerId;
+        public byte ClanId => _clanId;
         public string Nickname => _nickname;
         public bool IsMetadataLoaded => _isMetadataLoaded;
         public bool IsLocalPlayer => gameObject.CompareTag("Player");
@@ -77,7 +79,7 @@ namespace Fodinae.Assets.Scripts.Game
             _nicknameText.anchor = TextAnchor.MiddleLeft;
             _nicknameText.alignment = TextAlignment.Left;
             _nicknameText.fontSize = 64;
-            _nicknameText.characterSize = 0.004f;
+            _nicknameText.characterSize = 0.1f;
             _nicknameText.color = Color.white;
 
             // Ensure text is rendered on top
@@ -89,7 +91,7 @@ namespace Fodinae.Assets.Scripts.Game
             clanGo.transform.SetParent(transform);
             _clanRenderer = clanGo.AddComponent<SpriteRenderer>();
             _clanRenderer.sortingOrder = 100;
-            _clanRenderer.transform.localScale = Vector3.one * (1f / 3f);
+            _clanRenderer.transform.localScale = Vector3.one * 0.8f;
         }
 
         private void Start()
@@ -179,14 +181,14 @@ namespace Fodinae.Assets.Scripts.Game
             if (_nicknameText != null)
             {
                 // Position: to the right of the body, slightly higher than center
-                _nicknameText.transform.position = transform.position + new Vector3(0.6f, 0.15f, 0);
+                _nicknameText.transform.position = transform.position + new Vector3(0.6f, 0.5f, 0);
                 _nicknameText.transform.rotation = Quaternion.identity;
             }
 
             if (_clanRenderer != null)
             {
                 // Position: to the right of the body, slightly lower than center
-                _clanRenderer.transform.position = transform.position + new Vector3(0.6f, -0.15f, 0);
+                _clanRenderer.transform.position = transform.position + new Vector3(0.6f, -0.5f, 0);
                 _clanRenderer.transform.rotation = Quaternion.identity;
             }
         }
@@ -208,9 +210,10 @@ namespace Fodinae.Assets.Scripts.Game
             if (_clanRenderer != null) _clanRenderer.sprite = null;
         }
 
-        public void SetMetadata(int playerId, string nickname, string skinPath, string tailPath)
+        public void SetMetadata(int playerId, byte clanid, string nickname, string skinPath, string tailPath)
         {
             _playerId = playerId;
+            _clanId = clanid;
             _nickname = nickname;
             _skinPath = skinPath;
             _tailPath = tailPath;
@@ -261,9 +264,10 @@ namespace Fodinae.Assets.Scripts.Game
         private async UniTaskVoid LoadMetadataAssetsAsync(CancellationToken token)
         {
             var skinTask = string.IsNullOrEmpty(_skinPath) ? UniTask.FromResult<Texture2D>(null) : ClientAssetLoader.Instance.GetTextureAsync(_skinPath, token);
-            var clanTask = string.IsNullOrEmpty(_tailPath) ? UniTask.FromResult<Texture2D>(null) : ClientAssetLoader.Instance.GetTextureAsync(_tailPath, token);
+            var tailTask = string.IsNullOrEmpty(_tailPath) ? UniTask.FromResult<Texture2D>(null) : ClientAssetLoader.Instance.GetTextureAsync(_tailPath, token);
+            var clanTask = _clanId == 0 ? UniTask.FromResult<Texture2D>(null) : ClientAssetLoader.Instance.GetTextureAsync($"/clan/{_clanId}.png", token);
 
-            var (skinTexture, clanTexture) = await UniTask.WhenAll(skinTask, clanTask);
+            var (skinTexture, tailTexture, clanTexture) = await UniTask.WhenAll(skinTask, tailTask, clanTask);
 
             if (token.IsCancellationRequested) return;
 

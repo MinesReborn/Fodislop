@@ -294,7 +294,7 @@
       "depth": 0,
       "source": "git",
       "dependencies": {},
-      "hash": "9ae1055264d774b440aff6b157ac9a57aa458f53"
+      "hash": "d31bdce453c7ea9a1f014446dd30711bdbcb04ef"
     },
     "darkar25.fodinae.networking.client": {
       "version": "https://github.com/Darkar25/MinesServerNetworking.git?path=/MinesServer.Networking.Connection.Client/",

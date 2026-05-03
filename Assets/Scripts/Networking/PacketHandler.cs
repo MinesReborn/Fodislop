@@ -184,7 +184,7 @@ namespace Fodinae.Assets.Scripts.Networking
         private void HandleRobotInfoPacket(RobotInfoPacket packet)
         {
             Debug.Log($"[PacketHandler] Handling RobotInfoPacket for BotId: {packet.BotId}, Name: {packet.Name}");
-            RobotManager.Instance.UpdateRobotMetadata(packet.BotId, packet.PlayerId, packet.Name, packet.Skin, packet.Tail);
+            RobotManager.Instance.UpdateRobotMetadata(packet.BotId, packet.PlayerId, packet.ClanId, packet.Name, packet.Skin, packet.Tail);
         }
 
         private void HandlePlayerInfoPacket(PlayerInfoPacket packet)

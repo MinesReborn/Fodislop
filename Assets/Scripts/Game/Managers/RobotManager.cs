@@ -98,10 +98,10 @@ namespace Fodinae.Assets.Scripts.Game.Managers
             robot.SetRotation(rotation);
         }
 
-        public void UpdateRobotMetadata(uint botId, int playerId, string nickname, string skinPath, string tailPath)
+        public void UpdateRobotMetadata(uint botId, int playerId, byte clanId, string nickname, string skinPath, string tailPath)
         {
             var robot = GetOrCreateRobot(botId);
-            robot.SetMetadata(playerId, nickname, skinPath, tailPath);
+            robot.SetMetadata(playerId, clanId, nickname, skinPath, tailPath);
         }
 
         public void RemoveRobot(uint botId)
