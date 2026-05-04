@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Displays the current frames‑per‑second in the top‑left corner of the screen.
+/// Displays the current frames‑per‑second in the top‑right corner of the screen.
 /// Attach this component to a GameObject that has a Canvas (or create a new Canvas
 /// automatically if none exists). The script creates a UI Text element, updates it
 /// each frame and formats the value with one decimal place.
@@ -27,19 +27,32 @@ public class FPSCounter : MonoBehaviour
             canvasGO.AddComponent<CanvasScaler>();
             canvasGO.AddComponent<GraphicRaycaster>();
         }
+
         GameObject textGO = new GameObject("FPSLabel");
         textGO.transform.SetParent(canvas.transform, false);
         _fpsText = textGO.AddComponent<Text>();
-        _fpsText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+
+        // Исправление: используем LegacyRuntime.ttf вместо Arial.ttf
+        _fpsText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
+        // Альтернативный вариант, если LegacyRuntime.ttf не работает:
+        // _fpsText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        // если не работает, можно создать шрифт программно:
+        if (_fpsText.font == null)
+        {
+            _fpsText.font = Font.CreateDynamicFontFromOSFont("Arial", 14);
+        }
+
         _fpsText.fontSize = 14;
-        _fpsText.alignment = TextAnchor.UpperLeft;
+        _fpsText.alignment = TextAnchor.UpperRight;
         _fpsText.color = Color.white;
         _fpsText.raycastTarget = false;
+
         RectTransform rt = _fpsText.rectTransform;
-        rt.anchorMin = new Vector2(0, 1);
-        rt.anchorMax = new Vector2(0, 1);
-        rt.pivot = new Vector2(0, 1);
-        rt.anchoredPosition = new Vector2(10, -10);
+        rt.anchorMin = new Vector2(1, 1); // Top-right corner
+        rt.anchorMax = new Vector2(1, 1); // Top-right corner
+        rt.pivot = new Vector2(1, 1); // Pivot at top-right
+        rt.anchoredPosition = new Vector2(-10, -10); // Offset from top-right (negative X for right edge)
     }
 
     private void Update()

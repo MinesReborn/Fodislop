@@ -7,6 +7,7 @@ using MinesServer.Networking.Client.Packets.Movement;
 using MinesServer.Networking.Server.Packets.Connection;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System;
 
 namespace Fodinae.Assets.Scripts.Player
 {
@@ -23,6 +24,7 @@ namespace Fodinae.Assets.Scripts.Player
         public uint BotId { get; private set; }
         public Vector2Int ServerPosition { get; private set; }
         public Vector2Int ClientPosition { get; private set; }
+        public event Action<Vector2Int, Vector2Int> OnPlayerMoved;
 
         private Robot _robot;
 
@@ -221,7 +223,9 @@ namespace Fodinae.Assets.Scripts.Player
                         // Movement animation in Unity (Y is positive going up)
                         // Use absolute grid coordinates to ensure alignment
                         _robot.TargetPosition = new Vector3(targetUnityX + 0.5f, targetUnityY + 0.5f, transform.position.z);
+                        Vector2Int oldPos = ClientPosition;
                         ClientPosition = new Vector2Int(targetUnityX, targetUnityY);
+                        OnPlayerMoved?.Invoke(oldPos, ClientPosition);
                         _lastMoveTime = Time.time;
                         ConnectionManager.Instance.SendPacket(new ActionClientPacket(currentX, currentServerY, new MovePacket(targetServerX, targetServerY)));
                     }

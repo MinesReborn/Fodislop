@@ -23,6 +23,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Fodinae.Assets.Scripts.UI;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace MinesServer.Networking.Connection.Client
 {
@@ -43,6 +44,8 @@ namespace MinesServer.Networking.Connection.Client
         private ushort y = 0;
         private Direction rot = Direction.Up;
 
+        private FPSCounter _fpsCounter;
+
         public void Connect()
         {
             if (_status != ConnectionStatus.Disconnected)
@@ -55,25 +58,29 @@ namespace MinesServer.Networking.Connection.Client
             ConnectAsync().Forget();
         }
 
-private async UniTaskVoid ConnectAsync()
-{
-    await UniTask.Delay(100);
-    _status = ConnectionStatus.Connected;
-    OnConnected?.Invoke();
+        private async UniTaskVoid ConnectAsync()
+        {
+            await UniTask.Delay(100);
+            _status = ConnectionStatus.Connected;
+            OnConnected?.Invoke();
+            var minimapObj = new GameObject("MinimapRoot");
+            minimapObj.AddComponent<MinimapPlaceholder>();
+            CreateFPSCounter();
+        }
 
-    // Instantiate minimap placeholder UI
-    var minimapObj = new GameObject("MinimapRoot");
-    minimapObj.AddComponent<MinimapPlaceholder>();
-}
+        private void CreateFPSCounter()
+        {
+            GameObject fpsObject = new GameObject("FPSCounter");
+            _fpsCounter = fpsObject.AddComponent<FPSCounter>();
+            UnityEngine.Object.DontDestroyOnLoad(fpsObject);
+        }
 
         public void Disconnect()
         {
             if (_status != ConnectionStatus.Connected)
                 return;
-
             _status = ConnectionStatus.Disconnecting;
             OnDisconnecting?.Invoke();
-
             DisconnectAsync().Forget();
         }
 
@@ -82,10 +89,20 @@ private async UniTaskVoid ConnectAsync()
             await UniTask.Delay(100);
             _status = ConnectionStatus.Disconnected;
             OnDisconnected?.Invoke();
+            if (_fpsCounter != null)
+            {
+                UnityEngine.Object.Destroy(_fpsCounter.gameObject);
+                _fpsCounter = null;
+            }
         }
 
         public void Dispose()
         {
+            if (_fpsCounter != null)
+            {
+                UnityEngine.Object.Destroy(_fpsCounter.gameObject);
+                _fpsCounter = null;
+            }
         }
 
         public void SendAsync(ClientPacket packet)
@@ -111,7 +128,6 @@ private async UniTaskVoid ConnectAsync()
             switch (packet.Data)
             {
                 case ClientHelloPacket clientHello:
-                    // Send world initialization with proper cell configurations
                     var cellConfigs = CreateTestCellConfigurations();
                     const int testWorldWidth = 500;
                     const int testWorldHeight = 500;
@@ -124,24 +140,13 @@ private async UniTaskVoid ConnectAsync()
                         new byte[][] {
                             new byte[] { 37, 38, 106 }
                         })));
-
-                    // Send test world map data in chunks
                     SendTestWorldMapData(testWorldWidth, testWorldHeight);
-
-                    // Send other initial packets
-
-                    // Send mock robot position first (loading state)
                     OnReceived?.Invoke(new ServerPacket(new PlayerInfoPacket(999, mockBotId, "Darkar25")));
                     var robotPos = new RobotPositionPacket(mockBotId, 25, 50, 0);
                     OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { robotPos })));
-
-                    // Send robot metadata after a delay to show loading state
                     HandleRobotInfoMock(mockBotId).Forget();
-
-                    // Start circular robot
                     ushort circularBotId = 789;
                     RunCircularRobot(circularBotId).Forget();
-
                     OnReceived?.Invoke(new ServerPacket(new AggressionStatePacket(false)));
                     OnReceived?.Invoke(new ServerPacket(new AutoMineStatePacket(false)));
                     OnReceived?.Invoke(new ServerPacket(new CurrencyPacket(123456, 1234)));
@@ -149,7 +154,8 @@ private async UniTaskVoid ConnectAsync()
                     OnReceived?.Invoke(new ServerPacket(new BasketPacket(123, new[] { 1L, 2L, 3L, 4L, 5L, 6L })));
                     OnReceived?.Invoke(new ServerPacket(new GeologyPacket(5, 10, CellType.Lava, "Lava")));
                     OnReceived?.Invoke(new ServerPacket(new LevelPacket(12345)));
-                    OnReceived?.Invoke(new ServerPacket(new MovementSpeedPacket(new Dictionary<CellType, ushort> {
+                    OnReceived?.Invoke(new ServerPacket(new MovementSpeedPacket(new Dictionary<CellType, ushort>
+                    {
                         [CellType.Empty] = 20,
                         [CellType.Road] = 100
                     })));
@@ -171,7 +177,6 @@ private async UniTaskVoid ConnectAsync()
         public void SendMockWindow(bool comprehensive)
         {
             var windowPacket = comprehensive ? CreateComprehensiveMockWindow() : CreateMockWindow();
-            //OnReceived?.Invoke(new ServerPacket(windowPacket));
         }
 
         private OpenWindowPacket CreateMockWindow()
@@ -359,91 +364,79 @@ private async UniTaskVoid ConnectAsync()
         /// </summary>
         private CellConfigurationPacket[] CreateTestCellConfigurations()
         {
-            // Create array for all possible cell types (256 max)
             var configs = new CellConfigurationPacket[256];
-
-            // Initialize all to default values
             for (int i = 0; i < 256; i++)
             {
                 configs[i] = new CellConfigurationPacket
                 {
                     Animation = CellAnimationType.None,
                     AnimationSpeed = 0,
-                    Color = unchecked((int)0xFF808080), // Default gray
+                    Color = unchecked((int)0xFF808080),
                     FrameOffset = 0,
                     Properties = CellConfigProperties.None
                 };
             }
-
-            // Configure specific cell types we use in our test map
             configs[(int)CellType.Empty] = new CellConfigurationPacket
             {
                 Animation = CellAnimationType.None,
                 AnimationSpeed = 0,
-                Color = unchecked((int)0xFF808080), // Gray
+                Color = unchecked((int)0xFF808080),
                 FrameOffset = 0,
                 Properties = CellConfigProperties.Passable
             };
-
             configs[(int)CellType.Road] = new CellConfigurationPacket
             {
                 Animation = CellAnimationType.None,
                 AnimationSpeed = 0,
-                Color = unchecked((int)0xFFCCCCCC), // Light gray
+                Color = unchecked((int)0xFFCCCCCC),
                 FrameOffset = 0,
                 Properties = CellConfigProperties.Passable
             };
-
             configs[(int)CellType.Boulder1] = new CellConfigurationPacket
             {
                 Animation = CellAnimationType.None,
                 AnimationSpeed = 0,
-                Color = unchecked((int)0xFF000000), // Black
+                Color = unchecked((int)0xFF000000),
                 FrameOffset = 0,
                 Properties = CellConfigProperties.None
             };
-
             configs[(int)CellType.WhiteSand] = new CellConfigurationPacket
             {
                 Animation = CellAnimationType.None,
                 AnimationSpeed = 0,
-                Color = unchecked((int)0xFFFFFF00), // Yellow
+                Color = unchecked((int)0xFFFFFF00),
                 FrameOffset = 0,
                 Properties = CellConfigProperties.Passable
             };
-
             configs[(int)CellType.DarkWhiteSand] = new CellConfigurationPacket
             {
                 Animation = CellAnimationType.None,
                 AnimationSpeed = 0,
-                Color = unchecked((int)0xFFCCCC00), // Dark yellow
+                Color = unchecked((int)0xFFCCCC00),
                 FrameOffset = 0,
                 Properties = CellConfigProperties.Passable
             };
-
             configs[(int)CellType.GrayAcid] = new CellConfigurationPacket
             {
                 Animation = CellAnimationType.None,
                 AnimationSpeed = 10,
-                Color = unchecked((int)0xFF00FF00), // Green
+                Color = unchecked((int)0xFF00FF00),
                 FrameOffset = 1,
                 Properties = CellConfigProperties.None
             };
-
             configs[(int)CellType.PurpleAcid] = new CellConfigurationPacket
             {
                 Animation = CellAnimationType.None,
                 AnimationSpeed = 10,
-                Color = unchecked((int)0xFF800080), // Purple
+                Color = unchecked((int)0xFF800080),
                 FrameOffset = 1,
                 Properties = CellConfigProperties.None
             };
-
             configs[(int)CellType.Lava] = new CellConfigurationPacket
             {
                 Animation = CellAnimationType.None,
                 AnimationSpeed = 10,
-                Color = unchecked((int)0xFFFF4500), // OrangeRed
+                Color = unchecked((int)0xFFFF4500),
                 FrameOffset = 1,
                 Properties = CellConfigProperties.None
             };
@@ -456,23 +449,16 @@ private async UniTaskVoid ConnectAsync()
         /// </summary>
         private void SendTestWorldMapData(int testWorldWidth, int testWorldHeight)
         {
-            // Create test map data
             var testMap = CreateTestMapData(testWorldWidth, testWorldHeight);
-
-            // Send the map data in chunks (e.g., 32x32 chunks)
             const int chunkSize = 32;
-
             for (int y = 0; y < testWorldHeight; y += chunkSize)
             {
                 for (int x = 0; x < testWorldWidth; x += chunkSize)
                 {
                     int chunkWidth = Math.Min(chunkSize, testWorldWidth - x);
                     int chunkHeight = Math.Min(chunkSize, testWorldHeight - y);
-
-                    // Extract chunk data
                     var chunkData = new CellType[chunkWidth * chunkHeight];
                     int dataIndex = 0;
-
                     for (int cy = 0; cy < chunkHeight; cy++)
                     {
                         for (int cx = 0; cx < chunkWidth; cx++)
@@ -480,8 +466,6 @@ private async UniTaskVoid ConnectAsync()
                             chunkData[dataIndex++] = testMap[x + cx, y + cy];
                         }
                     }
-
-                    // Create and send MapRegionPacket
                     var mapRegionPacket = new MapRegionPacket
                     {
                         X = (ushort)x,
@@ -490,8 +474,6 @@ private async UniTaskVoid ConnectAsync()
                         Height = (byte)(chunkHeight - 1),
                         Payload = chunkData
                     };
-
-                    // Send as part of HBPacket
                     var hbPacket = new HBPacket(new IHBPacket[] { mapRegionPacket });
                     OnReceived?.Invoke(new ServerPacket(hbPacket));
                 }
@@ -504,8 +486,6 @@ private async UniTaskVoid ConnectAsync()
         private CellType[,] CreateTestMapData(int width, int height)
         {
             var map = new CellType[width, height];
-
-            // Fill with default empty cells
             for (int y = 0; y < height; y++)
             {
                 for (int x = 0; x < width; x++)
@@ -513,10 +493,6 @@ private async UniTaskVoid ConnectAsync()
                     map[x, y] = CellType.Empty;
                 }
             }
-
-            // Create test patterns to exercise different rendering scenarios
-
-            // 1. Border around the map (Road)
             for (int x = 0; x < width; x++)
             {
                 map[x, 0] = CellType.Road;
@@ -527,8 +503,6 @@ private async UniTaskVoid ConnectAsync()
                 map[0, y] = CellType.Road;
                 map[width - 1, y] = CellType.Road;
             }
-
-            // 2. Cross pattern in the center (Boulders)
             int centerX = width / 2;
             int centerY = height / 2;
             for (int x = centerX - 10; x <= centerX + 10; x++)
@@ -545,8 +519,6 @@ private async UniTaskVoid ConnectAsync()
                     map[centerX, y] = CellType.Boulder1;
                 }
             }
-
-            // 3. Sand areas
             for (int x = 20; x < 40; x++)
             {
                 for (int y = 20; y < 40; y++)
@@ -554,8 +526,6 @@ private async UniTaskVoid ConnectAsync()
                     map[x, y] = CellType.WhiteSand;
                 }
             }
-
-            // 4. Acid pools
             for (int x = 60; x < 80; x++)
             {
                 for (int y = 60; y < 80; y++)
@@ -563,8 +533,6 @@ private async UniTaskVoid ConnectAsync()
                     map[x, y] = (x + y) % 2 == 0 ? CellType.GrayAcid : CellType.PurpleAcid;
                 }
             }
-
-            // 5. Lava area (animated)
             for (int x = 45; x < 55; x++)
             {
                 for (int y = 45; y < 55; y++)
@@ -572,32 +540,28 @@ private async UniTaskVoid ConnectAsync()
                     map[x, y] = CellType.Lava;
                 }
             }
-
-            // 6. Random noise pattern
-            var random = new System.Random(12345); // Fixed seed for reproducible test data
+            var random = new System.Random(12345);
             for (int y = 10; y < height - 10; y += 3)
             {
                 for (int x = 10; x < width - 10; x += 3)
                 {
-                    if (random.Next(100) < 30) // 30% chance
+                    if (random.Next(100) < 30)
                     {
                         map[x, y] = CellType.Boulder1;
                     }
                 }
             }
-
             return map;
         }
 
         private async UniTaskVoid HandleRobotInfoMock(ushort botId)
         {
-            await UniTask.Delay(2000); // 2 second delay to see "loading" state
+            await UniTask.Delay(2000);
             OnReceived?.Invoke(new ServerPacket(new RobotInfoPacket(botId, 999, 1, "skin/bee.png", "tail/default.png", "BeeBot")));
         }
 
         private async UniTaskVoid RunCircularRobot(ushort botId)
         {
-            // Initial position
             int centerX = 55;
             int centerY = 55;
             float angle = 0;

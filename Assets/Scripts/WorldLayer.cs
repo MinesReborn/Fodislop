@@ -7,6 +7,8 @@ using System.Runtime.InteropServices;
 public class WorldLayer<T> : IDisposable
     where T : unmanaged
 {
+    private static bool _initialized = false;
+
     // --- Config ---
     private const int HEADER_SIZE = 16; // 4 ints
     private readonly int _chunkSize;
@@ -56,17 +58,19 @@ public class WorldLayer<T> : IDisposable
         _lruList = new LinkedList<int>();
         _dirtyChunks = new HashSet<int>();
 
-        InitializeFile();
+        if (!_initialized)
+        {
+            InitializeFile();
+            _initialized = true;
+        }
     }
 
     private void InitializeFile()
     {
         bool exists = File.Exists(_filePath);
         _fileStream = new FileStream(_filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 4096);
-
         if (exists)
         {
-            // Read Header
             using var reader = new BinaryReader(_fileStream, System.Text.Encoding.UTF8, true);
             if (_fileStream.Length >= HEADER_SIZE)
             {
@@ -74,11 +78,7 @@ public class WorldLayer<T> : IDisposable
                 int w = reader.ReadInt32();
                 int h = reader.ReadInt32();
                 int s = reader.ReadInt32();
-                int r = reader.ReadInt32(); // Read Reserved to align with offset table
-
-                // Read Offset Table
-                // We read the entire table into RAM (approx 28MB for 60k^2 map).
-                // This is crucial for performance to avoid disk seeking on every lookup.
+                int r = reader.ReadInt32();
                 var bytesToRead = _chunkOffsets.Length * sizeof(long);
                 var byteSpan = MemoryMarshal.AsBytes(_chunkOffsets.AsSpan());
                 _fileStream.Read(byteSpan);
@@ -86,14 +86,11 @@ public class WorldLayer<T> : IDisposable
         }
         else
         {
-            // Write Header Placeholders
             using var writer = new BinaryWriter(_fileStream, System.Text.Encoding.UTF8, true);
             writer.Write(_widthChunks);
             writer.Write(_heightChunks);
             writer.Write(_chunkSize);
-            writer.Write(0); // Reserved
-
-            // Write Empty Offset Table
+            writer.Write(0);
             var byteSpan = MemoryMarshal.AsBytes(_chunkOffsets.AsSpan());
             _fileStream.Write(byteSpan);
             _fileStream.Flush();
@@ -132,28 +129,20 @@ public class WorldLayer<T> : IDisposable
 
     public T[] GetChunk(int chunkIndex, bool createIfMissing = false)
     {
-        // 1. Check Cache
         if (_loadedChunks.TryGetValue(chunkIndex, out T[] chunk))
         {
             TouchLru(chunkIndex);
             return chunk;
         }
-
-        // 2. Load from Disk
         chunk = LoadChunkFromDisk(chunkIndex);
-
-        // 3. Create if requested and missing
         if (chunk == null && createIfMissing)
         {
             chunk = new T[_chunkArea];
         }
-
-        // 4. Store in Cache (if we have data)
         if (chunk != null)
         {
             AddToCache(chunkIndex, chunk);
         }
-
         return chunk;
     }
 
@@ -163,7 +152,6 @@ public class WorldLayer<T> : IDisposable
         {
             EvictOldestChunk();
         }
-
         _loadedChunks[chunkIndex] = chunk;
         var node = _lruList.AddFirst(chunkIndex);
         _lruIndexMap[chunkIndex] = node;
@@ -181,16 +169,12 @@ public class WorldLayer<T> : IDisposable
     private void EvictOldestChunk()
     {
         if (_lruList.Count == 0) return;
-
         int oldestIndex = _lruList.Last.Value;
-
-        // If modified, save to disk before dropping
         if (_dirtyChunks.Contains(oldestIndex))
         {
             SaveChunkToDisk(oldestIndex, _loadedChunks[oldestIndex]);
             _dirtyChunks.Remove(oldestIndex);
         }
-
         _loadedChunks.Remove(oldestIndex);
         _lruIndexMap.Remove(oldestIndex);
         _lruList.RemoveLast();
@@ -206,8 +190,7 @@ public class WorldLayer<T> : IDisposable
     private T[] LoadChunkFromDisk(int index)
     {
         long offset = _chunkOffsets[index];
-        if (offset < 0) return null; // Doesn't exist on disk
-
+        if (offset < 0) return null;
         _fileStream.Seek(offset, SeekOrigin.Begin);
         using var reader = new BinaryReader(_fileStream, System.Text.Encoding.UTF8, true);
 

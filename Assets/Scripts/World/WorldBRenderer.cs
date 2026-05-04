@@ -11,7 +11,7 @@ using UnityEngine.Rendering;
 namespace Fodinae.Assets.Scripts.World
 {
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
-    public class WorldBackgroundRenderer : MonoBehaviour
+    public class WorldBRenderer : MonoBehaviour
     {
         [Header("Configuration")]
         public int _chunkSize = 32;
@@ -20,10 +20,9 @@ namespace Fodinae.Assets.Scripts.World
         public bool _debugMode = true;
 
         [Header("Background Settings")]
-        [SerializeField] private float _backgroundZ = 0f;
         [SerializeField] private int _sortingOrder = -1000;
+        [SerializeField] private string _sortingLayerName = "Default";
 
-        private MeshFilter _meshFilter;
         private MeshRenderer _meshRenderer;
         private Material _backgroundMaterial;
 
@@ -33,13 +32,16 @@ namespace Fodinae.Assets.Scripts.World
         private readonly HashSet<Vector2Int> _generatingChunks = new();
         private readonly HashSet<Vector2Int> _visibleChunks = new();
 
+        private readonly HashSet<Vector2Int> _newVisibleBuffer = new();
+        private readonly List<Vector2> _cachedUVs = new();
+        private readonly List<Vector2Int> _chunksToRemoveBuffer = new();
+
         private Camera _mainCamera;
         private Vector2Int _lastCameraChunk = new Vector2Int(int.MinValue, int.MinValue);
 
         private bool _isInitialized = false;
         private bool _worldInitialized = false;
         private bool _texturesLoaded = false;
-        private bool _atlasTextureApplied = false;
 
         private enum InitializationState { Uninitialized, WaitingForWorldInit, WaitingForWorldData, ReadyForRendering, Rendering, Failed }
         private InitializationState _currentState = InitializationState.Uninitialized;
@@ -54,11 +56,7 @@ namespace Fodinae.Assets.Scripts.World
         {
             if (_isInitialized) return;
 
-            _meshFilter = GetComponent<MeshFilter>();
             _meshRenderer = GetComponent<MeshRenderer>();
-
-            if (_meshFilter != null) _meshFilter.mesh = null;
-            if (_meshRenderer != null) _meshRenderer.enabled = false;
 
             _mainCamera = Camera.main;
 
@@ -78,32 +76,21 @@ namespace Fodinae.Assets.Scripts.World
 
         private void ConfigureBackgroundRendering()
         {
-            var shader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (shader == null)
-            {
-                shader = Shader.Find("Sprites/Default");
-            }
+            Debug.Log("Loading shader...");
+
+            // Загружаем шейдер с поддержкой прозрачности
+            Shader shader = Resources.Load<Shader>("Shaders/WorldObjectWithBackground");
+            if (shader == null) shader = Shader.Find("Sprites/Default");
 
             _backgroundMaterial = new Material(shader);
-            _backgroundMaterial.name = "WorldBackgroundMaterial";
 
-            _backgroundMaterial.SetColor("_BaseColor", Color.white);
-            _backgroundMaterial.SetColor("_Color", Color.white);
-            _backgroundMaterial.SetFloat("_Surface", 1f);
-            _backgroundMaterial.SetFloat("_Blend", 0f);
-            _backgroundMaterial.SetOverrideTag("RenderType", "Transparent");
-            _backgroundMaterial.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
-            _backgroundMaterial.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
-            _backgroundMaterial.SetFloat("_ZWrite", 0f);
-            _backgroundMaterial.SetFloat("_Cull", 0f);
-            _backgroundMaterial.DisableKeyword("_ALPHAPREMULTIPLY_ON");
-            _backgroundMaterial.EnableKeyword("_ALPHABLEND_ON");
-            _backgroundMaterial.DisableKeyword("_ALPHATEST_ON");
+            // Настройка для прозрачности
+            _backgroundMaterial.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
+            _backgroundMaterial.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+            _backgroundMaterial.SetInt("_ZWrite", 0);
             _backgroundMaterial.renderQueue = (int)RenderQueue.Transparent;
 
-            var pos = transform.position;
-            pos.z = 0f;
-            transform.position = pos;
+            Debug.Log("Material configured for transparency");
 
             ApplyAtlas();
         }
@@ -138,27 +125,30 @@ namespace Fodinae.Assets.Scripts.World
                 if (meshFilter == null || meshFilter.sharedMesh == null) continue;
 
                 var mesh = meshFilter.sharedMesh;
-                var uvs = new List<Vector2>();
-                mesh.GetUVs(0, uvs);
+
+                _cachedUVs.Clear();
+                mesh.GetUVs(0, _cachedUVs);
+
+                if (_cachedUVs.Count == 0) continue;
 
                 bool changed = false;
+
                 foreach (var cell in chunkObj.AnimatedCells)
                 {
                     var coord = WorldTextureManager.Instance.GetCellTextureCoordinateSync(cell.CellType, cell.ServerPosition.x, cell.ServerPosition.y);
-                    if (coord != AtlasCoordinate.Empty)
+                    if (coord != AtlasCoordinate.Empty && cell.VertexStartIndex + 3 < _cachedUVs.Count)
                     {
-                        uvs[cell.VertexStartIndex] = new Vector2(coord.U1, coord.V1);
-                        uvs[cell.VertexStartIndex + 1] = new Vector2(coord.U2, coord.V1);
-                        uvs[cell.VertexStartIndex + 2] = new Vector2(coord.U2, coord.V2);
-                        uvs[cell.VertexStartIndex + 3] = new Vector2(coord.U1, coord.V2);
+                        _cachedUVs[cell.VertexStartIndex] = new Vector2(coord.U1, coord.V1);
+                        _cachedUVs[cell.VertexStartIndex + 1] = new Vector2(coord.U2, coord.V1);
+                        _cachedUVs[cell.VertexStartIndex + 2] = new Vector2(coord.U2, coord.V2);
+                        _cachedUVs[cell.VertexStartIndex + 3] = new Vector2(coord.U1, coord.V2);
                         changed = true;
                     }
                 }
 
                 if (changed)
                 {
-                    mesh.SetUVs(0, uvs);
-                    mesh.UploadMeshData(false);
+                    mesh.SetUVs(0, _cachedUVs);
                 }
             }
         }
@@ -211,7 +201,7 @@ namespace Fodinae.Assets.Scripts.World
             if (currentChunk == _lastCameraChunk) return;
             _lastCameraChunk = currentChunk;
 
-            var newVisible = new HashSet<Vector2Int>();
+            _newVisibleBuffer.Clear();
 
             float camHeight = _mainCamera.orthographicSize * 2f;
             float camWidth = camHeight * _mainCamera.aspect;
@@ -230,23 +220,29 @@ namespace Fodinae.Assets.Scripts.World
             {
                 for (int x = minX; x <= maxX; x++)
                 {
-                    newVisible.Add(new Vector2Int(x, y));
+                    _newVisibleBuffer.Add(new Vector2Int(x, y));
                 }
             }
 
-            foreach (var chunkPos in _visibleChunks.ToList())
+            _chunksToRemoveBuffer.Clear();
+            foreach (var chunkPos in _visibleChunks)
             {
-                if (!newVisible.Contains(chunkPos))
+                if (!_newVisibleBuffer.Contains(chunkPos))
                 {
-                    if (_chunkObjects.TryRemove(chunkPos, out var chunkObj))
-                    {
-                        if (chunkObj.GameObject != null) Destroy(chunkObj.GameObject);
-                    }
-                    _visibleChunks.Remove(chunkPos);
+                    _chunksToRemoveBuffer.Add(chunkPos);
                 }
             }
 
-            foreach (var chunkPos in newVisible)
+            foreach (var chunkPos in _chunksToRemoveBuffer)
+            {
+                if (_chunkObjects.TryRemove(chunkPos, out var chunkObj))
+                {
+                    if (chunkObj.GameObject != null) Destroy(chunkObj.GameObject);
+                }
+                _visibleChunks.Remove(chunkPos);
+            }
+
+            foreach (var chunkPos in _newVisibleBuffer)
             {
                 if (!_visibleChunks.Contains(chunkPos))
                 {
@@ -273,25 +269,21 @@ namespace Fodinae.Assets.Scripts.World
                     return;
                 }
 
-                await GenerateTextures(chunkMesh);
+                await GenerateTexturesOptimized(chunkMesh);
 
-                // Create background chunk GameObject
+                // Создаем GameObject для чанка
                 var go = new GameObject($"Chunk_{chunkPos.x}_{chunkPos.y}");
                 go.transform.SetParent(this.transform, false);
-                go.layer = this.gameObject.layer;
-
-                var offset = new Vector3(chunkPos.x * _chunkSize * _cellSize, chunkPos.y * _chunkSize * _cellSize, 0);
-                go.transform.localPosition = offset;
+                go.transform.localPosition = new Vector3(chunkPos.x * _chunkSize * _cellSize, chunkPos.y * _chunkSize * _cellSize, 0);
 
                 var filter = go.AddComponent<MeshFilter>();
                 var renderer = go.AddComponent<MeshRenderer>();
 
                 renderer.sharedMaterial = _backgroundMaterial;
+                renderer.sortingLayerName = _sortingLayerName;
                 renderer.sortingOrder = _sortingOrder;
                 renderer.shadowCastingMode = ShadowCastingMode.Off;
                 renderer.receiveShadows = false;
-                renderer.lightProbeUsage = LightProbeUsage.Off;
-                renderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
 
                 var mesh = new Mesh();
                 mesh.indexFormat = IndexFormat.UInt32;
@@ -299,7 +291,6 @@ namespace Fodinae.Assets.Scripts.World
                 mesh.SetTriangles(chunkMesh.Triangles, 0);
                 mesh.SetUVs(0, chunkMesh.UVs);
                 mesh.RecalculateBounds();
-                mesh.RecalculateNormals();
 
                 filter.mesh = mesh;
 
@@ -309,66 +300,6 @@ namespace Fodinae.Assets.Scripts.World
                     GameObject = go,
                     AnimatedCells = chunkMesh.AnimatedCells
                 };
-
-                // Create foreground mesh only if there are non-empty cells
-                if (chunkMesh.Cells.Any(c => c.CellType != CellType.Empty))
-                {
-                    var fgGo = new GameObject($"Chunk_{chunkPos.x}_{chunkPos.y}_FG");
-                    fgGo.transform.SetParent(go.transform, false);
-                    fgGo.layer = this.gameObject.layer;
-
-                    var fgFilter = fgGo.AddComponent<MeshFilter>();
-                    var fgRenderer = fgGo.AddComponent<MeshRenderer>();
-
-                    fgRenderer.sharedMaterial = _backgroundMaterial;
-                    fgRenderer.sortingOrder = _sortingOrder + 1;
-                    fgRenderer.shadowCastingMode = ShadowCastingMode.Off;
-                    fgRenderer.receiveShadows = false;
-                    fgRenderer.lightProbeUsage = LightProbeUsage.Off;
-                    fgRenderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
-
-                    var fgMesh = new Mesh();
-                    fgMesh.indexFormat = IndexFormat.UInt32;
-
-                    var fgVertices = new List<Vector3>();
-                    var fgTriangles = new List<int>();
-                    var fgUVs = new List<Vector2>();
-                    int fgIndex = 0;
-
-                    for (int i = 0; i < chunkMesh.Cells.Count; i++)
-                    {
-                        var cell = chunkMesh.Cells[i];
-                        if (cell.CellType == CellType.Empty) continue;
-
-                        int baseIndex = cell.VertexStartIndex;
-                        fgVertices.Add(chunkMesh.Vertices[baseIndex]);
-                        fgVertices.Add(chunkMesh.Vertices[baseIndex + 1]);
-                        fgVertices.Add(chunkMesh.Vertices[baseIndex + 2]);
-                        fgVertices.Add(chunkMesh.Vertices[baseIndex + 3]);
-
-                        fgTriangles.Add(fgIndex);
-                        fgTriangles.Add(fgIndex + 2);
-                        fgTriangles.Add(fgIndex + 1);
-                        fgTriangles.Add(fgIndex);
-                        fgTriangles.Add(fgIndex + 3);
-                        fgTriangles.Add(fgIndex + 2);
-
-                        fgUVs.Add(chunkMesh.UVs[baseIndex]);
-                        fgUVs.Add(chunkMesh.UVs[baseIndex + 1]);
-                        fgUVs.Add(chunkMesh.UVs[baseIndex + 2]);
-                        fgUVs.Add(chunkMesh.UVs[baseIndex + 3]);
-
-                        fgIndex += 4;
-                    }
-
-                    fgMesh.SetVertices(fgVertices);
-                    fgMesh.SetTriangles(fgTriangles, 0);
-                    fgMesh.SetUVs(0, fgUVs);
-                    fgMesh.RecalculateBounds();
-                    fgMesh.RecalculateNormals();
-
-                    fgFilter.mesh = fgMesh;
-                }
             }
             catch (Exception ex)
             {
@@ -419,7 +350,13 @@ namespace Fodinae.Assets.Scripts.World
                     mesh.Triangles.Add(vertexIndex + 3);
                     mesh.Triangles.Add(vertexIndex + 2);
 
-                    mesh.Cells.Add(new CellInfo { CellType = cell, VertexStartIndex = vertexIndex, WorldPosition = new Vector2Int(wx, wy), ServerPosition = new Vector2Int(wx, MapManager.Instance.WorldHeight - 1 - wy) });
+                    mesh.Cells.Add(new CellRenderData
+                    {
+                        CellType = cell,
+                        VertexStartIndex = vertexIndex,
+                        WorldPosition = new Vector2Int(wx, wy),
+                        ServerPosition = new Vector2Int(wx, MapManager.Instance.WorldHeight - 1 - wy)
+                    });
                     vertexIndex += 4;
                 }
             }
@@ -427,12 +364,17 @@ namespace Fodinae.Assets.Scripts.World
             return UniTask.CompletedTask;
         }
 
-        private async UniTask GenerateTextures(ChunkMesh mesh)
+        private async UniTask GenerateTexturesOptimized(ChunkMesh mesh)
         {
             if (mesh.Cells.Count == 0) return;
 
-            var coords = await UniTask.WhenAll(mesh.Cells.Select(c =>
-                WorldTextureManager.Instance.GetCellTextureCoordinate(c.CellType, c.ServerPosition.x, c.ServerPosition.y)));
+            var coords = new AtlasCoordinate[mesh.Cells.Count];
+
+            for (int i = 0; i < mesh.Cells.Count; i++)
+            {
+                var c = mesh.Cells[i];
+                coords[i] = await WorldTextureManager.Instance.GetCellTextureCoordinate(c.CellType, c.ServerPosition.x, c.ServerPosition.y);
+            }
 
             for (int i = 0; i < mesh.Cells.Count; i++)
             {
@@ -469,14 +411,10 @@ namespace Fodinae.Assets.Scripts.World
                 var tex = await atlases[0].GetAtlasTexture();
                 if (tex != null && _backgroundMaterial != null)
                 {
-                    if (_backgroundMaterial.HasProperty("_BaseMap"))
-                        _backgroundMaterial.SetTexture("_BaseMap", tex);
-                    else if (_backgroundMaterial.HasProperty("_MainTex"))
-                        _backgroundMaterial.SetTexture("_MainTex", tex);
-                    else
-                        _backgroundMaterial.mainTexture = tex;
+                    _backgroundMaterial.mainTexture = tex;
 
-                    _atlasTextureApplied = true;
+                    // Проверяем, есть ли альфа-канал
+                    Debug.Log($"Texture format: {tex.format}, has alpha: {tex.format.ToString().Contains("ARGB") || tex.format.ToString().Contains("RGBA")}");
                 }
             }
         }
@@ -484,8 +422,8 @@ namespace Fodinae.Assets.Scripts.World
         public bool IsProperlyConfigured() => _isInitialized;
         public int GetVisibleChunkCount() => _chunkObjects.Count;
         public bool AreTexturesLoaded() => _texturesLoaded;
-        public bool IsAtlasApplied() => _atlasTextureApplied;
         public string GetRendererState() => _currentState.ToString();
+
         private void OnWorldInitialized() => _currentState = InitializationState.WaitingForWorldData;
         private void OnWorldDataLoaded() { ForceInitialization(); }
 
@@ -511,33 +449,15 @@ namespace Fodinae.Assets.Scripts.World
                     if (_worldLayer != null) return;
                 }
             }
+        }
 
-            if (_currentState == InitializationState.WaitingForWorldInit)
+        private void OnDestroy()
+        {
+            foreach (var chunk in _chunkObjects.Values)
             {
-                try
-                {
-                    MapStorage.Instance.Dispose();
-                    MapStorage.Instance.InitWorld("emergency_test_world", 64, 64);
-
-                    if (MapStorage.Instance.IsReady)
-                    {
-                        InitializeWorldLayer();
-                        if (_worldLayer != null)
-                        {
-                            _fallbackInitializationAttempted = true;
-
-                            for (int y = 0; y < 64; y++)
-                            {
-                                for (int x = 0; x < 64; x++)
-                                {
-                                    MapStorage.Instance.SetCell(x, y, (x + y) % 2 == 0 ? CellType.Road : CellType.Empty);
-                                }
-                            }
-                        }
-                    }
-                }
-                catch { }
+                if (chunk.GameObject != null) Destroy(chunk.GameObject);
             }
+            _chunkObjects.Clear();
         }
 
         internal void OnDrawGizmosSelected()
@@ -557,7 +477,7 @@ namespace Fodinae.Assets.Scripts.World
             }
         }
 
-        private class CellInfo
+        public class CellRenderData
         {
             public Vector2Int LocalPosition, WorldPosition, ServerPosition;
             public CellType CellType;
@@ -570,8 +490,8 @@ namespace Fodinae.Assets.Scripts.World
             public List<Vector3> Vertices = new();
             public List<int> Triangles = new();
             public List<Vector2> UVs = new();
-            public List<CellInfo> Cells = new();
-            public List<CellInfo> AnimatedCells = new();
+            public List<CellRenderData> Cells = new();
+            public List<CellRenderData> AnimatedCells = new();
             public ChunkMesh(Vector2Int p) { ChunkPosition = p; }
         }
 
@@ -579,7 +499,7 @@ namespace Fodinae.Assets.Scripts.World
         {
             public Vector2Int Position;
             public GameObject GameObject;
-            public List<CellInfo> AnimatedCells;
+            public List<CellRenderData> AnimatedCells;
         }
     }
 }

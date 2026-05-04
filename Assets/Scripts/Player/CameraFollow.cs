@@ -29,7 +29,8 @@ namespace Fodinae.Assets.Scripts.Player
             _camera = GetComponent<Camera>();
             if (_camera == null)
             {
-                Debug.LogError("CameraFollow requires a Camera component!");
+                Debug.LogError("CameraFollow: Camera component not found on this GameObject!");
+                enabled = false;
                 return;
             }
             _targetZoom = _camera.orthographicSize;
@@ -37,8 +38,16 @@ namespace Fodinae.Assets.Scripts.Player
             if (_target == null)
             {
                 var player = FindObjectOfType<PlayerMovementController>();
-                if (player != null) _target = player.transform;
+                if (player != null)
+                    _target = player.transform;
+                else
+                    Debug.LogWarning("CameraFollow: No target assigned and no PlayerMovementController found!");
             }
+            InitializeInput();
+        }
+
+        private void InitializeInput()
+        {
             _playerInput = GetComponent<PlayerInput>();
             if (_playerInput == null)
             {
@@ -51,6 +60,7 @@ namespace Fodinae.Assets.Scripts.Player
         private void OnDestroy()
         {
             _scrollAction?.Disable();
+            _scrollAction?.Dispose();
         }
 
         private void LateUpdate()
@@ -61,7 +71,27 @@ namespace Fodinae.Assets.Scripts.Player
 
         private void HandleZoom()
         {
-            float scrollInput = _scrollAction.ReadValue<Vector2>().y;
+            if (_camera == null)
+            {
+                Debug.LogError("CameraFollow: Camera is null in HandleZoom!");
+                return;
+            }
+            if (_scrollAction == null)
+            {
+                Debug.LogError("CameraFollow: Scroll action is null in HandleZoom!");
+                return;
+            }
+            float scrollInput = 0f;
+            try
+            {
+                scrollInput = _scrollAction.ReadValue<Vector2>().y;
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"CameraFollow: Error reading scroll input: {e.Message}");
+                return;
+            }
+
             if (Mathf.Abs(scrollInput) > 0.01f)
             {
                 _targetZoom -= scrollInput * _zoomSpeed * Time.deltaTime;
@@ -74,15 +104,33 @@ namespace Fodinae.Assets.Scripts.Player
 
         private void HandleFollow()
         {
-            if (_target != null)
+            if (_target == null)
             {
-                Vector3 targetPosition = _target.position + new Vector3(_offset.x, _offset.y, 0f);
-                Vector3 desiredPosition = new Vector3(targetPosition.x, targetPosition.y, _originalZ);
-                transform.position = Vector3.Lerp(transform.position, desiredPosition, _smoothSpeed * Time.deltaTime);
+                var player = FindObjectOfType<PlayerMovementController>();
+                if (player != null)
+                    _target = player.transform;
+                return;
             }
+            Vector3 targetPosition = _target.position + new Vector3(_offset.x, _offset.y, 0f);
+            Vector3 desiredPosition = new Vector3(targetPosition.x, targetPosition.y, _originalZ);
+            float t = _smoothSpeed;
+            transform.position = Vector3.Lerp(transform.position, desiredPosition, t);
         }
+
         public void SetTarget(Transform newTarget) => _target = newTarget;
-        public void SetZoom(float zoomLevel) => _targetZoom = Mathf.Clamp(zoomLevel, _minZoom, _maxZoom);
+
+        public void SetZoom(float zoomLevel)
+        {
+            if (_camera != null)
+                _targetZoom = Mathf.Clamp(zoomLevel, _minZoom, _maxZoom);
+            else
+                Debug.LogError("CameraFollow: Cannot set zoom - camera is null!");
+        }
+
         public float GetCurrentZoom() => _currentZoom;
+        public void Reinitialize()
+        {
+            Start();
+        }
     }
 }

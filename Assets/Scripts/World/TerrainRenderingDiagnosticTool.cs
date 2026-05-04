@@ -1,651 +1,503 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 using MinesServer.Data;
 using Fodinae.Assets.Scripts.Game.Managers;
-using Fodinae.Assets.Scripts.Networking;
-using Fodinae.Assets.Scripts.Networking.Connection;
-using System.Linq;
+using UnityEngine.Rendering;
 
 namespace Fodinae.Assets.Scripts.World
 {
-    /// <summary>
-    /// Comprehensive diagnostic tool for terrain rendering issues.
-    /// Provides detailed status checks and troubleshooting guidance.
-    /// </summary>
-    [RequireComponent(typeof(WorldBackgroundRenderer))]
-    public class TerrainRenderingDiagnosticTool : MonoBehaviour
+    [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
+    public class WorldBackgroundRenderer : MonoBehaviour
     {
-        [Header("Diagnostic Settings")]
-        [Tooltip("Enable automatic diagnostic checks")]
-        [SerializeField] private bool _autoCheck = true;
-        
-        [Tooltip("Check interval in seconds")]
-        [SerializeField] private float _checkInterval = 5.0f;
-        
-        [Tooltip("Enable detailed logging")]
-        [SerializeField] private bool _detailedLogging = true;
-        
-        [Tooltip("Enable automatic fixes when possible")]
-        [SerializeField] private bool _autoFix = true;
+        [Header("Configuration")]
+        public int _chunkSize = 32;
+        public int _renderDistance = 15;
+        public float _cellSize = 1.0f;
+        public bool _debugMode = true;
 
-        private WorldBackgroundRenderer _renderer;
-        private float _lastCheckTime = 0f;
+        [Header("Background Settings")]
+        [SerializeField] private int _sortingOrder = -1000;
+        [SerializeField] private string _sortingLayerName = "Default";
+
+        private MeshRenderer _meshRenderer;
+        private Material _backgroundMaterial;
+
+        private WorldLayer<CellType> _worldLayer;
+
+        private readonly ConcurrentDictionary<Vector2Int, ChunkObject> _chunkObjects = new();
+        private readonly HashSet<Vector2Int> _generatingChunks = new();
+        private readonly HashSet<Vector2Int> _visibleChunks = new();
+
+        private readonly HashSet<Vector2Int> _newVisibleBuffer = new();
+        private readonly List<Vector2> _cachedUVs = new();
+        private readonly List<Vector2Int> _chunksToRemoveBuffer = new();
+
+        private Camera _mainCamera;
+        private Vector2Int _lastCameraChunk = new Vector2Int(int.MinValue, int.MinValue);
+
         private bool _isInitialized = false;
-        
-        // Diagnostic results
-        private DiagnosticResult _lastResult;
-        private List<string> _errorHistory = new List<string>();
+        private bool _worldInitialized = false;
+        private bool _texturesLoaded = false;
+        private bool _atlasTextureApplied = false;  // ← Добавлено поле
 
-        [System.Serializable]
-        public class DiagnosticResult
-        {
-            public bool IsHealthy;
-            public string OverallStatus;
-            public List<DiagnosticCheck> Checks;
-            public List<string> CriticalErrors;
-            public List<string> Warnings;
-            public List<string> Suggestions;
-        }
+        private enum InitializationState { Uninitialized, WaitingForWorldInit, WaitingForWorldData, ReadyForRendering, Rendering, Failed }
+        private InitializationState _currentState = InitializationState.Uninitialized;
 
-        [System.Serializable]
-        public class DiagnosticCheck
-        {
-            public string Name;
-            public bool Passed;
-            public string Status;
-            public string Details;
-        }
+        private bool _fallbackInitializationAttempted = false;
+        private float _lastInitializationCheck = 0f;
+        private const float _initializationCheckInterval = 2.0f;
 
-        void Awake()
-        {
-            Initialize();
-        }
+        void Awake() => Initialize();
 
         private void Initialize()
         {
             if (_isInitialized) return;
 
-            _renderer = GetComponent<WorldBackgroundRenderer>();
+            _meshRenderer = GetComponent<MeshRenderer>();
+
+            _mainCamera = Camera.main;
+
+            ConfigureBackgroundRendering();
+
+            WorldTextureManager.Instance.OnTextureLoaded += OnTextureLoaded;
+
+            if (MapManager.Instance != null)
+            {
+                MapManager.Instance.OnWorldInitialized += OnWorldInitialized;
+                MapManager.Instance.OnWorldDataLoaded += OnWorldDataLoaded;
+            }
+
             _isInitialized = true;
-            
-            Debug.Log("TerrainRenderingDiagnosticTool: Initialized");
+            _currentState = InitializationState.WaitingForWorldInit;
         }
 
-        void Update()
+        private void ConfigureBackgroundRendering()
         {
-            if (!_isInitialized || !_autoCheck) return;
+            Debug.Log("Loading shader...");
 
-            if (Time.time - _lastCheckTime >= _checkInterval)
+            Shader shader = Resources.Load<Shader>("Shaders/WorldObjectWithBackground");
+            if (shader == null) shader = Shader.Find("Sprites/Default");
+
+            _backgroundMaterial = new Material(shader);
+
+            _backgroundMaterial.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
+            _backgroundMaterial.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+            _backgroundMaterial.SetInt("_ZWrite", 0);
+            _backgroundMaterial.renderQueue = (int)RenderQueue.Transparent;
+
+            Debug.Log("Material configured for transparency");
+
+            ApplyAtlas();
+        }
+
+        private void Update()
+        {
+            if (!_isInitialized || _mainCamera == null) return;
+
+            if (!_worldInitialized) InitializeWorldLayer();
+
+            if (_currentState == InitializationState.WaitingForWorldInit ||
+                _currentState == InitializationState.WaitingForWorldData)
             {
-                RunDiagnosticCheck();
-                _lastCheckTime = Time.time;
+                CheckFallbackInitialization();
+            }
+
+            if (_worldLayer != null && _currentState == InitializationState.ReadyForRendering)
+            {
+                UpdateVisibleChunks();
+                UpdateAnimations();
             }
         }
 
-        /// <summary>
-        /// Run a comprehensive diagnostic check
-        /// </summary>
-        public void RunDiagnosticCheck()
+        private void UpdateAnimations()
         {
-            if (!_isInitialized)
+            foreach (var chunkObj in _chunkObjects.Values)
             {
-                Debug.LogError("TerrainRenderingDiagnosticTool: Not initialized");
-                return;
-            }
+                if (chunkObj.GameObject == null || chunkObj.AnimatedCells == null || chunkObj.AnimatedCells.Count == 0)
+                    continue;
 
-            Debug.Log("=== TERRAIN RENDERING DIAGNOSTIC CHECK ===");
+                var meshFilter = chunkObj.GameObject.GetComponent<MeshFilter>();
+                if (meshFilter == null || meshFilter.sharedMesh == null) continue;
 
-            var result = new DiagnosticResult
-            {
-                Checks = new List<DiagnosticCheck>(),
-                CriticalErrors = new List<string>(),
-                Warnings = new List<string>(),
-                Suggestions = new List<string>()
-            };
+                var mesh = meshFilter.sharedMesh;
 
-            // 1. Check WorldBackgroundRenderer
-            CheckRenderer(result);
+                _cachedUVs.Clear();
+                mesh.GetUVs(0, _cachedUVs);
 
-            // 2. Check MapStorage
-            CheckMapStorage(result);
+                if (_cachedUVs.Count == 0) continue;
 
-            // 3. Check MapManager
-            CheckMapManager(result);
+                bool changed = false;
 
-            // 4. Check Connection/PacketHandler
-            CheckConnection(result);
-
-            // 5. Check WorldTextureManager
-            CheckTextureManager(result);
-
-            // 6. Check StandaloneWorldInitializer
-            CheckStandaloneInitializer(result);
-
-            // Calculate overall status
-            CalculateOverallStatus(result);
-
-            // Store result
-            _lastResult = result;
-
-            // Log results
-            LogDiagnosticResults(result);
-
-            // Apply auto-fixes if enabled
-            if (_autoFix)
-            {
-                ApplyAutoFixes(result);
-            }
-
-            Debug.Log("=== END DIAGNOSTIC CHECK ===");
-        }
-
-        private void CheckRenderer(DiagnosticResult result)
-        {
-            var check = new DiagnosticCheck { Name = "WorldBackgroundRenderer" };
-
-            if (_renderer == null)
-            {
-                check.Passed = false;
-                check.Status = "MISSING";
-                check.Details = "WorldBackgroundRenderer component not found";
-                result.CriticalErrors.Add("WorldBackgroundRenderer component is missing");
-                result.Suggestions.Add("Add WorldBackgroundRenderer component to this GameObject");
-            }
-            else if (!_renderer.IsProperlyConfigured())
-            {
-                check.Passed = false;
-                check.Status = "CONFIGURATION_ERROR";
-                check.Details = "Renderer not properly configured";
-                result.CriticalErrors.Add("WorldBackgroundRenderer is not properly configured");
-                result.Suggestions.Add("Check WorldBackgroundRenderer configuration in inspector");
-            }
-            else
-            {
-                check.Passed = true;
-                check.Status = "OK";
-                check.Details = $"State: {_renderer.GetRendererState()}, Visible chunks: {_renderer.GetVisibleChunkCount()}";
-            }
-
-            result.Checks.Add(check);
-        }
-
-        private void CheckMapStorage(DiagnosticResult result)
-        {
-            var check = new DiagnosticCheck { Name = "MapStorage" };
-
-            if (MapStorage.Instance == null)
-            {
-                check.Passed = false;
-                check.Status = "MISSING";
-                check.Details = "MapStorage singleton not found";
-                result.CriticalErrors.Add("MapStorage singleton is not available");
-                result.Suggestions.Add("Ensure MapStorage script is in the scene or properly initialized");
-            }
-            else if (!MapStorage.Instance.IsReady)
-            {
-                check.Passed = false;
-                check.Status = "NOT_READY";
-                check.Details = $"IsReady: {MapStorage.Instance.IsReady}, IsInitialized: {MapStorage.Instance.IsInitialized()}, cellLayer: {(MapStorage.Instance.cellLayer != null ? "not null" : "NULL")}";
-                result.CriticalErrors.Add("MapStorage is not ready for terrain rendering");
-                result.Suggestions.Add("Check MapStorage initialization - this is critical for terrain rendering");
-                
-                if (MapStorage.Instance.cellLayer == null)
+                foreach (var cell in chunkObj.AnimatedCells)
                 {
-                    result.CriticalErrors.Add("MapStorage.cellLayer is NULL - WorldLayer creation failed");
-                    result.Suggestions.Add("Check file permissions and disk space for WorldLayer creation");
-                }
-            }
-            else
-            {
-                check.Passed = true;
-                check.Status = "OK";
-                check.Details = $"World: {MapStorage.Instance.GetWorldCodeName()}, Ready: {MapStorage.Instance.IsReady}";
-            }
-
-            result.Checks.Add(check);
-        }
-
-        private void CheckMapManager(DiagnosticResult result)
-        {
-            var check = new DiagnosticCheck { Name = "MapManager" };
-
-            if (MapManager.Instance == null)
-            {
-                check.Passed = false;
-                check.Status = "MISSING";
-                check.Details = "MapManager singleton not found";
-                result.CriticalErrors.Add("MapManager singleton is not available");
-                result.Suggestions.Add("Ensure MapManager script is in the scene or properly initialized");
-            }
-            else if (!MapManager.Instance._isWorldInitialized)
-            {
-                check.Passed = false;
-                check.Status = "NOT_INITIALIZED";
-                check.Details = "World not initialized";
-                result.Warnings.Add("MapManager world not initialized - waiting for WorldInit packet");
-                result.Suggestions.Add("Send WorldInit packet or use StandaloneWorldInitializer");
-            }
-            else
-            {
-                check.Passed = true;
-                check.Status = "OK";
-                check.Details = $"World: {MapManager.Instance.WorldDisplayName} ({MapManager.Instance.WorldCodeName}), Size: {MapManager.Instance.WorldWidth}x{MapManager.Instance.WorldHeight}";
-            }
-
-            result.Checks.Add(check);
-        }
-
-        private void CheckConnection(DiagnosticResult result)
-        {
-            var check = new DiagnosticCheck { Name = "Connection/PacketHandler" };
-
-            var connectionManager = ConnectionManager.Instance;
-            var packetHandler = FindObjectOfType<PacketHandler>();
-
-            if (connectionManager == null)
-            {
-                check.Passed = false;
-                check.Status = "MISSING";
-                check.Details = "ConnectionManager not found";
-                result.Warnings.Add("ConnectionManager not available - using standalone mode");
-                result.Suggestions.Add("Add ConnectionManager to scene or use StandaloneWorldInitializer");
-            }
-            else if (connectionManager.Connection.ConnectionStatus != MinesServer.Networking.Shared.ConnectionStatus.Connected)
-            {
-                check.Passed = false;
-                check.Status = "NOT_CONNECTED";
-                check.Details = "No active connection";
-                result.Warnings.Add("No active network connection - using standalone mode");
-                result.Suggestions.Add("Establish connection or use StandaloneWorldInitializer");
-            }
-            else
-            {
-                check.Passed = true;
-                check.Status = "OK";
-                check.Details = "Connection active";
-            }
-
-            if (packetHandler == null)
-            {
-                check.Details += ", PacketHandler not found";
-                result.Warnings.Add("PacketHandler not found - packet processing may not work");
-                result.Suggestions.Add("Add PacketHandler to scene for network packet processing");
-            }
-
-            result.Checks.Add(check);
-        }
-
-        private void CheckTextureManager(DiagnosticResult result)
-        {
-            var check = new DiagnosticCheck { Name = "WorldTextureManager" };
-
-            var textureManager = WorldTextureManager.Instance;
-
-            if (textureManager == null)
-            {
-                check.Passed = false;
-                check.Status = "MISSING";
-                check.Details = "WorldTextureManager not found";
-                result.Warnings.Add("WorldTextureManager not available");
-                result.Suggestions.Add("Ensure WorldTextureManager is in the scene");
-            }
-            else if (!_renderer.AreTexturesLoaded())
-            {
-                check.Passed = false;
-                check.Status = "TEXTURES_LOADING";
-                check.Details = "Textures not yet loaded";
-                result.Warnings.Add("Textures still loading");
-                result.Suggestions.Add("Wait for texture loading to complete");
-            }
-            else if (!_renderer.IsAtlasApplied())
-            {
-                check.Passed = false;
-                check.Status = "ATLAS_NOT_APPLIED";
-                check.Details = "Atlas texture not applied to material";
-                result.Warnings.Add("Atlas texture not applied to renderer material");
-                result.Suggestions.Add("Check WorldTextureManager atlas creation and application");
-            }
-            else
-            {
-                check.Passed = true;
-                check.Status = "OK";
-                check.Details = "Textures loaded and applied";
-            }
-
-            result.Checks.Add(check);
-        }
-
-        private void CheckStandaloneInitializer(DiagnosticResult result)
-        {
-            var check = new DiagnosticCheck { Name = "StandaloneWorldInitializer" };
-
-            var standaloneInit = FindObjectOfType<StandaloneWorldInitializer>();
-
-            if (standaloneInit == null)
-            {
-                check.Passed = false;
-                check.Status = "NOT_FOUND";
-                check.Details = "StandaloneWorldInitializer not in scene";
-                result.Warnings.Add("No StandaloneWorldInitializer found");
-                result.Suggestions.Add("Add StandaloneWorldInitializer for standalone mode");
-            }
-            else if (!standaloneInit.IsReady())
-            {
-                check.Passed = false;
-                check.Status = "NOT_READY";
-                check.Details = "Standalone initializer not ready";
-                result.Warnings.Add("StandaloneWorldInitializer not ready");
-                result.Suggestions.Add("Check StandaloneWorldInitializer configuration");
-            }
-            else
-            {
-                check.Passed = true;
-                check.Status = "OK";
-                check.Details = "Standalone mode ready";
-            }
-
-            result.Checks.Add(check);
-        }
-
-        private void CalculateOverallStatus(DiagnosticResult result)
-        {
-            var criticalCount = result.CriticalErrors.Count;
-            var warningCount = result.Warnings.Count;
-
-            if (criticalCount > 0)
-            {
-                result.IsHealthy = false;
-                result.OverallStatus = $"CRITICAL ({criticalCount} errors)";
-            }
-            else if (warningCount > 0)
-            {
-                result.IsHealthy = false;
-                result.OverallStatus = $"WARNING ({warningCount} warnings)";
-            }
-            else
-            {
-                result.IsHealthy = true;
-                result.OverallStatus = "HEALTHY";
-            }
-        }
-
-        private void LogDiagnosticResults(DiagnosticResult result)
-        {
-            Debug.Log($"Diagnostic Result: {result.OverallStatus}");
-
-            foreach (var check in result.Checks)
-            {
-                var status = check.Passed ? "✓" : "✗";
-                Debug.Log($"{status} {check.Name}: {check.Status} - {check.Details}");
-            }
-
-            if (result.CriticalErrors.Count > 0)
-            {
-                Debug.LogError("CRITICAL ERRORS:");
-                foreach (var error in result.CriticalErrors)
-                {
-                    Debug.LogError($"  • {error}");
-                }
-            }
-
-            if (result.Warnings.Count > 0)
-            {
-                Debug.LogWarning("WARNINGS:");
-                foreach (var warning in result.Warnings)
-                {
-                    Debug.LogWarning($"  • {warning}");
-                }
-            }
-
-            if (result.Suggestions.Count > 0)
-            {
-                Debug.Log("SUGGESTIONS:");
-                foreach (var suggestion in result.Suggestions)
-                {
-                    Debug.Log($"  • {suggestion}");
-                }
-            }
-        }
-
-        private void ApplyAutoFixes(DiagnosticResult result)
-        {
-            Debug.Log("=== APPLYING AUTO-FIXES ===");
-
-            foreach (var check in result.Checks)
-            {
-                if (!check.Passed)
-                {
-                    ApplyFixForCheck(check);
-                }
-            }
-
-            Debug.Log("=== AUTO-FIXES COMPLETE ===");
-        }
-
-        private void ApplyFixForCheck(DiagnosticCheck check)
-        {
-            switch (check.Name)
-            {
-                case "MapStorage":
-                    if (check.Status == "NOT_READY")
+                    var coord = WorldTextureManager.Instance.GetCellTextureCoordinateSync(cell.CellType, cell.ServerPosition.x, cell.ServerPosition.y);
+                    if (coord != AtlasCoordinate.Empty && cell.VertexStartIndex + 3 < _cachedUVs.Count)
                     {
-                        Debug.Log("Attempting to fix MapStorage...");
-                        if (MapManager.Instance != null && MapManager.Instance._isWorldInitialized)
-                        {
-                            try
-                            {
-                                MapStorage.Instance.InitWorld(
-                                    MapManager.Instance.WorldCodeName,
-                                    MapManager.Instance.WorldWidth,
-                                    MapManager.Instance.WorldHeight
-                                );
-                                Debug.Log("MapStorage re-initialization attempted");
-                            }
-                            catch (Exception ex)
-                            {
-                                Debug.LogError($"MapStorage fix failed: {ex.Message}");
-                            }
-                        }
-                        else
-                        {
-                            Debug.LogWarning("Cannot fix MapStorage - no world data available");
-                        }
+                        _cachedUVs[cell.VertexStartIndex] = new Vector2(coord.U1, coord.V1);
+                        _cachedUVs[cell.VertexStartIndex + 1] = new Vector2(coord.U2, coord.V1);
+                        _cachedUVs[cell.VertexStartIndex + 2] = new Vector2(coord.U2, coord.V2);
+                        _cachedUVs[cell.VertexStartIndex + 3] = new Vector2(coord.U1, coord.V2);
+                        changed = true;
                     }
-                    break;
-
-                case "MapManager":
-                    if (check.Status == "NOT_INITIALIZED")
-                    {
-                        Debug.Log("Attempting to fix MapManager...");
-                        var standaloneInit = FindObjectOfType<StandaloneWorldInitializer>();
-                        if (standaloneInit != null)
-                        {
-                            standaloneInit.ForceStandaloneInitialization();
-                            Debug.Log("StandaloneWorldInitializer force initialization triggered");
-                        }
-                        else
-                        {
-                            Debug.LogWarning("No StandaloneWorldInitializer available for MapManager fix");
-                        }
-                    }
-                    break;
-
-                case "Connection/PacketHandler":
-                    if (check.Status == "NOT_CONNECTED")
-                    {
-                        Debug.Log("Attempting to fix connection...");
-                        var standaloneInit = FindObjectOfType<StandaloneWorldInitializer>();
-                        if (standaloneInit != null)
-                        {
-                            standaloneInit.ForceStandaloneInitialization();
-                            Debug.Log("StandaloneWorldInitializer force initialization triggered for connection");
-                        }
-                    }
-                    break;
-
-                case "WorldBackgroundRenderer":
-                    if (check.Status == "CONFIGURATION_ERROR")
-                    {
-                        Debug.Log("Attempting to fix WorldBackgroundRenderer...");
-                        _renderer.ForceReinitialize();
-                        Debug.Log("WorldBackgroundRenderer reinitialization triggered");
-                    }
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// Get the last diagnostic result
-        /// </summary>
-        public DiagnosticResult GetLastResult() => _lastResult;
-
-        /// <summary>
-        /// Get a summary of the current system status
-        /// </summary>
-        public string GetStatusSummary()
-        {
-            if (_lastResult == null)
-            {
-                return "No diagnostic results available";
-            }
-
-            return $"Status: {_lastResult.OverallStatus} | " +
-                   $"Checks: {_lastResult.Checks.Count(c => c.Passed)}/{_lastResult.Checks.Count} passed | " +
-                   $"Errors: {_lastResult.CriticalErrors.Count} | " +
-                   $"Warnings: {_lastResult.Warnings.Count}";
-        }
-
-        /// <summary>
-        /// Force a diagnostic check and return the result
-        /// </summary>
-        public DiagnosticResult ForceCheck()
-        {
-            RunDiagnosticCheck();
-            return _lastResult;
-        }
-
-        /// <summary>
-        /// Get detailed troubleshooting information
-        /// </summary>
-        public string GetTroubleshootingInfo()
-        {
-            var info = new System.Text.StringBuilder();
-            info.AppendLine("=== TERRAIN RENDERING TROUBLESHOOTING ===");
-
-            if (MapStorage.Instance != null && !MapStorage.Instance.IsReady)
-            {
-                info.AppendLine("ISSUE: MapStorage not ready");
-                info.AppendLine("CAUSE: WorldLayer creation failed or MapStorage not initialized");
-                info.AppendLine("SOLUTION:");
-                info.AppendLine("  1. Check file permissions for persistent data path");
-                info.AppendLine("  2. Ensure sufficient disk space");
-                info.AppendLine("  3. Verify world dimensions are valid");
-                info.AppendLine("  4. Try MapStorage.Instance.InitWorld('test_world', 64, 64)");
-            }
-
-            if (MapManager.Instance != null && !MapManager.Instance._isWorldInitialized)
-            {
-                info.AppendLine("ISSUE: MapManager not initialized");
-                info.AppendLine("CAUSE: No WorldInit packet received or standalone mode not configured");
-                info.AppendLine("SOLUTION:");
-                info.AppendLine("  1. Send WorldInit packet via network connection");
-                info.AppendLine("  2. Use StandaloneWorldInitializer for standalone mode");
-                info.AppendLine("  3. Call MapManager.Instance.LoadWorldInit() manually");
-            }
-
-            if (_renderer != null && _renderer.GetRendererState() != "ReadyForRendering")
-            {
-                info.AppendLine("ISSUE: WorldBackgroundRenderer not ready");
-                info.AppendLine("CAUSE: Renderer state is not ReadyForRendering");
-                info.AppendLine("SOLUTION:");
-                info.AppendLine("  1. Check MapStorage is ready");
-                info.AppendLine("  2. Verify textures are loaded");
-                info.AppendLine("  3. Call _renderer.ForceInitialization()");
-            }
-
-            info.AppendLine("=== END TROUBLESHOOTING ===");
-            return info.ToString();
-        }
-
-        /// <summary>
-        /// Clear error history
-        /// </summary>
-        public void ClearHistory()
-        {
-            _errorHistory.Clear();
-            Debug.Log("TerrainRenderingDiagnosticTool: Error history cleared");
-        }
-
-        /// <summary>
-        /// Export diagnostic report
-        /// </summary>
-        public string ExportReport()
-        {
-            var report = new System.Text.StringBuilder();
-            report.AppendLine("=== TERRAIN RENDERING DIAGNOSTIC REPORT ===");
-            report.AppendLine($"Generated: {DateTime.Now}");
-            report.AppendLine($"Auto Check: {_autoCheck}");
-            report.AppendLine($"Check Interval: {_checkInterval}s");
-            report.AppendLine($"Detailed Logging: {_detailedLogging}");
-            report.AppendLine($"Auto Fix: {_autoFix}");
-            report.AppendLine();
-
-            if (_lastResult != null)
-            {
-                report.AppendLine($"Overall Status: {_lastResult.OverallStatus}");
-                report.AppendLine();
-
-                report.AppendLine("CHECKS:");
-                foreach (var check in _lastResult.Checks)
-                {
-                    report.AppendLine($"  {check.Name}: {check.Status}");
-                    report.AppendLine($"    Details: {check.Details}");
-                    report.AppendLine();
                 }
 
-                if (_lastResult.CriticalErrors.Count > 0)
+                if (changed)
                 {
-                    report.AppendLine("CRITICAL ERRORS:");
-                    foreach (var error in _lastResult.CriticalErrors)
-                    {
-                        report.AppendLine($"  • {error}");
-                    }
-                    report.AppendLine();
-                }
-
-                if (_lastResult.Warnings.Count > 0)
-                {
-                    report.AppendLine("WARNINGS:");
-                    foreach (var warning in _lastResult.Warnings)
-                    {
-                        report.AppendLine($"  • {warning}");
-                    }
-                    report.AppendLine();
-                }
-
-                if (_lastResult.Suggestions.Count > 0)
-                {
-                    report.AppendLine("SUGGESTIONS:");
-                    foreach (var suggestion in _lastResult.Suggestions)
-                    {
-                        report.AppendLine($"  • {suggestion}");
-                    }
-                    report.AppendLine();
+                    mesh.SetUVs(0, _cachedUVs);
                 }
             }
-            else
+        }
+
+        public void ForceInitialization()
+        {
+            _worldInitialized = false;
+            _worldLayer = null;
+
+            foreach (var chunk in _chunkObjects.Values)
             {
-                report.AppendLine("No diagnostic results available");
+                if (chunk.GameObject != null) Destroy(chunk.GameObject);
+            }
+            _chunkObjects.Clear();
+            _generatingChunks.Clear();
+            _visibleChunks.Clear();
+
+            InitializeWorldLayer();
+
+            if (_worldLayer != null)
+            {
+                _currentState = InitializationState.ReadyForRendering;
+                _worldInitialized = true;
+                _lastCameraChunk = new Vector2Int(int.MinValue, int.MinValue);
+            }
+        }
+
+        public void ForceReinitialize() { Initialize(); ForceInitialization(); }
+
+        private void InitializeWorldLayer()
+        {
+            if (MapStorage.Instance?.cellLayer != null)
+            {
+                _worldLayer = MapStorage.Instance.cellLayer;
+                _worldInitialized = true;
+                _currentState = InitializationState.ReadyForRendering;
+                _lastCameraChunk = new Vector2Int(int.MinValue, int.MinValue);
+            }
+        }
+
+        private void UpdateVisibleChunks()
+        {
+            if (_worldLayer == null || _mainCamera == null) return;
+
+            var cameraPos = _mainCamera.transform.position;
+            int cx = Mathf.FloorToInt(cameraPos.x / (_chunkSize * _cellSize));
+            int cy = Mathf.FloorToInt(cameraPos.y / (_chunkSize * _cellSize));
+            var currentChunk = new Vector2Int(cx, cy);
+
+            if (currentChunk == _lastCameraChunk) return;
+            _lastCameraChunk = currentChunk;
+
+            _newVisibleBuffer.Clear();
+
+            float camHeight = _mainCamera.orthographicSize * 2f;
+            float camWidth = camHeight * _mainCamera.aspect;
+
+            float minCamX = cameraPos.x - camWidth / 2f;
+            float maxCamX = cameraPos.x + camWidth / 2f;
+            float minCamY = cameraPos.y - camHeight / 2f;
+            float maxCamY = cameraPos.y + camHeight / 2f;
+
+            int minX = Mathf.FloorToInt(minCamX / (_chunkSize * _cellSize)) - 1;
+            int maxX = Mathf.FloorToInt(maxCamX / (_chunkSize * _cellSize)) + 1;
+            int minY = Mathf.FloorToInt(minCamY / (_chunkSize * _cellSize)) - 1;
+            int maxY = Mathf.FloorToInt(maxCamY / (_chunkSize * _cellSize)) + 1;
+
+            for (int y = minY; y <= maxY; y++)
+            {
+                for (int x = minX; x <= maxX; x++)
+                {
+                    _newVisibleBuffer.Add(new Vector2Int(x, y));
+                }
             }
 
-            report.AppendLine("=== END REPORT ===");
-            return report.ToString();
+            _chunksToRemoveBuffer.Clear();
+            foreach (var chunkPos in _visibleChunks)
+            {
+                if (!_newVisibleBuffer.Contains(chunkPos))
+                {
+                    _chunksToRemoveBuffer.Add(chunkPos);
+                }
+            }
+
+            foreach (var chunkPos in _chunksToRemoveBuffer)
+            {
+                if (_chunkObjects.TryRemove(chunkPos, out var chunkObj))
+                {
+                    if (chunkObj.GameObject != null) Destroy(chunkObj.GameObject);
+                }
+                _visibleChunks.Remove(chunkPos);
+            }
+
+            foreach (var chunkPos in _newVisibleBuffer)
+            {
+                if (!_visibleChunks.Contains(chunkPos))
+                {
+                    _visibleChunks.Add(chunkPos);
+                    if (!_chunkObjects.ContainsKey(chunkPos) && !_generatingChunks.Contains(chunkPos))
+                    {
+                        _generatingChunks.Add(chunkPos);
+                        GenerateChunkObjectAsync(chunkPos).Forget();
+                    }
+                }
+            }
+        }
+
+        private async UniTask GenerateChunkObjectAsync(Vector2Int chunkPos)
+        {
+            try
+            {
+                var chunkMesh = new ChunkMesh(chunkPos);
+                await GenerateGeometry(chunkMesh);
+
+                if (chunkMesh.Vertices.Count == 0)
+                {
+                    _chunkObjects[chunkPos] = new ChunkObject { Position = chunkPos };
+                    return;
+                }
+
+                await GenerateTexturesOptimized(chunkMesh);
+
+                var go = new GameObject($"Chunk_{chunkPos.x}_{chunkPos.y}");
+                go.transform.SetParent(this.transform, false);
+                go.transform.localPosition = new Vector3(chunkPos.x * _chunkSize * _cellSize, chunkPos.y * _chunkSize * _cellSize, 0);
+
+                var filter = go.AddComponent<MeshFilter>();
+                var renderer = go.AddComponent<MeshRenderer>();
+
+                renderer.sharedMaterial = _backgroundMaterial;
+                renderer.sortingLayerName = _sortingLayerName;
+                renderer.sortingOrder = _sortingOrder;
+                renderer.shadowCastingMode = ShadowCastingMode.Off;
+                renderer.receiveShadows = false;
+
+                var mesh = new Mesh();
+                mesh.indexFormat = IndexFormat.UInt32;
+                mesh.SetVertices(chunkMesh.Vertices);
+                mesh.SetTriangles(chunkMesh.Triangles, 0);
+                mesh.SetUVs(0, chunkMesh.UVs);
+                mesh.RecalculateBounds();
+
+                filter.mesh = mesh;
+
+                _chunkObjects[chunkPos] = new ChunkObject
+                {
+                    Position = chunkPos,
+                    GameObject = go,
+                    AnimatedCells = chunkMesh.AnimatedCells
+                };
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"WorldBackgroundRenderer: Error generating chunk {chunkPos}: {ex.Message}");
+            }
+            finally
+            {
+                _generatingChunks.Remove(chunkPos);
+            }
+        }
+
+        private UniTask GenerateGeometry(ChunkMesh mesh)
+        {
+            int vertexIndex = 0;
+
+            for (int y = 0; y < _chunkSize; y++)
+            {
+                for (int x = 0; x < _chunkSize; x++)
+                {
+                    int wx = mesh.ChunkPosition.x * _chunkSize + x;
+                    int wy = mesh.ChunkPosition.y * _chunkSize + y;
+
+                    CellType cell = CellType.Unloaded;
+                    try { cell = MapStorage.Instance.GetCell(wx, MapManager.Instance.WorldHeight - 1 - wy); } catch { }
+
+                    if (cell == CellType.Unloaded || cell == CellType.Pregener)
+                    {
+                        continue;
+                    }
+
+                    float gx = x * _cellSize;
+                    float gy = y * _cellSize;
+
+                    mesh.Vertices.Add(new Vector3(gx, gy, 0));
+                    mesh.Vertices.Add(new Vector3(gx + _cellSize, gy, 0));
+                    mesh.Vertices.Add(new Vector3(gx + _cellSize, gy + _cellSize, 0));
+                    mesh.Vertices.Add(new Vector3(gx, gy + _cellSize, 0));
+
+                    mesh.UVs.Add(Vector2.zero);
+                    mesh.UVs.Add(Vector2.zero);
+                    mesh.UVs.Add(Vector2.zero);
+                    mesh.UVs.Add(Vector2.zero);
+
+                    mesh.Triangles.Add(vertexIndex);
+                    mesh.Triangles.Add(vertexIndex + 2);
+                    mesh.Triangles.Add(vertexIndex + 1);
+                    mesh.Triangles.Add(vertexIndex);
+                    mesh.Triangles.Add(vertexIndex + 3);
+                    mesh.Triangles.Add(vertexIndex + 2);
+
+                    mesh.Cells.Add(new CellRenderData
+                    {
+                        CellType = cell,
+                        VertexStartIndex = vertexIndex,
+                        WorldPosition = new Vector2Int(wx, wy),
+                        ServerPosition = new Vector2Int(wx, MapManager.Instance.WorldHeight - 1 - wy)
+                    });
+                    vertexIndex += 4;
+                }
+            }
+
+            return UniTask.CompletedTask;
+        }
+
+        private async UniTask GenerateTexturesOptimized(ChunkMesh mesh)
+        {
+            if (mesh.Cells.Count == 0) return;
+
+            var coords = new AtlasCoordinate[mesh.Cells.Count];
+
+            for (int i = 0; i < mesh.Cells.Count; i++)
+            {
+                var c = mesh.Cells[i];
+                coords[i] = await WorldTextureManager.Instance.GetCellTextureCoordinate(c.CellType, c.ServerPosition.x, c.ServerPosition.y);
+            }
+
+            for (int i = 0; i < mesh.Cells.Count; i++)
+            {
+                var c = mesh.Cells[i];
+                var uv = coords[i];
+
+                if (WorldTextureManager.Instance.HasAnimations(c.CellType))
+                {
+                    mesh.AnimatedCells.Add(c);
+                }
+
+                if (uv == AtlasCoordinate.Empty) continue;
+
+                mesh.UVs[c.VertexStartIndex] = new Vector2(uv.U1, uv.V1);
+                mesh.UVs[c.VertexStartIndex + 1] = new Vector2(uv.U2, uv.V1);
+                mesh.UVs[c.VertexStartIndex + 2] = new Vector2(uv.U2, uv.V2);
+                mesh.UVs[c.VertexStartIndex + 3] = new Vector2(uv.U1, uv.V2);
+            }
+        }
+
+        private void OnTextureLoaded(string name, Texture2D tex)
+        {
+            _texturesLoaded = true;
+            ApplyAtlas();
+        }
+
+        private async void ApplyAtlas()
+        {
+            if (WorldTextureManager.Instance == null) return;
+            var atlases = WorldTextureManager.Instance.GetAllAtlases();
+
+            if (atlases.Count > 0)
+            {
+                var tex = await atlases[0].GetAtlasTexture();
+                if (tex != null && _backgroundMaterial != null)
+                {
+                    _backgroundMaterial.mainTexture = tex;
+                    _atlasTextureApplied = true;  // ← Устанавливаем в true
+                    Debug.Log($"Atlas applied. Texture format: {tex.format}");
+                }
+            }
+        }
+
+        public bool IsProperlyConfigured() => _isInitialized;
+        public int GetVisibleChunkCount() => _chunkObjects.Count;
+        public bool AreTexturesLoaded() => _texturesLoaded;
+        public bool IsAtlasApplied() => _atlasTextureApplied;  // ← Добавлен метод
+        public string GetRendererState() => _currentState.ToString();
+
+        private void OnWorldInitialized() => _currentState = InitializationState.WaitingForWorldData;
+        private void OnWorldDataLoaded() { ForceInitialization(); }
+
+        private void CheckFallbackInitialization()
+        {
+            if (_fallbackInitializationAttempted) return;
+
+            if (Time.time - _lastInitializationCheck < _initializationCheckInterval) return;
+            _lastInitializationCheck = Time.time;
+
+            if (MapStorage.Instance != null && MapStorage.Instance.IsReady && _worldLayer == null)
+            {
+                InitializeWorldLayer();
+                if (_worldLayer != null) return;
+            }
+
+            if (_currentState == InitializationState.WaitingForWorldInit)
+            {
+                var standaloneInit = FindObjectOfType<StandaloneWorldInitializer>();
+                if (standaloneInit != null && standaloneInit.IsReady())
+                {
+                    ForceInitialization();
+                    if (_worldLayer != null) return;
+                }
+            }
         }
 
         private void OnDestroy()
         {
-            Debug.Log("TerrainRenderingDiagnosticTool: Destroyed");
+            foreach (var chunk in _chunkObjects.Values)
+            {
+                if (chunk.GameObject != null) Destroy(chunk.GameObject);
+            }
+            _chunkObjects.Clear();
+        }
+
+        internal void OnDrawGizmosSelected()
+        {
+            if (!_debugMode || _worldLayer == null) return;
+
+            Gizmos.color = Color.yellow;
+            foreach (var chunkPos in _visibleChunks)
+            {
+                var center = new Vector3(
+                    chunkPos.x * _chunkSize * _cellSize,
+                    chunkPos.y * _chunkSize * _cellSize,
+                    0
+                );
+                var size = new Vector3(_chunkSize * _cellSize, _chunkSize * _cellSize, 0.1f);
+                Gizmos.DrawWireCube(center, size);
+            }
+        }
+
+        public class CellRenderData
+        {
+            public Vector2Int LocalPosition, WorldPosition, ServerPosition;
+            public CellType CellType;
+            public int VertexStartIndex;
+        }
+
+        private class ChunkMesh
+        {
+            public Vector2Int ChunkPosition;
+            public List<Vector3> Vertices = new();
+            public List<int> Triangles = new();
+            public List<Vector2> UVs = new();
+            public List<CellRenderData> Cells = new();
+            public List<CellRenderData> AnimatedCells = new();
+            public ChunkMesh(Vector2Int p) { ChunkPosition = p; }
+        }
+
+        private class ChunkObject
+        {
+            public Vector2Int Position;
+            public GameObject GameObject;
+            public List<CellRenderData> AnimatedCells;
         }
     }
 }
