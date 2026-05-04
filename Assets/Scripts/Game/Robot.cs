@@ -39,7 +39,6 @@ namespace Fodinae.Assets.Scripts.Game
         private Tentacle[] _tentacles;
         private GameObject _tailContainer;
         private Sprite _skinSprite;
-        private Sprite _tailSprite;
         private Sprite _clanSprite;
 
         public uint BotId => _botId;
@@ -233,14 +232,14 @@ namespace Fodinae.Assets.Scripts.Game
             Debug.DrawLine(bottomLeft, topLeft, color);
         }
 
-        private void CreateTentacles(Sprite tailSprite)
+        private void CreateTentacles(Texture2D tailTexture)
         {
             ClearTentacles();
             _tentacles = new Tentacle[4];
             float[] offsets = { -45f, -15f, 15f, 45f };
             for (int i = 0; i < 4; i++)
             {
-                _tentacles[i] = new Tentacle(_tailContainer, tailSprite, offsets[i], -1);
+                _tentacles[i] = new Tentacle(_tailContainer, tailTexture, offsets[i], -1);
             }
         }
 
@@ -370,15 +369,11 @@ namespace Fodinae.Assets.Scripts.Game
 
             if (tailTexture != null)
             {
-                if (_tailSprite != null) Object.Destroy(_tailSprite);
-                _tailSprite = Sprite.Create(tailTexture, new Rect(0, 0, tailTexture.width, tailTexture.height), new Vector2(0.5f, 0.5f), tailTexture.width);
-                CreateTentacles(_tailSprite);
+                CreateTentacles(tailTexture);
             }
             else
             {
                 ClearTentacles();
-                if (_tailSprite != null) Object.Destroy(_tailSprite);
-                _tailSprite = null;
             }
 
             if (clanTexture != null && _clanRenderer != null)
@@ -395,107 +390,95 @@ namespace Fodinae.Assets.Scripts.Game
             _cts?.Dispose();
 
             if (_skinSprite != null) Object.Destroy(_skinSprite);
-            if (_tailSprite != null) Object.Destroy(_tailSprite);
             if (_clanSprite != null) Object.Destroy(_clanSprite);
             ClearTentacles();
         }
 
-        private class Segment
-        {
-            public GameObject GameObject;
-            public SpriteRenderer Renderer;
-            public Vector3 Position;
-            public Vector3 Velocity;
-
-            public Segment(GameObject go, SpriteRenderer renderer, Vector3 pos)
-            {
-                GameObject = go;
-                Renderer = renderer;
-                Position = pos;
-                Velocity = Vector3.zero;
-            }
-        }
-
         private class Tentacle
         {
-            private readonly Segment[] _segments;
+            private readonly LineRenderer _line;
+            private readonly Material _material;
+            private readonly Vector3[] _positions;
+            private readonly Vector3[] _velocities;
             private readonly float _wiggleOffset;
-            private const int SEGMENT_COUNT = 4;
+            private const int POINT_COUNT = 5; // root + 4 segments
             private const float SMOOTH_TIME = 0.08f;
             private const float MAX_SEGMENT_DIST = 0.2f;
 
-            public Tentacle(GameObject container, Sprite sprite, float wiggleOffset, int sortingOrder)
+            public Tentacle(GameObject container, Texture2D texture, float wiggleOffset, int sortingOrder)
             {
-                _segments = new Segment[SEGMENT_COUNT];
                 _wiggleOffset = wiggleOffset;
+                _positions = new Vector3[POINT_COUNT];
+                _velocities = new Vector3[POINT_COUNT];
 
-                for (int i = 0; i < SEGMENT_COUNT; i++)
+                var go = new GameObject($"Tentacle_{wiggleOffset}");
+                go.transform.SetParent(container.transform);
+                _line = go.AddComponent<LineRenderer>();
+
+                _material = new Material(Shader.Find("Sprites/Default"));
+                _material.mainTexture = texture;
+                _line.material = _material;
+
+                _line.startWidth = 0.15f;
+                _line.endWidth = 0.02f;
+                _line.positionCount = POINT_COUNT;
+                _line.sortingOrder = sortingOrder;
+                _line.textureMode = LineTextureMode.Stretch;
+
+                // Set initial positions
+                for (int i = 0; i < POINT_COUNT; i++)
                 {
-                    var go = new GameObject($"Segment_{i}");
-                    go.transform.SetParent(container.transform);
-                    var renderer = go.AddComponent<SpriteRenderer>();
-                    renderer.sprite = sprite;
-                    renderer.sortingOrder = sortingOrder;
-                    // Fade out segments towards the tip
-                    renderer.color = new Color(1, 1, 1, 1f - (i * 0.15f));
-                    // Scale down segments towards the tip
-                    go.transform.localScale = Vector3.one * (1f - (i * 0.1f));
-
-                    _segments[i] = new Segment(go, renderer, container.transform.position);
+                    _positions[i] = container.transform.position;
+                    _line.SetPosition(i, _positions[i]);
                 }
             }
 
             public void Snap(Vector3 position)
             {
-                for (int i = 0; i < SEGMENT_COUNT; i++)
+                for (int i = 0; i < POINT_COUNT; i++)
                 {
-                    _segments[i].Position = position;
-                    _segments[i].Velocity = Vector3.zero;
-                    _segments[i].GameObject.transform.position = position;
+                    _positions[i] = position;
+                    _velocities[i] = Vector3.zero;
+                    _line.SetPosition(i, position);
                 }
             }
 
             public void Update(Vector3 rootPosition, float rotationAngle, float movementFactor, float deltaTime)
             {
+                _positions[0] = rootPosition;
+                _line.SetPosition(0, _positions[0]);
+
                 Vector3 lastPos = rootPosition;
-                // Base offset from robot center (collapsed when stationary)
                 float angleRad = rotationAngle * Mathf.Deg2Rad;
                 Vector3 baseOffset = new Vector3(Mathf.Cos(angleRad), Mathf.Sin(angleRad), 0) * -0.2f * movementFactor;
-
-                // Add some initial spread for the 4 tentacles
                 float spreadAngle = (rotationAngle + _wiggleOffset) * Mathf.Deg2Rad;
                 baseOffset += new Vector3(Mathf.Cos(spreadAngle), Mathf.Sin(spreadAngle), 0) * 0.15f * movementFactor;
 
                 Vector3 targetPos = rootPosition + baseOffset;
 
-                for (int i = 0; i < SEGMENT_COUNT; i++)
+                for (int i = 1; i < POINT_COUNT; i++)
                 {
-                    var seg = _segments[i];
-
                     // Spring movement
-                    seg.Position = Vector3.SmoothDamp(seg.Position, targetPos, ref seg.Velocity, SMOOTH_TIME, 50f, deltaTime);
+                    _positions[i] = Vector3.SmoothDamp(_positions[i], targetPos, ref _velocities[i], SMOOTH_TIME, 50f, deltaTime);
 
                     // Wiggle logic
                     float wiggle = Mathf.Sin(Time.time * 15f + i * 1.5f + _wiggleOffset) * 0.1f * movementFactor;
-                    Vector3 direction = (seg.Position - lastPos).normalized;
+                    Vector3 direction = (_positions[i] - lastPos).normalized;
                     if (direction == Vector3.zero) direction = new Vector3(Mathf.Cos(angleRad), Mathf.Sin(angleRad), 0);
                     Vector3 perpendicular = new Vector3(-direction.y, direction.x, 0);
 
-                    seg.GameObject.transform.position = seg.Position + perpendicular * wiggle;
+                    _line.SetPosition(i, _positions[i] + perpendicular * wiggle);
 
                     // Set target for next segment
-                    lastPos = seg.Position;
-                    targetPos = seg.Position - direction * MAX_SEGMENT_DIST * movementFactor;
+                    lastPos = _positions[i];
+                    targetPos = _positions[i] - direction * MAX_SEGMENT_DIST * movementFactor;
                 }
             }
 
             public void Destroy()
             {
-                for (int i = 0; i < SEGMENT_COUNT; i++)
-                {
-                    if (_segments[i].GameObject != null)
-                        Object.Destroy(_segments[i].GameObject);
-                }
+                if (_line != null) Object.Destroy(_line.gameObject);
+                if (_material != null) Object.Destroy(_material);
             }
         }
     }
