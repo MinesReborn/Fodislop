@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using MinesServer.Data;
 using Fodinae.Assets.Scripts.Game.Managers;
+using Cysharp.Threading.Tasks;
 
 namespace Fodinae.Assets.Scripts.World
 {
@@ -29,6 +30,7 @@ namespace Fodinae.Assets.Scripts.World
         private Vector2Int _lastMinVisible = new Vector2Int(-1, -1);
         private Vector2Int _lastMaxVisible = new Vector2Int(-1, -1);
         private float _lastRebuildTime = 0;
+        private bool _needsRebuild = false;
 
         private Material[] _materials = Array.Empty<Material>();
         private List<int>[] _subMeshIndices = Array.Empty<List<int>>();
@@ -48,6 +50,16 @@ namespace Fodinae.Assets.Scripts.World
 
             _meshRenderer.enabled = true;
             _meshRenderer.sortingOrder = -1000;
+
+            if (WorldTextureManager.Instance != null)
+            {
+                WorldTextureManager.Instance.OnTextureLoaded += OnTextureLoaded;
+            }
+        }
+
+        private void OnTextureLoaded(string filename, Texture2D texture)
+        {
+            _needsRebuild = true;
         }
 
         private void InitializeShader()
@@ -95,11 +107,12 @@ namespace Fodinae.Assets.Scripts.World
             bool rangeChanged = minX != _lastMinVisible.x || minY != _lastMinVisible.y || maxX != _lastMaxVisible.x || maxY != _lastMaxVisible.y;
             bool timeToUpdateAnimations = Time.time - _lastRebuildTime > 0.05f;
 
-            if (rangeChanged || timeToUpdateAnimations)
+            if (rangeChanged || timeToUpdateAnimations || _needsRebuild)
             {
                 _lastMinVisible = new Vector2Int(minX, minY);
                 _lastMaxVisible = new Vector2Int(maxX, maxY);
                 _lastRebuildTime = Time.time;
+                _needsRebuild = false;
                 BuildMesh(minX, minY, maxX, maxY);
             }
         }
@@ -109,7 +122,6 @@ namespace Fodinae.Assets.Scripts.World
             var atlases = WorldTextureManager.Instance.GetAllAtlases();
             if (atlases.Count == 0) return;
 
-            // Ensure all atlases are updated if dirty
             foreach (var atlas in atlases)
             {
                 if (atlas.IsDirty)
@@ -139,6 +151,7 @@ namespace Fodinae.Assets.Scripts.World
             foreach (var list in _subMeshIndices) list.Clear();
 
             int vertexCount = 0;
+            HashSet<CellType> pendingLoads = new HashSet<CellType>();
 
             for (int y = minY; y <= maxY; y++)
             {
@@ -149,6 +162,17 @@ namespace Fodinae.Assets.Scripts.World
 
                     if (cellType == CellType.Unloaded || cellType == CellType.Pregener)
                         continue;
+
+                    AtlasCoordinate coord = WorldTextureManager.Instance.GetCellTextureCoordinateSync(cellType, x, serverY);
+                    if (coord == AtlasCoordinate.Empty)
+                    {
+                        if (!pendingLoads.Contains(cellType))
+                        {
+                            pendingLoads.Add(cellType);
+                            WorldTextureManager.Instance.GetCellTextureCoordinate(cellType, x, serverY).Forget();
+                        }
+                        continue;
+                    }
 
                     int atlasIndex = -1;
                     for (int i = 0; i < atlases.Count; i++)
@@ -196,18 +220,22 @@ namespace Fodinae.Assets.Scripts.World
                     }
 
                     _subMeshIndices[atlasIndex].Add(vertexCount + 0);
-                    _subMeshIndices[atlasIndex].Add(vertexCount + 1);
+                    _subMeshIndices[atlasIndex].Add(vertexCount + 3);
                     _subMeshIndices[atlasIndex].Add(vertexCount + 2);
 
-                    _subMeshIndices[atlasIndex].Add(vertexCount + 0);
                     _subMeshIndices[atlasIndex].Add(vertexCount + 2);
-                    _subMeshIndices[atlasIndex].Add(vertexCount + 3);
+                    _subMeshIndices[atlasIndex].Add(vertexCount + 1);
+                    _subMeshIndices[atlasIndex].Add(vertexCount + 0);
 
                     vertexCount += 4;
                 }
             }
 
-            if (vertexCount == 0) return;
+            if (vertexCount == 0)
+            {
+                _mesh.Clear();
+                return;
+            }
 
             _mesh.Clear();
             _mesh.SetVertices(_vertices);
@@ -224,6 +252,11 @@ namespace Fodinae.Assets.Scripts.World
 
             _mesh.RecalculateBounds();
             _meshRenderer.sharedMaterials = _materials;
+
+            if (vertexCount > 0)
+            {
+                Debug.Log($"SingleMeshTerrainRenderer: Built mesh with {vertexCount} vertices and {atlases.Count} sub-meshes.");
+            }
         }
 
         private void CleanupMaterials()
@@ -243,6 +276,10 @@ namespace Fodinae.Assets.Scripts.World
 
         private void OnDestroy()
         {
+            if (WorldTextureManager.Instance != null)
+            {
+                WorldTextureManager.Instance.OnTextureLoaded -= OnTextureLoaded;
+            }
             if (_mesh != null)
             {
                 if (Application.isPlaying) Destroy(_mesh);
