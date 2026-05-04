@@ -1,4 +1,5 @@
 using Cysharp.Threading.Tasks;
+using Cysharp.Threading.Tasks.CompilerServices;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.Actions;
@@ -79,6 +80,11 @@ namespace MinesServer.Networking.Connection.Client
             OnDisconnected?.Invoke();
         }
 
+        private async UniTaskVoid UpdatePosition() {
+            await UniTask.Delay(200);
+            OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { new RobotPositionPacket(mockBotId, x, y, (byte)rot) })));
+        }
+
         public void Dispose()
         {
         }
@@ -93,13 +99,13 @@ namespace MinesServer.Networking.Connection.Client
                     Debug.Log($"  - Move to ({move.X}, {move.Y})");
                     x = move.X;
                     y = move.Y;
-                    OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { new RobotPositionPacket(mockBotId, move.X, move.Y, (byte)rot) })));
+                    UpdatePosition();
                 }
                 else if (actionPacket.Payload is RotatePacket rotate)
                 {
                     Debug.Log($"  - Rotate to {rotate.Direction}");
                     rot = rotate.Direction;
-                    OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { new RobotPositionPacket(mockBotId, x, y, (byte)rotate.Direction) })));
+                    UpdatePosition();
                 }
             }
 
@@ -147,6 +153,12 @@ namespace MinesServer.Networking.Connection.Client
                     OnReceived?.Invoke(new ServerPacket(new MovementSpeedPacket(new Dictionary<CellType, ushort> {
                         [CellType.Empty] = 20,
                         [CellType.Road] = 100
+                    })));
+
+                    // Send test packs
+                    OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] {
+                        new PackPacket(27, 50, PackType.Teleport, 0, 1),
+                        new PackPacket(25, 48, PackType.Market, 0, 0)
                     })));
                     break;
                 case RuntimeAssetRequestPacket runtimeAssets:
