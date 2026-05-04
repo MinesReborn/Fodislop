@@ -249,6 +249,27 @@ namespace Fodinae.Assets.Scripts.World
             _meshRenderer.sharedMaterials = _materials;
         }
 
+        private void OnDestroy()
+        {
+            if (_mesh != null)
+            {
+                if (Application.isPlaying) Destroy(_mesh);
+                else DestroyImmediate(_mesh);
+            }
+
+            if (_materials != null)
+            {
+                foreach (var mat in _materials)
+                {
+                    if (mat != null)
+                    {
+                        if (Application.isPlaying) Destroy(mat);
+                        else DestroyImmediate(mat);
+                    }
+                }
+            }
+        }
+
         private Vector4 GetAnimationFrameRect(CellType cellType, int atlasIndex)
         {
             var atlases = WorldTextureManager.Instance.GetAllAtlases();

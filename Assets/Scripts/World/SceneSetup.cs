@@ -58,7 +58,7 @@ namespace Fodinae.Assets.Scripts.World
         /// <summary>
         /// Get the background renderer instance
         /// </summary>
-        public static WorldBackgroundRenderer GetBackgroundRenderer()
+        public static SingleMeshTerrainRenderer GetBackgroundRenderer()
         {
             return _instance?._backgroundSetup?.GetBackgroundRenderer();
         }

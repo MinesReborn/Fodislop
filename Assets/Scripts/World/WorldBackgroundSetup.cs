@@ -6,10 +6,10 @@ namespace Fodinae.Assets.Scripts.World
     public class WorldBackgroundSetup : MonoBehaviour
     {
         [Header("Background Renderer Settings")]
-        [SerializeField] private WorldBackgroundRenderer _backgroundRendererPrefab;
+        [SerializeField] private SingleMeshTerrainRenderer _backgroundRendererPrefab;
         [SerializeField] private Transform _backgroundParent;
 
-        private WorldBackgroundRenderer _backgroundRenderer;
+        private SingleMeshTerrainRenderer _backgroundRenderer;
 
         void Awake()
         {
@@ -26,31 +26,25 @@ namespace Fodinae.Assets.Scripts.World
 
         private void SetupBackgroundRenderer()
         {
-            _backgroundRenderer = FindObjectOfType<WorldBackgroundRenderer>();
+            _backgroundRenderer = FindObjectOfType<SingleMeshTerrainRenderer>();
             
             if (_backgroundRenderer == null)
             {
                 if (_backgroundRendererPrefab != null)
                 {
                     _backgroundRenderer = Instantiate(_backgroundRendererPrefab, transform);
-                    _backgroundRenderer.name = "WorldBackgroundRenderer";
+                    _backgroundRenderer.name = "SingleMeshTerrainRenderer";
                 }
                 else
                 {
-                    var backgroundGO = new GameObject("WorldBackgroundRenderer");
-                    _backgroundRenderer = backgroundGO.AddComponent<WorldBackgroundRenderer>();
+                    var backgroundGO = new GameObject("SingleMeshTerrainRenderer");
+                    _backgroundRenderer = backgroundGO.AddComponent<SingleMeshTerrainRenderer>();
                     
                     var meshRenderer = _backgroundRenderer.GetComponent<MeshRenderer>();
                     if (meshRenderer != null) meshRenderer.sortingOrder = -1000;
                     
                     var transformComp = _backgroundRenderer.GetComponent<Transform>();
                     if (transformComp != null) transformComp.position = new Vector3(0, 0, 0); // FIX: Z=0
-                    
-                    // Add verification script for debugging
-                    backgroundGO.AddComponent<TerrainRenderingVerification>();
-                    
-                    // Add visibility test script for detailed debugging
-                    backgroundGO.AddComponent<TerrainVisibilityTest>();
                 }
 
                 if (_backgroundParent != null)
@@ -80,17 +74,9 @@ namespace Fodinae.Assets.Scripts.World
                 transform.position = pos;
                 Debug.Log("WorldBackgroundSetup: Fixed Z position to 0 for visibility");
             }
-
-            if (renderer.sharedMaterial != null && 
-                renderer.sharedMaterial.shader.name != "Universal Render Pipeline/Unlit" &&
-                renderer.sharedMaterial.shader.name != "Unlit/Texture")
-            {
-                renderer.sharedMaterial.shader = Shader.Find("Universal Render Pipeline/Unlit");
-                Debug.Log("WorldBackgroundSetup: Updated shader to Universal Render Pipeline/Unlit");
-            }
         }
 
-        public WorldBackgroundRenderer GetBackgroundRenderer()
+        public SingleMeshTerrainRenderer GetBackgroundRenderer()
         {
             return _backgroundRenderer;
         }
