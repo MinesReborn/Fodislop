@@ -3,6 +3,8 @@ Shader "Universal Render Pipeline/Custom/Terrain"
     Properties
     {
         [MainTexture] _BaseMap ("Texture Atlas", 2D) = "white" {}
+        _DebugColor ("Debug Color", Color) = (1, 1, 1, 1)
+        [ToggleUI] _DebugMode ("Debug Mode", Float) = 0
     }
     SubShader
     {
@@ -49,6 +51,11 @@ Shader "Universal Render Pipeline/Custom/Terrain"
             TEXTURE2D(_BaseMap);
             SAMPLER(sampler_BaseMap);
 
+            CBUFFER_START(UnityPerMaterial)
+                float4 _DebugColor;
+                float _DebugMode;
+            CBUFFER_END
+
             Varyings vert (Attributes input)
             {
                 Varyings output;
@@ -62,37 +69,34 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
             half4 frag (Varyings input) : SV_Target
             {
+                if (_DebugMode > 0.5)
+                {
+                    return half4(_DebugColor.rgb, 1.0);
+                }
+
                 float2 baseUV = input.subAtlasRect.xy;
                 float2 subAtlasSizeUV = input.subAtlasRect.zw;
                 float2 tileSizeUV = input.tileSizeUV;
 
-                // Debug: return red if no texture or weird dimensions
+                // Robustness: ensure we have valid dimensions
                 if (subAtlasSizeUV.x <= 0 || tileSizeUV.x <= 0)
-                    return half4(1, 0, 0, 1);
+                    return half4(1, 0, 1, 1); // Magenta for error
 
                 // Calculate number of tiles in the sub-atlas (frame)
                 float2 tilesCount = round(subAtlasSizeUV / tileSizeUV);
                 tilesCount = max(tilesCount, 1.0);
 
-                // Server-side coordinates
+                // Use integer coordinates for wrapping
                 int globalX = (int)floor(input.worldPos.x + 0.001);
                 int globalY = (int)floor(input.worldPos.y + 0.001);
 
-                // Wrapping logic matching TextureAtlas.cs
                 int wrappedX = ((globalX % (int)tilesCount.x) + (int)tilesCount.x) % (int)tilesCount.x;
                 int wrappedY = ((int)tilesCount.y - 1) - (((globalY % (int)tilesCount.y) + (int)tilesCount.y) % (int)tilesCount.y);
 
                 float2 tileOffsetUV = float2(wrappedX, wrappedY) * tileSizeUV;
-
-                // Sample atlas: base + offset + relative_uv_within_tile
-                // Added 0.0001 epsilon to uv to avoid edge bleeding from the wrong tile
                 float2 finalUV = baseUV + tileOffsetUV + input.uv * tileSizeUV;
 
-                half4 color = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, finalUV);
-
-                // If the color is transparent, we might want to discard or use a fallback
-                // but since it's opaque now, let's just return it.
-                return color;
+                return SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, finalUV);
             }
             ENDHLSL
         }

@@ -21,10 +21,10 @@ namespace Fodinae.Assets.Scripts.World
         private Mesh _mesh;
 
         private List<Vector3> _vertices = new();
-        private List<Vector2> _uvs = new(); // Quad-relative UVs [0,1]
-        private List<Vector4> _subAtlasRects = new(); // [Umin, Vmin, WidthUV, HeightUV]
-        private List<Vector4> _tileSizeUVs = new(); // [TileWidthUV, TileHeightUV, 0, 0]
-        private List<Vector4> _worldPositions = new(); // [ServerX, ServerY, 0, 0]
+        private List<Vector2> _uvs = new();
+        private List<Vector4> _subAtlasRects = new();
+        private List<Vector4> _tileSizeUVs = new();
+        private List<Vector4> _worldPositions = new();
 
         private Vector2Int _lastMinVisible = new Vector2Int(-1, -1);
         private Vector2Int _lastMaxVisible = new Vector2Int(-1, -1);
@@ -45,6 +45,9 @@ namespace Fodinae.Assets.Scripts.World
             _meshFilter.mesh = _mesh;
 
             InitializeShader();
+
+            _meshRenderer.enabled = true;
+            _meshRenderer.sortingOrder = -1000;
         }
 
         private void InitializeShader()
@@ -60,11 +63,7 @@ namespace Fodinae.Assets.Scripts.World
 
             if (_terrainShader == null)
             {
-                Debug.LogError("SingleMeshTerrainRenderer: Terrain shader NOT FOUND! Rendering will fail.");
-            }
-            else
-            {
-                Debug.Log($"SingleMeshTerrainRenderer: Using shader '{_terrainShader.name}'");
+                Debug.LogError("SingleMeshTerrainRenderer: Terrain shader NOT FOUND!");
             }
         }
 
@@ -107,35 +106,32 @@ namespace Fodinae.Assets.Scripts.World
 
         private void BuildMesh(int minX, int minY, int maxX, int maxY)
         {
+            var atlases = WorldTextureManager.Instance.GetAllAtlases();
+            if (atlases.Count == 0) return;
+
+            // Ensure all atlases are updated if dirty
+            foreach (var atlas in atlases)
+            {
+                if (atlas.IsDirty)
+                {
+                    atlas.UpdateAtlasTexture().Forget();
+                }
+            }
+
             _vertices.Clear();
             _uvs.Clear();
             _subAtlasRects.Clear();
             _tileSizeUVs.Clear();
             _worldPositions.Clear();
 
-            var atlases = WorldTextureManager.Instance.GetAllAtlases();
-            if (atlases.Count == 0) return;
-
             if (_subMeshIndices.Length != atlases.Count)
             {
+                CleanupMaterials();
                 _subMeshIndices = new List<int>[atlases.Count];
-                for (int i = 0; i < atlases.Count; i++) _subMeshIndices[i] = new List<int>();
-
-                if (_materials != null)
-                {
-                    foreach (var mat in _materials)
-                    {
-                        if (mat != null)
-                        {
-                            if (Application.isPlaying) Destroy(mat);
-                            else DestroyImmediate(mat);
-                        }
-                    }
-                }
-
                 _materials = new Material[atlases.Count];
                 for (int i = 0; i < atlases.Count; i++)
                 {
+                    _subMeshIndices[i] = new List<int>();
                     _materials[i] = new Material(_terrainShader);
                 }
             }
@@ -186,27 +182,32 @@ namespace Fodinae.Assets.Scripts.World
 
                     Vector4 frameRect = GetAnimationFrameRect(cellType, atlasIndex);
                     float tileSize = 32f;
-                    float uSize = tileSize / atlases[atlasIndex].Size;
-                    float vSize = tileSize / atlases[atlasIndex].Size;
+                    float atlasSize = atlases[atlasIndex].Size;
+                    float uvTileSize = tileSize / atlasSize;
+
+                    Vector4 tileSizeVec = new Vector4(uvTileSize, uvTileSize, 0, 0);
+                    Vector4 worldPosVec = new Vector4(x, serverY, 0, 0);
 
                     for (int i = 0; i < 4; i++)
                     {
                         _subAtlasRects.Add(frameRect);
-                        _tileSizeUVs.Add(new Vector4(uSize, vSize, 0, 0));
-                        _worldPositions.Add(new Vector4(x, serverY, 0, 0));
+                        _tileSizeUVs.Add(tileSizeVec);
+                        _worldPositions.Add(worldPosVec);
                     }
 
                     _subMeshIndices[atlasIndex].Add(vertexCount + 0);
-                    _subMeshIndices[atlasIndex].Add(vertexCount + 3);
+                    _subMeshIndices[atlasIndex].Add(vertexCount + 1);
                     _subMeshIndices[atlasIndex].Add(vertexCount + 2);
 
-                    _subMeshIndices[atlasIndex].Add(vertexCount + 2);
-                    _subMeshIndices[atlasIndex].Add(vertexCount + 1);
                     _subMeshIndices[atlasIndex].Add(vertexCount + 0);
+                    _subMeshIndices[atlasIndex].Add(vertexCount + 2);
+                    _subMeshIndices[atlasIndex].Add(vertexCount + 3);
 
                     vertexCount += 4;
                 }
             }
+
+            if (vertexCount == 0) return;
 
             _mesh.Clear();
             _mesh.SetVertices(_vertices);
@@ -225,14 +226,8 @@ namespace Fodinae.Assets.Scripts.World
             _meshRenderer.sharedMaterials = _materials;
         }
 
-        private void OnDestroy()
+        private void CleanupMaterials()
         {
-            if (_mesh != null)
-            {
-                if (Application.isPlaying) Destroy(_mesh);
-                else DestroyImmediate(_mesh);
-            }
-
             if (_materials != null)
             {
                 foreach (var mat in _materials)
@@ -244,6 +239,16 @@ namespace Fodinae.Assets.Scripts.World
                     }
                 }
             }
+        }
+
+        private void OnDestroy()
+        {
+            if (_mesh != null)
+            {
+                if (Application.isPlaying) Destroy(_mesh);
+                else DestroyImmediate(_mesh);
+            }
+            CleanupMaterials();
         }
 
         private Vector4 GetAnimationFrameRect(CellType cellType, int atlasIndex)
@@ -268,10 +273,11 @@ namespace Fodinae.Assets.Scripts.World
                 }
             }
 
-            float uMin = (float)baseCoord.AtlasX / atlas.Size;
-            float vMin = (float)(baseCoord.AtlasY + frameIndex * (frameHeight > 0 ? frameHeight : 0)) / atlas.Size;
-            float uSize = (float)baseCoord.Width / atlas.Size;
-            float vSize = (float)(frameHeight > 0 ? frameHeight : baseCoord.Height) / atlas.Size;
+            float atlasSize = atlas.Size;
+            float uMin = (float)baseCoord.AtlasX / atlasSize;
+            float vMin = (float)(baseCoord.AtlasY + frameIndex * (frameHeight > 0 ? frameHeight : 0)) / atlasSize;
+            float uSize = (float)baseCoord.Width / atlasSize;
+            float vSize = (float)(frameHeight > 0 ? frameHeight : baseCoord.Height) / atlasSize;
 
             return new Vector4(uMin, vMin, uSize, vSize);
         }
