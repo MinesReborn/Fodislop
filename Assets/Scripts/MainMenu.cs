@@ -1,4 +1,5 @@
-﻿using Fodinae.Assets.Scripts.Networking.Connection;
+﻿using Fodinae.Assets.Scripts.Game.Managers;
+using Fodinae.Assets.Scripts.Networking.Connection;
 using MinesServer.Networking.Client;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.GUI;
@@ -134,6 +135,8 @@ public class MainMenu : MonoBehaviour
     private void OnPlayButtonClicked()
     {
         Debug.Log("🔘 Нажата кнопка Play");
+
+        RobotManager.ShowDebugVisuals = true;
 
         // Скрываем лоадер
         HideLoader();
