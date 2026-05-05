@@ -102,7 +102,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
                 if (texColor.a < 0.05)
                 {
-                    return _FallbackColor;
+                    discard;
                 }
 
                 return half4(texColor.rgb, 1.0);
@@ -195,7 +195,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
                 if (texColor.a < 0.05)
                 {
-                    return _FallbackColor;
+                    discard;
                 }
 
                 return half4(texColor.rgb, 1.0);
