@@ -51,43 +51,54 @@ namespace Fodinae.Assets.Scripts.Game
 
         private async UniTaskVoid LoadAssetsAsync(CancellationToken token)
         {
+            LoadPackAsync(token).Forget();
+            LoadClanAsync(token).Forget();
+            await UniTask.CompletedTask;
+        }
+
+        private async UniTaskVoid LoadPackAsync(CancellationToken token)
+        {
             string packName = _packType.ToString().ToLowerInvariant();
             string packPath = $"pack/{packName}/{_variant}.png";
 
-            var packTask = ClientAssetLoader.Instance.GetTextureAsync(packPath, token);
-            var clanTask = _linkedClan == 0 ? UniTask.FromResult<Texture2D>(null) : ClientAssetLoader.Instance.GetTextureAsync($"clan/{_linkedClan}.png", token);
+            var packTexture = await ClientAssetLoader.Instance.GetTextureAsync(packPath, token);
+            if (token.IsCancellationRequested || packTexture == null || _spriteRenderer == null) return;
 
-            var (packTexture, clanTexture) = await UniTask.WhenAll(packTask, clanTask);
+            if (_packSprite != null) Destroy(_packSprite);
+            // 32 pixels per unit as requested
+            _packSprite = Sprite.Create(packTexture, new Rect(0, 0, packTexture.width, packTexture.height), new Vector2(0.5f, 0.5f), 16);
+            _spriteRenderer.sprite = _packSprite;
 
-            if (token.IsCancellationRequested) return;
+            UpdateClanPosition();
+        }
 
-            if (packTexture != null && _spriteRenderer != null)
+        private async UniTaskVoid LoadClanAsync(CancellationToken token)
+        {
+            if (_linkedClan == 0)
             {
-                if (_packSprite != null) Destroy(_packSprite);
-                // 32 pixels per unit as requested
-                _packSprite = Sprite.Create(packTexture, new Rect(0, 0, packTexture.width, packTexture.height), new Vector2(0.5f, 0.5f), 16);
-                _spriteRenderer.sprite = _packSprite;
+                if (_clanRenderer != null) _clanRenderer.sprite = null;
+                return;
             }
 
-            if (clanTexture != null && _clanRenderer != null)
-            {
-                if (_clanSprite != null) Destroy(_clanSprite);
-                // Robot uses clanTexture.width as PPU and 0.8 scale.
-                // Let's match robot's logic for consistency.
-                // Use left-aligned pivot (0, 0.5) to position relative to the edge.
-                _clanSprite = Sprite.Create(clanTexture, new Rect(0, 0, clanTexture.width, clanTexture.height), new Vector2(0f, 0.5f), clanTexture.width);
-                _clanRenderer.sprite = _clanSprite;
-                _clanRenderer.transform.localScale = Vector3.one * 0.8f;
+            var clanTexture = await ClientAssetLoader.Instance.GetTextureAsync($"clan/{_linkedClan}.png", token);
+            if (token.IsCancellationRequested || clanTexture == null || _clanRenderer == null) return;
 
-                // Position to the right and slightly below the center
-                float packWidth = packTexture != null ? packTexture.width : 16;
-                float xOffset = (packWidth / 32f) + 0.1f; // Right edge + 0.1 gap
-                _clanRenderer.transform.localPosition = new Vector3(xOffset, -0.5f, 0);
-            }
-            else if (_clanRenderer != null)
-            {
-                _clanRenderer.sprite = null;
-            }
+            if (_clanSprite != null) Destroy(_clanSprite);
+            _clanSprite = Sprite.Create(clanTexture, new Rect(0, 0, clanTexture.width, clanTexture.height), new Vector2(0f, 0.5f), clanTexture.width);
+            _clanRenderer.sprite = _clanSprite;
+            _clanRenderer.transform.localScale = Vector3.one * 0.8f;
+
+            UpdateClanPosition();
+        }
+
+        private void UpdateClanPosition()
+        {
+            if (_clanRenderer == null) return;
+
+            // Position to the right and slightly below the center
+            float packWidth = _packSprite != null ? _packSprite.texture.width : 16;
+            float xOffset = (packWidth / 32f) + 0.1f; // Right edge + 0.1 gap
+            _clanRenderer.transform.localPosition = new Vector3(xOffset, -0.5f, 0);
         }
 
         private void OnDestroy()

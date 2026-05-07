@@ -352,20 +352,32 @@ namespace Fodinae.Assets.Scripts.Game
 
         private async UniTaskVoid LoadMetadataAssetsAsync(CancellationToken token)
         {
-            var skinTask = string.IsNullOrEmpty(_skinPath) ? UniTask.FromResult<Texture2D>(null) : ClientAssetLoader.Instance.GetTextureAsync(_skinPath, token);
-            var tailTask = string.IsNullOrEmpty(_tailPath) ? UniTask.FromResult<Texture2D>(null) : ClientAssetLoader.Instance.GetTextureAsync(_tailPath, token);
-            var clanTask = _clanId == 0 ? UniTask.FromResult<Texture2D>(null) : ClientAssetLoader.Instance.GetTextureAsync($"/clan/{_clanId}.png", token);
+            LoadSkinAsync(token).Forget();
+            LoadTailAsync(token).Forget();
+            LoadClanAsync(token).Forget();
+            await UniTask.CompletedTask;
+        }
 
-            var (skinTexture, tailTexture, clanTexture) = await UniTask.WhenAll(skinTask, tailTask, clanTask);
+        private async UniTaskVoid LoadSkinAsync(CancellationToken token)
+        {
+            if (string.IsNullOrEmpty(_skinPath)) return;
+            var skinTexture = await ClientAssetLoader.Instance.GetTextureAsync(_skinPath, token);
+            if (token.IsCancellationRequested || skinTexture == null || _spriteRenderer == null) return;
 
-            if (token.IsCancellationRequested) return;
+            if (_skinSprite != null) Object.Destroy(_skinSprite);
+            _skinSprite = Sprite.Create(skinTexture, new Rect(0, 0, skinTexture.width, skinTexture.height), new Vector2(0.5f, 0.5f), skinTexture.width);
+            _spriteRenderer.sprite = _skinSprite;
+        }
 
-            if (skinTexture != null && _spriteRenderer != null)
+        private async UniTaskVoid LoadTailAsync(CancellationToken token)
+        {
+            if (string.IsNullOrEmpty(_tailPath))
             {
-                if (_skinSprite != null) Object.Destroy(_skinSprite);
-                _skinSprite = Sprite.Create(skinTexture, new Rect(0, 0, skinTexture.width, skinTexture.height), new Vector2(0.5f, 0.5f), skinTexture.width);
-                _spriteRenderer.sprite = _skinSprite;
+                ClearTentacles();
+                return;
             }
+            var tailTexture = await ClientAssetLoader.Instance.GetTextureAsync(_tailPath, token);
+            if (token.IsCancellationRequested) return;
 
             if (tailTexture != null)
             {
@@ -375,13 +387,17 @@ namespace Fodinae.Assets.Scripts.Game
             {
                 ClearTentacles();
             }
+        }
 
-            if (clanTexture != null && _clanRenderer != null)
-            {
-                if (_clanSprite != null) Object.Destroy(_clanSprite);
-                _clanSprite = Sprite.Create(clanTexture, new Rect(0, 0, clanTexture.width, clanTexture.height), new Vector2(0f, 0.5f), clanTexture.width);
-                _clanRenderer.sprite = _clanSprite;
-            }
+        private async UniTaskVoid LoadClanAsync(CancellationToken token)
+        {
+            if (_clanId == 0) return;
+            var clanTexture = await ClientAssetLoader.Instance.GetTextureAsync($"/clan/{_clanId}.png", token);
+            if (token.IsCancellationRequested || clanTexture == null || _clanRenderer == null) return;
+
+            if (_clanSprite != null) Object.Destroy(_clanSprite);
+            _clanSprite = Sprite.Create(clanTexture, new Rect(0, 0, clanTexture.width, clanTexture.height), new Vector2(0f, 0.5f), clanTexture.width);
+            _clanRenderer.sprite = _clanSprite;
         }
 
         private void OnDestroy()
