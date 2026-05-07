@@ -40,6 +40,8 @@ namespace Fodinae.Assets.Scripts
         }
 
         private ConcurrentDictionary<string, TaskCompletionSource<byte[]>> _pendingRequests = new();
+        private readonly ConcurrentQueue<RuntimeAssetEntryPacket> _requestQueue = new();
+        private CancellationTokenSource _loopCts;
 
         private Texture2D _placeholderTexture;
         private Texture2D _errorTexture;
@@ -68,6 +70,71 @@ namespace Fodinae.Assets.Scripts
             _errorTexture.name = "Error_Texture";
 
             ConnectionManager.Instance.OnPacketReceived += OnPacketReceived;
+
+            _loopCts = new CancellationTokenSource();
+            ProcessBatchLoop(_loopCts.Token).Forget();
+        }
+
+        void OnDestroy()
+        {
+            if (_instance == this)
+            {
+                _loopCts?.Cancel();
+                _loopCts?.Dispose();
+                ConnectionManager.Instance.OnPacketReceived -= OnPacketReceived;
+            }
+        }
+
+        private async UniTaskVoid ProcessBatchLoop(CancellationToken ct)
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                try
+                {
+                    await UniTask.Delay(50, cancellationToken: ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+
+                if (_requestQueue.IsEmpty) continue;
+
+                List<RuntimeAssetEntryPacket> batch = new();
+                while (_requestQueue.TryDequeue(out var entry))
+                {
+                    // Check if the request is still relevant (not cancelled or already fulfilled)
+                    if (_pendingRequests.TryGetValue(entry.Filename, out var tcs) && !tcs.Task.IsCompleted)
+                    {
+                        // Avoid duplicates in the same batch
+                        if (!batch.Exists(x => x.Filename == entry.Filename))
+                        {
+                            batch.Add(entry);
+                        }
+                    }
+                }
+
+                if (batch.Count > 0)
+                {
+                    if (ConnectionManager.Instance?.Connection != null &&
+                        ConnectionManager.Instance.Connection.ConnectionStatus == MinesServer.Networking.Shared.ConnectionStatus.Connected)
+                    {
+                        var assetRequest = new RuntimeAssetRequestPacket(batch);
+                        ConnectionManager.Instance.Connection.SendAsync(new ClientPacket((uint)DateTimeOffset.UtcNow.Ticks, assetRequest));
+                    }
+                    else
+                    {
+                        // Connection lost while batching, fail the batch
+                        foreach (var entry in batch)
+                        {
+                            if (_pendingRequests.TryRemove(entry.Filename, out var tcs))
+                            {
+                                tcs.TrySetException(new Exception("Connection lost while sending asset request batch"));
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         private void OnPacketReceived(ServerPacket obj)
@@ -171,41 +238,54 @@ namespace Fodinae.Assets.Scripts
 
         private async UniTask<byte[]> GetAssetBytesFromServer(string filename, string etag, CancellationToken cancellationToken)
         {
-            var tcs = new TaskCompletionSource<byte[]>();
-            using var registration = cancellationToken.Register(() => {
+            bool isNew = false;
+            var tcs = _pendingRequests.GetOrAdd(filename, _ =>
+            {
+                isNew = true;
+                return new TaskCompletionSource<byte[]>();
+            });
+
+            if (!isNew)
+            {
+                return await tcs.Task;
+            }
+
+            using var registration = cancellationToken.Register(() =>
+            {
                 tcs.TrySetCanceled();
                 _pendingRequests.TryRemove(filename, out _);
             });
-
-            if (!_pendingRequests.TryAdd(filename, tcs))
-            {
-                if (_pendingRequests.TryGetValue(filename, out var existingTcs))
-                {
-                    return await existingTcs.Task;
-                }
-                return null;
-            }
 
             // FIX: Gracefully handle offline/standalone mode!
             // If there's no connection, immediately fetch from local Texture Storage Manager instead of crashing.
             if (ConnectionManager.Instance == null || ConnectionManager.Instance.Connection == null ||
                 ConnectionManager.Instance.Connection.ConnectionStatus != MinesServer.Networking.Shared.ConnectionStatus.Connected)
             {
-                _pendingRequests.TryRemove(filename, out _);
-
-                // Directly attempt to load from local storage
-                var localData = await Fodinae.Assets.Scripts.Networking.Connection.Client.TextureStorageManager.Instance.GetTextureData(filename);
-                if (localData != null)
+                try
                 {
-                    return localData;
+                    // Directly attempt to load from local storage
+                    var localData = await Fodinae.Assets.Scripts.Networking.Connection.Client.TextureStorageManager.Instance.GetTextureData(filename);
+                    if (localData != null)
+                    {
+                        tcs.TrySetResult(localData);
+                        _pendingRequests.TryRemove(filename, out _);
+                        return localData;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    tcs.TrySetException(ex);
+                    _pendingRequests.TryRemove(filename, out _);
+                    throw;
                 }
 
-                throw new Exception($"No active connection and no local texture found for {filename}");
+                var noConnEx = new Exception($"No active connection and no local texture found for {filename}");
+                tcs.TrySetException(noConnEx);
+                _pendingRequests.TryRemove(filename, out _);
+                throw noConnEx;
             }
 
-            var assetEntry = new RuntimeAssetEntryPacket(filename, etag ?? "");
-            var assetRequest = new RuntimeAssetRequestPacket(new List<RuntimeAssetEntryPacket> { assetEntry });
-            ConnectionManager.Instance.Connection.SendAsync(new ClientPacket((uint)DateTimeOffset.UtcNow.Ticks, assetRequest));
+            _requestQueue.Enqueue(new RuntimeAssetEntryPacket(filename, etag ?? ""));
 
             try
             {
