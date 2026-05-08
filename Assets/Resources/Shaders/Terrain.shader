@@ -86,14 +86,24 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float2 tilesCount = round(subAtlasSizeUV / tileSizeUV);
                 tilesCount = max(tilesCount, 1.0);
 
-                // Use fmod for wrapping on GPU
                 float2 gPos = floor(input.worldPos.xy + 0.001);
                 float2 wrapped;
-                wrapped.x = fmod(gPos.x, tilesCount.x);
-                if (wrapped.x < 0) wrapped.x += tilesCount.x;
+                bool isTiling = input.worldPos.w > 0.5;
 
+                // Y-variant calculation is shared between tiling and non-tiling cells
                 wrapped.y = (tilesCount.y - 1.0) - fmod(gPos.y, tilesCount.y);
                 if (wrapped.y < 0) wrapped.y += tilesCount.y;
+
+                if (isTiling)
+                {
+                    wrapped.x = input.worldPos.z; // Base Tile Index
+                }
+                else
+                {
+                    // Use fmod for wrapping on GPU
+                    wrapped.x = fmod(gPos.x, tilesCount.x);
+                    if (wrapped.x < 0) wrapped.x += tilesCount.x;
+                }
 
                 float2 tileOffsetUV = wrapped * tileSizeUV;
                 float2 finalUV = baseUV + tileOffsetUV + input.uv * tileSizeUV;
@@ -182,11 +192,21 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
                 float2 gPos = floor(input.worldPos.xy + 0.001);
                 float2 wrapped;
-                wrapped.x = fmod(gPos.x, tilesCount.x);
-                if (wrapped.x < 0) wrapped.x += tilesCount.x;
+                bool isTiling = input.worldPos.w > 0.5;
 
+                // Y-variant calculation is shared between tiling and non-tiling cells
                 wrapped.y = (tilesCount.y - 1.0) - fmod(gPos.y, tilesCount.y);
                 if (wrapped.y < 0) wrapped.y += tilesCount.y;
+
+                if (isTiling)
+                {
+                    wrapped.x = input.worldPos.z; // Base Tile Index
+                }
+                else
+                {
+                    wrapped.x = fmod(gPos.x, tilesCount.x);
+                    if (wrapped.x < 0) wrapped.x += tilesCount.x;
+                }
 
                 float2 tileOffsetUV = wrapped * tileSizeUV;
                 float2 finalUV = baseUV + tileOffsetUV + input.uv * tileSizeUV;

@@ -67,6 +67,41 @@ namespace Fodinae.Assets.Scripts.World
             _needsRebuild = true;
         }
 
+        private byte GetNeighborMask(int x, int serverY, int groupId)
+        {
+            byte mask = 0;
+            int width = MapManager.Instance.WorldWidth;
+            int height = MapManager.Instance.WorldHeight;
+
+            // Bits: TL(7) T(6) TR(5) R(4) BR(3) B(2) BL(1) L(0)
+            // Server offsets (x, serverY):
+            // L: (-1, 0)
+            // BL: (-1, 1)
+            // B: (0, 1)
+            // BR: (1, 1)
+            // R: (1, 0)
+            // TR: (1, -1)
+            // T: (0, -1)
+            // TL: (-1, -1)
+
+            int[] dx = { -1, -1, 0, 1, 1, 1, 0, -1 };
+            int[] dy = { 0, 1, 1, 1, 0, -1, -1, -1 };
+
+            for (int i = 0; i < 8; i++)
+            {
+                int nx = (x + dx[i] + width) % width;
+                int ny = (serverY + dy[i] + height) % height;
+
+                CellType neighborType = MapStorage.Instance.GetCell(nx, ny);
+                if (MapManager.Instance.TryGetTileGroup(neighborType, out int neighborGroupId) && neighborGroupId == groupId)
+                {
+                    mask |= (byte)(1 << i);
+                }
+            }
+
+            return mask;
+        }
+
         private bool IsPassable(CellType cellType)
         {
             if (cellType == CellType.Unloaded || cellType == CellType.Pregener) return false;
@@ -447,10 +482,47 @@ namespace Fodinae.Assets.Scripts.World
             _vertices.Add(new Vector3((x + 1) * _cellSize, (y + 1) * _cellSize, zOffset) + GetVertexOffset(x + 1, y + 1));
             _vertices.Add(new Vector3(x * _cellSize, (y + 1) * _cellSize, zOffset) + GetVertexOffset(x, y + 1));
 
-            _uvs.Add(new Vector2(0, 0));
-            _uvs.Add(new Vector2(1, 0));
-            _uvs.Add(new Vector2(1, 1));
-            _uvs.Add(new Vector2(0, 1));
+            Vector2[] quadUVs = new Vector2[]
+            {
+                new Vector2(0, 0),
+                new Vector2(1, 0),
+                new Vector2(1, 1),
+                new Vector2(0, 1)
+            };
+
+            int descriptor = 0;
+            float isTiling = 0f;
+            if (MapManager.Instance.TryGetTileGroup(cellType, out int groupId))
+            {
+                byte mask = GetNeighborMask(x, serverY, groupId);
+                descriptor = TileBitmaskConverter.GetDescriptor(mask);
+                isTiling = 1f;
+
+                bool rotate90 = (descriptor & 0x80) != 0;
+                bool flipX = (descriptor & 0x40) != 0;
+                bool flipY = (descriptor & 0x20) != 0;
+
+                if (flipX)
+                {
+                    (quadUVs[0].x, quadUVs[1].x) = (quadUVs[1].x, quadUVs[0].x);
+                    (quadUVs[3].x, quadUVs[2].x) = (quadUVs[2].x, quadUVs[3].x);
+                }
+                if (flipY)
+                {
+                    (quadUVs[0].y, quadUVs[3].y) = (quadUVs[3].y, quadUVs[0].y);
+                    (quadUVs[1].y, quadUVs[2].y) = (quadUVs[2].y, quadUVs[1].y);
+                }
+                if (rotate90)
+                {
+                    Vector2 temp = quadUVs[3];
+                    quadUVs[3] = quadUVs[2];
+                    quadUVs[2] = quadUVs[1];
+                    quadUVs[1] = quadUVs[0];
+                    quadUVs[0] = temp;
+                }
+            }
+
+            _uvs.AddRange(quadUVs);
 
             Vector4 frameRect = GetAnimationFrameRect(cellType, atlasIndex);
             float tileSize = RenderingConstants.CELL_SIZE;
@@ -458,7 +530,7 @@ namespace Fodinae.Assets.Scripts.World
             float uvTileSize = tileSize / atlasSize;
 
             Vector4 tileSizeVec = new Vector4(uvTileSize, uvTileSize, 0, 0);
-            Vector4 worldPosVec = new Vector4(x, serverY, 0, 0);
+            Vector4 worldPosVec = new Vector4(x, serverY, descriptor & 0x1F, isTiling);
 
             for (int i = 0; i < 4; i++)
             {

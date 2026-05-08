@@ -32,6 +32,7 @@ namespace Fodinae.Assets.Scripts.Game.Managers
     public Action OnWorldDataLoaded;
 
     private CellConfigurationPacket[] cellConfigurations;
+    private Dictionary<CellType, int> _cellToTileGroup = new();
     private Dictionary<CellType, ushort> _cellMoveSpeeds = new();
     private string worldCodeName;
     private string worldDisplayName;
@@ -85,6 +86,20 @@ namespace Fodinae.Assets.Scripts.Game.Managers
         width = packet.Width;
         height = packet.Height;
         cellConfigurations = packet.Cells;
+
+        _cellToTileGroup.Clear();
+        if (packet.TileGroups != null)
+        {
+            for (int i = 0; i < packet.TileGroups.Length; i++)
+            {
+                if (packet.TileGroups[i] == null) continue;
+                foreach (byte cellId in packet.TileGroups[i])
+                {
+                    _cellToTileGroup[(CellType)cellId] = i;
+                }
+            }
+        }
+
         Debug.Log($"[MapManager] World initialized: {packet.DisplayName} ({packet.CodeName}) [{width}x{height}]");
         
         // CRITICAL: IMMEDIATE MapStorage initialization - this is essential for terrain rendering
@@ -239,6 +254,11 @@ namespace Fodinae.Assets.Scripts.Game.Managers
                 return default;
             }
             return cellConfigurations[(int)cellType];
+        }
+
+        public bool TryGetTileGroup(CellType cellType, out int groupId)
+        {
+            return _cellToTileGroup.TryGetValue(cellType, out groupId);
         }
 
         /// <summary>

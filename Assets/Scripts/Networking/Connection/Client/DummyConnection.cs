@@ -153,6 +153,7 @@ namespace MinesServer.Networking.Connection.Client
                     HandleRobotInfoMock(mockBotId).Forget();
                     ushort circularBotId = 789;
                     RunCircularRobot(circularBotId).Forget();
+                    RunTilingTestLoop().Forget();
                     OnReceived?.Invoke(new ServerPacket(new AggressionStatePacket(false)));
                     OnReceived?.Invoke(new ServerPacket(new AutoMineStatePacket(false)));
                     OnReceived?.Invoke(new ServerPacket(new CurrencyPacket(123456, 1234)));
@@ -183,6 +184,58 @@ namespace MinesServer.Networking.Connection.Client
                     break;
                 default:
                     break;
+            }
+        }
+
+        private async UniTaskVoid RunTilingTestLoop()
+        {
+            ushort baseX = 40;
+            ushort baseY = 40;
+            int counter = 0;
+
+            while (_status == ConnectionStatus.Connected)
+            {
+                // We need a 3x3 grid (9 cells)
+                // Layout:
+                // 0 1 2
+                // 3 4 5
+                // 6 7 8
+                // Index 4 is the center (static)
+
+                var grid = new CellType[9];
+                int bit = 0;
+
+                for (int i = 0; i < 9; i++)
+                {
+                    if (i == 4)
+                    {
+                        // The center cell remains static
+                        grid[i] = CellType.BuildingWall;
+                        continue;
+                    }
+
+                    // Check if the N-th bit is set in our counter
+                    bool isNeighborPresent = ((counter >> bit) & 1) == 1;
+                    grid[i] = isNeighborPresent ? CellType.BuildingWall : CellType.Empty;
+                    bit++;
+                }
+
+                var mapRegionPacket = new MapRegionPacket
+                {
+                    X = baseX,
+                    Y = baseY,
+                    Width = 2,  // 3 cells wide (Width is Size - 1)
+                    Height = 2, // 3 cells high
+                    Payload = grid
+                };
+
+                OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { mapRegionPacket })));
+
+                // Increment counter and wrap at 256
+                counter = (counter + 1) % 256;
+
+                // Delay to make the animation visible (e.g., 200ms)
+                await UniTask.Delay(200);
             }
         }
 
@@ -454,6 +507,30 @@ namespace MinesServer.Networking.Connection.Client
                 Distortion = CellDistortionType.Cause,
                 Properties = CellConfigProperties.None
             };
+            configs[(int)CellType.BuildingDoor] = new CellConfigurationPacket
+            {
+                Animation = CellAnimationType.None,
+                AnimationSpeed = 0,
+                Color = unchecked((int)0xFF8B4513),
+                FrameOffset = 0,
+                Properties = CellConfigProperties.None
+            };
+            configs[(int)CellType.BuildingCorner] = new CellConfigurationPacket
+            {
+                Animation = CellAnimationType.None,
+                AnimationSpeed = 0,
+                Color = unchecked((int)0xFF555555),
+                FrameOffset = 0,
+                Properties = CellConfigProperties.None
+            };
+            configs[(int)CellType.BuildingWall] = new CellConfigurationPacket
+            {
+                Animation = CellAnimationType.None,
+                AnimationSpeed = 0,
+                Color = unchecked((int)0xFF666666),
+                FrameOffset = 0,
+                Properties = CellConfigProperties.None
+            };
 
             return configs;
         }
@@ -554,6 +631,20 @@ namespace MinesServer.Networking.Connection.Client
                     map[x, y] = CellType.Lava;
                 }
             }
+            // Add tiling test region
+            int tilingX = 30;
+            int tilingY = 30;
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    if (dx == 0 && dy == 0)
+                        map[tilingX + dx, tilingY + dy] = CellType.BuildingDoor;
+                    else if (dx % 2 == 0 && dy % 2 == 0)
+                        map[tilingX + dx, tilingY + dy] = CellType.BuildingCorner;
+                }
+            }
+
             var random = new System.Random(12345);
             for (int y = 10; y < height - 10; y += 3)
             {
