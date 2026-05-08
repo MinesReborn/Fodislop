@@ -52,7 +52,7 @@ namespace Fodinae.Assets.Scripts.World
 
             Debug.Log($"[CellConfigurationTest] Animation properties for {testCellType}:");
             Debug.Log($"  - Has Animation: {hasAnimation}");
-            Debug.Log($"  - Frame Height: {frameHeight} pixels ({frameHeight / 16} tiles)");
+            Debug.Log($"  - Frame Height: {frameHeight} pixels ({frameHeight / RenderingConstants.CELL_SIZE} tiles)");
             Debug.Log($"  - Animation Speed: {animationSpeed} fps");
             Debug.Log($"  - Frame Offset: {frameOffset}");
 

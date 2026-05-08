@@ -37,7 +37,7 @@ namespace Fodinae.Assets.Scripts.World
         [SerializeField] private int _texturePadding = 2;
 
         [Header("Performance")]
-        [SerializeField] private int _cellTextureSize = 32;
+        [SerializeField] private int _cellTextureSize = RenderingConstants.CELL_SIZE;
         [SerializeField] private bool _enableCompression = true;
 
         public TextureAtlas _currentAtlas;

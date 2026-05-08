@@ -100,10 +100,10 @@ namespace Fodinae.Assets.Scripts.World
             int subAtlasWidth = cell.Rectangle.Width;
             int subAtlasHeight = cell.Rectangle.Height;
 
-            // Use 32x32 as the tile size for terrain rendering
-            const int terrainTileSize = 32;
+            // Use the central constant for tile size
+            int terrainTileSize = RenderingConstants.CELL_SIZE;
 
-            // How many 32x32 tiles fit in the SUB-ATLAS width and height
+            // How many tiles fit in the SUB-ATLAS width and height
             int tilesPerRow = subAtlasWidth / terrainTileSize;
 
             // If frameHeightPixels is provided, it defines the wrapping boundary for animations
@@ -126,7 +126,7 @@ namespace Fodinae.Assets.Scripts.World
             return new AtlasCoordinate(
                 atlasX,
                 atlasY,
-                terrainTileSize,  // We only want to render one 32x32 tile
+                terrainTileSize,  // We only want to render one tile
                 terrainTileSize,
                 Size,             // Full atlas width
                 Size              // Full atlas height
@@ -144,7 +144,8 @@ namespace Fodinae.Assets.Scripts.World
 
             lock (_lock)
             {
-                // Pack the ENTIRE texture size. Do not restrict to 16x16.
+                // Pack the ENTIRE texture size.
+                // Add Padding to the requested width/height to ensure space between textures.
                 var bestFit = FindBestFit(texture.width, texture.height);
                 if (bestFit == null) return false;
 
@@ -158,8 +159,11 @@ namespace Fodinae.Assets.Scripts.World
                         Size, Size)
                 };
 
-                _usedRectangles.Add(bestFit.Value);
-                SplitFreeRectangles(bestFit.Value);
+                // When adding to _usedRectangles and splitting, we must include the Padding
+                // so the next FindBestFit doesn't overlap with the padded area.
+                Rectangle rectWithPadding = new Rectangle(bestFit.Value.X, bestFit.Value.Y, bestFit.Value.Width + Padding, bestFit.Value.Height + Padding);
+                _usedRectangles.Add(rectWithPadding);
+                SplitFreeRectangles(rectWithPadding);
                 _cells.TryAdd(cellType, atlasCell);
                 _isDirty = true;
 

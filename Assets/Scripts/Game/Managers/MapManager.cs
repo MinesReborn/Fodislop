@@ -1,6 +1,7 @@
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.Information;
+using Fodinae.Assets.Scripts.World;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -269,14 +270,14 @@ namespace Fodinae.Assets.Scripts.Game.Managers
         /// Get the animation frame height in pixels for a cell type
         /// </summary>
         /// <param name="cellType">The cell type</param>
-        /// <returns>Frame height in pixels (tile height * 16), or 0 if not animated</returns>
+        /// <returns>Frame height in pixels (tile height * CELL_SIZE), or 0 if not animated</returns>
         public int GetAnimationFrameHeight(CellType cellType)
         {
             var config = GetCellConfig(cellType);
 
-            // Frame height is defined in tiles, each tile is 16x16 pixels
+            // Frame height is defined in tiles, each tile is CELL_SIZE x CELL_SIZE pixels
             // FrameOffset > 0 indicates it's an animated or multi-frame texture
-            return (int)config.FrameOffset * 16;
+            return (int)config.FrameOffset * RenderingConstants.CELL_SIZE;
         }
 
         /// <summary>
