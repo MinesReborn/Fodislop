@@ -39,6 +39,8 @@ public class MainMenu : MonoBehaviour
     private void ShowLoader()
     {
         var root = _doc.rootVisualElement;
+        root.style.width = new Length(100, LengthUnit.Percent);
+        root.style.height = new Length(100, LengthUnit.Percent);
 
         _loaderContainer = new VisualElement();
         _loaderContainer.name = "LoaderContainer";
@@ -47,23 +49,21 @@ public class MainMenu : MonoBehaviour
         _loaderContainer.style.left = 0;
         _loaderContainer.style.right = 0;
         _loaderContainer.style.bottom = 0;
-        _loaderContainer.style.backgroundColor = Color.black;
-        _loaderContainer.style.alignItems = Align.Center;
+        _loaderContainer.style.alignItems = Align.Stretch;
         _loaderContainer.style.justifyContent = Justify.Center;
 
         var image = new UnityEngine.UIElements.Image();
-        Texture2D loaderTexture = null;
-        loaderTexture = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/loader_new.png");
+        Texture2D loaderTexture = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/loader_new.png");
         if (loaderTexture == null)
         {
             loaderTexture = CreateSimpleLoaderTexture();
-            Debug.LogWarning("Картинка не найдена по пути Assets/Textures/loader_new.png, используется заглушка");
+            Debug.LogWarning("Картинка не найдена, используется заглушка");
         }
 
         image.image = loaderTexture;
-        image.style.width = 1920;
-        image.style.height = 1080;
-        image.style.position = Position.Relative;
+        image.style.width = new Length(100, LengthUnit.Percent);
+        image.style.height = new Length(100, LengthUnit.Percent);
+        image.scaleMode = ScaleMode.ScaleAndCrop; // покрывает весь элемент, сохраняя пропорции
 
         _loaderContainer.Add(image);
         root.Add(_loaderContainer);
