@@ -65,17 +65,7 @@ namespace Fodinae.Assets.Scripts.Networking.Connection
         private void OnConnected()
         {
             // Send ClientHelloPacket
-            SendAsync(new ClientHelloPacket(0, "Windows", 10, "fingerprint", "token"));
-        }
-
-        public void SendPacket(IRootClientPacket packet)
-        {
-            SendAsync(packet);
-        }
-
-        private void SendAsync(IRootClientPacket packet)
-        {
-            Connection.SendAsync(new ClientPacket((uint)DateTimeOffset.UtcNow.Ticks, packet));
+            NetworkService.Instance.Send(new ClientHelloPacket(0, "Windows", 10, "fingerprint", "token"));
         }
 
         private void OnReceived(ServerPacket obj)

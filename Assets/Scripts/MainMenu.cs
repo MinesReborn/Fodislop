@@ -1,4 +1,5 @@
 ﻿using Fodinae.Assets.Scripts.Game.Managers;
+using Fodinae.Assets.Scripts.Networking;
 using Fodinae.Assets.Scripts.Networking.Connection;
 using MinesServer.Networking.Client;
 using MinesServer.Networking.Client.Packets;
@@ -150,18 +151,6 @@ public class MainMenu : MonoBehaviour
         {
             ConnectionManager.Instance.Connect();
         }
-        SendPacket(new OpenHelpClickPacket());
-    }
-
-    private void SendPacket(IRootClientPacket packet)
-    {
-        if (ConnectionManager.Instance != null && ConnectionManager.Instance.Connection != null)
-        {
-            ConnectionManager.Instance.Connection.SendAsync(new ClientPacket((uint)DateTimeOffset.UtcNow.Ticks, packet));
-        }
-        else
-        {
-            Debug.LogError("Cannot send packet: ConnectionManager or Connection is null");
-        }
+        NetworkService.Instance.Send(new OpenHelpClickPacket());
     }
 }

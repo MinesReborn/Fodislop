@@ -8,6 +8,7 @@ using MinesServer.Networking.Server.Packets.Connection;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using System;
+using Fodinae.Assets.Scripts.Networking;
 
 namespace Fodinae.Assets.Scripts.Player
 {
@@ -174,7 +175,7 @@ namespace Fodinae.Assets.Scripts.Player
 
                     if (_lastSentDirection != packetDirection)
                     {
-                        ConnectionManager.Instance.SendPacket(new ActionClientPacket(currentX, currentServerY, new RotatePacket(packetDirection)));
+                        NetworkService.Instance.SendAction(new RotatePacket(packetDirection));
                         _lastSentDirection = packetDirection;
                         _lastMoveTime = Time.time;
                     }
@@ -227,7 +228,7 @@ namespace Fodinae.Assets.Scripts.Player
                         ClientPosition = new Vector2Int(targetUnityX, targetUnityY);
                         OnPlayerMoved?.Invoke(oldPos, ClientPosition);
                         _lastMoveTime = Time.time;
-                        ConnectionManager.Instance.SendPacket(new ActionClientPacket(currentX, currentServerY, new MovePacket(targetServerX, targetServerY)));
+                        NetworkService.Instance.SendAction(new MovePacket(targetServerX, targetServerY));
                     }
                 }
             }
