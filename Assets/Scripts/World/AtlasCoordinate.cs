@@ -115,11 +115,11 @@ namespace Fodinae.Assets.Scripts.World
         /// Get UV coordinates for a specific animation frame using server-provided frame height
         /// </summary>
         /// <param name="frameIndex">The animation frame index</param>
-        /// <param name="frameHeightInTiles">Frame height in tiles (each tile is 16x16 pixels)</param>
+        /// <param name="frameHeightInTiles">Frame height in tiles (each tile is CELL_SIZE pixels)</param>
         /// <returns>UV coordinates for the animation frame</returns>
         public AtlasCoordinate WithAnimationFrameFromServer(int frameIndex, int frameHeightInTiles)
         {
-            int frameHeightInPixels = frameHeightInTiles * 16;
+            int frameHeightInPixels = frameHeightInTiles * RenderingConstants.CELL_SIZE;
             
             // Calculate frame position (assuming frames are stacked vertically)
             int frameY = frameIndex * frameHeightInPixels;
