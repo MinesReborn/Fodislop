@@ -83,30 +83,45 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 if (subAtlasSizeUV.x <= 0 || tileSizeUV.x <= 0)
                     return half4(1, 0, 1, 1);
 
-                float2 tilesCount = round(subAtlasSizeUV / tileSizeUV);
+                // Use ceil to handle partial variations (e.g. 10.5 tiles -> 11 variations)
+                // Subtracting a small epsilon to avoid rounding up exact integers due to precision
+                float2 tilesCount = ceil(subAtlasSizeUV / tileSizeUV - 0.0001);
                 tilesCount = max(tilesCount, 1.0);
 
                 float2 gPos = floor(input.worldPos.xy + 0.001);
                 float2 wrapped;
                 bool isTiling = input.worldPos.w > 0.5;
 
-                // Y-variant calculation is shared between tiling and non-tiling cells
-                wrapped.y = (tilesCount.y - 1.0) - fmod(gPos.y, tilesCount.y);
-                if (wrapped.y < 0) wrapped.y += tilesCount.y;
+                const float EPS = 0.0001;
+
+                // Y-variant calculation
+                // abs() handles negative world coordinates correctly
+                float variantY = fmod(abs(gPos.y), tilesCount.y);
+                // Invert Y because server Y increases downwards but texture V increases upwards
+                wrapped.y = floor(tilesCount.y - EPS - variantY);
 
                 if (isTiling)
                 {
-                    wrapped.x = input.worldPos.z; // Base Tile Index
+                    wrapped.x = floor(input.worldPos.z + EPS); // Base Tile Index
                 }
                 else
                 {
-                    // Use fmod for wrapping on GPU
-                    wrapped.x = fmod(gPos.x, tilesCount.x);
-                    if (wrapped.x < 0) wrapped.x += tilesCount.x;
+                    wrapped.x = floor(fmod(abs(gPos.x), tilesCount.x) + EPS);
                 }
 
+                // Clamp wrapped coordinates to ensure they are within valid range [0, tilesCount-1]
+                wrapped = clamp(wrapped, 0.0, tilesCount - 1.0);
+
                 float2 tileOffsetUV = wrapped * tileSizeUV;
-                float2 finalUV = baseUV + tileOffsetUV + input.uv * tileSizeUV;
+
+                // Calculate available space for this tile (relevant for partial tiles at the edge of sub-atlas)
+                float2 availableTileSize = min(tileSizeUV, subAtlasSizeUV - tileOffsetUV);
+
+                // Inset the sampling slightly to avoid bleeding into neighboring tiles/padding
+                // and clamp UVs within the quad boundaries [EPS, 1.0-EPS]
+                float2 quadUV = clamp(input.uv, EPS, 1.0 - EPS);
+
+                float2 finalUV = baseUV + tileOffsetUV + quadUV * availableTileSize;
 
                 half4 texColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, finalUV);
 
@@ -187,29 +202,36 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 if (subAtlasSizeUV.x <= 0 || tileSizeUV.x <= 0)
                     return half4(1, 0, 1, 1);
 
-                float2 tilesCount = round(subAtlasSizeUV / tileSizeUV);
+                // Use ceil to handle partial variations
+                float2 tilesCount = ceil(subAtlasSizeUV / tileSizeUV - 0.0001);
                 tilesCount = max(tilesCount, 1.0);
 
                 float2 gPos = floor(input.worldPos.xy + 0.001);
                 float2 wrapped;
                 bool isTiling = input.worldPos.w > 0.5;
 
-                // Y-variant calculation is shared between tiling and non-tiling cells
-                wrapped.y = (tilesCount.y - 1.0) - fmod(gPos.y, tilesCount.y);
-                if (wrapped.y < 0) wrapped.y += tilesCount.y;
+                const float EPS = 0.0001;
+
+                // Y-variant calculation
+                float variantY = fmod(abs(gPos.y), tilesCount.y);
+                wrapped.y = floor(tilesCount.y - EPS - variantY);
 
                 if (isTiling)
                 {
-                    wrapped.x = input.worldPos.z; // Base Tile Index
+                    wrapped.x = floor(input.worldPos.z + EPS); // Base Tile Index
                 }
                 else
                 {
-                    wrapped.x = fmod(gPos.x, tilesCount.x);
-                    if (wrapped.x < 0) wrapped.x += tilesCount.x;
+                    wrapped.x = floor(fmod(abs(gPos.x), tilesCount.x) + EPS);
                 }
 
+                wrapped = clamp(wrapped, 0.0, tilesCount - 1.0);
+
                 float2 tileOffsetUV = wrapped * tileSizeUV;
-                float2 finalUV = baseUV + tileOffsetUV + input.uv * tileSizeUV;
+                float2 availableTileSize = min(tileSizeUV, subAtlasSizeUV - tileOffsetUV);
+                float2 quadUV = clamp(input.uv, EPS, 1.0 - EPS);
+
+                float2 finalUV = baseUV + tileOffsetUV + quadUV * availableTileSize;
 
                 half4 texColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, finalUV);
 

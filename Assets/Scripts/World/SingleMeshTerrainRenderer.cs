@@ -75,14 +75,14 @@ namespace Fodinae.Assets.Scripts.World
 
             // Bits: TL(7) T(6) TR(5) R(4) BR(3) B(2) BL(1) L(0)
             // Server offsets (x, serverY):
-            // L: (-1, 0)
-            // BL: (-1, 1)
-            // B: (0, 1)
-            // BR: (1, 1)
-            // R: (1, 0)
-            // TR: (1, -1)
-            // T: (0, -1)
-            // TL: (-1, -1)
+            // L: (-1, 0)   [Bit 0]
+            // BL: (-1, 1)  [Bit 1]
+            // B: (0, 1)    [Bit 2]
+            // BR: (1, 1)   [Bit 3]
+            // R: (1, 0)    [Bit 4]
+            // TR: (1, -1)  [Bit 5]
+            // T: (0, -1)   [Bit 6]
+            // TL: (-1, -1) [Bit 7]
 
             int[] dx = { -1, -1, 0, 1, 1, 1, 0, -1 };
             int[] dy = { 0, 1, 1, 1, 0, -1, -1, -1 };
@@ -93,6 +93,7 @@ namespace Fodinae.Assets.Scripts.World
                 int ny = (serverY + dy[i] + height) % height;
 
                 CellType neighborType = MapStorage.Instance.GetCell(nx, ny);
+
                 if (MapManager.Instance.TryGetTileGroup(neighborType, out int neighborGroupId) && neighborGroupId == groupId)
                 {
                     mask |= (byte)(1 << i);
@@ -447,6 +448,7 @@ namespace Fodinae.Assets.Scripts.World
 
         private int AddQuad(int x, int y, int serverY, CellType cellType, float zOffset, int vertexCount, HashSet<CellType> pendingLoads, List<TextureAtlas> atlases)
         {
+            // Use server coordinates for consistent texture coordinate lookup
             AtlasCoordinate coord = WorldTextureManager.Instance.GetCellTextureCoordinateSync(cellType, x, serverY);
             if (coord == AtlasCoordinate.Empty)
             {
@@ -494,6 +496,7 @@ namespace Fodinae.Assets.Scripts.World
             float isTiling = 0f;
             if (MapManager.Instance.TryGetTileGroup(cellType, out int groupId))
             {
+                // Ensure we have the latest neighbor data from MapStorage
                 byte mask = GetNeighborMask(x, serverY, groupId);
                 descriptor = TileBitmaskConverter.GetDescriptor(mask);
                 isTiling = 1f;
@@ -502,6 +505,7 @@ namespace Fodinae.Assets.Scripts.World
                 bool flipX = (descriptor & 0x40) != 0;
                 bool flipY = (descriptor & 0x20) != 0;
 
+                // Apply transformations by remapping quad UVs
                 if (flipX)
                 {
                     (quadUVs[0].x, quadUVs[1].x) = (quadUVs[1].x, quadUVs[0].x);
@@ -514,11 +518,12 @@ namespace Fodinae.Assets.Scripts.World
                 }
                 if (rotate90)
                 {
-                    Vector2 temp = quadUVs[3];
-                    quadUVs[3] = quadUVs[2];
-                    quadUVs[2] = quadUVs[1];
-                    quadUVs[1] = quadUVs[0];
-                    quadUVs[0] = temp;
+                    // Clockwise 90 degrees rotation
+                    Vector2 temp = quadUVs[0];
+                    quadUVs[0] = quadUVs[1];
+                    quadUVs[1] = quadUVs[2];
+                    quadUVs[2] = quadUVs[3];
+                    quadUVs[3] = temp;
                 }
             }
 
