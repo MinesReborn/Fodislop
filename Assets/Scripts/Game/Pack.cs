@@ -97,8 +97,8 @@ namespace Fodinae.Assets.Scripts.Game
             if (_clanRenderer == null) return;
 
             // Position to the right and slightly below the center
-            float packWidth = _packSprite != null ? _packSprite.texture.width : RenderingConstants.CELL_SIZE;
-            float xOffset = (packWidth / RenderingConstants.PIXELS_PER_UNIT) + 0.1f; // Right edge + 0.1 gap
+            float packWidth = _packSprite != null ? _packSprite.texture.width : RenderingConstants.PIXELS_PER_UNIT;
+            float xOffset = (packWidth / (RenderingConstants.PIXELS_PER_UNIT * 2)) + 0.1f; // Right edge + 0.1 gap
             _clanRenderer.transform.localPosition = new Vector3(xOffset, -0.5f, 0);
         }
 

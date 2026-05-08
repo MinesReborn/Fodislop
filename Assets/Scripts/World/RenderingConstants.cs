@@ -10,6 +10,6 @@ namespace Fodinae.Assets.Scripts.World
         /// <summary>
         /// Pixels Per Unit for sprites and world objects.
         /// </summary>
-        public const float PIXELS_PER_UNIT = 32f;
+        public const float PIXELS_PER_UNIT = 16f;
     }
 }
