@@ -217,7 +217,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
                     float factor = waveCubed * lumMask * chroma;
 
-                    finalRgb = (finalRgb * (1.0 - factor)) + (factor * _ShimmerColor.rgb);
+                    finalRgb = lerp(finalRgb, _ShimmerColor.rgb, factor);
                 }
                 else if (animType == 3) // Rainbow
                 {

@@ -275,7 +275,7 @@ namespace Fodinae.Assets.Scripts.World
 
         private void LateUpdate()
         {
-            if (Camera.main == null || MapManager.Instance == null || MapStorage.Instance == null || !MapStorage.Instance.IsReady)
+            if (MapManager.Instance == null || MapStorage.Instance == null || !MapStorage.Instance.IsReady)
                 return;
 
             UpdateVisibleMesh();
@@ -284,6 +284,13 @@ namespace Fodinae.Assets.Scripts.World
         private void UpdateVisibleMesh()
         {
             Camera cam = Camera.main;
+            if (cam == null && !Application.isPlaying)
+            {
+                // In Editor mode, try to find any camera if Camera.main is null
+                cam = GameObject.FindObjectsOfType<Camera>().FirstOrDefault();
+            }
+            if (cam == null) return;
+
             float height = cam.orthographicSize * 2;
             float width = height * cam.aspect;
             Vector3 camPos = cam.transform.position;
