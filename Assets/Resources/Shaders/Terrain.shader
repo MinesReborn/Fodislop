@@ -4,6 +4,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
     {
         [MainTexture] _BaseMap ("Texture Atlas", 2D) = "white" {}
         _FlowMapRect ("Flow Map Rect", Vector) = (0,0,0,0)
+        _ShimmerColor ("Shimmer Color", Color) = (1,1,1,1)
         _FallbackColor ("Fallback Color", Color) = (1, 1, 0, 1)
         _DebugColor ("Debug Color", Color) = (1, 0, 1, 1)
         [ToggleUI] _DebugMode ("Debug Mode", Float) = 0
@@ -59,6 +60,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _FlowMapRect;
+                float4 _ShimmerColor;
                 float4 _FallbackColor;
                 float4 _DebugColor;
                 float _DebugMode;
@@ -215,7 +217,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
                     float factor = waveCubed * lumMask * chroma;
 
-                    finalRgb = (finalRgb * (1.0 - factor)) + (factor * input.color.rgb);
+                    finalRgb = (finalRgb * (1.0 - factor)) + (factor * _ShimmerColor.rgb * input.color.rgb);
                 }
                 else if (animType == 3) // Rainbow
                 {
@@ -271,6 +273,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _FlowMapRect;
+                float4 _ShimmerColor;
                 float4 _FallbackColor;
                 float4 _DebugColor;
                 float _DebugMode;
@@ -418,7 +421,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
                     float factor = waveCubed * lumMask * chroma;
 
-                    finalRgb = (finalRgb * (1.0 - factor)) + (factor * input.color.rgb);
+                    finalRgb = (finalRgb * (1.0 - factor)) + (factor * _ShimmerColor.rgb * input.color.rgb);
                 }
                 else if (animType == 3) // Rainbow
                 {

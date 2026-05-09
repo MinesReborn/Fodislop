@@ -41,6 +41,11 @@ namespace Fodinae.Assets.Scripts.World
         private Material[] _materials = Array.Empty<Material>();
         private List<int>[] _subMeshIndices = Array.Empty<List<int>>();
 
+        private void OnValidate()
+        {
+            _needsRebuild = true;
+        }
+
         private void Awake()
         {
             _meshFilter = GetComponent<MeshFilter>();
@@ -382,6 +387,7 @@ namespace Fodinae.Assets.Scripts.World
                 var flowMapCoord = WorldTextureManager.Instance.GetFlowMapCoordinate(atlases[i]);
                 Rect r = flowMapCoord.UVRect;
                 _materials[i].SetVector("_FlowMapRect", new Vector4(r.x, r.y, r.width, r.height));
+                _materials[i].SetColor("_ShimmerColor", _shimmerHighlightColor);
                 _mesh.SetIndices(_subMeshIndices[i], MeshTopology.Triangles, i);
             }
 
