@@ -17,6 +17,7 @@ namespace Fodinae.Assets.Scripts.World
         [SerializeField] private float _cellSize = 1.0f;
         [SerializeField] private int _bufferCells = 2;
         [SerializeField] private Shader _terrainShader;
+        [SerializeField] private Color _shimmerHighlightColor = Color.white;
         [SerializeField] private string _sortingLayerName = "Default";
         [SerializeField] private int _sortingOrder = -1000;
 
@@ -26,6 +27,7 @@ namespace Fodinae.Assets.Scripts.World
 
         private List<Vector3> _vertices = new();
         private List<Vector2> _uvs = new();
+        private List<Color> _colors = new();
         private List<Vector4> _subAtlasRects = new();
         private List<Vector4> _tileSizeUVs = new();
         private List<Vector4> _worldPositions = new();
@@ -310,6 +312,7 @@ namespace Fodinae.Assets.Scripts.World
 
             _vertices.Clear();
             _uvs.Clear();
+            _colors.Clear();
             _subAtlasRects.Clear();
             _tileSizeUVs.Clear();
             _worldPositions.Clear();
@@ -367,6 +370,7 @@ namespace Fodinae.Assets.Scripts.World
             _mesh.Clear();
             _mesh.SetVertices(_vertices);
             _mesh.SetUVs(0, _uvs);
+            _mesh.SetColors(_colors);
             _mesh.SetUVs(1, _subAtlasRects);
             _mesh.SetUVs(2, _tileSizeUVs);
             _mesh.SetUVs(3, _worldPositions);
@@ -375,6 +379,9 @@ namespace Fodinae.Assets.Scripts.World
             _mesh.subMeshCount = atlases.Count;
             for (int i = 0; i < atlases.Count; i++)
             {
+                var flowMapCoord = WorldTextureManager.Instance.GetFlowMapCoordinate(atlases[i]);
+                Rect r = flowMapCoord.UVRect;
+                _materials[i].SetVector("_FlowMapRect", new Vector4(r.x, r.y, r.width, r.height));
                 _mesh.SetIndices(_subMeshIndices[i], MeshTopology.Triangles, i);
             }
 
@@ -531,6 +538,11 @@ namespace Fodinae.Assets.Scripts.World
             }
 
             _uvs.AddRange(quadUVs);
+
+            for (int i = 0; i < 4; i++)
+            {
+                _colors.Add(_shimmerHighlightColor);
+            }
 
             Vector4 frameRect = GetAnimationFrameRect(cellType, atlasIndex);
             float tileSize = RenderingConstants.CELL_SIZE;

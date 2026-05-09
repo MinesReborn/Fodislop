@@ -3,6 +3,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
     Properties
     {
         [MainTexture] _BaseMap ("Texture Atlas", 2D) = "white" {}
+        _FlowMapRect ("Flow Map Rect", Vector) = (0,0,0,0)
         _FallbackColor ("Fallback Color", Color) = (1, 1, 0, 1)
         _DebugColor ("Debug Color", Color) = (1, 0, 1, 1)
         [ToggleUI] _DebugMode ("Debug Mode", Float) = 0
@@ -35,6 +36,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
             {
                 float4 positionOS   : POSITION;
                 float2 uv           : TEXCOORD0;
+                float4 color        : COLOR;
                 float4 subAtlasRect : TEXCOORD1;
                 float4 tileSizeUV   : TEXCOORD2;
                 float4 worldPosAttr : TEXCOORD3;
@@ -45,6 +47,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
             {
                 float4 positionCS   : SV_POSITION;
                 float2 uv           : TEXCOORD0;
+                float4 color        : COLOR;
                 float4 subAtlasRect : TEXCOORD1;
                 float4 tileSizeUV   : TEXCOORD2;
                 float4 worldPos     : TEXCOORD3;
@@ -55,6 +58,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
             SAMPLER(sampler_BaseMap);
 
             CBUFFER_START(UnityPerMaterial)
+                float4 _FlowMapRect;
                 float4 _FallbackColor;
                 float4 _DebugColor;
                 float _DebugMode;
@@ -83,6 +87,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 Varyings output;
                 output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
                 output.uv = input.uv;
+                output.color = input.color;
                 output.subAtlasRect = input.subAtlasRect;
                 output.tileSizeUV = input.tileSizeUV;
                 output.worldPos = input.worldPosAttr;
@@ -164,10 +169,28 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 else if (animType == 2) // Shimmer
                 {
                     float2 pixelWorldPos = input.worldPos.xy + input.uv;
-                    float posScalar = length(pixelWorldPos);
-                    float shimmer = sin(posScalar * 6.28318 + _Time.x * speed);
-                    shimmer = max(0, shimmer);
-                    finalRgb += shimmer * 0.3; // Additive highlight
+
+                    // Sample flow map (12x10 tiles)
+                    // We treat the world as if it's divided into 12x10 blocks for the flow map
+                    float2 flowUV = frac(pixelWorldPos / float2(12.0, 10.0));
+                    float2 finalFlowUV = _FlowMapRect.xy + flowUV * _FlowMapRect.zw;
+                    float3 flowSample = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, finalFlowUV).rgb;
+
+                    float3 flowHsv = RgbToHsv(flowSample);
+                    float hueAngle = flowHsv.x * 6.28318548;
+                    float chroma = max(flowSample.r, max(flowSample.g, flowSample.b)) - min(flowSample.r, min(flowSample.g, flowSample.b));
+
+                    float wave = sin(-(hueAngle + _Time.y * speed * 0.05));
+                    wave = (wave + 1.0) * 0.5;
+                    float waveCubed = wave * wave * wave;
+
+                    float luminance = dot(texColor.rgb, float3(0.299, 0.587, 0.114));
+                    float invLum = 1.0 - luminance;
+                    float lumMask = 1.0 - invLum * invLum * invLum;
+
+                    float factor = waveCubed * lumMask * chroma;
+
+                    finalRgb = (finalRgb * (1.0 - factor)) + (factor * input.color.rgb);
                 }
                 else if (animType == 3) // Rainbow
                 {
@@ -200,6 +223,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
             {
                 float4 positionOS   : POSITION;
                 float2 uv           : TEXCOORD0;
+                float4 color        : COLOR;
                 float4 subAtlasRect : TEXCOORD1;
                 float4 tileSizeUV   : TEXCOORD2;
                 float4 worldPosAttr : TEXCOORD3;
@@ -210,6 +234,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
             {
                 float4 positionCS   : SV_POSITION;
                 float2 uv           : TEXCOORD0;
+                float4 color        : COLOR;
                 float4 subAtlasRect : TEXCOORD1;
                 float4 tileSizeUV   : TEXCOORD2;
                 float4 worldPos     : TEXCOORD3;
@@ -220,6 +245,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
             SAMPLER(sampler_BaseMap);
 
             CBUFFER_START(UnityPerMaterial)
+                float4 _FlowMapRect;
                 float4 _FallbackColor;
                 float4 _DebugColor;
                 float _DebugMode;
@@ -248,6 +274,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 Varyings output;
                 output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
                 output.uv = input.uv;
+                output.color = input.color;
                 output.subAtlasRect = input.subAtlasRect;
                 output.tileSizeUV = input.tileSizeUV;
                 output.worldPos = input.worldPosAttr;
@@ -320,10 +347,27 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 else if (animType == 2) // Shimmer
                 {
                     float2 pixelWorldPos = input.worldPos.xy + input.uv;
-                    float posScalar = length(pixelWorldPos);
-                    float shimmer = sin(posScalar * 6.28318 + _Time.x * speed);
-                    shimmer = max(0, shimmer);
-                    finalRgb += shimmer * 0.3; // Additive highlight
+
+                    // Sample flow map (12x10 tiles)
+                    float2 flowUV = frac(pixelWorldPos / float2(12.0, 10.0));
+                    float2 finalFlowUV = _FlowMapRect.xy + flowUV * _FlowMapRect.zw;
+                    float3 flowSample = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, finalFlowUV).rgb;
+
+                    float3 flowHsv = RgbToHsv(flowSample);
+                    float hueAngle = flowHsv.x * 6.28318548;
+                    float chroma = max(flowSample.r, max(flowSample.g, flowSample.b)) - min(flowSample.r, min(flowSample.g, flowSample.b));
+
+                    float wave = sin(-(hueAngle + _Time.y * speed * 0.05));
+                    wave = (wave + 1.0) * 0.5;
+                    float waveCubed = wave * wave * wave;
+
+                    float luminance = dot(texColor.rgb, float3(0.299, 0.587, 0.114));
+                    float invLum = 1.0 - luminance;
+                    float lumMask = 1.0 - invLum * invLum * invLum;
+
+                    float factor = waveCubed * lumMask * chroma;
+
+                    finalRgb = (finalRgb * (1.0 - factor)) + (factor * input.color.rgb);
                 }
                 else if (animType == 3) // Rainbow
                 {

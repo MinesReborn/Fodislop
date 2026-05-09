@@ -42,6 +42,8 @@ namespace Fodinae.Assets.Scripts.World
 
         public TextureAtlas _currentAtlas;
         private CellTextureCache _textureCache;
+        private Texture2D _flowMapTexture;
+        public const CellType FLOW_MAP_CELL_TYPE = (CellType)254;
         private readonly ConcurrentDictionary<CellType, TextureRequest> _pendingRequests = new();
         private readonly List<TextureAtlas> _atlases = new();
 
@@ -67,8 +69,50 @@ namespace Fodinae.Assets.Scripts.World
             _currentAtlas = new TextureAtlas(_initialAtlasSize, _cellTextureSize, _texturePadding);
             _atlases.Add(_currentAtlas);
 
+            GenerateFlowMap();
+            EnsureFlowMapInAtlas(_currentAtlas);
+
             // Subscribe to texture loaded event
             ClientAssetLoader.Instance.OnTextureLoaded += OnTextureLoadedHandler;
+        }
+
+        private void GenerateFlowMap()
+        {
+            _flowMapTexture = new Texture2D(12, 10, TextureFormat.RGBA32, false);
+            _flowMapTexture.name = "ShimmerFlowMap";
+            _flowMapTexture.filterMode = FilterMode.Point;
+            _flowMapTexture.wrapMode = TextureWrapMode.Repeat;
+
+            var random = new System.Random(42);
+            var pixels = new Color[12 * 10];
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                float h = (float)random.NextDouble();
+                pixels[i] = Color.HSVToRGB(h, 1f, 1f);
+            }
+            _flowMapTexture.SetPixels(pixels);
+            _flowMapTexture.Apply();
+
+            var textureInfo = new CellTextureInfo
+            {
+                CellType = FLOW_MAP_CELL_TYPE,
+                BaseTexture = _flowMapTexture,
+                HasVariations = false,
+                VariationCount = 1,
+                AnimationFrames = 1,
+                FramesPerRow = 1,
+                FrameSize = 12
+            };
+            _textureCache.AddTexture(FLOW_MAP_CELL_TYPE, textureInfo);
+        }
+
+        private void EnsureFlowMapInAtlas(TextureAtlas atlas)
+        {
+            if (_flowMapTexture == null) GenerateFlowMap();
+            if (!atlas.ContainsCell(FLOW_MAP_CELL_TYPE))
+            {
+                atlas.TryAddTexture(FLOW_MAP_CELL_TYPE, _flowMapTexture, out _);
+            }
         }
 
         private void OnDestroy()
@@ -97,6 +141,11 @@ namespace Fodinae.Assets.Scripts.World
                 return textureInfo.AnimationFrames > 1;
             }
             return false;
+        }
+
+        public AtlasCoordinate GetFlowMapCoordinate(TextureAtlas atlas)
+        {
+            return atlas.GetCoordinate(FLOW_MAP_CELL_TYPE);
         }
 
         public AtlasCoordinate GetCellTextureCoordinateSync(CellType cellType, int globalX, int globalY)
@@ -258,6 +307,7 @@ namespace Fodinae.Assets.Scripts.World
                     var newAtlas = new TextureAtlas(newSize, _cellTextureSize, _texturePadding);
                     _atlases.Add(newAtlas);
                     _currentAtlas = newAtlas;
+                    EnsureFlowMapInAtlas(_currentAtlas);
 
                     if (!_currentAtlas.TryAddTexture(cellType, texture, out coordinate))
                     {
@@ -318,6 +368,8 @@ namespace Fodinae.Assets.Scripts.World
             _atlases.Clear();
             _currentAtlas = new TextureAtlas(_initialAtlasSize, _cellTextureSize, _texturePadding);
             _atlases.Add(_currentAtlas);
+            GenerateFlowMap();
+            EnsureFlowMapInAtlas(_currentAtlas);
             _cachedEmptyTexture = null;
         }
 
