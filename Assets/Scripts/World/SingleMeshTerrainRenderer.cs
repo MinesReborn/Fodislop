@@ -29,6 +29,7 @@ namespace Fodinae.Assets.Scripts.World
         private List<Vector4> _subAtlasRects = new();
         private List<Vector4> _tileSizeUVs = new();
         private List<Vector4> _worldPositions = new();
+        private List<Vector4> _animationData = new();
 
         private Vector2Int _lastMinVisible = new Vector2Int(-1, -1);
         private Vector2Int _lastMaxVisible = new Vector2Int(-1, -1);
@@ -312,6 +313,7 @@ namespace Fodinae.Assets.Scripts.World
             _subAtlasRects.Clear();
             _tileSizeUVs.Clear();
             _worldPositions.Clear();
+            _animationData.Clear();
 
             if (_subMeshIndices.Length != atlases.Count)
             {
@@ -368,6 +370,7 @@ namespace Fodinae.Assets.Scripts.World
             _mesh.SetUVs(1, _subAtlasRects);
             _mesh.SetUVs(2, _tileSizeUVs);
             _mesh.SetUVs(3, _worldPositions);
+            _mesh.SetUVs(4, _animationData);
 
             _mesh.subMeshCount = atlases.Count;
             for (int i = 0; i < atlases.Count; i++)
@@ -534,14 +537,29 @@ namespace Fodinae.Assets.Scripts.World
             float atlasSize = atlases[atlasIndex].Size;
             float uvTileSize = tileSize / atlasSize;
 
+            var config = MapManager.Instance.GetCellConfig(cellType);
+            float animType = (float)config.Animation;
+            float speed = (float)config.AnimationSpeed;
+            float offset = 0f;
+
+            if (config.Animation == CellAnimationType.Blinking)
+            {
+                uint seed = (uint)(x * 374761397 + serverY * 668265263);
+                seed = (seed ^ (seed >> 13)) * 1274126177;
+                seed = seed ^ (seed >> 16);
+                offset = (seed % 6283) / 1000f;
+            }
+
             Vector4 tileSizeVec = new Vector4(uvTileSize, uvTileSize, 0, 0);
             Vector4 worldPosVec = new Vector4(x, serverY, descriptor & 0x1F, isTiling);
+            Vector4 animDataVec = new Vector4(animType, speed, offset, 0f);
 
             for (int i = 0; i < 4; i++)
             {
                 _subAtlasRects.Add(frameRect);
                 _tileSizeUVs.Add(tileSizeVec);
                 _worldPositions.Add(worldPosVec);
+                _animationData.Add(animDataVec);
             }
 
             _subMeshIndices[atlasIndex].Add(vertexCount + 0);

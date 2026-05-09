@@ -484,24 +484,24 @@ namespace MinesServer.Networking.Connection.Client
             };
             configs[(int)CellType.GrayAcid] = new CellConfigurationPacket
             {
-                Animation = CellAnimationType.None,
-                AnimationSpeed = 10,
+                Animation = CellAnimationType.Blinking,
+                AnimationSpeed = 5,
                 Color = unchecked((int)0xFF00FF00),
                 FrameOffset = 1,
                 Properties = CellConfigProperties.None
             };
             configs[(int)CellType.PurpleAcid] = new CellConfigurationPacket
             {
-                Animation = CellAnimationType.None,
-                AnimationSpeed = 10,
+                Animation = CellAnimationType.Shimmer,
+                AnimationSpeed = 50, // Time.x speed
                 Color = unchecked((int)0xFF800080),
                 FrameOffset = 1,
                 Properties = CellConfigProperties.None
             };
             configs[(int)CellType.Lava] = new CellConfigurationPacket
             {
-                Animation = CellAnimationType.None,
-                AnimationSpeed = 10,
+                Animation = CellAnimationType.Rainbow,
+                AnimationSpeed = 50,
                 Color = unchecked((int)0xFFFF4500),
                 FrameOffset = 1,
                 Distortion = CellDistortionType.Cause,

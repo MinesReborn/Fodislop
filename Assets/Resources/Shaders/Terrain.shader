@@ -38,6 +38,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float4 subAtlasRect : TEXCOORD1;
                 float4 tileSizeUV   : TEXCOORD2;
                 float4 worldPosAttr : TEXCOORD3;
+                float4 animData     : TEXCOORD4;
             };
 
             struct Varyings
@@ -47,6 +48,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float4 subAtlasRect : TEXCOORD1;
                 float4 tileSizeUV   : TEXCOORD2;
                 float4 worldPos     : TEXCOORD3;
+                float4 animData     : TEXCOORD4;
             };
 
             TEXTURE2D(_BaseMap);
@@ -58,6 +60,24 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float _DebugMode;
             CBUFFER_END
 
+            float3 RgbToHsv(float3 c)
+            {
+                float4 K = float4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+                float4 p = lerp(float4(c.bg, K.wz), float4(c.gb, K.xy), step(c.b, c.g));
+                float4 q = lerp(float4(p.xyw, c.r), float4(c.r, p.yzx), step(p.x, c.r));
+
+                float d = q.x - min(q.w, q.y);
+                float e = 1.0e-10;
+                return float3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+            }
+
+            float3 HsvToRgb(float3 c)
+            {
+                float4 K = float4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+                float3 p = abs(frac(c.xxx + K.xyz) * 6.0 - K.www);
+                return c.z * lerp(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+            }
+
             Varyings vert (Attributes input)
             {
                 Varyings output;
@@ -66,6 +86,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 output.subAtlasRect = input.subAtlasRect;
                 output.tileSizeUV = input.tileSizeUV;
                 output.worldPos = input.worldPosAttr;
+                output.animData = input.animData;
                 return output;
             }
 
@@ -130,7 +151,32 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                     discard;
                 }
 
-                return half4(texColor.rgb, 1.0);
+                float3 finalRgb = texColor.rgb;
+                int animType = (int)(input.animData.x + 0.5);
+                float speed = input.animData.y;
+                float offset = input.animData.z;
+
+                if (animType == 1) // Blinking
+                {
+                    float pulse = 0.5 + 0.5 * sin(_Time.y * speed * 0.5 + offset);
+                    finalRgb *= pulse;
+                }
+                else if (animType == 2) // Shimmer
+                {
+                    float2 pixelWorldPos = input.worldPos.xy + input.uv;
+                    float posScalar = length(pixelWorldPos);
+                    float shimmer = sin(posScalar * 6.28318 + _Time.x * speed);
+                    shimmer = max(0, shimmer);
+                    finalRgb += shimmer * 0.3; // Additive highlight
+                }
+                else if (animType == 3) // Rainbow
+                {
+                    float3 hsv = RgbToHsv(finalRgb);
+                    hsv.x = frac(hsv.x + _Time.y * (speed / 255.0));
+                    finalRgb = HsvToRgb(hsv);
+                }
+
+                return half4(finalRgb, 1.0);
             }
             ENDHLSL
         }
@@ -157,6 +203,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float4 subAtlasRect : TEXCOORD1;
                 float4 tileSizeUV   : TEXCOORD2;
                 float4 worldPosAttr : TEXCOORD3;
+                float4 animData     : TEXCOORD4;
             };
 
             struct Varyings
@@ -166,6 +213,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float4 subAtlasRect : TEXCOORD1;
                 float4 tileSizeUV   : TEXCOORD2;
                 float4 worldPos     : TEXCOORD3;
+                float4 animData     : TEXCOORD4;
             };
 
             TEXTURE2D(_BaseMap);
@@ -177,6 +225,24 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float _DebugMode;
             CBUFFER_END
 
+            float3 RgbToHsv(float3 c)
+            {
+                float4 K = float4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+                float4 p = lerp(float4(c.bg, K.wz), float4(c.gb, K.xy), step(c.b, c.g));
+                float4 q = lerp(float4(p.xyw, c.r), float4(c.r, p.yzx), step(p.x, c.r));
+
+                float d = q.x - min(q.w, q.y);
+                float e = 1.0e-10;
+                return float3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+            }
+
+            float3 HsvToRgb(float3 c)
+            {
+                float4 K = float4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+                float3 p = abs(frac(c.xxx + K.xyz) * 6.0 - K.www);
+                return c.z * lerp(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+            }
+
             Varyings vert (Attributes input)
             {
                 Varyings output;
@@ -185,6 +251,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 output.subAtlasRect = input.subAtlasRect;
                 output.tileSizeUV = input.tileSizeUV;
                 output.worldPos = input.worldPosAttr;
+                output.animData = input.animData;
                 return output;
             }
 
@@ -240,7 +307,32 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                     discard;
                 }
 
-                return half4(texColor.rgb, 1.0);
+                float3 finalRgb = texColor.rgb;
+                int animType = (int)(input.animData.x + 0.5);
+                float speed = input.animData.y;
+                float offset = input.animData.z;
+
+                if (animType == 1) // Blinking
+                {
+                    float pulse = 0.5 + 0.5 * sin(_Time.y * speed * 0.5 + offset);
+                    finalRgb *= pulse;
+                }
+                else if (animType == 2) // Shimmer
+                {
+                    float2 pixelWorldPos = input.worldPos.xy + input.uv;
+                    float posScalar = length(pixelWorldPos);
+                    float shimmer = sin(posScalar * 6.28318 + _Time.x * speed);
+                    shimmer = max(0, shimmer);
+                    finalRgb += shimmer * 0.3; // Additive highlight
+                }
+                else if (animType == 3) // Rainbow
+                {
+                    float3 hsv = RgbToHsv(finalRgb);
+                    hsv.x = frac(hsv.x + _Time.y * (speed / 255.0));
+                    finalRgb = HsvToRgb(hsv);
+                }
+
+                return half4(finalRgb, 1.0);
             }
             ENDHLSL
         }
