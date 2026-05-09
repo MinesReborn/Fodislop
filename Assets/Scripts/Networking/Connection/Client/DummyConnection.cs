@@ -617,6 +617,13 @@ namespace MinesServer.Networking.Connection.Client
                     map[x, y] = CellType.WhiteSand;
                 }
             }
+            for (int x = 50; x < 80; x++)
+            {
+                for (int y = 20; y < 40; y++)
+                {
+                    map[x, y] = CellType.PurpleAcid;
+                }
+            }
             for (int x = 60; x < 80; x++)
             {
                 for (int y = 60; y < 80; y++)
