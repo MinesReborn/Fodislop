@@ -447,7 +447,7 @@ namespace MinesServer.Networking.Connection.Client
                 AnimationSpeed = 0,
                 Color = unchecked((int)0xFF808080),
                 FrameOffset = 0,
-                Properties = CellConfigProperties.Passable
+                Properties = CellConfigProperties.Passable | CellConfigProperties.ReceivesShadow
             };
             configs[(int)CellType.Road] = new CellConfigurationPacket
             {
@@ -455,7 +455,7 @@ namespace MinesServer.Networking.Connection.Client
                 AnimationSpeed = 0,
                 Color = unchecked((int)0xFFCCCCCC),
                 FrameOffset = 0,
-                Properties = CellConfigProperties.Passable
+                Properties = CellConfigProperties.Passable | CellConfigProperties.ReceivesShadow
             };
             configs[(int)CellType.Boulder1] = new CellConfigurationPacket
             {
@@ -472,7 +472,7 @@ namespace MinesServer.Networking.Connection.Client
                 AnimationSpeed = 0,
                 Color = unchecked((int)0xFFFFFF00),
                 FrameOffset = 0,
-                Properties = CellConfigProperties.Passable
+                Properties = CellConfigProperties.Passable | CellConfigProperties.DropsShadow
             };
             configs[(int)CellType.DarkWhiteSand] = new CellConfigurationPacket
             {
@@ -480,7 +480,7 @@ namespace MinesServer.Networking.Connection.Client
                 AnimationSpeed = 0,
                 Color = unchecked((int)0xFFCCCC00),
                 FrameOffset = 0,
-                Properties = CellConfigProperties.Passable
+                Properties = CellConfigProperties.Passable | CellConfigProperties.DropsShadow
             };
             configs[(int)CellType.GrayAcid] = new CellConfigurationPacket
             {
@@ -488,7 +488,7 @@ namespace MinesServer.Networking.Connection.Client
                 AnimationSpeed = 5,
                 Color = unchecked((int)0xFF00FF00),
                 FrameOffset = 1,
-                Properties = CellConfigProperties.None
+                Properties = CellConfigProperties.None | CellConfigProperties.DropsShadow
             };
             configs[(int)CellType.PurpleAcid] = new CellConfigurationPacket
             {
@@ -496,7 +496,7 @@ namespace MinesServer.Networking.Connection.Client
                 AnimationSpeed = 50, // Time.x speed
                 Color = unchecked((int)0xFF800080),
                 FrameOffset = 1,
-                Properties = CellConfigProperties.None
+                Properties = CellConfigProperties.None | CellConfigProperties.DropsShadow
             };
             configs[(int)CellType.Lava] = new CellConfigurationPacket
             {
@@ -505,7 +505,7 @@ namespace MinesServer.Networking.Connection.Client
                 Color = unchecked((int)0xFFFF4500),
                 FrameOffset = 1,
                 Distortion = CellDistortionType.Cause,
-                Properties = CellConfigProperties.None
+                Properties = CellConfigProperties.None | CellConfigProperties.DropsShadow
             };
             configs[(int)CellType.BuildingDoor] = new CellConfigurationPacket
             {
@@ -513,7 +513,8 @@ namespace MinesServer.Networking.Connection.Client
                 AnimationSpeed = 0,
                 Color = unchecked((int)0xFF8B4513),
                 FrameOffset = 0,
-                Properties = CellConfigProperties.None
+                ReliefGroup = 1,
+                Properties = CellConfigProperties.None | CellConfigProperties.DropsShadow
             };
             configs[(int)CellType.BuildingCorner] = new CellConfigurationPacket
             {
@@ -521,7 +522,8 @@ namespace MinesServer.Networking.Connection.Client
                 AnimationSpeed = 0,
                 Color = unchecked((int)0xFF555555),
                 FrameOffset = 0,
-                Properties = CellConfigProperties.None
+                ReliefGroup = 1,
+                Properties = CellConfigProperties.None | CellConfigProperties.DropsShadow
             };
             configs[(int)CellType.BuildingWall] = new CellConfigurationPacket
             {
@@ -529,7 +531,8 @@ namespace MinesServer.Networking.Connection.Client
                 AnimationSpeed = 0,
                 Color = unchecked((int)0xFF666666),
                 FrameOffset = 0,
-                Properties = CellConfigProperties.None
+                ReliefGroup = 1,
+                Properties = CellConfigProperties.None | CellConfigProperties.DropsShadow
             };
 
             return configs;
