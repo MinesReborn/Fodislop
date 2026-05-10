@@ -129,6 +129,12 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
             half4 frag (Varyings input) : SV_Target
             {
+                if (input.animData.w > 0.5)
+                {
+                    if (input.color.a < 0.05) discard;
+                    return input.color;
+                }
+
                 if (_DebugMode > 0.5)
                 {
                     return half4(_DebugColor.rgb, 1.0);
@@ -342,6 +348,12 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
             half4 frag (Varyings input) : SV_Target
             {
+                if (input.animData.w > 0.5)
+                {
+                    if (input.color.a < 0.05) discard;
+                    return input.color;
+                }
+
                 if (_DebugMode > 0.5)
                 {
                     return half4(_DebugColor.rgb, 1.0);

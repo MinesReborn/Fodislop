@@ -122,7 +122,6 @@ namespace Fodinae.Assets.Scripts.World
 
         private bool IsPassable(CellType cellType)
         {
-            if (cellType == CellType.Unloaded || cellType == CellType.Pregener) return false;
             var config = MapManager.Instance.GetCellConfig(cellType);
             return (config.Properties & CellConfigProperties.Passable) != 0;
         }
@@ -164,7 +163,7 @@ namespace Fodinae.Assets.Scripts.World
             {
                 for (int x = minX; x <= maxX; x++)
                 {
-                    if (bgMap[x - minX, y - minY] != CellType.Unloaded) continue;
+                    if (bgMap[x - minX, y - minY] != 0) continue; // 0 is Unloaded/Default
 
                     int distinctCount = 0;
                     for (int dy = -1; dy <= 1; dy++)
@@ -365,11 +364,8 @@ namespace Fodinae.Assets.Scripts.World
                     int serverY = MapManager.Instance.WorldHeight - 1 - y;
                     CellType cellType = MapStorage.Instance.GetCell(x, serverY);
 
-                    if (cellType == CellType.Unloaded || cellType == CellType.Pregener)
-                        continue;
-
                     CellType bgType = bgMap[x - minX, y - minY];
-                    bool hasBackground = bgType != cellType && bgType != CellType.Unloaded;
+                    bool hasBackground = bgType != cellType && bgType != 0;
 
                     // 1. Render Background if needed
                     if (hasBackground)
@@ -501,7 +497,11 @@ namespace Fodinae.Assets.Scripts.World
                 }
             }
 
-            if (atlasIndex == -1) return vertexCount;
+            bool useFallback = atlasIndex == -1 || coord == AtlasCoordinate.Empty;
+            if (useFallback)
+            {
+                atlasIndex = 0; // Force to first atlas/submesh
+            }
 
             var atlasTex = atlases[atlasIndex].Texture;
             if (atlasTex == null) return vertexCount;
@@ -561,22 +561,23 @@ namespace Fodinae.Assets.Scripts.World
 
             _uvs.AddRange(quadUVs);
 
+            Color mapColor = MapManager.Instance.GetCellMinimapColor(cellType);
             for (int i = 0; i < 4; i++)
             {
-                _colors.Add(_shimmerHighlightColor);
+                _colors.Add(useFallback ? mapColor : _shimmerHighlightColor);
             }
 
-            Vector4 frameRect = GetAnimationFrameRect(cellType, atlasIndex);
+            Vector4 frameRect = useFallback ? Vector4.zero : GetAnimationFrameRect(cellType, atlasIndex);
             float tileSize = RenderingConstants.CELL_SIZE;
             float atlasSize = atlases[atlasIndex].Size;
             float uvTileSize = tileSize / atlasSize;
 
             var config = MapManager.Instance.GetCellConfig(cellType);
-            float animType = (float)config.Animation;
-            float speed = (float)config.AnimationSpeed;
+            float animType = useFallback ? 0f : (float)config.Animation;
+            float speed = useFallback ? 0f : (float)config.AnimationSpeed;
             float offset = 0f;
 
-            if (config.Animation == CellAnimationType.Blinking)
+            if (!useFallback && config.Animation == CellAnimationType.Blinking)
             {
                 uint seed = (uint)(x * 374761397 + serverY * 668265263);
                 seed = (seed ^ (seed >> 13)) * 1274126177;
@@ -586,7 +587,7 @@ namespace Fodinae.Assets.Scripts.World
 
             Vector4 tileSizeVec = new Vector4(uvTileSize, uvTileSize, 0, 0);
             Vector4 worldPosVec = new Vector4(x, serverY, descriptor & 0x1F, isTiling);
-            Vector4 animDataVec = new Vector4(animType, speed, offset, 0f);
+            Vector4 animDataVec = new Vector4(animType, speed, offset, useFallback ? 1f : 0f);
 
             for (int i = 0; i < 4; i++)
             {

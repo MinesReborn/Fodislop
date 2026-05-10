@@ -150,11 +150,6 @@ namespace Fodinae.Assets.Scripts.World
 
         public AtlasCoordinate GetCellTextureCoordinateSync(CellType cellType, int globalX, int globalY)
         {
-            if (cellType == CellType.Unloaded || cellType == CellType.Pregener)
-            {
-                return AtlasCoordinate.Empty;
-            }
-
             if (_textureCache.TryGetTexture(cellType, out var textureInfo))
             {
                 var variation = CalculateVariation(textureInfo, globalX, globalY);
@@ -185,11 +180,6 @@ namespace Fodinae.Assets.Scripts.World
 
         public async UniTask<AtlasCoordinate> GetCellTextureCoordinate(CellType cellType, int globalX, int globalY)
         {
-            if (cellType == CellType.Unloaded || cellType == CellType.Pregener)
-            {
-                return AtlasCoordinate.Empty;
-            }
-
             if (_textureCache.TryGetTexture(cellType, out var textureInfo))
             {
                 return GetCellTextureCoordinateSync(cellType, globalX, globalY);

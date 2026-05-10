@@ -248,9 +248,8 @@ namespace Fodinae.Assets.Scripts.Game.Managers
 
         public CellConfigurationPacket GetCellConfig(CellType cellType)
         {
-            if (cellConfigurations == null || (int)cellType >= cellConfigurations.Length)
+            if (cellConfigurations == null || (int)cellType < 0 || (int)cellType >= cellConfigurations.Length)
             {
-                Debug.LogError($"Cell configuration for type {cellType} not found.");
                 return default;
             }
             return cellConfigurations[(int)cellType];
