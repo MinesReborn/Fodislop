@@ -42,6 +42,8 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float4 tileSizeUV   : TEXCOORD2;
                 float4 worldPosAttr : TEXCOORD3;
                 float4 animData     : TEXCOORD4;
+                float2 shadowRelief : TEXCOORD5;
+                float2 localUV      : TEXCOORD6;
             };
 
             struct Varyings
@@ -53,6 +55,8 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float4 tileSizeUV   : TEXCOORD2;
                 float4 worldPos     : TEXCOORD3;
                 float4 animData     : TEXCOORD4;
+                float2 shadowRelief : TEXCOORD5;
+                float2 localUV      : TEXCOORD6;
             };
 
             TEXTURE2D(_BaseMap);
@@ -124,6 +128,8 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 output.tileSizeUV = input.tileSizeUV;
                 output.worldPos = input.worldPosAttr;
                 output.animData = input.animData;
+                output.shadowRelief = input.shadowRelief;
+                output.localUV = input.localUV;
                 return output;
             }
 
@@ -199,6 +205,42 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float speed = input.animData.y;
                 float offset = input.animData.z;
 
+                // Shadow / Relief logic
+                float textureType = input.shadowRelief.x;
+                float reliefMaskVal = input.shadowRelief.y;
+
+                if (textureType > 0.5) // Relief (Type 1)
+                {
+                    float val = 15.0 - reliefMaskVal;
+                    // Bits: 1(Top), 2(Left), 4(Bottom), 8(Right)
+                    // Extraction: frac(val * 0.25) extracts bit 1 (Left), 0.125 bit 2 (Bottom), 0.0625 bit 3 (Right)
+                    float3 bits = frac(val * float3(0.25, 0.125, 0.0625));
+                    bool3 isCliff = bits >= 0.5; // x=Left, y=Bottom, z=Right
+
+                    float u = input.localUV.x;
+                    float v = input.localUV.y;
+                    float uvMinus = u - v;
+                    float uvPlus = u + v;
+
+                    bool isLeft = (uvPlus < 0.0) && (uvMinus < 0.0);
+                    bool isBottom = (uvMinus > 0.0) && (uvPlus < 0.0);
+                    bool isRight = (uvPlus > 0.0) && (uvMinus > 0.0);
+
+                    bool activeCliff = (isLeft && isCliff.x) || (isBottom && isCliff.y) || (isRight && isCliff.z);
+
+                    if (activeCliff)
+                    {
+                        float maxUV2 = max(u * u, v * v);
+                        float grad = 1.0 - maxUV2;
+                        finalRgb *= (grad * grad * grad); // Cubed gradient
+                    }
+                }
+                else // Shadow (Type 0)
+                {
+                    float shadowVal = input.shadowRelief.y;
+                    finalRgb *= (1.0 - shadowVal * shadowVal); // Quadratic falloff
+                }
+
                 if (animType == 1) // Blinking
                 {
                     float pulse = 0.5 + 0.5 * sin(_Time.y * speed * 0.5 + offset);
@@ -261,6 +303,8 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float4 tileSizeUV   : TEXCOORD2;
                 float4 worldPosAttr : TEXCOORD3;
                 float4 animData     : TEXCOORD4;
+                float2 shadowRelief : TEXCOORD5;
+                float2 localUV      : TEXCOORD6;
             };
 
             struct Varyings
@@ -272,6 +316,8 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float4 tileSizeUV   : TEXCOORD2;
                 float4 worldPos     : TEXCOORD3;
                 float4 animData     : TEXCOORD4;
+                float2 shadowRelief : TEXCOORD5;
+                float2 localUV      : TEXCOORD6;
             };
 
             TEXTURE2D(_BaseMap);
@@ -343,6 +389,8 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 output.tileSizeUV = input.tileSizeUV;
                 output.worldPos = input.worldPosAttr;
                 output.animData = input.animData;
+                output.shadowRelief = input.shadowRelief;
+                output.localUV = input.localUV;
                 return output;
             }
 
@@ -408,6 +456,42 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 int animType = (int)(input.animData.x + 0.5);
                 float speed = input.animData.y;
                 float offset = input.animData.z;
+
+                // Shadow / Relief logic
+                float textureType = input.shadowRelief.x;
+                float reliefMaskVal = input.shadowRelief.y;
+
+                if (textureType > 0.5) // Relief (Type 1)
+                {
+                    float val = 15.0 - reliefMaskVal;
+                    // Bits: 1(Top), 2(Left), 4(Bottom), 8(Right)
+                    // Extraction: frac(val * 0.25) extracts bit 1 (Left), 0.125 bit 2 (Bottom), 0.0625 bit 3 (Right)
+                    float3 bits = frac(val * float3(0.25, 0.125, 0.0625));
+                    bool3 isCliff = bits >= 0.5; // x=Left, y=Bottom, z=Right
+
+                    float u = input.localUV.x;
+                    float v = input.localUV.y;
+                    float uvMinus = u - v;
+                    float uvPlus = u + v;
+
+                    bool isLeft = (uvPlus < 0.0) && (uvMinus < 0.0);
+                    bool isBottom = (uvMinus > 0.0) && (uvPlus < 0.0);
+                    bool isRight = (uvPlus > 0.0) && (uvMinus > 0.0);
+
+                    bool activeCliff = (isLeft && isCliff.x) || (isBottom && isCliff.y) || (isRight && isCliff.z);
+
+                    if (activeCliff)
+                    {
+                        float maxUV2 = max(u * u, v * v);
+                        float grad = 1.0 - maxUV2;
+                        finalRgb *= (grad * grad * grad); // Cubed gradient
+                    }
+                }
+                else // Shadow (Type 0)
+                {
+                    float shadowVal = input.shadowRelief.y;
+                    finalRgb *= (1.0 - shadowVal * shadowVal); // Quadratic falloff
+                }
 
                 if (animType == 1) // Blinking
                 {

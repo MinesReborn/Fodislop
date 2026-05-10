@@ -33,6 +33,8 @@ namespace Fodinae.Assets.Scripts.World
         private List<Vector4> _tileSizeUVs = new();
         private List<Vector4> _worldPositions = new();
         private List<Vector4> _animationData = new();
+        private List<Vector2> _shadowReliefData = new(); // UV5: x = textureType, y = shadow/relief value
+        private List<Vector2> _localUVs = new(); // UV6: untransformed local UVs [-0.707, 0.707]
 
         private Vector2Int _lastMinVisible = new Vector2Int(-1, -1);
         private Vector2Int _lastMaxVisible = new Vector2Int(-1, -1);
@@ -317,6 +319,84 @@ namespace Fodinae.Assets.Scripts.World
             }
         }
 
+        private bool DropsShadow(CellType cellType)
+        {
+            var config = MapManager.Instance.GetCellConfig(cellType);
+            return (config.Properties & CellConfigProperties.DropsShadow) != 0;
+        }
+
+        private bool ReceivesShadow(CellType cellType)
+        {
+            var config = MapManager.Instance.GetCellConfig(cellType);
+            return (config.Properties & CellConfigProperties.ReceivesShadow) != 0;
+        }
+
+        private byte GetReliefGroup(CellType cellType)
+        {
+            return MapManager.Instance.GetCellConfig(cellType).ReliefGroup;
+        }
+
+        private float GetShadowValueForVertex(int x, int unityY)
+        {
+            int h = MapManager.Instance.WorldHeight;
+            int w = MapManager.Instance.WorldWidth;
+
+            // 4 cells around vertex (x, unityY)
+            // (x-1, y), (x, y), (x-1, y-1), (x, y-1)
+            // Map to serverY: serverY = h - 1 - unityY
+
+            CellType tl = GetCellSafe(x - 1, h - 1 - unityY);
+            CellType tr = GetCellSafe(x, h - 1 - unityY);
+            CellType bl = GetCellSafe(x - 1, h - unityY);
+            CellType br = GetCellSafe(x, h - unityY);
+
+            bool hasCaster = DropsShadow(tl) || DropsShadow(tr) || DropsShadow(bl) || DropsShadow(br);
+            bool hasReceiver = ReceivesShadow(tl) || ReceivesShadow(tr) || ReceivesShadow(bl) || ReceivesShadow(br);
+
+            return (hasCaster && hasReceiver) ? 0.7f : 0.0f;
+        }
+
+        private CellType GetCellSafe(int x, int serverY)
+        {
+            if (x < 0 || x >= MapManager.Instance.WorldWidth || serverY < 0 || serverY >= MapManager.Instance.WorldHeight)
+                return CellType.Unloaded;
+            return MapStorage.Instance.GetCell(x, serverY);
+        }
+
+        private byte GetReliefMask(int x, int serverY, byte currentRelief, out bool isRelief)
+        {
+            isRelief = false;
+            int width = MapManager.Instance.WorldWidth;
+            int height = MapManager.Instance.WorldHeight;
+
+            // Relief neighbors: Top, Left, Bottom, Right
+            // Server offsets (x, serverY):
+            // T: (0, -1)   [+1]
+            // L: (-1, 0)   [+2]
+            // B: (0, 1)    [+4]
+            // R: (1, 0)    [+8]
+
+            byte mask = 0;
+
+            // Top
+            byte tRelief = GetReliefGroup(GetCellSafe(x, (serverY - 1 + height) % height));
+            if (tRelief >= currentRelief) { mask += 1; } else { isRelief = true; }
+
+            // Left
+            byte lRelief = GetReliefGroup(GetCellSafe((x - 1 + width) % width, serverY));
+            if (lRelief >= currentRelief) { mask += 2; } else { isRelief = true; }
+
+            // Bottom
+            byte bRelief = GetReliefGroup(GetCellSafe(x, (serverY + 1) % height));
+            if (bRelief >= currentRelief) { mask += 4; } else { isRelief = true; }
+
+            // Right
+            byte rRelief = GetReliefGroup(GetCellSafe((x + 1) % width, serverY));
+            if (rRelief >= currentRelief) { mask += 8; } else { isRelief = true; }
+
+            return mask;
+        }
+
         private void BuildMesh(int minX, int minY, int maxX, int maxY)
         {
             var atlases = WorldTextureManager.Instance.GetAllAtlases();
@@ -337,6 +417,8 @@ namespace Fodinae.Assets.Scripts.World
             _tileSizeUVs.Clear();
             _worldPositions.Clear();
             _animationData.Clear();
+            _shadowReliefData.Clear();
+            _localUVs.Clear();
 
             if (_subMeshIndices.Length != atlases.Count)
             {
@@ -392,6 +474,8 @@ namespace Fodinae.Assets.Scripts.World
             _mesh.SetUVs(2, _tileSizeUVs);
             _mesh.SetUVs(3, _worldPositions);
             _mesh.SetUVs(4, _animationData);
+            _mesh.SetUVs(5, _shadowReliefData);
+            _mesh.SetUVs(6, _localUVs);
 
             _mesh.subMeshCount = atlases.Count;
             for (int i = 0; i < atlases.Count; i++)
@@ -516,6 +600,19 @@ namespace Fodinae.Assets.Scripts.World
             _vertices.Add(new Vector3((x + 1) * _cellSize, (y + 1) * _cellSize, zOffset) + GetVertexOffset(x + 1, y + 1));
             _vertices.Add(new Vector3(x * _cellSize, (y + 1) * _cellSize, zOffset) + GetVertexOffset(x, y + 1));
 
+            // Vertex shadow values
+            float s0 = GetShadowValueForVertex(x, y);
+            float s1 = GetShadowValueForVertex(x + 1, y);
+            float s2 = GetShadowValueForVertex(x + 1, y + 1);
+            float s3 = GetShadowValueForVertex(x, y + 1);
+
+            // Relief calculation
+            byte reliefGroup = GetReliefGroup(cellType);
+            bool isRelief;
+            byte reliefMask = GetReliefMask(x, serverY, reliefGroup, out isRelief);
+
+            float textureType = isRelief ? 1.0f : 0.0f;
+
             Vector2[] quadUVs = new Vector2[]
             {
                 new Vector2(0, 0),
@@ -589,12 +686,26 @@ namespace Fodinae.Assets.Scripts.World
             Vector4 worldPosVec = new Vector4(x, serverY, descriptor & 0x1F, isTiling);
             Vector4 animDataVec = new Vector4(animType, speed, offset, useFallback ? 1f : 0f);
 
+            // localUVs in range [-0.707, 0.707]
+            float r = 0.70710678f;
+            Vector2[] lUVs = new Vector2[]
+            {
+                new Vector2(-r, -r),
+                new Vector2(r, -r),
+                new Vector2(r, r),
+                new Vector2(-r, r)
+            };
+
+            float[] shadows = new float[] { s0, s1, s2, s3 };
+
             for (int i = 0; i < 4; i++)
             {
                 _subAtlasRects.Add(frameRect);
                 _tileSizeUVs.Add(tileSizeVec);
                 _worldPositions.Add(worldPosVec);
                 _animationData.Add(animDataVec);
+                _shadowReliefData.Add(new Vector2(textureType, isRelief ? reliefMask : shadows[i]));
+                _localUVs.Add(lUVs[i]);
             }
 
             _subMeshIndices[atlasIndex].Add(vertexCount + 0);
