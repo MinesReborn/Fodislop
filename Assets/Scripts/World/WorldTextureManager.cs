@@ -178,6 +178,40 @@ namespace Fodinae.Assets.Scripts.World
             return AtlasCoordinate.Empty;
         }
 
+        public Vector4 GetCellFrameRect(CellType cellType)
+        {
+            if (_textureCache.TryGetTexture(cellType, out var textureInfo))
+            {
+                int frameIndex = 0;
+                int frameHeight = 0;
+
+                if (textureInfo.AnimationFrames > 1)
+                {
+                    float speed = textureInfo.ContainerFPS > 0 ? textureInfo.ContainerFPS : MapManager.Instance.GetAnimationSpeed(cellType);
+                    if (speed == 0) speed = 5;
+
+                    frameIndex = (int)(Time.realtimeSinceStartup * speed) % textureInfo.AnimationFrames;
+                    frameHeight = textureInfo.ContainerFPS > 0 ? textureInfo.FrameSize : MapManager.Instance.GetAnimationFrameHeight(cellType);
+                }
+
+                var atlas = GetAtlasForCell(cellType);
+                if (atlas != null)
+                {
+                    AtlasCoordinate baseCoord = atlas.GetCoordinate(cellType);
+                    int actualFrameHeight = frameHeight > 0 ? frameHeight : baseCoord.Height;
+
+                    float atlasSize = atlas.Size;
+                    return new Vector4(
+                        (float)baseCoord.AtlasX / atlasSize,
+                        (float)(baseCoord.AtlasY + frameIndex * actualFrameHeight) / atlasSize,
+                        (float)baseCoord.Width / atlasSize,
+                        (float)actualFrameHeight / atlasSize
+                    );
+                }
+            }
+            return Vector4.zero;
+        }
+
         public async UniTask<AtlasCoordinate> GetCellTextureCoordinate(CellType cellType, int globalX, int globalY)
         {
             if (_textureCache.TryGetTexture(cellType, out var textureInfo))
