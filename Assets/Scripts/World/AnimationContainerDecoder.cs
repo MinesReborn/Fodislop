@@ -69,19 +69,20 @@ namespace Fodinae.Assets.Scripts.World
                         Texture2D frameTex = frameTextures[i];
                         totalDelay += frameDelays[i];
 
-                        // Write to the output Atlas vertically (Unity Y = max corresponds to Frame 0)
-                        Graphics.CopyTexture(frameTex, 0, 0, 0, 0, width, height, atlas, 0, 0, 0, (frameCount - 1 - i) * height);
+                        // Write to the output Atlas vertically (Unity Y = 0 corresponds to Frame 0)
+                        Graphics.CopyTexture(frameTex, 0, 0, 0, 0, width, height, atlas, 0, 0, 0, i * height);
 
                         // Clean up the temporary frame immediately
                         UnityEngine.Object.Destroy(frameTex);
                     }
 
                     float avgDelay = frameCount > 0 ? (float)totalDelay / frameCount : 0;
+                    float fps = avgDelay > 0 ? 1000f / avgDelay : 10f;
                     return new DecodedAnimation
                     {
                         Atlas = atlas,
                         FrameCount = frameCount,
-                        FPS = avgDelay > 0 ? 1000f / avgDelay : 10f
+                        FPS = Mathf.Clamp(fps, 0.1f, 60f)
                     };
                 }
             }
@@ -177,7 +178,7 @@ namespace Fodinae.Assets.Scripts.World
                         frameTex.SetPixels32(pixels);
                         frameTex.Apply();
 
-                        Graphics.CopyTexture(frameTex, 0, 0, 0, 0, width, height, atlas, 0, 0, 0, (frameCount - 1 - frameIndex) * height);
+                        Graphics.CopyTexture(frameTex, 0, 0, 0, 0, width, height, atlas, 0, 0, 0, frameIndex * height);
                         UnityEngine.Object.Destroy(frameTex);
 
                         frameIndex++;
@@ -186,11 +187,12 @@ namespace Fodinae.Assets.Scripts.World
                     NativeLibwebpdemux.WebPAnimDecoderDelete(dec);
 
                     float avgDelay = frameIndex > 0 ? (float)totalDelay / frameIndex : 0;
+                    float fps = avgDelay > 0 ? 1000f / avgDelay : 10f;
                     return new DecodedAnimation
                     {
                         Atlas = atlas,
                         FrameCount = frameIndex,
-                        FPS = avgDelay > 0 ? 1000f / avgDelay : 10f
+                        FPS = Mathf.Clamp(fps, 0.1f, 60f)
                     };
                 }
             }

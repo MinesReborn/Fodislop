@@ -664,7 +664,7 @@ namespace Fodinae.Assets.Scripts.World
                 _colors.Add(useFallback ? mapColor : _shimmerHighlightColor);
             }
 
-            Vector4 frameRect = useFallback ? Vector4.zero : GetAnimationFrameRect(cellType, atlasIndex);
+            Vector4 frameRect = useFallback ? Vector4.zero : WorldTextureManager.Instance.GetCellFrameRect(cellType);
             float tileSize = RenderingConstants.CELL_SIZE;
             float atlasSize = atlases[atlasIndex].Size;
             float uvTileSize = tileSize / atlasSize;
@@ -748,35 +748,5 @@ namespace Fodinae.Assets.Scripts.World
             CleanupMaterials();
         }
 
-        private Vector4 GetAnimationFrameRect(CellType cellType, int atlasIndex)
-        {
-            var atlases = WorldTextureManager.Instance.GetAllAtlases();
-            var atlas = atlases[atlasIndex];
-
-            AtlasCoordinate baseCoord = atlas.GetCoordinate(cellType);
-
-            int frameIndex = 0;
-            int frameHeight = MapManager.Instance.GetAnimationFrameHeight(cellType);
-
-            if (frameHeight > 0)
-            {
-                byte speed = MapManager.Instance.GetAnimationSpeed(cellType);
-                if (speed == 0) speed = 5;
-
-                int animationFrames = baseCoord.Height / frameHeight;
-                if (animationFrames > 0)
-                {
-                    frameIndex = (int)(Time.realtimeSinceStartup * speed) % animationFrames;
-                }
-            }
-
-            float atlasSize = atlas.Size;
-            float uMin = (float)baseCoord.AtlasX / atlasSize;
-            float vMin = (float)(baseCoord.AtlasY + frameIndex * (frameHeight > 0 ? frameHeight : 0)) / atlasSize;
-            float uSize = (float)baseCoord.Width / atlasSize;
-            float vSize = (float)(frameHeight > 0 ? frameHeight : baseCoord.Height) / atlasSize;
-
-            return new Vector4(uMin, vMin, uSize, vSize);
-        }
     }
 }
