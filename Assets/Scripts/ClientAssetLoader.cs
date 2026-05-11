@@ -301,6 +301,24 @@ namespace Fodinae.Assets.Scripts
         private async UniTask<Texture2D> LoadTextureAsync(byte[] imageData, CancellationToken cancellationToken)
         {
             await UniTask.SwitchToMainThread(cancellationToken);
+
+            var type = Fodinae.Assets.Scripts.World.AnimationContainerDecoder.DetectType(imageData);
+            if (type == Fodinae.Assets.Scripts.World.AnimationContainerDecoder.ContainerType.GIF ||
+                type == Fodinae.Assets.Scripts.World.AnimationContainerDecoder.ContainerType.WebP)
+            {
+                var decoded = type == Fodinae.Assets.Scripts.World.AnimationContainerDecoder.ContainerType.GIF
+                    ? Fodinae.Assets.Scripts.World.AnimationContainerDecoder.DecodeGif(imageData)
+                    : Fodinae.Assets.Scripts.World.AnimationContainerDecoder.DecodeWebP(imageData);
+
+                if (decoded.Atlas != null)
+                {
+                    decoded.Atlas.name = $"RuntimeAnim_{DateTime.Now.Ticks}|FPS={decoded.FPS}";
+                    decoded.Atlas.filterMode = FilterMode.Point;
+                    return decoded.Atlas;
+                }
+            }
+
+            // Fallback to standard Unity loading for PNG or if decoding failed
             Texture2D texture = new Texture2D(2, 2);
             if (texture.LoadImage(imageData))
             {

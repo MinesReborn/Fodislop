@@ -159,11 +159,11 @@ namespace Fodinae.Assets.Scripts.World
 
                 if (textureInfo.AnimationFrames > 1)
                 {
-                    byte speed = MapManager.Instance.GetAnimationSpeed(cellType);
+                    float speed = textureInfo.ContainerFPS > 0 ? textureInfo.ContainerFPS : MapManager.Instance.GetAnimationSpeed(cellType);
                     if (speed == 0) speed = 5;
 
                     frameIndex = (int)(Time.realtimeSinceStartup * speed) % textureInfo.AnimationFrames;
-                    frameHeight = MapManager.Instance.GetAnimationFrameHeight(cellType);
+                    frameHeight = textureInfo.ContainerFPS > 0 ? textureInfo.FrameSize : MapManager.Instance.GetAnimationFrameHeight(cellType);
                 }
 
                 foreach (var atlas in _atlases)
@@ -231,11 +231,11 @@ namespace Fodinae.Assets.Scripts.World
 
         private async UniTask LoadTexture(CellType cellType)
         {
-            var filename = $"cells/{(int)cellType}.png";
+            var filename = $"cells/{(int)cellType}";
 
             if (cellType == CellType.Empty)
             {
-                filename = "cells/32.png";
+                filename = "cells/32";
             }
 
             var cachedTexture = _textureCache.GetCachedTexture(cellType);
@@ -277,6 +277,22 @@ namespace Fodinae.Assets.Scripts.World
             await UniTask.SwitchToMainThread();
 
             int frameHeight = MapManager.Instance.GetAnimationFrameHeight(cellType);
+            float containerFPS = 0;
+
+            // Try to extract FPS from the container if it was encoded in the name by ClientAssetLoader
+            if (texture.name.Contains("|FPS="))
+            {
+                string fpsStr = texture.name.Split(new[] { "|FPS=" }, StringSplitOptions.None)[1];
+                if (float.TryParse(fpsStr, out containerFPS))
+                {
+                    // If we have a container with multiple frames, we assume they are stacked vertically
+                    // and each frame is _cellTextureSize high.
+                    if (texture.height > _cellTextureSize)
+                    {
+                        frameHeight = _cellTextureSize;
+                    }
+                }
+            }
 
             var textureInfo = new CellTextureInfo
             {
@@ -286,7 +302,8 @@ namespace Fodinae.Assets.Scripts.World
                 VariationCount = 1,
                 AnimationFrames = frameHeight > 0 ? texture.height / frameHeight : 1,
                 FramesPerRow = 1,
-                FrameSize = _cellTextureSize
+                FrameSize = _cellTextureSize,
+                ContainerFPS = containerFPS
             };
 
             if (!_currentAtlas.TryAddTexture(cellType, texture, out var coordinate))

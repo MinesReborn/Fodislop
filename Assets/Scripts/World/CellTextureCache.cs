@@ -26,7 +26,7 @@ namespace Fodinae.Assets.Scripts.World
             _loadedTextures.AddOrUpdate(cellType, textureInfo.BaseTexture, (key, oldValue) => textureInfo.BaseTexture);
             
             // Cache filename mapping
-            var filename = $"cells/{(int)cellType}.png";
+            var filename = $"cells/{(int)cellType}";
             _filenameCache.TryAdd(filename, cellType);
         }
 
@@ -71,7 +71,7 @@ namespace Fodinae.Assets.Scripts.World
             _textureCache.TryRemove(cellType, out _);
             _loadedTextures.TryRemove(cellType, out _);
             
-            var filename = $"cells/{(int)cellType}.png";
+            var filename = $"cells/{(int)cellType}";
             _filenameCache.TryRemove(filename, out _);
         }
 
@@ -140,10 +140,14 @@ namespace Fodinae.Assets.Scripts.World
             
             try
             {
-                // Extract cell ID from filename like "cells/50.png"
-                if (filename.StartsWith("cells/") && filename.EndsWith(".png"))
+                // Extract cell ID from filename like "cells/50"
+                if (filename.StartsWith("cells/"))
                 {
-                    var idStr = filename.Substring(6, filename.Length - 10); // Remove "cells/" and ".png"
+                    string idStr = filename.Substring(6);
+                    // Remove extension if present (though we shouldn't have one now)
+                    int dotIndex = idStr.LastIndexOf('.');
+                    if (dotIndex > 0) idStr = idStr.Substring(0, dotIndex);
+
                     if (int.TryParse(idStr, out int cellId))
                     {
                         if (Enum.IsDefined(typeof(CellType), cellId))

@@ -170,6 +170,7 @@ namespace Fodinae.Assets.Scripts.World
         public int AnimationFrames { get; set; }
         public int FramesPerRow { get; set; }
         public int FrameSize { get; set; }
+        public float ContainerFPS { get; set; }
 
         public bool HasAnimations => AnimationFrames > 1;
 

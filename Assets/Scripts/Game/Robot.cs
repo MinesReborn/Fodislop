@@ -392,7 +392,7 @@ namespace Fodinae.Assets.Scripts.Game
         private async UniTaskVoid LoadClanAsync(CancellationToken token)
         {
             if (_clanId == 0) return;
-            var clanTexture = await ClientAssetLoader.Instance.GetTextureAsync($"/clan/{_clanId}.png", token);
+            var clanTexture = await ClientAssetLoader.Instance.GetTextureAsync($"/clan/{_clanId}", token);
             if (token.IsCancellationRequested || clanTexture == null || _clanRenderer == null) return;
 
             if (_clanSprite != null) Object.Destroy(_clanSprite);

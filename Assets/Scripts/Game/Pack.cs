@@ -60,7 +60,7 @@ namespace Fodinae.Assets.Scripts.Game
         private async UniTaskVoid LoadPackAsync(CancellationToken token)
         {
             string packName = _packType.ToString().ToLowerInvariant();
-            string packPath = $"pack/{packName}/{_variant}.png";
+            string packPath = $"pack/{packName}/{_variant}";
 
             var packTexture = await ClientAssetLoader.Instance.GetTextureAsync(packPath, token);
             if (token.IsCancellationRequested || packTexture == null || _spriteRenderer == null) return;
@@ -81,7 +81,7 @@ namespace Fodinae.Assets.Scripts.Game
                 return;
             }
 
-            var clanTexture = await ClientAssetLoader.Instance.GetTextureAsync($"clan/{_linkedClan}.png", token);
+            var clanTexture = await ClientAssetLoader.Instance.GetTextureAsync($"clan/{_linkedClan}", token);
             if (token.IsCancellationRequested || clanTexture == null || _clanRenderer == null) return;
 
             if (_clanSprite != null) Destroy(_clanSprite);
