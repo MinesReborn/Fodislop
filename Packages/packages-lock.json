@@ -290,39 +290,39 @@
       "url": "https://packages.unity.com"
     },
     "darkar25.fodinae.data": {
-      "version": "https://github.com/Darkar25/MinesServerNetworking.git?path=/MinesServer.Data/",
+      "version": "https://github.com/MinesReborn/MinesServerNetworking.git?path=/MinesServer.Data/",
       "depth": 0,
       "source": "git",
       "dependencies": {},
-      "hash": "9ae1055264d774b440aff6b157ac9a57aa458f53"
+      "hash": "0d844ccf81dbd024ffc25c5bc00ac3473ca3aee7"
     },
     "darkar25.fodinae.networking": {
-      "version": "https://github.com/Darkar25/MinesServerNetworking.git?path=/MinesServer.Networking/",
+      "version": "https://github.com/MinesReborn/MinesServerNetworking.git?path=/MinesServer.Networking/",
       "depth": 0,
       "source": "git",
       "dependencies": {},
-      "hash": "2a3a7918ba883a6e522bae2970a78d11a7a9e3d5"
+      "hash": "0d844ccf81dbd024ffc25c5bc00ac3473ca3aee7"
     },
     "darkar25.fodinae.networking.client": {
-      "version": "https://github.com/Darkar25/MinesServerNetworking.git?path=/MinesServer.Networking.Connection.Client/",
+      "version": "https://github.com/MinesReborn/MinesServerNetworking.git?path=/MinesServer.Networking.Connection.Client/",
       "depth": 0,
       "source": "git",
       "dependencies": {},
-      "hash": "9ae1055264d774b440aff6b157ac9a57aa458f53"
+      "hash": "0d844ccf81dbd024ffc25c5bc00ac3473ca3aee7"
     },
     "darkar25.fodinae.networking.connection": {
-      "version": "https://github.com/Darkar25/MinesServerNetworking.git?path=/MinesServer.Networking.Connection/",
+      "version": "https://github.com/MinesReborn/MinesServerNetworking.git?path=/MinesServer.Networking.Connection/",
       "depth": 0,
       "source": "git",
       "dependencies": {},
-      "hash": "9ae1055264d774b440aff6b157ac9a57aa458f53"
+      "hash": "0d844ccf81dbd024ffc25c5bc00ac3473ca3aee7"
     },
     "darkar25.fodinae.utils": {
-      "version": "https://github.com/Darkar25/MinesServerNetworking.git?path=/MinesServer.Utils/",
+      "version": "https://github.com/MinesReborn/MinesServerNetworking.git?path=/MinesServer.Utils/",
       "depth": 0,
       "source": "git",
       "dependencies": {},
-      "hash": "9ae1055264d774b440aff6b157ac9a57aa458f53"
+      "hash": "0d844ccf81dbd024ffc25c5bc00ac3473ca3aee7"
     },
     "com.unity.modules.accessibility": {
       "version": "1.0.0",
