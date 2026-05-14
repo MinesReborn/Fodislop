@@ -1,3 +1,4 @@
+using UnityEngine;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,7 +8,8 @@ using System.Runtime.InteropServices;
 public class WorldLayer<T> : IDisposable
     where T : unmanaged
 {
-    private static bool _initialized = false;
+    //private static bool _initialized = false;
+    private static readonly HashSet<string> _initializedFiles = new();
 
     // --- Config ---
     private const int HEADER_SIZE = 16; // 4 ints
@@ -58,10 +60,10 @@ public class WorldLayer<T> : IDisposable
         _lruList = new LinkedList<int>();
         _dirtyChunks = new HashSet<int>();
 
-        if (!_initialized)
+        if (!_initializedFiles.Contains(_filePath))
         {
             InitializeFile();
-            _initialized = true;
+            _initializedFiles.Add(_filePath);
         }
     }
 
@@ -362,5 +364,6 @@ public class WorldLayer<T> : IDisposable
     {
         Flush();
         _fileStream?.Dispose();
+        _initializedFiles.Remove(_filePath);
     }
 }

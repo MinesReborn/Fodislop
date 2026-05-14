@@ -10,7 +10,7 @@ using MinesServer.Networking.Server.Packets.Connection;
 
 namespace Fodinae.Assets.Scripts.World
 {
-    [ExecuteAlways]
+    //[ExecuteAlways]
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
     public class SingleMeshTerrainRenderer : MonoBehaviour
     {
