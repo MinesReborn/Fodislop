@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Архитектура рендеринга — Fodinae</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font:16px/1.6 system-ui,sans-serif;color:#e0e0e0;background:#1a1a2e;max-width:720px;margin:0 auto;padding:2rem 1.5rem}
+h1{font-size:1.8rem;color:#fff;margin-bottom:.5rem}
+h2{font-size:1.3rem;color:#a8b2d1;margin:2rem 0 .5rem;border-bottom:1px solid #2a2a4a;padding-bottom:.3rem}
+h3{font-size:1.1rem;color:#ccd6f6;margin:1.2rem 0 .4rem}
+p,li{margin-bottom:.5rem}
+ul,ol{padding-left:1.5rem}
+code{font-family:'JetBrains Mono',monospace;font-size:.9em;background:#16213e;padding:.15em .4em;border-radius:3px;color:#64ffda}
+pre{background:#16213e;padding:1rem;border-radius:6px;overflow-x:auto;margin:1rem 0}
+pre code{padding:0;background:none}
+a{color:#64ffda;text-decoration:none}
+a:hover{text-decoration:underline}
+table{width:100%;border-collapse:collapse;margin:1rem 0}
+th,td{text-align:left;padding:.5rem .8rem;border-bottom:1px solid #2a2a4a}
+th{color:#a8b2d1;font-weight:600}
+.note{background:#1b2838;border-left:3px solid #64ffda;padding:.8rem 1rem;margin:1rem 0;border-radius:0 4px 4px 0}
+.warn{border-left-color:#f0a500}
+nav{margin-bottom:2rem;font-size:.85rem;color:#8892b0}
+nav a{margin-right:1rem}
+</style>
+</head>
+<body>
+
+<nav><a href="index.html">← Документация</a></nav>
+
+<h1>Архитектура рендеринга</h1>
+<p>Как Fodinae отрисовывает тайловый мир в один draw call.</p>
+
+<h2>Обзор</h2>
+<p><code>SingleMeshTerrainRenderer</code> строит один <code>Mesh</code> из всех видимых тайлов каждый кадр. Камера определяет границы видимости, рендерер запрашивает данные из <code>MapStorage</code> и собирает геометрию.</p>
+
+<h2>UV-каналы</h2>
+<table>
+<tr><th>Канал</th><th>Назначение</th></tr>
+<tr><td><code>UV0</code></td><td>Координаты в атласе текстур</td></tr>
+<tr><td><code>UV1</code></td><td>Sub-atlas rect (позиция фрейма)</td></tr>
+<tr><td><code>UV2</code></td><td>Размер тайла в UV-пространстве</td></tr>
+<tr><td><code>UV3</code></td><td>Мировые координаты + тайлинг-дескриптор</td></tr>
+<tr><td><code>UV4</code></td><td>Анимация: тип, скорость, оффсет</td></tr>
+<tr><td><code>UV5</code></td><td>Тени и рельеф</td></tr>
+<tr><td><code>UV6</code></td><td>Локальные UV для шейдерных эффектов</td></tr>
+</table>
+
+<h2>Инверсия Y</h2>
+<div class="note warn">
+Сервер: Y растёт <strong>вниз</strong> (0 = верхняя строка).<br>
+Unity: Y растёт <strong>вверх</strong>.
+</div>
+<pre><code>int serverY = MapManager.Instance.WorldHeight - 1 - unityY;</code></pre>
+
+<h2>Поток данных</h2>
+<ol>
+<li><code>PacketHandler</code> получает <code>MapRegionPacket</code></li>
+<li>Данные записываются в <code>MapStorage.cellLayer</code> (через <code>WorldLayer&lt;T&gt;</code>)</li>
+<li><code>LateUpdate</code> рендерера проверяет <code>MapStorage.IsReady</code></li>
+<li>Строится меш из видимых тайлов + фон через <code>ComputeBackgroundMap</code></li>
+<li>Меш загружается на GPU с <code>IndexFormat.UInt32</code></li>
+</ol>
+
+<h2>Сортировка</h2>
+<p>Террейн рисуется на <code>Sorting Order = -1000</code>, чтобы находиться под спрайтами роботов и UI-элементами.</p>
+
+</body>
+</html>

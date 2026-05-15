@@ -1,0 +1,54 @@
+###############################################################################
+# 1. EOL NORMALIZATION
+###############################################################################
+* text=auto eol=lf
+
+# C# и шейдеры
+*.cs      text diff=csharp
+*.shader  text
+*.hlsl    text
+*.cginc   text
+*.compute text
+
+# Конфиги, UI Toolkit, данные
+*.uxml    text
+*.uss     text
+*.json    text
+*.yaml    text
+*.md      text
+*.xml     text
+*.inputactions text
+
+###############################################################################
+# 2. UNITY YAML (MERGE DRIVERS)
+###############################################################################
+*.unity             text merge=unityyaml
+*.prefab            text merge=unityyaml
+*.asset             text merge=unityyaml
+*.mat               text merge=unityyaml
+*.anim              text merge=unityyaml
+*.controller        text merge=unityyaml
+*.overrideController text merge=unityyaml
+*.playable          text merge=unityyaml
+*.mask              text merge=unityyaml
+*.scenetemplate     text merge=unityyaml
+
+# Мета-файлы — текст, без особого мерджа
+*.meta text
+
+###############################################################################
+# 3. БИНАРНЫЕ ФАЙЛЫ (НЕ ТРОГАТЬ EOL)
+###############################################################################
+# DLL-плагины (SharpCompress, ZstdSharp, NetCoreServer и т.д.)
+*.dll  binary
+
+# Изображения — мелкие тайлы, LFS не нужен, но EOL ломать нельзя
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.tga  binary
+*.gif  binary
+*.webp binary
+
+# Assembly definitions — JSON, но генерируются Unity
+*.asmdef text
