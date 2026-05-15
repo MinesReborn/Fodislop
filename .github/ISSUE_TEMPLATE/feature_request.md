@@ -1,6 +1,6 @@
 ---
 name: Фича-реквест
-about: Предложить новую функциональность
+about: Предложить новую фичу
 title: "[feat] "
 labels: enhancement
 assignees: ''

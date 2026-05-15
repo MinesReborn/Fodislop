@@ -6,7 +6,7 @@
 
 - **Движок**: Unity 6 (`6000.2.10f1`).
 - **Рендер**: Universal Render Pipeline 2D (`com.unity.render-pipelines.universal` 17.2.0).
-- **Сетевое взаимодействие**: Пакеты `darkar25.fodinae.*` (data, networking, connection) — подключены как Git-зависимости из `MinesReborn/MinesServerNetworking`.
+- **Сетевое взаимодействие**: Пакеты `darkar25.fodinae.*` (data, networking, connection) — подключены как Git-зависимости из [MinesReborn/MinesServerNetworking](https://github.com/MinesReborn/MinesServerNetworking).
 - **Интерфейс**: UI Toolkit.
 - **Асинхронность**: `UniTask` (vendored в `Assets/Plugins/UniTask/`).
 
