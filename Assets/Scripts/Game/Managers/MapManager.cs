@@ -208,8 +208,24 @@ namespace Fodinae.Assets.Scripts.Game.Managers
         if (MapStorage.Instance.IsReady)
         {
             Debug.Log($"[MapManager] MapStorage is ready, triggering OnWorldDataLoaded event");
-            OnWorldDataLoaded?.Invoke();
-            Debug.Log("[MapManager] World data loaded event triggered successfully");
+
+            // Collect all unique cell types and preload them before notifying the renderer
+            int w = width;
+            int h = height;
+            var uniqueTypes = new HashSet<CellType>();
+            for (int x = 0; x < w; x++)
+            {
+                for (int y = 0; y < h; y++)
+                {
+                    CellType cell = MapStorage.Instance.GetCell(x, y);
+                    if (cell != CellType.Unloaded) uniqueTypes.Add(cell);
+                }
+            }
+
+            WorldTextureManager.Instance.PreloadTexturesAsync(uniqueTypes).ContinueWith(() => {
+                OnWorldDataLoaded?.Invoke();
+                Debug.Log("[MapManager] World data loaded event triggered successfully after preloading");
+            }).Forget();
         }
         else
         {

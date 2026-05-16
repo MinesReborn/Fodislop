@@ -153,24 +153,11 @@ namespace Fodinae.Assets.Scripts.World
             if (_textureCache.TryGetTexture(cellType, out var textureInfo))
             {
                 var variation = CalculateVariation(textureInfo, globalX, globalY);
-
-                int frameIndex = 0;
-                int frameHeight = 0;
-
-                if (textureInfo.AnimationFrames > 1)
-                {
-                    float speed = textureInfo.ContainerFPS > 0 ? textureInfo.ContainerFPS : MapManager.Instance.GetAnimationSpeed(cellType);
-                    if (speed == 0) speed = 5;
-
-                    frameIndex = (int)(Time.realtimeSinceStartup * speed) % textureInfo.AnimationFrames;
-                    frameHeight = textureInfo.ContainerFPS > 0 ? textureInfo.FrameSize : MapManager.Instance.GetAnimationFrameHeight(cellType);
-                }
-
                 foreach (var atlas in _atlases)
                 {
                     if (atlas.ContainsCell(cellType))
                     {
-                        return atlas.GetWrappedCoordinate(cellType, globalX, globalY, variation, frameHeight, frameIndex);
+                        return atlas.GetWrappedCoordinate(cellType, globalX, globalY, variation, 0, 0);
                     }
                 }
             }
@@ -182,85 +169,57 @@ namespace Fodinae.Assets.Scripts.World
         {
             if (_textureCache.TryGetTexture(cellType, out var textureInfo))
             {
-                int frameIndex = 0;
-                int frameHeight = 0;
-
-                if (textureInfo.AnimationFrames > 1)
-                {
-                    float speed = textureInfo.ContainerFPS > 0 ? textureInfo.ContainerFPS : MapManager.Instance.GetAnimationSpeed(cellType);
-                    if (speed == 0) speed = 5;
-
-                    frameIndex = (int)(Time.realtimeSinceStartup * speed) % textureInfo.AnimationFrames;
-                    frameHeight = textureInfo.ContainerFPS > 0 ? textureInfo.FrameSize : MapManager.Instance.GetAnimationFrameHeight(cellType);
-                }
-
                 var atlas = GetAtlasForCell(cellType);
                 if (atlas != null)
                 {
                     AtlasCoordinate baseCoord = atlas.GetCoordinate(cellType);
-                    int actualFrameHeight = frameHeight > 0 ? frameHeight : baseCoord.Height;
-
                     float atlasSize = atlas.Size;
                     return new Vector4(
                         (float)baseCoord.AtlasX / atlasSize,
-                        (float)(baseCoord.AtlasY + frameIndex * actualFrameHeight) / atlasSize,
+                        (float)baseCoord.AtlasY / atlasSize,
                         (float)baseCoord.Width / atlasSize,
-                        (float)actualFrameHeight / atlasSize
+                        (float)baseCoord.Height / atlasSize
                     );
                 }
             }
             return Vector4.zero;
         }
 
-        public async UniTask<AtlasCoordinate> GetCellTextureCoordinate(CellType cellType, int globalX, int globalY)
+        public async UniTask PreloadTexturesAsync(IEnumerable<CellType> types)
         {
-            if (_textureCache.TryGetTexture(cellType, out var textureInfo))
-            {
-                return GetCellTextureCoordinateSync(cellType, globalX, globalY);
-            }
+            var uniqueTypes = types.Distinct().Where(t => t != CellType.Unloaded).ToList();
+            var loadTasks = new List<UniTask>();
 
-            if (_pendingRequests.TryGetValue(cellType, out var existingRequest))
+            foreach (var type in uniqueTypes)
             {
-                await existingRequest.Task;
-                if (_textureCache.TryGetTexture(cellType, out textureInfo))
+                if (!_textureCache.TryGetTexture(type, out _))
                 {
-                    return GetCellTextureCoordinateSync(cellType, globalX, globalY);
+                    loadTasks.Add(LoadTexture(type));
                 }
             }
 
-            var request = new TextureRequest(cellType);
-            _pendingRequests.TryAdd(cellType, request);
-
-            try
+            if (loadTasks.Count > 0)
             {
-                await LoadTexture(cellType);
-                request.SetResult(true);
-
-                if (_textureCache.TryGetTexture(cellType, out textureInfo))
+                await UniTask.WhenAll(loadTasks);
+                foreach (var atlas in _atlases)
                 {
-                    return GetCellTextureCoordinateSync(cellType, globalX, globalY);
+                    if (atlas.IsDirty) await atlas.UpdateAtlasTexture();
                 }
             }
-            catch (Exception ex)
+        }
+
+        public int GetAtlasIndex(CellType cellType)
+        {
+            for (int i = 0; i < _atlases.Count; i++)
             {
-                Debug.LogError($"Failed to load texture for cell type {cellType}: {ex.Message}");
-                request.SetResult(false);
-
-                CreateFallbackTexture(cellType, globalX, globalY);
-
-                if (_textureCache.TryGetTexture(cellType, out textureInfo))
-                {
-                    return GetCellTextureCoordinateSync(cellType, globalX, globalY);
-                }
-
-                return AtlasCoordinate.Empty;
+                if (_atlases[i].ContainsCell(cellType)) return i;
             }
-            finally
-            {
-                _pendingRequests.TryRemove(cellType, out _);
-            }
+            return -1;
+        }
 
-            return AtlasCoordinate.Empty;
+        public bool TryGetTextureInfo(CellType cellType, out CellTextureInfo info)
+        {
+            return _textureCache.TryGetTexture(cellType, out info);
         }
 
         private async UniTask LoadTexture(CellType cellType)
