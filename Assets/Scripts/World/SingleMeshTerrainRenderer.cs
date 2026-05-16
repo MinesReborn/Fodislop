@@ -155,21 +155,17 @@ namespace Fodinae.Assets.Scripts.World
             Vector3 camPos = _mainCamera.transform.position;
             Vector2Int snapPos = new Vector2Int(Mathf.FloorToInt(camPos.x), Mathf.FloorToInt(camPos.y));
 
-            transform.position = new Vector3(snapPos.x, snapPos.y, 0);
+            transform.position = new Vector3(camPos.x, camPos.y, 0);
 
             if (snapPos != _lastSnapPos)
             {
                 _lastSnapPos = snapPos;
-                if (_material != null)
-                {
-                    _material.SetVector("_WorldParams", new Vector4(snapPos.x, snapPos.y, MapManager.Instance.WorldWidth, MapManager.Instance.WorldHeight));
-                }
                 RequestVisibleTextures(snapPos);
             }
 
             if (_material != null)
             {
-                _material.SetVector("_WorldOffset", new Vector4(camPos.x - snapPos.x, camPos.y - snapPos.y, 0, 0));
+                _material.SetVector("_WorldParams", new Vector4(camPos.x, camPos.y, MapManager.Instance.WorldWidth, MapManager.Instance.WorldHeight));
             }
         }
 
@@ -571,9 +567,13 @@ namespace Fodinae.Assets.Scripts.World
             int w = MapManager.Instance.WorldWidth;
             int h = MapManager.Instance.WorldHeight;
 
-            _worldMapTex = new Texture2D(w, h, TextureFormat.RGBA32, false);
-            _worldMapTex.filterMode = FilterMode.Point;
-            _worldMapTex.wrapMode = TextureWrapMode.Repeat;
+            if (_worldMapTex == null || _worldMapTex.width != w || _worldMapTex.height != h)
+            {
+                if (_worldMapTex != null) Destroy(_worldMapTex);
+                _worldMapTex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+                _worldMapTex.filterMode = FilterMode.Point;
+                _worldMapTex.wrapMode = TextureWrapMode.Repeat;
+            }
 
             Color32[] pixels = new Color32[w * h];
             ComputeBackgroundMap(0, 0, w - 1, h - 1, out var bgMap);
@@ -611,9 +611,12 @@ namespace Fodinae.Assets.Scripts.World
 
         private void UpdateCellConfigTexture()
         {
-            _cellConfigTex = new Texture2D(256, 2, TextureFormat.RGBAFloat, false);
-            _cellConfigTex.filterMode = FilterMode.Point;
-            _cellConfigTex.wrapMode = TextureWrapMode.Clamp;
+            if (_cellConfigTex == null)
+            {
+                _cellConfigTex = new Texture2D(256, 2, TextureFormat.RGBAFloat, false);
+                _cellConfigTex.filterMode = FilterMode.Point;
+                _cellConfigTex.wrapMode = TextureWrapMode.Clamp;
+            }
 
             for (int i = 0; i < 256; i++)
             {

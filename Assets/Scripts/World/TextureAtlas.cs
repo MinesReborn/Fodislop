@@ -272,18 +272,7 @@ namespace Fodinae.Assets.Scripts.World
                     return cachedTexture;
                 }
             }
-            return CreatePlaceholderTexture(cellType);
-        }
-
-        private Texture2D CreatePlaceholderTexture(CellType cellType)
-        {
-            var texture = new Texture2D(CellSize, CellSize);
-            var color = GetCellColor(cellType);
-            var pixels = new Color[CellSize * CellSize];
-            for (int i = 0; i < pixels.Length; i++) pixels[i] = color;
-            texture.SetPixels(pixels);
-            texture.Apply();
-            return texture;
+            return null;
         }
 
         private Color GetCellColor(CellType cellType)

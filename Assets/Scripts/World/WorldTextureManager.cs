@@ -234,44 +234,59 @@ namespace Fodinae.Assets.Scripts.World
 
         private async UniTask LoadTexture(CellType cellType)
         {
-            var filename = $"cells/{(int)cellType}";
+            if (_textureCache.TryGetTexture(cellType, out _)) return;
 
-            if (cellType == CellType.Empty)
-            {
-                filename = "cells/32";
-            }
+            bool isNew = false;
+            var request = _pendingRequests.GetOrAdd(cellType, _ => {
+                isNew = true;
+                return new TextureRequest(cellType);
+            });
 
-            var cachedTexture = _textureCache.GetCachedTexture(cellType);
-            if (cachedTexture != null)
+            if (!isNew)
             {
-                await AddTextureToAtlas(cellType, cachedTexture);
+                await request.Task;
                 return;
             }
 
-            Texture2D texture = null;
             try
             {
-                texture = await ClientAssetLoader.Instance.GetTextureAsync(filename);
+                var filename = $"cells/{(int)cellType}";
+                if (cellType == CellType.Empty) filename = "cells/32";
+
+                var cachedTexture = _textureCache.GetCachedTexture(cellType);
+                Texture2D texture = cachedTexture;
+
+                if (texture == null)
+                {
+                    try
+                    {
+                        texture = await ClientAssetLoader.Instance.GetTextureAsync(filename);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning($"[WorldTextureManager] Warning loading {filename}: {ex.Message}");
+                    }
+                }
+
+                if (texture != null)
+                {
+                    if (cellType == CellType.Empty) _cachedEmptyTexture = texture;
+                    await AddTextureToAtlas(cellType, texture);
+                    request.SetResult(true);
+                }
+                else
+                {
+                    request.SetResult(false);
+                }
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[WorldTextureManager] Warning loading {filename}: {ex.Message}");
+                Debug.LogError($"[WorldTextureManager] Error in LoadTexture for {cellType}: {ex.Message}");
+                request.SetResult(false);
             }
-
-            if (texture != null)
+            finally
             {
-                if (cellType == CellType.Empty)
-                {
-                    Debug.Log($"[WorldTextureManager] Successfully loaded texture for Empty cell (32.png)");
-                    _cachedEmptyTexture = texture;
-                }
-
-                // Не модифицируем текстуру — оставляем как есть с прозрачностью
-                await AddTextureToAtlas(cellType, texture);
-            }
-            else
-            {
-                throw new Exception($"Failed to load texture for {cellType}");
+                _pendingRequests.TryRemove(cellType, out _);
             }
         }
 

@@ -74,10 +74,7 @@ float3 SampleFlowMap(float2 worldPos, int atlasIdx)
 Varyings vert(Attributes input)
 {
     Varyings output;
-    float3 pos = input.positionOS.xyz;
-    // Sub-pixel smooth scrolling: counteract the snapping of the mesh transform
-    pos.xy -= _WorldOffset.xy;
-    output.positionCS = TransformObjectToHClip(pos);
+    output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
     output.uv = input.uv;
     output.localUV = input.localUV;
     output.worldPos.xy = _WorldParams.xy + input.positionOS.xy;
