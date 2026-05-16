@@ -26,6 +26,7 @@ namespace Fodinae.Assets.Scripts.World
         private Material _material;
 
         private Texture2D _worldMapTex;
+        private Color32[] _worldMapData;
         private Texture2D _cellConfigTex;
         private Texture2DArray _atlasesTexArray;
         private HashSet<CellType> _dirtyCellConfigs = new();
@@ -58,8 +59,6 @@ namespace Fodinae.Assets.Scripts.World
             _mesh.indexFormat = IndexFormat.UInt32;
             _meshFilter.mesh = _mesh;
 
-            InitializeShader();
-
             _meshRenderer.enabled = true;
             _meshRenderer.sortingLayerName = _sortingLayerName;
             _meshRenderer.sortingOrder = _sortingOrder;
@@ -85,6 +84,8 @@ namespace Fodinae.Assets.Scripts.World
 
         private void Start()
         {
+            InitializeShader();
+
             if (MapManager.Instance != null)
             {
                 MapManager.Instance.OnWorldDataLoaded += OnWorldDataLoaded;
@@ -188,7 +189,7 @@ namespace Fodinae.Assets.Scripts.World
 
         private void RequestVisibleTextures(Vector2Int snapPos)
         {
-            if (!MapStorage.Instance.IsReady || _worldMapTex == null) return;
+            if (!MapStorage.Instance.IsReady || _worldMapData == null) return;
 
             int halfW = _currentVpWidth / 2;
             int halfH = _currentVpHeight / 2;
@@ -203,10 +204,13 @@ namespace Fodinae.Assets.Scripts.World
                     int worldX = (x % worldW + worldW) % worldW;
                     int worldY = (y % worldH + worldH) % worldH;
 
-                    // Sample IDs from our cached world map texture
-                    Color32 data = _worldMapTex.GetPixel(worldX, worldY);
-                    WorldTextureManager.Instance.RequestTexture((CellType)data.r); // Foreground
-                    WorldTextureManager.Instance.RequestTexture((CellType)data.a); // Background
+                    int index = worldY * worldW + worldX;
+                    if (index >= 0 && index < _worldMapData.Length)
+                    {
+                        Color32 data = _worldMapData[index];
+                        WorldTextureManager.Instance.RequestTexture((CellType)data.r); // Foreground
+                        WorldTextureManager.Instance.RequestTexture((CellType)data.a); // Background
+                    }
                 }
             }
         }
@@ -599,6 +603,7 @@ namespace Fodinae.Assets.Scripts.World
                 }
             }
 
+            _worldMapData = pixels;
             _worldMapTex.SetPixels32(pixels);
             _worldMapTex.Apply();
             _material.SetTexture("_WorldMapTex", _worldMapTex);
@@ -637,16 +642,26 @@ namespace Fodinae.Assets.Scripts.World
             if (atlases.Count == 0) return;
 
             int size = atlases[0].Size;
-            _atlasesTexArray = new Texture2DArray(size, size, atlases.Count, TextureFormat.RGBA32, false);
-            _atlasesTexArray.filterMode = FilterMode.Point;
-            _atlasesTexArray.wrapMode = TextureWrapMode.Clamp;
+            if (_atlasesTexArray == null || _atlasesTexArray.depth != atlases.Count || _atlasesTexArray.width != size)
+            {
+                if (_atlasesTexArray != null) Destroy(_atlasesTexArray);
+                _atlasesTexArray = new Texture2DArray(size, size, atlases.Count, TextureFormat.RGBA32, false);
+                _atlasesTexArray.filterMode = FilterMode.Point;
+                _atlasesTexArray.wrapMode = TextureWrapMode.Clamp;
+            }
 
             for (int i = 0; i < atlases.Count; i++)
             {
-                Graphics.CopyTexture(atlases[i].Texture, 0, 0, _atlasesTexArray, i, 0);
+                if (atlases[i].Texture != null)
+                {
+                    Graphics.CopyTexture(atlases[i].Texture, 0, 0, _atlasesTexArray, i, 0);
+                }
             }
 
-            _material.SetTexture("_Atlases", _atlasesTexArray);
+            if (_material != null)
+            {
+                _material.SetTexture("_Atlases", _atlasesTexArray);
+            }
         }
 
         private void CleanupMaterials()

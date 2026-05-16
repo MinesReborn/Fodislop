@@ -23,7 +23,8 @@ namespace Fodinae.Assets.Scripts.World.Extensions
         public static async UniTask<AtlasCoordinate> GetCellTextureCoordinate(this WorldLayer<CellType> worldLayer, int x, int y)
         {
             var cellType = worldLayer[x, y];
-            return await WorldTextureManager.Instance.GetCellTextureCoordinate(cellType, x, y);
+            await WorldTextureManager.Instance.PreloadTexturesAsync(new[] { cellType });
+            return WorldTextureManager.Instance.GetCellTextureCoordinateSync(cellType, x, y);
         }
 
         /// <summary>
@@ -39,40 +40,26 @@ namespace Fodinae.Assets.Scripts.World.Extensions
             this WorldLayer<CellType> worldLayer, 
             int x, int y, int width, int height)
         {
-            var coordinates = new Dictionary<Vector2Int, AtlasCoordinate>();
-            var tasks = new List<UniTask<AtlasCoordinate>>();
-
-            // Collect all texture requests
+            var uniqueCellTypes = new HashSet<CellType>();
             for (int yy = y; yy < y + height; yy++)
             {
                 for (int xx = x; xx < x + width; xx++)
                 {
                     var cellType = worldLayer[xx, yy];
                     if (cellType != CellType.Unloaded && cellType != CellType.Pregener)
-                    {
-                        var task = WorldTextureManager.Instance.GetCellTextureCoordinate(cellType, xx, yy);
-                        tasks.Add(task);
-                        coordinates[new Vector2Int(xx, yy)] = AtlasCoordinate.Empty;
-                    }
+                        uniqueCellTypes.Add(cellType);
                 }
             }
 
-            // Wait for all texture requests to complete
-            if (tasks.Count > 0)
+            await WorldTextureManager.Instance.PreloadTexturesAsync(uniqueCellTypes);
+
+            var coordinates = new Dictionary<Vector2Int, AtlasCoordinate>();
+            for (int yy = y; yy < y + height; yy++)
             {
-                var results = await UniTask.WhenAll(tasks);
-                int index = 0;
-                
-                for (int yy = y; yy < y + height; yy++)
+                for (int xx = x; xx < x + width; xx++)
                 {
-                    for (int xx = x; xx < x + width; xx++)
-                    {
-                        var cellType = worldLayer[xx, yy];
-                        if (cellType != CellType.Unloaded && cellType != CellType.Pregener)
-                        {
-                            coordinates[new Vector2Int(xx, yy)] = results[index++];
-                        }
-                    }
+                    var cellType = worldLayer[xx, yy];
+                    coordinates[new Vector2Int(xx, yy)] = WorldTextureManager.Instance.GetCellTextureCoordinateSync(cellType, xx, yy);
                 }
             }
 
@@ -107,15 +94,7 @@ namespace Fodinae.Assets.Scripts.World.Extensions
                 }
             }
 
-            // Preload textures for unique cell types
-            var tasks = new List<UniTask>();
-            foreach (var cellType in uniqueCellTypes)
-            {
-                var task = WorldTextureManager.Instance.GetCellTextureCoordinate(cellType, x, y);
-                tasks.Add(task);
-            }
-
-            await UniTask.WhenAll(tasks);
+            await WorldTextureManager.Instance.PreloadTexturesAsync(uniqueCellTypes);
         }
 
         /// <summary>
