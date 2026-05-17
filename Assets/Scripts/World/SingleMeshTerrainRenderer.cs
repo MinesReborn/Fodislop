@@ -30,11 +30,10 @@ namespace Fodinae.Assets.Scripts.World
         private Vector2[] _uvs;
         private Color[] _colors;
         private Vector4[] _subAtlasRects;
-        private Vector4[] _tileSizeUVs;
+        private Vector4[] _tileSizeUVs; // xy: tileSizeUV, zw: frame metadata (z: frameCount, w: frameHeightTiles)
         private Vector4[] _worldPositions;
         private Vector4[] _animationData;
-        private Vector2[] _shadowReliefData;
-        private Vector2[] _localUVs;
+        private Vector4[] _packedReliefShadowLocalUV; // xy: shadowRelief, zw: localUV
 
         private Material[] _materials = Array.Empty<Material>();
         private List<int>[] _subMeshIndices = Array.Empty<List<int>>();
@@ -57,10 +56,12 @@ namespace Fodinae.Assets.Scripts.World
             public int TileGroupId;
             public Color MinimapColor;
             public CellAnimationType Animation;
-            public byte AnimationSpeed;
+            public float AnimationSpeed;
             public Vector4 AtlasRect;
             public int AtlasIndex;
             public float UVTileSize;
+            public int AnimationFrameCount;
+            public float FrameHeightTiles;
         }
 
         private CachedCellData[,] _cellCache;
@@ -83,10 +84,12 @@ namespace Fodinae.Assets.Scripts.World
             public int TileGroupId;
             public Color MinimapColor;
             public CellAnimationType Animation;
-            public byte AnimationSpeed;
+            public float AnimationSpeed;
             public Vector4 AtlasRect;
             public int AtlasIndex;
             public float UVTileSize;
+            public int AnimationFrameCount;
+            public float FrameHeightTiles;
             public bool IsTextureReady;
         }
         private readonly Dictionary<CellType, CellMetadata> _metadataCache = new();
@@ -112,6 +115,7 @@ namespace Fodinae.Assets.Scripts.World
 
         private void Awake()
         {
+            InitializeShader();
             _meshFilter = GetComponent<MeshFilter>();
             _meshRenderer = GetComponent<MeshRenderer>();
             _mainCamera = Camera.main;
@@ -218,7 +222,7 @@ namespace Fodinae.Assets.Scripts.World
             {
                 _vertices = new Vector3[vertCount]; _uvs = new Vector2[vertCount]; _colors = new Color[vertCount];
                 _subAtlasRects = new Vector4[vertCount]; _tileSizeUVs = new Vector4[vertCount]; _worldPositions = new Vector4[vertCount];
-                _animationData = new Vector4[vertCount]; _shadowReliefData = new Vector2[vertCount]; _localUVs = new Vector2[vertCount];
+                _animationData = new Vector4[vertCount]; _packedReliefShadowLocalUV = new Vector4[vertCount];
             }
 
             if (_bgMapBuffer == null || _bgMapBuffer.GetLength(0) != _meshWidth || _bgMapBuffer.GetLength(1) != _meshHeight)
@@ -250,12 +254,18 @@ namespace Fodinae.Assets.Scripts.World
             int atlasIndex = 0;
             for (int i = 0; i < atlases.Count; i++) if (atlases[i].ContainsCell(type)) { atlasIndex = i; break; }
             Vector4 atlasRect = WorldTextureManager.Instance.GetCellFrameRect(type);
+            int frameCount = WorldTextureManager.Instance.GetAnimationFrameCount(type);
+            int frameSize = WorldTextureManager.Instance.GetFrameSize(type);
+
             meta = new CellMetadata {
                 Properties = config.Properties, ReliefGroup = config.ReliefGroup, Distortion = config.Distortion,
                 HasTileGroup = MapManager.Instance.TryGetTileGroup(type, out int gid), TileGroupId = gid,
                 MinimapColor = MapManager.Instance.GetCellMinimapColor(type), Animation = config.Animation,
-                AnimationSpeed = config.AnimationSpeed, AtlasRect = atlasRect, AtlasIndex = atlasIndex,
+                AnimationSpeed = WorldTextureManager.Instance.GetAnimationSpeedForCell(type),
+                AtlasRect = atlasRect, AtlasIndex = atlasIndex,
                 UVTileSize = atlases.Count > atlasIndex ? (float)RenderingConstants.CELL_SIZE / atlases[atlasIndex].Size : 0,
+                AnimationFrameCount = frameCount,
+                FrameHeightTiles = (float)frameSize / RenderingConstants.CELL_SIZE,
                 IsTextureReady = atlasRect.z > 0.0001f
             };
             _metadataCache[type] = meta;
@@ -279,7 +289,8 @@ namespace Fodinae.Assets.Scripts.World
                         Type = type, Properties = meta.Properties, ReliefGroup = meta.ReliefGroup, Distortion = meta.Distortion,
                         HasTileGroup = meta.HasTileGroup, TileGroupId = meta.TileGroupId, MinimapColor = meta.MinimapColor,
                         Animation = meta.Animation, AnimationSpeed = meta.AnimationSpeed, AtlasRect = meta.AtlasRect,
-                        AtlasIndex = meta.AtlasIndex, UVTileSize = meta.UVTileSize
+                        AtlasIndex = meta.AtlasIndex, UVTileSize = meta.UVTileSize,
+                        AnimationFrameCount = meta.AnimationFrameCount, FrameHeightTiles = meta.FrameHeightTiles
                     };
                     if (type != CellType.Unloaded && !meta.IsTextureReady) WorldTextureManager.Instance.RequestTexture(type);
                 }
@@ -319,14 +330,17 @@ namespace Fodinae.Assets.Scripts.World
                     int cx = x + 1, cy = y + 1; var data = _cellCache[cx, cy];
                     if (data.HasTileGroup) {
                         byte m = 0;
-                        if (_cellCache[cx-1,cy].HasTileGroup && _cellCache[cx-1,cy].TileGroupId == data.TileGroupId) m |= 1;
-                        if (_cellCache[cx-1,cy+1].HasTileGroup && _cellCache[cx-1,cy+1].TileGroupId == data.TileGroupId) m |= 2;
-                        if (_cellCache[cx,cy+1].HasTileGroup && _cellCache[cx,cy+1].TileGroupId == data.TileGroupId) m |= 4;
-                        if (_cellCache[cx+1,cy+1].HasTileGroup && _cellCache[cx+1,cy+1].TileGroupId == data.TileGroupId) m |= 8;
-                        if (_cellCache[cx+1,cy].HasTileGroup && _cellCache[cx+1,cy].TileGroupId == data.TileGroupId) m |= 16;
-                        if (_cellCache[cx+1,cy-1].HasTileGroup && _cellCache[cx+1,cy-1].TileGroupId == data.TileGroupId) m |= 32;
-                        if (_cellCache[cx,cy-1].HasTileGroup && _cellCache[cx,cy-1].TileGroupId == data.TileGroupId) m |= 64;
-                        if (_cellCache[cx-1,cy-1].HasTileGroup && _cellCache[cx-1,cy-1].TileGroupId == data.TileGroupId) m |= 128;
+                        // Neighbor bits (counter-clockwise from L): L(0), BL(1), B(2), BR(3), R(4), TR(5), T(6), TL(7)
+                        // Unity Y axis is Up (+1 for Top), Server Y axis is Down (+1 for Bottom)
+                        // Local cache Y index matches Unity Y: 0 (bottom-most), cacheWidth-1 (top-most)
+                        if (_cellCache[cx-1,cy].HasTileGroup && _cellCache[cx-1,cy].TileGroupId == data.TileGroupId) m |= (1 << 0); // L
+                        if (_cellCache[cx-1,cy-1].HasTileGroup && _cellCache[cx-1,cy-1].TileGroupId == data.TileGroupId) m |= (1 << 1); // BL
+                        if (_cellCache[cx,cy-1].HasTileGroup && _cellCache[cx,cy-1].TileGroupId == data.TileGroupId) m |= (1 << 2); // B
+                        if (_cellCache[cx+1,cy-1].HasTileGroup && _cellCache[cx+1,cy-1].TileGroupId == data.TileGroupId) m |= (1 << 3); // BR
+                        if (_cellCache[cx+1,cy].HasTileGroup && _cellCache[cx+1,cy].TileGroupId == data.TileGroupId) m |= (1 << 4); // R
+                        if (_cellCache[cx+1,cy+1].HasTileGroup && _cellCache[cx+1,cy+1].TileGroupId == data.TileGroupId) m |= (1 << 5); // TR
+                        if (_cellCache[cx,cy+1].HasTileGroup && _cellCache[cx,cy+1].TileGroupId == data.TileGroupId) m |= (1 << 6); // T
+                        if (_cellCache[cx-1,cy+1].HasTileGroup && _cellCache[cx-1,cy+1].TileGroupId == data.TileGroupId) m |= (1 << 7); // TL
                         _cellTilingDescriptors[x, y] = TileBitmaskConverter.GetDescriptor(m);
                     } else _cellTilingDescriptors[x, y] = 0;
                     byte rm = 0; bool isR = false;
@@ -366,7 +380,7 @@ namespace Fodinae.Assets.Scripts.World
 
             _mesh.SetVertices(_vertices); _mesh.SetUVs(0, _uvs); _mesh.SetColors(_colors);
             _mesh.SetUVs(1, _subAtlasRects); _mesh.SetUVs(2, _tileSizeUVs); _mesh.SetUVs(3, _worldPositions);
-            _mesh.SetUVs(4, _animationData); _mesh.SetUVs(5, _shadowReliefData); _mesh.SetUVs(6, _localUVs);
+            _mesh.SetUVs(4, _animationData); _mesh.SetUVs(5, _packedReliefShadowLocalUV);
 
             _mesh.subMeshCount = atlases.Count;
             for (int i = 0; i < atlases.Count; i++) {
@@ -424,7 +438,7 @@ namespace Fodinae.Assets.Scripts.World
             }
 
             Vector4 animDataVec = new Vector4((float)data.Animation, (float)data.AnimationSpeed, animOffset, useFallback ? 1f : 0f);
-            Vector4 tileSizeVec = new Vector4(data.UVTileSize, data.UVTileSize, 0, 0);
+            Vector4 tileSizeVec = new Vector4(data.UVTileSize, data.UVTileSize, (float)data.AnimationFrameCount, data.FrameHeightTiles);
             Vector4 worldPosVec = new Vector4(gridX, serverY, descriptor & 0x1F, isTiling);
 
             bool isRelief = (cellType == _cellCache[cx, cy].Type) && _cellIsRelief[x, y];
@@ -434,8 +448,10 @@ namespace Fodinae.Assets.Scripts.World
             for (int i = 0; i < 4; i++) {
                 _colors[vIdx+i] = color; _subAtlasRects[vIdx+i] = data.AtlasRect;
                 _tileSizeUVs[vIdx+i] = tileSizeVec; _worldPositions[vIdx+i] = worldPosVec;
-                _animationData[vIdx+i] = animDataVec; _localUVs[vIdx+i] = _localUVsBuffer[i];
-                _shadowReliefData[vIdx+i] = new Vector2(textureType, isRelief ? reliefMask : _gridShadowValues[x + (i==1||i==2?1:0), y + (i==2||i==3?1:0)]);
+                _animationData[vIdx+i] = animDataVec;
+
+                float shadowVal = _gridShadowValues[x + (i==1||i==2?1:0), y + (i==2||i==3?1:0)];
+                _packedReliefShadowLocalUV[vIdx+i] = new Vector4(textureType, isRelief ? reliefMask : shadowVal, _localUVsBuffer[i].x, _localUVsBuffer[i].y);
             }
 
             _subMeshIndices[atlasIndex].Add(vIdx + 0); _subMeshIndices[atlasIndex].Add(vIdx + 3); _subMeshIndices[atlasIndex].Add(vIdx + 2);
@@ -452,7 +468,10 @@ namespace Fodinae.Assets.Scripts.World
             var meta = GetMetadata(type, atlases);
             _fallbackCacheEntry = new CachedCellData {
                 Type = type, Properties = meta.Properties, ReliefGroup = meta.ReliefGroup, Distortion = meta.Distortion,
-                MinimapColor = meta.MinimapColor, AtlasRect = meta.AtlasRect, AtlasIndex = meta.AtlasIndex, UVTileSize = meta.UVTileSize
+                HasTileGroup = meta.HasTileGroup, TileGroupId = meta.TileGroupId, MinimapColor = meta.MinimapColor,
+                Animation = meta.Animation, AnimationSpeed = meta.AnimationSpeed, AtlasRect = meta.AtlasRect,
+                AtlasIndex = meta.AtlasIndex, UVTileSize = meta.UVTileSize,
+                AnimationFrameCount = meta.AnimationFrameCount, FrameHeightTiles = meta.FrameHeightTiles
             };
             return ref _fallbackCacheEntry;
         }
