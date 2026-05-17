@@ -126,8 +126,6 @@ namespace Fodinae.Assets.Scripts.World
             _mesh.indexFormat = IndexFormat.UInt32;
             _meshFilter.mesh = _mesh;
 
-            InitializeShader();
-
             _meshRenderer.enabled = true;
             _meshRenderer.sortingLayerName = _sortingLayerName;
             _meshRenderer.sortingOrder = _sortingOrder;
@@ -437,7 +435,7 @@ namespace Fodinae.Assets.Scripts.World
                 animOffset = (seed % 6283) / 1000f;
             }
 
-            Vector4 animDataVec = new Vector4((float)data.Animation, (float)data.AnimationSpeed, animOffset, useFallback ? 1f : 0f);
+            Vector4 animDataVec = new Vector4((float)data.Animation, (float)data.AnimationSpeed, animOffset, 0f);
             Vector4 tileSizeVec = new Vector4(data.UVTileSize, data.UVTileSize, (float)data.AnimationFrameCount, data.FrameHeightTiles);
             Vector4 worldPosVec = new Vector4(gridX, serverY, descriptor & 0x1F, isTiling);
 

@@ -138,12 +138,6 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                     return input.color;
                 }
 
-                if (input.animData.w > 0.5)
-                {
-                    if (input.color.a < 0.05) discard;
-                    return input.color;
-                }
-
                 if (_DebugMode > 0.5)
                 {
                     return half4(_DebugColor.rgb, 1.0);
@@ -217,19 +211,20 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 if (textureType > 0.5)
                 {
                     float val = 15.0 - reliefMaskVal;
-                    float3 bits = frac(val * float3(0.25, 0.125, 0.0625));
-                    bool3 isCliff = bits >= 0.5;
+                    float4 bits = frac(val * float4(0.5, 0.25, 0.125, 0.0625));
+                    bool4 isCliff = bits >= 0.5;
 
                     float u = input.packedData.z;
                     float v = input.packedData.w;
                     float uvMinus = u - v;
                     float uvPlus = u + v;
 
-                    bool isLeft = (uvPlus < 0.0) && (uvMinus < 0.0);
+                    bool isTop    = (uvPlus > 0.0) && (uvMinus < 0.0);
+                    bool isLeft   = (uvPlus < 0.0) && (uvMinus < 0.0);
                     bool isBottom = (uvMinus > 0.0) && (uvPlus < 0.0);
-                    bool isRight = (uvPlus > 0.0) && (uvMinus > 0.0);
+                    bool isRight  = (uvPlus > 0.0) && (uvMinus > 0.0);
 
-                    bool activeCliff = (isLeft && isCliff.x) || (isBottom && isCliff.y) || (isRight && isCliff.z);
+                    bool activeCliff = (isTop && isCliff.x) || (isLeft && isCliff.y) || (isBottom && isCliff.z) || (isRight && isCliff.w);
 
                     if (activeCliff)
                     {
@@ -240,7 +235,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 }
                 else // Shadow (Type 0)
                 {
-                    float shadowVal = input.shadowRelief.y;
+                    float shadowVal = input.packedData.y;
                     finalRgb *= (1.0 - shadowVal * shadowVal); // Quadratic falloff
                 }
 
@@ -402,12 +397,6 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                     return input.color;
                 }
 
-                if (input.animData.w > 0.5)
-                {
-                    if (input.color.a < 0.05) discard;
-                    return input.color;
-                }
-
                 if (_DebugMode > 0.5)
                 {
                     return half4(_DebugColor.rgb, 1.0);
@@ -481,19 +470,20 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 if (textureType > 0.5)
                 {
                     float val = 15.0 - reliefMaskVal;
-                    float3 bits = frac(val * float3(0.25, 0.125, 0.0625));
-                    bool3 isCliff = bits >= 0.5;
+                    float4 bits = frac(val * float4(0.5, 0.25, 0.125, 0.0625));
+                    bool4 isCliff = bits >= 0.5;
 
                     float u = input.packedData.z;
                     float v = input.packedData.w;
                     float uvMinus = u - v;
                     float uvPlus = u + v;
 
-                    bool isLeft = (uvPlus < 0.0) && (uvMinus < 0.0);
+                    bool isTop    = (uvPlus > 0.0) && (uvMinus < 0.0);
+                    bool isLeft   = (uvPlus < 0.0) && (uvMinus < 0.0);
                     bool isBottom = (uvMinus > 0.0) && (uvPlus < 0.0);
-                    bool isRight = (uvPlus > 0.0) && (uvMinus > 0.0);
+                    bool isRight  = (uvPlus > 0.0) && (uvMinus > 0.0);
 
-                    bool activeCliff = (isLeft && isCliff.x) || (isBottom && isCliff.y) || (isRight && isCliff.z);
+                    bool activeCliff = (isTop && isCliff.x) || (isLeft && isCliff.y) || (isBottom && isCliff.z) || (isRight && isCliff.w);
 
                     if (activeCliff)
                     {
@@ -504,7 +494,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 }
                 else // Shadow (Type 0)
                 {
-                    float shadowVal = input.shadowRelief.y;
+                    float shadowVal = input.packedData.y;
                     finalRgb *= (1.0 - shadowVal * shadowVal); // Quadratic falloff
                 }
 
@@ -532,7 +522,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
                     float factor = waveCubed * lumMask * chroma;
 
-                    finalRgb = (finalRgb * (1.0 - factor)) + (factor * _ShimmerColor.rgb);
+                    finalRgb = lerp(finalRgb, _ShimmerColor.rgb, factor);
                 }
                 else if (animType == 3) // Rainbow
                 {
