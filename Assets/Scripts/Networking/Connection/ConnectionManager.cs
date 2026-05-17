@@ -1,14 +1,15 @@
 
+using System;
+using System.Net;
 using Cysharp.Threading.Tasks;
 using MinesServer.Networking.Client;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.Connection;
+using MinesServer.Networking.Client.Packets.GUI;
 using MinesServer.Networking.Connection;
 using MinesServer.Networking.Connection.Client;
 using MinesServer.Networking.Server.Packets;
 using MinesServer.Networking.Shared;
-using System;
-using System.Net;
 using UnityEngine;
 
 namespace Fodinae.Assets.Scripts.Networking.Connection
@@ -66,6 +67,8 @@ namespace Fodinae.Assets.Scripts.Networking.Connection
         {
             // Send ClientHelloPacket
             NetworkService.Instance.Send(new ClientHelloPacket(0, "Windows", 10, "fingerprint", "token"));
+
+            NetworkService.Instance.Send(new OpenHelpClickPacket());
         }
 
         private void OnReceived(ServerPacket obj)

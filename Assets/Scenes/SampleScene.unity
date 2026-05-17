@@ -329,11 +329,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Assets.Scripts.World.SingleMeshTerrainRenderer
   _cellSize: 1
-  _bufferCells: 2
   _terrainShader: {fileID: 4800000, guid: 943286b1ceedb6e49881652498d6ec13, type: 3}
   _shimmerHighlightColor: {r: 0, g: 0, b: 0, a: 1}
   _sortingLayerName: Default
   _sortingOrder: -1000
+  _buildFullMeshOnce: 1
 --- !u!23 &217259660
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -427,7 +427,6 @@ GameObject:
   m_Component:
   - component: {fileID: 439439807}
   - component: {fileID: 439439806}
-  - component: {fileID: 439439805}
   - component: {fileID: 439439803}
   m_Layer: 5
   m_Name: UIDocument
@@ -436,18 +435,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &439439805
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 439439804}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 627b619d887494b4687dd09fa5e569ef, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UIMocker
 --- !u!114 &439439806
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -460,7 +447,7 @@ MonoBehaviour:
   m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
-  m_PanelSettings: {fileID: 11400000, guid: c8f3817da17008d4cbea8ae22c789177, type: 2}
+  m_PanelSettings: {fileID: 11400000, guid: 148e3f3d5f87df248b9f080b890c19b3, type: 2}
   m_ParentUI: {fileID: 0}
   sourceAsset: {fileID: 0}
   m_SortingOrder: 0
@@ -891,8 +878,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1068468522}
-  - component: {fileID: 1068468521}
-  - component: {fileID: 1068468523}
   m_Layer: 0
   m_Name: AutoMapManager
   m_TagString: Untagged
@@ -900,18 +885,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1068468521
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1068468520}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: adc2a4c416fea7b4ca6994a4c48cb445, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Assets.Scripts.World.AutoMapManager
 --- !u!4 &1068468522
 Transform:
   m_ObjectHideFlags: 0
@@ -927,18 +900,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1068468523
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1068468520}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4e847a10fe8c2004db7c94e75f241e4a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Assets.Scripts.World.TerrainFixTester
 --- !u!1 &1792288503
 GameObject:
   m_ObjectHideFlags: 0
