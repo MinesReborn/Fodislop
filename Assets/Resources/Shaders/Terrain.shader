@@ -132,6 +132,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
             half4 frag (Varyings input) : SV_Target
             {
+                if (input.worldPos.w > 1.5) discard;
                 if (input.subAtlasRect.z < 0.0001)
                 {
                     if (input.color.a < 0.05) discard;
@@ -170,7 +171,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
                 float2 gPos = floor(input.worldPos.xy + 0.001);
                 float2 wrapped;
-                bool isTiling = input.worldPos.w > 0.5;
+                bool isTiling = fmod(input.worldPos.w, 2.0) > 0.5;
 
                 const float EPS = 0.0001;
                 float variantY = fmod(abs(gPos.y), tilesCount.y);
@@ -391,6 +392,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
             half4 frag (Varyings input) : SV_Target
             {
+                if (input.worldPos.w > 1.5) discard;
                 if (input.subAtlasRect.z < 0.0001)
                 {
                     if (input.color.a < 0.05) discard;
@@ -429,7 +431,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
                 float2 gPos = floor(input.worldPos.xy + 0.001);
                 float2 wrapped;
-                bool isTiling = input.worldPos.w > 0.5;
+                bool isTiling = fmod(input.worldPos.w, 2.0) > 0.5;
 
                 const float EPS = 0.0001;
                 float variantY = fmod(abs(gPos.y), tilesCount.y);

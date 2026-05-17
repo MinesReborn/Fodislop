@@ -435,7 +435,11 @@ namespace Fodinae.Assets.Scripts.World
             _uvs[vIdx+0] = new Vector2(0, 0); _uvs[vIdx+1] = new Vector2(1, 0); _uvs[vIdx+2] = new Vector2(1, 1); _uvs[vIdx+3] = new Vector2(0, 1);
 
             int descriptor = (cellType == _cellCache[cx, cy].Type) ? _cellTilingDescriptors[x, y] : 0;
-            float isTiling = data.HasTileGroup ? 1f : 0f;
+            int worldWidth = MapManager.Instance.WorldWidth;
+            int worldHeight = MapManager.Instance.WorldHeight;
+            bool isOffWorld = gridX < 0 || gridX >= worldWidth || unityY < 0 || unityY >= worldHeight;
+            float packedW = (data.HasTileGroup ? 1f : 0f) + (isOffWorld ? 2f : 0f);
+
             if (data.HasTileGroup && descriptor != 0) {
                 if ((descriptor & 0x40) != 0) { (_uvs[vIdx+0].x, _uvs[vIdx+1].x) = (_uvs[vIdx+1].x, _uvs[vIdx+0].x); (_uvs[vIdx+3].x, _uvs[vIdx+2].x) = (_uvs[vIdx+2].x, _uvs[vIdx+3].x); }
                 if ((descriptor & 0x20) != 0) { (_uvs[vIdx+0].y, _uvs[vIdx+3].y) = (_uvs[vIdx+3].y, _uvs[vIdx+0].y); (_uvs[vIdx+1].y, _uvs[vIdx+2].y) = (_uvs[vIdx+2].y, _uvs[vIdx+1].y); }
@@ -453,7 +457,7 @@ namespace Fodinae.Assets.Scripts.World
 
             Vector4 animDataVec = new Vector4((float)data.Animation, (float)data.AnimationSpeed, animOffset, 0f);
             Vector4 tileSizeVec = new Vector4(data.UVTileSize, data.UVTileSize, (float)data.AnimationFrameCount, data.FrameHeightTiles);
-            Vector4 worldPosVec = new Vector4(gridX, serverY, descriptor & 0x1F, isTiling);
+            Vector4 worldPosVec = new Vector4(gridX, serverY, descriptor & 0x1F, packedW);
 
             bool isRelief = (cellType == _cellCache[cx, cy].Type) && _cellIsRelief[x, y];
             byte reliefMask = (cellType == _cellCache[cx, cy].Type) ? _cellReliefMasks[x, y] : (byte)0;
