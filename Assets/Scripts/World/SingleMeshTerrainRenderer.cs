@@ -10,6 +10,7 @@ using MinesServer.Networking.Server.Packets.Connection;
 namespace Fodinae.Assets.Scripts.World
 {
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
+    [DefaultExecutionOrder(100)]
     public class SingleMeshTerrainRenderer : MonoBehaviour
     {
         [Header("Configuration")]
@@ -158,18 +159,7 @@ namespace Fodinae.Assets.Scripts.World
             CleanupMaterials();
         }
 
-        private void OnTextureLoaded(string filename, Texture2D texture)
-        {
-            _metadataCache.Clear();
-            _needsRefresh = true;
-        }
-
-        private void OnWorldDataLoaded()
-        {
-            _needsRefresh = true;
-        }
-
-        private void OnTextureLoaded(string filename, Texture2D texture)
+        private void InitializeShader()
         {
             if (_terrainShader == null)
             {
@@ -179,20 +169,37 @@ namespace Fodinae.Assets.Scripts.World
             }
         }
 
-        private void Update()
+        private void OnTextureLoaded(string filename, Texture2D texture)
+        {
+            InitializeShader();
+            _metadataCache.Clear();
+            _needsRefresh = true;
+        }
+
+        private void OnWorldDataLoaded()
+        {
+            _needsRefresh = true;
+        }
+
+        private void LateUpdate()
         {
             if (MapManager.Instance == null || MapStorage.Instance == null || !MapStorage.Instance.IsReady) return;
             if (_mainCamera == null) _mainCamera = Camera.main;
             if (_mainCamera == null) return;
 
-            bool viewportChanged = Mathf.Abs(_mainCamera.orthographicSize - _lastOrthoSize) > 0.01f ||
-                                 Mathf.Abs(_mainCamera.aspect - _lastAspect) > 0.01f;
+            int targetWidth = Mathf.CeilToInt((_mainCamera.orthographicSize * 2 * _mainCamera.aspect) / _cellSize) + _viewportPadding * 2;
+            int targetHeight = Mathf.CeilToInt((_mainCamera.orthographicSize * 2) / _cellSize) + _viewportPadding * 2;
 
-            if (viewportChanged || !_isInitialized)
+            // Force even dimensions to stabilize centering logic
+            if (targetWidth % 2 != 0) targetWidth++;
+            if (targetHeight % 2 != 0) targetHeight++;
+
+            bool dimensionsChanged = targetWidth != _meshWidth || targetHeight != _meshHeight;
+
+            if (dimensionsChanged || !_isInitialized)
             {
-                _meshWidth = Mathf.CeilToInt((_mainCamera.orthographicSize * 2 * _mainCamera.aspect) / _cellSize) + _viewportPadding * 2;
-                _meshHeight = Mathf.CeilToInt((_mainCamera.orthographicSize * 2) / _cellSize) + _viewportPadding * 2;
-
+                _meshWidth = targetWidth;
+                _meshHeight = targetHeight;
                 _lastOrthoSize = _mainCamera.orthographicSize;
                 _lastAspect = _mainCamera.aspect;
                 _isInitialized = true;
@@ -208,7 +215,7 @@ namespace Fodinae.Assets.Scripts.World
                 Mathf.FloorToInt(camPos.y / _cellSize) - _meshHeight / 2
             );
 
-            if (currentGridPos != _lastGridPos || _needsRefresh)
+            if (currentGridPos != _lastGridPos || _needsRefresh || dimensionsChanged)
             {
                 UpdateVertexAttributes(currentGridPos.x, currentGridPos.y);
                 transform.position = new Vector3(currentGridPos.x * _cellSize, currentGridPos.y * _cellSize, 0);
@@ -360,7 +367,9 @@ namespace Fodinae.Assets.Scripts.World
         private void UpdateVertexAttributes(int minX, int minY)
         {
             var atlases = WorldTextureManager.Instance.GetAllAtlases();
-            if (atlases.Count == 0) return;
+            if (atlases.Count == 0) { _mesh.Clear(); return; }
+
+            _mesh.Clear();
 
             bool materialsChanged = false;
             if (_subMeshIndices.Length != atlases.Count) {
@@ -398,6 +407,7 @@ namespace Fodinae.Assets.Scripts.World
                 _mesh.SetIndices(_subMeshIndices[i], MeshTopology.Triangles, i, false, 0);
             }
 
+            _mesh.bounds = new Bounds(new Vector3(_meshWidth * _cellSize * 0.5f, _meshHeight * _cellSize * 0.5f, 0), new Vector3(_meshWidth * _cellSize, _meshHeight * _cellSize, 10));
             _mesh.UploadMeshData(false);
             if (materialsChanged) _meshRenderer.sharedMaterials = _materials;
         }
