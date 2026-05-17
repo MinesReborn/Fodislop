@@ -215,7 +215,7 @@ namespace Fodinae.Assets.Scripts.World
                 Mathf.FloorToInt(camPos.y / _cellSize) - _meshHeight / 2
             );
 
-            if (currentGridPos != _lastGridPos || _needsRefresh)
+            if (currentGridPos != _lastGridPos || _needsRefresh || dimensionsChanged)
             {
                 UpdateVertexAttributes(currentGridPos.x, currentGridPos.y);
                 transform.position = new Vector3(currentGridPos.x * _cellSize, currentGridPos.y * _cellSize, 0);
@@ -367,7 +367,9 @@ namespace Fodinae.Assets.Scripts.World
         private void UpdateVertexAttributes(int minX, int minY)
         {
             var atlases = WorldTextureManager.Instance.GetAllAtlases();
-            if (atlases.Count == 0) return;
+            if (atlases.Count == 0) { _mesh.Clear(); return; }
+
+            _mesh.Clear();
 
             bool materialsChanged = false;
             if (_subMeshIndices.Length != atlases.Count) {
@@ -405,6 +407,7 @@ namespace Fodinae.Assets.Scripts.World
                 _mesh.SetIndices(_subMeshIndices[i], MeshTopology.Triangles, i, false, 0);
             }
 
+            _mesh.bounds = new Bounds(new Vector3(_meshWidth * _cellSize * 0.5f, _meshHeight * _cellSize * 0.5f, 0), new Vector3(_meshWidth * _cellSize, _meshHeight * _cellSize, 10));
             _mesh.UploadMeshData(false);
             if (materialsChanged) _meshRenderer.sharedMaterials = _materials;
         }
