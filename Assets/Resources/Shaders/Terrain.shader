@@ -137,7 +137,8 @@ Shader "Universal Render Pipeline/Custom/Terrain"
             {
                 if (input.subAtlasRect.z < 0.0001)
                 {
-                    return half4(0, 0, 0, 0);
+                    if (input.color.a < 0.05) discard;
+                    return input.color;
                 }
 
                 if (input.animData.w > 0.5)
@@ -403,7 +404,8 @@ Shader "Universal Render Pipeline/Custom/Terrain"
             {
                 if (input.subAtlasRect.z < 0.0001)
                 {
-                    return half4(0, 0, 0, 0);
+                    if (input.color.a < 0.05) discard;
+                    return input.color;
                 }
 
                 if (input.animData.w > 0.5)
