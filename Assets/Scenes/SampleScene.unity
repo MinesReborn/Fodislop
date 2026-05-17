@@ -329,11 +329,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Assets.Scripts.World.SingleMeshTerrainRenderer
   _cellSize: 1
-  _bufferCells: 2
   _terrainShader: {fileID: 4800000, guid: 943286b1ceedb6e49881652498d6ec13, type: 3}
   _shimmerHighlightColor: {r: 0, g: 0, b: 0, a: 1}
   _sortingLayerName: Default
   _sortingOrder: -1000
+  _buildFullMeshOnce: 1
 --- !u!23 &217259660
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -448,7 +448,7 @@ MonoBehaviour:
   m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
-  m_PanelSettings: {fileID: 11400000, guid: c8f3817da17008d4cbea8ae22c789177, type: 2}
+  m_PanelSettings: {fileID: 11400000, guid: 148e3f3d5f87df248b9f080b890c19b3, type: 2}
   m_ParentUI: {fileID: 0}
   sourceAsset: {fileID: 0}
   m_SortingOrder: 0

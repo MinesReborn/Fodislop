@@ -1,4 +1,4 @@
-﻿using Fodinae.Assets.Scripts.Game.Managers;
+using Fodinae.Assets.Scripts.Game.Managers;
 using Fodinae.Assets.Scripts.Networking;
 using Fodinae.Assets.Scripts.Networking.Connection;
 using MinesServer.Networking.Client;
@@ -166,6 +166,6 @@ public class MainMenu : MonoBehaviour
         {
             ConnectionManager.Instance.Connect();
         }
-        NetworkService.Instance.Send(new OpenHelpClickPacket());
+        //NetworkService.Instance.Send(new OpenHelpClickPacket());
     }
 }
