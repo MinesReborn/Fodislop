@@ -157,7 +157,10 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float2 tileSizeUV = input.tileSizeUV.xy;
 
                 if (subAtlasSizeUV.x <= 0 || tileSizeUV.x <= 0)
-                    return half4(1, 0, 1, 1);
+                {
+                    if (input.color.a < 0.05) discard;
+                    return input.color;
+                }
 
                 // Use ceil to handle partial variations (e.g. 10.5 tiles -> 11 variations)
                 // Subtracting a small epsilon to avoid rounding up exact integers due to precision
@@ -424,7 +427,10 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float2 tileSizeUV = input.tileSizeUV.xy;
 
                 if (subAtlasSizeUV.x <= 0 || tileSizeUV.x <= 0)
-                    return half4(1, 0, 1, 1);
+                {
+                    if (input.color.a < 0.05) discard;
+                    return input.color;
+                }
 
                 // Use ceil to handle partial variations
                 float2 tilesCount = ceil(subAtlasSizeUV / tileSizeUV - 0.0001);

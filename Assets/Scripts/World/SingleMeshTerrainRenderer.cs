@@ -221,7 +221,7 @@ namespace Fodinae.Assets.Scripts.World
                 HasTileGroup = MapManager.Instance.TryGetTileGroup(type, out int gid), TileGroupId = gid,
                 MinimapColor = MapManager.Instance.GetCellMinimapColor(type), Animation = config.Animation,
                 AnimationSpeed = config.AnimationSpeed, AtlasRect = atlasRect, AtlasIndex = atlasIndex,
-                UVTileSize = atlases.Count > atlasIndex ? RenderingConstants.CELL_SIZE / atlases[atlasIndex].Size : 0,
+                UVTileSize = atlases.Count > atlasIndex ? (float)RenderingConstants.CELL_SIZE / atlases[atlasIndex].Size : 0,
                 IsTextureReady = atlasRect.z > 0.0001f
             };
             _metadataCache[type] = meta;
