@@ -301,7 +301,7 @@ namespace Fodinae.Assets.Scripts.World
             for (int y = 0; y < gh; y++) {
                 for (int x = 0; x < gw; x++) {
                     int cx = x + 1, cy = y + 1;
-                    var tl = _cellCache[cx-1, cy], tr = _cellCache[cx, cy], bl = _cellCache[cx-1, cy-1], br = _cellCache[cx, cy-1];
+                    CachedCellData tl = _cellCache[cx-1, cy], tr = _cellCache[cx, cy], bl = _cellCache[cx-1, cy-1], br = _cellCache[cx, cy-1];
                     if (tl.Distortion == CellDistortionType.Block || tr.Distortion == CellDistortionType.Block || bl.Distortion == CellDistortionType.Block || br.Distortion == CellDistortionType.Block) _gridVertexOffsets[x, y] = Vector3.zero;
                     else {
                         int xSign = 0, ySign = 0;
