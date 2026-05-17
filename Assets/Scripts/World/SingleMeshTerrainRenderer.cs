@@ -25,8 +25,8 @@ namespace Fodinae.Assets.Scripts.World
         private Mesh _mesh;
         private Material _material;
 
-        private Texture2D _worldMapTex;
-        private Color32[] _worldMapData;
+        private Texture2D _viewportDataTex;
+        private Color32[] _viewportData;
         private Texture2D _cellConfigTex;
         private Texture2DArray _atlasesTexArray;
         private HashSet<CellType> _dirtyCellConfigs = new();
@@ -37,6 +37,8 @@ namespace Fodinae.Assets.Scripts.World
         private float _lastOrthoSize = -1f;
         private float _lastAspect = -1f;
         private Vector2Int _lastSnapPos = new Vector2Int(int.MinValue, int.MinValue);
+        private Vector2Int _lastWindowAnchor = new Vector2Int(int.MinValue, int.MinValue);
+        private const int WINDOW_SIZE = 128;
 
         private Camera _mainCamera;
 
@@ -103,7 +105,6 @@ namespace Fodinae.Assets.Scripts.World
         private void OnWorldDataLoaded()
         {
             UpdateCellConfigTexture();
-            UpdateWorldMapTexture();
             UpdateAtlasesTextureArray();
 
             if (_material != null)
@@ -157,6 +158,14 @@ namespace Fodinae.Assets.Scripts.World
 
             transform.position = new Vector3(camPos.x, camPos.y, 0);
 
+            // Maintain window centered on snapPos
+            Vector2Int windowAnchor = snapPos - new Vector2Int(WINDOW_SIZE / 2, WINDOW_SIZE / 2);
+            if (windowAnchor != _lastWindowAnchor)
+            {
+                _lastWindowAnchor = windowAnchor;
+                UpdateViewportData(windowAnchor);
+            }
+
             if (snapPos != _lastSnapPos)
             {
                 _lastSnapPos = snapPos;
@@ -166,6 +175,7 @@ namespace Fodinae.Assets.Scripts.World
             if (_material != null)
             {
                 _material.SetVector("_WorldParams", new Vector4(camPos.x, camPos.y, MapManager.Instance.WorldWidth, MapManager.Instance.WorldHeight));
+                _material.SetVector("_WindowParams", new Vector4(windowAnchor.x, windowAnchor.y, WINDOW_SIZE, WINDOW_SIZE));
             }
         }
 
@@ -185,25 +195,21 @@ namespace Fodinae.Assets.Scripts.World
 
         private void RequestVisibleTextures(Vector2Int snapPos)
         {
-            if (!MapStorage.Instance.IsReady || _worldMapData == null) return;
+            if (!MapStorage.Instance.IsReady || _viewportData == null) return;
 
             int halfW = _currentVpWidth / 2;
             int halfH = _currentVpHeight / 2;
-
-            int worldW = MapManager.Instance.WorldWidth;
-            int worldH = MapManager.Instance.WorldHeight;
 
             for (int y = snapPos.y - halfH; y <= snapPos.y + halfH; y++)
             {
                 for (int x = snapPos.x - halfW; x <= snapPos.x + halfW; x++)
                 {
-                    int worldX = (x % worldW + worldW) % worldW;
-                    int worldY = (y % worldH + worldH) % worldH;
+                    int localX = x - _lastWindowAnchor.x;
+                    int localY = y - _lastWindowAnchor.y;
 
-                    int index = worldY * worldW + worldX;
-                    if (index >= 0 && index < _worldMapData.Length)
+                    if (localX >= 0 && localX < WINDOW_SIZE && localY >= 0 && localY < WINDOW_SIZE)
                     {
-                        Color32 data = _worldMapData[index];
+                        Color32 data = _viewportData[localY * WINDOW_SIZE + localX];
                         WorldTextureManager.Instance.RequestTexture((CellType)data.r); // Foreground
                         WorldTextureManager.Instance.RequestTexture((CellType)data.a); // Background
                     }
@@ -328,13 +334,19 @@ namespace Fodinae.Assets.Scripts.World
 
             Queue<(int x, int y)> queue = new();
 
+            int worldW = MapManager.Instance.WorldWidth;
+            int worldH = MapManager.Instance.WorldHeight;
+
             // Pass 1: Set passable cells as their own background
             for (int y = minY; y <= maxY; y++)
             {
                 for (int x = minX; x <= maxX; x++)
                 {
-                    int serverY = MapManager.Instance.WorldHeight - 1 - y;
-                    CellType cellType = MapStorage.Instance.GetCell(x, serverY);
+                    int worldX = (x % worldW + worldW) % worldW;
+                    int worldY = (y % worldH + worldH) % worldH;
+                    int serverY = worldH - 1 - worldY;
+
+                    CellType cellType = MapStorage.Instance.GetCell(worldX, serverY);
                     if (IsPassable(cellType))
                     {
                         bgMap[x - minX, y - minY] = cellType;
@@ -361,10 +373,14 @@ namespace Fodinae.Assets.Scripts.World
                             if (dx == 0 && dy == 0) continue;
                             int nx = x + dx;
                             int ny = y + dy;
+                            // Check local window bounds
                             if (nx < minX || nx > maxX || ny < minY || ny > maxY) continue;
 
-                            int nServerY = MapManager.Instance.WorldHeight - 1 - ny;
-                            CellType nType = MapStorage.Instance.GetCell(nx, nServerY);
+                            int worldNX = (nx % worldW + worldW) % worldW;
+                            int worldNY = (ny % worldH + worldH) % worldH;
+                            int nServerY = worldH - 1 - worldNY;
+
+                            CellType nType = MapStorage.Instance.GetCell(worldNX, nServerY);
                             if (IsPassable(nType))
                             {
                                 bool found = false;
@@ -477,9 +493,11 @@ namespace Fodinae.Assets.Scripts.World
 
         private CellType GetCellSafe(int x, int serverY)
         {
-            if (x < 0 || x >= MapManager.Instance.WorldWidth || serverY < 0 || serverY >= MapManager.Instance.WorldHeight)
-                return CellType.Unloaded;
-            return MapStorage.Instance.GetCell(x, serverY);
+            int w = MapManager.Instance.WorldWidth;
+            int h = MapManager.Instance.WorldHeight;
+            int wrappedX = (x % w + w) % w;
+            int wrappedY = (serverY % h + h) % h;
+            return MapStorage.Instance.GetCell(wrappedX, wrappedY);
         }
 
         private byte GetReliefMask(int x, int serverY, byte currentRelief, out bool isRelief)
@@ -562,51 +580,51 @@ namespace Fodinae.Assets.Scripts.World
             return MapManager.Instance.GetCellConfig(type).Distortion;
         }
 
-        private void UpdateWorldMapTexture()
+        private void UpdateViewportData(Vector2Int anchor)
         {
-            int w = MapManager.Instance.WorldWidth;
-            int h = MapManager.Instance.WorldHeight;
+            if (!MapStorage.Instance.IsReady) return;
 
-            if (_worldMapTex == null || _worldMapTex.width != w || _worldMapTex.height != h)
+            if (_viewportDataTex == null)
             {
-                if (_worldMapTex != null) Destroy(_worldMapTex);
-                _worldMapTex = new Texture2D(w, h, TextureFormat.RGBA32, false);
-                _worldMapTex.filterMode = FilterMode.Point;
-                _worldMapTex.wrapMode = TextureWrapMode.Repeat;
+                _viewportDataTex = new Texture2D(WINDOW_SIZE, WINDOW_SIZE, TextureFormat.RGBA32, false);
+                _viewportDataTex.filterMode = FilterMode.Point;
+                _viewportDataTex.wrapMode = TextureWrapMode.Clamp;
+                _viewportData = new Color32[WINDOW_SIZE * WINDOW_SIZE];
             }
 
-            Color32[] pixels = new Color32[w * h];
-            ComputeBackgroundMap(0, 0, w - 1, h - 1, out var bgMap);
+            ComputeBackgroundMap(anchor.x, anchor.y, anchor.x + WINDOW_SIZE - 1, anchor.y + WINDOW_SIZE - 1, out var bgMap);
 
-            for (int y = 0; y < h; y++)
+            for (int y = 0; y < WINDOW_SIZE; y++)
             {
-                for (int x = 0; x < w; x++)
+                for (int x = 0; x < WINDOW_SIZE; x++)
                 {
-                    int serverY = h - 1 - y;
-                    CellType cell = MapStorage.Instance.GetCell(x, serverY);
+                    int worldX = ((anchor.x + x) % MapManager.Instance.WorldWidth + MapManager.Instance.WorldWidth) % MapManager.Instance.WorldWidth;
+                    int worldY = ((anchor.y + y) % MapManager.Instance.WorldHeight + MapManager.Instance.WorldHeight) % MapManager.Instance.WorldHeight;
+                    int serverY = MapManager.Instance.WorldHeight - 1 - worldY;
+
+                    CellType cell = MapStorage.Instance.GetCell(worldX, serverY);
                     CellType bg = bgMap[x, y];
 
                     byte g = 0;
                     if (MapManager.Instance.TryGetTileGroup(cell, out int groupId))
                     {
-                        byte mask = GetNeighborMask(x, serverY, groupId);
+                        byte mask = GetNeighborMask(worldX, serverY, groupId);
                         g = (byte)TileBitmaskConverter.GetDescriptor(mask);
                     }
 
                     byte reliefGroup = GetReliefGroup(cell);
                     bool isRelief;
-                    byte reliefMask = GetReliefMask(x, serverY, reliefGroup, out isRelief);
-                    float shadow = GetShadowValueForVertex(x, y);
+                    byte reliefMask = GetReliefMask(worldX, serverY, reliefGroup, out isRelief);
+                    float shadow = GetShadowValueForVertex(anchor.x + x, anchor.y + y);
 
                     byte b = (byte)((reliefMask & 0x0F) | ((byte)(shadow * 15f) << 4));
-                    pixels[y * w + x] = new Color32((byte)cell, g, b, (byte)bg);
+                    _viewportData[y * WINDOW_SIZE + x] = new Color32((byte)cell, g, b, (byte)bg);
                 }
             }
 
-            _worldMapData = pixels;
-            _worldMapTex.SetPixels32(pixels);
-            _worldMapTex.Apply();
-            _material.SetTexture("_WorldMapTex", _worldMapTex);
+            _viewportDataTex.SetPixels32(_viewportData);
+            _viewportDataTex.Apply();
+            _material.SetTexture("_ViewportDataTex", _viewportDataTex);
         }
 
         private void UpdateCellConfigTexture()
@@ -684,7 +702,7 @@ namespace Fodinae.Assets.Scripts.World
                 else DestroyImmediate(_mesh);
             }
             CleanupMaterials();
-            if (_worldMapTex != null) Destroy(_worldMapTex);
+            if (_viewportDataTex != null) Destroy(_viewportDataTex);
             if (_cellConfigTex != null) Destroy(_cellConfigTex);
             if (_atlasesTexArray != null) Destroy(_atlasesTexArray);
         }

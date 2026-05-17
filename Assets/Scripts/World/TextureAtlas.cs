@@ -48,6 +48,24 @@ namespace Fodinae.Assets.Scripts.World
             _freeRectangles.Add(new Rectangle(0, 0, size, size));
         }
 
+        public void Dispose()
+        {
+            lock (_lock)
+            {
+                _cells.Clear();
+                _usedRectangles.Clear();
+                _freeRectangles.Clear();
+                if (_atlasTexture != null)
+                {
+                    if (Application.isPlaying) UnityEngine.Object.Destroy(_atlasTexture);
+                    else UnityEngine.Object.DestroyImmediate(_atlasTexture);
+                    _atlasTexture = null;
+                }
+                _atlasPixels = null;
+                _isDirty = false;
+            }
+        }
+
         public void Clear()
         {
             lock (_lock)
@@ -61,8 +79,11 @@ namespace Fodinae.Assets.Scripts.World
                 {
                     _atlasPixels[i] = new Color32(0, 0, 0, 0);
                 }
-                _atlasTexture.SetPixels32(_atlasPixels);
-                _atlasTexture.Apply();
+                if (_atlasTexture != null)
+                {
+                    _atlasTexture.SetPixels32(_atlasPixels);
+                    _atlasTexture.Apply();
+                }
 
                 _isDirty = false;
             }

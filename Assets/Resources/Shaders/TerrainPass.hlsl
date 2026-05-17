@@ -18,16 +18,16 @@ struct Varyings
     float3 worldPos : TEXCOORD7;
 };
 
-TEXTURE2D(_WorldMapTex);
-SAMPLER(sampler_WorldMapTex);
+TEXTURE2D(_ViewportDataTex);
+SAMPLER(sampler_ViewportDataTex);
 TEXTURE2D(_CellConfigTex);
 SAMPLER(sampler_CellConfigTex);
 TEXTURE2D_ARRAY(_Atlases);
 SAMPLER(sampler_Atlases);
 
 CBUFFER_START(UnityPerMaterial)
-    float4 _WorldParams; // x: snapX, y: snapY, z: worldW, w: worldH
-    float4 _WorldOffset; // xy: camOffset
+    float4 _WorldParams; // x: camX, y: camY, z: worldW, w: worldH
+    float4 _WindowParams; // x: anchorX, y: anchorY, z: winW, w: winH
     float4 _FlowMapRect;
     float4 _ShimmerColor;
 CBUFFER_END
@@ -99,8 +99,6 @@ half4 SampleCell(float2 wPos, int cellId, float2 quadUV, float2 localUV, float t
 
     const float tileSizeUV = 32.0 / 4096.0;
     float2 subAtlasSizeUV = rect.zw;
-
-    // If not loaded, subAtlasSizeUV will be 0. Return transparent.
     if (subAtlasSizeUV.x < 0.0001) return half4(0, 0, 0, 0);
 
     float2 tilesCount = ceil(subAtlasSizeUV / tileSizeUV - 0.0001);
@@ -168,11 +166,11 @@ half4 SampleCell(float2 wPos, int cellId, float2 quadUV, float2 localUV, float t
 half4 frag(Varyings input) : SV_Target
 {
     float2 wPos = input.worldPos.xy;
-    wPos.x = fmod(fmod(wPos.x, _WorldParams.z) + _WorldParams.z, _WorldParams.z);
-    wPos.y = fmod(fmod(wPos.y, _WorldParams.w) + _WorldParams.w, _WorldParams.w);
+    // Window-relative coordinates
+    float2 localPos = wPos - _WindowParams.xy;
+    float2 dataUV = (floor(localPos) + 0.5) / _WindowParams.zw;
 
-    float2 mapUV = (floor(wPos) + 0.5) / _WorldParams.zw;
-    float4 mapData = _WorldMapTex.Sample(sampler_WorldMapTex, mapUV);
+    float4 mapData = _ViewportDataTex.Sample(sampler_ViewportDataTex, dataUV);
 
     int fgId = (int)(mapData.r * 255.0 + 0.5);
     int bgId = (int)(mapData.a * 255.0 + 0.5);

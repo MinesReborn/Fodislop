@@ -394,7 +394,7 @@ namespace Fodinae.Assets.Scripts.World
             _textureCache.Clear();
             foreach (var atlas in _atlases)
             {
-                atlas.Clear();
+                atlas.Dispose();
             }
             _atlases.Clear();
             _currentAtlas = new TextureAtlas(_initialAtlasSize, _cellTextureSize, _texturePadding);
