@@ -71,6 +71,10 @@ namespace MinesServer.Networking.Connection.Client
             var inventoryObj = new GameObject("InventoryRoot");
             inventoryObj.AddComponent<InventoryUI>();
 
+            var hudObj = new GameObject("PlayerHUD");
+            hudObj.AddComponent<PlayerStatsModel>();
+            hudObj.AddComponent<PlayerHUD>();
+
             CreateFPSCounter();
         }
 

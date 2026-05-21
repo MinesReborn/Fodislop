@@ -15,6 +15,7 @@ public class FPSCounter : MonoBehaviour
     private float _accumulatedTime;
 
     private Text _fpsText;
+    private int _pingMs;
 
     private void Awake()
     {
@@ -66,6 +67,8 @@ public class FPSCounter : MonoBehaviour
         }
         float avgDelta = _accumulatedTime / SampleSize;
         float fps = avgDelta > 0f ? 1f / avgDelta : 0f;
-        _fpsText.text = $"FPS: {fps:F1}";
+        _fpsText.text = $"FPS: {fps:F1}\nPing: {_pingMs}ms";
     }
+
+    public void SetPing(int ms) => _pingMs = ms;
 }

@@ -1,7 +1,9 @@
-using Fodinae.Assets.Scripts.Game.Managers;
+using System.Linq;
 using Fodinae.Assets.Scripts.Game;
+using Fodinae.Assets.Scripts.Game.Managers;
 using Fodinae.Assets.Scripts.Networking.Connection;
 using Fodinae.Assets.Scripts.Player;
+using Fodinae.Assets.Scripts.UI;
 using MinesServer.Networking.Server;
 using MinesServer.Networking.Server.Packets;
 using MinesServer.Networking.Server.Packets.Connection;
@@ -11,7 +13,6 @@ using MinesServer.Networking.Server.Packets.World;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UIElements;
-using System.Linq;
 
 namespace Fodinae.Assets.Scripts.Networking
 {
@@ -59,6 +60,12 @@ namespace Fodinae.Assets.Scripts.Networking
             ns.Subscribe<PackPacket>(HandlePackPacket);
             ns.Subscribe<RemovePackPacket>(HandleRemovePackPacket);
 
+            // Player stats
+            ns.Subscribe<LevelPacket>(HandleLevelPacket);
+            ns.Subscribe<HealthPacket>(HandleHealthPacket);
+            ns.Subscribe<CurrencyPacket>(HandleCurrencyPacket);
+            ns.Subscribe<GeologyPacket>(HandleGeologyPacket);
+
             MapManager.Instance.OnWorldInitialized += OnWorldInitialized;
             MapManager.Instance.OnWorldDataLoaded += OnWorldDataLoaded;
             
@@ -83,6 +90,11 @@ namespace Fodinae.Assets.Scripts.Networking
                 ns.Unsubscribe<MapRegionPacket>(HandleMapRegionPacket);
                 ns.Unsubscribe<PackPacket>(HandlePackPacket);
                 ns.Unsubscribe<RemovePackPacket>(HandleRemovePackPacket);
+
+                ns.Unsubscribe<LevelPacket>(HandleLevelPacket);
+                ns.Unsubscribe<HealthPacket>(HandleHealthPacket);
+                ns.Unsubscribe<CurrencyPacket>(HandleCurrencyPacket);
+                ns.Unsubscribe<GeologyPacket>(HandleGeologyPacket);
             }
 
             var mm = FindObjectOfType<MapManager>();
@@ -153,6 +165,7 @@ namespace Fodinae.Assets.Scripts.Networking
             _packetCount++;
             Debug.Log($"[PacketHandler] Handling PlayerInfoPacket for BotId: {packet.BotId}, PlayerId: {packet.PlayerId}, Name: {packet.Nickname}");
             RobotManager.Instance.LocalPlayerBotId = packet.BotId;
+            PlayerStatsModel.Instance.SetNickname(packet.Nickname);
 
             var playerObj = GameObject.FindGameObjectWithTag("Player");
             if (playerObj != null)
@@ -262,6 +275,30 @@ namespace Fodinae.Assets.Scripts.Networking
                 Debug.Log("[PacketHandler] Map data received in HBPacket, triggering OnWorldDataLoaded event");
                 MapManager.Instance.OnWorldDataLoaded?.Invoke();
             }
+        }
+
+        private void HandleLevelPacket(LevelPacket packet)
+        {
+            _packetCount++;
+            PlayerStatsModel.Instance.SetLevel(packet.Level);
+        }
+
+        private void HandleHealthPacket(HealthPacket packet)
+        {
+            _packetCount++;
+            PlayerStatsModel.Instance.SetHealth(packet.Current, packet.Max);
+        }
+
+        private void HandleCurrencyPacket(CurrencyPacket packet)
+        {
+            _packetCount++;
+            PlayerStatsModel.Instance.SetCurrency(packet.Money, packet.Creds);
+        }
+
+        private void HandleGeologyPacket(GeologyPacket packet)
+        {
+            _packetCount++;
+            PlayerStatsModel.Instance.SetGeology(packet.Current, packet.Max, packet.Cell, packet.Text);
         }
 
         private void OnWorldInitialized()

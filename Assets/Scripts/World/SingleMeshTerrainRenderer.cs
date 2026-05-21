@@ -301,10 +301,10 @@ namespace Fodinae.Assets.Scripts.World
             int minY = Mathf.FloorToInt((camPos.y - height / 2) / _cellSize) - _bufferCells;
             int maxY = Mathf.FloorToInt((camPos.y + height / 2) / _cellSize) + _bufferCells;
 
-            minX = Mathf.Max(0, minX);
-            maxX = Mathf.Min(MapManager.Instance.WorldWidth - 1, maxX);
-            minY = Mathf.Max(0, minY);
-            maxY = Mathf.Min(MapManager.Instance.WorldHeight - 1, maxY);
+            //minX = Mathf.Max(0, minX);
+            //maxX = Mathf.Min(MapManager.Instance.WorldWidth - 1, maxX);
+            //minY = Mathf.Max(0, minY);
+            //maxY = Mathf.Min(MapManager.Instance.WorldHeight - 1, maxY);
 
             bool rangeChanged = minX != _lastMinVisible.x || minY != _lastMinVisible.y || maxX != _lastMaxVisible.x || maxY != _lastMaxVisible.y;
             bool timeToUpdateAnimations = Time.time - _lastRebuildTime > 0.05f;
