@@ -31,17 +31,6 @@ namespace Fodinae.Scripts.Utils
         }
 
         /// <summary>
-        /// Wraps world X coordinate correctly handling negative inputs.
-        /// </summary>
-        public static int WrapWorldX(int gridX, int worldWidth)
-        {
-            if (worldWidth <= 0) return 0;
-            int x = gridX % worldWidth;
-            if (x < 0) x += worldWidth;
-            return x;
-        }
-
-        /// <summary>
         /// Converts Server position to Unity World position (Center of cell).
         /// </summary>
         public static Vector3 ServerToUnityPos(int x, int y, int worldHeight, float z = 0f)
@@ -50,11 +39,11 @@ namespace Fodinae.Scripts.Utils
         }
 
         /// <summary>
-        /// Converts Unity World position to Server Grid position with wrapping.
+        /// Converts Unity World position to Server Grid position.
         /// </summary>
-        public static Vector2Int UnityToServerPos(Vector3 unityPos, int worldWidth, int worldHeight)
+        public static Vector2Int UnityToServerPos(Vector3 unityPos, int worldHeight)
         {
-            return new Vector2Int(WrapWorldX(Mathf.FloorToInt(unityPos.x), worldWidth), UnityToServerY(unityPos.y, worldHeight));
+            return new Vector2Int(Mathf.FloorToInt(unityPos.x), UnityToServerY(unityPos.y, worldHeight));
         }
     }
 }

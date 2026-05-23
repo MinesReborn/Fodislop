@@ -448,7 +448,7 @@ namespace Fodinae.Scripts.Game.Managers
                     {
                         for (int y = startY; y < startY + range * 2; y++)
                         {
-                            int worldX = CoordinateUtils.WrapWorldX(x, WorldWidth);
+                            int worldX = x;
                             int worldY = CoordinateUtils.UnityToServerY(y, WorldHeight);
 
                             var cellType = MapStorage.Instance.GetCell(worldX, worldY);

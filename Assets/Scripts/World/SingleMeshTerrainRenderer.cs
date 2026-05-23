@@ -420,7 +420,7 @@ namespace Fodinae.Scripts.World
 
             for (int x = 0; x < _cacheWidth; x++)
             {
-                int worldX = CoordinateUtils.WrapWorldX(_cacheMinX + x, worldWidth);
+                int worldX = _cacheMinX + x;
                 int lastChunkIndex = -1;
                 CellType[] currentChunk = null;
 
