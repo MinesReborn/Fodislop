@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using Fodinae.Scripts.Game.Managers;
 using MinesServer.Networking.Server.Packets.Connection;
+using Fodinae.Scripts.Networking.Connection;
 
 namespace Fodinae.Scripts.World
 {
@@ -10,6 +11,7 @@ namespace Fodinae.Scripts.World
     /// Automatically creates a test world to enable terrain rendering in standalone mode
     /// </summary>
     [RequireComponent(typeof(MapManager))]
+    [ExecuteAlways]
     public class StandaloneWorldInitializer : MonoBehaviour
     {
         [Header("Standalone Configuration")]
@@ -45,7 +47,33 @@ namespace Fodinae.Scripts.World
                 return;
             }
 
-            Debug.Log($"[StandaloneWorldInitializer] Initialized with test world: {_testWorldName} ({_testWorldWidth}x{_testWorldHeight})");
+            if (Application.isPlaying)
+            {
+                Debug.Log($"[StandaloneWorldInitializer] Initialized with test world: {_testWorldName} ({_testWorldWidth}x{_testWorldHeight})");
+            }
+        }
+
+        void Start()
+        {
+            if (!_enableStandaloneMode) return;
+
+            if (!Application.isPlaying)
+            {
+                AttemptStandaloneInitialization();
+                return;
+            }
+
+            // For Play mode, trigger faster standalone check if we are disconnected
+            var cm = ConnectionManager.InstanceIfExists;
+            if (cm == null || cm.Connection == null ||
+                cm.Connection.ConnectionStatus != MinesServer.Networking.Shared.ConnectionStatus.Connected)
+            {
+                if (_enableDebugLogging)
+                {
+                    Debug.Log("[StandaloneWorldInitializer] Offline detected on Start, scheduling immediate standalone init");
+                }
+                Invoke(nameof(AttemptStandaloneInitialization), 0.5f);
+            }
         }
 
         void Update()
@@ -56,11 +84,14 @@ namespace Fodinae.Scripts.World
             if (MapStorage.Instance != null && MapStorage.Instance.IsReady)
             {
                 _isInitialized = true;
-                Debug.Log("[StandaloneWorldInitializer] Standalone world initialization successful!");
+                if (Application.isPlaying)
+                {
+                    Debug.Log("[StandaloneWorldInitializer] Standalone world initialization successful!");
 
-                // Trigger MapManager events to notify other systems
-                _mapManager.OnWorldInitialized?.Invoke();
-                _mapManager.OnWorldDataLoaded?.Invoke();
+                    // Trigger MapManager events to notify other systems
+                    _mapManager.OnWorldInitialized?.Invoke();
+                    _mapManager.OnWorldDataLoaded?.Invoke();
+                }
 
                 enabled = false; // Disable further checks
             }
@@ -70,8 +101,11 @@ namespace Fodinae.Scripts.World
         {
             if (!_enableStandaloneMode) return;
 
-            // Start the initialization check process
-            InvokeRepeating(nameof(CheckInitializationTimeout), _checkInterval, _checkInterval);
+            if (Application.isPlaying)
+            {
+                // Start the initialization check process
+                InvokeRepeating(nameof(CheckInitializationTimeout), _checkInterval, _checkInterval);
+            }
         }
 
         void OnDisable()
@@ -81,7 +115,7 @@ namespace Fodinae.Scripts.World
 
         private void CheckInitializationTimeout()
         {
-            if (_initializationAttempted || _isInitialized) return;
+            if (!Application.isPlaying || _initializationAttempted || _isInitialized) return;
 
             // Check if MapManager has been initialized by server packets
             if (_mapManager._isWorldInitialized)

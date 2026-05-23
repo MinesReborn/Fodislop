@@ -119,6 +119,7 @@ namespace Fodinae.Scripts.UI
                 _lastUpdateTime = Time.time;
                 _lastUpdatePos = targetPos;
             }
+
             _updateScheduled = false;
         }
 
@@ -140,6 +141,7 @@ namespace Fodinae.Scripts.UI
                 {
                     color = new Color(0.3f, 0.3f, 0.3f, 1f);
                 }
+
                 _cachedColors[cellType] = (Color32)color;
             }
         }
@@ -171,6 +173,7 @@ namespace Fodinae.Scripts.UI
                 {
                     _coordinatesText.font = Font.CreateDynamicFontFromOSFont("Arial", 14);
                 }
+
                 _coordinatesText.fontSize = 20;
                 _coordinatesText.color = Color.white;
                 _coordinatesText.alignment = TextAnchor.MiddleCenter;
@@ -241,6 +244,7 @@ namespace Fodinae.Scripts.UI
                     {
                         pixelColors[index++] = Color.black;
                     }
+
                     continue;
                 }
 
@@ -279,6 +283,7 @@ namespace Fodinae.Scripts.UI
                 _minimapTexture.SetPixel(centerX + i, centerY, Color.white);
                 _minimapTexture.SetPixel(centerX, centerY + i, Color.white);
             }
+
             _minimapTexture.SetPixel(centerX, centerY, Color.red);
 
             // Применяем изменения (false = без обновления мипмапов)
@@ -291,8 +296,11 @@ namespace Fodinae.Scripts.UI
             {
                 _player.OnPlayerMoved -= OnPlayerMoved;
             }
+
             if (_minimapTexture != null)
+            {
                 Destroy(_minimapTexture);
+            }
         }
 
         public void ForceRefresh()

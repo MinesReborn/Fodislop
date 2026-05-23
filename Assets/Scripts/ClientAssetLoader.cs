@@ -25,6 +25,9 @@ namespace Fodinae.Scripts
 
         private static ClientAssetLoader _instance;
         private static bool _isQuitting = false;
+
+        public static ClientAssetLoader InstanceIfExists => _instance;
+
         public static ClientAssetLoader Instance
         {
             get
@@ -240,6 +243,10 @@ namespace Fodinae.Scripts
             catch (Exception ex)
             {
                 Debug.LogWarning($"[ClientAssetLoader] Error fetching asset {filename}: {ex.Message}");
+            }
+            finally
+            {
+                await UniTask.SwitchToMainThread(cancellationToken);
             }
 
             if (cancellationToken.IsCancellationRequested) return null;

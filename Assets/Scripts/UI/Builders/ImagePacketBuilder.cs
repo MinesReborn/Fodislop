@@ -19,16 +19,16 @@ namespace Fodinae.Scripts.UI.Builders
             var element = new VisualElement();
             element.style.width = imagePacket.Width;
             element.style.height = imagePacket.Height;
-            
+
             var cts = new CancellationTokenSource();
-            element.RegisterCallback<DetachFromPanelEvent>(_ => 
+            element.RegisterCallback<DetachFromPanelEvent>(_ =>
             {
                 cts.Cancel();
                 cts.Dispose();
             });
 
             LoadImage(element, imagePacket.URI, cts.Token);
-            
+
             return element;
         }
 

@@ -59,19 +59,19 @@ namespace Fodinae.Scripts.World
             if (_backgroundRenderer == null) return;
 
             var renderer = _backgroundRenderer.GetComponent<MeshRenderer>();
-            var transform = _backgroundRenderer.GetComponent<Transform>();
+            var trans = _backgroundRenderer.transform;
 
-            if (renderer.sortingOrder != -1000)
+            if (renderer != null && renderer.sortingOrder != -1000)
             {
                 renderer.sortingOrder = -1000;
             }
 
             // FIX: Ensure it stays at Z=0 (visible), not Z=-10 (clipped/invisible)
-            if (transform.position.z != 0f)
+            if (trans != null && trans.position.z != 0f)
             {
-                var pos = transform.position;
+                var pos = trans.position;
                 pos.z = 0f;
-                transform.position = pos;
+                trans.position = pos;
                 Debug.Log("WorldBackgroundSetup: Fixed Z position to 0 for visibility");
             }
         }

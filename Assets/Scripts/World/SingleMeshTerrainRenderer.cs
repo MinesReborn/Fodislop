@@ -138,10 +138,10 @@ namespace Fodinae.Scripts.World
 
         private void OnDestroy()
         {
-            if (WorldTextureManager.Instance != null)
-                WorldTextureManager.Instance.OnTextureLoaded -= OnTextureLoaded;
-            if (MapManager.Instance != null)
-                MapManager.Instance.OnWorldDataLoaded -= OnWorldDataLoaded;
+            if (WorldTextureManager.InstanceIfExists != null)
+                WorldTextureManager.InstanceIfExists.OnTextureLoaded -= OnTextureLoaded;
+            if (MapManager.InstanceIfExists != null)
+                MapManager.InstanceIfExists.OnWorldDataLoaded -= OnWorldDataLoaded;
 
             if (_mesh != null)
             {
@@ -157,7 +157,20 @@ namespace Fodinae.Scripts.World
             {
                 _terrainShader = Shader.Find("Universal Render Pipeline/Custom/Terrain");
                 if (_terrainShader == null)
+                {
                     _terrainShader = Resources.Load<Shader>("Shaders/Terrain");
+                }
+
+                if (_terrainShader == null)
+                {
+                    Debug.LogWarning("[SingleMeshTerrainRenderer] Custom Terrain shader not found! Falling back to standard URP Lit shader.");
+                    _terrainShader = Shader.Find("Universal Render Pipeline/Lit");
+                }
+
+                if (_terrainShader == null)
+                {
+                    _terrainShader = Shader.Find("Sprites/Default");
+                }
             }
         }
 
@@ -180,6 +193,8 @@ namespace Fodinae.Scripts.World
 #endif
             var mm = MapManager.Instance;
             if (mm == null || MapStorage.Instance == null || !MapStorage.Instance.IsReady) return;
+
+            EnsureMesh();
             
             if (_mainCamera == null) _mainCamera = mm.MainCamera;
             if (_mainCamera == null) return;
@@ -280,9 +295,9 @@ namespace Fodinae.Scripts.World
                 MinimapColor = mm.GetCellMinimapColor(type), Animation = config.Animation,
                 AnimationSpeed = wtm.GetAnimationSpeedForCell(type),
                 AtlasRect = atlasRect, AtlasIndex = atlasIndex,
-                UVTileSize = (atlases.Count > atlasIndex) ? (float)GameConstants.World.CELL_SIZE / atlases[atlasIndex].Size : 0,
+                UVTileSize = (atlases.Count > atlasIndex) ? (float)RenderingConstants.CELL_SIZE / atlases[atlasIndex].Size : 0,
                 AnimationFrameCount = frameCount,
-                FrameHeightTiles = (float)frameSize / GameConstants.World.CELL_SIZE,
+                FrameHeightTiles = (float)frameSize / RenderingConstants.CELL_SIZE,
                 IsTextureReady = atlasRect.z > 0.0001f
             };
             _metadataCache[type] = meta;
@@ -303,6 +318,11 @@ namespace Fodinae.Scripts.World
 
             _cacheMinX = minX - 1; _cacheMinY = minY - 1;
 
+            if (_cellCache == null || _cellCache.GetLength(0) != _cacheWidth || _cellCache.GetLength(1) != _cacheHeight)
+            {
+                EnsureBuffersCapacity();
+            }
+
             for (int x = 0; x < _cacheWidth; x++) {
                 int worldX = CoordinateUtils.WrapWorldX(_cacheMinX + x, worldWidth);
                 int lastChunkIndex = -1;
@@ -314,7 +334,7 @@ namespace Fodinae.Scripts.World
                     if (!layer.GetChunkIndexAndLocal(worldX, serverY, out int chunkIndex, out int localIndex)) continue;
 
                     if (chunkIndex != lastChunkIndex) {
-                        currentChunk = layer.GetChunk(chunkIndex, false, false);
+                        currentChunk = layer.GetChunk(chunkIndex, false, true);
                         lastChunkIndex = chunkIndex;
                     }
 
@@ -327,7 +347,7 @@ namespace Fodinae.Scripts.World
                         AtlasIndex = meta.AtlasIndex, UVTileSize = meta.UVTileSize,
                         AnimationFrameCount = meta.AnimationFrameCount, FrameHeightTiles = meta.FrameHeightTiles
                     };
-                    if (type != CellType.Unloaded && !meta.IsTextureReady) WorldTextureManager.Instance?.RequestTexture(type);
+                    if (Application.isPlaying && type != CellType.Unloaded && !meta.IsTextureReady) WorldTextureManager.Instance?.RequestTexture(type);
                 }
             }
         }
@@ -392,13 +412,56 @@ namespace Fodinae.Scripts.World
             if (wtm == null || mm == null) return;
             
             var atlases = wtm.GetAllAtlases();
+            if (atlases == null)
+            {
+                return;
+            }
+
+            bool anySubMeshIndexNull = _subMeshIndices == null || _subMeshIndices.Length != atlases.Count;
+            if (!anySubMeshIndexNull)
+            {
+                for (int i = 0; i < _subMeshIndices.Length; i++)
+                {
+                    if (_subMeshIndices[i] == null)
+                    {
+                        anySubMeshIndexNull = true;
+                        break;
+                    }
+                }
+            }
+
+            bool anyMaterialNull = _materials == null || _materials.Length != atlases.Count;
+            if (!anyMaterialNull)
+            {
+                for (int i = 0; i < _materials.Length; i++)
+                {
+                    if (_materials[i] == null)
+                    {
+                        anyMaterialNull = true;
+                        break;
+                    }
+                }
+            }
+
             bool materialsChanged = false;
-            if (_subMeshIndices.Length != atlases.Count) {
-                CleanupMaterials(); _subMeshIndices = new List<int>[atlases.Count]; _materials = new Material[atlases.Count];
-                for (int i = 0; i < atlases.Count; i++) { _subMeshIndices[i] = new(); _materials[i] = new Material(_terrainShader); }
+            if (anySubMeshIndexNull || anyMaterialNull)
+            {
+                CleanupMaterials();
+                _subMeshIndices = new List<int>[atlases.Count];
+                _materials = new Material[atlases.Count];
+                for (int i = 0; i < atlases.Count; i++)
+                {
+                    _subMeshIndices[i] = new List<int>();
+                    _materials[i] = new Material(_terrainShader);
+                }
+
                 materialsChanged = true;
             }
-            foreach (var list in _subMeshIndices) list.Clear();
+
+            foreach (var list in _subMeshIndices)
+            {
+                list.Clear();
+            }
 
             PopulateCellCache(minX, minY);
             PrecalculateData();
@@ -433,7 +496,32 @@ namespace Fodinae.Scripts.World
             }
 
             _mesh.UploadMeshData(false);
-            if (materialsChanged) _meshRenderer.sharedMaterials = _materials;
+
+            bool needReassignMaterials = materialsChanged;
+            if (!needReassignMaterials)
+            {
+                var sharedMats = _meshRenderer.sharedMaterials;
+                if (sharedMats == null || sharedMats.Length != _materials.Length)
+                {
+                    needReassignMaterials = true;
+                }
+                else
+                {
+                    for (int i = 0; i < _materials.Length; i++)
+                    {
+                        if (sharedMats[i] != _materials[i])
+                        {
+                            needReassignMaterials = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (needReassignMaterials)
+            {
+                _meshRenderer.sharedMaterials = _materials;
+            }
         }
 
         private void FillQuadData(int x, int y, int gridX, int unityY, int worldHeight, bool isBackground, ref int vIdx, List<TextureAtlas> atlases)
@@ -485,12 +573,15 @@ namespace Fodinae.Scripts.World
             byte reliefMask = (cellType == _cellCache[cx, cy].Type) ? _cellReliefMasks[x, y] : (byte)0;
             float textureType = isRelief ? 1.0f : 0.0f;
 
-            for (int i = 0; i < 4; i++) {
-                _colors[vIdx+i] = color; _subAtlasRects[vIdx+i] = data.AtlasRect;
-                _tileSizeUVs[vIdx+i] = tileSizeVec; _worldPositions[vIdx+i] = worldPosVec;
-                _animationData[vIdx+i] = animDataVec;
-                float shadowVal = _gridShadowValues[x + (i==1||i==2?1:0), y + (i==2||i==3?1:0)];
-                _packedReliefShadowLocalUV[vIdx+i] = new Vector4(textureType, isRelief ? reliefMask : shadowVal, _localUVsBuffer[i].x, _localUVsBuffer[i].y);
+            for (int i = 0; i < 4; i++)
+            {
+                _colors[vIdx + i] = color;
+                _subAtlasRects[vIdx + i] = data.AtlasRect;
+                _tileSizeUVs[vIdx + i] = tileSizeVec;
+                _worldPositions[vIdx + i] = worldPosVec;
+                _animationData[vIdx + i] = animDataVec;
+                float shadowVal = _gridShadowValues[x + (i == 1 || i == 2 ? 1 : 0), y + (i == 2 || i == 3 ? 1 : 0)];
+                _packedReliefShadowLocalUV[vIdx + i] = new Vector4(textureType, isRelief ? reliefMask : shadowVal, _localUVsBuffer[i].x, _localUVsBuffer[i].y);
             }
             _subMeshIndices[atlasIndex].Add(vIdx + 0); _subMeshIndices[atlasIndex].Add(vIdx + 3); _subMeshIndices[atlasIndex].Add(vIdx + 2);
             _subMeshIndices[atlasIndex].Add(vIdx + 2); _subMeshIndices[atlasIndex].Add(vIdx + 1); _subMeshIndices[atlasIndex].Add(vIdx + 0);
@@ -569,5 +660,31 @@ namespace Fodinae.Scripts.World
 
         private struct TypeCount { public CellType type; public int count; }
         private void CleanupMaterials() { if (_materials != null) foreach (var mat in _materials) if (mat != null) { if (Application.isPlaying) Destroy(mat); else DestroyImmediate(mat); } }
+
+        private void EnsureMesh()
+        {
+            if (_meshFilter == null)
+            {
+                _meshFilter = GetComponent<MeshFilter>();
+            }
+
+            if (_meshRenderer == null)
+            {
+                _meshRenderer = GetComponent<MeshRenderer>();
+            }
+
+            if (_mesh == null)
+            {
+                _mesh = new Mesh();
+                _mesh.name = "TerrainMesh";
+                _mesh.MarkDynamic();
+                _mesh.indexFormat = IndexFormat.UInt32;
+            }
+
+            if (_meshFilter != null && _meshFilter.sharedMesh != _mesh)
+            {
+                _meshFilter.sharedMesh = _mesh;
+            }
+        }
     }
 }

@@ -173,10 +173,12 @@ namespace Fodinae.Scripts.Game.Managers
                         TryEmergencyFallback(worldCodeName, width, height);
                     }
                     
-                    _isInitialized = false;
-                    _cellLayer?.Dispose();
-                    _cellLayer = null;
-                    return;
+                    if (!_isInitialized)
+                    {
+                        _cellLayer?.Dispose();
+                        _cellLayer = null;
+                        return;
+                    }
                 }
                 
                 _isInitialized = true;
@@ -222,11 +224,12 @@ namespace Fodinae.Scripts.Game.Managers
                 Debug.LogError($"[MapStorage] CRITICAL: File I/O error during world initialization: {ioEx.Message}");
                 Debug.LogError("[MapStorage] CRITICAL: File I/O errors prevent terrain rendering");
                 
-                // Try fallback mechanisms
                 TryCreateFallbackWorld(worldCodeName, width, height);
-                _isInitialized = false;
-                _cellLayer?.Dispose();
-                _cellLayer = null;
+                if (!_isInitialized)
+                {
+                    _cellLayer?.Dispose();
+                    _cellLayer = null;
+                }
             }
             catch (System.ArgumentException argEx)
             {
@@ -234,11 +237,12 @@ namespace Fodinae.Scripts.Game.Managers
                 Debug.LogError($"[MapStorage] World: {worldCodeName}, Width: {width}, Height: {height}, WidthChunks: {(width + 32 - 1) / 32}, HeightChunks: {(height + 32 - 1) / 32}");
                 Debug.LogError("[MapStorage] CRITICAL: Invalid arguments prevent terrain rendering");
 
-                // Try with different parameters
                 TryCreateWithDifferentChunkSize(worldCodeName, width, height);
-                _isInitialized = false;
-                _cellLayer?.Dispose();
-                _cellLayer = null;
+                if (!_isInitialized)
+                {
+                    _cellLayer?.Dispose();
+                    _cellLayer = null;
+                }
             }
             catch (System.OutOfMemoryException memEx)
             {
@@ -246,11 +250,12 @@ namespace Fodinae.Scripts.Game.Managers
                 Debug.LogError($"[MapStorage] Requested memory for {width}x{height} world may be too large");
                 Debug.LogError("[MapStorage] CRITICAL: Memory issues prevent terrain rendering");
 
-                // Try creating a smaller world
                 TryCreateSmallerTestWorld(worldCodeName);
-                _isInitialized = false;
-                _cellLayer?.Dispose();
-                _cellLayer = null;
+                if (!_isInitialized)
+                {
+                    _cellLayer?.Dispose();
+                    _cellLayer = null;
+                }
             }
             catch (System.UnauthorizedAccessException authEx)
             {
@@ -258,11 +263,12 @@ namespace Fodinae.Scripts.Game.Managers
                 Debug.LogError($"[MapStorage] Check file permissions for path: {path}");
                 Debug.LogError("[MapStorage] CRITICAL: Permission issues prevent terrain rendering");
 
-                // Try different location
                 TryCreateFallbackWorld(worldCodeName, width, height);
-                _isInitialized = false;
-                _cellLayer?.Dispose();
-                _cellLayer = null;
+                if (!_isInitialized)
+                {
+                    _cellLayer?.Dispose();
+                    _cellLayer = null;
+                }
             }
             catch (System.Exception ex)
             {
@@ -271,11 +277,12 @@ namespace Fodinae.Scripts.Game.Managers
                 Debug.LogError($"[MapStorage] Stack trace: {ex.StackTrace}");
                 Debug.LogError("[MapStorage] CRITICAL: Unknown error prevents terrain rendering");
 
-                // Try emergency fallback
                 TryEmergencyFallback(worldCodeName, width, height);
-                _isInitialized = false;
-                _cellLayer?.Dispose();
-                _cellLayer = null;
+                if (!_isInitialized)
+                {
+                    _cellLayer?.Dispose();
+                    _cellLayer = null;
+                }
             }
         }
 
@@ -394,8 +401,8 @@ namespace Fodinae.Scripts.Game.Managers
 
             try
             {
-                // Optimization: Use touchLru=false for high-frequency access (rendering, gizmos)
-                return _cellLayer.GetCell(x, y, touchLru: false);
+                // Optimization: Use touchLru=true for high-frequency access (rendering, gizmos)
+                return _cellLayer.GetCell(x, y, touchLru: true);
             }
             catch (System.Exception ex)
             {

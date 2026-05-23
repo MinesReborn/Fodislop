@@ -54,6 +54,7 @@ namespace Fodinae.Scripts.Game.Managers
                 Destroy(gameObject);
                 return;
             }
+
             _instance = this;
             if (Application.isPlaying)
             {

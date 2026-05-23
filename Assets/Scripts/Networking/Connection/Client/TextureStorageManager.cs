@@ -50,6 +50,7 @@ namespace Fodinae.Scripts.Networking.Connection.Client
         [SerializeField] private int _fallbackTextureSize = 32;
 
         private readonly ConcurrentDictionary<string, byte[]> _textureCache = new();
+        private readonly ConcurrentDictionary<string, string> _resolvedPathsCache = new();
         private string _textureFolderPath = string.Empty;
         private bool _folderInitialized = false;
 
@@ -153,33 +154,38 @@ namespace Fodinae.Scripts.Networking.Connection.Client
                     return null;
                 }
 
-                var fullPath = Path.Combine(_textureFolderPath, filename);
-                
-                // Fuzzy search for the file if it doesn't have an extension or file not found
-                if (!File.Exists(fullPath))
+                if (!_resolvedPathsCache.TryGetValue(filename, out var fullPath))
                 {
-                    string directory = Path.GetDirectoryName(fullPath);
-                    string filenameWithoutExtension = Path.GetFileNameWithoutExtension(fullPath);
+                    fullPath = Path.Combine(_textureFolderPath, filename);
 
-                    if (Directory.Exists(directory))
+                    // Fuzzy search for the file if it doesn't have an extension or file not found
+                    if (!File.Exists(fullPath))
                     {
-                        var files = Directory.GetFiles(directory, filenameWithoutExtension + ".*")
-                            .Where(f => !f.EndsWith(".meta", StringComparison.OrdinalIgnoreCase))
-                            .OrderBy(f => {
-                                string ext = Path.GetExtension(f).ToLower();
-                                if (ext == ".webp") return 0;
-                                if (ext == ".gif") return 1;
-                                if (ext == ".png") return 2;
-                                return 3;
-                            }).ToArray();
+                        string directory = Path.GetDirectoryName(fullPath);
+                        string filenameWithoutExtension = Path.GetFileNameWithoutExtension(fullPath);
 
-                        if (files.Length > 0)
+                        if (Directory.Exists(directory))
                         {
-                            fullPath = files[0];
-                            if (_enableDebugLogging)
-                                Debug.Log($"[TextureStorageManager] Fuzzy matched {filename} to {fullPath}");
+                            var files = Directory.GetFiles(directory, filenameWithoutExtension + ".*")
+                                .Where(f => !f.EndsWith(".meta", StringComparison.OrdinalIgnoreCase))
+                                .OrderBy(f => {
+                                    string ext = Path.GetExtension(f).ToLower();
+                                    if (ext == ".webp") return 0;
+                                    if (ext == ".gif") return 1;
+                                    if (ext == ".png") return 2;
+                                    return 3;
+                                }).ToArray();
+
+                            if (files.Length > 0)
+                            {
+                                fullPath = files[0];
+                                if (_enableDebugLogging)
+                                    Debug.Log($"[TextureStorageManager] Fuzzy matched {filename} to {fullPath}");
+                            }
                         }
                     }
+
+                    _resolvedPathsCache.TryAdd(filename, fullPath);
                 }
 
                 if (!File.Exists(fullPath))
@@ -301,6 +307,7 @@ namespace Fodinae.Scripts.Networking.Connection.Client
         public void ClearCache()
         {
             _textureCache.Clear();
+            _resolvedPathsCache.Clear();
             if (_enableDebugLogging)
                 Debug.Log("[TextureStorageManager] Texture cache cleared");
         }

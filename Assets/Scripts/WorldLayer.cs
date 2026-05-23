@@ -10,8 +10,6 @@ namespace Fodinae.Scripts
     public class WorldLayer<T> : IDisposable
         where T : unmanaged
     {
-        private static readonly HashSet<string> _initializedFiles = new();
-
         // --- Config ---
         private const int HEADER_SIZE = 16; // 4 ints
         private readonly int _chunkSize;
@@ -36,7 +34,7 @@ namespace Fodinae.Scripts
         private readonly string _filePath;
         private FileStream _fileStream;
 
-        // The Look-Up Table (FAT). Stores file offset for each chunk. 
+        // The Look-Up Table (FAT). Stores file offset for each chunk.
         private readonly long[] _chunkOffsets;
 
         // --- Memory Cache (LRU) ---
@@ -63,11 +61,7 @@ namespace Fodinae.Scripts
             _lruList = new LinkedList<int>();
             _dirtyChunks = new HashSet<int>();
 
-            if (!_initializedFiles.Contains(_filePath))
-            {
-                InitializeFile();
-                _initializedFiles.Add(_filePath);
-            }
+            InitializeFile();
         }
 
         private void InitializeFile()
@@ -167,15 +161,19 @@ namespace Fodinae.Scripts
                 if (touchLru) TouchLru(chunkIndex);
                 return chunk;
             }
+
             chunk = LoadChunkFromDisk(chunkIndex);
+
             if (chunk == null && createIfMissing)
             {
                 chunk = new T[_chunkArea];
             }
+
             if (chunk != null)
             {
                 AddToCache(chunkIndex, chunk);
             }
+
             return chunk;
         }
 
@@ -185,6 +183,7 @@ namespace Fodinae.Scripts
             {
                 EvictOldestChunk();
             }
+
             _loadedChunks[chunkIndex] = chunk;
             var node = _lruList.AddFirst(chunkIndex);
             _lruIndexMap[chunkIndex] = node;
@@ -208,6 +207,7 @@ namespace Fodinae.Scripts
                 SaveChunkToDisk(oldestIndex, _loadedChunks[oldestIndex]);
                 _dirtyChunks.Remove(oldestIndex);
             }
+
             _loadedChunks.Remove(oldestIndex);
             _lruIndexMap.Remove(oldestIndex);
             _lruList.RemoveLast();
@@ -376,7 +376,6 @@ namespace Fodinae.Scripts
         {
             try { Flush(); } catch { }
             try { _fileStream?.Dispose(); } catch { }
-            _initializedFiles.Remove(_filePath);
         }
     }
 }

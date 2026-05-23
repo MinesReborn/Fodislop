@@ -19,6 +19,8 @@ namespace Fodinae.Scripts.Networking.Connection
         private static ConnectionManager _instance;
         private static bool _isQuitting = false;
 
+        public static ConnectionManager InstanceIfExists => _instance;
+
         public static ConnectionManager Instance
         {
             get

@@ -46,7 +46,7 @@ namespace Fodinae.Scripts.World
 
                 Texture2D frameTex = new Texture2D(width, height, TextureFormat.RGBA32, false);
                 frameTex.filterMode = FilterMode.Point;
-                
+
                 Color[] colors = atlas.GetPixels(x, y, width, height);
                 frameTex.SetPixels(colors);
                 frameTex.Apply();
@@ -63,6 +63,7 @@ namespace Fodinae.Scripts.World
                     Array.Copy(pixels, bottomIndex, pixels, topIndex, width);
                     Array.Copy(rowBuffer, 0, pixels, bottomIndex, width);
                 }
+
                 frameTex.SetPixels32(pixels);
                 frameTex.Apply();
 
@@ -107,21 +108,34 @@ namespace Fodinae.Scripts.World
                         Buffer.BlockCopy(data, 8, frameFile, 8, 4); // WEBP
                         Buffer.BlockCopy(data, payloadPos, frameFile, 12, payloadSize);
 
-                        Texture2D tex = new Texture2D(2, 2);
-                        if (tex.LoadImage(frameFile)) {
+                        Texture2D tex = Texture2DExt.CreateTexture2DFromWebP(frameFile, lMipmaps: false, lLinear: true, out WebP.Error error);
+                        if (error == WebP.Error.Success && tex != null)
+                        {
                             frameTextures.Add(tex);
                             delays.Add(duration);
-                        } else {
+                        }
+                        else if (tex != null)
+                        {
                             UnityEngine.Object.Destroy(tex);
                         }
                     }
+
                     pos += (int)((chunkSize + 1) & ~1);
                 }
 
-                if (frameTextures.Count == 0) {
-                    Texture2D tex = new Texture2D(2, 2);
-                    if (tex.LoadImage(data)) return new DecodedAnimation { Atlas = tex, FrameCount = 1, FPS = 0 };
-                    UnityEngine.Object.Destroy(tex);
+                if (frameTextures.Count == 0)
+                {
+                    Texture2D tex = Texture2DExt.CreateTexture2DFromWebP(data, lMipmaps: false, lLinear: true, out WebP.Error error);
+                    if (error == WebP.Error.Success && tex != null)
+                    {
+                        return new DecodedAnimation { Atlas = tex, FrameCount = 1, FrameHeight = tex.height, FPS = 0 };
+                    }
+
+                    if (tex != null)
+                    {
+                        UnityEngine.Object.Destroy(tex);
+                    }
+
                     return default;
                 }
 
@@ -135,6 +149,7 @@ namespace Fodinae.Scripts.World
                     totalDelay += delays[i];
                     UnityEngine.Object.Destroy(frameTextures[i]);
                 }
+
                 float avgDelay = (float)totalDelay / frameTextures.Count;
                 return new DecodedAnimation {
                     Atlas = atlas,
@@ -179,20 +194,23 @@ namespace Fodinae.Scripts.World
                                 int cx = l + x, cy = t + y; if (cx < _sw && cy < _sh) _cv[cy * _sw + cx] = ct[c];
                             }
                         }
+
                         var tex = new Texture2D(_sw, _sh, TextureFormat.RGBA32, false); var fl = new Color32[_sw * _sh];
                         for (int y = 0; y < _sh; y++) Array.Copy(_cv, y * _sw, fl, (_sh - 1 - y) * _sw, _sw);
                         tex.SetPixels32(fl); tex.Apply(); fts.Add(tex); dls.Add(dl);
                         if (dm == 2) for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) {
-                            int cx = l + x, cy = t + y; if (cx < _sw && cy < _sh) _cv[cy * _sw + cx] = new Color32(0,0,0,0);
+                            int cx = l + x, cy = t + y; if (cx < _sw && cy < _sh) _cv[cy * _sw + cx] = new Color32(0, 0, 0, 0);
                         } else if (dm == 3) Array.Copy(_pv, _cv, _cv.Length);
                     } else if (b == 0x3B) break;
                     else break;
                 }
+
                 if (fts.Count == 0) return default;
                 var atlas = new Texture2D(_sw, _sh * fts.Count, TextureFormat.RGBA32, false); atlas.filterMode = FilterMode.Point; float total = 0;
                 for (int i = 0; i < fts.Count; i++) { Graphics.CopyTexture(fts[i], 0, 0, 0, 0, _sw, _sh, atlas, 0, 0, 0, (_sh * (fts.Count - 1 - i))); total += dls[i]; UnityEngine.Object.Destroy(fts[i]); }
                 return new DecodedAnimation { Atlas = atlas, FrameCount = fts.Count, FrameHeight = _sh, FPS = total > 0 ? 1000f / (total / fts.Count) : 10f };
             }
+
             private Color32[] ReadCT(int s) { var t = new Color32[s]; for (int i = 0; i < s; i++) t[i] = new Color32(_data[_pos++], _data[_pos++], _data[_pos++], 255); return t; }
             private void Skip() { int s; while (_pos < _data.Length && (s = _data[_pos++]) > 0) _pos += s; }
             private byte[] ReadDB() { using (var ms = new MemoryStream()) { int s; while (_pos < _data.Length && (s = _data[_pos++]) > 0) { ms.Write(_data, _pos, s); _pos += s; } return ms.ToArray(); } }
@@ -214,8 +232,10 @@ namespace Fodinae.Scripts.World
                     if (nc < 4096) { pref[nc] = oc; suff[nc] = f; nc++; if (nc == (1 << cs) && cs < 12) { cs++; cm = (1 << cs) - 1; } }
                     oc = c;
                 }
+
                 return o;
             }
+
             private int LzwFirst(int c, int cc, int[] pref, byte[] suff) { while (c >= cc) c = pref[c]; return suff[c]; }
         }
     }

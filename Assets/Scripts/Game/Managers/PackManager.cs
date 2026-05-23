@@ -9,6 +9,9 @@ namespace Fodinae.Scripts.Game.Managers
     {
         private static PackManager _instance;
         private static bool _isQuitting = false;
+
+        public static PackManager InstanceIfExists => _instance;
+
         public static PackManager Instance
         {
             get
