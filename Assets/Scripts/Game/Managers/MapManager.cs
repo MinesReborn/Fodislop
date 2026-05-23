@@ -9,6 +9,7 @@ using UnityEngine;
 
 namespace Fodinae.Scripts.Game.Managers
 {
+    [ExecuteAlways]
     public class MapManager : MonoBehaviour
     {
         private static MapManager _instance;
@@ -92,6 +93,17 @@ namespace Fodinae.Scripts.Game.Managers
             }
 
             _isQuitting = false;
+
+#if UNITY_EDITOR
+            if (!Application.isPlaying && !_isWorldInitialized)
+            {
+                // Basic initialization for Editor preview
+                _width = 128;
+                _height = 128;
+                _worldCodeName = "EditorPreview";
+                _worldDisplayName = "Editor Preview";
+            }
+#endif
         }
 
         void OnDestroy()
@@ -347,8 +359,8 @@ namespace Fodinae.Scripts.Game.Managers
 
         public string WorldCodeName => _worldCodeName;
         public string WorldDisplayName => _worldDisplayName;
-        public ushort WorldWidth => _width;
-        public ushort WorldHeight => _height;
+        public ushort WorldWidth => _width > 0 ? _width : (ushort)1;
+        public ushort WorldHeight => _height > 0 ? _height : (ushort)1;
 
 #if UNITY_EDITOR
         private void OnDrawGizmos()

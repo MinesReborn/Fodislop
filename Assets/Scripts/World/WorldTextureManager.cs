@@ -543,7 +543,7 @@ namespace Fodinae.Scripts.World
             {
                 try
                 {
-                    return MapStorage.Instance.CellLayer[x, y];
+                    return MapStorage.Instance.GetCell(x, y);
                 }
                 catch (Exception ex)
                 {

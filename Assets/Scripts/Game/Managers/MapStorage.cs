@@ -26,6 +26,14 @@ namespace Fodinae.Scripts.Game.Managers
         public WorldLayer<CellType> CellLayer => _cellLayer;
         public bool IsReady => _isInitialized && _cellLayer != null;
 
+#if UNITY_EDITOR
+        public void EnsureEditorInitialized()
+        {
+            if (_isInitialized || Application.isPlaying) return;
+            InitWorld("EditorPreview", 128, 128);
+        }
+#endif
+
         public void InitWorld(string worldCodeName, int width, int height)
         {
             Debug.Log($"[MapStorage] InitWorld called: world='{worldCodeName}', dimensions={width}x{height}");
@@ -386,7 +394,8 @@ namespace Fodinae.Scripts.Game.Managers
 
             try
             {
-                return _cellLayer[x, y];
+                // Optimization: Use touchLru=false for high-frequency access (rendering, gizmos)
+                return _cellLayer.GetCell(x, y, touchLru: false);
             }
             catch (System.Exception ex)
             {

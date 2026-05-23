@@ -11,6 +11,7 @@ namespace Fodinae.Scripts.World
 {
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
     [DefaultExecutionOrder(100)]
+    [ExecuteAlways]
     public class SingleMeshTerrainRenderer : MonoBehaviour
     {
         [Header("Configuration")]
@@ -180,12 +181,19 @@ namespace Fodinae.Scripts.World
 
         private void LateUpdate()
         {
+#if UNITY_EDITOR
+            if (!Application.isPlaying) MapStorage.Instance.EnsureEditorInitialized();
+#endif
             if (MapManager.Instance == null || MapStorage.Instance == null || !MapStorage.Instance.IsReady) return;
             if (_mainCamera == null) _mainCamera = MapManager.Instance.MainCamera;
             if (_mainCamera == null) return;
 
             int targetWidth = Mathf.CeilToInt((_mainCamera.orthographicSize * 2 * _mainCamera.aspect) / _cellSize) + _viewportPadding * 2;
             int targetHeight = Mathf.CeilToInt((_mainCamera.orthographicSize * 2) / _cellSize) + _viewportPadding * 2;
+
+            // Robustness: Clamp dimensions to prevent massive allocations/freeze
+            targetWidth = Mathf.Clamp(targetWidth, 2, 256);
+            targetHeight = Mathf.Clamp(targetHeight, 2, 256);
 
             // Force even dimensions to stabilize centering logic
             if (targetWidth % 2 != 0) targetWidth++;
@@ -328,7 +336,11 @@ namespace Fodinae.Scripts.World
         private void PopulateCellCache(int minX, int minY)
         {
             _cacheMinX = minX - 1; _cacheMinY = minY - 1;
-            int worldWidth = MapManager.Instance.WorldWidth, worldHeight = MapManager.Instance.WorldHeight;
+            int worldWidth = MapManager.Instance.WorldWidth;
+            int worldHeight = MapManager.Instance.WorldHeight;
+            
+            if (worldWidth <= 0 || worldHeight <= 0) return;
+
             var atlases = WorldTextureManager.Instance.GetAllAtlases();
 
             for (int y = 0; y < _cacheHeight; y++) {
