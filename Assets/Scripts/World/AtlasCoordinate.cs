@@ -1,6 +1,6 @@
 using System;
-using UnityEngine;
 using MinesServer.Data;
+using UnityEngine;
 
 namespace Fodinae.Scripts.World
 {
@@ -85,8 +85,7 @@ namespace Fodinae.Scripts.World
                 Width,
                 Height,
                 AtlasWidth,
-                AtlasHeight
-            );
+                AtlasHeight);
         }
 
         /// <summary>
@@ -107,8 +106,7 @@ namespace Fodinae.Scripts.World
                 Width,
                 Height,
                 AtlasWidth,
-                AtlasHeight
-            );
+                AtlasHeight);
         }
 
         /// <summary>
@@ -119,8 +117,8 @@ namespace Fodinae.Scripts.World
         /// <returns>UV coordinates for the animation frame</returns>
         public AtlasCoordinate WithAnimationFrameFromServer(int frameIndex, int frameHeightInTiles)
         {
-            int frameHeightInPixels = frameHeightInTiles * RenderingConstants.CELL_SIZE;
-            
+            int frameHeightInPixels = frameHeightInTiles * RenderingConstants.CellSize;
+
             // Calculate frame position (assuming frames are stacked vertically)
             int frameY = frameIndex * frameHeightInPixels;
 
@@ -130,8 +128,7 @@ namespace Fodinae.Scripts.World
                 Width,
                 frameHeightInPixels,
                 AtlasWidth,
-                AtlasHeight
-            );
+                AtlasHeight);
         }
 
         public override string ToString()

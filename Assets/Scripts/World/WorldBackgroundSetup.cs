@@ -27,7 +27,7 @@ namespace Fodinae.Scripts.World
         private void SetupBackgroundRenderer()
         {
             _backgroundRenderer = FindFirstObjectByType<SingleMeshTerrainRenderer>();
-            
+
             if (_backgroundRenderer == null)
             {
                 if (_backgroundRendererPrefab != null)
@@ -39,10 +39,10 @@ namespace Fodinae.Scripts.World
                 {
                     var backgroundGO = new GameObject("SingleMeshTerrainRenderer");
                     _backgroundRenderer = backgroundGO.AddComponent<SingleMeshTerrainRenderer>();
-                    
+
                     var meshRenderer = _backgroundRenderer.GetComponent<MeshRenderer>();
                     if (meshRenderer != null) meshRenderer.sortingOrder = -1000;
-                    
+
                     var transformComp = _backgroundRenderer.GetComponent<Transform>();
                     if (transformComp != null) transformComp.position = new Vector3(0, 0, 0); // FIX: Z=0
                 }

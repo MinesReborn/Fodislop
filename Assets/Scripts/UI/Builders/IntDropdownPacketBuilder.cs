@@ -1,7 +1,7 @@
+using System.Linq;
 using Fodinae.Scripts;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Input;
-using System.Linq;
 using UnityEngine.UIElements;
 
 namespace Fodinae.Scripts.UI.Builders

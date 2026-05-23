@@ -1,10 +1,10 @@
+using System;
+using System.Collections.Generic;
+using Fodinae.Scripts.Utils;
+using Fodinae.Scripts.World;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.Information;
-using Fodinae.Scripts.World;
-using Fodinae.Scripts.Utils;
-using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Fodinae.Scripts.Game.Managers
@@ -21,7 +21,11 @@ namespace Fodinae.Scripts.Game.Managers
         {
             get
             {
-                if (_isQuitting) return null;
+                if (_isQuitting)
+                {
+                    return null;
+                }
+
                 if (_instance == null)
                 {
                     _instance = FindFirstObjectByType<MapManager>();
@@ -61,8 +65,8 @@ namespace Fodinae.Scripts.Game.Managers
             }
         }
 
-        public Action OnWorldInitialized;
-        public Action OnWorldDataLoaded;
+        public Action OnWorldInitialized { get; set; }
+        public Action OnWorldDataLoaded { get; set; }
 
         private static readonly CellConfigurationPacket _fallbackConfig = new CellConfigurationPacket
         {
@@ -82,12 +86,13 @@ namespace Fodinae.Scripts.Game.Managers
         private string _worldDisplayName;
         private ushort _width;
         private ushort _height;
-        public bool _isWorldInitialized = false;
+
+        public bool IsWorldInitialized { get; private set; } = false;
 
         // Add public property for standalone mode support
         public bool IsStandaloneMode { get; set; } = false;
 
-        void Awake()
+        protected virtual void Awake()
         {
             if (_instance != null && _instance != this)
             {
@@ -109,7 +114,7 @@ namespace Fodinae.Scripts.Game.Managers
             _isQuitting = false;
 
 #if UNITY_EDITOR
-            if (!Application.isPlaying && !_isWorldInitialized)
+            if (!Application.isPlaying && !IsWorldInitialized)
             {
                 // Basic initialization for Editor preview
                 _width = 128;
@@ -120,7 +125,7 @@ namespace Fodinae.Scripts.Game.Managers
 #endif
         }
 
-        void OnDestroy()
+        protected virtual void OnDestroy()
         {
             if (_instance == this)
             {
@@ -128,7 +133,7 @@ namespace Fodinae.Scripts.Game.Managers
             }
         }
 
-        void OnApplicationQuit()
+        protected virtual void OnApplicationQuit()
         {
             _isQuitting = true;
             MapStorage.Instance?.Dispose();
@@ -172,7 +177,11 @@ namespace Fodinae.Scripts.Game.Managers
             {
                 for (int i = 0; i < packet.TileGroups.Length; i++)
                 {
-                    if (packet.TileGroups[i] == null) continue;
+                    if (packet.TileGroups[i] == null)
+                    {
+                        continue;
+                    }
+
                     foreach (byte cellId in packet.TileGroups[i])
                     {
                         _cellToTileGroup[(CellType)cellId] = i;
@@ -266,7 +275,7 @@ namespace Fodinae.Scripts.Game.Managers
                 }
             }
 
-            _isWorldInitialized = true;
+            IsWorldInitialized = true;
             Debug.Log($"[MapManager] Triggering OnWorldInitialized event");
             OnWorldInitialized?.Invoke();
 
@@ -352,7 +361,7 @@ namespace Fodinae.Scripts.Game.Managers
         public int GetAnimationFrameHeight(CellType cellType)
         {
             var config = GetCellConfig(cellType);
-            return (int)config.FrameOffset * RenderingConstants.CELL_SIZE;
+            return (int)config.FrameOffset * RenderingConstants.CellSize;
         }
 
         public byte GetAnimationSpeed(CellType cellType)
@@ -379,9 +388,12 @@ namespace Fodinae.Scripts.Game.Managers
         public ushort WorldHeight => (_height > 0) ? _height : (ushort)128;
 
 #if UNITY_EDITOR
-        private void OnDrawGizmos()
+        protected virtual void OnDrawGizmos()
         {
-            if (_width == 0 || _height == 0) return;
+            if (_width == 0 || _height == 0)
+            {
+                return;
+            }
 
             Gizmos.color = new Color(1, 1, 1, 0.3f);
             Vector3 worldCenter = new Vector3(_width * 0.5f, _height * 0.5f, 0);
@@ -389,9 +401,12 @@ namespace Fodinae.Scripts.Game.Managers
             Gizmos.DrawWireCube(worldCenter, worldSize);
         }
 
-        private void OnDrawGizmosSelected()
+        protected virtual void OnDrawGizmosSelected()
         {
-            if (_width == 0 || _height == 0) return;
+            if (_width == 0 || _height == 0)
+            {
+                return;
+            }
 
             Vector3 worldCenter = new Vector3(_width * 0.5f, _height * 0.5f, 0);
 

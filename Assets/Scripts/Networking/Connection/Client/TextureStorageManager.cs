@@ -107,15 +107,15 @@ namespace Fodinae.Scripts.Networking.Connection.Client
 
             // Try to load from local storage
             var textureData = await LoadTextureFromStorage(normalizedFilename);
-            
+
             if (textureData != null)
             {
                 // Cache the loaded texture
                 _textureCache.TryAdd(normalizedFilename, textureData);
-                
+
                 if (_enableDebugLogging)
                     Debug.Log($"[TextureStorageManager] Loaded texture from storage: {normalizedFilename}");
-                
+
                 return textureData;
             }
 
@@ -168,7 +168,8 @@ namespace Fodinae.Scripts.Networking.Connection.Client
                         {
                             var files = Directory.GetFiles(directory, filenameWithoutExtension + ".*")
                                 .Where(f => !f.EndsWith(".meta", StringComparison.OrdinalIgnoreCase))
-                                .OrderBy(f => {
+                                .OrderBy(f =>
+                                {
                                     string ext = Path.GetExtension(f).ToLower();
                                     if (ext == ".webp") return 0;
                                     if (ext == ".gif") return 1;
@@ -199,7 +200,7 @@ namespace Fodinae.Scripts.Networking.Connection.Client
                 using var fileStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true);
                 var buffer = new byte[fileStream.Length];
                 await fileStream.ReadAsync(buffer, 0, buffer.Length);
-                
+
                 return buffer;
             }
             catch (Exception ex)
@@ -218,20 +219,20 @@ namespace Fodinae.Scripts.Networking.Connection.Client
             try
             {
                 var texture = new Texture2D(_fallbackTextureSize, _fallbackTextureSize);
-                
+
                 // Generate random colors
                 var colors = new Color[_fallbackTextureSize * _fallbackTextureSize];
                 for (int i = 0; i < colors.Length; i++)
                 {
                     colors[i] = new Color(UnityEngine.Random.value, UnityEngine.Random.value, UnityEngine.Random.value);
                 }
-                
+
                 texture.SetPixels(colors);
                 texture.Apply();
-                
+
                 var pngData = ImageConversion.EncodeToPNG(texture);
                 UnityEngine.Object.Destroy(texture);
-                
+
                 return pngData;
             }
             catch (Exception ex)
@@ -344,7 +345,7 @@ namespace Fodinae.Scripts.Networking.Connection.Client
 
             var normalizedFilename = filename.StartsWith("/") ? filename.Substring(1) : filename;
             var fullPath = Path.Combine(_textureFolderPath, normalizedFilename);
-            
+
             return File.Exists(fullPath);
         }
 

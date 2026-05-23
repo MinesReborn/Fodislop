@@ -1,6 +1,6 @@
+using MinesServer.Data;
 using UnityEngine;
 using UnityEngine.UIElements;
-using MinesServer.Data;
 
 namespace Fodinae.Scripts.UI
 {
@@ -10,7 +10,7 @@ namespace Fodinae.Scripts.UI
         [UxmlAttribute("line-color")]
         public Color LineColor { get => _color; set { _color = value; MarkDirtyRepaint(); } }
         private Color _color = Color.white;
-        
+
         [UxmlAttribute("thickness")]
         public float Thickness { get => _thickness; set { _thickness = value; MarkDirtyRepaint(); } }
         private float _thickness = 1f;
@@ -34,7 +34,7 @@ namespace Fodinae.Scripts.UI
             var paint2D = mgc.painter2D;
             paint2D.strokeColor = _color;
             paint2D.lineWidth = _thickness;
-            
+
             // If direction is set, we use simple line drawing based on element size
             if (_direction == LineDirection.Horizontal)
             {

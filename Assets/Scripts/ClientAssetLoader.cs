@@ -1,23 +1,23 @@
-using Cysharp.Threading.Tasks;
-using UnityEngine;
 using System;
 using System.Collections.Concurrent;
-using System.Threading;
-using MinesServer.Networking.Connection;
-using MinesServer.Networking.Connection.Client;
-using MinesServer.Networking.Client.Packets;
-using MinesServer.Networking.Client.Packets.Utilities;
-using System.Threading.Tasks;
 using System.Collections.Generic;
-using MinesServer.Networking.Server.Packets.Utilities;
-using MinesServer.Networking.Server.Packets;
+using System.Threading;
+using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using Fodinae.Scripts.Networking.Connection;
 using Fodinae.Scripts.World;
+using MinesServer.Networking.Client.Packets;
+using MinesServer.Networking.Client.Packets.Utilities;
+using MinesServer.Networking.Connection;
+using MinesServer.Networking.Connection.Client;
+using MinesServer.Networking.Server.Packets;
+using MinesServer.Networking.Server.Packets.Utilities;
+using UnityEngine;
 
 namespace Fodinae.Scripts
 {
-    using static PersistentAssetCache;
     using static ETagCalculator;
+    using static PersistentAssetCache;
 
     public class ClientAssetLoader : MonoBehaviour
     {

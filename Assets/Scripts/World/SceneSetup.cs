@@ -12,7 +12,23 @@ namespace Fodinae.Scripts.World
         private static SceneSetup _instance;
         private WorldBackgroundSetup _backgroundSetup;
 
-        void Awake()
+        /// <summary>
+        /// Get the background setup instance
+        /// </summary>
+        public static WorldBackgroundSetup GetBackgroundSetup()
+        {
+            return _instance?._backgroundSetup;
+        }
+
+        /// <summary>
+        /// Get the background renderer instance
+        /// </summary>
+        public static SingleMeshTerrainRenderer GetBackgroundRenderer()
+        {
+            return _instance?._backgroundSetup?.GetBackgroundRenderer();
+        }
+
+        private void Awake()
         {
             // Ensure this is a singleton
             if (_instance != null && _instance != this)
@@ -41,7 +57,7 @@ namespace Fodinae.Scripts.World
                 // Create a new GameObject for background setup
                 var setupGO = new GameObject("WorldBackgroundSetup");
                 _backgroundSetup = setupGO.AddComponent<WorldBackgroundSetup>();
-                
+
                 if (Application.isPlaying)
                 {
                     DontDestroyOnLoad(setupGO);
@@ -53,22 +69,6 @@ namespace Fodinae.Scripts.World
             {
                 Debug.Log("WorldBackgroundSetup already exists in scene");
             }
-        }
-
-        /// <summary>
-        /// Get the background setup instance
-        /// </summary>
-        public static WorldBackgroundSetup GetBackgroundSetup()
-        {
-            return _instance?._backgroundSetup;
-        }
-
-        /// <summary>
-        /// Get the background renderer instance
-        /// </summary>
-        public static SingleMeshTerrainRenderer GetBackgroundRenderer()
-        {
-            return _instance?._backgroundSetup?.GetBackgroundRenderer();
         }
     }
 }

@@ -1,5 +1,7 @@
+using System;
 using Fodinae.Scripts.Game;
 using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.Networking;
 using Fodinae.Scripts.Networking.Connection;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets.Actions;
@@ -7,8 +9,6 @@ using MinesServer.Networking.Client.Packets.Movement;
 using MinesServer.Networking.Server.Packets.Connection;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using System;
-using Fodinae.Scripts.Networking;
 
 namespace Fodinae.Scripts.Player
 {
@@ -21,7 +21,7 @@ namespace Fodinae.Scripts.Player
     {
         [Header("Movement Settings")]
         [SerializeField] private float _moveSpeed = 15f;
-        
+
         public uint BotId { get; private set; }
         public Vector2Int ServerPosition { get; private set; }
         public Vector2Int ClientPosition { get; private set; }
@@ -118,13 +118,28 @@ namespace Fodinae.Scripts.Player
             {
                 // Fallback direct polling of Keyboard for immediate testing without needing inspector setup
                 _moveInput = Vector2.zero;
-                
+
                 if (Keyboard.current != null)
                 {
-                    if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed) _moveInput.y += 1f;
-                    if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed) _moveInput.y -= 1f;
-                    if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed) _moveInput.x -= 1f;
-                    if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed) _moveInput.x += 1f;
+                    if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed)
+                    {
+                        _moveInput.y += 1f;
+                    }
+
+                    if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed)
+                    {
+                        _moveInput.y -= 1f;
+                    }
+
+                    if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed)
+                    {
+                        _moveInput.x -= 1f;
+                    }
+
+                    if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed)
+                    {
+                        _moveInput.x += 1f;
+                    }
                 }
             }
 
@@ -137,11 +152,17 @@ namespace Fodinae.Scripts.Player
 
         private void ApplyMovement()
         {
-            if (_robot == null) return;
+            if (_robot == null)
+            {
+                return;
+            }
 
             var mm = MapManager.Instance;
             var ns = NetworkService.Instance;
-            if (mm == null || ns == null) return;
+            if (mm == null || ns == null)
+            {
+                return;
+            }
 
             if (_moveInput != Vector2.zero)
             {
@@ -177,6 +198,7 @@ namespace Fodinae.Scripts.Player
                     {
                         _robot.MoveSpeed = 1f / cooldown;
                     }
+
                     if (Time.time - _lastMoveTime < cooldown)
                     {
                         return;
@@ -190,9 +212,13 @@ namespace Fodinae.Scripts.Player
                     }
 
                     if (direction.x != 0)
+                    {
                         _robot.TargetAngle = direction.x > 0 ? 0f : 180f;
+                    }
                     else
+                    {
                         _robot.TargetAngle = direction.y > 0 ? 90f : 270f;
+                    }
 
                     bool isShiftPressed = Keyboard.current != null && Keyboard.current.shiftKey.isPressed;
                     if (isShiftPressed)
@@ -209,7 +235,10 @@ namespace Fodinae.Scripts.Player
 
                     // Fetch world bounds from MapStorage
                     var layer = MapStorage.Instance.CellLayer;
-                    if (layer == null) return;
+                    if (layer == null)
+                    {
+                        return;
+                    }
 
                     int mapWidth = mm.WorldWidth;
                     int mapHeight = mm.WorldHeight;
@@ -265,7 +294,7 @@ namespace Fodinae.Scripts.Player
                 Gizmos.color = Color.green;
                 Gizmos.DrawLine(transform.position, _robot.TargetPosition);
                 Gizmos.DrawWireSphere(_robot.TargetPosition, 0.2f);
-                
+
                 Utils.FodislopGizmos.DrawLabel(gridPos + Vector3.down * 0.7f, $"Grid: {ClientPosition.x}, {ClientPosition.y}", Color.cyan);
             }
         }

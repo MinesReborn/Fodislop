@@ -1,10 +1,10 @@
+using System;
 using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Networking;
 using Fodinae.Scripts.Networking.Connection;
 using MinesServer.Networking.Client;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.GUI;
-using System;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -20,27 +20,29 @@ namespace Fodinae.Scripts
         private bool _hasShownLoader = false;
         private Button _playButton;
 
-        void OnEnable()
+        private void OnEnable()
         {
             _doc = GetComponent<UIDocument>();
             var root = _doc.rootVisualElement;
             root.style.justifyContent = Justify.Center;
             root.style.alignItems = Align.Center;
             ShowLoader();
-            
+
             var mainMenuUXML = Resources.Load<VisualTreeAsset>("UI/MainMenu");
             if (mainMenuUXML == null)
             {
                 Debug.LogError("MainMenu.uxml не найден в Resources/UI/");
                 return;
             }
-            
+
             var mainMenu = mainMenuUXML.CloneTree();
             _mainMenuContainer = mainMenu.Q<VisualElement>("MainMenuContainer");
             _playButton = mainMenu.Q<Button>("PlayButton");
             if (_playButton != null)
+            {
                 _playButton.clicked += OnPlayButtonClicked;
-            
+            }
+
             root.Add(mainMenu);
 
             // The loader is a full-screen, absolutely-positioned background overlay
@@ -55,13 +57,17 @@ namespace Fodinae.Scripts
             mainMenu.style.bottom = 0;
             mainMenu.BringToFront();
             if (_loaderContainer != null)
+            {
                 _loaderContainer.pickingMode = PickingMode.Ignore;
+            }
         }
 
-        void OnDisable()
+        private void OnDisable()
         {
             if (_playButton != null)
+            {
                 _playButton.clicked -= OnPlayButtonClicked;
+            }
         }
 
         private void ShowLoader()

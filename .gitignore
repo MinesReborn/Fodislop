@@ -482,3 +482,5 @@ InitTestScene*.unity*
 *.suo
 *.user
 *.userprefs
+
+*.txt

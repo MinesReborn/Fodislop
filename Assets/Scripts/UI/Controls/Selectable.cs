@@ -35,10 +35,10 @@ namespace Fodinae.UI.Controls
         {
             _checkedElement = checkedElement;
             _uncheckedElement = uncheckedElement;
-            
+
             Add(_checkedElement);
             Add(_uncheckedElement);
-            
+
             UpdateVisuals();
         }
 
@@ -69,7 +69,7 @@ namespace Fodinae.UI.Controls
                     // deselection by clicking the active button. So, do nothing.
                     return;
                 }
-                
+
                 // Select this button and deselect all others in the group.
                 value = true;
                 foreach (var peer in groupPeers)

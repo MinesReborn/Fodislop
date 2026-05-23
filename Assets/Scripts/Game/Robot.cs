@@ -1,8 +1,8 @@
-using UnityEngine;
-using Fodinae.Scripts.Game.Managers;
-using Fodinae.Scripts.Utils;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.Utils;
+using UnityEngine;
 
 namespace Fodinae.Scripts.Game
 {
@@ -16,7 +16,8 @@ namespace Fodinae.Scripts.Game
         private TextMesh _nicknameText;
         [SerializeField] private string _nickname;
         [SerializeField] private string _skinPath;
-        [SerializeField] private string _tailPath; [SerializeField] private float _rotationSpeed = 1080f;
+        [SerializeField] private string _tailPath;
+        [SerializeField] private float _rotationSpeed = 1080f;
 
         private const float VISUAL_ROTATION_OFFSET = -90f;
 
@@ -69,7 +70,9 @@ namespace Fodinae.Scripts.Game
         private void Awake()
         {
             if (_spriteRenderer == null)
+            {
                 _spriteRenderer = GetComponent<SpriteRenderer>();
+            }
 
             transform.localScale = Vector3.one;
             _targetPosition = transform.position;
@@ -259,8 +262,15 @@ namespace Fodinae.Scripts.Game
                 _spriteRenderer.color = new Color(1, 1, 1, 0.5f);
             }
 
-            if (_nicknameText != null) _nicknameText.text = "";
-            if (_clanRenderer != null) _clanRenderer.sprite = null;
+            if (_nicknameText != null)
+            {
+                _nicknameText.text = "";
+            }
+
+            if (_clanRenderer != null)
+            {
+                _clanRenderer.sprite = null;
+            }
         }
 
         public void SetMetadata(int playerId, byte clanid, string nickname, string skinPath, string tailPath)
@@ -333,13 +343,28 @@ namespace Fodinae.Scripts.Game
 
         private async UniTaskVoid LoadSkinAsync(CancellationToken token)
         {
-            if (string.IsNullOrEmpty(_skinPath)) return;
-            var loader = ClientAssetLoader.Instance;
-            if (loader == null) return;
-            var skinTexture = await loader.GetTextureAsync(_skinPath, token);
-            if (token.IsCancellationRequested || skinTexture == null || _spriteRenderer == null) return;
+            if (string.IsNullOrEmpty(_skinPath))
+            {
+                return;
+            }
 
-            if (_skinSprite != null) Object.Destroy(_skinSprite);
+            var loader = ClientAssetLoader.Instance;
+            if (loader == null)
+            {
+                return;
+            }
+
+            var skinTexture = await loader.GetTextureAsync(_skinPath, token);
+            if (token.IsCancellationRequested || skinTexture == null || _spriteRenderer == null)
+            {
+                return;
+            }
+
+            if (_skinSprite != null)
+            {
+                Object.Destroy(_skinSprite);
+            }
+
             _skinSprite = Sprite.Create(skinTexture, new Rect(0, 0, skinTexture.width, skinTexture.height), new Vector2(0.5f, 0.5f), skinTexture.width);
             _spriteRenderer.sprite = _skinSprite;
         }
@@ -351,10 +376,18 @@ namespace Fodinae.Scripts.Game
                 ClearTentacles();
                 return;
             }
+
             var loader = ClientAssetLoader.Instance;
-            if (loader == null) return;
+            if (loader == null)
+            {
+                return;
+            }
+
             var tailTexture = await loader.GetTextureAsync(_tailPath, token);
-            if (token.IsCancellationRequested) return;
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
 
             if (tailTexture != null)
             {
@@ -368,13 +401,28 @@ namespace Fodinae.Scripts.Game
 
         private async UniTaskVoid LoadClanAsync(CancellationToken token)
         {
-            if (_clanId == 0) return;
-            var loader = ClientAssetLoader.Instance;
-            if (loader == null) return;
-            var clanTexture = await loader.GetTextureAsync($"/clan/{_clanId}", token);
-            if (token.IsCancellationRequested || clanTexture == null || _clanRenderer == null) return;
+            if (_clanId == 0)
+            {
+                return;
+            }
 
-            if (_clanSprite != null) Object.Destroy(_clanSprite);
+            var loader = ClientAssetLoader.Instance;
+            if (loader == null)
+            {
+                return;
+            }
+
+            var clanTexture = await loader.GetTextureAsync($"/clan/{_clanId}", token);
+            if (token.IsCancellationRequested || clanTexture == null || _clanRenderer == null)
+            {
+                return;
+            }
+
+            if (_clanSprite != null)
+            {
+                Object.Destroy(_clanSprite);
+            }
+
             _clanSprite = Sprite.Create(clanTexture, new Rect(0, 0, clanTexture.width, clanTexture.height), new Vector2(0f, 0.5f), clanTexture.width);
             _clanRenderer.sprite = _clanSprite;
         }
@@ -386,7 +434,7 @@ namespace Fodinae.Scripts.Game
 
             // Server Position: Red Square
             Utils.FodislopGizmos.DrawBounds(_serverPosition, Vector2.one * 1.0f, Color.red);
-            
+
             // Client/Target Position: Blue Square
             Utils.FodislopGizmos.DrawBounds(_targetPosition, Vector2.one * 0.9f, Color.blue);
 
@@ -403,7 +451,7 @@ namespace Fodinae.Scripts.Game
                             $"Meta: {(_isMetadataLoaded ? "OK" : "PENDING")}\n" +
                             $"Speed: {_moveSpeed:F1}";
             Utils.FodislopGizmos.DrawLabel(transform.position + Vector3.up * 1.5f, status, _isMetadataLoaded ? Color.green : Color.orange);
-            
+
             if (!IsLocalPlayer)
             {
                 // Draw line to server position if it's lagging

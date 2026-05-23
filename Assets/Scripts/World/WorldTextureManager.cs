@@ -4,10 +4,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
-using UnityEngine;
-using MinesServer.Data;
 using Fodinae.Scripts;
 using Fodinae.Scripts.Game.Managers;
+using MinesServer.Data;
+using UnityEngine;
 
 namespace Fodinae.Scripts.World
 {
@@ -52,12 +52,12 @@ namespace Fodinae.Scripts.World
         [SerializeField] private int _texturePadding = 2;
 
         [Header("Performance")]
-        [SerializeField] private int _cellTextureSize = RenderingConstants.CELL_SIZE;
+        [SerializeField] private int _cellTextureSize = RenderingConstants.CellSize;
 
         public TextureAtlas _currentAtlas;
         private CellTextureCache _textureCache;
         private Texture2D _flowMapTexture;
-        public const CellType FLOW_MAP_CELL_TYPE = (CellType)254;
+        public const CellType FlowMapCellType = (CellType)254;
         private ConcurrentDictionary<CellType, TextureRequest> _pendingRequests;
         private List<TextureAtlas> _atlases;
 
@@ -154,7 +154,7 @@ namespace Fodinae.Scripts.World
 
             var textureInfo = new CellTextureInfo
             {
-                CellType = FLOW_MAP_CELL_TYPE,
+                CellType = FlowMapCellType,
                 BaseTexture = _flowMapTexture,
                 HasVariations = false,
                 VariationCount = 1,
@@ -162,15 +162,15 @@ namespace Fodinae.Scripts.World
                 FramesPerRow = 1,
                 FrameSize = 12
             };
-            _textureCache.AddTexture(FLOW_MAP_CELL_TYPE, textureInfo);
+            _textureCache.AddTexture(FlowMapCellType, textureInfo);
         }
 
         private void EnsureFlowMapInAtlas(TextureAtlas atlas)
         {
             if (_flowMapTexture == null) GenerateFlowMap();
-            if (!atlas.ContainsCell(FLOW_MAP_CELL_TYPE))
+            if (!atlas.ContainsCell(FlowMapCellType))
             {
-                atlas.TryAddTexture(FLOW_MAP_CELL_TYPE, _flowMapTexture, out _);
+                atlas.TryAddTexture(FlowMapCellType, _flowMapTexture, out _);
             }
         }
 
@@ -214,7 +214,7 @@ namespace Fodinae.Scripts.World
         public AtlasCoordinate GetFlowMapCoordinate(TextureAtlas atlas)
         {
             EnsureInitialized();
-            return atlas.GetCoordinate(FLOW_MAP_CELL_TYPE);
+            return atlas.GetCoordinate(FlowMapCellType);
         }
 
         public AtlasCoordinate GetCellTextureCoordinateSync(CellType cellType, int globalX, int globalY)

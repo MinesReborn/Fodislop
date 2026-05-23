@@ -1,6 +1,6 @@
-using UnityEngine;
 using System.Collections.Generic;
 using Fodinae.Scripts.Game;
+using UnityEngine;
 
 namespace Fodinae.Scripts.Game.Managers
 {
@@ -9,18 +9,22 @@ namespace Fodinae.Scripts.Game.Managers
         private static RobotManager _instance;
         private static bool _isQuitting = false;
 
-        /// <summary>
-        /// The existing manager or null — never creates one. Use this from
-        /// OnDestroy / teardown paths so we don't resurrect the manager
-        /// during shutdown ("spawn new GameObjects from OnDestroy").
-        /// </summary>
+        [SerializeField]
+        private GameObject _robotPrefab;
+
+        private Dictionary<uint, Robot> _robots = new();
+
         public static RobotManager InstanceIfExists => _instance;
 
         public static RobotManager Instance
         {
             get
             {
-                if (_isQuitting) return null;
+                if (_isQuitting)
+                {
+                    return null;
+                }
+
                 if (_instance == null)
                 {
                     _instance = FindFirstObjectByType<RobotManager>();
@@ -38,45 +42,22 @@ namespace Fodinae.Scripts.Game.Managers
                         }
                     }
                 }
+
                 return _instance;
             }
         }
 
-        [SerializeField] private GameObject _robotPrefab;
-        private Dictionary<uint, Robot> _robots = new();
-        public uint LocalPlayerBotId { get; set; }
         public static bool ShowDebugVisuals { get; set; }
 
-        private void Awake()
-        {
-            if (_instance != null && _instance != this)
-            {
-                Destroy(gameObject);
-                return;
-            }
-
-            _instance = this;
-            if (Application.isPlaying)
-            {
-                DontDestroyOnLoad(gameObject);
-
-                // Ensure parented if created in scene
-                var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
-                UnityEngine.Object.DontDestroyOnLoad(parent);
-                transform.SetParent(parent.transform);
-            }
-
-            _isQuitting = false;
-        }
-
-        private void OnApplicationQuit()
-        {
-            _isQuitting = true;
-        }
+        public uint LocalPlayerBotId { get; set; }
 
         public void RegisterRobot(Robot robot)
         {
-            if (robot == null) return;
+            if (robot == null)
+            {
+                return;
+            }
+
             _robots[robot.BotId] = robot;
         }
 
@@ -160,6 +141,33 @@ namespace Fodinae.Scripts.Game.Managers
             {
                 _robots.Remove(botId);
             }
+        }
+
+        protected virtual void Awake()
+        {
+            if (_instance != null && _instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
+            _instance = this;
+            if (Application.isPlaying)
+            {
+                DontDestroyOnLoad(gameObject);
+
+                // Ensure parented if created in scene
+                var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+                UnityEngine.Object.DontDestroyOnLoad(parent);
+                transform.SetParent(parent.transform);
+            }
+
+            _isQuitting = false;
+        }
+
+        protected virtual void OnApplicationQuit()
+        {
+            _isQuitting = true;
         }
     }
 }

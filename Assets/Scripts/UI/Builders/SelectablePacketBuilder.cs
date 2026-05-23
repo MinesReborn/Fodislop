@@ -21,7 +21,7 @@ namespace Fodinae.Scripts.UI.Builders
                 Group = selectablePacket.Name,
                 value = selectablePacket.DefaultValue
             };
-            
+
             selectable.SetVisuals(checkedVisual, uncheckedVisual);
             selectable.SetEnabled(selectablePacket.IsEnabled);
 

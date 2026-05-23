@@ -1,11 +1,11 @@
-using UnityEngine;
-using UnityEngine.UI;
-using Fodinae.Scripts.World;
-using Fodinae.Scripts.Game.Managers;
-using Fodinae.Scripts.Player;
-using MinesServer.Data;
 using System.Collections;
 using System.Collections.Generic;
+using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.Player;
+using Fodinae.Scripts.World;
+using MinesServer.Data;
+using UnityEngine;
+using UnityEngine.UI;
 
 namespace Fodinae.Scripts.UI
 {
@@ -41,7 +41,7 @@ namespace Fodinae.Scripts.UI
 
         private IEnumerator InitializeMinimap()
         {
-            yield return new WaitUntil(() => MapManager.Instance != null && MapManager.Instance._isWorldInitialized);
+            yield return new WaitUntil(() => MapManager.Instance != null && MapManager.Instance.IsWorldInitialized);
             yield return new WaitUntil(() => MapStorage.Instance != null && MapStorage.Instance.IsReady);
 
             _player = FindFirstObjectByType<PlayerMovementController>();

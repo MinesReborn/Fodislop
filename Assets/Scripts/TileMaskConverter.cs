@@ -1,36 +1,36 @@
-﻿using System;
+using System;
 
 namespace Fodinae.Scripts
 {
     public static class TileBitmaskConverter
     {
-    /// <summary>
-    /// Converts a neighbor bitmask into a Tile Descriptor byte.
-    /// </summary>
-    /// <param name="presenceMask">
-    /// The neighbor connection mask. 
-    /// Bits: TL(7) T(6) TR(5) R(4) BR(3) B(2) BL(1) L(0). 
-    /// 1 = connected, 0 = empty. Center is always 1.
-    /// </param>
-    /// <returns>
-    /// A descriptor byte: R X Y I I I I I
-    /// Bit 7 (R): Rotate 90 degrees Clockwise.
-    /// Bit 6 (X): Flip Horizontally (before rotation).
-    /// Bit 5 (Y): Flip Vertically (before rotation).
-    /// Bits 0-4 (I): Base Tile Index (0-13).
-    /// </returns>
-    public static byte GetDescriptor(byte presenceMask)
-    {
-        return PresenceToDescriptor[presenceMask];
-    }
+        /// <summary>
+        /// Converts a neighbor bitmask into a Tile Descriptor byte.
+        /// </summary>
+        /// <param name="presenceMask">
+        /// The neighbor connection mask. 
+        /// Bits: TL(7) T(6) TR(5) R(4) BR(3) B(2) BL(1) L(0). 
+        /// 1 = connected, 0 = empty. Center is always 1.
+        /// </param>
+        /// <returns>
+        /// A descriptor byte: R X Y I I I I I
+        /// Bit 7 (R): Rotate 90 degrees Clockwise.
+        /// Bit 6 (X): Flip Horizontally (before rotation).
+        /// Bit 5 (Y): Flip Vertically (before rotation).
+        /// Bits 0-4 (I): Base Tile Index (0-13).
+        /// </returns>
+        public static byte GetDescriptor(byte presenceMask)
+        {
+            return PresenceToDescriptor[presenceMask];
+        }
 
-    /// <summary>
-    /// Lookup table converting every possible 8-neighbor mask (0-255) 
-    /// to a canonical base tile + transformation.
-    /// "Floating" corners (corners without both adjacent orthogonal edges) 
-    /// are gracefully ignored to find the best fitting valid tile.
-    /// </summary>
-    private static readonly byte[] PresenceToDescriptor = new byte[] {
+        /// <summary>
+        /// Lookup table converting every possible 8-neighbor mask (0-255) 
+        /// to a canonical base tile + transformation.
+        /// "Floating" corners (corners without both adjacent orthogonal edges) 
+        /// are gracefully ignored to find the best fitting valid tile.
+        /// </summary>
+        private static readonly byte[] PresenceToDescriptor = new byte[] {
         0x00, 0x01, 0x00, 0x01, 0xC1, 0x02, 0xC1, 0x04, 0x00, 0x01, 0x00, 0x01, 0xC1, 0x02, 0xC1, 0x04,
         0x41, 0x03, 0x41, 0x03, 0x42, 0x05, 0x42, 0x06, 0x41, 0x03, 0x41, 0x03, 0x44, 0x46, 0x44, 0x08,
         0x00, 0x01, 0x00, 0x01, 0xC1, 0x02, 0xC1, 0x04, 0x00, 0x01, 0x00, 0x01, 0xC1, 0x02, 0xC1, 0x04,

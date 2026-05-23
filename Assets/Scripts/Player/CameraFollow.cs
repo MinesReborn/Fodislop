@@ -147,10 +147,10 @@ namespace Fodinae.Scripts.Player
                 // Draw line to target
                 Gizmos.color = Color.yellow;
                 Gizmos.DrawLine(transform.position, _target.position);
-                
+
                 // Draw target marker
                 Gizmos.DrawWireSphere(_target.position, 0.5f);
-                
+
                 Utils.FodislopGizmos.DrawLabel(_target.position + Vector3.up * 0.7f, "Camera Target", Color.yellow);
             }
 
