@@ -1,61 +1,49 @@
-using MinesServer.Data;
-using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
 using UnityEngine;
-using UnityEngine.UIElements; // The Namespace for UI Toolkit
+using UnityEngine.UIElements;
 
-public class UILine : VisualElement
+namespace Fodinae.Scripts
 {
-    public LineDirection Direction { get; set; }
-    public Color LineColor { get; set; } = Color.black;
-    public float Thickness { get; set; } = 1.0f;
-
-    public UILine()
+    public class UILine : VisualElement
     {
-        // Subscribe to the "Generate Visual Content" event
-        // This is like "OnPaint" in Windows Forms
-        generateVisualContent += OnGenerateVisualContent;
-    }
+        public new class UxmlFactory : UxmlFactory<UILine, UxmlTraits> { }
 
-    private void OnGenerateVisualContent(MeshGenerationContext context)
-    {
-        // If we have 0 size, don't draw
-        if (contentRect.width < 0.1f || contentRect.height < 0.1f) return;
-
-        var painter = context.painter2D;
-        painter.strokeColor = LineColor;
-        painter.lineWidth = Thickness;
-
-        painter.BeginPath();
-
-        switch (Direction)
+        public new class UxmlTraits : VisualElement.UxmlTraits
         {
-            case LineDirection.Horizontal:
-                // Draw line through center Y
-                float midY = contentRect.height / 2f;
-                painter.MoveTo(new Vector2(0, midY));
-                painter.LineTo(new Vector2(contentRect.width, midY));
-                break;
+            UxmlColorAttributeDescription _color = new UxmlColorAttributeDescription { name = "line-color", defaultValue = Color.white };
+            UxmlFloatAttributeDescription _thickness = new UxmlFloatAttributeDescription { name = "thickness", defaultValue = 1f };
 
-            case LineDirection.Vertical:
-                // Draw line through center X
-                float midX = contentRect.width / 2f;
-                painter.MoveTo(new Vector2(midX, 0));
-                painter.LineTo(new Vector2(midX, contentRect.height));
-                break;
-
-            case LineDirection.Diagonal:
-                // Top-Left to Bottom-Right
-                painter.MoveTo(new Vector2(0, 0));
-                painter.LineTo(new Vector2(contentRect.width, contentRect.height));
-                break;
-
-            case LineDirection.ReverseDiagonal:
-                // Top-Right to Bottom-Left
-                painter.MoveTo(new Vector2(contentRect.width, 0));
-                painter.LineTo(new Vector2(0, contentRect.height));
-                break;
+            public override void Init(VisualElement ve, IUxmlAttributes bag, CreationContext cc)
+            {
+                base.Init(ve, bag, cc);
+                var line = ve as UILine;
+                line._color = _color.GetValueFromBag(bag, cc);
+                line._thickness = _thickness.GetValueFromBag(bag, cc);
+                line.MarkDirtyRepaint();
+            }
         }
 
-        painter.Stroke();
+        private Color _color = Color.white;
+        private float _thickness = 1f;
+        private Vector2 _start;
+        private Vector2 _end;
+
+        public Vector2 Start { get => _start; set { _start = value; MarkDirtyRepaint(); } }
+        public Vector2 End { get => _end; set { _end = value; MarkDirtyRepaint(); } }
+
+        public UILine()
+        {
+            generateVisualContent += OnGenerateVisualContent;
+        }
+
+        private void OnGenerateVisualContent(MeshGenerationContext mgc)
+        {
+            var paint2D = mgc.painter2D;
+            paint2D.strokeColor = _color;
+            paint2D.lineWidth = _thickness;
+            paint2D.BeginPath();
+            paint2D.MoveTo(_start);
+            paint2D.LineTo(_end);
+            paint2D.Stroke();
+        }
     }
 }

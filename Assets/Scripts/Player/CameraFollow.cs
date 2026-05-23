@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-namespace Fodinae.Assets.Scripts.Player
+namespace Fodinae.Scripts.Player
 {
     public class CameraFollow : MonoBehaviour
     {

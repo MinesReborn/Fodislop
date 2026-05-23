@@ -4,7 +4,7 @@ using System.Linq;
 using UnityEngine;
 using MinesServer.Data;
 
-namespace Fodinae.Assets.Scripts.World
+namespace Fodinae.Scripts.World
 {
     /// <summary>
     /// Manages caching of cell textures for efficient loading and memory management

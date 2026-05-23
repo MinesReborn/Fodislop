@@ -1,24 +1,31 @@
 using UnityEngine;
 using System.Collections.Generic;
 using MinesServer.Data;
-using Fodinae.Assets.Scripts.Game;
+using Fodinae.Scripts.Game;
 
-namespace Fodinae.Assets.Scripts.Game.Managers
+namespace Fodinae.Scripts.Game.Managers
 {
     public class PackManager : MonoBehaviour
     {
         private static PackManager _instance;
+        private static bool _isQuitting = false;
         public static PackManager Instance
         {
             get
             {
+                if (_isQuitting) return null;
                 if (_instance == null)
                 {
                     _instance = FindFirstObjectByType<PackManager>();
-                    if (_instance == null)
+                    if (_instance == null && !_isQuitting)
                     {
                         var go = new GameObject("[PackManager]");
                         _instance = go.AddComponent<PackManager>();
+
+                        // System Grouping
+                        var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+                        UnityEngine.Object.DontDestroyOnLoad(parent);
+                        go.transform.SetParent(parent.transform);
                     }
                 }
                 return _instance;
@@ -36,6 +43,18 @@ namespace Fodinae.Assets.Scripts.Game.Managers
             }
             _instance = this;
             DontDestroyOnLoad(gameObject);
+
+            // Ensure parented if created in scene
+            var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+            UnityEngine.Object.DontDestroyOnLoad(parent);
+            transform.SetParent(parent.transform);
+
+            _isQuitting = false;
+        }
+
+        private void OnApplicationQuit()
+        {
+            _isQuitting = true;
         }
 
         private void Start()

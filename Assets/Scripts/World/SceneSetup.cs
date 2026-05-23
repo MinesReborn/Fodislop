@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Fodinae.Assets.Scripts.World
+namespace Fodinae.Scripts.World
 {
     /// <summary>
     /// Scene setup manager that ensures the world background renderer is properly configured.

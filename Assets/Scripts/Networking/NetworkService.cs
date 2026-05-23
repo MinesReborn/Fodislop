@@ -6,12 +6,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using Fodinae.Assets.Scripts.Networking.Connection;
-using Fodinae.Assets.Scripts.Player;
-using Fodinae.Assets.Scripts.Game.Managers;
+using Fodinae.Scripts.Networking.Connection;
+using Fodinae.Scripts.Player;
+using Fodinae.Scripts.Game.Managers;
 using MinesServer.Networking.Client;
 
-namespace Fodinae.Assets.Scripts.Networking
+namespace Fodinae.Scripts.Networking
 {
     /// <summary>
     /// High-level service for server communication and packet routing.
@@ -33,6 +33,11 @@ namespace Fodinae.Assets.Scripts.Networking
                     {
                         var go = new GameObject("[NetworkService]");
                         _instance = go.AddComponent<NetworkService>();
+
+                        // System Grouping
+                        var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+                        UnityEngine.Object.DontDestroyOnLoad(parent);
+                        go.transform.SetParent(parent.transform);
                     }
                 }
                 return _instance;
@@ -56,6 +61,12 @@ namespace Fodinae.Assets.Scripts.Networking
             }
             _instance = this;
             DontDestroyOnLoad(gameObject);
+
+            // Ensure parented if created in scene
+            var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+            UnityEngine.Object.DontDestroyOnLoad(parent);
+            transform.SetParent(parent.transform);
+
             _isQuitting = false;
         }
 

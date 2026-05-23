@@ -2,7 +2,7 @@ using MinesServer.Data;
 using System.IO;
 using UnityEngine;
 
-namespace Fodinae.Assets.Scripts.Game.Managers
+namespace Fodinae.Scripts.Game.Managers
 {
     public class MapStorage
     {

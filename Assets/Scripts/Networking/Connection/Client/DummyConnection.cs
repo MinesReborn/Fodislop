@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Cysharp.Threading.Tasks.CompilerServices;
-using Fodinae.Assets.Scripts.UI;
+using Fodinae.Scripts.UI;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.Actions;
@@ -714,7 +714,7 @@ namespace MinesServer.Networking.Connection.Client
             {
                 // Use TextureStorageManager to get texture data
                 // This will load from local storage if available, or generate random texture as fallback
-                var pngData = await Fodinae.Assets.Scripts.Networking.Connection.Client.TextureStorageManager.Instance.GetTextureData(assetEntry.Filename);
+                var pngData = await Fodinae.Scripts.Networking.Connection.Client.TextureStorageManager.Instance.GetTextureData(assetEntry.Filename);
 
                 if (pngData != null)
                 {

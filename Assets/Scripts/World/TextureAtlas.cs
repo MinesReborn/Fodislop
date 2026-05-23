@@ -5,9 +5,9 @@ using System.Linq;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using MinesServer.Data;
-using Fodinae.Assets.Scripts.Game.Managers;
+using Fodinae.Scripts.Game.Managers;
 
-namespace Fodinae.Assets.Scripts.World
+namespace Fodinae.Scripts.World
 {
     public class TextureAtlas
     {

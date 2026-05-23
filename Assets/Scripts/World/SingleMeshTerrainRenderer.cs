@@ -1,20 +1,20 @@
 using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
-using Fodinae.Assets.Scripts.Game.Managers;
+using Fodinae.Scripts.Game.Managers;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace Fodinae.Assets.Scripts.World
+namespace Fodinae.Scripts.World
 {
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
     [DefaultExecutionOrder(100)]
     public class SingleMeshTerrainRenderer : MonoBehaviour
     {
         [Header("Configuration")]
-        [SerializeField] private float _cellSize = 1.0f;
+        [SerializeField] private float _cellSize = GameConstants.World.CELL_SIZE;
         [SerializeField] private Shader _terrainShader;
         [SerializeField] private Color _shimmerHighlightColor = Color.white;
         [SerializeField] private string _sortingLayerName = "Default";

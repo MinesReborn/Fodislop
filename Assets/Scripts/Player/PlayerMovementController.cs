@@ -1,6 +1,6 @@
-using Fodinae.Assets.Scripts.Game;
-using Fodinae.Assets.Scripts.Game.Managers;
-using Fodinae.Assets.Scripts.Networking.Connection;
+using Fodinae.Scripts.Game;
+using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.Networking.Connection;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets.Actions;
 using MinesServer.Networking.Client.Packets.Movement;
@@ -8,9 +8,9 @@ using MinesServer.Networking.Server.Packets.Connection;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using System;
-using Fodinae.Assets.Scripts.Networking;
+using Fodinae.Scripts.Networking;
 
-namespace Fodinae.Assets.Scripts.Player
+namespace Fodinae.Scripts.Player
 {
     /// <summary>
     /// Foundation for player movement.

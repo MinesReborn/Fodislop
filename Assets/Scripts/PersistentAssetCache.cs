@@ -3,8 +3,10 @@ using System;
 using System.IO;
 using UnityEngine;
 
-public static class PersistentAssetCache
+namespace Fodinae.Scripts
 {
+    public static class PersistentAssetCache
+    {
     private static string _cachePath;
     private static bool _isInitialized = false;
 
@@ -188,4 +190,5 @@ public static class PersistentAssetCache
             return false;
         }
     }
+}
 }

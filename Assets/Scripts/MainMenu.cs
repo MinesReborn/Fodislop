@@ -1,6 +1,6 @@
-using Fodinae.Assets.Scripts.Game.Managers;
-using Fodinae.Assets.Scripts.Networking;
-using Fodinae.Assets.Scripts.Networking.Connection;
+using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.Networking;
+using Fodinae.Scripts.Networking.Connection;
 using MinesServer.Networking.Client;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.GUI;
@@ -8,34 +8,44 @@ using System;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-[RequireComponent(typeof(UIDocument))]
-public class MainMenu : MonoBehaviour
+namespace Fodinae.Scripts
 {
+    [RequireComponent(typeof(UIDocument))]
+    public class MainMenu : MonoBehaviour
+    {
     [SerializeField] private Texture2D _loaderTexture;
     private UIDocument _doc;
     private VisualElement _mainMenuContainer;
     private VisualElement _loaderContainer;
     private bool _hasShownLoader = false;
+private Button _playButton;
 
-    void OnEnable()
+void OnEnable()
+{
+    _doc = GetComponent<UIDocument>();
+    var root = _doc.rootVisualElement;
+    root.style.justifyContent = Justify.Center;
+    root.style.alignItems = Align.Center;
+    ShowLoader();
+    var mainMenuUXML = Resources.Load<VisualTreeAsset>("UI/MainMenu");
+    if (mainMenuUXML == null)
     {
-        _doc = GetComponent<UIDocument>();
-        var root = _doc.rootVisualElement;
-        root.style.justifyContent = Justify.Center;
-        root.style.alignItems = Align.Center;
-        ShowLoader();
-        var mainMenuUXML = Resources.Load<VisualTreeAsset>("UI/MainMenu");
-        if (mainMenuUXML == null)
-        {
-            Debug.LogError("MainMenu.uxml не найден в Resources/UI/");
-            return;
-        }
-        var mainMenu = mainMenuUXML.CloneTree();
-        _mainMenuContainer = mainMenu.Q<VisualElement>("MainMenuContainer");
-        var playButton = mainMenu.Q<Button>("PlayButton");
-        if (playButton != null)
-            playButton.clicked += OnPlayButtonClicked;
-        root.Add(mainMenu);
+        Debug.LogError("MainMenu.uxml не найден в Resources/UI/");
+        return;
+    }
+    var mainMenu = mainMenuUXML.CloneTree();
+    _mainMenuContainer = mainMenu.Q<VisualElement>("MainMenuContainer");
+    _playButton = mainMenu.Q<Button>("PlayButton");
+    if (_playButton != null)
+        _playButton.clicked += OnPlayButtonClicked;
+...
+void OnDisable()
+{
+    if (_playButton != null)
+        _playButton.clicked -= OnPlayButtonClicked;
+}
+
+private void ShowLoader()
 
         // The loader is a full-screen, absolutely-positioned background overlay
         // that stays visible until the player presses PLAY (see HideLoader).
@@ -168,4 +178,5 @@ public class MainMenu : MonoBehaviour
         }
         //NetworkService.Instance.Send(new OpenHelpClickPacket());
     }
+}
 }

@@ -1,13 +1,13 @@
 using UnityEngine;
 using UnityEngine.UI;
-using Fodinae.Assets.Scripts.World;
-using Fodinae.Assets.Scripts.Game.Managers;
-using Fodinae.Assets.Scripts.Player;
+using Fodinae.Scripts.World;
+using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.Player;
 using MinesServer.Data;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Fodinae.Assets.Scripts.UI
+namespace Fodinae.Scripts.UI
 {
     public class MinimapPlaceholder : MonoBehaviour
     {
@@ -15,9 +15,9 @@ namespace Fodinae.Assets.Scripts.UI
         private Texture2D _minimapTexture;
         private RawImage _minimapImage;
         private bool _minimapReady = false;
-        private const int MINIMAP_WIDTH = 128;
-        private const int MINIMAP_HEIGHT = 128;
-        private const int TEXTURE_SIZE = 128;
+        private const int MINIMAP_WIDTH = GameConstants.UI.MINIMAP_WIDTH;
+        private const int MINIMAP_HEIGHT = GameConstants.UI.MINIMAP_HEIGHT;
+        private const int TEXTURE_SIZE = GameConstants.UI.MINIMAP_WIDTH;
         private PlayerMovementController _player;
         private Dictionary<CellType, Color32> _cachedColors = new Dictionary<CellType, Color32>();
         private Color32[] _pixelColors;
@@ -31,7 +31,7 @@ namespace Fodinae.Assets.Scripts.UI
         // ███████████████ ОПТИМИЗАЦИЯ ДЛЯ УСТРАНЕНИЯ РЫВКОВ ███████████████
         private Vector2Int _lastUpdatePos = new Vector2Int(int.MinValue, int.MinValue);
         private float _lastUpdateTime;
-        private const float UPDATE_DELAY = 0.033f; // 30 FPS для миникарты (незаметно для глаз)
+        private const float UPDATE_DELAY = GameConstants.UI.MINIMAP_UPDATE_DELAY; // 30 FPS для миникарты (незаметно для глаз)
         private bool _updateScheduled = false;
 
         void Start()
@@ -209,8 +209,8 @@ namespace Fodinae.Assets.Scripts.UI
         private void UpdateMinimapTextureFast(int playerX, int playerY)
         {
             // Обновляем границы только при значительном смещении
-            if (!_boundsCached || Mathf.Abs(_cachedMinX - (playerX - MINIMAP_WIDTH / 2)) > 8 ||
-                Mathf.Abs(_cachedMinY - (playerY - MINIMAP_HEIGHT / 2)) > 8)
+            if (!_boundsCached || Mathf.Abs(_cachedMinX - (playerX - MINIMAP_WIDTH / 2)) > GameConstants.UI.MINIMAP_THRESHOLD ||
+                Mathf.Abs(_cachedMinY - (playerY - MINIMAP_HEIGHT / 2)) > GameConstants.UI.MINIMAP_THRESHOLD)
             {
                 _cachedMinX = playerX - MINIMAP_WIDTH / 2;
                 _cachedMinY = playerY - MINIMAP_HEIGHT / 2;

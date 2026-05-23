@@ -1,11 +1,11 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Fodinae.Assets.Scripts.Game.Managers;
-using Fodinae.Assets.Scripts.World;
+using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.World;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.Assets.Scripts.Game
+namespace Fodinae.Scripts.Game
 {
     public class Pack : MonoBehaviour
     {

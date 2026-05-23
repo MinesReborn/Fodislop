@@ -1,10 +1,10 @@
 using UnityEngine;
-using Fodinae.Assets.Scripts;
-using Fodinae.Assets.Scripts.Game.Managers;
+using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.Utils;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 
-namespace Fodinae.Assets.Scripts.Game
+namespace Fodinae.Scripts.Game
 {
     public class Robot : MonoBehaviour
     {
@@ -287,8 +287,7 @@ namespace Fodinae.Assets.Scripts.Game
 
         public void SetPosition(ushort x, ushort y)
         {
-            float unityY = (MapManager.Instance.WorldHeight - 1 - y) + 0.5f;
-            _serverPosition = new Vector3(x + 0.5f, unityY, 0);
+            _serverPosition = CoordinateUtils.ServerToUnityPos(x, y, MapManager.Instance.WorldHeight);
 
             // Only update target position from server for remote robots.
             // Local player manages its own target position via PlayerMovementController.

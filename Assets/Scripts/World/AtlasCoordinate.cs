@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using MinesServer.Data;
 
-namespace Fodinae.Assets.Scripts.World
+namespace Fodinae.Scripts.World
 {
     /// <summary>
     /// Represents coordinates within a texture atlas for a specific cell type

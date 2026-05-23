@@ -1,4 +1,4 @@
-namespace Fodinae.Assets.Scripts.World
+namespace Fodinae.Scripts.World
 {
     public static class RenderingConstants
     {

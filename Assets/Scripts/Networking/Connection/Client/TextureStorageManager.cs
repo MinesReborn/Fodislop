@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
-namespace Fodinae.Assets.Scripts.Networking.Connection.Client
+namespace Fodinae.Scripts.Networking.Connection.Client
 {
     /// <summary>
     /// Manages texture loading from local storage with fallback to random generation.
@@ -16,18 +16,24 @@ namespace Fodinae.Assets.Scripts.Networking.Connection.Client
     public class TextureStorageManager : MonoBehaviour
     {
         private static TextureStorageManager _instance;
+        private static bool _isQuitting = false;
         public static TextureStorageManager Instance
         {
             get
             {
+                if (_isQuitting) return null;
                 if (_instance == null)
                 {
                     _instance = FindFirstObjectByType<TextureStorageManager>();
-                    if (_instance == null)
+                    if (_instance == null && !_isQuitting)
                     {
                         var go = new GameObject("[TextureStorageManager]");
                         _instance = go.AddComponent<TextureStorageManager>();
-                        DontDestroyOnLoad(go);
+
+                        // System Grouping
+                        var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+                        UnityEngine.Object.DontDestroyOnLoad(parent);
+                        go.transform.SetParent(parent.transform);
                     }
                 }
                 return _instance;
@@ -53,6 +59,18 @@ namespace Fodinae.Assets.Scripts.Networking.Connection.Client
             }
             _instance = this;
             DontDestroyOnLoad(gameObject);
+
+            // Ensure parented if created in scene
+            var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+            UnityEngine.Object.DontDestroyOnLoad(parent);
+            transform.SetParent(parent.transform);
+
+            _isQuitting = false;
+        }
+
+        private void OnApplicationQuit()
+        {
+            _isQuitting = true;
         }
 
         /// <summary>

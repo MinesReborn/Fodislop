@@ -1,4 +1,4 @@
-using Fodinae.Assets.Scripts.Player;
+using Fodinae.Scripts.Player;
 using NUnit.Framework;
 using UnityEngine;
 

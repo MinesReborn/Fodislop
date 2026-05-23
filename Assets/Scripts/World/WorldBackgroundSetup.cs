@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Fodinae.Assets.Scripts.World
+namespace Fodinae.Scripts.World
 {
     [ExecuteAlways]
     public class WorldBackgroundSetup : MonoBehaviour

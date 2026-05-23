@@ -33,7 +33,7 @@ namespace Fodinae.UI.Builders
 
         private void LoadImage(VisualElement element, string uri, CancellationToken token)
         {
-            Fodinae.Assets.Scripts.ClientAssetLoader.Instance.LoadAndApplyTexture((texture) =>
+            Fodinae.Scripts.ClientAssetLoader.Instance.LoadAndApplyTexture((texture) =>
             {
                 if (element != null)
                 {

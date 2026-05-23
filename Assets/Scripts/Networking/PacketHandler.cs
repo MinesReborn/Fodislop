@@ -1,7 +1,7 @@
-using Fodinae.Assets.Scripts.Game.Managers;
-using Fodinae.Assets.Scripts.Game;
-using Fodinae.Assets.Scripts.Networking.Connection;
-using Fodinae.Assets.Scripts.Player;
+using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.Game;
+using Fodinae.Scripts.Networking.Connection;
+using Fodinae.Scripts.Player;
 using MinesServer.Networking.Server;
 using MinesServer.Networking.Server.Packets;
 using MinesServer.Networking.Server.Packets.Connection;
@@ -13,7 +13,7 @@ using UnityEngine.Rendering;
 using UnityEngine.UIElements;
 using System.Linq;
 
-namespace Fodinae.Assets.Scripts.Networking
+namespace Fodinae.Scripts.Networking
 {
     public class PacketHandler : MonoBehaviour
     {

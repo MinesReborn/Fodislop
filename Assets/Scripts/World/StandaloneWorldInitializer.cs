@@ -1,9 +1,9 @@
 using System;
 using UnityEngine;
-using Fodinae.Assets.Scripts.Game.Managers;
+using Fodinae.Scripts.Game.Managers;
 using MinesServer.Networking.Server.Packets.Connection;
 
-namespace Fodinae.Assets.Scripts.World
+namespace Fodinae.Scripts.World
 {
     /// <summary>
     /// Handles standalone world initialization when no server connection is available

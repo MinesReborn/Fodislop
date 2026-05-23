@@ -1,7 +1,9 @@
 ﻿using System;
 
-public static class TileBitmaskConverter
+namespace Fodinae.Scripts
 {
+    public static class TileBitmaskConverter
+    {
     /// <summary>
     /// Converts a neighbor bitmask into a Tile Descriptor byte.
     /// </summary>

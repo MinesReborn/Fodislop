@@ -13,26 +13,33 @@ using static PersistentAssetCache;
 using static ETagCalculator;
 using MinesServer.Networking.Server.Packets.Utilities;
 using MinesServer.Networking.Server.Packets;
-using Fodinae.Assets.Scripts.Networking.Connection;
+using Fodinae.Scripts.Networking.Connection;
 
-namespace Fodinae.Assets.Scripts
+namespace Fodinae.Scripts
 {
     public class ClientAssetLoader : MonoBehaviour
     {
         public event Action<string, Texture2D> OnTextureLoaded;
 
         private static ClientAssetLoader _instance;
+        private static bool _isQuitting = false;
         public static ClientAssetLoader Instance
         {
             get
             {
+                if (_isQuitting) return null;
                 if (_instance == null)
                 {
                     _instance = FindFirstObjectByType<ClientAssetLoader>();
-                    if (_instance == null)
+                    if (_instance == null && !_isQuitting)
                     {
                         var go = new GameObject("[ClientAssetLoader]");
                         _instance = go.AddComponent<ClientAssetLoader>();
+
+                        // System Grouping
+                        var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+                        UnityEngine.Object.DontDestroyOnLoad(parent);
+                        go.transform.SetParent(parent.transform);
                     }
                 }
                 return _instance;
@@ -57,6 +64,13 @@ namespace Fodinae.Assets.Scripts
             _instance = this;
             DontDestroyOnLoad(gameObject);
 
+            // Ensure parented if created in scene
+            var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+            UnityEngine.Object.DontDestroyOnLoad(parent);
+            transform.SetParent(parent.transform);
+
+            _isQuitting = false;
+
             // Create a 1x1 gray placeholder texture
             _placeholderTexture = new Texture2D(1, 1);
             _placeholderTexture.SetPixel(0, 0, Color.gray);
@@ -73,6 +87,11 @@ namespace Fodinae.Assets.Scripts
 
             _loopCts = new CancellationTokenSource();
             ProcessBatchLoop(_loopCts.Token).Forget();
+        }
+
+        private void OnApplicationQuit()
+        {
+            _isQuitting = true;
         }
 
         void OnDestroy()
@@ -264,7 +283,7 @@ namespace Fodinae.Assets.Scripts
                 try
                 {
                     // Directly attempt to load from local storage
-                    var localData = await Fodinae.Assets.Scripts.Networking.Connection.Client.TextureStorageManager.Instance.GetTextureData(filename);
+                    var localData = await Fodinae.Scripts.Networking.Connection.Client.TextureStorageManager.Instance.GetTextureData(filename);
                     if (localData != null)
                     {
                         tcs.TrySetResult(localData);
@@ -302,13 +321,13 @@ namespace Fodinae.Assets.Scripts
         {
             await UniTask.SwitchToMainThread(cancellationToken);
 
-            var type = Fodinae.Assets.Scripts.World.AnimationContainerDecoder.DetectType(imageData);
-            if (type == Fodinae.Assets.Scripts.World.AnimationContainerDecoder.ContainerType.GIF ||
-                type == Fodinae.Assets.Scripts.World.AnimationContainerDecoder.ContainerType.WebP)
+            var type = Fodinae.Scripts.World.AnimationContainerDecoder.DetectType(imageData);
+            if (type == Fodinae.Scripts.World.AnimationContainerDecoder.ContainerType.GIF ||
+                type == Fodinae.Scripts.World.AnimationContainerDecoder.ContainerType.WebP)
             {
-                var decoded = type == Fodinae.Assets.Scripts.World.AnimationContainerDecoder.ContainerType.GIF
-                    ? Fodinae.Assets.Scripts.World.AnimationContainerDecoder.DecodeGif(imageData)
-                    : Fodinae.Assets.Scripts.World.AnimationContainerDecoder.DecodeWebP(imageData);
+                var decoded = type == Fodinae.Scripts.World.AnimationContainerDecoder.ContainerType.GIF
+                    ? Fodinae.Scripts.World.AnimationContainerDecoder.DecodeGif(imageData)
+                    : Fodinae.Scripts.World.AnimationContainerDecoder.DecodeWebP(imageData);
 
                 if (decoded.Atlas != null)
                 {

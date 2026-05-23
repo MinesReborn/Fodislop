@@ -1,12 +1,13 @@
 using UnityEngine;
 using System.Collections.Generic;
-using Fodinae.Assets.Scripts.Game;
+using Fodinae.Scripts.Game;
 
-namespace Fodinae.Assets.Scripts.Game.Managers
+namespace Fodinae.Scripts.Game.Managers
 {
     public class RobotManager : MonoBehaviour
     {
         private static RobotManager _instance;
+        private static bool _isQuitting = false;
 
         /// <summary>
         /// The existing manager or null — never creates one. Use this from
@@ -19,13 +20,19 @@ namespace Fodinae.Assets.Scripts.Game.Managers
         {
             get
             {
+                if (_isQuitting) return null;
                 if (_instance == null)
                 {
                     _instance = FindFirstObjectByType<RobotManager>();
-                    if (_instance == null)
+                    if (_instance == null && !_isQuitting)
                     {
                         var go = new GameObject("[RobotManager]");
                         _instance = go.AddComponent<RobotManager>();
+
+                        // System Grouping
+                        var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+                        UnityEngine.Object.DontDestroyOnLoad(parent);
+                        go.transform.SetParent(parent.transform);
                     }
                 }
                 return _instance;
@@ -46,6 +53,18 @@ namespace Fodinae.Assets.Scripts.Game.Managers
             }
             _instance = this;
             DontDestroyOnLoad(gameObject);
+
+            // Ensure parented if created in scene
+            var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+            UnityEngine.Object.DontDestroyOnLoad(parent);
+            transform.SetParent(parent.transform);
+
+            _isQuitting = false;
+        }
+
+        private void OnApplicationQuit()
+        {
+            _isQuitting = true;
         }
 
         public void RegisterRobot(Robot robot)

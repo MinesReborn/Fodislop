@@ -6,10 +6,10 @@ using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using MinesServer.Data;
-using Fodinae.Assets.Scripts;
-using Fodinae.Assets.Scripts.Game.Managers;
+using Fodinae.Scripts;
+using Fodinae.Scripts.Game.Managers;
 
-namespace Fodinae.Assets.Scripts.World
+namespace Fodinae.Scripts.World
 {
     public class WorldTextureManager : MonoBehaviour
     {
@@ -28,6 +28,11 @@ namespace Fodinae.Assets.Scripts.World
                     {
                         var go = new GameObject("[WorldTextureManager]");
                         _instance = go.AddComponent<WorldTextureManager>();
+
+                        // System Grouping
+                        var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+                        UnityEngine.Object.DontDestroyOnLoad(parent);
+                        go.transform.SetParent(parent.transform);
                     }
                 }
                 return _instance;
@@ -61,6 +66,12 @@ namespace Fodinae.Assets.Scripts.World
             }
             _instance = this;
             DontDestroyOnLoad(gameObject);
+
+            // Ensure parented if created in scene
+            var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+            UnityEngine.Object.DontDestroyOnLoad(parent);
+            transform.SetParent(parent.transform);
+
             _isQuitting = false;
 
             Initialize();
