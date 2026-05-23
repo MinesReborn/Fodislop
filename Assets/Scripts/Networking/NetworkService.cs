@@ -236,23 +236,19 @@ namespace Fodinae.Scripts.Networking
 
             var packetType = packet.GetType();
 
-            // We iterate through all keys to support interface/base class subscriptions
-            foreach (var pair in _subscribers)
+            if (_subscribers.TryGetValue(packetType, out var handlers))
             {
-                if (pair.Key.IsAssignableFrom(packetType))
+                // Copy list to avoid issues if a subscriber unsubscribes during dispatch
+                var handlersCopy = handlers.ToList();
+                foreach (var sub in handlersCopy)
                 {
-                    // Copy list to avoid issues if a subscriber unsubscribes during dispatch
-                    var handlersCopy = pair.Value.ToList();
-                    foreach (var sub in handlersCopy)
+                    try
                     {
-                        try
-                        {
-                            sub.Wrapper(packet);
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.LogError($"[NetworkService] Error dispatching packet {packetType.Name} to subscriber: {ex.Message}\n{ex.StackTrace}");
-                        }
+                        sub.Wrapper(packet);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogError($"[NetworkService] Error dispatching packet {packetType.Name} to subscriber: {ex.Message}\n{ex.StackTrace}");
                     }
                 }
             }
