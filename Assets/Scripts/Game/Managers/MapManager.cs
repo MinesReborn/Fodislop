@@ -391,11 +391,11 @@ namespace Fodinae.Scripts.Game.Managers
 
                 foreach (int index in loaded)
                 {
-                    int cx = index % layer.WidthChunks;
-                    int cy = index / layer.WidthChunks;
+                    int cy = index % hChunks;
+                    int cx = index / hChunks;
                     
-                    float unityY = CoordinateUtils.ServerToUnityY((ushort)((cy + 1) * chunkSize), WorldHeight) - chunkSize * 0.5f;
-                    Vector3 chunkPos = new Vector3(cx * chunkSize + chunkSize * 0.5f, unityY + chunkSize * 0.5f, 0);
+                    float unityY = CoordinateUtils.ServerToUnityY(cy * chunkSize, WorldHeight) - chunkSize * 0.5f;
+                    Vector3 chunkPos = new Vector3(cx * chunkSize + chunkSize * 0.5f, unityY, 0);
                     
                     Utils.FodislopGizmos.DrawSolidRect(chunkPos, new Vector2(chunkSize - 0.2f, chunkSize - 0.2f), 
                         new Color(0, 1, 0, 0.02f), new Color(0, 1, 0, 0.1f));
@@ -409,7 +409,7 @@ namespace Fodinae.Scripts.Game.Managers
                 if (cam != null && Application.isPlaying)
                 {
                     Vector3 camPos = cam.transform.position;
-                    int range = 10;
+                    int range = GameConstants.Debug.COLLISION_DEBUG_RANGE;
                     int startX = Mathf.FloorToInt(camPos.x) - range;
                     int startY = Mathf.FloorToInt(camPos.y) - range;
 
@@ -417,11 +417,10 @@ namespace Fodinae.Scripts.Game.Managers
                     {
                         for (int y = startY; y < startY + range * 2; y++)
                         {
-                            if (x < 0 || x >= _width || y < 0 || y >= _height) continue;
+                            int worldX = CoordinateUtils.WrapWorldX(x, WorldWidth);
+                            int worldY = CoordinateUtils.UnityToServerY(y, WorldHeight);
                             
-                            ushort serverX = (ushort)x;
-                            ushort serverY = CoordinateUtils.UnityToServerY(y, WorldHeight);
-                            var cellType = MapStorage.Instance.GetCell(serverX, serverY);
+                            var cellType = MapStorage.Instance.GetCell(worldX, worldY);
                             var config = GetCellConfig(cellType);
                             
                             if (config.Properties != 0)

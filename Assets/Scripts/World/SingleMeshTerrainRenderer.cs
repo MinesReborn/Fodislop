@@ -350,13 +350,10 @@ namespace Fodinae.Scripts.World
             CellType[] currentChunk = null;
 
             for (int x = 0; x < _cacheWidth; x++) {
-                int gridX = _cacheMinX + x;
-                int worldX = (gridX % worldWidth + worldWidth) % worldWidth;
+                int worldX = CoordinateUtils.WrapWorldX(_cacheMinX + x, worldWidth);
                 
                 for (int y = 0; y < _cacheHeight; y++) {
-                    int unityY = _cacheMinY + y;
-                    int serverY = (worldHeight - 1 - unityY) % worldHeight;
-                    if (serverY < 0) serverY += worldHeight;
+                    int serverY = CoordinateUtils.UnityToServerY(_cacheMinY + y, worldHeight);
                     
                     if (!layer.GetChunkIndexAndLocal(worldX, serverY, out int chunkIndex, out int localIndex)) {
                         _cellCache[x, y] = default;
@@ -387,8 +384,8 @@ namespace Fodinae.Scripts.World
         private void PrecalculateData()
         {
             int gw = _meshWidth + 1, gh = _meshHeight + 1;
-            for (int y = 0; y < gh; y++) {
-                for (int x = 0; x < gw; x++) {
+            for (int x = 0; x < gw; x++) {
+                for (int y = 0; y < gh; y++) {
                     int cx = x + 1, cy = y + 1;
                     CachedCellData tl = _cellCache[cx-1, cy], tr = _cellCache[cx, cy], bl = _cellCache[cx-1, cy-1], br = _cellCache[cx, cy-1];
                     if (tl.Distortion == CellDistortionType.Block || tr.Distortion == CellDistortionType.Block || bl.Distortion == CellDistortionType.Block || br.Distortion == CellDistortionType.Block) _gridVertexOffsets[x, y] = Vector3.zero;
@@ -412,14 +409,11 @@ namespace Fodinae.Scripts.World
                     _gridShadowValues[x, y] = (hasC && hasR) ? 0.7f : 0.0f;
                 }
             }
-            for (int y = 0; y < _meshHeight; y++) {
-                for (int x = 0; x < _meshWidth; x++) {
+            for (int x = 0; x < _meshWidth; x++) {
+                for (int y = 0; y < _meshHeight; y++) {
                     int cx = x + 1, cy = y + 1; var data = _cellCache[cx, cy];
                     if (data.HasTileGroup) {
                         byte m = 0;
-                        // Neighbor bits (counter-clockwise from L): L(0), BL(1), B(2), BR(3), R(4), TR(5), T(6), TL(7)
-                        // Unity Y axis is Up (+1 for Top), Server Y axis is Down (+1 for Bottom)
-                        // Local cache Y index matches Unity Y: 0 (bottom-most), cacheWidth-1 (top-most)
                         if (_cellCache[cx-1,cy].HasTileGroup && _cellCache[cx-1,cy].TileGroupId == data.TileGroupId) m |= (1 << 0); // L
                         if (_cellCache[cx-1,cy-1].HasTileGroup && _cellCache[cx-1,cy-1].TileGroupId == data.TileGroupId) m |= (1 << 1); // BL
                         if (_cellCache[cx,cy-1].HasTileGroup && _cellCache[cx,cy-1].TileGroupId == data.TileGroupId) m |= (1 << 2); // B
@@ -443,9 +437,7 @@ namespace Fodinae.Scripts.World
         private void UpdateVertexAttributes(int minX, int minY)
         {
             var atlases = WorldTextureManager.Instance.GetAllAtlases();
-            if (atlases.Count == 0) { _mesh.Clear(); return; }
-
-            _mesh.Clear();
+            if (atlases.Count == 0) return;
 
             bool materialsChanged = false;
             if (_subMeshIndices.Length != atlases.Count) {
@@ -460,10 +452,13 @@ namespace Fodinae.Scripts.World
             ComputeBackgroundMap();
 
             int vIdx = 0;
-            for (int y = 0; y < _meshHeight; y++) {
-                for (int x = 0; x < _meshWidth; x++) {
-                    FillQuadData(x, y, minX + x, minY + y, true, ref vIdx, atlases);
-                    FillQuadData(x, y, minX + x, minY + y, false, ref vIdx, atlases);
+            int worldHeight = MapManager.Instance.WorldHeight;
+            for (int x = 0; x < _meshWidth; x++) {
+                int gridX = minX + x;
+                for (int y = 0; y < _meshHeight; y++) {
+                    int unityY = minY + y;
+                    FillQuadData(x, y, gridX, unityY, worldHeight, true, ref vIdx, atlases);
+                    FillQuadData(x, y, gridX, unityY, worldHeight, false, ref vIdx, atlases);
                 }
             }
 
@@ -483,15 +478,14 @@ namespace Fodinae.Scripts.World
                 _mesh.SetIndices(_subMeshIndices[i], MeshTopology.Triangles, i, false, 0);
             }
 
-            _mesh.bounds = new Bounds(new Vector3(_meshWidth * _cellSize * 0.5f, _meshHeight * _cellSize * 0.5f, 0), new Vector3(_meshWidth * _cellSize, _meshHeight * _cellSize, 10));
             _mesh.UploadMeshData(false);
             if (materialsChanged) _meshRenderer.sharedMaterials = _materials;
         }
 
-        private void FillQuadData(int x, int y, int gridX, int unityY, bool isBackground, ref int vIdx, List<TextureAtlas> atlases)
+        private void FillQuadData(int x, int y, int gridX, int unityY, int worldHeight, bool isBackground, ref int vIdx, List<TextureAtlas> atlases)
         {
             int cx = x + 1, cy = y + 1;
-            int serverY = CoordinateUtils.UnityToServerY(unityY, MapManager.Instance.WorldHeight);
+            int serverY = CoordinateUtils.UnityToServerY(unityY, worldHeight);
 
             CellType cellType = isBackground ? _bgMapBuffer[x, y] : _cellCache[cx, cy].Type;
             if (isBackground && (cellType == _cellCache[cx, cy].Type || cellType == 0)) cellType = CellType.Unloaded;
@@ -511,7 +505,6 @@ namespace Fodinae.Scripts.World
 
             int descriptor = (cellType == _cellCache[cx, cy].Type) ? _cellTilingDescriptors[x, y] : 0;
             int worldWidth = MapManager.Instance.WorldWidth;
-            int worldHeight = MapManager.Instance.WorldHeight;
             bool isOffWorld = gridX < 0 || gridX >= worldWidth || unityY < 0 || unityY >= worldHeight;
             float packedW = (data.HasTileGroup ? 1f : 0f) + (isOffWorld ? 2f : 0f);
 
