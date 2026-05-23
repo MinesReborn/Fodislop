@@ -248,25 +248,23 @@ namespace Fodinae.Scripts.UI
                     continue;
                 }
 
+                int serverY = Fodinae.Scripts.Utils.CoordinateUtils.UnityToServerY(worldY, worldHeight);
+
                 for (int texX = 0; texX < textureSize; texX++)
                 {
                     int worldX = minX + texX;
 
-                    if (worldX >= 0 && worldX < worldWidth)
+                    // Оборачиваем координаты по X, чтобы миникарта была бесконечной по горизонтали
+                    int wrappedX = Fodinae.Scripts.Utils.CoordinateUtils.WrapWorldX(worldX, worldWidth);
+
+                    try
                     {
-                        try
-                        {
-                            CellType cellType = mapStorage.GetCell(worldX, worldY);
-                            pixelColors[index++] = cachedColors[cellType];
-                        }
-                        catch
-                        {
-                            pixelColors[index++] = new Color32(32, 32, 32, 255);
-                        }
+                        CellType cellType = mapStorage.GetCell(wrappedX, serverY);
+                        pixelColors[index++] = cachedColors[cellType];
                     }
-                    else
+                    catch
                     {
-                        pixelColors[index++] = Color.black;
+                        pixelColors[index++] = new Color32(32, 32, 32, 255);
                     }
                 }
             }
