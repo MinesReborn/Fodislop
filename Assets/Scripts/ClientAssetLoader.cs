@@ -9,14 +9,15 @@ using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.Utilities;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using static PersistentAssetCache;
-using static ETagCalculator;
 using MinesServer.Networking.Server.Packets.Utilities;
 using MinesServer.Networking.Server.Packets;
 using Fodinae.Scripts.Networking.Connection;
 
 namespace Fodinae.Scripts
 {
+    using static PersistentAssetCache;
+    using static ETagCalculator;
+
     public class ClientAssetLoader : MonoBehaviour
     {
         public event Action<string, Texture2D> OnTextureLoaded;

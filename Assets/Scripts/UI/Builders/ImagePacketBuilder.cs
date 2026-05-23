@@ -1,3 +1,4 @@
+using Fodinae.Scripts;
 using Cysharp.Threading.Tasks;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual; // Corrected using directive for ImagePacket
@@ -6,7 +7,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using System;
 
-namespace Fodinae.UI.Builders
+namespace Fodinae.Scripts.UI.Builders
 {
     public class ImagePacketBuilder : PacketUIBuilderBase
     {

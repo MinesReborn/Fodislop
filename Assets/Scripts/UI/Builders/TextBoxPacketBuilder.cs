@@ -1,9 +1,10 @@
+using Fodinae.Scripts;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Input;
 using UnityEngine.UIElements;
 using Fodinae.UI.Controls; // Add this using directive
 
-namespace Fodinae.UI.Builders
+namespace Fodinae.Scripts.UI.Builders
 {
     public class TextBoxPacketBuilder : PacketUIBuilderBase
     {
