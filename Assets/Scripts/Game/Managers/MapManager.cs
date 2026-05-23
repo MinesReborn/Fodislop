@@ -359,15 +359,15 @@ namespace Fodinae.Scripts.Game.Managers
 
         public string WorldCodeName => _worldCodeName;
         public string WorldDisplayName => _worldDisplayName;
-        public ushort WorldWidth => _width > 0 ? _width : (ushort)1;
-        public ushort WorldHeight => _height > 0 ? _height : (ushort)1;
+        public ushort WorldWidth => (_width > 0) ? _width : (ushort)128;
+        public ushort WorldHeight => (_height > 0) ? _height : (ushort)128;
 
 #if UNITY_EDITOR
         private void OnDrawGizmos()
         {
-            if (!_isWorldInitialized || _width == 0 || _height == 0) return;
+            if (_width == 0 || _height == 0) return;
 
-            Gizmos.color = new Color(1, 1, 1, 0.5f);
+            Gizmos.color = new Color(1, 1, 1, 0.3f);
             Vector3 worldCenter = new Vector3(_width * 0.5f, _height * 0.5f, 0);
             Vector3 worldSize = new Vector3(_width, _height, 0.1f);
             Gizmos.DrawWireCube(worldCenter, worldSize);
@@ -375,7 +375,7 @@ namespace Fodinae.Scripts.Game.Managers
 
         private void OnDrawGizmosSelected()
         {
-            if (!_isWorldInitialized || _width == 0 || _height == 0) return;
+            if (_width == 0 || _height == 0) return;
 
             Vector3 worldCenter = new Vector3(_width * 0.5f, _height * 0.5f, 0);
 
@@ -387,22 +387,21 @@ namespace Fodinae.Scripts.Game.Managers
             {
                 var layer = MapStorage.Instance.CellLayer;
                 int chunkSize = layer.ChunkSize;
-                int hChunks = layer.HeightChunks;
                 var loaded = layer.GetLoadedChunkIndices();
 
                 foreach (int index in loaded)
                 {
-                    int cx = index / hChunks;
-                    int cy = index % hChunks;
+                    int cx = index % layer.WidthChunks;
+                    int cy = index / layer.WidthChunks;
                     
-                    float unityY = CoordinateUtils.ServerToUnityY((ushort)((cy + 1) * chunkSize), _height) - chunkSize * 0.5f;
+                    float unityY = CoordinateUtils.ServerToUnityY((ushort)((cy + 1) * chunkSize), WorldHeight) - chunkSize * 0.5f;
                     Vector3 chunkPos = new Vector3(cx * chunkSize + chunkSize * 0.5f, unityY + chunkSize * 0.5f, 0);
                     
                     Utils.FodislopGizmos.DrawSolidRect(chunkPos, new Vector2(chunkSize - 0.2f, chunkSize - 0.2f), 
                         new Color(0, 1, 0, 0.02f), new Color(0, 1, 0, 0.1f));
                 }
 
-                Vector3 labelPos = worldCenter + Vector3.down * (_height * 0.5f + 2f);
+                Vector3 labelPos = worldCenter + Vector3.down * (WorldHeight * 0.5f + 2f);
                 string stats = $"Chunks: {layer.GetLoadedCount()}/{layer.MaxChunksInMemory} loaded | {layer.GetDirtyCount()} dirty";
                 Utils.FodislopGizmos.DrawLabel(labelPos, stats, Color.green);
 
@@ -421,7 +420,7 @@ namespace Fodinae.Scripts.Game.Managers
                             if (x < 0 || x >= _width || y < 0 || y >= _height) continue;
                             
                             ushort serverX = (ushort)x;
-                            ushort serverY = CoordinateUtils.UnityToServerY(y, _height);
+                            ushort serverY = CoordinateUtils.UnityToServerY(y, WorldHeight);
                             var cellType = MapStorage.Instance.GetCell(serverX, serverY);
                             var config = GetCellConfig(cellType);
                             

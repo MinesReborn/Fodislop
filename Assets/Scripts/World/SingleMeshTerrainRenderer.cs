@@ -342,14 +342,20 @@ namespace Fodinae.Scripts.World
             if (worldWidth <= 0 || worldHeight <= 0) return;
 
             var atlases = WorldTextureManager.Instance.GetAllAtlases();
+            var mapStorage = MapStorage.Instance;
 
             for (int y = 0; y < _cacheHeight; y++) {
+                int unityY = _cacheMinY + y;
+                int serverY = (worldHeight - 1 - unityY) % worldHeight;
+                if (serverY < 0) serverY += worldHeight;
+
                 for (int x = 0; x < _cacheWidth; x++) {
-                    int gridX = _cacheMinX + x, unityY = _cacheMinY + y;
+                    int gridX = _cacheMinX + x;
                     int worldX = (gridX % worldWidth + worldWidth) % worldWidth;
-                    int serverY = (worldHeight - 1 - unityY) % worldHeight; if (serverY < 0) serverY += worldHeight;
-                    CellType type = MapStorage.Instance.GetCell(worldX, serverY);
+                    
+                    CellType type = mapStorage.GetCell(worldX, serverY);
                     var meta = GetMetadata(type, atlases);
+                    
                     _cellCache[x, y] = new CachedCellData {
                         Type = type, Properties = meta.Properties, ReliefGroup = meta.ReliefGroup, Distortion = meta.Distortion,
                         HasTileGroup = meta.HasTileGroup, TileGroupId = meta.TileGroupId, MinimapColor = meta.MinimapColor,
@@ -357,6 +363,7 @@ namespace Fodinae.Scripts.World
                         AtlasIndex = meta.AtlasIndex, UVTileSize = meta.UVTileSize,
                         AnimationFrameCount = meta.AnimationFrameCount, FrameHeightTiles = meta.FrameHeightTiles
                     };
+                    
                     if (type != CellType.Unloaded && !meta.IsTextureReady) WorldTextureManager.Instance.RequestTexture(type);
                 }
             }
@@ -469,8 +476,7 @@ namespace Fodinae.Scripts.World
         private void FillQuadData(int x, int y, int gridX, int unityY, bool isBackground, ref int vIdx, List<TextureAtlas> atlases)
         {
             int cx = x + 1, cy = y + 1;
-            int serverY = (MapManager.Instance.WorldHeight - 1 - unityY) % MapManager.Instance.WorldHeight;
-            if (serverY < 0) serverY += MapManager.Instance.WorldHeight;
+            int serverY = CoordinateUtils.UnityToServerY(unityY, MapManager.Instance.WorldHeight);
 
             CellType cellType = isBackground ? _bgMapBuffer[x, y] : _cellCache[cx, cy].Type;
             if (isBackground && (cellType == _cellCache[cx, cy].Type || cellType == 0)) cellType = CellType.Unloaded;
