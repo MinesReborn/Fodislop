@@ -1,3 +1,4 @@
+using Fodinae.Assets.Scripts.UI;
 using UnityEngine;
 
 namespace Fodinae.Assets.Scripts.World
@@ -24,6 +25,7 @@ namespace Fodinae.Assets.Scripts.World
 
             SetupWorldBackground();
             SetupSurfaceRenderer();
+            SetupWorldMapController();
         }
 
         private void SetupSurfaceRenderer()
@@ -34,6 +36,15 @@ namespace Fodinae.Assets.Scripts.World
             var surfaceGO = new GameObject("SurfaceRenderer");
             surfaceGO.transform.SetParent(transform);
             surfaceGO.AddComponent<SurfaceRenderer>();
+        }
+        private void SetupWorldMapController()
+        {
+            var existing = FindObjectOfType<WorldMapController>();
+            if (existing != null) return;
+
+            var controllerGO = new GameObject("WorldMapController");
+            controllerGO.transform.SetParent(transform);
+            controllerGO.AddComponent<WorldMapController>();
         }
 
         private void SetupWorldBackground()

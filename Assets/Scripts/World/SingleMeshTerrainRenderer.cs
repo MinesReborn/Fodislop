@@ -48,6 +48,7 @@ namespace Fodinae.Assets.Scripts.World
         private float _lastOrthoSize;
         private float _lastAspect;
         private Vector2Int _lastGridPos = new Vector2Int(int.MinValue, int.MinValue);
+        private Vector2Int _lastPreloadChunkPos = new Vector2Int(int.MinValue, int.MinValue);
         private int _meshWidth;
         private int _meshHeight;
         private bool _isInitialized = false;
@@ -111,6 +112,7 @@ namespace Fodinae.Assets.Scripts.World
         };
 
         private bool _needsRefresh = false;
+        private bool _useColorLod = false;
 
         private void OnValidate()
         {
@@ -143,6 +145,8 @@ namespace Fodinae.Assets.Scripts.World
                 WorldTextureManager.Instance.OnTextureLoaded += OnTextureLoaded;
             if (MapManager.Instance != null)
                 MapManager.Instance.OnWorldDataLoaded += OnWorldDataLoaded;
+
+            MapStorage.Instance.OnChunkLoaded += () => _needsRefresh = true;
         }
 
         private void OnDestroy()
@@ -182,8 +186,14 @@ namespace Fodinae.Assets.Scripts.World
             _needsRefresh = true;
         }
 
+        private void OnMapChunkLoaded()
+{
+    _needsRefresh = true;
+}
+
         private void LateUpdate()
         {
+            PreloadVisibleChunks();
             if (MapManager.Instance == null || MapStorage.Instance == null || !MapStorage.Instance.IsReady) return;
             if (_mainCamera == null) _mainCamera = Camera.main;
             if (_mainCamera == null) return;
@@ -495,7 +505,7 @@ namespace Fodinae.Assets.Scripts.World
                 if ((descriptor & 0x80) != 0) { Vector2 t = _uvs[vIdx + 0]; _uvs[vIdx + 0] = _uvs[vIdx + 1]; _uvs[vIdx + 1] = _uvs[vIdx + 2]; _uvs[vIdx + 2] = _uvs[vIdx + 3]; _uvs[vIdx + 3] = t; }
             }
 
-            bool useFallback = data.AtlasRect.z < 0.0001f;
+            bool useFallback = _useColorLod || data.AtlasRect.z < 0.0001f;
             Color color = useFallback ? data.MinimapColor : _shimmerHighlightColor;
             float animOffset = 0f;
             if (!useFallback && data.Animation == CellAnimationType.Blinking)
@@ -626,6 +636,38 @@ namespace Fodinae.Assets.Scripts.World
         private void CleanupMaterials()
         {
             if (_materials != null) foreach (var mat in _materials) if (mat != null) { if (Application.isPlaying) Destroy(mat); else DestroyImmediate(mat); }
+        }
+
+        public void SetColorLod(bool enabled)
+        {
+            if (_useColorLod == enabled) return;
+            _useColorLod = enabled;
+            _metadataCache.Clear();
+            _needsRefresh = true;
+        }
+
+        private void PreloadVisibleChunks()
+        {
+            if (MapStorage.Instance?.cellLayer == null) return;
+
+            int cs = 32;
+            int chunkX = Mathf.FloorToInt(transform.position.x / cs + _meshWidth / 2f / cs);
+            int chunkY = Mathf.FloorToInt(transform.position.y / cs + _meshHeight / 2f / cs);
+            var chunkPos = new Vector2Int(chunkX, chunkY);
+
+            if (chunkPos == _lastPreloadChunkPos) return;
+            _lastPreloadChunkPos = chunkPos;
+
+            int radius = 4;
+            int hc = MapStorage.Instance.cellLayer._heightChunks;
+
+            for (int dx = -radius; dx <= radius; dx++)
+                for (int dy = -radius; dy <= radius; dy++)
+                {
+                    int wx = (chunkX + dx) * cs;
+                    int wy = (chunkY + dy) * cs;
+                    MapStorage.Instance.PreloadChunkAtCoordinateAsync(wx, wy).Forget();
+                }
         }
 
     }

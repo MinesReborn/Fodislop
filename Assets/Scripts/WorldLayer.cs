@@ -1,46 +1,41 @@
-using UnityEngine;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
+using Cysharp.Threading.Tasks;
+using UnityEngine;
 
 public class WorldLayer<T> : IDisposable
     where T : unmanaged
 {
-    //private static bool _initialized = false;
     private static readonly HashSet<string> _initializedFiles = new();
 
-    // --- Config ---
-    private const int HEADER_SIZE = 16; // 4 ints
+    private const int HEADER_SIZE = 16;
     private readonly int _chunkSize;
     private readonly int _chunkArea;
     private readonly int _widthChunks;
     public readonly int _heightChunks;
     private readonly int _maxChunksInMemory;
 
-    // Public properties for access
     public int ChunkSize => _chunkSize;
     public int WidthChunks => _widthChunks;
     public int HeightChunks => _heightChunks;
     public int MaxChunksInMemory => _maxChunksInMemory;
 
-    // --- State ---
     private readonly string _filePath;
     private FileStream _fileStream;
 
-    // The Look-Up Table (FAT). Stores file offset for each chunk. 
-    // -1 = Chunk doesn't exist (empty/void).
-    // Size: ~28MB for a 60k x 60k map (acceptable for mobile).
     private readonly long[] _chunkOffsets;
 
-    // --- Memory Cache (LRU) ---
-    // Maps ChunkIndex -> Actual Data
     private readonly Dictionary<int, T[]> _loadedChunks;
-    // Maps ChunkIndex -> LinkedListNode (for O(1) LRU updates)
     private readonly Dictionary<int, LinkedListNode<int>> _lruIndexMap;
     private readonly LinkedList<int> _lruList;
     private readonly HashSet<int> _dirtyChunks;
+
+    private readonly SemaphoreSlim _readSemaphore = new SemaphoreSlim(4, 4);
+    public event Action<int> OnChunkLoaded;
 
     public WorldLayer(string filePath, int widthChunks, int heightChunks, int chunkSize = 32, int maxRamChunks = 1000)
     {
@@ -70,7 +65,7 @@ public class WorldLayer<T> : IDisposable
     private void InitializeFile()
     {
         bool exists = File.Exists(_filePath);
-        _fileStream = new FileStream(_filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 4096);
+        _fileStream = new FileStream(_filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.Asynchronous);
 
         bool valid = false;
         long offsetTableBytes = (long)_chunkOffsets.Length * sizeof(long);
@@ -85,12 +80,6 @@ public class WorldLayer<T> : IDisposable
                 int s = reader.ReadInt32();
                 int r = reader.ReadInt32();
 
-                // A cached .mapb laid out for a different world/size MUST NOT
-                // be read into our differently-sized offset table — doing so
-                // silently corrupts _chunkOffsets ("works on a fresh cache,
-                // broken on a stale one"). Treat any header/size mismatch or
-                // truncated/short offset table as an incompatible cache and
-                // rebuild it from scratch instead of running on garbage.
                 if (w == _widthChunks && h == _heightChunks && s == _chunkSize &&
                     _fileStream.Length >= HEADER_SIZE + offsetTableBytes)
                 {
@@ -101,15 +90,12 @@ public class WorldLayer<T> : IDisposable
             }
             catch (Exception)
             {
-                valid = false; // corrupt cache -> rebuild below
+                valid = false;
             }
         }
 
         if (!valid)
         {
-            // Fresh, incompatible or corrupt cache: rewrite a clean header
-            // and an empty (-1) offset table. _chunkOffsets is already
-            // -1-filled by the constructor.
             Array.Fill(_chunkOffsets, -1);
             _fileStream.SetLength(0);
             _fileStream.Seek(0, SeekOrigin.Begin);
@@ -124,9 +110,6 @@ public class WorldLayer<T> : IDisposable
         }
     }
 
-    // Stream.Read may return fewer bytes than requested; loop until the
-    // span is filled or the stream ends (BCL Stream.ReadExactly is not
-    // available on the .NET Standard 2.1 profile Unity builds against).
     private static void ReadExactly(Stream stream, Span<byte> buffer)
     {
         int total = 0;
@@ -138,7 +121,13 @@ public class WorldLayer<T> : IDisposable
         }
     }
 
-    // --- Accessors ---
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool IsChunkCached(int x, int y)
+    {
+        if (!GetChunkIndexAndLocal(x, y, out int chunkIndex, out _))
+            return false;
+        return _loadedChunks.ContainsKey(chunkIndex);
+    }
 
     public T this[int x, int y]
     {
@@ -166,8 +155,6 @@ public class WorldLayer<T> : IDisposable
         }
     }
 
-    // --- Core Paging Logic ---
-
     public T[] GetChunk(int chunkIndex, bool createIfMissing = false)
     {
         if (_loadedChunks.TryGetValue(chunkIndex, out T[] chunk))
@@ -175,16 +162,86 @@ public class WorldLayer<T> : IDisposable
             TouchLru(chunkIndex);
             return chunk;
         }
-        chunk = LoadChunkFromDisk(chunkIndex);
-        if (chunk == null && createIfMissing)
+
+        if (createIfMissing)
         {
             chunk = new T[_chunkArea];
+            AddToCache(chunkIndex, chunk);
+            return chunk;
         }
+
+        PreloadChunkAsync(chunkIndex).Forget();
+        return null;
+    }
+
+    public async UniTask<T[]> PreloadChunkAsync(int chunkIndex)
+    {
+        if (_loadedChunks.TryGetValue(chunkIndex, out T[] chunk))
+        {
+            TouchLru(chunkIndex);
+            return chunk;
+        }
+
+        if (chunkIndex < 0 || chunkIndex >= _chunkOffsets.Length)
+            return null;
+
+        long offset = _chunkOffsets[chunkIndex];
+        if (offset < 0) return null;
+
+        chunk = await LoadChunkFromDiskAsync(chunkIndex);
         if (chunk != null)
         {
             AddToCache(chunkIndex, chunk);
+            OnChunkLoaded?.Invoke(chunkIndex);
         }
         return chunk;
+    }
+
+    private async UniTask<T[]> LoadChunkFromDiskAsync(int index)
+    {
+        long offset = _chunkOffsets[index];
+        if (offset < 0) return null;
+
+        await _readSemaphore.WaitAsync();
+        try
+        {
+            _fileStream.Position = offset;
+
+            T[] chunk = new T[_chunkArea];
+            int ptr = 0;
+            int elemSize = Unsafe.SizeOf<T>();
+            byte[] headerBuf = new byte[sizeof(ushort) + elemSize];
+
+            try
+            {
+                while (ptr < _chunkArea)
+                {
+                    int totalRead = 0;
+                    while (totalRead < headerBuf.Length)
+                    {
+                        int n = await _fileStream.ReadAsync(headerBuf, totalRead, headerBuf.Length - totalRead);
+                        if (n <= 0) throw new EndOfStreamException();
+                        totalRead += n;
+                    }
+
+                    ushort count = MemoryMarshal.Read<ushort>(headerBuf);
+                    T value = MemoryMarshal.Read<T>(headerBuf.AsSpan(sizeof(ushort)));
+
+                    if (count == 0) break;
+                    int fill = Math.Min(count, _chunkArea - ptr);
+                    chunk.AsSpan(ptr, fill).Fill(value);
+                    ptr += fill;
+                    if (fill < count) break;
+                }
+            }
+            catch (EndOfStreamException) { }
+
+            return chunk;
+        }
+        finally
+        {
+            _readSemaphore.Release();
+        }
     }
 
     private void AddToCache(int chunkIndex, T[] chunk)
@@ -210,15 +267,21 @@ public class WorldLayer<T> : IDisposable
     private void EvictOldestChunk()
     {
         if (_lruList.Count == 0) return;
-        int oldestIndex = _lruList.Last.Value;
-        if (_dirtyChunks.Contains(oldestIndex))
+        var node = _lruList.Last;
+        int idx;
+        do
         {
-            SaveChunkToDisk(oldestIndex, _loadedChunks[oldestIndex]);
-            _dirtyChunks.Remove(oldestIndex);
+            idx = node.Value;
+            if (!_dirtyChunks.Contains(idx))
+            {
+                _loadedChunks.Remove(idx);
+                _lruIndexMap.Remove(idx);
+                _lruList.Remove(node);
+                return;
+            }
+            node = node.Previous;
         }
-        _loadedChunks.Remove(oldestIndex);
-        _lruIndexMap.Remove(oldestIndex);
-        _lruList.RemoveLast();
+        while (node != null);
     }
 
     private void MarkDirty(int chunkIndex)
@@ -226,35 +289,22 @@ public class WorldLayer<T> : IDisposable
         _dirtyChunks.Add(chunkIndex);
     }
 
-    // --- Disk I/O (RLE + Append Only) ---
-
     private T[] LoadChunkFromDisk(int index)
     {
         long offset = _chunkOffsets[index];
         if (offset < 0) return null;
         _fileStream.Seek(offset, SeekOrigin.Begin);
         using var reader = new BinaryReader(_fileStream, System.Text.Encoding.UTF8, true);
-
         return ReadChunkRLE(reader);
     }
 
     private void SaveChunkToDisk(int index, T[] chunk)
     {
-        // APPEND strategy: Always write to the end of the file.
-        // This prevents overwriting other chunks if RLE size increases.
-        // It creates "dead space" in the file, but ensures safety.
-        // We update the _chunkOffsets table to point to the new location.
-
         _fileStream.Seek(0, SeekOrigin.End);
         long newOffset = _fileStream.Position;
-
         using var writer = new BinaryWriter(_fileStream, System.Text.Encoding.UTF8, true);
         WriteChunkRLE(writer, chunk);
-
-        // Update Offset Table in RAM
         _chunkOffsets[index] = newOffset;
-
-        // Update Offset Table on Disk (So if we crash, we know where the new chunk is)
         long tablePos = HEADER_SIZE + (index * sizeof(long));
         _fileStream.Seek(tablePos, SeekOrigin.Begin);
         writer.Write(newOffset);
@@ -262,7 +312,6 @@ public class WorldLayer<T> : IDisposable
 
     public void Flush()
     {
-        // Force save all dirty chunks currently in RAM
         foreach (int index in _dirtyChunks)
         {
             SaveChunkToDisk(index, _loadedChunks[index]);
@@ -270,8 +319,6 @@ public class WorldLayer<T> : IDisposable
         _dirtyChunks.Clear();
         _fileStream.Flush();
     }
-
-    // --- Compression (Same RLE logic, optimized) ---
 
     private void WriteChunkRLE(BinaryWriter writer, T[] chunk)
     {
@@ -301,14 +348,14 @@ public class WorldLayer<T> : IDisposable
             {
                 ushort count = reader.ReadUInt16();
                 T value = ReadT(reader);
-                if (count == 0) break; // corrupt run length -> stop, don't spin
+                if (count == 0) break;
                 int fill = Math.Min(count, _chunkArea - ptr);
                 chunk.AsSpan(ptr, fill).Fill(value);
                 ptr += fill;
-                if (fill < count) break; // run overflows chunk -> corrupt, stop
+                if (fill < count) break;
             }
         }
-        catch (EndOfStreamException) { /* Handle corruption gracefully */ }
+        catch (EndOfStreamException) { }
         return chunk;
     }
 
@@ -326,49 +373,32 @@ public class WorldLayer<T> : IDisposable
         return MemoryMarshal.Read<T>(bytes);
     }
 
-    // --- Maintenance ---
-
-    /// <summary>
-    /// Because we use Append-Only writes, the file grows indefinitely with edits.
-    /// Call this occasionally (e.g., loading screen) to rewrite the file cleanly.
-    /// </summary>
     public void CompactFile()
     {
         string tempPath = _filePath + ".tmp";
-        // Flush memory first
         Flush();
-
-        // Create new clean file
         using (var newLayer = new WorldLayer<T>(tempPath, _widthChunks, _heightChunks, _chunkSize, _maxChunksInMemory))
         {
-            // Copy every chunk from current file to new file
             for (int i = 0; i < _chunkOffsets.Length; i++)
             {
                 if (_chunkOffsets[i] != -1)
                 {
-                    // This reads from 'this' file and writes to 'newLayer' file (which will append compactly)
                     var chunk = LoadChunkFromDisk(i);
                     if (chunk != null)
                     {
-                        // Manually inject into new file logic
                         newLayer._fileStream.Seek(0, SeekOrigin.End);
                         long newOffset = newLayer._fileStream.Position;
                         using var w = new BinaryWriter(newLayer._fileStream, System.Text.Encoding.UTF8, true);
                         newLayer.WriteChunkRLE(w, chunk);
-
-                        // Update RAM table of new file
                         newLayer._chunkOffsets[i] = newOffset;
                     }
                 }
             }
-            // Save the populated offset table in the new file
             newLayer.SaveOffsetTable();
         }
-
-        // Swap files
         _fileStream.Close();
         File.Replace(tempPath, _filePath, null);
-        InitializeFile(); // Re-open
+        InitializeFile();
     }
 
     private void SaveOffsetTable()
@@ -377,8 +407,6 @@ public class WorldLayer<T> : IDisposable
         var byteSpan = MemoryMarshal.AsBytes(_chunkOffsets.AsSpan());
         _fileStream.Write(byteSpan);
     }
-
-    // --- Helpers ---
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool GetChunkIndexAndLocal(int x, int y, out int chunkIndex, out int localIndex)
@@ -395,8 +423,6 @@ public class WorldLayer<T> : IDisposable
         int lx = x % _chunkSize;
         int ly = y % _chunkSize;
 
-        // Given Y increases downwards, cy=0 is the top chunk row.
-        // ChunkIndex = cy (row) + cx (col) * _heightChunks (total chunks in a column).
         chunkIndex = cy + cx * _heightChunks;
         localIndex = ly + lx * _chunkSize;
         return true;
@@ -404,8 +430,8 @@ public class WorldLayer<T> : IDisposable
 
     public void Dispose()
     {
-        try { Flush(); } catch (Exception) { /* best-effort */ }
-        try { _fileStream?.Dispose(); } catch (Exception) { /* best-effort */ }
+        try { Flush(); } catch (Exception) { }
+        try { _fileStream?.Dispose(); } catch (Exception) { }
         _initializedFiles.Remove(_filePath);
     }
 }
