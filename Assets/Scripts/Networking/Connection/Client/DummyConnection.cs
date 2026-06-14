@@ -172,6 +172,14 @@ namespace MinesServer.Networking.Connection.Client
                     rot = rotate.Direction;
                     UpdatePosition();
                 }
+                else if (actionPacket.Payload is ClickCellPacket click)
+                {
+                    Debug.Log($"  - Clicked Cell at ({click.X}, {click.Y})");
+                }
+                else if (actionPacket.Payload is UnmappedKeyPacket key)
+                {
+                    Debug.Log($"  - Unmapped Key: Code={key.Code}, Ctrl={key.Control}, Alt={key.Alt}, Shift={key.Shift}");
+                }
             }
 
             switch (packet.Data)

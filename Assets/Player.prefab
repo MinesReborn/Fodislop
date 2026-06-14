@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 11400000}
   - component: {fileID: 11400001}
   - component: {fileID: 11400002}
+  - component: {fileID: 11400003}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -154,3 +155,15 @@ MonoBehaviour:
   _spriteRenderer: {fileID: 21200000}
   _nickname: Player
   _skinPath: skin/bee.png
+--- !u!114 &11400003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 100000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b1a2c3d4e5f67890abcdef1234567890, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Assets.Scripts.Player.PlayerInteractionController
