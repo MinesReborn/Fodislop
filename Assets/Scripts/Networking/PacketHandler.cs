@@ -83,6 +83,13 @@ namespace Fodinae.Scripts.Networking
                 ns.Subscribe<MapRegionPacket>(HandleMapRegionPacket);
                 ns.Subscribe<PackPacket>(HandlePackPacket);
                 ns.Subscribe<RemovePackPacket>(HandleRemovePackPacket);
+                
+                // Player stats
+                ns.Subscribe<LevelPacket>(HandleLevelPacket);
+                ns.Subscribe<HealthPacket>(HandleHealthPacket);
+                ns.Subscribe<CurrencyPacket>(HandleCurrencyPacket);
+                ns.Subscribe<GeologyPacket>(HandleGeologyPacket);
+                ns.Subscribe<BasketPacket>(HandleBasketPacket);
             }
 
             var mm = MapManager.Instance;
@@ -116,6 +123,12 @@ namespace Fodinae.Scripts.Networking
                 ns.Unsubscribe<MapRegionPacket>(HandleMapRegionPacket);
                 ns.Unsubscribe<PackPacket>(HandlePackPacket);
                 ns.Unsubscribe<RemovePackPacket>(HandleRemovePackPacket);
+
+                ns.Unsubscribe<LevelPacket>(HandleLevelPacket);
+                ns.Unsubscribe<HealthPacket>(HandleHealthPacket);
+                ns.Unsubscribe<CurrencyPacket>(HandleCurrencyPacket);
+                ns.Unsubscribe<GeologyPacket>(HandleGeologyPacket);
+                ns.Unsubscribe<BasketPacket>(HandleBasketPacket);
             }
 
             var mm = MapManager.InstanceIfExists;
@@ -172,6 +185,7 @@ namespace Fodinae.Scripts.Networking
             {
                 rm.LocalPlayerBotId = packet.BotId;
             }
+            PlayerStatsModel.Instance.SetNickname(packet.Nickname);
 
             var playerObj = GameObject.FindGameObjectWithTag("Player");
             if (playerObj != null)
@@ -291,6 +305,36 @@ namespace Fodinae.Scripts.Networking
                 Debug.Log("[PacketHandler] Map data received in HBPacket, triggering OnWorldDataLoaded event");
                 MapManager.Instance?.OnWorldDataLoaded?.Invoke();
             }
+        }
+
+        private void HandleLevelPacket(LevelPacket packet)
+        {
+            _packetCount++;
+            PlayerStatsModel.Instance.SetLevel(packet.Level);
+        }
+
+        private void HandleHealthPacket(HealthPacket packet)
+        {
+            _packetCount++;
+            PlayerStatsModel.Instance.SetHealth(packet.Current, packet.Max);
+        }
+
+        private void HandleCurrencyPacket(CurrencyPacket packet)
+        {
+            _packetCount++;
+            PlayerStatsModel.Instance.SetCurrency(packet.Money, packet.Creds);
+        }
+
+        private void HandleGeologyPacket(GeologyPacket packet)
+        {
+            _packetCount++;
+            PlayerStatsModel.Instance.SetGeology(packet.Current, packet.Max, packet.Cell, packet.Text);
+        }
+
+        private void HandleBasketPacket(BasketPacket packet)
+        {
+            _packetCount++;
+            PlayerStatsModel.Instance.SetBasket(packet.Capacity, packet.Contents);
         }
 
         private void OnWorldInitialized()

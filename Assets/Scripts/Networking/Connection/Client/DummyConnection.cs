@@ -47,6 +47,33 @@ namespace MinesServer.Networking.Connection.Client
 
         private FPSCounter _fpsCounter;
 
+        private static readonly CellType[] _allCellTypes = new CellType[]
+        {
+            CellType.Unloaded, CellType.Pregener,
+            CellType.BuildingRoad, CellType.Gate, CellType.VolcanoBackground,
+            CellType.BackgroundWithLightTraces, CellType.BackgroundWithHeavyTraces,
+            CellType.Road, CellType.GoldenRoad, CellType.BuildingDoor, CellType.BuildingCorner, CellType.PolymerRoad,
+            CellType.BlackBoulder1, CellType.BlackBoulder2, CellType.BlackBoulder3,
+            CellType.MetalBoulder1, CellType.MetalBoulder2, CellType.MetalBoulder3,
+            CellType.QuadBlock, CellType.Support,
+            CellType.AliveCyan, CellType.AliveRed, CellType.AliveViol, CellType.AliveNigger, CellType.AliveWhite, CellType.AliveRainbow,
+            CellType.WhiteSand, CellType.DarkWhiteSand, CellType.RustySand, CellType.DarkRustySand,
+            CellType.BlackSand, CellType.DarkBlackSand, CellType.GrayAcid, CellType.PurpleAcid,
+            CellType.Pearl, CellType.DeepLazuriteSand, CellType.DeepMagmaBoulder,
+            CellType.XGreen, CellType.XBlue, CellType.XRed, CellType.XCyan, CellType.XViolet,
+            CellType.DeepObsidianRock, CellType.DeepTurquoiseRock, CellType.DeepRainbowRock, CellType.DeepStripedRock,
+            CellType.MilitaryBlockFrame, CellType.MilitaryBlock, CellType.MilitaryBlockSand, CellType.TeleportBlock,
+            CellType.PassiveAcid, CellType.SuperRainbow, CellType.Skull, CellType.Box,
+            CellType.Lava, CellType.Boulder1, CellType.Boulder2, CellType.Boulder3,
+            CellType.LivingActiveAcid, CellType.CorrosiveActiveAcid,
+            CellType.BlueSand, CellType.DarkBlueSand, CellType.YellowSand, CellType.DarkYellowSand,
+            CellType.GreenBlock, CellType.YellowBlock, CellType.Rock, CellType.FedBlock, CellType.RedBlock, CellType.BuildingWall,
+            CellType.Green, CellType.Red, CellType.Blue, CellType.Violet, CellType.White, CellType.Cyan,
+            CellType.HeavyRock, CellType.NiggerRock, CellType.LivingBlackRock,
+            CellType.AliveBlue, CellType.RedRock, CellType.AcidRock, CellType.HypnoRock,
+            CellType.GoldenRock, CellType.DeepRock, CellType.GRock
+        };
+
         public void Connect()
         {
             if (_status != ConnectionStatus.Disconnected)
@@ -64,8 +91,23 @@ namespace MinesServer.Networking.Connection.Client
             await UniTask.Delay(100);
             _status = ConnectionStatus.Connected;
             OnConnected?.Invoke();
+
             var minimapObj = new GameObject("MinimapRoot");
             minimapObj.AddComponent<MinimapPlaceholder>();
+
+            var inventoryObj = new GameObject("InventoryRoot");
+            inventoryObj.AddComponent<InventoryUI>();
+
+            var hudObj = new GameObject("PlayerHUD");
+            hudObj.AddComponent<PlayerStatsModel>();
+            hudObj.AddComponent<PlayerHUD>();
+
+            var pauseObj = new GameObject("PauseMenu");
+            pauseObj.AddComponent<PauseMenu>();
+
+            var audioObj = new GameObject("AudioManager");
+            audioObj.AddComponent<AudioManager>();
+
             CreateFPSCounter();
         }
 
@@ -129,6 +171,14 @@ namespace MinesServer.Networking.Connection.Client
                     _rot = rotate.Direction;
                     UpdatePosition().Forget();
                 }
+                else if (actionPacket.Payload is ClickCellPacket click)
+                {
+                    Debug.Log($"  - Clicked Cell at ({click.X}, {click.Y})");
+                }
+                else if (actionPacket.Payload is UnmappedKeyPacket key)
+                {
+                    Debug.Log($"  - Unmapped Key: Code={key.Code}, Ctrl={key.Control}, Alt={key.Alt}, Shift={key.Shift}");
+                }
             }
 
             switch (packet.Data)
@@ -147,18 +197,18 @@ namespace MinesServer.Networking.Connection.Client
                             new byte[] { 37, 38, 106 }
                         })));
                     SendTestWorldMapData(testWorldWidth, testWorldHeight);
+                    CreateCellTypeLabels(testWorldWidth, testWorldHeight);
                     OnReceived?.Invoke(new ServerPacket(new PlayerInfoPacket(999, _mockBotId, "Darkar25")));
                     var robotPos = new RobotPositionPacket(_mockBotId, 25, 50, 0);
                     OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { robotPos })));
                     HandleRobotInfoMock(_mockBotId).Forget();
-                    ushort circularBotId = 789;
-                    RunCircularRobot(circularBotId).Forget();
+                    RunCircularBots(10).Forget();
                     RunTilingTestLoop().Forget();
                     OnReceived?.Invoke(new ServerPacket(new AggressionStatePacket(false)));
                     OnReceived?.Invoke(new ServerPacket(new AutoMineStatePacket(false)));
                     OnReceived?.Invoke(new ServerPacket(new CurrencyPacket(123456, 1234)));
                     OnReceived?.Invoke(new ServerPacket(new HealthPacket(250, 500)));
-                    OnReceived?.Invoke(new ServerPacket(new BasketPacket(123, new[] { 1L, 2L, 3L, 4L, 5L, 6L })));
+                    OnReceived?.Invoke(new ServerPacket(new BasketPacket(50000, new[] { 50000L, 40000L, 0L, 0L, 0L, 0L })));
                     OnReceived?.Invoke(new ServerPacket(new GeologyPacket(5, 10, CellType.Lava, "Lava")));
                     OnReceived?.Invoke(new ServerPacket(new LevelPacket(12345)));
                     OnReceived?.Invoke(new ServerPacket(new MovementSpeedPacket(new Dictionary<CellType, ushort>
@@ -189,8 +239,8 @@ namespace MinesServer.Networking.Connection.Client
 
         private async UniTaskVoid RunTilingTestLoop()
         {
-            ushort baseX = 40;
-            ushort baseY = 40;
+            ushort baseX = 144;
+            ushort baseY = 9;
             int counter = 0;
 
             while (_status == ConnectionStatus.Connected)
@@ -581,92 +631,65 @@ namespace MinesServer.Networking.Connection.Client
         {
             var map = new CellType[width, height];
             for (int y = 0; y < height; y++)
-            {
                 for (int x = 0; x < width; x++)
-                {
                     map[x, y] = CellType.Empty;
-                }
-            }
-            for (int x = 0; x < width; x++)
+
+            int galleryX = 5;
+            int galleryY = 5;
+            int squaresPerRow = (width - galleryX) / 15;
+
+            for (int i = 0; i < _allCellTypes.Length; i++)
             {
-                map[x, 0] = CellType.Road;
-                map[x, height - 1] = CellType.Road;
-            }
-            for (int y = 0; y < height; y++)
-            {
-                map[0, y] = CellType.Road;
-                map[width - 1, y] = CellType.Road;
-            }
-            int centerX = width / 2;
-            int centerY = height / 2;
-            for (int x = centerX - 10; x <= centerX + 10; x++)
-            {
-                if (x >= 0 && x < width)
-                {
-                    map[x, centerY] = CellType.Boulder1;
-                }
-            }
-            for (int y = centerY - 10; y <= centerY + 10; y++)
-            {
-                if (y >= 0 && y < height)
-                {
-                    map[centerX, y] = CellType.Boulder1;
-                }
-            }
-            for (int x = 20; x < 40; x++)
-            {
-                for (int y = 20; y < 40; y++)
-                {
-                    map[x, y] = CellType.WhiteSand;
-                }
-            }
-            for (int x = 50; x < 80; x++)
-            {
-                for (int y = 20; y < 40; y++)
-                {
-                    map[x, y] = CellType.PurpleAcid;
-                }
-            }
-            for (int x = 60; x < 80; x++)
-            {
-                for (int y = 60; y < 80; y++)
-                {
-                    map[x, y] = (x + y) % 2 == 0 ? CellType.GrayAcid : CellType.PurpleAcid;
-                }
-            }
-            for (int x = 45; x < 55; x++)
-            {
-                for (int y = 45; y < 55; y++)
-                {
-                    map[x, y] = CellType.Lava;
-                }
-            }
-            // Add tiling test region
-            int tilingX = 30;
-            int tilingY = 30;
-            for (int dy = -1; dy <= 1; dy++)
-            {
-                for (int dx = -1; dx <= 1; dx++)
-                {
-                    if (dx == 0 && dy == 0)
-                        map[tilingX + dx, tilingY + dy] = CellType.BuildingDoor;
-                    else if (dx % 2 == 0 && dy % 2 == 0)
-                        map[tilingX + dx, tilingY + dy] = CellType.BuildingCorner;
-                }
+                int row = i / squaresPerRow;
+                int col = i % squaresPerRow;
+                int startX = galleryX + col * 15;
+                int startY = galleryY + row * 15;
+
+                for (int dx = 0; dx < 10; dx++)
+                    for (int dy = 0; dy < 10; dy++)
+                        map[startX + dx, startY + dy] = _allCellTypes[i];
             }
 
-            var random = new System.Random(12345);
-            for (int y = 10; y < height - 10; y += 3)
-            {
-                for (int x = 10; x < width - 10; x += 3)
-                {
-                    if (random.Next(100) < 30)
-                    {
-                        map[x, y] = CellType.Boulder1;
-                    }
-                }
-            }
+            // Clear BuildingDoor square (index 9) for tiling test
+            // Square starts at (140, 5), 10×10
+            for (int dx = 0; dx < 10; dx++)
+                for (int dy = 0; dy < 10; dy++)
+                    map[140 + dx, 5 + dy] = CellType.Empty;
+
             return map;
+        }
+
+        private void CreateCellTypeLabels(int worldWidth, int worldHeight)
+        {
+            var parent = new GameObject("CellTypeLabels");
+            UnityEngine.Object.DontDestroyOnLoad(parent);
+
+            int squaresPerRow = (worldWidth - 5) / 15;
+            int galleryX = 5;
+            int galleryY = 5;
+
+            for (int i = 0; i < _allCellTypes.Length; i++)
+            {
+                int row = i / squaresPerRow;
+                int col = i % squaresPerRow;
+                int serverX = galleryX + col * 15 + 5;
+                int serverY = galleryY + row * 15 + 10;
+
+                float unityX = serverX + 0.5f;
+                float unityY = worldHeight - 1 - serverY - 0.5f;
+
+                var labelGO = new GameObject($"Label_{i}");
+                labelGO.transform.SetParent(parent.transform);
+                labelGO.transform.position = new Vector3(unityX, unityY, 0);
+
+                var tm = labelGO.AddComponent<TextMesh>();
+                tm.text = $"{_allCellTypes[i]} ({(int)_allCellTypes[i]})";
+                tm.fontSize = 20;
+                tm.characterSize = 0.5f;
+                tm.color = new Color(1f, 1f, 1f, 0.9f);
+                tm.anchor = TextAnchor.LowerCenter;
+                tm.alignment = TextAlignment.Center;
+            }
         }
 
         private async UniTaskVoid HandleRobotInfoMock(ushort botId)
@@ -675,36 +698,44 @@ namespace MinesServer.Networking.Connection.Client
             OnReceived?.Invoke(new ServerPacket(new RobotInfoPacket(botId, 999, 1, "skin/bee.png", "tail/default.png", "BeeBot")));
         }
 
-        private async UniTaskVoid RunCircularRobot(ushort botId)
+        private async UniTaskVoid RunCircularBots(int count)
         {
-            int centerX = 55;
-            int centerY = 55;
-            float angle = 0;
-            float radius = 3.0f;
+            int baseId = 1000;
 
-            // Send initial info
-            OnReceived?.Invoke(new ServerPacket(new RobotInfoPacket(botId, 1000, 0, "skin/bee.png", "tail/default.png", "CircularBot")));
+            var bots = new List<(ushort id, float cx, float cy, float r, float a, float speed)>();
+            for (int i = 0; i < count; i++)
+            {
+                ushort botId = (ushort)(baseId + i);
+                OnReceived?.Invoke(new ServerPacket(new RobotInfoPacket(botId, 1000, 0,
+                    "skin/bee.png", "tail/default.png", $"")));
+
+                float radius = UnityEngine.Random.Range(0.5f, 5f);
+                float angle = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+                float speed = 0.3f + UnityEngine.Random.Range(-0.1f, 0.1f);
+                bots.Add((botId, 50f, 50f, radius, angle, speed));
+            }
 
             while (_status == ConnectionStatus.Connected)
             {
-                int x = centerX + Mathf.RoundToInt(Mathf.Cos(angle) * radius);
-                int y = centerY + Mathf.RoundToInt(Mathf.Sin(angle) * radius);
-                float angleDeg = (Mathf.Atan2(Mathf.Sin(angle), Mathf.Cos(angle)) * Mathf.Rad2Deg + 360) % 360;
-
-                // 0: Down (270), 1: Left (180), 2: Up (90), 3: Right (0)
-                byte rotation = angleDeg switch
+                var positions = new List<IHBPacket>(bots.Count);
+                for (int i = 0; i < bots.Count; i++)
                 {
-                    > 225 and <= 315 => 0, // Down
-                    > 135 and <= 225 => 1, // Left
-                    > 45 and <= 135 => 2,  // Up
-                    _ => 3                 // Right
-                };
-
-                var robotPos = new RobotPositionPacket(botId, (ushort)x, (ushort)y, rotation);
-                OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { robotPos })));
-
-                angle += 0.5f;
-                await UniTask.Delay(500);
+                    var b = bots[i];
+                    int x = Mathf.RoundToInt(b.cx + Mathf.Cos(b.a) * b.r);
+                    int y = Mathf.RoundToInt(b.cy + Mathf.Sin(b.a) * b.r);
+                    float deg = (Mathf.Atan2(Mathf.Sin(b.a), Mathf.Cos(b.a)) * Mathf.Rad2Deg + 360) % 360;
+                    byte rot = deg switch
+                    {
+                        > 225 and <= 315 => 0,
+                        > 135 and <= 225 => 1,
+                        > 45 and <= 135 => 2,
+                        _ => 3
+                    };
+                    positions.Add(new RobotPositionPacket(b.id, (ushort)x, (ushort)y, rot));
+                    bots[i] = (b.id, b.cx, b.cy, b.r, b.a + b.speed * 0.1f, b.speed);
+                }
+                OnReceived?.Invoke(new ServerPacket(new HBPacket(positions.ToArray())));
+                await UniTask.Delay(20);
             }
         }
 

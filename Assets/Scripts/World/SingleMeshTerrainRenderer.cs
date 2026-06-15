@@ -54,6 +54,7 @@ namespace Fodinae.Scripts.World
         private List<int>[] _subMeshIndices = Array.Empty<List<int>>();
 
         private Vector2Int _lastGridPos = new Vector2Int(int.MinValue, int.MinValue);
+        private Vector2Int _lastPreloadChunkPos = new Vector2Int(int.MinValue, int.MinValue);
         private int _meshWidth;
         private int _meshHeight;
         private bool _isInitialized = false;
@@ -120,6 +121,7 @@ namespace Fodinae.Scripts.World
 
         private CellType[,] _bgMapBuffer;
         private bool _needsRefresh = false;
+        private bool _useColorLod = false;
 
         protected void OnValidate()
         {
@@ -462,6 +464,8 @@ namespace Fodinae.Scripts.World
                     }
                 }
             }
+
+            WorldTextureManager.Instance.RequestTexture((CellType)0);
         }
 
         private void PrecalculateData()
@@ -802,7 +806,7 @@ namespace Fodinae.Scripts.World
             int descriptor = (cellType == _cellCache[cx, cy].Type) ? _cellTilingDescriptors[x, y] : 0;
             int worldWidth = MapManager.Instance.WorldWidth;
             bool isOffWorld = gridX < 0 || gridX >= worldWidth || unityY < 0 || unityY >= worldHeight;
-            float packedW = (data.HasTileGroup ? 1f : 0f) + (isOffWorld ? 2f : 0f);
+            float packedW = (data.HasTileGroup ? 1f : 0f);
 
             if (data.HasTileGroup && descriptor != 0)
             {
@@ -828,7 +832,7 @@ namespace Fodinae.Scripts.World
                 }
             }
 
-            bool useFallback = data.AtlasRect.z < 0.0001f;
+            bool useFallback = _useColorLod || data.AtlasRect.z < 0.0001f;
             Color color = useFallback ? data.MinimapColor : _shimmerHighlightColor;
             float animOffset = 0f;
             if (!useFallback && data.Animation == CellAnimationType.Blinking)

@@ -224,7 +224,6 @@ namespace Fodinae.Scripts.UI
             int minY = _cachedMinY;
             int index = 0;
 
-            // Используем локальные переменные для скорости
             int textureSize = TEXTURE_SIZE;
             int worldWidth = _worldWidth;
             int worldHeight = _worldHeight;
@@ -235,11 +234,11 @@ namespace Fodinae.Scripts.UI
             for (int texY = 0; texY < textureSize; texY++)
             {
                 int worldY = minY + texY;
+                int serverY = worldHeight - 1 - worldY;
                 bool yValid = worldY >= 0 && worldY < worldHeight;
 
                 if (!yValid)
                 {
-                    // Заполняем строку чёрным цветом (быстро)
                     for (int texX = 0; texX < textureSize; texX++)
                     {
                         pixelColors[index++] = Color.black;
@@ -273,10 +272,8 @@ namespace Fodinae.Scripts.UI
                 }
             }
 
-            // Пакетное обновление текстуры
             _minimapTexture.SetPixels32(_pixelColors);
 
-            // Рисуем маркер (быстро, только несколько пикселей)
             int centerX = textureSize / 2;
             int centerY = textureSize / 2;
 
@@ -288,7 +285,6 @@ namespace Fodinae.Scripts.UI
 
             _minimapTexture.SetPixel(centerX, centerY, Color.red);
 
-            // Применяем изменения (false = без обновления мипмапов)
             _minimapTexture.Apply(false);
         }
 

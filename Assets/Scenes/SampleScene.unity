@@ -329,11 +329,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Scripts.World.SingleMeshTerrainRenderer
   _cellSize: 1
+  _bufferCells: 2
   _terrainShader: {fileID: 4800000, guid: 943286b1ceedb6e49881652498d6ec13, type: 3}
   _shimmerHighlightColor: {r: 0, g: 0, b: 0, a: 1}
   _sortingLayerName: Default
   _sortingOrder: -1000
-  _buildFullMeshOnce: 1
+  _viewportPadding: 2
 --- !u!23 &217259660
 MeshRenderer:
   m_ObjectHideFlags: 0

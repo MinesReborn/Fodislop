@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -20,8 +21,11 @@ namespace Fodinae.Scripts.Player
         private Camera _camera;
         private float _targetZoom;
         private float _currentZoom;
+        private float _lastZoom;
+        public event Action<float> OnZoomChanged;
         private PlayerInput _playerInput;
         private InputAction _scrollAction;
+        private bool _scrollEnabled = true;
 
         private void Awake()
         {
@@ -41,6 +45,7 @@ namespace Fodinae.Scripts.Player
 
             _targetZoom = _camera.orthographicSize;
             _currentZoom = _targetZoom;
+            _lastZoom = _currentZoom;
             if (_target == null)
             {
                 var player = FindFirstObjectByType<PlayerMovementController>();
@@ -74,9 +79,10 @@ namespace Fodinae.Scripts.Player
             HandleZoom();
             HandleFollow();
         }
-
         private void HandleZoom()
         {
+            if (!_scrollEnabled) return;
+
             if (_camera == null)
             {
                 Debug.LogError("CameraFollow: Camera is null in HandleZoom!");
@@ -106,8 +112,13 @@ namespace Fodinae.Scripts.Player
 
             _currentZoom = Mathf.Lerp(_currentZoom, _targetZoom, _zoomSmoothness * Time.deltaTime);
             _camera.orthographicSize = _currentZoom;
-        }
 
+            if (Mathf.Abs(_currentZoom - _lastZoom) > 0.01f)
+            {
+                _lastZoom = _currentZoom;
+                OnZoomChanged?.Invoke(_currentZoom);
+            }
+        }
         private void HandleFollow()
         {
             if (_target == null)
@@ -122,9 +133,7 @@ namespace Fodinae.Scripts.Player
             float t = _smoothSpeed * Time.deltaTime;
             transform.position = Vector3.Lerp(transform.position, desiredPosition, t);
         }
-
         public void SetTarget(Transform newTarget) => _target = newTarget;
-
         public void SetZoom(float zoomLevel)
         {
             if (_camera != null)
@@ -132,7 +141,6 @@ namespace Fodinae.Scripts.Player
             else
                 Debug.LogError("CameraFollow: Cannot set zoom - camera is null!");
         }
-
         public float GetCurrentZoom() => _currentZoom;
         public void Reinitialize()
         {

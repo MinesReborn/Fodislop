@@ -1,6 +1,8 @@
 using System.IO;
 using MinesServer.Data;
 using UnityEngine;
+using System;
+using Cysharp.Threading.Tasks;
 
 namespace Fodinae.Scripts.Game.Managers
 {
@@ -43,6 +45,8 @@ namespace Fodinae.Scripts.Game.Managers
         }
 #endif
 
+        public event Action OnChunkLoaded;
+
         public void InitWorld(string worldCodeName, int width, int height)
         {
             Debug.Log($"[MapStorage] InitWorld called: world='{worldCodeName}', dimensions={width}x{height}");
@@ -84,14 +88,12 @@ namespace Fodinae.Scripts.Game.Managers
                     return;
                 }
 
-                // Check for potential memory issues with very large maps
                 long totalChunks = (long)widthChunks * heightChunks;
-                if (totalChunks > 1000000) // 1M chunks limit
+                if (totalChunks > 1000000)
                 {
                     Debug.LogWarning($"MapStorage.InitWorld: Very large map detected ({totalChunks} chunks). This may cause performance issues.");
                 }
 
-                // Additional validation for WorldLayer constructor parameters
                 if (widthChunks > 100000 || heightChunks > 100000)
                 {
                     Debug.LogError($"MapStorage.InitWorld: World dimensions too large for WorldLayer. Max supported: 100000x100000 chunks");
@@ -104,7 +106,6 @@ namespace Fodinae.Scripts.Game.Managers
                     return;
                 }
 
-                // Check if directory exists and is writable
                 string directory = Path.GetDirectoryName(path);
                 if (!Directory.Exists(directory))
                 {
@@ -132,7 +133,6 @@ namespace Fodinae.Scripts.Game.Managers
                     if (_cellLayer == null)
                     {
                         Debug.LogError($"[MapStorage] CRITICAL: WorldLayer creation failed - returned null");
-                        Debug.LogError($"[MapStorage] This is a fundamental failure - terrain rendering cannot work");
                         _isInitialized = false;
                         return;
                     }
@@ -155,7 +155,6 @@ namespace Fodinae.Scripts.Game.Managers
                     catch (System.Exception cellTestEx)
                     {
                         Debug.LogError($"[MapStorage] CRITICAL: WorldLayer cell access failed: {cellTestEx.Message}");
-                        Debug.LogError("[MapStorage] WorldLayer appears to be created but not functional");
                         _isInitialized = false;
                         _cellLayer?.Dispose();
                         _cellLayer = null;
