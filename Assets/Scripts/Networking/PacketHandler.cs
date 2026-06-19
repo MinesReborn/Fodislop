@@ -1,17 +1,15 @@
 using System.Linq;
+using System.Collections.Generic;
 using Fodinae.Assets.Scripts.Game;
 using Fodinae.Assets.Scripts.Game.Managers;
-using Fodinae.Assets.Scripts.Networking.Connection;
 using Fodinae.Assets.Scripts.Player;
 using Fodinae.Assets.Scripts.UI;
-using MinesServer.Networking.Server;
-using MinesServer.Networking.Server.Packets;
+using Fodinae.UI.Binding;
 using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.GUI;
 using MinesServer.Networking.Server.Packets.Information;
 using MinesServer.Networking.Server.Packets.World;
 using UnityEngine;
-using UnityEngine.Rendering;
 using UnityEngine.UIElements;
 
 namespace Fodinae.Assets.Scripts.Networking
@@ -23,6 +21,7 @@ namespace Fodinae.Assets.Scripts.Networking
         private int _worldInitPacketsReceived = 0;
         private int _mapRegionPacketsReceived = 0;
         private UIDocument _uiDocument;
+        private readonly List<(VisualElement root, WindowBinding binding)> _openWindows = new();
 
         void Awake()
         {
@@ -55,6 +54,7 @@ namespace Fodinae.Assets.Scripts.Networking
             ns.Subscribe<PlayerInfoPacket>(HandlePlayerInfoPacket);
             ns.Subscribe<MovementSpeedPacket>(HandleMovementSpeedPacket);
             ns.Subscribe<OpenWindowPacket>(HandleOpenWindowPacket);
+            ns.Subscribe<CloseWindowPacket>(HandleCloseWindowPacket);
             ns.Subscribe<RobotPositionPacket>(HandleRobotPositionPacket);
             ns.Subscribe<MapRegionPacket>(HandleMapRegionPacket);
             ns.Subscribe<PackPacket>(HandlePackPacket);
@@ -69,7 +69,7 @@ namespace Fodinae.Assets.Scripts.Networking
 
             MapManager.Instance.OnWorldInitialized += OnWorldInitialized;
             MapManager.Instance.OnWorldDataLoaded += OnWorldDataLoaded;
-            
+
             _isInitialized = true;
             Debug.Log("[PacketHandler] Initialization complete - ready to receive packets");
         }
@@ -87,6 +87,7 @@ namespace Fodinae.Assets.Scripts.Networking
                 ns.Unsubscribe<PlayerInfoPacket>(HandlePlayerInfoPacket);
                 ns.Unsubscribe<MovementSpeedPacket>(HandleMovementSpeedPacket);
                 ns.Unsubscribe<OpenWindowPacket>(HandleOpenWindowPacket);
+                ns.Unsubscribe<CloseWindowPacket>(HandleCloseWindowPacket);
                 ns.Unsubscribe<RobotPositionPacket>(HandleRobotPositionPacket);
                 ns.Unsubscribe<MapRegionPacket>(HandleMapRegionPacket);
                 ns.Unsubscribe<PackPacket>(HandlePackPacket);
@@ -98,6 +99,15 @@ namespace Fodinae.Assets.Scripts.Networking
                 ns.Unsubscribe<GeologyPacket>(HandleGeologyPacket);
                 ns.Unsubscribe<BasketPacket>(HandleBasketPacket);
             }
+
+            // Close any open windows and dispose bindings
+            foreach (var (root, binding) in _openWindows)
+            {
+                binding.Dispose();
+                if (_uiDocument != null)
+                    _uiDocument.rootVisualElement.Remove(root);
+            }
+            _openWindows.Clear();
 
             var mm = FindObjectOfType<MapManager>();
             if (mm != null)
@@ -135,6 +145,25 @@ namespace Fodinae.Assets.Scripts.Networking
             element.style.translate = new Translate(new Length(-50, LengthUnit.Percent), new Length(-50, LengthUnit.Percent));
 
             _uiDocument.rootVisualElement.Add(element);
+
+            // Set up SmartFormat binding for this window
+            var binding = new WindowBinding();
+            binding.Bind(element);
+            _openWindows.Add((element, binding));
+        }
+
+        private void HandleCloseWindowPacket(CloseWindowPacket packet)
+        {
+            _packetCount++;
+            Debug.Log("[PacketHandler] Handling CloseWindowPacket");
+
+            if (_openWindows.Count == 0) return;
+
+            // Close the most recently opened window (no window tag in CloseWindowPacket)
+            var (root, binding) = _openWindows[^1];
+            binding.Dispose();
+            _uiDocument.rootVisualElement.Remove(root);
+            _openWindows.RemoveAt(_openWindows.Count - 1);
         }
 
         public void HandleWorldInitPacket(WorldInitPacket worldInitPacket)

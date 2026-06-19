@@ -482,3 +482,6 @@ InitTestScene*.unity*
 *.suo
 *.user
 *.userprefs
+
+# AI tools files
+.omo/

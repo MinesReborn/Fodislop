@@ -1,0 +1,14 @@
+{
+  "$schema": "https:/opencode.ai/config.json",
+  "mcp": {
+    "mcp-unity": {
+      "type": "local",
+      "enabled": true,
+      "command": [
+        "node",
+        "Library/PackageCache/com.gamelovers.mcp-unity@cce8b57de9cb/Server~/build/index.js"
+      ],
+      "environment": {}
+    }
+  }
+}

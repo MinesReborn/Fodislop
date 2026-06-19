@@ -37,6 +37,7 @@ namespace Fodinae.Assets.Scripts.Networking.Connection
         public IServerConnection Connection { get; private set; }
 
         public event Action<ServerPacket> OnPacketReceived;
+        public event Action OnConnectedToServer;
 
         void Awake()
         {
@@ -69,6 +70,8 @@ namespace Fodinae.Assets.Scripts.Networking.Connection
             NetworkService.Instance.Send(new ClientHelloPacket(0, "Windows", 10, "fingerprint", "token"));
 
             NetworkService.Instance.Send(new OpenHelpClickPacket());
+
+            OnConnectedToServer?.Invoke();
         }
 
         private void OnReceived(ServerPacket obj)
