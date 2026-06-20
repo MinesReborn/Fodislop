@@ -1,7 +1,8 @@
+using Fodinae.Assets.Scripts.Audio;
+using Fodinae.Assets.Scripts.World;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
-using Fodinae.Assets.Scripts.Audio;
 
 namespace Fodinae.Assets.Scripts.UI
 {
@@ -21,6 +22,8 @@ namespace Fodinae.Assets.Scripts.UI
         private bool _isOpen;
         private InputAction _escapeAction;
         private float _originalScale;
+        private Button _fullscreenButton;
+        private Button _simpleGraphicsButton;
 
         void Start()
         {
@@ -129,6 +132,49 @@ namespace Fodinae.Assets.Scripts.UI
                        canvas.scaleFactor = v;
                },
                0.65f, 2f));
+
+            var fsLabel = new Label("Экран");
+            fsLabel.style.fontSize = 14;
+            fsLabel.style.color = Color.white;
+            fsLabel.style.marginBottom = 4;
+            _settingsPage.Add(fsLabel);
+
+            _fullscreenButton = new Button(ToggleFullscreen);
+            _fullscreenButton.text = Screen.fullScreen ? "Полный экран" : "Оконный";
+            _fullscreenButton.style.backgroundColor = _btnBg;
+            _fullscreenButton.style.borderTopWidth = 2;
+            _fullscreenButton.style.borderBottomWidth = 2;
+            _fullscreenButton.style.borderLeftWidth = 2;
+            _fullscreenButton.style.borderRightWidth = 2;
+            _fullscreenButton.style.borderTopColor = _btnBorder;
+            _fullscreenButton.style.borderBottomColor = _btnBorder;
+            _fullscreenButton.style.borderLeftColor = _btnBorder;
+            _fullscreenButton.style.borderRightColor = _btnBorder;
+            _fullscreenButton.style.paddingTop = 8;
+            _fullscreenButton.style.paddingBottom = 8;
+            _fullscreenButton.style.paddingLeft = 20;
+            _fullscreenButton.style.paddingRight = 20;
+            _fullscreenButton.style.marginBottom = 16;
+            _fullscreenButton.style.minWidth = 180;
+            _fullscreenButton.style.color = Color.white;
+            _fullscreenButton.style.fontSize = 14;
+            _fullscreenButton.style.unityTextAlign = TextAnchor.MiddleCenter;
+
+            _fullscreenButton.RegisterCallback<MouseEnterEvent>(_ =>
+                _fullscreenButton.style.backgroundColor = _btnHover);
+            _fullscreenButton.RegisterCallback<MouseLeaveEvent>(_ =>
+                _fullscreenButton.style.backgroundColor = _btnBg);
+
+            _settingsPage.Add(_fullscreenButton);
+
+            var sgLabel = new Label("Графика");
+            sgLabel.style.fontSize = 14; sgLabel.style.color = Color.white; sgLabel.style.marginBottom = 4;
+            _settingsPage.Add(sgLabel);
+
+            _simpleGraphicsButton = new Button(ToggleSimpleGraphics);
+            _simpleGraphicsButton.text = IsSimpleGraphics() ? "Простая" : "Обычная";
+            _settingsPage.Add(_simpleGraphicsButton);
+
             _settingsPage.Add(CreateButton("Назад", CloseSettings));
             _settingsPage.style.display = DisplayStyle.None;
             _menuPanel.Add(_settingsPage);
@@ -187,6 +233,7 @@ namespace Fodinae.Assets.Scripts.UI
 
         private void ToggleMenu()
         {
+            if (!enabled) return;
             if (_settingsPage.style.display == DisplayStyle.Flex)
             {
                 CloseSettings();
@@ -195,6 +242,25 @@ namespace Fodinae.Assets.Scripts.UI
             if (_isOpen) CloseMenu();
             else OpenMenu();
         }
+
+        private void ToggleFullscreen()
+        {
+            Screen.fullScreen = !Screen.fullScreen;
+            Debug.Log($"[PauseMenu] Fullscreen: {Screen.fullScreen}");
+            _fullscreenButton.text = Screen.fullScreen ? "Полный экран" : "Оконный";
+        }
+
+        private void ToggleSimpleGraphics()
+        {
+            var terrain = FindObjectOfType<SingleMeshTerrainRenderer>();
+            if (terrain == null) return;
+            bool current = PlayerPrefs.GetInt("SimpleGraphics", 0) == 1;
+            terrain.SetSimpleGraphics(!current);
+            _simpleGraphicsButton.text = !current ? "Простая" : "Обычная";
+        }
+
+        private static bool IsSimpleGraphics()
+            => PlayerPrefs.GetInt("SimpleGraphics", 0) == 1;
 
         private void OpenMenu()
         {

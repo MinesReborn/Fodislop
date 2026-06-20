@@ -49,6 +49,8 @@ namespace Fodinae.Assets.Scripts.UI
         public uint BasketCapacity { get; private set; }
         public long[] BasketContents { get; private set; } = Array.Empty<long>();
         public int BasketMaxPercent { get; private set; }
+        public int OnlinePlayers { get; private set; }
+        public int OnlineProgrammator { get; private set; }
 
         public event Action OnStatsChanged;
         public event Action OnHealthChanged;
@@ -57,6 +59,7 @@ namespace Fodinae.Assets.Scripts.UI
         public event Action OnLevelChanged;
         public event Action OnNicknameChanged;
         public event Action OnBasketChanged;
+        public event Action<SkillType, long, long> OnSkillProgress;
 
         public void SetNickname(string nickname)
         {
@@ -108,6 +111,18 @@ namespace Fodinae.Assets.Scripts.UI
             }
             BasketMaxPercent = Mathf.Clamp(maxPct, 0, 100);
             OnBasketChanged?.Invoke();
+            OnStatsChanged?.Invoke();
+        }
+
+        public void SetSkillProgress(SkillType skill, long current, long max)
+        {
+            OnSkillProgress?.Invoke(skill, current, max);
+        }
+
+        public void SetOnline(int players, int programmator)
+        {
+            OnlinePlayers = players;
+            OnlineProgrammator = programmator;
             OnStatsChanged?.Invoke();
         }
     }

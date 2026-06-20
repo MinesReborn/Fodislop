@@ -1,0 +1,420 @@
+fileFormatVersion: 2
+guid: 41e865310bf557941a8923e51a297c04
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 1676308008278888504
+    second: skills_0
+  - first:
+      213: 3403258472632580065
+    second: skills_1
+  - first:
+      213: -3270749691070897954
+    second: skills_2
+  - first:
+      213: -7637036698441226068
+    second: skills_3
+  - first:
+      213: -8065029926712156904
+    second: skills_4
+  - first:
+      213: -591448513898628455
+    second: skills_5
+  - first:
+      213: 1216849358509855973
+    second: skills_6
+  - first:
+      213: -3610600748765567780
+    second: skills_7
+  - first:
+      213: -936124954036847002
+    second: skills_8
+  - first:
+      213: 7116899043160303953
+    second: skills_9
+  - first:
+      213: 8616979712302491551
+    second: skills_10
+  - first:
+      213: 9122645907860882979
+    second: skills_11
+  - first:
+      213: 8444848628205088410
+    second: skills_12
+  - first:
+      213: 1260598644945743368
+    second: skills_13
+  - first:
+      213: -6802124631727338565
+    second: skills_14
+  - first:
+      213: 3534807678236495575
+    second: skills_15
+  - first:
+      213: 1381141789245080190
+    second: skills_16
+  - first:
+      213: -979634279710815963
+    second: skills_17
+  - first:
+      213: 4327745837452563964
+    second: skills_18
+  - first:
+      213: 1272625545277882964
+    second: skills_19
+  - first:
+      213: 8371138620016785461
+    second: skills_20
+  - first:
+      213: -2882701144099320679
+    second: skills_21
+  - first:
+      213: 359565531509693294
+    second: skills_22
+  - first:
+      213: -2660724389008253964
+    second: skills_23
+  - first:
+      213: 6151629929949816017
+    second: skills_24
+  - first:
+      213: -2863861358245869155
+    second: skills_25
+  - first:
+      213: -8137839267706186765
+    second: skills_26
+  - first:
+      213: 1259471636057757339
+    second: skills_27
+  - first:
+      213: -3921087108199702177
+    second: skills_28
+  - first:
+      213: 7961999306597196276
+    second: skills_29
+  - first:
+      213: 3837553764291604187
+    second: skills_30
+  - first:
+      213: 291482919000558167
+    second: skills_31
+  - first:
+      213: -5258154135475835959
+    second: skills_32
+  - first:
+      213: -5987545944329257516
+    second: skills_33
+  - first:
+      213: 7170312608093094923
+    second: skills_34
+  - first:
+      213: -1148165678238741113
+    second: skills_35
+  - first:
+      213: 5575568442903493558
+    second: skills_36
+  - first:
+      213: -6793822770884829338
+    second: skills_37
+  - first:
+      213: 4014847391174052708
+    second: skills_38
+  - first:
+      213: 7868614714891284549
+    second: skills_39
+  - first:
+      213: 5001935934039671464
+    second: skills_40
+  - first:
+      213: 7332436458939416571
+    second: skills_41
+  - first:
+      213: 757850514516602712
+    second: skills_42
+  - first:
+      213: 8637311036866665520
+    second: skills_43
+  - first:
+      213: -3647463822961986966
+    second: skills_44
+  - first:
+      213: 5177267748372996257
+    second: skills_45
+  - first:
+      213: 9101752143483502170
+    second: skills_46
+  - first:
+      213: -8602575724214924652
+    second: skills_47
+  - first:
+      213: -922969118306938430
+    second: skills_48
+  - first:
+      213: -8751764464060839332
+    second: skills_49
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 1
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WindowsStoreApps
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: skills_0
+      rect:
+        serializedVersion: 2
+        x: 226
+        y: 299
+        width: 73
+        height: 73
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8301b978041734710800000000000000
+      internalID: 1676308008278888504
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: skills_14
+      rect:
+        serializedVersion: 2
+        x: 301
+        y: 298
+        width: 73
+        height: 73
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bbb05f7cfaff991a0800000000000000
+      internalID: -6802124631727338565
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: skills_19
+      rect:
+        serializedVersion: 2
+        x: 672
+        y: 300
+        width: 73
+        height: 73
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4524066d03649a110800000000000000
+      internalID: 1272625545277882964
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: skills_40
+      rect:
+        serializedVersion: 2
+        x: 75
+        y: 73
+        width: 73
+        height: 73
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8a242b90b327a6540800000000000000
+      internalID: 5001935934039671464
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 229c189f4153a2a46adaacb3efb5a558
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":64.0,"y":64.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":0,"keepEmptyRects":false,"isAlternate":false}'
+    nameFileIdTable:
+      skills_0: 1676308008278888504
+      skills_1: 3403258472632580065
+      skills_10: 8616979712302491551
+      skills_11: 9122645907860882979
+      skills_12: 8444848628205088410
+      skills_13: 1260598644945743368
+      skills_14: -6802124631727338565
+      skills_15: 3534807678236495575
+      skills_16: 1381141789245080190
+      skills_17: -979634279710815963
+      skills_18: 4327745837452563964
+      skills_19: 1272625545277882964
+      skills_2: -3270749691070897954
+      skills_20: 8371138620016785461
+      skills_21: -2882701144099320679
+      skills_22: 359565531509693294
+      skills_23: -2660724389008253964
+      skills_24: 6151629929949816017
+      skills_25: -2863861358245869155
+      skills_26: -8137839267706186765
+      skills_27: 1259471636057757339
+      skills_28: -3921087108199702177
+      skills_29: 7961999306597196276
+      skills_3: -7637036698441226068
+      skills_30: 3837553764291604187
+      skills_31: 291482919000558167
+      skills_32: -5258154135475835959
+      skills_33: -5987545944329257516
+      skills_34: 7170312608093094923
+      skills_35: -1148165678238741113
+      skills_36: 5575568442903493558
+      skills_37: -6793822770884829338
+      skills_38: 4014847391174052708
+      skills_39: 7868614714891284549
+      skills_4: -8065029926712156904
+      skills_40: 5001935934039671464
+      skills_41: 7332436458939416571
+      skills_42: 757850514516602712
+      skills_43: 8637311036866665520
+      skills_44: -3647463822961986966
+      skills_45: 5177267748372996257
+      skills_46: 9101752143483502170
+      skills_47: -8602575724214924652
+      skills_48: -922969118306938430
+      skills_49: -8751764464060839332
+      skills_5: -591448513898628455
+      skills_6: 1216849358509855973
+      skills_7: -3610600748765567780
+      skills_8: -936124954036847002
+      skills_9: 7116899043160303953
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

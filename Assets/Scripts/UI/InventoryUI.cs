@@ -1,7 +1,7 @@
 using System.Collections.Generic;
-using System.Linq;
-using UnityEditor.PackageManager;
+using MinesServer.Data;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 namespace Fodinae.Assets.Scripts.UI
@@ -9,7 +9,7 @@ namespace Fodinae.Assets.Scripts.UI
     public class InventoryUI : MonoBehaviour
     {
         private const int HOTBAR_COLS = 9;
-        private const int INVENTORY_ROWS = 3;
+        private const int INVENTORY_ROWS = 6;
         private const int INVENTORY_COLS = 9;
         private const int CELL_SIZE = 50;
         private const int CELL_GAP = 10;
@@ -18,6 +18,7 @@ namespace Fodinae.Assets.Scripts.UI
         private Color _cellBgColor = new Color(0.15f, 0.15f, 0.15f, 1f);
         private Color _cellBorderColor = new Color(0.4f, 0.4f, 0.4f, 1f);
         private Color _cellHighlightColor = new Color(0.35f, 0.35f, 0.35f, 1f);
+        private Color _selectedBorderColor = new Color(1f, 0.84f, 0f, 1f);
         private Color _inventoryButtonColor = new Color(0.7f, 0.65f, 0.5f, 1f);
         private Color _inventoryButtonHoverColor = new Color(0.8f, 0.75f, 0.6f, 1f);
         private Color _panelBgColor = new Color(0.08f, 0.08f, 0.08f, 0.85f);
@@ -36,9 +37,30 @@ namespace Fodinae.Assets.Scripts.UI
         private int _dragFromSlot = -1;
         private ItemData _draggedItem;
 
+        // Selection
+        private int _lastSelectedSlot = -1;
+        private VisualElement _tooltip;
+        private Label _tooltipName;
+        private Label _tooltipDesc;
+
         void Start()
         {
             InitializeInventory();
+        }
+
+        void Update()
+        {
+            if (Keyboard.current == null) return;
+
+            if (Keyboard.current.digit1Key.wasPressedThisFrame) _model.SelectSlot(0);
+            else if (Keyboard.current.digit2Key.wasPressedThisFrame) _model.SelectSlot(1);
+            else if (Keyboard.current.digit3Key.wasPressedThisFrame) _model.SelectSlot(2);
+            else if (Keyboard.current.digit4Key.wasPressedThisFrame) _model.SelectSlot(3);
+            else if (Keyboard.current.digit5Key.wasPressedThisFrame) _model.SelectSlot(4);
+            else if (Keyboard.current.digit6Key.wasPressedThisFrame) _model.SelectSlot(5);
+            else if (Keyboard.current.digit7Key.wasPressedThisFrame) _model.SelectSlot(6);
+            else if (Keyboard.current.digit8Key.wasPressedThisFrame) _model.SelectSlot(7);
+            else if (Keyboard.current.digit9Key.wasPressedThisFrame) _model.SelectSlot(8);
         }
 
         private void InitializeInventory()
@@ -50,38 +72,99 @@ namespace Fodinae.Assets.Scripts.UI
                 return;
             }
 
-            _model = new InventoryModel();
+            _model = InventoryModel.Instance;
             _model.OnSlotChanged += RefreshSlot;
+            _model.OnSlotSelected += OnModelSlotSelected;
 
-            PopulateTestItems();
+            CreateTooltip(_doc.rootVisualElement);
             BuildUI();
         }
 
-        private void PopulateTestItems()
+        private void OnModelSlotSelected(int slotIndex)
         {
-            Color gray = new Color(0.5f, 0.5f, 0.5f);
-            Color brown = new Color(0.4f, 0.25f, 0.1f);
-            Color silver = new Color(0.75f, 0.75f, 0.8f);
-            Color gold = new Color(1f, 0.85f, 0f);
-            Color cyan = new Color(0.2f, 0.8f, 1f);
-            Color black = new Color(0.15f, 0.15f, 0.15f);
-            Color green = new Color(0.2f, 0.8f, 0.2f);
-            Color orange = new Color(1f, 0.35f, 0f);
-            Color beige = new Color(0.9f, 0.85f, 0.65f);
-            Color blue = new Color(0.1f, 0.3f, 0.9f);
+            // Сбросить рамку у старого слота
+            if (_lastSelectedSlot >= 0 && _slotElements.ContainsKey(_lastSelectedSlot))
+            {
+                foreach (var cell in _slotElements[_lastSelectedSlot])
+                {
+                    cell.style.borderTopWidth = 2;
+                    cell.style.borderBottomWidth = 2;
+                    cell.style.borderLeftWidth = 2;
+                    cell.style.borderRightWidth = 2;
+                    cell.style.borderTopColor = _cellBorderColor;
+                    cell.style.borderBottomColor = _cellBorderColor;
+                    cell.style.borderLeftColor = _cellBorderColor;
+                    cell.style.borderRightColor = _cellBorderColor;
+                }
+            }
 
-            // Слоты 0-8 = хотбар (пустые)
-            // Слоты 9-18 = инвентарь (заполнены)
-            _model.SetSlot(9, new ItemData("Stone", gray, 64));
-            _model.SetSlot(10, new ItemData("Wood", brown, 32));
-            _model.SetSlot(11, new ItemData("Iron", silver, 16));
-            _model.SetSlot(12, new ItemData("Gold", gold, 8));
-            _model.SetSlot(13, new ItemData("Diamond", cyan, 3));
-            _model.SetSlot(14, new ItemData("Coal", black, 64));
-            _model.SetSlot(15, new ItemData("Food", green, 20));
-            _model.SetSlot(16, new ItemData("Lava", orange, 5));
-            _model.SetSlot(17, new ItemData("Sand", beige, 48));
-            _model.SetSlot(18, new ItemData("Water", blue, 10));
+            _lastSelectedSlot = slotIndex;
+
+            // Поставить рамку новому слоту
+            if (slotIndex >= 0 && _slotElements.ContainsKey(slotIndex))
+            {
+                foreach (var cell in _slotElements[slotIndex])
+                {
+                    cell.style.borderTopWidth = 3;
+                    cell.style.borderBottomWidth = 3;
+                    cell.style.borderLeftWidth = 3;
+                    cell.style.borderRightWidth = 3;
+                    cell.style.borderTopColor = _selectedBorderColor;
+                    cell.style.borderBottomColor = _selectedBorderColor;
+                    cell.style.borderLeftColor = _selectedBorderColor;
+                    cell.style.borderRightColor = _selectedBorderColor;
+                }
+            }
+
+            if (slotIndex >= 0)
+            {
+                var item = _model.GetSlot(slotIndex);
+                if (item != null)
+                {
+                    _tooltipName.text = item.Name;
+                    _tooltipDesc.text = item.Description ?? "";
+                    _tooltip.style.display = DisplayStyle.Flex;
+                    return;
+                }
+            }
+            _tooltip.style.display = DisplayStyle.None;
+        }
+
+        private void CreateTooltip(VisualElement root)
+        {
+            _tooltip = new VisualElement();
+            _tooltip.style.position = Position.Absolute;
+            _tooltip.style.left = Length.Percent(50);
+            _tooltip.style.translate = new Translate(new Length(-50, LengthUnit.Percent), Length.Auto());
+            _tooltip.style.top = 48;
+            _tooltip.style.height = 36;
+            _tooltip.style.backgroundColor = new Color(0.08f, 0.08f, 0.08f, 0.9f);
+            _tooltip.style.borderTopWidth = 2;
+            _tooltip.style.borderBottomWidth = 2;
+            _tooltip.style.borderLeftWidth = 2;
+            _tooltip.style.borderRightWidth = 2;
+            _tooltip.style.borderTopColor = _panelBorderColor;
+            _tooltip.style.borderBottomColor = _panelBorderColor;
+            _tooltip.style.borderLeftColor = _panelBorderColor;
+            _tooltip.style.borderRightColor = _panelBorderColor;
+            _tooltip.style.flexDirection = FlexDirection.Row;
+            _tooltip.style.alignItems = Align.Center;
+            _tooltip.style.justifyContent = Justify.Center;
+            _tooltip.style.display = DisplayStyle.None;
+
+            _tooltipName = new Label();
+            _tooltipName.style.fontSize = 14;
+            _tooltipName.style.unityFontStyleAndWeight = FontStyle.Bold;
+            _tooltipName.style.color = _selectedBorderColor;
+            _tooltipName.style.marginRight = 10;
+
+            _tooltipDesc = new Label();
+            _tooltipDesc.style.fontSize = 12;
+            _tooltipDesc.style.color = Color.white;
+
+            _tooltip.Add(_tooltipName);
+            _tooltip.Add(_tooltipDesc);
+            root.Add(_tooltip);
         }
 
         private void BuildUI()
@@ -187,7 +270,7 @@ namespace Fodinae.Assets.Scripts.UI
             titleLabel.style.alignSelf = Align.FlexStart;
             panelBg.Add(titleLabel);
 
-            var inventoryGrid = CreateGrid(9, 35, "Inv");
+            var inventoryGrid = CreateGrid(9, InventoryModel.TOTAL_SLOTS - 1, "Inv");
             panelBg.Add(inventoryGrid);
 
             var separator = new VisualElement();
@@ -261,10 +344,6 @@ namespace Fodinae.Assets.Scripts.UI
             icon.style.height = ICON_SIZE;
             icon.style.alignSelf = Align.Center;
             icon.style.justifyContent = Justify.Center;
-            icon.style.borderTopLeftRadius = ICON_SIZE / 2;
-            icon.style.borderTopRightRadius = ICON_SIZE / 2;
-            icon.style.borderBottomLeftRadius = ICON_SIZE / 2;
-            icon.style.borderBottomRightRadius = ICON_SIZE / 2;
             icon.style.display = DisplayStyle.None;
             icon.pickingMode = PickingMode.Ignore;
             cell.Add(icon);
@@ -297,18 +376,20 @@ namespace Fodinae.Assets.Scripts.UI
                     cell.style.backgroundColor = _cellBgColor;
             });
 
-            // Drag start
+            // Выбор по клику
             cell.RegisterCallback<MouseDownEvent>(evt =>
             {
                 if (evt.button != 0) return;
+
+                _model.SelectSlot(slotIndex);
                 var item = _model.GetSlot(slotIndex);
+
                 if (item == null) return;
 
                 _dragFromSlot = slotIndex;
                 _draggedItem = item;
                 cell.style.backgroundColor = _cellBgColor;
 
-                // Создать floating item
                 _floatingItem = new VisualElement();
                 _floatingItem.style.position = Position.Absolute;
                 _floatingItem.style.width = ICON_SIZE;
@@ -317,7 +398,15 @@ namespace Fodinae.Assets.Scripts.UI
                 _floatingItem.style.borderTopRightRadius = ICON_SIZE / 2;
                 _floatingItem.style.borderBottomLeftRadius = ICON_SIZE / 2;
                 _floatingItem.style.borderBottomRightRadius = ICON_SIZE / 2;
-                _floatingItem.style.backgroundColor = item.IconColor;
+                if (item.Icon != null)
+                {
+                    _floatingItem.style.backgroundImage = new StyleBackground(item.Icon);
+                    _floatingItem.style.backgroundColor = Color.clear;
+                }
+                else
+                {
+                    _floatingItem.style.backgroundColor = Color.gray;
+                }
                 _floatingItem.style.opacity = 0.8f;
                 _floatingItem.pickingMode = PickingMode.Ignore;
 
@@ -330,7 +419,6 @@ namespace Fodinae.Assets.Scripts.UI
                 evt.StopPropagation();
             });
 
-            // Привязать к слоту
             if (!_slotElements.ContainsKey(slotIndex))
                 _slotElements[slotIndex] = new List<VisualElement>();
             _slotElements[slotIndex].Add(cell);
@@ -354,7 +442,6 @@ namespace Fodinae.Assets.Scripts.UI
             root.UnregisterCallback<MouseMoveEvent>(OnDragMove);
             root.UnregisterCallback<MouseUpEvent>(OnDragDrop);
 
-            // Найти ячейку под курсором
             var target = FindSlotUnderMouse(evt.mousePosition);
             if (target >= 0 && target != _dragFromSlot)
             {
@@ -364,7 +451,6 @@ namespace Fodinae.Assets.Scripts.UI
                     _model.SwapSlots(_dragFromSlot, target);
             }
 
-            // Cleanup
             root.Remove(_floatingItem);
             _floatingItem = null;
             _dragFromSlot = -1;
@@ -403,7 +489,16 @@ namespace Fodinae.Assets.Scripts.UI
                 if (item != null)
                 {
                     icon.style.display = DisplayStyle.Flex;
-                    icon.style.backgroundColor = item.IconColor;
+                    if (item.Icon != null)
+                    {
+                        icon.style.backgroundImage = new StyleBackground(item.Icon);
+                        icon.style.backgroundColor = Color.clear;
+                    }
+                    else
+                    {
+                        icon.style.backgroundImage = null;
+                        icon.style.backgroundColor = item.IconColor;
+                    }
                     qty.text = item.Quantity > 1 ? item.Quantity.ToString() : "";
                 }
                 else
@@ -457,5 +552,7 @@ namespace Fodinae.Assets.Scripts.UI
             _fullInventoryPanel.style.display = _isInventoryOpen ? DisplayStyle.Flex : DisplayStyle.None;
             _hotbarContainer.style.display = _isInventoryOpen ? DisplayStyle.None : DisplayStyle.Flex;
         }
+
+        public InventoryModel GetModel() => _model;
     }
 }

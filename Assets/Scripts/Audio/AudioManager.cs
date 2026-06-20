@@ -12,6 +12,14 @@ namespace Fodinae.Assets.Scripts.Audio
         private float _ambientVolume = 0.5f;
         private float _sfxVolume = 1f;
 
+        private AudioClip _miningClip;
+        private AudioClip _destroyClip;
+        private AudioClip _deathClip;
+
+        public AudioClip MiningClip => _miningClip;
+        public AudioClip DestroyClip => _destroyClip;
+        public AudioClip DeathClip => _deathClip;
+
         public float AmbientVolume
         {
             get => _ambientVolume;
@@ -46,7 +54,7 @@ namespace Fodinae.Assets.Scripts.Audio
             _ambientSource.playOnAwake = false;
 
             _sfxSource = gameObject.AddComponent<AudioSource>();
-            _sfxSource.loop = true;
+            _sfxSource.loop = false;
             _sfxSource.playOnAwake = false;
 
             _ambientVolume = PlayerPrefs.GetFloat("Audio_Ambient", 0.5f);
@@ -69,17 +77,15 @@ namespace Fodinae.Assets.Scripts.Audio
                 Debug.LogWarning("[AudioManager] Audio/evil_huge не найден в Resources");
             }
 
-            var sfxClip = Resources.Load<AudioClip>("Audio/mining");
-            if (sfxClip != null)
-            {
-                _sfxSource.clip = sfxClip;
-                _sfxSource.volume = _sfxVolume;
-                _sfxSource.Play();
-            }
-            else
-            {
-                Debug.LogWarning("[AudioManager] Audio/mining не найден в Resources");
-            }
+            _miningClip = Resources.Load<AudioClip>("Audio/mining");
+            _destroyClip = Resources.Load<AudioClip>("Audio/destroy2");
+            _deathClip = Resources.Load<AudioClip>("Audio/death");
+        }
+
+        public void PlaySfx(AudioClip clip)
+        {
+            if (clip != null)
+                _sfxSource.PlayOneShot(clip, _sfxVolume);
         }
     }
 }

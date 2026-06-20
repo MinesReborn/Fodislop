@@ -6,12 +6,26 @@ namespace Fodinae.Assets.Scripts.UI
     public class InventoryModel
     {
         public const int HOTBAR_SIZE = 9;
-        public const int INVENTORY_SIZE = 3 * 9;
+        public const int INVENTORY_SIZE = 6 * 9;
         public const int TOTAL_SLOTS = HOTBAR_SIZE + INVENTORY_SIZE;
+
+        private static InventoryModel _instance;
+        public static InventoryModel Instance
+        {
+            get
+            {
+                if (_instance == null) _instance = new InventoryModel();
+                return _instance;
+            }
+        }
 
         private ItemData[] _slots = new ItemData[TOTAL_SLOTS];
 
         public event Action<int> OnSlotChanged;
+
+        private int _selectedSlot = -1;
+        public int SelectedSlot => _selectedSlot;
+        public event Action<int> OnSlotSelected;
 
         public ItemData GetSlot(int index) => _slots[index];
         public void SetSlot(int index, ItemData item)
@@ -26,7 +40,6 @@ namespace Fodinae.Assets.Scripts.UI
             return a.Name == b.Name && a.IconColor == b.IconColor;
         }
 
-        // Перемещение/обмен предметов между слотами
         public void SwapSlots(int from, int to)
         {
             var temp = _slots[from];
@@ -36,8 +49,6 @@ namespace Fodinae.Assets.Scripts.UI
             OnSlotChanged?.Invoke(to);
         }
 
-        // Стаккинг: переложить предмет из from в to
-        // Возвращает true если удалось полностью переложить
         public bool TryStackSlots(int from, int to)
         {
             var fromItem = _slots[from];
@@ -47,7 +58,6 @@ namespace Fodinae.Assets.Scripts.UI
 
             if (toItem == null)
             {
-                // Просто переместить
                 _slots[to] = fromItem;
                 _slots[from] = null;
                 OnSlotChanged?.Invoke(from);
@@ -58,12 +68,24 @@ namespace Fodinae.Assets.Scripts.UI
             if (!CanStack(fromItem, toItem))
                 return false;
 
-            // Объединить
             toItem.Quantity += fromItem.Quantity;
             _slots[from] = null;
             OnSlotChanged?.Invoke(from);
             OnSlotChanged?.Invoke(to);
             return true;
+        }
+
+        public void SelectSlot(int index)
+        {
+            if (_selectedSlot == index) return;
+            _selectedSlot = index;
+            OnSlotSelected?.Invoke(index);
+        }
+
+        public void DeselectSlot()
+        {
+            _selectedSlot = -1;
+            OnSlotSelected?.Invoke(-1);
         }
     }
 }

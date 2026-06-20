@@ -30,11 +30,7 @@ public class PacketUIBuilder
 
         element.userData = packet;
 
-        // Ensure input elements have their name set for SmartFormat binding
-        if (packet is INamedComponentPacket named && string.IsNullOrEmpty(element.name))
-        {
-            element.name = named.Name;
-        }
+
 
         return element;
     }

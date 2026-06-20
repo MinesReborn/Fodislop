@@ -1,18 +1,22 @@
 using System.Linq;
-using System.Collections.Generic;
 using Fodinae.Assets.Scripts.Game;
 using Fodinae.Assets.Scripts.Game.Managers;
+using Fodinae.Assets.Scripts.Networking.Connection;
 using Fodinae.Assets.Scripts.Player;
 using Fodinae.Assets.Scripts.UI;
-using Fodinae.UI;
-using Fodinae.UI.Binding;
-using MinesServer.Networking.Client.Packets.GUI;
+using MinesServer.Networking.Client.Packets.Connection;
+using MinesServer.Networking.Server;
+using MinesServer.Networking.Server.Packets;
+using MinesServer.Networking.Server.Packets.Chat;
 using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.GUI;
-using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.Information;
+using MinesServer.Networking.Server.Packets.Inventory;
+using MinesServer.Networking.Server.Packets.Movement;
 using MinesServer.Networking.Server.Packets.World;
+using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.UIElements;
 
 namespace Fodinae.Assets.Scripts.Networking
@@ -24,7 +28,6 @@ namespace Fodinae.Assets.Scripts.Networking
         private int _worldInitPacketsReceived = 0;
         private int _mapRegionPacketsReceived = 0;
         private UIDocument _uiDocument;
-        private readonly List<(string tag, VisualElement root, WindowBinding binding, List<VisualElement> clickableElements)> _openWindows = new();
 
         void Awake()
         {
@@ -57,11 +60,16 @@ namespace Fodinae.Assets.Scripts.Networking
             ns.Subscribe<PlayerInfoPacket>(HandlePlayerInfoPacket);
             ns.Subscribe<MovementSpeedPacket>(HandleMovementSpeedPacket);
             ns.Subscribe<OpenWindowPacket>(HandleOpenWindowPacket);
-            ns.Subscribe<CloseWindowPacket>(HandleCloseWindowPacket);
             ns.Subscribe<RobotPositionPacket>(HandleRobotPositionPacket);
             ns.Subscribe<MapRegionPacket>(HandleMapRegionPacket);
             ns.Subscribe<PackPacket>(HandlePackPacket);
             ns.Subscribe<RemovePackPacket>(HandleRemovePackPacket);
+            ns.Subscribe<AutoMineStatePacket>(HandleAutoMineStatePacket);
+            ns.Subscribe<SkillProgressPacket>(HandleSkillProgressPacket);
+            ns.Subscribe<ChatMessageListPacket>(HandleChatMessageList);
+            ns.Subscribe<ChatListPacket>(HandleChatList);
+            ns.Subscribe<LocalChatMessagePacket>(HandleLocalChatMessage);
+            ns.Subscribe<ChatMutePacket>(HandleChatMute);
 
             // Player stats
             ns.Subscribe<LevelPacket>(HandleLevelPacket);
@@ -70,9 +78,15 @@ namespace Fodinae.Assets.Scripts.Networking
             ns.Subscribe<GeologyPacket>(HandleGeologyPacket);
             ns.Subscribe<BasketPacket>(HandleBasketPacket);
 
+            ns.Subscribe<OnlinePacket>(HandleOnlinePacket);
+            ns.Subscribe<PingPacket>(HandlePingPacket);
+
+            ns.Subscribe<OutdatedClientPacket>(HandleOutdatedClient);
+            ns.Subscribe<InventoryPacket>(HandleInventoryPacket);
+
             MapManager.Instance.OnWorldInitialized += OnWorldInitialized;
             MapManager.Instance.OnWorldDataLoaded += OnWorldDataLoaded;
-
+            
             _isInitialized = true;
             Debug.Log("[PacketHandler] Initialization complete - ready to receive packets");
         }
@@ -90,27 +104,29 @@ namespace Fodinae.Assets.Scripts.Networking
                 ns.Unsubscribe<PlayerInfoPacket>(HandlePlayerInfoPacket);
                 ns.Unsubscribe<MovementSpeedPacket>(HandleMovementSpeedPacket);
                 ns.Unsubscribe<OpenWindowPacket>(HandleOpenWindowPacket);
-                ns.Unsubscribe<CloseWindowPacket>(HandleCloseWindowPacket);
                 ns.Unsubscribe<RobotPositionPacket>(HandleRobotPositionPacket);
                 ns.Unsubscribe<MapRegionPacket>(HandleMapRegionPacket);
                 ns.Unsubscribe<PackPacket>(HandlePackPacket);
                 ns.Unsubscribe<RemovePackPacket>(HandleRemovePackPacket);
+                ns.Unsubscribe<SkillProgressPacket>(HandleSkillProgressPacket);
+                ns.Unsubscribe<AutoMineStatePacket>(HandleAutoMineStatePacket);
+                ns.Unsubscribe<ChatMessageListPacket>(HandleChatMessageList);
+                ns.Unsubscribe<ChatListPacket>(HandleChatList);
+                ns.Unsubscribe<LocalChatMessagePacket>(HandleLocalChatMessage);
+                ns.Unsubscribe<ChatMutePacket>(HandleChatMute);
 
                 ns.Unsubscribe<LevelPacket>(HandleLevelPacket);
                 ns.Unsubscribe<HealthPacket>(HandleHealthPacket);
                 ns.Unsubscribe<CurrencyPacket>(HandleCurrencyPacket);
                 ns.Unsubscribe<GeologyPacket>(HandleGeologyPacket);
                 ns.Unsubscribe<BasketPacket>(HandleBasketPacket);
-            }
 
-            // Close any open windows and dispose bindings
-            foreach (var (_, root, binding, _) in _openWindows)
-            {
-                binding.Dispose();
-                if (_uiDocument != null)
-                    _uiDocument.rootVisualElement.Remove(root);
+                ns.Unsubscribe<OnlinePacket>(HandleOnlinePacket);
+                ns.Unsubscribe<PingPacket>(HandlePingPacket);
+
+                ns.Unsubscribe<OutdatedClientPacket>(HandleOutdatedClient);
+                ns.Unsubscribe<InventoryPacket>(HandleInventoryPacket);
             }
-            _openWindows.Clear();
 
             var mm = FindObjectOfType<MapManager>();
             if (mm != null)
@@ -148,97 +164,6 @@ namespace Fodinae.Assets.Scripts.Networking
             element.style.translate = new Translate(new Length(-50, LengthUnit.Percent), new Length(-50, LengthUnit.Percent));
 
             _uiDocument.rootVisualElement.Add(element);
-
-            // Set up SmartFormat binding for this window
-            var binding = new WindowBinding();
-            binding.Bind(element);
-
-            // Register clickable elements via DFS traversal
-            var clickableElements = RegisterClickableElements(element, packet.WindowTag);
-
-            var windowIndex = _openWindows.Count;
-            _openWindows.Add((packet.WindowTag, element, binding, clickableElements));
-            Debug.Log($"[PacketHandler] Window '{packet.WindowTag}' opened with {clickableElements.Count} clickable elements (window index {windowIndex})");
-        }
-
-        /// <summary>
-        /// DFS-traverses the window VisualElement tree and registers all clickable elements.
-        /// A clickable element is one whose userData contains an IGUIComponentPacket with non-empty OnClickContext.
-        /// </summary>
-        private List<VisualElement> RegisterClickableElements(VisualElement windowRoot, string windowTag)
-        {
-            var clickableElements = new List<VisualElement>();
-            WalkForClickable(windowRoot, clickableElements, windowTag);
-            return clickableElements;
-        }
-
-        private void WalkForClickable(VisualElement element, List<VisualElement> clickableElements, string windowTag)
-        {
-            // Check if this element is clickable
-            if (element.userData is IGUIComponentPacket componentPacket &&
-                !string.IsNullOrEmpty(componentPacket.OnClickContext))
-            {
-                var elementIndex = clickableElements.Count;
-                clickableElements.Add(element);
-                WireClickHandler(element, elementIndex, windowTag);
-            }
-
-            foreach (var child in element.Children())
-                WalkForClickable(child, clickableElements, windowTag);
-        }
-
-        private void WireClickHandler(VisualElement element, int elementIndex, string windowTag)
-        {
-            element.RegisterCallback<ClickEvent>(_ => HandleElementClick(element, elementIndex, windowTag));
-        }
-
-        private void HandleElementClick(VisualElement clickedElement, int elementIndex, string windowTag)
-        {
-            // Find the window data for this window tag
-            var windowEntry = _openWindows.FirstOrDefault(w => w.tag == windowTag);
-            if (windowEntry == default)
-            {
-                Debug.LogWarning($"[PacketHandler] Cannot handle element click: window '{windowTag}' not found");
-                return;
-            }
-
-            var (_, windowRoot, _, _) = windowEntry;
-
-            // Get the click context from the element's packet data
-            if (clickedElement.userData is not IGUIComponentPacket componentPacket)
-            {
-                Debug.LogWarning("[PacketHandler] Clicked element has no IGUIComponentPacket userData");
-                return;
-            }
-
-            var clickContext = componentPacket.OnClickContext;
-            Debug.Log($"[PacketHandler] Element click: index={elementIndex}, context='{clickContext}', window='{windowTag}'");
-
-            // Resolve the root element for input traversal
-            var inputRoot = ClickContextResolver.ResolveRoot(clickedElement, windowRoot, clickContext);
-
-            // Collect all input control values from the resolved root
-            var inputValues = ClickContextResolver.CollectInputValues(inputRoot);
-
-            // Send the ElementClickPacket
-            var elementClickPacket = new ElementClickPacket(windowTag, elementIndex, inputValues);
-            NetworkService.Instance.Send(elementClickPacket);
-
-            Debug.Log($"[PacketHandler] Sent ElementClickPacket: index={elementIndex}, contextValues={inputValues.Length}");
-        }
-
-        private void HandleCloseWindowPacket(CloseWindowPacket packet)
-        {
-            _packetCount++;
-            Debug.Log("[PacketHandler] Handling CloseWindowPacket");
-
-            if (_openWindows.Count == 0) return;
-
-            // Close the most recently opened window (no window tag in CloseWindowPacket)
-            var (_, root, binding, _) = _openWindows[^1];
-            binding.Dispose();
-            _uiDocument.rootVisualElement.Remove(root);
-            _openWindows.RemoveAt(_openWindows.Count - 1);
         }
 
         public void HandleWorldInitPacket(WorldInitPacket worldInitPacket)
@@ -300,7 +225,7 @@ namespace Fodinae.Assets.Scripts.Networking
         private void HandleRobotPositionPacket(RobotPositionPacket robotPositionPacket)
         {
             _packetCount++;
-            Debug.Log($"[PacketHandler] Processing RobotPositionPacket for BotId: {robotPositionPacket.BotId}");
+            //Debug.Log($"[PacketHandler] Processing RobotPositionPacket for BotId: {robotPositionPacket.BotId}");
             RobotManager.Instance.UpdateRobotPosition(robotPositionPacket.BotId, robotPositionPacket.X, robotPositionPacket.Y, robotPositionPacket.Rotation);
 
             // If this is the local player, update the server position in the movement controller
@@ -322,7 +247,7 @@ namespace Fodinae.Assets.Scripts.Networking
         {
             _packetCount++;
             _mapRegionPacketsReceived++;
-            Debug.Log($"[PacketHandler] Processing MapRegionPacket #{_mapRegionPacketsReceived}: X={mapRegionPacket.X}, Y={mapRegionPacket.Y}, Size={mapRegionPacket.Width+1}x{mapRegionPacket.Height+1}");
+            //Debug.Log($"[PacketHandler] Processing MapRegionPacket #{_mapRegionPacketsReceived}: X={mapRegionPacket.X}, Y={mapRegionPacket.Y}, Size={mapRegionPacket.Width+1}x{mapRegionPacket.Height+1}");
 
             if (MapStorage.Instance == null || MapStorage.Instance.cellLayer == null)
             {
@@ -380,7 +305,7 @@ namespace Fodinae.Assets.Scripts.Networking
             // Only trigger world data loaded event if we received at least one MapRegion packet in this heartbeat
             if (hasMapData)
             {
-                Debug.Log("[PacketHandler] Map data received in HBPacket, triggering OnWorldDataLoaded event");
+                //Debug.Log("[PacketHandler] Map data received in HBPacket, triggering OnWorldDataLoaded event");
                 MapManager.Instance.OnWorldDataLoaded?.Invoke();
             }
         }
@@ -415,14 +340,98 @@ namespace Fodinae.Assets.Scripts.Networking
             PlayerStatsModel.Instance.SetBasket(packet.Capacity, packet.Contents);
         }
 
+        private void HandleAutoMineStatePacket(AutoMineStatePacket packet)
+        {
+            var player = FindObjectOfType<PlayerMovementController>();
+            if (player != null)
+                player.AutoDig = packet.Enabled;
+        }
+
+        private void HandleSkillProgressPacket(SkillProgressPacket packet)
+        {
+            Debug.Log($"[PacketHandler] SkillProgress: {packet.Skill} = {packet.Current}/{packet.Max}");
+            PlayerStatsModel.Instance.SetSkillProgress(packet.Skill, packet.Current, packet.Max);
+        }
+
+        private void HandleChatMessageList(ChatMessageListPacket packet)
+        {
+            _packetCount++;
+            foreach (var msg in packet.Messages)
+            {
+                if (GlobalChatUI.Instance != null)
+                    GlobalChatUI.Instance.AddMessage(msg);
+            }
+        }
+
+        private void HandleChatList(ChatListPacket packet)
+        {
+            _packetCount++;
+            Debug.Log($"[PacketHandler] Received {packet.Chats.Count} chat channels");
+        }
+
+        private void HandleLocalChatMessage(LocalChatMessagePacket packet)
+        {
+            _packetCount++;
+            Debug.Log($"[PacketHandler] Local chat from BotId={packet.BotId}: {packet.Text}");
+            if (FloatingChatManager.Instance != null)
+                FloatingChatManager.Instance.ShowLocalChat(packet);
+        }
+
+        private void HandleChatMute(ChatMutePacket packet)
+        {
+            _packetCount++;
+            Debug.Log($"[PacketHandler] Chat mute until {packet.EndsAt}: {packet.Reason}");
+        }
+
         private void OnWorldInitialized()
         {
             Debug.Log("[PacketHandler] World initialized event received from MapManager");
         }
 
+        private void HandleOnlinePacket(OnlinePacket packet)
+        {
+            _packetCount++;
+            var fps = FindObjectOfType<FPSCounter>();
+            if (fps != null)
+                fps.SetOnline((int)packet.Players, (int)packet.Programmator);
+        }
+
+        private void HandlePingPacket(PingPacket packet)
+        {
+            _packetCount++;
+            var fps = FindObjectOfType<FPSCounter>();
+            if (fps != null)
+                fps.SetPing(packet.PreviousPing);
+            NetworkService.Instance.Send(new PongPacket(packet.SentAt));
+        }
+
+        private void HandleOutdatedClient(OutdatedClientPacket packet)
+        {
+            _packetCount++;
+            Debug.LogError($"[PacketHandler] Клиент устарел: {packet.Name}");
+            Debug.LogError($"[PacketHandler] {packet.Description}");
+            Debug.LogError($"[PacketHandler] Скачать: {packet.UpdateURL}");
+            Application.OpenURL(packet.UpdateURL);
+        }
+
+        private void HandleInventoryPacket(InventoryPacket packet)
+        {
+            int slot = 0;
+            foreach (var kvp in packet.Changes)
+            {
+                var item = new ItemData(
+                    ItemRegistry.GetName(kvp.Key),
+                    Color.gray,
+                    (int)kvp.Value);
+                item.ItemType = kvp.Key;
+                item.Icon = ItemRegistry.GetIcon(kvp.Key);
+                InventoryModel.Instance.SetSlot(slot++, item);
+            }
+        }
+
         private void OnWorldDataLoaded()
         {
-            Debug.Log("[PacketHandler] World data loaded event received from MapManager");
+            //Debug.Log("[PacketHandler] World data loaded event received from MapManager");
         }
 
         public string GetStatistics()

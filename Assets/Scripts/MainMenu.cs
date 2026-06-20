@@ -32,9 +32,15 @@ public class MainMenu : MonoBehaviour
         }
         var mainMenu = mainMenuUXML.CloneTree();
         _mainMenuContainer = mainMenu.Q<VisualElement>("MainMenuContainer");
+
         var playButton = mainMenu.Q<Button>("PlayButton");
         if (playButton != null)
             playButton.clicked += OnPlayButtonClicked;
+
+        var oldClientButton = mainMenu.Q<Button>("OldClientButton");
+        if (oldClientButton != null)
+            oldClientButton.clicked += OnOldClientButtonClicked;
+
         root.Add(mainMenu);
 
         // The loader is a full-screen, absolutely-positioned background overlay
@@ -164,8 +170,17 @@ public class MainMenu : MonoBehaviour
         if (ConnectionManager.Instance.Connection == null ||
             ConnectionManager.Instance.Connection.ConnectionStatus == MinesServer.Networking.Shared.ConnectionStatus.Disconnected)
         {
-            ConnectionManager.Instance.Connect();
+            ConnectionManager.Instance.Connect(oldClient: false);
         }
         //NetworkService.Instance.Send(new OpenHelpClickPacket());
+    }
+
+    private void OnOldClientButtonClicked()
+    {
+        Debug.Log("🔘 Старый клиент");
+        RobotManager.ShowDebugVisuals = true;
+        HideLoader();
+        HideMenu();
+        ConnectionManager.Instance.Connect(oldClient: true);
     }
 }
