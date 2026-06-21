@@ -1,10 +1,10 @@
-using Fodinae.Assets.Scripts.Audio;
-using Fodinae.Assets.Scripts.World;
+using Fodinae.Scripts.Audio;
+using Fodinae.Scripts.World;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
-namespace Fodinae.Assets.Scripts.UI
+namespace Fodinae.Scripts.UI
 {
     public class PauseMenu : MonoBehaviour
     {

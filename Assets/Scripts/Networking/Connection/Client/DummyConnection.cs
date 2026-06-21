@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Cysharp.Threading.Tasks.CompilerServices;
-using Fodinae.Assets.Scripts.Audio;
-using Fodinae.Assets.Scripts.Game.Managers;
-using Fodinae.Assets.Scripts.UI;
+using Fodinae.Scripts.Audio;
+using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.UI;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.Actions;
@@ -48,10 +48,10 @@ namespace MinesServer.Networking.Connection.Client
         public event Action OnDisconnecting;
         public event Action OnConnecting;
 
-        private const ushort mockBotId = 456;
-        private ushort x = 0;
-        private ushort y = 0;
-        private Direction rot = Direction.Up;
+        private const ushort _mockBotId = 456;
+        private ushort _x = 0;
+        private ushort _y = 0;
+        private Direction _rot = Direction.Up;
         private FPSCounter _fpsCounter;
 
         private static readonly CellType[] _allCellTypes = new CellType[]
@@ -154,7 +154,7 @@ namespace MinesServer.Networking.Connection.Client
 
         private async UniTaskVoid UpdatePosition() {
             await UniTask.Delay(200);
-            OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { new RobotPositionPacket(mockBotId, x, y, (byte)rot) })));
+            OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { new RobotPositionPacket(_mockBotId, _x, _y, (byte)_rot) })));
         }
 
         public void Dispose()
@@ -174,15 +174,15 @@ namespace MinesServer.Networking.Connection.Client
                 if (actionPacket.Payload is MovePacket move)
                 {
                     Debug.Log($"  - Move to ({move.X}, {move.Y})");
-                    x = move.X;
-                    y = move.Y;
-                    UpdatePosition();
+                    _x = move.X;
+                    _y = move.Y;
+                    UpdatePosition().Forget();
                 }
                 else if (actionPacket.Payload is RotatePacket rotate)
                 {
                     Debug.Log($"  - Rotate to {rotate.Direction}");
-                    rot = rotate.Direction;
-                    UpdatePosition();
+                    _rot = rotate.Direction;
+                    UpdatePosition().Forget();
                 }
                 else if (actionPacket.Payload is UnmappedKeyPacket key)
                 {
@@ -199,7 +199,7 @@ namespace MinesServer.Networking.Connection.Client
                         new SFXPacket(SFX.Bz, 0, cellX, cellY, Array.Empty<StringPairPacket>())
                     })));
 
-                    if (MapStorage.Instance.cellLayer != null && MapStorage.Instance.IsReady)
+                    if (MapStorage.Instance.CellLayer != null && MapStorage.Instance.IsReady)
                     {
                         var cellType = MapStorage.Instance.GetCell(cellX, cellY);
                         int crystalIdx = GetCrystalBasketIndex(cellType);
@@ -240,14 +240,14 @@ namespace MinesServer.Networking.Connection.Client
                     Debug.Log("[DummyConnection] Suicide / Respawn");
                     ushort spawnX = 25;
                     ushort spawnY = 50;
-                    x = spawnX;
-                    y = spawnY;
-                    rot = Direction.Up;
+                    _x = spawnX;
+                    _y = spawnY;
+                    _rot = Direction.Up;
 
                     OnReceived?.Invoke(new ServerPacket(new TeleportPacket(spawnX, spawnY, false)));
                     OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] {
-                        new RobotPositionPacket(mockBotId, spawnX, spawnY, (byte)rot),
-                        new SFXPacket(SFX.Death, mockBotId, spawnX, spawnY, Array.Empty<StringPairPacket>())
+                        new RobotPositionPacket(_mockBotId, spawnX, spawnY, (byte)_rot),
+                        new SFXPacket(SFX.Death, _mockBotId, spawnX, spawnY, Array.Empty<StringPairPacket>())
                     })));
                 }
             }
@@ -278,10 +278,10 @@ namespace MinesServer.Networking.Connection.Client
                         })));
                     SendTestWorldMapData(testWorldWidth, testWorldHeight);
                     CreateCellTypeLabels(testWorldWidth, testWorldHeight);
-                    OnReceived?.Invoke(new ServerPacket(new PlayerInfoPacket(999, mockBotId, "Darkar25")));
-                    var robotPos = new RobotPositionPacket(mockBotId, 25, 50, 0);
+                    OnReceived?.Invoke(new ServerPacket(new PlayerInfoPacket(999, _mockBotId, "Darkar25")));
+                    var robotPos = new RobotPositionPacket(_mockBotId, 25, 50, 0);
                     OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { robotPos })));
-                    HandleRobotInfoMock(mockBotId).Forget();
+                    HandleRobotInfoMock(_mockBotId).Forget();
                     RunCircularBots(10).Forget();
                     //RunTilingTestLoop().Forget();
                     OnReceived?.Invoke(new ServerPacket(new AggressionStatePacket(false)));
@@ -330,7 +330,7 @@ namespace MinesServer.Networking.Connection.Client
                     break;
                 case SendLocalChatMessagePacket localMsg:
                     Debug.Log($"[DummyConnection] Local chat: {localMsg.Message}");
-                    OnReceived?.Invoke(new ServerPacket(new LocalChatMessagePacket(mockBotId, x, y, localMsg.Message)));
+                    OnReceived?.Invoke(new ServerPacket(new LocalChatMessagePacket(_mockBotId, _x, _y, localMsg.Message)));
                     break;
 
                 case SendChatMessagePacket globalMsg:
@@ -897,21 +897,7 @@ namespace MinesServer.Networking.Connection.Client
         {
             foreach (var assetEntry in runtimeAssets.Assets)
             {
-                byte[] data = null;
-                string filename = assetEntry.Filename.TrimStart('/');
-
-                if (filename.StartsWith("audio/"))
-                {
-                    // Route audio requests to AudioStorageManager
-                    var audioStorage = Fodinae.Assets.Scripts.Audio.AudioStorageManager.Instance;
-                    if (audioStorage != null)
-                        data = await audioStorage.GetAudioData(filename);
-                }
-                else
-                {
-                    // Route other requests (textures, UI images, etc.) to TextureStorageManager
-                    data = await Fodinae.Assets.Scripts.Networking.Connection.Client.TextureStorageManager.Instance.GetTextureData(filename);
-                }
+                var data = await Fodinae.Scripts.Networking.Connection.Client.TextureStorageManager.Instance.GetTextureData(assetEntry.Filename.TrimStart('/'));
 
                 if (data != null)
                 {

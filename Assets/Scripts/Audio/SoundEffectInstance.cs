@@ -3,7 +3,7 @@ using Cysharp.Threading.Tasks;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.Assets.Scripts.Audio
+namespace Fodinae.Scripts.Audio
 {
     public class SoundEffectInstance
     {

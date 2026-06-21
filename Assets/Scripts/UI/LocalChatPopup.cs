@@ -1,11 +1,11 @@
-using Fodinae.Assets.Scripts.Game.Managers;
-using Fodinae.Assets.Scripts.Player;
+using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.Player;
 using MinesServer.Networking.Client.Packets.Chat;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
-namespace Fodinae.Assets.Scripts.UI
+namespace Fodinae.Scripts.UI
 {
     public class LocalChatPopup : MonoBehaviour
     {

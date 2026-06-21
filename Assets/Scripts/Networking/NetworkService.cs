@@ -1,17 +1,17 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.Networking.Connection;
+using Fodinae.Scripts.Player;
+using MinesServer.Networking.Client;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.Actions;
 using MinesServer.Networking.Server.Packets;
 using MinesServer.Networking.Server.Packets.World;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
-using Fodinae.Assets.Scripts.Networking.Connection;
-using Fodinae.Assets.Scripts.Player;
-using Fodinae.Assets.Scripts.Game.Managers;
-using MinesServer.Networking.Client;
 
-namespace Fodinae.Assets.Scripts.Networking
+namespace Fodinae.Scripts.Networking
 {
     /// <summary>
     /// High-level service for server communication and packet routing.
@@ -19,45 +19,72 @@ namespace Fodinae.Assets.Scripts.Networking
     public class NetworkService : MonoBehaviour
     {
         private static NetworkService _instance;
+        private static bool _isQuitting = false;
+
+        private readonly Dictionary<Type, List<Subscription>> _subscribers = new();
+
+        public static NetworkService InstanceIfExists => _instance;
+
         public static NetworkService Instance
         {
             get
             {
+                if (_isQuitting)
+                {
+                    return null;
+                }
+
                 if (_instance == null)
                 {
-                    _instance = FindObjectOfType<NetworkService>();
-                    if (_instance == null)
+                    _instance = FindFirstObjectByType<NetworkService>();
+                    if (_instance == null && !_isQuitting)
                     {
                         var go = new GameObject("[NetworkService]");
                         _instance = go.AddComponent<NetworkService>();
+
+                        // System Grouping
+                        if (Application.isPlaying)
+                        {
+                            var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+                            UnityEngine.Object.DontDestroyOnLoad(parent);
+                            go.transform.SetParent(parent.transform);
+                        }
                     }
                 }
+
                 return _instance;
             }
         }
 
-        private class Subscription
-        {
-            public Delegate OriginalHandler;
-            public Action<object> Wrapper;
-        }
-
-        private readonly Dictionary<Type, List<Subscription>> _subscribers = new();
-
-        void Awake()
+        protected virtual void Awake()
         {
             if (_instance != null && _instance != this)
             {
                 Destroy(gameObject);
                 return;
             }
+
             _instance = this;
-            DontDestroyOnLoad(gameObject);
+            if (Application.isPlaying)
+            {
+                DontDestroyOnLoad(gameObject);
+
+                // Ensure parented if created in scene
+                var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+                UnityEngine.Object.DontDestroyOnLoad(parent);
+                transform.SetParent(parent.transform);
+            }
+
+            _isQuitting = false;
         }
 
-        void OnEnable()
+        protected virtual void OnEnable()
         {
-            if (_instance != this) return; // Prevent duplicates from overriding the main singleton
+            if (_instance != this)
+            {
+                return; // Prevent duplicates from overriding the main singleton
+            }
+
             if (ConnectionManager.Instance != null)
             {
                 ConnectionManager.Instance.OnPacketReceived -= OnPacketReceived;
@@ -65,15 +92,24 @@ namespace Fodinae.Assets.Scripts.Networking
             }
         }
 
-        void OnDisable()
+        protected virtual void OnDisable()
         {
-            if (_instance != this) return;
-            // Use FindObjectOfType instead of .Instance to avoid instantiating singletons during app teardown
-            var cm = FindObjectOfType<ConnectionManager>();
+            if (_instance != this)
+            {
+                return;
+            }
+
+            // Use FindFirstObjectByType instead of .Instance to avoid instantiating singletons during app teardown
+            var cm = FindFirstObjectByType<ConnectionManager>();
             if (cm != null)
             {
                 cm.OnPacketReceived -= OnPacketReceived;
             }
+        }
+
+        protected virtual void OnApplicationQuit()
+        {
+            _isQuitting = true;
         }
 
         /// <summary>
@@ -142,7 +178,10 @@ namespace Fodinae.Assets.Scripts.Networking
             }
 
             // Check if already subscribed to prevent duplicates
-            if (handlers.Any(s => s.OriginalHandler == (Delegate)handler)) return;
+            if (handlers.Any(s => s.OriginalHandler == (Delegate)handler))
+            {
+                return;
+            }
 
             handlers.Add(new Subscription
             {
@@ -168,7 +207,10 @@ namespace Fodinae.Assets.Scripts.Networking
         private void OnPacketReceived(ServerPacket packet)
         {
             var payload = packet.Payload;
-            if (payload == null) return;
+            if (payload == null)
+            {
+                return;
+            }
 
             // If it's an HBPacket, dispatch individual inner packets FIRST
             // This ensures that systems reacting to the HBPacket as a whole (like PacketHandler triggering OnWorldDataLoaded)
@@ -187,29 +229,36 @@ namespace Fodinae.Assets.Scripts.Networking
 
         private void Dispatch(object packet)
         {
-            if (packet == null) return;
+            if (packet == null)
+            {
+                return;
+            }
+
             var packetType = packet.GetType();
 
-            // We iterate through all keys to support interface/base class subscriptions
-            foreach (var pair in _subscribers)
+            if (_subscribers.TryGetValue(packetType, out var handlers))
             {
-                if (pair.Key.IsAssignableFrom(packetType))
+                // Copy list to avoid issues if a subscriber unsubscribes during dispatch
+                var handlersCopy = handlers.ToList();
+                foreach (var sub in handlersCopy)
                 {
-                    // Copy list to avoid issues if a subscriber unsubscribes during dispatch
-                    var handlersCopy = pair.Value.ToList();
-                    foreach (var sub in handlersCopy)
+                    try
                     {
-                        try
-                        {
-                            sub.Wrapper(packet);
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.LogError($"[NetworkService] Error dispatching packet {packetType.Name} to subscriber: {ex.Message}\n{ex.StackTrace}");
-                        }
+                        sub.Wrapper(packet);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogError($"[NetworkService] Error dispatching packet {packetType.Name} to subscriber: {ex.Message}\n{ex.StackTrace}");
                     }
                 }
             }
+        }
+
+        private class Subscription
+        {
+            public Delegate OriginalHandler { get; set; }
+
+            public Action<object> Wrapper { get; set; }
         }
     }
 }

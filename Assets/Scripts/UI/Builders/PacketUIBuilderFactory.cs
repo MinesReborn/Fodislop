@@ -1,12 +1,13 @@
+using System;
+using System.Collections.Generic;
+using Fodinae.Scripts;
 using MinesServer.Networking.Server.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
 using MinesServer.Networking.Server.Packets.GUI.Components.Input;
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
-using System;
-using System.Collections.Generic;
 
-namespace Fodinae.UI.Builders
+namespace Fodinae.Scripts.UI.Builders
 {
     public class PacketUIBuilderFactory
     {

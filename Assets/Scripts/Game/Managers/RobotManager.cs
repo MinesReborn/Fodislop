@@ -1,56 +1,63 @@
-using UnityEngine;
 using System.Collections.Generic;
-using Fodinae.Assets.Scripts.Game;
+using Fodinae.Scripts.Game;
+using UnityEngine;
 
-namespace Fodinae.Assets.Scripts.Game.Managers
+namespace Fodinae.Scripts.Game.Managers
 {
     public class RobotManager : MonoBehaviour
     {
         private static RobotManager _instance;
+        private static bool _isQuitting = false;
 
-        /// <summary>
-        /// The existing manager or null — never creates one. Use this from
-        /// OnDestroy / teardown paths so we don't resurrect the manager
-        /// during shutdown ("spawn new GameObjects from OnDestroy").
-        /// </summary>
+        [SerializeField]
+        private GameObject _robotPrefab;
+
+        private Dictionary<uint, Robot> _robots = new();
+
         public static RobotManager InstanceIfExists => _instance;
 
         public static RobotManager Instance
         {
             get
             {
+                if (_isQuitting)
+                {
+                    return null;
+                }
+
                 if (_instance == null)
                 {
-                    _instance = FindObjectOfType<RobotManager>();
-                    if (_instance == null)
+                    _instance = FindFirstObjectByType<RobotManager>();
+                    if (_instance == null && !_isQuitting)
                     {
                         var go = new GameObject("[RobotManager]");
                         _instance = go.AddComponent<RobotManager>();
+
+                        // System Grouping
+                        if (Application.isPlaying)
+                        {
+                            var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+                            UnityEngine.Object.DontDestroyOnLoad(parent);
+                            go.transform.SetParent(parent.transform);
+                        }
                     }
                 }
+
                 return _instance;
             }
         }
 
-        [SerializeField] private GameObject _robotPrefab;
-        private Dictionary<uint, Robot> _robots = new();
-        public uint LocalPlayerBotId { get; set; }
         public static bool ShowDebugVisuals { get; set; }
 
-        private void Awake()
-        {
-            if (_instance != null && _instance != this)
-            {
-                Destroy(gameObject);
-                return;
-            }
-            _instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
+        public uint LocalPlayerBotId { get; set; }
 
         public void RegisterRobot(Robot robot)
         {
-            if (robot == null) return;
+            if (robot == null)
+            {
+                return;
+            }
+
             _robots[robot.BotId] = robot;
         }
 
@@ -122,6 +129,29 @@ namespace Fodinae.Assets.Scripts.Game.Managers
             }
         }
 
+        public void ClearAllRobots()
+        {
+            var keysToRemove = new List<uint>();
+            foreach (var kvp in _robots)
+            {
+                if (kvp.Key == LocalPlayerBotId || (kvp.Value != null && kvp.Value.gameObject.CompareTag("Player")))
+                {
+                    continue;
+                }
+                
+                if (kvp.Value != null)
+                {
+                    Destroy(kvp.Value.gameObject);
+                }
+                keysToRemove.Add(kvp.Key);
+            }
+            
+            foreach (var key in keysToRemove)
+            {
+                _robots.Remove(key);
+            }
+        }
+
         /// <summary>
         /// Removes a robot's registry entry only if the stored instance is
         /// still <paramref name="instance"/>. Safe to call from the robot's
@@ -134,6 +164,33 @@ namespace Fodinae.Assets.Scripts.Game.Managers
             {
                 _robots.Remove(botId);
             }
+        }
+
+        protected virtual void Awake()
+        {
+            if (_instance != null && _instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
+            _instance = this;
+            if (Application.isPlaying)
+            {
+                DontDestroyOnLoad(gameObject);
+
+                // Ensure parented if created in scene
+                var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+                UnityEngine.Object.DontDestroyOnLoad(parent);
+                transform.SetParent(parent.transform);
+            }
+
+            _isQuitting = false;
+        }
+
+        protected virtual void OnApplicationQuit()
+        {
+            _isQuitting = true;
         }
     }
 }

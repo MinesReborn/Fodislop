@@ -1,16 +1,16 @@
 using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
-using Fodinae.Assets.Scripts.Effects;
-using Fodinae.Assets.Scripts.Networking;
-using Fodinae.Assets.Scripts.Player;
+using Fodinae.Scripts.Effects;
+using Fodinae.Scripts.Networking;
+using Fodinae.Scripts.Player;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets.Actions;
 using MinesServer.Networking.Server.Packets.Information;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.Assets.Scripts.UI
+namespace Fodinae.Scripts.UI
 {
     public class PlayerHUD : MonoBehaviour
     {

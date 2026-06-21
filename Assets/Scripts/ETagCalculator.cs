@@ -2,24 +2,27 @@
 using System.Security.Cryptography;
 using System.Text;
 
-public static class ETagCalculator
+namespace Fodinae.Scripts
 {
-    public static string Calculate(byte[] data)
+    public static class ETagCalculator
     {
-        if (data == null || data.Length == 0)
+        public static string Calculate(byte[] data)
         {
-            return null;
-        }
-
-        using (var md5 = MD5.Create())
-        {
-            var hash = md5.ComputeHash(data);
-            var sb = new StringBuilder();
-            foreach (var b in hash)
+            if (data == null || data.Length == 0)
             {
-                sb.Append(b.ToString("x2"));
+                return null;
             }
-            return sb.ToString();
+
+            using (var md5 = MD5.Create())
+            {
+                var hash = md5.ComputeHash(data);
+                var sb = new StringBuilder();
+                foreach (var b in hash)
+                {
+                    sb.Append(b.ToString("x2"));
+                }
+                return sb.ToString();
+            }
         }
     }
 }

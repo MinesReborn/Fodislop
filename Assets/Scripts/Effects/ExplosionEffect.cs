@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Fodinae.Assets.Scripts.Effects
+namespace Fodinae.Scripts.Effects
 {
     public class ExplosionEffect : MonoBehaviour
     {

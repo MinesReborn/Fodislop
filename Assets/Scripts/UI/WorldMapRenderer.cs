@@ -1,11 +1,11 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
-using Fodinae.Assets.Scripts.Game.Managers;
-using Fodinae.Assets.Scripts.Player;
+using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.Player;
 using MinesServer.Data;
 
-namespace Fodinae.Assets.Scripts.UI
+namespace Fodinae.Scripts.UI
 {
     public class WorldMapRenderer : MonoBehaviour
     {

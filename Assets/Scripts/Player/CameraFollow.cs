@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-namespace Fodinae.Assets.Scripts.Player
+namespace Fodinae.Scripts.Player
 {
     public class CameraFollow : MonoBehaviour
     {
@@ -27,6 +27,11 @@ namespace Fodinae.Assets.Scripts.Player
         private InputAction _scrollAction;
         private bool _scrollEnabled = true;
 
+        private void Awake()
+        {
+            _camera = GetComponent<Camera>();
+        }
+
         private void Start()
         {
             _originalZ = transform.position.z;
@@ -37,12 +42,13 @@ namespace Fodinae.Assets.Scripts.Player
                 enabled = false;
                 return;
             }
+
             _targetZoom = _camera.orthographicSize;
             _currentZoom = _targetZoom;
             _lastZoom = _currentZoom;
             if (_target == null)
             {
-                var player = FindObjectOfType<PlayerMovementController>();
+                var player = FindFirstObjectByType<PlayerMovementController>();
                 if (player != null)
                     _target = player.transform;
                 else
@@ -117,7 +123,7 @@ namespace Fodinae.Assets.Scripts.Player
         {
             if (_target == null)
             {
-                var player = FindObjectOfType<PlayerMovementController>();
+                var player = FindFirstObjectByType<PlayerMovementController>();
                 if (player != null)
                     _target = player.transform;
                 return;
@@ -136,20 +142,36 @@ namespace Fodinae.Assets.Scripts.Player
                 Debug.LogError("CameraFollow: Cannot set zoom - camera is null!");
         }
         public float GetCurrentZoom() => _currentZoom;
+        public void SetScrollEnabled(bool enabled) => _scrollEnabled = enabled;
         public void Reinitialize()
         {
             Start();
         }
 
-        public void SetScrollEnabled(bool enabled) => _scrollEnabled = enabled;
-
-        public void SetPosition(Vector2 position, float orthoSize)
+#if UNITY_EDITOR
+        private void OnDrawGizmosSelected()
         {
-            transform.position = new Vector3(position.x, position.y, _originalZ);
-            _targetZoom = orthoSize;
-            _currentZoom = orthoSize;
-            _lastZoom = orthoSize;
-            _camera.orthographicSize = orthoSize;
+            if (_target != null)
+            {
+                // Draw line to target
+                Gizmos.color = Color.yellow;
+                Gizmos.DrawLine(transform.position, _target.position);
+
+                // Draw target marker
+                Gizmos.DrawWireSphere(_target.position, 0.5f);
+
+                Utils.FodislopGizmos.DrawLabel(_target.position + Vector3.up * 0.7f, "Camera Target", Color.yellow);
+            }
+
+            // Draw current viewport visualization
+            if (_camera != null && _camera.orthographic)
+            {
+                float height = _camera.orthographicSize * 2;
+                float width = height * _camera.aspect;
+                Gizmos.color = new Color(0, 1, 0, 0.3f);
+                Gizmos.DrawWireCube(transform.position, new Vector3(width, height, 0));
+            }
         }
+#endif
     }
 }

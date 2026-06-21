@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace Fodinae.Assets.Scripts.Audio
+namespace Fodinae.Scripts.Audio
 {
     public static class WavUtility
     {

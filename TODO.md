@@ -1,0 +1,1 @@
+- [ ] TODO: Refactor GIF decoding (mgGif.cs) to use sprite sheets or optimize performance for handling multiple animated skins/tails simultaneously. Unsafe blocks and raw pointers in C# may cause CPU spikes.

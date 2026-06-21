@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
-using UnityEngine;
+using Fodinae.Scripts.World;
 using MinesServer.Data;
-using Fodinae.Assets.Scripts.World;
+using UnityEngine;
 
-namespace Fodinae.Assets.Scripts.World.Extensions
+namespace Fodinae.Scripts.World.Extensions
 {
     /// <summary>
     /// Extension methods for WorldLayer to integrate with WorldTextureManager
@@ -36,7 +36,7 @@ namespace Fodinae.Assets.Scripts.World.Extensions
         /// <param name="height">Region height</param>
         /// <returns>Dictionary mapping positions to atlas coordinates</returns>
         public static async UniTask<Dictionary<Vector2Int, AtlasCoordinate>> GetRegionTextureCoordinates(
-            this WorldLayer<CellType> worldLayer, 
+            this WorldLayer<CellType> worldLayer,
             int x, int y, int width, int height)
         {
             var coordinates = new Dictionary<Vector2Int, AtlasCoordinate>();
@@ -62,7 +62,7 @@ namespace Fodinae.Assets.Scripts.World.Extensions
             {
                 var results = await UniTask.WhenAll(tasks);
                 int index = 0;
-                
+
                 for (int yy = y; yy < y + height; yy++)
                 {
                     for (int xx = x; xx < x + width; xx++)
@@ -89,11 +89,11 @@ namespace Fodinae.Assets.Scripts.World.Extensions
         /// <param name="height">Region height</param>
         /// <returns>Task representing the preload operation</returns>
         public static async UniTask PreloadRegionTextures(
-            this WorldLayer<CellType> worldLayer, 
+            this WorldLayer<CellType> worldLayer,
             int x, int y, int width, int height)
         {
             var uniqueCellTypes = new HashSet<CellType>();
-            
+
             // Collect unique cell types in the region
             for (int yy = y; yy < y + height; yy++)
             {

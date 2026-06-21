@@ -1,9 +1,10 @@
+using Fodinae.Scripts;
 using Fodinae.UI.Controls;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Input;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Builders
+namespace Fodinae.Scripts.UI.Builders
 {
     public class SelectablePacketBuilder : PacketUIBuilderBase
     {
@@ -20,7 +21,7 @@ namespace Fodinae.UI.Builders
                 Group = selectablePacket.Name,
                 value = selectablePacket.DefaultValue
             };
-            
+
             selectable.SetVisuals(checkedVisual, uncheckedVisual);
             selectable.SetEnabled(selectablePacket.IsEnabled);
 

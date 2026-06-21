@@ -1,10 +1,10 @@
-using UnityEngine;
-using Fodinae.Assets.Scripts;
-using Fodinae.Assets.Scripts.Game.Managers;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.Utils;
+using UnityEngine;
 
-namespace Fodinae.Assets.Scripts.Game
+namespace Fodinae.Scripts.Game
 {
     public class Robot : MonoBehaviour
     {
@@ -16,7 +16,8 @@ namespace Fodinae.Assets.Scripts.Game
         private TextMesh _nicknameText;
         [SerializeField] private string _nickname;
         [SerializeField] private string _skinPath;
-        [SerializeField] private string _tailPath; [SerializeField] private float _rotationSpeed = 1080f;
+        [SerializeField] private string _tailPath;
+        [SerializeField] private float _rotationSpeed = 1080f;
 
         private const float VISUAL_ROTATION_OFFSET = -90f;
 
@@ -69,7 +70,9 @@ namespace Fodinae.Assets.Scripts.Game
         private void Awake()
         {
             if (_spriteRenderer == null)
+            {
                 _spriteRenderer = GetComponent<SpriteRenderer>();
+            }
 
             transform.localScale = Vector3.one;
             _targetPosition = transform.position;
@@ -132,7 +135,7 @@ namespace Fodinae.Assets.Scripts.Game
 
             if (gameObject.CompareTag("Player"))
             {
-                RobotManager.Instance.RegisterRobot(this);
+                RobotManager.Instance?.RegisterRobot(this);
             }
         }
 
@@ -199,37 +202,6 @@ namespace Fodinae.Assets.Scripts.Game
             UpdateTentacles(finalPosition, nowRotationAngle, movementFactor, Time.deltaTime);
 
             UpdateLabelsPosition();
-
-            if (RobotManager.ShowDebugVisuals)
-            {
-                DrawDebugVisuals();
-            }
-        }
-
-        private void DrawDebugVisuals()
-        {
-            // Server Position: Red (size 1.0)
-            DrawDebugBox(_serverPosition, 1.0f, Color.red);
-
-            // Client/Target Position: Blue (size 0.9)
-            DrawDebugBox(_targetPosition, 0.9f, Color.blue);
-
-            // Visual Position: Cyan (size 0.8)
-            DrawDebugBox(transform.position, 0.8f, Color.cyan);
-        }
-
-        private void DrawDebugBox(Vector3 center, float size, Color color)
-        {
-            float halfSize = size * 0.5f;
-            Vector3 topLeft = center + new Vector3(-halfSize, halfSize, 0);
-            Vector3 topRight = center + new Vector3(halfSize, halfSize, 0);
-            Vector3 bottomLeft = center + new Vector3(-halfSize, -halfSize, 0);
-            Vector3 bottomRight = center + new Vector3(halfSize, -halfSize, 0);
-
-            Debug.DrawLine(topLeft, topRight, color);
-            Debug.DrawLine(topRight, bottomRight, color);
-            Debug.DrawLine(bottomRight, bottomLeft, color);
-            Debug.DrawLine(bottomLeft, topLeft, color);
         }
 
         private void CreateTentacles(Texture2D tailTexture)
@@ -282,7 +254,7 @@ namespace Fodinae.Assets.Scripts.Game
         public void Initialize(uint botId)
         {
             _botId = botId;
-            RobotManager.Instance.RegisterRobot(this);
+            RobotManager.Instance?.RegisterRobot(this);
 
             _isMetadataLoaded = false;
             if (_spriteRenderer != null)
@@ -290,8 +262,15 @@ namespace Fodinae.Assets.Scripts.Game
                 _spriteRenderer.color = new Color(1, 1, 1, 0.5f);
             }
 
-            if (_nicknameText != null) _nicknameText.text = "";
-            if (_clanRenderer != null) _clanRenderer.sprite = null;
+            if (_nicknameText != null)
+            {
+                _nicknameText.text = "";
+            }
+
+            if (_clanRenderer != null)
+            {
+                _clanRenderer.sprite = null;
+            }
         }
 
         public void SetMetadata(int playerId, byte clanid, string nickname, string skinPath, string tailPath)
@@ -318,8 +297,11 @@ namespace Fodinae.Assets.Scripts.Game
 
         public void SetPosition(ushort x, ushort y)
         {
-            float unityY = (MapManager.Instance.WorldHeight - 1 - y) + 0.5f;
-            _serverPosition = new Vector3(x + 0.5f, unityY, 0);
+            var mm = MapManager.Instance;
+            if (mm != null)
+            {
+                _serverPosition = CoordinateUtils.ServerToUnityPos(x, y, mm.WorldHeight);
+            }
 
             // Only update target position from server for remote robots.
             // Local player manages its own target position via PlayerMovementController.
@@ -361,11 +343,28 @@ namespace Fodinae.Assets.Scripts.Game
 
         private async UniTaskVoid LoadSkinAsync(CancellationToken token)
         {
-            if (string.IsNullOrEmpty(_skinPath)) return;
-            var skinTexture = await ClientAssetLoader.Instance.GetTextureAsync(_skinPath, token);
-            if (token.IsCancellationRequested || skinTexture == null || _spriteRenderer == null) return;
+            if (string.IsNullOrEmpty(_skinPath))
+            {
+                return;
+            }
 
-            if (_skinSprite != null) Object.Destroy(_skinSprite);
+            var loader = ClientAssetLoader.Instance;
+            if (loader == null)
+            {
+                return;
+            }
+
+            var skinTexture = await loader.GetTextureAsync(_skinPath, token);
+            if (token.IsCancellationRequested || skinTexture == null || _spriteRenderer == null)
+            {
+                return;
+            }
+
+            if (_skinSprite != null)
+            {
+                Object.Destroy(_skinSprite);
+            }
+
             _skinSprite = Sprite.Create(skinTexture, new Rect(0, 0, skinTexture.width, skinTexture.height), new Vector2(0.5f, 0.5f), skinTexture.width);
             _spriteRenderer.sprite = _skinSprite;
         }
@@ -377,8 +376,18 @@ namespace Fodinae.Assets.Scripts.Game
                 ClearTentacles();
                 return;
             }
-            var tailTexture = await ClientAssetLoader.Instance.GetTextureAsync(_tailPath, token);
-            if (token.IsCancellationRequested) return;
+
+            var loader = ClientAssetLoader.Instance;
+            if (loader == null)
+            {
+                return;
+            }
+
+            var tailTexture = await loader.GetTextureAsync(_tailPath, token);
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
 
             if (tailTexture != null)
             {
@@ -392,14 +401,68 @@ namespace Fodinae.Assets.Scripts.Game
 
         private async UniTaskVoid LoadClanAsync(CancellationToken token)
         {
-            if (_clanId == 0) return;
-            var clanTexture = await ClientAssetLoader.Instance.GetTextureAsync($"/clan/{_clanId}", token);
-            if (token.IsCancellationRequested || clanTexture == null || _clanRenderer == null) return;
+            if (_clanId == 0)
+            {
+                return;
+            }
 
-            if (_clanSprite != null) Object.Destroy(_clanSprite);
+            var loader = ClientAssetLoader.Instance;
+            if (loader == null)
+            {
+                return;
+            }
+
+            var clanTexture = await loader.GetTextureAsync($"/clan/{_clanId}", token);
+            if (token.IsCancellationRequested || clanTexture == null || _clanRenderer == null)
+            {
+                return;
+            }
+
+            if (_clanSprite != null)
+            {
+                Object.Destroy(_clanSprite);
+            }
+
             _clanSprite = Sprite.Create(clanTexture, new Rect(0, 0, clanTexture.width, clanTexture.height), new Vector2(0f, 0.5f), clanTexture.width);
             _clanRenderer.sprite = _clanSprite;
         }
+
+#if UNITY_EDITOR
+        private void OnDrawGizmos()
+        {
+            if (!Application.isPlaying || !RobotManager.ShowDebugVisuals) return;
+
+            // Server Position: Red Square
+            Utils.FodislopGizmos.DrawBounds(_serverPosition, Vector2.one * 1.0f, Color.red);
+
+            // Client/Target Position: Blue Square
+            Utils.FodislopGizmos.DrawBounds(_targetPosition, Vector2.one * 0.9f, Color.blue);
+
+            // Visual Position: Cyan Square
+            Utils.FodislopGizmos.DrawBounds(transform.position, Vector2.one * 0.8f, Color.cyan);
+
+            // Draw Rotation Arrow
+            float angleRad = (transform.eulerAngles.z + VISUAL_ROTATION_OFFSET) * Mathf.Deg2Rad;
+            Vector3 direction = new Vector3(Mathf.Cos(angleRad), Mathf.Sin(angleRad), 0);
+            Utils.FodislopGizmos.DrawArrow(transform.position, direction, Color.yellow, 1.2f);
+
+            // Metadata Status
+            string status = $"ID: {_botId}\n{(IsLocalPlayer ? "LOCAL PLAYER" : "REMOTE ROBOT")}\n" +
+                            $"Meta: {(_isMetadataLoaded ? "OK" : "PENDING")}\n" +
+                            $"Speed: {_moveSpeed:F1}";
+            Utils.FodislopGizmos.DrawLabel(transform.position + Vector3.up * 1.5f, status, _isMetadataLoaded ? Color.green : Color.orange);
+
+            if (!IsLocalPlayer)
+            {
+                // Draw line to server position if it's lagging
+                float lag = Vector3.Distance(_serverPosition, transform.position);
+                if (lag > 0.5f)
+                {
+                    Utils.FodislopGizmos.DrawDottedLine(transform.position, _serverPosition, Color.red, 4f);
+                }
+            }
+        }
+#endif
 
         private void OnDestroy()
         {

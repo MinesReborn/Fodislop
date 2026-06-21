@@ -120,7 +120,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e55a1800031c9374ba92fb984b2216f6, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Assets.Scripts.Player.PlayerMovementController
+  m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Scripts.Player.PlayerMovementController
   _moveSpeed: 15
   _moveActionReference: {fileID: 0}
 --- !u!114 &11400001
@@ -134,7 +134,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 61a3010210b760c489e321dcd1eafc27, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Assets.Scripts.Player.CameraFollow
+  m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Scripts.Player.CameraFollow
   _target: {fileID: 0}
   _smoothSpeed: 5
   _offset: {x: 0, y: 0}
@@ -150,7 +150,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ea1ef0b5d60544e3b4923a071c651690, type: 3}
   m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Assets.Scripts.Game.Robot
+  m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Scripts.Game.Robot
   _botId: 0
   _spriteRenderer: {fileID: 21200000}
   _nickname: Player

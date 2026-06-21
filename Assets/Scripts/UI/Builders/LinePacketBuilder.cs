@@ -1,9 +1,11 @@
+using Fodinae.Scripts.UI;
+using Fodinae.Scripts.UI.Builders;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Builders
+namespace Fodinae.Scripts.UI.Builders
 {
     public class LinePacketBuilder : PacketUIBuilderBase
     {

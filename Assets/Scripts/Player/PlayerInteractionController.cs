@@ -1,10 +1,10 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using MinesServer.Networking.Client.Packets.Actions;
-using Fodinae.Assets.Scripts.Networking;
-using Fodinae.Assets.Scripts.Game.Managers;
+using Fodinae.Scripts.Networking;
+using Fodinae.Scripts.Game.Managers;
 
-namespace Fodinae.Assets.Scripts.Player
+namespace Fodinae.Scripts.Player
 {
     public class PlayerInteractionController : MonoBehaviour
     {

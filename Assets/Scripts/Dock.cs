@@ -1,7 +1,10 @@
-public enum Dock
+namespace Fodinae.Scripts
 {
-    Left,
-    Top,
-    Right,
-    Bottom
+    public enum Dock
+    {
+        Left,
+        Top,
+        Right,
+        Bottom,
+    }
 }

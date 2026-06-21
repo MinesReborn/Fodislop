@@ -100,3 +100,35 @@ Assets/
 - **Сборка**: Использовать `BuildScript.BuildOSX` из `Assets/Editor/`. Стандартный Build Settings не копирует текстуры.
 - **Автономный режим**: `StandaloneWorldInitializer` создаст тестовый мир без сервера.
 - **Сцена содержит**: `[WorldTextureManager]`, `SingleMeshTerrainRenderer`, `UIDocument`, `Main Camera`, `Global Light 2D`, `SceneSetup`, `AutoMapManager`, `MapManager`.
+
+## 7. Линтинг C# (обязательно для ИИ)
+
+Проект использует 4 Roslyn-анализатора без перекрытий:
+
+| Анализатор | Префикс | Зона ответственности |
+|---|---|---|
+| `StyleCop.Analyzers` | `SA` | Стиль, форматирование, именование |
+| `Microsoft.CodeAnalysis.NetAnalyzers` | `CA` | Корректность, надёжность, безопасность |
+| `Roslynator.Analyzers` | `RCS` | Упрощение кода, dead code |
+| `Microsoft.Unity.Analyzers` | `UNT` | Unity-специфика (Update, Invoke, Message) |
+
+### Обязательный хук после генерации C# кода
+
+```bash
+dotnet build Assembly-CSharp.csproj --no-incremental 2>&1
+```
+
+Вывод содержит предупреждения вида:
+```
+MapManager.cs(42,13): warning SA1300: ...
+WorldLayer.cs(88,5): warning CA1031: ...
+```
+
+**Правило**: все предупреждения с префиксами `SA`, `CA`, `RCS`, `UNT` — нарушения линтера. Исправляй их до финального ответа пользователю.
+
+### Настройка
+
+- `Directory.Build.props` — подключает анализаторы через NuGet во все `.csproj`
+- `.stylecop.json` — отключает нерелевантные для Unity правила (XML-доки, file headers)
+- `.editorconfig` — severity для каждого правила (`none` / `warning` / `error`)
+

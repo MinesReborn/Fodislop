@@ -1,38 +1,53 @@
-using Cysharp.Threading.Tasks;
-using UnityEngine;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
-using MinesServer.Networking.Connection;
-using MinesServer.Networking.Connection.Client;
+using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
+using Fodinae.Scripts.Networking.Connection;
+using Fodinae.Scripts.World;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.Utilities;
-using System.Threading.Tasks;
-using System.Collections.Generic;
-using static PersistentAssetCache;
-using static ETagCalculator;
-using MinesServer.Networking.Server.Packets.Utilities;
+using MinesServer.Networking.Connection;
+using MinesServer.Networking.Connection.Client;
 using MinesServer.Networking.Server.Packets;
-using Fodinae.Assets.Scripts.Networking.Connection;
+using MinesServer.Networking.Server.Packets.Utilities;
+using UnityEngine;
 
-namespace Fodinae.Assets.Scripts
+namespace Fodinae.Scripts
 {
+    using static ETagCalculator;
+    using static PersistentAssetCache;
+
     public class ClientAssetLoader : MonoBehaviour
     {
         public event Action<string, Texture2D> OnTextureLoaded;
 
         private static ClientAssetLoader _instance;
+        private static bool _isQuitting = false;
+
+        public static ClientAssetLoader InstanceIfExists => _instance;
+
         public static ClientAssetLoader Instance
         {
             get
             {
+                if (_isQuitting) return null;
                 if (_instance == null)
                 {
-                    _instance = FindObjectOfType<ClientAssetLoader>();
-                    if (_instance == null)
+                    _instance = FindFirstObjectByType<ClientAssetLoader>();
+                    if (_instance == null && !_isQuitting)
                     {
                         var go = new GameObject("[ClientAssetLoader]");
                         _instance = go.AddComponent<ClientAssetLoader>();
+
+                        // System Grouping
+                        if (Application.isPlaying)
+                        {
+                            var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+                            UnityEngine.Object.DontDestroyOnLoad(parent);
+                            go.transform.SetParent(parent.transform);
+                        }
                     }
                 }
                 return _instance;
@@ -55,7 +70,17 @@ namespace Fodinae.Assets.Scripts
                 return;
             }
             _instance = this;
-            DontDestroyOnLoad(gameObject);
+            if (Application.isPlaying)
+            {
+                DontDestroyOnLoad(gameObject);
+
+                // Ensure parented if created in scene
+                var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+                UnityEngine.Object.DontDestroyOnLoad(parent);
+                transform.SetParent(parent.transform);
+            }
+
+            _isQuitting = false;
 
             // Create a 1x1 gray placeholder texture
             _placeholderTexture = new Texture2D(1, 1);
@@ -69,10 +94,18 @@ namespace Fodinae.Assets.Scripts
             _errorTexture.Apply();
             _errorTexture.name = "Error_Texture";
 
-            ConnectionManager.Instance.OnPacketReceived += OnPacketReceived;
+            if (ConnectionManager.Instance != null)
+            {
+                ConnectionManager.Instance.OnPacketReceived += OnPacketReceived;
+            }
 
             _loopCts = new CancellationTokenSource();
             ProcessBatchLoop(_loopCts.Token).Forget();
+        }
+
+        private void OnApplicationQuit()
+        {
+            _isQuitting = true;
         }
 
         void OnDestroy()
@@ -81,7 +114,11 @@ namespace Fodinae.Assets.Scripts
             {
                 _loopCts?.Cancel();
                 _loopCts?.Dispose();
-                ConnectionManager.Instance.OnPacketReceived -= OnPacketReceived;
+                var cm = ConnectionManager.InstanceIfExists;
+                if (cm != null)
+                {
+                    cm.OnPacketReceived -= OnPacketReceived;
+                }
             }
         }
 
@@ -116,11 +153,12 @@ namespace Fodinae.Assets.Scripts
 
                 if (batch.Count > 0)
                 {
-                    if (ConnectionManager.Instance?.Connection != null &&
-                        ConnectionManager.Instance.Connection.ConnectionStatus == MinesServer.Networking.Shared.ConnectionStatus.Connected)
+                    var cm = ConnectionManager.Instance;
+                    if (cm?.Connection != null &&
+                        cm.Connection.ConnectionStatus == MinesServer.Networking.Shared.ConnectionStatus.Connected)
                     {
                         var assetRequest = new RuntimeAssetRequestPacket(batch);
-                        ConnectionManager.Instance.Connection.SendAsync(new ClientPacket((uint)DateTimeOffset.UtcNow.Ticks, assetRequest));
+                        cm.Connection.SendAsync(new ClientPacket((uint)DateTimeOffset.UtcNow.Ticks, assetRequest));
                     }
                     else
                     {
@@ -206,6 +244,10 @@ namespace Fodinae.Assets.Scripts
             catch (Exception ex)
             {
                 Debug.LogWarning($"[ClientAssetLoader] Error fetching asset {filename}: {ex.Message}");
+            }
+            finally
+            {
+                await UniTask.SwitchToMainThread(cancellationToken);
             }
 
             if (cancellationToken.IsCancellationRequested) return null;
@@ -299,29 +341,23 @@ namespace Fodinae.Assets.Scripts
 
             // FIX: Gracefully handle offline/standalone mode!
             // If there's no connection, immediately fetch from local storage instead of crashing.
-            if (ConnectionManager.Instance == null || ConnectionManager.Instance.Connection == null ||
-                ConnectionManager.Instance.Connection.ConnectionStatus != MinesServer.Networking.Shared.ConnectionStatus.Connected)
+            var cm = ConnectionManager.Instance;
+            if (cm == null || cm.Connection == null ||
+                cm.Connection.ConnectionStatus != MinesServer.Networking.Shared.ConnectionStatus.Connected)
             {
                 try
                 {
                     // Directly attempt to load from local storage
-                    byte[] localData;
-
-                    if (filename.StartsWith("audio/"))
+                    var tsm = Fodinae.Scripts.Networking.Connection.Client.TextureStorageManager.Instance;
+                    if (tsm != null)
                     {
-                        var audioStorage = Fodinae.Assets.Scripts.Audio.AudioStorageManager.Instance;
-                        localData = audioStorage != null ? await audioStorage.GetAudioData(filename) : null;
-                    }
-                    else
-                    {
-                        localData = await Fodinae.Assets.Scripts.Networking.Connection.Client.TextureStorageManager.Instance.GetTextureData(filename);
-                    }
-
-                    if (localData != null)
-                    {
-                        tcs.TrySetResult(localData);
-                        _pendingRequests.TryRemove(filename, out _);
-                        return localData;
+                        var localData = await tsm.GetTextureData(filename);
+                        if (localData != null)
+                        {
+                            tcs.TrySetResult(localData);
+                            _pendingRequests.TryRemove(filename, out _);
+                            return localData;
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -354,13 +390,13 @@ namespace Fodinae.Assets.Scripts
         {
             await UniTask.SwitchToMainThread(cancellationToken);
 
-            var type = Fodinae.Assets.Scripts.World.AnimationContainerDecoder.DetectType(imageData);
-            if (type == Fodinae.Assets.Scripts.World.AnimationContainerDecoder.ContainerType.GIF ||
-                type == Fodinae.Assets.Scripts.World.AnimationContainerDecoder.ContainerType.WebP)
+            var type = AnimationContainerDecoder.DetectType(imageData);
+            if (type == AnimationContainerDecoder.ContainerType.GIF ||
+                type == AnimationContainerDecoder.ContainerType.WebP)
             {
-                var decoded = type == Fodinae.Assets.Scripts.World.AnimationContainerDecoder.ContainerType.GIF
-                    ? Fodinae.Assets.Scripts.World.AnimationContainerDecoder.DecodeGif(imageData)
-                    : Fodinae.Assets.Scripts.World.AnimationContainerDecoder.DecodeWebP(imageData);
+                var decoded = type == AnimationContainerDecoder.ContainerType.GIF
+                    ? AnimationContainerDecoder.DecodeGif(imageData)
+                    : AnimationContainerDecoder.DecodeWebP(imageData);
 
                 if (decoded.Atlas != null)
                 {

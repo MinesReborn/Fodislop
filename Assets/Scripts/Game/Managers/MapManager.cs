@@ -1,245 +1,313 @@
+using System;
+using System.Collections.Generic;
+using Fodinae.Scripts.Utils;
+using Fodinae.Scripts.World;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.Information;
-using Fodinae.Assets.Scripts.World;
-using System;
-using System.Collections.Generic;
 using UnityEngine;
 
-namespace Fodinae.Assets.Scripts.Game.Managers
+namespace Fodinae.Scripts.Game.Managers
 {
+    [ExecuteAlways]
     public class MapManager : MonoBehaviour
     {
         private static MapManager _instance;
+        private static bool _isQuitting = false;
+        private Camera _mainCamera;
+
+        public static MapManager InstanceIfExists => _instance;
         public static MapManager Instance
         {
             get
             {
+                if (_isQuitting)
+                {
+                    return null;
+                }
+
                 if (_instance == null)
                 {
-                    _instance = FindObjectOfType<MapManager>();
-                    if (_instance == null)
+                    _instance = FindFirstObjectByType<MapManager>();
+                    if (_instance == null && !_isQuitting)
                     {
                         var go = new GameObject("[MapManager]");
                         _instance = go.AddComponent<MapManager>();
+
+                        // System Grouping
+                        if (Application.isPlaying)
+                        {
+                            var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+                            DontDestroyOnLoad(parent);
+                            go.transform.SetParent(parent.transform);
+                        }
                     }
                 }
+
                 return _instance;
             }
         }
 
-    public Action OnWorldInitialized;
-    public Action OnWorldDataLoaded;
-
-    private CellConfigurationPacket[] cellConfigurations;
-    private Dictionary<CellType, int> _cellToTileGroup = new();
-    private Dictionary<CellType, ushort> _cellMoveSpeeds = new();
-    private string worldCodeName;
-    private string worldDisplayName;
-    private ushort width;
-    private ushort height;
-    public bool _isWorldInitialized = false;
-    
-    // Add public property for standalone mode support
-    public bool IsStandaloneMode { get; set; } = false;
-        void Awake()
-    {
-        if (_instance != null && _instance != this)
+        /// <summary>
+        /// Cached reference to the Main Camera.
+        /// Faster than using Camera.main which performs a lookup.
+        /// </summary>
+        public Camera MainCamera
         {
-            Destroy(gameObject);
-            return;
-        }
-        _instance = this;
-        DontDestroyOnLoad(gameObject);
-    }
+            get
+            {
+                if (_mainCamera == null)
+                {
+                    _mainCamera = Camera.main;
+                }
 
-    void OnDestroy()
-    {
-        if (_instance == this)
+                return _mainCamera;
+            }
+        }
+
+        public Action OnWorldInitialized { get; set; }
+        public Action OnWorldDataLoaded { get; set; }
+
+        private static readonly CellConfigurationPacket _fallbackConfig = new CellConfigurationPacket
+        {
+            Animation = CellAnimationType.None,
+            AnimationSpeed = 0,
+            Color = 0,
+            FrameOffset = 0,
+            Properties = CellConfigProperties.None,
+            Distortion = (CellDistortionType)0,
+            ReliefGroup = 0
+        };
+
+        private CellConfigurationPacket[] _cellConfigurations;
+        private Dictionary<CellType, int> _cellToTileGroup = new();
+        private Dictionary<CellType, ushort> _cellMoveSpeeds = new();
+        private string _worldCodeName;
+        private string _worldDisplayName;
+        private ushort _width;
+        private ushort _height;
+
+        public bool IsWorldInitialized { get; private set; } = false;
+
+        // Add public property for standalone mode support
+        public bool IsStandaloneMode { get; set; } = false;
+
+        protected virtual void Awake()
+        {
+            if (_instance != null && _instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
+            _instance = this;
+            if (Application.isPlaying)
+            {
+                DontDestroyOnLoad(gameObject);
+
+                // Ensure parented if created in scene
+                var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+                DontDestroyOnLoad(parent);
+                transform.SetParent(parent.transform);
+            }
+
+            _isQuitting = false;
+
+#if UNITY_EDITOR
+            if (!Application.isPlaying && !IsWorldInitialized)
+            {
+                // Basic initialization for Editor preview
+                _width = 128;
+                _height = 128;
+                _worldCodeName = "EditorPreview";
+                _worldDisplayName = "Editor Preview";
+            }
+#endif
+        }
+
+        protected virtual void OnDestroy()
+        {
+            if (_instance == this)
+            {
+                _isQuitting = true;
+                MapStorage.InstanceIfExists?.Dispose();
+            }
+        }
+
+        protected virtual void OnApplicationQuit()
         {
             MapStorage.Instance?.Dispose();
         }
-    }
 
-    void OnApplicationQuit()
-    {
-        MapStorage.Instance?.Dispose();
-    }
+        public void LoadWorldInit(WorldInitPacket packet)
+        {
+            Debug.Log($"[MapManager] LoadWorldInit called: {packet.DisplayName} ({packet.CodeName}) [{packet.Width}x{packet.Height}]");
 
-    public void LoadWorldInit(WorldInitPacket packet)
-    {
-        Debug.Log($"[MapManager] LoadWorldInit called: {packet.DisplayName} ({packet.CodeName}) [{packet.Width}x{packet.Height}]");
-        
-        // Clear all packs when a new world is initialized
-        PackManager.Instance.ClearAllPacks();
+            // Clear all packs when a new world is initialized
+            PackManager.Instance?.ClearAllPacks();
+            RobotManager.InstanceIfExists?.ClearAllRobots();
 
-        // Validate packet data
-        if (packet == null)
-        {
-            Debug.LogError("[MapManager] LoadWorldInit called with null packet");
-            return;
-        }
-        
-        if (string.IsNullOrEmpty(packet.CodeName))
-        {
-            Debug.LogError("[MapManager] LoadWorldInit called with null or empty world code name");
-            return;
-        }
-        
-        if (packet.Width <= 0 || packet.Height <= 0)
-        {
-            Debug.LogError($"[MapManager] LoadWorldInit called with invalid dimensions: {packet.Width}x{packet.Height}");
-            return;
-        }
-        
-        // Store world information
-        worldCodeName = packet.CodeName;
-        worldDisplayName = packet.DisplayName;
-        width = packet.Width;
-        height = packet.Height;
-        cellConfigurations = packet.Cells;
-
-        _cellToTileGroup.Clear();
-        if (packet.TileGroups != null)
-        {
-            for (int i = 0; i < packet.TileGroups.Length; i++)
+            // Validate packet data
+            if (packet == null)
             {
-                if (packet.TileGroups[i] == null) continue;
-                foreach (byte cellId in packet.TileGroups[i])
+                Debug.LogError("[MapManager] LoadWorldInit called with null packet");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(packet.CodeName))
+            {
+                Debug.LogError("[MapManager] LoadWorldInit called with null or empty world code name");
+                return;
+            }
+
+            if (packet.Width <= 0 || packet.Height <= 0)
+            {
+                Debug.LogError($"[MapManager] LoadWorldInit called with invalid dimensions: {packet.Width}x{packet.Height}");
+                return;
+            }
+
+            // Store world information
+            _worldCodeName = packet.CodeName;
+            _worldDisplayName = packet.DisplayName;
+            _width = packet.Width;
+            _height = packet.Height;
+            _cellConfigurations = packet.Cells;
+
+            _cellToTileGroup.Clear();
+            if (packet.TileGroups != null)
+            {
+                for (int i = 0; i < packet.TileGroups.Length; i++)
                 {
-                    _cellToTileGroup[(CellType)cellId] = i;
+                    if (packet.TileGroups[i] == null)
+                    {
+                        continue;
+                    }
+
+                    foreach (byte cellId in packet.TileGroups[i])
+                    {
+                        _cellToTileGroup[(CellType)cellId] = i;
+                    }
                 }
             }
-        }
 
-        Debug.Log($"[MapManager] World initialized: {packet.DisplayName} ({packet.CodeName}) [{width}x{height}]");
-        
-        // CRITICAL: IMMEDIATE MapStorage initialization - this is essential for terrain rendering
-        Debug.Log($"[MapManager] IMMEDIATELY initializing MapStorage with world '{packet.CodeName}' dimensions {width}x{height}");
-        
-        try
-        {
-            // Ensure MapStorage is properly initialized
-            MapStorage.Instance.InitWorld(packet.CodeName, width, height);
-            
-            // CRITICAL: Verify that MapStorage was properly initialized
-            if (!MapStorage.Instance.IsReady)
+            Debug.Log($"[MapManager] World initialized: {packet.DisplayName} ({packet.CodeName}) [{_width}x{_height}]");
+
+            // CRITICAL: IMMEDIATE MapStorage initialization - this is essential for terrain rendering
+            Debug.Log($"[MapManager] IMMEDIATELY initializing MapStorage with world '{packet.CodeName}' dimensions {_width}x{_height}");
+
+            try
             {
-                Debug.LogError($"[MapManager] CRITICAL: MapStorage failed to initialize for world {packet.CodeName}");
-                Debug.LogError($"[MapManager] MapStorage state: IsReady={MapStorage.Instance.IsReady}, IsInitialized={MapStorage.Instance.IsInitialized()}");
-                Debug.LogError($"[MapManager] MapStorage cellLayer: {(MapStorage.Instance.cellLayer != null ? "not null" : "NULL - this is the problem!")}");
-                Debug.LogError($"[MapManager] MapStorage world name: {MapStorage.Instance.GetWorldCodeName()}");
-                
-                // Try emergency initialization with more detailed error handling
-                Debug.LogWarning("[MapManager] Attempting emergency MapStorage initialization...");
-                try
+                // Ensure MapStorage is properly initialized
+                MapStorage.Instance.InitWorld(packet.CodeName, _width, _height);
+
+                // CRITICAL: Verify that MapStorage was properly initialized
+                if (!MapStorage.Instance.IsReady)
                 {
-                    MapStorage.Instance.Dispose();
-                    MapStorage.Instance.InitWorld(packet.CodeName, width, height);
-                    
-                    if (MapStorage.Instance.IsReady)
+                    Debug.LogError($"[MapManager] CRITICAL: MapStorage failed to initialize for world {packet.CodeName}");
+                    Debug.LogError($"[MapManager] MapStorage state: IsReady={MapStorage.Instance.IsReady}, IsInitialized={MapStorage.Instance.IsInitialized()}");
+                    Debug.LogError($"[MapManager] MapStorage CellLayer: {(MapStorage.Instance.CellLayer != null ? "not null" : "NULL - this is the problem!")}");
+                    Debug.LogError($"[MapManager] MapStorage world name: {MapStorage.Instance.GetWorldCodeName()}");
+
+                    // Try emergency initialization with more detailed error handling
+                    Debug.LogWarning("[MapManager] Attempting emergency MapStorage initialization...");
+                    try
                     {
-                        Debug.Log("[MapManager] Emergency MapStorage initialization successful!");
-                    }
-                    else
-                    {
-                        Debug.LogError("[MapManager] Emergency MapStorage initialization FAILED - terrain rendering will not work");
-                        Debug.LogError("[MapManager] This is a CRITICAL failure - terrain rendering system cannot function");
-                        
-                        // Try creating a test world as last resort
-                        Debug.LogWarning("[MapManager] Creating test world as fallback...");
                         MapStorage.Instance.Dispose();
-                        MapStorage.Instance.InitWorld("fallback_test_world", 64, 64);
-                        
+                        MapStorage.Instance.InitWorld(packet.CodeName, _width, _height);
+
                         if (MapStorage.Instance.IsReady)
                         {
-                            Debug.Log("[MapManager] Test world created successfully as fallback");
-                            worldCodeName = "fallback_test_world";
-                            width = 64;
-                            height = 64;
+                            Debug.Log("[MapManager] Emergency MapStorage initialization successful!");
                         }
                         else
                         {
-                            Debug.LogError("[MapManager] Even test world creation failed - terrain rendering system is broken");
+                            Debug.LogError("[MapManager] Emergency MapStorage initialization FAILED - terrain rendering will not work");
+                            Debug.LogError("[MapManager] This is a CRITICAL failure - terrain rendering system cannot function");
+
+                            // Try creating a test world as last resort
+                            Debug.LogWarning("[MapManager] Creating test world as fallback...");
+                            MapStorage.Instance.Dispose();
+                            MapStorage.Instance.InitWorld("fallback_test_world", 64, 64);
+
+                            if (MapStorage.Instance.IsReady)
+                            {
+                                Debug.Log("[MapManager] Test world created successfully as fallback");
+                                _worldCodeName = "fallback_test_world";
+                                _width = 64;
+                                _height = 64;
+                            }
+                            else
+                            {
+                                Debug.LogError("[MapManager] Even test world creation failed - terrain rendering system is broken");
+                            }
                         }
                     }
+                    catch (System.Exception emergencyEx)
+                    {
+                        Debug.LogError($"[MapManager] Emergency MapStorage initialization threw exception: {emergencyEx.Message}");
+                        Debug.LogError($"[MapManager] Exception details: {emergencyEx.GetType().Name}");
+                    }
                 }
-                catch (System.Exception emergencyEx)
+                else
                 {
-                    Debug.LogError($"[MapManager] Emergency MapStorage initialization threw exception: {emergencyEx.Message}");
-                    Debug.LogError($"[MapManager] Exception details: {emergencyEx.GetType().Name}");
+                    Debug.Log($"[MapManager] MapStorage initialized successfully for world '{packet.CodeName}'");
+                    Debug.Log($"[MapManager] WorldLayer created: {MapStorage.Instance.CellLayer.WidthChunks}x{MapStorage.Instance.CellLayer.HeightChunks} chunks");
+                    Debug.Log($"[MapManager] Chunk size: {MapStorage.Instance.CellLayer.ChunkSize}");
                 }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[MapManager] CRITICAL ERROR during MapStorage initialization: {ex.Message}");
+                Debug.LogError($"[MapManager] Exception type: {ex.GetType().Name}");
+                Debug.LogError($"[MapManager] Stack trace: {ex.StackTrace}");
+
+                // Provide specific guidance based on exception type
+                if (ex is System.IO.IOException)
+                {
+                    Debug.LogError("[MapManager] This is likely a file I/O issue. Check disk space and file permissions.");
+                }
+                else if (ex is System.ArgumentException)
+                {
+                    Debug.LogError("[MapManager] This is likely an invalid parameter issue. Check world dimensions.");
+                }
+                else if (ex is System.OutOfMemoryException)
+                {
+                    Debug.LogError("[MapManager] This is a memory issue. The world may be too large for available memory.");
+                }
+            }
+
+            IsWorldInitialized = true;
+            Debug.Log($"[MapManager] Triggering OnWorldInitialized event");
+            OnWorldInitialized?.Invoke();
+
+            // CRITICAL: Only trigger OnWorldDataLoaded if MapStorage is actually ready
+            if (MapStorage.Instance.IsReady)
+            {
+                Debug.Log($"[MapManager] MapStorage is ready, triggering OnWorldDataLoaded event");
+                OnWorldDataLoaded?.Invoke();
+                Debug.Log("[MapManager] World data loaded event triggered successfully");
             }
             else
             {
-                Debug.Log($"[MapManager] MapStorage initialized successfully for world '{packet.CodeName}'");
-                Debug.Log($"[MapManager] WorldLayer created: {MapStorage.Instance.cellLayer.WidthChunks}x{MapStorage.Instance.cellLayer.HeightChunks} chunks");
-                Debug.Log($"[MapManager] Chunk size: {MapStorage.Instance.cellLayer.ChunkSize}");
+                Debug.LogError("[MapManager] CRITICAL: MapStorage not ready, skipping OnWorldDataLoaded event");
+                StartCoroutine(DelayedWorldDataLoadedTrigger());
             }
         }
-        catch (System.Exception ex)
-        {
-            Debug.LogError($"[MapManager] CRITICAL ERROR during MapStorage initialization: {ex.Message}");
-            Debug.LogError($"[MapManager] Exception type: {ex.GetType().Name}");
-            Debug.LogError($"[MapManager] Stack trace: {ex.StackTrace}");
-            
-            // Provide specific guidance based on exception type
-            if (ex is System.IO.IOException)
-            {
-                Debug.LogError("[MapManager] This is likely a file I/O issue. Check disk space and file permissions.");
-            }
-            else if (ex is System.ArgumentException)
-            {
-                Debug.LogError("[MapManager] This is likely an invalid parameter issue. Check world dimensions.");
-            }
-            else if (ex is System.OutOfMemoryException)
-            {
-                Debug.LogError("[MapManager] This is a memory issue. The world may be too large for available memory.");
-            }
-        }
-        
-        _isWorldInitialized = true;
-        Debug.Log($"[MapManager] Triggering OnWorldInitialized event");
-        OnWorldInitialized?.Invoke();
-        
-        // CRITICAL: Only trigger OnWorldDataLoaded if MapStorage is actually ready
-        // This is the key fix - terrain rendering depends on this event being triggered correctly
-        if (MapStorage.Instance.IsReady)
-        {
-            Debug.Log($"[MapManager] MapStorage is ready, triggering OnWorldDataLoaded event");
-            OnWorldDataLoaded?.Invoke();
-            Debug.Log("[MapManager] World data loaded event triggered successfully");
-        }
-        else
-        {
-            Debug.LogError("[MapManager] CRITICAL: MapStorage not ready, skipping OnWorldDataLoaded event");
-            Debug.LogError($"[MapManager] This means terrain rendering will fail - MapStorage must be ready!");
-            Debug.LogError($"[MapManager] MapStorage details: IsReady={MapStorage.Instance.IsReady}, IsInitialized={MapStorage.Instance.IsInitialized()}, cellLayer={(MapStorage.Instance.cellLayer != null ? "not null" : "NULL")}");
-            Debug.LogError("[MapManager] Terrain rendering will remain in 'WaitingForWorldInit' state until this is resolved");
-            
-            // Try to force the event anyway after a delay to see if MapStorage becomes ready
-            Debug.LogWarning("[MapManager] Scheduling delayed OnWorldDataLoaded trigger attempt...");
-            StartCoroutine(DelayedWorldDataLoadedTrigger());
-        }
-    }
 
-    /// <summary>
-    /// Delayed attempt to trigger OnWorldDataLoaded event
-    /// </summary>
-    private System.Collections.IEnumerator DelayedWorldDataLoadedTrigger()
-    {
-        yield return new WaitForSeconds(2.0f);
-        
-        if (MapStorage.Instance.IsReady)
+        private System.Collections.IEnumerator DelayedWorldDataLoadedTrigger()
         {
-            Debug.Log("[MapManager] MapStorage became ready after delay, triggering OnWorldDataLoaded event");
-            OnWorldDataLoaded?.Invoke();
+            yield return new WaitForSeconds(2.0f);
+
+            if (MapStorage.Instance.IsReady)
+            {
+                Debug.Log("[MapManager] MapStorage became ready after delay, triggering OnWorldDataLoaded event");
+                OnWorldDataLoaded?.Invoke();
+            }
+            else
+            {
+                Debug.LogError("[MapManager] MapStorage still not ready after delay - terrain rendering will remain broken");
+            }
         }
-        else
-        {
-            Debug.LogError("[MapManager] MapStorage still not ready after delay - terrain rendering will remain broken");
-        }
-    }
 
         public void UpdateMovementSpeeds(MovementSpeedPacket packet)
         {
@@ -255,16 +323,18 @@ namespace Fodinae.Assets.Scripts.Game.Managers
             {
                 return speed / 1000f;
             }
+
             return 0f;
         }
 
         public CellConfigurationPacket GetCellConfig(CellType cellType)
         {
-            if (cellConfigurations == null || (int)cellType < 0 || (int)cellType >= cellConfigurations.Length)
+            if (_cellConfigurations == null || (int)cellType < 0 || (int)cellType >= _cellConfigurations.Length)
             {
-                return default;
+                return _fallbackConfig;
             }
-            return cellConfigurations[(int)cellType];
+
+            return _cellConfigurations[(int)cellType];
         }
 
         public bool TryGetTileGroup(CellType cellType, out int groupId)
@@ -272,22 +342,14 @@ namespace Fodinae.Assets.Scripts.Game.Managers
             return _cellToTileGroup.TryGetValue(cellType, out groupId);
         }
 
-        /// <summary>
-        /// Get the minimap color for a cell type from server configuration
-        /// </summary>
-        /// <param name="cellType">The cell type</param>
-        /// <returns>Unity Color converted from ARGB int, or transparent if not found</returns>
         public Color GetCellMinimapColor(CellType cellType)
         {
             var config = GetCellConfig(cellType);
             if (config.Color == 0)
             {
-                // Return transparent color if no configuration found
                 return new Color(0, 0, 0, 0);
             }
 
-            // Convert ARGB int to Unity Color
-            // ARGB format: AARRGGBB
             int argb = config.Color;
             byte a = (byte)((argb >> 24) & 0xFF);
             byte r = (byte)((argb >> 16) & 0xFF);
@@ -297,59 +359,116 @@ namespace Fodinae.Assets.Scripts.Game.Managers
             return new Color(r / 255f, g / 255f, b / 255f, a / 255f);
         }
 
-        /// <summary>
-        /// Get the animation frame height in pixels for a cell type
-        /// </summary>
-        /// <param name="cellType">The cell type</param>
-        /// <returns>Frame height in pixels (tile height * CELL_SIZE), or 0 if not animated</returns>
         public int GetAnimationFrameHeight(CellType cellType)
         {
             var config = GetCellConfig(cellType);
-
-            // Frame height is defined in tiles, each tile is CELL_SIZE x CELL_SIZE pixels
-            // FrameOffset > 0 indicates it's an animated or multi-frame texture
-            return (int)config.FrameOffset * RenderingConstants.CELL_SIZE;
+            return (int)config.FrameOffset * RenderingConstants.CellSize;
         }
 
-        /// <summary>
-        /// Get the animation speed for a cell type
-        /// </summary>
-        /// <param name="cellType">The cell type</param>
-        /// <returns>Animation speed in frames per second</returns>
         public byte GetAnimationSpeed(CellType cellType)
         {
             var config = GetCellConfig(cellType);
             return config.AnimationSpeed;
         }
 
-        /// <summary>
-        /// Get the frame offset for a cell type
-        /// </summary>
-        /// <param name="cellType">The cell type</param>
-        /// <returns>Frame offset</returns>
         public byte GetFrameOffset(CellType cellType)
         {
             var config = GetCellConfig(cellType);
             return config.FrameOffset;
         }
 
-        /// <summary>
-        /// Check if a cell type has animation
-        /// </summary>
-        /// <param name="cellType">The cell type</param>
-        /// <returns>True if animated, false otherwise</returns>
         public bool HasAnimation(CellType cellType)
         {
             var config = GetCellConfig(cellType);
             return config.Animation != CellAnimationType.None;
         }
 
-        /// <summary>
-        /// Get world information
-        /// </summary>
-        public string WorldCodeName => worldCodeName;
-        public string WorldDisplayName => worldDisplayName;
-        public ushort WorldWidth => width;
-        public ushort WorldHeight => height;
+        public string WorldCodeName => _worldCodeName;
+        public string WorldDisplayName => _worldDisplayName;
+        public ushort WorldWidth => (_width > 0) ? _width : (ushort)128;
+        public ushort WorldHeight => (_height > 0) ? _height : (ushort)128;
+
+#if UNITY_EDITOR
+        protected virtual void OnDrawGizmos()
+        {
+            if (_width == 0 || _height == 0)
+            {
+                return;
+            }
+
+            Gizmos.color = new Color(1, 1, 1, 0.3f);
+            Vector3 worldCenter = new Vector3(_width * 0.5f, _height * 0.5f, 0);
+            Vector3 worldSize = new Vector3(_width, _height, 0.1f);
+            Gizmos.DrawWireCube(worldCenter, worldSize);
+        }
+
+        protected virtual void OnDrawGizmosSelected()
+        {
+            if (_width == 0 || _height == 0)
+            {
+                return;
+            }
+
+            Vector3 worldCenter = new Vector3(_width * 0.5f, _height * 0.5f, 0);
+
+            Gizmos.color = Color.magenta;
+            Gizmos.DrawSphere(Vector3.zero, 0.5f);
+            Utils.FodislopGizmos.DrawLabel(Vector3.zero, "World Origin (0,0)", Color.magenta);
+
+            if (MapStorage.Instance.IsReady && MapStorage.Instance.CellLayer != null)
+            {
+                var layer = MapStorage.Instance.CellLayer;
+                int chunkSize = layer.ChunkSize;
+                var loaded = layer.GetLoadedChunkIndices();
+
+                foreach (int index in loaded)
+                {
+                    int cy = index % layer.HeightChunks;
+                    int cx = index / layer.HeightChunks;
+
+                    float unityY = CoordinateUtils.ServerToUnityY(cy * chunkSize, WorldHeight) - chunkSize * 0.5f;
+                    Vector3 chunkPos = new Vector3(cx * chunkSize + chunkSize * 0.5f, unityY, 0);
+
+                    Utils.FodislopGizmos.DrawSolidRect(chunkPos, new Vector2(chunkSize - 0.2f, chunkSize - 0.2f),
+                        new Color(0, 1, 0, 0.02f), new Color(0, 1, 0, 0.1f));
+                }
+
+                Vector3 labelPos = worldCenter + Vector3.down * (WorldHeight * 0.5f + 2f);
+                string stats = $"Chunks: {layer.GetLoadedCount()}/{layer.MaxChunksInMemory} loaded | {layer.GetDirtyCount()} dirty";
+                Utils.FodislopGizmos.DrawLabel(labelPos, stats, Color.green);
+
+                Camera cam = MainCamera;
+                if (cam != null && Application.isPlaying)
+                {
+                    Vector3 camPos = cam.transform.position;
+                    int range = GameConstants.Debug.COLLISION_DEBUG_RANGE;
+                    int startX = Mathf.FloorToInt(camPos.x) - range;
+                    int startY = Mathf.FloorToInt(camPos.y) - range;
+
+                    for (int x = startX; x < startX + range * 2; x++)
+                    {
+                        for (int y = startY; y < startY + range * 2; y++)
+                        {
+                            int worldX = x;
+                            int worldY = CoordinateUtils.UnityToServerY(y, WorldHeight);
+
+                            var cellType = MapStorage.Instance.GetCell(worldX, worldY);
+                            var config = GetCellConfig(cellType);
+
+                            if (config.Properties != 0)
+                            {
+                                bool isPassable = ((CellConfigProperties)config.Properties).HasFlag(CellConfigProperties.Passable);
+                                if (!isPassable)
+                                {
+                                    Gizmos.color = new Color(1, 0, 0, 0.15f);
+                                    Gizmos.DrawCube(new Vector3(x + 0.5f, y + 0.5f, 0), new Vector3(0.9f, 0.9f, 0.1f));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+#endif
     }
 }

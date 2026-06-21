@@ -1,12 +1,13 @@
-using MinesServer.Networking.Server.Packets.GUI;
-using MinesServer.Networking.Server.Packets.GUI.Components;
-using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Fodinae.Scripts;
+using MinesServer.Networking.Server.Packets.GUI;
+using MinesServer.Networking.Server.Packets.GUI.Components;
+using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Builders
+namespace Fodinae.Scripts.UI.Builders
 {
     public class DockPanelPacketBuilder : PacketUIBuilderBase
     {

@@ -1,11 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
-using Fodinae.Assets.Scripts.Audio;
-using Fodinae.Assets.Scripts.Game;
-using Fodinae.Assets.Scripts.Game.Managers;
-using Fodinae.Assets.Scripts.Networking.Connection;
-using Fodinae.Assets.Scripts.Player;
-using Fodinae.Assets.Scripts.UI;
+using Fodinae.Scripts.Audio;
+using Fodinae.Scripts.Game;
+using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.Player;
+using Fodinae.Scripts.UI;
 using Fodinae.UI;
 using Fodinae.UI.Binding;
 using MinesServer.Networking.Client.Packets.Connection;
@@ -25,7 +24,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UIElements;
 
-namespace Fodinae.Assets.Scripts.Networking
+namespace Fodinae.Scripts.Networking
 {
     public class PacketHandler : MonoBehaviour
     {
@@ -36,10 +35,33 @@ namespace Fodinae.Assets.Scripts.Networking
         private UIDocument _uiDocument;
         private readonly List<(string tag, VisualElement root, WindowBinding binding, List<VisualElement> clickableElements)> _openWindows = new();
 
-        void Awake()
+        public void HandleWorldInitPacket(WorldInitPacket worldInitPacket)
+        {
+            _packetCount++;
+            _worldInitPacketsReceived++;
+            Debug.Log($"[PacketHandler] Processing WorldInitPacket #{_worldInitPacketsReceived}");
+            Debug.Log($"[PacketHandler] World: {worldInitPacket.DisplayName} ({worldInitPacket.CodeName}) [{worldInitPacket.Width}x{worldInitPacket.Height}]");
+
+            try
+            {
+                // Call MapManager.LoadWorldInit immediately
+                MapManager.Instance?.LoadWorldInit(worldInitPacket);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[PacketHandler] Error processing WorldInitPacket: {ex.Message}");
+            }
+        }
+
+        public string GetStatistics()
+        {
+            return $"[PacketHandler Stats] Total: {_packetCount}, WorldInit: {_worldInitPacketsReceived}, MapRegion: {_mapRegionPacketsReceived}, Initialized: {_isInitialized}";
+        }
+
+        protected virtual void Awake()
         {
             Debug.Log("[PacketHandler] Starting initialization...");
-            
+
             // Verify Dependencies
             if (MapManager.Instance == null)
             {
@@ -53,7 +75,7 @@ namespace Fodinae.Assets.Scripts.Networking
                 return;
             }
 
-            _uiDocument = FindObjectOfType<UIDocument>();
+            _uiDocument = FindFirstObjectByType<UIDocument>();
             if (_uiDocument == null)
             {
                 Debug.LogWarning("[PacketHandler] UIDocument not found - window packets will not be displayed");
@@ -61,50 +83,61 @@ namespace Fodinae.Assets.Scripts.Networking
 
             // Subscribe to events via NetworkService
             var ns = NetworkService.Instance;
-            ns.Subscribe<WorldInitPacket>(HandleWorldInitPacket);
-            ns.Subscribe<HBPacket>(HandleHBPacket);
-            ns.Subscribe<RobotInfoPacket>(HandleRobotInfoPacket);
-            ns.Subscribe<PlayerInfoPacket>(HandlePlayerInfoPacket);
-            ns.Subscribe<MovementSpeedPacket>(HandleMovementSpeedPacket);
-            ns.Subscribe<OpenWindowPacket>(HandleOpenWindowPacket);
-            ns.Subscribe<CloseWindowPacket>(HandleCloseWindowPacket);
-            ns.Subscribe<RobotPositionPacket>(HandleRobotPositionPacket);
-            ns.Subscribe<MapRegionPacket>(HandleMapRegionPacket);
-            ns.Subscribe<PackPacket>(HandlePackPacket);
-            ns.Subscribe<RemovePackPacket>(HandleRemovePackPacket);
-            ns.Subscribe<AutoMineStatePacket>(HandleAutoMineStatePacket);
-            ns.Subscribe<SkillProgressPacket>(HandleSkillProgressPacket);
-            ns.Subscribe<ChatMessageListPacket>(HandleChatMessageList);
-            ns.Subscribe<ChatListPacket>(HandleChatList);
-            ns.Subscribe<LocalChatMessagePacket>(HandleLocalChatMessage);
-            ns.Subscribe<ChatMutePacket>(HandleChatMute);
+            if (ns != null)
+            {
+                ns.Subscribe<WorldInitPacket>(HandleWorldInitPacket);
+                ns.Subscribe<HBPacket>(HandleHBPacket);
+                ns.Subscribe<RobotInfoPacket>(HandleRobotInfoPacket);
+                ns.Subscribe<PlayerInfoPacket>(HandlePlayerInfoPacket);
+                ns.Subscribe<MovementSpeedPacket>(HandleMovementSpeedPacket);
+                ns.Subscribe<OpenWindowPacket>(HandleOpenWindowPacket);
+                ns.Subscribe<CloseWindowPacket>(HandleCloseWindowPacket);
+                ns.Subscribe<RobotPositionPacket>(HandleRobotPositionPacket);
+                ns.Subscribe<MapRegionPacket>(HandleMapRegionPacket);
+                ns.Subscribe<PackPacket>(HandlePackPacket);
+                ns.Subscribe<RemovePackPacket>(HandleRemovePackPacket);
+                
+                // Player stats
+                ns.Subscribe<LevelPacket>(HandleLevelPacket);
+                ns.Subscribe<HealthPacket>(HandleHealthPacket);
+                ns.Subscribe<CurrencyPacket>(HandleCurrencyPacket);
+                ns.Subscribe<GeologyPacket>(HandleGeologyPacket);
+                ns.Subscribe<BasketPacket>(HandleBasketPacket);
 
-            // Player stats
-            ns.Subscribe<LevelPacket>(HandleLevelPacket);
-            ns.Subscribe<HealthPacket>(HandleHealthPacket);
-            ns.Subscribe<CurrencyPacket>(HandleCurrencyPacket);
-            ns.Subscribe<GeologyPacket>(HandleGeologyPacket);
-            ns.Subscribe<BasketPacket>(HandleBasketPacket);
+                ns.Subscribe<AutoMineStatePacket>(HandleAutoMineStatePacket);
+                ns.Subscribe<SkillProgressPacket>(HandleSkillProgressPacket);
+                ns.Subscribe<ChatMessageListPacket>(HandleChatMessageList);
+                ns.Subscribe<ChatListPacket>(HandleChatList);
+                ns.Subscribe<LocalChatMessagePacket>(HandleLocalChatMessage);
+                ns.Subscribe<ChatMutePacket>(HandleChatMute);
 
-            ns.Subscribe<OnlinePacket>(HandleOnlinePacket);
-            ns.Subscribe<PingPacket>(HandlePingPacket);
+                ns.Subscribe<OnlinePacket>(HandleOnlinePacket);
+                ns.Subscribe<PingPacket>(HandlePingPacket);
 
-            ns.Subscribe<OutdatedClientPacket>(HandleOutdatedClient);
-            ns.Subscribe<SFXPacket>(HandleSFXPacket);
-            ns.Subscribe<InventoryPacket>(HandleInventoryPacket);
+                ns.Subscribe<OutdatedClientPacket>(HandleOutdatedClient);
+                ns.Subscribe<SFXPacket>(HandleSFXPacket);
+                ns.Subscribe<InventoryPacket>(HandleInventoryPacket);
+            }
 
-            MapManager.Instance.OnWorldInitialized += OnWorldInitialized;
-            MapManager.Instance.OnWorldDataLoaded += OnWorldDataLoaded;
-            
+            var mm = MapManager.Instance;
+            if (mm != null)
+            {
+                mm.OnWorldInitialized += OnWorldInitialized;
+                mm.OnWorldDataLoaded += OnWorldDataLoaded;
+            }
+
             _isInitialized = true;
             Debug.Log("[PacketHandler] Initialization complete - ready to receive packets");
         }
 
-        void OnDestroy()
+        protected virtual void OnDestroy()
         {
-            if (!_isInitialized) return;
+            if (!_isInitialized)
+            {
+                return;
+            }
 
-            var ns = FindObjectOfType<NetworkService>();
+            var ns = NetworkService.InstanceIfExists;
             if (ns != null)
             {
                 ns.Unsubscribe<WorldInitPacket>(HandleWorldInitPacket);
@@ -148,7 +181,7 @@ namespace Fodinae.Assets.Scripts.Networking
             }
             _openWindows.Clear();
 
-            var mm = FindObjectOfType<MapManager>();
+            var mm = MapManager.InstanceIfExists;
             if (mm != null)
             {
                 mm.OnWorldInitialized -= OnWorldInitialized;
@@ -162,10 +195,10 @@ namespace Fodinae.Assets.Scripts.Networking
         {
             _packetCount++;
             Debug.Log($"[PacketHandler] Handling OpenWindowPacket: {packet.WindowTag}");
-            
+
             if (_uiDocument == null)
             {
-                _uiDocument = FindObjectOfType<UIDocument>();
+                _uiDocument = FindFirstObjectByType<UIDocument>();
                 if (_uiDocument == null)
                 {
                     Debug.LogError("[PacketHandler] Cannot open window: UIDocument not found");
@@ -175,7 +208,7 @@ namespace Fodinae.Assets.Scripts.Networking
 
             var builder = new PacketUIBuilder();
             var element = builder.Build(packet.Content);
-            
+
             element.style.width = packet.Width;
             element.style.height = packet.Height;
             element.style.position = Position.Absolute;
@@ -277,36 +310,22 @@ namespace Fodinae.Assets.Scripts.Networking
             _openWindows.RemoveAt(_openWindows.Count - 1);
         }
 
-        public void HandleWorldInitPacket(WorldInitPacket worldInitPacket)
-        {
-            _packetCount++;
-            _worldInitPacketsReceived++;
-            Debug.Log($"[PacketHandler] Processing WorldInitPacket #{_worldInitPacketsReceived}");
-            Debug.Log($"[PacketHandler] World: {worldInitPacket.DisplayName} ({worldInitPacket.CodeName}) [{worldInitPacket.Width}x{worldInitPacket.Height}]");
-
-            try
-            {
-                // Call MapManager.LoadWorldInit immediately
-                MapManager.Instance.LoadWorldInit(worldInitPacket);
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogError($"[PacketHandler] Error processing WorldInitPacket: {ex.Message}");
-            }
-        }
-
         private void HandleRobotInfoPacket(RobotInfoPacket packet)
         {
             _packetCount++;
             Debug.Log($"[PacketHandler] Handling RobotInfoPacket for BotId: {packet.BotId}, Name: {packet.Name}");
-            RobotManager.Instance.UpdateRobotMetadata(packet.BotId, packet.PlayerId, packet.ClanId, packet.Name, packet.Skin, packet.Tail);
+            RobotManager.Instance?.UpdateRobotMetadata(packet.BotId, packet.PlayerId, packet.ClanId, packet.Name, packet.Skin, packet.Tail);
         }
 
         private void HandlePlayerInfoPacket(PlayerInfoPacket packet)
         {
             _packetCount++;
             Debug.Log($"[PacketHandler] Handling PlayerInfoPacket for BotId: {packet.BotId}, PlayerId: {packet.PlayerId}, Name: {packet.Nickname}");
-            RobotManager.Instance.LocalPlayerBotId = packet.BotId;
+            var rm = RobotManager.Instance;
+            if (rm != null)
+            {
+                rm.LocalPlayerBotId = packet.BotId;
+            }
             PlayerStatsModel.Instance.SetNickname(packet.Nickname);
 
             var playerObj = GameObject.FindGameObjectWithTag("Player");
@@ -330,25 +349,29 @@ namespace Fodinae.Assets.Scripts.Networking
         {
             _packetCount++;
             Debug.Log($"[PacketHandler] Handling MovementSpeedPacket with {packet.CooldownMap.Count} entries");
-            MapManager.Instance.UpdateMovementSpeeds(packet);
+            MapManager.Instance?.UpdateMovementSpeeds(packet);
         }
 
         private void HandleRobotPositionPacket(RobotPositionPacket robotPositionPacket)
         {
             _packetCount++;
-            //Debug.Log($"[PacketHandler] Processing RobotPositionPacket for BotId: {robotPositionPacket.BotId}");
-            RobotManager.Instance.UpdateRobotPosition(robotPositionPacket.BotId, robotPositionPacket.X, robotPositionPacket.Y, robotPositionPacket.Rotation);
-
-            // If this is the local player, update the server position in the movement controller
-            if (robotPositionPacket.BotId != 0 && robotPositionPacket.BotId == RobotManager.Instance.LocalPlayerBotId)
+            Debug.Log($"[PacketHandler] Processing RobotPositionPacket for BotId: {robotPositionPacket.BotId}");
+            var rm = RobotManager.Instance;
+            if (rm != null)
             {
-                var player = GameObject.FindGameObjectWithTag("Player");
-                if (player != null)
+                rm.UpdateRobotPosition(robotPositionPacket.BotId, robotPositionPacket.X, robotPositionPacket.Y, robotPositionPacket.Rotation);
+
+                // If this is the local player, update the server position in the movement controller
+                if (robotPositionPacket.BotId != 0 && robotPositionPacket.BotId == rm.LocalPlayerBotId)
                 {
-                    var controller = player.GetComponent<PlayerMovementController>();
-                    if (controller != null)
+                    var player = GameObject.FindGameObjectWithTag("Player");
+                    if (player != null)
                     {
-                        controller.UpdateServerPosition(new Vector2Int(robotPositionPacket.X, robotPositionPacket.Y));
+                        var controller = player.GetComponent<PlayerMovementController>();
+                        if (controller != null)
+                        {
+                            controller.UpdateServerPosition(new Vector2Int(robotPositionPacket.X, robotPositionPacket.Y));
+                        }
                     }
                 }
             }
@@ -358,11 +381,11 @@ namespace Fodinae.Assets.Scripts.Networking
         {
             _packetCount++;
             _mapRegionPacketsReceived++;
-            //Debug.Log($"[PacketHandler] Processing MapRegionPacket #{_mapRegionPacketsReceived}: X={mapRegionPacket.X}, Y={mapRegionPacket.Y}, Size={mapRegionPacket.Width+1}x{mapRegionPacket.Height+1}");
+            Debug.Log($"[PacketHandler] Processing MapRegionPacket #{_mapRegionPacketsReceived}: X={mapRegionPacket.X}, Y={mapRegionPacket.Y}, Size={mapRegionPacket.Width + 1}x{mapRegionPacket.Height + 1}");
 
-            if (MapStorage.Instance == null || MapStorage.Instance.cellLayer == null)
+            if (MapStorage.Instance == null || MapStorage.Instance.CellLayer == null)
             {
-                Debug.LogError("[PacketHandler] MapStorage or cellLayer not available for MapRegion processing");
+                Debug.LogError("[PacketHandler] MapStorage or CellLayer not available for MapRegion processing");
                 return;
             }
 
@@ -397,27 +420,31 @@ namespace Fodinae.Assets.Scripts.Networking
         {
             _packetCount++;
             Debug.Log($"[PacketHandler] Processing PackPacket: X={packPacket.X}, Y={packPacket.Y}, Type={packPacket.PackCode}");
-            PackManager.Instance.AddOrUpdatePack(packPacket.X, packPacket.Y, packPacket.PackCode, packPacket.Variant, packPacket.LinkedClan);
+            PackManager.Instance?.AddOrUpdatePack(packPacket.X, packPacket.Y, packPacket.PackCode, packPacket.Variant, packPacket.LinkedClan);
         }
 
         private void HandleRemovePackPacket(RemovePackPacket removePackPacket)
         {
             _packetCount++;
             Debug.Log($"[PacketHandler] Processing RemovePackPacket: X={removePackPacket.X}, Y={removePackPacket.Y}");
-            PackManager.Instance.RemovePack(removePackPacket.X, removePackPacket.Y);
+            PackManager.Instance?.RemovePack(removePackPacket.X, removePackPacket.Y);
         }
 
         private void HandleHBPacket(HBPacket hbPacket)
         {
             _packetCount++;
-            if (hbPacket.Payload == null) return;
+            if (hbPacket.Payload == null)
+            {
+                return;
+            }
+
             bool hasMapData = hbPacket.Payload.Any(p => p is MapRegionPacket);
 
             // Only trigger world data loaded event if we received at least one MapRegion packet in this heartbeat
             if (hasMapData)
             {
-                //Debug.Log("[PacketHandler] Map data received in HBPacket, triggering OnWorldDataLoaded event");
-                MapManager.Instance.OnWorldDataLoaded?.Invoke();
+                Debug.Log("[PacketHandler] Map data received in HBPacket, triggering OnWorldDataLoaded event");
+                MapManager.Instance?.OnWorldDataLoaded?.Invoke();
             }
         }
 
@@ -549,11 +576,6 @@ namespace Fodinae.Assets.Scripts.Networking
         private void OnWorldDataLoaded()
         {
             //Debug.Log("[PacketHandler] World data loaded event received from MapManager");
-        }
-
-        public string GetStatistics()
-        {
-            return $"[PacketHandler Stats] Total: {_packetCount}, WorldInit: {_worldInitPacketsReceived}, MapRegion: {_mapRegionPacketsReceived}, Initialized: {_isInitialized}";
         }
     }
 }

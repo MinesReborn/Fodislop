@@ -1,7 +1,7 @@
 using MinesServer.Networking.Server.Packets.World;
 using UnityEngine;
 
-namespace Fodinae.Assets.Scripts.UI
+namespace Fodinae.Scripts.UI
 {
     public class FloatingChatManager : MonoBehaviour
     {

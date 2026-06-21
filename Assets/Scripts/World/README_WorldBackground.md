@@ -4,13 +4,13 @@ This system renders the world as a flat 2D mesh that appears as the background l
 
 ## Overview
 
-The World Background Renderer automatically connects to the `MapStorage.Instance.cellLayer` and renders the world data as a background layer behind all other game objects. It uses the existing texture atlas system and integrates seamlessly with the dummy connection's world data.
+The World Background Renderer automatically connects to the `MapStorage.Instance.CellLayer` and renders the world data as a background layer behind all other game objects. It uses the existing texture atlas system and integrates seamlessly with the dummy connection's world data.
 
 ## Components
 
 ### 1. WorldBackgroundRenderer
 - Main component that handles mesh generation and rendering
-- Automatically connects to `MapStorage.Instance.cellLayer`
+- Automatically connects to `MapStorage.Instance.CellLayer`
 - Generates flat 2D quads for each cell type
 - Uses the existing texture atlas system for rendering
 - Supports chunk-based rendering for performance
@@ -69,7 +69,7 @@ backgroundRenderer.GetComponent<Transform>().position = new Vector3(0, 0, -10);
 ## Integration
 
 The system automatically integrates with:
-- `MapStorage.Instance.cellLayer` - for world data
+- `MapStorage.Instance.CellLayer` - for world data
 - `WorldTextureManager.Instance` - for texture loading
 - `ConnectionManager.Instance` - for network data flow
 - Existing texture atlas system
@@ -77,7 +77,7 @@ The system automatically integrates with:
 ## Troubleshooting
 
 ### World Not Appearing
-1. Check that `MapStorage.Instance.cellLayer` is initialized
+1. Check that `MapStorage.Instance.CellLayer` is initialized
 2. Verify that the dummy connection is sending `MapRegionPacket` data
 3. Ensure the background renderer has proper sorting order (-1000)
 4. Check that the Z position is behind other objects (-10f)

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
-namespace Fodinae.Assets.Scripts.Networking.Connection.Client
+namespace Fodinae.Scripts.Networking.Connection.Client
 {
     /// <summary>
     /// Manages texture loading from local storage with fallback to random generation.
@@ -16,18 +16,27 @@ namespace Fodinae.Assets.Scripts.Networking.Connection.Client
     public class TextureStorageManager : MonoBehaviour
     {
         private static TextureStorageManager _instance;
+        private static bool _isQuitting = false;
         public static TextureStorageManager Instance
         {
             get
             {
+                if (_isQuitting) return null;
                 if (_instance == null)
                 {
-                    _instance = FindObjectOfType<TextureStorageManager>();
-                    if (_instance == null)
+                    _instance = FindFirstObjectByType<TextureStorageManager>();
+                    if (_instance == null && !_isQuitting)
                     {
                         var go = new GameObject("[TextureStorageManager]");
                         _instance = go.AddComponent<TextureStorageManager>();
-                        DontDestroyOnLoad(go);
+
+                        // System Grouping
+                        if (Application.isPlaying)
+                        {
+                            var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+                            UnityEngine.Object.DontDestroyOnLoad(parent);
+                            go.transform.SetParent(parent.transform);
+                        }
                     }
                 }
                 return _instance;
@@ -41,6 +50,7 @@ namespace Fodinae.Assets.Scripts.Networking.Connection.Client
         [SerializeField] private int _fallbackTextureSize = 32;
 
         private readonly ConcurrentDictionary<string, byte[]> _textureCache = new();
+        private readonly ConcurrentDictionary<string, string> _resolvedPathsCache = new();
         private string _textureFolderPath = string.Empty;
         private bool _folderInitialized = false;
 
@@ -52,7 +62,22 @@ namespace Fodinae.Assets.Scripts.Networking.Connection.Client
                 return;
             }
             _instance = this;
-            DontDestroyOnLoad(gameObject);
+            if (Application.isPlaying)
+            {
+                DontDestroyOnLoad(gameObject);
+
+                // Ensure parented if created in scene
+                var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+                UnityEngine.Object.DontDestroyOnLoad(parent);
+                transform.SetParent(parent.transform);
+            }
+
+            _isQuitting = false;
+        }
+
+        private void OnApplicationQuit()
+        {
+            _isQuitting = true;
         }
 
         /// <summary>
@@ -82,15 +107,15 @@ namespace Fodinae.Assets.Scripts.Networking.Connection.Client
 
             // Try to load from local storage
             var textureData = await LoadTextureFromStorage(normalizedFilename);
-            
+
             if (textureData != null)
             {
                 // Cache the loaded texture
                 _textureCache.TryAdd(normalizedFilename, textureData);
-                
+
                 if (_enableDebugLogging)
                     Debug.Log($"[TextureStorageManager] Loaded texture from storage: {normalizedFilename}");
-                
+
                 return textureData;
             }
 
@@ -129,33 +154,39 @@ namespace Fodinae.Assets.Scripts.Networking.Connection.Client
                     return null;
                 }
 
-                var fullPath = Path.Combine(_textureFolderPath, filename);
-                
-                // Fuzzy search for the file if it doesn't have an extension or file not found
-                if (!File.Exists(fullPath))
+                if (!_resolvedPathsCache.TryGetValue(filename, out var fullPath))
                 {
-                    string directory = Path.GetDirectoryName(fullPath);
-                    string filenameWithoutExtension = Path.GetFileNameWithoutExtension(fullPath);
+                    fullPath = Path.Combine(_textureFolderPath, filename);
 
-                    if (Directory.Exists(directory))
+                    // Fuzzy search for the file if it doesn't have an extension or file not found
+                    if (!File.Exists(fullPath))
                     {
-                        var files = Directory.GetFiles(directory, filenameWithoutExtension + ".*")
-                            .Where(f => !f.EndsWith(".meta", StringComparison.OrdinalIgnoreCase))
-                            .OrderBy(f => {
-                                string ext = Path.GetExtension(f).ToLower();
-                                if (ext == ".webp") return 0;
-                                if (ext == ".gif") return 1;
-                                if (ext == ".png") return 2;
-                                return 3;
-                            }).ToArray();
+                        string directory = Path.GetDirectoryName(fullPath);
+                        string filenameWithoutExtension = Path.GetFileNameWithoutExtension(fullPath);
 
-                        if (files.Length > 0)
+                        if (Directory.Exists(directory))
                         {
-                            fullPath = files[0];
-                            if (_enableDebugLogging)
-                                Debug.Log($"[TextureStorageManager] Fuzzy matched {filename} to {fullPath}");
+                            var files = Directory.GetFiles(directory, filenameWithoutExtension + ".*")
+                                .Where(f => !f.EndsWith(".meta", StringComparison.OrdinalIgnoreCase))
+                                .OrderBy(f =>
+                                {
+                                    string ext = Path.GetExtension(f).ToLower();
+                                    if (ext == ".webp") return 0;
+                                    if (ext == ".gif") return 1;
+                                    if (ext == ".png") return 2;
+                                    return 3;
+                                }).ToArray();
+
+                            if (files.Length > 0)
+                            {
+                                fullPath = files[0];
+                                if (_enableDebugLogging)
+                                    Debug.Log($"[TextureStorageManager] Fuzzy matched {filename} to {fullPath}");
+                            }
                         }
                     }
+
+                    _resolvedPathsCache.TryAdd(filename, fullPath);
                 }
 
                 if (!File.Exists(fullPath))
@@ -169,7 +200,7 @@ namespace Fodinae.Assets.Scripts.Networking.Connection.Client
                 using var fileStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true);
                 var buffer = new byte[fileStream.Length];
                 await fileStream.ReadAsync(buffer, 0, buffer.Length);
-                
+
                 return buffer;
             }
             catch (Exception ex)
@@ -188,20 +219,20 @@ namespace Fodinae.Assets.Scripts.Networking.Connection.Client
             try
             {
                 var texture = new Texture2D(_fallbackTextureSize, _fallbackTextureSize);
-                
+
                 // Generate random colors
                 var colors = new Color[_fallbackTextureSize * _fallbackTextureSize];
                 for (int i = 0; i < colors.Length; i++)
                 {
                     colors[i] = new Color(UnityEngine.Random.value, UnityEngine.Random.value, UnityEngine.Random.value);
                 }
-                
+
                 texture.SetPixels(colors);
                 texture.Apply();
-                
+
                 var pngData = ImageConversion.EncodeToPNG(texture);
                 UnityEngine.Object.Destroy(texture);
-                
+
                 return pngData;
             }
             catch (Exception ex)
@@ -277,6 +308,7 @@ namespace Fodinae.Assets.Scripts.Networking.Connection.Client
         public void ClearCache()
         {
             _textureCache.Clear();
+            _resolvedPathsCache.Clear();
             if (_enableDebugLogging)
                 Debug.Log("[TextureStorageManager] Texture cache cleared");
         }
@@ -313,7 +345,7 @@ namespace Fodinae.Assets.Scripts.Networking.Connection.Client
 
             var normalizedFilename = filename.StartsWith("/") ? filename.Substring(1) : filename;
             var fullPath = Path.Combine(_textureFolderPath, normalizedFilename);
-            
+
             return File.Exists(fullPath);
         }
 

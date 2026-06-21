@@ -1,10 +1,10 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-using Fodinae.Assets.Scripts.Game.Managers;
-using Fodinae.Assets.Scripts.Player;
-using Fodinae.Assets.Scripts.World;
+using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.Player;
+using Fodinae.Scripts.World;
 
-namespace Fodinae.Assets.Scripts.UI
+namespace Fodinae.Scripts.UI
 {
     public class WorldMapController : MonoBehaviour
     {

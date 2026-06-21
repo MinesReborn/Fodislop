@@ -1,7 +1,7 @@
-using Fodinae.Assets.Scripts.UI;
+using Fodinae.Scripts.UI;
 using UnityEngine;
 
-namespace Fodinae.Assets.Scripts.World
+namespace Fodinae.Scripts.World
 {
     /// <summary>
     /// Scene setup manager that ensures the world background renderer is properly configured.
@@ -13,15 +13,35 @@ namespace Fodinae.Assets.Scripts.World
         private static SceneSetup _instance;
         private WorldBackgroundSetup _backgroundSetup;
 
-        void Awake()
+        /// <summary>
+        /// Get the background setup instance
+        /// </summary>
+        public static WorldBackgroundSetup GetBackgroundSetup()
+        {
+            return _instance?._backgroundSetup;
+        }
+
+        /// <summary>
+        /// Get the background renderer instance
+        /// </summary>
+        public static SingleMeshTerrainRenderer GetBackgroundRenderer()
+        {
+            return _instance?._backgroundSetup?.GetBackgroundRenderer();
+        }
+
+        private void Awake()
         {
             if (_instance != null && _instance != this)
             {
                 Destroy(gameObject);
                 return;
             }
+
             _instance = this;
-            DontDestroyOnLoad(gameObject);
+            if (Application.isPlaying)
+            {
+                DontDestroyOnLoad(gameObject);
+            }
 
             SetupWorldBackground();
             SetupSurfaceRenderer();
@@ -50,37 +70,25 @@ namespace Fodinae.Assets.Scripts.World
         private void SetupWorldBackground()
         {
             // Find or create the background setup component
-            _backgroundSetup = FindObjectOfType<WorldBackgroundSetup>();
-            
+            _backgroundSetup = FindFirstObjectByType<WorldBackgroundSetup>();
+
             if (_backgroundSetup == null)
             {
                 // Create a new GameObject for background setup
                 var setupGO = new GameObject("WorldBackgroundSetup");
                 _backgroundSetup = setupGO.AddComponent<WorldBackgroundSetup>();
-                DontDestroyOnLoad(setupGO);
-                
+
+                if (Application.isPlaying)
+                {
+                    DontDestroyOnLoad(setupGO);
+                }
+
                 Debug.Log("WorldBackgroundSetup automatically created");
             }
             else
             {
                 Debug.Log("WorldBackgroundSetup already exists in scene");
             }
-        }
-
-        /// <summary>
-        /// Get the background setup instance
-        /// </summary>
-        public static WorldBackgroundSetup GetBackgroundSetup()
-        {
-            return _instance?._backgroundSetup;
-        }
-
-        /// <summary>
-        /// Get the background renderer instance
-        /// </summary>
-        public static SingleMeshTerrainRenderer GetBackgroundRenderer()
-        {
-            return _instance?._backgroundSetup?.GetBackgroundRenderer();
         }
     }
 }

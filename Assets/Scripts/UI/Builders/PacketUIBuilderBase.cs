@@ -1,8 +1,9 @@
+using Fodinae.Scripts;
 using MinesServer.Networking.Server.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Builders
+namespace Fodinae.Scripts.UI.Builders
 {
     public abstract class PacketUIBuilderBase
     {

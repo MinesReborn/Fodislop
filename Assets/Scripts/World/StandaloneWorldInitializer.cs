@@ -1,41 +1,100 @@
 using System;
-using UnityEngine;
-using Fodinae.Assets.Scripts.Game.Managers;
+using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.Networking.Connection;
 using MinesServer.Networking.Server.Packets.Connection;
+using UnityEngine;
 
-namespace Fodinae.Assets.Scripts.World
+namespace Fodinae.Scripts.World
 {
     /// <summary>
     /// Handles standalone world initialization when no server connection is available
     /// Automatically creates a test world to enable terrain rendering in standalone mode
     /// </summary>
     [RequireComponent(typeof(MapManager))]
+    [ExecuteAlways]
     public class StandaloneWorldInitializer : MonoBehaviour
     {
         [Header("Standalone Configuration")]
         [Tooltip("Enable automatic standalone world creation")]
-        [SerializeField] private bool _enableStandaloneMode = true;
+        [SerializeField]
+        private bool _enableStandaloneMode = true;
 
         [Tooltip("Test world dimensions")]
-        [SerializeField] private int _testWorldWidth = 128;
-        [SerializeField] private int _testWorldHeight = 128; [Tooltip("Test world name")]
-        [SerializeField] private string _testWorldName = "Standalone_Test_World";
+        [SerializeField]
+        private int _testWorldWidth = 128;
+
+        [SerializeField]
+        private int _testWorldHeight = 128;
+
+        [Tooltip("Test world name")]
+        [SerializeField]
+        private string _testWorldName = "Standalone_Test_World";
 
         [Tooltip("Check interval for initialization timeout")]
-        [SerializeField] private float _checkInterval = 2.0f;
+        [SerializeField]
+        private float _checkInterval = 2.0f;
 
         [Header("Debug Settings")]
         [Tooltip("Enable detailed logging")]
-        [SerializeField] private bool _enableDebugLogging = true;
+        [SerializeField]
+        private bool _enableDebugLogging = true;
 
         private MapManager _mapManager;
         private float _lastCheckTime = 0f;
         private bool _initializationAttempted = false;
         private bool _isInitialized = false;
 
-        void Awake()
+        /// <summary>
+        /// Force standalone initialization (for debugging)
+        /// </summary>
+        public void ForceStandaloneInitialization()
         {
-            if (!_enableStandaloneMode) return;
+            Debug.Log("[StandaloneWorldInitializer] Force standalone initialization triggered");
+            _initializationAttempted = false;
+            _isInitialized = false;
+            _lastCheckTime = 0f;
+            enabled = true;
+            CancelInvoke(nameof(CheckInitializationTimeout));
+            Invoke(nameof(CheckInitializationTimeout), 0.1f);
+        }
+
+        /// <summary>
+        /// Get current initialization status
+        /// </summary>
+        public string GetInitializationStatus()
+        {
+            if (!_enableStandaloneMode)
+            {
+                return "Standalone mode disabled";
+            }
+
+            if (_isInitialized)
+            {
+                return "Initialized successfully";
+            }
+
+            if (_initializationAttempted)
+            {
+                return "Initialization attempted";
+            }
+
+            return "Waiting for timeout";
+        }
+
+        /// <summary>
+        /// Check if standalone initialization is enabled and ready
+        /// </summary>
+        public bool IsReady()
+        {
+            return _enableStandaloneMode && (_isInitialized || (MapStorage.Instance?.IsReady == true));
+        }
+
+        private void Awake()
+        {
+            if (!_enableStandaloneMode)
+            {
+                return;
+            }
 
             _mapManager = GetComponent<MapManager>();
             if (_mapManager == null)
@@ -45,51 +104,97 @@ namespace Fodinae.Assets.Scripts.World
                 return;
             }
 
-            Debug.Log($"[StandaloneWorldInitializer] Initialized with test world: {_testWorldName} ({_testWorldWidth}x{_testWorldHeight})");
+            if (Application.isPlaying)
+            {
+                Debug.Log($"[StandaloneWorldInitializer] Initialized with test world: {_testWorldName} ({_testWorldWidth}x{_testWorldHeight})");
+            }
         }
 
-        void Update()
+        private void Start()
         {
-            if (!_enableStandaloneMode || _isInitialized || !_initializationAttempted) return;
+            if (!_enableStandaloneMode)
+            {
+                return;
+            }
+
+            if (!Application.isPlaying)
+            {
+                AttemptStandaloneInitialization();
+                return;
+            }
+
+            // For Play mode, trigger faster standalone check if we are disconnected
+            var cm = ConnectionManager.InstanceIfExists;
+            if (cm == null || cm.Connection == null ||
+                cm.Connection.ConnectionStatus != MinesServer.Networking.Shared.ConnectionStatus.Connected)
+            {
+                if (_enableDebugLogging)
+                {
+                    Debug.Log("[StandaloneWorldInitializer] Offline detected on Start, scheduling immediate standalone init");
+                }
+
+                Invoke(nameof(AttemptStandaloneInitialization), 0.5f);
+            }
+        }
+
+        private void Update()
+        {
+            if (!_enableStandaloneMode || _isInitialized || !_initializationAttempted)
+            {
+                return;
+            }
 
             // Check if MapStorage is ready after our initialization attempt
             if (MapStorage.Instance != null && MapStorage.Instance.IsReady)
             {
                 _isInitialized = true;
-                Debug.Log("[StandaloneWorldInitializer] Standalone world initialization successful!");
+                if (Application.isPlaying)
+                {
+                    Debug.Log("[StandaloneWorldInitializer] Standalone world initialization successful!");
 
-                // Trigger MapManager events to notify other systems
-                _mapManager.OnWorldInitialized?.Invoke();
-                _mapManager.OnWorldDataLoaded?.Invoke();
+                    // Trigger MapManager events to notify other systems
+                    _mapManager.OnWorldInitialized?.Invoke();
+                    _mapManager.OnWorldDataLoaded?.Invoke();
+                }
 
                 enabled = false; // Disable further checks
             }
         }
 
-        void OnEnable()
+        private void OnEnable()
         {
-            if (!_enableStandaloneMode) return;
+            if (!_enableStandaloneMode)
+            {
+                return;
+            }
 
-            // Start the initialization check process
-            InvokeRepeating(nameof(CheckInitializationTimeout), _checkInterval, _checkInterval);
+            if (Application.isPlaying)
+            {
+                // Start the initialization check process
+                InvokeRepeating(nameof(CheckInitializationTimeout), _checkInterval, _checkInterval);
+            }
         }
 
-        void OnDisable()
+        private void OnDisable()
         {
             CancelInvoke(nameof(CheckInitializationTimeout));
         }
 
         private void CheckInitializationTimeout()
         {
-            if (_initializationAttempted || _isInitialized) return;
+            if (!Application.isPlaying || _initializationAttempted || _isInitialized)
+            {
+                return;
+            }
 
             // Check if MapManager has been initialized by server packets
-            if (_mapManager._isWorldInitialized)
+            if (_mapManager.IsWorldInitialized)
             {
                 if (_enableDebugLogging)
                 {
                     Debug.Log("[StandaloneWorldInitializer] World already initialized by server, skipping standalone mode");
                 }
+
                 _isInitialized = true;
                 enabled = false;
                 return;
@@ -110,6 +215,7 @@ namespace Fodinae.Assets.Scripts.World
                 {
                     Debug.LogWarning("[StandaloneWorldInitializer] Initialization already attempted, skipping");
                 }
+
                 return;
             }
 
@@ -210,39 +316,6 @@ namespace Fodinae.Assets.Scripts.World
         }
 
         /// <summary>
-        /// Force standalone initialization (for debugging)
-        /// </summary>
-        public void ForceStandaloneInitialization()
-        {
-            Debug.Log("[StandaloneWorldInitializer] Force standalone initialization triggered");
-            _initializationAttempted = false;
-            _isInitialized = false;
-            _lastCheckTime = 0f;
-            enabled = true;
-            CancelInvoke(nameof(CheckInitializationTimeout));
-            Invoke(nameof(CheckInitializationTimeout), 0.1f);
-        }
-
-        /// <summary>
-        /// Get current initialization status
-        /// </summary>
-        public string GetInitializationStatus()
-        {
-            if (!_enableStandaloneMode) return "Standalone mode disabled";
-            if (_isInitialized) return "Initialized successfully";
-            if (_initializationAttempted) return "Initialization attempted";
-            return "Waiting for timeout";
-        }
-
-        /// <summary>
-        /// Check if standalone initialization is enabled and ready
-        /// </summary>
-        public bool IsReady()
-        {
-            return _enableStandaloneMode && (_isInitialized || MapStorage.Instance?.IsReady == true);
-        }
-
-        /// <summary>
         /// Trigger OnWorldDataLoaded event to notify terrain renderer
         /// This is CRITICAL for terrain rendering to start
         /// </summary>
@@ -269,7 +342,7 @@ namespace Fodinae.Assets.Scripts.World
             Debug.Log("StandaloneWorldInitializer: World data loaded, notifying renderer");
 
             // Notify renderer that world is ready
-            var renderer = FindObjectOfType<SingleMeshTerrainRenderer>();
+            var renderer = FindFirstObjectByType<SingleMeshTerrainRenderer>();
             if (renderer != null)
             {
                 Debug.Log("StandaloneWorldInitializer: Notified WorldBackgroundRenderer of world readiness");

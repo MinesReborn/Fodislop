@@ -2,7 +2,7 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using MinesServer.Data;
 
-namespace Fodinae.Assets.Scripts.Effects
+namespace Fodinae.Scripts.Effects
 {
     public class DigEffect : MonoBehaviour
     {

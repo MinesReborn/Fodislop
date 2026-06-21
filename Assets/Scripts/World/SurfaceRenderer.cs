@@ -1,9 +1,9 @@
 using System;
 using Cysharp.Threading.Tasks;
-using Fodinae.Assets.Scripts.Game.Managers;
+using Fodinae.Scripts.Game.Managers;
 using UnityEngine;
 
-namespace Fodinae.Assets.Scripts.World
+namespace Fodinae.Scripts.World
 {
     public class SurfaceRenderer : MonoBehaviour
     {

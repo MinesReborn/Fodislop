@@ -1,56 +1,56 @@
-using UnityEngine;
 using System.Collections.Generic;
+using Fodinae.Scripts.Game;
 using MinesServer.Data;
-using Fodinae.Assets.Scripts.Game;
+using UnityEngine;
 
-namespace Fodinae.Assets.Scripts.Game.Managers
+namespace Fodinae.Scripts.Game.Managers
 {
     public class PackManager : MonoBehaviour
     {
         private static PackManager _instance;
+        private static bool _isQuitting = false;
+
+        private Dictionary<Vector2Int, Pack> _packs = new();
+
+        public static PackManager InstanceIfExists => _instance;
+
         public static PackManager Instance
         {
             get
             {
+                if (_isQuitting)
+                {
+                    return null;
+                }
+
                 if (_instance == null)
                 {
-                    _instance = FindObjectOfType<PackManager>();
-                    if (_instance == null)
+                    _instance = FindFirstObjectByType<PackManager>();
+                    if (_instance == null && !_isQuitting)
                     {
                         var go = new GameObject("[PackManager]");
                         _instance = go.AddComponent<PackManager>();
+
+                        // System Grouping
+                        if (Application.isPlaying)
+                        {
+                            var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+                            UnityEngine.Object.DontDestroyOnLoad(parent);
+                            go.transform.SetParent(parent.transform);
+                        }
                     }
                 }
+
                 return _instance;
             }
         }
 
-        private Dictionary<Vector2Int, Pack> _packs = new();
-
-        private void Awake()
-        {
-            if (_instance != null && _instance != this)
-            {
-                Destroy(gameObject);
-                return;
-            }
-            _instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-
-        private void Start()
-        {
-            // Subscribe to WorldInitialized is problematic because it might trigger after packets are processed.
-            // However, MapManager.LoadWorldInit calls MapStorage.InitWorld which is the best time to clear packs.
-        }
-
-        private void OnDestroy()
-        {
-        }
-
         public void AddOrUpdatePack(ushort x, ushort y, PackType packType, byte variant, byte linkedClan)
         {
-            if (MapManager.Instance == null) return;
+            if (MapManager.Instance == null)
+            {
+                return;
+            }
 
             var pos = new Vector2Int(x, y);
             if (_packs.TryGetValue(pos, out var pack))
@@ -86,9 +86,50 @@ namespace Fodinae.Assets.Scripts.Game.Managers
         {
             foreach (var pack in _packs.Values)
             {
-                if (pack != null) Destroy(pack.gameObject);
+                if (pack != null)
+                {
+                    Destroy(pack.gameObject);
+                }
             }
+
             _packs.Clear();
+        }
+
+        protected virtual void Awake()
+        {
+            if (_instance != null && _instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
+            _instance = this;
+            if (Application.isPlaying)
+            {
+                DontDestroyOnLoad(gameObject);
+
+                // Ensure parented if created in scene
+                var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+                UnityEngine.Object.DontDestroyOnLoad(parent);
+                transform.SetParent(parent.transform);
+            }
+
+            _isQuitting = false;
+        }
+
+        protected virtual void Start()
+        {
+            // Subscribe to WorldInitialized is problematic because it might trigger after packets are processed.
+            // However, MapManager.LoadWorldInit calls MapStorage.InitWorld which is the best time to clear packs.
+        }
+
+        protected virtual void OnDestroy()
+        {
+        }
+
+        protected virtual void OnApplicationQuit()
+        {
+            _isQuitting = true;
         }
     }
 }

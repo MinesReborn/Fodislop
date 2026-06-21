@@ -1,7 +1,7 @@
-using Fodinae.Assets.Scripts.Player;
+using Fodinae.Scripts.Player;
 using UnityEngine;
 
-namespace Fodinae.Assets.Scripts.UI
+namespace Fodinae.Scripts.UI
 {
     public static class ChatInput
     {

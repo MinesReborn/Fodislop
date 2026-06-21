@@ -23,6 +23,50 @@ csharp_indent_case_contents = true
 csharp_space_after_cast = false
 csharp_prefer_braces = true
 
+# ── Линтер: StyleCop (SA) ──────────────────────────────────────────────────
+dotnet_diagnostic.SA1633.severity = none   # Нет file header
+dotnet_diagnostic.SA1101.severity = none   # Не требуем this. prefix
+dotnet_diagnostic.SA1200.severity = none   # using вне namespace — ок
+dotnet_diagnostic.SA1309.severity = none   # _underscore поля разрешены
+dotnet_diagnostic.SA1512.severity = none   # Одиночный комментарий разрешён
+dotnet_diagnostic.SA1516.severity = none   # Пустые строки между элементами — не обязательны
+dotnet_diagnostic.SA1600.severity = none   # XML-доки не обязательны
+dotnet_diagnostic.SA1601.severity = none   # XML-доки на partial — не обязательны
+dotnet_diagnostic.SA1602.severity = none   # XML-доки на enum — не обязательны
+dotnet_diagnostic.SA1604.severity = none
+dotnet_diagnostic.SA1611.severity = none
+dotnet_diagnostic.SA1615.severity = none
+dotnet_diagnostic.SA1618.severity = none
+dotnet_diagnostic.SA1623.severity = none
+dotnet_diagnostic.SA1642.severity = none
+dotnet_diagnostic.SA1643.severity = none
+
+# ── Линтер: NetAnalyzers (CA) ─────────────────────────────────────────────
+dotnet_diagnostic.CA1062.severity = none   # Unity объекты — null уже гарантирует движок
+dotnet_diagnostic.CA1303.severity = none   # Не локализуем строки
+dotnet_diagnostic.CA1304.severity = none
+dotnet_diagnostic.CA1305.severity = none
+dotnet_diagnostic.CA1307.severity = none
+dotnet_diagnostic.CA1310.severity = none
+dotnet_diagnostic.CA2007.severity = none   # ConfigureAwait — UniTask не требует
+dotnet_diagnostic.CA1031.severity = warning  # Не глотать все исключения
+dotnet_diagnostic.CA1051.severity = warning  # Не публичные поля
+dotnet_diagnostic.CA1822.severity = warning  # Метод может быть static
+
+# ── Линтер: Roslynator (RCS) ─────────────────────────────────────────────
+dotnet_diagnostic.RCS1036.severity = warning  # Лишние пустые строки
+dotnet_diagnostic.RCS1037.severity = warning  # Trailing whitespace в комментарии
+dotnet_diagnostic.RCS1118.severity = warning  # Неиспользуемый параметр
+dotnet_diagnostic.RCS1138.severity = none     # XML-доки — не обязательны
+dotnet_diagnostic.RCS1139.severity = none
+
+# ── Линтер: Unity Analyzers (UNT) ────────────────────────────────────────
+dotnet_diagnostic.UNT0001.severity = warning  # Пустой Update()
+dotnet_diagnostic.UNT0006.severity = warning  # Некорректная сигнатура Message
+dotnet_diagnostic.UNT0013.severity = warning  # Невалидный атрибут
+dotnet_diagnostic.UNT0016.severity = warning  # Unsafe Invoke
+dotnet_diagnostic.UNT0021.severity = warning  # Implicit string comparison
+
 # Шейдеры
 [*.{shader,hlsl,cginc,compute}]
 indent_size = 4

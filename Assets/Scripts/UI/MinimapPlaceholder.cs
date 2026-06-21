@@ -1,23 +1,23 @@
-using UnityEngine;
-using UnityEngine.UI;
-using Fodinae.Assets.Scripts.World;
-using Fodinae.Assets.Scripts.Game.Managers;
-using Fodinae.Assets.Scripts.Player;
-using MinesServer.Data;
 using System.Collections;
 using System.Collections.Generic;
+using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.Player;
+using Fodinae.Scripts.World;
+using MinesServer.Data;
+using UnityEngine;
+using UnityEngine.UI;
 
-namespace Fodinae.Assets.Scripts.UI
+namespace Fodinae.Scripts.UI
 {
     public class MinimapPlaceholder : MonoBehaviour
     {
-        private Text coordinatesText;
+        private Text _coordinatesText;
         private Texture2D _minimapTexture;
         private RawImage _minimapImage;
         private bool _minimapReady = false;
-        private const int MINIMAP_WIDTH = 128;
-        private const int MINIMAP_HEIGHT = 128;
-        private const int TEXTURE_SIZE = 128;
+        private const int MINIMAP_WIDTH = GameConstants.UI.MINIMAP_WIDTH;
+        private const int MINIMAP_HEIGHT = GameConstants.UI.MINIMAP_HEIGHT;
+        private const int TEXTURE_SIZE = GameConstants.UI.MINIMAP_WIDTH;
         private PlayerMovementController _player;
         private Dictionary<CellType, Color32> _cachedColors = new Dictionary<CellType, Color32>();
         private Color32[] _pixelColors;
@@ -31,7 +31,7 @@ namespace Fodinae.Assets.Scripts.UI
         // ███████████████ ОПТИМИЗАЦИЯ ДЛЯ УСТРАНЕНИЯ РЫВКОВ ███████████████
         private Vector2Int _lastUpdatePos = new Vector2Int(int.MinValue, int.MinValue);
         private float _lastUpdateTime;
-        private const float UPDATE_DELAY = 0.033f; // 30 FPS для миникарты (незаметно для глаз)
+        private const float UPDATE_DELAY = GameConstants.UI.MINIMAP_UPDATE_DELAY; // 30 FPS для миникарты (незаметно для глаз)
         private bool _updateScheduled = false;
 
         void Start()
@@ -41,10 +41,10 @@ namespace Fodinae.Assets.Scripts.UI
 
         private IEnumerator InitializeMinimap()
         {
-            yield return new WaitUntil(() => MapManager.Instance != null && MapManager.Instance._isWorldInitialized);
+            yield return new WaitUntil(() => MapManager.Instance != null && MapManager.Instance.IsWorldInitialized);
             yield return new WaitUntil(() => MapStorage.Instance != null && MapStorage.Instance.IsReady);
 
-            _player = FindObjectOfType<PlayerMovementController>();
+            _player = FindFirstObjectByType<PlayerMovementController>();
             if (_player == null)
                 yield break;
             _player.OnPlayerMoved += OnPlayerMoved;
@@ -60,7 +60,7 @@ namespace Fodinae.Assets.Scripts.UI
             _minimapTexture.filterMode = FilterMode.Point;
             _minimapTexture.wrapMode = TextureWrapMode.Clamp;
 
-            Canvas canvas = FindObjectOfType<Canvas>();
+            Canvas canvas = FindFirstObjectByType<Canvas>();
             if (canvas == null)
             {
                 GameObject canvasObj = new GameObject("Canvas");
@@ -119,14 +119,15 @@ namespace Fodinae.Assets.Scripts.UI
                 _lastUpdateTime = Time.time;
                 _lastUpdatePos = targetPos;
             }
+
             _updateScheduled = false;
         }
 
         private void UpdateCoordinatesText(int x, int y)
         {
-            if (coordinatesText != null)
+            if (_coordinatesText != null)
             {
-                coordinatesText.text = $"{x}:{_worldHeight - 1 - y}";
+                _coordinatesText.text = $"{x}:{y}";
             }
         }
 
@@ -140,6 +141,7 @@ namespace Fodinae.Assets.Scripts.UI
                 {
                     color = new Color(0.3f, 0.3f, 0.3f, 1f);
                 }
+
                 _cachedColors[cellType] = (Color32)color;
             }
         }
@@ -165,18 +167,19 @@ namespace Fodinae.Assets.Scripts.UI
             {
                 GameObject textObj = new GameObject("PlayerCoordinates");
                 textObj.transform.SetParent(canvas.transform, false);
-                coordinatesText = textObj.AddComponent<Text>();
-                coordinatesText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-                if (coordinatesText.font == null)
+                _coordinatesText = textObj.AddComponent<Text>();
+                _coordinatesText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                if (_coordinatesText.font == null)
                 {
-                    coordinatesText.font = Font.CreateDynamicFontFromOSFont("Arial", 14);
+                    _coordinatesText.font = Font.CreateDynamicFontFromOSFont("Arial", 14);
                 }
-                coordinatesText.fontSize = 20;
-                coordinatesText.color = Color.white;
-                coordinatesText.alignment = TextAnchor.MiddleCenter;
-                coordinatesText.text = "0:0";
-                coordinatesText.fontStyle = FontStyle.Bold;
-                coordinatesText.raycastTarget = false;
+
+                _coordinatesText.fontSize = 20;
+                _coordinatesText.color = Color.white;
+                _coordinatesText.alignment = TextAnchor.MiddleCenter;
+                _coordinatesText.text = "0:0";
+                _coordinatesText.fontStyle = FontStyle.Bold;
+                _coordinatesText.raycastTarget = false;
                 Shadow shadow = textObj.AddComponent<Shadow>();
                 shadow.effectColor = Color.black;
                 shadow.effectDistance = new Vector2(2, -2);
@@ -194,7 +197,7 @@ namespace Fodinae.Assets.Scripts.UI
                 textRect.anchoredPosition = new Vector2(textX, textY);
                 textRect.sizeDelta = new Vector2(200, 30);
                 textObj.transform.SetAsLastSibling();
-                coordinatesText.enabled = true;
+                _coordinatesText.enabled = true;
                 textObj.SetActive(true);
             }
             catch (System.Exception e)
@@ -208,9 +211,14 @@ namespace Fodinae.Assets.Scripts.UI
         /// </summary>
         private void UpdateMinimapTextureFast(int playerX, int playerY)
         {
-            _cachedMinX = playerX - MINIMAP_WIDTH / 2;
-            _cachedMinY = playerY - MINIMAP_HEIGHT / 2;
-            _boundsCached = true;
+            // Обновляем границы только при значительном смещении
+            if (!_boundsCached || Mathf.Abs(_cachedMinX - (playerX - MINIMAP_WIDTH / 2)) > GameConstants.UI.MINIMAP_THRESHOLD ||
+                Mathf.Abs(_cachedMinY - (playerY - MINIMAP_HEIGHT / 2)) > GameConstants.UI.MINIMAP_THRESHOLD)
+            {
+                _cachedMinX = playerX - MINIMAP_WIDTH / 2;
+                _cachedMinY = playerY - MINIMAP_HEIGHT / 2;
+                _boundsCached = true;
+            }
 
             int minX = _cachedMinX;
             int minY = _cachedMinY;
@@ -235,8 +243,11 @@ namespace Fodinae.Assets.Scripts.UI
                     {
                         pixelColors[index++] = Color.black;
                     }
+
                     continue;
                 }
+
+                serverY = Fodinae.Scripts.Utils.CoordinateUtils.UnityToServerY(worldY, worldHeight);
 
                 for (int texX = 0; texX < textureSize; texX++)
                 {
@@ -271,6 +282,7 @@ namespace Fodinae.Assets.Scripts.UI
                 _minimapTexture.SetPixel(centerX + i, centerY, Color.white);
                 _minimapTexture.SetPixel(centerX, centerY + i, Color.white);
             }
+
             _minimapTexture.SetPixel(centerX, centerY, Color.red);
 
             _minimapTexture.Apply(false);
@@ -282,8 +294,11 @@ namespace Fodinae.Assets.Scripts.UI
             {
                 _player.OnPlayerMoved -= OnPlayerMoved;
             }
+
             if (_minimapTexture != null)
+            {
                 Destroy(_minimapTexture);
+            }
         }
 
         public void ForceRefresh()

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Fodinae.Assets.Scripts.UI
+namespace Fodinae.Scripts.UI
 {
     public class InventoryModel
     {

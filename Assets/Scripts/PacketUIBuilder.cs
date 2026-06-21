@@ -1,69 +1,69 @@
-using Fodinae.UI.Builders;
+using System;
+using Fodinae.Scripts.UI.Builders;
 using MinesServer.Networking.Server.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
-using System;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-public class PacketUIBuilder
+namespace Fodinae.Scripts
 {
-    private readonly PacketUIBuilderFactory _builderFactory = new();
-
-    public VisualElement Build(IGUIComponentPacket packet)
+    public class PacketUIBuilder
     {
-        var builder = _builderFactory.CreateBuilder(packet);
-        VisualElement element;
+        private readonly PacketUIBuilderFactory _builderFactory = new();
 
-        if (builder != null)
+        public VisualElement Build(IGUIComponentPacket packet)
         {
-            element = builder.Build(packet, this);
-        }
-        else
-        {
-            element = new Label($"[Unimplemented: {packet.GetType().Name}]");
-            element.style.backgroundColor = Color.magenta;
-        }
+            var builder = _builderFactory.CreateBuilder(packet);
+            VisualElement element;
 
-        StyleApplicator.ApplyStyles(element, packet);
-        ApplyAttachedProperties(element, packet);
-
-        element.userData = packet;
-
-        // Ensure input elements have their name set for SmartFormat binding
-        if (packet is INamedComponentPacket named && string.IsNullOrEmpty(element.name))
-        {
-            element.name = named.Name;
-        }
-
-        return element;
-    }
-
-    private static void ApplyAttachedProperties(VisualElement element, IGUIComponentPacket packet)
-    {
-        if (packet.AttachedProperties == null || packet.AttachedProperties.Length == 0) return;
-
-        foreach (var prop in packet.AttachedProperties)
-        {
-            if (prop.Key == "Canvas.X" && float.TryParse(prop.Value, out float left))
+            if (builder != null)
             {
-                element.style.position = Position.Absolute;
-                element.style.left = left;
+                element = builder.Build(packet, this);
             }
-            if (prop.Key == "Canvas.Y" && float.TryParse(prop.Value, out float top))
+            else
             {
-                element.style.position = Position.Absolute;
-                element.style.top = top;
+                element = new Label($"[Unimplemented: {packet.GetType().Name}]");
+                element.style.backgroundColor = Color.magenta;
             }
-            if (prop.Key == "Canvas.Width" && float.TryParse(prop.Value, out float width))
+
+            StyleApplicator.ApplyStyles(element, packet);
+            ApplyAttachedProperties(element, packet);
+
+            element.userData = packet;
+
+
+
+            return element;
+        }
+
+
+        private static void ApplyAttachedProperties(VisualElement element, IGUIComponentPacket packet)
+        {
+            if (packet.AttachedProperties == null || packet.AttachedProperties.Length == 0) return;
+
+            foreach (var prop in packet.AttachedProperties)
             {
-                element.style.position = Position.Absolute;
-                element.style.width = width;
-            }
-            if (prop.Key == "Canvas.Height" && float.TryParse(prop.Value, out float height))
-            {
-                element.style.position = Position.Absolute;
-                element.style.height = height;
+                if (prop.Key == "Canvas.X" && float.TryParse(prop.Value, out float left))
+                {
+                    element.style.position = Position.Absolute;
+                    element.style.left = left;
+                }
+                if (prop.Key == "Canvas.Y" && float.TryParse(prop.Value, out float top))
+                {
+                    element.style.position = Position.Absolute;
+                    element.style.top = top;
+                }
+                if (prop.Key == "Canvas.Width" && float.TryParse(prop.Value, out float width))
+                {
+                    element.style.position = Position.Absolute;
+                    element.style.width = width;
+                }
+                if (prop.Key == "Canvas.Height" && float.TryParse(prop.Value, out float height))
+                {
+                    element.style.position = Position.Absolute;
+                    element.style.height = height;
+                }
             }
         }
     }

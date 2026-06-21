@@ -1,9 +1,10 @@
+using Fodinae.Scripts;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Input;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Builders
+namespace Fodinae.Scripts.UI.Builders
 {
     public class SliderPacketBuilder : PacketUIBuilderBase
     {
