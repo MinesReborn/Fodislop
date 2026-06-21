@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using Fodinae.Assets.Scripts.Audio;
 using Fodinae.Assets.Scripts.Game;
@@ -5,12 +6,16 @@ using Fodinae.Assets.Scripts.Game.Managers;
 using Fodinae.Assets.Scripts.Networking.Connection;
 using Fodinae.Assets.Scripts.Player;
 using Fodinae.Assets.Scripts.UI;
+using Fodinae.UI;
+using Fodinae.UI.Binding;
 using MinesServer.Networking.Client.Packets.Connection;
+using MinesServer.Networking.Client.Packets.GUI;
 using MinesServer.Networking.Server;
 using MinesServer.Networking.Server.Packets;
 using MinesServer.Networking.Server.Packets.Chat;
 using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.GUI;
+using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.Information;
 using MinesServer.Networking.Server.Packets.Inventory;
 using MinesServer.Networking.Server.Packets.Movement;
@@ -29,6 +34,7 @@ namespace Fodinae.Assets.Scripts.Networking
         private int _worldInitPacketsReceived = 0;
         private int _mapRegionPacketsReceived = 0;
         private UIDocument _uiDocument;
+        private readonly List<(string tag, VisualElement root, WindowBinding binding, List<VisualElement> clickableElements)> _openWindows = new();
 
         void Awake()
         {
@@ -61,6 +67,7 @@ namespace Fodinae.Assets.Scripts.Networking
             ns.Subscribe<PlayerInfoPacket>(HandlePlayerInfoPacket);
             ns.Subscribe<MovementSpeedPacket>(HandleMovementSpeedPacket);
             ns.Subscribe<OpenWindowPacket>(HandleOpenWindowPacket);
+            ns.Subscribe<CloseWindowPacket>(HandleCloseWindowPacket);
             ns.Subscribe<RobotPositionPacket>(HandleRobotPositionPacket);
             ns.Subscribe<MapRegionPacket>(HandleMapRegionPacket);
             ns.Subscribe<PackPacket>(HandlePackPacket);
@@ -106,6 +113,7 @@ namespace Fodinae.Assets.Scripts.Networking
                 ns.Unsubscribe<PlayerInfoPacket>(HandlePlayerInfoPacket);
                 ns.Unsubscribe<MovementSpeedPacket>(HandleMovementSpeedPacket);
                 ns.Unsubscribe<OpenWindowPacket>(HandleOpenWindowPacket);
+                ns.Unsubscribe<CloseWindowPacket>(HandleCloseWindowPacket);
                 ns.Unsubscribe<RobotPositionPacket>(HandleRobotPositionPacket);
                 ns.Unsubscribe<MapRegionPacket>(HandleMapRegionPacket);
                 ns.Unsubscribe<PackPacket>(HandlePackPacket);
@@ -130,6 +138,15 @@ namespace Fodinae.Assets.Scripts.Networking
                 ns.Unsubscribe<SFXPacket>(HandleSFXPacket);
                 ns.Unsubscribe<InventoryPacket>(HandleInventoryPacket);
             }
+
+            // Close any open windows and dispose bindings
+            foreach (var (_, root, binding, _) in _openWindows)
+            {
+                binding.Dispose();
+                if (_uiDocument != null)
+                    _uiDocument.rootVisualElement.Remove(root);
+            }
+            _openWindows.Clear();
 
             var mm = FindObjectOfType<MapManager>();
             if (mm != null)
@@ -167,6 +184,97 @@ namespace Fodinae.Assets.Scripts.Networking
             element.style.translate = new Translate(new Length(-50, LengthUnit.Percent), new Length(-50, LengthUnit.Percent));
 
             _uiDocument.rootVisualElement.Add(element);
+
+            // Set up SmartFormat binding for this window
+            var binding = new WindowBinding();
+            binding.Bind(element);
+
+            // Register clickable elements via DFS traversal
+            var clickableElements = RegisterClickableElements(element, packet.WindowTag);
+
+            var windowIndex = _openWindows.Count;
+            _openWindows.Add((packet.WindowTag, element, binding, clickableElements));
+            Debug.Log($"[PacketHandler] Window '{packet.WindowTag}' opened with {clickableElements.Count} clickable elements (window index {windowIndex})");
+        }
+
+        /// <summary>
+        /// DFS-traverses the window VisualElement tree and registers all clickable elements.
+        /// A clickable element is one whose userData contains an IGUIComponentPacket with non-empty OnClickContext.
+        /// </summary>
+        private List<VisualElement> RegisterClickableElements(VisualElement windowRoot, string windowTag)
+        {
+            var clickableElements = new List<VisualElement>();
+            WalkForClickable(windowRoot, clickableElements, windowTag);
+            return clickableElements;
+        }
+
+        private void WalkForClickable(VisualElement element, List<VisualElement> clickableElements, string windowTag)
+        {
+            // Check if this element is clickable
+            if (element.userData is IGUIComponentPacket componentPacket &&
+                !string.IsNullOrEmpty(componentPacket.OnClickContext))
+            {
+                var elementIndex = clickableElements.Count;
+                clickableElements.Add(element);
+                WireClickHandler(element, elementIndex, windowTag);
+            }
+
+            foreach (var child in element.Children())
+                WalkForClickable(child, clickableElements, windowTag);
+        }
+
+        private void WireClickHandler(VisualElement element, int elementIndex, string windowTag)
+        {
+            element.RegisterCallback<ClickEvent>(_ => HandleElementClick(element, elementIndex, windowTag));
+        }
+
+        private void HandleElementClick(VisualElement clickedElement, int elementIndex, string windowTag)
+        {
+            // Find the window data for this window tag
+            var windowEntry = _openWindows.FirstOrDefault(w => w.tag == windowTag);
+            if (windowEntry == default)
+            {
+                Debug.LogWarning($"[PacketHandler] Cannot handle element click: window '{windowTag}' not found");
+                return;
+            }
+
+            var (_, windowRoot, _, _) = windowEntry;
+
+            // Get the click context from the element's packet data
+            if (clickedElement.userData is not IGUIComponentPacket componentPacket)
+            {
+                Debug.LogWarning("[PacketHandler] Clicked element has no IGUIComponentPacket userData");
+                return;
+            }
+
+            var clickContext = componentPacket.OnClickContext;
+            Debug.Log($"[PacketHandler] Element click: index={elementIndex}, context='{clickContext}', window='{windowTag}'");
+
+            // Resolve the root element for input traversal
+            var inputRoot = ClickContextResolver.ResolveRoot(clickedElement, windowRoot, clickContext);
+
+            // Collect all input control values from the resolved root
+            var inputValues = ClickContextResolver.CollectInputValues(inputRoot);
+
+            // Send the ElementClickPacket
+            var elementClickPacket = new ElementClickPacket(windowTag, elementIndex, inputValues);
+            NetworkService.Instance.Send(elementClickPacket);
+
+            Debug.Log($"[PacketHandler] Sent ElementClickPacket: index={elementIndex}, contextValues={inputValues.Length}");
+        }
+
+        private void HandleCloseWindowPacket(CloseWindowPacket packet)
+        {
+            _packetCount++;
+            Debug.Log("[PacketHandler] Handling CloseWindowPacket");
+
+            if (_openWindows.Count == 0) return;
+
+            // Close the most recently opened window (no window tag in CloseWindowPacket)
+            var (_, root, binding, _) = _openWindows[^1];
+            binding.Dispose();
+            _uiDocument.rootVisualElement.Remove(root);
+            _openWindows.RemoveAt(_openWindows.Count - 1);
         }
 
         public void HandleWorldInitPacket(WorldInitPacket worldInitPacket)

@@ -184,7 +184,10 @@ namespace MinesServer.Networking.Connection.Client
                     rot = rotate.Direction;
                     UpdatePosition();
                 }
-
+                else if (actionPacket.Payload is UnmappedKeyPacket key)
+                {
+                    Debug.Log($"  - Unmapped Key: Code={key.Code}, Ctrl={key.Control}, Alt={key.Alt}, Shift={key.Shift}");
+                }
                 else if (actionPacket.Payload is BzPacket)
                 {
                     ushort cellX = actionPacket.X;
