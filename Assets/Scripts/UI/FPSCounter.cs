@@ -11,12 +11,14 @@ namespace Fodinae.Scripts.UI
     /// </summary>
     public class FPSCounter : MonoBehaviour
     {
-        private const int _sampleSize = 30; // number of frames to average
-        private readonly float[] _frameTimes = new float[_sampleSize];
+        private const int SampleSize = 30;
+        private readonly float[] _frameTimes = new float[SampleSize];
         private int _frameIndex;
-        private float _accumulatedTime;
 
         private Text _fpsText;
+        private int _pingMs;
+        private int _onlinePlayers;
+        private int _onlineProgrammator;
 
         private void Awake()
         {
@@ -34,38 +36,36 @@ namespace Fodinae.Scripts.UI
             textGO.transform.SetParent(canvas.transform, false);
             _fpsText = textGO.AddComponent<Text>();
 
-            // Исправление: используем LegacyRuntime.ttf вместо Arial.ttf
             _fpsText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-
             if (_fpsText.font == null)
-            {
                 _fpsText.font = Font.CreateDynamicFontFromOSFont("Arial", 14);
-            }
 
             _fpsText.fontSize = 14;
-            _fpsText.alignment = TextAnchor.UpperRight;
+            _fpsText.alignment = TextAnchor.UpperCenter;
+            _fpsText.horizontalOverflow = HorizontalWrapMode.Overflow;
             _fpsText.color = Color.white;
             _fpsText.raycastTarget = false;
 
             RectTransform rt = _fpsText.rectTransform;
-            rt.anchorMin = new Vector2(1, 1); // Top-right corner
-            rt.anchorMax = new Vector2(1, 1); // Top-right corner
-            rt.pivot = new Vector2(1, 1); // Pivot at top-right
-            rt.anchoredPosition = new Vector2(-10, -10); // Offset from top-right (negative X for right edge)
+            rt.anchorMin = new Vector2(0.5f, 1);
+            rt.anchorMax = new Vector2(0.5f, 1);
+            rt.pivot = new Vector2(0.5f, 1);
+            rt.anchoredPosition = new Vector2(0, -10);
         }
 
         private void Update()
         {
             _frameTimes[_frameIndex] = Time.unscaledDeltaTime;
-            _frameIndex = (_frameIndex + 1) % _sampleSize;
-            _accumulatedTime = 0f;
-            for (int i = 0; i < _sampleSize; i++)
-            {
-                _accumulatedTime += _frameTimes[i];
-            }
-            float avgDelta = _accumulatedTime / _sampleSize;
-            float fps = avgDelta > 0f ? 1f / avgDelta : 0f;
-            _fpsText.text = $"FPS: {fps:F1}";
+            _frameIndex = (_frameIndex + 1) % SampleSize;
+            float sum = 0f;
+            for (int i = 0; i < SampleSize; i++)
+                sum += _frameTimes[i];
+            float avg = sum / SampleSize;
+            float fps = avg > 0f ? 1f / avg : 0f;
+            _fpsText.text = $"FPS: {fps:F1}  Ping: {_pingMs}ms  Online: {_onlinePlayers}  Prg: {_onlineProgrammator}";
         }
+
+        public void SetPing(int ms) => _pingMs = ms;
+        public void SetOnline(int players, int programmator) { _onlinePlayers = players; _onlineProgrammator = programmator; }
     }
 }

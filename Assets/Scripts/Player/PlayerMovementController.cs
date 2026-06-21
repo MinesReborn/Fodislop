@@ -25,6 +25,7 @@ namespace Fodinae.Scripts.Player
         public uint BotId { get; private set; }
         public Vector2Int ServerPosition { get; private set; }
         public Vector2Int ClientPosition { get; private set; }
+        public Direction LastDirection => _lastSentDirection ?? Direction.Up;
         public event Action<Vector2Int, Vector2Int> OnPlayerMoved;
 
         private Robot _robot;
@@ -34,7 +35,10 @@ namespace Fodinae.Scripts.Player
         [SerializeField] private InputActionReference _moveActionReference;
 
         private Vector2 _moveInput;
+        private bool _isMoving = false;
+        private bool _autoDig = false;
         private float _lastMoveTime;
+        private float _lastDigTime;
         private Direction? _lastSentDirection;
 
         private void OnEnable()
@@ -87,12 +91,31 @@ namespace Fodinae.Scripts.Player
         {
             ReadInput();
             ApplyMovement();
+            HandleDigInput();
+            if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
+            {
+                AutoDig = !_autoDig;
+            }
         }
 
         public void Initialize(uint botId)
         {
             BotId = botId;
         }
+
+        public bool AutoDig
+        {
+            get => _autoDig;
+            set
+            {
+                _autoDig = value;
+                NetworkService.Instance.SendAction(new ToggleAutoDigPacket());
+                OnAutoDigChanged?.Invoke(value);
+            }
+        }
+
+        public event Action<bool> OnAutoDigChanged;
+        public bool IsMoving => _moveInput != Vector2.zero;
 
         public void UpdateServerPosition(Vector2Int position)
         {
@@ -156,6 +179,8 @@ namespace Fodinae.Scripts.Player
             {
                 return;
             }
+
+            if (Time.time - _lastDigTime < ServerConfig.Instance.DigCooldown) return;
 
             var mm = MapManager.Instance;
             var ns = NetworkService.Instance;
@@ -259,14 +284,20 @@ namespace Fodinae.Scripts.Player
 
                     if (isPassable)
                     {
-                        // Movement animation in Unity (Y is positive going up)
-                        // Use absolute grid coordinates to ensure alignment
                         _robot.TargetPosition = new Vector3(targetUnityX + 0.5f, targetUnityY + 0.5f, transform.position.z);
                         Vector2Int oldPos = ClientPosition;
                         ClientPosition = new Vector2Int(targetUnityX, targetUnityY);
                         OnPlayerMoved?.Invoke(oldPos, ClientPosition);
                         _lastMoveTime = Time.time;
                         ns.SendAction(new MovePacket(targetServerX, targetServerY));
+                    }
+                    else if (_autoDig)
+                    {
+                        Fodinae.Scripts.Effects.DigEffect.Play(targetServerX, targetServerY, MapManager.Instance.WorldHeight, _lastSentDirection.Value).Forget();
+
+                        NetworkService.Instance.Send(new ActionClientPacket(targetServerX, targetServerY, new BzPacket()));
+                        _lastMoveTime = Time.time;
+                        _lastDigTime = Time.time;
                     }
                 }
             }
@@ -299,5 +330,33 @@ namespace Fodinae.Scripts.Player
             }
         }
 #endif
+
+        private void HandleDigInput()
+        {
+            if (Keyboard.current == null) return;
+            if (!Keyboard.current.zKey.isPressed) return;
+            if (_lastSentDirection == null) return;
+            if (Time.time - _lastDigTime < ServerConfig.Instance.DigCooldown) return;
+
+            Vector2Int digOffset = _lastSentDirection.Value switch
+            {
+                Direction.Down => new Vector2Int(0, -1),
+                Direction.Up => new Vector2Int(0, 1),
+                Direction.Left => new Vector2Int(-1, 0),
+                Direction.Right => new Vector2Int(1, 0),
+                _ => Vector2Int.zero
+            };
+
+            int targetUnityX = ClientPosition.x + digOffset.x;
+            int targetUnityY = ClientPosition.y + digOffset.y;
+
+            ushort serverX = (ushort)targetUnityX;
+            ushort serverY = (ushort)(MapManager.Instance.WorldHeight - 1 - targetUnityY);
+
+            Fodinae.Scripts.Effects.DigEffect.Play(serverX, serverY, MapManager.Instance.WorldHeight, _lastSentDirection.Value).Forget();
+
+            NetworkService.Instance.Send(new ActionClientPacket(serverX, serverY, new BzPacket()));
+            _lastDigTime = Time.time;
+        }
     }
 }

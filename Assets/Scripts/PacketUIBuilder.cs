@@ -37,6 +37,7 @@ namespace Fodinae.Scripts
             return element;
         }
 
+
         private static void ApplyAttachedProperties(VisualElement element, IGUIComponentPacket packet)
         {
             if (packet.AttachedProperties == null || packet.AttachedProperties.Length == 0) return;

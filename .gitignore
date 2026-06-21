@@ -233,6 +233,8 @@ _pkginfo.txt
 ClientBin/
 ~$*
 *~
+# MCP Unity plugin — Server~ must be tracked
+!Packages/com.gamelovers.mcp-unity/Server~/
 *.dbmdl
 *.dbproj.schemaview
 *.jfm
@@ -484,3 +486,5 @@ InitTestScene*.unity*
 *.userprefs
 
 *.txt
+# AI tools files
+.omo/

@@ -129,14 +129,14 @@ namespace Fodinae.Scripts.Game.Managers
         {
             if (_instance == this)
             {
+                _isQuitting = true;
                 MapStorage.InstanceIfExists?.Dispose();
             }
         }
 
         protected virtual void OnApplicationQuit()
         {
-            _isQuitting = true;
-            MapStorage.InstanceIfExists?.Dispose();
+            MapStorage.Instance?.Dispose();
         }
 
         public void LoadWorldInit(WorldInitPacket packet)

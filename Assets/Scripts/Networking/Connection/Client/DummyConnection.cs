@@ -3,15 +3,19 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Cysharp.Threading.Tasks.CompilerServices;
+using Fodinae.Scripts.Audio;
+using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.UI;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.Actions;
+using MinesServer.Networking.Client.Packets.Chat;
 using MinesServer.Networking.Client.Packets.Connection;
 using MinesServer.Networking.Client.Packets.GUI;
 using MinesServer.Networking.Client.Packets.Movement;
 using MinesServer.Networking.Client.Packets.Utilities;
 using MinesServer.Networking.Server.Packets;
+using MinesServer.Networking.Server.Packets.Chat;
 using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI.Components;
@@ -19,12 +23,16 @@ using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
 using MinesServer.Networking.Server.Packets.GUI.Components.Input;
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
 using MinesServer.Networking.Server.Packets.Information;
+using MinesServer.Networking.Server.Packets.Movement;
 using MinesServer.Networking.Server.Packets.Utilities;
 using MinesServer.Networking.Server.Packets.World;
 using MinesServer.Networking.Shared;
 using MinesServer.Networking.Shared.Packets;
 using UnityEngine;
 using UnityEngine.UI;
+using MinesServer.Networking.Server.Packets.Inventory;
+
+
 
 namespace MinesServer.Networking.Connection.Client
 {
@@ -44,7 +52,6 @@ namespace MinesServer.Networking.Connection.Client
         private ushort _x = 0;
         private ushort _y = 0;
         private Direction _rot = Direction.Up;
-
         private FPSCounter _fpsCounter;
 
         private static readonly CellType[] _allCellTypes = new CellType[]
@@ -89,6 +96,9 @@ namespace MinesServer.Networking.Connection.Client
         private async UniTaskVoid ConnectAsync()
         {
             await UniTask.Delay(100);
+
+            CreateFPSCounter();
+
             _status = ConnectionStatus.Connected;
             OnConnected?.Invoke();
 
@@ -108,7 +118,10 @@ namespace MinesServer.Networking.Connection.Client
             var audioObj = new GameObject("AudioManager");
             audioObj.AddComponent<AudioManager>();
 
-            CreateFPSCounter();
+            var chatObj = new GameObject("ChatSystem");
+            chatObj.AddComponent<LocalChatPopup>();
+            chatObj.AddComponent<GlobalChatUI>();
+            chatObj.AddComponent<FloatingChatManager>();
         }
 
         private void CreateFPSCounter()
@@ -171,19 +184,86 @@ namespace MinesServer.Networking.Connection.Client
                     _rot = rotate.Direction;
                     UpdatePosition().Forget();
                 }
-                else if (actionPacket.Payload is ClickCellPacket click)
-                {
-                    Debug.Log($"  - Clicked Cell at ({click.X}, {click.Y})");
-                }
                 else if (actionPacket.Payload is UnmappedKeyPacket key)
                 {
                     Debug.Log($"  - Unmapped Key: Code={key.Code}, Ctrl={key.Control}, Alt={key.Alt}, Shift={key.Shift}");
+                }
+                else if (actionPacket.Payload is BzPacket)
+                {
+                    ushort cellX = actionPacket.X;
+                    ushort cellY = actionPacket.Y;
+                    Debug.Log($"[DummyConnection] DIG at ({cellX}, {cellY})");
+
+                    OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[]
+                    {
+                        new SFXPacket(SFX.Bz, 0, cellX, cellY, Array.Empty<StringPairPacket>())
+                    })));
+
+                    if (MapStorage.Instance.CellLayer != null && MapStorage.Instance.IsReady)
+                    {
+                        var cellType = MapStorage.Instance.GetCell(cellX, cellY);
+                        int crystalIdx = GetCrystalBasketIndex(cellType);
+                        var cellConfig = MapManager.Instance.GetCellConfig(cellType);
+                        bool isBreakable = ((CellConfigProperties)cellConfig.Properties).HasFlag(CellConfigProperties.Breakable);
+
+                        if (!isBreakable)
+                        {
+                            Debug.Log($"[DummyConnection] Cell ({cellX}, {cellY}) = {cellType} is not breakable");
+                            return;
+                        }
+
+                        MapStorage.Instance.SetCell(cellX, cellY, CellType.Empty);
+
+                        if (crystalIdx >= 0)
+                        {
+                            var stats = PlayerStatsModel.Instance;
+                            if (stats.BasketContents.Length > crystalIdx)
+                            {
+                                var newContents = new long[stats.BasketContents.Length];
+                                Array.Copy(stats.BasketContents, newContents, newContents.Length);
+                                newContents[crystalIdx] += UnityEngine.Random.Range(1, 101);
+                                OnReceived?.Invoke(new ServerPacket(new BasketPacket(stats.BasketCapacity, newContents)));
+                            }
+                        }
+
+                        OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[]
+                        {
+                            new MapRegionPacket(cellX, cellY, 0, 0, new[] { CellType.Empty }),
+                            new SFXPacket(SFX.Destroy, 0, cellX, cellY, Array.Empty<StringPairPacket>())
+                        })));
+                        Debug.Log($"[DummyConnection] Cell ({cellX}, {cellY}) broken → Empty");
+                    }
+                }
+
+                else if (actionPacket.Payload is SuicidePacket)
+                {
+                    Debug.Log("[DummyConnection] Suicide / Respawn");
+                    ushort spawnX = 25;
+                    ushort spawnY = 50;
+                    _x = spawnX;
+                    _y = spawnY;
+                    _rot = Direction.Up;
+
+                    OnReceived?.Invoke(new ServerPacket(new TeleportPacket(spawnX, spawnY, false)));
+                    OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] {
+                        new RobotPositionPacket(_mockBotId, spawnX, spawnY, (byte)_rot),
+                        new SFXPacket(SFX.Death, _mockBotId, spawnX, spawnY, Array.Empty<StringPairPacket>())
+                    })));
                 }
             }
 
             switch (packet.Data)
             {
                 case ClientHelloPacket clientHello:
+
+                    if (clientHello.ClientVersion < 1)
+                    {
+                        OnReceived?.Invoke(new ServerPacket(new OutdatedClientPacket(
+                            2, "Mines 3", "Ваша версия устарела. Скачайте новую!",
+                            "https://minesgame.ru/download", "")));
+                        return;
+                    }
+
                     var cellConfigs = CreateTestCellConfigurations();
                     const int testWorldWidth = 500;
                     const int testWorldHeight = 500;
@@ -203,19 +283,35 @@ namespace MinesServer.Networking.Connection.Client
                     OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { robotPos })));
                     HandleRobotInfoMock(_mockBotId).Forget();
                     RunCircularBots(10).Forget();
-                    RunTilingTestLoop().Forget();
+                    //RunTilingTestLoop().Forget();
                     OnReceived?.Invoke(new ServerPacket(new AggressionStatePacket(false)));
                     OnReceived?.Invoke(new ServerPacket(new AutoMineStatePacket(false)));
                     OnReceived?.Invoke(new ServerPacket(new CurrencyPacket(123456, 1234)));
                     OnReceived?.Invoke(new ServerPacket(new HealthPacket(250, 500)));
-                    OnReceived?.Invoke(new ServerPacket(new BasketPacket(50000, new[] { 50000L, 40000L, 0L, 0L, 0L, 0L })));
+                    OnReceived?.Invoke(new ServerPacket(new BasketPacket(50000, new[] { 0L, 0L, 0L, 0L, 0L, 0L })));
                     OnReceived?.Invoke(new ServerPacket(new GeologyPacket(5, 10, CellType.Lava, "Lava")));
                     OnReceived?.Invoke(new ServerPacket(new LevelPacket(12345)));
+
+                    SendSkillProgressMock().Forget();
+                    SendChatMock().Forget();
+
+                    OnReceived?.Invoke(new ServerPacket(new OnlinePacket(42, 3)));
+                    SendPingMock().Forget();
+
                     OnReceived?.Invoke(new ServerPacket(new MovementSpeedPacket(new Dictionary<CellType, ushort>
                     {
                         [CellType.Empty] = 20,
                         [CellType.Road] = 100
                     })));
+
+                    var inventoryData = new Dictionary<ItemType, long>();
+                    foreach (var type in ItemRegistry.AllTypes)
+                        inventoryData[type] = 1;
+                    OnReceived?.Invoke(new ServerPacket(new InventoryPacket(inventoryData)));
+
+                    var placeholderMsg = new ChatMessagePacket(0, 0, 0, 0,
+                    System.Drawing.Color.White, "", System.Drawing.Color.White, "");
+                    OnReceived?.Invoke(new ServerPacket(new ChatListPacket(new[] { ("global", "Global", placeholderMsg) })));
 
                     // Send test packs
                     OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] {
@@ -231,6 +327,24 @@ namespace MinesServer.Networking.Connection.Client
                     break;
                 case OpenSettingsClickPacket:
                     SendMockWindow(true);
+                    break;
+                case SendLocalChatMessagePacket localMsg:
+                    Debug.Log($"[DummyConnection] Local chat: {localMsg.Message}");
+                    OnReceived?.Invoke(new ServerPacket(new LocalChatMessagePacket(_mockBotId, _x, _y, localMsg.Message)));
+                    break;
+
+                case SendChatMessagePacket globalMsg:
+                    Debug.Log($"[DummyConnection] Global chat ({globalMsg.Tag}): {globalMsg.Message}");
+                    var chatMsg = new ChatMessagePacket(
+                        DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                        DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                        999, 1,
+                        System.Drawing.Color.FromArgb(255, 200, 180, 100),
+                        "You",
+                        System.Drawing.Color.White,
+                        globalMsg.Message
+                    );
+                    OnReceived?.Invoke(new ServerPacket(new ChatMessageListPacket("global", new[] { chatMsg })));
                     break;
                 default:
                     break;
@@ -584,6 +698,14 @@ namespace MinesServer.Networking.Connection.Client
                 ReliefGroup = 1,
                 Properties = CellConfigProperties.None | CellConfigProperties.DropsShadow
             };
+            configs[(int)CellType.Green] = new CellConfigurationPacket
+            {
+                Animation = CellAnimationType.None,
+                AnimationSpeed = 0,
+                Color = unchecked((int)0xFF00FF00),
+                FrameOffset = 0,
+                Properties = CellConfigProperties.Breakable
+            };
 
             return configs;
         }
@@ -655,6 +777,38 @@ namespace MinesServer.Networking.Connection.Client
             for (int dx = 0; dx < 10; dx++)
                 for (int dy = 0; dy < 10; dy++)
                     map[140 + dx, 5 + dy] = CellType.Empty;
+
+            int lastGalleryRow = (_allCellTypes.Length - 1) / squaresPerRow;
+            int tilingStartY = galleryY + (lastGalleryRow + 1) * 15 + 5;
+            int tilingStartX = galleryX;
+            int tilingPerRow = (width - tilingStartX) / 4;
+
+            for (int variant = 0; variant < 256; variant++)
+            {
+                int tRow = variant / tilingPerRow;
+                int tCol = variant % tilingPerRow;
+                int bx = tilingStartX + tCol * 4;
+                int by = tilingStartY + tRow * 4;
+
+                for (int dy = 0; dy < 3; dy++)
+                {
+                    for (int dx = 0; dx < 3; dx++)
+                    {
+                        if (dx == 1 && dy == 1)
+                        {
+                            map[bx + dx, by + dy] = CellType.BuildingDoor;
+                            continue;
+                        }
+
+                        int bitIdx = dy * 3 + dx;
+                        if (bitIdx > 4) bitIdx--;
+
+                        map[bx + dx, by + dy] = ((variant >> bitIdx) & 1) == 1
+                            ? CellType.BuildingDoor
+                            : CellType.Empty;
+                    }
+                }
+            }
 
             return map;
         }
@@ -743,20 +897,87 @@ namespace MinesServer.Networking.Connection.Client
         {
             foreach (var assetEntry in runtimeAssets.Assets)
             {
-                // Use TextureStorageManager to get texture data
-                // This will load from local storage if available, or generate random texture as fallback
-                var pngData = await Fodinae.Scripts.Networking.Connection.Client.TextureStorageManager.Instance.GetTextureData(assetEntry.Filename);
+                var data = await Fodinae.Scripts.Networking.Connection.Client.TextureStorageManager.Instance.GetTextureData(assetEntry.Filename.TrimStart('/'));
 
-                if (pngData != null)
+                if (data != null)
                 {
-                    var response = new RuntimeAssetPacket(assetEntry.Filename, Guid.NewGuid().ToString(), pngData);
+                    var response = new RuntimeAssetPacket(assetEntry.Filename, Guid.NewGuid().ToString(), data);
                     OnReceived?.Invoke(new ServerPacket(response));
                 }
                 else
                 {
-                    Debug.LogError($"[DummyConnection] Failed to get texture data for: {assetEntry.Filename}");
+                    Debug.LogError($"[DummyConnection] Failed to get asset data for: {assetEntry.Filename}");
                 }
             }
+        }
+
+        private async UniTaskVoid SendSkillProgressMock()
+        {
+            var skills = new (SkillType type, long current, long max)[]
+            {
+        (SkillType.MineGeneral, 75, 100),
+        (SkillType.Extraction, 120, 100),
+        (SkillType.Health, 40, 100),
+        (SkillType.Movement, 10, 100)
+            };
+
+            while (_status == ConnectionStatus.Connected)
+            {
+                foreach (var s in skills)
+                    OnReceived?.Invoke(new ServerPacket(new SkillProgressPacket(s.type, s.current, s.max)));
+                await UniTask.Delay(1000);
+            }
+        }
+
+        private async UniTaskVoid SendChatMock()
+        {
+            var names = new[] { "Alice", "Bob", "Charlie", "Darkar25", "Eve" };
+            var messages = new[] { "gg", "welcome!", "как дела?", "lol", "nice",
+        "gl hf", "куда бежать?", "фармим)", "👋", "подскажите кто знает" };
+            var rng = new System.Random();
+
+            while (_status == ConnectionStatus.Connected)
+            {
+                await UniTask.Delay(8000 + rng.Next(4000));
+
+                string name = names[rng.Next(names.Length)];
+                string msg = messages[rng.Next(messages.Length)];
+                System.Drawing.Color nickColor = System.Drawing.Color.FromArgb(
+                    255, rng.Next(100, 256), rng.Next(100, 256), rng.Next(100, 256));
+
+                var chatMsg = new ChatMessagePacket(
+                    DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    rng.Next(100, 999), (byte)rng.Next(0, 3),
+                    nickColor, name,
+                    System.Drawing.Color.White, msg
+                );
+                OnReceived?.Invoke(new ServerPacket(new ChatMessageListPacket("global", new[] { chatMsg })));
+            }
+        }
+
+        private async UniTaskVoid SendPingMock()
+        {
+            await UniTask.Delay(2000);
+            while (_status == ConnectionStatus.Connected)
+            {
+                OnReceived?.Invoke(new ServerPacket(new PingPacket(DateTimeOffset.UtcNow.Ticks, UnityEngine.Random.Range(15, 60))));
+                await UniTask.Delay(5000);
+            }
+        }
+
+        private static int GetCrystalBasketIndex(CellType cell)
+        {
+            return cell switch
+            {
+                CellType.Green => 0,
+                CellType.Blue => 1,
+                CellType.Red => 2,
+                CellType.Violet => 3,
+                CellType.White => 4,
+                CellType.Cyan => 5,
+                _ => -1
+            };
         }
     }
 }

@@ -23,6 +23,12 @@ namespace Fodinae.Scripts
         private void OnEnable()
         {
             _doc = GetComponent<UIDocument>();
+            if (_doc == null)
+            {
+                Debug.LogError("UIDocument component not found on MainMenu GameObject");
+                return;
+            }
+
             var root = _doc.rootVisualElement;
             root.style.justifyContent = Justify.Center;
             root.style.alignItems = Align.Center;
@@ -182,8 +188,17 @@ namespace Fodinae.Scripts
             if (ConnectionManager.Instance != null && (ConnectionManager.Instance.Connection == null ||
                 ConnectionManager.Instance.Connection.ConnectionStatus == MinesServer.Networking.Shared.ConnectionStatus.Disconnected))
             {
-                ConnectionManager.Instance.Connect();
+                ConnectionManager.Instance.Connect(oldClient: false);
             }
+        }
+
+        private void OnOldClientButtonClicked()
+        {
+            Debug.Log("🔘 Старый клиент");
+            RobotManager.ShowDebugVisuals = true;
+            HideLoader();
+            HideMenu();
+            ConnectionManager.Instance.Connect(oldClient: true);
         }
     }
 }

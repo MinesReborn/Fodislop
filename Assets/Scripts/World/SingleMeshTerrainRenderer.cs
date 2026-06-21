@@ -58,6 +58,7 @@ namespace Fodinae.Scripts.World
         private int _meshWidth;
         private int _meshHeight;
         private bool _isInitialized = false;
+        private float _targetSimpleGraphics;
 
         private struct CachedCellData
         {
@@ -139,6 +140,7 @@ namespace Fodinae.Scripts.World
 
         protected void Awake()
         {
+            _targetSimpleGraphics = PlayerPrefs.GetInt("SimpleGraphics", 0) == 1 ? 1f : 0f;
             InitializeShader();
             _meshFilter = GetComponent<MeshFilter>();
             _meshRenderer = GetComponent<MeshRenderer>();
@@ -422,23 +424,42 @@ namespace Fodinae.Scripts.World
 
             for (int x = 0; x < _cacheWidth; x++)
             {
-                int worldX = _cacheMinX + x;
+                int gridX = _cacheMinX + x;
                 int lastChunkIndex = -1;
                 CellType[] currentChunk = null;
 
                 for (int y = 0; y < _cacheHeight; y++)
                 {
-                    int serverY = CoordinateUtils.UnityToServerY(_cacheMinY + y, worldHeight);
+                    int unityY = _cacheMinY + y;
 
-                    if (!layer.GetChunkIndexAndLocal(worldX, serverY, out int chunkIndex, out int localIndex)) continue;
-
-                    if (chunkIndex != lastChunkIndex)
+                    CellType type;
+                    if (gridX < 0 || gridX >= worldWidth || unityY < 0 || unityY >= worldHeight)
                     {
-                        currentChunk = layer.GetChunk(chunkIndex, false, true);
-                        lastChunkIndex = chunkIndex;
+                        // Outside world: sides/bottom render as rock, top is drawn by SurfaceRenderer
+                        if (gridX < 0 || gridX >= worldWidth || unityY < 0)
+                            type = (CellType)0;
+                        else
+                            type = CellType.Unloaded;
                     }
+                    else
+                    {
+                        int serverY = CoordinateUtils.UnityToServerY(unityY, worldHeight);
 
-                    CellType type = currentChunk != null ? currentChunk[localIndex] : CellType.Unloaded;
+                        if (!layer.GetChunkIndexAndLocal(gridX, serverY, out int chunkIndex, out int localIndex))
+                        {
+                            type = CellType.Unloaded;
+                        }
+                        else
+                        {
+                            if (chunkIndex != lastChunkIndex)
+                            {
+                                currentChunk = layer.GetChunk(chunkIndex, false, true);
+                                lastChunkIndex = chunkIndex;
+                            }
+
+                            type = currentChunk != null ? currentChunk[localIndex] : CellType.Unloaded;
+                        }
+                    }
                     var meta = GetMetadata(type, atlases);
                     _cellCache[x, y] = new CachedCellData
                     {
@@ -740,6 +761,7 @@ namespace Fodinae.Scripts.World
                     _materials[i].SetVector("_FlowMapRect", new Vector4(r.x, r.y, r.width, r.height));
                     _materials[i].SetColor("_ShimmerColor", _shimmerHighlightColor);
                     _materials[i].SetTexture("_BaseMap", atlasTex);
+                    _materials[i].SetFloat("_SimpleGraphics", _targetSimpleGraphics);
                 }
 
                 _mesh.SetIndices(_subMeshIndices[i], MeshTopology.Triangles, i, false, 0);
@@ -776,6 +798,8 @@ namespace Fodinae.Scripts.World
 
         private void FillQuadData(int x, int y, int gridX, int unityY, int worldHeight, bool isBackground, ref int vIdx, List<TextureAtlas> atlases)
         {
+            if (unityY >= worldHeight) { vIdx += 4; return; }
+
             int cx = x + 1;
             int cy = y + 1;
             int serverY = CoordinateUtils.UnityToServerY(unityY, worldHeight);
@@ -1088,6 +1112,16 @@ namespace Fodinae.Scripts.World
         {
             public CellType Type;
             public int Count;
+        }
+
+        public void SetSimpleGraphics(bool enabled)
+        {
+            _targetSimpleGraphics = enabled ? 1f : 0f;
+            foreach (var mat in _materials)
+                if (mat != null)
+                    mat.SetFloat("_SimpleGraphics", _targetSimpleGraphics);
+            PlayerPrefs.SetInt("SimpleGraphics", enabled ? 1 : 0);
+            PlayerPrefs.Save();
         }
     }
 }
