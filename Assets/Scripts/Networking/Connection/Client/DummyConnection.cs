@@ -191,6 +191,11 @@ namespace MinesServer.Networking.Connection.Client
                     ushort cellY = actionPacket.Y;
                     Debug.Log($"[DummyConnection] DIG at ({cellX}, {cellY})");
 
+                    OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[]
+                    {
+                        new SFXPacket(SFX.Bz, 0, cellX, cellY, Array.Empty<StringPairPacket>())
+                    })));
+
                     if (MapStorage.Instance.cellLayer != null && MapStorage.Instance.IsReady)
                     {
                         var cellType = MapStorage.Instance.GetCell(cellX, cellY);
@@ -218,13 +223,11 @@ namespace MinesServer.Networking.Connection.Client
                             }
                         }
 
-                        var hbPackets = new List<IHBPacket>
+                        OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[]
                         {
                             new MapRegionPacket(cellX, cellY, 0, 0, new[] { CellType.Empty }),
-                            new SFXPacket(SFX.Bz, 0, cellX, cellY, Array.Empty<StringPairPacket>())
-                        };
-
-                        OnReceived?.Invoke(new ServerPacket(new HBPacket(hbPackets.ToArray())));
+                            new SFXPacket(SFX.Destroy, 0, cellX, cellY, Array.Empty<StringPairPacket>())
+                        })));
                         Debug.Log($"[DummyConnection] Cell ({cellX}, {cellY}) broken → Empty");
                     }
                 }
@@ -240,7 +243,8 @@ namespace MinesServer.Networking.Connection.Client
 
                     OnReceived?.Invoke(new ServerPacket(new TeleportPacket(spawnX, spawnY, false)));
                     OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] {
-                        new RobotPositionPacket(mockBotId, spawnX, spawnY, (byte)rot)
+                        new RobotPositionPacket(mockBotId, spawnX, spawnY, (byte)rot),
+                        new SFXPacket(SFX.Death, mockBotId, spawnX, spawnY, Array.Empty<StringPairPacket>())
                     })));
                 }
             }

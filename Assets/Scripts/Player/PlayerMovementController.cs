@@ -1,5 +1,4 @@
 using System;
-using Fodinae.Assets.Scripts.Audio;
 using Fodinae.Assets.Scripts.Game;
 using Fodinae.Assets.Scripts.Game.Managers;
 using Fodinae.Assets.Scripts.Networking;
@@ -256,14 +255,7 @@ namespace Fodinae.Assets.Scripts.Player
                     }
                     else if (_autoDig)
                     {
-                        AudioManager.Instance.PlaySfx(AudioManager.Instance.MiningClip);
                         Fodinae.Assets.Scripts.Effects.DigEffect.Play(targetServerX, targetServerY, MapManager.Instance.WorldHeight, _lastSentDirection.Value).Forget();
-
-                        bool isBreakable = ((CellConfigProperties)cellConfig.Properties).HasFlag(CellConfigProperties.Breakable);
-                        if (isBreakable)
-                        {
-                            AudioManager.Instance.PlaySfx(AudioManager.Instance.DestroyClip);
-                        }
 
                         NetworkService.Instance.Send(new ActionClientPacket(targetServerX, targetServerY, new BzPacket()));
                         _lastMoveTime = Time.time;
@@ -303,20 +295,8 @@ namespace Fodinae.Assets.Scripts.Player
             ushort serverX = (ushort)targetUnityX;
             ushort serverY = (ushort)(MapManager.Instance.WorldHeight - 1 - targetUnityY);
 
-            // Всегда: звук копания + анимация
-            AudioManager.Instance.PlaySfx(AudioManager.Instance.MiningClip);
             Fodinae.Assets.Scripts.Effects.DigEffect.Play(serverX, serverY, MapManager.Instance.WorldHeight, _lastSentDirection.Value).Forget();
 
-            // Звук разрушения только если порода ломается
-            var cellType = MapStorage.Instance.GetCell(serverX, serverY);
-            var cellConfig = MapManager.Instance.GetCellConfig(cellType);
-            bool isBreakable = ((CellConfigProperties)cellConfig.Properties).HasFlag(CellConfigProperties.Breakable);
-            if (isBreakable)
-            {
-                AudioManager.Instance.PlaySfx(AudioManager.Instance.DestroyClip);
-            }
-
-            // Отправка пакета (всегда)
             NetworkService.Instance.Send(new ActionClientPacket(serverX, serverY, new BzPacket()));
             _lastDigTime = Time.time;
         }

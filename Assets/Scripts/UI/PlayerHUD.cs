@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
-using Fodinae.Assets.Scripts.Audio;
 using Fodinae.Assets.Scripts.Effects;
 using Fodinae.Assets.Scripts.Networking;
 using Fodinae.Assets.Scripts.Player;
@@ -859,8 +858,6 @@ namespace Fodinae.Assets.Scripts.UI
 
             var okBtn = new Button(() =>
             {
-                if (AudioManager.Instance != null)
-                    AudioManager.Instance.PlaySfx(AudioManager.Instance.DeathClip);
                 var player = GameObject.FindGameObjectWithTag("Player");
                 if (player != null)
                     ExplosionEffect.Play(player.transform.position);

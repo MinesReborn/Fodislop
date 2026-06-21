@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using MinesServer.Data;
 using UnityEngine;
 
 namespace Fodinae.Assets.Scripts.Audio
@@ -12,13 +14,7 @@ namespace Fodinae.Assets.Scripts.Audio
         private float _ambientVolume = 0.5f;
         private float _sfxVolume = 1f;
 
-        private AudioClip _miningClip;
-        private AudioClip _destroyClip;
-        private AudioClip _deathClip;
-
-        public AudioClip MiningClip => _miningClip;
-        public AudioClip DestroyClip => _destroyClip;
-        public AudioClip DeathClip => _deathClip;
+        private readonly Dictionary<SFX, AudioClip> _sfxClips = new();
 
         public float AmbientVolume
         {
@@ -77,14 +73,21 @@ namespace Fodinae.Assets.Scripts.Audio
                 Debug.LogWarning("[AudioManager] Audio/evil_huge не найден в Resources");
             }
 
-            _miningClip = Resources.Load<AudioClip>("Audio/mining");
-            _destroyClip = Resources.Load<AudioClip>("Audio/destroy2");
-            _deathClip = Resources.Load<AudioClip>("Audio/death");
+            _sfxClips[SFX.Bz] = Resources.Load<AudioClip>("Audio/mining");
+            _sfxClips[SFX.Death] = Resources.Load<AudioClip>("Audio/death");
+            _sfxClips[SFX.Destroy] = Resources.Load<AudioClip>("Audio/destroy2");
+            _sfxClips[SFX.Hurt] = Resources.Load<AudioClip>("Audio/death");
         }
 
         public void PlaySfx(AudioClip clip)
         {
             if (clip != null)
+                _sfxSource.PlayOneShot(clip, _sfxVolume);
+        }
+
+        public void PlaySfx(SFX type)
+        {
+            if (_sfxClips.TryGetValue(type, out var clip))
                 _sfxSource.PlayOneShot(clip, _sfxVolume);
         }
     }

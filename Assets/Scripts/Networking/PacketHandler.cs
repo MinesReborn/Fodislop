@@ -1,4 +1,5 @@
 using System.Linq;
+using Fodinae.Assets.Scripts.Audio;
 using Fodinae.Assets.Scripts.Game;
 using Fodinae.Assets.Scripts.Game.Managers;
 using Fodinae.Assets.Scripts.Networking.Connection;
@@ -82,6 +83,7 @@ namespace Fodinae.Assets.Scripts.Networking
             ns.Subscribe<PingPacket>(HandlePingPacket);
 
             ns.Subscribe<OutdatedClientPacket>(HandleOutdatedClient);
+            ns.Subscribe<SFXPacket>(HandleSFXPacket);
             ns.Subscribe<InventoryPacket>(HandleInventoryPacket);
 
             MapManager.Instance.OnWorldInitialized += OnWorldInitialized;
@@ -125,6 +127,7 @@ namespace Fodinae.Assets.Scripts.Networking
                 ns.Unsubscribe<PingPacket>(HandlePingPacket);
 
                 ns.Unsubscribe<OutdatedClientPacket>(HandleOutdatedClient);
+                ns.Unsubscribe<SFXPacket>(HandleSFXPacket);
                 ns.Unsubscribe<InventoryPacket>(HandleInventoryPacket);
             }
 
@@ -427,6 +430,12 @@ namespace Fodinae.Assets.Scripts.Networking
                 item.Icon = ItemRegistry.GetIcon(kvp.Key);
                 InventoryModel.Instance.SetSlot(slot++, item);
             }
+        }
+
+        private void HandleSFXPacket(SFXPacket packet)
+        {
+            _packetCount++;
+            AudioManager.Instance?.PlaySfx(packet.EffectType);
         }
 
         private void OnWorldDataLoaded()
