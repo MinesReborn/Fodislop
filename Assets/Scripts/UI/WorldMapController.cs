@@ -55,6 +55,7 @@ namespace Fodinae.Assets.Scripts.UI
 
         private void ToggleMapMode()
         {
+            if (!enabled) return;
             if (MapStorage.Instance == null || !MapStorage.Instance.IsReady) return;
 
             if (_isInMapMode) ExitMapMode();

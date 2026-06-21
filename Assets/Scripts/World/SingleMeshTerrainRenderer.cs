@@ -52,6 +52,7 @@ namespace Fodinae.Assets.Scripts.World
         private int _meshWidth;
         private int _meshHeight;
         private bool _isInitialized = false;
+        private float _targetSimpleGraphics;
 
         // Optimized viewport cache
         private struct CachedCellData
@@ -125,6 +126,7 @@ namespace Fodinae.Assets.Scripts.World
 
         private void Awake()
         {
+            _targetSimpleGraphics = PlayerPrefs.GetInt("SimpleGraphics", 0) == 1 ? 1f : 0f;
             InitializeShader();
             _meshFilter = GetComponent<MeshFilter>();
             _meshRenderer = GetComponent<MeshRenderer>();
@@ -460,6 +462,7 @@ namespace Fodinae.Assets.Scripts.World
                     _materials[i].SetVector("_FlowMapRect", new Vector4(r.x, r.y, r.width, r.height));
                     _materials[i].SetColor("_ShimmerColor", _shimmerHighlightColor);
                     _materials[i].SetTexture("_BaseMap", atlasTex);
+                    _materials[i].SetFloat("_SimpleGraphics", _targetSimpleGraphics);
                 }
                 _mesh.SetIndices(_subMeshIndices[i], MeshTopology.Triangles, i, false, 0);
             }
@@ -670,5 +673,14 @@ namespace Fodinae.Assets.Scripts.World
                 }
         }
 
+        public void SetSimpleGraphics(bool enabled)
+        {
+            _targetSimpleGraphics = enabled ? 1f : 0f;
+            foreach (var mat in _materials)
+                if (mat != null)
+                    mat.SetFloat("_SimpleGraphics", _targetSimpleGraphics);
+            PlayerPrefs.SetInt("SimpleGraphics", enabled ? 1 : 0);
+            PlayerPrefs.Save();
+        }
     }
 }

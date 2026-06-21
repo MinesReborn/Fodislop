@@ -42,32 +42,31 @@ namespace Fodinae.Assets.Scripts.Game.Managers
     
     // Add public property for standalone mode support
     public bool IsStandaloneMode { get; set; } = false;
-
         void Awake()
+    {
+        if (_instance != null && _instance != this)
         {
-            if (_instance != null && _instance != this)
-            {
-                Destroy(gameObject);
-                return;
-            }
-            _instance = this;
-            DontDestroyOnLoad(gameObject);
+            Destroy(gameObject);
+            return;
         }
+        _instance = this;
+        DontDestroyOnLoad(gameObject);
+    }
 
-        void OnDestroy()
-        {
-            if (_instance == this)
-            {
-                MapStorage.Instance?.Dispose();
-            }
-        }
-
-        void OnApplicationQuit()
+    void OnDestroy()
+    {
+        if (_instance == this)
         {
             MapStorage.Instance?.Dispose();
         }
+    }
 
-        public void LoadWorldInit(WorldInitPacket packet)
+    void OnApplicationQuit()
+    {
+        MapStorage.Instance?.Dispose();
+    }
+
+    public void LoadWorldInit(WorldInitPacket packet)
     {
         Debug.Log($"[MapManager] LoadWorldInit called: {packet.DisplayName} ({packet.CodeName}) [{packet.Width}x{packet.Height}]");
         
