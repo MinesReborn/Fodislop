@@ -897,18 +897,30 @@ namespace MinesServer.Networking.Connection.Client
         {
             foreach (var assetEntry in runtimeAssets.Assets)
             {
-                // Use TextureStorageManager to get texture data
-                // This will load from local storage if available, or generate random texture as fallback
-                var pngData = await Fodinae.Assets.Scripts.Networking.Connection.Client.TextureStorageManager.Instance.GetTextureData(assetEntry.Filename);
+                byte[] data = null;
+                string filename = assetEntry.Filename.TrimStart('/');
 
-                if (pngData != null)
+                if (filename.StartsWith("audio/"))
                 {
-                    var response = new RuntimeAssetPacket(assetEntry.Filename, Guid.NewGuid().ToString(), pngData);
+                    // Route audio requests to AudioStorageManager
+                    var audioStorage = Fodinae.Assets.Scripts.Audio.AudioStorageManager.Instance;
+                    if (audioStorage != null)
+                        data = await audioStorage.GetAudioData(filename);
+                }
+                else
+                {
+                    // Route other requests (textures, UI images, etc.) to TextureStorageManager
+                    data = await Fodinae.Assets.Scripts.Networking.Connection.Client.TextureStorageManager.Instance.GetTextureData(filename);
+                }
+
+                if (data != null)
+                {
+                    var response = new RuntimeAssetPacket(assetEntry.Filename, Guid.NewGuid().ToString(), data);
                     OnReceived?.Invoke(new ServerPacket(response));
                 }
                 else
                 {
-                    Debug.LogError($"[DummyConnection] Failed to get texture data for: {assetEntry.Filename}");
+                    Debug.LogError($"[DummyConnection] Failed to get asset data for: {assetEntry.Filename}");
                 }
             }
         }

@@ -236,6 +236,47 @@ namespace Fodinae.Assets.Scripts
             return null;
         }
 
+        public async UniTask<byte[]> GetAssetBytesAsync(string filename, CancellationToken cancellationToken = default, int timeoutSeconds = 5)
+        {
+            filename = filename.TrimStart('/');
+            string etag = null;
+            if (HasAsset(filename))
+            {
+                etag = GetETag(filename);
+            }
+
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+
+            byte[] data = null;
+            try
+            {
+                data = await GetAssetBytesFromServer(filename, etag, cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.LogWarning($"[ClientAssetLoader] Timeout or cancelled while requesting asset: {filename}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[ClientAssetLoader] Error fetching asset {filename}: {ex.Message}");
+            }
+
+            if (cancellationToken.IsCancellationRequested) return null;
+
+            if (data != null && data.Length > 0)
+            {
+                return data;
+            }
+
+            if (HasAsset(filename))
+            {
+                return GetAsset(filename);
+            }
+
+            return null;
+        }
+
         private async UniTask<byte[]> GetAssetBytesFromServer(string filename, string etag, CancellationToken cancellationToken)
         {
             bool isNew = false;
@@ -257,14 +298,25 @@ namespace Fodinae.Assets.Scripts
             });
 
             // FIX: Gracefully handle offline/standalone mode!
-            // If there's no connection, immediately fetch from local Texture Storage Manager instead of crashing.
+            // If there's no connection, immediately fetch from local storage instead of crashing.
             if (ConnectionManager.Instance == null || ConnectionManager.Instance.Connection == null ||
                 ConnectionManager.Instance.Connection.ConnectionStatus != MinesServer.Networking.Shared.ConnectionStatus.Connected)
             {
                 try
                 {
                     // Directly attempt to load from local storage
-                    var localData = await Fodinae.Assets.Scripts.Networking.Connection.Client.TextureStorageManager.Instance.GetTextureData(filename);
+                    byte[] localData;
+
+                    if (filename.StartsWith("audio/"))
+                    {
+                        var audioStorage = Fodinae.Assets.Scripts.Audio.AudioStorageManager.Instance;
+                        localData = audioStorage != null ? await audioStorage.GetAudioData(filename) : null;
+                    }
+                    else
+                    {
+                        localData = await Fodinae.Assets.Scripts.Networking.Connection.Client.TextureStorageManager.Instance.GetTextureData(filename);
+                    }
+
                     if (localData != null)
                     {
                         tcs.TrySetResult(localData);
@@ -279,7 +331,7 @@ namespace Fodinae.Assets.Scripts
                     throw;
                 }
 
-                var noConnEx = new Exception($"No active connection and no local texture found for {filename}");
+                var noConnEx = new Exception($"No active connection and no local resource found for {filename}");
                 tcs.TrySetException(noConnEx);
                 _pendingRequests.TryRemove(filename, out _);
                 throw noConnEx;
