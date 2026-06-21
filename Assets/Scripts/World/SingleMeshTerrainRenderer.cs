@@ -723,6 +723,11 @@ namespace Fodinae.Scripts.World
                 list.Clear();
             }
 
+            // Ensure all pending atlas texture uploads are committed to the GPU
+            // before building mesh data that references atlas coordinates.
+            // This replaces 80+ sequential full-atlas Apply() calls with at most one per frame.
+            wtm.FlushDirtyAtlases();
+
             PopulateCellCache(minX, minY);
             PrecalculateData();
             ComputeBackgroundMap();

@@ -171,6 +171,7 @@ namespace Fodinae.Scripts.World
             if (!atlas.ContainsCell(FlowMapCellType))
             {
                 atlas.TryAddTexture(FlowMapCellType, _flowMapTexture, out _);
+                atlas.CopyTextureToAtlas(FlowMapCellType, _flowMapTexture);
             }
         }
 
@@ -374,7 +375,8 @@ namespace Fodinae.Scripts.World
             var cachedTexture = _textureCache.GetCachedTexture(cellType);
             if (cachedTexture != null)
             {
-                await AddTextureToAtlas(cellType, cachedTexture);
+                // Already on main thread (GetCellTextureCoordinate switches before calling LoadTexture)
+                AddTextureToAtlas(cellType, cachedTexture);
                 return;
             }
 
@@ -396,8 +398,11 @@ namespace Fodinae.Scripts.World
                     _cachedEmptyTexture = texture;
                 }
 
+                // Ensure we're on the main thread for synchronous atlas operations
+                await UniTask.SwitchToMainThread();
+
                 // Не модифицируем текстуру — оставляем как есть с прозрачностью
-                await AddTextureToAtlas(cellType, texture);
+                AddTextureToAtlas(cellType, texture);
             }
             else
             {
@@ -405,10 +410,8 @@ namespace Fodinae.Scripts.World
             }
         }
 
-        private async UniTask AddTextureToAtlas(CellType cellType, Texture2D texture)
+        private void AddTextureToAtlas(CellType cellType, Texture2D texture)
         {
-            await UniTask.SwitchToMainThread();
-
             int frameHeight = MapManager.Instance.GetAnimationFrameHeight(cellType);
             float containerFPS = 0;
 
@@ -467,10 +470,15 @@ namespace Fodinae.Scripts.World
                 }
             }
 
+            // Incremental pixel copy: directly writes this texture's pixels into _atlasPixels
+            // without re-reading all existing textures via GetPixels32.
+            _currentAtlas.CopyTextureToAtlas(cellType, texture);
+
             _textureCache.AddTexture(cellType, textureInfo);
 
-            await _currentAtlas.UpdateAtlasTexture();
             OnTextureLoaded?.Invoke($"cells/{(int)cellType}.png", texture);
+            // GPU upload (SetPixels32 + Apply) is deferred to FlushDirtyAtlases()
+            // which runs before the next mesh rebuild in SingleMeshTerrainRenderer.LateUpdate.
         }
 
         private CellVariation CalculateVariation(CellTextureInfo textureInfo, int globalX, int globalY)
@@ -492,6 +500,22 @@ namespace Fodinae.Scripts.World
         {
             EnsureInitialized();
             return _atlases;
+        }
+
+        /// <summary>
+        /// Uploads all dirty atlas pixel buffers to the GPU (SetPixels32 + Apply).
+        /// Call this on the main thread before any rendering code reads atlas textures.
+        /// SingleMeshTerrainRenderer calls this in UpdateVertexAttributes before building mesh data.
+        /// </summary>
+        public void FlushDirtyAtlases()
+        {
+            for (int i = 0; i < _atlases.Count; i++)
+            {
+                if (_atlases[i].IsDirty)
+                {
+                    _atlases[i].SyncApply();
+                }
+            }
         }
 
         public TextureAtlas GetAtlasForCell(CellType cellType)
@@ -554,6 +578,7 @@ namespace Fodinae.Scripts.World
 
                 if (_currentAtlas.TryAddTexture(cellType, fallbackTexture, out var coordinate))
                 {
+                    _currentAtlas.CopyTextureToAtlas(cellType, fallbackTexture);
                     _textureCache.AddTexture(cellType, textureInfo);
                 }
             }

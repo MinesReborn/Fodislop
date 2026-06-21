@@ -234,6 +234,43 @@ namespace Fodinae.Scripts.World
             }
         }
 
+        /// <summary>
+        /// After TryAddTexture, copies the texture's pixel data into the internal _atlasPixels buffer
+        /// at the position where TryAddTexture placed it. Keeps _atlasPixels incrementally in sync
+        /// without re-reading all existing textures via GetPixels32.
+        /// Must be called on the main thread after TryAddTexture for the same cellType.
+        /// </summary>
+        public void CopyTextureToAtlas(CellType cellType, Texture2D texture)
+        {
+            if (!_cells.TryGetValue(cellType, out var cell))
+            {
+                Debug.LogError($"[TextureAtlas] Cell type {cellType} not found in atlas. Call TryAddTexture first.");
+                return;
+            }
+
+            var rect = cell.Rectangle;
+            var sourcePixels = texture.GetPixels32();
+            CopyPixelsToAtlasArray(sourcePixels, texture.width, texture.height, rect);
+        }
+
+        /// <summary>
+        /// Synchronously uploads the current _atlasPixels to the GPU texture via SetPixels32 + Apply.
+        /// Unlike UpdateAtlasTexture, this does NOT re-read any source textures — it relies on
+        /// CopyTextureToAtlas having been called to keep _atlasPixels in sync incrementally.
+        /// Must be called on the main thread.
+        /// </summary>
+        public void SyncApply()
+        {
+            if (!_isDirty)
+            {
+                return;
+            }
+
+            _atlasTexture.SetPixels32(_atlasPixels);
+            _atlasTexture.Apply();
+            _isDirty = false;
+        }
+
         public async UniTask<Texture2D> GetAtlasTexture()
         {
             if (_isDirty)
