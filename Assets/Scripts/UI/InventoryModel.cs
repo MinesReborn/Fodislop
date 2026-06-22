@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using Fodinae.Scripts.Networking;
+using MinesServer.Networking.Client.Packets.Inventory;
+using UnityEngine;
 
 namespace Fodinae.Scripts.UI
 {
@@ -80,10 +83,39 @@ namespace Fodinae.Scripts.UI
             if (_selectedSlot == index) return;
             _selectedSlot = index;
             OnSlotSelected?.Invoke(index);
+
+            if (NetworkService.Instance == null)
+            {
+                Debug.LogWarning("[InventoryModel] NetworkService.Instance is null, cannot send packet");
+                return;
+            }
+
+            var item = _slots[index];
+            if (item != null)
+            {
+                Debug.Log($"[InventoryModel] Sending SelectItemPacket: slot={index}, item={item.ItemType}");
+                NetworkService.Instance.Send(new SelectItemPacket(item.ItemType));
+            }
+            else
+            {
+                Debug.Log($"[InventoryModel] Sending DeselectItemPacket (empty slot {index})");
+                NetworkService.Instance.Send(new DeselectItemPacket());
+            }
         }
 
         public void DeselectSlot()
         {
+            _selectedSlot = -1;
+            OnSlotSelected?.Invoke(-1);
+
+            if (NetworkService.Instance == null) return;
+            Debug.Log("[InventoryModel] Sending DeselectItemPacket");
+            NetworkService.Instance.Send(new DeselectItemPacket());
+        }
+
+        public void ClearSelection()
+        {
+            if (_selectedSlot == -1) return;
             _selectedSlot = -1;
             OnSlotSelected?.Invoke(-1);
         }

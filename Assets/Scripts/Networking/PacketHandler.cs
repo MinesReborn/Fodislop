@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using MinesServer.Data;
 using Fodinae.Scripts.Audio;
 using Fodinae.Scripts.Game;
 using Fodinae.Scripts.Game.Managers;
@@ -117,6 +118,8 @@ namespace Fodinae.Scripts.Networking
                 ns.Subscribe<OutdatedClientPacket>(HandleOutdatedClient);
                 ns.Subscribe<SFXPacket>(HandleSFXPacket);
                 ns.Subscribe<InventoryPacket>(HandleInventoryPacket);
+                ns.Subscribe<MinesServer.Networking.Server.Packets.Inventory.SelectItemPacket>(HandleServerSelectItem);
+                ns.Subscribe<MinesServer.Networking.Server.Packets.Inventory.DeselectItemPacket>(HandleServerDeselect);
             }
 
             var mm = MapManager.Instance;
@@ -170,6 +173,8 @@ namespace Fodinae.Scripts.Networking
                 ns.Unsubscribe<OutdatedClientPacket>(HandleOutdatedClient);
                 ns.Unsubscribe<SFXPacket>(HandleSFXPacket);
                 ns.Unsubscribe<InventoryPacket>(HandleInventoryPacket);
+                ns.Unsubscribe<MinesServer.Networking.Server.Packets.Inventory.SelectItemPacket>(HandleServerSelectItem);
+                ns.Unsubscribe<MinesServer.Networking.Server.Packets.Inventory.DeselectItemPacket>(HandleServerDeselect);
             }
 
             // Close any open windows and dispose bindings
@@ -355,7 +360,6 @@ namespace Fodinae.Scripts.Networking
         private void HandleRobotPositionPacket(RobotPositionPacket robotPositionPacket)
         {
             _packetCount++;
-            Debug.Log($"[PacketHandler] Processing RobotPositionPacket for BotId: {robotPositionPacket.BotId}");
             var rm = RobotManager.Instance;
             if (rm != null)
             {
@@ -487,7 +491,6 @@ namespace Fodinae.Scripts.Networking
 
         private void HandleSkillProgressPacket(SkillProgressPacket packet)
         {
-            Debug.Log($"[PacketHandler] SkillProgress: {packet.Skill} = {packet.Current}/{packet.Max}");
             PlayerStatsModel.Instance.SetSkillProgress(packet.Skill, packet.Current, packet.Max);
         }
 
@@ -554,17 +557,63 @@ namespace Fodinae.Scripts.Networking
 
         private void HandleInventoryPacket(InventoryPacket packet)
         {
-            int slot = 0;
-            foreach (var kvp in packet.Changes)
+            var model = InventoryModel.Instance;
+            var remaining = new Dictionary<ItemType, long>(packet.Changes);
+
+            for (int i = 0; i < InventoryModel.TOTAL_SLOTS; i++)
             {
-                var item = new ItemData(
-                    ItemRegistry.GetName(kvp.Key),
-                    Color.gray,
-                    (int)kvp.Value);
-                item.ItemType = kvp.Key;
-                item.Icon = ItemRegistry.GetIcon(kvp.Key);
-                InventoryModel.Instance.SetSlot(slot++, item);
+                var existing = model.GetSlot(i);
+                if (existing == null) continue;
+
+                if (remaining.TryGetValue(existing.ItemType, out long qty))
+                {
+                    if (qty <= 0)
+                        model.SetSlot(i, null);
+                    else
+                    {
+                        existing.Quantity = (int)qty;
+                        model.SetSlot(i, existing);
+                    }
+
+                    remaining.Remove(existing.ItemType);
+                }
+                else
+                {
+                    model.SetSlot(i, null);
+                }
             }
+
+            foreach (var kvp in remaining)
+            {
+                if (kvp.Value <= 0) continue;
+
+                for (int i = 0; i < InventoryModel.TOTAL_SLOTS; i++)
+                {
+                    if (model.GetSlot(i) != null) continue;
+
+                    var item = new ItemData(
+                        ItemRegistry.GetName(kvp.Key),
+                        Color.gray,
+                        (int)kvp.Value);
+                    item.ItemType = kvp.Key;
+                    item.Icon = ItemRegistry.GetIcon(kvp.Key);
+                    model.SetSlot(i, item);
+                    break;
+                }
+            }
+        }
+
+        private void HandleServerSelectItem(MinesServer.Networking.Server.Packets.Inventory.SelectItemPacket packet)
+        {
+            _packetCount++;
+            Debug.Log($"[PacketHandler] Server selected item: {packet.Item} ({packet.Name})");
+        }
+
+        private void HandleServerDeselect(MinesServer.Networking.Server.Packets.Inventory.DeselectItemPacket packet)
+        {
+            _packetCount++;
+            Debug.Log("[PacketHandler] Server deselected item");
+            InventoryModel.Instance.ClearSelection();
         }
 
         private void HandleSFXPacket(SFXPacket packet)

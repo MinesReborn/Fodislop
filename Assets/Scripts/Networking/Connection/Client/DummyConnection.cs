@@ -250,6 +250,7 @@ namespace MinesServer.Networking.Connection.Client
                         new SFXPacket(SFX.Death, _mockBotId, spawnX, spawnY, Array.Empty<StringPairPacket>())
                     })));
                 }
+                return;
             }
 
             switch (packet.Data)
@@ -347,6 +348,7 @@ namespace MinesServer.Networking.Connection.Client
                     OnReceived?.Invoke(new ServerPacket(new ChatMessageListPacket("global", new[] { chatMsg })));
                     break;
                 default:
+                    Debug.Log($"[DummyConnection] Unhandled packet: {packet.Data.GetType().Name}");
                     break;
             }
         }
