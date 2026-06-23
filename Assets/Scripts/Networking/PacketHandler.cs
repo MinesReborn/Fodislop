@@ -577,10 +577,6 @@ namespace Fodinae.Scripts.Networking
 
                     remaining.Remove(existing.ItemType);
                 }
-                else
-                {
-                    model.SetSlot(i, null);
-                }
             }
 
             foreach (var kvp in remaining)

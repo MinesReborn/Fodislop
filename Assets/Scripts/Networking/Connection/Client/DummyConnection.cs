@@ -53,6 +53,7 @@ namespace MinesServer.Networking.Connection.Client
         private ushort _x = 0;
         private ushort _y = 0;
         private Direction _rot = Direction.Up;
+        private ItemType _selectedItemType;
         private FPSCounter _fpsCounter;
 
         private static readonly CellType[] _allCellTypes = new CellType[]
@@ -350,7 +351,12 @@ namespace MinesServer.Networking.Connection.Client
                     break;
                 case MinesServer.Networking.Client.Packets.Inventory.SelectItemPacket selectItem:
                     Debug.Log($"[DummyConnection] SelectItem: {selectItem.Item}");
+                    _selectedItemType = selectItem.Item;
                     OnReceived?.Invoke(new ServerPacket(GetItemInfoPacket(selectItem.Item)));
+                    break;
+                case MinesServer.Networking.Client.Packets.Inventory.UseItemPacket:
+                    Debug.Log($"[DummyConnection] UseItem: {_selectedItemType}");
+                    HandleUseItem();
                     break;
                 default:
                     Debug.Log($"[DummyConnection] Unhandled packet: {packet.Data.GetType().Name}");
@@ -419,6 +425,69 @@ namespace MinesServer.Networking.Connection.Client
             ItemType.Currency => ("Валюта", "Валюта, которая является основной для торговли и прокачки умений."),
             ItemType.OPP => ("ОПП", "Очки, которые дают возможность купить другие умения, которые лучше чем начальные"),
             _ => (i.ToString(), string.Empty)
+        };
+
+        private void HandleUseItem()
+        {
+            if (IsBuildingPack(_selectedItemType))
+            {
+                var packType = ItemTypeToPackType(_selectedItemType);
+                if (packType == PackType.None) return;
+
+                ushort frontX = _x;
+                ushort frontY = _y;
+                switch (_rot)
+                {
+                    case Direction.Up: frontY++; break;
+                    case Direction.Down: frontY--; break;
+                    case Direction.Left: frontX--; break;
+                    case Direction.Right: frontX++; break;
+                }
+
+                OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[]
+                {
+                    new PackPacket(frontX, frontY, packType, 0, 0)
+                })));
+                ConsumeItem(_selectedItemType, 1);
+            }
+            else if (_selectedItemType == ItemType.Rem)
+            {
+                OnReceived?.Invoke(new ServerPacket(new HealthPacket(500, 500)));
+                ConsumeItem(_selectedItemType, 1);
+            }
+            else
+            {
+                ConsumeItem(_selectedItemType, 1);
+            }
+        }
+
+        private void ConsumeItem(ItemType type, long count)
+        {
+            OnReceived?.Invoke(new ServerPacket(new InventoryPacket(
+                new Dictionary<ItemType, long> { { type, 0 } })));
+        }
+
+        private static bool IsBuildingPack(ItemType type) => type switch
+        {
+            ItemType.Teleport or ItemType.Resp or ItemType.Up or ItemType.Market or
+            ItemType.Clans or ItemType.Craft or ItemType.BombShop or ItemType.Gun or
+            ItemType.Gate or ItemType.Storage or ItemType.ScienceCentre => true,
+            _ => false
+        };
+
+        private static PackType ItemTypeToPackType(ItemType type) => type switch
+        {
+            ItemType.Teleport => PackType.Teleport,
+            ItemType.Resp => PackType.Resp,
+            ItemType.Up => PackType.Up,
+            ItemType.Market => PackType.Market,
+            ItemType.Clans => PackType.Clans,
+            ItemType.Craft => PackType.Craft,
+            ItemType.BombShop => PackType.BombShop,
+            ItemType.Gun => PackType.Gun,
+            ItemType.Storage => PackType.Storage,
+            ItemType.ScienceCentre => PackType.Science,
+            _ => PackType.None
         };
 
         private async UniTaskVoid RunTilingTestLoop()
