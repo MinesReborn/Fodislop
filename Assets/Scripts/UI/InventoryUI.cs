@@ -62,6 +62,7 @@ namespace Fodinae.Scripts.UI
             else if (Keyboard.current.digit7Key.wasPressedThisFrame) _model.SelectSlot(6);
             else if (Keyboard.current.digit8Key.wasPressedThisFrame) _model.SelectSlot(7);
             else if (Keyboard.current.digit9Key.wasPressedThisFrame) _model.SelectSlot(8);
+            else if (Keyboard.current.enterKey.wasPressedThisFrame) _model.UseSelectedItem();
         }
 
         private void InitializeInventory()

@@ -117,9 +117,14 @@ namespace Fodinae.Scripts.UI
 
         public void ClearSelection()
         {
-            if (_selectedSlot == -1) return;
             _selectedSlot = -1;
             OnSlotSelected?.Invoke(-1);
+        }
+
+        public void UseSelectedItem()
+        {
+            if (_selectedSlot < 0 || _slots[_selectedSlot] == null) return;
+            NetworkService.Instance.Send(new UseItemPacket());
         }
     }
 }
