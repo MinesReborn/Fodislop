@@ -59,23 +59,23 @@ namespace Fodinae.Scripts.Audio
         {
             try
             {
-                var audioBytes = await ClientAssetLoader.Instance.GetAssetBytesAsync(
+                var loader = ClientAssetLoader.Instance;
+                if (loader == null) return;
+
+                var clip = await loader.GetAudioAsync(
                     "audio/evil_huge",
                     timeoutSeconds: 30
                 );
 
-                if (audioBytes == null || audioBytes.Length == 0)
-                {
-                    Debug.LogWarning("[AudioManager] Failed to load ambient audio from server");
-                    return;
-                }
-
-                var clip = WavUtility.ToAudioClip(audioBytes, "Ambient_evil_huge");
                 if (clip != null)
                 {
                     _ambientSource.clip = clip;
                     _ambientSource.volume = _ambientVolume;
                     _ambientSource.Play();
+                }
+                else
+                {
+                    Debug.LogWarning("[AudioManager] Failed to load ambient audio from server");
                 }
             }
             catch (System.Exception ex)

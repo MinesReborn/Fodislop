@@ -19,6 +19,18 @@ namespace Fodinae.Scripts
     using static ETagCalculator;
     using static PersistentAssetCache;
 
+    /// <summary>
+    /// Singleton MonoBehaviour for network-driven asset loading (server texture/audio/VFX streaming).
+    ///
+    /// This is the "local CDN":
+    ///   • raw bytes (byte[]) — for consumers that need the original payload
+    ///   • Texture2D — decoded from PNG, GIF atlas, or WebP
+    ///   • AudioClip — decoded from WAV
+    ///   • Sprite[] — animated sprite frames from GIF/WebP
+    ///
+    /// All formats are cached in RAM via <see cref="AssetCache"/> after the first server round-trip.
+    /// Concurrent requests for the same asset coalesce into a single network call.
+    /// </summary>
     public class ClientAssetLoader : MonoBehaviour
     {
         public event Action<string, Texture2D> OnTextureLoaded;
@@ -54,10 +66,15 @@ namespace Fodinae.Scripts
             }
         }
 
-        private ConcurrentDictionary<string, TaskCompletionSource<byte[]>> _pendingRequests = new();
+        // ── RAM cache ──
+        private readonly AssetCache _cache = new(LoadBytesFromServerInternal);
+
+        // ── Network request dedup & batching ──
+        private readonly ConcurrentDictionary<string, TaskCompletionSource<byte[]>> _pendingRequests = new();
         private readonly ConcurrentQueue<RuntimeAssetEntryPacket> _requestQueue = new();
         private CancellationTokenSource _loopCts;
 
+        // ── Fallback textures ──
         private Texture2D _placeholderTexture;
         private Texture2D _errorTexture;
 
@@ -121,6 +138,140 @@ namespace Fodinae.Scripts
                 }
             }
         }
+
+        // ════════════════════════════════════════════════════════════════
+        //  Public API — delegates to _cache
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>Retrieve raw bytes for an asset (cached in RAM after first load).</summary>
+        public UniTask<byte[]> GetAssetBytesAsync(string filename, CancellationToken cancellationToken = default, int timeoutSeconds = 5)
+        {
+            return _cache.GetBytesAsync(filename, cancellationToken, timeoutSeconds);
+        }
+
+        /// <summary>Retrieve a decoded Texture2D (cached in RAM after first decode).</summary>
+        public async UniTask<Texture2D> GetTextureAsync(string filename, CancellationToken cancellationToken = default)
+        {
+            var texture = await _cache.GetTextureAsync(filename, cancellationToken, timeoutSeconds: 5);
+
+            if (texture != null && !cancellationToken.IsCancellationRequested)
+            {
+                OnTextureLoaded?.Invoke(filename, texture);
+            }
+
+            return texture;
+        }
+
+        /// <summary>Retrieve a decoded AudioClip from WAV bytes (cached in RAM after first decode).</summary>
+        public UniTask<AudioClip> GetAudioAsync(string filename, CancellationToken cancellationToken = default, int timeoutSeconds = 10)
+        {
+            return _cache.GetAudioAsync(filename, cancellationToken, timeoutSeconds);
+        }
+
+        /// <summary>Retrieve animated Sprite[] from GIF/WebP (cached in RAM after first decode).</summary>
+        public UniTask<Sprite[]> GetSpritesAsync(string filename, CancellationToken cancellationToken = default, int timeoutSeconds = 10)
+        {
+            return _cache.GetSpritesAsync(filename, cancellationToken, timeoutSeconds);
+        }
+
+        /// <summary>
+        /// Retrieve animated sprites WITH source metadata (FPS, frame height).
+        /// Preferred over <see cref="GetSpritesAsync"/> when you need accurate animation timing.
+        /// </summary>
+        public UniTask<AnimatedSpriteData> GetAnimatedSpritesAsync(string filename, CancellationToken cancellationToken = default, int timeoutSeconds = 10)
+        {
+            return _cache.GetAnimatedSpritesAsync(filename, cancellationToken, timeoutSeconds);
+        }
+
+        /// <summary>
+        /// Load a texture and apply it via callback. Shows placeholder then swaps in the real texture.
+        /// Supports cancellation via the provided CancellationToken (e.g. from GetCancellationTokenOnDestroy).
+        /// </summary>
+        public async UniTaskVoid LoadAndApplyTexture(Action<Texture2D> applyTextureAction, string filename, CancellationToken cancellationToken)
+        {
+            applyTextureAction(_placeholderTexture);
+
+            var texture = await GetTextureAsync(filename, cancellationToken);
+
+            if (cancellationToken.IsCancellationRequested) return;
+
+            if (texture != null)
+            {
+                applyTextureAction(texture);
+            }
+            else
+            {
+                if (!HasAsset(filename))
+                {
+                    Debug.LogError($"Failed to load texture for '{filename}'. Applying error texture.");
+                    applyTextureAction(_errorTexture);
+                }
+            }
+        }
+
+        /// <summary>Clear the RAM cache. Called on world reset.</summary>
+        public void ClearCache()
+        {
+            _cache.Clear();
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  Internal: byte loading from server (used by AssetCache)
+        // ════════════════════════════════════════════════════════════════
+
+        private static async UniTask<byte[]> LoadBytesFromServerInternal(string filename, CancellationToken ct, int timeoutSeconds)
+        {
+            var instance = Instance;
+            if (instance == null)
+            {
+                Debug.LogError("[ClientAssetLoader] Cannot load bytes: instance is null");
+                return null;
+            }
+
+            return await instance.LoadBytesFromServer(filename, ct, timeoutSeconds);
+        }
+
+        private async UniTask<byte[]> LoadBytesFromServer(string filename, CancellationToken ct, int timeoutSeconds)
+        {
+            filename = filename.TrimStart('/');
+            string etag = null;
+            if (HasAsset(filename))
+            {
+                etag = GetETag(filename);
+            }
+
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+
+            try
+            {
+                return await GetAssetBytesFromServer(filename, etag, cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.LogWarning($"[ClientAssetLoader] Timeout or cancelled while requesting asset: {filename}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[ClientAssetLoader] Error fetching asset {filename}: {ex.Message}");
+            }
+            finally
+            {
+                cts.Dispose();
+            }
+
+            // Fallback to disk cache on network failure
+            if (HasAsset(filename))
+            {
+                return GetAsset(filename);
+            }
+
+            return null;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  Network layer (unchanged logic)
+        // ════════════════════════════════════════════════════════════════
 
         private async UniTaskVoid ProcessBatchLoop(CancellationToken ct)
         {
@@ -198,127 +349,6 @@ namespace Fodinae.Scripts
             }
         }
 
-        public async UniTaskVoid LoadAndApplyTexture(Action<Texture2D> applyTextureAction, string filename, CancellationToken cancellationToken)
-        {
-            applyTextureAction(_placeholderTexture);
-            var texture = await GetTextureAsync(filename, cancellationToken);
-
-            if (cancellationToken.IsCancellationRequested) return;
-
-            if (texture != null)
-            {
-                applyTextureAction(texture);
-            }
-            else
-            {
-                if (!HasAsset(filename))
-                {
-                    Debug.LogError($"Failed to load texture for '{filename}'. Applying error texture.");
-                    applyTextureAction(_errorTexture);
-                }
-            }
-        }
-
-        public async UniTask<Texture2D> GetTextureAsync(string filename, CancellationToken cancellationToken = default)
-        {
-            filename = filename.TrimStart('/');
-            string etag = null;
-            if (HasAsset(filename))
-            {
-                etag = GetETag(filename);
-            }
-
-            // Timeout after 5 seconds to prevent hanging
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(5));
-
-            byte[] imageBytes = null;
-            try
-            {
-                imageBytes = await GetAssetBytesFromServer(filename, etag, cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                Debug.LogWarning($"[ClientAssetLoader] Timeout or cancelled while requesting texture: {filename}");
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"[ClientAssetLoader] Error fetching asset {filename}: {ex.Message}");
-            }
-            finally
-            {
-                await UniTask.SwitchToMainThread(cancellationToken);
-            }
-
-            if (cancellationToken.IsCancellationRequested) return null;
-
-            if (imageBytes != null && imageBytes.Length > 0)
-            {
-                var loadedTexture = await LoadTextureAsync(imageBytes, cancellationToken);
-                if (loadedTexture != null)
-                {
-                    OnTextureLoaded?.Invoke(filename, loadedTexture);
-                    return loadedTexture;
-                }
-            }
-            else if (HasAsset(filename))
-            {
-                // Fallback to cache if network failed or server returned Not Modified
-                var cachedAsset = GetAsset(filename);
-                if (cachedAsset != null)
-                {
-                    var loadedTexture = await LoadTextureAsync(cachedAsset, cancellationToken);
-                    if (loadedTexture != null)
-                    {
-                        return loadedTexture;
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        public async UniTask<byte[]> GetAssetBytesAsync(string filename, CancellationToken cancellationToken = default, int timeoutSeconds = 5)
-        {
-            filename = filename.TrimStart('/');
-            string etag = null;
-            if (HasAsset(filename))
-            {
-                etag = GetETag(filename);
-            }
-
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
-
-            byte[] data = null;
-            try
-            {
-                data = await GetAssetBytesFromServer(filename, etag, cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                Debug.LogWarning($"[ClientAssetLoader] Timeout or cancelled while requesting asset: {filename}");
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"[ClientAssetLoader] Error fetching asset {filename}: {ex.Message}");
-            }
-
-            if (cancellationToken.IsCancellationRequested) return null;
-
-            if (data != null && data.Length > 0)
-            {
-                return data;
-            }
-
-            if (HasAsset(filename))
-            {
-                return GetAsset(filename);
-            }
-
-            return null;
-        }
-
         private async UniTask<byte[]> GetAssetBytesFromServer(string filename, string etag, CancellationToken cancellationToken)
         {
             bool isNew = false;
@@ -384,38 +414,6 @@ namespace Fodinae.Scripts
                 _pendingRequests.TryRemove(filename, out _);
                 throw;
             }
-        }
-
-        private async UniTask<Texture2D> LoadTextureAsync(byte[] imageData, CancellationToken cancellationToken)
-        {
-            await UniTask.SwitchToMainThread(cancellationToken);
-
-            var type = AnimationContainerDecoder.DetectType(imageData);
-            if (type == AnimationContainerDecoder.ContainerType.GIF ||
-                type == AnimationContainerDecoder.ContainerType.WebP)
-            {
-                var decoded = type == AnimationContainerDecoder.ContainerType.GIF
-                    ? AnimationContainerDecoder.DecodeGif(imageData)
-                    : AnimationContainerDecoder.DecodeWebP(imageData);
-
-                if (decoded.Atlas != null)
-                {
-                    decoded.Atlas.name = $"RuntimeAnim_{DateTime.Now.Ticks}|FPS={decoded.FPS}|FrameHeight={decoded.FrameHeight}";
-                    decoded.Atlas.filterMode = FilterMode.Point;
-                    return decoded.Atlas;
-                }
-            }
-
-            // Fallback to standard Unity loading for PNG or if decoding failed
-            Texture2D texture = new Texture2D(2, 2);
-            if (texture.LoadImage(imageData))
-            {
-                texture.name = $"Runtime_{DateTime.Now.Ticks}";
-                texture.filterMode = FilterMode.Point;
-                return texture;
-            }
-            Destroy(texture);
-            return null;
         }
     }
 }

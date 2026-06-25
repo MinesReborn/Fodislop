@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
-using Fodinae.Scripts.Audio;
 using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Utils;
 using Fodinae.Scripts.Effekseer;
@@ -198,98 +197,54 @@ namespace Fodinae.Scripts.Game
             try
             {
                 var filename = $"vfx/{_effectType.ToString().ToLowerInvariant()}";
-                var bytes = await ClientAssetLoader.Instance.GetAssetBytesAsync(filename, timeoutSeconds: 10);
-
-                if (bytes == null || bytes.Length == 0)
+                var loader = ClientAssetLoader.Instance;
+                if (loader == null)
                 {
-                    Debug.LogWarning($"[SFXEffectInstance] No visual data for {filename}");
                     Dispose();
                     return;
                 }
 
-                var containerType = AnimationContainerDecoder.DetectType(bytes);
-                switch (containerType)
+                // Try animated sprites first (cached GIF/WebP decode via AssetCache)
+                var animData = await loader.GetAnimatedSpritesAsync(filename, timeoutSeconds: 10);
+                if (animData.Frames != null && animData.Frames.Length > 0)
                 {
-                    case AnimationContainerDecoder.ContainerType.PNG:
-                        LoadStaticSprite(bytes);
-                        break;
-                    case AnimationContainerDecoder.ContainerType.GIF:
-                        LoadAnimatedSprite(bytes, AnimationContainerDecoder.ContainerType.GIF);
-                        break;
-                    case AnimationContainerDecoder.ContainerType.WebP:
-                        LoadAnimatedSprite(bytes, AnimationContainerDecoder.ContainerType.WebP);
-                        break;
-                    default:
-                        await TryLoadEffekseerAsync(bytes);
-                        break;
+                    _animationFrames = animData.Frames;
+                    _currentFrame = 0;
+                    _frameDuration = animData.FrameDuration / Mathf.Max(0.01f, _speed);
+                    _isAnimated = true;
+                    _spriteRenderer.sprite = _animationFrames[0];
+                    _maxLifetime = (_animationFrames.Length * _frameDuration) + 0.5f;
+                    return;
+                }
+
+                // No animated sprites — try PNG still frame via texture cache
+                var texture = await loader.GetTextureAsync(filename);
+                if (texture != null)
+                {
+                    _spriteRenderer.sprite = Sprite.Create(
+                        texture,
+                        new Rect(0, 0, texture.width, texture.height),
+                        new Vector2(0.5f, 0.5f),
+                        RenderingConstants.PixelsPerUnit);
+                    _maxLifetime = 1f;
+                    return;
+                }
+
+                // Neither sprites nor texture — try Effekseer
+                var bytes = await loader.GetAssetBytesAsync(filename, timeoutSeconds: 10);
+                if (bytes != null && bytes.Length > 0)
+                {
+                    await TryLoadEffekseerAsync(bytes);
+                }
+                else
+                {
+                    Debug.LogWarning($"[SFXEffectInstance] No visual data for {filename}");
+                    Dispose();
                 }
             }
             catch (Exception ex)
             {
                 Debug.LogError($"[SFXEffectInstance] Failed to load visual for {_effectType}: {ex.Message}");
-                Dispose();
-            }
-        }
-
-        private void LoadStaticSprite(byte[] bytes)
-        {
-            var tex = new Texture2D(2, 2);
-            if (tex.LoadImage(bytes))
-            {
-                _spriteRenderer.sprite = Sprite.Create(
-                    tex,
-                    new Rect(0, 0, tex.width, tex.height),
-                    new Vector2(0.5f, 0.5f),
-                    RenderingConstants.PixelsPerUnit);
-                _maxLifetime = 1f;
-            }
-            else
-            {
-                Debug.LogWarning("[SFXEffectInstance] Failed to decode PNG texture");
-                Dispose();
-            }
-        }
-
-        private void LoadAnimatedSprite(byte[] bytes, AnimationContainerDecoder.ContainerType type)
-        {
-            try
-            {
-                AnimationContainerDecoder.DecodedAnimation anim;
-                if (type == AnimationContainerDecoder.ContainerType.GIF)
-                {
-                    anim = AnimationContainerDecoder.DecodeGif(bytes);
-                }
-                else
-                {
-                    anim = AnimationContainerDecoder.DecodeWebP(bytes);
-                }
-
-                if (anim.Atlas == null || anim.FrameCount <= 0)
-                {
-                    Debug.LogWarning($"[SFXEffectInstance] Decoded {type} has no frames");
-                    Dispose();
-                }
-
-                _animationFrames = AnimationContainerDecoder.Decode(
-                    anim.Atlas, anim.Atlas.width, anim.FrameHeight, anim.FrameCount);
-
-                if (_animationFrames == null || _animationFrames.Length == 0)
-                {
-                    Debug.LogWarning($"[SFXEffectInstance] Failed to slice {type} atlas into frames");
-                    Dispose();
-                }
-
-                _currentFrame = 0;
-                _frameDuration = 1f / Mathf.Max(1f, anim.FPS * _speed);
-                _isAnimated = true;
-                _spriteRenderer.sprite = _animationFrames[0];
-
-                // Total animation duration plus a small buffer
-                _maxLifetime = (_animationFrames.Length * _frameDuration) + 0.5f;
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"[SFXEffectInstance] Failed to decode {type}: {ex.Message}");
                 Dispose();
             }
         }

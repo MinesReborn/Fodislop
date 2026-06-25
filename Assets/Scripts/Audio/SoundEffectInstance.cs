@@ -48,7 +48,14 @@ namespace Fodinae.Scripts.Audio
         {
             try
             {
-                byte[] audioBytes = await ClientAssetLoader.Instance.GetAssetBytesAsync(
+                var loader = ClientAssetLoader.Instance;
+                if (loader == null)
+                {
+                    Dispose();
+                    return;
+                }
+
+                _clip = await loader.GetAudioAsync(
                     _filename,
                     timeoutSeconds: (int)UNLOADED_TIMEOUT
                 );
@@ -56,14 +63,12 @@ namespace Fodinae.Scripts.Audio
                 if (_isDisposed)
                     return;
 
-                if (audioBytes == null || audioBytes.Length == 0)
+                if (_clip == null)
                 {
                     Debug.LogWarning($"[SoundEffectInstance] No audio data received for {_sfxType} ({_filename})");
                     Dispose();
                     return;
                 }
-
-                _clip = WavUtility.ToAudioClip(audioBytes, $"SFX_{_sfxType}");
 
                 if (_isDisposed || _clip == null)
                 {
