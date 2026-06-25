@@ -293,8 +293,6 @@ namespace Fodinae.Scripts.Player
                     }
                     else if (_autoDig)
                     {
-                        Fodinae.Scripts.Effects.DigEffect.Play(targetServerX, targetServerY, MapManager.Instance.WorldHeight, _lastSentDirection.Value).Forget();
-
                         NetworkService.Instance.Send(new ActionClientPacket(targetServerX, targetServerY, new BzPacket()));
                         _lastMoveTime = Time.time;
                         _lastDigTime = Time.time;
@@ -352,8 +350,6 @@ namespace Fodinae.Scripts.Player
 
             ushort serverX = (ushort)targetUnityX;
             ushort serverY = (ushort)(MapManager.Instance.WorldHeight - 1 - targetUnityY);
-
-            Fodinae.Scripts.Effects.DigEffect.Play(serverX, serverY, MapManager.Instance.WorldHeight, _lastSentDirection.Value).Forget();
 
             NetworkService.Instance.Send(new ActionClientPacket(serverX, serverY, new BzPacket()));
             _lastDigTime = Time.time;

@@ -198,7 +198,7 @@ namespace MinesServer.Networking.Connection.Client
 
                     OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[]
                     {
-                        new SFXPacket(SFX.Bz, 0, cellX, cellY, Array.Empty<StringPairPacket>())
+                        new SFXPacket(SFX.Bz, _mockBotId, cellX, cellY, Array.Empty<StringPairPacket>())
                     })));
 
                     if (MapStorage.Instance.CellLayer != null && MapStorage.Instance.IsReady)
@@ -231,7 +231,7 @@ namespace MinesServer.Networking.Connection.Client
                         OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[]
                         {
                             new MapRegionPacket(cellX, cellY, 0, 0, new[] { CellType.Empty }),
-                            new SFXPacket(SFX.Destroy, 0, cellX, cellY, Array.Empty<StringPairPacket>())
+                            new SFXPacket(SFX.Destroy, _mockBotId, cellX, cellY, Array.Empty<StringPairPacket>())
                         })));
                         Debug.Log($"[DummyConnection] Cell ({cellX}, {cellY}) broken → Empty");
                     }
@@ -242,6 +242,8 @@ namespace MinesServer.Networking.Connection.Client
                     Debug.Log("[DummyConnection] Suicide / Respawn");
                     ushort spawnX = 25;
                     ushort spawnY = 50;
+                    var effectX = _x;
+                    var effectY = _y;
                     _x = spawnX;
                     _y = spawnY;
                     _rot = Direction.Up;
@@ -249,7 +251,7 @@ namespace MinesServer.Networking.Connection.Client
                     OnReceived?.Invoke(new ServerPacket(new TeleportPacket(spawnX, spawnY, false)));
                     OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] {
                         new RobotPositionPacket(_mockBotId, spawnX, spawnY, (byte)_rot),
-                        new SFXPacket(SFX.Death, _mockBotId, spawnX, spawnY, Array.Empty<StringPairPacket>())
+                        new SFXPacket(SFX.Death, _mockBotId, effectX, effectY, Array.Empty<StringPairPacket>())
                     })));
                 }
                 return;

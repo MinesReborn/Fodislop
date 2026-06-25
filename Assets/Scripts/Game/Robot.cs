@@ -49,6 +49,13 @@ namespace Fodinae.Scripts.Game
         public bool IsMetadataLoaded => _isMetadataLoaded;
         public bool IsLocalPlayer => gameObject.CompareTag("Player");
 
+        /// <summary>
+        /// The logical facing angle in Unity degrees (raw <c>_targetAngle</c>),
+        /// without visual smoothing or tremor. Use this when positioning effects
+        /// that need to align with the bot's true facing direction at creation.
+        /// </summary>
+        public float LogicalFacingAngle => _targetAngle;
+
         public float TargetAngle
         {
             get => _targetAngle - VISUAL_ROTATION_OFFSET;

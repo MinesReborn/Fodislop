@@ -167,7 +167,7 @@ namespace Fodinae.Scripts.Networking.Connection.Client
                         if (Directory.Exists(directory))
                         {
                             var files = Directory.GetFiles(directory, filenameWithoutExtension + ".*")
-                                .Where(f => !f.EndsWith(".meta", StringComparison.OrdinalIgnoreCase))
+                                .Where(f => !f.EndsWith(".meta", StringComparison.OrdinalIgnoreCase) && !f.EndsWith(".asset", StringComparison.OrdinalIgnoreCase))
                                 .OrderBy(f =>
                                 {
                                     string ext = Path.GetExtension(f).ToLower();

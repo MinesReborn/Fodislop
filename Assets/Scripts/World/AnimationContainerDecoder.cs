@@ -85,7 +85,7 @@ namespace Fodinae.Scripts.World
                 frameTex.SetPixels32(pixels);
                 frameTex.Apply();
 
-                frames[i] = Sprite.Create(frameTex, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), width);
+                frames[i] = Sprite.Create(frameTex, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), RenderingConstants.PixelsPerUnit);
             }
 
             return frames;
@@ -188,7 +188,7 @@ namespace Fodinae.Scripts.World
                 float totalDelay = 0;
                 for (int i = 0; i < frameTextures.Count; i++)
                 {
-                    Graphics.CopyTexture(frameTextures[i], 0, 0, 0, 0, width, height, atlas, 0, 0, 0, (frameTextures.Count - 1 - i) * height);
+                    Graphics.CopyTexture(frameTextures[i], 0, 0, 0, 0, width, height, atlas, 0, 0, 0, i * height);
                     totalDelay += delays[i];
                     UnityEngine.Object.Destroy(frameTextures[i]);
                 }
@@ -371,7 +371,7 @@ namespace Fodinae.Scripts.World
                 float total = 0;
                 for (int i = 0; i < fts.Count; i++)
                 {
-                    Graphics.CopyTexture(fts[i], 0, 0, 0, 0, this._sw, this._sh, atlas, 0, 0, 0, this._sh * (fts.Count - 1 - i));
+                    Graphics.CopyTexture(fts[i], 0, 0, 0, 0, this._sw, this._sh, atlas, 0, 0, 0, this._sh * i);
                     total += dls[i];
                     UnityEngine.Object.Destroy(fts[i]);
                 }

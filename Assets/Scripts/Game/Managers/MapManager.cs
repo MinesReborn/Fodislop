@@ -146,6 +146,7 @@ namespace Fodinae.Scripts.Game.Managers
             // Clear all packs when a new world is initialized
             PackManager.Instance?.ClearAllPacks();
             RobotManager.InstanceIfExists?.ClearAllRobots();
+            SFXEffectManager.InstanceIfExists?.ClearAllEffects();
 
             // Validate packet data
             if (packet == null)
