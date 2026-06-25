@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
-using Fodinae.Scripts.Effects;
 using Fodinae.Scripts.Networking;
 using Fodinae.Scripts.Player;
 using MinesServer.Data;
@@ -858,9 +857,6 @@ namespace Fodinae.Scripts.UI
 
             var okBtn = new Button(() =>
             {
-                var player = GameObject.FindGameObjectWithTag("Player");
-                if (player != null)
-                    ExplosionEffect.Play(player.transform.position);
                 NetworkService.Instance.SendAction(new SuicidePacket());
                 popup.style.display = DisplayStyle.None;
             });

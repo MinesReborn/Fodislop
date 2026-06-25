@@ -313,14 +313,14 @@ namespace Fodinae.Scripts.Networking
         private void HandleRobotInfoPacket(RobotInfoPacket packet)
         {
             _packetCount++;
-            Debug.Log($"[PacketHandler] Handling RobotInfoPacket for BotId: {packet.BotId}, Name: {packet.Name}");
+            //Debug.Log($"[PacketHandler] Handling RobotInfoPacket for BotId: {packet.BotId}, Name: {packet.Name}");
             RobotManager.Instance?.UpdateRobotMetadata(packet.BotId, packet.PlayerId, packet.ClanId, packet.Name, packet.Skin, packet.Tail);
         }
 
         private void HandlePlayerInfoPacket(PlayerInfoPacket packet)
         {
             _packetCount++;
-            Debug.Log($"[PacketHandler] Handling PlayerInfoPacket for BotId: {packet.BotId}, PlayerId: {packet.PlayerId}, Name: {packet.Nickname}");
+            //Debug.Log($"[PacketHandler] Handling PlayerInfoPacket for BotId: {packet.BotId}, PlayerId: {packet.PlayerId}, Name: {packet.Nickname}");
             var rm = RobotManager.Instance;
             if (rm != null)
             {
@@ -355,7 +355,7 @@ namespace Fodinae.Scripts.Networking
         private void HandleRobotPositionPacket(RobotPositionPacket robotPositionPacket)
         {
             _packetCount++;
-            Debug.Log($"[PacketHandler] Processing RobotPositionPacket for BotId: {robotPositionPacket.BotId}");
+            //Debug.Log($"[PacketHandler] Processing RobotPositionPacket for BotId: {robotPositionPacket.BotId}");
             var rm = RobotManager.Instance;
             if (rm != null)
             {
@@ -381,7 +381,7 @@ namespace Fodinae.Scripts.Networking
         {
             _packetCount++;
             _mapRegionPacketsReceived++;
-            Debug.Log($"[PacketHandler] Processing MapRegionPacket #{_mapRegionPacketsReceived}: X={mapRegionPacket.X}, Y={mapRegionPacket.Y}, Size={mapRegionPacket.Width + 1}x{mapRegionPacket.Height + 1}");
+            //Debug.Log($"[PacketHandler] Processing MapRegionPacket #{_mapRegionPacketsReceived}: X={mapRegionPacket.X}, Y={mapRegionPacket.Y}, Size={mapRegionPacket.Width + 1}x{mapRegionPacket.Height + 1}");
 
             if (MapStorage.Instance == null || MapStorage.Instance.CellLayer == null)
             {
@@ -443,7 +443,7 @@ namespace Fodinae.Scripts.Networking
             // Only trigger world data loaded event if we received at least one MapRegion packet in this heartbeat
             if (hasMapData)
             {
-                Debug.Log("[PacketHandler] Map data received in HBPacket, triggering OnWorldDataLoaded event");
+                //Debug.Log("[PacketHandler] Map data received in HBPacket, triggering OnWorldDataLoaded event");
                 MapManager.Instance?.OnWorldDataLoaded?.Invoke();
             }
         }
@@ -487,7 +487,7 @@ namespace Fodinae.Scripts.Networking
 
         private void HandleSkillProgressPacket(SkillProgressPacket packet)
         {
-            Debug.Log($"[PacketHandler] SkillProgress: {packet.Skill} = {packet.Current}/{packet.Max}");
+            //Debug.Log($"[PacketHandler] SkillProgress: {packet.Skill} = {packet.Current}/{packet.Max}");
             PlayerStatsModel.Instance.SetSkillProgress(packet.Skill, packet.Current, packet.Max);
         }
 
@@ -571,6 +571,7 @@ namespace Fodinae.Scripts.Networking
         {
             _packetCount++;
             AudioManager.Instance?.PlaySfx(packet.EffectType);
+            SFXEffectManager.Instance?.PlayEffect(packet);
         }
 
         private void OnWorldDataLoaded()
