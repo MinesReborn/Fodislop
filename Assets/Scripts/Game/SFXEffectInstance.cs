@@ -16,7 +16,7 @@ namespace Fodinae.Scripts.Game
     /// <summary>
     /// Manages a single server-driven SFX visual+audio effect.
     /// Created by SFXEffectManager in response to an SFXPacket.
-    /// Loads visual and audio assets from the server asset pipeline,
+    /// Loads visual assets from the server asset pipeline,
     /// plays them at the world position, and auto-disposes on completion.
     /// </summary>
     public sealed class SFXEffectInstance : IDisposable
@@ -34,6 +34,18 @@ namespace Fodinae.Scripts.Game
         // Parsed dynamic parameters from StringPairPacket list
         private Color _primaryColor = Color.white;
         private float _speed = 1f;
+
+        // Source tracking for Effekseer anchoring
+        private uint _sourceBotId;
+        private bool _hasSourceBot;
+
+        // Attractor target fallback — from dynamic x/y params (used when TargetBotId == 0)
+        private ushort _attractorX;
+        private ushort _attractorY;
+        private bool _hasAttractorPosition;
+
+        // Ordinal Effekseer dynamic input floats from "props" parameter
+        private float[] _effekseerDynamicInputs;
 
         // Sprite animation state
         private Sprite[] _animationFrames;
@@ -65,7 +77,6 @@ namespace Fodinae.Scripts.Game
             ParseParameters();
             CreateGameObject();
             LoadVisualAsync().Forget();
-            LoadAudioAsync().Forget();
         }
 
         public bool IsDisposed => _isDisposed;
@@ -79,24 +90,48 @@ namespace Fodinae.Scripts.Game
 
             foreach (var param in _parameters)
             {
-                switch (param.Key)
+                switch (param.Key.ToLowerInvariant())
                 {
-                    case "primary_color":
-                        if (ColorUtility.TryParseHtmlString(param.Value, out var primary))
+                    case "sourcebotid":
+                        if (uint.TryParse(param.Value, out var srcBotId))
                         {
-                            _primaryColor = primary;
+                            _sourceBotId = srcBotId;
+                            _hasSourceBot = true;
                         }
 
                         break;
-                    case "speed":
-                        if (float.TryParse(
-                                param.Value,
-                                System.Globalization.NumberStyles.Float,
-                                System.Globalization.CultureInfo.InvariantCulture,
-                                out var speed)
-                            && speed > 0.01f)
+                    case "x":
+                        if (ushort.TryParse(param.Value, out var attractorX))
                         {
-                            _speed = speed;
+                            _attractorX = attractorX;
+                            _hasAttractorPosition = true;
+                        }
+
+                        break;
+                    case "y":
+                        if (ushort.TryParse(param.Value, out var attractorY))
+                        {
+                            _attractorY = attractorY;
+                            _hasAttractorPosition = true;
+                        }
+
+                        break;
+                    case "props":
+                        if (!string.IsNullOrEmpty(param.Value))
+                        {
+                            var parts = param.Value.Split(',');
+                            _effekseerDynamicInputs = new float[parts.Length];
+                            for (int i = 0; i < parts.Length; i++)
+                            {
+                                if (float.TryParse(
+                                        parts[i],
+                                        System.Globalization.NumberStyles.Float,
+                                        System.Globalization.CultureInfo.InvariantCulture,
+                                        out var propVal))
+                                {
+                                    _effekseerDynamicInputs[i] = propVal;
+                                }
+                            }
                         }
 
                         break;
@@ -107,27 +142,48 @@ namespace Fodinae.Scripts.Game
         private void CreateGameObject()
         {
             var worldHeight = MapManager.Instance?.WorldHeight ?? 128;
-            var pos = CoordinateUtils.ServerToUnityPos(_sourceX, _sourceY, worldHeight);
 
-            _gameObject = new GameObject($"SFX_{_effectType}_{_sourceX}_{_sourceY}");
+            // Source position: sourceBot > packet X/Y
+            Vector3 pos;
+            string objLabel;
+
+            if (_hasSourceBot)
+            {
+                var sourceBot = RobotManager.InstanceIfExists?.GetOrCreateRobot(_sourceBotId);
+                if (sourceBot != null)
+                {
+                    pos = sourceBot.transform.position;
+                }
+                else
+                {
+                    pos = CoordinateUtils.ServerToUnityPos(_sourceX, _sourceY, worldHeight);
+                }
+
+                objLabel = $"SFX_{_effectType}_srcBot{_sourceBotId}";
+            }
+            else
+            {
+                pos = CoordinateUtils.ServerToUnityPos(_sourceX, _sourceY, worldHeight);
+                objLabel = $"SFX_{_effectType}_{_sourceX}_{_sourceY}";
+            }
+
+            _gameObject = new GameObject(objLabel);
             _gameObject.transform.position = pos;
             _intendedWorldPosition = pos;
 
-            // Attach to target bot if a specific robot is targeted
+            // Apply the target bot's logical facing direction to sprite-based VFX (PNG/GIF/WebP)
+            // at creation time — once, not updated as the bot rotates.
+            // Uses LogicalFacingAngle (raw _targetAngle) rather than transform.rotation
+            // to avoid visual smoothing lag and random tremor.
+            // Effekseer effects handle source/attractor tracking independently in Update().
+            // VFX sprite faces DOWN at 0°, while robot sprite faces UP at 0°
+            // (due to VISUAL_ROTATION_OFFSET = -90). The +180 compensates for this 180° offset.
             if (_targetBotId != 0)
             {
-                var bot = RobotManager.InstanceIfExists?.GetOrCreateRobot(_targetBotId);
-                if (bot != null)
+                var targetBot = RobotManager.InstanceIfExists?.GetOrCreateRobot(_targetBotId);
+                if (targetBot != null)
                 {
-                    // Apply the bot's logical facing direction to sprite-based VFX (PNG/GIF/WebP)
-                    // at creation time — once, not updated as the bot rotates.
-                    // Uses LogicalFacingAngle (raw _targetAngle) rather than transform.rotation
-                    // to avoid visual smoothing lag and random tremor.
-                    // Effekseer effects are not affected: they use _intendedWorldPosition
-                    // independently (see TryLoadEffekseer).
-                    // VFX sprite faces DOWN at 0°, while robot sprite faces UP at 0°
-                    // (due to VISUAL_ROTATION_OFFSET = -90). The +180 compensates for this 180° offset.
-                    _gameObject.transform.rotation = Quaternion.Euler(0, 0, bot.LogicalFacingAngle + 180f);
+                    _gameObject.transform.rotation = Quaternion.Euler(0, 0, targetBot.LogicalFacingAngle + 180f);
                 }
             }
 
@@ -251,10 +307,33 @@ namespace Fodinae.Scripts.Game
 
                 _effekseerHandle = EffekseerSystem.PlayEffect(effectAsset, _intendedWorldPosition);
                 Debug.Log($"[SFX] Effect handle=NONE(inaccessible field), exists={_effekseerHandle.exists}, intendedPos={_intendedWorldPosition}");
-                _effekseerHandle.SetDynamicInput(0, _speed);
-                _effekseerHandle.SetDynamicInput(1, _primaryColor.r);
-                _effekseerHandle.SetDynamicInput(2, _primaryColor.g);
-                _effekseerHandle.SetDynamicInput(3, _primaryColor.b);
+
+                // Apply ordinal Effekseer dynamic inputs from "props" parameter
+                // Format: comma-separated float values, each maps to a dynamic input index
+                if (_effekseerDynamicInputs != null)
+                {
+                    for (int i = 0; i < _effekseerDynamicInputs.Length; i++)
+                    {
+                        _effekseerHandle.SetDynamicInput(i, _effekseerDynamicInputs[i]);
+                    }
+                }
+
+                // Set attractor target position — priority: TargetBotId > source_x/source_y (dynamic params) > none
+                if (_targetBotId != 0)
+                {
+                    var targetBot = RobotManager.InstanceIfExists?.GetOrCreateRobot(_targetBotId);
+                    if (targetBot != null)
+                    {
+                        _effekseerHandle.SetTargetLocation(targetBot.transform.position);
+                    }
+                }
+                else if (_hasAttractorPosition)
+                {
+                    var worldHeight = MapManager.Instance?.WorldHeight ?? 128;
+                    var attractorPos = CoordinateUtils.ServerToUnityPos(_attractorX, _attractorY, worldHeight);
+                    _effekseerHandle.SetTargetLocation(attractorPos);
+                }
+
                 _hasEffekseerEffect = true;
 
                 Debug.Log($"[SFX] worldPos={_gameObject.transform.position}, " +
@@ -272,42 +351,6 @@ namespace Fodinae.Scripts.Game
             {
                 Debug.LogWarning($"[SFXEffectInstance] Failed to load Effekseer effect: {ex.Message}");
                 Dispose();
-            }
-        }
-
-        private async UniTaskVoid LoadAudioAsync()
-        {
-            try
-            {
-                var filename = $"audio/{_effectType.ToString().ToLowerInvariant()}";
-                var bytes = await ClientAssetLoader.Instance.GetAssetBytesAsync(filename, timeoutSeconds: 10);
-
-                if (bytes == null || bytes.Length == 0)
-                {
-                    // No dedicated audio for this SFX variant — audio-only effects
-                    // still play through the existing AudioManager path
-                    return;
-                }
-
-                var clip = WavUtility.ToAudioClip(bytes, $"SFX_{_effectType}");
-                if (clip == null)
-                {
-                    return;
-                }
-
-                _audioSource = _gameObject.AddComponent<AudioSource>();
-                _audioSource.clip = clip;
-                _audioSource.spatialBlend = 1f; // Full 3D spatial
-                _audioSource.volume = AudioManager.Instance?.SfxVolume ?? 1f;
-                _audioSource.Play();
-
-                // Keep the effect alive long enough for audio to finish
-                float audioDuration = (float)clip.samples / clip.frequency;
-                _maxLifetime = Mathf.Max(_maxLifetime, audioDuration + 1f);
-            }
-            catch
-            {
-                // Audio loading failure is non-fatal — visual still plays
             }
         }
 
@@ -336,12 +379,36 @@ namespace Fodinae.Scripts.Game
                 }
             }
 
-            // Check if Effekseer effect has finished
-            if (_hasEffekseerEffect && !_effekseerHandle.exists)
+            // Update Effekseer effect: track source and attractor bot positions every frame
+            if (_hasEffekseerEffect)
             {
-                _isDisposed = true;
-                CleanupGameObject();
-                return;
+                // Update source position to follow the source bot
+                if (_hasSourceBot)
+                {
+                    var sourceBot = RobotManager.InstanceIfExists?.GetOrCreateRobot(_sourceBotId);
+                    if (sourceBot != null)
+                    {
+                        _effekseerHandle.SetLocation(sourceBot.transform.position);
+                    }
+                }
+
+                // Update attractor target position to follow the target bot
+                if (_targetBotId != 0)
+                {
+                    var targetBot = RobotManager.InstanceIfExists?.GetOrCreateRobot(_targetBotId);
+                    if (targetBot != null)
+                    {
+                        _effekseerHandle.SetTargetLocation(targetBot.transform.position);
+                    }
+                }
+
+                // Check if Effekseer effect has finished
+                if (!_effekseerHandle.exists)
+                {
+                    _isDisposed = true;
+                    CleanupGameObject();
+                    return;
+                }
             }
 
             // Enforce max lifetime as a safety net
