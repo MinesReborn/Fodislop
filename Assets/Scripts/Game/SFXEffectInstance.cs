@@ -4,6 +4,7 @@ using Cysharp.Threading.Tasks;
 using Fodinae.Scripts.Audio;
 using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Utils;
+using Fodinae.Scripts.Effekseer;
 using Fodinae.Scripts.World;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.World;
@@ -219,7 +220,7 @@ namespace Fodinae.Scripts.Game
                         LoadAnimatedSprite(bytes, AnimationContainerDecoder.ContainerType.WebP);
                         break;
                     default:
-                        TryLoadEffekseer(bytes);
+                        await TryLoadEffekseerAsync(bytes);
                         break;
                 }
             }
@@ -293,20 +294,29 @@ namespace Fodinae.Scripts.Game
             }
         }
 
-        private void TryLoadEffekseer(byte[] bytes)
+        private async UniTask<bool> TryLoadEffekseerAsync(byte[] bytes)
         {
             try
             {
-                var effectAsset = EffekseerSystem.LoadEffect(bytes, _effectType.ToString());
+                // Load effect with textures from the server asset pipeline.
+                // Texture paths inside the .efk are used as-is for server requests.
+                // Override with a texturePathMapper if you need path remapping:
+                //   path => "vfx/textures/" + Path.GetFileName(path)
+                var effectAsset = await RuntimeEffekseerLoader.LoadEffectAsync(
+                    bytes,
+                    _effectType.ToString(),
+                    texturePathMapper: null,
+                    textureTimeoutSeconds: 10);
+
                 if (effectAsset == null)
                 {
-                    Debug.LogWarning("[SFXEffectInstance] EffekseerSystem.LoadEffect returned null");
+                    Debug.LogWarning("[SFXEffectInstance] RuntimeEffekseerLoader.LoadEffectAsync returned null");
                     Dispose();
-                    return;
+                    return false;
                 }
 
                 _effekseerHandle = EffekseerSystem.PlayEffect(effectAsset, _intendedWorldPosition);
-                Debug.Log($"[SFX] Effect handle=NONE(inaccessible field), exists={_effekseerHandle.exists}, intendedPos={_intendedWorldPosition}");
+                Debug.Log($"[SFX] Effect handle exists={_effekseerHandle.exists}, intendedPos={_intendedWorldPosition}");
 
                 // Apply ordinal Effekseer dynamic inputs from "props" parameter
                 // Format: comma-separated float values, each maps to a dynamic input index
@@ -346,11 +356,13 @@ namespace Fodinae.Scripts.Game
 
                 // Effekseer effects have their own lifetime; set generous fallback
                 _maxLifetime = 10f;
+                return true;
             }
             catch (Exception ex)
             {
                 Debug.LogWarning($"[SFXEffectInstance] Failed to load Effekseer effect: {ex.Message}");
                 Dispose();
+                return false;
             }
         }
 
