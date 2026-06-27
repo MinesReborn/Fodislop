@@ -106,6 +106,7 @@ namespace Fodinae.Scripts.Networking
                 ns.Subscribe<BasketPacket>(HandleBasketPacket);
 
                 ns.Subscribe<AutoMineStatePacket>(HandleAutoMineStatePacket);
+                ns.Subscribe<AggressionStatePacket>(HandleAggressionStatePacket);
                 ns.Subscribe<SkillProgressPacket>(HandleSkillProgressPacket);
                 ns.Subscribe<ChatMessageListPacket>(HandleChatMessageList);
                 ns.Subscribe<ChatListPacket>(HandleChatList);
@@ -156,6 +157,7 @@ namespace Fodinae.Scripts.Networking
                 ns.Unsubscribe<RemovePackPacket>(HandleRemovePackPacket);
                 ns.Unsubscribe<SkillProgressPacket>(HandleSkillProgressPacket);
                 ns.Unsubscribe<AutoMineStatePacket>(HandleAutoMineStatePacket);
+                ns.Unsubscribe<AggressionStatePacket>(HandleAggressionStatePacket);
                 ns.Unsubscribe<ChatMessageListPacket>(HandleChatMessageList);
                 ns.Unsubscribe<ChatListPacket>(HandleChatList);
                 ns.Unsubscribe<LocalChatMessagePacket>(HandleLocalChatMessage);
@@ -487,6 +489,14 @@ namespace Fodinae.Scripts.Networking
             var player = FindObjectOfType<PlayerMovementController>();
             if (player != null)
                 player.AutoDig = packet.Enabled;
+        }
+
+        private void HandleAggressionStatePacket(AggressionStatePacket packet)
+        {
+            Debug.Log($"[PacketHandler] AggressionStatePacket: {packet.Enabled}");
+            var player = FindObjectOfType<PlayerMovementController>();
+            if (player != null)
+                player.Aggression = packet.Enabled;
         }
 
         private void HandleSkillProgressPacket(SkillProgressPacket packet)

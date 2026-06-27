@@ -53,6 +53,7 @@ namespace MinesServer.Networking.Connection.Client
         private ushort _x = 0;
         private ushort _y = 0;
         private Direction _rot = Direction.Up;
+        private bool _aggression;
         private ItemType _selectedItemType;
         private FPSCounter _fpsCounter;
 
@@ -189,6 +190,12 @@ namespace MinesServer.Networking.Connection.Client
                 else if (actionPacket.Payload is UnmappedKeyPacket key)
                 {
                     Debug.Log($"  - Unmapped Key: Code={key.Code}, Ctrl={key.Control}, Alt={key.Alt}, Shift={key.Shift}");
+                }
+                else if (actionPacket.Payload is ToggleAgressionPacket)
+                {
+                    _aggression = !_aggression;
+                    Debug.Log($"[DummyConnection] Aggression toggled: {_aggression}");
+                    OnReceived?.Invoke(new ServerPacket(new AggressionStatePacket(_aggression)));
                 }
                 else if (actionPacket.Payload is BzPacket)
                 {

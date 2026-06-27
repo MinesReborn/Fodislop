@@ -58,6 +58,8 @@ namespace Fodinae.Scripts.UI
         private readonly Dictionary<SkillType, IVisualElementScheduledItem> _pulseSchedules = new();
         private Button _autoDigButton;
         private Label _autoDigLabel;
+        private Button _aggressionButton;
+        private Label _aggressionLabel;
         private VisualElement _currentSkillRow;
         private int _skillCountInRow = 0;
         private Button _chatButton;
@@ -107,6 +109,7 @@ namespace Fodinae.Scripts.UI
             CreatePanel(_doc.rootVisualElement);
             CreateBonusButton(_doc.rootVisualElement);
             CreateBonusPanel(_doc.rootVisualElement);
+            CreateAggressionToggle(_doc.rootVisualElement);
             CreateAutoDigToggle(_doc.rootVisualElement);
             CreateChatButton(_doc.rootVisualElement);
             CreateButtonsAndPopups(_doc.rootVisualElement);
@@ -116,6 +119,9 @@ namespace Fodinae.Scripts.UI
             var player = FindObjectOfType<PlayerMovementController>();
             if (player != null)
                 player.OnAutoDigChanged += UpdateAutoDigButton;
+
+            if (player != null)
+                player.OnAggressionChanged += UpdateAggressionButton;
 
             RebuildCrystalRows();
             PlayerStatsModel.Instance.OnStatsChanged += RefreshAll;
@@ -389,6 +395,40 @@ namespace Fodinae.Scripts.UI
             root.Add(_autoDigButton);
         }
 
+        private void CreateAggressionToggle(VisualElement root)
+        {
+            _aggressionButton = new Button(ToggleAggression);
+            _aggressionButton.text = "";
+            _aggressionButton.style.position = Position.Absolute;
+            _aggressionButton.style.left = 10;
+            _aggressionButton.style.bottom = 314;
+            _aggressionButton.style.width = 100;
+            _aggressionButton.style.height = 28;
+            _aggressionButton.style.backgroundColor = new Color(0.15f, 0.05f, 0.05f, 0.85f);
+            _aggressionButton.style.borderTopWidth = 2;
+            _aggressionButton.style.borderBottomWidth = 2;
+            _aggressionButton.style.borderLeftWidth = 2;
+            _aggressionButton.style.borderRightWidth = 2;
+            _aggressionButton.style.borderTopColor = _panelBorderColor;
+            _aggressionButton.style.borderBottomColor = _panelBorderColor;
+            _aggressionButton.style.borderLeftColor = _panelBorderColor;
+            _aggressionButton.style.borderRightColor = _panelBorderColor;
+            _aggressionButton.style.paddingTop = 0;
+            _aggressionButton.style.paddingBottom = 0;
+            _aggressionButton.style.paddingLeft = 0;
+            _aggressionButton.style.paddingRight = 0;
+
+            _aggressionLabel = new Label("Агрессия ✗");
+            _aggressionLabel.style.fontSize = 12;
+            _aggressionLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            _aggressionLabel.style.color = new Color(0.9f, 0.3f, 0.3f, 1f);
+            _aggressionLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            _aggressionLabel.style.flexGrow = 1;
+            _aggressionButton.Add(_aggressionLabel);
+
+            root.Add(_aggressionButton);
+        }
+
         private void CreateSkillContainer(VisualElement root)
         {
             _skillContainer = new VisualElement();
@@ -493,6 +533,25 @@ namespace Fodinae.Scripts.UI
                 ? new Color(0.3f, 0.9f, 0.3f, 1f)
                 : new Color(0.9f, 0.3f, 0.3f, 1f);
             _autoDigButton.style.backgroundColor = enabled
+                ? new Color(0.05f, 0.15f, 0.05f, 0.85f)
+                : new Color(0.15f, 0.05f, 0.05f, 0.85f);
+        }
+
+        private void ToggleAggression()
+        {
+            var player = FindObjectOfType<PlayerMovementController>();
+            if (player != null)
+                player.ToggleAggression();
+        }
+
+        private void UpdateAggressionButton(bool enabled)
+        {
+            if (_aggressionLabel == null) return;
+            _aggressionLabel.text = enabled ? "Агрессия ✓" : "Агрессия ✗";
+            _aggressionLabel.style.color = enabled
+                ? new Color(0.3f, 0.9f, 0.3f, 1f)
+                : new Color(0.9f, 0.3f, 0.3f, 1f);
+            _aggressionButton.style.backgroundColor = enabled
                 ? new Color(0.05f, 0.15f, 0.05f, 0.85f)
                 : new Color(0.15f, 0.05f, 0.05f, 0.85f);
         }
