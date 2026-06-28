@@ -64,29 +64,11 @@ namespace Fodinae.Scripts.UI
 
         public bool DailyBonusAvailable { get; private set; }
 
-        public ItemType DailyBonusItemType { get; private set; }
-        public int DailyBonusItemAmount { get; private set; }
-        public int DailyBonusCountdownSeconds { get; private set; }
-
         public void SetDailyBonusAvailable(bool available)
         {
             DailyBonusAvailable = available;
             OnDailyBonusChanged?.Invoke();
             OnStatsChanged?.Invoke();
-        }
-
-        public void SetDailyBonusItem(ItemType type, int amount)
-        {
-            DailyBonusItemType = type;
-            DailyBonusItemAmount = amount;
-            OnDailyBonusChanged?.Invoke();
-            OnStatsChanged?.Invoke();
-        }
-
-        public void SetDailyBonusCountdown(int seconds)
-        {
-            DailyBonusCountdownSeconds = seconds;
-            OnDailyBonusChanged?.Invoke();
         }
 
         public void SetNickname(string nickname)

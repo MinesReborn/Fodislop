@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
-using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Networking;
 using Fodinae.Scripts.Player;
 using MinesServer.Data;
@@ -43,10 +42,7 @@ namespace Fodinae.Scripts.UI
         private Button _bonusButton;
         private VisualElement _bonusPanel;
         private Label _bonusStatusLabel;
-        private VisualElement _bonusItemRow;
-        private Label _bonusItemLabel;
         private Button _bonusClaimButton;
-        private Label _bonusTimerLabel;
         private bool _isBonusOpen;
 
         private Label _nicknameLabel;
@@ -371,20 +367,6 @@ namespace Fodinae.Scripts.UI
             _bonusStatusLabel.style.marginBottom = 5;
             _bonusPanel.Add(_bonusStatusLabel);
 
-            _bonusItemRow = new VisualElement();
-            _bonusItemRow.style.flexDirection = FlexDirection.Row;
-            _bonusItemRow.style.alignItems = Align.Center;
-            _bonusItemRow.style.marginBottom = 5;
-            _bonusItemRow.style.display = DisplayStyle.None;
-
-            _bonusItemLabel = new Label();
-            _bonusItemLabel.style.fontSize = 12;
-            _bonusItemLabel.style.color = Color.white;
-            _bonusItemLabel.style.flexGrow = 1;
-            _bonusItemRow.Add(_bonusItemLabel);
-
-            _bonusPanel.Add(_bonusItemRow);
-
             _bonusClaimButton = new Button(ClaimDailyBonus);
             _bonusClaimButton.text = "Забрать";
             _bonusClaimButton.style.display = DisplayStyle.None;
@@ -414,13 +396,6 @@ namespace Fodinae.Scripts.UI
                 _bonusClaimButton.style.backgroundColor = new Color(0.1f, 0.4f, 0.1f, 1f));
             _bonusPanel.Add(_bonusClaimButton);
 
-            _bonusTimerLabel = new Label();
-            _bonusTimerLabel.style.fontSize = 11;
-            _bonusTimerLabel.style.color = Color.gray;
-            _bonusTimerLabel.style.marginTop = 5;
-            _bonusTimerLabel.style.whiteSpace = WhiteSpace.Normal;
-            _bonusPanel.Add(_bonusTimerLabel);
-
             _bonusPanel.style.display = DisplayStyle.None;
             root.Add(_bonusPanel);
         }
@@ -444,31 +419,13 @@ namespace Fodinae.Scripts.UI
             {
                 _bonusStatusLabel.text = "Ежедневный бонус: <color=lime>Доступен!</color>";
                 _bonusStatusLabel.style.color = Color.green;
-
-                string itemName = ItemRegistry.GetName(stats.DailyBonusItemType);
-                _bonusItemLabel.text = $"{itemName} x{stats.DailyBonusItemAmount}";
-                _bonusItemRow.style.display = DisplayStyle.Flex;
-
                 _bonusClaimButton.style.display = DisplayStyle.Flex;
-                _bonusTimerLabel.text = "";
             }
             else
             {
                 _bonusStatusLabel.text = "Ежедневный бонус: Нет активных бонусов";
                 _bonusStatusLabel.style.color = Color.gray;
-
-                _bonusItemRow.style.display = DisplayStyle.None;
                 _bonusClaimButton.style.display = DisplayStyle.None;
-
-                if (stats.DailyBonusCountdownSeconds > 0)
-                {
-                    var ts = TimeSpan.FromSeconds(stats.DailyBonusCountdownSeconds);
-                    _bonusTimerLabel.text = $"След. бонус через: {(int)ts.TotalHours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}";
-                }
-                else
-                {
-                    _bonusTimerLabel.text = "";
-                }
             }
         }
 

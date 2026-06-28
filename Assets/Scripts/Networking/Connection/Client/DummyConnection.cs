@@ -306,9 +306,6 @@ namespace MinesServer.Networking.Connection.Client
                     OnReceived?.Invoke(new ServerPacket(new DailyBonusStatePacket(false)));
                     _bonusCountdown = 10;
                     _bonusClaimed = false;
-                    var initStats = PlayerStatsModel.Instance;
-                    if (initStats != null)
-                        initStats.SetDailyBonusCountdown(_bonusCountdown);
                     OnReceived?.Invoke(new ServerPacket(new CurrencyPacket(123456, 1234)));
                     OnReceived?.Invoke(new ServerPacket(new HealthPacket(250, 500)));
                     OnReceived?.Invoke(new ServerPacket(new BasketPacket(50000, new[] { 0L, 0L, 0L, 0L, 0L, 0L })));
@@ -343,6 +340,7 @@ namespace MinesServer.Networking.Connection.Client
                     // Send test packs
                     OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] {
                         new PackPacket(27, 50, PackType.Teleport, 0, 1),
+                        new PackPacket(227, 50, PackType.Teleport, 0, 1),
                         new PackPacket(25, 48, PackType.Market, 0, 0)
                     })));
                     break;
@@ -582,9 +580,6 @@ namespace MinesServer.Networking.Connection.Client
 
                 while (_bonusCountdown > 0 && !_bonusClaimed && _status == ConnectionStatus.Connected)
                 {
-                    var stats = PlayerStatsModel.Instance;
-                    if (stats != null)
-                        stats.SetDailyBonusCountdown(_bonusCountdown);
                     await UniTask.Delay(1000);
                     _bonusCountdown--;
                 }
@@ -593,12 +588,6 @@ namespace MinesServer.Networking.Connection.Client
 
                 _pendingBonusItem = PickRandomBonusItem();
                 _pendingBonusAmount = (int)PickRandomAmount(_pendingBonusItem);
-                var readyStats = PlayerStatsModel.Instance;
-                if (readyStats != null)
-                {
-                    readyStats.SetDailyBonusItem(_pendingBonusItem, _pendingBonusAmount);
-                    readyStats.SetDailyBonusCountdown(0);
-                }
                 OnReceived?.Invoke(new ServerPacket(new DailyBonusStatePacket(true)));
                 Debug.Log($"[DummyConnection] Daily bonus now available: {_pendingBonusItem} x{_pendingBonusAmount}");
 
@@ -608,12 +597,6 @@ namespace MinesServer.Networking.Connection.Client
                 if (_status != ConnectionStatus.Connected) break;
 
                 _bonusCountdown = 10;
-                var afterStats = PlayerStatsModel.Instance;
-                if (afterStats != null)
-                {
-                    afterStats.SetDailyBonusItem(default, 0);
-                    afterStats.SetDailyBonusCountdown(_bonusCountdown);
-                }
                 OnReceived?.Invoke(new ServerPacket(new DailyBonusStatePacket(false)));
             }
         }
