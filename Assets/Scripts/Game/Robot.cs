@@ -91,6 +91,7 @@ namespace Fodinae.Scripts.Game
             if (rb != null)
             {
                 rb.freezeRotation = true;
+                rb.simulated = false;
             }
 
             InitializeVisualElements();

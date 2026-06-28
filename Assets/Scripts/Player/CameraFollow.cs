@@ -26,6 +26,7 @@ namespace Fodinae.Scripts.Player
         private PlayerInput _playerInput;
         private InputAction _scrollAction;
         private bool _scrollEnabled = true;
+        private Vector3 _followVelocity;
 
         private void Awake()
         {
@@ -130,9 +131,14 @@ namespace Fodinae.Scripts.Player
             }
             Vector3 targetPosition = _target.position + new Vector3(_offset.x, _offset.y, 0f);
             Vector3 desiredPosition = new Vector3(targetPosition.x, targetPosition.y, _originalZ);
-            float t = _smoothSpeed * Time.deltaTime;
-            transform.position = Vector3.Lerp(transform.position, desiredPosition, t);
+            // SmoothDamp is frame-rate independent — unlike Lerp(dt), it handles variable dt
+            // without introducing jitter during frame spikes (e.g. terrain mesh rebuilds).
+            // smoothTime ≈ 1 / _smoothSpeed gives equivalent response to the old Lerp, but we
+            // tune it a touch snappier to reduce swimmy lag at high movement speeds.
+            float smoothTime = 1f / Mathf.Max(_smoothSpeed, 0.001f);
+            transform.position = Vector3.SmoothDamp(transform.position, desiredPosition, ref _followVelocity, smoothTime, float.PositiveInfinity, Time.deltaTime);
         }
+
         public void SetTarget(Transform newTarget) => _target = newTarget;
         public void SetZoom(float zoomLevel)
         {

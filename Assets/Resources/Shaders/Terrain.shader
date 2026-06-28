@@ -132,10 +132,10 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
             half4 frag (Varyings input) : SV_Target
             {
+                if (input.color.a < 0.05) discard;
                 if (input.worldPos.w > 1.5) discard;
                 if (input.subAtlasRect.z < 0.0001)
                 {
-                    if (input.color.a < 0.05) discard;
                     return input.color;
                 }
 
@@ -392,10 +392,10 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
             half4 frag (Varyings input) : SV_Target
             {
+                if (input.color.a < 0.05) discard;
                 if (input.worldPos.w > 1.5) discard;
                 if (input.subAtlasRect.z < 0.0001)
                 {
-                    if (input.color.a < 0.05) discard;
                     return input.color;
                 }
 

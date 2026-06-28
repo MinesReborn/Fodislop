@@ -22,7 +22,7 @@ namespace Fodinae.Scripts.UI
         private PlayerHUD _playerHud;
         private InventoryUI _inventory;
         private FPSCounter _fps;
-        private MinimapPlaceholder _minimap;
+        private MinimapController _minimap;
         private PauseMenu _pauseMenu;
 
         void Start()
@@ -33,7 +33,7 @@ namespace Fodinae.Scripts.UI
             _playerHud = FindObjectOfType<PlayerHUD>();
             _inventory = FindObjectOfType<InventoryUI>();
             _fps = FindObjectOfType<FPSCounter>();
-            _minimap = FindObjectOfType<MinimapPlaceholder>();
+            _minimap = FindObjectOfType<MinimapController>();
             _pauseMenu = FindObjectOfType<PauseMenu>();
 
             if (_cameraFollow == null)

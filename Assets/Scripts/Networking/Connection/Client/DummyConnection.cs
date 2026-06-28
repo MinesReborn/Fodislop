@@ -111,7 +111,7 @@ namespace MinesServer.Networking.Connection.Client
             OnConnected?.Invoke();
 
             var minimapObj = new GameObject("MinimapRoot");
-            minimapObj.AddComponent<MinimapPlaceholder>();
+            minimapObj.AddComponent<MinimapController>();
 
             var inventoryObj = new GameObject("InventoryRoot");
             inventoryObj.AddComponent<InventoryUI>();
