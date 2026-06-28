@@ -60,6 +60,34 @@ namespace Fodinae.Scripts.UI
         public event Action OnNicknameChanged;
         public event Action OnBasketChanged;
         public event Action<SkillType, long, long> OnSkillProgress;
+        public event Action OnDailyBonusChanged;
+
+        public bool DailyBonusAvailable { get; private set; }
+
+        public ItemType DailyBonusItemType { get; private set; }
+        public int DailyBonusItemAmount { get; private set; }
+        public int DailyBonusCountdownSeconds { get; private set; }
+
+        public void SetDailyBonusAvailable(bool available)
+        {
+            DailyBonusAvailable = available;
+            OnDailyBonusChanged?.Invoke();
+            OnStatsChanged?.Invoke();
+        }
+
+        public void SetDailyBonusItem(ItemType type, int amount)
+        {
+            DailyBonusItemType = type;
+            DailyBonusItemAmount = amount;
+            OnDailyBonusChanged?.Invoke();
+            OnStatsChanged?.Invoke();
+        }
+
+        public void SetDailyBonusCountdown(int seconds)
+        {
+            DailyBonusCountdownSeconds = seconds;
+            OnDailyBonusChanged?.Invoke();
+        }
 
         public void SetNickname(string nickname)
         {

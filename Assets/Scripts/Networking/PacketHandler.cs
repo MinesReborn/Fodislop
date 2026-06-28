@@ -121,6 +121,7 @@ namespace Fodinae.Scripts.Networking
                 ns.Subscribe<InventoryPacket>(HandleInventoryPacket);
                 ns.Subscribe<MinesServer.Networking.Server.Packets.Inventory.SelectItemPacket>(HandleServerSelectItem);
                 ns.Subscribe<MinesServer.Networking.Server.Packets.Inventory.DeselectItemPacket>(HandleServerDeselect);
+                ns.Subscribe<DailyBonusStatePacket>(HandleDailyBonusStatePacket);
             }
 
             var mm = MapManager.Instance;
@@ -177,6 +178,7 @@ namespace Fodinae.Scripts.Networking
                 ns.Unsubscribe<InventoryPacket>(HandleInventoryPacket);
                 ns.Unsubscribe<MinesServer.Networking.Server.Packets.Inventory.SelectItemPacket>(HandleServerSelectItem);
                 ns.Unsubscribe<MinesServer.Networking.Server.Packets.Inventory.DeselectItemPacket>(HandleServerDeselect);
+                ns.Unsubscribe<DailyBonusStatePacket>(HandleDailyBonusStatePacket);
             }
 
             // Close any open windows and dispose bindings
@@ -497,6 +499,12 @@ namespace Fodinae.Scripts.Networking
             var player = FindObjectOfType<PlayerMovementController>();
             if (player != null)
                 player.Aggression = packet.Enabled;
+        }
+
+        private void HandleDailyBonusStatePacket(DailyBonusStatePacket packet)
+        {
+            Debug.Log($"[PacketHandler] DailyBonusStatePacket: {packet.Enabled}");
+            PlayerStatsModel.Instance.SetDailyBonusAvailable(packet.Enabled);
         }
 
         private void HandleSkillProgressPacket(SkillProgressPacket packet)

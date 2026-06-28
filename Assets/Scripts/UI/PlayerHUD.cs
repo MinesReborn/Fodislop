@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
+using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Networking;
 using Fodinae.Scripts.Player;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets.Actions;
+using MinesServer.Networking.Client.Packets.GUI;
 using MinesServer.Networking.Server.Packets.Information;
+using MinesServer.Networking.Shared.Packets;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -21,7 +24,7 @@ namespace Fodinae.Scripts.UI
         private const int BTN_SIZE = 50;
         private const int PROGRAMMATOR_WIDTH = 584;
         private const int PROGRAMMATOR_HEIGHT = 520;
-        private const int BONUS_PANEL_WIDTH = 200;
+        private const int BONUS_PANEL_WIDTH = 260;
         private const int GAP = 6;
         private const int SKILL_GRID_COLS = 4;
 
@@ -39,6 +42,11 @@ namespace Fodinae.Scripts.UI
         private VisualElement _panel;
         private Button _bonusButton;
         private VisualElement _bonusPanel;
+        private Label _bonusStatusLabel;
+        private VisualElement _bonusItemRow;
+        private Label _bonusItemLabel;
+        private Button _bonusClaimButton;
+        private Label _bonusTimerLabel;
         private bool _isBonusOpen;
 
         private Label _nicknameLabel;
@@ -81,6 +89,8 @@ namespace Fodinae.Scripts.UI
                 PlayerStatsModel.Instance.OnStatsChanged -= RefreshAll;
             if (PlayerStatsModel.Instance != null)
                 PlayerStatsModel.Instance.OnSkillProgress -= OnSkillProgress;
+            if (PlayerStatsModel.Instance != null)
+                PlayerStatsModel.Instance.OnDailyBonusChanged -= UpdateDailyBonusPanel;
             if (GlobalChatUI.Instance != null)
                 GlobalChatUI.Instance.Hide();
         }
@@ -122,6 +132,9 @@ namespace Fodinae.Scripts.UI
 
             if (player != null)
                 player.OnAggressionChanged += UpdateAggressionButton;
+
+            if (PlayerStatsModel.Instance != null)
+                PlayerStatsModel.Instance.OnDailyBonusChanged += UpdateDailyBonusPanel;
 
             RebuildCrystalRows();
             PlayerStatsModel.Instance.OnStatsChanged += RefreshAll;
@@ -351,14 +364,118 @@ namespace Fodinae.Scripts.UI
 
             _bonusPanel.Add(titleRow);
 
-            var emptyLabel = new Label("Нет активных бонусов");
-            emptyLabel.style.color = Color.gray;
-            emptyLabel.style.fontSize = 12;
-            emptyLabel.style.marginTop = 0;
-            _bonusPanel.Add(emptyLabel);
+            _bonusStatusLabel = new Label("Ежедневный бонус: ...");
+            _bonusStatusLabel.style.fontSize = 12;
+            _bonusStatusLabel.style.color = Color.gray;
+            _bonusStatusLabel.style.whiteSpace = WhiteSpace.Normal;
+            _bonusStatusLabel.style.marginBottom = 5;
+            _bonusPanel.Add(_bonusStatusLabel);
+
+            _bonusItemRow = new VisualElement();
+            _bonusItemRow.style.flexDirection = FlexDirection.Row;
+            _bonusItemRow.style.alignItems = Align.Center;
+            _bonusItemRow.style.marginBottom = 5;
+            _bonusItemRow.style.display = DisplayStyle.None;
+
+            _bonusItemLabel = new Label();
+            _bonusItemLabel.style.fontSize = 12;
+            _bonusItemLabel.style.color = Color.white;
+            _bonusItemLabel.style.flexGrow = 1;
+            _bonusItemRow.Add(_bonusItemLabel);
+
+            _bonusPanel.Add(_bonusItemRow);
+
+            _bonusClaimButton = new Button(ClaimDailyBonus);
+            _bonusClaimButton.text = "Забрать";
+            _bonusClaimButton.style.display = DisplayStyle.None;
+            _bonusClaimButton.style.width = 80;
+            _bonusClaimButton.style.height = 28;
+            _bonusClaimButton.style.alignSelf = Align.Center;
+            _bonusClaimButton.style.backgroundColor = new Color(0.1f, 0.4f, 0.1f, 1f);
+            _bonusClaimButton.style.color = Color.white;
+            _bonusClaimButton.style.fontSize = 12;
+            _bonusClaimButton.style.unityFontStyleAndWeight = FontStyle.Bold;
+            _bonusClaimButton.style.unityTextAlign = TextAnchor.MiddleCenter;
+            _bonusClaimButton.style.borderTopWidth = 1;
+            _bonusClaimButton.style.borderBottomWidth = 1;
+            _bonusClaimButton.style.borderLeftWidth = 1;
+            _bonusClaimButton.style.borderRightWidth = 1;
+            _bonusClaimButton.style.borderTopColor = new Color(0.3f, 0.6f, 0.3f, 1f);
+            _bonusClaimButton.style.borderBottomColor = new Color(0.3f, 0.6f, 0.3f, 1f);
+            _bonusClaimButton.style.borderLeftColor = new Color(0.3f, 0.6f, 0.3f, 1f);
+            _bonusClaimButton.style.borderRightColor = new Color(0.3f, 0.6f, 0.3f, 1f);
+            _bonusClaimButton.style.paddingTop = 0;
+            _bonusClaimButton.style.paddingBottom = 0;
+            _bonusClaimButton.style.paddingLeft = 0;
+            _bonusClaimButton.style.paddingRight = 0;
+            _bonusClaimButton.RegisterCallback<MouseEnterEvent>(_ =>
+                _bonusClaimButton.style.backgroundColor = new Color(0.2f, 0.5f, 0.2f, 1f));
+            _bonusClaimButton.RegisterCallback<MouseLeaveEvent>(_ =>
+                _bonusClaimButton.style.backgroundColor = new Color(0.1f, 0.4f, 0.1f, 1f));
+            _bonusPanel.Add(_bonusClaimButton);
+
+            _bonusTimerLabel = new Label();
+            _bonusTimerLabel.style.fontSize = 11;
+            _bonusTimerLabel.style.color = Color.gray;
+            _bonusTimerLabel.style.marginTop = 5;
+            _bonusTimerLabel.style.whiteSpace = WhiteSpace.Normal;
+            _bonusPanel.Add(_bonusTimerLabel);
 
             _bonusPanel.style.display = DisplayStyle.None;
             root.Add(_bonusPanel);
+        }
+
+        private void ToggleBonusPanel()
+        {
+            _isBonusOpen = !_isBonusOpen;
+            _bonusPanel.style.display = _isBonusOpen ? DisplayStyle.Flex : DisplayStyle.None;
+            _bonusButton.style.backgroundColor = _isBonusOpen ? _accentHoverColor : _accentColor;
+            if (_isBonusOpen)
+                UpdateDailyBonusPanel();
+        }
+
+        private void UpdateDailyBonusPanel()
+        {
+            if (_bonusStatusLabel == null) return;
+            var stats = PlayerStatsModel.Instance;
+            if (stats == null) return;
+
+            if (stats.DailyBonusAvailable)
+            {
+                _bonusStatusLabel.text = "Ежедневный бонус: <color=lime>Доступен!</color>";
+                _bonusStatusLabel.style.color = Color.green;
+
+                string itemName = ItemRegistry.GetName(stats.DailyBonusItemType);
+                _bonusItemLabel.text = $"{itemName} x{stats.DailyBonusItemAmount}";
+                _bonusItemRow.style.display = DisplayStyle.Flex;
+
+                _bonusClaimButton.style.display = DisplayStyle.Flex;
+                _bonusTimerLabel.text = "";
+            }
+            else
+            {
+                _bonusStatusLabel.text = "Ежедневный бонус: Нет активных бонусов";
+                _bonusStatusLabel.style.color = Color.gray;
+
+                _bonusItemRow.style.display = DisplayStyle.None;
+                _bonusClaimButton.style.display = DisplayStyle.None;
+
+                if (stats.DailyBonusCountdownSeconds > 0)
+                {
+                    var ts = TimeSpan.FromSeconds(stats.DailyBonusCountdownSeconds);
+                    _bonusTimerLabel.text = $"След. бонус через: {(int)ts.TotalHours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}";
+                }
+                else
+                {
+                    _bonusTimerLabel.text = "";
+                }
+            }
+        }
+
+        private void ClaimDailyBonus()
+        {
+            Debug.Log("[PlayerHUD] ClaimDailyBonus: sending claim request");
+            NetworkService.Instance.Send(new ElementClickPacket("daily_bonus", 0, Array.Empty<StringPairPacket>()));
         }
 
         private void CreateAutoDigToggle(VisualElement root)
@@ -554,13 +671,6 @@ namespace Fodinae.Scripts.UI
             _aggressionButton.style.backgroundColor = enabled
                 ? new Color(0.05f, 0.15f, 0.05f, 0.85f)
                 : new Color(0.15f, 0.05f, 0.05f, 0.85f);
-        }
-
-        private void ToggleBonusPanel()
-        {
-            _isBonusOpen = !_isBonusOpen;
-            _bonusPanel.style.display = _isBonusOpen ? DisplayStyle.Flex : DisplayStyle.None;
-            _bonusButton.style.backgroundColor = _isBonusOpen ? _accentHoverColor : _accentColor;
         }
 
         private void RefreshAll()
