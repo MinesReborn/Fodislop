@@ -37,6 +37,7 @@ namespace Fodinae.Scripts.Player
         private Vector2 _moveInput;
         private bool _isMoving = false;
         private bool _autoDig = false;
+        private bool _aggression = false;
         private float _lastMoveTime;
         private float _lastDigTime;
         private Direction? _lastSentDirection;
@@ -97,6 +98,11 @@ namespace Fodinae.Scripts.Player
             {
                 AutoDig = !_autoDig;
             }
+
+            if (Keyboard.current != null && Keyboard.current.lKey.wasPressedThisFrame)
+            {
+                ToggleAggression();
+            }
         }
 
         public void Initialize(uint botId)
@@ -116,6 +122,28 @@ namespace Fodinae.Scripts.Player
         }
 
         public event Action<bool> OnAutoDigChanged;
+
+        public bool Aggression
+        {
+            get => _aggression;
+            set
+            {
+                if (_aggression == value) return;
+                _aggression = value;
+                Debug.Log($"[PlayerMovementController] Aggression set to {value}");
+                OnAggressionChanged?.Invoke(value);
+            }
+        }
+
+        public event Action<bool> OnAggressionChanged;
+
+        public void ToggleAggression()
+        {
+            _aggression = !_aggression;
+            Debug.Log($"[PlayerMovementController] Sending ToggleAgressionPacket: {_aggression}");
+            NetworkService.Instance.SendAction(new ToggleAgressionPacket());
+            OnAggressionChanged?.Invoke(_aggression);
+        }
         public bool IsMoving => _moveInput != Vector2.zero;
 
         public void UpdateServerPosition(Vector2Int position)

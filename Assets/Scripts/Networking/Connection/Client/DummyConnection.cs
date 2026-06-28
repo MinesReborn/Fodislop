@@ -53,7 +53,13 @@ namespace MinesServer.Networking.Connection.Client
         private ushort _x = 0;
         private ushort _y = 0;
         private Direction _rot = Direction.Up;
+        private bool _aggression;
         private ItemType _selectedItemType;
+        private readonly Dictionary<ItemType, long> _inventory = new();
+        private int _bonusCountdown;
+        private volatile bool _bonusClaimed;
+        private ItemType _pendingBonusItem;
+        private int _pendingBonusAmount;
         private FPSCounter _fpsCounter;
 
         private static readonly CellType[] _allCellTypes = new CellType[]
@@ -190,6 +196,12 @@ namespace MinesServer.Networking.Connection.Client
                 {
                     Debug.Log($"  - Unmapped Key: Code={key.Code}, Ctrl={key.Control}, Alt={key.Alt}, Shift={key.Shift}");
                 }
+                else if (actionPacket.Payload is ToggleAgressionPacket)
+                {
+                    _aggression = !_aggression;
+                    Debug.Log($"[DummyConnection] Aggression toggled: {_aggression}");
+                    OnReceived?.Invoke(new ServerPacket(new AggressionStatePacket(_aggression)));
+                }
                 else if (actionPacket.Payload is BzPacket)
                 {
                     ushort cellX = actionPacket.X;
@@ -291,6 +303,9 @@ namespace MinesServer.Networking.Connection.Client
                     //RunTilingTestLoop().Forget();
                     OnReceived?.Invoke(new ServerPacket(new AggressionStatePacket(false)));
                     OnReceived?.Invoke(new ServerPacket(new AutoMineStatePacket(false)));
+                    OnReceived?.Invoke(new ServerPacket(new DailyBonusStatePacket(false)));
+                    _bonusCountdown = 10;
+                    _bonusClaimed = false;
                     OnReceived?.Invoke(new ServerPacket(new CurrencyPacket(123456, 1234)));
                     OnReceived?.Invoke(new ServerPacket(new HealthPacket(250, 500)));
                     OnReceived?.Invoke(new ServerPacket(new BasketPacket(50000, new[] { 0L, 0L, 0L, 0L, 0L, 0L })));
@@ -302,6 +317,7 @@ namespace MinesServer.Networking.Connection.Client
 
                     OnReceived?.Invoke(new ServerPacket(new OnlinePacket(42, 3)));
                     SendPingMock().Forget();
+                    SendDailyBonusMock().Forget();
 
                     OnReceived?.Invoke(new ServerPacket(new MovementSpeedPacket(new Dictionary<CellType, ushort>
                     {
@@ -312,6 +328,9 @@ namespace MinesServer.Networking.Connection.Client
                     var inventoryData = new Dictionary<ItemType, long>();
                     foreach (var type in ItemRegistry.AllTypes)
                         inventoryData[type] = 1;
+                    _inventory.Clear();
+                    foreach (var kvp in inventoryData)
+                        _inventory[kvp.Key] = kvp.Value;
                     OnReceived?.Invoke(new ServerPacket(new InventoryPacket(inventoryData)));
 
                     var placeholderMsg = new ChatMessagePacket(0, 0, 0, 0,
@@ -321,6 +340,7 @@ namespace MinesServer.Networking.Connection.Client
                     // Send test packs
                     OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] {
                         new PackPacket(27, 50, PackType.Teleport, 0, 1),
+                        new PackPacket(227, 50, PackType.Teleport, 0, 1),
                         new PackPacket(25, 48, PackType.Market, 0, 0)
                     })));
                     break;
@@ -359,6 +379,9 @@ namespace MinesServer.Networking.Connection.Client
                 case MinesServer.Networking.Client.Packets.Inventory.UseItemPacket:
                     Debug.Log($"[DummyConnection] UseItem: {_selectedItemType}");
                     HandleUseItem();
+                    break;
+                case ElementClickPacket elementClick:
+                    HandleElementClick(elementClick);
                     break;
                 default:
                     Debug.Log($"[DummyConnection] Unhandled packet: {packet.Data.GetType().Name}");
@@ -465,15 +488,20 @@ namespace MinesServer.Networking.Connection.Client
 
         private void ConsumeItem(ItemType type, long count)
         {
+            if (!_inventory.TryGetValue(type, out long current) || current <= 0)
+                return;
+
+            long remaining = Math.Max(0, current - count);
+            _inventory[type] = remaining;
             OnReceived?.Invoke(new ServerPacket(new InventoryPacket(
-                new Dictionary<ItemType, long> { { type, 0 } })));
+                new Dictionary<ItemType, long> { { type, remaining } })));
         }
 
         private static bool IsBuildingPack(ItemType type) => type switch
         {
             ItemType.Teleport or ItemType.Resp or ItemType.Up or ItemType.Market or
             ItemType.Clans or ItemType.Craft or ItemType.BombShop or ItemType.Gun or
-            ItemType.Gate or ItemType.Storage or ItemType.ScienceCentre => true,
+            ItemType.Storage or ItemType.ScienceCentre => true,
             _ => false
         };
 
@@ -491,6 +519,87 @@ namespace MinesServer.Networking.Connection.Client
             ItemType.ScienceCentre => PackType.Science,
             _ => PackType.None
         };
+
+        private void HandleElementClick(ElementClickPacket packet)
+        {
+            Debug.Log($"[DummyConnection] ElementClick: WindowTag={packet.WindowTag}, Index={packet.ElementIndex}");
+            if (packet.WindowTag == "daily_bonus")
+            {
+                HandleDailyBonusClaim();
+            }
+        }
+
+        private void HandleDailyBonusClaim()
+        {
+            var rewardItem = _pendingBonusItem;
+            var rewardAmount = _pendingBonusAmount;
+            Debug.Log($"[DummyConnection] Daily bonus claimed: {rewardItem} x{rewardAmount}");
+
+            _inventory.TryGetValue(rewardItem, out long current);
+            long newQty = current + rewardAmount;
+            _inventory[rewardItem] = newQty;
+
+            OnReceived?.Invoke(new ServerPacket(new InventoryPacket(
+                new Dictionary<ItemType, long> { { rewardItem, newQty } })));
+
+            _bonusClaimed = true;
+        }
+
+        private static ItemType PickRandomBonusItem()
+        {
+            var items = new[]
+            {
+                ItemType.Teleport, ItemType.Compressor, ItemType.C190, ItemType.Trans,
+                ItemType.Nano, ItemType.Battery, ItemType.ConstructionBot, ItemType.PortableTeleporter,
+                ItemType.Scanner, ItemType.GeoBlackRock, ItemType.GeoRedRock, ItemType.Cred,
+                ItemType.GeoCyan, ItemType.GeoHypno, ItemType.Rem, ItemType.Charge,
+                ItemType.Geopack, ItemType.Poly, ItemType.RazBomb, ItemType.ProtonBomb
+            };
+            return items[UnityEngine.Random.Range(0, items.Length)];
+        }
+
+        private static long PickRandomAmount(ItemType item)
+        {
+            return item switch
+            {
+                ItemType.Teleport or ItemType.PortableTeleporter => 1,
+                ItemType.Cred => UnityEngine.Random.Range(5, 11),
+                ItemType.Rem => UnityEngine.Random.Range(50, 101),
+                ItemType.Geopack => UnityEngine.Random.Range(10, 16),
+                ItemType.Poly => UnityEngine.Random.Range(50, 101),
+                _ => UnityEngine.Random.Range(5, 20)
+            };
+        }
+
+        private async UniTaskVoid SendDailyBonusMock()
+        {
+            while (_status == ConnectionStatus.Connected)
+            {
+                _bonusClaimed = false;
+                _bonusCountdown = Math.Max(_bonusCountdown, 10);
+
+                while (_bonusCountdown > 0 && !_bonusClaimed && _status == ConnectionStatus.Connected)
+                {
+                    await UniTask.Delay(1000);
+                    _bonusCountdown--;
+                }
+
+                if (_status != ConnectionStatus.Connected) break;
+
+                _pendingBonusItem = PickRandomBonusItem();
+                _pendingBonusAmount = (int)PickRandomAmount(_pendingBonusItem);
+                OnReceived?.Invoke(new ServerPacket(new DailyBonusStatePacket(true)));
+                Debug.Log($"[DummyConnection] Daily bonus now available: {_pendingBonusItem} x{_pendingBonusAmount}");
+
+                while (!_bonusClaimed && _status == ConnectionStatus.Connected)
+                    await UniTask.Delay(500);
+
+                if (_status != ConnectionStatus.Connected) break;
+
+                _bonusCountdown = 10;
+                OnReceived?.Invoke(new ServerPacket(new DailyBonusStatePacket(false)));
+            }
+        }
 
         private async UniTaskVoid RunTilingTestLoop()
         {
