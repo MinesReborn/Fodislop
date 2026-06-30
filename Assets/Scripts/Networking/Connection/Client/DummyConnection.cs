@@ -25,6 +25,7 @@ using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
 using MinesServer.Networking.Server.Packets.GUI.Components.Input;
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
 using MinesServer.Networking.Server.Packets.Information;
+using MinesServer.Networking.Server.Packets.Information.StatusPanel;
 using MinesServer.Networking.Server.Packets.Movement;
 using MinesServer.Networking.Server.Packets.Utilities;
 using MinesServer.Networking.Server.Packets.World;
@@ -65,6 +66,8 @@ namespace MinesServer.Networking.Connection.Client
         private readonly List<(ushort X, ushort Y)> _teleportPositions = new();
         private List<(ushort X, ushort Y)> _teleportDestinations = new();
         private bool _teleportWindowOpen;
+        private readonly Dictionary<string, long> _activeBuffs = new();
+        private bool _buffLoopStarted;
 
         private static readonly CellType[] _allCellTypes = new CellType[]
         {
@@ -323,6 +326,19 @@ namespace MinesServer.Networking.Connection.Client
                     SendChatMock().Forget();
 
                     OnReceived?.Invoke(new ServerPacket(new OnlinePacket(42, 3)));
+                    OnReceived?.Invoke(new ServerPacket(new ClearStatusPacket()));
+                    foreach (var kvp in _activeBuffs)
+                    {
+                        var (color, name) = kvp.Key switch
+                        {
+                            "xp3" => (System.Drawing.Color.FromArgb(0, 200, 0), "Прокачка x3"),
+                            "freeup" => (System.Drawing.Color.Cyan, "Freeup"),
+                            "x4" => (System.Drawing.Color.FromArgb(255, 165, 0), "Добыча x4"),
+                            "battery" => (System.Drawing.Color.FromArgb(65, 105, 225), "Аккумулятор"),
+                            _ => (System.Drawing.Color.White, kvp.Key)
+                        };
+                        OnReceived?.Invoke(new ServerPacket(new AddStatusLinePacket(0, color, kvp.Key, new[] { name, kvp.Value.ToString() })));
+                    }
                     SendPingMock().Forget();
                     SendDailyBonusMock().Forget();
 
@@ -335,6 +351,7 @@ namespace MinesServer.Networking.Connection.Client
                     var inventoryData = new Dictionary<ItemType, long>();
                     foreach (var type in ItemRegistry.AllTypes)
                         inventoryData[type] = 1;
+                    inventoryData[ItemType.Battery] = 2;
                     _inventory.Clear();
                     foreach (var kvp in inventoryData)
                         _inventory[kvp.Key] = kvp.Value;
@@ -492,6 +509,46 @@ namespace MinesServer.Networking.Connection.Client
                 OnReceived?.Invoke(new ServerPacket(new HealthPacket(500, 500)));
                 ConsumeItem(_selectedItemType, 1);
             }
+            else if (_selectedItemType == ItemType.UpgradeBooster)
+            {
+                StartBuffLoop();
+                var tag = "xp3";
+                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                var expiry = Math.Max(_activeBuffs.GetValueOrDefault(tag), now) + 86400;
+                _activeBuffs[tag] = expiry;
+                OnReceived?.Invoke(new ServerPacket(new AddStatusLinePacket(0, System.Drawing.Color.FromArgb(0, 200, 0), tag, new[] { "Прокачка x3", expiry.ToString() })));
+                ConsumeItem(_selectedItemType, 1);
+            }
+            else if (_selectedItemType == ItemType.FreeUp)
+            {
+                StartBuffLoop();
+                var tag = "freeup";
+                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                var expiry = Math.Max(_activeBuffs.GetValueOrDefault(tag), now) + 43200;
+                _activeBuffs[tag] = expiry;
+                OnReceived?.Invoke(new ServerPacket(new AddStatusLinePacket(0, System.Drawing.Color.Cyan, tag, new[] { "Freeup", expiry.ToString() })));
+                ConsumeItem(_selectedItemType, 1);
+            }
+            else if (_selectedItemType == ItemType.MineBooster)
+            {
+                StartBuffLoop();
+                var tag = "x4";
+                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                var expiry = Math.Max(_activeBuffs.GetValueOrDefault(tag), now) + 43200;
+                _activeBuffs[tag] = expiry;
+                OnReceived?.Invoke(new ServerPacket(new AddStatusLinePacket(0, System.Drawing.Color.FromArgb(255, 165, 0), tag, new[] { "Добыча x4", expiry.ToString() })));
+                ConsumeItem(_selectedItemType, 1);
+            }
+            else if (_selectedItemType == ItemType.Battery)
+            {
+                StartBuffLoop();
+                var tag = "battery";
+                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                var expiry = Math.Max(_activeBuffs.GetValueOrDefault(tag), now) + 3600;
+                _activeBuffs[tag] = expiry;
+                OnReceived?.Invoke(new ServerPacket(new AddStatusLinePacket(0, System.Drawing.Color.FromArgb(65, 105, 225), tag, new[] { "Аккумулятор", expiry.ToString() })));
+                ConsumeItem(_selectedItemType, 1);
+            }
             else
             {
                 ConsumeItem(_selectedItemType, 1);
@@ -569,6 +626,29 @@ namespace MinesServer.Networking.Connection.Client
                 new Dictionary<ItemType, long> { { rewardItem, newQty } })));
 
             _bonusClaimed = true;
+        }
+
+        private void StartBuffLoop()
+        {
+            if (_buffLoopStarted) return;
+            _buffLoopStarted = true;
+            CheckBuffsLoop().Forget();
+        }
+
+        private async UniTaskVoid CheckBuffsLoop()
+        {
+            while (_status == ConnectionStatus.Connected)
+            {
+                await UniTask.Delay(1000);
+                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                var expired = _activeBuffs.Where(kv => kv.Value <= now).Select(kv => kv.Key).ToList();
+                foreach (var tag in expired)
+                {
+                    _activeBuffs.Remove(tag);
+                    OnReceived?.Invoke(new ServerPacket(new ClearStatusLinePacket(tag)));
+                    Debug.Log($"[DummyConnection] Buff expired: {tag}");
+                }
+            }
         }
 
         private void CheckTeleportEntry()

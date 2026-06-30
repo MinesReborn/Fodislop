@@ -17,6 +17,7 @@ using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.Information;
+using MinesServer.Networking.Server.Packets.Information.StatusPanel;
 using MinesServer.Networking.Server.Packets.Inventory;
 using MinesServer.Networking.Server.Packets.Movement;
 using MinesServer.Networking.Server.Packets.World;
@@ -128,6 +129,9 @@ namespace Fodinae.Scripts.Networking
                 ns.Subscribe<MinesServer.Networking.Server.Packets.Inventory.DeselectItemPacket>(HandleServerDeselect);
                 ns.Subscribe<DailyBonusStatePacket>(HandleDailyBonusStatePacket);
                 ns.Subscribe<TeleportPacket>(HandleTeleportPacket);
+                ns.Subscribe<AddStatusLinePacket>(HandleAddStatusLine);
+                ns.Subscribe<ClearStatusLinePacket>(HandleClearStatusLine);
+                ns.Subscribe<ClearStatusPacket>(HandleClearStatus);
             }
 
             var mm = MapManager.Instance;
@@ -186,6 +190,9 @@ namespace Fodinae.Scripts.Networking
                 ns.Unsubscribe<MinesServer.Networking.Server.Packets.Inventory.DeselectItemPacket>(HandleServerDeselect);
                 ns.Unsubscribe<DailyBonusStatePacket>(HandleDailyBonusStatePacket);
                 ns.Unsubscribe<TeleportPacket>(HandleTeleportPacket);
+                ns.Unsubscribe<AddStatusLinePacket>(HandleAddStatusLine);
+                ns.Unsubscribe<ClearStatusLinePacket>(HandleClearStatusLine);
+                ns.Unsubscribe<ClearStatusPacket>(HandleClearStatus);
             }
 
             // Close any open windows and dispose bindings
@@ -668,6 +675,29 @@ namespace Fodinae.Scripts.Networking
         {
             _packetCount++;
             SFXEffectManager.Instance?.PlayEffect(packet);
+        }
+
+        private void HandleAddStatusLine(AddStatusLinePacket packet)
+        {
+            _packetCount++;
+            var sysColor = packet.Color;
+            var unityColor = new Color(sysColor.R / 255f, sysColor.G / 255f, sysColor.B / 255f, sysColor.A / 255f);
+            long expiry = 0;
+            if (packet.Text.Count > 1)
+                long.TryParse(packet.Text[1], out expiry);
+            PlayerStatsModel.Instance.AddStatusLine(packet.Tag, packet.Text.ToArray(), unityColor, packet.BlinkRate, expiry);
+        }
+
+        private void HandleClearStatusLine(ClearStatusLinePacket packet)
+        {
+            _packetCount++;
+            PlayerStatsModel.Instance.RemoveStatusLine(packet.Tag);
+        }
+
+        private void HandleClearStatus(ClearStatusPacket packet)
+        {
+            _packetCount++;
+            PlayerStatsModel.Instance.ClearStatusLines();
         }
 
         private void OnWorldDataLoaded()

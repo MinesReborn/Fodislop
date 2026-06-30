@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: aa091867f2d992545bca31f82ce7514e
+guid: 0656bfb91b6d6554bae74d3494eb4a84
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -7833240276873349136
-    second: 91_0
+      213: 6362264622687217155
+    second: 91 1_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -97,7 +97,7 @@ TextureImporter:
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
   - serializedVersion: 4
-    buildTarget: WebGL
+    buildTarget: WindowsStoreApps
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
@@ -113,13 +113,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: 91_0
+      name: 91 1_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 16
-        height: 96
+        width: 320
+        height: 320
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -128,8 +128,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 0f77ea0787dba4390800000000000000
-      internalID: -7833240276873349136
+      spriteID: 3066e4237fd4b4850800000000000000
+      internalID: 6362264622687217155
       vertices: []
       indices: 
       edges: []
@@ -148,7 +148,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      91_0: -7833240276873349136
+      91 1_0: 6362264622687217155
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

@@ -67,6 +67,8 @@ namespace Fodinae.Scripts.UI
         private VisualElement _currentSkillRow;
         private int _skillCountInRow = 0;
         private Button _chatButton;
+        private VisualElement _statusPanel;
+        private readonly Dictionary<string, VisualElement> _statusLineElements = new();
 
         private VisualElement _respawnPopup;
         private VisualElement _buildingsPopup;
@@ -87,6 +89,8 @@ namespace Fodinae.Scripts.UI
                 PlayerStatsModel.Instance.OnSkillProgress -= OnSkillProgress;
             if (PlayerStatsModel.Instance != null)
                 PlayerStatsModel.Instance.OnDailyBonusChanged -= UpdateDailyBonusPanel;
+            if (PlayerStatsModel.Instance != null)
+                PlayerStatsModel.Instance.OnStatusLinesChanged -= RebuildStatusPanel;
             if (GlobalChatUI.Instance != null)
                 GlobalChatUI.Instance.Hide();
         }
@@ -119,9 +123,13 @@ namespace Fodinae.Scripts.UI
             CreateAutoDigToggle(_doc.rootVisualElement);
             CreateChatButton(_doc.rootVisualElement);
             CreateButtonsAndPopups(_doc.rootVisualElement);
+            CreateStatusPanel(_doc.rootVisualElement);
             CreateSkillContainer(_doc.rootVisualElement);
             if (PlayerStatsModel.Instance != null)
+            {
                 PlayerStatsModel.Instance.OnSkillProgress += OnSkillProgress;
+                PlayerStatsModel.Instance.OnStatusLinesChanged += RebuildStatusPanel;
+            }
             var player = FindObjectOfType<PlayerMovementController>();
             if (player != null)
                 player.OnAutoDigChanged += UpdateAutoDigButton;
@@ -407,6 +415,24 @@ namespace Fodinae.Scripts.UI
             _bonusButton.style.backgroundColor = _isBonusOpen ? _accentHoverColor : _accentColor;
             if (_isBonusOpen)
                 UpdateDailyBonusPanel();
+            UpdateStatusPanelPosition();
+        }
+
+        private void UpdateStatusPanelPosition()
+        {
+            if (_statusPanel == null) return;
+            if (_isBonusOpen && _bonusPanel != null)
+            {
+                _bonusPanel.schedule.Execute(() =>
+                {
+                    if (!_isBonusOpen) return;
+                    _statusPanel.style.top = 10 + GAP + _bonusPanel.resolvedStyle.height;
+                }).StartingIn(16);
+            }
+            else
+            {
+                _statusPanel.style.top = 10 + BTN_SIZE + GAP;
+            }
         }
 
         private void UpdateDailyBonusPanel()
@@ -427,6 +453,130 @@ namespace Fodinae.Scripts.UI
                 _bonusStatusLabel.style.color = Color.gray;
                 _bonusClaimButton.style.display = DisplayStyle.None;
             }
+
+            UpdateStatusPanelPosition();
+        }
+
+        private void CreateStatusPanel(VisualElement root)
+        {
+            _statusPanel = new VisualElement();
+            _statusPanel.name = "StatusPanel";
+            _statusPanel.style.position = Position.Absolute;
+            _statusPanel.style.left = 10 + PANEL_WIDTH + GAP;
+            _statusPanel.style.top = 10 + BTN_SIZE + GAP;
+            _statusPanel.style.width = 220;
+            _statusPanel.style.paddingTop = PADDING;
+            _statusPanel.style.paddingBottom = PADDING;
+            _statusPanel.style.paddingLeft = PADDING;
+            _statusPanel.style.paddingRight = PADDING;
+            _statusPanel.style.backgroundColor = _panelBgColor;
+            _statusPanel.style.borderTopWidth = 2;
+            _statusPanel.style.borderBottomWidth = 2;
+            _statusPanel.style.borderLeftWidth = 2;
+            _statusPanel.style.borderRightWidth = 2;
+            _statusPanel.style.borderTopColor = _panelBorderColor;
+            _statusPanel.style.borderBottomColor = _panelBorderColor;
+            _statusPanel.style.borderLeftColor = _panelBorderColor;
+            _statusPanel.style.borderRightColor = _panelBorderColor;
+            _statusPanel.style.flexDirection = FlexDirection.Column;
+            _statusPanel.style.display = DisplayStyle.None;
+            root.Add(_statusPanel);
+        }
+
+        private void RebuildStatusPanel()
+        {
+            if (_statusPanel == null) return;
+            var stats = PlayerStatsModel.Instance;
+            if (stats == null) return;
+
+            var currentLines = stats.StatusLines;
+            if (currentLines.Count == 0)
+            {
+                _statusPanel.style.display = DisplayStyle.None;
+                _statusLineElements.Clear();
+                _statusPanel.Clear();
+                return;
+            }
+            _statusPanel.style.display = DisplayStyle.Flex;
+            var toRemove = new List<string>();
+            foreach (var kvp in _statusLineElements)
+            {
+                if (!currentLines.ContainsKey(kvp.Key))
+                    toRemove.Add(kvp.Key);
+            }
+            foreach (var key in toRemove)
+            {
+                _statusPanel.Remove(_statusLineElements[key]);
+                _statusLineElements.Remove(key);
+            }
+
+            foreach (var kvp in currentLines)
+            {
+                if (_statusLineElements.TryGetValue(kvp.Key, out var existing))
+                {
+                    var label = existing as Label;
+                    if (label != null)
+                        UpdateStatusLabel(label, kvp.Value);
+                    label.style.color = kvp.Value.Color;
+                }
+                else
+                {
+                    var row = new Label();
+                    row.style.fontSize = LABEL_FONT_SIZE;
+                    row.style.color = kvp.Value.Color;
+                    row.style.marginBottom = 2;
+                    row.style.whiteSpace = WhiteSpace.Normal;
+                    UpdateStatusLabel(row, kvp.Value);
+                    _statusPanel.Add(row);
+
+                    if (kvp.Value.Expiry > 0)
+                    {
+                        row.schedule.Execute(() =>
+                        {
+                            if (_statusPanel == null || !_statusLineElements.ContainsKey(kvp.Key))
+                                return;
+                            var entry = stats.StatusLines.GetValueOrDefault(kvp.Key);
+                            if (entry.Text == null)
+                                return;
+                            UpdateStatusLabel(row, entry);
+                        }).Every(1000);
+                    }
+
+                    _statusLineElements[kvp.Key] = row;
+                }
+            }
+        }
+
+        private static void UpdateStatusLabel(Label label, StatusLineEntry entry)
+        {
+            if (entry.Text == null || entry.Text.Length == 0)
+            {
+                label.text = "";
+                return;
+            }
+
+            var name = entry.Text[0];
+            if (entry.Expiry > 0)
+            {
+                var remaining = Math.Max(0, entry.Expiry - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                label.text = $"{name}: {FormatTime(remaining)}";
+            }
+            else if (entry.Text.Length > 1)
+            {
+                label.text = $"{name}: {entry.Text[1]}";
+            }
+            else
+            {
+                label.text = name;
+            }
+        }
+
+        private static string FormatTime(long seconds)
+        {
+            var ts = TimeSpan.FromSeconds(seconds);
+            if (ts.TotalHours >= 1)
+                return $"{(int)ts.TotalHours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}";
+            return $"{ts.Minutes:D2}:{ts.Seconds:D2}";
         }
 
         private void ClaimDailyBonus()
