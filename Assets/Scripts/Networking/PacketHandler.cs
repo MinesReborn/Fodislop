@@ -139,6 +139,8 @@ namespace Fodinae.Scripts.Networking
                 ns.Subscribe<ClearStatusLinePacket>(HandleClearStatusLine);
                 ns.Subscribe<ClearStatusPacket>(HandleClearStatus);
                 ns.Subscribe<ModalWindowPacket>(HandleModalWindowPacket);
+                ns.Subscribe<ShowClanPacket>(HandleShowClanPacket);
+                ns.Subscribe<HideClanPacket>(HandleHideClanPacket);
             }
 
             var mm = MapManager.Instance;
@@ -201,6 +203,8 @@ namespace Fodinae.Scripts.Networking
                 ns.Unsubscribe<ClearStatusLinePacket>(HandleClearStatusLine);
                 ns.Unsubscribe<ClearStatusPacket>(HandleClearStatus);
                 ns.Unsubscribe<ModalWindowPacket>(HandleModalWindowPacket);
+                ns.Unsubscribe<ShowClanPacket>(HandleShowClanPacket);
+                ns.Unsubscribe<HideClanPacket>(HandleHideClanPacket);
             }
 
             // Close modal and any open windows
@@ -722,6 +726,38 @@ namespace Fodinae.Scripts.Networking
         {
             _packetCount++;
             PlayerStatsModel.Instance.ClearStatusLines();
+        }
+
+        private void HandleShowClanPacket(ShowClanPacket packet)
+        {
+            _packetCount++;
+            Debug.Log($"[PacketHandler] ShowClanPacket: ClanId={packet.ClanId}");
+            PlayerStatsModel.Instance.SetClanId(packet.ClanId);
+            var player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null)
+            {
+                var robot = player.GetComponent<Robot>();
+                if (robot != null)
+                {
+                    robot.SetClanBadge(packet.ClanId);
+                }
+            }
+        }
+
+        private void HandleHideClanPacket(HideClanPacket packet)
+        {
+            _packetCount++;
+            Debug.Log("[PacketHandler] HideClanPacket");
+            PlayerStatsModel.Instance.SetClanId(0);
+            var player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null)
+            {
+                var robot = player.GetComponent<Robot>();
+                if (robot != null)
+                {
+                    robot.ClearClanBadge();
+                }
+            }
         }
 
         private void OnWorldDataLoaded()

@@ -83,6 +83,7 @@ namespace Fodinae.Scripts.UI
         public int BasketMaxPercent { get; private set; }
         public int OnlinePlayers { get; private set; }
         public int OnlineProgrammator { get; private set; }
+        public int ClanId { get; private set; }
 
         public event Action OnStatsChanged;
         public event Action OnHealthChanged;
@@ -165,6 +166,12 @@ namespace Fodinae.Scripts.UI
         {
             OnlinePlayers = players;
             OnlineProgrammator = programmator;
+            OnStatsChanged?.Invoke();
+        }
+
+        public void SetClanId(int clanId)
+        {
+            ClanId = clanId;
             OnStatsChanged?.Invoke();
         }
     }

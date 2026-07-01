@@ -664,6 +664,16 @@ namespace MinesServer.Networking.Connection.Client
                     "")));
                 Debug.Log("[DummyConnection] Modal window sent to client");
             }
+            else if (packet.WindowTag == "join_clan")
+            {
+                OnReceived?.Invoke(new ServerPacket(new ShowClanPacket(1)));
+                Debug.Log("[DummyConnection] ShowClanPacket sent (clanId=1)");
+            }
+            else if (packet.WindowTag == "leave_clan")
+            {
+                OnReceived?.Invoke(new ServerPacket(new HideClanPacket()));
+                Debug.Log("[DummyConnection] HideClanPacket sent");
+            }
         }
 
         private void HandleDailyBonusClaim()

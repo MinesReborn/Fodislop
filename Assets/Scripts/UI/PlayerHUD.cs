@@ -976,6 +976,7 @@ namespace Fodinae.Scripts.UI
             CreateFaqButton(root, () => _faqPopup.style.display = DisplayStyle.Flex);
             CreateProgrammatorButton(root, () => _programmatorPopup.style.display = DisplayStyle.Flex);
             CreateModalTestButton(root);
+            CreateClanButtons(root);
         }
 
         private VisualElement CreatePopup(string title)
@@ -1292,6 +1293,79 @@ namespace Fodinae.Scripts.UI
                 btn.style.backgroundColor = new Color(0.1f, 0.1f, 0.15f, 0.85f));
 
             root.Add(btn);
+        }
+
+        private void CreateClanButtons(VisualElement root)
+        {
+            var joinBtn = new Button(() =>
+            {
+                NetworkService.Instance.Send(new ElementClickPacket("join_clan", 0, System.Array.Empty<StringPairPacket>()));
+            });
+            joinBtn.text = "Вступить в клан";
+            joinBtn.style.position = Position.Absolute;
+            joinBtn.style.top = 10;
+            joinBtn.style.right = 10 + (100 + 6) * 3 + 160 + 6;
+            joinBtn.style.width = 140;
+            joinBtn.style.height = 28;
+            joinBtn.style.fontSize = 12;
+            joinBtn.style.unityFontStyleAndWeight = FontStyle.Bold;
+            joinBtn.style.color = _textColor;
+            joinBtn.style.unityTextAlign = TextAnchor.MiddleCenter;
+            joinBtn.style.backgroundColor = new Color(0.1f, 0.1f, 0.15f, 0.85f);
+            joinBtn.style.borderTopWidth = 2;
+            joinBtn.style.borderBottomWidth = 2;
+            joinBtn.style.borderLeftWidth = 2;
+            joinBtn.style.borderRightWidth = 2;
+            joinBtn.style.borderTopColor = _panelBorderColor;
+            joinBtn.style.borderBottomColor = _panelBorderColor;
+            joinBtn.style.borderLeftColor = _panelBorderColor;
+            joinBtn.style.borderRightColor = _panelBorderColor;
+            joinBtn.style.paddingTop = 0;
+            joinBtn.style.paddingBottom = 0;
+            joinBtn.style.paddingLeft = 0;
+            joinBtn.style.paddingRight = 0;
+
+            joinBtn.RegisterCallback<MouseEnterEvent>(_ =>
+                joinBtn.style.backgroundColor = new Color(0.2f, 0.2f, 0.3f, 0.85f));
+            joinBtn.RegisterCallback<MouseLeaveEvent>(_ =>
+                joinBtn.style.backgroundColor = new Color(0.1f, 0.1f, 0.15f, 0.85f));
+
+            root.Add(joinBtn);
+
+            var leaveBtn = new Button(() =>
+            {
+                NetworkService.Instance.Send(new ElementClickPacket("leave_clan", 0, System.Array.Empty<StringPairPacket>()));
+            });
+            leaveBtn.text = "Выйти из клана";
+            leaveBtn.style.position = Position.Absolute;
+            leaveBtn.style.top = 10 + 28 + 6;
+            leaveBtn.style.right = 10 + (100 + 6) * 3 + 160 + 6;
+            leaveBtn.style.width = 140;
+            leaveBtn.style.height = 28;
+            leaveBtn.style.fontSize = 12;
+            leaveBtn.style.unityFontStyleAndWeight = FontStyle.Bold;
+            leaveBtn.style.color = _textColor;
+            leaveBtn.style.unityTextAlign = TextAnchor.MiddleCenter;
+            leaveBtn.style.backgroundColor = new Color(0.1f, 0.1f, 0.15f, 0.85f);
+            leaveBtn.style.borderTopWidth = 2;
+            leaveBtn.style.borderBottomWidth = 2;
+            leaveBtn.style.borderLeftWidth = 2;
+            leaveBtn.style.borderRightWidth = 2;
+            leaveBtn.style.borderTopColor = _panelBorderColor;
+            leaveBtn.style.borderBottomColor = _panelBorderColor;
+            leaveBtn.style.borderLeftColor = _panelBorderColor;
+            leaveBtn.style.borderRightColor = _panelBorderColor;
+            leaveBtn.style.paddingTop = 0;
+            leaveBtn.style.paddingBottom = 0;
+            leaveBtn.style.paddingLeft = 0;
+            leaveBtn.style.paddingRight = 0;
+
+            leaveBtn.RegisterCallback<MouseEnterEvent>(_ =>
+                leaveBtn.style.backgroundColor = new Color(0.2f, 0.2f, 0.3f, 0.85f));
+            leaveBtn.RegisterCallback<MouseLeaveEvent>(_ =>
+                leaveBtn.style.backgroundColor = new Color(0.1f, 0.1f, 0.15f, 0.85f));
+
+            root.Add(leaveBtn);
         }
 
         private VisualElement CreateProgrammatorPopup()
