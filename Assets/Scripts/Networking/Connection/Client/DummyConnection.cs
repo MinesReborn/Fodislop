@@ -68,6 +68,9 @@ namespace MinesServer.Networking.Connection.Client
         private bool _teleportWindowOpen;
         private readonly Dictionary<string, long> _activeBuffs = new();
         private bool _buffLoopStarted;
+        private const int _maxDepth = 200;
+        private bool _depthWarningActive;
+        private int _health = 500;
         private bool _modalWindowOpen;
 
         private static readonly CellType[] _allCellTypes = new CellType[]
@@ -355,12 +358,15 @@ namespace MinesServer.Networking.Connection.Client
                     HandleRobotInfoMock(_mockBotId).Forget();
                     RunCircularBots(10).Forget();
                     //RunTilingTestLoop().Forget();
+                    _x = 25;
+                    _y = 50;
                     OnReceived?.Invoke(new ServerPacket(new AggressionStatePacket(false)));
                     OnReceived?.Invoke(new ServerPacket(new AutoMineStatePacket(false)));
                     OnReceived?.Invoke(new ServerPacket(new DailyBonusStatePacket(false)));
                     _bonusCountdown = 10;
                     _bonusClaimed = false;
                     OnReceived?.Invoke(new ServerPacket(new CurrencyPacket(123456, 1234)));
+                    _health = 250;
                     OnReceived?.Invoke(new ServerPacket(new HealthPacket(250, 500)));
                     OnReceived?.Invoke(new ServerPacket(new BasketPacket(50000, new[] { 0L, 0L, 0L, 0L, 0L, 0L })));
                     OnReceived?.Invoke(new ServerPacket(new GeologyPacket(5, 10, CellType.Lava, "Lava")));
@@ -383,6 +389,7 @@ namespace MinesServer.Networking.Connection.Client
                         };
                         OnReceived?.Invoke(new ServerPacket(new AddStatusLinePacket(0, color, kvp.Key, new[] { name, kvp.Value.ToString() })));
                     }
+                    StartBuffLoop();
                     SendPingMock().Forget();
                     SendDailyBonusMock().Forget();
 
@@ -391,6 +398,7 @@ namespace MinesServer.Networking.Connection.Client
                         [CellType.Empty] = 20,
                         [CellType.Road] = 100
                     })));
+                    OnReceived?.Invoke(new ServerPacket(new MaxDepthPacket(200)));
 
                     var inventoryData = new Dictionary<ItemType, long>();
                     foreach (var type in ItemRegistry.AllTypes)
@@ -550,6 +558,7 @@ namespace MinesServer.Networking.Connection.Client
             }
             else if (_selectedItemType == ItemType.Rem)
             {
+                _health = 500;
                 OnReceived?.Invoke(new ServerPacket(new HealthPacket(500, 500)));
                 ConsumeItem(_selectedItemType, 1);
             }
@@ -711,6 +720,42 @@ namespace MinesServer.Networking.Connection.Client
                     _activeBuffs.Remove(tag);
                     OnReceived?.Invoke(new ServerPacket(new ClearStatusLinePacket(tag)));
                     Debug.Log($"[DummyConnection] Buff expired: {tag}");
+                }
+
+                // Depth warning check
+                if (_y > _maxDepth)
+                {
+                    if (!_depthWarningActive)
+                    {
+                        _depthWarningActive = true;
+                        OnReceived?.Invoke(new ServerPacket(new AddStatusLinePacket(
+                            0, System.Drawing.Color.Red, "depth_warning", new[] { "⚠ Критическая глубина!" })));
+                        Debug.Log("[DummyConnection] Depth warning activated");
+                    }
+                }
+                else
+                {
+                    if (_depthWarningActive)
+                    {
+                        _depthWarningActive = false;
+                        OnReceived?.Invoke(new ServerPacket(new ClearStatusLinePacket("depth_warning")));
+                        Debug.Log("[DummyConnection] Depth warning cleared");
+                    }
+                }
+
+                // Depth damage
+                if (_y > _maxDepth)
+                {
+                    int blocksBelow = _y - _maxDepth;
+                    int damage = ((blocksBelow - 1) / 10 + 1) * 10;
+                    _health = Math.Max(0, _health - damage);
+                    OnReceived?.Invoke(new ServerPacket(new HealthPacket(_health, 500)));
+                    Debug.Log($"[DummyConnection] Depth damage: {damage} (HP: {_health}/500)");
+                    if (_health <= 0)
+                    {
+                        Debug.Log("[DummyConnection] Player died from depth damage");
+                        Disconnect();
+                    }
                 }
             }
         }

@@ -84,6 +84,8 @@ namespace Fodinae.Scripts.UI
         public int OnlinePlayers { get; private set; }
         public int OnlineProgrammator { get; private set; }
         public int ClanId { get; private set; }
+        public int MaxDepth { get; private set; }
+        public int CurrentDepth { get; private set; }
 
         public event Action OnStatsChanged;
         public event Action OnHealthChanged;
@@ -172,6 +174,18 @@ namespace Fodinae.Scripts.UI
         public void SetClanId(int clanId)
         {
             ClanId = clanId;
+            OnStatsChanged?.Invoke();
+        }
+
+        public void SetMaxDepth(int depth)
+        {
+            MaxDepth = depth;
+            OnStatsChanged?.Invoke();
+        }
+
+        public void SetCurrentDepth(int serverY)
+        {
+            CurrentDepth = serverY;
             OnStatsChanged?.Invoke();
         }
     }

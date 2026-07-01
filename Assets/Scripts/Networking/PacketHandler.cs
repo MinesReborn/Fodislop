@@ -141,6 +141,7 @@ namespace Fodinae.Scripts.Networking
                 ns.Subscribe<ModalWindowPacket>(HandleModalWindowPacket);
                 ns.Subscribe<ShowClanPacket>(HandleShowClanPacket);
                 ns.Subscribe<HideClanPacket>(HandleHideClanPacket);
+                ns.Subscribe<MaxDepthPacket>(HandleMaxDepthPacket);
             }
 
             var mm = MapManager.Instance;
@@ -205,6 +206,7 @@ namespace Fodinae.Scripts.Networking
                 ns.Unsubscribe<ModalWindowPacket>(HandleModalWindowPacket);
                 ns.Unsubscribe<ShowClanPacket>(HandleShowClanPacket);
                 ns.Unsubscribe<HideClanPacket>(HandleHideClanPacket);
+                ns.Unsubscribe<MaxDepthPacket>(HandleMaxDepthPacket);
             }
 
             // Close modal and any open windows
@@ -758,6 +760,13 @@ namespace Fodinae.Scripts.Networking
                     robot.ClearClanBadge();
                 }
             }
+        }
+
+        private void HandleMaxDepthPacket(MaxDepthPacket packet)
+        {
+            _packetCount++;
+            Debug.Log($"[PacketHandler] MaxDepthPacket: Depth={packet.Depth}");
+            PlayerStatsModel.Instance.SetMaxDepth(packet.Depth);
         }
 
         private void OnWorldDataLoaded()
