@@ -238,9 +238,11 @@ namespace Fodinae.Scripts.UI
         {
             if (!enabled) return;
 
-            if (PacketHandler.IsTeleportWindowOpen)
+            if (PacketHandler.IsInputBlocked)
             {
-                NetworkService.Instance.Send(new ElementClickPacket("teleport", 0, System.Array.Empty<StringPairPacket>()));
+                var topTag = PacketHandler.TopWindowTag;
+                if (topTag != null)
+                    NetworkService.Instance.Send(new ElementClickPacket(topTag, 0, System.Array.Empty<StringPairPacket>()));
                 return;
             }
 

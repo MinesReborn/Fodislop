@@ -71,7 +71,6 @@ namespace MinesServer.Networking.Connection.Client
         private const int _maxDepth = 200;
         private bool _depthWarningActive;
         private int _health = 500;
-        private bool _modalWindowOpen;
 
         private static readonly CellType[] _allCellTypes = new CellType[]
         {
@@ -187,18 +186,6 @@ namespace MinesServer.Networking.Connection.Client
 
         public void SendAsync(ClientPacket packet)
         {
-            if (_modalWindowOpen)
-            {
-                if (packet.Data is ElementClickPacket ecp && ecp.WindowTag == "modal")
-                {
-                    _modalWindowOpen = false;
-                    Debug.Log("[DummyConnection] Modal acknowledged by client");
-                    return;
-                }
-                Debug.Log($"[DummyConnection] Blocked while modal open: {packet.Data.GetType().Name}");
-                return;
-            }
-
             if (packet.Data is ActionClientPacket actionPacket)
             {
                 Debug.Log($"[DummyConnection] Received ActionClientPacket: X={actionPacket.X}, Y={actionPacket.Y}, Payload={actionPacket.Payload.GetType().Name}");
@@ -665,7 +652,6 @@ namespace MinesServer.Networking.Connection.Client
             }
             else if (packet.WindowTag == "test_modal")
             {
-                _modalWindowOpen = true;
                 OnReceived?.Invoke(new ServerPacket(new ModalWindowPacket(
                     "Тестовое окно",
                     "Это модальное окно вызывается из HUD.\n\nНажмите OK чтобы продолжить.",

@@ -1,7 +1,4 @@
-using Fodinae.Scripts.Networking;
-using MinesServer.Networking.Client.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI;
-using MinesServer.Networking.Shared.Packets;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -75,11 +72,7 @@ namespace Fodinae.Scripts.UI
             descLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
             panel.Add(descLabel);
 
-            var okButton = new Button(() =>
-            {
-                Hide();
-                NetworkService.Instance.Send(new ElementClickPacket("modal", 0, System.Array.Empty<StringPairPacket>()));
-            });
+            var okButton = new Button(() => Hide());
             okButton.text = packet.ButtonText;
             okButton.style.backgroundColor = new Color(0.15f, 0.15f, 0.15f, 1f);
             okButton.style.borderTopWidth = 2;

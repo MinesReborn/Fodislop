@@ -32,8 +32,8 @@ namespace Fodinae.Scripts.Networking
     {
         public static PacketHandler Instance { get; private set; }
 
-        public static bool IsTeleportWindowOpen => Instance != null && Instance._openWindows.Any(w => w.tag == "teleport");
-        public static bool IsModalOpen => Instance?._modalWindowHandler?.IsShowing ?? false;
+        public static bool IsInputBlocked => Instance != null && (Instance._openWindows.Count > 0 || Instance._modalWindowHandler?.IsShowing == true);
+        public static string TopWindowTag => Instance?._openWindows.Count > 0 ? Instance._openWindows[^1].tag : null;
 
         private bool _isInitialized = false;
         private int _packetCount = 0;
