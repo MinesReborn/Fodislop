@@ -26,6 +26,7 @@ using MinesServer.Networking.Server.Packets.GUI.Components.Input;
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
 using MinesServer.Networking.Server.Packets.Information;
 using MinesServer.Networking.Server.Packets.Information.StatusPanel;
+using MinesServer.Networking.Server.Packets.Mission;
 using MinesServer.Networking.Server.Packets.Movement;
 using MinesServer.Networking.Server.Packets.Utilities;
 using MinesServer.Networking.Server.Packets.World;
@@ -71,6 +72,27 @@ namespace MinesServer.Networking.Connection.Client
         private const int _maxDepth = 200;
         private bool _depthWarningActive;
         private int _health = 500;
+
+        private struct MissionDef
+        {
+            public int Id;
+            public string Title;
+            public string Description;
+            public long Target;
+            public ItemType RewardItem;
+            public long RewardAmount;
+        }
+
+        private static readonly MissionDef[] _missions = new[]
+        {
+            new MissionDef { Id = 0, Title = "Копатель-ученик", Description = "Сломайте 50 блоков", Target = 50, RewardItem = ItemType.Cred, RewardAmount = 25 },
+            new MissionDef { Id = 1, Title = "Опытный копатель", Description = "Сломайте 200 блоков", Target = 200, RewardItem = ItemType.Cred, RewardAmount = 100 },
+            new MissionDef { Id = 2, Title = "Мастер-копатель", Description = "Сломайте 500 блоков", Target = 500, RewardItem = ItemType.Cred, RewardAmount = 300 },
+        };
+
+        private int _activeMissionId = -1;
+        private long _missionProgress;
+        private readonly bool[] _missionCompleted = new bool[_missions.Length];
 
         private static readonly CellType[] _allCellTypes = new CellType[]
         {
@@ -290,6 +312,14 @@ namespace MinesServer.Networking.Connection.Client
                             new SFXPacket(SFX.Destroy, _mockBotId, cellX, cellY, Array.Empty<StringPairPacket>())
                         })));
                         Debug.Log($"[DummyConnection] Cell ({cellX}, {cellY}) broken → Empty");
+                    }
+
+                    if (_activeMissionId >= 0)
+                    {
+                        _missionProgress++;
+                        OnReceived?.Invoke(new ServerPacket(new MissionProgressPacket(_missionProgress, _missions[_activeMissionId].Target)));
+                        if (_missionProgress >= _missions[_activeMissionId].Target)
+                            CompleteMission();
                     }
                 }
 
@@ -669,6 +699,188 @@ namespace MinesServer.Networking.Connection.Client
                 OnReceived?.Invoke(new ServerPacket(new HideClanPacket()));
                 Debug.Log("[DummyConnection] HideClanPacket sent");
             }
+            else if (packet.WindowTag == "open_missions")
+            {
+                SendMissionWindow();
+            }
+            else if (packet.WindowTag == "missions")
+            {
+                if (packet.ElementIndex == 0)
+                {
+                    OnReceived?.Invoke(new ServerPacket(new CloseWindowPacket()));
+                }
+                else if (packet.ElementIndex <= _missions.Length)
+                {
+                    StartMission(packet.ElementIndex - 1);
+                }
+                else
+                {
+                    CancelMission();
+                }
+            }
+        }
+
+        private void SendMissionWindow()
+        {
+            var rows = new List<IGUIComponentPacket>();
+            for (int i = 0; i < _missions.Length; i++)
+            {
+                var m = _missions[i];
+                string status = _activeMissionId == m.Id
+                    ? $"<color=yellow>Активно: {_missionProgress}/{m.Target}</color>"
+                    : _missionCompleted[m.Id]
+                        ? "<color=lime>✓ Выполнено</color>"
+                        : "<color=#B2A680>Выбрать</color>";
+                rows.Add(new TextPacket
+                {
+                    Text = $"<color=white>{m.Title}</color>\n<color=#B2A680>{m.Description}</color>  {status}",
+                    OnClickContext = ".",
+                    Style = new GUIStylePacket
+                    {
+                        Background = System.Drawing.Color.FromArgb(242, 26, 26, 26),
+                        Border = System.Drawing.Color.FromArgb(255, 89, 89, 89),
+                        BorderWidth = 2,
+                        Padding = new Margins(8, 12, 8, 12),
+                        Margin = new Margins(0, 0, 4, 0)
+                    }
+                });
+            }
+
+            var scrollViewer = new ScrollViewerPacket
+            {
+                VerticalScrollBar = ScrollbarVisibility.Auto,
+                HorizontalScrollBar = ScrollbarVisibility.Auto,
+                Children = rows.ToArray()
+            };
+
+            var rootChildren = new List<IGUIComponentPacket>
+            {
+                new DockPanelPacket
+                {
+                    AttachedProperties = new StringPairPacket[]
+                    {
+                        new("DockPanel.Dock", "Top")
+                    },
+                    Style = new GUIStylePacket
+                    {
+                        Margin = new Margins(0, 0, 10, 0),
+                        Padding = new Margins(0, 0, 0, 0)
+                    },
+                    Children = new List<IGUIComponentPacket>
+                    {
+                        new TextPacket
+                        {
+                            Text = "<color=#B2A680>Миссии</color>",
+                            AttachedProperties = new StringPairPacket[]
+                            {
+                                new("DockPanel.Dock", "Left")
+                            },
+                        },
+                        new TextPacket
+                        {
+                            Text = "<color=#B3B3B3>×</color>",
+                            OnClickContext = "missions_close",
+                            AttachedProperties = new StringPairPacket[]
+                            {
+                                new("DockPanel.Dock", "Right")
+                            },
+                        }
+                    }
+                },
+                scrollViewer
+            };
+
+            if (_activeMissionId >= 0)
+            {
+                rootChildren.Add(new TextPacket
+                {
+                    Text = "<color=#B08050>Отменить миссию</color>",
+                    OnClickContext = "mission_cancel",
+                    AttachedProperties = new StringPairPacket[]
+                    {
+                        new("DockPanel.Dock", "Bottom")
+                    },
+                    Style = new GUIStylePacket
+                    {
+                        Margin = new Margins(0, 0, 10, 0),
+                        Padding = new Margins(6, 6, 6, 6),
+                        Background = System.Drawing.Color.FromArgb(242, 30, 20, 20),
+                        Border = System.Drawing.Color.FromArgb(255, 89, 89, 89),
+                        BorderWidth = 2,
+                    }
+                });
+            }
+
+            var root = new DockPanelPacket
+            {
+                Style = new GUIStylePacket
+                {
+                    Background = System.Drawing.Color.FromArgb(242, 20, 20, 20),
+                    Border = System.Drawing.Color.FromArgb(255, 89, 89, 89),
+                    BorderWidth = 2,
+                    Padding = new Margins(2, 8, 2, 8)
+                },
+                Children = rootChildren
+            };
+
+            OnReceived?.Invoke(new ServerPacket(new OpenWindowPacket("missions", 400, 300, root)));
+            Debug.Log("[DummyConnection] Mission selection window opened");
+        }
+
+        private void StartMission(int missionId)
+        {
+            if (missionId < 0 || missionId >= _missions.Length)
+                return;
+
+            if (_missionCompleted[missionId])
+                return;
+
+            var m = _missions[missionId];
+            _activeMissionId = missionId;
+            _missionProgress = 0;
+            OnReceived?.Invoke(new ServerPacket(new CloseWindowPacket()));
+            OnReceived?.Invoke(new ServerPacket(new MissionInitPacket("", 0, 0, m.Title, m.Description)));
+            OnReceived?.Invoke(new ServerPacket(new MissionProgressPacket(0, m.Target)));
+            Debug.Log($"[DummyConnection] Started mission: {m.Title}");
+        }
+
+        private void CancelMission()
+        {
+            if (_activeMissionId < 0)
+            {
+                OnReceived?.Invoke(new ServerPacket(new CloseWindowPacket()));
+                return;
+            }
+            _activeMissionId = -1;
+            _missionProgress = 0;
+            OnReceived?.Invoke(new ServerPacket(new CloseWindowPacket()));
+            OnReceived?.Invoke(new ServerPacket(new MissionInitPacket("", 0, 0, "", "")));
+            Debug.Log("[DummyConnection] Mission cancelled");
+        }
+
+        private void CompleteMission()
+        {
+            if (_activeMissionId < 0)
+                return;
+
+            var m = _missions[_activeMissionId];
+            Debug.Log($"[DummyConnection] Mission complete: {m.Title}");
+
+            _inventory.TryGetValue(m.RewardItem, out long current);
+            _inventory[m.RewardItem] = current + m.RewardAmount;
+            OnReceived?.Invoke(new ServerPacket(new InventoryPacket(
+                new Dictionary<ItemType, long> { { m.RewardItem, current + m.RewardAmount } })));
+
+            _missionCompleted[_activeMissionId] = true;
+            _activeMissionId = -1;
+            _missionProgress = 0;
+
+            OnReceived?.Invoke(new ServerPacket(new MissionInitPacket("", 0, 0, "", "")));
+            OnReceived?.Invoke(new ServerPacket(new ModalWindowPacket(
+                "Миссия выполнена!",
+                $"Вы завершили миссию \"{m.Title}\"!\n\nНаграда: {m.RewardAmount} кредитов.",
+                "OK",
+                "")));
         }
 
         private void HandleDailyBonusClaim()

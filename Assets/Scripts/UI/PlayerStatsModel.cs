@@ -87,6 +87,12 @@ namespace Fodinae.Scripts.UI
         public int MaxDepth { get; private set; }
         public int CurrentDepth { get; private set; }
 
+        public bool IsMissionActive { get; private set; }
+        public string MissionTitle { get; private set; }
+        public string MissionDescription { get; private set; }
+        public long MissionProgress { get; private set; }
+        public long MissionMaxProgress { get; private set; }
+
         public event Action OnStatsChanged;
         public event Action OnHealthChanged;
         public event Action OnCurrencyChanged;
@@ -96,6 +102,7 @@ namespace Fodinae.Scripts.UI
         public event Action OnBasketChanged;
         public event Action<SkillType, long, long> OnSkillProgress;
         public event Action OnDailyBonusChanged;
+        public event Action OnMissionChanged;
 
         public bool DailyBonusAvailable { get; private set; }
 
@@ -186,6 +193,42 @@ namespace Fodinae.Scripts.UI
         public void SetCurrentDepth(int serverY)
         {
             CurrentDepth = serverY;
+            OnStatsChanged?.Invoke();
+        }
+
+        public void SetMission(string title, string description, long max)
+        {
+            IsMissionActive = true;
+            MissionTitle = title;
+            MissionDescription = description;
+            MissionProgress = 0;
+            MissionMaxProgress = max;
+            OnMissionChanged?.Invoke();
+            OnStatsChanged?.Invoke();
+        }
+
+        public void SetMissionProgress(long current)
+        {
+            MissionProgress = current;
+            OnMissionChanged?.Invoke();
+            OnStatsChanged?.Invoke();
+        }
+
+        public void SetMissionMaxProgress(long max)
+        {
+            MissionMaxProgress = max;
+            OnMissionChanged?.Invoke();
+            OnStatsChanged?.Invoke();
+        }
+
+        public void ClearMission()
+        {
+            IsMissionActive = false;
+            MissionTitle = null;
+            MissionDescription = null;
+            MissionProgress = 0;
+            MissionMaxProgress = 0;
+            OnMissionChanged?.Invoke();
             OnStatsChanged?.Invoke();
         }
     }

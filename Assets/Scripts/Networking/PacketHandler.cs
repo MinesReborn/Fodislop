@@ -19,6 +19,7 @@ using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.Information;
 using MinesServer.Networking.Server.Packets.Information.StatusPanel;
 using MinesServer.Networking.Server.Packets.Inventory;
+using MinesServer.Networking.Server.Packets.Mission;
 using MinesServer.Networking.Server.Packets.Movement;
 using MinesServer.Networking.Server.Packets.World;
 using Unity.VisualScripting;
@@ -142,6 +143,8 @@ namespace Fodinae.Scripts.Networking
                 ns.Subscribe<ShowClanPacket>(HandleShowClanPacket);
                 ns.Subscribe<HideClanPacket>(HandleHideClanPacket);
                 ns.Subscribe<MaxDepthPacket>(HandleMaxDepthPacket);
+                ns.Subscribe<MissionInitPacket>(HandleMissionInitPacket);
+                ns.Subscribe<MissionProgressPacket>(HandleMissionProgressPacket);
             }
 
             var mm = MapManager.Instance;
@@ -207,6 +210,8 @@ namespace Fodinae.Scripts.Networking
                 ns.Unsubscribe<ShowClanPacket>(HandleShowClanPacket);
                 ns.Unsubscribe<HideClanPacket>(HandleHideClanPacket);
                 ns.Unsubscribe<MaxDepthPacket>(HandleMaxDepthPacket);
+                ns.Unsubscribe<MissionInitPacket>(HandleMissionInitPacket);
+                ns.Unsubscribe<MissionProgressPacket>(HandleMissionProgressPacket);
             }
 
             // Close modal and any open windows
@@ -767,6 +772,28 @@ namespace Fodinae.Scripts.Networking
             _packetCount++;
             Debug.Log($"[PacketHandler] MaxDepthPacket: Depth={packet.Depth}");
             PlayerStatsModel.Instance.SetMaxDepth(packet.Depth);
+        }
+
+        private void HandleMissionInitPacket(MissionInitPacket packet)
+        {
+            _packetCount++;
+            Debug.Log($"[PacketHandler] MissionInitPacket: {packet.Title}");
+            if (string.IsNullOrEmpty(packet.Title))
+            {
+                PlayerStatsModel.Instance.ClearMission();
+                return;
+            }
+            PlayerStatsModel.Instance.SetMission(packet.Title, packet.Description, 0);
+        }
+
+        private void HandleMissionProgressPacket(MissionProgressPacket packet)
+        {
+            _packetCount++;
+            Debug.Log($"[PacketHandler] MissionProgressPacket: {packet.Current}/{packet.Max}");
+            var stats = PlayerStatsModel.Instance;
+            stats.SetMissionProgress(packet.Current);
+            if (packet.Max > 0)
+                stats.SetMissionMaxProgress(packet.Max);
         }
 
         private void OnWorldDataLoaded()

@@ -75,6 +75,13 @@ namespace Fodinae.Scripts.UI
         private VisualElement _faqPopup;
         private VisualElement _programmatorPopup;
 
+        private Button _missionButton;
+        private VisualElement _missionPanel;
+        private Label _missionTitleLabel;
+        private Label _missionDescLabel;
+        private VisualElement _missionProgressFill;
+        private Label _missionProgressLabel;
+
         async void Start()
         {
             await LoadCrystalTextures();
@@ -91,6 +98,8 @@ namespace Fodinae.Scripts.UI
                 PlayerStatsModel.Instance.OnDailyBonusChanged -= UpdateDailyBonusPanel;
             if (PlayerStatsModel.Instance != null)
                 PlayerStatsModel.Instance.OnStatusLinesChanged -= RebuildStatusPanel;
+            if (PlayerStatsModel.Instance != null)
+                PlayerStatsModel.Instance.OnMissionChanged -= UpdateMissionPanel;
             if (GlobalChatUI.Instance != null)
                 GlobalChatUI.Instance.Hide();
         }
@@ -125,10 +134,12 @@ namespace Fodinae.Scripts.UI
             CreateButtonsAndPopups(_doc.rootVisualElement);
             CreateStatusPanel(_doc.rootVisualElement);
             CreateSkillContainer(_doc.rootVisualElement);
+            CreateMissionPanel(_doc.rootVisualElement);
             if (PlayerStatsModel.Instance != null)
             {
                 PlayerStatsModel.Instance.OnSkillProgress += OnSkillProgress;
                 PlayerStatsModel.Instance.OnStatusLinesChanged += RebuildStatusPanel;
+                PlayerStatsModel.Instance.OnMissionChanged += UpdateMissionPanel;
             }
             var player = FindObjectOfType<PlayerMovementController>();
             if (player != null)
@@ -977,6 +988,7 @@ namespace Fodinae.Scripts.UI
             CreateProgrammatorButton(root, () => _programmatorPopup.style.display = DisplayStyle.Flex);
             CreateModalTestButton(root);
             CreateClanButtons(root);
+            CreateMissionButton(root);
         }
 
         private VisualElement CreatePopup(string title)
@@ -1366,6 +1378,140 @@ namespace Fodinae.Scripts.UI
                 leaveBtn.style.backgroundColor = new Color(0.1f, 0.1f, 0.15f, 0.85f));
 
             root.Add(leaveBtn);
+        }
+
+        private void CreateMissionButton(VisualElement root)
+        {
+            _missionButton = new Button(() =>
+            {
+                NetworkService.Instance.Send(new ElementClickPacket("open_missions", 0, System.Array.Empty<StringPairPacket>()));
+            });
+            _missionButton.text = "Миссии";
+            _missionButton.style.position = Position.Absolute;
+            _missionButton.style.top = 10 + 28 + 6 + 28 + 6;
+            _missionButton.style.right = 10 + (100 + 6) * 3 + 160 + 6;
+            _missionButton.style.width = 140;
+            _missionButton.style.height = 28;
+            _missionButton.style.fontSize = 12;
+            _missionButton.style.unityFontStyleAndWeight = FontStyle.Bold;
+            _missionButton.style.color = _textColor;
+            _missionButton.style.unityTextAlign = TextAnchor.MiddleCenter;
+            _missionButton.style.backgroundColor = new Color(0.1f, 0.1f, 0.15f, 0.85f);
+            _missionButton.style.borderTopWidth = 2;
+            _missionButton.style.borderBottomWidth = 2;
+            _missionButton.style.borderLeftWidth = 2;
+            _missionButton.style.borderRightWidth = 2;
+            _missionButton.style.borderTopColor = _panelBorderColor;
+            _missionButton.style.borderBottomColor = _panelBorderColor;
+            _missionButton.style.borderLeftColor = _panelBorderColor;
+            _missionButton.style.borderRightColor = _panelBorderColor;
+            _missionButton.style.paddingTop = 0;
+            _missionButton.style.paddingBottom = 0;
+            _missionButton.style.paddingLeft = 0;
+            _missionButton.style.paddingRight = 0;
+
+            _missionButton.RegisterCallback<MouseEnterEvent>(_ =>
+                _missionButton.style.backgroundColor = new Color(0.2f, 0.2f, 0.3f, 0.85f));
+            _missionButton.RegisterCallback<MouseLeaveEvent>(_ =>
+                _missionButton.style.backgroundColor = new Color(0.1f, 0.1f, 0.15f, 0.85f));
+
+            root.Add(_missionButton);
+        }
+
+        private void CreateMissionPanel(VisualElement root)
+        {
+            _missionPanel = new VisualElement();
+            _missionPanel.name = "MissionPanel";
+            _missionPanel.style.position = Position.Absolute;
+            _missionPanel.style.top = 50;
+            _missionPanel.style.left = new Length(50, LengthUnit.Percent);
+            _missionPanel.style.translate = new Translate(new Length(-50, LengthUnit.Percent), 0);
+            _missionPanel.style.minWidth = 300;
+            _missionPanel.style.backgroundColor = _panelBgColor;
+            _missionPanel.style.borderTopWidth = 2;
+            _missionPanel.style.borderBottomWidth = 2;
+            _missionPanel.style.borderLeftWidth = 2;
+            _missionPanel.style.borderRightWidth = 2;
+            _missionPanel.style.borderTopColor = _panelBorderColor;
+            _missionPanel.style.borderBottomColor = _panelBorderColor;
+            _missionPanel.style.borderLeftColor = _panelBorderColor;
+            _missionPanel.style.borderRightColor = _panelBorderColor;
+            _missionPanel.style.paddingTop = PADDING;
+            _missionPanel.style.paddingBottom = PADDING;
+            _missionPanel.style.paddingLeft = PADDING;
+            _missionPanel.style.paddingRight = PADDING;
+            _missionPanel.style.flexDirection = FlexDirection.Column;
+            _missionPanel.style.display = DisplayStyle.None;
+
+            _missionTitleLabel = new Label("---");
+            _missionTitleLabel.style.fontSize = TITLE_FONT_SIZE;
+            _missionTitleLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            _missionTitleLabel.style.color = _accentColor;
+            _missionTitleLabel.style.marginBottom = 4;
+            _missionPanel.Add(_missionTitleLabel);
+
+            _missionDescLabel = new Label("");
+            _missionDescLabel.style.fontSize = LABEL_FONT_SIZE;
+            _missionDescLabel.style.color = _textColor;
+            _missionDescLabel.style.whiteSpace = WhiteSpace.Normal;
+            _missionDescLabel.style.marginBottom = 8;
+            _missionPanel.Add(_missionDescLabel);
+
+            var progressRow = new VisualElement();
+            progressRow.style.flexDirection = FlexDirection.Row;
+            progressRow.style.alignItems = Align.Center;
+            progressRow.style.marginBottom = 4;
+
+            _missionProgressLabel = new Label("0/0");
+            _missionProgressLabel.style.fontSize = LABEL_FONT_SIZE;
+            _missionProgressLabel.style.color = _textColor;
+            _missionProgressLabel.style.marginRight = 8;
+            _missionProgressLabel.style.minWidth = 50;
+            progressRow.Add(_missionProgressLabel);
+
+            var barBg = new VisualElement();
+            barBg.style.flexGrow = 1;
+            barBg.style.height = 16;
+            barBg.style.backgroundColor = _hpBarBgColor;
+            barBg.style.borderTopLeftRadius = 3;
+            barBg.style.borderTopRightRadius = 3;
+            barBg.style.borderBottomLeftRadius = 3;
+            barBg.style.borderBottomRightRadius = 3;
+
+            _missionProgressFill = new VisualElement();
+            _missionProgressFill.style.height = 16;
+            _missionProgressFill.style.width = 0;
+            _missionProgressFill.style.borderTopLeftRadius = 3;
+            _missionProgressFill.style.borderTopRightRadius = 3;
+            _missionProgressFill.style.borderBottomLeftRadius = 3;
+            _missionProgressFill.style.borderBottomRightRadius = 3;
+            _missionProgressFill.style.backgroundColor = new Color(0.7f, 0.7f, 0.2f, 1f);
+            barBg.Add(_missionProgressFill);
+
+            progressRow.Add(barBg);
+            _missionPanel.Add(progressRow);
+
+            root.Add(_missionPanel);
+        }
+
+        private void UpdateMissionPanel()
+        {
+            var stats = PlayerStatsModel.Instance;
+            if (stats == null) return;
+
+            if (!stats.IsMissionActive)
+            {
+                _missionPanel.style.display = DisplayStyle.None;
+                return;
+            }
+
+            _missionPanel.style.display = DisplayStyle.Flex;
+            _missionTitleLabel.text = stats.MissionTitle ?? "Миссия";
+            _missionDescLabel.text = stats.MissionDescription ?? "";
+
+            float pct = stats.MissionMaxProgress > 0 ? (float)stats.MissionProgress / stats.MissionMaxProgress : 0f;
+            _missionProgressFill.style.width = new Length(Mathf.Clamp01(pct) * 100, LengthUnit.Percent);
+            _missionProgressLabel.text = $"{stats.MissionProgress:N0}/{stats.MissionMaxProgress:N0}";
         }
 
         private VisualElement CreateProgrammatorPopup()
