@@ -209,6 +209,8 @@ namespace Fodinae.Scripts.Player
                 return;
             }
 
+            if (PacketHandler.IsInputBlocked) return;
+
             if (Time.time - _lastDigTime < ServerConfig.Instance.DigCooldown) return;
 
             var mm = MapManager.Instance;

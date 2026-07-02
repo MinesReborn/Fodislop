@@ -1,5 +1,8 @@
 using Fodinae.Scripts.Audio;
+using Fodinae.Scripts.Networking;
 using Fodinae.Scripts.World;
+using MinesServer.Networking.Client.Packets.GUI;
+using MinesServer.Networking.Shared.Packets;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
@@ -234,6 +237,15 @@ namespace Fodinae.Scripts.UI
         private void ToggleMenu()
         {
             if (!enabled) return;
+
+            if (PacketHandler.IsInputBlocked)
+            {
+                var topTag = PacketHandler.TopWindowTag;
+                if (topTag != null)
+                    NetworkService.Instance.Send(new ElementClickPacket(topTag, 0, System.Array.Empty<StringPairPacket>()));
+                return;
+            }
+
             if (_settingsPage.style.display == DisplayStyle.Flex)
             {
                 CloseSettings();

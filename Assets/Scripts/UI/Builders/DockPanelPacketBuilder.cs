@@ -30,7 +30,7 @@ namespace Fodinae.Scripts.UI.Builders
         private void HandleDockPanelChildren(VisualElement parent, IEnumerable<IGUIComponentPacket> children, PacketUIBuilder builder)
         {
             parent.style.flexDirection = FlexDirection.Column;
-            parent.style.flexGrow = 1;
+            parent.style.flexGrow = 0;
 
             var lastChild = children.LastOrDefault(c => c.AttachedProperties?.All(p => p.Key != "DockPanel.Dock") ?? true);
             VisualElement current;
@@ -78,11 +78,13 @@ namespace Fodinae.Scripts.UI.Builders
                         break;
                     case Dock.Left:
                         wrapper.style.flexDirection = FlexDirection.Row;
+                        wrapper.style.alignItems = Align.FlexStart;
                         wrapper.Add(childElement);
                         wrapper.Add(current);
                         break;
                     case Dock.Right:
                         wrapper.style.flexDirection = FlexDirection.Row;
+                        wrapper.style.alignItems = Align.FlexStart;
                         wrapper.Add(current);
                         wrapper.Add(childElement);
                         break;

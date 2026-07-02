@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using MinesServer.Data;
 using UnityEngine;
 
 namespace Fodinae.Scripts.UI
 {
+    public readonly record struct StatusLineEntry(string[] Text, Color Color, byte BlinkRate, long Expiry);
     public class PlayerStatsModel : MonoBehaviour
     {
         private static PlayerStatsModel _instance;
@@ -23,6 +25,36 @@ namespace Fodinae.Scripts.UI
                 }
                 return _instance;
             }
+        }
+
+        private readonly Dictionary<string, StatusLineEntry> _statusLines = new();
+
+        public event Action OnStatusLinesChanged;
+
+        public IReadOnlyDictionary<string, StatusLineEntry> StatusLines => _statusLines;
+
+        public void AddStatusLine(string tag, string[] text, Color color, byte blinkRate, long expiry = 0)
+        {
+            _statusLines[tag] = new StatusLineEntry(text, color, blinkRate, expiry);
+            OnStatusLinesChanged?.Invoke();
+            OnStatsChanged?.Invoke();
+        }
+
+        public void RemoveStatusLine(string tag)
+        {
+            if (_statusLines.Remove(tag))
+            {
+                OnStatusLinesChanged?.Invoke();
+                OnStatsChanged?.Invoke();
+            }
+        }
+
+        public void ClearStatusLines()
+        {
+            if (_statusLines.Count == 0) return;
+            _statusLines.Clear();
+            OnStatusLinesChanged?.Invoke();
+            OnStatsChanged?.Invoke();
         }
 
         private void Awake()
@@ -51,6 +83,9 @@ namespace Fodinae.Scripts.UI
         public int BasketMaxPercent { get; private set; }
         public int OnlinePlayers { get; private set; }
         public int OnlineProgrammator { get; private set; }
+        public int ClanId { get; private set; }
+        public int MaxDepth { get; private set; }
+        public int CurrentDepth { get; private set; }
 
         public event Action OnStatsChanged;
         public event Action OnHealthChanged;
@@ -133,6 +168,24 @@ namespace Fodinae.Scripts.UI
         {
             OnlinePlayers = players;
             OnlineProgrammator = programmator;
+            OnStatsChanged?.Invoke();
+        }
+
+        public void SetClanId(int clanId)
+        {
+            ClanId = clanId;
+            OnStatsChanged?.Invoke();
+        }
+
+        public void SetMaxDepth(int depth)
+        {
+            MaxDepth = depth;
+            OnStatsChanged?.Invoke();
+        }
+
+        public void SetCurrentDepth(int serverY)
+        {
+            CurrentDepth = serverY;
             OnStatsChanged?.Invoke();
         }
     }

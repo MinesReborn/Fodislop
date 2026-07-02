@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Fodinae.Scripts.Networking;
 using MinesServer.Data;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -52,6 +53,7 @@ namespace Fodinae.Scripts.UI
         void Update()
         {
             if (Keyboard.current == null) return;
+            if (PacketHandler.IsInputBlocked) return;
 
             if (Keyboard.current.digit1Key.wasPressedThisFrame) _model.SelectSlot(0);
             else if (Keyboard.current.digit2Key.wasPressedThisFrame) _model.SelectSlot(1);

@@ -17,6 +17,7 @@ using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.Information;
+using MinesServer.Networking.Server.Packets.Information.StatusPanel;
 using MinesServer.Networking.Server.Packets.Inventory;
 using MinesServer.Networking.Server.Packets.Movement;
 using MinesServer.Networking.Server.Packets.World;
@@ -29,11 +30,17 @@ namespace Fodinae.Scripts.Networking
 {
     public class PacketHandler : MonoBehaviour
     {
+        public static PacketHandler Instance { get; private set; }
+
+        public static bool IsInputBlocked => Instance != null && (Instance._openWindows.Count > 0 || Instance._modalWindowHandler?.IsShowing == true);
+        public static string TopWindowTag => Instance?._openWindows.Count > 0 ? Instance._openWindows[^1].tag : null;
+
         private bool _isInitialized = false;
         private int _packetCount = 0;
         private int _worldInitPacketsReceived = 0;
         private int _mapRegionPacketsReceived = 0;
         private UIDocument _uiDocument;
+        private ModalWindowHandler _modalWindowHandler;
         private readonly List<(string tag, VisualElement root, WindowBinding binding, List<VisualElement> clickableElements)> _openWindows = new();
 
         public void HandleWorldInitPacket(WorldInitPacket worldInitPacket)
@@ -61,6 +68,7 @@ namespace Fodinae.Scripts.Networking
 
         protected virtual void Awake()
         {
+            Instance = this;
             Debug.Log("[PacketHandler] Starting initialization...");
 
             // Verify Dependencies
@@ -80,6 +88,10 @@ namespace Fodinae.Scripts.Networking
             if (_uiDocument == null)
             {
                 Debug.LogWarning("[PacketHandler] UIDocument not found - window packets will not be displayed");
+            }
+            else
+            {
+                _modalWindowHandler = new ModalWindowHandler(_uiDocument);
             }
 
             // Subscribe to events via NetworkService
@@ -122,6 +134,14 @@ namespace Fodinae.Scripts.Networking
                 ns.Subscribe<MinesServer.Networking.Server.Packets.Inventory.SelectItemPacket>(HandleServerSelectItem);
                 ns.Subscribe<MinesServer.Networking.Server.Packets.Inventory.DeselectItemPacket>(HandleServerDeselect);
                 ns.Subscribe<DailyBonusStatePacket>(HandleDailyBonusStatePacket);
+                ns.Subscribe<TeleportPacket>(HandleTeleportPacket);
+                ns.Subscribe<AddStatusLinePacket>(HandleAddStatusLine);
+                ns.Subscribe<ClearStatusLinePacket>(HandleClearStatusLine);
+                ns.Subscribe<ClearStatusPacket>(HandleClearStatus);
+                ns.Subscribe<ModalWindowPacket>(HandleModalWindowPacket);
+                ns.Subscribe<ShowClanPacket>(HandleShowClanPacket);
+                ns.Subscribe<HideClanPacket>(HandleHideClanPacket);
+                ns.Subscribe<MaxDepthPacket>(HandleMaxDepthPacket);
             }
 
             var mm = MapManager.Instance;
@@ -179,9 +199,18 @@ namespace Fodinae.Scripts.Networking
                 ns.Unsubscribe<MinesServer.Networking.Server.Packets.Inventory.SelectItemPacket>(HandleServerSelectItem);
                 ns.Unsubscribe<MinesServer.Networking.Server.Packets.Inventory.DeselectItemPacket>(HandleServerDeselect);
                 ns.Unsubscribe<DailyBonusStatePacket>(HandleDailyBonusStatePacket);
+                ns.Unsubscribe<TeleportPacket>(HandleTeleportPacket);
+                ns.Unsubscribe<AddStatusLinePacket>(HandleAddStatusLine);
+                ns.Unsubscribe<ClearStatusLinePacket>(HandleClearStatusLine);
+                ns.Unsubscribe<ClearStatusPacket>(HandleClearStatus);
+                ns.Unsubscribe<ModalWindowPacket>(HandleModalWindowPacket);
+                ns.Unsubscribe<ShowClanPacket>(HandleShowClanPacket);
+                ns.Unsubscribe<HideClanPacket>(HandleHideClanPacket);
+                ns.Unsubscribe<MaxDepthPacket>(HandleMaxDepthPacket);
             }
 
-            // Close any open windows and dispose bindings
+            // Close modal and any open windows
+            _modalWindowHandler?.Hide();
             foreach (var (_, root, binding, _) in _openWindows)
             {
                 binding.Dispose();
@@ -310,9 +339,10 @@ namespace Fodinae.Scripts.Networking
             _packetCount++;
             Debug.Log("[PacketHandler] Handling CloseWindowPacket");
 
+            _modalWindowHandler?.Hide();
+
             if (_openWindows.Count == 0) return;
 
-            // Close the most recently opened window (no window tag in CloseWindowPacket)
             var (_, root, binding, _) = _openWindows[^1];
             binding.Dispose();
             _uiDocument.rootVisualElement.Remove(root);
@@ -507,6 +537,24 @@ namespace Fodinae.Scripts.Networking
             PlayerStatsModel.Instance.SetDailyBonusAvailable(packet.Enabled);
         }
 
+        private void HandleTeleportPacket(TeleportPacket packet)
+        {
+            _packetCount++;
+            Debug.Log($"[PacketHandler] TeleportPacket: X={packet.X}, Y={packet.Y}, Smooth={packet.SmoothTransition}");
+
+            var player = FindObjectOfType<PlayerMovementController>();
+            if (player == null) return;
+
+            var mm = MapManager.Instance;
+            if (mm == null) return;
+
+            int unityX = packet.X;
+            int unityY = mm.WorldHeight - 1 - packet.Y;
+
+            player.transform.position = new Vector3(unityX + 0.5f, unityY + 0.5f, 0);
+            player.UpdateServerPosition(new Vector2Int(packet.X, packet.Y));
+        }
+
         private void HandleSkillProgressPacket(SkillProgressPacket packet)
         {
             PlayerStatsModel.Instance.SetSkillProgress(packet.Skill, packet.Current, packet.Max);
@@ -643,6 +691,82 @@ namespace Fodinae.Scripts.Networking
         {
             _packetCount++;
             SFXEffectManager.Instance?.PlayEffect(packet);
+        }
+
+        private void HandleAddStatusLine(AddStatusLinePacket packet)
+        {
+            _packetCount++;
+            var sysColor = packet.Color;
+            var unityColor = new Color(sysColor.R / 255f, sysColor.G / 255f, sysColor.B / 255f, sysColor.A / 255f);
+            long expiry = 0;
+            if (packet.Text.Count > 1)
+                long.TryParse(packet.Text[1], out expiry);
+            PlayerStatsModel.Instance.AddStatusLine(packet.Tag, packet.Text.ToArray(), unityColor, packet.BlinkRate, expiry);
+        }
+
+        private void HandleModalWindowPacket(ModalWindowPacket packet)
+        {
+            _packetCount++;
+            Debug.Log("[PacketHandler] Handling ModalWindowPacket");
+
+            if (_modalWindowHandler == null)
+            {
+                Debug.LogError("[PacketHandler] ModalWindowHandler not initialized");
+                return;
+            }
+
+            _modalWindowHandler.Show(packet);
+        }
+
+        private void HandleClearStatusLine(ClearStatusLinePacket packet)
+        {
+            _packetCount++;
+            PlayerStatsModel.Instance.RemoveStatusLine(packet.Tag);
+        }
+
+        private void HandleClearStatus(ClearStatusPacket packet)
+        {
+            _packetCount++;
+            PlayerStatsModel.Instance.ClearStatusLines();
+        }
+
+        private void HandleShowClanPacket(ShowClanPacket packet)
+        {
+            _packetCount++;
+            Debug.Log($"[PacketHandler] ShowClanPacket: ClanId={packet.ClanId}");
+            PlayerStatsModel.Instance.SetClanId(packet.ClanId);
+            var player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null)
+            {
+                var robot = player.GetComponent<Robot>();
+                if (robot != null)
+                {
+                    robot.SetClanBadge(packet.ClanId);
+                }
+            }
+        }
+
+        private void HandleHideClanPacket(HideClanPacket packet)
+        {
+            _packetCount++;
+            Debug.Log("[PacketHandler] HideClanPacket");
+            PlayerStatsModel.Instance.SetClanId(0);
+            var player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null)
+            {
+                var robot = player.GetComponent<Robot>();
+                if (robot != null)
+                {
+                    robot.ClearClanBadge();
+                }
+            }
+        }
+
+        private void HandleMaxDepthPacket(MaxDepthPacket packet)
+        {
+            _packetCount++;
+            Debug.Log($"[PacketHandler] MaxDepthPacket: Depth={packet.Depth}");
+            PlayerStatsModel.Instance.SetMaxDepth(packet.Depth);
         }
 
         private void OnWorldDataLoaded()

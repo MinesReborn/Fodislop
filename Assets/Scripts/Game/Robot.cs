@@ -68,6 +68,33 @@ namespace Fodinae.Scripts.Game
             set => _targetPosition = value;
         }
 
+        public void SetClanBadge(ushort clanId)
+        {
+            _clanId = (byte)clanId;
+            if (_clanId == 0)
+            {
+                ClearClanBadge();
+                return;
+            }
+
+            LoadClanAsync(_cts.Token).Forget();
+        }
+
+        public void ClearClanBadge()
+        {
+            _clanId = 0;
+            if (_clanRenderer != null)
+            {
+                _clanRenderer.sprite = null;
+            }
+
+            if (_clanSprite != null)
+            {
+                Object.Destroy(_clanSprite);
+                _clanSprite = null;
+            }
+        }
+
         public float MoveSpeed
         {
             get => _moveSpeed;
@@ -345,7 +372,11 @@ namespace Fodinae.Scripts.Game
         {
             LoadSkinAsync(token).Forget();
             LoadTailAsync(token).Forget();
-            LoadClanAsync(token).Forget();
+            if (!IsLocalPlayer)
+            {
+                LoadClanAsync(token).Forget();
+            }
+
             await UniTask.CompletedTask;
         }
 

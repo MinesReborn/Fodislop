@@ -1,8 +1,8 @@
-using UnityEngine;
-using UnityEngine.InputSystem;
-using MinesServer.Networking.Client.Packets.Actions;
 using Fodinae.Scripts.Networking;
 using Fodinae.Scripts.Game.Managers;
+using MinesServer.Networking.Client.Packets.Actions;
+using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Fodinae.Scripts.Player
 {
@@ -27,6 +27,7 @@ namespace Fodinae.Scripts.Player
         private void HandleMouseClick()
         {
             if (Mouse.current == null) return;
+            if (PacketHandler.IsInputBlocked) return;
 
             if (Mouse.current.leftButton.wasPressedThisFrame)
             {
@@ -50,6 +51,7 @@ namespace Fodinae.Scripts.Player
         private void HandleKeyboardInput()
         {
             if (Keyboard.current == null) return;
+            if (PacketHandler.IsInputBlocked) return;
 
             // This is a bit expensive but since it's for "unmapped" keys,
             // we might want to check all keys if they were pressed this frame.
