@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
@@ -52,6 +53,8 @@ namespace MinesServer.Networking.Connection.Client
         public event Action OnDisconnecting;
         public event Action OnConnecting;
 
+        public static bool IgnoreCollision = false;
+
         private const ushort _mockBotId = 456;
         private ushort _x = 0;
         private ushort _y = 0;
@@ -71,6 +74,11 @@ namespace MinesServer.Networking.Connection.Client
         private bool _buffLoopStarted;
         private const int _maxDepth = 200;
         private bool _depthWarningActive;
+
+        [Header("Prebaked Map")]
+        public bool UsePrebakedMap = true;
+        public string PrebakedWorldCodeName = "pallada";
+
         private int _health = 500;
 
         private struct MissionDef
@@ -210,7 +218,6 @@ namespace MinesServer.Networking.Connection.Client
         {
             if (packet.Data is ActionClientPacket actionPacket)
             {
-                Debug.Log($"[DummyConnection] Received ActionClientPacket: X={actionPacket.X}, Y={actionPacket.Y}, Payload={actionPacket.Payload.GetType().Name}");
                 if (actionPacket.Payload is MovePacket move)
                 {
                     if (_teleportWindowOpen) return;
@@ -235,7 +242,7 @@ namespace MinesServer.Networking.Connection.Client
                         if (cellConfig.HasValue)
                         {
                             bool isPassable = ((CellConfigProperties)cellConfig.Value.Properties).HasFlag(CellConfigProperties.Passable);
-                            if (!isPassable)
+                            if (!isPassable && !IgnoreCollision)
                             {
                                 Debug.Log($"[DummyConnection] Rejected move ({move.X},{move.Y}) - not passable ({cellType})");
                                 OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] {
@@ -246,7 +253,6 @@ namespace MinesServer.Networking.Connection.Client
                         }
                     }
 
-                    Debug.Log($"  - Move to ({move.X}, {move.Y})");
                     _x = move.X;
                     _y = move.Y;
                     UpdatePosition().Forget();
@@ -260,7 +266,6 @@ namespace MinesServer.Networking.Connection.Client
                 }
                 else if (actionPacket.Payload is UnmappedKeyPacket key)
                 {
-                    Debug.Log($"  - Unmapped Key: Code={key.Code}, Ctrl={key.Control}, Alt={key.Alt}, Shift={key.Shift}");
                 }
                 else if (actionPacket.Payload is ToggleAgressionPacket)
                 {
@@ -356,19 +361,47 @@ namespace MinesServer.Networking.Connection.Client
                     }
 
                     var cellConfigs = CreateTestCellConfigurations();
-                    const int testWorldWidth = 500;
-                    const int testWorldHeight = 500;
+                    int worldWidth;
+                    int worldHeight;
+                    bool skipMapDataGeneration = false;
+
+                    if (UsePrebakedMap)
+                    {
+                        string prebakedPath = $"{Application.persistentDataPath}/{PrebakedWorldCodeName}_cells.mapb";
+                        (worldWidth, worldHeight) = ReadPrebakedWorldDimensions(prebakedPath);
+                        if (worldWidth > 0 && worldHeight > 0)
+                        {
+                            skipMapDataGeneration = true;
+                            Debug.Log($"[DummyConnection] Using prebaked map: {worldWidth}x{worldHeight}");
+                        }
+                        else
+                        {
+                            worldWidth = 500;
+                            worldHeight = 500;
+                            Debug.LogWarning("[DummyConnection] Prebaked map not found or invalid, falling back to generation");
+                        }
+                    }
+                    else
+                    {
+                        worldWidth = 500;
+                        worldHeight = 500;
+                    }
+
                     OnReceived?.Invoke(new ServerPacket(new WorldInitPacket(
                         "pallada",
                         "Pallada",
-                        testWorldWidth,
-                        testWorldHeight,
+                        (ushort)worldWidth,
+                        (ushort)worldHeight,
                         cellConfigs,
                         new byte[][] {
                             new byte[] { 37, 38, 106 }
                         })));
-                    SendTestWorldMapData(testWorldWidth, testWorldHeight);
-                    CreateCellTypeLabels(testWorldWidth, testWorldHeight);
+
+                    if (!skipMapDataGeneration)
+                    {
+                        SendTestWorldMapData(worldWidth, worldHeight);
+                        CreateCellTypeLabels(worldWidth, worldHeight);
+                    }
                     OnReceived?.Invoke(new ServerPacket(new PlayerInfoPacket(999, _mockBotId, "Darkar25")));
                     var robotPos = new RobotPositionPacket(_mockBotId, 25, 50, 0);
                     OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { robotPos })));
@@ -480,7 +513,6 @@ namespace MinesServer.Networking.Connection.Client
                     HandleElementClick(elementClick);
                     break;
                 default:
-                    Debug.Log($"[DummyConnection] Unhandled packet: {packet.Data.GetType().Name}");
                     break;
             }
         }
@@ -1439,112 +1471,153 @@ namespace MinesServer.Networking.Connection.Client
                     AnimationSpeed = 0,
                     Color = unchecked((int)0xFF808080),
                     FrameOffset = 0,
-                    Properties = CellConfigProperties.None
+                    Properties = CellConfigProperties.None,
+                    ReliefGroup = 0,
+                    Distortion = (CellDistortionType)0
                 };
             }
-            configs[(int)CellType.Empty] = new CellConfigurationPacket
-            {
-                Animation = CellAnimationType.None,
-                AnimationSpeed = 0,
-                Color = unchecked((int)0xFF808080),
-                FrameOffset = 0,
-                Properties = CellConfigProperties.Passable | CellConfigProperties.ReceivesShadow
-            };
-            configs[(int)CellType.Road] = new CellConfigurationPacket
-            {
-                Animation = CellAnimationType.None,
-                AnimationSpeed = 0,
-                Color = unchecked((int)0xFFCCCCCC),
-                FrameOffset = 0,
-                Properties = CellConfigProperties.Passable | CellConfigProperties.ReceivesShadow
-            };
-            configs[(int)CellType.Boulder1] = new CellConfigurationPacket
-            {
-                Animation = CellAnimationType.None,
-                AnimationSpeed = 0,
-                Color = unchecked((int)0xFF000000),
-                FrameOffset = 0,
-                Distortion = CellDistortionType.Block,
-                Properties = CellConfigProperties.None
-            };
-            configs[(int)CellType.WhiteSand] = new CellConfigurationPacket
-            {
-                Animation = CellAnimationType.None,
-                AnimationSpeed = 0,
-                Color = unchecked((int)0xFFFFFF00),
-                FrameOffset = 0,
-                Properties = CellConfigProperties.Passable | CellConfigProperties.DropsShadow
-            };
-            configs[(int)CellType.DarkWhiteSand] = new CellConfigurationPacket
-            {
-                Animation = CellAnimationType.None,
-                AnimationSpeed = 0,
-                Color = unchecked((int)0xFFCCCC00),
-                FrameOffset = 0,
-                Properties = CellConfigProperties.Passable | CellConfigProperties.DropsShadow
-            };
-            configs[(int)CellType.GrayAcid] = new CellConfigurationPacket
-            {
-                Animation = CellAnimationType.Blinking,
-                AnimationSpeed = 5,
-                Color = unchecked((int)0xFF00FF00),
-                FrameOffset = 1,
-                Properties = CellConfigProperties.None | CellConfigProperties.DropsShadow
-            };
-            configs[(int)CellType.PurpleAcid] = new CellConfigurationPacket
-            {
-                Animation = CellAnimationType.Shimmer,
-                AnimationSpeed = 50, // Time.x speed
-                Color = unchecked((int)0xFF800080),
-                FrameOffset = 1,
-                Properties = CellConfigProperties.None | CellConfigProperties.DropsShadow
-            };
-            configs[(int)CellType.Lava] = new CellConfigurationPacket
-            {
-                Animation = CellAnimationType.Rainbow,
-                AnimationSpeed = 50,
-                Color = unchecked((int)0xFFFF4500),
-                FrameOffset = 1,
-                Distortion = CellDistortionType.Cause,
-                Properties = CellConfigProperties.None | CellConfigProperties.DropsShadow
-            };
-            configs[(int)CellType.BuildingDoor] = new CellConfigurationPacket
-            {
-                Animation = CellAnimationType.None,
-                AnimationSpeed = 0,
-                Color = unchecked((int)0xFF8B4513),
-                FrameOffset = 0,
-                ReliefGroup = 1,
-                Properties = CellConfigProperties.None | CellConfigProperties.DropsShadow
-            };
-            configs[(int)CellType.BuildingCorner] = new CellConfigurationPacket
-            {
-                Animation = CellAnimationType.None,
-                AnimationSpeed = 0,
-                Color = unchecked((int)0xFF555555),
-                FrameOffset = 0,
-                ReliefGroup = 1,
-                Properties = CellConfigProperties.None | CellConfigProperties.DropsShadow
-            };
-            configs[(int)CellType.BuildingWall] = new CellConfigurationPacket
-            {
-                Animation = CellAnimationType.None,
-                AnimationSpeed = 0,
-                Color = unchecked((int)0xFF666666),
-                FrameOffset = 0,
-                ReliefGroup = 1,
-                Properties = CellConfigProperties.None | CellConfigProperties.DropsShadow
-            };
-            configs[(int)CellType.Green] = new CellConfigurationPacket
-            {
-                Animation = CellAnimationType.None,
-                AnimationSpeed = 0,
-                Color = unchecked((int)0xFF00FF00),
-                FrameOffset = 0,
-                Properties = CellConfigProperties.Breakable
-            };
+
+            var roadProps = CellConfigProperties.Passable | CellConfigProperties.ReceivesShadow;
+            var sandBoulderProps = CellConfigProperties.Breakable | CellConfigProperties.DropsShadow | CellConfigProperties.ReceivesShadow;
+            var artificialProps = CellConfigProperties.Breakable | CellConfigProperties.DropsShadow | CellConfigProperties.ReceivesShadow;
+            var rockCrystalProps = CellConfigProperties.Breakable | CellConfigProperties.DropsShadow | CellConfigProperties.ReceivesShadow;
+            var indestructibleProps = CellConfigProperties.DropsShadow | CellConfigProperties.ReceivesShadow;
+            var boxProps = CellConfigProperties.Breakable | CellConfigProperties.DropsShadow | CellConfigProperties.ReceivesShadow;
+
+            // === ROADS: ReliefGroup = 0 ===
+            SetConfig(configs, CellType.BuildingRoad, roadProps, 0, Color: unchecked((int)0xFFCCCCCC));
+            SetConfig(configs, CellType.VolcanoBackground, roadProps, 0);
+            SetConfig(configs, CellType.Empty, roadProps, 0, Color: unchecked((int)0xFF808080));
+            SetConfig(configs, CellType.Road, roadProps, 0, Color: unchecked((int)0xFFCCCCCC));
+            SetConfig(configs, CellType.GoldenRoad, roadProps, 0, Color: unchecked((int)0xFFCCCC00));
+            SetConfig(configs, CellType.PolymerRoad, roadProps, 0);
+
+            // === BOX: ReliefGroup = 0 ===
+            SetConfig(configs, CellType.Box, boxProps, 0);
+
+            // === SANDS & BOULDERS: ReliefGroup = 1 ===
+            SetConfig(configs, CellType.BlackBoulder1, sandBoulderProps, 1, Color: unchecked((int)0xFF000000));
+            SetConfig(configs, CellType.BlackBoulder2, sandBoulderProps, 1);
+            SetConfig(configs, CellType.BlackBoulder3, sandBoulderProps, 1);
+            SetConfig(configs, CellType.MetalBoulder1, sandBoulderProps, 1);
+            SetConfig(configs, CellType.MetalBoulder2, sandBoulderProps, 1);
+            SetConfig(configs, CellType.MetalBoulder3, sandBoulderProps, 1);
+            SetConfig(configs, CellType.WhiteSand, sandBoulderProps, 1, Color: unchecked((int)0xFFFFFF00));
+            SetConfig(configs, CellType.DarkWhiteSand, sandBoulderProps, 1, Color: unchecked((int)0xFFCCCC00));
+            SetConfig(configs, CellType.RustySand, sandBoulderProps, 1, Color: unchecked((int)0xFFCD853F));
+            SetConfig(configs, CellType.DarkRustySand, sandBoulderProps, 1, Color: unchecked((int)0xFF8B4513));
+            SetConfig(configs, CellType.BlackSand, sandBoulderProps, 1, Color: unchecked((int)0xFF2F2F2F));
+            SetConfig(configs, CellType.DarkBlackSand, sandBoulderProps, 1, Color: unchecked((int)0xFF1A1A1A));
+            SetConfig(configs, CellType.BlueSand, sandBoulderProps, 1, Color: unchecked((int)0xFF4169E1));
+            SetConfig(configs, CellType.DarkBlueSand, sandBoulderProps, 1, Color: unchecked((int)0xFF00008B));
+            SetConfig(configs, CellType.YellowSand, sandBoulderProps, 1, Color: unchecked((int)0xFFFFD700));
+            SetConfig(configs, CellType.DarkYellowSand, sandBoulderProps, 1, Color: unchecked((int)0xFFB8860B));
+            SetConfig(configs, CellType.DeepMagmaBoulder, sandBoulderProps, 1);
+            SetConfig(configs, CellType.MilitaryBlockSand, sandBoulderProps, 1);
+            SetConfig(configs, CellType.Lava, sandBoulderProps, 1, Color: unchecked((int)0xFFFF4500),
+                Animation: (CellAnimationType)4, AnimationSpeed: 10, FrameOffset: 0, Distortion: (CellDistortionType)0);
+            SetConfig(configs, CellType.Boulder1, sandBoulderProps, 1, Color: unchecked((int)0xFF000000));
+            SetConfig(configs, CellType.Boulder2, sandBoulderProps, 1);
+            SetConfig(configs, CellType.Boulder3, sandBoulderProps, 1);
+            SetConfig(configs, CellType.BlueSand, sandBoulderProps, 1, Color: unchecked((int)0xFF4169E1));
+            SetConfig(configs, CellType.DarkBlueSand, sandBoulderProps, 1, Color: unchecked((int)0xFF00008B));
+            SetConfig(configs, CellType.YellowSand, sandBoulderProps, 1, Color: unchecked((int)0xFFFFD700));
+            SetConfig(configs, CellType.DarkYellowSand, sandBoulderProps, 1, Color: unchecked((int)0xFFB8860B));
+
+            // === ACIDS (keep existing animations): ReliefGroup = 1 ===
+            SetConfig(configs, CellType.GrayAcid, sandBoulderProps, 1, Color: unchecked((int)0xFF00FF00),
+                Animation: CellAnimationType.Blinking, AnimationSpeed: 5, FrameOffset: 1);
+            SetConfig(configs, CellType.PurpleAcid, sandBoulderProps, 1, Color: unchecked((int)0xFF800080),
+                Animation: CellAnimationType.Shimmer, AnimationSpeed: 50, FrameOffset: 1);
+
+            // === ARTIFICIAL: ReliefGroup = 2 ===
+            SetConfig(configs, CellType.BuildingDoor, artificialProps, 2, Color: unchecked((int)0xFF8B4513));
+            SetConfig(configs, CellType.BuildingCorner, artificialProps, 2, Color: unchecked((int)0xFF555555));
+            SetConfig(configs, CellType.QuadBlock, artificialProps, 2);
+            SetConfig(configs, CellType.Support, artificialProps, 2);
+            SetConfig(configs, CellType.MilitaryBlockFrame, artificialProps, 2);
+            SetConfig(configs, CellType.MilitaryBlock, artificialProps, 2);
+            SetConfig(configs, CellType.GreenBlock, artificialProps, 2);
+            SetConfig(configs, CellType.YellowBlock, artificialProps, 2);
+            SetConfig(configs, CellType.FedBlock, artificialProps, 2);
+            SetConfig(configs, CellType.RedBlock, artificialProps, 2);
+            SetConfig(configs, CellType.BuildingWall, artificialProps, 2, Color: unchecked((int)0xFF666666));
+
+            // === ROCKS & CRYSTALS: ReliefGroup = 3 ===
+            SetConfig(configs, CellType.XGreen, rockCrystalProps, 3);
+            SetConfig(configs, CellType.XBlue, rockCrystalProps, 3);
+            SetConfig(configs, CellType.XRed, rockCrystalProps, 3);
+            SetConfig(configs, CellType.XCyan, rockCrystalProps, 3);
+            SetConfig(configs, CellType.XViolet, rockCrystalProps, 3);
+            SetConfig(configs, CellType.DeepObsidianRock, rockCrystalProps, 3);
+            SetConfig(configs, CellType.DeepTurquoiseRock, rockCrystalProps, 3);
+            SetConfig(configs, CellType.DeepRainbowRock, rockCrystalProps, 3);
+            SetConfig(configs, CellType.DeepStripedRock, rockCrystalProps, 3);
+            SetConfig(configs, CellType.Rock, rockCrystalProps, 3);
+            SetConfig(configs, CellType.Green, rockCrystalProps, 3, Color: unchecked((int)0xFF00FF00));
+            SetConfig(configs, CellType.Red, rockCrystalProps, 3);
+            SetConfig(configs, CellType.Blue, rockCrystalProps, 3);
+            SetConfig(configs, CellType.Violet, rockCrystalProps, 3);
+            SetConfig(configs, CellType.White, rockCrystalProps, 3);
+            SetConfig(configs, CellType.Cyan, rockCrystalProps, 3);
+            SetConfig(configs, CellType.HeavyRock, rockCrystalProps, 3);
+            SetConfig(configs, CellType.AcidRock, rockCrystalProps, 3);
+            SetConfig(configs, CellType.GoldenRock, rockCrystalProps, 3);
+            SetConfig(configs, CellType.DeepRock, rockCrystalProps, 3);
+            SetConfig(configs, CellType.GRock, rockCrystalProps, 3);
+
+            // === INDESTRUCTIBLE ROCKS: ReliefGroup = 4 (NO Breakable!) ===
+            SetConfig(configs, CellType.NiggerRock, indestructibleProps, 4);
+            SetConfig(configs, CellType.LivingBlackRock, indestructibleProps, 4);
+            SetConfig(configs, CellType.RedRock, indestructibleProps, 4);
+
+            // === GATE & TELEPORT BLOCK (passable but not roads) ===
+            SetConfig(configs, CellType.Gate, CellConfigProperties.Passable | CellConfigProperties.ReceivesShadow, 0);
+            SetConfig(configs, CellType.TeleportBlock, CellConfigProperties.Passable | CellConfigProperties.ReceivesShadow, 0);
 
             return configs;
+        }
+
+        private void SetConfig(CellConfigurationPacket[] configs, CellType type, CellConfigProperties props, byte reliefGroup,
+            int Color = unchecked((int)0xFF808080), CellAnimationType Animation = CellAnimationType.None,
+            byte AnimationSpeed = 0, byte FrameOffset = 0, CellDistortionType Distortion = (CellDistortionType)0)
+        {
+            configs[(int)type] = new CellConfigurationPacket
+            {
+                Properties = props,
+                ReliefGroup = reliefGroup,
+                Color = Color,
+                Animation = Animation,
+                AnimationSpeed = AnimationSpeed,
+                FrameOffset = FrameOffset,
+                Distortion = Distortion
+            };
+        }
+
+        private (int width, int height) ReadPrebakedWorldDimensions(string path)
+        {
+            try
+            {
+                using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                using var br = new BinaryReader(fs);
+                int widthChunks = br.ReadInt32();
+                int heightChunks = br.ReadInt32();
+                int chunkSize = br.ReadInt32();
+                br.ReadInt32(); // reserved
+
+                if (widthChunks > 0 && heightChunks > 0 && chunkSize > 0 && chunkSize <= 1024)
+                {
+                    int w = widthChunks * chunkSize;
+                    int h = heightChunks * chunkSize;
+                    Debug.Log($"[DummyConnection] Prebaked map dimensions: {w}x{h} ({widthChunks}x{heightChunks} chunks x{chunkSize})");
+                    return (w, h);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[DummyConnection] Failed to read prebaked map header: {ex.Message}");
+            }
+            return (0, 0);
         }
 
         /// <summary>

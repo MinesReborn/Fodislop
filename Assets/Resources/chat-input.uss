@@ -1,0 +1,6 @@
+.unity-text-field__input {
+    --unity-cursor-color: white;
+}
+.unity-text-field__input.cursor-hidden {
+    --unity-cursor-color: transparent;
+}

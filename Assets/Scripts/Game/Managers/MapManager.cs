@@ -328,7 +328,7 @@ namespace Fodinae.Scripts.Game.Managers
             return 0f;
         }
 
-        public CellConfigurationPacket GetCellConfig(CellType cellType)
+public CellConfigurationPacket GetCellConfig(CellType cellType)
         {
             if (_cellConfigurations == null || (int)cellType < 0 || (int)cellType >= _cellConfigurations.Length)
             {
@@ -336,6 +336,32 @@ namespace Fodinae.Scripts.Game.Managers
             }
 
             return _cellConfigurations[(int)cellType];
+        }
+
+        public bool IsLooseRockType(CellType type)
+        {
+            return type == CellType.BlackBoulder1 || type == CellType.BlackBoulder2 || type == CellType.BlackBoulder3 ||
+                   type == CellType.MetalBoulder1 || type == CellType.MetalBoulder2 || type == CellType.MetalBoulder3 ||
+                   type == CellType.WhiteSand || type == CellType.DarkWhiteSand ||
+                   type == CellType.RustySand || type == CellType.DarkRustySand ||
+                   type == CellType.BlackSand || type == CellType.DarkBlackSand ||
+                   type == CellType.BlueSand || type == CellType.DarkBlueSand ||
+                   type == CellType.YellowSand || type == CellType.DarkYellowSand ||
+                   type == CellType.DeepMagmaBoulder || type == CellType.MilitaryBlockSand ||
+                   type == CellType.Lava || type == CellType.Boulder1 || type == CellType.Boulder2 || type == CellType.Boulder3 ||
+                   type == CellType.GrayAcid || type == CellType.PurpleAcid;
+        }
+
+        public bool IsRoundableLoose(CellType type)
+        {
+            return type == CellType.WhiteSand || type == CellType.DarkWhiteSand ||
+                   type == CellType.RustySand || type == CellType.DarkRustySand ||
+                   type == CellType.BlackSand || type == CellType.DarkBlackSand ||
+                   type == CellType.BlueSand || type == CellType.DarkBlueSand ||
+                   type == CellType.YellowSand || type == CellType.DarkYellowSand ||
+                   type == CellType.MilitaryBlockSand ||
+                   type == CellType.Lava ||
+                   type == CellType.GrayAcid || type == CellType.PurpleAcid;
         }
 
         public bool TryGetTileGroup(CellType cellType, out int groupId)

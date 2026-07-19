@@ -10,6 +10,7 @@ using MinesServer.Networking.Server.Packets.Information;
 using MinesServer.Networking.Shared.Packets;
 using UnityEngine;
 using UnityEngine.UIElements;
+using Fodinae.Scripts.UI.Programmator;
 
 namespace Fodinae.Scripts.UI
 {
@@ -21,8 +22,6 @@ namespace Fodinae.Scripts.UI
         private const int TITLE_FONT_SIZE = 14;
         private const int HP_BAR_HEIGHT = 14;
         private const int BTN_SIZE = 50;
-        private const int PROGRAMMATOR_WIDTH = 584;
-        private const int PROGRAMMATOR_HEIGHT = 520;
         private const int BONUS_PANEL_WIDTH = 260;
         private const int GAP = 6;
         private const int SKILL_GRID_COLS = 4;
@@ -64,6 +63,8 @@ namespace Fodinae.Scripts.UI
         private Label _autoDigLabel;
         private Button _aggressionButton;
         private Label _aggressionLabel;
+        private Button _collisionButton;
+        private Label _collisionLabel;
         private VisualElement _currentSkillRow;
         private int _skillCountInRow = 0;
         private Button _chatButton;
@@ -73,7 +74,7 @@ namespace Fodinae.Scripts.UI
         private VisualElement _respawnPopup;
         private VisualElement _buildingsPopup;
         private VisualElement _faqPopup;
-        private VisualElement _programmatorPopup;
+        private ProgrammatorGrid _programmatorGrid;
 
         private Button _missionButton;
         private VisualElement _missionPanel;
@@ -130,6 +131,7 @@ namespace Fodinae.Scripts.UI
             CreateBonusPanel(_doc.rootVisualElement);
             CreateAggressionToggle(_doc.rootVisualElement);
             CreateAutoDigToggle(_doc.rootVisualElement);
+            CreateCollisionToggle(_doc.rootVisualElement);
             CreateChatButton(_doc.rootVisualElement);
             CreateButtonsAndPopups(_doc.rootVisualElement);
             CreateStatusPanel(_doc.rootVisualElement);
@@ -753,6 +755,40 @@ namespace Fodinae.Scripts.UI
             return (arrow, barFill);
         }
 
+        private void CreateCollisionToggle(VisualElement root)
+        {
+            _collisionButton = new Button(ToggleCollision);
+            _collisionButton.text = "";
+            _collisionButton.style.position = Position.Absolute;
+            _collisionButton.style.left = 10;
+            _collisionButton.style.bottom = 182;
+            _collisionButton.style.width = 100;
+            _collisionButton.style.height = 28;
+            _collisionButton.style.backgroundColor = new Color(0.15f, 0.05f, 0.05f, 0.85f);
+            _collisionButton.style.borderTopWidth = 2;
+            _collisionButton.style.borderBottomWidth = 2;
+            _collisionButton.style.borderLeftWidth = 2;
+            _collisionButton.style.borderRightWidth = 2;
+            _collisionButton.style.borderTopColor = _panelBorderColor;
+            _collisionButton.style.borderBottomColor = _panelBorderColor;
+            _collisionButton.style.borderLeftColor = _panelBorderColor;
+            _collisionButton.style.borderRightColor = _panelBorderColor;
+            _collisionButton.style.paddingTop = 0;
+            _collisionButton.style.paddingBottom = 0;
+            _collisionButton.style.paddingLeft = 0;
+            _collisionButton.style.paddingRight = 0;
+
+            _collisionLabel = new Label("Стены ✗");
+            _collisionLabel.style.fontSize = 12;
+            _collisionLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            _collisionLabel.style.color = new Color(0.9f, 0.3f, 0.3f, 1f);
+            _collisionLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            _collisionLabel.style.flexGrow = 1;
+            _collisionButton.Add(_collisionLabel);
+
+            root.Add(_collisionButton);
+        }
+
         private void ToggleAutoDig()
         {
             var player = FindObjectOfType<PlayerMovementController>();
@@ -787,6 +823,26 @@ namespace Fodinae.Scripts.UI
                 ? new Color(0.3f, 0.9f, 0.3f, 1f)
                 : new Color(0.9f, 0.3f, 0.3f, 1f);
             _aggressionButton.style.backgroundColor = enabled
+                ? new Color(0.05f, 0.15f, 0.05f, 0.85f)
+                : new Color(0.15f, 0.05f, 0.05f, 0.85f);
+        }
+
+        private void ToggleCollision()
+        {
+            var player = FindObjectOfType<PlayerMovementController>();
+            if (player != null)
+                player.IgnoreCollision = !player.IgnoreCollision;
+            UpdateCollisionButton(player != null && player.IgnoreCollision);
+        }
+
+        private void UpdateCollisionButton(bool enabled)
+        {
+            if (_collisionLabel == null) return;
+            _collisionLabel.text = enabled ? "Стены ✓" : "Стены ✗";
+            _collisionLabel.style.color = enabled
+                ? new Color(0.3f, 0.9f, 0.3f, 1f)
+                : new Color(0.9f, 0.3f, 0.3f, 1f);
+            _collisionButton.style.backgroundColor = enabled
                 ? new Color(0.05f, 0.15f, 0.05f, 0.85f)
                 : new Color(0.15f, 0.05f, 0.05f, 0.85f);
         }
@@ -976,16 +1032,15 @@ namespace Fodinae.Scripts.UI
             _respawnPopup = CreateRespawnPopup();
             _buildingsPopup = CreatePopup("Мои здания");
             _faqPopup = CreatePopup("FAQ");
-            _programmatorPopup = CreateProgrammatorPopup();
+            _programmatorGrid = gameObject.AddComponent<ProgrammatorGrid>();
             root.Add(_respawnPopup);
             root.Add(_buildingsPopup);
             root.Add(_faqPopup);
-            root.Add(_programmatorPopup);
 
             CreateRespawnButton(root, () => _respawnPopup.style.display = DisplayStyle.Flex);
             CreateMyBuildingsButton(root, () => _buildingsPopup.style.display = DisplayStyle.Flex);
             CreateFaqButton(root, () => _faqPopup.style.display = DisplayStyle.Flex);
-            CreateProgrammatorButton(root, () => _programmatorPopup.style.display = DisplayStyle.Flex);
+            CreateProgrammatorButton(root, () => _programmatorGrid.Show());
             CreateModalTestButton(root);
             CreateClanButtons(root);
             CreateMissionButton(root);
@@ -1512,154 +1567,6 @@ namespace Fodinae.Scripts.UI
             float pct = stats.MissionMaxProgress > 0 ? (float)stats.MissionProgress / stats.MissionMaxProgress : 0f;
             _missionProgressFill.style.width = new Length(Mathf.Clamp01(pct) * 100, LengthUnit.Percent);
             _missionProgressLabel.text = $"{stats.MissionProgress:N0}/{stats.MissionMaxProgress:N0}";
-        }
-
-        private VisualElement CreateProgrammatorPopup()
-        {
-            var popup = new VisualElement();
-            popup.style.position = Position.Absolute;
-            popup.style.left = 0;
-            popup.style.top = 0;
-            popup.style.right = 0;
-            popup.style.bottom = 0;
-            popup.style.justifyContent = Justify.Center;
-            popup.style.alignItems = Align.Center;
-            popup.style.display = DisplayStyle.None;
-
-            var dimmer = new VisualElement();
-            dimmer.style.position = Position.Absolute;
-            dimmer.style.left = 0;
-            dimmer.style.top = 0;
-            dimmer.style.right = 0;
-            dimmer.style.bottom = 0;
-            dimmer.style.backgroundColor = new Color(0f, 0f, 0f, 0.4f);
-            dimmer.pickingMode = PickingMode.Ignore;
-            popup.Add(dimmer);
-
-            var panel = new VisualElement();
-            panel.style.backgroundColor = new Color(0.08f, 0.08f, 0.08f, 0.95f);
-            panel.style.borderTopWidth = 2;
-            panel.style.borderBottomWidth = 2;
-            panel.style.borderLeftWidth = 2;
-            panel.style.borderRightWidth = 2;
-            panel.style.borderTopColor = _panelBorderColor;
-            panel.style.borderBottomColor = _panelBorderColor;
-            panel.style.borderLeftColor = _panelBorderColor;
-            panel.style.borderRightColor = _panelBorderColor;
-            panel.style.paddingTop = 10;
-            panel.style.paddingBottom = 10;
-            panel.style.paddingLeft = 20;
-            panel.style.paddingRight = 20;
-            panel.style.flexDirection = FlexDirection.Column;
-            panel.style.minWidth = PROGRAMMATOR_WIDTH;
-            panel.style.minHeight = PROGRAMMATOR_HEIGHT;
-
-            var topRow = new VisualElement();
-            topRow.style.flexDirection = FlexDirection.Row;
-            topRow.style.marginBottom = 10;
-
-            var title = new Label("Программатор");
-            title.style.fontSize = 18;
-            title.style.unityFontStyleAndWeight = FontStyle.Bold;
-            title.style.color = _accentColor;
-            title.style.flexGrow = 1;
-            topRow.Add(title);
-
-            var closeBtn = new Button(() => popup.style.display = DisplayStyle.None);
-            closeBtn.text = "×";
-            closeBtn.style.width = 24;
-            closeBtn.style.height = 24;
-            closeBtn.style.backgroundColor = Color.clear;
-            closeBtn.style.color = new Color(0.7f, 0.7f, 0.7f, 1f);
-            closeBtn.style.fontSize = 18;
-            closeBtn.style.unityTextAlign = TextAnchor.MiddleCenter;
-            closeBtn.style.borderTopWidth = 0;
-            closeBtn.style.borderBottomWidth = 0;
-            closeBtn.style.borderLeftWidth = 0;
-            closeBtn.style.borderRightWidth = 0;
-            closeBtn.style.paddingTop = 0;
-            closeBtn.style.paddingBottom = 0;
-            closeBtn.style.paddingLeft = 0;
-            closeBtn.style.paddingRight = 0;
-            closeBtn.RegisterCallback<MouseEnterEvent>(_ =>
-                closeBtn.style.color = Color.white);
-            closeBtn.RegisterCallback<MouseLeaveEvent>(_ =>
-                closeBtn.style.color = new Color(0.7f, 0.7f, 0.7f, 1f));
-            topRow.Add(closeBtn);
-
-            panel.Add(topRow);
-
-            var gridScroll = new ScrollView();
-            gridScroll.style.flexGrow = 1;
-            gridScroll.style.maxHeight = 12 * 34;
-
-            var grid = new VisualElement();
-            grid.style.flexDirection = FlexDirection.Row;
-            grid.style.flexWrap = Wrap.Wrap;
-            grid.style.width = 16 * 34;
-
-            var cellTex = Resources.Load<Texture2D>("Programmator/programmator_84");
-
-            for (int i = 0; i < 16 * 12; i++)
-            {
-                var btn = new Button(() => { });
-                btn.style.width = 30;
-                btn.style.height = 30;
-                btn.style.backgroundColor = Color.clear;
-                btn.style.borderTopWidth = 0;
-                btn.style.borderBottomWidth = 0;
-                btn.style.borderLeftWidth = 0;
-                btn.style.borderRightWidth = 0;
-                btn.style.paddingTop = 0;
-                btn.style.paddingBottom = 0;
-                btn.style.paddingLeft = 0;
-                btn.style.paddingRight = 0;
-                btn.style.marginLeft = 2;
-                btn.style.marginRight = 2;
-                btn.style.marginTop = 2;
-                btn.style.marginBottom = 2;
-                if (cellTex != null)
-                {
-                    btn.style.backgroundImage = new StyleBackground(cellTex);
-                    btn.style.unityBackgroundScaleMode = ScaleMode.ScaleToFit;
-                }
-                grid.Add(btn);
-            }
-
-            gridScroll.Add(grid);
-            panel.Add(gridScroll);
-
-            var runBtn = new Button(() =>
-            {
-                Debug.Log("Запуск программы");
-            });
-            runBtn.text = "Запуск";
-            runBtn.style.marginTop = 10;
-            runBtn.style.backgroundColor = new Color(0.15f, 0.15f, 0.15f, 1f);
-            runBtn.style.borderTopWidth = 2;
-            runBtn.style.borderBottomWidth = 2;
-            runBtn.style.borderLeftWidth = 2;
-            runBtn.style.borderRightWidth = 2;
-            runBtn.style.borderTopColor = _panelBorderColor;
-            runBtn.style.borderBottomColor = _panelBorderColor;
-            runBtn.style.borderLeftColor = _panelBorderColor;
-            runBtn.style.borderRightColor = _panelBorderColor;
-            runBtn.style.paddingTop = 8;
-            runBtn.style.paddingBottom = 8;
-            runBtn.style.paddingLeft = 20;
-            runBtn.style.paddingRight = 20;
-            runBtn.style.alignSelf = Align.Center;
-            runBtn.style.color = Color.white;
-            runBtn.style.fontSize = 14;
-            runBtn.style.unityTextAlign = TextAnchor.MiddleCenter;
-            runBtn.RegisterCallback<MouseEnterEvent>(_ =>
-                runBtn.style.backgroundColor = new Color(0.35f, 0.35f, 0.35f, 1f));
-            runBtn.RegisterCallback<MouseLeaveEvent>(_ =>
-                runBtn.style.backgroundColor = new Color(0.15f, 0.15f, 0.15f, 1f));
-            panel.Add(runBtn);
-
-            popup.Add(panel);
-            return popup;
         }
 
         private void CreateProgrammatorButton(VisualElement root, System.Action onClick)

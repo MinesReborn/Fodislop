@@ -6,6 +6,7 @@ using Fodinae.Scripts.Networking.Connection;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets.Actions;
 using MinesServer.Networking.Client.Packets.Movement;
+using MinesServer.Networking.Connection.Client;
 using MinesServer.Networking.Server.Packets.Connection;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -38,6 +39,7 @@ namespace Fodinae.Scripts.Player
         private bool _isMoving = false;
         private bool _autoDig = false;
         private bool _aggression = false;
+        private bool _ignoreCollision = false;
         private float _lastMoveTime;
         private float _lastDigTime;
         private Direction? _lastSentDirection;
@@ -145,6 +147,16 @@ namespace Fodinae.Scripts.Player
             OnAggressionChanged?.Invoke(_aggression);
         }
         public bool IsMoving => _moveInput != Vector2.zero;
+
+        public bool IgnoreCollision
+        {
+            get => _ignoreCollision;
+            set
+            {
+                _ignoreCollision = value;
+                DummyConnection.IgnoreCollision = value;
+            }
+        }
 
         public void UpdateServerPosition(Vector2Int position)
         {
@@ -313,7 +325,7 @@ namespace Fodinae.Scripts.Player
 
                     bool isPassable = ((CellConfigProperties)cellConfig.Properties).HasFlag(CellConfigProperties.Passable);
 
-                    if (isPassable)
+                    if (isPassable || _ignoreCollision)
                     {
                         _robot.TargetPosition = new Vector3(targetUnityX + 0.5f, targetUnityY + 0.5f, transform.position.z);
                         Vector2Int oldPos = ClientPosition;

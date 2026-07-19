@@ -1,5 +1,6 @@
 using Fodinae.Scripts.Networking;
 using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.UI;
 using MinesServer.Networking.Client.Packets.Actions;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -28,6 +29,7 @@ namespace Fodinae.Scripts.Player
         {
             if (Mouse.current == null) return;
             if (PacketHandler.IsInputBlocked) return;
+            if (ChatInput.IsFocused) return;
 
             if (Mouse.current.leftButton.wasPressedThisFrame)
             {
@@ -42,7 +44,6 @@ namespace Fodinae.Scripts.Player
                     ushort serverX = (ushort)Mathf.Clamp(unityX, 0, ushort.MaxValue);
                     ushort serverY = (ushort)Mathf.Clamp(MapManager.Instance.WorldHeight - 1 - unityY, 0, ushort.MaxValue);
 
-                    Debug.Log($"[PlayerInteractionController] Clicked at Unity({unityX}, {unityY}) -> Server({serverX}, {serverY})");
                     NetworkService.Instance.SendAction(new ClickCellPacket(serverX, serverY));
                 }
             }
@@ -52,6 +53,7 @@ namespace Fodinae.Scripts.Player
         {
             if (Keyboard.current == null) return;
             if (PacketHandler.IsInputBlocked) return;
+            if (ChatInput.IsFocused) return;
 
             // This is a bit expensive but since it's for "unmapped" keys,
             // we might want to check all keys if they were pressed this frame.
@@ -68,7 +70,6 @@ namespace Fodinae.Scripts.Player
 
                         if (NetworkService.Instance != null)
                         {
-                            Debug.Log($"[PlayerInteractionController] Unmapped key pressed: {keyControl.keyCode} (Code: {code}), Ctrl: {ctrl}, Alt: {alt}, Shift: {shift}");
                             NetworkService.Instance.SendAction(new UnmappedKeyPacket(code, ctrl, alt, shift));
                         }
                     }

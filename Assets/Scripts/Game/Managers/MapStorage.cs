@@ -69,6 +69,29 @@ namespace Fodinae.Scripts.Game.Managers
 
             _worldCodeName = worldCodeName;
             var path = $"{Application.persistentDataPath}/{worldCodeName}_cells.mapb";
+
+#if !UNITY_ANDROID || UNITY_EDITOR
+            if (!File.Exists(path))
+            {
+                string sourcePath = $"{Application.streamingAssetsPath}/WorldMaps/{worldCodeName}_cells.mapb";
+                try
+                {
+                    if (File.Exists(sourcePath))
+                    {
+                        string dir = Path.GetDirectoryName(path);
+                        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                            Directory.CreateDirectory(dir);
+                        File.Copy(sourcePath, path, true);
+                        Debug.Log($"[MapStorage] Copied prebaked map from StreamingAssets to {path}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[MapStorage] Could not copy prebaked map: {ex.Message}");
+                }
+            }
+#endif
+
             Debug.Log($"[MapStorage] Initializing cell storage at: {path} for world '{worldCodeName}' with dimensions {width}x{height}");
 
             try

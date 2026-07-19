@@ -226,10 +226,10 @@ namespace Fodinae.Scripts.Game
             _smoothAngle = Mathf.SmoothDampAngle(_smoothAngle, targetAngle, ref _currentAngularVelocity, smoothTime, _rotationSpeed, Time.deltaTime);
 
             float nowRotationAngle = _smoothAngle;
-            if (_skinPath != "1")
-            {
-                nowRotationAngle += 6.6f * renderDistance * (0.5f - Random.value);
-            }
+            //if (_skinPath != "1")
+            //{
+            //    nowRotationAngle += 6.6f * renderDistance * (0.5f - Random.value);
+            //}
 
             transform.rotation = Quaternion.Euler(0, 0, nowRotationAngle);
 
