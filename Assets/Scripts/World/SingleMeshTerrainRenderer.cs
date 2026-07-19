@@ -148,6 +148,9 @@ namespace Fodinae.Scripts.World
             new(-0.70710678f, 0.70710678f),
         };
 
+        // Cell types that emit magma glow (source cells for glow)
+        private static readonly CellType[] GlowingCellTypes = { CellType.Lava };
+
         private readonly Dictionary<CellType, CellMetadata> _metadataCache = new();
         private readonly List<(int X, int Y)> _pass2Cells = new();
         private readonly Queue<(int X, int Y)> _floodFillQueue = new();
@@ -2150,7 +2153,9 @@ namespace Fodinae.Scripts.World
             CellType cellFgType = ccd.Type;
 
             float glowX = 0f, glowY = 0f, glowZ = 0f;
-            if (cellFgType == CellType.Lava)
+            bool isGlowSource = Array.IndexOf(GlowingCellTypes, cellFgType) >= 0;
+
+            if (isGlowSource)
             {
                 glowX = gridX + 0.5f;
                 glowY = unityY + 0.5f;
@@ -2160,7 +2165,7 @@ namespace Fodinae.Scripts.World
             {
                 for (int dy = -1; dy <= 1 && glowZ == 0f; dy++)
                     for (int dx = -1; dx <= 1 && glowZ == 0f; dx++)
-                        if ((dx != 0 || dy != 0) && _cellCache[cx + dx, cy + dy].Type == CellType.Lava)
+                        if ((dx != 0 || dy != 0) && Array.IndexOf(GlowingCellTypes, _cellCache[cx + dx, cy + dy].Type) >= 0)
                         {
                             glowX = gridX + dx + 0.5f;
                             glowY = unityY + dy + 0.5f;
