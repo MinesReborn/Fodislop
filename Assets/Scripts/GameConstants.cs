@@ -6,6 +6,12 @@ namespace Fodinae.Scripts
         {
             public const int DEFAULT_CHUNK_SIZE = 32;
             public const float CELL_SIZE = 1.0f;
+            
+            /// <summary>
+            /// Global world darkness factor (0 = normal, 1 = pitch black).
+            /// Hardcoded for all players - not configurable.
+            /// </summary>
+            public const float WorldDarknessFactor = 0.8f;
         }
 
         public static class UI

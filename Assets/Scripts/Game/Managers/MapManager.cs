@@ -335,7 +335,171 @@ namespace Fodinae.Scripts.Game.Managers
                 return _fallbackConfig;
             }
 
-            return _cellConfigurations[(int)cellType];
+            var config = _cellConfigurations[(int)cellType];
+
+            // Fallback: if config is empty (default), infer properties from type
+            if (config.Properties == CellConfigProperties.None && config.ReliefGroup == 0 && cellType != CellType.Empty)
+            {
+                return new CellConfigurationPacket
+                {
+                    Properties = InferPropertiesFromType(cellType),
+                    ReliefGroup = InferReliefGroupFromType(cellType),
+                    Color = config.Color,
+                    Animation = config.Animation,
+                    AnimationSpeed = config.AnimationSpeed,
+                    FrameOffset = config.FrameOffset,
+                    Distortion = config.Distortion
+                };
+            }
+
+            return config;
+        }
+
+        private CellConfigProperties InferPropertiesFromType(CellType type)
+        {
+            // ROADS: Passable | ReceivesShadow
+            if (type == CellType.BuildingRoad || type == CellType.VolcanoBackground || type == CellType.Empty ||
+                type == CellType.Road || type == CellType.GoldenRoad || type == CellType.PolymerRoad ||
+                type == CellType.Gate || type == CellType.TeleportBlock)
+            {
+                return CellConfigProperties.Passable | CellConfigProperties.ReceivesShadow;
+            }
+
+            // BOX: Breakable | DropsShadow | ReceivesShadow
+            if (type == CellType.Box)
+            {
+                return CellConfigProperties.Breakable | CellConfigProperties.DropsShadow | CellConfigProperties.ReceivesShadow;
+            }
+
+            // SANDS & BOULDERS: Breakable | DropsShadow | ReceivesShadow
+            if (IsSandOrBoulder(type))
+            {
+                return CellConfigProperties.Breakable | CellConfigProperties.DropsShadow | CellConfigProperties.ReceivesShadow;
+            }
+
+            // ARTIFICIAL: Breakable | DropsShadow | ReceivesShadow
+            if (IsArtificialBlock(type))
+            {
+                return CellConfigProperties.Breakable | CellConfigProperties.DropsShadow | CellConfigProperties.ReceivesShadow;
+            }
+
+            // ROCKS & CRYSTALS: Breakable | DropsShadow | ReceivesShadow
+            if (IsRockOrCrystal(type))
+            {
+                return CellConfigProperties.Breakable | CellConfigProperties.DropsShadow | CellConfigProperties.ReceivesShadow;
+            }
+
+            // INDESTRUCTIBLE ROCKS: DropsShadow | ReceivesShadow (NO Breakable)
+            if (type == CellType.NiggerRock || type == CellType.LivingBlackRock || type == CellType.RedRock)
+            {
+                return CellConfigProperties.DropsShadow | CellConfigProperties.ReceivesShadow;
+            }
+
+            return CellConfigProperties.None;
+        }
+
+        private byte InferReliefGroupFromType(CellType type)
+        {
+            // ROADS: ReliefGroup = 0
+            if (type == CellType.BuildingRoad || type == CellType.VolcanoBackground || type == CellType.Empty ||
+                type == CellType.Road || type == CellType.GoldenRoad || type == CellType.PolymerRoad ||
+                type == CellType.Gate || type == CellType.TeleportBlock || type == CellType.Box)
+            {
+                return 0;
+            }
+
+            // SANDS & BOULDERS: ReliefGroup = 1
+            if (IsSandOrBoulder(type))
+            {
+                return 1;
+            }
+
+            // ARTIFICIAL: ReliefGroup = 2
+            if (IsArtificialBlock(type))
+            {
+                return 2;
+            }
+
+            // ROCKS & CRYSTALS: ReliefGroup = 3
+            if (IsRockOrCrystal(type))
+            {
+                return 3;
+            }
+
+            // INDESTRUCTIBLE: ReliefGroup = 4
+            if (type == CellType.NiggerRock || type == CellType.LivingBlackRock || type == CellType.RedRock)
+            {
+                return 4;
+            }
+
+            return 0;
+        }
+
+        private bool IsSandOrBoulder(CellType type)
+        {
+            return type == CellType.BlackBoulder1 || type == CellType.BlackBoulder2 || type == CellType.BlackBoulder3 ||
+                   type == CellType.MetalBoulder1 || type == CellType.MetalBoulder2 || type == CellType.MetalBoulder3 ||
+                   type == CellType.WhiteSand || type == CellType.DarkWhiteSand ||
+                   type == CellType.RustySand || type == CellType.DarkRustySand ||
+                   type == CellType.BlackSand || type == CellType.DarkBlackSand ||
+                   type == CellType.BlueSand || type == CellType.DarkBlueSand ||
+                   type == CellType.YellowSand || type == CellType.DarkYellowSand ||
+                   type == CellType.DeepMagmaBoulder || type == CellType.MilitaryBlockSand ||
+                   type == CellType.Lava || type == CellType.Boulder1 || type == CellType.Boulder2 || type == CellType.Boulder3 ||
+                   type == CellType.GrayAcid || type == CellType.PurpleAcid;
+        }
+
+        private bool IsArtificialBlock(CellType type)
+        {
+            return type == CellType.BuildingDoor || type == CellType.BuildingCorner ||
+                   type == CellType.QuadBlock || type == CellType.Support ||
+                   type == CellType.MilitaryBlockFrame || type == CellType.MilitaryBlock ||
+                   type == CellType.GreenBlock || type == CellType.YellowBlock ||
+                   type == CellType.FedBlock || type == CellType.RedBlock || type == CellType.BuildingWall;
+        }
+
+        private bool IsRockOrCrystal(CellType type)
+        {
+            return type == CellType.XGreen || type == CellType.XBlue || type == CellType.XRed ||
+                   type == CellType.XCyan || type == CellType.XViolet ||
+                   type == CellType.DeepObsidianRock || type == CellType.DeepTurquoiseRock ||
+                   type == CellType.DeepRainbowRock || type == CellType.DeepStripedRock ||
+                   type == CellType.Rock || type == CellType.Green || type == CellType.Red ||
+                   type == CellType.Blue || type == CellType.Violet || type == CellType.White ||
+                   type == CellType.Cyan || type == CellType.HeavyRock ||
+                   type == CellType.AcidRock || type == CellType.GoldenRock ||
+                   type == CellType.DeepRock || type == CellType.GRock;
+        }
+
+        /// <summary>
+        /// Checks if a cell type is "loose rock" (sand/boulder/acid) that should have rounded corners
+        /// when adjacent to non-loose-rock cells.
+        /// Matches the list from IsSandOrBoulder.
+        /// </summary>
+        public bool IsLooseRockType(CellType type)
+        {
+            return type == CellType.BlackBoulder1 || type == CellType.BlackBoulder2 || type == CellType.BlackBoulder3 ||
+                   type == CellType.MetalBoulder1 || type == CellType.MetalBoulder2 || type == CellType.MetalBoulder3 ||
+                   type == CellType.WhiteSand || type == CellType.DarkWhiteSand ||
+                   type == CellType.RustySand || type == CellType.DarkRustySand ||
+                   type == CellType.BlackSand || type == CellType.DarkBlackSand ||
+                   type == CellType.BlueSand || type == CellType.DarkBlueSand ||
+                   type == CellType.YellowSand || type == CellType.DarkYellowSand ||
+                   type == CellType.DeepMagmaBoulder || type == CellType.MilitaryBlockSand ||
+                   type == CellType.Lava || type == CellType.Boulder1 || type == CellType.Boulder2 || type == CellType.Boulder3 ||
+                   type == CellType.GrayAcid || type == CellType.PurpleAcid;
+        }
+
+        public bool IsRoundableLoose(CellType type)
+        {
+            return type == CellType.WhiteSand || type == CellType.DarkWhiteSand ||
+                   type == CellType.RustySand || type == CellType.DarkRustySand ||
+                   type == CellType.BlackSand || type == CellType.DarkBlackSand ||
+                   type == CellType.BlueSand || type == CellType.DarkBlueSand ||
+                   type == CellType.YellowSand || type == CellType.DarkYellowSand ||
+                   type == CellType.MilitaryBlockSand ||
+                   type == CellType.Lava ||
+                   type == CellType.GrayAcid || type == CellType.PurpleAcid;
         }
 
         public bool TryGetTileGroup(CellType cellType, out int groupId)

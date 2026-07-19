@@ -225,6 +225,12 @@ namespace Fodinae.Scripts.Game
 
         private async UniTaskVoid LoadVisualAsync()
         {
+            if (_effectType == SFX.Destroy)
+            {
+                MarkVisualCompleted();
+                return;
+            }
+
             try
             {
                 var filename = $"vfx/{_effectType.ToString().ToLowerInvariant()}";

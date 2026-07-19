@@ -8,6 +8,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
         _FallbackColor ("Fallback Color", Color) = (1, 1, 0, 1)
         _DebugColor ("Debug Color", Color) = (1, 0, 1, 1)
         [ToggleUI] _DebugMode ("Debug Mode", Float) = 0
+        [ToggleUI] _UseLight2D ("Use Light2D", Float) = 0
     }
     SubShader
     {
@@ -18,7 +19,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
             "RenderPipeline" = "UniversalPipeline"
         }
 
-        Pass
+            Pass
         {
             Name "ForwardLit"
             Tags { "LightMode" = "UniversalForward" }
@@ -42,7 +43,8 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float4 tileSizeUV   : TEXCOORD2;
                 float4 worldPosAttr : TEXCOORD3;
                 float4 animData     : TEXCOORD4;
-                float4 packedData   : TEXCOORD5; // x: textureType, y: relief/shadow, zw: localUV
+                float4 packedData   : TEXCOORD5;
+                float4 glowAttr     : TEXCOORD6;
             };
 
             struct Varyings
@@ -55,6 +57,8 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float4 worldPos     : TEXCOORD3;
                 float4 animData     : TEXCOORD4;
                 float4 packedData   : TEXCOORD5;
+                float3 worldPosition : TEXCOORD6;
+                float4 glowData     : TEXCOORD7;
             };
 
             TEXTURE2D(_BaseMap);
@@ -67,7 +71,15 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float4 _DebugColor;
                 float _DebugMode;
                 float _SimpleGraphics;
+                float _DarknessFactor;
+                float _UseLight2D;
             CBUFFER_END
+
+            float4 _HeadlightPos;
+            float4 _HeadlightDir;
+            float _HeadlightAngleCos;
+            float _HeadlightRange;
+            float _HeadlightIntensity;
 
             float3 RgbToHsv(float3 c)
             {
@@ -92,7 +104,6 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float2 size = float2(12.0, 10.0);
                 float2 uv = worldPos / size;
 
-                // Manual bilinear filtering for Point-filtered atlas
                 float2 texelSize = 1.0 / size;
                 float2 pixel = uv * size - 0.5;
                 float2 f = frac(pixel);
@@ -103,7 +114,6 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float2 uv01 = (pixel + float2(0.5, 1.5)) * texelSize;
                 float2 uv11 = (pixel + float2(1.5, 1.5)) * texelSize;
 
-                // Wrap UVs
                 uv00 = frac(uv00);
                 uv10 = frac(uv10);
                 uv01 = frac(uv01);
@@ -126,8 +136,11 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 output.subAtlasRect = input.subAtlasRect;
                 output.tileSizeUV = input.tileSizeUV;
                 output.worldPos = input.worldPosAttr;
+                output.worldPosition = TransformObjectToWorld(input.positionOS.xyz);
+                output.glowData = input.glowAttr;
                 output.animData = input.animData;
                 output.packedData = input.packedData;
+                
                 return output;
             }
 
@@ -286,11 +299,75 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                     finalRgb = HsvToRgb(hsv);
                 }
 
-                return half4(finalRgb, 1.0);
+                float darkness = _DarknessFactor;
+                float finalAlpha = 1.0;
+                if (_UseLight2D > 0.5)
+                {
+                    float2 pixelPos = input.worldPosition.xy;
+                    float2 toLight = pixelPos - _HeadlightPos.xy;
+                    float dist = length(toLight);
+                    float2 dir = toLight / (dist + 0.0001);
+                    float cosAngle = dot(dir, _HeadlightDir.xy);
+                    float angleAtten = smoothstep(_HeadlightAngleCos, 1.0, cosAngle);
+                    float distAtten = 1.0 - smoothstep(0.0, _HeadlightRange, dist);
+                    float attenuation = angleAtten * distAtten;
+                    darkness *= (1.0 - attenuation * _HeadlightIntensity);
+                }
+                float4 glowFlags = input.glowData;
+                int iflags = int(round(glowFlags.z));
+                bool hasGlow = (iflags & 1) != 0;
+                bool isRoundable = (iflags & 2) != 0;
+                if (hasGlow)
+                {
+                    float2 toMagma = input.worldPosition.xy - glowFlags.xy;
+                    float dist = length(toMagma);
+                    float glowAtten = 1.0 - smoothstep(0.0, 1.8, dist);
+                    darkness *= (1.0 - glowAtten);
+                }
+                if (isRoundable)
+                {
+                    int sameMask = int(round(glowFlags.w));
+                    float4 bits = frac(sameMask * float4(0.5, 0.25, 0.125, 0.0625));
+                    bool4 hasSame = bits >= 0.5;
+                    float2 p = input.uv - 0.5;
+                    float rTL = (hasSame.x || hasSame.y) ? 0.0 : 0.5;
+                    float rTR = (hasSame.x || hasSame.w) ? 0.0 : 0.5;
+                    float rBL = (hasSame.z || hasSame.y) ? 0.0 : 0.5;
+                    float rBR = (hasSame.z || hasSame.w) ? 0.0 : 0.5;
+                    float dist = length(p);
+                    float aa = min(fwidth(dist), 1.0 / 16.0);
+                    float alpha = 1.0 - smoothstep(0.51 - aa, 0.51 + aa, dist);
+                    if (rTL < 0.25)
+                    {
+                        float fill = smoothstep(-aa, 0.0, -p.x) * smoothstep(-aa, 0.0, p.y);
+                        alpha = max(alpha, fill);
+                    }
+                    if (rTR < 0.25)
+                    {
+                        float fill = smoothstep(-aa, 0.0, p.x) * smoothstep(-aa, 0.0, p.y);
+                        alpha = max(alpha, fill);
+                    }
+                    if (rBL < 0.25)
+                    {
+                        float fill = smoothstep(-aa, 0.0, -p.x) * smoothstep(-aa, 0.0, -p.y);
+                        alpha = max(alpha, fill);
+                    }
+                    if (rBR < 0.25)
+                    {
+                        float fill = smoothstep(-aa, 0.0, p.x) * smoothstep(-aa, 0.0, -p.y);
+                        alpha = max(alpha, fill);
+                    }
+                    float cornerDist = abs(abs(p.x) - abs(p.y));
+                    float cornerExclude = smoothstep(0.4, 0.5, cornerDist);
+                    alpha = lerp(alpha, 1.0, cornerExclude);
+                    finalAlpha *= alpha;
+                }
+                finalRgb *= (1.0 - darkness);
+
+                return half4(finalRgb, finalAlpha);
             }
             ENDHLSL
         }
-
         Pass
         {
             Name "Universal2D"
@@ -316,6 +393,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float4 worldPosAttr : TEXCOORD3;
                 float4 animData     : TEXCOORD4;
                 float4 packedData   : TEXCOORD5;
+                float4 glowAttr     : TEXCOORD6;
             };
 
             struct Varyings
@@ -328,6 +406,8 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float4 worldPos     : TEXCOORD3;
                 float4 animData     : TEXCOORD4;
                 float4 packedData   : TEXCOORD5;
+                float3 worldPosition : TEXCOORD6;
+                float4 glowData     : TEXCOORD7;
             };
 
             TEXTURE2D(_BaseMap);
@@ -340,7 +420,15 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float4 _DebugColor;
                 float _DebugMode;
                 float _SimpleGraphics;
+                float _DarknessFactor;
+                float _UseLight2D;
             CBUFFER_END
+
+            float4 _HeadlightPos;
+            float4 _HeadlightDir;
+            float _HeadlightAngleCos;
+            float _HeadlightRange;
+            float _HeadlightIntensity;
 
             float3 RgbToHsv(float3 c)
             {
@@ -365,7 +453,6 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float2 size = float2(12.0, 10.0);
                 float2 uv = worldPos / size;
 
-                // Manual bilinear filtering for Point-filtered atlas
                 float2 texelSize = 1.0 / size;
                 float2 pixel = uv * size - 0.5;
                 float2 f = frac(pixel);
@@ -376,7 +463,6 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float2 uv01 = (pixel + float2(0.5, 1.5)) * texelSize;
                 float2 uv11 = (pixel + float2(1.5, 1.5)) * texelSize;
 
-                // Wrap UVs
                 uv00 = frac(uv00);
                 uv10 = frac(uv10);
                 uv01 = frac(uv01);
@@ -399,8 +485,11 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 output.subAtlasRect = input.subAtlasRect;
                 output.tileSizeUV = input.tileSizeUV;
                 output.worldPos = input.worldPosAttr;
+                output.worldPosition = TransformObjectToWorld(input.positionOS.xyz);
+                output.glowData = input.glowAttr;
                 output.animData = input.animData;
                 output.packedData = input.packedData;
+                
                 return output;
             }
 
@@ -559,7 +648,72 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                     finalRgb = HsvToRgb(hsv);
                 }
 
-                return half4(finalRgb, 1.0);
+                float darkness = _DarknessFactor;
+                float finalAlpha = 1.0;
+                if (_UseLight2D > 0.5)
+                {
+                    float2 pixelPos = input.worldPosition.xy;
+                    float2 toLight = pixelPos - _HeadlightPos.xy;
+                    float dist = length(toLight);
+                    float2 dir = toLight / (dist + 0.0001);
+                    float cosAngle = dot(dir, _HeadlightDir.xy);
+                    float angleAtten = smoothstep(_HeadlightAngleCos, 1.0, cosAngle);
+                    float distAtten = 1.0 - smoothstep(0.0, _HeadlightRange, dist);
+                    float attenuation = angleAtten * distAtten;
+                    darkness *= (1.0 - attenuation * _HeadlightIntensity);
+                }
+                float4 glowFlags = input.glowData;
+                int iflags = int(round(glowFlags.z));
+                bool hasGlow = (iflags & 1) != 0;
+                bool isRoundable = (iflags & 2) != 0;
+                if (hasGlow)
+                {
+                    float2 toMagma = input.worldPosition.xy - glowFlags.xy;
+                    float dist = length(toMagma);
+                    float glowAtten = 1.0 - smoothstep(0.0, 1.8, dist);
+                    darkness *= (1.0 - glowAtten);
+                }
+                if (isRoundable)
+                {
+                    int sameMask = int(round(glowFlags.w));
+                    float4 bits = frac(sameMask * float4(0.5, 0.25, 0.125, 0.0625));
+                    bool4 hasSame = bits >= 0.5;
+                    float2 p = input.uv - 0.5;
+                    float rTL = (hasSame.x || hasSame.y) ? 0.0 : 0.5;
+                    float rTR = (hasSame.x || hasSame.w) ? 0.0 : 0.5;
+                    float rBL = (hasSame.z || hasSame.y) ? 0.0 : 0.5;
+                    float rBR = (hasSame.z || hasSame.w) ? 0.0 : 0.5;
+                    float dist = length(p);
+                    float aa = min(fwidth(dist), 1.0 / 16.0);
+                    float alpha = 1.0 - smoothstep(0.51 - aa, 0.51 + aa, dist);
+                    if (rTL < 0.25)
+                    {
+                        float fill = smoothstep(-aa, 0.0, -p.x) * smoothstep(-aa, 0.0, p.y);
+                        alpha = max(alpha, fill);
+                    }
+                    if (rTR < 0.25)
+                    {
+                        float fill = smoothstep(-aa, 0.0, p.x) * smoothstep(-aa, 0.0, p.y);
+                        alpha = max(alpha, fill);
+                    }
+                    if (rBL < 0.25)
+                    {
+                        float fill = smoothstep(-aa, 0.0, -p.x) * smoothstep(-aa, 0.0, -p.y);
+                        alpha = max(alpha, fill);
+                    }
+                    if (rBR < 0.25)
+                    {
+                        float fill = smoothstep(-aa, 0.0, p.x) * smoothstep(-aa, 0.0, -p.y);
+                        alpha = max(alpha, fill);
+                    }
+                    float cornerDist = abs(abs(p.x) - abs(p.y));
+                    float cornerExclude = smoothstep(0.4, 0.5, cornerDist);
+                    alpha = lerp(alpha, 1.0, cornerExclude);
+                    finalAlpha *= alpha;
+                }
+                finalRgb *= (1.0 - darkness);
+
+                return half4(finalRgb, finalAlpha);
             }
             ENDHLSL
         }

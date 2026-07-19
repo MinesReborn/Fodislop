@@ -1,9 +1,10 @@
+using System.Threading;
 using Fodinae.Scripts.Game.Managers;
-using Fodinae.Scripts.Player;
 using MinesServer.Networking.Client.Packets.Chat;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
+using Cysharp.Threading.Tasks;
 
 namespace Fodinae.Scripts.UI
 {
@@ -23,7 +24,11 @@ namespace Fodinae.Scripts.UI
         private UIDocument _doc;
         private VisualElement _overlay;
         private TextField _inputField;
+        private VisualElement _internalInput;
         private bool _isOpen = false;
+        private IVisualElementScheduledItem _blinkItem;
+        private CancellationTokenSource _idleCts;
+        private bool _cursorVisible = true;
 
         private void Awake()
         {
@@ -33,6 +38,12 @@ namespace Fodinae.Scripts.UI
                 return;
             }
             _instance = this;
+        }
+
+        private void OnDestroy()
+        {
+            _idleCts?.Cancel();
+            _idleCts?.Dispose();
         }
 
         private void Start()
@@ -76,6 +87,8 @@ namespace Fodinae.Scripts.UI
             _overlay.Add(prompt);
 
             _inputField = new TextField();
+            _inputField.selectAllOnFocus = false;
+            _inputField.selectAllOnMouseUp = false;
             _inputField.style.flexGrow = 1;
             _inputField.style.fontSize = 14;
             _inputField.style.color = Color.white;
@@ -92,23 +105,24 @@ namespace Fodinae.Scripts.UI
             _inputField.maxLength = ServerConfig.Instance.MaxLocalChatLength;
             _overlay.Add(_inputField);
 
-            _inputField.RegisterCallback<FocusEvent>(_ => ChatInput.OnFocus());
-            _inputField.RegisterCallback<BlurEvent>(_ => ChatInput.OnBlur());
+            _inputField.RegisterCallback<FocusEvent>(_ => { StartBlink(); ChatInput.OnFocus(); });
+            _inputField.RegisterCallback<BlurEvent>(_ => { StopBlink(); ChatInput.OnBlur(); });
+            _inputField.RegisterValueChangedCallback(_ => OnInputChanged());
 
             _doc.rootVisualElement.Add(_overlay);
 
-            var internalInput = _inputField.Q<VisualElement>(className: "unity-text-field__input");
+            _internalInput = _inputField.Q<VisualElement>(className: "unity-text-field__input");
 
-            if (internalInput != null)
+            if (_internalInput != null)
             {
-                internalInput.style.backgroundColor = new Color(0, 0, 0, 0);
-                internalInput.style.borderTopWidth = 0;
-                internalInput.style.borderBottomWidth = 0;
-                internalInput.style.borderLeftWidth = 0;
-                internalInput.style.borderRightWidth = 0;
-                internalInput.style.paddingTop = 0;
-                internalInput.style.paddingBottom = 0;
-                internalInput.style.color = Color.white;
+                _internalInput.style.backgroundColor = new Color(0, 0, 0, 0);
+                _internalInput.style.borderTopWidth = 0;
+                _internalInput.style.borderBottomWidth = 0;
+                _internalInput.style.borderLeftWidth = 0;
+                _internalInput.style.borderRightWidth = 0;
+                _internalInput.style.paddingTop = 0;
+                _internalInput.style.paddingBottom = 0;
+                _internalInput.style.color = Color.white;
             }
 
             var uss = Resources.Load<StyleSheet>("chat-input");
@@ -160,8 +174,13 @@ namespace Fodinae.Scripts.UI
             _isOpen = true;
             _overlay.style.display = DisplayStyle.Flex;
             _inputField.value = "";
-            _inputField.schedule.Execute(() => _inputField.Focus()).StartingIn(0);
-            ChatInput.OnFocus();
+            FocusAfterDelay().Forget();
+        }
+
+        private async UniTaskVoid FocusAfterDelay()
+        {
+            await UniTask.DelayFrame(1);
+            _inputField.Focus();
         }
 
         public void Hide()
@@ -170,7 +189,49 @@ namespace Fodinae.Scripts.UI
             _overlay.style.display = DisplayStyle.None;
             _inputField.value = "";
             _inputField.Blur();
-            ChatInput.OnBlur();
+        }
+
+        private void StartBlink()
+        {
+            _blinkItem?.Pause();
+            _blinkItem = null;
+            _cursorVisible = true;
+            _internalInput?.RemoveFromClassList("cursor-hidden");
+            _blinkItem = _inputField.schedule.Execute(() =>
+            {
+                _cursorVisible = !_cursorVisible;
+                if (_internalInput == null) return;
+                if (_cursorVisible)
+                    _internalInput.RemoveFromClassList("cursor-hidden");
+                else
+                    _internalInput.AddToClassList("cursor-hidden");
+            }).StartingIn(530).Every(530);
+        }
+
+        private void StopBlink()
+        {
+            _blinkItem?.Pause();
+            _blinkItem = null;
+            _idleCts?.Cancel();
+            _internalInput?.RemoveFromClassList("cursor-hidden");
+        }
+
+        private void OnInputChanged()
+        {
+            _blinkItem?.Pause();
+            _blinkItem = null;
+            _idleCts?.Cancel();
+            _internalInput?.RemoveFromClassList("cursor-hidden");
+            _idleCts = new CancellationTokenSource();
+            var token = _idleCts.Token;
+            DelayedStartBlink(token).Forget();
+        }
+
+        private async UniTaskVoid DelayedStartBlink(CancellationToken token)
+        {
+            await UniTask.Delay(500, cancellationToken: token);
+            if (!token.IsCancellationRequested)
+                StartBlink();
         }
     }
 }

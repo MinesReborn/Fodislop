@@ -60,6 +60,7 @@ namespace Fodinae.Scripts.World
         private int _meshHeight;
         private bool _isInitialized = false;
         private float _targetSimpleGraphics;
+        private float _targetUseLight2D;
 
         /// <summary>
         /// Interleaved vertex format matching the terrain shader's inputs.
@@ -73,7 +74,7 @@ namespace Fodinae.Scripts.World
         /// </summary>
         /// <summary>
         /// Vertex attribute order must match TerrainVertex field order exactly:
-        /// Position → Color → TexCoord0 → TexCoord1 → TexCoord2 → TexCoord3 → TexCoord4 → TexCoord5.
+        /// Position → Color → TexCoord0 → TexCoord1 → TexCoord2 → TexCoord3 → TexCoord4 → TexCoord5 → TexCoord6.
         /// This is Unity's preferred vertex attribute order (submitting in any other order
         /// triggers a reordering warning and causes GPU buffer misalignment).
         /// </summary>
@@ -87,6 +88,7 @@ namespace Fodinae.Scripts.World
             new VertexAttributeDescriptor(VertexAttribute.TexCoord3, VertexAttributeFormat.Float32, 4),
             new VertexAttributeDescriptor(VertexAttribute.TexCoord4, VertexAttributeFormat.Float32, 4),
             new VertexAttributeDescriptor(VertexAttribute.TexCoord5, VertexAttributeFormat.Float32, 4),
+            new VertexAttributeDescriptor(VertexAttribute.TexCoord6, VertexAttributeFormat.Float32, 4),
         };
 
         private struct CachedCellData
@@ -119,6 +121,7 @@ namespace Fodinae.Scripts.World
         private int[,] _cellTilingDescriptors;
         private byte[,] _cellReliefMasks;
         private bool[,] _cellIsRelief;
+        private byte[,] _cellSameCatMasks;
 
         private struct CellMetadata
         {
@@ -185,6 +188,7 @@ namespace Fodinae.Scripts.World
         protected void Awake()
         {
             _targetSimpleGraphics = PlayerPrefs.GetInt("SimpleGraphics", 0) == 1 ? 1f : 0f;
+            _targetUseLight2D = PlayerPrefs.GetInt("UseLight2D", 0) == 1 ? 1f : 0f;
             InitializeShader();
             _meshFilter = GetComponent<MeshFilter>();
             _meshRenderer = GetComponent<MeshRenderer>();
@@ -261,6 +265,9 @@ namespace Fodinae.Scripts.World
                     _terrainShader = Shader.Find("Sprites/Default");
                 }
             }
+
+            // Apply hardcoded world darkness factor globally (not player-configurable)
+            Shader.SetGlobalFloat("_DarknessFactor", GameConstants.World.WorldDarknessFactor);
         }
 
         private void OnTextureLoaded(string filename, Texture2D texture)
@@ -398,6 +405,7 @@ namespace Fodinae.Scripts.World
             _cellTilingDescriptors = new int[_meshWidth, _meshHeight];
             _cellReliefMasks = new byte[_meshWidth, _meshHeight];
             _cellIsRelief = new bool[_meshWidth, _meshHeight];
+            _cellSameCatMasks = new byte[_meshWidth, _meshHeight];
         }
 
         private CellMetadata GetMetadata(CellType type, List<TextureAtlas> atlases)
@@ -709,6 +717,15 @@ namespace Fodinae.Scripts.World
 
                     _cellReliefMasks[x, y] = rm;
                     _cellIsRelief[x, y] = isR;
+
+                    var mmForCat = MapManager.Instance;
+                    byte sm = 0;
+                    if (mmForCat.IsRoundableLoose(_cellCache[cx, cy + 1].Type)) sm |= 1;
+                    if (mmForCat.IsRoundableLoose(_cellCache[cx - 1, cy].Type)) sm |= 2;
+                    int bt = (int)_cellCache[cx, cy - 1].Type;
+                    if (mmForCat.IsRoundableLoose((CellType)bt) || (bt < 32 || bt > 35)) sm |= 4;
+                    if (mmForCat.IsRoundableLoose(_cellCache[cx + 1, cy].Type)) sm |= 8;
+                    _cellSameCatMasks[x, y] = sm;
                 }
             }
         }
@@ -950,6 +967,7 @@ namespace Fodinae.Scripts.World
             Scroll2DArray(_cellTilingDescriptors, _meshWidth, _meshHeight, dx, dy);
             Scroll2DArray(_cellReliefMasks, _meshWidth, _meshHeight, dx, dy);
             Scroll2DArray(_cellIsRelief, _meshWidth, _meshHeight, dx, dy);
+            Scroll2DArray(_cellSameCatMasks, _meshWidth, _meshHeight, dx, dy);
 
             // --- Determine vertex border range ---
             // The scroll copies w - |dx| entries, leaving the last |dx| entries with
@@ -1173,6 +1191,15 @@ namespace Fodinae.Scripts.World
                             else { isR = true; }
                             _cellReliefMasks[x, y] = rm;
                             _cellIsRelief[x, y] = isR;
+
+                            var mmForCat = MapManager.Instance;
+                            byte sm = 0;
+                            if (mmForCat.IsRoundableLoose(_cellCache[cx, cy + 1].Type)) sm |= 1;
+                            if (mmForCat.IsRoundableLoose(_cellCache[cx - 1, cy].Type)) sm |= 2;
+                            int bt = (int)_cellCache[cx, cy - 1].Type;
+                            if (mmForCat.IsRoundableLoose((CellType)bt) || (bt < 32 || bt > 35)) sm |= 4;
+                            if (mmForCat.IsRoundableLoose(_cellCache[cx + 1, cy].Type)) sm |= 8;
+                            _cellSameCatMasks[x, y] = sm;
                         }
                     }
                 }
@@ -1250,6 +1277,15 @@ namespace Fodinae.Scripts.World
                                 else { isR = true; }
                                 _cellReliefMasks[x, y] = rm;
                                 _cellIsRelief[x, y] = isR;
+
+                                var mmForCat = MapManager.Instance;
+                                byte sm = 0;
+                                if (mmForCat.IsRoundableLoose(_cellCache[cx, cy + 1].Type)) sm |= 1;
+                                if (mmForCat.IsRoundableLoose(_cellCache[cx - 1, cy].Type)) sm |= 2;
+                                int bt = (int)_cellCache[cx, cy - 1].Type;
+                                if (mmForCat.IsRoundableLoose((CellType)bt) || (bt < 32 || bt > 35)) sm |= 4;
+                                if (mmForCat.IsRoundableLoose(_cellCache[cx + 1, cy].Type)) sm |= 8;
+                                _cellSameCatMasks[x, y] = sm;
                             }
                         }
                     }
@@ -1575,6 +1611,8 @@ namespace Fodinae.Scripts.World
                     _materials[i].SetColor("_ShimmerColor", _shimmerHighlightColor);
                     _materials[i].SetTexture("_BaseMap", atlasTex);
                     _materials[i].SetFloat("_SimpleGraphics", _targetSimpleGraphics);
+                    _materials[i].SetFloat("_UseLight2D", _targetUseLight2D);
+                    // _LooseRockRoundRadius removed — rounding now uses UNION formulation
                 }
 
                 _mesh.SetIndices(_subMeshIndices[i], MeshTopology.Triangles, i, false, 0);
@@ -2058,6 +2096,7 @@ namespace Fodinae.Scripts.World
 
         private void FillQuadData(int x, int y, int gridX, int unityY, int worldWidth, int worldHeight, bool isBackground, ref int vIdx, List<TextureAtlas> atlases)
         {
+            var mm = MapManager.Instance;
             if (unityY >= worldHeight)
             {
                 // Out-of-bounds cells (above world top): write transparent vertices so the shader
@@ -2079,6 +2118,11 @@ namespace Fodinae.Scripts.World
                 _vertexBuffer[vIdx + 1].UV3 = clearUV3;
                 _vertexBuffer[vIdx + 2].UV3 = clearUV3;
                 _vertexBuffer[vIdx + 3].UV3 = clearUV3;
+                Vector4 clearUV6 = Vector4.zero;
+                _vertexBuffer[vIdx + 0].UV6 = clearUV6;
+                _vertexBuffer[vIdx + 1].UV6 = clearUV6;
+                _vertexBuffer[vIdx + 2].UV6 = clearUV6;
+                _vertexBuffer[vIdx + 3].UV6 = clearUV6;
 
                 // Always add indices so the GPU index buffer stays complete across
                 // incremental scrolls. When this cell shifts into the visible world
@@ -2104,6 +2148,25 @@ namespace Fodinae.Scripts.World
             // Cache _cellCache lookup (2D array — can't use ref local, so cache `.Type`)
             CachedCellData ccd = _cellCache[cx, cy];
             CellType cellFgType = ccd.Type;
+
+            float glowX = 0f, glowY = 0f, glowZ = 0f;
+            if (cellFgType == CellType.Lava)
+            {
+                glowX = gridX + 0.5f;
+                glowY = unityY + 0.5f;
+                glowZ = 1f;
+            }
+            else
+            {
+                for (int dy = -1; dy <= 1 && glowZ == 0f; dy++)
+                    for (int dx = -1; dx <= 1 && glowZ == 0f; dx++)
+                        if ((dx != 0 || dy != 0) && _cellCache[cx + dx, cy + dy].Type == CellType.Lava)
+                        {
+                            glowX = gridX + dx + 0.5f;
+                            glowY = unityY + dy + 0.5f;
+                            glowZ = 1f;
+                        }
+            }
 
             CellType cellType = isBackground ? _bgMapBuffer[x, y] : cellFgType;
             bool isSameCell = !isBackground || cellType == cellFgType;
@@ -2223,6 +2286,16 @@ namespace Fodinae.Scripts.World
             _vertexBuffer[vIdx + 3].UV3 = worldPosVec;
             _vertexBuffer[vIdx + 3].UV4 = animDataVec;
             _vertexBuffer[vIdx + 3].UV5 = new Vector4(textureType, isRelief ? reliefMask : sv01, _localUVsBuffer[3].x, _localUVsBuffer[3].y);
+
+            float glowFlags = 0f;
+            if (glowZ > 0.5f) glowFlags += 1f;
+            if (!isBackground && mm.IsRoundableLoose(cellFgType)) glowFlags += 2f;
+            float sameCatMask = isSameCell ? _cellSameCatMasks[x, y] : 0f;
+            Vector4 glowVec = new Vector4(glowX, glowY, glowFlags, sameCatMask);
+            _vertexBuffer[vIdx + 0].UV6 = glowVec;
+            _vertexBuffer[vIdx + 1].UV6 = glowVec;
+            _vertexBuffer[vIdx + 2].UV6 = glowVec;
+            _vertexBuffer[vIdx + 3].UV6 = glowVec;
 
             var indices = _subMeshIndices[atlasIndex];
             indices.Add(vIdx + 0);
@@ -2433,12 +2506,22 @@ namespace Fodinae.Scripts.World
             PlayerPrefs.Save();
         }
 
+        public void SetUseLight2D(bool enabled)
+        {
+            _targetUseLight2D = enabled ? 1f : 0f;
+            foreach (var mat in _materials)
+                if (mat != null)
+                    mat.SetFloat("_UseLight2D", _targetUseLight2D);
+            PlayerPrefs.SetInt("UseLight2D", enabled ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+
         /// <summary>
         /// Interleaved vertex format matching Unity's preferred attribute order:
         /// Position → Color → TexCoord0 → TexCoord1 → TexCoord2 → TexCoord3 → TexCoord4 → TexCoord5.
         /// Unity reorders supplied attributes to this layout (logs a warning if order doesn't match),
         /// so the struct MUST follow this order for correct GPU buffer alignment.
-        /// Total stride: 12 + 16 + 8 + (16 * 5) = 116 bytes.
+        /// Total stride: 12 + 16 + 8 + (16 * 6) = 132 bytes.
         /// </summary>
         [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Explicit)]
         private struct TerrainVertex
@@ -2466,6 +2549,9 @@ namespace Fodinae.Scripts.World
 
             [System.Runtime.InteropServices.FieldOffset(100)]
             public Vector4 UV5;   // packedReliefShadowLocalUV
+
+            [System.Runtime.InteropServices.FieldOffset(116)]
+            public Vector4 UV6;   // glowData (x = cellGlow)
         }
     }
 }

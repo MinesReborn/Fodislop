@@ -1,4 +1,5 @@
 using Fodinae.Scripts.Audio;
+using Fodinae.Scripts.Game;
 using Fodinae.Scripts.Networking;
 using Fodinae.Scripts.World;
 using MinesServer.Networking.Client.Packets.GUI;
@@ -27,6 +28,7 @@ namespace Fodinae.Scripts.UI
         private float _originalScale;
         private Button _fullscreenButton;
         private Button _simpleGraphicsButton;
+        private Button _headlightButton;
 
         void Start()
         {
@@ -178,6 +180,14 @@ namespace Fodinae.Scripts.UI
             _simpleGraphicsButton.text = IsSimpleGraphics() ? "Простая" : "Обычная";
             _settingsPage.Add(_simpleGraphicsButton);
 
+            var hlLabel = new Label("Фары");
+            hlLabel.style.fontSize = 14; hlLabel.style.color = Color.white; hlLabel.style.marginBottom = 4;
+            _settingsPage.Add(hlLabel);
+
+            _headlightButton = new Button(ToggleHeadlight);
+            _headlightButton.text = IsHeadlightOn() ? "Вкл" : "Выкл";
+            _settingsPage.Add(_headlightButton);
+
             _settingsPage.Add(CreateButton("Назад", CloseSettings));
             _settingsPage.style.display = DisplayStyle.None;
             _menuPanel.Add(_settingsPage);
@@ -273,6 +283,31 @@ namespace Fodinae.Scripts.UI
 
         private static bool IsSimpleGraphics()
             => PlayerPrefs.GetInt("SimpleGraphics", 0) == 1;
+
+        private void ToggleHeadlight()
+        {
+            bool current = PlayerPrefs.GetInt("UseLight2D", 0) == 1;
+            bool newValue = !current;
+
+            var terrain = FindObjectOfType<SingleMeshTerrainRenderer>();
+            if (terrain != null)
+                terrain.SetUseLight2D(newValue);
+
+            var player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null)
+            {
+                var headlight = player.GetComponent<RobotHeadlight>();
+                if (headlight == null && newValue)
+                    headlight = player.AddComponent<RobotHeadlight>();
+                if (headlight != null)
+                    headlight.SetEnabled(newValue);
+            }
+
+            _headlightButton.text = newValue ? "Вкл" : "Выкл";
+        }
+
+        private static bool IsHeadlightOn()
+            => PlayerPrefs.GetInt("UseLight2D", 0) == 1;
 
         private void OpenMenu()
         {
