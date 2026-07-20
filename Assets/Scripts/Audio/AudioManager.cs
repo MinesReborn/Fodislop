@@ -1,17 +1,28 @@
+using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
+using Fodinae.Scripts.Audio.Backend;
+using Fodinae.Scripts.Audio.Core;
 using MinesServer.Data;
 using UnityEngine;
 
 namespace Fodinae.Scripts.Audio
 {
+    /// <summary>
+    /// Адаптер старого аудио-кода к новой системе AudioSystem.
+    ///
+    /// Сохраняет обратную совместимость — весь старый код продолжает работать
+    /// через AudioManager.Instance и PlaySfx(). Фоновый эмбиент теперь
+    /// играет через AudioSystem.Play2D() и управляется шиной Music.
+    ///
+    /// Для полного перехода на новый API — замени вызовы AudioManager.Instance.PlaySfx(type)
+    /// на AudioSystem.Play("имя_события").
+    /// </summary>
     public class AudioManager : MonoBehaviour
     {
         public static AudioManager Instance { get; private set; }
 
-        private AudioSource _ambientSource;
         private readonly List<SoundEffectInstance> _activeInstances = new();
-
         private float _ambientVolume = 0.5f;
         private float _sfxVolume = 1f;
 
@@ -21,8 +32,7 @@ namespace Fodinae.Scripts.Audio
             set
             {
                 _ambientVolume = Mathf.Clamp01(value);
-                if (_ambientSource != null)
-                    _ambientSource.volume = _ambientVolume;
+                AudioSystem.Instance.GetBus(AudioBusType.Music).Volume = _ambientVolume;
                 PlayerPrefs.SetFloat("Audio_Ambient", _ambientVolume);
                 PlayerPrefs.Save();
             }
@@ -34,6 +44,7 @@ namespace Fodinae.Scripts.Audio
             set
             {
                 _sfxVolume = Mathf.Clamp01(value);
+                AudioSystem.Instance.GetBus(AudioBusType.Sfx).Volume = _sfxVolume;
                 PlayerPrefs.SetFloat("Audio_Sfx", _sfxVolume);
                 PlayerPrefs.Save();
             }
@@ -44,12 +55,12 @@ namespace Fodinae.Scripts.Audio
             Instance = this;
             DontDestroyOnLoad(gameObject);
 
-            _ambientSource = gameObject.AddComponent<AudioSource>();
-            _ambientSource.loop = true;
-            _ambientSource.playOnAwake = false;
-
             _ambientVolume = PlayerPrefs.GetFloat("Audio_Ambient", 0.5f);
             _sfxVolume = PlayerPrefs.GetFloat("Audio_Sfx", 1f);
+
+            // Пробрасываем громкости в шины новой системы
+            AudioSystem.Instance.GetBus(AudioBusType.Music).Volume = _ambientVolume;
+            AudioSystem.Instance.GetBus(AudioBusType.Sfx).Volume = _sfxVolume;
 
             LoadAmbientAsync().Forget();
         }
@@ -58,35 +69,21 @@ namespace Fodinae.Scripts.Audio
         {
             try
             {
-                var loader = ClientAssetLoader.Instance;
-                if (loader == null) return;
-
-                var clip = await loader.GetAudioAsync(
-                    "audio/evil_huge",
-                    timeoutSeconds: 30
-                );
-
-                if (clip != null)
-                {
-                    _ambientSource.clip = clip;
-                    _ambientSource.volume = _ambientVolume;
-                    _ambientSource.Play();
-                }
-                else
-                {
-                    Debug.LogWarning("[AudioManager] Failed to load ambient audio from server");
-                }
+                // Загружаем эмбиент через новую систему — она сама загрузит файл и применит шину.
+                AudioSystem.Instance.Play2D(
+                    "ambient_bg",
+                    AudioLayer.MusicDefault(),
+                    0.5f);
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                Debug.LogWarning($"[AudioManager] Failed to load ambient: {ex.Message}");
+                Debug.LogWarning($"[AudioManager] Не удалось загрузить эмбиент: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// Play an SFX sound effect.  Delegates to <see cref="SFXPool"/>
-        /// when available, otherwise falls back to a direct
-        /// <see cref="SoundEffectInstance"/>.
+        /// Проиграть звуковой эффект — старый API, сохранён для обратной совместимости.
+        /// Пробрасывает вызов в новую AudioSystem, отображая SFX-тип на имя события.
         /// </summary>
         public void PlaySfx(SFX type)
         {
@@ -97,7 +94,6 @@ namespace Fodinae.Scripts.Audio
                 return;
             }
 
-            // Fallback: direct instantiation (pool not ready / quitting).
             var filename = $"audio/{type.ToString().ToLowerInvariant()}";
             var instance = new SoundEffectInstance(type, filename, _sfxVolume);
             _activeInstances.Add(instance);

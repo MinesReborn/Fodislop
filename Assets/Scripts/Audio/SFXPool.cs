@@ -55,8 +55,6 @@ namespace Fodinae.Scripts.Audio
 
         private void Update()
         {
-            var now = Time.realtimeSinceStartup;
-
             for (int i = _fallbackInstances.Count - 1; i >= 0; i--)
             {
                 var fb = _fallbackInstances[i];
@@ -67,6 +65,8 @@ namespace Fodinae.Scripts.Audio
                 }
             }
 
+            var now = Time.realtimeSinceStartup;
+
             foreach (var kvp in _pools)
             {
                 var pool = kvp.Value;
@@ -75,6 +75,12 @@ namespace Fodinae.Scripts.Audio
                 for (int i = activeList.Count - 1; i >= 0; i--)
                 {
                     var slot = activeList[i];
+
+                    if (slot.AudioSource == null)
+                    {
+                        activeList.RemoveAt(i);
+                        continue;
+                    }
 
                     if (slot.IsManagedExternally)
                     {
@@ -201,13 +207,20 @@ namespace Fodinae.Scripts.Audio
                     return;
                 }
 
-                slot.PlayStartTime = Time.realtimeSinceStartup;
-                slot.GameObject.SetActive(true);
+                if (slot.GameObject != null)
+                {
+                    slot.GameObject.SetActive(true);
+                }
 
-                slot.AudioSource.clip = pool.CachedClip;
-                slot.AudioSource.volume = volume;
-                slot.AudioSource.time = 0f;
-                slot.AudioSource.Play();
+                if (slot.AudioSource != null)
+                {
+                    slot.AudioSource.clip = pool.CachedClip;
+                    slot.AudioSource.volume = volume;
+                    slot.AudioSource.time = 0f;
+                    slot.AudioSource.Play();
+                }
+
+                slot.PlayStartTime = Time.realtimeSinceStartup;
             }
             else
             {
@@ -237,12 +250,16 @@ namespace Fodinae.Scripts.Audio
                 return null;
             }
 
+            if (slot.GameObject != null)
+            {
+                slot.GameObject.SetActive(true);
+            }
+
             slot.SfxType = sfxType;
             slot.IsManagedExternally = true;
             slot.PlayStartTime = Time.realtimeSinceStartup;
-            slot.GameObject.SetActive(true);
 
-            if (pool.ClipReady && pool.CachedClip != null)
+            if (pool.ClipReady && pool.CachedClip != null && slot.AudioSource != null)
             {
                 slot.AudioSource.clip = pool.CachedClip;
             }
