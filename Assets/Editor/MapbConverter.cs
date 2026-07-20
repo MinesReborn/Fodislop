@@ -51,7 +51,7 @@ namespace Fodinae.Editor
 
             EditorGUILayout.Space();
 
-            bool canConvert = !string.IsNullOrEmpty(_serverMapPath) 
+            bool canConvert = !string.IsNullOrEmpty(_serverMapPath)
                            && Directory.Exists(_serverMapPath)
                            && FileExists(_serverWorldName + ".mapb")
                            && FileExists(_serverWorldName + "_road.mapb");
@@ -113,7 +113,7 @@ namespace Fodinae.Editor
             try
             {
                 EditorUtility.DisplayProgressBar("Converting Mapb", "Opening files...", 0f);
-                
+
                 long totalChunks = (long)_chunksW * _chunksH;
                 int chunkArea = _chunkSize * _chunkSize;
                 long cellsFileSize = new FileInfo(cellsPath).Length;
@@ -122,7 +122,7 @@ namespace Fodinae.Editor
 
                 if (cellsFileSize < expectedFileSize)
                 {
-                    EditorUtility.DisplayDialog("Warning", 
+                    EditorUtility.DisplayDialog("Warning",
                         $"Cells file size ({cellsFileSize}) is smaller than expected ({expectedFileSize}). " +
                         "World dimensions in config may not match actual map size.", "Continue anyway");
                 }
@@ -161,8 +161,8 @@ namespace Fodinae.Editor
                             if (chunkIndex % 1000 == 0)
                             {
                                 EditorUtility.DisplayProgressBar(
-                                    "Converting Mapb", 
-                                    $"Processing chunk {chunkIndex}/{totalChunks} (cx={cx}, cy={cy})", 
+                                    "Converting Mapb",
+                                    $"Processing chunk {chunkIndex}/{totalChunks} (cx={cx}, cy={cy})",
                                     progress);
                             }
 
@@ -216,16 +216,16 @@ namespace Fodinae.Editor
                 }
 
                 EditorUtility.ClearProgressBar();
-                
+
                 AssetDatabase.Refresh();
-                
+
                 long outputSize = new FileInfo(outputPath).Length;
-                EditorUtility.DisplayDialog("Success", 
+                EditorUtility.DisplayDialog("Success",
                     $"Converted successfully!\n\n" +
                     $"Output: {outputPath}\n" +
                     $"Size: {FormatBytes(outputSize)}\n" +
                     $"Chunks: {totalChunks}\n" +
-                    $"Chunk size: {_chunkSize}x{_chunkSize}", 
+                    $"Chunk size: {_chunkSize}x{_chunkSize}",
                     "OK");
             }
             catch (Exception ex)
@@ -241,7 +241,7 @@ namespace Fodinae.Editor
             var result = new List<(ushort, byte)>();
             int i = 0;
             int len = data.Length;
-            
+
             while (i < len)
             {
                 byte val = data[i];

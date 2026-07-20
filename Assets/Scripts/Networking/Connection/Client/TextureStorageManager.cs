@@ -5,44 +5,13 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
+using Fodinae.Scripts.Utils;
 using UnityEngine;
 
 namespace Fodinae.Scripts.Networking.Connection.Client
 {
-    /// <summary>
-    /// Manages texture loading from local storage with fallback to random generation.
-    /// Supports both development (Unity Editor) and build environments.
-    /// </summary>
-    public class TextureStorageManager : MonoBehaviour
+    public class TextureStorageManager : SingletonMonoBehaviour<TextureStorageManager>
     {
-        private static TextureStorageManager _instance;
-        private static bool _isQuitting = false;
-        public static TextureStorageManager Instance
-        {
-            get
-            {
-                if (_isQuitting) return null;
-                if (_instance == null)
-                {
-                    _instance = FindFirstObjectByType<TextureStorageManager>();
-                    if (_instance == null && !_isQuitting)
-                    {
-                        var go = new GameObject("[TextureStorageManager]");
-                        _instance = go.AddComponent<TextureStorageManager>();
-
-                        // System Grouping
-                        if (Application.isPlaying)
-                        {
-                            var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
-                            UnityEngine.Object.DontDestroyOnLoad(parent);
-                            go.transform.SetParent(parent.transform);
-                        }
-                    }
-                }
-                return _instance;
-            }
-        }
-
         [Header("Texture Storage Configuration")]
         [Tooltip("Enable debug logging for texture loading")]
         [SerializeField] private bool _enableDebugLogging = true;
@@ -54,30 +23,9 @@ namespace Fodinae.Scripts.Networking.Connection.Client
         private string _textureFolderPath = string.Empty;
         private bool _folderInitialized = false;
 
-        private void Awake()
+        protected override void OnAwake()
         {
-            if (_instance != null && _instance != this)
-            {
-                Destroy(gameObject);
-                return;
-            }
-            _instance = this;
-            if (Application.isPlaying)
-            {
-                DontDestroyOnLoad(gameObject);
-
-                // Ensure parented if created in scene
-                var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
-                UnityEngine.Object.DontDestroyOnLoad(parent);
-                transform.SetParent(parent.transform);
-            }
-
-            _isQuitting = false;
-        }
-
-        private void OnApplicationQuit()
-        {
-            _isQuitting = true;
+            InitializeTextureFolderPath();
         }
 
         /// <summary>
@@ -256,13 +204,13 @@ namespace Fodinae.Scripts.Networking.Connection.Client
                 {
                     // Development: Assets/Textures/ (relative to project)
                     Path.Combine(Application.dataPath, "Textures"),
-                    
+
                     // Build: ../Textures/ (relative to executable)
                     Path.Combine(Application.dataPath, "../Textures"),
-                    
+
                     // Build: Textures/ (in same directory as executable)
                     Path.Combine(Application.dataPath, "Textures"),
-                    
+
                     // Fallback: Persistent data path
                     Path.Combine(Application.persistentDataPath, "Textures")
                 };

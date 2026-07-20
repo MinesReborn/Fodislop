@@ -488,3 +488,4 @@ InitTestScene*.unity*
 *.txt
 # AI tools files
 .omo/
+.commandcode/

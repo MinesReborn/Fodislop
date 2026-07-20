@@ -36,7 +36,6 @@ namespace Fodinae.Scripts.Player
         [SerializeField] private InputActionReference _moveActionReference;
 
         private Vector2 _moveInput;
-        private bool _isMoving = false;
         private bool _autoDig = false;
         private bool _aggression = false;
         private bool _ignoreCollision = false;
@@ -294,7 +293,7 @@ namespace Fodinae.Scripts.Player
                         return;
                     }
 
-                    // Y axis in Unity increases upwards. 
+                    // Y axis in Unity increases upwards.
                     // Data Y usually increases downwards (0 at top).
                     // If the user says Y increases when going up, this is inverted relative to standard screen space.
                     // We will keep Y change relative to Unity transform (positive is up) and clamp against map dimensions.

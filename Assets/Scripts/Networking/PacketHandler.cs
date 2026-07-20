@@ -85,7 +85,7 @@ namespace Fodinae.Scripts.Networking
                 return;
             }
 
-            _uiDocument = FindFirstObjectByType<UIDocument>();
+            _uiDocument = FindAnyObjectByType<UIDocument>();
             if (_uiDocument == null)
             {
                 Debug.LogWarning("[PacketHandler] UIDocument not found - window packets will not be displayed");
@@ -110,7 +110,7 @@ namespace Fodinae.Scripts.Networking
                 ns.Subscribe<MapRegionPacket>(HandleMapRegionPacket);
                 ns.Subscribe<PackPacket>(HandlePackPacket);
                 ns.Subscribe<RemovePackPacket>(HandleRemovePackPacket);
-                
+
                 // Player stats
                 ns.Subscribe<LevelPacket>(HandleLevelPacket);
                 ns.Subscribe<HealthPacket>(HandleHealthPacket);
@@ -241,7 +241,7 @@ namespace Fodinae.Scripts.Networking
 
             if (_uiDocument == null)
             {
-                _uiDocument = FindFirstObjectByType<UIDocument>();
+                _uiDocument = FindAnyObjectByType<UIDocument>();
                 if (_uiDocument == null)
                 {
                     Debug.LogError("[PacketHandler] Cannot open window: UIDocument not found");
@@ -523,7 +523,7 @@ namespace Fodinae.Scripts.Networking
 
         private void HandleAutoMineStatePacket(AutoMineStatePacket packet)
         {
-            var player = FindObjectOfType<PlayerMovementController>();
+            var player = FindAnyObjectByType<PlayerMovementController>();
             if (player != null)
                 player.AutoDig = packet.Enabled;
         }
@@ -531,7 +531,7 @@ namespace Fodinae.Scripts.Networking
         private void HandleAggressionStatePacket(AggressionStatePacket packet)
         {
             Debug.Log($"[PacketHandler] AggressionStatePacket: {packet.Enabled}");
-            var player = FindObjectOfType<PlayerMovementController>();
+            var player = FindAnyObjectByType<PlayerMovementController>();
             if (player != null)
                 player.Aggression = packet.Enabled;
         }
@@ -547,7 +547,7 @@ namespace Fodinae.Scripts.Networking
             _packetCount++;
             Debug.Log($"[PacketHandler] TeleportPacket: X={packet.X}, Y={packet.Y}, Smooth={packet.SmoothTransition}");
 
-            var player = FindObjectOfType<PlayerMovementController>();
+            var player = FindAnyObjectByType<PlayerMovementController>();
             if (player == null) return;
 
             var mm = MapManager.Instance;
@@ -603,7 +603,7 @@ namespace Fodinae.Scripts.Networking
         private void HandleOnlinePacket(OnlinePacket packet)
         {
             _packetCount++;
-            var fps = FindObjectOfType<FPSCounter>();
+            var fps = FindAnyObjectByType<FPSCounter>();
             if (fps != null)
                 fps.SetOnline((int)packet.Players, (int)packet.Programmator);
         }
@@ -611,7 +611,7 @@ namespace Fodinae.Scripts.Networking
         private void HandlePingPacket(PingPacket packet)
         {
             _packetCount++;
-            var fps = FindObjectOfType<FPSCounter>();
+            var fps = FindAnyObjectByType<FPSCounter>();
             if (fps != null)
                 fps.SetPing(packet.PreviousPing);
             NetworkService.Instance.Send(new PongPacket(packet.SentAt));

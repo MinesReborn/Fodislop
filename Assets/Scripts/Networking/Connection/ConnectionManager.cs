@@ -1,84 +1,36 @@
-
 using System;
-using System.Net;
-using Cysharp.Threading.Tasks;
+using Fodinae.Scripts.Utils;
 using MinesServer.Networking.Client;
-using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.Connection;
 using MinesServer.Networking.Client.Packets.GUI;
 using MinesServer.Networking.Connection;
 using MinesServer.Networking.Connection.Client;
 using MinesServer.Networking.Server.Packets;
 using MinesServer.Networking.Shared;
-using Unity.VisualScripting.Antlr3.Runtime;
 using UnityEngine;
 
 namespace Fodinae.Scripts.Networking.Connection
 {
-    public class ConnectionManager : MonoBehaviour
+    public class ConnectionManager : SingletonMonoBehaviour<ConnectionManager>
     {
-        private static ConnectionManager _instance;
-        private static bool _isQuitting = false;
-
-        public static ConnectionManager InstanceIfExists => _instance;
-
-        public static ConnectionManager Instance
-        {
-            get
-            {
-                if (_isQuitting) return null;
-                if (_instance == null)
-                {
-                    _instance = FindFirstObjectByType<ConnectionManager>();
-                    if (_instance == null && !_isQuitting)
-                    {
-                        var go = new GameObject("[ConnectionManager]");
-                        _instance = go.AddComponent<ConnectionManager>();
-
-                        // System Grouping
-                        if (Application.isPlaying)
-                        {
-                            var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
-                            UnityEngine.Object.DontDestroyOnLoad(parent);
-                            go.transform.SetParent(parent.transform);
-                        }
-                    }
-                }
-                return _instance;
-            }
-        }
-
         public IServerConnection Connection { get; private set; }
         private bool _useOldClient;
         public event Action<ServerPacket> OnPacketReceived;
 
         private readonly System.Collections.Concurrent.ConcurrentQueue<ServerPacket> _packetQueue = new();
 
-        void Awake()
+        protected override void OnAwake()
         {
-            if (_instance != null && _instance != this)
-            {
-                Destroy(gameObject);
-                return;
-            }
-            _instance = this;
-            if (Application.isPlaying)
-            {
-                DontDestroyOnLoad(gameObject);
-
-                // Ensure parented if created in scene
-                var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
-                UnityEngine.Object.DontDestroyOnLoad(parent);
-                transform.SetParent(parent.transform);
-            }
-
             gameObject.AddComponent<PacketHandler>();
-            _isQuitting = false;
         }
 
-        void Update()
+        protected override void OnDestroyed()
         {
-            // Process up to 50 packets per frame to avoid freezing the main thread
+            Disconnect();
+        }
+
+        private void Update()
+        {
             int processedCount = 0;
             while (processedCount < 50 && _packetQueue.TryDequeue(out var packet))
             {
@@ -90,13 +42,9 @@ namespace Fodinae.Scripts.Networking.Connection
                 {
                     Debug.LogError($"[ConnectionManager] Error processing packet: {ex.Message}\n{ex.StackTrace}");
                 }
+
                 processedCount++;
             }
-        }
-
-        void OnApplicationQuit()
-        {
-            _isQuitting = true;
         }
 
         public void Connect(bool oldClient = false)
@@ -112,7 +60,6 @@ namespace Fodinae.Scripts.Networking.Connection
 
         private void OnConnected()
         {
-            // Send ClientHelloPacket
             int version = _useOldClient ? 0 : 1;
             NetworkService.Instance.Send(new ClientHelloPacket(version, "Windows", 10, "fingerprint", "token"));
 
@@ -133,13 +80,9 @@ namespace Fodinae.Scripts.Networking.Connection
             {
                 return;
             }
+
             Connection.Disconnect();
             Connection = null;
-        }
-
-        void OnDestroy()
-        {
-            Disconnect();
         }
     }
 }

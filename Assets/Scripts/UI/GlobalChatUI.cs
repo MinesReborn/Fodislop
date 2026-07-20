@@ -17,7 +17,7 @@ namespace Fodinae.Scripts.UI
             get
             {
                 if (_instance == null)
-                    _instance = FindObjectOfType<GlobalChatUI>();
+                    _instance = FindAnyObjectByType<GlobalChatUI>();
                 return _instance;
             }
         }
@@ -52,7 +52,7 @@ namespace Fodinae.Scripts.UI
 
         private void Start()
         {
-            _doc = FindObjectOfType<UIDocument>();
+            _doc = FindAnyObjectByType<UIDocument>();
             if (_doc == null) return;
             CreateUI();
             _panel.style.display = DisplayStyle.None;

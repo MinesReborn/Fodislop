@@ -16,7 +16,7 @@ namespace Fodinae.Scripts.UI
             get
             {
                 if (_instance == null)
-                    _instance = FindObjectOfType<LocalChatPopup>();
+                    _instance = FindAnyObjectByType<LocalChatPopup>();
                 return _instance;
             }
         }
@@ -48,7 +48,7 @@ namespace Fodinae.Scripts.UI
 
         private void Start()
         {
-            _doc = FindObjectOfType<UIDocument>();
+            _doc = FindAnyObjectByType<UIDocument>();
             if (_doc == null) return;
             CreateUI();
             _overlay.style.display = DisplayStyle.None;

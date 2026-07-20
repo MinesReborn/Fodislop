@@ -204,7 +204,7 @@ namespace Fodinae.Scripts.Game
             }
             else
             {
-                // 3. Max Visual Speed limits the catch-up rate. 
+                // 3. Max Visual Speed limits the catch-up rate.
                 // Setting it to 1.25x of logical speed allows it to easily catch up without wildly slingshotting,
                 // bridging the gaps between server "ticks" smoothly when running continuously.
                 float maxVisualSpeed = Mathf.Max(_moveSpeed * 1.25f, 5f);
@@ -226,10 +226,6 @@ namespace Fodinae.Scripts.Game
             _smoothAngle = Mathf.SmoothDampAngle(_smoothAngle, targetAngle, ref _currentAngularVelocity, smoothTime, _rotationSpeed, Time.deltaTime);
 
             float nowRotationAngle = _smoothAngle;
-            //if (_skinPath != "1")
-            //{
-            //    nowRotationAngle += 6.6f * renderDistance * (0.5f - Random.value);
-            //}
 
             transform.rotation = Quaternion.Euler(0, 0, nowRotationAngle);
 

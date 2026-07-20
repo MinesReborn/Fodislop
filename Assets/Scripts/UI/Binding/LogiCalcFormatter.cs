@@ -1,3 +1,4 @@
+#nullable enable
 using NCalc;
 using NCalc.Factories;
 using SmartFormat.Core.Extensions;

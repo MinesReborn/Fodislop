@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сетевое взаимодействие — Fodinae Client</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #07080e;
+            --card-bg: rgba(16, 17, 30, 0.65);
+            --card-border: rgba(255, 255, 255, 0.06);
+            --text-main: #d1d2e0;
+            --text-muted: #808298;
+            --text-title: #ffffff;
+            --accent-primary: #00f2fe;
+            --accent-secondary: #4facfe;
+            --accent-gradient: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+            --accent-mint: #64ffda;
+            --font-outfit: 'Outfit', sans-serif;
+            --font-inter: 'Inter', sans-serif;
+            --font-code: 'Fira Code', 'JetBrains Mono', monospace;
+            --shadow-subtle: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-inter);
+            color: var(--text-main);
+            background: var(--bg-color);
+            background-image:
+                radial-gradient(at 10% 10%, rgba(0, 242, 254, 0.02) 0px, transparent 50%),
+                radial-gradient(at 90% 90%, rgba(79, 172, 254, 0.02) 0px, transparent 50%);
+            min-height: 100vh;
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        /* ── Header ── */
+        .nav-header {
+            width: 100%;
+            background: rgba(11, 12, 22, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--card-border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            padding: 0 1.5rem;
+        }
+
+        .nav-container {
+            width: 100%;
+            max-width: 1000px;
+            height: 70px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            font-family: var(--font-outfit);
+            font-weight: 800;
+            font-size: 1.5rem;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-brand a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .nav-brand::before {
+            content: '';
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-primary);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            font-family: var(--font-outfit);
+            transition: var(--transition-smooth);
+            position: relative;
+            padding: 0.25rem 0;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            color: var(--text-title);
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--accent-gradient);
+            transition: var(--transition-smooth);
+        }
+
+        .nav-links a:hover::after, .nav-links a.active::after {
+            width: 100%;
+        }
+
+        /* ── Main Wrapper ── */
+        .main-wrapper {
+            width: 100%;
+            max-width: 800px;
+            padding: 3rem 1.5rem 6rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2.5rem;
+        }
+
+        /* ── Section Title ── */
+        .title-area {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 1.5rem;
+        }
+
+        .title-area h1 {
+            font-family: var(--font-outfit);
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--text-title);
+            line-height: 1.2;
+            letter-spacing: -1px;
+        }
+
+        .title-area p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            font-weight: 300;
+        }
+
+        /* ── Typography ── */
+        h2 {
+            font-family: var(--font-outfit);
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-title);
+            margin-top: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        h2::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 24px;
+            background: var(--accent-gradient);
+            border-radius: 2px;
+        }
+
+        h3 {
+            font-family: var(--font-outfit);
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-title);
+            margin-top: 1rem;
+        }
+
+        p {
+            font-size: 1rem;
+            font-weight: 300;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+        }
+
+        ul, ol {
+            padding-left: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        li {
+            font-size: 1rem;
+            font-weight: 300;
+            color: var(--text-main);
+            margin-bottom: 0.4rem;
+        }
+
+        /* ── Code Blocks ── */
+        code {
+            font-family: var(--font-code);
+            font-size: 0.85em;
+            background: rgba(18, 19, 30, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            padding: 0.15em 0.4em;
+            border-radius: 4px;
+            color: var(--accent-mint);
+        }
+
+        pre {
+            background: #0b0c16;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 1.2rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
+        }
+
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            color: #d1d2e0;
+            font-size: 0.85rem;
+        }
+
+        .c-comment { color: #5c6370; font-style: italic; }
+        .c-keyword { color: #c678dd; }
+        .c-type { color: #e5c07b; }
+        .c-string { color: #98c379; }
+        .c-method { color: #61afef; }
+
+        /* ── Class Links ── */
+        .class-ref {
+            font-family: var(--font-code);
+            font-weight: 500;
+            color: var(--accent-primary);
+            text-decoration: none;
+            transition: var(--transition-smooth);
+        }
+
+        .class-ref:hover {
+            color: var(--accent-mint);
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="nav-header">
+        <div class="nav-container">
+            <div class="nav-brand"><a href="index.html">Fodinae Docs</a></div>
+            <nav class="nav-links">
+                <a href="rendering.html">Рендеринг</a>
+                <a href="networking.html" class="active">Сеть</a>
+                <a href="audio_effects.html">Звук & Эффекты</a>
+                <a href="assets_loading.html">CDN & Кэш</a>
+                <a href="ui_programmator.html">UI & Код</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-wrapper">
+        <section class="title-area">
+            <h1>Сетевое взаимодействие</h1>
+            <p>Архитектура асинхронного сетевого слоя и динамического построения интерфейса.</p>
+        </section>
+
+        <!-- NetworkService -->
+        <section>
+            <h2>NetworkService</h2>
+            <p>Класс <a href="../Assets/Scripts/Networking/NetworkService.cs" class="class-ref">NetworkService</a> является центральным синглтоном диспетчеризации сетевых пакетов. Он реализует событийно-ориентированный паттерн Pub/Sub (Издатель-Подписчик) для обработки десериализованных данных.</p>
+
+            <h3>Интерфейс подписки:</h3>
+            <p>Любой менеджер или игровой скрипт может подписаться на определенный тип пакета, приходящего от сервера, не зная деталей сетевого сокета:</p>
+            <pre><code><span class="c-comment">// Подписка на обновление координат роботов</span>
+NetworkService.Instance.<span class="c-method">Subscribe</span>&lt;<span class="c-type">RobotMovePacket</span>&gt;(<span class="c-method">OnRobotMoved</span>);
+
+<span class="c-comment">// Отписка при уничтожении объекта</span>
+NetworkService.Instance.<span class="c-method">Unsubscribe</span>&lt;<span class="c-type">RobotMovePacket</span>&gt;(<span class="c-method">OnRobotMoved</span>);</code></pre>
+        </section>
+
+        <!-- PacketHandler -->
+        <section>
+            <h2>PacketHandler</h2>
+            <p>Класс <a href="../Assets/Scripts/Networking/PacketHandler.cs" class="class-ref">PacketHandler</a> считывает входящие потоки байт, восстанавливает типы пакетов из внешней библиотеки <code>darkar25.fodinae.networking</code> и распределяет их по менеджерам:</p>
+            <ul>
+                <li><code>WorldInitPacket</code>, <code>MapRegionPacket</code> → передаются в <a href="../Assets/Scripts/Game/Managers/MapManager.cs" class="class-ref">MapManager</a> для инициализации карты.</li>
+                <li><code>RobotSpawnPacket</code>, <code>RobotMovePacket</code>, <code>RobotDespawnPacket</code> → передаются в <a href="../Assets/Scripts/Game/Managers/RobotManager.cs" class="class-ref">RobotManager</a> для обновления роботов на сцене.</li>
+                <li><code>PackSpawnPacket</code>, <code>PackDespawnPacket</code> → передаются в <a href="../Assets/Scripts/Game/Managers/PackManager.cs" class="class-ref">PackManager</a> для управления лежащими на земле вещами.</li>
+                <li><code>SFXPacket</code> → передается в <a href="../Assets/Scripts/Game/Managers/SFXEffectManager.cs" class="class-ref">SFXEffectManager</a> для спавна аудиовизуальных эффектов.</li>
+            </ul>
+        </section>
+
+        <!-- ConnectionManager -->
+        <section>
+            <h2>ConnectionManager & TCP Lifecycle</h2>
+            <p>Управление состоянием соединения с сервером инкапсулировано в синглтоне <a href="../Assets/Scripts/Networking/Connection/ConnectionManager.cs" class="class-ref">ConnectionManager</a>.</p>
+            <h3>Жизненный цикл сокета:</h3>
+            <ol>
+                <li>При старте или по запросу пользователя вызывается метод подключения к IP и порту сервера. Под капотом используется враппер над <code>NetCoreServer</code>.</li>
+                <li>После успешного установления TCP-сессии отправляется пакет авторизации <code>LoginRequestPacket</code>, содержащий имя пользователя и токен.</li>
+                <li>При потере соединения менеджер автоматически запускает таймер восстановления сессии (Reconnecting) с экспоненциальной задержкой.</li>
+                <li>Офлайн-режим игры поддерживается через заглушку <a href="../Assets/Scripts/Networking/Connection/DummyConnection.cs" class="class-ref">DummyConnection</a>, имитирующую ответы сервера на запросы.</li>
+            </ol>
+        </section>
+
+        <!-- TextureStorageManager -->
+        <section>
+            <h2>TextureStorageManager</h2>
+            <p>Для оптимизации трафика при передаче пользовательских данных (аватары, текстуры кланов, кастомные скины) используется менеджер <a href="../Assets/Scripts/Networking/Connection/Client/TextureStorageManager.cs" class="class-ref">TextureStorageManager</a>. Он запрашивает файлы через сетевые пакеты по мере необходимости, кэширует их на жестком диске и предотвращает повторные запросы.</p>
+        </section>
+
+        <!-- Dynamic UI -->
+        <section>
+            <h2>Динамический интерфейс (Packet UI)</h2>
+            <p>Уникальной особенностью Fodinae является возможность сервера динамически конструировать пользовательский интерфейс клиента без пересборки игры. Когда сервер присылает <code>OpenWindowPacket</code>, клиент строит окно в рантайме.</p>
+
+            <h3>Пайплайн сборки интерфейса:</h3>
+            <ol>
+                <li>Пакет <code>OpenWindowPacket</code> содержит древовидное описание UI-элементов, их стилей, размеров и привязок событий.</li>
+                <li>Класс <a href="../Assets/Scripts/PacketUIBuilder.cs" class="class-ref">PacketUIBuilder</a> делегирует сборку фабрике <a href="../Assets/Scripts/UI/Builders/PacketUIBuilderFactory.cs" class="class-ref">PacketUIBuilderFactory</a>.</li>
+                <li>Фабрика сопоставляет ID компонентов с конкретными билдерами на базе UI Toolkit:
+                    <ul>
+                        <li><code>CanvasPacketBuilder</code> / <code>PanelPacketBuilder</code> — базовые контейнеры.</li>
+                        <li><code>GridPacketBuilder</code> — сеточные элементы.</li>
+                        <li><code>TextPacketBuilder</code> / <code>TextBoxPacketBuilder</code> — вывод текста и текстовые поля.</li>
+                        <li><code>ButtonPacketBuilder</code> — кликабельные кнопки.</li>
+                        <li><code>SliderPacketBuilder</code> — ползунки.</li>
+                        <li><code>IntDropdownPacketBuilder</code> / <code>StringDropdownPacketBuilder</code> — выпадающие списки.</li>
+                        <li><code>ScrollViewerPacketBuilder</code> — прокручиваемые области.</li>
+                        <li><code>LinePacketBuilder</code> — разделительные линии (с использованием кастомного класса <code>UILine</code>).</li>
+                        <li><code>DockPanelPacketBuilder</code> — докинг-панели на базе перечисления <code>Dock</code> (Left, Top, Right, Bottom).</li>
+                    </ul>
+                </li>
+            </ol>
+        </section>
+    </main>
+
+</body>
+</html>

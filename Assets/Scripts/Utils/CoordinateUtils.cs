@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Fodinae.Scripts.Utils
 {
     /// <summary>
-    /// Centralized utility class for coordinate conversions between Server (0 at top, Y+) 
+    /// Centralized utility class for coordinate conversions between Server (0 at top, Y+)
     /// and Unity (0 at bottom, Y+) systems.
     /// Handles wrapping and snapping to grid consistently across the project.
     /// </summary>

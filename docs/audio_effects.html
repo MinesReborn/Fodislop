@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Звук & Эффекты — Fodinae Client</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #07080e;
+            --card-bg: rgba(16, 17, 30, 0.65);
+            --card-border: rgba(255, 255, 255, 0.06);
+            --text-main: #d1d2e0;
+            --text-muted: #808298;
+            --text-title: #ffffff;
+            --accent-primary: #00f2fe;
+            --accent-secondary: #4facfe;
+            --accent-gradient: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+            --accent-mint: #64ffda;
+            --font-outfit: 'Outfit', sans-serif;
+            --font-inter: 'Inter', sans-serif;
+            --font-code: 'Fira Code', 'JetBrains Mono', monospace;
+            --shadow-subtle: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-inter);
+            color: var(--text-main);
+            background: var(--bg-color);
+            background-image:
+                radial-gradient(at 10% 10%, rgba(0, 242, 254, 0.02) 0px, transparent 50%),
+                radial-gradient(at 90% 90%, rgba(79, 172, 254, 0.02) 0px, transparent 50%);
+            min-height: 100vh;
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        /* ── Header ── */
+        .nav-header {
+            width: 100%;
+            background: rgba(11, 12, 22, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--card-border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            padding: 0 1.5rem;
+        }
+
+        .nav-container {
+            width: 100%;
+            max-width: 1000px;
+            height: 70px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            font-family: var(--font-outfit);
+            font-weight: 800;
+            font-size: 1.5rem;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-brand a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .nav-brand::before {
+            content: '';
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-primary);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            font-family: var(--font-outfit);
+            transition: var(--transition-smooth);
+            position: relative;
+            padding: 0.25rem 0;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            color: var(--text-title);
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--accent-gradient);
+            transition: var(--transition-smooth);
+        }
+
+        .nav-links a:hover::after, .nav-links a.active::after {
+            width: 100%;
+        }
+
+        /* ── Main Wrapper ── */
+        .main-wrapper {
+            width: 100%;
+            max-width: 800px;
+            padding: 3rem 1.5rem 6rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2.5rem;
+        }
+
+        /* ── Section Title ── */
+        .title-area {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 1.5rem;
+        }
+
+        .title-area h1 {
+            font-family: var(--font-outfit);
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--text-title);
+            line-height: 1.2;
+            letter-spacing: -1px;
+        }
+
+        .title-area p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            font-weight: 300;
+        }
+
+        /* ── Typography ── */
+        h2 {
+            font-family: var(--font-outfit);
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-title);
+            margin-top: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        h2::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 24px;
+            background: var(--accent-gradient);
+            border-radius: 2px;
+        }
+
+        h3 {
+            font-family: var(--font-outfit);
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-title);
+            margin-top: 1rem;
+        }
+
+        p {
+            font-size: 1rem;
+            font-weight: 300;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+        }
+
+        ul, ol {
+            padding-left: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        li {
+            font-size: 1rem;
+            font-weight: 300;
+            color: var(--text-main);
+            margin-bottom: 0.4rem;
+        }
+
+        /* ── Code Blocks ── */
+        code {
+            font-family: var(--font-code);
+            font-size: 0.85em;
+            background: rgba(18, 19, 30, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            padding: 0.15em 0.4em;
+            border-radius: 4px;
+            color: var(--accent-mint);
+        }
+
+        pre {
+            background: #0b0c16;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 1.2rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
+        }
+
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            color: #d1d2e0;
+            font-size: 0.85rem;
+        }
+
+        .c-comment { color: #5c6370; font-style: italic; }
+        .c-keyword { color: #c678dd; }
+        .c-type { color: #e5c07b; }
+        .c-string { color: #98c379; }
+        .c-method { color: #61afef; }
+        .c-num { color: #d19a66; }
+
+        /* ── Class Links ── */
+        .class-ref {
+            font-family: var(--font-code);
+            font-weight: 500;
+            color: var(--accent-primary);
+            text-decoration: none;
+            transition: var(--transition-smooth);
+        }
+
+        .class-ref:hover {
+            color: var(--accent-mint);
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="nav-header">
+        <div class="nav-container">
+            <div class="nav-brand"><a href="index.html">Fodinae Docs</a></div>
+            <nav class="nav-links">
+                <a href="rendering.html">Рендеринг</a>
+                <a href="networking.html">Сеть</a>
+                <a href="audio_effects.html" class="active">Звук & Эффекты</a>
+                <a href="assets_loading.html">CDN & Кэш</a>
+                <a href="ui_programmator.html">UI & Код</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-wrapper">
+        <section class="title-area">
+            <h1>Звук и Эффекты</h1>
+            <p>Устройство рантайм-воспроизведения аудио с сервера и система визуальных эффектов.</p>
+        </section>
+
+        <!-- AudioManager -->
+        <section>
+            <h2>AudioManager</h2>
+            <p>Класс <a href="../Assets/Scripts/Audio/AudioManager.cs" class="class-ref">AudioManager</a> — центральный синглтон, управляющий звуковым окружением игрока. Он содержит ссылки на основные компоненты <code>AudioSource</code> для зацикленного воспроизведения фоновой музыки (BGM) и контролирует громкость звуков на основе настроек, сохраняемых в <code>PlayerPrefs</code>.</p>
+        </section>
+
+        <!-- WavUtility & Raw Audio Parsing -->
+        <section>
+            <h2>Низкоуровневый парсинг звука (WavUtility)</h2>
+            <p>Так как звуковые файлы игровых тайлов и действий (копка, удары, шаги) подгружаются динамически с сервера CDN, игра не может использовать стандартный импорт аудиофайлов в редакторе Unity. Сырые байты WAV-файлов считываются и парсятся прямо в оперативной памяти.</p>
+
+            <p>Этот процесс выполняет высокооптимизированный класс <a href="../Assets/Scripts/Audio/WavUtility.cs" class="class-ref">WavUtility</a>:</p>
+            <ol>
+                <li>Метод <code>ToAudioClip</code> принимает поток байт аудиофайла.</li>
+                <li>Парсер считывает стандартный заголовок формата <strong>RIFF/WAVE</strong>, находя чанки описания формата (<code>"fmt "</code>) и данных (<code>"data"</code>).</li>
+                <li>Извлекаются метаданные: частота дискретизации (sample rate), количество каналов и битрейт (например, 16-бит).</li>
+                <li>PCM-данные конвертируются в массив значений с плавающей запятой <code>float[]</code> (в диапазоне от -1.0 до 1.0 путем деления исходных 16-битных значений на <code>32768f</code>) без лишних аллокаций памяти.</li>
+                <li>Создается новый пустой <code>AudioClip</code> в оперативной памяти с помощью метода <code>AudioClip.Create</code>, который наполняется полученными сэмплами через <code>clip.SetData</code>.</li>
+            </ol>
+        </section>
+
+        <!-- SFXPool -->
+        <section>
+            <h2>Пул звуков и эффектов: SFXPool</h2>
+            <p>Поскольку во время геймплея одновременно может происходить множество звуковых эффектов (копка, сражения нескольких игроков), постоянное создание и уничтожение объектов <code>AudioSource</code> привело бы к сильной фрагментации памяти и просадкам FPS из-за сборщика мусора (GC).</p>
+            <p>Для решения этой проблемы используется класс <a href="../Assets/Scripts/Audio/SFXPool.cs" class="class-ref">SFXPool</a>, реализующий паттерн Объектного пула (Object Pooling):</p>
+            <ul>
+                <li>При инициализации сцены создается фиксированное количество объектов с компонентами <code>AudioSource</code> и визуальными контейнерами.</li>
+                <li>Когда коду требуется проиграть звук, он запрашивает свободный слот из пула.</li>
+                <li>Звук воспроизводится методом <code>PlayOneShot</code>.</li>
+                <li>По окончании воспроизведения объект автоматически освобождается и возвращается обратно в пул для повторного использования.</li>
+            </ul>
+        </section>
+
+        <!-- Effects Pipeline -->
+        <section>
+            <h2>Пайплайн воспроизведения эффектов</h2>
+            <p>Визуальные и звуковые эффекты синхронизируются на основе сетевых данных от сервера:</p>
+            <ol>
+                <li>Сервер присылает сетевой пакет <code>SFXPacket</code>, содержащий ID эффекта, его мировые координаты и тип.</li>
+                <li>Синглтон <a href="../Assets/Scripts/Game/Managers/SFXEffectManager.cs" class="class-ref">SFXEffectManager</a> перехватывает пакет и спавнит экземпляр эффекта.</li>
+                <li>Каждый эффект представляет собой экземпляр <a href="../Assets/Scripts/Game/SFXEffectInstance.cs" class="class-ref">SFXEffectInstance</a>, который:
+                    <ul>
+                        <li>Запрашивает аудио и визуальные ресурсы через загрузчик ассетов.</li>
+                        <li>Позиционируется в мировых координатах Unity (с учетом инверсии Y).</li>
+                        <li>Воспроизводит звук через пулированный <code>AudioSource</code> из <a href="../Assets/Scripts/Audio/SFXPool.cs" class="class-ref">SFXPool</a>.</li>
+                        <li>Декодирует и проигрывает кадры анимации (GIF/PNG) или запускает Effekseer-эффект.</li>
+                        <li>Автоматически возвращается в пул после завершения анимации и звука.</li>
+                    </ul>
+                </li>
+            </ol>
+        </section>
+
+        <!-- Effekseer -->
+        <section>
+            <h2>Интеграция Effekseer</h2>
+            <p>Для отображения сложных 3D/2D спецэффектов (например, взрывы, заклинания, частицы) в проект интегрирована рантайм-система Effekseer с помощью компонента <a href="../Assets/Scripts/Effekseer/RuntimeEffekseerLoader.cs" class="class-ref">RuntimeEffekseerLoader</a>. Он инициализирует систему частиц, загружает файлы эффектов во время выполнения игры и управляет их жизненным циклом.</p>
+        </section>
+    </main>
+
+</body>
+</html>

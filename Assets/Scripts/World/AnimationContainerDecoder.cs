@@ -54,6 +54,15 @@ namespace Fodinae.Scripts.World
                 return Array.Empty<Sprite>();
             }
 
+            if (!atlas.isReadable)
+            {
+                var readable = new Texture2D(atlas.width, atlas.height, TextureFormat.RGBA32, false);
+                readable.filterMode = FilterMode.Point;
+                Graphics.CopyTexture(atlas, readable);
+                readable.Apply();
+                atlas = readable;
+            }
+
             Sprite[] frames = new Sprite[frameCount];
             int framesPerRow = atlas.width / width;
 
@@ -164,11 +173,27 @@ namespace Fodinae.Scripts.World
                     Texture2D tex = Texture2DExt.CreateTexture2DFromWebP(data, lMipmaps: false, lLinear: true, out WebP.Error error);
                     if (error == WebP.Error.Success && tex != null)
                     {
+                        if (tex.isReadable)
+                        {
+                            return new DecodedAnimation
+                            {
+                                Atlas = tex,
+                                FrameCount = 1,
+                                FrameHeight = tex.height,
+                                FPS = 0,
+                            };
+                        }
+
+                        var readable = new Texture2D(tex.width, tex.height, TextureFormat.RGBA32, false);
+                        readable.filterMode = FilterMode.Point;
+                        Graphics.CopyTexture(tex, readable);
+                        readable.Apply();
+                        UnityEngine.Object.Destroy(tex);
                         return new DecodedAnimation
                         {
-                            Atlas = tex,
+                            Atlas = readable,
                             FrameCount = 1,
-                            FrameHeight = tex.height,
+                            FrameHeight = readable.height,
                             FPS = 0,
                         };
                     }

@@ -119,7 +119,7 @@ namespace Fodinae.Scripts.UI
 
         private void InitializeHUD()
         {
-            _doc = FindObjectOfType<UIDocument>();
+            _doc = FindAnyObjectByType<UIDocument>();
             if (_doc == null)
             {
                 Debug.LogError("[PlayerHUD] UIDocument не найден на сцене");
@@ -143,7 +143,7 @@ namespace Fodinae.Scripts.UI
                 PlayerStatsModel.Instance.OnStatusLinesChanged += RebuildStatusPanel;
                 PlayerStatsModel.Instance.OnMissionChanged += UpdateMissionPanel;
             }
-            var player = FindObjectOfType<PlayerMovementController>();
+            var player = FindAnyObjectByType<PlayerMovementController>();
             if (player != null)
                 player.OnAutoDigChanged += UpdateAutoDigButton;
 
@@ -791,7 +791,7 @@ namespace Fodinae.Scripts.UI
 
         private void ToggleAutoDig()
         {
-            var player = FindObjectOfType<PlayerMovementController>();
+            var player = FindAnyObjectByType<PlayerMovementController>();
             if (player != null)
                 player.AutoDig = !player.AutoDig;
         }
@@ -810,7 +810,7 @@ namespace Fodinae.Scripts.UI
 
         private void ToggleAggression()
         {
-            var player = FindObjectOfType<PlayerMovementController>();
+            var player = FindAnyObjectByType<PlayerMovementController>();
             if (player != null)
                 player.ToggleAggression();
         }
@@ -829,7 +829,7 @@ namespace Fodinae.Scripts.UI
 
         private void ToggleCollision()
         {
-            var player = FindObjectOfType<PlayerMovementController>();
+            var player = FindAnyObjectByType<PlayerMovementController>();
             if (player != null)
                 player.IgnoreCollision = !player.IgnoreCollision;
             UpdateCollisionButton(player != null && player.IgnoreCollision);

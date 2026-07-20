@@ -1,51 +1,16 @@
 using System.Collections.Generic;
 using Fodinae.Scripts.Game;
+using Fodinae.Scripts.Utils;
 using UnityEngine;
 
 namespace Fodinae.Scripts.Game.Managers
 {
-    public class RobotManager : MonoBehaviour
+    public class RobotManager : SingletonMonoBehaviour<RobotManager>
     {
-        private static RobotManager _instance;
-        private static bool _isQuitting = false;
-
         [SerializeField]
         private GameObject _robotPrefab;
 
         private Dictionary<uint, Robot> _robots = new();
-
-        public static RobotManager InstanceIfExists => _instance;
-
-        public static RobotManager Instance
-        {
-            get
-            {
-                if (_isQuitting)
-                {
-                    return null;
-                }
-
-                if (_instance == null)
-                {
-                    _instance = FindFirstObjectByType<RobotManager>();
-                    if (_instance == null && !_isQuitting)
-                    {
-                        var go = new GameObject("[RobotManager]");
-                        _instance = go.AddComponent<RobotManager>();
-
-                        // System Grouping
-                        if (Application.isPlaying)
-                        {
-                            var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
-                            UnityEngine.Object.DontDestroyOnLoad(parent);
-                            go.transform.SetParent(parent.transform);
-                        }
-                    }
-                }
-
-                return _instance;
-            }
-        }
 
         public static bool ShowDebugVisuals { get; set; }
 
@@ -68,7 +33,6 @@ namespace Fodinae.Scripts.Game.Managers
                 return robot;
             }
 
-            // If this is the local player, try to find the existing robot in the scene
             if (botId != 0 && botId == LocalPlayerBotId)
             {
                 var playerObj = GameObject.FindGameObjectWithTag("Player");
@@ -138,59 +102,27 @@ namespace Fodinae.Scripts.Game.Managers
                 {
                     continue;
                 }
-                
+
                 if (kvp.Value != null)
                 {
                     Destroy(kvp.Value.gameObject);
                 }
+
                 keysToRemove.Add(kvp.Key);
             }
-            
+
             foreach (var key in keysToRemove)
             {
                 _robots.Remove(key);
             }
         }
 
-        /// <summary>
-        /// Removes a robot's registry entry only if the stored instance is
-        /// still <paramref name="instance"/>. Safe to call from the robot's
-        /// own OnDestroy: it will not evict a newer robot that re-registered
-        /// under the same botId, and it does not Destroy anything.
-        /// </summary>
         public void UnregisterRobot(uint botId, Robot instance)
         {
             if (_robots.TryGetValue(botId, out var robot) && robot == instance)
             {
                 _robots.Remove(botId);
             }
-        }
-
-        protected virtual void Awake()
-        {
-            if (_instance != null && _instance != this)
-            {
-                Destroy(gameObject);
-                return;
-            }
-
-            _instance = this;
-            if (Application.isPlaying)
-            {
-                DontDestroyOnLoad(gameObject);
-
-                // Ensure parented if created in scene
-                var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
-                UnityEngine.Object.DontDestroyOnLoad(parent);
-                transform.SetParent(parent.transform);
-            }
-
-            _isQuitting = false;
-        }
-
-        protected virtual void OnApplicationQuit()
-        {
-            _isQuitting = true;
         }
     }
 }

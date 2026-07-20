@@ -74,7 +74,7 @@ namespace Fodinae.Scripts.UI
 
             CreateUI();
 
-            _player = FindFirstObjectByType<PlayerMovementController>();
+            _player = FindAnyObjectByType<PlayerMovementController>();
             if (_player != null)
             {
                 _player.OnPlayerMoved += OnPlayerMoved;
@@ -142,7 +142,7 @@ namespace Fodinae.Scripts.UI
 
         private void CreateUI()
         {
-            Canvas canvas = FindFirstObjectByType<Canvas>();
+            Canvas canvas = FindAnyObjectByType<Canvas>();
             if (canvas == null)
             {
                 GameObject canvasObj = new("Canvas");

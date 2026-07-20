@@ -69,7 +69,7 @@ namespace Fodinae.Scripts.UI
 
         private void InitializeInventory()
         {
-            _doc = FindObjectOfType<UIDocument>();
+            _doc = FindAnyObjectByType<UIDocument>();
             if (_doc == null)
             {
                 Debug.LogError("[InventoryUI] UIDocument not found on scene");

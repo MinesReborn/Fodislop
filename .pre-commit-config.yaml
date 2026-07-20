@@ -1,0 +1,21 @@
+exclude: '^(Assets/Plugins/|Packages/|Library/|.*\.unity$|.*\.prefab$|.*\.asset$|.*\.mat$|.*\.anim$|.*\.controller$|.*\.mask$|.*\.meta$|.*\.spriteatlas$|.*\.playable$|.*\.overrideController$|.*\.physicMaterial$|.*\.physicsMaterial2D$|.*\.tss$|.*\.scenetemplate$|.*\.inputactions$|.*\.dll$)'
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.md$
+      - id: end-of-file-fixer
+      - id: check-json
+        exclude: \.vscode/
+      - id: check-yaml
+
+  - repo: local
+    hooks:
+      - id: dotnet-build-lint
+        name: C# Roslyn Analyzers
+        entry: ./scripts/pre-commit-lint.sh
+        language: script
+        files: \.cs$
+        pass_filenames: false

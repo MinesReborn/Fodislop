@@ -143,8 +143,6 @@ namespace MinesServer.Networking.Connection.Client
 
         private async UniTaskVoid ConnectAsync()
         {
-            await UniTask.Delay(100);
-
             CreateFPSCounter();
 
             _status = ConnectionStatus.Connected;
@@ -400,14 +398,12 @@ namespace MinesServer.Networking.Connection.Client
                     if (!skipMapDataGeneration)
                     {
                         SendTestWorldMapData(worldWidth, worldHeight);
-                        CreateCellTypeLabels(worldWidth, worldHeight);
                     }
                     OnReceived?.Invoke(new ServerPacket(new PlayerInfoPacket(999, _mockBotId, "Darkar25")));
                     var robotPos = new RobotPositionPacket(_mockBotId, 25, 50, 0);
                     OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { robotPos })));
                     HandleRobotInfoMock(_mockBotId).Forget();
                     RunCircularBots(10).Forget();
-                    //RunTilingTestLoop().Forget();
                     _x = 25;
                     _y = 50;
                     OnReceived?.Invoke(new ServerPacket(new AggressionStatePacket(false)));
@@ -477,10 +473,8 @@ namespace MinesServer.Networking.Connection.Client
                     HandleAssetRequest(runtimeAssets).Forget();
                     break;
                 case OpenHelpClickPacket:
-                    SendMockWindow(false);
                     break;
                 case OpenSettingsClickPacket:
-                    SendMockWindow(true);
                     break;
                 case SendLocalChatMessagePacket localMsg:
                     Debug.Log($"[DummyConnection] Local chat: {localMsg.Message}");
@@ -1220,246 +1214,6 @@ namespace MinesServer.Networking.Connection.Client
             }
         }
 
-        private async UniTaskVoid RunTilingTestLoop()
-        {
-            ushort baseX = 144;
-            ushort baseY = 9;
-            int counter = 0;
-
-            while (_status == ConnectionStatus.Connected)
-            {
-                // We need a 3x3 grid (9 cells)
-                // Layout:
-                // 0 1 2
-                // 3 4 5
-                // 6 7 8
-                // Index 4 is the center (static)
-
-                var grid = new CellType[9];
-                int bit = 0;
-
-                for (int i = 0; i < 9; i++)
-                {
-                    if (i == 4)
-                    {
-                        // The center cell remains static
-                        grid[i] = CellType.BuildingDoor;
-                        continue;
-                    }
-
-                    // Check if the N-th bit is set in our counter
-                    bool isNeighborPresent = ((counter >> bit) & 1) == 1;
-                    grid[i] = isNeighborPresent ? CellType.BuildingDoor : CellType.Empty;
-                    bit++;
-                }
-
-                var mapRegionPacket = new MapRegionPacket
-                {
-                    X = baseX,
-                    Y = baseY,
-                    Width = 2,  // 3 cells wide (Width is Size - 1)
-                    Height = 2, // 3 cells high
-                    Payload = grid
-                };
-
-                OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { mapRegionPacket })));
-
-                // Increment counter and wrap at 256
-                counter = (counter + 1) % 256;
-
-                // Delay to make the animation visible (e.g., 200ms)
-                await UniTask.Delay(200);
-            }
-        }
-
-        public void SendMockWindow(bool comprehensive)
-        {
-            var windowPacket = comprehensive ? CreateComprehensiveMockWindow() : CreateMockWindow();
-        }
-
-        private OpenWindowPacket CreateMockWindow()
-        {
-            var rootElement = new DockPanelPacket
-            {
-                Style = new GUIStylePacket
-                {
-                    Background = System.Drawing.Color.FromArgb(255, 66, 66, 66),
-                    Padding = new Margins(10, 10, 10, 10)
-                },
-                Children = new List<IGUIComponentPacket>
-                {
-                    new TextPacket
-                    {
-                        Text = "<color=white>Top 0</color>",
-                        Style = new GUIStylePacket {
-                            Background = System.Drawing.Color.Blue,
-                            Padding = new Margins(5,5,5,5)
-                        },
-                        AttachedProperties = new StringPairPacket[] {
-                            new("DockPanel.Dock", "Top")
-                        }
-                    },
-                    new TextPacket
-                    {
-                        Text = "<color=white>Left 1</color>",
-                        Style = new GUIStylePacket {
-                            Background = System.Drawing.Color.Red,
-                            Padding = new Margins(5,5,5,5)
-                        },
-                        AttachedProperties = new StringPairPacket[] {
-                            new("DockPanel.Dock", "Left")
-                        }
-                    },
-                    new TextPacket
-                    {
-                        Text = "<color=white>Bottom 2</color>",
-                        Style = new GUIStylePacket {
-                            Background = System.Drawing.Color.Blue,
-                            Padding = new Margins(5,5,5,5)
-                        },
-                        AttachedProperties = new StringPairPacket[] {
-                            new("DockPanel.Dock", "Bottom")
-                        }
-                    },
-                    new TextPacket
-                    {
-                        Text = "<color=white>Right 3</color>",
-                        Style = new GUIStylePacket {
-                            Background = System.Drawing.Color.Red,
-                            Padding = new Margins(5,5,5,5)
-                        },
-                        AttachedProperties = new StringPairPacket[] {
-                            new("DockPanel.Dock", "Right")
-                        }
-                    },
-                    new GridPacket
-                    {
-                        Columns = new byte[] { 1, 0, 1, 1 },
-                        Rows = new byte[] { 1, 0, 1, 1 },
-                        Children = new IGUIComponentPacket[]
-                        {
-                            new TextPacket {
-                                Text = "(0,0)",
-                                AttachedProperties = new StringPairPacket[] {
-                                    new("Grid.Row", "0"),
-                                    new("Grid.Column", "0")
-                                },
-                                Style = new GUIStylePacket{
-                                    Background = System.Drawing.Color.Yellow
-                                }
-                            },
-                            new TextPacket {
-                                Text = "Auto-Row",
-                                AttachedProperties = new StringPairPacket[] {
-                                    new("Grid.Row", "1"),
-                                    new("Grid.Column", "0")
-                                },
-                                Style = new GUIStylePacket{
-                                    Background = System.Drawing.Color.CornflowerBlue,
-                                    Padding = new Margins(5,5,15,5)
-                                }
-                            },
-                        }
-                    }
-                }
-            };
-
-            return new OpenWindowPacket("TestWindow", 800, 600, rootElement);
-        }
-
-        private OpenWindowPacket CreateComprehensiveMockWindow()
-        {
-            var @checked = new ImagePacket()
-            {
-                URI = "/ui/checked.png",
-                Width = 32,
-                Height = 32
-            };
-            var @unchecked = new ImagePacket()
-            {
-                URI = "/ui/unchecked.png",
-                Width = 32,
-                Height = 32
-            };
-            var selected = new ImagePacket()
-            {
-                URI = "/ui/selected.png",
-                Width = 32,
-                Height = 32
-            };
-            var deselected = new ImagePacket()
-            {
-                URI = "/ui/deselected.png",
-                Width = 32,
-                Height = 32
-            };
-
-            var rootElement = new DockPanelPacket
-            {
-                Style = new GUIStylePacket
-                {
-                    Background = System.Drawing.Color.FromArgb(255, 22, 22, 22),
-                    Padding = new Margins(5, 5, 5, 5)
-                },
-                Children = new List<IGUIComponentPacket>
-                {
-                    new TextPacket
-                    {
-                        Text = "<color=white>Header</color>",
-                        Style = new GUIStylePacket {
-                            Background = System.Drawing.Color.DarkBlue,
-                            Padding = new Margins(5,5,5,5)
-                        },
-                        AttachedProperties = new StringPairPacket[] {
-                            new("DockPanel.Dock", "Top")
-                        }
-                    },
-                    new ScrollViewerPacket
-                    {
-                         Children = new IGUIComponentPacket[]
-                         {
-                             new SelectablePacket
-                             {
-                                 Name = "testcheckbox",
-                                 Checked = @checked,
-                                 Unchecked = @unchecked
-                             },
-                             new TextBoxPacket {
-                                 DefaultValue = "123123123",
-                                 Name = "textbox",
-                                 Regex = "^\\d*$",
-                                 Style = new GUIStylePacket{
-                                     Background = System.Drawing.Color.LightGray
-                                 }
-                            },
-                            new SliderPacket {
-                                DefaultValue = 0,
-                                MinValue = 0,
-                                MaxValue = 100,
-                                Name = "slider",
-                                Knob = new()
-                                {
-                                    URI = "/ui/knob.png",
-                                    Width = 16,
-                                    Height = 16
-                                }
-                            },
-                            new ImagePacket {
-                                URI = "/test.png",
-                                Width = 50,
-                                Height = 50
-                            }
-                         }
-                    }
-                }
-            };
-
-            return new OpenWindowPacket("ComprehensiveTestWindow", 1200, 800, rootElement);
-        }
-
-        /// <summary>
-        /// Create test cell configurations for different cell types
-        /// </summary>
         private CellConfigurationPacket[] CreateTestCellConfigurations()
         {
             var configs = new CellConfigurationPacket[256];
@@ -1723,38 +1477,7 @@ namespace MinesServer.Networking.Connection.Client
             return map;
         }
 
-        private void CreateCellTypeLabels(int worldWidth, int worldHeight)
-        {
-            var parent = new GameObject("CellTypeLabels");
-            UnityEngine.Object.DontDestroyOnLoad(parent);
 
-            int squaresPerRow = (worldWidth - 5) / 15;
-            int galleryX = 5;
-            int galleryY = 5;
-
-            for (int i = 0; i < _allCellTypes.Length; i++)
-            {
-                int row = i / squaresPerRow;
-                int col = i % squaresPerRow;
-                int serverX = galleryX + col * 15 + 5;
-                int serverY = galleryY + row * 15 + 10;
-
-                float unityX = serverX + 0.5f;
-                float unityY = worldHeight - 1 - serverY - 0.5f;
-
-                var labelGO = new GameObject($"Label_{i}");
-                labelGO.transform.SetParent(parent.transform);
-                labelGO.transform.position = new Vector3(unityX, unityY, 0);
-
-                var tm = labelGO.AddComponent<TextMesh>();
-                tm.text = $"{_allCellTypes[i]} ({(int)_allCellTypes[i]})";
-                tm.fontSize = 20;
-                tm.characterSize = 0.5f;
-                tm.color = new Color(1f, 1f, 1f, 0.9f);
-                tm.anchor = TextAnchor.LowerCenter;
-                tm.alignment = TextAlignment.Center;
-            }
-        }
 
         private async UniTaskVoid HandleRobotInfoMock(ushort botId)
         {

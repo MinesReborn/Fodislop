@@ -1,196 +1,487 @@
 <!DOCTYPE html>
 <html lang="ru">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Архитектура рендеринга — Fodinae</title>
+    <title>Архитектура рендеринга — Fodinae Client</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-color: #07080e;
+            --card-bg: rgba(16, 17, 30, 0.65);
+            --card-border: rgba(255, 255, 255, 0.06);
+            --text-main: #d1d2e0;
+            --text-muted: #808298;
+            --text-title: #ffffff;
+            --accent-primary: #00f2fe;
+            --accent-secondary: #4facfe;
+            --accent-gradient: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+            --accent-mint: #64ffda;
+            --font-outfit: 'Outfit', sans-serif;
+            --font-inter: 'Inter', sans-serif;
+            --font-code: 'Fira Code', 'JetBrains Mono', monospace;
+            --shadow-subtle: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
         * {
             margin: 0;
             padding: 0;
-            box-sizing: border-box
+            box-sizing: border-box;
         }
 
         body {
-            font: 16px/1.6 system-ui, sans-serif;
-            color: #e0e0e0;
-            background: #1a1a2e;
-            max-width: 720px;
-            margin: 0 auto;
-            padding: 2rem 1.5rem
+            font-family: var(--font-inter);
+            color: var(--text-main);
+            background: var(--bg-color);
+            background-image:
+                radial-gradient(at 10% 10%, rgba(0, 242, 254, 0.02) 0px, transparent 50%),
+                radial-gradient(at 90% 90%, rgba(79, 172, 254, 0.02) 0px, transparent 50%);
+            min-height: 100vh;
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
         }
 
-        h1 {
-            font-size: 1.8rem;
-            color: #fff;
-            margin-bottom: .5rem
+        /* ── Header ── */
+        .nav-header {
+            width: 100%;
+            background: rgba(11, 12, 22, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--card-border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            padding: 0 1.5rem;
         }
 
+        .nav-container {
+            width: 100%;
+            max-width: 1000px;
+            height: 70px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            font-family: var(--font-outfit);
+            font-weight: 800;
+            font-size: 1.5rem;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-brand a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .nav-brand::before {
+            content: '';
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-primary);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            font-family: var(--font-outfit);
+            transition: var(--transition-smooth);
+            position: relative;
+            padding: 0.25rem 0;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            color: var(--text-title);
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--accent-gradient);
+            transition: var(--transition-smooth);
+        }
+
+        .nav-links a:hover::after, .nav-links a.active::after {
+            width: 100%;
+        }
+
+        /* ── Main Container ── */
+        .main-wrapper {
+            width: 100%;
+            max-width: 800px;
+            padding: 3rem 1.5rem 6rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2.5rem;
+        }
+
+        /* ── Section Title ── */
+        .title-area {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 1.5rem;
+        }
+
+        .title-area h1 {
+            font-family: var(--font-outfit);
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--text-title);
+            line-height: 1.2;
+            letter-spacing: -1px;
+        }
+
+        .title-area p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            font-weight: 300;
+        }
+
+        /* ── Content Typography ── */
         h2 {
-            font-size: 1.3rem;
-            color: #a8b2d1;
-            margin: 2rem 0 .5rem;
-            border-bottom: 1px solid #2a2a4a;
-            padding-bottom: .3rem
+            font-family: var(--font-outfit);
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-title);
+            margin-top: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        h2::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 24px;
+            background: var(--accent-gradient);
+            border-radius: 2px;
         }
 
         h3 {
-            font-size: 1.1rem;
-            color: #ccd6f6;
-            margin: 1.2rem 0 .4rem
+            font-family: var(--font-outfit);
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-title);
+            margin-top: 1rem;
         }
 
-        p,
+        p {
+            font-size: 1rem;
+            font-weight: 300;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+        }
+
+        ul, ol {
+            padding-left: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
         li {
-            margin-bottom: .5rem
+            font-size: 1rem;
+            font-weight: 300;
+            color: var(--text-main);
+            margin-bottom: 0.4rem;
         }
 
-        ul,
-        ol {
-            padding-left: 1.5rem
-        }
-
+        /* ── Code Blocks ── */
         code {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: .9em;
-            background: #16213e;
-            padding: .15em .4em;
-            border-radius: 3px;
-            color: #64ffda
+            font-family: var(--font-code);
+            font-size: 0.85em;
+            background: rgba(18, 19, 30, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            padding: 0.15em 0.4em;
+            border-radius: 4px;
+            color: var(--accent-mint);
         }
 
         pre {
-            background: #16213e;
-            padding: 1rem;
-            border-radius: 6px;
+            background: #0b0c16;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 1.2rem;
             overflow-x: auto;
-            margin: 1rem 0
+            margin: 1rem 0;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
         }
 
         pre code {
+            background: none;
+            border: none;
             padding: 0;
-            background: none
+            color: #d1d2e0;
+            font-size: 0.85rem;
         }
 
-        a {
-            color: #64ffda;
-            text-decoration: none
-        }
+        /* Syntax colors */
+        .c-comment { color: #5c6370; font-style: italic; }
+        .c-keyword { color: #c678dd; }
+        .c-type { color: #e5c07b; }
+        .c-string { color: #98c379; }
+        .c-num { color: #d19a66; }
+        .c-method { color: #61afef; }
 
-        a:hover {
-            text-decoration: underline
-        }
-
+        /* ── Tables ── */
         table {
             width: 100%;
             border-collapse: collapse;
-            margin: 1rem 0
+            margin: 1.5rem 0;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: var(--shadow-subtle);
         }
 
-        th,
-        td {
+        th, td {
+            padding: 1rem 1.2rem;
             text-align: left;
-            padding: .5rem .8rem;
-            border-bottom: 1px solid #2a2a4a
+            font-size: 0.95rem;
         }
 
         th {
-            color: #a8b2d1;
-            font-weight: 600
+            background: rgba(11, 12, 22, 0.8);
+            color: var(--text-title);
+            font-family: var(--font-outfit);
+            font-weight: 600;
+            border-bottom: 1px solid var(--card-border);
         }
 
-        .note {
-            background: #1b2838;
-            border-left: 3px solid #64ffda;
-            padding: .8rem 1rem;
-            margin: 1rem 0;
-            border-radius: 0 4px 4px 0
+        td {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            font-weight: 300;
         }
 
-        .warn {
-            border-left-color: #f0a500
+        tr:last-child td {
+            border-bottom: none;
         }
 
-        nav {
-            margin-bottom: 2rem;
-            font-size: .85rem;
-            color: #8892b0
+        /* ── Alerts ── */
+        .alert-box {
+            background: rgba(16, 17, 30, 0.5);
+            border-left: 4px solid var(--accent-secondary);
+            border-radius: 0 8px 8px 0;
+            padding: 1.25rem 1.5rem;
+            margin: 1.5rem 0;
+            box-shadow: var(--shadow-subtle);
         }
 
-        nav a {
-            margin-right: 1rem
+        .alert-box.alert-warn {
+            border-left-color: #ff9f43;
+            background: rgba(255, 159, 67, 0.03);
+        }
+
+        .alert-box h4 {
+            font-family: var(--font-outfit);
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-title);
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .alert-box p {
+            font-size: 0.95rem;
+            margin-bottom: 0;
+            color: var(--text-main);
+        }
+
+        /* ── Class Links ── */
+        .class-ref {
+            font-family: var(--font-code);
+            font-weight: 500;
+            color: var(--accent-primary);
+            text-decoration: none;
+            transition: var(--transition-smooth);
+        }
+
+        .class-ref:hover {
+            color: var(--accent-mint);
+            text-decoration: underline;
         }
     </style>
 </head>
-
 <body>
 
-    <nav><a href="index.html">← Документация</a></nav>
+    <header class="nav-header">
+        <div class="nav-container">
+            <div class="nav-brand"><a href="index.html">Fodinae Docs</a></div>
+            <nav class="nav-links">
+                <a href="rendering.html" class="active">Рендеринг</a>
+                <a href="networking.html">Сеть</a>
+                <a href="audio_effects.html">Звук & Эффекты</a>
+                <a href="assets_loading.html">CDN & Кэш</a>
+                <a href="ui_programmator.html">UI & Код</a>
+            </nav>
+        </div>
+    </header>
 
-    <h1>Архитектура рендеринга</h1>
-    <p>Как Fodinae отрисовывает тайловый мир в один draw call.</p>
+    <main class="main-wrapper">
+        <!-- Title Area -->
+        <section class="title-area">
+            <h1>Мир и Архитектура рендеринга</h1>
+            <p>Технические детали высокопроизводительного тайлового рендеринга в Fodinae.</p>
+        </section>
 
-    <h2>Обзор</h2>
-    <p><code>SingleMeshTerrainRenderer</code> строит один <code>Mesh</code> из всех видимых тайлов каждый кадр. Камера
-        определяет границы видимости, рендерер запрашивает данные из <code>MapStorage</code> и собирает геометрию.</p>
+        <!-- Intro -->
+        <section>
+            <p>В отличие от стандартного подхода Unity, где каждый тайл сетки отрисовывается в виде отдельного игрового объекта <code>SpriteRenderer</code> (что приводило бы к тысячам вызовов отрисовки и высокой нагрузке на процессор), Fodinae использует кастомный тайловый рендерер.</p>
+        </section>
 
-    <h2>UV-каналы</h2>
-    <table>
-        <tr>
-            <th>Канал</th>
-            <th>Назначение</th>
-        </tr>
-        <tr>
-            <td><code>UV0</code></td>
-            <td>Координаты в атласе текстур</td>
-        </tr>
-        <tr>
-            <td><code>UV1</code></td>
-            <td>Sub-atlas rect (позиция фрейма)</td>
-        </tr>
-        <tr>
-            <td><code>UV2</code></td>
-            <td>Размер тайла в UV-пространстве</td>
-        </tr>
-        <tr>
-            <td><code>UV3</code></td>
-            <td>Мировые координаты + тайлинг-дескриптор</td>
-        </tr>
-        <tr>
-            <td><code>UV4</code></td>
-            <td>Анимация: тип, скорость, оффсет</td>
-        </tr>
-        <tr>
-            <td><code>UV5</code></td>
-            <td>Тени и рельеф</td>
-        </tr>
-        <tr>
-            <td><code>UV6</code></td>
-            <td>Локальные UV для шейдерных эффектов</td>
-        </tr>
-    </table>
+        <!-- SingleMeshTerrainRenderer -->
+        <section>
+            <h2>SingleMeshTerrainRenderer</h2>
+            <p>Класс <a href="../Assets/Scripts/World/SingleMeshTerrainRenderer.cs" class="class-ref">SingleMeshTerrainRenderer</a> динамически строит и обновляет ровно <strong>один полигональный меш (Mesh)</strong> для всей видимой области террейна каждый кадр. В результате вся сетка мира рендерится на GPU за <strong>один Draw Call</strong>.</p>
 
-    <h2>Инверсия Y</h2>
-    <div class="note warn">
-        Сервер: Y растёт <strong>вниз</strong> (0 = верхняя строка).<br>
-        Unity: Y растёт <strong>вверх</strong>.
-    </div>
-    <pre><code>int serverY = MapManager.Instance.WorldHeight - 1 - unityY;</code></pre>
+            <h3>Принцип работы:</h3>
+            <ol>
+                <li>В методе <code>LateUpdate</code> рендерер проверяет флаг готовности мира <code>MapStorage.IsReady</code>.</li>
+                <li>На основе положения и размера ортографической камеры вычисляется ограничивающий прямоугольник (видимая область чанков 32x32).</li>
+                <li>Из <a href="../Assets/Scripts/Game/Managers/MapManager.cs" class="class-ref">MapStorage</a> считываются ID типов ячеек видимого диапазона.</li>
+                <li>Рендерер генерирует вершины (Vertices), индексы треугольников (Triangles) и заполняет 7 UV-каналов, кодирующих параметры отображения тайлов.</li>
+                <li>Для отрисовки меша используется формат индексов <code>IndexFormat.UInt32</code>, что позволяет объединять сетки размером более 65,000 вершин.</li>
+                <li>Меш позиционируется на слое сортировки <code>Sorting Order = -1000</code>, чтобы находиться под всеми динамическими объектами (роботами, предметами) и интерфейсом.</li>
+            </ol>
+        </section>
 
-    <h2>Поток данных</h2>
-    <ol>
-        <li><code>PacketHandler</code> получает <code>MapRegionPacket</code></li>
-        <li>Данные записываются в <code>MapStorage.cellLayer</code> (через <code>WorldLayer&lt;T&gt;</code>)</li>
-        <li><code>LateUpdate</code> рендерера проверяет <code>MapStorage.IsReady</code></li>
-        <li>Строится меш из видимых тайлов + фон через <code>ComputeBackgroundMap</code></li>
-        <li>Меш загружается на GPU с <code>IndexFormat.UInt32</code></li>
-    </ol>
+        <!-- UV Channels -->
+        <section>
+            <h2>7 UV-каналов террейна</h2>
+            <p>Шейдер террейна считывает детальную информацию о тайлах из различных каналов вершинных атрибутов меша (UV0 - UV6):</p>
 
-    <h2>Сортировка</h2>
-    <p>Террейн рисуется на <code>Sorting Order = -1000</code>, чтобы находиться под спрайтами роботов и UI-элементами.
-    </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 15%">Канал</th>
+                        <th style="width: 25%">Тип данных</th>
+                        <th>Назначение / Описание данных</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>UV0</code></td>
+                        <td><code>Vector2</code></td>
+                        <td><strong>Базовые текстурные координаты</strong> тайла в глобальном скомпонованном атласе текстур.</td>
+                    </tr>
+                    <tr>
+                        <td><code>UV1</code></td>
+                        <td><code>Vector4</code></td>
+                        <td><strong>Sub-atlas Rect (subAtlasRects)</strong>. Ограничивающий прямоугольник тайла внутри текстурного атласа. Предотвращает выход за границы текстуры (texture bleeding) при анимациях и рендеринге.</td>
+                    </tr>
+                    <tr>
+                        <td><code>UV2</code></td>
+                        <td><code>Vector4</code></td>
+                        <td><strong>Параметры размера тайла (tileSizeUVs)</strong>. <code>x</code>, <code>y</code> — нормализованный размер тайла в текстурном пространстве атласа; <code>z</code> — количество кадров анимации; <code>w</code> — высота фрейма в тайлах (для многострочных текстур).</td>
+                    </tr>
+                    <tr>
+                        <td><code>UV3</code></td>
+                        <td><code>Vector4</code></td>
+                        <td><strong>Мировые координаты & Битмаска (worldPositions)</strong>. <code>x</code>, <code>y</code> — мировые координаты ячейки; <code>z</code> — битовая маска авто-тайлинга ячейки (биты 0-4); <code>w</code> — запакованные метаданные / ID слоя.</td>
+                    </tr>
+                    <tr>
+                        <td><code>UV4</code></td>
+                        <td><code>Vector4</code></td>
+                        <td><strong>Параметры анимации (animationData)</strong>. <code>x</code> — тип анимации (loop, trigger и др.); <code>y</code> — скорость анимации; <code>z</code> — временное смещение кадра (animOffset) для рассинхронизации; <code>w</code> — зарезервировано (0).</td>
+                    </tr>
+                    <tr>
+                        <td><code>UV5</code></td>
+                        <td><code>Vector4</code></td>
+                        <td><strong>Тени и рельеф (packedReliefShadowLocalUV)</strong>. <code>x</code> — тип текстуры (1.0 = рельефный переход, 0.0 = базовая земля); <code>y</code> — маска рельефа ячейки или значение затенения вершины (shadow shade); <code>zw</code> — координаты локального смещения вершин для проецирования теней.</td>
+                    </tr>
+                    <tr>
+                        <td><code>UV6</code></td>
+                        <td><code>Vector4</code></td>
+                        <td><strong>Параметры свечения и авто-тайлинга (glowData)</strong>. <code>xy</code> — вектор направления/координат свечения магмы; <code>z</code> — флаги свечения ячеек и скругления краев; <code>w</code> — маска совпадения категорий соседних ячеек (sameCatMask).</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- SurfaceRenderer -->
+        <section>
+            <h2>Кастомные слои: SurfaceRenderer</h2>
+            <p>Некоторые визуальные элементы тайлов требуют особого расположения по глубине или перекрытия. Для этого используется вспомогательный рендерер <a href="../Assets/Scripts/World/SurfaceRenderer.cs" class="class-ref">SurfaceRenderer</a>, создающий два дополнительных меша:</p>
+            <ul>
+                <li><strong>Transit (Переходы)</strong>: Отрисовывает меш плавных переходов градиентов между различными слоями высот террейна. Рисуется поверх базовой земли.</li>
+                <li><strong>Perspective (Перспективные блоки)</strong>: Отрисовывает трехмерные стены и вертикальные выступы блоков, создающие эффект глубины. Эти элементы сортируются динамически относительно роботов, используя отдельные материалы и повышенный <code>Sorting Order</code>.</li>
+            </ul>
+        </section>
+
+        <!-- Texture Packing & Cache -->
+        <section>
+            <h2>Динамический атлас и кэширование текстур</h2>
+            <p>Поскольку типы ячеек и их текстуры могут загружаться динамически с сервера CDN, игра не использует жестко прописанные ассеты в папках <code>Resources</code> или <code>Addressables</code>.</p>
+
+            <h3>Схема загрузки текстур:</h3>
+            <ol>
+                <li><a href="../Assets/Scripts/World/WorldTextureManager.cs" class="class-ref">WorldTextureManager</a> считывает файлы спрайтов ячеек напрямую из файловой системы по путям, предоставленным CDN.</li>
+                <li>Все загруженные текстуры упаковываются в единый динамический текстурный атлас с помощью класса <a href="../Assets/Scripts/World/TextureAtlas.cs" class="class-ref">TextureAtlas</a>. Атлас возвращает структуру <a href="../Assets/Scripts/World/AtlasCoordinate.cs" class="class-ref">AtlasCoordinate</a> для каждого типа ячейки.</li>
+                <li>Для ускорения загрузки и предотвращения повторного чтения файлов используется потокобезопасный кэш <a href="../Assets/Scripts/World/CellTextureCache.cs" class="class-ref">CellTextureCache</a> на базе <code>ConcurrentDictionary&lt;CellType, Texture2D&gt;</code>.</li>
+            </ol>
+
+            <h3>Декодирование анимаций (GIF / WebP)</h3>
+            <p>Анимированные тайлы (например, лава, вода, кристаллы) загружаются из файлов GIF или WebP. Класс <a href="../Assets/Scripts/World/AnimationContainerDecoder.cs" class="class-ref">AnimationContainerDecoder</a> с помощью встроенного декодера <a href="../Assets/Scripts/mfGif/mgGif.cs" class="class-ref">mgGif</a> парсит байты анимаций и генерирует массив кадров <code>Texture2D</code>, которые затем добавляются в атлас как последовательные текстурные плашки.</p>
+        </section>
+
+        <!-- Y-Inversion -->
+        <section>
+            <h2>Инверсия оси Y</h2>
+
+            <div class="alert-box alert-warn">
+                <h4>⚠️ Внимание: Различие систем координат</h4>
+                <p><strong>Сервер:</strong> Ось Y направлена <strong>вниз</strong>. Координата <code>Y = 0</code> соответствует самой верхней строке карты.<br>
+                <strong>Unity:</strong> Стандартная декартова система координат. Ось Y направлена <strong>вверх</strong>, координата <code>Y = 0</code> соответствует низу сцены.</p>
+            </div>
+
+            <p>Все пространственные преобразования координат между сетью и игровым миром централизованы в утилите <a href="../Assets/Scripts/Utils/CoordinateUtils.cs" class="class-ref">CoordinateUtils</a>:</p>
+
+            <pre><code><span class="c-comment">// Конвертация серверной координаты Y в координату Unity</span>
+<span class="c-keyword">public static float</span> <span class="c-method">ServerToUnityY</span>(<span class="c-type">int</span> <span class="c-num">serverY</span>, <span class="c-type">int</span> <span class="c-num">worldHeight</span>)
+{
+    <span class="c-keyword">return</span> <span class="c-num">worldHeight</span> - <span class="c-num">1</span> - <span class="c-num">serverY</span>;
+}
+
+<span class="c-comment">// Конвертация координаты Unity в серверную координату Y</span>
+<span class="c-keyword">public static int</span> <span class="c-method">UnityToServerY</span>(<span class="c-type">float</span> <span class="c-num">unityY</span>, <span class="c-type">int</span> <span class="c-num">worldHeight</span>)
+{
+    <span class="c-keyword">return</span> <span class="c-num">worldHeight</span> - <span class="c-num">1</span> - (<span class="c-type">int</span>)System.Math.<span class="c-method">Floor</span>(<span class="c-num">unityY</span>);
+}</code></pre>
+        </section>
+    </main>
 
 </body>
-
 </html>

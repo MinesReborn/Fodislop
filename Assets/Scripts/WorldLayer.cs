@@ -227,18 +227,26 @@ namespace Fodinae.Scripts
             {
                 Flush();
             }
-            catch
+            catch (IOException ioEx)
             {
-                // Ignore errors on dispose
+                Debug.LogWarning($"[WorldLayer] I/O error flushing during dispose: {ioEx.Message}");
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed, ignore
+            }
+            catch (UnauthorizedAccessException authEx)
+            {
+                Debug.LogWarning($"[WorldLayer] Unauthorized access during dispose: {authEx.Message}");
             }
 
             try
             {
                 _fileStream?.Dispose();
             }
-            catch
+            catch (IOException ioEx)
             {
-                // Ignore errors on dispose
+                Debug.LogWarning($"[WorldLayer] I/O error closing stream during dispose: {ioEx.Message}");
             }
         }
 
@@ -326,18 +334,23 @@ namespace Fodinae.Scripts
             {
                 chunk = await Cysharp.Threading.Tasks.UniTask.RunOnThreadPool(() => LoadChunkFromDisk(chunkIndex));
             }
-            catch (Exception ex)
+            catch (IOException ioEx)
             {
-                Debug.LogError($"[WorldLayer] Async load failed for chunk {chunkIndex}: {ex.Message}");
+                Debug.LogError($"[WorldLayer] Disk I/O error loading chunk {chunkIndex}: {ioEx.Message}");
+            }
+            catch (ObjectDisposedException disposedEx)
+            {
+                Debug.LogWarning($"[WorldLayer] Stream disposed while loading chunk {chunkIndex}: {disposedEx.Message}");
             }
 
             await Cysharp.Threading.Tasks.UniTask.SwitchToMainThread();
 
-            if (chunk != null)
+            if (chunk == null)
             {
-                AddToCache(chunkIndex, chunk);
+                chunk = new T[_chunkArea];
             }
 
+            AddToCache(chunkIndex, chunk);
             _loadingChunks.Remove(chunkIndex);
         }
 

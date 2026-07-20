@@ -8,8 +8,8 @@ namespace Fodinae.Scripts
         /// Converts a neighbor bitmask into a Tile Descriptor byte.
         /// </summary>
         /// <param name="presenceMask">
-        /// The neighbor connection mask. 
-        /// Bits: TL(7) T(6) TR(5) R(4) BR(3) B(2) BL(1) L(0). 
+        /// The neighbor connection mask.
+        /// Bits: TL(7) T(6) TR(5) R(4) BR(3) B(2) BL(1) L(0).
         /// 1 = connected, 0 = empty. Center is always 1.
         /// </param>
         /// <returns>
@@ -25,9 +25,9 @@ namespace Fodinae.Scripts
         }
 
         /// <summary>
-        /// Lookup table converting every possible 8-neighbor mask (0-255) 
+        /// Lookup table converting every possible 8-neighbor mask (0-255)
         /// to a canonical base tile + transformation.
-        /// "Floating" corners (corners without both adjacent orthogonal edges) 
+        /// "Floating" corners (corners without both adjacent orthogonal edges)
         /// are gracefully ignored to find the best fitting valid tile.
         /// </summary>
         private static readonly byte[] PresenceToDescriptor = new byte[] {

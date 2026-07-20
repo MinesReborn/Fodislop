@@ -18,7 +18,7 @@ namespace Fodinae.Scripts.UI.Programmator
 
         private void Start()
         {
-            _doc = FindObjectOfType<UIDocument>();
+            _doc = FindAnyObjectByType<UIDocument>();
             if (_doc == null) return;
             CreateUI();
             _popup.style.display = DisplayStyle.None;

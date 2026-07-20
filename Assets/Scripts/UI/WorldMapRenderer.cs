@@ -42,7 +42,7 @@ namespace Fodinae.Scripts.UI
         {
             _storage = MapStorage.Instance;
             _manager = MapManager.Instance;
-            _player = FindObjectOfType<PlayerMovementController>();
+            _player = FindAnyObjectByType<PlayerMovementController>();
             if (_storage == null || _manager == null)
             {
                 Debug.LogError("[WorldMapRenderer] MapStorage or MapManager not available");

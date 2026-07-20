@@ -6,46 +6,14 @@ using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Fodinae.Scripts;
 using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.Utils;
 using MinesServer.Data;
 using UnityEngine;
 
 namespace Fodinae.Scripts.World
 {
-    public class WorldTextureManager : MonoBehaviour
+    public class WorldTextureManager : SingletonMonoBehaviour<WorldTextureManager>
     {
-        private static WorldTextureManager _instance;
-        private static bool _isQuitting = false;
-
-        public static WorldTextureManager InstanceIfExists => _instance;
-
-        public static WorldTextureManager Instance
-        {
-            get
-            {
-                if (_isQuitting) return null;
-                if (_instance == null)
-                {
-                    _instance = FindFirstObjectByType<WorldTextureManager>();
-                    if (_instance == null && !_isQuitting)
-                    {
-                        var go = new GameObject("[WorldTextureManager]");
-                        _instance = go.AddComponent<WorldTextureManager>();
-
-                        // System Grouping
-                        if (Application.isPlaying)
-                        {
-                            var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
-                            UnityEngine.Object.DontDestroyOnLoad(parent);
-                            go.transform.SetParent(parent.transform);
-                        }
-                    }
-                }
-
-                return _instance;
-            }
-
-        }
-
         [Header("Atlas Configuration")]
         [SerializeField] private int _initialAtlasSize = 4096;
         [SerializeField] private int _maxAtlasSize = 4096;
@@ -61,37 +29,30 @@ namespace Fodinae.Scripts.World
         private ConcurrentDictionary<CellType, TextureRequest> _pendingRequests;
         private List<TextureAtlas> _atlases;
 
-        // Кэш текстуры фона (Empty/32)
         private Texture2D _cachedEmptyTexture;
 
-        private void Awake()
+        protected override void OnAwake()
         {
-            if (_instance != null && _instance != this)
-            {
-                Destroy(gameObject);
-                return;
-            }
-
-            _instance = this;
-
-            if (Application.isPlaying)
-            {
-                DontDestroyOnLoad(gameObject);
-
-                // Ensure parented if created in scene
-                var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
-                UnityEngine.Object.DontDestroyOnLoad(parent);
-                transform.SetParent(parent.transform);
-            }
-
-            _isQuitting = false;
-
             Initialize();
         }
 
-        private void OnApplicationQuit()
+        protected override void OnDestroyed()
         {
-            _isQuitting = true;
+            if (ClientAssetLoader.InstanceIfExists != null)
+            {
+                ClientAssetLoader.InstanceIfExists.OnTextureLoaded -= OnTextureLoadedHandler;
+            }
+
+            _textureCache?.Clear();
+            if (_atlases != null)
+            {
+                foreach (var atlas in _atlases)
+                {
+                    atlas?.Dispose();
+                }
+
+                _atlases.Clear();
+            }
         }
 
         private void Initialize()
@@ -111,7 +72,6 @@ namespace Fodinae.Scripts.World
 
             if (Application.isPlaying)
             {
-                // Subscribe to texture loaded event
                 var assetLoader = ClientAssetLoader.InstanceIfExists;
                 if (assetLoader != null)
                 {
@@ -160,7 +120,7 @@ namespace Fodinae.Scripts.World
                 VariationCount = 1,
                 AnimationFrames = 1,
                 FramesPerRow = 1,
-                FrameSize = 12
+                FrameSize = 12,
             };
             _textureCache.AddTexture(FlowMapCellType, textureInfo);
         }
@@ -172,28 +132,6 @@ namespace Fodinae.Scripts.World
             {
                 atlas.TryAddTexture(FlowMapCellType, _flowMapTexture, out _);
                 atlas.CopyTextureToAtlas(FlowMapCellType, _flowMapTexture);
-            }
-        }
-
-        private void OnDestroy()
-        {
-            if (_instance == this)
-            {
-                _instance = null;
-                if (ClientAssetLoader.InstanceIfExists != null)
-                {
-                    ClientAssetLoader.InstanceIfExists.OnTextureLoaded -= OnTextureLoadedHandler;
-                }
-                
-                _textureCache?.Clear();
-                if (_atlases != null)
-                {
-                    foreach (var atlas in _atlases)
-                    {
-                        atlas?.Dispose();
-                    }
-                    _atlases.Clear();
-                }
             }
         }
 
@@ -219,7 +157,6 @@ namespace Fodinae.Scripts.World
             }
 
             return false;
-
         }
 
         public AtlasCoordinate GetFlowMapCoordinate(TextureAtlas atlas)
@@ -298,7 +235,6 @@ namespace Fodinae.Scripts.World
             }
 
             return 5f;
-
         }
 
         public int GetFrameSize(CellType cellType)
@@ -375,7 +311,6 @@ namespace Fodinae.Scripts.World
             var cachedTexture = _textureCache.GetCachedTexture(cellType);
             if (cachedTexture != null)
             {
-                // Already on main thread (GetCellTextureCoordinate switches before calling LoadTexture)
                 AddTextureToAtlas(cellType, cachedTexture);
                 return;
             }
@@ -398,10 +333,7 @@ namespace Fodinae.Scripts.World
                     _cachedEmptyTexture = texture;
                 }
 
-                // Ensure we're on the main thread for synchronous atlas operations
                 await UniTask.SwitchToMainThread();
-
-                // Не модифицируем текстуру — оставляем как есть с прозрачностью
                 AddTextureToAtlas(cellType, texture);
             }
             else
@@ -415,7 +347,6 @@ namespace Fodinae.Scripts.World
             int frameHeight = MapManager.Instance.GetAnimationFrameHeight(cellType);
             float containerFPS = 0;
 
-            // Try to extract FPS and FrameHeight from the container if it was encoded in the name
             if (texture.name.Contains("|"))
             {
                 string[] parts = texture.name.Split('|');
@@ -432,7 +363,6 @@ namespace Fodinae.Scripts.World
                 }
             }
 
-            // If still 0, we assume the whole texture is one frame
             int effectiveFrameHeight = frameHeight > 0 ? frameHeight : texture.height;
 
             var textureInfo = new CellTextureInfo
@@ -444,7 +374,7 @@ namespace Fodinae.Scripts.World
                 AnimationFrames = frameHeight > 0 ? texture.height / frameHeight : 1,
                 FramesPerRow = 1,
                 FrameSize = effectiveFrameHeight,
-                ContainerFPS = containerFPS
+                ContainerFPS = containerFPS,
             };
 
             if (!_currentAtlas.TryAddTexture(cellType, texture, out var coordinate))
@@ -470,15 +400,9 @@ namespace Fodinae.Scripts.World
                 }
             }
 
-            // Incremental pixel copy: directly writes this texture's pixels into _atlasPixels
-            // without re-reading all existing textures via GetPixels32.
             _currentAtlas.CopyTextureToAtlas(cellType, texture);
-
             _textureCache.AddTexture(cellType, textureInfo);
-
             OnTextureLoaded?.Invoke($"cells/{(int)cellType}.png", texture);
-            // GPU upload (SetPixels32 + Apply) is deferred to FlushDirtyAtlases()
-            // which runs before the next mesh rebuild in SingleMeshTerrainRenderer.LateUpdate.
         }
 
         private CellVariation CalculateVariation(CellTextureInfo textureInfo, int globalX, int globalY)
@@ -492,7 +416,7 @@ namespace Fodinae.Scripts.World
             return new CellVariation
             {
                 Horizontal = variationX == 1,
-                Vertical = variationY == 1
+                Vertical = variationY == 1,
             };
         }
 
@@ -502,11 +426,6 @@ namespace Fodinae.Scripts.World
             return _atlases;
         }
 
-        /// <summary>
-        /// Uploads all dirty atlas pixel buffers to the GPU (SetPixels32 + Apply).
-        /// Call this on the main thread before any rendering code reads atlas textures.
-        /// SingleMeshTerrainRenderer calls this in UpdateVertexAttributes before building mesh data.
-        /// </summary>
         public void FlushDirtyAtlases()
         {
             for (int i = 0; i < _atlases.Count; i++)
@@ -551,7 +470,6 @@ namespace Fodinae.Scripts.World
         {
             try
             {
-                // Определяем, какой фон будет под клеткой
                 Color dominantColor = GetDominantBackgroundColor(globalX, globalY);
 
                 var fallbackTexture = new Texture2D(_cellTextureSize, _cellTextureSize);
@@ -573,7 +491,7 @@ namespace Fodinae.Scripts.World
                     VariationCount = 1,
                     AnimationFrames = 1,
                     FramesPerRow = 1,
-                    FrameSize = _cellTextureSize
+                    FrameSize = _cellTextureSize,
                 };
 
                 if (_currentAtlas.TryAddTexture(cellType, fallbackTexture, out var coordinate))
@@ -590,9 +508,8 @@ namespace Fodinae.Scripts.World
 
         private Color GetDominantBackgroundColor(int globalX, int globalY)
         {
-            // Собираем цвета со всех окружающих клеток в радиусе 2 клеток
             var backgroundColors = new List<Color>();
-            int radius = 2; // Радиус поиска вокруг клетки
+            int radius = 2;
 
             for (int dx = -radius; dx <= radius; dx++)
             {
@@ -600,15 +517,12 @@ namespace Fodinae.Scripts.World
                 {
                     if (dx == 0 && dy == 0) continue;
 
-                    // Получаем тип клетки по координатам
                     CellType neighborType = GetCellTypeAt(globalX + dx, globalY + dy);
 
-                    // Если клетка пустая (32) или дорога - берём её цвет
                     if (neighborType == CellType.Empty || neighborType == CellType.Road)
                     {
                         Color cellColor = GetCellBackgroundColor(neighborType);
 
-                        // Добавляем цвет несколько раз для веса (чем ближе к центру, тем больше вес)
                         int weight = Mathf.Max(0, radius - Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy)) + 1);
                         for (int w = 0; w < weight; w++)
                         {
@@ -618,19 +532,16 @@ namespace Fodinae.Scripts.World
                 }
             }
 
-            // Если нашли окружающие фоновые клетки - возвращаем самый частый цвет
             if (backgroundColors.Count > 0)
             {
                 return GetMostFrequentColor(backgroundColors);
             }
 
-            // Если ничего не нашли - возвращаем стандартный цвет для пустой клетки
             return GetCellBackgroundColor(CellType.Empty);
         }
 
         private CellType GetCellTypeAt(int x, int y)
         {
-            // Пытаемся получить реальный тип клетки из MapStorage
             if (MapStorage.Instance != null && MapStorage.Instance.CellLayer != null)
             {
                 try
@@ -722,7 +633,7 @@ namespace Fodinae.Scripts.World
                 CellType.Boulder1 => Color.black,
                 CellType.WhiteSand => new Color(1f, 0.92f, 0.8f),
                 CellType.GrayAcid => new Color(0f, 1f, 0f),
-                _ => Color.magenta
+                _ => Color.magenta,
             };
         }
 

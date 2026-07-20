@@ -11,13 +11,13 @@ namespace Fodinae.Scripts.UI
         {
             IsFocused = true;
 
-            var pc = Object.FindObjectOfType<PlayerMovementController>();
+            var pc = Object.FindAnyObjectByType<PlayerMovementController>();
             if (pc != null) pc.enabled = false;
 
-            var wm = Object.FindObjectOfType<WorldMapController>();
+            var wm = Object.FindAnyObjectByType<WorldMapController>();
             if (wm != null) wm.enabled = false;
 
-            var pm = Object.FindObjectOfType<PauseMenu>();
+            var pm = Object.FindAnyObjectByType<PauseMenu>();
             if (pm != null) pm.enabled = false;
         }
 
@@ -25,13 +25,13 @@ namespace Fodinae.Scripts.UI
         {
             IsFocused = false;
 
-            var pc = Object.FindObjectOfType<PlayerMovementController>();
+            var pc = Object.FindAnyObjectByType<PlayerMovementController>();
             if (pc != null) pc.enabled = true;
 
-            var wm = Object.FindObjectOfType<WorldMapController>();
+            var wm = Object.FindAnyObjectByType<WorldMapController>();
             if (wm != null) wm.enabled = true;
 
-            var pm = Object.FindObjectOfType<PauseMenu>();
+            var pm = Object.FindAnyObjectByType<PauseMenu>();
             if (pm != null) pm.enabled = true;
         }
     }

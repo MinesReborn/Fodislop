@@ -50,7 +50,7 @@ namespace Fodinae.Scripts.World
 
         private void SetupSurfaceRenderer()
         {
-            var existing = FindObjectOfType<SurfaceRenderer>();
+            var existing = FindAnyObjectByType<SurfaceRenderer>();
             if (existing != null) return;
 
             var surfaceGO = new GameObject("SurfaceRenderer");
@@ -59,7 +59,7 @@ namespace Fodinae.Scripts.World
         }
         private void SetupWorldMapController()
         {
-            var existing = FindObjectOfType<WorldMapController>();
+            var existing = FindAnyObjectByType<WorldMapController>();
             if (existing != null) return;
 
             var controllerGO = new GameObject("WorldMapController");
@@ -70,7 +70,7 @@ namespace Fodinae.Scripts.World
         private void SetupWorldBackground()
         {
             // Find or create the background setup component
-            _backgroundSetup = FindFirstObjectByType<WorldBackgroundSetup>();
+            _backgroundSetup = FindAnyObjectByType<WorldBackgroundSetup>();
 
             if (_backgroundSetup == null)
             {

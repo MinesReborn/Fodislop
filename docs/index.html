@@ -1,128 +1,459 @@
 <!DOCTYPE html>
 <html lang="ru">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Документация — Fodinae</title>
+    <title>Документация — Fodinae Client</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-color: #07080e;
+            --card-bg: rgba(16, 17, 30, 0.65);
+            --card-border: rgba(255, 255, 255, 0.06);
+            --text-main: #d1d2e0;
+            --text-muted: #808298;
+            --text-title: #ffffff;
+            --accent-primary: #00f2fe;
+            --accent-secondary: #4facfe;
+            --accent-gradient: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+            --accent-mint: #64ffda;
+            --font-outfit: 'Outfit', sans-serif;
+            --font-inter: 'Inter', sans-serif;
+            --font-code: 'Fira Code', 'JetBrains Mono', monospace;
+            --shadow-subtle: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
         * {
             margin: 0;
             padding: 0;
-            box-sizing: border-box
+            box-sizing: border-box;
         }
 
         body {
-            font: 16px/1.6 system-ui, sans-serif;
-            color: #e0e0e0;
-            background: #1a1a2e;
-            max-width: 720px;
-            margin: 0 auto;
-            padding: 2rem 1.5rem
+            font-family: var(--font-inter);
+            color: var(--text-main);
+            background: var(--bg-color);
+            background-image:
+                radial-gradient(at 10% 10%, rgba(0, 242, 254, 0.03) 0px, transparent 50%),
+                radial-gradient(at 90% 90%, rgba(79, 172, 254, 0.03) 0px, transparent 50%);
+            min-height: 100vh;
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
         }
 
-        h1 {
-            font-size: 1.8rem;
-            color: #fff;
-            margin-bottom: .5rem
+        /* ── Header ── */
+        .nav-header {
+            width: 100%;
+            background: rgba(11, 12, 22, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--card-border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            padding: 0 1.5rem;
         }
 
-        h2 {
-            font-size: 1.3rem;
-            color: #a8b2d1;
-            margin: 2rem 0 .5rem;
-            border-bottom: 1px solid #2a2a4a;
-            padding-bottom: .3rem
+        .nav-container {
+            width: 100%;
+            max-width: 1000px;
+            height: 70px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        h3 {
-            font-size: 1.1rem;
-            color: #ccd6f6;
-            margin: 1.2rem 0 .4rem
+        .nav-brand {
+            font-family: var(--font-outfit);
+            font-weight: 800;
+            font-size: 1.5rem;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
-        p,
-        li {
-            margin-bottom: .5rem
+        .nav-brand::before {
+            content: '';
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-primary);
         }
 
-        ul,
-        ol {
-            padding-left: 1.5rem;
-            list-style: none
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
         }
 
-        li {
-            margin-bottom: .7rem
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            font-family: var(--font-outfit);
+            transition: var(--transition-smooth);
+            position: relative;
+            padding: 0.25rem 0;
         }
 
-        code {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: .9em;
-            background: #16213e;
-            padding: .15em .4em;
-            border-radius: 3px;
-            color: #64ffda
+        .nav-links a:hover, .nav-links a.active {
+            color: var(--text-title);
         }
 
-        a {
-            color: #64ffda;
-            text-decoration: none
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--accent-gradient);
+            transition: var(--transition-smooth);
         }
 
-        a:hover {
-            text-decoration: underline
+        .nav-links a:hover::after, .nav-links a.active::after {
+            width: 100%;
         }
 
-        .doc-title {
+        /* ── Main Container ── */
+        .main-wrapper {
+            width: 100%;
+            max-width: 1000px;
+            padding: 4rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 4rem;
+        }
+
+        /* ── Hero Section ── */
+        .hero {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .hero h1 {
+            font-family: var(--font-outfit);
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: var(--text-title);
+            line-height: 1.1;
+            letter-spacing: -1.5px;
+        }
+
+        .hero h1 span {
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            font-weight: 300;
+        }
+
+        /* ── Docs Grid ── */
+        .docs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .doc-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 2rem;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            box-shadow: var(--shadow-subtle);
+            transition: var(--transition-smooth);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .doc-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--accent-gradient);
+            opacity: 0;
+            transition: var(--transition-smooth);
+        }
+
+        .doc-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(22, 24, 42, 0.8);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .doc-card:hover::before {
+            opacity: 1;
+        }
+
+        .card-icon {
+            font-size: 2.2rem;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+
+        .doc-card h3 {
+            font-family: var(--font-outfit);
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--text-title);
+            transition: var(--transition-smooth);
+        }
+
+        .doc-card:hover h3 {
+            color: var(--accent-primary);
+        }
+
+        .doc-card p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            font-weight: 300;
+            flex-grow: 1;
+        }
+
+        .card-footer {
+            font-family: var(--font-outfit);
+            font-size: 0.85rem;
             font-weight: 600;
-            font-size: 1.02rem
+            color: var(--accent-mint);
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
         }
 
-        .doc-desc {
-            color: #8892b0;
-            font-size: .9rem
+        .card-footer::after {
+            content: '→';
+            display: inline-block;
+            transition: var(--transition-smooth);
         }
 
-        .note {
-            background: #1b2838;
-            border-left: 3px solid #64ffda;
-            padding: .8rem 1rem;
-            margin: 1rem 0;
-            border-radius: 0 4px 4px 0;
-            font-size: .9rem
+        .doc-card:hover .card-footer::after {
+            transform: translateX(4px);
         }
 
-        .tag {
-            font-size: .72rem;
-            color: #1a1a2e;
-            background: #64ffda;
-            padding: .1em .5em;
-            border-radius: 3px;
-            margin-left: .5rem;
-            vertical-align: middle
+        /* ── Workspace Status Section ── */
+        .workspace-status {
+            background: rgba(11, 12, 22, 0.4);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 2.5rem;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2.5rem;
+            box-shadow: var(--shadow-subtle);
         }
 
-        .tag.draft {
-            background: #f0a500
+        @media (max-width: 768px) {
+            .workspace-status {
+                grid-template-columns: 1fr;
+                padding: 1.5rem;
+            }
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+        }
+
+        .status-content h2 {
+            font-family: var(--font-outfit);
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-title);
+            margin-bottom: 0.75rem;
+        }
+
+        .status-content p {
+            color: var(--text-muted);
+            font-size: 1rem;
+            font-weight: 300;
+            margin-bottom: 1.5rem;
+        }
+
+        .meta-files-list {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .meta-files-list a {
+            font-family: var(--font-code);
+            font-size: 0.85rem;
+            background: #111222;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            color: var(--text-main);
+            text-decoration: none;
+            transition: var(--transition-smooth);
+        }
+
+        .meta-files-list a:hover {
+            color: var(--accent-primary);
+            border-color: var(--accent-primary);
+            background: rgba(0, 242, 254, 0.05);
+        }
+
+        .linter-badges {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            justify-content: center;
+        }
+
+        .linter-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: rgba(11, 12, 22, 0.7);
+            border-left: 3px solid var(--text-muted);
+            padding: 0.6rem 1rem;
+            border-radius: 0 6px 6px 0;
+            font-size: 0.85rem;
+        }
+
+        .linter-badge.active-sa { border-left-color: #64ffda; }
+        .linter-badge.active-ca { border-left-color: #00f2fe; }
+        .linter-badge.active-rcs { border-left-color: #4facfe; }
+        .linter-badge.active-unt { border-left-color: #7cfc00; }
+
+        .linter-badge span {
+            font-family: var(--font-code);
+            font-weight: 600;
+        }
+
+        .linter-badge p {
+            color: var(--text-muted);
+            font-size: 0.8rem;
         }
     </style>
 </head>
-
 <body>
 
-    <h1>Документация Fodinae</h1>
-    <p>Технические справки по системам клиента. Каждый документ автономен — открывается в браузере без зависимостей.</p>
+    <header class="nav-header">
+        <div class="nav-container">
+            <div class="nav-brand">Fodinae Docs</div>
+            <nav class="nav-links">
+                <a href="rendering.html">Рендеринг</a>
+                <a href="networking.html">Сеть</a>
+                <a href="audio_effects.html">Звук & Эффекты</a>
+                <a href="assets_loading.html">CDN & Кэш</a>
+                <a href="ui_programmator.html">UI & Код</a>
+            </nav>
+        </div>
+    </header>
 
-    <h2>Мир и рендеринг</h2>
-    <ul>
-        <li>
-            <a class="doc-title" href="rendering.html">Архитектура рендеринга</a>
-            <div class="doc-desc">Как тайловый мир рисуется в один draw call: UV-каналы, инверсия Y, поток данных,
-                сортировка.</div>
-        </li>
-    </ul>
+    <main class="main-wrapper">
+        <!-- Hero Section -->
+        <section class="hero">
+            <h1>Документация <span>Fodinae</span></h1>
+            <p>Техническое руководство по архитектуре, модулям и внутренним системам 2D-клиента Unity 6 (URP).</p>
+        </section>
+
+        <!-- Subsystems Grid -->
+        <section class="docs-grid">
+            <!-- 1. Rendering -->
+            <a href="rendering.html" class="doc-card">
+                <div class="card-icon">📐</div>
+                <h3>Мир и Рендеринг</h3>
+                <p>Архитектура тайлового рендеринга мира в один Draw Call: динамический SingleMeshTerrainRenderer, SurfaceRenderer, текстурные атласы, LRU-кэширование чанков и инверсия координат Y.</p>
+                <div class="card-footer">Читать справку</div>
+            </a>
+
+            <!-- 2. Networking -->
+            <a href="networking.html" class="doc-card">
+                <div class="card-icon">⚡</div>
+                <h3>Сетевое Взаимодействие</h3>
+                <p>Асинхронный сетевой слой: диспетчер пакетов NetworkService, жизненный цикл TCP-соединений в ConnectionManager, обмен текстурами и динамический парсинг UI на пакетах OpenWindowPacket.</p>
+                <div class="card-footer">Читать справку</div>
+            </a>
+
+            <!-- 3. Audio & Effects -->
+            <a href="audio_effects.html" class="doc-card">
+                <div class="card-icon">🔊</div>
+                <h3>Звук & Эффекты</h3>
+                <p>Аудиосистема AudioManager и парсинг PCM-сэмплов WAV. Воспроизведение сетевых эффектов, высокооптимизированный пул SFXPool и рантайм-загрузка визуальных систем Effekseer.</p>
+                <div class="card-footer">Читать справку</div>
+            </a>
+
+            <!-- 4. Asset Loading & CDN -->
+            <a href="assets_loading.html" class="doc-card">
+                <div class="card-icon">📦</div>
+                <h3>CDN & Кэширование</h3>
+                <p>Локальный CDN-пайплайн загрузки ассетов: PersistentAssetCache с ETag/MD5 валидацией, RAM-кэширование ресурсов, автоматическое объединение сетевых запросов и контроллер DynamicImage.</p>
+                <div class="card-footer">Читать справку</div>
+            </a>
+
+            <!-- 5. UI & Programmator -->
+            <a href="ui_programmator.html" class="doc-card">
+                <div class="card-icon">⚙️</div>
+                <h3>UI & Программатор</h3>
+                <p>Компоненты UI Toolkit, дата-биндинг WindowBinding на базе SmartFormat, глобальный/локальный чаты и устройство визуального игрового программатора ProgrammatorGrid.</p>
+                <div class="card-footer">Читать справку</div>
+            </a>
+        </section>
+
+        <!-- Workspace Status -->
+        <section class="workspace-status">
+            <div class="status-content">
+                <h2>Окружение проекта</h2>
+                <p>Проект представляет собой Unity 6 клиент, работающий в URP 2D. Для корректной разработки и сборки используются стандарты кода и автоматические хуки форматирования.</p>
+                <div class="meta-files-list">
+                    <a href="../AGENTS.md">AGENTS.md</a>
+                    <a href="../CONTRIBUTING.md">CONTRIBUTING.md</a>
+                    <a href="../.editorconfig">.editorconfig</a>
+                    <a href="../.pre-commit-config.yaml">.pre-commit-config.yaml</a>
+                </div>
+            </div>
+            <div class="linter-badges">
+                <div class="linter-badge active-sa">
+                    <span>StyleCop (SA)</span>
+                    <p>Правила стиля и структуры кода</p>
+                </div>
+                <div class="linter-badge active-ca">
+                    <span>NetAnalyzers (CA)</span>
+                    <p>Производительность и безопасность</p>
+                </div>
+                <div class="linter-badge active-rcs">
+                    <span>Roslynator (RCS)</span>
+                    <p>Рефакторинг и чистота кода</p>
+                </div>
+                <div class="linter-badge active-unt">
+                    <span>Unity Analyzers (UNT)</span>
+                    <p>Специфичные проверки Unity API</p>
+                </div>
+            </div>
+        </section>
+    </main>
 
 </body>
-
 </html>

@@ -11,7 +11,7 @@ namespace Fodinae.Scripts.UI
             get
             {
                 if (_instance == null)
-                    _instance = FindObjectOfType<FloatingChatManager>();
+                    _instance = FindAnyObjectByType<FloatingChatManager>();
                 return _instance;
             }
         }

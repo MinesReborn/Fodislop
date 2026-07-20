@@ -61,11 +61,56 @@ dotnet_diagnostic.RCS1138.severity = none     # XML-доки — не обяза
 dotnet_diagnostic.RCS1139.severity = none
 
 # ── Линтер: Unity Analyzers (UNT) ────────────────────────────────────────
-dotnet_diagnostic.UNT0001.severity = warning  # Пустой Update()
+# Type Safety
+dotnet_diagnostic.UNT0003.severity = warning  # Не-generic GetComponent
 dotnet_diagnostic.UNT0006.severity = warning  # Некорректная сигнатура Message
-dotnet_diagnostic.UNT0013.severity = warning  # Невалидный атрибут
-dotnet_diagnostic.UNT0016.severity = warning  # Unsafe Invoke
-dotnet_diagnostic.UNT0021.severity = warning  # Implicit string comparison
+dotnet_diagnostic.UNT0010.severity = warning  # new Component() вместо AddComponent
+dotnet_diagnostic.UNT0011.severity = warning  # new ScriptableObject() вместо CreateInstance
+dotnet_diagnostic.UNT0013.severity = warning  # Невалидный SerializeField
+dotnet_diagnostic.UNT0014.severity = warning  # GetComponent с не-Component типом
+dotnet_diagnostic.UNT0016.severity = warning  # nameof() вместо строки для методов
+dotnet_diagnostic.UNT0039.severity = warning  # Требовать RequireComponent
+
+# Correctness
+dotnet_diagnostic.UNT0004.severity = warning  # Time.fixedDeltaTime в Update
+dotnet_diagnostic.UNT0007.severity = warning  # Null-coalescing на Unity-объектах (ломает fake-null)
+dotnet_diagnostic.UNT0008.severity = warning  # Null-propagation на Unity-объектах
+dotnet_diagnostic.UNT0012.severity = warning  # Неиспользуемый return coroutine
+dotnet_diagnostic.UNT0020.severity = warning  # MenuItem на не-static методе
+dotnet_diagnostic.UNT0023.severity = warning  # ??= на Unity-объектах
+dotnet_diagnostic.UNT0025.severity = warning  # Input.GetKey с KeyCode вместо string
+dotnet_diagnostic.UNT0029.severity = warning  # Pattern matching с null на Unity-объектах
+dotnet_diagnostic.UNT0030.severity = warning  # Destroy на Transform вместо GameObject
+dotnet_diagnostic.UNT0031.severity = warning  # Asset-операции в LoadAttribute
+dotnet_diagnostic.UNT0033.severity = warning  # Неправильный регистр message
+dotnet_diagnostic.UNT0040.severity = warning  # isStatic — editor-only
+
+# Performance
+dotnet_diagnostic.UNT0001.severity = warning  # Пустой Update()
+dotnet_diagnostic.UNT0002.severity = warning  # tag == "..." → CompareTag()
+dotnet_diagnostic.UNT0017.severity = warning  # SetPixels медленный
+dotnet_diagnostic.UNT0018.severity = warning  # Рефлексия в горячих методах
+dotnet_diagnostic.UNT0019.severity = warning  # gameObject.gameObject
+dotnet_diagnostic.UNT0022.severity = warning  # position + rotation раздельно → SetPositionAndRotation
+dotnet_diagnostic.UNT0024.severity = warning  # Векторные операции → скалярные
+dotnet_diagnostic.UNT0026.severity = warning  # GetComponent всегда аллоцирует
+dotnet_diagnostic.UNT0028.severity = warning  # Не-аллоцирующие физикс-API
+dotnet_diagnostic.UNT0032.severity = warning  # localPosition + localRotation раздельно
+dotnet_diagnostic.UNT0036.severity = warning  # get position + get rotation раздельно
+dotnet_diagnostic.UNT0037.severity = warning  # get localPosition + get localRotation раздельно
+dotnet_diagnostic.UNT0038.severity = warning  # Кешировать new WaitForSeconds()
+dotnet_diagnostic.UNT0041.severity = warning  # Animator.StringToHash вместо строк
+
+# Readability
+dotnet_diagnostic.UNT0034.severity = suggestion  # Vector3 → Vector2
+dotnet_diagnostic.UNT0035.severity = suggestion  # Vector2 → Vector3
+
+# Message protection
+dotnet_diagnostic.UNT0021.severity = warning  # Unity-сообщения должны быть protected
+# Retired / intentionally disabled
+dotnet_diagnostic.UNT0005.severity = none     # [retired] Time.deltaTime в FixedUpdate
+dotnet_diagnostic.UNT0042.severity = none     # Mesh array access in loop — слишком шумно
+dotnet_diagnostic.UNT0043.severity = warning  # Опечатка в conditional compilation symbol
 
 # Шейдеры
 [*.{shader,hlsl,cginc,compute}]

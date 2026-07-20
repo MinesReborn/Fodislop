@@ -36,7 +36,7 @@ namespace Fodinae.Scripts.UI
             _escapeAction.performed += _ => ToggleMenu();
             _escapeAction.Enable();
 
-            _doc = FindObjectOfType<UIDocument>();
+            _doc = FindAnyObjectByType<UIDocument>();
             if (_doc == null)
             {
                 Debug.LogError("[PauseMenu] UIDocument не найден");
@@ -50,7 +50,7 @@ namespace Fodinae.Scripts.UI
 
             var savedScale = PlayerPrefs.GetFloat("UIScale", 1f);
             _doc.panelSettings.scale = savedScale;
-            foreach (var canvas in FindObjectsOfType<Canvas>())
+            foreach (var canvas in FindObjectsByType<Canvas>())
                 canvas.scaleFactor = savedScale;
         }
 
@@ -133,7 +133,7 @@ namespace Fodinae.Scripts.UI
                    PlayerPrefs.SetFloat("UIScale", v);
                    PlayerPrefs.Save();
                    _doc.panelSettings.scale = v;
-                   foreach (var canvas in FindObjectsOfType<Canvas>())
+                   foreach (var canvas in FindObjectsByType<Canvas>())
                        canvas.scaleFactor = v;
                },
                0.65f, 2f));
@@ -274,7 +274,7 @@ namespace Fodinae.Scripts.UI
 
         private void ToggleSimpleGraphics()
         {
-            var terrain = FindObjectOfType<SingleMeshTerrainRenderer>();
+            var terrain = FindAnyObjectByType<SingleMeshTerrainRenderer>();
             if (terrain == null) return;
             bool current = PlayerPrefs.GetInt("SimpleGraphics", 0) == 1;
             terrain.SetSimpleGraphics(!current);
@@ -289,7 +289,7 @@ namespace Fodinae.Scripts.UI
             bool current = PlayerPrefs.GetInt("UseLight2D", 0) == 1;
             bool newValue = !current;
 
-            var terrain = FindObjectOfType<SingleMeshTerrainRenderer>();
+            var terrain = FindAnyObjectByType<SingleMeshTerrainRenderer>();
             if (terrain != null)
                 terrain.SetUseLight2D(newValue);
 

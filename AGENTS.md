@@ -40,17 +40,19 @@ Assets/
     # Аудио
     Audio/
       AudioManager.cs             # Синглтон: фоновый звук, SFX, громкость
+      SFXPool.cs                  # Объектный пул для звуков и эффектов
       SoundEffectInstance.cs      # Один звуковой эффект (тайл, копка и т.д.)
       WavUtility.cs               # Чтение/конвертация WAV
 
-    # Эффекты
-    Effects/
-      DigEffect.cs                # Визуальный эффект копки (спрайт-анимация)
+    # Эффекты (Effekseer)
+    Effekseer/
+      RuntimeEffekseerLoader.cs   # Загрузчик эффектов Effekseer в рантайме
 
     # Игровые сущности и менеджеры
     Game/
       Pack.cs                     # Игровой предмет
       Robot.cs                    # Робот (NPC/игрок в мире)
+      RobotHeadlight.cs           # Фары/освещение робота
       SFXEffectInstance.cs        # Экземпляр SFX-эффекта от сервера
       Managers/
         MapManager.cs             # Жизненный цикл мира (WorldInit, MapRegion), конфиги ячеек
@@ -94,6 +96,10 @@ Assets/
       Binding/
         WindowBinding.cs          # SmartFormat-привязка данных для окон GUI
         LogiCalcFormatter.cs      # Форматтер вычислений для SmartFormat
+      Programmator/               # Система программатора
+        ProgrammatorData.cs       # Данные программатора
+        ProgrammatorGrid.cs       # Сетка программатора
+        RadialMenu.cs             # Радиальное меню программатора
       ChatInput.cs                # Управление фокусом чата (блокировка управления)
       ClickContextResolver.cs     # Разрешение clickContext-путей в VisualElement
       FloatingChatBubble.cs       # Всплывающее сообщение над персонажем
@@ -104,7 +110,8 @@ Assets/
       InventoryUI.cs              # Окно инвентаря (сетка 9×6 + хотбар)
       ItemData.cs                 # Данные предмета (тип, количество)
       LocalChatPopup.cs           # Popup локального чата
-      MinimapPlaceholder.cs       # Заглушка миникарты
+      MinimapController.cs        # Контроллер миникарты
+      ModalWindowHandler.cs       # Обработчик модальных окон
       PauseMenu.cs                # Меню паузы (настройки, выход)
       PlayerHUD.cs                # HUD: HP, энергия, баффы, кнопки
       PlayerStatsModel.cs         # Модель статистики игрока
@@ -172,33 +179,49 @@ Assets/
 - **PlayerInteractionController**: Обработка кликов и клавиш (копка, использование предметов). Отправляет `DigRequestPacket`, `ItemUsePacket` и т.д.
 - **CameraFollow**: Следование камеры за игроком.
 
-### 3.4 Аудио (Audio)
+### 3.4 Аудио и Эффекты (Audio & Effects)
 
 - **AudioManager**: Синглтон. Управление фоновой музыкой (`AudioSource`), SFX-эффектами. Громкость сохраняется в `PlayerPrefs`.
 - **SoundEffectInstance**: Один SFX-экземпляр (тайл, копка). Загружает WAV из файловой системы, воспроизводит через `PlayOneshot`.
 - **WavUtility**: Чтение WAV-файлов в `AudioClip` (поддержка разных форматов, копирование памяти только при необходимости).
-
-### 3.5 Эффекты (Effects)
-
-- **DigEffect**: Визуальный эффект копки. Спрайт-анимация (загружается из `Resources/fx`), позиционируется в мире, уничтожается после проигрывания.
 - **SFXEffectManager** (см. 3.1): Принимает `SFXPacket` от сервера, спавнит `SFXEffectInstance` — визуальный + аудио-эффект в координатах мира.
+- **SFXEffectInstance**: Отдельный экземпляр эффекта. Запрашивает пул-слот у `SFXPool`, загружает аудио и визуал (кадры анимации из GIF/PNG или эффекты Effekseer), позиционируется и проигрывает их.
+- **SFXPool**: Объектный пул для звуков и эффектов, предотвращающий избыточный `Instantiate` и снижающий аллокации.
+- **RuntimeEffekseerLoader**: Компонент для рантайм-загрузки и управления эффектами Effekseer.
+- **Пайплайн воспроизведения звука**:
+  1. Код запрашивает `AudioClip` через `ClientAssetLoader.GetAudioAsync`.
+  2. Данные проверяются в RAM-кэше `AssetCache` и на диске в `PersistentAssetCache` (с валидацией ETag).
+  3. Сырые байты WAV-файла передаются в `WavUtility.ToAudioClip`.
+  4. `WavUtility` парсит RIFF/WAVE заголовок (находит `"fmt "` и `"data"` чанки), извлекает PCM-сэмплы, преобразует и нормализует их во `float` (делением на `32768f` для 16-бит) и заполняет ими созданный в памяти `AudioClip` через `SetData`.
+  5. Свободный `AudioSource` из пула `SFXPool` воспроизводит готовый клип.
 
-### 3.6 Ассеты и кэширование (Asset Loading)
+### 3.5 Ассеты и кэширование (Asset Loading)
 
 - **ClientAssetLoader**: Загрузка ассетов с сервера (GET-запросы) или локально из файловой системы.
 - **PersistentAssetCache**: Стойкий кэш в `persistentDataPath`. Хранит ETag + MD5 для валидации, пропускает повторную загрузку неизменных файлов.
+- **AssetCache**: Вспомогательный кэш ассетов в оперативной памяти (RAM).
 - **ETagCalculator**: MD5-хэш данных для ETag-заголовка.
 - **DynamicImage**: `MonoBehaviour` с `UnityEngine.UI.Image`, загружающий спрайт с сервера по URL. Работает через `ClientAssetLoader` + `PersistentAssetCache`.
+- **Пайплайн загрузки ассетов (Локальный CDN)**:
+  1. Запрос ассета (`GetTextureAsync`, `GetAudioAsync` и т.д.) поступает в RAM-кэш `AssetCache`. При промахе опрашивается дисковый кэш `PersistentAssetCache`.
+  2. Если ассет есть локально на диске, отправляется HTTP-запрос с ETag. При ответе `304 Not Modified` ассет считывается с диска. Если файл обновился или отсутствует, скачивается новый поток байт.
+  3. Параллельные запросы к одному файлу объединяются (coalescing) через `TaskCompletionSource`, предотвращая дублирование сетевого трафика.
 
-### 3.7 UI-системы
+### 3.6 UI-системы
 
 - **Пакетный UI** (см. 3.1): Динамическая сборка окон из `OpenWindowPacket` — фабрика `PacketUIBuilderFactory` и несколько типовых билдеров (Canvas, Panel, Grid, Text, Slider, Dropdown, ScrollView, Line, DockPanel...).
 - **Binding**: `WindowBinding` привязывает данные через `SmartFormat`. Сканирует VisualElement-дерево, ищет именованные поля ввода (источники) и Label с SmartFormat-шаблонами (потребители), пересчитывает при любом изменении.
 - **Инвентарь**: `InventoryUI` (сетка 9×6 + хотбар 9 ячеек), `InventoryModel` (данные), `ItemData` (тип/количество).
-- **HUD**: `PlayerHUD` — HP, баффы, программотор, панель бонусов.
+- **HUD**: `PlayerHUD` — HP, энергия, баффы, кнопки (включая авто-копку и программатор).
 - **Карта**: `WorldMapController` (управление, переключение режима), `WorldMapRenderer` (рендеринг текстуры из `MapStorage`).
 - **Чат**: `GlobalChatUI` (история + ввод), `LocalChatPopup`, `FloatingChatManager`/`FloatingChatBubble` (всплывающие сообщения над персонажами), `ChatInput` (блокировка управления при фокусе).
-- **Прочее**: `PauseMenu` (пауза, настройки громкости/полноэкранного режима, выход), `FPSCounter`, `MinimapPlaceholder`, `StyleApplicator`, `ClickContextResolver`.
+- **Прочее**: `PauseMenu` (пауза, настройки громкости/полноэкранного режима, выход), `FPSCounter`, `MinimapController`, `ModalWindowHandler`, `StyleApplicator`, `ClickContextResolver`.
+
+### 3.7 Программатор (Programmator)
+
+- **ProgrammatorGrid**: Графическая сетка для визуального программирования алгоритмов поведения робота.
+- **ProgrammatorData**: Модель данных и структура алгоритма робота.
+- **RadialMenu**: Радиальное круговое меню выбора команд для быстрого размещения на сетке программатора.
 
 ## 4. Стандарты разработки
 
@@ -266,4 +289,3 @@ WorldLayer.cs(88,5): warning CA1031: ...
 - `Directory.Build.props` — подключает анализаторы через NuGet во все `.csproj`
 - `.stylecop.json` — отключает нерелевантные для Unity правила (XML-доки, file headers)
 - `.editorconfig` — severity для каждого правила (`none` / `warning` / `error`)
-

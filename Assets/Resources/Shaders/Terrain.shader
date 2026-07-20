@@ -140,7 +140,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 output.glowData = input.glowAttr;
                 output.animData = input.animData;
                 output.packedData = input.packedData;
-                
+
                 return output;
             }
 
@@ -489,7 +489,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 output.glowData = input.glowAttr;
                 output.animData = input.animData;
                 output.packedData = input.packedData;
-                
+
                 return output;
             }
 

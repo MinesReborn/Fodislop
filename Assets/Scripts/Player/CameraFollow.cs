@@ -23,7 +23,6 @@ namespace Fodinae.Scripts.Player
         private float _currentZoom;
         private float _lastZoom;
         public event Action<float> OnZoomChanged;
-        private PlayerInput _playerInput;
         private InputAction _scrollAction;
         private bool _scrollEnabled = true;
         private Vector3 _followVelocity;
@@ -49,7 +48,7 @@ namespace Fodinae.Scripts.Player
             _lastZoom = _currentZoom;
             if (_target == null)
             {
-                var player = FindFirstObjectByType<PlayerMovementController>();
+                var player = FindAnyObjectByType<PlayerMovementController>();
                 if (player != null)
                     _target = player.transform;
                 else
@@ -60,11 +59,6 @@ namespace Fodinae.Scripts.Player
 
         private void InitializeInput()
         {
-            _playerInput = GetComponent<PlayerInput>();
-            if (_playerInput == null)
-            {
-                _playerInput = gameObject.AddComponent<PlayerInput>();
-            }
             _scrollAction = new InputAction("Scroll", binding: "<Mouse>/scroll");
             _scrollAction.Enable();
         }
@@ -124,7 +118,7 @@ namespace Fodinae.Scripts.Player
         {
             if (_target == null)
             {
-                var player = FindFirstObjectByType<PlayerMovementController>();
+                var player = FindAnyObjectByType<PlayerMovementController>();
                 if (player != null)
                     _target = player.transform;
                 return;

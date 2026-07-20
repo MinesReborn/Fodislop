@@ -1,36 +1,14 @@
 using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
+using Fodinae.Scripts.Utils;
 using MinesServer.Data;
 using UnityEngine;
 
 namespace Fodinae.Scripts.Audio
 {
-    /// <summary>
-    /// Dynamic object pool for combined SFX audio + VFX playback.
-    ///
-    /// Maintains per-SFX-type sub-pools with pre-loaded <see cref="AudioClip"/>s
-    /// and pre-instantiated <see cref="GameObject"/>s (each with
-    /// <see cref="AudioSource"/> + <see cref="SpriteRenderer"/>) so that
-    /// common effects play with zero allocation at runtime.
-    ///
-    /// <b>Growth:</b> when demand exceeds the current pool size, new instances are
-    /// created on the fly (up to <see cref="_softMaxPerType"/>). The target size
-    /// is raised to match the observed peak, so repeated bursts allocate once.
-    ///
-    /// <b>Shrink:</b> when the pool has been completely idle for
-    /// <see cref="_shrinkDelay"/> seconds, excess instances above the configured
-    /// initial size are destroyed and the target size decays back toward the
-    /// configured default.  This keeps memory footprint proportional to actual use.
-    ///
-    /// <b>Fallback:</b> the first time a given <see cref="SFX"/> type is played
-    /// before its clip has finished loading, a temporary <see cref="SoundEffectInstance"/>
-    /// is created so the sound is heard immediately.  Subsequent plays use the pool.
-    /// </summary>
-    public class SFXPool : MonoBehaviour
+    public class SFXPool : SingletonMonoBehaviour<SFXPool>
     {
-        // ─ Inspector config ──────────────────────────────────────────────────
-
         [Serializable]
         public struct PoolConfig
         {
@@ -57,72 +35,16 @@ namespace Fodinae.Scripts.Audio
         [SerializeField]
         private int _softMaxPerType = 30;
 
-        // ─ Singleton ─────────────────────────────────────────────────────────
-
-        private static SFXPool _instance;
-        private static bool _isQuitting;
-
-        // ─ Pool state ────────────────────────────────────────────────────────
-
         private readonly Dictionary<SFX, SubPool> _pools = new();
         private readonly List<SoundEffectInstance> _fallbackInstances = new();
 
-        // ─ Instance property (after static fields per SA1204) ────────────────
-
-        public static SFXPool Instance
+        protected override void OnAwake()
         {
-            get
-            {
-                if (_isQuitting)
-                {
-                    return null;
-                }
-
-                if (_instance == null)
-                {
-                    _instance = FindAnyObjectByType<SFXPool>();
-                    if (_instance == null && !_isQuitting)
-                    {
-                        var go = new GameObject("[SFXPool]");
-                        _instance = go.AddComponent<SFXPool>();
-
-                        if (Application.isPlaying)
-                        {
-                            DontDestroyOnLoad(go);
-                        }
-                    }
-                }
-
-                return _instance;
-            }
-        }
-
-        // ─ Unity messages (protected per UNT0021) ────────────────────────────
-
-        protected void Awake()
-        {
-            if (_instance != null && _instance != this)
-            {
-                Destroy(gameObject);
-                return;
-            }
-
-            _instance = this;
-
-            if (Application.isPlaying)
-            {
-                DontDestroyOnLoad(gameObject);
-            }
-
-            _isQuitting = false;
-
             InitializePools();
         }
 
-        protected void OnDestroy()
+        protected override void OnDestroyed()
         {
-            _isQuitting = true;
-
             foreach (var kvp in _pools)
             {
                 TeardownSubPool(kvp.Value);
@@ -131,16 +53,10 @@ namespace Fodinae.Scripts.Audio
             _pools.Clear();
         }
 
-        protected void OnApplicationQuit()
-        {
-            _isQuitting = true;
-        }
-
-        protected void Update()
+        private void Update()
         {
             var now = Time.realtimeSinceStartup;
 
-            // Drive fallback SoundEffectInstance lifecycle and sweep disposed ones.
             for (int i = _fallbackInstances.Count - 1; i >= 0; i--)
             {
                 var fb = _fallbackInstances[i];
@@ -156,14 +72,10 @@ namespace Fodinae.Scripts.Audio
                 var pool = kvp.Value;
                 var activeList = pool.Active;
 
-                // ── Check active instances for completion ────────────────────
                 for (int i = activeList.Count - 1; i >= 0; i--)
                 {
                     var slot = activeList[i];
 
-                    // Slots acquired via Acquire() are managed externally
-                    // (e.g. by SFXEffectInstance tracking dual audio+visual completion).
-                    // Skip auto-release; the external owner calls Release() when done.
                     if (slot.IsManagedExternally)
                     {
                         continue;
@@ -175,7 +87,6 @@ namespace Fodinae.Scripts.Audio
                         continue;
                     }
 
-                    // Safety net: force-release if the clip should have ended.
                     var clipLength = slot.AudioSource.clip != null
                         ? slot.AudioSource.clip.length
                         : 0f;
@@ -186,12 +97,9 @@ namespace Fodinae.Scripts.Audio
                     }
                 }
 
-                // ── Shrink check ─────────────────────────────────────────────
                 ShrinkIfIdle(pool, now);
             }
         }
-
-        // ─ Initialization helpers ────────────────────────────────────────────
 
         private void InitializePools()
         {
@@ -273,19 +181,8 @@ namespace Fodinae.Scripts.Audio
             }
         }
 
-        // ─ Pool acquire / release ────────────────────────────────────────────
-
-        /// <summary>
-        /// Play the given <paramref name="sfxType"/> at the specified volume.
-        /// Legacy audio-only path. For combined audio+VFX, use <see cref="Acquire"/>.
-        /// </summary>
         public void Play(SFX sfxType, float volume)
         {
-            if (_isQuitting)
-            {
-                return;
-            }
-
             var pool = GetOrCreateSubPool(sfxType);
 
             var needsLoading = !pool.ClipLoading && !pool.ClipReady;
@@ -325,19 +222,8 @@ namespace Fodinae.Scripts.Audio
             }
         }
 
-        /// <summary>
-        /// Acquire a pooled slot for combined audio+VFX.
-        /// The caller is responsible for positioning the GameObject,
-        /// setting the SpriteRenderer, and calling Play() on the AudioSource.
-        /// Call <see cref="Release(PooledSlot)"/> when both audio and visual are complete.
-        /// </summary>
         public PooledSlot Acquire(SFX sfxType)
         {
-            if (_isQuitting)
-            {
-                return null;
-            }
-
             var pool = GetOrCreateSubPool(sfxType);
 
             if (!pool.ClipLoading && !pool.ClipReady)
@@ -356,7 +242,6 @@ namespace Fodinae.Scripts.Audio
             slot.PlayStartTime = Time.realtimeSinceStartup;
             slot.GameObject.SetActive(true);
 
-            // Set the cached AudioClip if ready
             if (pool.ClipReady && pool.CachedClip != null)
             {
                 slot.AudioSource.clip = pool.CachedClip;
@@ -365,21 +250,10 @@ namespace Fodinae.Scripts.Audio
             return slot;
         }
 
-        /// <summary>
-        /// Return a pooled slot to the pool. Resets its audio and visual state.
-        /// </summary>
         public void Release(PooledSlot slot)
         {
             if (slot == null || slot.IsInPool)
             {
-                return;
-            }
-
-            if (_isQuitting)
-            {
-                // During shutdown the slot's Unity objects may already be destroyed.
-                // Mark the slot as returned without touching them.
-                slot.IsInPool = true;
                 return;
             }
 
@@ -423,7 +297,6 @@ namespace Fodinae.Scripts.Audio
                 return slot;
             }
 
-            // Steal oldest active
             slot = pool.Active[0];
             slot.AudioSource.Stop();
             slot.IsManagedExternally = false;
@@ -449,8 +322,6 @@ namespace Fodinae.Scripts.Audio
             pool.Available.Enqueue(slot);
             pool.LastReleaseTime = Time.realtimeSinceStartup;
         }
-
-        // ─ Static helpers ────────────────────────────────────────────────────
 
         private static void TeardownSubPool(SubPool pool)
         {
@@ -554,12 +425,6 @@ namespace Fodinae.Scripts.Audio
             }
         }
 
-        // ─ Nested types (at end per SA1201) ──────────────────────────────────
-
-        /// <summary>
-        /// A single pooled slot with an owning GameObject,
-        /// AudioSource (for SFX audio), and SpriteRenderer (for VFX).
-        /// </summary>
         public sealed class PooledSlot
         {
             public SFX SfxType;
@@ -568,19 +433,9 @@ namespace Fodinae.Scripts.Audio
             public SpriteRenderer SpriteRenderer;
             public float PlayStartTime;
             public bool IsInPool;
-
-            /// <summary>
-            /// When true, the pool's auto-release logic (based on audio completion)
-            /// is skipped for this slot. The slot is managed externally — typically
-            /// by <see cref="SFXEffectInstance"/> which tracks dual audio+visual completion.
-            /// Set by <see cref="Acquire"/>; cleared by <see cref="ReleaseInternal"/>.
-            /// </summary>
             public bool IsManagedExternally;
         }
 
-        /// <summary>
-        /// Sub-pool for one <see cref="SFX"/> type.
-        /// </summary>
         private sealed class SubPool
         {
             public SFX SfxType;

@@ -15,7 +15,7 @@ namespace Fodinae.Scripts.UI
             {
                 if (_instance == null)
                 {
-                    _instance = FindObjectOfType<PlayerStatsModel>();
+                    _instance = FindAnyObjectByType<PlayerStatsModel>();
                     if (_instance == null)
                     {
                         var go = new GameObject("[PlayerStatsModel]");

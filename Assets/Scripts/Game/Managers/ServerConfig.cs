@@ -11,7 +11,7 @@ namespace Fodinae.Scripts.Game.Managers
             {
                 if (_instance == null)
                 {
-                    _instance = FindObjectOfType<ServerConfig>();
+                    _instance = FindAnyObjectByType<ServerConfig>();
                     if (_instance == null)
                     {
                         var go = new GameObject("[ServerConfig]");

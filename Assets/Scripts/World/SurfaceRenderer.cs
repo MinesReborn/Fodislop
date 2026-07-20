@@ -17,9 +17,6 @@ namespace Fodinae.Scripts.World
         [SerializeField] private int _transitSortingOrder = -501;
         [SerializeField] private int _perspectiveSortingOrder = -502;
 
-        [Header("Perspective")]
-        [SerializeField] private float _perspectiveShrink = 0.3f;
-
         private const float TRANSIT_HEIGHT = 2f;
         private const float PERSPECTIVE_HEIGHT = 2f;
         private const float TILE_SIZE = 32f;

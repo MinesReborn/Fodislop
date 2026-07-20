@@ -14,6 +14,7 @@ namespace Fodinae.Scripts.UI
         private const int SampleSize = 30;
         private readonly float[] _frameTimes = new float[SampleSize];
         private int _frameIndex;
+        private float _runningSum;
 
         private Text _fpsText;
         private int _pingMs;
@@ -22,7 +23,7 @@ namespace Fodinae.Scripts.UI
 
         private void Awake()
         {
-            Canvas canvas = FindFirstObjectByType<Canvas>();
+            Canvas canvas = FindAnyObjectByType<Canvas>();
             if (canvas == null)
             {
                 GameObject canvasGO = new GameObject("FPSCanvas");
@@ -55,12 +56,11 @@ namespace Fodinae.Scripts.UI
 
         private void Update()
         {
+            _runningSum -= _frameTimes[_frameIndex];
             _frameTimes[_frameIndex] = Time.unscaledDeltaTime;
+            _runningSum += _frameTimes[_frameIndex];
             _frameIndex = (_frameIndex + 1) % SampleSize;
-            float sum = 0f;
-            for (int i = 0; i < SampleSize; i++)
-                sum += _frameTimes[i];
-            float avg = sum / SampleSize;
+            float avg = _runningSum / SampleSize;
             float fps = avg > 0f ? 1f / avg : 0f;
             _fpsText.text = $"FPS: {fps:F1}  Ping: {_pingMs}ms  Online: {_onlinePlayers}  Prg: {_onlineProgrammator}";
         }

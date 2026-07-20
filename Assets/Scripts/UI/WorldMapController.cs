@@ -27,14 +27,14 @@ namespace Fodinae.Scripts.UI
 
         void Start()
         {
-            _cameraFollow = FindObjectOfType<CameraFollow>();
-            _player = FindObjectOfType<PlayerMovementController>();
-            _terrain = FindObjectOfType<SingleMeshTerrainRenderer>();
-            _playerHud = FindObjectOfType<PlayerHUD>();
-            _inventory = FindObjectOfType<InventoryUI>();
-            _fps = FindObjectOfType<FPSCounter>();
-            _minimap = FindObjectOfType<MinimapController>();
-            _pauseMenu = FindObjectOfType<PauseMenu>();
+            _cameraFollow = FindAnyObjectByType<CameraFollow>();
+            _player = FindAnyObjectByType<PlayerMovementController>();
+            _terrain = FindAnyObjectByType<SingleMeshTerrainRenderer>();
+            _playerHud = FindAnyObjectByType<PlayerHUD>();
+            _inventory = FindAnyObjectByType<InventoryUI>();
+            _fps = FindAnyObjectByType<FPSCounter>();
+            _minimap = FindAnyObjectByType<MinimapController>();
+            _pauseMenu = FindAnyObjectByType<PauseMenu>();
 
             if (_cameraFollow == null)
             {

@@ -24,4 +24,13 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
   </ItemGroup>
+
+  <!--
+    Проброс .stylecop.json во все генерируемые Unity .csproj проекты как AdditionalFiles.
+    Это необходимо, чтобы Roslyn-анализаторы (StyleCop.Analyzers) видели локальные правила
+    и отключали избыточные предупреждения (например, требования обязательных заголовков и XML-документации).
+  -->
+  <ItemGroup>
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory).stylecop.json" Link=".stylecop.json" />
+  </ItemGroup>
 </Project>
