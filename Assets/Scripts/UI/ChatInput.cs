@@ -11,22 +11,21 @@ namespace Fodinae.Scripts.UI
         {
             IsFocused = true;
 
-            var pc = Object.FindAnyObjectByType<PlayerMovementController>();
-            if (pc != null)
+            if (PlayerMovementController.LocalPlayer != null)
             {
-                pc.enabled = false;
+                PlayerMovementController.LocalPlayer.enabled = false;
             }
 
-            var wm = Object.FindAnyObjectByType<WorldMapController>();
-            if (wm != null)
+            var worldMap = Object.FindAnyObjectByType<WorldMapController>();
+            if (worldMap != null)
             {
-                wm.enabled = false;
+                worldMap.enabled = false;
             }
 
-            var pm = Object.FindAnyObjectByType<PauseMenu>();
-            if (pm != null)
+            var pauseMenu = Object.FindAnyObjectByType<PauseMenu>();
+            if (pauseMenu != null)
             {
-                pm.enabled = false;
+                pauseMenu.enabled = false;
             }
         }
 
@@ -34,22 +33,21 @@ namespace Fodinae.Scripts.UI
         {
             IsFocused = false;
 
-            var pc = Object.FindAnyObjectByType<PlayerMovementController>();
-            if (pc != null)
+            if (PlayerMovementController.LocalPlayer != null)
             {
-                pc.enabled = true;
+                PlayerMovementController.LocalPlayer.enabled = true;
             }
 
-            var wm = Object.FindAnyObjectByType<WorldMapController>();
-            if (wm != null)
+            var worldMap = Object.FindAnyObjectByType<WorldMapController>();
+            if (worldMap != null)
             {
-                wm.enabled = true;
+                worldMap.enabled = true;
             }
 
-            var pm = Object.FindAnyObjectByType<PauseMenu>();
-            if (pm != null)
+            var pauseMenu = Object.FindAnyObjectByType<PauseMenu>();
+            if (pauseMenu != null)
             {
-                pm.enabled = true;
+                pauseMenu.enabled = true;
             }
         }
     }

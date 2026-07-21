@@ -282,14 +282,13 @@ namespace Fodinae.Scripts.UI
 
             for (int cellY = minCellY; cellY <= maxCellY; cellY++)
             {
-                float worldY_top = cellY;
-                float worldY_bottom = cellY + 1f;
+                // In Server coordinates Y=0 is surface (top of world), Y increases downward.
+                // In Texture2D py=0 is bottom of screen, py=texH-1 is top of screen.
+                float pixelY_top = ((cy - cellY) / cp) + (texH * 0.5f);
+                float pixelY_bottom = ((cy - (cellY + 1f)) / cp) + (texH * 0.5f);
 
-                float pixelY_top = ((worldY_top - cy) / cp) + (texH * 0.5f);
-                float pixelY_bottom = ((worldY_bottom - cy) / cp) + (texH * 0.5f);
-
-                int pixY_start = Mathf.Clamp(Mathf.RoundToInt(pixelY_top), 0, texH - 1);
-                int pixY_end = Mathf.Clamp(Mathf.RoundToInt(pixelY_bottom), 0, texH - 1);
+                int pixY_start = Mathf.Clamp(Mathf.RoundToInt(pixelY_bottom), 0, texH - 1);
+                int pixY_end = Mathf.Clamp(Mathf.RoundToInt(pixelY_top), 0, texH - 1);
                 if (pixY_start >= texH || pixY_end < 0)
                 {
                     continue;
@@ -334,18 +333,16 @@ namespace Fodinae.Scripts.UI
                 {
                     float worldX_left = playerPos.x;
                     float worldX_right = playerPos.x + 1f;
-                    float worldY_top = playerPos.y;
-                    float worldY_bottom = playerPos.y + 1f;
 
                     float pixelX_left = ((worldX_left - cx) / cp) + (texW * 0.5f);
                     float pixelX_right = ((worldX_right - cx) / cp) + (texW * 0.5f);
-                    float pixelY_top = ((worldY_top - cy) / cp) + (texH * 0.5f);
-                    float pixelY_bottom = ((worldY_bottom - cy) / cp) + (texH * 0.5f);
+                    float pixelY_top = ((cy - playerPos.y) / cp) + (texH * 0.5f);
+                    float pixelY_bottom = ((cy - (playerPos.y + 1f)) / cp) + (texH * 0.5f);
 
                     int pixX_start = Mathf.Clamp(Mathf.RoundToInt(pixelX_left), 0, texW - 1);
                     int pixX_end = Mathf.Clamp(Mathf.RoundToInt(pixelX_right), 0, texW - 1);
-                    int pixY_start = Mathf.Clamp(Mathf.RoundToInt(pixelY_top), 0, texH - 1);
-                    int pixY_end = Mathf.Clamp(Mathf.RoundToInt(pixelY_bottom), 0, texH - 1);
+                    int pixY_start = Mathf.Clamp(Mathf.RoundToInt(pixelY_bottom), 0, texH - 1);
+                    int pixY_end = Mathf.Clamp(Mathf.RoundToInt(pixelY_top), 0, texH - 1);
 
                     Color32 playerColor = new Color32(255, 0, 0, 255);
 

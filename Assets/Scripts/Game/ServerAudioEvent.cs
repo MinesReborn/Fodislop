@@ -76,13 +76,24 @@ namespace Fodinae.Scripts.Game
             _parameters = packet.Parameters;
             _slot = slot;
 
-            _gameObject = slot.GameObject;
-            _spriteRenderer = slot.SpriteRenderer;
+            if (slot != null)
+            {
+                _gameObject = slot.GameObject;
+                _spriteRenderer = slot.SpriteRenderer;
+            }
 
             ParseParameters();
             SetupSlotPosition();
             PlayAudio();
-            LoadVisualAsync(_cts.Token).Forget();
+
+            if (slot != null)
+            {
+                LoadVisualAsync(_cts.Token).Forget();
+            }
+            else
+            {
+                _visualCompleted = true;
+            }
         }
 
         public bool IsDisposed => _slotReleased;
@@ -176,8 +187,15 @@ namespace Fodinae.Scripts.Game
             ReleaseSlot();
         }
 
+        private static readonly Dictionary<SFX, string> SfxEventNameCache = new();
+
         private static string GetSfxEventName(SFX sfx)
         {
+            if (SfxEventNameCache.TryGetValue(sfx, out var cachedName))
+            {
+                return cachedName;
+            }
+
             var name = sfx.ToString();
             var sb = new System.Text.StringBuilder();
             sb.Append("sfx_");
@@ -199,7 +217,9 @@ namespace Fodinae.Scripts.Game
                 }
             }
 
-            return sb.ToString();
+            var result = sb.ToString();
+            SfxEventNameCache[sfx] = result;
+            return result;
         }
 
         private void ParseParameters()

@@ -142,13 +142,14 @@ namespace Fodinae.Scripts.Player
         {
             if (_target == null)
             {
-                var player = FindAnyObjectByType<PlayerMovementController>();
-                if (player != null)
+                if (PlayerMovementController.LocalPlayer != null)
                 {
-                    _target = player.transform;
+                    _target = PlayerMovementController.LocalPlayer.transform;
                 }
-
-                return;
+                else
+                {
+                    return;
+                }
             }
 
             Vector3 targetPosition = _target.position + new Vector3(_offset.x, _offset.y, 0f);

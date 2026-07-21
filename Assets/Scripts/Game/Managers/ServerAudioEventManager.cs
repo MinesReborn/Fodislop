@@ -15,12 +15,7 @@ namespace Fodinae.Scripts.Game.Managers
 
         public void PlayEffect(AudioPacket packet)
         {
-            if (VFXPool.Instance == null)
-            {
-                return;
-            }
-
-            var slot = VFXPool.Instance.Acquire(packet.EffectType);
+            var slot = VFXPool.Instance != null ? VFXPool.Instance.Acquire(packet.EffectType) : null;
 
             var effect = new ServerAudioEvent(packet, slot);
             _activeEffects.Add(effect);

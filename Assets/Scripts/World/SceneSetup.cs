@@ -46,6 +46,20 @@ namespace Fodinae.Scripts.World
             SetupWorldBackground();
             SetupSurfaceRenderer();
             SetupWorldMapController();
+            SetupWorldAudioController();
+        }
+
+        private void SetupWorldAudioController()
+        {
+            var existing = FindAnyObjectByType<Audio.Spatial.WorldAudioController>();
+            if (existing != null)
+            {
+                return;
+            }
+
+            var audioGO = new GameObject("WorldAudioController");
+            audioGO.transform.SetParent(transform);
+            audioGO.AddComponent<Audio.Spatial.WorldAudioController>();
         }
 
         private void SetupSurfaceRenderer()

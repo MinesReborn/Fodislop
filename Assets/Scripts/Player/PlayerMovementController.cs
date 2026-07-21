@@ -22,7 +22,8 @@ namespace Fodinae.Scripts.Player
     public class PlayerMovementController : MonoBehaviour
     {
         [Header("Movement Settings")]
-        [SerializeField] private float _moveSpeed = 15f;
+        [SerializeField]
+        private float _moveSpeed = 15f;
 
         public uint BotId { get; private set; }
         public Vector2Int Position { get; private set; }
@@ -33,7 +34,8 @@ namespace Fodinae.Scripts.Player
 
         [Header("Input Dependencies")]
         [Tooltip("Optional: Drag the Move action from the Input Action asset here. If empty, falls back to direct keyboard polling.")]
-        [SerializeField] private InputActionReference _moveActionReference;
+        [SerializeField]
+        private InputActionReference _moveActionReference;
 
         private Vector2 _moveInput;
         private bool _autoDig = false;
@@ -59,10 +61,15 @@ namespace Fodinae.Scripts.Player
             }
         }
 
+        public static PlayerMovementController LocalPlayer { get; private set; }
+        public static event Action<PlayerMovementController> OnLocalPlayerSpawned;
+
         protected void Awake()
         {
-            var rb = GetComponent<Rigidbody2D>();
-            if (rb != null)
+            LocalPlayer = this;
+            OnLocalPlayerSpawned?.Invoke(this);
+
+            if (TryGetComponent<Rigidbody2D>(out var rb))
             {
                 rb.freezeRotation = true;
                 rb.simulated = false;
@@ -72,6 +79,14 @@ namespace Fodinae.Scripts.Player
             if (_robot != null)
             {
                 _robot.MoveSpeed = _moveSpeed;
+            }
+        }
+
+        protected void OnDestroy()
+        {
+            if (LocalPlayer == this)
+            {
+                LocalPlayer = null;
             }
         }
 
@@ -134,6 +149,7 @@ namespace Fodinae.Scripts.Player
                 {
                     return;
                 }
+
                 _aggression = value;
                 Debug.Log($"[PlayerMovementController] Aggression set to {value}");
                 OnAggressionChanged?.Invoke(value);

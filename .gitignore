@@ -498,3 +498,13 @@ InitTestScene*.unity*
 /[Aa]ssets/StreamingAssets/**/*.bank
 /[Aa]ssets/StreamingAssets/**/*.bank.meta
 fmod_editor.log
+
+# macOS system files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.dotnet_tmp/

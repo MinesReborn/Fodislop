@@ -74,7 +74,21 @@ namespace Fodinae.Scripts.UI
 
             CreateUI();
 
-            _player = FindAnyObjectByType<PlayerMovementController>();
+            _player = PlayerMovementController.LocalPlayer;
+            if (_player != null)
+            {
+                _player.OnPlayerMoved += OnPlayerMoved;
+            }
+            else
+            {
+                PlayerMovementController.OnLocalPlayerSpawned += OnPlayerSpawned;
+            }
+        }
+
+        private void OnPlayerSpawned(PlayerMovementController player)
+        {
+            PlayerMovementController.OnLocalPlayerSpawned -= OnPlayerSpawned;
+            _player = player;
             if (_player != null)
             {
                 _player.OnPlayerMoved += OnPlayerMoved;
@@ -236,9 +250,11 @@ namespace Fodinae.Scripts.UI
 
             for (int texY = 0; texY < texSize; texY++)
             {
-                int worldY = minY + texY;
+                // texY = 0 is bottom of screen (deeper underground, larger Server Y)
+                // texY = texSize - 1 is top of screen (towards surface, smaller Server Y)
+                int serverY = playerY + halfSize - texY;
 
-                if (worldY < 0 || worldY >= _worldHeight)
+                if (serverY < 0 || serverY >= _worldHeight)
                 {
                     // Entire row is out of bounds
                     int end = index + texSize;
@@ -250,23 +266,21 @@ namespace Fodinae.Scripts.UI
                     continue;
                 }
 
-                int serverY = Fodinae.Scripts.World.CoordinateUtils.UnityToServerY(worldY, _worldHeight);
-
                 // Column-major chunk indexing for WorldLayer<T>
                 int chunkY = serverY / _chunkSize;
                 int localY = serverY % _chunkSize;
 
                 for (int texX = 0; texX < texSize; texX++)
                 {
-                    int worldX = minX + texX;
+                    int serverX = minX + texX;
 
-                    if (worldX < 0 || worldX >= _worldWidth)
+                    if (serverX < 0 || serverX >= _worldWidth)
                     {
                         colors[index++] = OutOfBoundsColor;
                         continue;
                     }
 
-                    int chunkX = worldX / _chunkSize;
+                    int chunkX = serverX / _chunkSize;
                     int chunkIdx = chunkY + (chunkX * _heightChunks);
 
                     if (!cache.TryGetValue(chunkIdx, out CellType[] chunk))
@@ -278,7 +292,7 @@ namespace Fodinae.Scripts.UI
 
                     if (chunk != null)
                     {
-                        int localIdx = localY + ((worldX % _chunkSize) * _chunkSize);
+                        int localIdx = localY + ((serverX % _chunkSize) * _chunkSize);
                         colors[index++] = cellColors[chunk[localIdx]];
                     }
                     else
@@ -318,6 +332,8 @@ namespace Fodinae.Scripts.UI
 
         protected void OnDestroy()
         {
+            PlayerMovementController.OnLocalPlayerSpawned -= OnPlayerSpawned;
+
             if (_player != null)
             {
                 _player.OnPlayerMoved -= OnPlayerMoved;

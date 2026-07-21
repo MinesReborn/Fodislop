@@ -5,83 +5,49 @@ using UnityEngine;
 namespace Fodinae.Scripts.Audio.Spatial
 {
     /// <summary>
-    /// Аудио-зона — триггерный регион меняющий громкость шины когда игрок входит/выходит.
+    /// Аудио-зона — триггерный регион, задействующий FMOD Snapshot при входе игрока.
+    ///
+    /// Нативно меняет акустику, дакинг и фильтры шин в FMOD Studio без принудительной C#-мутации
+    /// громкостей микшера (что предотвращает сброс пользовательских настроек из PauseMenu).
     ///
     /// Примеры использования:
     /// <list type="bullet">
-    ///   <item><b>Пещера:</b> войдя в коллайдер — приглушить шину Ambience на 6 dB</item>
-    ///   <item><b>Под водой:</b> приглушить Sfx, оставить только низкие частоты</item>
-    ///   <item><b>Меню паузы:</b> при открытии меню — просадить шину World на 12 dB</item>
-    ///   <item><b>Катсцена:</b> заглушить всё кроме Voice и Music</item>
+    ///   <item><b>Кристальная жила:</b> snapshot:/Crystal_Zone — усиливает высокочастотные резонансы SFX, снижает Ambience</item>
+    ///   <item><b>Вулканическая зона:</b> snapshot:/Volcano_Zone — добавляет низкочастотный Reverb, нагнетает Ambience</item>
+    ///   <item><b>Пак (здание):</b> snapshot:/Pack_Interior — приглушает внешний Ambience, поднимает акустику помещения</item>
     /// </list>
-    ///
-    /// <b>Как повесить:</b>
-    /// 1. Создай GameObject с Collider2D (IsTrigger = true)
-    /// 2. Добавь компонент AudioZone
-    /// 3. Настрой параметры: TargetBus, VolumeMultiplier, TransitionTime
-    /// 4. При входе игрока в коллайдер — громкость шины плавно изменится.
     /// </summary>
     [RequireComponent(typeof(Collider2D))]
     public sealed class AudioZone : MonoBehaviour
     {
-        [Tooltip("На какую шину действует зона.")]
+        [Tooltip("Путь к FMOD Snapshot (например snapshot:/Crystal_Zone, snapshot:/Volcano_Zone, snapshot:/Pack_Interior).")]
         [SerializeField]
-        private AudioBusType _targetBus = AudioBusType.Ambience;
+        private string _snapshotPath = "snapshot:/Crystal_Zone";
 
-        [Tooltip("Модификатор громкости. 1.0 = без изменений, 0.5 = полгромкости, 0.0 = тишина.")]
+        [Tooltip("Опциональное имя FMOD Global Parameter для установки при входе.")]
         [SerializeField]
-        [Range(0f, 1f)]
-        private float _volumeMultiplier = 0.5f;
+        private string _globalParameterName;
 
-        [Tooltip("Время перехода громкости (секунды).")]
+        [Tooltip("Значение FMOD Global Parameter при входе.")]
         [SerializeField]
-        [Min(0f)]
-        private float _transitionTime = 1f;
+        private float _parameterValueOnEnter = 1f;
+
+        [Tooltip("Значение FMOD Global Parameter при выходе.")]
+        [SerializeField]
+        private float _parameterValueOnExit;
 
         [Tooltip("Сколько игроков должны быть в зоне чтобы эффект работал (обычно 1).")]
         [SerializeField]
         [Min(1)]
         private int _requiredPlayers = 1;
 
-        private AudioBus _bus;
         private int _playersInside;
         private bool _active;
+        private AudioPlaybackHandle _activeSnapshot;
 
-        // Fixed start/target volumes captured at moment transition begins
-        private float _transitionStartVolume;
-        private float _transitionTargetVolume;
-        private float _transitionElapsed;
-        private bool _inTransition;
-
-        private float _originalVolume;
-
-        private void Start()
+        private void OnDestroy()
         {
-            if (AudioSystem.Instance == null)
-            {
-                return;
-            }
-
-            _bus = AudioSystem.Instance.GetBus(_targetBus);
-            _originalVolume = _bus.Volume;
-        }
-
-        private void Update()
-        {
-            if (_bus == null || !_inTransition)
-            {
-                return;
-            }
-
-            _transitionElapsed += Time.unscaledDeltaTime;
-            float t = _transitionTime > 0f ? Mathf.Clamp01(_transitionElapsed / _transitionTime) : 1f;
-            _bus.Volume = Mathf.Lerp(_transitionStartVolume, _transitionTargetVolume, t);
-
-            if (t >= 1f)
-            {
-                _bus.Volume = _transitionTargetVolume;
-                _inTransition = false;
-            }
+            StopSnapshot();
         }
 
         private void OnTriggerEnter2D(Collider2D other)
@@ -95,7 +61,7 @@ namespace Fodinae.Scripts.Audio.Spatial
             if (_playersInside >= _requiredPlayers && !_active)
             {
                 _active = true;
-                BeginTransition(_originalVolume * _volumeMultiplier);
+                StartSnapshot();
             }
         }
 
@@ -110,21 +76,40 @@ namespace Fodinae.Scripts.Audio.Spatial
             if (_playersInside < _requiredPlayers && _active)
             {
                 _active = false;
-                BeginTransition(_originalVolume);
+                StopSnapshot();
             }
         }
 
-        private void BeginTransition(float targetVolume)
+        private void StartSnapshot()
         {
-            if (_bus == null)
+            if (AudioSystem.Instance == null)
             {
                 return;
             }
 
-            _transitionStartVolume = _bus.Volume;
-            _transitionTargetVolume = targetVolume;
-            _transitionElapsed = 0f;
-            _inTransition = true;
+            if (!string.IsNullOrEmpty(_snapshotPath))
+            {
+                _activeSnapshot = AudioSystem.Instance.PlaySnapshot(_snapshotPath);
+            }
+
+            if (!string.IsNullOrEmpty(_globalParameterName))
+            {
+                AudioSystem.Instance.SetGlobalParameter(_globalParameterName, _parameterValueOnEnter);
+            }
+        }
+
+        private void StopSnapshot()
+        {
+            if (_activeSnapshot != null)
+            {
+                _activeSnapshot.Stop(fadeOut: 0.5f);
+                _activeSnapshot = null;
+            }
+
+            if (!string.IsNullOrEmpty(_globalParameterName) && AudioSystem.Instance != null)
+            {
+                AudioSystem.Instance.SetGlobalParameter(_globalParameterName, _parameterValueOnExit);
+            }
         }
     }
 }

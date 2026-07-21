@@ -6,10 +6,17 @@ console.log("=== FMOD STUDIO FULL BUILD SCRIPT ===");
 var masterBus = studio.project.workspace.mixer.masterBus;
 
 function getOrCreateGroup(name) {
-    var groups = masterBus.mixerGroup;
-    if (groups) {
-        for (var i = 0; i < groups.length; i++) {
-            if (groups[i].name === name) return groups[i];
+    var groups = masterBus.input || masterBus.mixerGroup || [];
+    for (var i = 0; i < groups.length; i++) {
+        if (groups[i].name === name) {
+            return groups[i];
+        }
+    }
+    // Search model objects directly if array property differs in FMOD Studio version
+    var allGroups = studio.project.model.MixerGroup.findInstances();
+    for (var j = 0; j < allGroups.length; j++) {
+        if (allGroups[j].name === name) {
+            return allGroups[j];
         }
     }
     var group = studio.project.create("MixerGroup");
@@ -92,15 +99,9 @@ createEventWithAudio(sfxFolder, "hurt", sfxBus, "Sfx/hurt.wav");
 createEventWithAudio(sfxFolder, "death", sfxBus, "Sfx/death.wav");
 createEventWithAudio(sfxFolder, "destroy", sfxBus, "Sfx/destroy.wav");
 
-// Create events in master root for underscore style (e.g. event:/sfx_bz)
-createEventWithAudio(masterFolder, "sfx_bz", sfxBus, "Sfx/bz.wav");
-createEventWithAudio(masterFolder, "sfx_hurt", sfxBus, "Sfx/hurt.wav");
-createEventWithAudio(masterFolder, "sfx_death", sfxBus, "Sfx/death.wav");
-createEventWithAudio(masterFolder, "sfx_destroy", sfxBus, "Sfx/destroy.wav");
-
 // Create music event
 createEventWithAudio(musicFolder, "ambient_bg", musicBus, "Music/evil_huge.wav");
-createEventWithAudio(masterFolder, "ambient_bg", musicBus, "Music/evil_huge.wav");
+
 
 // Save metadata to disk!
 studio.project.save();

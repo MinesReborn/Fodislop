@@ -7,37 +7,21 @@ namespace Fodinae.Scripts.Audio.Spatial
     /// <summary>
     /// Вешается на любой GameObject чтобы он излучал пространственный звук.
     ///
-    /// Автоматически обновляет позицию хендла каждый кадр — звук следует за объектом.
-    /// Можно использовать для:
-    /// <list type="bullet">
-    ///   <item>Роботов (звук шагов/двигателя следует за ботом)</item>
-    ///   <item>Машин/механизмов (петляющий звук привязан к трансформу)</item>
-    ///   <item>Эффектов (взрыв с затуханием по расстоянию)</item>
-    /// </list>
-    ///
-    /// <b>Как использовать:</b>
-    /// <code>
-    /// // На роботе:
-    /// var spatial = robot.AddComponent&lt;AudioSpatial&gt;();
-    /// spatial.Play("robot_idle", AudioLayer.SfxDefault());
-    ///
-    /// // Позже:
-    /// spatial.SetEvent("robot_alert"); // сменить звук
-    /// spatial.Stop(0.5f);             // остановить с фейдом
-    /// </code>
+    /// Использует нативную привязку FMOD (AttachInstanceToGameObject), позиция и поворот
+    /// обновляются нативно в C++ FMOD Engine без C#-поллинга на каждом кадре.
     /// </summary>
     [RequireComponent(typeof(Transform))]
     public sealed class AudioSpatial : MonoBehaviour
     {
-        [Tooltip("Имя аудио-события.  Можно сменить на лету через SetEvent().")]
+        [Tooltip("Имя аудио-события. Можно сменить на лету через SetEvent().")]
         [SerializeField]
         private string _eventName;
 
-        [Tooltip("Слой.  Если не задан — используется DefaultLayer из AudioEvent.")]
+        [Tooltip("Слой.")]
         [SerializeField]
-        private AudioLayer _layer = AudioLayer.SfxDefault();
+        private AudioLayer _layer = AudioLayer.SFXDefault();
 
-        [Tooltip("Громкость.  Если 0 или меньше — используется DefaultVolume из AudioEvent.")]
+        [Tooltip("Громкость.")]
         [SerializeField]
         [Range(0f, 2f)]
         private float _volume;
@@ -56,31 +40,23 @@ namespace Fodinae.Scripts.Audio.Spatial
             }
         }
 
-        private void Update()
-        {
-            if (_handle != null && _handle.IsPlaying)
-            {
-                _handle.SetPosition(transform.position);
-            }
-        }
-
         private void OnDestroy()
         {
             _handle?.Stop();
             _handle = null;
         }
 
-        /// <summary>Начать проигрывание текущего события.</summary>
+        /// <summary>Начать проигрывание текущего события с нативной привязкой FMOD к GameObject.</summary>
         public void PlayCurrent()
         {
-            if (string.IsNullOrEmpty(_eventName))
+            if (string.IsNullOrEmpty(_eventName) || AudioSystem.Instance == null)
             {
                 return;
             }
 
             Stop();
             float? vol = _volume > 0f ? _volume : null;
-            _handle = AudioSystem.Instance.Play(_eventName, transform.position, _layer, vol);
+            _handle = AudioSystem.Instance.PlayAttached(_eventName, gameObject, _layer, vol);
         }
 
         /// <summary>Сменить событие на лету (старое останавливается, новое стартует).</summary>

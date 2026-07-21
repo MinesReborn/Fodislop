@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Fodinae.Scripts.Audio.Core;
-using Fodinae.Scripts.Audio.Data;
 using Fodinae.Scripts.Core;
 using UnityEngine;
 
@@ -18,142 +17,88 @@ namespace Fodinae.Scripts.Audio.Backend
     [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Gracefully catch startup exceptions to prevent game crash.")]
     public sealed class AudioSystem : SingletonMonoBehaviour<AudioSystem>
     {
-        private readonly Dictionary<AudioBusType, AudioBus> _buses = new();
-        private readonly Dictionary<string, AudioEvent> _events = new(System.StringComparer.OrdinalIgnoreCase);
-
-        [SerializeField]
-        [Tooltip("Библиотека аудио-событий. События регистрируются автоматически при старте.")]
-        private AudioLibrary _audioLibrary;
-
         private FmodAudioBackend _backend;
 
-        // ═══════════════════════════════════════════════════════════
-        //  Public API
-        // ═══════════════════════════════════════════════════════════
-
-        public AudioBus GetBus(AudioBusType type)
+        public float GetBusVolume(AudioBusType type)
         {
-            return _buses.TryGetValue(type, out var bus) ? bus : _buses[AudioBusType.Master];
+            return _backend?.GetBusVolume(type) ?? 1f;
         }
 
-        public IEnumerable<AudioBus> GetAllBuses() => _buses.Values;
-
-        public void Register(AudioEvent evt)
+        public void SetBusVolume(AudioBusType type, float volume)
         {
-            if (evt == null || string.IsNullOrEmpty(evt.Name))
-            {
-                return;
-            }
-
-            _events[evt.Name] = evt;
-        }
-
-        public void RegisterAll(IEnumerable<AudioEvent> events)
-        {
-            foreach (var evt in events)
-            {
-                Register(evt);
-            }
+            _backend?.SetBusVolume(type, volume);
         }
 
         /// <summary>
-        /// Найти зарегистрированное событие по имени или автоматически зарегистрировать
-        /// событие FMOD с соответствующим дефолтным слоем (Music, Ui, Sfx).
+        /// Динамическая загрузка доп. банков (фич/локаций) с CDN или локального хранилища.
         /// </summary>
-        public AudioEvent FindEvent(string name)
+        public async Cysharp.Threading.Tasks.UniTask<bool> EnsureBankLoadedAsync(string bankName)
         {
-            if (string.IsNullOrEmpty(name))
+            if (_backend != null)
             {
-                return null;
+                return await _backend.EnsureBankLoadedAsync(bankName);
             }
 
-            // Strip event:/ or event: prefix for lookup
-            string lookupName = name;
-            if (lookupName.StartsWith("event:/", System.StringComparison.OrdinalIgnoreCase))
-            {
-                lookupName = lookupName.Substring("event:/".Length);
-            }
-            else if (lookupName.StartsWith("event:", System.StringComparison.OrdinalIgnoreCase))
-            {
-                lookupName = lookupName.Substring("event:".Length);
-            }
+            return false;
+        }
 
-            if (_events.TryGetValue(lookupName, out var evt))
-            {
-                return evt;
-            }
-
-            // Also check alternate name (sfx_bz <-> sfx/bz)
-            string alternateName = lookupName;
-            if (lookupName.StartsWith("sfx_", System.StringComparison.OrdinalIgnoreCase))
-            {
-                alternateName = "sfx/" + lookupName.Substring("sfx_".Length);
-            }
-            else if (lookupName.StartsWith("sfx/", System.StringComparison.OrdinalIgnoreCase))
-            {
-                alternateName = "sfx_" + lookupName.Substring("sfx/".Length);
-            }
-
-            if (_events.TryGetValue(alternateName, out var altEvt))
-            {
-                return altEvt;
-            }
-
-            AudioLayer defaultLayer = AudioLayer.SfxDefault();
-            if (lookupName.StartsWith("music/", System.StringComparison.OrdinalIgnoreCase) || lookupName.StartsWith("music_", System.StringComparison.OrdinalIgnoreCase))
-            {
-                defaultLayer = AudioLayer.MusicDefault();
-            }
-            else if (lookupName.StartsWith("ui/", System.StringComparison.OrdinalIgnoreCase) || lookupName.StartsWith("ui_", System.StringComparison.OrdinalIgnoreCase))
-            {
-                defaultLayer = AudioLayer.UiDefault();
-            }
-
-            var dynamicEvt = AudioEvent.Create(lookupName, defaultLayer);
-            _events[lookupName] = dynamicEvt;
-            _events[alternateName] = dynamicEvt;
-            return dynamicEvt;
+        /// <summary>
+        /// Выгрузка банка из памяти (вызывать при выходе из зоны / завершении фичи).
+        /// </summary>
+        public void UnloadBank(string bankName)
+        {
+            _backend?.UnloadBank(bankName);
         }
 
         /// <summary>Воспроизвести событие по имени с опциональной 3D-позицией.</summary>
         public AudioPlaybackHandle Play(string eventName, Vector3? worldPosition = null, AudioLayer? overrideLayer = null, float? overrideVolume = null)
         {
-            var evt = FindEvent(eventName);
-            return PlayEvent(evt, worldPosition, overrideLayer, overrideVolume);
-        }
-
-        public AudioPlaybackHandle PlayEvent(AudioEvent evt, Vector3? worldPosition = null, AudioLayer? overrideLayer = null, float? overrideVolume = null)
-        {
-            if (evt == null)
+            if (string.IsNullOrEmpty(eventName))
             {
                 return null;
             }
 
-            var layer = overrideLayer ?? evt.DefaultLayer;
-
-            if (evt.PitchVariation > 0f)
+            var layer = overrideLayer ?? AudioLayer.SFXDefault();
+            if (overrideVolume.HasValue)
             {
-                float variation = UnityEngine.Random.Range(-evt.PitchVariation, evt.PitchVariation);
-                layer = new AudioLayer
-                {
-                    Bus = layer.Bus,
-                    Volume = overrideVolume ?? evt.DefaultVolume,
-                    Pitch = layer.Pitch + variation,
-                    IsSpatial = layer.IsSpatial,
-                };
-            }
-            else if (overrideVolume.HasValue)
-            {
-                layer = new AudioLayer
-                {
-                    Bus = layer.Bus,
-                    Volume = overrideVolume.Value,
-                    Pitch = layer.Pitch,
-                    IsSpatial = layer.IsSpatial,
-                };
+                layer.Volume = overrideVolume.Value;
             }
 
-            return _backend?.CreateVoice(evt, layer, worldPosition);
+            return _backend?.CreateVoice(eventName, layer, worldPosition);
+        }
+
+        /// <summary>Воспроизвести 3D-событие с нативной привязкой FMOD к GameObject (позиция/поворот следуют автоматически в C++).</summary>
+        public AudioPlaybackHandle PlayAttached(string eventName, GameObject targetGameObject, AudioLayer? overrideLayer = null, float? overrideVolume = null)
+        {
+            if (string.IsNullOrEmpty(eventName) || targetGameObject == null)
+            {
+                return null;
+            }
+
+            var layer = overrideLayer ?? AudioLayer.SFXDefault();
+            if (overrideVolume.HasValue)
+            {
+                layer.Volume = overrideVolume.Value;
+            }
+
+            return _backend?.CreateVoice(eventName, layer, null, targetGameObject);
+        }
+
+        /// <summary>Воспроизвести FMOD Snapshot (например "snapshot:/Cave_Ambient").</summary>
+        public AudioPlaybackHandle PlaySnapshot(string snapshotPath)
+        {
+            if (string.IsNullOrEmpty(snapshotPath))
+            {
+                return null;
+            }
+
+            return _backend?.PlaySnapshot(snapshotPath);
+        }
+
+        /// <summary>Установить значения глобального FMOD параметра в Studio (например "Depth", "Weather").</summary>
+        public void SetGlobalParameter(string parameterName, float value)
+        {
+            _backend?.SetGlobalParameter(parameterName, value);
         }
 
         /// <summary>Воспроизвести 3D-событие на заданной позиции в мире.</summary>
@@ -168,31 +113,24 @@ namespace Fodinae.Scripts.Audio.Backend
         //  Protected Lifecycle Methods
         // ═══════════════════════════════════════════════════════════
 
+        /// <summary>
+        /// Применяет сохранённые в PlayerPrefs значения громкости для всех 6 шин FMOD Studio.
+        /// </summary>
+        public void ApplySavedBusVolumes()
+        {
+            SetBusVolume(AudioBusType.Master, PlayerPrefs.GetFloat("Audio_Master", 1f));
+            SetBusVolume(AudioBusType.SFX, PlayerPrefs.GetFloat("Audio_SFX", PlayerPrefs.GetFloat("Audio_Sfx", 1f)));
+            SetBusVolume(AudioBusType.Music, PlayerPrefs.GetFloat("Audio_Music", PlayerPrefs.GetFloat("Audio_Ambient", 0.5f)));
+            SetBusVolume(AudioBusType.Voice, PlayerPrefs.GetFloat("Audio_Voice", 1f));
+            SetBusVolume(AudioBusType.Ambience, PlayerPrefs.GetFloat("Audio_Ambience", 0.7f));
+            SetBusVolume(AudioBusType.UI, PlayerPrefs.GetFloat("Audio_UI", 1f));
+        }
+
         protected override void OnAwake()
         {
-            CreateBuses();
-
-            if (_audioLibrary != null)
-            {
-                RegisterAll(_audioLibrary.Events);
-            }
-
-            // Load saved volume settings from PlayerPrefs
-            GetBus(AudioBusType.Music).Volume = PlayerPrefs.GetFloat("Audio_Ambient", 0.5f);
-            GetBus(AudioBusType.Sfx).Volume = PlayerPrefs.GetFloat("Audio_Sfx", 1f);
-
             _backend = new FmodAudioBackend();
             _backend.Initialize(this);
-
-            // Play ambient background music
-            try
-            {
-                Play2D("music/ambient_bg", AudioLayer.MusicDefault(), 0.5f);
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogWarning($"[AudioSystem] Не удалось загрузить эмбиент: {ex.Message}");
-            }
+            ApplySavedBusVolumes();
         }
 
         protected override void OnDestroyed()
@@ -201,28 +139,9 @@ namespace Fodinae.Scripts.Audio.Backend
             _backend = null;
         }
 
-        // ═══════════════════════════════════════════════════════════
-        //  Private Methods
-        // ═══════════════════════════════════════════════════════════
-
         private void Update()
         {
             _backend?.Update(Time.unscaledDeltaTime);
-        }
-
-        private void CreateBuses()
-        {
-            AddBus(new AudioBus(AudioBusType.Master));
-            AddBus(new AudioBus(AudioBusType.Sfx));
-            AddBus(new AudioBus(AudioBusType.Music));
-            AddBus(new AudioBus(AudioBusType.Voice));
-            AddBus(new AudioBus(AudioBusType.Ambience));
-            AddBus(new AudioBus(AudioBusType.Ui));
-        }
-
-        private void AddBus(AudioBus bus)
-        {
-            _buses[bus.BusType] = bus;
         }
     }
 }

@@ -205,7 +205,7 @@ namespace Fodinae.Scripts
             }
         }
 
-        private static string GetAssetPath(string filename) => Path.Combine(_cachePath, filename.TrimStart('/'));
+        public static string GetAssetPath(string filename) => Path.Combine(_cachePath, filename.TrimStart('/'));
 
         private static string GetETagPath(string filename) => Path.Combine(_cachePath, filename.TrimStart('/') + ".etag");
     }

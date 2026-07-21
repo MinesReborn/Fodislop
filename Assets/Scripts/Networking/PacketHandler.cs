@@ -32,7 +32,7 @@ namespace Fodinae.Scripts.Networking
     {
         public static PacketHandler Instance { get; private set; }
 
-        public static bool IsInputBlocked => Instance != null && (Instance._openWindows.Count > 0 || Instance._modalWindowHandler?.IsShowing == true);
+        public static bool IsInputBlocked => Instance != null && (Instance._openWindows.Count > 0 || Instance._modalWindowHandler?.IsShowing == true || PauseMenu.IsMenuOpen);
         public static string TopWindowTag => Instance?._openWindows.Count > 0 ? Instance._openWindows[^1].tag : null;
 
         private bool _isInitialized = false;
@@ -620,6 +620,11 @@ namespace Fodinae.Scripts.Networking
         private void OnWorldInitialized()
         {
             Debug.Log("[PacketHandler] World initialized event received from MapManager");
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.SetState(GameState.InGame);
+                GameManager.Instance.NotifyWorldLoaded();
+            }
         }
 
         private void HandleOnlinePacket(OnlinePacket packet)

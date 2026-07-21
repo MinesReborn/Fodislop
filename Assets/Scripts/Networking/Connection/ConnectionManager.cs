@@ -56,6 +56,8 @@ namespace Fodinae.Scripts.Networking.Connection
             }
 
             _useOldClient = oldClient;
+            Game.Managers.GameManager.InstanceIfExists?.SetState(Game.Managers.GameState.Connecting);
+
             Connection = new DummyConnection();
             Connection.OnReceived += OnReceived;
             Connection.OnConnected += OnConnected;

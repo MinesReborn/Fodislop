@@ -72,6 +72,13 @@ namespace Fodinae.Scripts
             return _cache.GetBytesAsync(filename, cancellationToken, timeoutSeconds);
         }
 
+        public async UniTask<string> GetAssetPathAsync(string filename, CancellationToken cancellationToken = default, int timeoutSeconds = 5)
+        {
+            var cleanFilename = filename.TrimStart('/').ToLowerInvariant();
+            await GetAssetBytesAsync(cleanFilename, cancellationToken, timeoutSeconds);
+            return GetAssetPath(cleanFilename);
+        }
+
         public async UniTask<Texture2D> GetTextureAsync(string filename, CancellationToken cancellationToken = default)
         {
             var texture = await _cache.GetTextureAsync(filename, cancellationToken, timeoutSeconds: 5);

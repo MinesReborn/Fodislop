@@ -12,7 +12,7 @@ namespace Fodinae.Scripts.Audio.Core
         Master = 0,
 
         /// <summary>Игровые звуки: копка, взрывы, шаги, выстрелы, механизмы.</summary>
-        Sfx = 10,
+        SFX = 10,
 
         /// <summary>Музыка / саундтрек. Длинные треки, стерео, без пространственного позиционирования.</summary>
         Music = 20,
@@ -20,11 +20,11 @@ namespace Fodinae.Scripts.Audio.Core
         /// <summary>Голос персонажа / нарратив / диалоговая система.</summary>
         Voice = 30,
 
-        /// <summary>Эмбиент окружения: ветер, гул пещеры, лава. Обычно зациклено.</summary>
+        /// <summary>Эмбиент окружения: ветер, гул, лава. Обычно зациклено.</summary>
         Ambience = 40,
 
         /// <summary>Звуки интерфейса и системных уведомлений: клики, открытие инвентаря, достижения.</summary>
-        Ui = 50,
+        UI = 50,
     }
 
     /// <summary>
@@ -35,8 +35,8 @@ namespace Fodinae.Scripts.Audio.Core
     [System.Serializable]
     public struct AudioLayer
     {
-        /// <summary>Шина через которую идёт звук. По умолчанию = <see cref="AudioBusType.Sfx"/>.</summary>
-        [Tooltip("Шина микшера: Sfx, Music, Voice, Ambience, Ui.")]
+        /// <summary>Шина через которую идёт звук. По умолчанию = <see cref="AudioBusType.SFX"/>.</summary>
+        [Tooltip("Шина микшера: SFX, Music, Voice, Ambience, UI.")]
         public AudioBusType Bus;
 
         /// <summary>
@@ -60,19 +60,19 @@ namespace Fodinae.Scripts.Audio.Core
         [Tooltip("Пространственный звук: позиция передаётся в FMOD.")]
         public bool IsSpatial;
 
-        /// <summary>Фабрика: игровой SFX — пространственный, стандартная шина Sfx.</summary>
-        public static AudioLayer SfxDefault() => new()
+        /// <summary>Фабрика: игровой SFX — пространственный, стандартная шина SFX.</summary>
+        public static AudioLayer SFXDefault() => new()
         {
-            Bus = AudioBusType.Sfx,
+            Bus = AudioBusType.SFX,
             Volume = 1f,
             Pitch = 1f,
             IsSpatial = true,
         };
 
         /// <summary>Фабрика: не-пространственный UI-звук.</summary>
-        public static AudioLayer UiDefault() => new()
+        public static AudioLayer UIDefault() => new()
         {
-            Bus = AudioBusType.Ui,
+            Bus = AudioBusType.UI,
             Volume = 1f,
             Pitch = 1f,
             IsSpatial = false,

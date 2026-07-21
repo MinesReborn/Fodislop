@@ -6,93 +6,101 @@ namespace Fodinae.Scripts.Audio.Core
     /// <summary>
     /// Хендл активного проигрывания — возвращается методом AudioSystem.Play().
     ///
+    /// Оборачивает FMOD.Studio.EventInstance напрямую без C#-делегатов и лишней GC-нагрузки.
     /// Позволяет:
     /// <list type="bullet">
     ///   <item>Остановить звук досрочно: <c>handle.Stop(fadeOut: 0.3f)</c></item>
-    ///   <item>Подвинуть позицию за источником: <c>handle.SetPosition(target.position)</c></item>
+    ///   <item>Подвинуть позицию: <c>handle.SetPosition(target.position)</c></item>
     ///   <item>Узнать играет ли ещё: <c>handle.IsPlaying</c></item>
     ///   <item>Менять громкость на лету: <c>handle.SetVolume(0.5f)</c></item>
+    ///   <item>Менять FMOD параметры: <c>handle.SetParameter("Speed", 1.5f)</c></item>
     /// </list>
     /// </summary>
     public sealed class AudioPlaybackHandle
     {
-        /// <summary>Шина на которой играет звук.</summary>
-        public AudioBus Bus { get; }
+        public AudioBusType BusType { get; }
+        public FMOD.Studio.EventInstance EventInstance { get; }
 
-        /// <summary>Играет ли звук прямо сейчас.</summary>
         public bool IsPlaying
         {
             get
             {
-                if (_disposed)
+                if (!EventInstance.isValid())
                 {
                     return false;
                 }
 
-                return _isPlayingFunc?.Invoke(this) ?? false;
+                EventInstance.getPlaybackState(out var state);
+                return state != FMOD.Studio.PLAYBACK_STATE.STOPPED;
             }
         }
 
-        /// <summary>Идентификатор для сопоставления с внутренним голосом бэкенда.</summary>
-        public readonly int HandleId;
-
-        internal bool _disposed;
-        internal global::System.Func<AudioPlaybackHandle, bool> _isPlayingFunc;
-        internal global::System.Action<AudioPlaybackHandle, float> _stopAction;
-        internal global::System.Action<AudioPlaybackHandle, Vector3> _positionAction;
-        internal global::System.Action<AudioPlaybackHandle, float> _volumeAction;
-        internal global::System.Action<AudioPlaybackHandle, float> _pitchAction;
-
-        /// <summary>Создаётся бэкендом. Не инстанциируй руками.</summary>
-        internal AudioPlaybackHandle(int id, AudioBus bus)
+        public AudioPlaybackHandle(FMOD.Studio.EventInstance instance, AudioBusType busType)
         {
-            HandleId = id;
-            Bus = bus;
+            EventInstance = instance;
+            BusType = busType;
         }
 
-        /// <summary>Остановить с плавным затуханием за fadeOut секунд.</summary>
+        /// <summary>Остановить с плавным затуханием за fadeOut секунд (если на строен FMOD fadeout).</summary>
         public void Stop(float fadeOut = 0f)
         {
-            if (_disposed)
+            if (!EventInstance.isValid())
             {
                 return;
             }
 
-            _disposed = true;
-            _stopAction?.Invoke(this, fadeOut);
+            var mode = fadeOut > 0f ? FMOD.Studio.STOP_MODE.ALLOWFADEOUT : FMOD.Studio.STOP_MODE.IMMEDIATE;
+            EventInstance.stop(mode);
+            EventInstance.release();
         }
 
         /// <summary>Установить позицию в мире (для пространственных звуков).</summary>
         public void SetPosition(Vector3 worldPosition)
         {
-            if (_disposed)
+            if (!EventInstance.isValid())
             {
                 return;
             }
 
-            _positionAction?.Invoke(this, worldPosition);
+            EventInstance.set3DAttributes(new FMOD.ATTRIBUTES_3D
+            {
+                position = new FMOD.VECTOR { x = worldPosition.x, y = worldPosition.y, z = 0f },
+                forward = new FMOD.VECTOR { x = 0f, y = 0f, z = 1f },
+                up = new FMOD.VECTOR { x = 0f, y = 1f, z = 0f },
+            });
         }
 
         /// <summary>Изменить громкость этого конкретного голоса (0..+∞, линейно).</summary>
         public void SetVolume(float linearVolume)
         {
-            if (_disposed)
+            if (!EventInstance.isValid())
             {
                 return;
             }
 
-            _volumeAction?.Invoke(this, Mathf.Max(0f, linearVolume));
+            EventInstance.setVolume(Mathf.Max(0f, linearVolume));
         }
 
         /// <summary>Изменить питч этого конкретного голоса.</summary>
         public void SetPitch(float pitch)
         {
-            if (_disposed)
+            if (!EventInstance.isValid())
             {
                 return;
             }
 
-            _pitchAction?.Invoke(this, Mathf.Clamp(pitch, 0.01f, 4f));
+            EventInstance.setPitch(Mathf.Clamp(pitch, 0.01f, 4f));
+        }
+
+        /// <summary>Установить значение параметра FMOD события на лету.</summary>
+        public void SetParameter(string parameterName, float value)
+        {
+            if (!EventInstance.isValid() || string.IsNullOrEmpty(parameterName))
+            {
+                return;
+            }
+
+            EventInstance.setParameterByName(parameterName, value);
         }
     }
 }

@@ -17,31 +17,52 @@ if [ -z "$PROJECTS" ]; then
 fi
 
 HAS_WARNINGS=0
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+PIDS=()
+PROJ_LIST=()
 
 for PROJECT_FILE in $PROJECTS; do
     PROJECT_NAME=$(basename "$PROJECT_FILE")
+    PROJ_LIST+=("$PROJECT_NAME")
+    LOG_FILE="$TMP_DIR/$PROJECT_NAME.log"
 
-    echo "Running C# Roslyn analyzers for $PROJECT_NAME via dotnet build..."
+    echo "Running full C# Roslyn analyzer check for $PROJECT_NAME..."
 
-    # Run build and capture output
-    BUILD_LOG=$(dotnet build "$PROJECT_FILE" --no-incremental 2>&1 || true)
+    # Run full --no-incremental analysis in parallel using shared Roslyn compiler server & all CPU cores
+    (
+        dotnet build "$PROJECT_FILE" --no-incremental -maxcpucount -p:UseSharedCompilation=true -nodeReuse:true -clp:NoSummary > "$LOG_FILE" 2>&1
+    ) &
+    PIDS+=($!)
+done
 
-    # Search for compilation errors
-    PROJECT_ERRORS=$(echo "$BUILD_LOG" | grep -Ei "error CS[0-9]+" || true)
+# Wait for all parallel analyzer jobs to complete
+for i in "${!PIDS[@]}"; do
+    wait "${PIDS[$i]}" || true
+    PROJECT_NAME="${PROJ_LIST[$i]}"
+    LOG_FILE="$TMP_DIR/$PROJECT_NAME.log"
 
-    # Search for all warnings in the entire codebase (Assets/Scripts or Assets/Editor)
-    PROJECT_WARNINGS=$(echo "$BUILD_LOG" | grep -Ei "warning (SA|CA|RCS|UNT)[0-9]+" | grep -E "/Assets/(Scripts|Editor)/" || true)
+    if [ -f "$LOG_FILE" ]; then
+        BUILD_LOG=$(cat "$LOG_FILE")
 
-    if [ -n "$PROJECT_ERRORS" ]; then
-        echo -e "\n\033[0;31mError: Compilation failed for $PROJECT_NAME:\033[0m"
-        echo "$PROJECT_ERRORS"
-        HAS_WARNINGS=1
-    fi
+        # All compilation errors
+        PROJECT_ERRORS=$(echo "$BUILD_LOG" | grep -E ": error " | grep -E "/Assets/(Scripts|Editor)/" || true)
 
-    if [ -n "$PROJECT_WARNINGS" ]; then
-        echo -e "\n\033[0;31mError: Linters detected warnings in $PROJECT_NAME codebase:\033[0m"
-        echo "$PROJECT_WARNINGS"
-        HAS_WARNINGS=1
+        # All warnings from any analyzer or compiler in Assets/Scripts or Assets/Editor
+        PROJECT_WARNINGS=$(echo "$BUILD_LOG" | grep -E ": warning " | grep -E "/Assets/(Scripts|Editor)/" || true)
+
+        if [ -n "$PROJECT_ERRORS" ]; then
+            echo -e "\n\033[0;31mError: Compilation failed for $PROJECT_NAME:\033[0m"
+            echo "$PROJECT_ERRORS"
+            HAS_WARNINGS=1
+        fi
+
+        if [ -n "$PROJECT_WARNINGS" ]; then
+            echo -e "\n\033[0;31mError: Linters detected warnings in $PROJECT_NAME codebase:\033[0m"
+            echo "$PROJECT_WARNINGS"
+            HAS_WARNINGS=1
+        fi
     fi
 done
 

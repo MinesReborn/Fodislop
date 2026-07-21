@@ -1,347 +1,115 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CDN & Кэширование — Fodinae Client</title>
+    <title>Загрузка ассетов и CDN — Fodinae Client Documentation</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-color: #07080e;
-            --card-bg: rgba(16, 17, 30, 0.65);
-            --card-border: rgba(255, 255, 255, 0.06);
-            --text-main: #d1d2e0;
-            --text-muted: #808298;
-            --text-title: #ffffff;
-            --accent-primary: #00f2fe;
-            --accent-secondary: #4facfe;
-            --accent-gradient: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
-            --accent-mint: #64ffda;
-            --font-outfit: 'Outfit', sans-serif;
-            --font-inter: 'Inter', sans-serif;
-            --font-code: 'Fira Code', 'JetBrains Mono', monospace;
-            --shadow-subtle: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-            --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: var(--font-inter);
-            color: var(--text-main);
-            background: var(--bg-color);
-            background-image:
-                radial-gradient(at 10% 10%, rgba(0, 242, 254, 0.02) 0px, transparent 50%),
-                radial-gradient(at 90% 90%, rgba(79, 172, 254, 0.02) 0px, transparent 50%);
-            min-height: 100vh;
-            line-height: 1.6;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            overflow-x: hidden;
-        }
-
-        /* ── Header ── */
-        .nav-header {
-            width: 100%;
-            background: rgba(11, 12, 22, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--card-border);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            display: flex;
-            justify-content: center;
-            padding: 0 1.5rem;
-        }
-
-        .nav-container {
-            width: 100%;
-            max-width: 1000px;
-            height: 70px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .nav-brand {
-            font-family: var(--font-outfit);
-            font-weight: 800;
-            font-size: 1.5rem;
-            background: var(--accent-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: -0.5px;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .nav-brand a {
-            text-decoration: none;
-            color: inherit;
-        }
-
-        .nav-brand::before {
-            content: '';
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            background: var(--accent-primary);
-            border-radius: 50%;
-            box-shadow: 0 0 10px var(--accent-primary);
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 1.5rem;
-        }
-
-        .nav-links a {
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 0.95rem;
-            font-weight: 500;
-            font-family: var(--font-outfit);
-            transition: var(--transition-smooth);
-            position: relative;
-            padding: 0.25rem 0;
-        }
-
-        .nav-links a:hover, .nav-links a.active {
-            color: var(--text-title);
-        }
-
-        .nav-links a::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 0;
-            height: 2px;
-            background: var(--accent-gradient);
-            transition: var(--transition-smooth);
-        }
-
-        .nav-links a:hover::after, .nav-links a.active::after {
-            width: 100%;
-        }
-
-        /* ── Main Wrapper ── */
-        .main-wrapper {
-            width: 100%;
-            max-width: 800px;
-            padding: 3rem 1.5rem 6rem;
-            display: flex;
-            flex-direction: column;
-            gap: 2.5rem;
-        }
-
-        /* ── Section Title ── */
-        .title-area {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            border-bottom: 1px solid var(--card-border);
-            padding-bottom: 1.5rem;
-        }
-
-        .title-area h1 {
-            font-family: var(--font-outfit);
-            font-size: 2.5rem;
-            font-weight: 800;
-            color: var(--text-title);
-            line-height: 1.2;
-            letter-spacing: -1px;
-        }
-
-        .title-area p {
-            color: var(--text-muted);
-            font-size: 1.1rem;
-            font-weight: 300;
-        }
-
-        /* ── Typography ── */
-        h2 {
-            font-family: var(--font-outfit);
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: var(--text-title);
-            margin-top: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        h2::before {
-            content: '';
-            display: inline-block;
-            width: 4px;
-            height: 24px;
-            background: var(--accent-gradient);
-            border-radius: 2px;
-        }
-
-        h3 {
-            font-family: var(--font-outfit);
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--text-title);
-            margin-top: 1rem;
-        }
-
-        p {
-            font-size: 1rem;
-            font-weight: 300;
-            color: var(--text-main);
-            margin-bottom: 0.5rem;
-        }
-
-        ul, ol {
-            padding-left: 1.5rem;
-            margin-bottom: 0.5rem;
-        }
-
-        li {
-            font-size: 1rem;
-            font-weight: 300;
-            color: var(--text-main);
-            margin-bottom: 0.4rem;
-        }
-
-        /* ── Code Blocks ── */
-        code {
-            font-family: var(--font-code);
-            font-size: 0.85em;
-            background: rgba(18, 19, 30, 0.9);
-            border: 1px solid rgba(255, 255, 255, 0.04);
-            padding: 0.15em 0.4em;
-            border-radius: 4px;
-            color: var(--accent-mint);
-        }
-
-        pre {
-            background: #0b0c16;
-            border: 1px solid var(--card-border);
-            border-radius: 8px;
-            padding: 1.2rem;
-            overflow-x: auto;
-            margin: 1rem 0;
-            box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
-        }
-
-        pre code {
-            background: none;
-            border: none;
-            padding: 0;
-            color: #d1d2e0;
-            font-size: 0.85rem;
-        }
-
-        .c-comment { color: #5c6370; font-style: italic; }
-        .c-keyword { color: #c678dd; }
-        .c-type { color: #e5c07b; }
-        .c-string { color: #98c379; }
-        .c-method { color: #61afef; }
-
-        /* ── Class Links ── */
-        .class-ref {
-            font-family: var(--font-code);
-            font-weight: 500;
-            color: var(--accent-primary);
-            text-decoration: none;
-            transition: var(--transition-smooth);
-        }
-
-        .class-ref:hover {
-            color: var(--accent-mint);
-            text-decoration: underline;
-        }
-    </style>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="js/main.js" defer></script>
 </head>
+
 <body>
 
-    <header class="nav-header">
-        <div class="nav-container">
-            <div class="nav-brand"><a href="index.html">Fodinae Docs</a></div>
-            <nav class="nav-links">
-                <a href="rendering.html">Рендеринг</a>
-                <a href="networking.html">Сеть</a>
-                <a href="audio.html">Аудио</a>
-                <a href="assets_loading.html" class="active">CDN & Кэш</a>
-                <a href="ui_programmator.html">UI & Код</a>
-            </nav>
+    <header>
+        <div class="header-title-group">
+            <div class="logo-badge">F</div>
+            <div>
+                <h1>Загрузка ассетов и CDN кэширование</h1>
+                <p class="subtitle">Спецификация дискового ETag-кэша и объединения HTTP-запросов</p>
+            </div>
         </div>
+        <nav>
+            <a href="index.html">Обзор архитектуры</a>
+            <a href="rendering.html">Рендеринг (SingleMesh)</a>
+            <a href="networking.html">Сетевой протокол</a>
+            <a href="audio.html">Аудио (FMOD)</a>
+            <a href="assets_loading.html">Загрузка ассетов</a>
+            <a href="ui_programmator.html">UI & Программатор</a>
+        </nav>
     </header>
 
-    <main class="main-wrapper">
-        <section class="title-area">
-            <h1>Локальный CDN & Кэширование ассетов</h1>
-            <p>Устройство двухэтапного кэширования и оптимизация трафика при загрузке ассетов.</p>
+    <main>
+        <!-- Падигма On-Demand -->
+        <section>
+            <h2>Концепция: Однократный запрос ресурса & Локальный рендер</h2>
+            <p>Клиент Fodinae следует принципу ленивой однократной загрузки: клиент инкапсулирует исполнительные
+                примитивы рендеринга (тайлы, сущности роботов, предмета паков, FMOD-звуки), в то время как сервер
+                передаёт исключительно легковесные координаты и ID состояний.</p>
+            <p>При возникновении неизвестной клиенту сущности ресурс (текстура, спрайт, банк звуков) запрашивается с
+                сервера/CDN ровно один раз. Все последующие появления того же объекта обрабатываются локальным кэшем без
+                дублирования сетевых запросов.</p>
         </section>
 
-        <!-- CDN Pipeline -->
+        <!-- Пайплайн загрузки -->
         <section>
-            <h2>Пайплайн загрузки ассетов (Локальный CDN)</h2>
-            <p>Для минимизации сетевого трафика и быстрого запуска игры Fodinae использует интеллектуальную систему кэширования по протоколу TCP с валидацией изменений через хэш-суммы <strong>ETag</strong>.</p>
-
-            <h3>Алгоритм загрузки (GetAssetAsync):</h3>
+            <h2>Пайплайн загрузки ресурсов (ClientAssetLoader)</h2>
+            <p>Загрузка ассетов с сервера (текстуры, аватары, анимированные спрайты, FMOD банки) выполняется через <a
+                    href="../Assets/Scripts/ClientAssetLoader.cs" class="class-ref">ClientAssetLoader</a>:</p>
             <ol>
-                <li><strong>RAM-кэш (AssetCache)</strong>: При запросе ассета сначала проверяется его наличие в оперативной памяти. Если ассет найден, он возвращается мгновенно.</li>
-                <li><strong>Дисковый кэш (PersistentAssetCache)</strong>:
+                <li><strong>Проверка RAM-кэша (AssetCache)</strong>: Быстрый поиск уже декодированного ресурса в памяти
+                    по URL/ключу.</li>
+                <li><strong>Дисковый кэш (PersistentAssetCache)</strong>: Если ресурс отсутствует в RAM, проверяется
+                    локальный файл в <code>persistentDataPath</code>.</li>
+                <li><strong>HTTP ETag/MD5 Валидация</strong>: Если файл есть на диске, отправляется HTTP HEAD/GET запрос
+                    с заголовком <code>If-None-Match: "ETag"</code>.
                     <ul>
-                        <li>Если в RAM ассета нет, проверяется его наличие на диске (в папке <code>Application.persistentDataPath</code>).</li>
-                        <li>Если файл на диске отсутствует, отправляется запрос на сервер.</li>
-                        <li>Если файл есть на диске, клиент считывает локальный ETag и отправляет его серверу в пакете запроса для валидации.</li>
+                        <li>При ответе <code>304 Not Modified</code> ресурс читается напрямую с диска без повторной
+                            скачки.</li>
+                        <li>При ответе <code>200 OK</code> скачивается новый поток байт и обновляется дисковый кэш.</li>
                     </ul>
                 </li>
-                <li><strong>Валидация по TCP & Нормализация CDN</strong>:
-                    <ul>
-                        <li>Сетевые пути ассетов автоматически приводятся к нижнему регистру (<code>filename.ToLowerInvariant()</code>) перед упаковыванием в пакет <code class="class-ref">RuntimeAssetRequestPacket</code>. Это гарантирует 100% совместимость с регистрозависимыми Linux CDN-серверами (где <code>/cells/1.png</code> пишется в нижнем регистре).</li>
-                        <li>В локальном режиме разработки (или при отсутствии связи) <code class="class-ref">TextureStorageManager</code> производит нечёткий поиск (Fuzzy Matching) и сопоставляет строчный сетевой путь с локальной папкой в <code>PascalCase</code> (например, <code>Assets/Textures/Cells/1.png</code>).</li>
-                        <li>Если файл на сервере не менялся (ETag совпадает), сервер возвращает <code class="class-ref">RuntimeAssetPacket</code> с пустым буфером данных (длина 0). Клиент считывает файл из дискового кэша.</li>
-                        <li>Если файл обновился, клиент сохраняет новые байты на диск и обновляет локальный ETag-хэш.</li>
-                    </ul>
-                </li>
+                <li><strong>Дедупликация запросов (Coalescing)</strong>: При одновременном вызове нескольких загрузок
+                    одного URL создаётся единый <code>TaskCompletionSource</code>, исключающий параллельные duplicate
+                    HTTP-запросы.</li>
             </ol>
         </section>
 
-        <!-- ClientAssetLoader -->
+        <!-- Структура компонентов -->
         <section>
-            <h2>ClientAssetLoader & Объединение запросов</h2>
-            <p>Синглтон <a href="../Assets/Scripts/ClientAssetLoader.cs" class="class-ref">ClientAssetLoader</a> управляет асинхронными сетевыми операциями загрузки текстур, звуков и текстовых данных.</p>
-
-            <h3>Коалесценция запросов (Coalescing):</h3>
-            <p>Когда на экране появляется много одинаковых объектов (например, кристаллы одного типа), они одновременно запрашивают одну и ту же текстуру с сервера. Чтобы не создавать десятки параллельных сетевых запросов к одному файлу, <code>ClientAssetLoader</code> объединяет их:</p>
-            <ul>
-                <li>Если файл уже скачивается, новый запрос не запускает сетевую операцию, а регистрирует объект <code>TaskCompletionSource</code>.</li>
-                <li>Когда сетевой поток первого запроса завершается и сохраняет файл, все ожидающие асинхронные задачи завершаются одновременно, используя один и тот же результат.</li>
-            </ul>
-        </section>
-
-        <!-- PersistentAssetCache -->
-        <section>
-            <h2>Стойкий дисковый кэш (PersistentAssetCache)</h2>
-            <p>Класс <a href="../Assets/Scripts/PersistentAssetCache.cs" class="class-ref">PersistentAssetCache</a> отвечает за физическую запись файлов в кэш и хранение метаданных.</p>
-            <ul>
-                <li><strong>ETag-валидация</strong>: Локальные ETag рассчитываются на основе MD5 хэш-суммы данных файла с помощью утилиты <a href="../Assets/Scripts/ETagCalculator.cs" class="class-ref">ETagCalculator</a>.</li>
-                <li>Строка ETag сохраняется в ассоциативный файл-спутник с расширением <code>.etag</code> (например, <code>image.png.etag</code>) прямо в папке кэша рядом с оригинальным файлом, что позволяет кэшу быть стойким между перезапусками игры.</li>
-            </ul>
-        </section>
-
-        <!-- DynamicImage -->
-        <section>
-            <h2>Динамические изображения (DynamicImage)</h2>
-            <p>Компонент <a href="../Assets/Scripts/DynamicImage.cs" class="class-ref">DynamicImage</a> расширяет стандартный компонент Unity <code>UnityEngine.UI.Image</code>. Он позволяет задавать источник спрайта в виде URL-ссылки на сервер CDN. В методе инициализации компонент отправляет асинхронный запрос в <code>ClientAssetLoader</code> и автоматически обновляет картинку на экране по мере загрузки.</p>
+            <h2>Компоненты кэширования</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Класс</th>
+                        <th>Файл</th>
+                        <th>Назначение</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>ClientAssetLoader</code></td>
+                        <td><a href="../Assets/Scripts/ClientAssetLoader.cs" class="class-ref">ClientAssetLoader.cs</a>
+                        </td>
+                        <td>Асинхронный контроллер загрузок (`GetTextureAsync`, `GetAssetPathAsync`, `GetAudioAsync`).
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>PersistentAssetCache</code></td>
+                        <td><a href="../Assets/Scripts/PersistentAssetCache.cs"
+                                class="class-ref">PersistentAssetCache.cs</a></td>
+                        <td>Стойкое дисковое хранилище ETag/MD5 метаданных и бинарных файлов.</td>
+                    </tr>
+                    <tr>
+                        <td><code>ETagCalculator</code></td>
+                        <td><a href="../Assets/Scripts/ETagCalculator.cs" class="class-ref">ETagCalculator.cs</a></td>
+                        <td>Расчёт MD5-хэша файлов для ETag-валидации.</td>
+                    </tr>
+                    <tr>
+                        <td><code>DynamicImage</code></td>
+                        <td><a href="../Assets/Scripts/DynamicImage.cs" class="class-ref">DynamicImage.cs</a></td>
+                        <td>MonoBehaviour с `UnityEngine.UI.Image`, подгружающий спрайты с сервера по URL.</td>
+                    </tr>
+                </tbody>
+            </table>
         </section>
     </main>
 
 </body>
+
 </html>

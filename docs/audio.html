@@ -1,362 +1,148 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Аудиоподсистема — Fodinae Client</title>
+    <title>Аудиоподсистема FMOD — Fodinae Client Documentation</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-color: #07080e;
-            --card-bg: rgba(16, 17, 30, 0.65);
-            --card-border: rgba(255, 255, 255, 0.06);
-            --text-main: #d1d2e0;
-            --text-muted: #808298;
-            --text-title: #ffffff;
-            --accent-primary: #00f2fe;
-            --accent-secondary: #4facfe;
-            --accent-gradient: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
-            --accent-mint: #64ffda;
-            --font-outfit: 'Outfit', sans-serif;
-            --font-inter: 'Inter', sans-serif;
-            --font-code: 'Fira Code', 'JetBrains Mono', monospace;
-            --shadow-subtle: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-            --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: var(--font-inter);
-            color: var(--text-main);
-            background: var(--bg-color);
-            background-image:
-                radial-gradient(at 10% 10%, rgba(0, 242, 254, 0.02) 0px, transparent 50%),
-                radial-gradient(at 90% 90%, rgba(79, 172, 254, 0.02) 0px, transparent 50%);
-            min-height: 100vh;
-            line-height: 1.6;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            overflow-x: hidden;
-        }
-
-        /* ── Header ── */
-        .nav-header {
-            width: 100%;
-            background: rgba(11, 12, 22, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--card-border);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            display: flex;
-            justify-content: center;
-            padding: 0 1.5rem;
-        }
-
-        .nav-container {
-            width: 100%;
-            max-width: 1000px;
-            height: 70px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .nav-brand {
-            font-family: var(--font-outfit);
-            font-weight: 800;
-            font-size: 1.5rem;
-            background: var(--accent-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: -0.5px;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .nav-brand a {
-            text-decoration: none;
-            color: inherit;
-        }
-
-        .nav-brand::before {
-            content: '';
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            background: var(--accent-primary);
-            border-radius: 50%;
-            box-shadow: 0 0 10px var(--accent-primary);
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 1.5rem;
-        }
-
-        .nav-links a {
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 0.95rem;
-            font-weight: 500;
-            font-family: var(--font-outfit);
-            transition: var(--transition-smooth);
-            position: relative;
-            padding: 0.25rem 0;
-        }
-
-        .nav-links a:hover, .nav-links a.active {
-            color: var(--text-title);
-        }
-
-        .nav-links a::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 0;
-            height: 2px;
-            background: var(--accent-gradient);
-            transition: var(--transition-smooth);
-        }
-
-        .nav-links a:hover::after, .nav-links a.active::after {
-            width: 100%;
-        }
-
-        /* ── Main Wrapper ── */
-        .main-wrapper {
-            width: 100%;
-            max-width: 800px;
-            padding: 3rem 1.5rem 6rem;
-            display: flex;
-            flex-direction: column;
-            gap: 2.5rem;
-        }
-
-        /* ── Section Title ── */
-        .title-area {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            border-bottom: 1px solid var(--card-border);
-            padding-bottom: 1.5rem;
-        }
-
-        .title-area h1 {
-            font-family: var(--font-outfit);
-            font-size: 2.5rem;
-            font-weight: 800;
-            color: var(--text-title);
-            line-height: 1.2;
-            letter-spacing: -1px;
-        }
-
-        .title-area p {
-            color: var(--text-muted);
-            font-size: 1.1rem;
-            font-weight: 300;
-        }
-
-        /* ── Typography ── */
-        h2 {
-            font-family: var(--font-outfit);
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: var(--text-title);
-            margin-top: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        h2::before {
-            content: '';
-            display: inline-block;
-            width: 4px;
-            height: 24px;
-            background: var(--accent-gradient);
-            border-radius: 2px;
-        }
-
-        h3 {
-            font-family: var(--font-outfit);
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--text-title);
-            margin-top: 1rem;
-        }
-
-        p {
-            font-size: 1rem;
-            font-weight: 300;
-            color: var(--text-main);
-            margin-bottom: 0.5rem;
-        }
-
-        ul, ol {
-            padding-left: 1.5rem;
-            margin-bottom: 0.5rem;
-        }
-
-        li {
-            font-size: 1rem;
-            font-weight: 300;
-            color: var(--text-main);
-            margin-bottom: 0.4rem;
-        }
-
-        /* ── Code Blocks ── */
-        code {
-            font-family: var(--font-code);
-            font-size: 0.85em;
-            background: rgba(18, 19, 30, 0.9);
-            border: 1px solid rgba(255, 255, 255, 0.04);
-            padding: 0.15em 0.4em;
-            border-radius: 4px;
-            color: var(--accent-mint);
-        }
-
-        pre {
-            background: #0b0c16;
-            border: 1px solid var(--card-border);
-            border-radius: 8px;
-            padding: 1.2rem;
-            overflow-x: auto;
-            margin: 1rem 0;
-            box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
-        }
-
-        pre code {
-            background: none;
-            border: none;
-            padding: 0;
-            color: #d1d2e0;
-            font-size: 0.85rem;
-        }
-
-        .c-comment { color: #5c6370; font-style: italic; }
-        .c-keyword { color: #c678dd; }
-        .c-type { color: #e5c07b; }
-        .c-string { color: #98c379; }
-        .c-method { color: #61afef; }
-
-        /* ── Class Links ── */
-        .class-ref {
-            font-family: var(--font-code);
-            font-weight: 500;
-            color: var(--accent-primary);
-            text-decoration: none;
-            transition: var(--transition-smooth);
-        }
-
-        .class-ref:hover {
-            color: var(--accent-mint);
-            text-decoration: underline;
-        }
-    </style>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="js/main.js" defer></script>
 </head>
+
 <body>
 
-    <header class="nav-header">
-        <div class="nav-container">
-            <div class="nav-brand"><a href="index.html">Fodinae Docs</a></div>
-            <nav class="nav-links">
-                <a href="rendering.html">Рендеринг</a>
-                <a href="networking.html">Сеть</a>
-                <a href="audio.html" class="active">Аудио</a>
-                <a href="assets_loading.html">CDN & Кэш</a>
-                <a href="ui_programmator.html">UI & Код</a>
-            </nav>
+    <header>
+        <div class="header-title-group">
+            <div class="logo-badge">F</div>
+            <div>
+                <h1>Аудиоподсистема FMOD Studio</h1>
+                <p class="subtitle">Спецификация интеграции FMOD C++ Engine и звукового микшера</p>
+            </div>
         </div>
+        <nav>
+            <a href="index.html">Обзор архитектуры</a>
+            <a href="rendering.html">Рендеринг (SingleMesh)</a>
+            <a href="networking.html">Сетевой протокол</a>
+            <a href="audio.html">Аудио (FMOD)</a>
+            <a href="assets_loading.html">Загрузка ассетов</a>
+            <a href="ui_programmator.html">UI & Программатор</a>
+        </nav>
     </header>
 
-    <main class="main-wrapper">
-        <section class="title-area">
-            <h1>Аудиоподсистема Fodinae</h1>
-            <p>Полное архитектурное руководство по устройству звука, FMOD Studio бэкенду, иерархии шин и пространственной акустике.</p>
-        </section>
-
-        <!-- Обзор Архитектуры -->
+    <main>
+        <!-- Обзор подсистемы -->
         <section>
-            <h2>Обзор Архитектуры</h2>
-            <p>Аудиоподсистема Fodinae спроектирована как независимый, высокооптимизированный звуковой домен. Он разделяет понятия <strong>семантических аудиособытий</strong> (то, что запрашивает геймплейный код) и <strong>бэкенда воспроизведения</strong> (FMOD Studio Engine или Unity AudioSource).</p>
-
-            <p>Ключевые принципы архитектуры:</p>
+            <h2>Архитектура аудио-домена</h2>
+            <p>Аудиоподсистема взаимодействует напрямую с **FMOD Studio C++ Engine**. Все звуковые события адресуются по
+                именам событий (`event:/...` или `snapshot:/...`).</p>
             <ul>
-                <li><strong>Семантический доступ</strong>: Код игры не работает напрямую с именами звуковых файлов. Вместо этого вызываются именованные события (<code>AudioSystem.Play("dig_rock")</code>, <code>AudioSystem.PlayAt("explosion", pos)</code>).</li>
-                <li><strong>Нативный FMOD Бэкенд</strong>: Управление громкостью, дакингом, Voice Limit и фильтрами происходит в FMOD Studio Engine.</li>
-                <li><strong>Динамическое скачивание банков</strong>: В режиме MMO файлы FMOD-банков (<code>.bank</code>) скачиваются с игрового CDN через <code>ClientAssetLoader</code> с ETag-кэшированием и подгружаются в память FMOD в рантайме.</li>
+                <li><a href="../Assets/Scripts/Audio/Backend/AudioSystem.cs" class="class-ref">AudioSystem</a> —
+                    глобальный синглтон-контроллер в <code>DontDestroyOnLoad</code>. Принимает вызовы <code>Play</code>,
+                    <code>PlayAttached</code>, <code>PlaySnapshot</code>, <code>SetGlobalParameter</code>,
+                    <code>SetBusVolume</code>.</li>
+                <li><a href="../Assets/Scripts/Audio/Backend/FmodAudioBackend.cs" class="class-ref">FmodAudioBackend</a>
+                    — низкоуровневая обёртка над C++ FMOD API (загрузка банков с диска через <code>loadBankFile</code>,
+                    нативная привязка к <code>GameObject</code>, управление сэмплами и шинами).</li>
+                <li><a href="../Assets/Scripts/Audio/Core/AudioPlaybackHandle.cs"
+                        class="class-ref">AudioPlaybackHandle</a> — легкий хендл активного голоса, оборачивающий
+                    <code>FMOD.Studio.EventInstance</code> без C#-делегатов и аллокаций в памяти.</li>
+                <li><a href="../Assets/Scripts/Audio/Spatial/AudioSpatial.cs" class="class-ref">AudioSpatial</a> —
+                    привязывает пространственные 3D-звуки к `Transform` с нативной трансляцией координат на C++ стороне
+                    FMOD.</li>
+                <li><a href="../Assets/Scripts/Audio/Spatial/AudioZone.cs" class="class-ref">AudioZone</a> — триггерный
+                    регион, активирующий **FMOD Snapshots** (например <code>snapshot:/Cave_Ambient</code>) без
+                    перезаписи пользовательских настроек микшера.</li>
             </ul>
         </section>
 
-        <!-- Точка входа AudioSystem -->
+        <!-- Примеры C# API -->
         <section>
-            <h2>Точка входа: AudioSystem</h2>
-            <p>Класс <a href="../Assets/Scripts/Audio/Backend/AudioSystem.cs" class="class-ref">AudioSystem</a> является синглтоном, живущим в <code>DontDestroyOnLoad</code>. Он предоставляет глобальный C# API для проигрывания звуков и управления шинами.</p>
+            <h2>Интерфейс программирования (C# API)</h2>
+            <pre><code><span class="c-comment">// 2D звук интерфейса</span>
+AudioSystem.Instance.Play2D(<span class="c-string">"ui_click"</span>);
 
-            <pre><code><span class="c-comment">// Проигрывание звука интерфейса (2D)</span>
-AudioSystem.Play2D(<span class="c-string">"ui_click"</span>);
+<span class="c-comment">// 3D звук с нативной привязкой к GameObject</span>
+AudioSystem.Instance.PlayAttached(<span class="c-string">"robot_engine"</span>, gameObject);
 
-<span class="c-comment">// Проигрывание позиционного звука копки в мировых координатах</span>
-AudioSystem.PlayAt(<span class="c-string">"dig_rock"</span>, transform.position);
+<span class="c-comment">// Запуск FMOD Snapshot (акустика зоны)</span>
+var snapshot = AudioSystem.Instance.PlaySnapshot(<span class="c-string">"snapshot:/Cave_Ambient"</span>);
 
-<span class="c-comment">// Управление громкостью шины звуковых эффектов</span>
-AudioSystem.Instance.GetBus(AudioBusType.Sfx).Volume = <span class="c-num">0.8f</span>;</code></pre>
+<span class="c-comment">// Глобальный параметр FMOD (глубина шахты)</span>
+AudioSystem.Instance.SetGlobalParameter(<span class="c-string">"Depth"</span>, <span class="c-num">350f</span>);
+
+<span class="c-comment">// Установка громкости шины SFX</span>
+AudioSystem.Instance.SetBusVolume(AudioBusType.SFX, <span class="c-num">0.8f</span>);</code></pre>
         </section>
 
-        <!-- FMOD Studio Бэкенд -->
+        <!-- Иерархия шин -->
         <section>
-            <h2>FMOD Studio Бэкенд (FmodAudioBackend)</h2>
-            <p>Класс <a href="../Assets/Scripts/Audio/Backend/FmodAudioBackend.cs" class="class-ref">FmodAudioBackend</a> отвечает за взаимодействие с FMOD C++ Engine:</p>
-            <ol>
-                <li><strong>Загрузка банков</strong>: Метод <code>LoadAllBanks()</code> опрашивает <code>ClientAssetLoader</code> и загружает банки <code>Master</code>, <code>SFX</code>, <code>Music</code>, <code>Ambience</code>, <code>Voice</code> через <code>loadBankMemory</code>. При отсутствии связи используется локальный фоллбек из <code>StreamingAssets/Audio/</code>.</li>
-                <li><strong>Создание голосов (CreateVoice)</strong>: Преобразует событие в путь FMOD (<code>event:/{Name}</code>). Вызов обернут в защищенный <code>try-catch</code> блок: если событие отсутствует в банках, система логирует предупреждение без вызова исключений и падения сетевого сервиса.</li>
-                <li><strong>Инверсия координат Y</strong>: Автоматически транслирует 2D-координаты мира Unity в 3D-векторы атрибутов FMOD (<code>FMOD.ATTRIBUTES_3D</code>).</li>
-            </ol>
+            <h2>Шины FMOD Studio (AudioBusType)</h2>
+            <p>В микшере FMOD Studio зафиксированы 6 шин управления громкостью:</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>AudioBusType</th>
+                        <th>Путь шины в FMOD</th>
+                        <th>Назначение</th>
+                        <th>PlayerPrefs Ключ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>Master</code></td>
+                        <td><code>bus:/</code></td>
+                        <td>Главный выходной канал проекта</td>
+                        <td><code>Audio_Master</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>SFX</code></td>
+                        <td><code>bus:/sfx</code></td>
+                        <td>Игровые эффекты (копка, шаги, взрывы)</td>
+                        <td><code>Audio_SFX</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>Music</code></td>
+                        <td><code>bus:/music</code></td>
+                        <td>Фоновые музыкальные треки</td>
+                        <td><code>Audio_Music</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>Voice</code></td>
+                        <td><code>bus:/voice</code></td>
+                        <td>Голоса персонажей и диктора</td>
+                        <td><code>Audio_Voice</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>Ambience</code></td>
+                        <td><code>bus:/ambience</code></td>
+                        <td>Эмбиент окружения (пещеры, эхо, ветер)</td>
+                        <td><code>Audio_Ambience</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>UI</code></td>
+                        <td><code>bus:/ui</code></td>
+                        <td>Интерфейс, клики, открываемые окна</td>
+                        <td><code>Audio_UI</code></td>
+                    </tr>
+                </tbody>
+            </table>
         </section>
 
-        <!-- Иерархия Шин (AudioBus & Routing) -->
+        <!-- Обработка сетевых SFX -->
         <section>
-            <h2>Иерархия Шин (AudioBus)</h2>
-            <p>Все звуки игры проходят через строго определенную иерархию шин (<a href="../Assets/Scripts/Audio/Core/AudioBus.cs" class="class-ref">AudioBus</a>):</p>
-            <ul>
-                <li><code>Master</code> — Главный выходной канал проекта.</li>
-                <li><code>Sfx</code> — Звуковые эффекты мира (копка, взрывы, шаги).</li>
-                <li><code>Music</code> — Фоновая музыка и саундтрек.</li>
-                <li><code>Voice</code> — Речь и всплески персонажей / диктора.</li>
-                <li><code>Ambience</code> — Эмбиент окружения (пещеры, ветер, эхо).</li>
-                <li><code>Ui</code> — Звуки кликов, кнопок и окон интерфейса.</li>
-                <li><code>Narrative</code> — Сюжетные аудиозаписи и диалоги.</li>
-            </ul>
-        </section>
-
-        <!-- Пространственный звук и Зоны -->
-        <section>
-            <h2>Пространственный Звук & Акустические Зоны</h2>
-            <p>За объемное звучание и адаптацию атмосферы отвечают два компонента:</p>
-            <ul>
-                <li><a href="../Assets/Scripts/Audio/Spatial/AudioSpatial.cs" class="class-ref">AudioSpatial</a> — навешивается на <code>GameObject</code> (роботы, предметы) и непрерывно обновляет позицию звучания активного голоса в FMOD каждый кадр.</li>
-                <li><a href="../Assets/Scripts/Audio/Spatial/AudioZone.cs" class="class-ref">AudioZone</a> — триггерная зона. При входе игрока в зону (например, подземелье или подводная локация) плавно меняет параметры громкости и среза частот на целевой шине.</li>
-            </ul>
-        </section>
-
-        <!-- Low-level Parsing & Fallback -->
-        <section>
-            <h2>Низкоуровневый парсинг WAV (WavUtility)</h2>
-            <p>Для прямого воспроизведения сырых сэмплов без сборки FMOD-банков (например, при локальной отладке) используется <a href="../Assets/Scripts/Audio/WavUtility.cs" class="class-ref">WavUtility</a>. Он разбирает заголовки RIFF/WAVE напрямую из потока байт в памяти и декодирует 16-битные PCM-данные в массив <code>float[]</code> без лишних аллокаций памяти.</p>
+            <h2>Обработка сетевых SFX</h2>
+            <p>В <a href="../Assets/Scripts/Game/Managers/ServerAudioEventManager.cs"
+                    class="class-ref">ServerAudioEventManager</a> при получении <code>SFXPacket</code> воспроизведение
+                FMOD-звуков выполняется через <code>AudioSystem.Instance.PlayAt()</code> в мировых координатах, а
+                визуальные эффекты рендерятся через <code>VFXPool.PooledSlot</code>.</p>
         </section>
     </main>
 
 </body>
+
 </html>
