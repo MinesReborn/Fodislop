@@ -1,0 +1,32 @@
+{
+    "explorer.fileNesting.enabled": true,
+    "explorer.fileNesting.expand": false,
+    "explorer.fileNesting.patterns": {
+        "*": "$(capture).meta",
+        "*.cs": "$(capture).g.cs, $(capture).designer.cs, $(capture).generated.cs",
+        "*.uxml": "$(capture).uss, $(capture).uxml.cs, $(capture).tss",
+        "*.prefab": "$(capture).prefab.meta",
+        "*.unity": "$(capture).unity.meta",
+        "*.sln": "*.slnx, *.csproj",
+        "*.slnx": "*.csproj",
+        "package.json": "package-lock.json, .yarnrc*, yarn.lock, .npmrc",
+        "README*": "AUTHORS, BACKERS*, CHANGELOG*, CITATION*, CODE_OF_CONDUCT*, CONTRIBUTING*, CONTRIBUTORS, DESIGN*, LICENSE*, OPT-IN*, OPT-OUT*, README*, TRADEMARK*, SECURITY*"
+    },
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "editor.formatOnSave": true,
+    "files.eol": "\n",
+    "files.encoding": "utf8",
+    "editor.trimAutoWhitespace": true,
+    "dotnet.defaultSolution": "Fodislop.slnx",
+    "csharp.analyzerDiagnosticScope": "openFiles",
+    "csharp.enableImportCompletion": true,
+    "csharp.format.enable": true,
+    "csharp.enableEditorConfigSupport": true,
+    "csharp.suppressHiddenDiagnostics": false,
+    "dotnet.server.useOmnisharp": false,
+    "vstuc.useInfiniteLoopTimeout": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit"
+    }
+}

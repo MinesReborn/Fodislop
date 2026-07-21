@@ -477,7 +477,6 @@ InitTestScene*.unity*
 # Visual Studio / Rider generated files
 .vs/
 .idea/
-.vscode/
 *.csproj
 *.sln
 *.slnx
