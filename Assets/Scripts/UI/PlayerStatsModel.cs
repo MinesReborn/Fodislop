@@ -23,6 +23,7 @@ namespace Fodinae.Scripts.UI
                         DontDestroyOnLoad(go);
                     }
                 }
+
                 return _instance;
             }
         }
@@ -51,19 +52,24 @@ namespace Fodinae.Scripts.UI
 
         public void ClearStatusLines()
         {
-            if (_statusLines.Count == 0) return;
+            if (_statusLines.Count == 0)
+            {
+                return;
+            }
+
             _statusLines.Clear();
             OnStatusLinesChanged?.Invoke();
             OnStatsChanged?.Invoke();
         }
 
-        private void Awake()
+        protected void Awake()
         {
             if (_instance != null && _instance != this)
             {
                 Destroy(gameObject);
                 return;
             }
+
             _instance = this;
             DontDestroyOnLoad(gameObject);
         }
@@ -98,7 +104,9 @@ namespace Fodinae.Scripts.UI
         public event Action OnCurrencyChanged;
         public event Action OnGeologyChanged;
         public event Action OnLevelChanged;
+#pragma warning disable CS0067 // Зарезервировано для UI нотификаций при смене ника??? это че... нанейрослопило.... нужно ли? или мем?
         public event Action OnNicknameChanged;
+#pragma warning restore CS0067
         public event Action OnBasketChanged;
         public event Action<SkillType, long, long> OnSkillProgress;
         public event Action OnDailyBonusChanged;
@@ -159,8 +167,12 @@ namespace Fodinae.Scripts.UI
             for (int i = 0; i < BasketContents.Length; i++)
             {
                 int pct = capacity > 0 ? (int)(BasketContents[i] * 100 / capacity) : 0;
-                if (pct > maxPct) maxPct = pct;
+                if (pct > maxPct)
+                {
+                    maxPct = pct;
+                }
             }
+
             BasketMaxPercent = Mathf.Clamp(maxPct, 0, 100);
             OnBasketChanged?.Invoke();
             OnStatsChanged?.Invoke();

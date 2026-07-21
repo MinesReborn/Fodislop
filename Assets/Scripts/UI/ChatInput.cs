@@ -12,13 +12,22 @@ namespace Fodinae.Scripts.UI
             IsFocused = true;
 
             var pc = Object.FindAnyObjectByType<PlayerMovementController>();
-            if (pc != null) pc.enabled = false;
+            if (pc != null)
+            {
+                pc.enabled = false;
+            }
 
             var wm = Object.FindAnyObjectByType<WorldMapController>();
-            if (wm != null) wm.enabled = false;
+            if (wm != null)
+            {
+                wm.enabled = false;
+            }
 
             var pm = Object.FindAnyObjectByType<PauseMenu>();
-            if (pm != null) pm.enabled = false;
+            if (pm != null)
+            {
+                pm.enabled = false;
+            }
         }
 
         public static void OnBlur()
@@ -26,13 +35,22 @@ namespace Fodinae.Scripts.UI
             IsFocused = false;
 
             var pc = Object.FindAnyObjectByType<PlayerMovementController>();
-            if (pc != null) pc.enabled = true;
+            if (pc != null)
+            {
+                pc.enabled = true;
+            }
 
             var wm = Object.FindAnyObjectByType<WorldMapController>();
-            if (wm != null) wm.enabled = true;
+            if (wm != null)
+            {
+                wm.enabled = true;
+            }
 
             var pm = Object.FindAnyObjectByType<PauseMenu>();
-            if (pm != null) pm.enabled = true;
+            if (pm != null)
+            {
+                pm.enabled = true;
+            }
         }
     }
 }

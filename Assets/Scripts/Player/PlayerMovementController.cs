@@ -3,6 +3,7 @@ using Fodinae.Scripts.Game;
 using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Networking;
 using Fodinae.Scripts.Networking.Connection;
+using Fodinae.Scripts.World;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets.Actions;
 using MinesServer.Networking.Client.Packets.Movement;
@@ -24,8 +25,7 @@ namespace Fodinae.Scripts.Player
         [SerializeField] private float _moveSpeed = 15f;
 
         public uint BotId { get; private set; }
-        public Vector2Int ServerPosition { get; private set; }
-        public Vector2Int ClientPosition { get; private set; }
+        public Vector2Int Position { get; private set; }
         public Direction LastDirection => _lastSentDirection ?? Direction.Up;
         public event Action<Vector2Int, Vector2Int> OnPlayerMoved;
 
@@ -43,7 +43,7 @@ namespace Fodinae.Scripts.Player
         private float _lastDigTime;
         private Direction? _lastSentDirection;
 
-        private void OnEnable()
+        protected void OnEnable()
         {
             if (_moveActionReference != null && _moveActionReference.action != null)
             {
@@ -51,7 +51,7 @@ namespace Fodinae.Scripts.Player
             }
         }
 
-        private void OnDisable()
+        protected void OnDisable()
         {
             if (_moveActionReference != null && _moveActionReference.action != null)
             {
@@ -59,7 +59,7 @@ namespace Fodinae.Scripts.Player
             }
         }
 
-        private void Awake()
+        protected void Awake()
         {
             var rb = GetComponent<Rigidbody2D>();
             if (rb != null)
@@ -67,6 +67,7 @@ namespace Fodinae.Scripts.Player
                 rb.freezeRotation = true;
                 rb.simulated = false;
             }
+
             _robot = GetComponent<Robot>();
             if (_robot != null)
             {
@@ -74,23 +75,23 @@ namespace Fodinae.Scripts.Player
             }
         }
 
-        private void Start()
+        protected void Start()
         {
             // Align to grid center on start
             Vector3 targetGridPos = new Vector3(
                 Mathf.Floor(transform.position.x) + 0.5f,
                 Mathf.Floor(transform.position.y) + 0.5f,
-                transform.position.z
-            );
+                transform.position.z);
             transform.position = targetGridPos;
             if (_robot != null)
             {
                 _robot.TargetPosition = targetGridPos;
             }
-            ClientPosition = new Vector2Int(Mathf.FloorToInt(transform.position.x), Mathf.FloorToInt(transform.position.y));
+
+            Position = CoordinateUtils.UnityToServerPos(transform.position, MapManager.Instance != null ? MapManager.Instance.WorldHeight : 0);
         }
 
-        private void Update()
+        protected void Update()
         {
             ReadInput();
             ApplyMovement();
@@ -129,7 +130,10 @@ namespace Fodinae.Scripts.Player
             get => _aggression;
             set
             {
-                if (_aggression == value) return;
+                if (_aggression == value)
+                {
+                    return;
+                }
                 _aggression = value;
                 Debug.Log($"[PlayerMovementController] Aggression set to {value}");
                 OnAggressionChanged?.Invoke(value);
@@ -145,6 +149,7 @@ namespace Fodinae.Scripts.Player
             NetworkService.Instance.SendAction(new ToggleAgressionPacket());
             OnAggressionChanged?.Invoke(_aggression);
         }
+
         public bool IsMoving => _moveInput != Vector2.zero;
 
         public bool IgnoreCollision
@@ -159,15 +164,21 @@ namespace Fodinae.Scripts.Player
 
         public void UpdateServerPosition(Vector2Int position)
         {
-            Vector2Int oldPos = ClientPosition;
-            ServerPosition = position;
-            // Reconcile ClientPosition with ServerPosition (converted to Unity grid coordinates)
+            Vector2Int oldPos = Position;
+            Position = position;
+
             var mm = MapManager.Instance;
             if (mm != null)
             {
-                ClientPosition = new Vector2Int(position.x, mm.WorldHeight - 1 - position.y);
+                Vector3 targetWorldPos = CoordinateUtils.ServerToUnityPos(position.x, position.y, mm.WorldHeight, transform.position.z);
+                transform.position = targetWorldPos;
+                if (_robot != null)
+                {
+                    _robot.TargetPosition = targetWorldPos;
+                }
             }
-            OnPlayerMoved?.Invoke(oldPos, ClientPosition);
+
+            OnPlayerMoved?.Invoke(oldPos, Position);
         }
 
         private void ReadInput()
@@ -220,9 +231,15 @@ namespace Fodinae.Scripts.Player
                 return;
             }
 
-            if (PacketHandler.IsInputBlocked) return;
+            if (PacketHandler.IsInputBlocked)
+            {
+                return;
+            }
 
-            if (Time.time - _lastDigTime < ServerConfig.Instance.DigCooldown) return;
+            if (Time.time - _lastDigTime < ServerConfig.Instance.DigCooldown)
+            {
+                return;
+            }
 
             var mm = MapManager.Instance;
             var ns = NetworkService.Instance;
@@ -253,11 +270,8 @@ namespace Fodinae.Scripts.Player
                         _ => direction.y > 0 ? Direction.Up : Direction.Down
                     };
 
-                    int currentUnityX = ClientPosition.x;
-                    int currentUnityY = ClientPosition.y;
-
-                    ushort currentX = (ushort)Mathf.Clamp(currentUnityX, 0, ushort.MaxValue);
-                    ushort currentServerY = (ushort)Mathf.Clamp(mm.WorldHeight - 1 - currentUnityY, 0, ushort.MaxValue);
+                    ushort currentX = (ushort)Mathf.Clamp(Position.x, 0, ushort.MaxValue);
+                    ushort currentServerY = (ushort)Mathf.Clamp(Position.y, 0, ushort.MaxValue);
 
                     var currentCellType = MapStorage.Instance.GetCell(currentX, currentServerY);
                     float cooldown = mm.GetMoveCooldown(currentCellType);
@@ -293,12 +307,11 @@ namespace Fodinae.Scripts.Player
                         return;
                     }
 
-                    // Y axis in Unity increases upwards.
-                    // Data Y usually increases downwards (0 at top).
-                    // If the user says Y increases when going up, this is inverted relative to standard screen space.
-                    // We will keep Y change relative to Unity transform (positive is up) and clamp against map dimensions.
-                    int targetUnityX = currentUnityX + direction.x;
-                    int targetUnityY = currentUnityY + direction.y; // Match Unity's movement
+                    int deltaServerX = direction.x;
+                    int deltaServerY = direction.y > 0 ? -1 : (direction.y < 0 ? 1 : 0);
+
+                    int targetServerXInt = Position.x + deltaServerX;
+                    int targetServerYInt = Position.y + deltaServerY;
 
                     // Fetch world bounds from MapStorage
                     var layer = MapStorage.Instance.CellLayer;
@@ -311,13 +324,13 @@ namespace Fodinae.Scripts.Player
                     int mapHeight = mm.WorldHeight;
 
                     // Strict boundary enforcement using clamping
-                    if (targetUnityX < 0 || targetUnityX >= mapWidth || targetUnityY < 0 || targetUnityY >= mapHeight)
+                    if (targetServerXInt < 0 || targetServerXInt >= mapWidth || targetServerYInt < 0 || targetServerYInt >= mapHeight)
                     {
                         return;
                     }
 
-                    ushort targetServerX = (ushort)targetUnityX;
-                    ushort targetServerY = (ushort)(mm.WorldHeight - 1 - targetUnityY);
+                    ushort targetServerX = (ushort)targetServerXInt;
+                    ushort targetServerY = (ushort)targetServerYInt;
 
                     var cellType = MapStorage.Instance.GetCell(targetServerX, targetServerY);
                     var cellConfig = mm.GetCellConfig(cellType);
@@ -326,16 +339,16 @@ namespace Fodinae.Scripts.Player
 
                     if (isPassable || _ignoreCollision)
                     {
-                        _robot.TargetPosition = new Vector3(targetUnityX + 0.5f, targetUnityY + 0.5f, transform.position.z);
-                        Vector2Int oldPos = ClientPosition;
-                        ClientPosition = new Vector2Int(targetUnityX, targetUnityY);
-                        OnPlayerMoved?.Invoke(oldPos, ClientPosition);
+                        _robot.TargetPosition = CoordinateUtils.ServerToUnityPos(targetServerX, targetServerY, mm.WorldHeight, transform.position.z);
+                        Vector2Int oldPos = Position;
+                        Position = new Vector2Int(targetServerX, targetServerY);
+                        OnPlayerMoved?.Invoke(oldPos, Position);
                         _lastMoveTime = Time.time;
                         ns.SendAction(new MovePacket(targetServerX, targetServerY));
                     }
                     else if (_autoDig)
                     {
-                        NetworkService.Instance.Send(new ActionClientPacket(targetServerX, targetServerY, new BzPacket()));
+                        NetworkService.Send(new ActionClientPacket(targetServerX, targetServerY, new BzPacket()));
                         _lastMoveTime = Time.time;
                         _lastDigTime = Time.time;
                     }
@@ -352,11 +365,12 @@ namespace Fodinae.Scripts.Player
         }
 
 #if UNITY_EDITOR
-        private void OnDrawGizmos()
+        protected void OnDrawGizmos()
         {
             // Draw current grid cell
             Gizmos.color = Color.cyan;
-            Vector3 gridPos = new Vector3(ClientPosition.x + 0.5f, ClientPosition.y + 0.5f, transform.position.z);
+            int worldHeight = MapManager.Instance != null ? MapManager.Instance.WorldHeight : 0;
+            Vector3 gridPos = CoordinateUtils.ServerToUnityPos(Position.x, Position.y, worldHeight, transform.position.z);
             Gizmos.DrawWireCube(gridPos, new Vector3(1f, 1f, 0.1f));
 
             if (Application.isPlaying && _robot != null)
@@ -366,34 +380,46 @@ namespace Fodinae.Scripts.Player
                 Gizmos.DrawLine(transform.position, _robot.TargetPosition);
                 Gizmos.DrawWireSphere(_robot.TargetPosition, 0.2f);
 
-                Utils.FodislopGizmos.DrawLabel(gridPos + Vector3.down * 0.7f, $"Grid: {ClientPosition.x}, {ClientPosition.y}", Color.cyan);
+                FodinaeGizmos.DrawLabel(gridPos + (Vector3.down * 0.7f), $"Grid: {Position.x}, {Position.y}", Color.cyan);
             }
         }
 #endif
 
         private void HandleDigInput()
         {
-            if (Keyboard.current == null) return;
-            if (!Keyboard.current.zKey.isPressed) return;
-            if (_lastSentDirection == null) return;
-            if (Time.time - _lastDigTime < ServerConfig.Instance.DigCooldown) return;
+            if (Keyboard.current == null)
+            {
+                return;
+            }
+
+            if (!Keyboard.current.zKey.isPressed)
+            {
+                return;
+            }
+
+            if (_lastSentDirection == null)
+            {
+                return;
+            }
+
+            if (Time.time - _lastDigTime < ServerConfig.Instance.DigCooldown)
+            {
+                return;
+            }
 
             Vector2Int digOffset = _lastSentDirection.Value switch
             {
-                Direction.Down => new Vector2Int(0, -1),
-                Direction.Up => new Vector2Int(0, 1),
+                Direction.Down => new Vector2Int(0, 1),
+                Direction.Up => new Vector2Int(0, -1),
                 Direction.Left => new Vector2Int(-1, 0),
                 Direction.Right => new Vector2Int(1, 0),
                 _ => Vector2Int.zero
             };
 
-            int targetUnityX = ClientPosition.x + digOffset.x;
-            int targetUnityY = ClientPosition.y + digOffset.y;
+            ushort serverX = (ushort)(Position.x + digOffset.x);
+            ushort serverY = (ushort)(Position.y + digOffset.y);
 
-            ushort serverX = (ushort)targetUnityX;
-            ushort serverY = (ushort)(MapManager.Instance.WorldHeight - 1 - targetUnityY);
-
-            NetworkService.Instance.Send(new ActionClientPacket(serverX, serverY, new BzPacket()));
+            NetworkService.Send(new ActionClientPacket(serverX, serverY, new BzPacket()));
             _lastDigTime = Time.time;
         }
     }

@@ -14,7 +14,7 @@ namespace Fodinae.Editor
             GetWindow<MapbConverter>("Mapb Converter");
         }
 
-        private string _serverMapPath = "";
+        private string _serverMapPath = string.Empty;
         private string _serverWorldName = "pallada";
         private int _chunksW = 157;  // 5000 / 32 = 156.25 -> 157
         private int _chunksH = 1250; // 40000 / 32 = 1250
@@ -24,7 +24,7 @@ namespace Fodinae.Editor
 
         private Vector2 _scrollPos;
 
-        private void OnGUI()
+        protected void OnGUI()
         {
             _scrollPos = EditorGUILayout.BeginScrollView(_scrollPos);
 
@@ -122,7 +122,8 @@ namespace Fodinae.Editor
 
                 if (cellsFileSize < expectedFileSize)
                 {
-                    EditorUtility.DisplayDialog("Warning",
+                    EditorUtility.DisplayDialog(
+                        "Warning",
                         $"Cells file size ({cellsFileSize}) is smaller than expected ({expectedFileSize}). " +
                         "World dimensions in config may not match actual map size.", "Continue anyway");
                 }
@@ -155,8 +156,8 @@ namespace Fodinae.Editor
                     {
                         for (long cy = 0; cy < _chunksH; cy++)
                         {
-                            long chunkIndex = cy + _chunksH * cx; // Column-major!
-                            float progress = (float)(cx * _chunksH + cy) / totalChunks;
+                            long chunkIndex = cy + (_chunksH * cx); // Column-major!
+                            float progress = (float)((cx * _chunksH) + cy) / totalChunks;
 
                             if (chunkIndex % 1000 == 0)
                             {
@@ -220,7 +221,8 @@ namespace Fodinae.Editor
                 AssetDatabase.Refresh();
 
                 long outputSize = new FileInfo(outputPath).Length;
-                EditorUtility.DisplayDialog("Success",
+                EditorUtility.DisplayDialog(
+                    "Success",
                     $"Converted successfully!\n\n" +
                     $"Output: {outputPath}\n" +
                     $"Size: {FormatBytes(outputSize)}\n" +
@@ -246,14 +248,17 @@ namespace Fodinae.Editor
             {
                 byte val = data[i];
                 int run = 1;
+
                 // Max run length is ushort.MaxValue (65535)
                 while (i + run < len && data[i + run] == val && run < 65535)
                 {
                     run++;
                 }
+
                 result.Add(((ushort)run, val));
                 i += run;
             }
+
             return result;
         }
 
@@ -267,6 +272,7 @@ namespace Fodinae.Editor
                 size /= 1024;
                 i++;
             }
+
             return $"{size:F2} {suffixes[i]}";
         }
     }

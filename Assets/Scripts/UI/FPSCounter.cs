@@ -21,7 +21,7 @@ namespace Fodinae.Scripts.UI
         private int _onlinePlayers;
         private int _onlineProgrammator;
 
-        private void Awake()
+        protected void Awake()
         {
             Canvas canvas = FindAnyObjectByType<Canvas>();
             if (canvas == null)
@@ -39,7 +39,9 @@ namespace Fodinae.Scripts.UI
 
             _fpsText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             if (_fpsText.font == null)
+            {
                 _fpsText.font = Font.CreateDynamicFontFromOSFont("Arial", 14);
+            }
 
             _fpsText.fontSize = 14;
             _fpsText.alignment = TextAnchor.UpperCenter;
@@ -54,7 +56,7 @@ namespace Fodinae.Scripts.UI
             rt.anchoredPosition = new Vector2(0, -10);
         }
 
-        private void Update()
+        protected void Update()
         {
             _runningSum -= _frameTimes[_frameIndex];
             _frameTimes[_frameIndex] = Time.unscaledDeltaTime;
@@ -66,6 +68,10 @@ namespace Fodinae.Scripts.UI
         }
 
         public void SetPing(int ms) => _pingMs = ms;
-        public void SetOnline(int players, int programmator) { _onlinePlayers = players; _onlineProgrammator = programmator; }
+        public void SetOnline(int players, int programmator)
+        {
+            _onlinePlayers = players;
+            _onlineProgrammator = programmator;
+        }
     }
 }

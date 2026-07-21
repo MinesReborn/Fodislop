@@ -274,7 +274,7 @@
             <nav class="nav-links">
                 <a href="rendering.html">Рендеринг</a>
                 <a href="networking.html">Сеть</a>
-                <a href="audio_effects.html">Звук & Эффекты</a>
+                <a href="audio.html">Аудио</a>
                 <a href="assets_loading.html" class="active">CDN & Кэш</a>
                 <a href="ui_programmator.html">UI & Код</a>
             </nav>
@@ -302,11 +302,12 @@
                         <li>Если файл есть на диске, клиент считывает локальный ETag и отправляет его серверу в пакете запроса для валидации.</li>
                     </ul>
                 </li>
-                <li><strong>Валидация по TCP</strong>:
+                <li><strong>Валидация по TCP & Нормализация CDN</strong>:
                     <ul>
-                        <li>Клиент упаковывает запрос в сетевой пакет <code class="class-ref">RuntimeAssetRequestPacket</code>, содержащий имя файла и локальный ETag.</li>
-                        <li>Если файл на сервере не менялся, сервер возвращает пакет <code class="class-ref">RuntimeAssetPacket</code> с пустым буфером данных (длина 0) и ETag. Клиент считывает файл с диска в RAM и возвращает его.</li>
-                        <li>Если файл обновился или отсутствует в кэше, сервер присылает новые байты в пакете <code class="class-ref">RuntimeAssetPacket</code>. Клиент сохраняет новые байты на диск, вычисляет локальный ETag и возвращает ресурс.</li>
+                        <li>Сетевые пути ассетов автоматически приводятся к нижнему регистру (<code>filename.ToLowerInvariant()</code>) перед упаковыванием в пакет <code class="class-ref">RuntimeAssetRequestPacket</code>. Это гарантирует 100% совместимость с регистрозависимыми Linux CDN-серверами (где <code>/cells/1.png</code> пишется в нижнем регистре).</li>
+                        <li>В локальном режиме разработки (или при отсутствии связи) <code class="class-ref">TextureStorageManager</code> производит нечёткий поиск (Fuzzy Matching) и сопоставляет строчный сетевой путь с локальной папкой в <code>PascalCase</code> (например, <code>Assets/Textures/Cells/1.png</code>).</li>
+                        <li>Если файл на сервере не менялся (ETag совпадает), сервер возвращает <code class="class-ref">RuntimeAssetPacket</code> с пустым буфером данных (длина 0). Клиент считывает файл из дискового кэша.</li>
+                        <li>Если файл обновился, клиент сохраняет новые байты на диск и обновляет локальный ETag-хэш.</li>
                     </ul>
                 </li>
             </ol>

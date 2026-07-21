@@ -9,17 +9,17 @@ using UnityEngine;
 namespace Fodinae.Scripts.World.Extensions
 {
     /// <summary>
-    /// Extension methods for WorldLayer to integrate with WorldTextureManager
+    /// Extension methods for WorldLayer to integrate with WorldTextureManager.
     /// </summary>
     public static class WorldLayerTextureExtensions
     {
         /// <summary>
-        /// Get texture coordinates for a world cell at the specified position
+        /// Get texture coordinates for a world cell at the specified position.
         /// </summary>
-        /// <param name="worldLayer">The world layer</param>
-        /// <param name="x">X coordinate in world space</param>
-        /// <param name="y">Y coordinate in world space</param>
-        /// <returns>Atlas coordinates for the cell texture</returns>
+        /// <param name="worldLayer">The world layer.</param>
+        /// <param name="x">X coordinate in world space.</param>
+        /// <param name="y">Y coordinate in world space.</param>
+        /// <returns>Atlas coordinates for the cell texture.</returns>
         public static async UniTask<AtlasCoordinate> GetCellTextureCoordinate(this WorldLayer<CellType> worldLayer, int x, int y)
         {
             var cellType = worldLayer[x, y];
@@ -27,14 +27,14 @@ namespace Fodinae.Scripts.World.Extensions
         }
 
         /// <summary>
-        /// Get texture coordinates for a rectangular region of the world
+        /// Get texture coordinates for a rectangular region of the world.
         /// </summary>
-        /// <param name="worldLayer">The world layer</param>
-        /// <param name="x">Starting X coordinate</param>
-        /// <param name="y">Starting Y coordinate</param>
-        /// <param name="width">Region width</param>
-        /// <param name="height">Region height</param>
-        /// <returns>Dictionary mapping positions to atlas coordinates</returns>
+        /// <param name="worldLayer">The world layer.</param>
+        /// <param name="x">Starting X coordinate.</param>
+        /// <param name="y">Starting Y coordinate.</param>
+        /// <param name="width">Region width.</param>
+        /// <param name="height">Region height.</param>
+        /// <returns>Dictionary mapping positions to atlas coordinates.</returns>
         public static async UniTask<Dictionary<Vector2Int, AtlasCoordinate>> GetRegionTextureCoordinates(
             this WorldLayer<CellType> worldLayer,
             int x, int y, int width, int height)
@@ -80,14 +80,14 @@ namespace Fodinae.Scripts.World.Extensions
         }
 
         /// <summary>
-        /// Preload textures for a region to improve performance
+        /// Preload textures for a region to improve performance.
         /// </summary>
-        /// <param name="worldLayer">The world layer</param>
-        /// <param name="x">Starting X coordinate</param>
-        /// <param name="y">Starting Y coordinate</param>
-        /// <param name="width">Region width</param>
-        /// <param name="height">Region height</param>
-        /// <returns>Task representing the preload operation</returns>
+        /// <param name="worldLayer">The world layer.</param>
+        /// <param name="x">Starting X coordinate.</param>
+        /// <param name="y">Starting Y coordinate.</param>
+        /// <param name="width">Region width.</param>
+        /// <param name="height">Region height.</param>
+        /// <returns>Task representing the preload operation.</returns>
         public static async UniTask PreloadRegionTextures(
             this WorldLayer<CellType> worldLayer,
             int x, int y, int width, int height)
@@ -119,29 +119,29 @@ namespace Fodinae.Scripts.World.Extensions
         }
 
         /// <summary>
-        /// Get all active texture atlases from the WorldTextureManager
+        /// Get all active texture atlases from the WorldTextureManager.
         /// </summary>
-        /// <param name="worldLayer">The world layer</param>
-        /// <returns>List of active texture atlases</returns>
+        /// <param name="worldLayer">The world layer.</param>
+        /// <returns>List of active texture atlases.</returns>
         public static List<TextureAtlas> GetActiveAtlases(this WorldLayer<CellType> worldLayer)
         {
             return WorldTextureManager.Instance.GetAllAtlases();
         }
 
         /// <summary>
-        /// Clear all cached textures and atlases
+        /// Clear all cached textures and atlases.
         /// </summary>
-        /// <param name="worldLayer">The world layer</param>
+        /// <param name="worldLayer">The world layer.</param>
         public static void ClearTextureCache(this WorldLayer<CellType> worldLayer)
         {
             WorldTextureManager.Instance.Clear();
         }
 
         /// <summary>
-        /// Get texture cache statistics
+        /// Get texture cache statistics.
         /// </summary>
-        /// <param name="worldLayer">The world layer</param>
-        /// <returns>Cache statistics string</returns>
+        /// <param name="worldLayer">The world layer.</param>
+        /// <returns>Cache statistics string.</returns>
         public static string GetTextureCacheStats(this WorldLayer<CellType> worldLayer)
         {
             // This would need to be implemented in WorldTextureManager

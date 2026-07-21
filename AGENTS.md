@@ -119,14 +119,15 @@ Assets/
       WorldMapController.cs       # Полноэкранная карта мира (управление)
       WorldMapRenderer.cs         # Рендеринг карты мира (текстура из MapStorage)
 
-    # Утилиты
-    Utils/
-      CoordinateUtils.cs          # Конвертация координат сервер↔Unity (инверсия Y)
-      FodislopGizmos.cs           # Визуальные Gizmos для отладки
+    # Системная инфраструктура
+    Core/
+      SingletonMonoBehaviour.cs   # Базовый класс синглтонов MonoBehaviour
 
     # Мир и рендеринг
     World/
       SingleMeshTerrainRenderer.cs  # Один меш на весь террейн, 7 UV-каналов
+      CoordinateUtils.cs            # Прямая конвертация координат 1:1 (сервер↔Unity)
+      FodinaeGizmos.cs             # Визуальные Gizmos отладки мира
       WorldTextureManager.cs        # Загрузка тайлов в TextureAtlas
       TextureAtlas.cs               # Упаковка текстур в атлас
       SurfaceRenderer.cs            # Transit + Perspective поверхности (доп. меши)
@@ -141,12 +142,12 @@ Assets/
         WorldLayerTextureExtensions.cs # Расширения WorldLayer для текстур
 
     # GIF-декодер
-    mfGif/
-      mgGif.cs                    # GIF-декодер (MG.GIF)
+    MgGifDecoder/
+      MgGifDecoder.cs             # GIF-декодер (MG.GIF)
 
   Settings/            # URP и Renderer2D конфиги
-  Textures/            # cells/, skin/, clan/, pack/, ui/, items/, audio/,
-                       #   Crystalls/, vfx/, tail/, exported/ — тайлы, UI, экипировка
+  Textures/            # Cells/, Clan/, Crystals/, Exported/, Items/,
+                       #   Pack/, Skin/, Tail/, UI/, VFX/ — тайлы, UI, экипировка
   UI Toolkit/          # PanelSettings.asset, темы (.tss)
 ```
 
@@ -171,29 +172,74 @@ Assets/
 - **CellTextureCache**: ConcurrentDictionary-кэш текстур ячеек для быстрой загрузки из файловой системы. Хранит `Texture2D` по `CellType`.
 - **AtlasCoordinate**: Структура координат ячейки в текстурном атласе.
 - **AnimationContainerDecoder**: Декодирование PNG/GIF/WebP-файлов в массивы спрайтов для анимированных тайлов и эффектов.
-- **Инверсия Y**: Сервер: Y↓ (0 = верх). Unity: Y↑. Формула: `unityY = WorldHeight - 1 - serverY`. Централизована в `CoordinateUtils`.
+- **Координаты**: Левый верхний угол карты — это серверные координаты `(0, 0)`. Ось X растет вправо, ось Y растет вниз (вглубь шахты). Все пространственные конвертации централизованы в утилите `CoordinateUtils`.
 
 ### 3.3 Игрок и Управление
 
-- **PlayerMovementController**: Ввод через New Input System. Клиентская валидация по `Passable` + серверная через `MovePacket`.
+- **PlayerMovementController**: Ввод через New Input System. Единственный источник истины позиционирования игрока — свойство `Position` (`Vector2Int` в серверных координатах Top-Left `0:0`). Устаревшие псевдонимы `ClientPosition` и `ServerPosition` полностью устранены. Клиентская валидация по `Passable` + серверная через `MovePacket`.
 - **PlayerInteractionController**: Обработка кликов и клавиш (копка, использование предметов). Отправляет `DigRequestPacket`, `ItemUsePacket` и т.д.
 - **CameraFollow**: Следование камеры за игроком.
 
-### 3.4 Аудио и Эффекты (Audio & Effects)
+### 3.4 Аудио-домен (Audio)
 
-- **AudioManager**: Синглтон. Управление фоновой музыкой (`AudioSource`), SFX-эффектами. Громкость сохраняется в `PlayerPrefs`.
-- **SoundEffectInstance**: Один SFX-экземпляр (тайл, копка). Загружает WAV из файловой системы, воспроизводит через `PlayOneshot`.
-- **WavUtility**: Чтение WAV-файлов в `AudioClip` (поддержка разных форматов, копирование памяти только при необходимости).
+Новый аудио-домен построен как самостоятельная система с абстракцией бэкенда под FMOD.
+
+**Архитектура:**
+```
+Audio/
+  Clips/                        # Локальные WAV-сэмплы для разработки
+    Sfx/                        # Звуковые эффекты (bz.wav, hurt.wav, death.wav, destroy.wav)
+    Music/                      # Фоновые треки (evil_huge.wav)
+  Core/                         # Архитектура, не зависит от движка
+    AudioBusType.cs             # Enum шин: Master, Sfx, Music, Voice, Ambience, Ui, Narrative
+    AudioBus.cs                 # Шина: Volume, Pitch, VoiceLimit, дакинг между шинами
+    AudioLayer.cs               # Параметры звука: шина, громкость, питч, приоритет, IsSpatial
+    AudioEvent.cs               # Семантическое событие: имя → файлы, round-robin/random, PitchVariation
+    AudioPlaybackHandle.cs      # Хендл активного голоса: Stop(fadeOut), SetPosition, SetVolume, SetPitch
+  Backend/                      # Реализации воспроизведения
+    IAudioBackend.cs            # Интерфейс бэкенда (Unity AudioSource / FMOD / Wwise)
+    UnityAudioBackend.cs        # Реализация на AudioSource: дакинг, VoiceLimit, fade-out, SpaceBlend
+    FmodAudioBackend.cs         # FMOD Studio: загрузка банков с сервера/StreamingAssets, проброс шин
+    AudioSystem.cs              # Синглтон (SingletonMonoBehaviour): реестр шин и событий, API Play/Play2D
+  Data/
+    AudioLibrary.cs             # ScriptableObject для звукорежиссёра: реестр событий в инспекторе
+  Spatial/
+    AudioSpatial.cs             # Компонент на GameObject: следящий пространственный звук
+    AudioZone.cs                # Триггерная зона: меняет громкость шины при входе (пещера, под водой)
+
+  WavUtility.cs                 # Декодер WAV-байтов в AudioClip
+```
+
+**FMOD интеграция (MMO):**
+1. Банки .bank скачиваются с игрового CDN через `ClientAssetLoader` (ETag-кеширование)
+2. Фоллбек для разработки: `StreamingAssets/Audio/*.bank`
+3. FMOD проект: `FodinaeAudio/FodinaeAudio.fspro` (в корне репозитория)
+4. Шины FMOD мапятся на `AudioBusType` (bus:/Sfx, bus:/Music...)
+5. Бэкенд выбирается через `#if FMOD` в `AudioSystem.OnAwake()`:
+   - `FMOD` определён → `FmodAudioBackend`
+   - Не определён → `UnityAudioBackend` (без FMOD-пакета)
+
+**Примеры использования:**
+```csharp
+// Звукорежиссёр: просто имя события
+AudioSystem.Play("dig_rock");
+AudioSystem.Play2D("ui_click");
+AudioSystem.PlayAt("explosion", transform.position);
+
+// Дакинг: голос просаживает SFX на 6 dB
+var voiceBus = AudioSystem.Instance.GetBus(AudioBusType.Voice);
+voiceBus.DuckBus(AudioSystem.Instance.GetBus(AudioBusType.Sfx), -6f, 0.3f, 0.5f);
+
+// AudioSpatial на GameObject — звук следует за объектом
+robot.AddComponent<AudioSpatial>().SetEvent("robot_idle");
+
+// AudioZone — триггер меняет громкость шины
+caveTrigger.AddComponent<AudioZone>()._targetBus = AudioBusType.Ambience;
+```
+
 - **SFXEffectManager** (см. 3.1): Принимает `SFXPacket` от сервера, спавнит `SFXEffectInstance` — визуальный + аудио-эффект в координатах мира.
-- **SFXEffectInstance**: Отдельный экземпляр эффекта. Запрашивает пул-слот у `SFXPool`, загружает аудио и визуал (кадры анимации из GIF/PNG или эффекты Effekseer), позиционируется и проигрывает их.
-- **SFXPool**: Объектный пул для звуков и эффектов, предотвращающий избыточный `Instantiate` и снижающий аллокации.
-- **RuntimeEffekseerLoader**: Компонент для рантайм-загрузки и управления эффектами Effekseer.
-- **Пайплайн воспроизведения звука**:
-  1. Код запрашивает `AudioClip` через `ClientAssetLoader.GetAudioAsync`.
-  2. Данные проверяются в RAM-кэше `AssetCache` и на диске в `PersistentAssetCache` (с валидацией ETag).
-  3. Сырые байты WAV-файла передаются в `WavUtility.ToAudioClip`.
-  4. `WavUtility` парсит RIFF/WAVE заголовок (находит `"fmt "` и `"data"` чанки), извлекает PCM-сэмплы, преобразует и нормализует их во `float` (делением на `32768f` для 16-бит) и заполняет ими созданный в памяти `AudioClip` через `SetData`.
-  5. Свободный `AudioSource` из пула `SFXPool` воспроизводит готовый клип.
+- **SFXEffectInstance**: Запрашивает пул-слот у `SFXPool`, загружает аудио и визуал (GIF/PNG/Effekseer), позиционируется и проигрывает.
+- **RuntimeEffekseerLoader**: Рантайм-загрузка эффектов Effekseer.
 
 ### 3.5 Ассеты и кэширование (Asset Loading)
 
@@ -236,6 +282,24 @@ Assets/
 - **Синглтоны**: Паттерн `Instance` + `DontDestroyOnLoad` для менеджеров.
 - **События**: `Action` для связи между компонентами (`OnWorldInitialized`, `OnWorldDataLoaded`).
 - **UniTask**: Для асинхронных операций (загрузка текстур, сетевые запросы).
+
+### Стандарты именования (Casing Standards)
+
+В проекте строго соблюдаются следующие разграничения регистра (Casing):
+
+1. **Unity Файлы и C# Код (`PascalCase`)**:
+   - Классы, структуры, интерфейсы, перечисления: `WorldTextureManager`, `CellType`.
+   - Публичные методы, свойства, события: `GetCellTextureCoordinate()`, `ActiveVoiceCount`.
+   - Константы: `MaxLifetime`.
+   - Директории Unity внутри `Assets/`: `Assets/Scripts/`, `Assets/Textures/Cells/`, `Assets/Audio/`.
+   - Файлы ассетов: `SampleScene.unity`, `PlayerHUD.uxml`, `PanelSettings.asset`.
+   - Приватные/защищенные поля: `_camelCase` (`private float _volume;`).
+   - Параметры и локальные переменные: `camelCase` (`int x, int y`).
+
+2. **Сетевые ресурсы, CDN и FMOD (`lowercase` / `snake_case`)**:
+   - Имена FMOD событий: `event:/sfx_bz`, `event:/dig_rock`.
+   - Сетевые тэги окон и контексты: `"teleport"`, `"open_missions"`, `"join_clan"`.
+   - CDN URL-пути: `/cells/1.png`, `/clan/4.png` (Linux CDN серверы регистрозависимы, поэтому сетевые URL строчные).
 
 ### Документация (`docs/`)
 

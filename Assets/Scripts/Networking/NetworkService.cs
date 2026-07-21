@@ -4,7 +4,8 @@ using System.Linq;
 using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Networking.Connection;
 using Fodinae.Scripts.Player;
-using Fodinae.Scripts.Utils;
+using Fodinae.Scripts.Core;
+using Fodinae.Scripts.World;
 using MinesServer.Networking.Client;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.Actions;
@@ -18,7 +19,7 @@ namespace Fodinae.Scripts.Networking
     {
         private readonly Dictionary<Type, List<Subscription>> _subscribers = new();
 
-        private void OnEnable()
+        protected void OnEnable()
         {
             if (Instance != this)
             {
@@ -32,7 +33,7 @@ namespace Fodinae.Scripts.Networking
             }
         }
 
-        private void OnDisable()
+        protected void OnDisable()
         {
             if (Instance != this)
             {
@@ -55,21 +56,20 @@ namespace Fodinae.Scripts.Networking
                 return;
             }
 
-            var controller = player.GetComponent<PlayerMovementController>();
-            if (controller == null)
+            if (!player.TryGetComponent<PlayerMovementController>(out var controller))
             {
                 Debug.LogError("[NetworkService] Cannot send action: PlayerMovementController not found on player.");
                 return;
             }
 
-            Vector2Int clientPos = controller.ClientPosition;
-            ushort serverX = (ushort)clientPos.x;
-            ushort serverY = (ushort)(MapManager.Instance.WorldHeight - 1 - clientPos.y);
+            Vector2Int pos = controller.Position;
+            ushort serverX = (ushort)pos.x;
+            ushort serverY = (ushort)pos.y;
 
             Send(new ActionClientPacket(serverX, serverY, action));
         }
 
-        public void Send(IRootClientPacket packet)
+        public static void Send(IRootClientPacket packet)
         {
             if (ConnectionManager.Instance == null)
             {

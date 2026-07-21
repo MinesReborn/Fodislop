@@ -10,7 +10,7 @@ using UnityEngine;
 namespace Fodinae.Scripts.World
 {
     /// <summary>
-    /// Represents a rectangle in the texture atlas
+    /// Represents a rectangle in the texture atlas.
     /// </summary>
     public struct Rectangle
     {
@@ -90,6 +90,7 @@ namespace Fodinae.Scripts.World
                 {
                     UnityEngine.Object.DestroyImmediate(_atlasTexture);
                 }
+
                 _atlasTexture = null;
             }
         }
@@ -149,7 +150,7 @@ namespace Fodinae.Scripts.World
             int subAtlasHeight = cell.Rectangle.Height;
 
             // Use the central constant for tile size
-            int terrainTileSize = RenderingConstants.CellSize;
+            const int terrainTileSize = RenderingConstants.CellSize;
 
             // How many tiles fit in the SUB-ATLAS width and height
             int tilesPerRow = subAtlasWidth / terrainTileSize;
@@ -218,7 +219,7 @@ namespace Fodinae.Scripts.World
                         texture.width,
                         texture.height,
                         Size,
-                        Size)
+                        Size),
                 };
 
                 // When adding to _usedRectangles and splitting, we must include the Padding
@@ -418,7 +419,7 @@ namespace Fodinae.Scripts.World
                 CellType.Boulder1 => Color.black,
                 CellType.WhiteSand => new Color(1f, 0.92f, 0.8f),
                 CellType.GrayAcid => new Color(0f, 1f, 0f),
-                _ => Color.magenta
+                _ => Color.magenta,
             };
         }
 

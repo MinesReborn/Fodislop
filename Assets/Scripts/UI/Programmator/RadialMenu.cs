@@ -62,14 +62,14 @@ namespace Fodinae.Scripts.UI.Programmator
             _itemContainer.pickingMode = PickingMode.Position;
             _root.Add(_itemContainer);
 
-            float centerX = 90f;
-            float centerY = 90f;
+            const float centerX = 90f;
+            const float centerY = 90f;
 
             for (int i = 0; i < _count; i++)
             {
-                float angle = (float)i / _count * Mathf.PI * 2f - Mathf.PI / 2f;
-                float x = centerX + _radius * Mathf.Cos(angle) - _itemSize / 2f;
-                float y = centerY + _radius * Mathf.Sin(angle) - _itemSize / 2f;
+                float angle = ((float)i / _count * Mathf.PI * 2f) - (Mathf.PI / 2f);
+                float x = centerX + (_radius * Mathf.Cos(angle)) - (_itemSize / 2f);
+                float y = centerY + (_radius * Mathf.Sin(angle)) - (_itemSize / 2f);
 
                 int itemIdx = i;
                 var item = new VisualElement();
@@ -95,11 +95,11 @@ namespace Fodinae.Scripts.UI.Programmator
                 item.name = $"radial_item_{i}";
 
                 int id = instructionIds[i];
-                var tex = Resources.Load<Texture2D>($"Programmator/{id}");
+                var tex = ProgrammatorTextureRegistry.GetTexture(id);
                 if (tex != null)
                 {
                     item.style.backgroundImage = new StyleBackground(tex);
-                    item.style.unityBackgroundScaleMode = ScaleMode.ScaleToFit;
+                    item.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Contain);
                 }
                 else
                 {
@@ -126,7 +126,11 @@ namespace Fodinae.Scripts.UI.Programmator
             for (int i = 0; i < _count; i++)
             {
                 var item = _itemContainer[i] as VisualElement;
-                if (item == null) continue;
+                if (item == null)
+                {
+                    continue;
+                }
+
                 if (i == index)
                 {
                     item.style.borderTopColor = new Color(1f, 0.84f, 0f, 1f);
@@ -147,7 +151,10 @@ namespace Fodinae.Scripts.UI.Programmator
         private void OnItemPointerLeave(int index)
         {
             if (_hoveredIndex == index)
+            {
                 _hoveredIndex = -1;
+            }
+
             var item = _itemContainer[index] as VisualElement;
             if (item != null)
             {
@@ -175,7 +182,9 @@ namespace Fodinae.Scripts.UI.Programmator
         {
             _hoveredIndex = -1;
             if (_root.parent != null)
+            {
                 _root.RemoveFromHierarchy();
+            }
         }
     }
 }

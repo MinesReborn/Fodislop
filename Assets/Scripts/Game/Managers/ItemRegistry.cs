@@ -17,9 +17,24 @@ namespace Fodinae.Scripts.Game.Managers
 
         public static Texture2D GetIcon(ItemType type)
         {
-            if (_iconCache.TryGetValue(type, out var t)) return t;
-            var path = Application.dataPath + "/Textures/items/" + type.ToString().ToLower() + ".png";
-            if (!File.Exists(path)) return null;
+            if (_iconCache.TryGetValue(type, out var t))
+            {
+                return t;
+            }
+
+            var typeName = type.ToString();
+            var camelName = char.ToLowerInvariant(typeName[0]) + typeName.Substring(1);
+            var path = Path.Combine(Application.dataPath, "Textures", "Items", camelName + ".png");
+            if (!File.Exists(path))
+            {
+                path = Path.Combine(Application.dataPath, "Textures", "Items", typeName.ToLowerInvariant() + ".png");
+            }
+
+            if (!File.Exists(path))
+            {
+                return null;
+            }
+
             var tex = new Texture2D(2, 2);
             tex.LoadImage(File.ReadAllBytes(path));
             _iconCache[type] = tex;

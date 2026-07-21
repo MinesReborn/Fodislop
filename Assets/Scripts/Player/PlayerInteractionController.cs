@@ -11,15 +11,22 @@ namespace Fodinae.Scripts.Player
     {
         private Camera _mainCamera;
 
-        private void Awake()
+        protected void Awake()
         {
             _mainCamera = Camera.main;
         }
 
-        private void Update()
+        protected void Update()
         {
-            if (_mainCamera == null) _mainCamera = Camera.main;
-            if (_mainCamera == null) return;
+            if (_mainCamera == null)
+            {
+                _mainCamera = Camera.main;
+            }
+
+            if (_mainCamera == null)
+            {
+                return;
+            }
 
             HandleMouseClick();
             HandleKeyboardInput();
@@ -27,9 +34,20 @@ namespace Fodinae.Scripts.Player
 
         private void HandleMouseClick()
         {
-            if (Mouse.current == null) return;
-            if (PacketHandler.IsInputBlocked) return;
-            if (ChatInput.IsFocused) return;
+            if (Mouse.current == null)
+            {
+                return;
+            }
+
+            if (PacketHandler.IsInputBlocked)
+            {
+                return;
+            }
+
+            if (ChatInput.IsFocused)
+            {
+                return;
+            }
 
             if (Mouse.current.leftButton.wasPressedThisFrame)
             {
@@ -51,9 +69,20 @@ namespace Fodinae.Scripts.Player
 
         private void HandleKeyboardInput()
         {
-            if (Keyboard.current == null) return;
-            if (PacketHandler.IsInputBlocked) return;
-            if (ChatInput.IsFocused) return;
+            if (Keyboard.current == null)
+            {
+                return;
+            }
+
+            if (PacketHandler.IsInputBlocked)
+            {
+                return;
+            }
+
+            if (ChatInput.IsFocused)
+            {
+                return;
+            }
 
             // This is a bit expensive but since it's for "unmapped" keys,
             // we might want to check all keys if they were pressed this frame.

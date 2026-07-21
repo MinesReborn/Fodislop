@@ -33,7 +33,10 @@ namespace Fodinae.Scripts.UI.Builders
         public PacketUIBuilderBase CreateBuilder(IGUIComponentPacket packet)
         {
             if (_builders.TryGetValue(packet.GetType(), out var builderFactory))
+            {
                 return builderFactory();
+            }
+
             return null;
         }
     }

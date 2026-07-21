@@ -13,7 +13,7 @@ namespace Fodinae.Scripts.World
     {
         private readonly ConcurrentDictionary<CellType, CellTextureInfo> _textureCache = new();
         private readonly ConcurrentDictionary<CellType, Texture2D> _loadedTextures = new();
-        private readonly ConcurrentDictionary<string, CellType> _filenameCache = new();
+        private readonly ConcurrentDictionary<string, CellType> _filenameCache = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Get the number of cached textures.
@@ -23,24 +23,24 @@ namespace Fodinae.Scripts.World
         /// <summary>
         /// Add a texture to the cache.
         /// </summary>
-        /// <param name="cellType">The cell type</param>
-        /// <param name="textureInfo">Texture information</param>
+        /// <param name="cellType">The cell type.</param>
+        /// <param name="textureInfo">Texture information.</param>
         public void AddTexture(CellType cellType, CellTextureInfo textureInfo)
         {
             _textureCache.AddOrUpdate(cellType, textureInfo, (key, oldValue) => textureInfo);
             _loadedTextures.AddOrUpdate(cellType, textureInfo.BaseTexture, (key, oldValue) => textureInfo.BaseTexture);
 
             // Cache filename mapping
-            var filename = $"cells/{(int)cellType}";
+            var filename = $"Cells/{(int)cellType}";
             _filenameCache.TryAdd(filename, cellType);
         }
 
         /// <summary>
         /// Try to get texture information from cache.
         /// </summary>
-        /// <param name="cellType">The cell type</param>
-        /// <param name="textureInfo">Output texture information</param>
-        /// <returns>True if found, false otherwise</returns>
+        /// <param name="cellType">The cell type.</param>
+        /// <param name="textureInfo">Output texture information.</param>
+        /// <returns>True if found, false otherwise.</returns>
         public bool TryGetTexture(CellType cellType, out CellTextureInfo textureInfo)
         {
             return _textureCache.TryGetValue(cellType, out textureInfo);
@@ -49,8 +49,8 @@ namespace Fodinae.Scripts.World
         /// <summary>
         /// Get a cached texture for a cell type.
         /// </summary>
-        /// <param name="cellType">The cell type</param>
-        /// <returns>The cached texture or null if not found</returns>
+        /// <param name="cellType">The cell type.</param>
+        /// <returns>The cached texture or null if not found.</returns>
         public Texture2D GetCachedTexture(CellType cellType)
         {
             _loadedTextures.TryGetValue(cellType, out var texture);
@@ -60,8 +60,8 @@ namespace Fodinae.Scripts.World
         /// <summary>
         /// Check if a texture is cached.
         /// </summary>
-        /// <param name="cellType">The cell type</param>
-        /// <returns>True if cached, false otherwise</returns>
+        /// <param name="cellType">The cell type.</param>
+        /// <returns>True if cached, false otherwise.</returns>
         public bool IsCached(CellType cellType)
         {
             return _textureCache.ContainsKey(cellType);
@@ -70,13 +70,13 @@ namespace Fodinae.Scripts.World
         /// <summary>
         /// Remove a texture from cache.
         /// </summary>
-        /// <param name="cellType">The cell type</param>
+        /// <param name="cellType">The cell type.</param>
         public void RemoveTexture(CellType cellType)
         {
             _textureCache.TryRemove(cellType, out _);
             _loadedTextures.TryRemove(cellType, out _);
 
-            var filename = $"cells/{(int)cellType}";
+            var filename = $"Cells/{(int)cellType}";
             _filenameCache.TryRemove(filename, out _);
         }
 
@@ -109,8 +109,8 @@ namespace Fodinae.Scripts.World
         /// <summary>
         /// Get texture info for a filename.
         /// </summary>
-        /// <param name="filename">The texture filename</param>
-        /// <returns>The cell type if found, otherwise CellType.Unloaded</returns>
+        /// <param name="filename">The texture filename.</param>
+        /// <returns>The cell type if found, otherwise CellType.Unloaded.</returns>
         public CellType GetCellTypeFromFilename(string filename)
         {
             if (_filenameCache.TryGetValue(filename, out var cellType))
@@ -131,7 +131,7 @@ namespace Fodinae.Scripts.World
         /// <summary>
         /// Get memory usage of cached textures.
         /// </summary>
-        /// <returns>Approximate memory usage in bytes</returns>
+        /// <returns>Approximate memory usage in bytes.</returns>
         public long GetMemoryUsage()
         {
             long totalSize = 0;
@@ -151,7 +151,7 @@ namespace Fodinae.Scripts.World
         /// <summary>
         /// Get cache statistics.
         /// </summary>
-        /// <returns>Cache statistics string</returns>
+        /// <returns>Cache statistics string.</returns>
         public string GetCacheStats()
         {
             return $"Cache: {_textureCache.Count} textures, {GetMemoryUsage() / 1024} KB";
@@ -160,17 +160,17 @@ namespace Fodinae.Scripts.World
         /// <summary>
         /// Try to parse cell type from filename.
         /// </summary>
-        /// <param name="filename">The filename to parse</param>
-        /// <param name="cellType">Output cell type</param>
-        /// <returns>True if successfully parsed, false otherwise</returns>
-        private bool TryParseCellTypeFromFilename(string filename, out CellType cellType)
+        /// <param name="filename">The filename to parse.</param>
+        /// <param name="cellType">Output cell type.</param>
+        /// <returns>True if successfully parsed, false otherwise.</returns>
+        private static bool TryParseCellTypeFromFilename(string filename, out CellType cellType)
         {
             cellType = CellType.Unloaded;
 
             try
             {
-                // Extract cell ID from filename like "cells/50"
-                if (filename.StartsWith("cells/"))
+                // Extract cell ID from filename like "Cells/50"
+                if (filename.StartsWith("Cells/", StringComparison.OrdinalIgnoreCase) || filename.StartsWith("cells/", StringComparison.OrdinalIgnoreCase))
                 {
                     string idStr = filename.Substring(6);
 

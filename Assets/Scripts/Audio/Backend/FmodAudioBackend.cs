@@ -1,4 +1,3 @@
-#if FMOD
 using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
@@ -10,147 +9,130 @@ namespace Fodinae.Scripts.Audio.Backend
     /// <summary>
     /// FMOD Studio аудио-бэкенд с загрузкой банков с сервера.
     ///
-    /// Для MMO: банки .bank скачиваются через ClientAssetLoader как обычные ассеты,
-    /// кешируются на диске (PersistentAssetCache), и загружаются в FMOD из памяти.
+    /// Для MMO: банки .bank скачиваются через ClientAssetLoader, кешируются (ETag),
+    /// и загружаются в FMOD через loadBankMemory. Фоллбек: StreamingAssets/Audio/ для dev.
     ///
-    /// Структура каталогов:
+    /// Дакинг, VoiceLimit и приоритеты — всё нативно в FMOD Studio.
+    ///
+    /// Структура:
     /// <code>
-    /// Fodislop_Audio/             ← FMOD проект (отдельный репозиторий, не в Unity)
-    ///   Fodislop_Audio.fspro
-    ///   Assets/                   ← исходники .wav/.ogg
-    ///   Banks/                    ← FMOD билдит сюда
-    ///     Desktop/                ← копируется на сервер как banks/
-    ///       Master.bank
-    ///       Master.strings.bank
-    ///       SFX.bank
-    ///       Music.bank
-    ///       ...
-    ///
-    /// Fodislop/                   ← Unity проект
-    ///   StreamingAssets/Audio/    ← банки для локальной разработки (без сервера)
+    /// FodinaeAudio/Build/Desktop/*.bank   ← FMOD билдит → CDN игры
+    /// Assets/StreamingAssets/Audio/       ← локальный dev-фоллбек
     /// </code>
-    ///
-    /// Как это работает в MMO:
-    /// 1. Звукорежиссёр билдит банки в Fodinae_Audio/Banks/Desktop/
-    /// 2. Банки заливаются на CDN-сервер игры
-    /// 3. Клиент при логине получает список банков и скачивает их через ClientAssetLoader
-    /// 4. Банки кешируются локально (PersistentAssetCache с ETag)
-    /// 5. FmodAudioBackend получает byte[] из кеша/сети и загружает в FMOD через loadBankMemory
     /// </summary>
-    public sealed class FmodAudioBackend : IAudioBackend
+    public sealed class FmodAudioBackend
     {
         private AudioSystem _system;
         private readonly Dictionary<int, FMOD.Studio.EventInstance> _voices = new();
         private readonly Dictionary<AudioBusType, FMOD.Studio.Bus> _fmodBuses = new();
+        private readonly List<FMOD.Studio.Bank> _loadedBanks = new();
+        private readonly List<int> _finishedVoiceIds = new();
         private int _nextHandleId;
 
-        private const string BANK_PATH = "banks";
+        private const string BANKPATH = "banks";
 
-        /// <summary>
-        /// Список банков которые нужны клиенту. Сервер при логине присылает актуальный список
-        /// (например WorldInitPacket может содержать массив имён банков).
-        /// </summary>
         private static readonly string[] _requiredBanks =
         {
             "Master",
             "Master.strings",
-            "SFX",
-            "Music",
-            "Ambience",
-            "Voice",
         };
+
+        private static readonly FMOD.VECTOR ForwardVector = new() { x = 0f, y = 0f, z = 1f };
+        private static readonly FMOD.VECTOR UpVector = new() { x = 0f, y = 1f, z = 0f };
 
         public void Initialize(AudioSystem system)
         {
             _system = system;
-
-            // Асинхронно грузим все банки с сервера/кеша
             LoadAllBanks().Forget();
         }
 
-        /// <summary>
-        /// Загружает все банки через ClientAssetLoader — сначала проверяет кеш, потом сервер.
-        /// </summary>
         private async UniTaskVoid LoadAllBanks()
         {
             var loader = ClientAssetLoader.Instance;
             if (loader == null)
             {
-                Debug.LogError("[FmodAudioBackend] ClientAssetLoader не доступен — банки FMOD не загружены");
+                Debug.LogError("[FmodAudioBackend] ClientAssetLoader не доступен — банки не загружены");
                 return;
             }
 
             foreach (var bankName in _requiredBanks)
             {
-                var bankFile = $"{BANK_PATH}/{bankName}.bank";
+                byte[] bankBytes = null;
+                var localPath = System.IO.Path.Combine(Application.streamingAssetsPath, "Audio", $"{bankName}.bank");
 
-                try
+                if (System.IO.File.Exists(localPath))
                 {
-                    var bankBytes = await loader.GetAssetBytesAsync(bankFile, timeoutSeconds: 30);
-
-                    if (bankBytes == null || bankBytes.Length == 0)
+                    try
                     {
-                        // Пробуем локальный StreamingAssets для разработки без сервера
-                        var localPath = System.IO.Path.Combine(Application.streamingAssetsPath, "Audio", $"{bankName}.bank");
-                        if (System.IO.File.Exists(localPath))
-                        {
-                            bankBytes = System.IO.File.ReadAllBytes(localPath);
-                        }
+                        bankBytes = System.IO.File.ReadAllBytes(localPath);
                     }
-
-                    if (bankBytes != null && bankBytes.Length > 0)
+                    catch (Exception ex)
                     {
-                        LoadBankFromMemory(bankName, bankBytes);
-                    }
-                    else
-                    {
-                        Debug.LogWarning($"[FmodAudioBackend] Банк '{bankName}' не найден ни на сервере ни локально");
+                        Debug.LogWarning($"[FmodAudioBackend] Не удалось прочитать локальный банк '{localPath}': {ex.Message}");
                     }
                 }
-                catch (Exception ex)
+
+                if (bankBytes == null || bankBytes.Length == 0)
                 {
-                    Debug.LogWarning($"[FmodAudioBackend] Ошибка загрузки банка '{bankName}': {ex.Message}");
+                    var bankFile = $"{BANKPATH}/{bankName}.bank";
+                    try
+                    {
+                        bankBytes = await loader.GetAssetBytesAsync(bankFile, timeoutSeconds: 5);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning($"[FmodAudioBackend] Ошибка сети при запросе банка '{bankName}': {ex.Message}");
+                    }
+                }
+
+                // Check for valid bank data (not PNG fallback bytes 0x89 0x50 0x4E 0x47)
+                if (bankBytes != null && bankBytes.Length > 8 && !(bankBytes[0] == 0x89 && bankBytes[1] == 0x50))
+                {
+                    LoadBankFromMemory(bankName, bankBytes);
+                }
+                else
+                {
+                    Debug.LogWarning($"[FmodAudioBackend] Банк '{bankName}' не найден или не является валидным FMOD банком");
                 }
             }
 
-            // После загрузки банков — подключаем шины FMOD
             MapBuses();
         }
 
-        /// <summary>
-        /// Загружает банк из сырых байт в рантайме (серверный режим).
-        /// </summary>
-        private static void LoadBankFromMemory(string bankName, byte[] bankData)
+        private void LoadBankFromMemory(string bankName, byte[] bankData)
         {
-            // Пытаемся сначала загрузить .strings если это мастер-банк
-            // (FMOD требует чтобы strings банк был загружен ДО основного)
             FMOD.RESULT result = FMODUnity.RuntimeManager.StudioSystem.loadBankMemory(
                 bankData,
                 FMOD.Studio.LOAD_BANK_FLAGS.NORMAL,
                 out var bank);
 
-            if (result != FMOD.RESULT.OK)
+            if (result == FMOD.RESULT.OK)
             {
-                Debug.LogWarning($"[FmodAudioBackend] Не удалось загрузить банк '{bankName}' из памяти: {result}");
+                _loadedBanks.Add(bank);
+            }
+            else if (result == FMOD.RESULT.ERR_EVENT_ALREADY_LOADED)
+            {
+                // Bank was already automatically loaded by FMOD Unity RuntimeManager
+            }
+            else
+            {
+                Debug.LogWarning($"[FmodAudioBackend] loadBankMemory '{bankName}': {result}");
             }
         }
 
-        /// <summary>
-        /// Достаёт FMOD-шины после загрузки всех банков.
-        /// Пути шин: bus:/SFX, bus:/Music... — настраиваются в FMOD Studio микшере.
-        /// </summary>
         private void MapBuses()
         {
             var busPaths = new Dictionary<AudioBusType, string>
             {
                 { AudioBusType.Master,    "bus:/" },
-                { AudioBusType.Sfx,       "bus:/SFX" },
-                { AudioBusType.Music,     "bus:/Music" },
-                { AudioBusType.Voice,     "bus:/Voice" },
-                { AudioBusType.Ambience,  "bus:/Ambience" },
-                { AudioBusType.Ui,        "bus:/UI" },
-                { AudioBusType.Narrative, "bus:/Narrative" },
+                { AudioBusType.Sfx,       "bus:/sfx" },
+                { AudioBusType.Music,     "bus:/music" },
+                { AudioBusType.Voice,     "bus:/voice" },
+                { AudioBusType.Ambience,  "bus:/ambience" },
+                { AudioBusType.Ui,        "bus:/ui" },
             };
+
+            FMODUnity.RuntimeManager.StudioSystem.getBus("bus:/", out var masterBus);
 
             foreach (var kvp in busPaths)
             {
@@ -160,18 +142,29 @@ namespace Fodinae.Scripts.Audio.Backend
                 }
                 else
                 {
-                    Debug.LogWarning($"[FmodAudioBackend] Шина FMOD '{kvp.Value}' не найдена");
+                    _fmodBuses[kvp.Key] = masterBus;
                 }
             }
         }
 
-        public AudioPlaybackHandle CreateVoice(AudioEvent evt, AudioLayer layer, string assetPath, Vector3? worldPosition)
+        public AudioPlaybackHandle CreateVoice(AudioEvent evt, AudioLayer layer, Vector3? worldPosition)
         {
             string fmodPath = $"event:/{evt.Name}";
 
-            if (FMODUnity.RuntimeManager.CreateInstance(fmodPath, out var instance) != FMOD.RESULT.OK)
+            FMOD.Studio.EventInstance instance;
+            try
             {
-                Debug.LogWarning($"[FmodAudioBackend] Событие FMOD '{fmodPath}' не найдено");
+                instance = FMODUnity.RuntimeManager.CreateInstance(fmodPath);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[FmodAudioBackend] FMOD event '{fmodPath}' not found or failed to load: {ex.Message}");
+                return null;
+            }
+
+            if (!instance.isValid())
+            {
+                Debug.LogWarning($"[FmodAudioBackend] Событие '{fmodPath}' не найдено");
                 return null;
             }
 
@@ -181,8 +174,8 @@ namespace Fodinae.Scripts.Audio.Backend
                 instance.set3DAttributes(new FMOD.ATTRIBUTES_3D
                 {
                     position = new FMOD.VECTOR { x = pos.x, y = pos.y, z = 0f },
-                    forward  = new FMOD.VECTOR { x = 0f, y = 0f, z = 1f },
-                    up       = new FMOD.VECTOR { x = 0f, y = 1f, z = 0f },
+                    forward = ForwardVector,
+                    up = UpVector,
                 });
             }
 
@@ -191,20 +184,18 @@ namespace Fodinae.Scripts.Audio.Backend
             instance.setPitch(layer.Pitch * _system.GetBus(layer.Bus).Pitch);
             instance.start();
 
-            var handle = new AudioPlaybackHandle(_nextHandleId, _system.GetBus(layer.Bus))
+            var handleId = _nextHandleId++;
+            var handle = new AudioPlaybackHandle(handleId, _system.GetBus(layer.Bus))
             {
-                Priority = layer.Priority,
-                StartTime = Time.unscaledTime,
-                _isPlayingFunc  = h => _voices.TryGetValue(h.HandleId, out var inst) && IsInstancePlaying(inst),
-                _stopAction     = (h, fade) => StopVoice(h, fade),
+                _isPlayingFunc = h => _voices.TryGetValue(h.HandleId, out var inst) && IsInstancePlaying(inst),
+                _stopAction = (h, fade) => StopVoice(h, fade),
                 _positionAction = (h, pos) => SetVoicePosition(h, pos),
-                _volumeAction   = (h, vol) => SetVoiceVolume(h, vol),
-                _pitchAction    = (h, pit) => SetVoicePitch(h, pit),
+                _volumeAction = (h, vol) => SetVoiceVolume(h, vol),
+                _pitchAction = (h, pit) => SetVoicePitch(h, pit),
             };
 
-            _voices[_nextHandleId] = instance;
-            _system.GetBus(layer.Bus)._activeVoices++;
-            _nextHandleId++;
+            _voices[handleId] = instance;
+            _system.GetBus(layer.Bus).ActiveVoiceCount++;
 
             return handle;
         }
@@ -212,13 +203,15 @@ namespace Fodinae.Scripts.Audio.Backend
         public void StopVoice(AudioPlaybackHandle handle, float fadeOut)
         {
             if (!_voices.TryGetValue(handle.HandleId, out var instance))
+            {
                 return;
+            }
 
             var mode = fadeOut > 0f ? FMOD.Studio.STOP_MODE.ALLOWFADEOUT : FMOD.Studio.STOP_MODE.IMMEDIATE;
             instance.stop(mode);
             instance.release();
             _voices.Remove(handle.HandleId);
-            _system.GetBus(handle.Bus.BusType)._activeVoices--;
+            _system.GetBus(handle.Bus.BusType).ActiveVoiceCount--;
         }
 
         public void SetVoicePosition(AudioPlaybackHandle handle, Vector3 worldPosition)
@@ -228,6 +221,8 @@ namespace Fodinae.Scripts.Audio.Backend
                 instance.set3DAttributes(new FMOD.ATTRIBUTES_3D
                 {
                     position = new FMOD.VECTOR { x = worldPosition.x, y = worldPosition.y, z = 0f },
+                    forward = ForwardVector,
+                    up = UpVector,
                 });
             }
         }
@@ -235,33 +230,46 @@ namespace Fodinae.Scripts.Audio.Backend
         public void SetVoiceVolume(AudioPlaybackHandle handle, float volume)
         {
             if (_voices.TryGetValue(handle.HandleId, out var instance))
+            {
                 instance.setVolume(volume * _system.GetBus(handle.Bus.BusType).EffectiveVolume);
+            }
         }
 
         public void SetVoicePitch(AudioPlaybackHandle handle, float pitch)
         {
             if (_voices.TryGetValue(handle.HandleId, out var instance))
+            {
                 instance.setPitch(pitch);
-        }
-
-        public bool IsPlaying(AudioPlaybackHandle handle)
-        {
-            if (!_voices.TryGetValue(handle.HandleId, out var instance))
-                return false;
-
-            instance.getPlaybackState(out var state);
-            return state == FMOD.Studio.PLAYBACK_STATE.PLAYING || state == FMOD.Studio.PLAYBACK_STATE.STARTING;
+            }
         }
 
         public void Update(float deltaTime)
         {
+            // Sync bus volumes to FMOD
             foreach (var (busType, fmodBus) in _fmodBuses)
             {
                 var audioBus = _system.GetBus(busType);
                 fmodBus.setVolume(audioBus.EffectiveVolume);
             }
 
-            // Дакинг, лимиты голосов и приоритеты — нативно в FMOD Studio.
+            // Cleanup voices that finished playing on their own (not stopped via handle)
+            _finishedVoiceIds.Clear();
+            foreach (var (id, instance) in _voices)
+            {
+                if (!IsInstancePlaying(instance))
+                {
+                    _finishedVoiceIds.Add(id);
+                }
+            }
+
+            foreach (var id in _finishedVoiceIds)
+            {
+                if (_voices.TryGetValue(id, out var instance))
+                {
+                    instance.release();
+                    _voices.Remove(id);
+                }
+            }
         }
 
         public void Shutdown()
@@ -273,6 +281,13 @@ namespace Fodinae.Scripts.Audio.Backend
             }
 
             _voices.Clear();
+
+            foreach (var bank in _loadedBanks)
+            {
+                bank.unload();
+            }
+
+            _loadedBanks.Clear();
         }
 
         private static bool IsInstancePlaying(FMOD.Studio.EventInstance instance)
@@ -282,4 +297,3 @@ namespace Fodinae.Scripts.Audio.Backend
         }
     }
 }
-#endif

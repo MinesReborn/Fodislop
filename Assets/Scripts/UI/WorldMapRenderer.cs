@@ -1,19 +1,22 @@
-using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.InputSystem;
 using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Player;
 using MinesServer.Data;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 namespace Fodinae.Scripts.UI
 {
     public class WorldMapRenderer : MonoBehaviour
     {
         [Header("Rendering")]
-        [SerializeField] private float _renderInterval = 0.033f;
-        [SerializeField] private float _dragSpeed = 0.5f;
+        [SerializeField]
+        private float _renderInterval = 0.033f;
+        [SerializeField]
+        private float _dragSpeed = 0.5f;
 
-        private int _texWidth, _texHeight;
+        private int _texWidth;
+        private int _texHeight;
         private Canvas _canvas;
         private RawImage _rawImage;
         private Texture2D _mapTexture;
@@ -21,7 +24,8 @@ namespace Fodinae.Scripts.UI
         private Color32[] _cellColorTable = new Color32[256];
         private Color32 _defaultColor = new Color32(48, 48, 48, 255);
 
-        private float _viewCenterX, _viewCenterY;
+        private float _viewCenterX;
+        private float _viewCenterY;
         private float _cellsPerPixel = 1f;
         private MapStorage _storage;
         private MapManager _manager;
@@ -38,7 +42,7 @@ namespace Fodinae.Scripts.UI
         private float _playerBlinkTimer;
         private bool _playerBlinkState = true;
 
-        void Start()
+        protected void Start()
         {
             _storage = MapStorage.Instance;
             _manager = MapManager.Instance;
@@ -65,19 +69,32 @@ namespace Fodinae.Scripts.UI
             _scrollAction.Enable();
 
             if (!_canvas.gameObject.activeSelf)
+            {
                 Hide();
+            }
         }
 
-        void OnDestroy()
+        protected void OnDestroy()
         {
             _scrollAction?.Dispose();
-            if (_mapTexture != null) Destroy(_mapTexture);
-            if (_canvas != null) Destroy(_canvas.gameObject);
+            if (_mapTexture != null)
+            {
+                Destroy(_mapTexture);
+            }
+
+            if (_canvas != null)
+            {
+                Destroy(_canvas.gameObject);
+            }
         }
 
-        void Update()
+        protected void Update()
         {
-            if (!enabled) return;
+            if (!enabled)
+            {
+                return;
+            }
+
             HandleDrag();
             HandleFollowPlayer();
             HandleQueuedRender();
@@ -92,7 +109,11 @@ namespace Fodinae.Scripts.UI
 
         public void Show()
         {
-            if (_canvas != null) _canvas.gameObject.SetActive(true);
+            if (_canvas != null)
+            {
+                _canvas.gameObject.SetActive(true);
+            }
+
             enabled = true;
             _lastRenderTime = -1f;
             _initialRenderDone = false;
@@ -103,7 +124,11 @@ namespace Fodinae.Scripts.UI
 
         public void Hide()
         {
-            if (_canvas != null) _canvas.gameObject.SetActive(false);
+            if (_canvas != null)
+            {
+                _canvas.gameObject.SetActive(false);
+            }
+
             enabled = false;
         }
 
@@ -142,14 +167,18 @@ namespace Fodinae.Scripts.UI
             {
                 CellType type = (CellType)i;
                 Color color = _manager.GetCellMinimapColor(type);
-                if (color.a < 0.01f) color = new Color(0.3f, 0.3f, 0.3f);
+                if (color.a < 0.01f)
+                {
+                    color = new Color(0.3f, 0.3f, 0.3f);
+                }
+
                 _cellColorTable[i] = (Color32)color;
             }
         }
 
         private void InitTexture()
         {
-            int baseRes = 512;
+            const int baseRes = 512;
             _texHeight = baseRes;
             _texWidth = Mathf.RoundToInt(baseRes * ((float)Screen.width / Screen.height));
             _mapTexture = new Texture2D(_texWidth, _texHeight, TextureFormat.RGBA32, false);
@@ -161,7 +190,10 @@ namespace Fodinae.Scripts.UI
 
         private void HandleDrag()
         {
-            if (Mouse.current == null) return;
+            if (Mouse.current == null)
+            {
+                return;
+            }
 
             if (Mouse.current.leftButton.wasPressedThisFrame)
             {
@@ -189,11 +221,18 @@ namespace Fodinae.Scripts.UI
 
         private void HandleFollowPlayer()
         {
-            if (_player == null) return;
+            if (_player == null)
+            {
+                return;
+            }
 
-            var pos = _player.ClientPosition;
+            var pos = _player.Position;
             bool moved = pos.x != _lastPlayerPos.x || pos.y != _lastPlayerPos.y;
-            if (!moved) return;
+            if (!moved)
+            {
+                return;
+            }
+
             _lastPlayerPos = pos;
 
             if (_followPlayer)
@@ -206,7 +245,9 @@ namespace Fodinae.Scripts.UI
         private void HandleQueuedRender()
         {
             if (_initialRenderDone && Time.time - _lastRenderTime < _renderInterval)
+            {
                 return;
+            }
 
             _lastRenderTime = Time.time;
             _initialRenderDone = true;
@@ -225,12 +266,14 @@ namespace Fodinae.Scripts.UI
 
             Color32 defaultCol = _defaultColor;
             for (int i = 0; i < _pixelBuffer.Length; i++)
+            {
                 _pixelBuffer[i] = defaultCol;
+            }
 
-            float leftWorld = cx - texW * 0.5f * cp;
-            float rightWorld = cx + texW * 0.5f * cp;
-            float bottomWorld = cy - texH * 0.5f * cp;
-            float topWorld = cy + texH * 0.5f * cp;
+            float leftWorld = cx - (texW * 0.5f * cp);
+            float rightWorld = cx + (texW * 0.5f * cp);
+            float bottomWorld = cy - (texH * 0.5f * cp);
+            float topWorld = cy + (texH * 0.5f * cp);
 
             int minCellX = Mathf.Max(0, Mathf.FloorToInt(leftWorld));
             int maxCellX = Mathf.Min(worldW - 1, Mathf.CeilToInt(rightWorld));
@@ -242,26 +285,32 @@ namespace Fodinae.Scripts.UI
                 float worldY_top = cellY;
                 float worldY_bottom = cellY + 1f;
 
-                float pixelY_top = (worldY_top - cy) / cp + texH * 0.5f;
-                float pixelY_bottom = (worldY_bottom - cy) / cp + texH * 0.5f;
+                float pixelY_top = ((worldY_top - cy) / cp) + (texH * 0.5f);
+                float pixelY_bottom = ((worldY_bottom - cy) / cp) + (texH * 0.5f);
 
                 int pixY_start = Mathf.Clamp(Mathf.RoundToInt(pixelY_top), 0, texH - 1);
                 int pixY_end = Mathf.Clamp(Mathf.RoundToInt(pixelY_bottom), 0, texH - 1);
-                if (pixY_start >= texH || pixY_end < 0) continue;
+                if (pixY_start >= texH || pixY_end < 0)
+                {
+                    continue;
+                }
 
-                int serverY = worldH - 1 - cellY;
+                int serverY = cellY;
 
                 for (int cellX = minCellX; cellX <= maxCellX; cellX++)
                 {
                     float worldX_left = cellX;
                     float worldX_right = cellX + 1f;
 
-                    float pixelX_left = (worldX_left - cx) / cp + texW * 0.5f;
-                    float pixelX_right = (worldX_right - cx) / cp + texW * 0.5f;
+                    float pixelX_left = ((worldX_left - cx) / cp) + (texW * 0.5f);
+                    float pixelX_right = ((worldX_right - cx) / cp) + (texW * 0.5f);
 
                     int pixX_start = Mathf.Clamp(Mathf.RoundToInt(pixelX_left), 0, texW - 1);
                     int pixX_end = Mathf.Clamp(Mathf.RoundToInt(pixelX_right), 0, texW - 1);
-                    if (pixX_start >= texW || pixX_end < 0) continue;
+                    if (pixX_start >= texW || pixX_end < 0)
+                    {
+                        continue;
+                    }
 
                     CellType type = _storage.GetCell(cellX, serverY);
                     Color32 color = _cellColorTable[(byte)type];
@@ -279,7 +328,7 @@ namespace Fodinae.Scripts.UI
 
             if (_player != null && _playerBlinkState)
             {
-                Vector2Int playerPos = _player.ClientPosition;
+                Vector2Int playerPos = _player.Position;
 
                 if (playerPos.x >= minCellX && playerPos.x <= maxCellX && playerPos.y >= minCellY && playerPos.y <= maxCellY)
                 {
@@ -288,10 +337,10 @@ namespace Fodinae.Scripts.UI
                     float worldY_top = playerPos.y;
                     float worldY_bottom = playerPos.y + 1f;
 
-                    float pixelX_left = (worldX_left - cx) / cp + texW * 0.5f;
-                    float pixelX_right = (worldX_right - cx) / cp + texW * 0.5f;
-                    float pixelY_top = (worldY_top - cy) / cp + texH * 0.5f;
-                    float pixelY_bottom = (worldY_bottom - cy) / cp + texH * 0.5f;
+                    float pixelX_left = ((worldX_left - cx) / cp) + (texW * 0.5f);
+                    float pixelX_right = ((worldX_right - cx) / cp) + (texW * 0.5f);
+                    float pixelY_top = ((worldY_top - cy) / cp) + (texH * 0.5f);
+                    float pixelY_bottom = ((worldY_bottom - cy) / cp) + (texH * 0.5f);
 
                     int pixX_start = Mathf.Clamp(Mathf.RoundToInt(pixelX_left), 0, texW - 1);
                     int pixX_end = Mathf.Clamp(Mathf.RoundToInt(pixelX_right), 0, texW - 1);
@@ -317,12 +366,18 @@ namespace Fodinae.Scripts.UI
 
         private void OnScroll(InputAction.CallbackContext ctx)
         {
-            if (!enabled || _canvas == null || !_canvas.gameObject.activeSelf) return;
+            if (!enabled || _canvas == null || !_canvas.gameObject.activeSelf)
+            {
+                return;
+            }
 
             float delta = ctx.ReadValue<Vector2>().y;
-            if (Mathf.Abs(delta) < 0.01f) return;
+            if (Mathf.Abs(delta) < 0.01f)
+            {
+                return;
+            }
 
-            _cellsPerPixel *= (1f - delta * 0.1f);
+            _cellsPerPixel *= 1f - (delta * 0.1f);
             _cellsPerPixel = Mathf.Clamp(_cellsPerPixel, 0.02f, 10f);
         }
     }

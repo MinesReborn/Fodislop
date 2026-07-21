@@ -1,12 +1,12 @@
 #nullable enable
-using NCalc;
-using NCalc.Factories;
-using SmartFormat.Core.Extensions;
-using SmartFormat.Core.Parsing;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using NCalc;
+using NCalc.Factories;
+using SmartFormat.Core.Extensions;
+using SmartFormat.Core.Parsing;
 
 namespace SmartFormat.Extensions
 {
@@ -16,7 +16,7 @@ namespace SmartFormat.Extensions
     /// </summary>
     /// <example>
     /// Template: "Result: {score:calc: [score] * 2}" where score=21 → "Result: 42"
-    /// Template: "Total: {:calc(0.00):({count} + {bonus}) * 1.2}"
+    /// Template: "Total: {:calc(0.00):({count} + {bonus}) * 1.2}".
     /// </example>
     /// <remarks>
     /// The formatter name is "calc".
@@ -27,17 +27,20 @@ namespace SmartFormat.Extensions
     /// </remarks>
     public class LogiCalcFormatter : IFormatter
     {
-        ///<inheritdoc/>
+        /// <inheritdoc/>
         public string Name { get; set; } = "calc";
 
-        ///<inheritdoc/>
+        /// <inheritdoc/>
         public bool CanAutoDetect { get; set; } = false;
 
-        ///<inheritdoc/>
+        /// <inheritdoc/>
         public bool TryEvaluateFormat(IFormattingInfo formattingInfo)
         {
             var format = formattingInfo.Format;
-            if (format == null) return false;
+            if (format == null)
+            {
+                return false;
+            }
 
             // Build the NCalc expression string and collect parameter values
             var parameters = new Dictionary<string, object?>();
@@ -64,7 +67,9 @@ namespace SmartFormat.Extensions
 
                         // Try to convert strings to numbers for NCalc arithmetic
                         if (paramValue is string strVal)
+                        {
                             paramValue = ConvertStringToNumeric(strVal) ?? paramValue;
+                        }
 
                         parameters[paramName] = paramValue;
                     }
@@ -78,12 +83,14 @@ namespace SmartFormat.Extensions
 
             var expressionStr = exprBuilder.ToString();
             if (string.IsNullOrEmpty(expressionStr))
+            {
                 return false;
+            }
 
             try
             {
                 // Parse and evaluate the NCalc expression
-                var options = ExpressionOptions.NoCache;
+                const ExpressionOptions options = ExpressionOptions.NoCache;
                 var context = new ExpressionContext(options, CultureInfo.InvariantCulture);
                 var logExpr = LogicalExpressionFactory.Create(expressionStr, context);
                 var nCalcExpr = new Expression(logExpr);
@@ -123,7 +130,7 @@ namespace SmartFormat.Extensions
 
         /// <summary>
         /// Builds the dot-separated selector name from a placeholder.
-        /// Example: "{Person.Siblings[0]}" => "Person.Siblings.0"
+        /// Example: "{Person.Siblings[0]}" => "Person.Siblings.0".
         /// </summary>
         private static string GetSelectorName(Placeholder placeholder)
         {
@@ -133,10 +140,14 @@ namespace SmartFormat.Extensions
             foreach (var selector in placeholder.GetSelectors())
             {
                 if (selector.Length == 0 || selector.Operator == ",")
+                {
                     continue;
+                }
 
                 if (!first)
+                {
                     nameBuilder.Append('.');
+                }
 
                 nameBuilder.Append(selector.AsSpan());
                 first = false;
@@ -152,13 +163,25 @@ namespace SmartFormat.Extensions
         private static object? ConvertStringToNumeric(string value)
         {
             if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var intVal))
+            {
                 return intVal;
+            }
+
             if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var longVal))
+            {
                 return longVal;
+            }
+
             if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var floatVal))
+            {
                 return floatVal;
+            }
+
             if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var doubleVal))
+            {
                 return doubleVal;
+            }
+
             return null;
         }
     }

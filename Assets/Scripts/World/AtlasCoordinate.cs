@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Fodinae.Scripts.World
 {
     /// <summary>
-    /// Represents coordinates within a texture atlas for a specific cell type
+    /// Represents coordinates within a texture atlas for a specific cell type.
     /// </summary>
     public struct AtlasCoordinate : IEquatable<AtlasCoordinate>
     {
@@ -66,15 +66,17 @@ namespace Fodinae.Scripts.World
         }
 
         /// <summary>
-        /// Get UV coordinates for a specific variation
+        /// Get UV coordinates for a specific variation.
         /// </summary>
-        /// <param name="variation">The cell variation</param>
-        /// <param name="variationSize">Size of each variation in pixels</param>
-        /// <returns>UV coordinates for the variation</returns>
+        /// <param name="variation">The cell variation.</param>
+        /// <param name="variationSize">Size of each variation in pixels.</param>
+        /// <returns>UV coordinates for the variation.</returns>
         public AtlasCoordinate WithVariation(CellVariation variation, int variationSize)
         {
             if (!variation.HasVariations)
+            {
                 return this;
+            }
 
             int variationX = variation.Horizontal ? variationSize : 0;
             int variationY = variation.Vertical ? variationSize : 0;
@@ -89,12 +91,12 @@ namespace Fodinae.Scripts.World
         }
 
         /// <summary>
-        /// Get UV coordinates for a specific animation frame
+        /// Get UV coordinates for a specific animation frame.
         /// </summary>
-        /// <param name="frameIndex">The animation frame index</param>
-        /// <param name="framesPerRow">Number of frames per row in the texture</param>
-        /// <param name="frameSize">Size of each frame</param>
-        /// <returns>UV coordinates for the animation frame</returns>
+        /// <param name="frameIndex">The animation frame index.</param>
+        /// <param name="framesPerRow">Number of frames per row in the texture.</param>
+        /// <param name="frameSize">Size of each frame.</param>
+        /// <returns>UV coordinates for the animation frame.</returns>
         public AtlasCoordinate WithAnimationFrame(int frameIndex, int framesPerRow, int frameSize)
         {
             int frameX = (frameIndex % framesPerRow) * frameSize;
@@ -110,11 +112,11 @@ namespace Fodinae.Scripts.World
         }
 
         /// <summary>
-        /// Get UV coordinates for a specific animation frame using server-provided frame height
+        /// Get UV coordinates for a specific animation frame using server-provided frame height.
         /// </summary>
-        /// <param name="frameIndex">The animation frame index</param>
-        /// <param name="frameHeightInTiles">Frame height in tiles (each tile is CELL_SIZE pixels)</param>
-        /// <returns>UV coordinates for the animation frame</returns>
+        /// <param name="frameIndex">The animation frame index.</param>
+        /// <param name="frameHeightInTiles">Frame height in tiles (each tile is CELL_SIZE pixels).</param>
+        /// <returns>UV coordinates for the animation frame.</returns>
         public AtlasCoordinate WithAnimationFrameFromServer(int frameIndex, int frameHeightInTiles)
         {
             int frameHeightInPixels = frameHeightInTiles * RenderingConstants.CellSize;
@@ -138,7 +140,7 @@ namespace Fodinae.Scripts.World
     }
 
     /// <summary>
-    /// Represents cell texture variations based on position
+    /// Represents cell texture variations based on position.
     /// </summary>
     public struct CellVariation
     {
@@ -156,7 +158,7 @@ namespace Fodinae.Scripts.World
     }
 
     /// <summary>
-    /// Information about a cell texture including variations and animations
+    /// Information about a cell texture including variations and animations.
     /// </summary>
     public struct CellTextureInfo
     {

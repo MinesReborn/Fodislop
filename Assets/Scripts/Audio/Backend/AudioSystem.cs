@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Fodinae.Scripts.Audio.Core;
-using Fodinae.Scripts.Utils;
+using Fodinae.Scripts.Audio.Data;
+using Fodinae.Scripts.Core;
 using UnityEngine;
 
 namespace Fodinae.Scripts.Audio.Backend
@@ -8,170 +10,136 @@ namespace Fodinae.Scripts.Audio.Backend
     /// <summary>
     /// Точка входа в аудио-домен — синглтон, висящий в DontDestroyOnLoad.
     ///
-    /// <b>ЧТО ЭТО ДЕЛАЕТ:</b>
-    /// <list type="bullet">
-    ///   <item>Регистрирует шины (Master, Sfx, Music, Voice, Ambience, Ui, Narrative)</item>
-    ///   <item>Держит реестр аудио-событий (AudioEvent по имени)</item>
-    ///   <item>Принимает вызовы Play() → создаёт голос через бэкенд → возвращает AudioPlaybackHandle</item>
-    ///   <item>Каждый кадр обновляет бэкенд (дакинг, лимиты голосов, очистка отыгравших)</item>
-    ///   <item>Даёт удобные шорткаты для звукорежиссёра:
-    ///     <c>AudioSystem.Play("dig_rock")</c>,
-    ///     <c>AudioSystem.PlayAt("explosion", transform.position)</c>
-    ///   </item>
-    /// </list>
+    /// Использует FmodAudioBackend для проигрывания FMOD Studio событий.
+    /// Все события адресуются по строковому имени, соответствующему FMOD event path без prefix event:/.
     ///
-    /// <b>КАК РАСШИРИТЬ ДО FMOD:</b>
-    /// Замени <see cref="_backend"/> на FmodAudioBackend в Awake().
-    /// Шины и события остаются те же — бэкенд сам разберётся как их отобразить на FMOD Studio buses/events.
+    /// Пример: Play("sfx_dig") → FMOD event:/sfx_dig
     /// </summary>
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Gracefully catch startup exceptions to prevent game crash.")]
     public sealed class AudioSystem : SingletonMonoBehaviour<AudioSystem>
     {
-        private IAudioBackend _backend;
         private readonly Dictionary<AudioBusType, AudioBus> _buses = new();
-        private readonly Dictionary<string, AudioEvent> _events = new();
+        private readonly Dictionary<string, AudioEvent> _events = new(System.StringComparer.OrdinalIgnoreCase);
 
-        protected override void OnAwake()
-        {
-            CreateBuses();
-            RegisterDefaults();
+        [SerializeField]
+        [Tooltip("Библиотека аудио-событий. События регистрируются автоматически при старте.")]
+        private AudioLibrary _audioLibrary;
 
-#if FMOD
-            _backend = new FmodAudioBackend();
-#else
-            _backend = new UnityAudioBackend();
-#endif
-            _backend.Initialize(this);
-        }
-
-        private void Update()
-        {
-            _backend?.Update(Time.unscaledDeltaTime);
-        }
-
-        protected override void OnDestroyed()
-        {
-            _backend?.Shutdown();
-            _backend = null;
-        }
+        private FmodAudioBackend _backend;
 
         // ═══════════════════════════════════════════════════════════
-        //  Шины
+        //  Public API
         // ═══════════════════════════════════════════════════════════
 
-        private void CreateBuses()
-        {
-            AddBus(new AudioBus(AudioBusType.Master)    { VoiceLimit = 0 });
-            AddBus(new AudioBus(AudioBusType.Sfx)       { VoiceLimit = 32 });
-            AddBus(new AudioBus(AudioBusType.Music)     { VoiceLimit = 2 });
-            AddBus(new AudioBus(AudioBusType.Voice)     { VoiceLimit = 1 });
-            AddBus(new AudioBus(AudioBusType.Ambience)  { VoiceLimit = 8 });
-            AddBus(new AudioBus(AudioBusType.Ui)        { VoiceLimit = 4 });
-            AddBus(new AudioBus(AudioBusType.Narrative) { VoiceLimit = 1 });
-        }
-
-        private void AddBus(AudioBus bus)
-        {
-            _buses[bus.BusType] = bus;
-        }
-
-        /// <summary>Регистрирует события без которых игра не запустится (эмбиент, базовые SFX).</summary>
-        private void RegisterDefaults()
-        {
-            // Фоновый эмбиент — загружается AudioManager при старте.
-            Register(AudioEvent.Create(
-                "ambient_bg",
-                new[] { "audio/evil_huge" },
-                AudioLayer.MusicDefault()));
-
-            // Примечание: полный список событий регистрируется через AudioLibrary.asset
-            // в сцене или через код. Здесь только неубираемый минимум.
-        }
-
-        /// <summary>Получить шину по идентификатору.</summary>
         public AudioBus GetBus(AudioBusType type)
         {
             return _buses.TryGetValue(type, out var bus) ? bus : _buses[AudioBusType.Master];
         }
 
-        /// <summary>Все зарегистрированные шины (для итерации бэкендом).</summary>
         public IEnumerable<AudioBus> GetAllBuses() => _buses.Values;
 
-        // ═══════════════════════════════════════════════════════════
-        //  Реестр событий
-        // ═══════════════════════════════════════════════════════════
-
-        /// <summary>
-        /// Зарегистрировать аудио-событие.
-        /// Обычно вызывается при старте из AudioLibrary (ScriptableObject) или программно.
-        /// </summary>
         public void Register(AudioEvent evt)
         {
-            if (evt == null || string.IsNullOrEmpty(evt.Name)) return;
+            if (evt == null || string.IsNullOrEmpty(evt.Name))
+            {
+                return;
+            }
+
             _events[evt.Name] = evt;
         }
 
-        /// <summary>Массовая регистрация.</summary>
         public void RegisterAll(IEnumerable<AudioEvent> events)
         {
             foreach (var evt in events)
+            {
                 Register(evt);
+            }
         }
-
-        /// <summary>Найти событие по имени. null если не зарегистрировано.</summary>
-        public AudioEvent FindEvent(string name)
-        {
-            return _events.TryGetValue(name, out var evt) ? evt : null;
-        }
-
-        // ═══════════════════════════════════════════════════════════
-        //  Play — основной API
-        // ═══════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Проиграть аудио-событие по имени.
-        /// Событие должно быть зарегистрировано через Register().
+        /// Найти зарегистрированное событие по имени или автоматически зарегистрировать
+        /// событие FMOD с соответствующим дефолтным слоем (Music, Ui, Sfx).
         /// </summary>
-        /// <param name="eventName">Имя зарегистрированного события.</param>
-        /// <param name="worldPosition">Позиция в мире (только для пространственных звуков). null = 2D (не-пространственный).</param>
-        /// <param name="overrideLayer">Переопределить параметры слоя. null = использовать DefaultLayer события.</param>
-        /// <param name="overrideVolume">Переопределить громкость. null = использовать DefaultVolume события.</param>
-        /// <returns>Хендл для управления голосом, или null если событие не найдено.</returns>
-        public AudioPlaybackHandle Play(string eventName, Vector3? worldPosition = null, AudioLayer? overrideLayer = null, float? overrideVolume = null)
+        public AudioEvent FindEvent(string name)
         {
-            var evt = FindEvent(eventName);
-            if (evt == null)
+            if (string.IsNullOrEmpty(name))
             {
-                Debug.LogWarning($"[AudioSystem] Событие '{eventName}' не зарегистрировано");
                 return null;
             }
 
+            // Strip event:/ or event: prefix for lookup
+            string lookupName = name;
+            if (lookupName.StartsWith("event:/", System.StringComparison.OrdinalIgnoreCase))
+            {
+                lookupName = lookupName.Substring("event:/".Length);
+            }
+            else if (lookupName.StartsWith("event:", System.StringComparison.OrdinalIgnoreCase))
+            {
+                lookupName = lookupName.Substring("event:".Length);
+            }
+
+            if (_events.TryGetValue(lookupName, out var evt))
+            {
+                return evt;
+            }
+
+            // Also check alternate name (sfx_bz <-> sfx/bz)
+            string alternateName = lookupName;
+            if (lookupName.StartsWith("sfx_", System.StringComparison.OrdinalIgnoreCase))
+            {
+                alternateName = "sfx/" + lookupName.Substring("sfx_".Length);
+            }
+            else if (lookupName.StartsWith("sfx/", System.StringComparison.OrdinalIgnoreCase))
+            {
+                alternateName = "sfx_" + lookupName.Substring("sfx/".Length);
+            }
+
+            if (_events.TryGetValue(alternateName, out var altEvt))
+            {
+                return altEvt;
+            }
+
+            AudioLayer defaultLayer = AudioLayer.SfxDefault();
+            if (lookupName.StartsWith("music/", System.StringComparison.OrdinalIgnoreCase) || lookupName.StartsWith("music_", System.StringComparison.OrdinalIgnoreCase))
+            {
+                defaultLayer = AudioLayer.MusicDefault();
+            }
+            else if (lookupName.StartsWith("ui/", System.StringComparison.OrdinalIgnoreCase) || lookupName.StartsWith("ui_", System.StringComparison.OrdinalIgnoreCase))
+            {
+                defaultLayer = AudioLayer.UiDefault();
+            }
+
+            var dynamicEvt = AudioEvent.Create(lookupName, defaultLayer);
+            _events[lookupName] = dynamicEvt;
+            _events[alternateName] = dynamicEvt;
+            return dynamicEvt;
+        }
+
+        /// <summary>Воспроизвести событие по имени с опциональной 3D-позицией.</summary>
+        public AudioPlaybackHandle Play(string eventName, Vector3? worldPosition = null, AudioLayer? overrideLayer = null, float? overrideVolume = null)
+        {
+            var evt = FindEvent(eventName);
             return PlayEvent(evt, worldPosition, overrideLayer, overrideVolume);
         }
 
-        /// <summary>Проиграть событие напрямую (без поиска по имени).</summary>
         public AudioPlaybackHandle PlayEvent(AudioEvent evt, Vector3? worldPosition = null, AudioLayer? overrideLayer = null, float? overrideVolume = null)
         {
-            if (evt == null || evt.AssetPaths == null || evt.AssetPaths.Length == 0)
+            if (evt == null)
+            {
                 return null;
+            }
 
             var layer = overrideLayer ?? evt.DefaultLayer;
-            var assetPath = evt.PickAsset();
-            if (string.IsNullOrEmpty(assetPath))
-                return null;
 
-            // Применяем вариацию питча
             if (evt.PitchVariation > 0f)
             {
-                float variation = Random.Range(-evt.PitchVariation, evt.PitchVariation);
+                float variation = UnityEngine.Random.Range(-evt.PitchVariation, evt.PitchVariation);
                 layer = new AudioLayer
                 {
                     Bus = layer.Bus,
                     Volume = overrideVolume ?? evt.DefaultVolume,
                     Pitch = layer.Pitch + variation,
-                    Priority = layer.Priority,
                     IsSpatial = layer.IsSpatial,
-                    MinDistance = layer.MinDistance,
-                    MaxDistance = layer.MaxDistance,
                 };
             }
             else if (overrideVolume.HasValue)
@@ -181,48 +149,80 @@ namespace Fodinae.Scripts.Audio.Backend
                     Bus = layer.Bus,
                     Volume = overrideVolume.Value,
                     Pitch = layer.Pitch,
-                    Priority = layer.Priority,
                     IsSpatial = layer.IsSpatial,
-                    MinDistance = layer.MinDistance,
-                    MaxDistance = layer.MaxDistance,
                 };
             }
 
-            return _backend?.CreateVoice(evt, layer, assetPath, worldPosition);
+            return _backend?.CreateVoice(evt, layer, worldPosition);
         }
 
-        /// <summary>
-        /// Шорткат: проиграть событие в указанной мировой позиции.
-        /// <c>AudioSystem.PlayAt("explosion", transform.position)</c>
-        /// </summary>
+        /// <summary>Воспроизвести 3D-событие на заданной позиции в мире.</summary>
         public AudioPlaybackHandle PlayAt(string eventName, Vector3 worldPosition, AudioLayer? layer = null, float? volume = null)
-        {
-            return Play(eventName, worldPosition, layer, volume);
-        }
+            => Play(eventName, worldPosition, layer, volume);
 
-        /// <summary>
-        /// Шорткат: проиграть не-пространственное событие (UI, музыка).
-        /// <c>AudioSystem.Play2D("ui_click")</c>
-        /// </summary>
+        /// <summary>Воспроизвести 2D-событие (без пространственного позиционирования).</summary>
         public AudioPlaybackHandle Play2D(string eventName, AudioLayer? layer = null, float? volume = null)
-        {
-            return Play(eventName, null, layer, volume);
-        }
+            => Play(eventName, null, layer, volume);
 
-        /// <summary>
-        /// Шорткат для звукорежиссёра: проиграть событие из Transform'а источника.
-        /// Позиция обновляется автоматически каждый кадр через AudioSpatial компонент.
-        /// </summary>
-        public AudioPlaybackHandle PlayAttached(string eventName, Transform followTarget, AudioLayer? layer = null, float? volume = null)
+        // ═══════════════════════════════════════════════════════════
+        //  Protected Lifecycle Methods
+        // ═══════════════════════════════════════════════════════════
+
+        protected override void OnAwake()
         {
-            var handle = Play(eventName, followTarget.position, layer, volume);
-            if (handle != null)
+            CreateBuses();
+
+            if (_audioLibrary != null)
             {
-                // Клиент должен сам обновлять позицию через handle.SetPosition() в Update.
-                // Для удобства можно повесить компонент AudioSpatial на followTarget.
+                RegisterAll(_audioLibrary.Events);
             }
 
-            return handle;
+            // Load saved volume settings from PlayerPrefs
+            GetBus(AudioBusType.Music).Volume = PlayerPrefs.GetFloat("Audio_Ambient", 0.5f);
+            GetBus(AudioBusType.Sfx).Volume = PlayerPrefs.GetFloat("Audio_Sfx", 1f);
+
+            _backend = new FmodAudioBackend();
+            _backend.Initialize(this);
+
+            // Play ambient background music
+            try
+            {
+                Play2D("music/ambient_bg", AudioLayer.MusicDefault(), 0.5f);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[AudioSystem] Не удалось загрузить эмбиент: {ex.Message}");
+            }
+        }
+
+        protected override void OnDestroyed()
+        {
+            _backend?.Shutdown();
+            _backend = null;
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        //  Private Methods
+        // ═══════════════════════════════════════════════════════════
+
+        private void Update()
+        {
+            _backend?.Update(Time.unscaledDeltaTime);
+        }
+
+        private void CreateBuses()
+        {
+            AddBus(new AudioBus(AudioBusType.Master));
+            AddBus(new AudioBus(AudioBusType.Sfx));
+            AddBus(new AudioBus(AudioBusType.Music));
+            AddBus(new AudioBus(AudioBusType.Voice));
+            AddBus(new AudioBus(AudioBusType.Ambience));
+            AddBus(new AudioBus(AudioBusType.Ui));
+        }
+
+        private void AddBus(AudioBus bus)
+        {
+            _buses[bus.BusType] = bus;
         }
     }
 }

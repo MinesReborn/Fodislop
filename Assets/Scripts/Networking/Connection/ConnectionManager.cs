@@ -1,5 +1,6 @@
 using System;
-using Fodinae.Scripts.Utils;
+using Fodinae.Scripts.Core;
+using Fodinae.Scripts.World;
 using MinesServer.Networking.Client;
 using MinesServer.Networking.Client.Packets.Connection;
 using MinesServer.Networking.Client.Packets.GUI;
@@ -29,7 +30,7 @@ namespace Fodinae.Scripts.Networking.Connection
             Disconnect();
         }
 
-        private void Update()
+        protected void Update()
         {
             int processedCount = 0;
             while (processedCount < 50 && _packetQueue.TryDequeue(out var packet))
@@ -50,7 +51,10 @@ namespace Fodinae.Scripts.Networking.Connection
         public void Connect(bool oldClient = false)
         {
             if (Connection != null && Connection.ConnectionStatus != ConnectionStatus.Disconnected)
+            {
                 return;
+            }
+
             _useOldClient = oldClient;
             Connection = new DummyConnection();
             Connection.OnReceived += OnReceived;
@@ -61,9 +65,9 @@ namespace Fodinae.Scripts.Networking.Connection
         private void OnConnected()
         {
             int version = _useOldClient ? 0 : 1;
-            NetworkService.Instance.Send(new ClientHelloPacket(version, "Windows", 10, "fingerprint", "token"));
+            NetworkService.Send(new ClientHelloPacket(version, "Windows", 10, "fingerprint", "token"));
 
-            NetworkService.Instance.Send(new OpenHelpClickPacket());
+            NetworkService.Send(new OpenHelpClickPacket());
         }
 
         private void OnReceived(ServerPacket obj)

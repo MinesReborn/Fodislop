@@ -1,8 +1,8 @@
-using SmartFormat;
-using SmartFormat.Extensions;
 using System;
 using System.Collections.Generic;
 using Fodinae.UI.Controls;
+using SmartFormat;
+using SmartFormat.Extensions;
 using UnityEngine.UIElements;
 
 namespace Fodinae.UI.Binding
@@ -25,12 +25,10 @@ namespace Fodinae.UI.Binding
             _formatter = new SmartFormatter();
             _formatter.AddExtensions(
                 new DefaultSource(),
-                new DictionarySource()
-            );
+                new DictionarySource());
             _formatter.AddExtensions(
                 new DefaultFormatter(),
-                new LogiCalcFormatter()
-            );
+                new LogiCalcFormatter());
         }
 
         /// <summary>
@@ -39,7 +37,11 @@ namespace Fodinae.UI.Binding
         /// </summary>
         public void Bind(VisualElement root)
         {
-            if (_disposed) throw new ObjectDisposedException(nameof(WindowBinding));
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(nameof(WindowBinding));
+            }
+
             WalkTree(root);
             RefreshAll();
         }
@@ -60,22 +62,48 @@ namespace Fodinae.UI.Binding
             }
 
             foreach (var child in element.Children())
+            {
                 WalkTree(child);
+            }
         }
 
         private static bool IsInputElement(VisualElement element)
         {
-            if (element is TextField) return true;
-            if (element is DropdownField) return true;
-            if (element is Slider) return true;
-            if (element is Toggle) return true;
-            if (element is Selectable) return true;
+            if (element is TextField)
+            {
+                return true;
+            }
+
+            if (element is DropdownField)
+            {
+                return true;
+            }
+
+            if (element is Slider)
+            {
+                return true;
+            }
+
+            if (element is Toggle)
+            {
+                return true;
+            }
+
+            if (element is Selectable)
+            {
+                return true;
+            }
+
             return false;
         }
 
         private static bool IsTemplate(string text)
         {
-            if (string.IsNullOrEmpty(text)) return false;
+            if (string.IsNullOrEmpty(text))
+            {
+                return false;
+            }
+
             // SmartFormat uses {name} syntax
             return text.Contains('{') && text.Contains('}');
         }
@@ -104,7 +132,10 @@ namespace Fodinae.UI.Binding
 
         private void RefreshAll()
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
 
             // Collect current values from all input controls by name
             var values = new Dictionary<string, object>(_inputs.Count);
@@ -136,13 +167,17 @@ namespace Fodinae.UI.Binding
                 Slider sl => sl.value,
                 Toggle tg => tg.value,
                 Selectable sel => sel.value,
-                _ => null
+                _ => null,
             };
         }
 
         public void Dispose()
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
+
             _disposed = true;
             _inputs.Clear();
             _labelTemplates.Clear();

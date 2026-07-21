@@ -10,11 +10,16 @@ namespace Fodinae.Scripts.UI.Builders
         public static void ApplyStyles(VisualElement element, IGUIComponentPacket packet)
         {
             if (packet.Style is null)
+            {
                 return;
+            }
+
             var s = packet.Style.Value;
 
             if (s.Background.A > 0)
+            {
                 element.style.backgroundColor = ConvertColor(s.Background);
+            }
 
             element.style.borderTopColor = ConvertColor(s.Border);
             element.style.borderBottomColor = ConvertColor(s.Border);

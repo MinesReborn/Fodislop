@@ -18,7 +18,8 @@ namespace Fodinae.UI.Controls
             }
         }
 
-        public RegexTextField() : base()
+        public RegexTextField()
+            : base()
         {
             _lastValidValue = this.value;
             RegisterCallback<FocusOutEvent>(evt => Validate());
@@ -37,7 +38,8 @@ namespace Fodinae.UI.Controls
             }
         }
 
-        public RegexTextField(string label) : base(label)
+        public RegexTextField(string label)
+            : base(label)
         {
             _lastValidValue = this.value;
             RegisterCallback<FocusOutEvent>(evt => Validate());
@@ -45,7 +47,8 @@ namespace Fodinae.UI.Controls
             RegisterCallback<KeyDownEvent>(evt => _lastCursorIndex = cursorIndex);
         }
 
-        public RegexTextField(string label, string defaultValue) : base(label)
+        public RegexTextField(string label, string defaultValue)
+            : base(label)
         {
             _defaultValue = defaultValue;
             this.value = defaultValue;
@@ -63,6 +66,7 @@ namespace Fodinae.UI.Controls
                 _lastValidValue = text;
                 return;
             }
+
             if (!System.Text.RegularExpressions.Regex.IsMatch(text, Regex))
             {
                 this.SetValueWithoutNotify(_lastValidValue);

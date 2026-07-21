@@ -109,6 +109,7 @@ namespace Fodinae.Scripts.UI
             {
                 _overlay.parent.Remove(_overlay);
             }
+
             _overlay = null;
         }
     }

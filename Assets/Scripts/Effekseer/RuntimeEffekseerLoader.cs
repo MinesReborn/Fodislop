@@ -1,6 +1,4 @@
-// <copyright file="RuntimeEffekseerLoader.cs" company="Fodinae">
-// Copyright (c) Fodinae. All rights reserved.
-// </copyright>
+// Copyright (c) PlaceholderCompany. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -21,7 +19,7 @@ namespace Fodinae.Scripts.Effekseer
     /// <code>
     /// var asset = await RuntimeEffekseerLoader.LoadEffectAsync(
     ///     efkBytes, "myEffect",
-    ///     texturePathMapper: path => "vfx/" + path);
+    ///     texturePathMapper: path => "VFX/" + path);
     /// EffekseerSystem.PlayEffect(asset, position);
     /// </code>
     /// </summary>
@@ -36,7 +34,7 @@ namespace Fodinae.Scripts.Effekseer
         /// <param name="effectName">Name for the effect asset (used for logging and native registration).</param>
         /// <param name="texturePathMapper">
         /// Optional function to remap texture paths found in the .efk before requesting them
-        /// from the server. Example: <c>path => "vfx/" + path</c>.
+        /// from the server. Example: <c>path => "VFX/" + path</c>.
         /// Return null from the mapper to skip a texture.
         /// </param>
         /// <param name="clientAssetLoader">
@@ -70,7 +68,7 @@ namespace Fodinae.Scripts.Effekseer
                 return null;
             }
 
-            var loader = clientAssetLoader ?? ClientAssetLoader.Instance;
+            var loader = clientAssetLoader != null ? clientAssetLoader : ClientAssetLoader.Instance;
             if (loader == null)
             {
                 Debug.LogError("[RuntimeEffekseerLoader] No ClientAssetLoader available");

@@ -1,22 +1,7 @@
 {
-  "folders": [
-    {
-      "name": "Fodinae (Root)",
-      "path": "."
-    },
-    {
-      "name": "Package Cache",
-      "path": "Library/PackageCache"
-    }
-  ],
-  "settings": {
-    "explorer.fileNesting.enabled": true,
-    "explorer.fileNesting.expand": false,
-    "explorer.fileNesting.patterns": {
-      "Fodislop.slnx": "*.csproj, *.sln, *.sln.meta, Directory.Build.props",
-      ".gitignore": ".gitattributes, .pre-commit-config.yaml",
-      "README.md": "CONTRIBUTING.md, AGENTS.md",
-      "Fodinae.code-workspace": "opencode.json"
-    }
-  }
+    "folders": [
+        {
+            "path": "."
+        }
+    ]
 }

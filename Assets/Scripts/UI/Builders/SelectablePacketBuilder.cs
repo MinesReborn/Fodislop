@@ -11,7 +11,9 @@ namespace Fodinae.Scripts.UI.Builders
         public override VisualElement Build(IGUIComponentPacket packet, PacketUIBuilder builder)
         {
             if (packet is not SelectablePacket selectablePacket)
+            {
                 return null;
+            }
 
             var checkedVisual = builder.Build(selectablePacket.Checked);
             var uncheckedVisual = builder.Build(selectablePacket.Unchecked);
@@ -19,7 +21,7 @@ namespace Fodinae.Scripts.UI.Builders
             var selectable = new Selectable
             {
                 Group = selectablePacket.Name,
-                value = selectablePacket.DefaultValue
+                value = selectablePacket.DefaultValue,
             };
 
             selectable.SetVisuals(checkedVisual, uncheckedVisual);

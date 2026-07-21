@@ -1,8 +1,8 @@
+using System;
 using System.IO;
+using Cysharp.Threading.Tasks;
 using MinesServer.Data;
 using UnityEngine;
-using System;
-using Cysharp.Threading.Tasks;
 
 namespace Fodinae.Scripts.Game.Managers
 {
@@ -45,7 +45,9 @@ namespace Fodinae.Scripts.Game.Managers
         }
 #endif
 
+#pragma warning disable CS0067 // Зарезервировано для будущей системы стриминга чанков
         public event Action OnChunkLoaded;
+#pragma warning restore CS0067
 
         public void InitWorld(string worldCodeName, int width, int height)
         {
@@ -80,7 +82,10 @@ namespace Fodinae.Scripts.Game.Managers
                     {
                         string dir = Path.GetDirectoryName(path);
                         if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                        {
                             Directory.CreateDirectory(dir);
+                        }
+
                         File.Copy(sourcePath, path, true);
                         Debug.Log($"[MapStorage] Copied prebaked map from StreamingAssets to {path}");
                     }
@@ -97,7 +102,7 @@ namespace Fodinae.Scripts.Game.Managers
             try
             {
                 // Use configurable chunk size (default 32) - should match WorldLayer default
-                int chunkSize = 32;
+                const int chunkSize = 32;
                 int widthChunks = (width + chunkSize - 1) / chunkSize;
                 int heightChunks = (height + chunkSize - 1) / chunkSize;
 
@@ -120,12 +125,6 @@ namespace Fodinae.Scripts.Game.Managers
                 if (widthChunks > 100000 || heightChunks > 100000)
                 {
                     Debug.LogError($"MapStorage.InitWorld: World dimensions too large for WorldLayer. Max supported: 100000x100000 chunks");
-                    return;
-                }
-
-                if (chunkSize <= 0 || chunkSize > 1024)
-                {
-                    Debug.LogError($"MapStorage.InitWorld: Invalid chunk size: {chunkSize}. Must be between 1 and 1024.");
                     return;
                 }
 
@@ -322,11 +321,11 @@ namespace Fodinae.Scripts.Game.Managers
         public string GetWorldCodeName() => _worldCodeName;
 
         /// <summary>
-        /// Get a cell at the specified coordinates
+        /// Get a cell at the specified coordinates.
         /// </summary>
-        /// <param name="x">World X coordinate</param>
-        /// <param name="y">World Y coordinate</param>
-        /// <returns>CellType or CellType.Unloaded if not ready</returns>
+        /// <param name="x">World X coordinate.</param>
+        /// <param name="y">World Y coordinate.</param>
+        /// <returns>CellType or CellType.Unloaded if not ready.</returns>
         public CellType GetCell(int x, int y)
         {
             if (!_isInitialized || _cellLayer == null)
@@ -347,11 +346,11 @@ namespace Fodinae.Scripts.Game.Managers
         }
 
         /// <summary>
-        /// Set a cell at the specified coordinates
+        /// Set a cell at the specified coordinates.
         /// </summary>
-        /// <param name="x">World X coordinate</param>
-        /// <param name="y">World Y coordinate</param>
-        /// <param name="cellType">Cell type to set</param>
+        /// <param name="x">World X coordinate.</param>
+        /// <param name="y">World Y coordinate.</param>
+        /// <param name="cellType">Cell type to set.</param>
         public void SetCell(int x, int y, CellType cellType)
         {
             if (!_isInitialized || _cellLayer == null)
@@ -442,8 +441,8 @@ namespace Fodinae.Scripts.Game.Managers
 
                 const int chunkSize = 32;
 
-                int widthChunks = testWidth / chunkSize;
-                int heightChunks = testHeight / chunkSize;
+                const int widthChunks = testWidth / chunkSize;
+                const int heightChunks = testHeight / chunkSize;
 
                 _cellLayer = new WorldLayer<CellType>(path, widthChunks, heightChunks, chunkSize);
                 _isInitialized = true;
@@ -467,8 +466,8 @@ namespace Fodinae.Scripts.Game.Managers
 
                 const int chunkSize = 32;
 
-                int widthChunks = testWidth / chunkSize;
-                int heightChunks = testHeight / chunkSize;
+                const int widthChunks = testWidth / chunkSize;
+                const int heightChunks = testHeight / chunkSize;
 
                 _cellLayer = new WorldLayer<CellType>(path, widthChunks, heightChunks, chunkSize);
                 _isInitialized = true;

@@ -12,7 +12,9 @@ namespace Fodinae.Scripts.UI.Builders
         public override VisualElement Build(IGUIComponentPacket packet, PacketUIBuilder builder)
         {
             if (packet is not PanelPacket panelPacket)
+            {
                 return null;
+            }
 
             var element = new VisualElement();
 

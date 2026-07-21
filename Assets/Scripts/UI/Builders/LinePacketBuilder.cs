@@ -12,18 +12,22 @@ namespace Fodinae.Scripts.UI.Builders
         public override VisualElement Build(IGUIComponentPacket packet, PacketUIBuilder builder)
         {
             if (packet is not LinePacket linePkt)
+            {
                 return null;
+            }
 
             var line = new UILine
             {
-                Direction = linePkt.Direction
+                Direction = linePkt.Direction,
             };
 
             if (linePkt.Style.HasValue)
             {
                 line.LineColor = StyleApplicator.ConvertColor(linePkt.Style.Value.Background);
                 if (linePkt.Style.Value.BorderWidth > 0)
+                {
                     line.Thickness = linePkt.Style.Value.BorderWidth;
+                }
             }
 
             if (linePkt.Direction == LineDirection.Horizontal)

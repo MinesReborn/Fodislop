@@ -343,7 +343,7 @@
             <nav class="nav-links">
                 <a href="rendering.html" class="active">Рендеринг</a>
                 <a href="networking.html">Сеть</a>
-                <a href="audio_effects.html">Звук & Эффекты</a>
+                <a href="audio.html">Аудио</a>
                 <a href="assets_loading.html">CDN & Кэш</a>
                 <a href="ui_programmator.html">UI & Код</a>
             </nav>
@@ -457,28 +457,39 @@
             <p>Анимированные тайлы (например, лава, вода, кристаллы) загружаются из файлов GIF или WebP. Класс <a href="../Assets/Scripts/World/AnimationContainerDecoder.cs" class="class-ref">AnimationContainerDecoder</a> с помощью встроенного декодера <a href="../Assets/Scripts/mfGif/mgGif.cs" class="class-ref">mgGif</a> парсит байты анимаций и генерирует массив кадров <code>Texture2D</code>, которые затем добавляются в атлас как последовательные текстурные плашки.</p>
         </section>
 
-        <!-- Y-Inversion -->
+        <!-- Coordinate System -->
         <section>
-            <h2>Инверсия оси Y</h2>
+            <h2>Единая система координат (Top-Left 0:0)</h2>
 
             <div class="alert-box alert-warn">
-                <h4>⚠️ Внимание: Различие систем координат</h4>
-                <p><strong>Сервер:</strong> Ось Y направлена <strong>вниз</strong>. Координата <code>Y = 0</code> соответствует самой верхней строке карты.<br>
-                <strong>Unity:</strong> Стандартная декартова система координат. Ось Y направлена <strong>вверх</strong>, координата <code>Y = 0</code> соответствует низу сцены.</p>
+                <h4>⚠️ Важно: Единственный источник истины координат</h4>
+                <p><strong>Серверные координаты (0:0 Top-Left):</strong> Координата <code>(0, 0)</code> соответствует <strong>левому верхнему углу</strong> карты. Ось X растет вправо, ось Y растет <strong>вниз</strong> (вглубь шахты).<br>
+                <strong>Единая позиция игрока:</strong> Класс <a href="../Assets/Scripts/Player/PlayerMovementController.cs" class="class-ref">PlayerMovementController</a> содержит ровно одно публичное свойство <code>Position</code> (тип <code>Vector2Int</code>), которое хранит истинные координаты сервера <code>(x, y)</code> без дубликатов и раздвоения логики.</p>
             </div>
 
-            <p>Все пространственные преобразования координат между сетью и игровым миром централизованы в утилите <a href="../Assets/Scripts/Utils/CoordinateUtils.cs" class="class-ref">CoordinateUtils</a>:</p>
+            <p>Все преобразования между серверными координатами и пространством Unity 2D (где ось Y декартовой системы направлена вверх) выполняются исключительно через утилиту <a href="../Assets/Scripts/World/CoordinateUtils.cs" class="class-ref">CoordinateUtils</a>:</p>
 
-            <pre><code><span class="c-comment">// Конвертация серверной координаты Y в координату Unity</span>
-<span class="c-keyword">public static float</span> <span class="c-method">ServerToUnityY</span>(<span class="c-type">int</span> <span class="c-num">serverY</span>, <span class="c-type">int</span> <span class="c-num">worldHeight</span>)
+            <pre><code><span class="c-comment">// Конвертация серверной координаты Y в координату мира Unity</span>
+<span class="c-keyword">public static float</span> <span class="c-method">ServerToUnityY</span>(<span class="c-type">int</span> <span class="c-num">serverY</span>, <span class="c-type">int</span> <span class="c-num">worldHeight</span> = 0)
 {
-    <span class="c-keyword">return</span> <span class="c-num">worldHeight</span> - <span class="c-num">1</span> - <span class="c-num">serverY</span>;
+    <span class="c-type">int</span> <span class="c-num">h</span> = <span class="c-method">ResolveHeight</span>(<span class="c-num">worldHeight</span>);
+    <span class="c-keyword">return</span> (<span class="c-num">h</span> - <span class="c-num">1</span> - <span class="c-num">serverY</span>) + <span class="c-num">0.5f</span>;
 }
 
 <span class="c-comment">// Конвертация координаты Unity в серверную координату Y</span>
-<span class="c-keyword">public static int</span> <span class="c-method">UnityToServerY</span>(<span class="c-type">float</span> <span class="c-num">unityY</span>, <span class="c-type">int</span> <span class="c-num">worldHeight</span>)
+<span class="c-keyword">public static int</span> <span class="c-method">UnityToServerY</span>(<span class="c-type">float</span> <span class="c-num">unityY</span>, <span class="c-type">int</span> <span class="c-num">worldHeight</span> = 0)
 {
-    <span class="c-keyword">return</span> <span class="c-num">worldHeight</span> - <span class="c-num">1</span> - (<span class="c-type">int</span>)System.Math.<span class="c-method">Floor</span>(<span class="c-num">unityY</span>);
+    <span class="c-type">int</span> <span class="c-num">h</span> = <span class="c-method">ResolveHeight</span>(<span class="c-num">worldHeight</span>);
+    <span class="c-type">int</span> <span class="c-num">y</span> = Mathf.<span class="c-method">FloorToInt</span>(<span class="c-num">unityY</span>);
+    <span class="c-type">int</span> <span class="c-num">serverY</span> = (<span class="c-num">h</span> - <span class="c-num">1</span> - <span class="c-num">y</span>) % <span class="c-num">h</span>;
+    <span class="c-keyword">if</span> (<span class="c-num">serverY</span> &lt; <span class="c-num">0</span>) <span class="c-num">serverY</span> += <span class="c-num">h</span>;
+    <span class="c-keyword">return</span> <span class="c-num">serverY</span>;
+}
+
+<span class="c-comment">// Конвертация точки в мире Unity в серверные координаты ячейки</span>
+<span class="c-keyword">public static Vector2Int</span> <span class="c-method">UnityToServerPos</span>(<span class="c-type">Vector3</span> <span class="c-num">unityPos</span>, <span class="c-type">int</span> <span class="c-num">worldHeight</span> = 0)
+{
+    <span class="c-keyword">return new</span> <span class="c-type">Vector2Int</span>(Mathf.<span class="c-method">FloorToInt</span>(<span class="c-num">unityPos.x</span>), <span class="c-method">UnityToServerY</span>(<span class="c-num">unityPos.y</span>, <span class="c-num">worldHeight</span>));
 }</code></pre>
         </section>
     </main>

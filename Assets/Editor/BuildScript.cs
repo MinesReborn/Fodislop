@@ -49,7 +49,9 @@ namespace Fodinae.Editor
             Directory.CreateDirectory(Path.GetDirectoryName(output));
 
             if (isApple)
+            {
                 TrySetAppleSiliconArchitecture();
+            }
 
             bool development = Environment.GetCommandLineArgs().Contains(DevArg);
             var options = new BuildPlayerOptions
@@ -115,7 +117,9 @@ namespace Fodinae.Editor
         {
             Debug.LogError($"[BuildScript] {message}");
             if (Application.isBatchMode)
+            {
                 EditorApplication.Exit(1);
+            }
         }
     }
 }

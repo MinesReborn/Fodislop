@@ -16,7 +16,10 @@ namespace Fodinae.UI.Controls
             get => _value;
             set
             {
-                if (_value == value) return;
+                if (_value == value)
+                {
+                    return;
+                }
 
                 using var evt = ChangeEvent<bool>.GetPooled(_value, value);
                 evt.target = this;
@@ -88,7 +91,10 @@ namespace Fodinae.UI.Controls
 
         private void UpdateVisuals()
         {
-            if (_checkedElement == null || _uncheckedElement == null) return;
+            if (_checkedElement == null || _uncheckedElement == null)
+            {
+                return;
+            }
 
             _checkedElement.style.display = _value ? DisplayStyle.Flex : DisplayStyle.None;
             _uncheckedElement.style.display = !_value ? DisplayStyle.Flex : DisplayStyle.None;

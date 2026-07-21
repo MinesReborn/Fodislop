@@ -10,7 +10,9 @@ namespace Fodinae.Scripts.UI.Builders
         public override VisualElement Build(IGUIComponentPacket packet, PacketUIBuilder builder)
         {
             if (packet is not TextPacket textPkt)
+            {
                 return null;
+            }
 
             var label = new Label(textPkt.Text);
             label.style.whiteSpace = WhiteSpace.Normal;

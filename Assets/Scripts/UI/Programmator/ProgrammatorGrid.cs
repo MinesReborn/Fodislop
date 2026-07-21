@@ -13,13 +13,17 @@ namespace Fodinae.Scripts.UI.Programmator
         private RadialMenu _radial;
         private bool _isOpen;
         private bool _radialShown;
-        private const float CELL_SIZE = 30f;
-        private const float CELL_GAP = 2f;
+        private const float CELLSIZE = 30f;
+        private const float CELLGAP = 2f;
 
-        private void Start()
+        protected void Start()
         {
             _doc = FindAnyObjectByType<UIDocument>();
-            if (_doc == null) return;
+            if (_doc == null)
+            {
+                return;
+            }
+
             CreateUI();
             _popup.style.display = DisplayStyle.None;
         }
@@ -100,12 +104,12 @@ namespace Fodinae.Scripts.UI.Programmator
 
             var gridScroll = new ScrollView();
             gridScroll.style.flexGrow = 1;
-            gridScroll.style.maxHeight = ProgrammatorData.ROWS * (CELL_SIZE + CELL_GAP * 2);
+            gridScroll.style.maxHeight = ProgrammatorData.ROWS * (CELLSIZE + (CELLGAP * 2));
 
             _gridContainer = new VisualElement();
             _gridContainer.style.flexDirection = FlexDirection.Row;
             _gridContainer.style.flexWrap = Wrap.Wrap;
-            _gridContainer.style.width = ProgrammatorData.COLS * (CELL_SIZE + CELL_GAP * 2);
+            _gridContainer.style.width = ProgrammatorData.COLS * (CELLSIZE + (CELLGAP * 2));
 
             _cells = new VisualElement[ProgrammatorData.ROWS, ProgrammatorData.COLS];
 
@@ -115,8 +119,8 @@ namespace Fodinae.Scripts.UI.Programmator
                 {
                     int row = i, col = j;
                     var cell = new VisualElement();
-                    cell.style.width = CELL_SIZE;
-                    cell.style.height = CELL_SIZE;
+                    cell.style.width = CELLSIZE;
+                    cell.style.height = CELLSIZE;
                     cell.style.backgroundColor = new Color(0.15f, 0.15f, 0.15f, 1f);
                     cell.style.borderTopWidth = 1;
                     cell.style.borderBottomWidth = 1;
@@ -126,22 +130,22 @@ namespace Fodinae.Scripts.UI.Programmator
                     cell.style.borderBottomColor = new Color(0.25f, 0.25f, 0.25f, 1f);
                     cell.style.borderLeftColor = new Color(0.25f, 0.25f, 0.25f, 1f);
                     cell.style.borderRightColor = new Color(0.25f, 0.25f, 0.25f, 1f);
-                    cell.style.marginLeft = CELL_GAP;
-                    cell.style.marginRight = CELL_GAP;
-                    cell.style.marginTop = CELL_GAP;
-                    cell.style.marginBottom = CELL_GAP;
+                    cell.style.marginLeft = CELLGAP;
+                    cell.style.marginRight = CELLGAP;
+                    cell.style.marginTop = CELLGAP;
+                    cell.style.marginBottom = CELLGAP;
 
                     cell.RegisterCallback<PointerEnterEvent>(_ =>
                     {
-                        ProgrammatorData.hoveredCell = row * ProgrammatorData.COLS + col;
+                        ProgrammatorData.HoveredCell = (row * ProgrammatorData.COLS) + col;
                         HighlightCell(row, col, true);
                     });
                     cell.RegisterCallback<PointerLeaveEvent>(_ =>
                     {
-                        if (ProgrammatorData.hoveredCell == row * ProgrammatorData.COLS + col)
+                        if (ProgrammatorData.HoveredCell == (row * ProgrammatorData.COLS) + col)
                         {
                             HighlightCell(row, col, false);
-                            ProgrammatorData.hoveredCell = -1;
+                            ProgrammatorData.HoveredCell = -1;
                         }
                     });
 
@@ -156,7 +160,7 @@ namespace Fodinae.Scripts.UI.Programmator
             _popup.Add(panel);
             _doc.rootVisualElement.Add(_popup);
 
-            _radial = new RadialMenu(ProgrammatorData.W_OPERATORS);
+            _radial = new RadialMenu(ProgrammatorData.WOPERATORS);
             _radial.OnItemClicked += OnRadialItemClicked;
         }
 
@@ -181,16 +185,16 @@ namespace Fodinae.Scripts.UI.Programmator
 
         private void UpdateCell(int row, int col)
         {
-            int idx = ProgrammatorData.currentPage * ProgrammatorData.CELLS_PER_PAGE
-                      + row * ProgrammatorData.COLS + col;
-            int id = ProgrammatorData.codes[idx];
+            int idx = (ProgrammatorData.CurrentPage * ProgrammatorData.CELLSPERPAGE)
+                      + (row * ProgrammatorData.COLS) + col;
+            int id = ProgrammatorData.Codes[idx];
             var cell = _cells[row, col];
 
-            var tex = Resources.Load<Texture2D>($"Programmator/{id}");
+            var tex = ProgrammatorTextureRegistry.GetTexture(id);
             if (tex != null)
             {
                 cell.style.backgroundImage = new StyleBackground(tex);
-                cell.style.unityBackgroundScaleMode = ScaleMode.ScaleToFit;
+                cell.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Contain);
                 cell.style.backgroundColor = Color.clear;
             }
             else if (id == 0)
@@ -207,26 +211,37 @@ namespace Fodinae.Scripts.UI.Programmator
 
         private void OnRadialItemClicked(int selectedId)
         {
-            if (ProgrammatorData.hoveredCell < 0) return;
-            int row = ProgrammatorData.hoveredCell / ProgrammatorData.COLS;
-            int col = ProgrammatorData.hoveredCell % ProgrammatorData.COLS;
-            int idx = ProgrammatorData.currentPage * ProgrammatorData.CELLS_PER_PAGE
-                      + row * ProgrammatorData.COLS + col;
-            ProgrammatorData.codes[idx] = selectedId;
+            if (ProgrammatorData.HoveredCell < 0)
+            {
+                return;
+            }
+
+            int row = ProgrammatorData.HoveredCell / ProgrammatorData.COLS;
+            int col = ProgrammatorData.HoveredCell % ProgrammatorData.COLS;
+            int idx = (ProgrammatorData.CurrentPage * ProgrammatorData.CELLSPERPAGE)
+                      + (row * ProgrammatorData.COLS) + col;
+            ProgrammatorData.Codes[idx] = selectedId;
             UpdateCell(row, col);
         }
 
-        private void Update()
+        protected void Update()
         {
-            if (Keyboard.current == null) return;
-            if (!_isOpen) return;
+            if (Keyboard.current == null)
+            {
+                return;
+            }
+
+            if (!_isOpen)
+            {
+                return;
+            }
 
             if (!_radialShown)
             {
-                if (Keyboard.current.wKey.wasPressedThisFrame && ProgrammatorData.hoveredCell >= 0)
+                if (Keyboard.current.wKey.wasPressedThisFrame && ProgrammatorData.HoveredCell >= 0)
                 {
-                    int row = ProgrammatorData.hoveredCell / ProgrammatorData.COLS;
-                    int col = ProgrammatorData.hoveredCell % ProgrammatorData.COLS;
+                    int row = ProgrammatorData.HoveredCell / ProgrammatorData.COLS;
+                    int col = ProgrammatorData.HoveredCell % ProgrammatorData.COLS;
                     var cellCenter = _cells[row, col].worldBound.center;
                     _radial.ShowAt(_doc.rootVisualElement, cellCenter);
                     _radialShown = true;

@@ -11,15 +11,20 @@ namespace Fodinae.Scripts.UI.Builders
         public override VisualElement Build(IGUIComponentPacket packet, PacketUIBuilder builder)
         {
             if (packet is not StringDropdownPacket strDropPkt)
+            {
                 return null;
+            }
 
             var strOptions = strDropPkt.Values.ToList();
             var defaultValue = strDropPkt.DefaultValue;
             if (!strOptions.Contains(defaultValue))
+            {
                 defaultValue = strOptions.FirstOrDefault();
+            }
+
             var strDrop = new DropdownField(strOptions, 0)
             {
-                value = defaultValue
+                value = defaultValue,
             };
             strDrop.SetEnabled(strDropPkt.IsEnabled);
             return strDrop;

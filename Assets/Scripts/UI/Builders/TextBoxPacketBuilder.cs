@@ -11,16 +11,21 @@ namespace Fodinae.Scripts.UI.Builders
         public override VisualElement Build(IGUIComponentPacket packet, PacketUIBuilder builder)
         {
             if (packet is not TextBoxPacket textInputPkt)
+            {
                 return null;
+            }
 
             var textField = new RegexTextField // Change to RegexTextField
             {
                 value = textInputPkt.DefaultValue,
                 isReadOnly = !textInputPkt.IsEnabled,
-                Regex = textInputPkt.Regex // Assign the Regex property
+                Regex = textInputPkt.Regex, // Assign the Regex property
             };
             if (!string.IsNullOrEmpty(textInputPkt.Name))
+            {
                 textField.name = textInputPkt.Name;
+            }
+
             return textField;
         }
     }

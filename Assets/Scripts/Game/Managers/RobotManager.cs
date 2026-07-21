@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Fodinae.Scripts.Game;
-using Fodinae.Scripts.Utils;
+using Fodinae.Scripts.Core;
+using Fodinae.Scripts.World;
 using UnityEngine;
 
 namespace Fodinae.Scripts.Game.Managers

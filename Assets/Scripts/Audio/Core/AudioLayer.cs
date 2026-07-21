@@ -1,157 +1,99 @@
+using UnityEngine;
+
 namespace Fodinae.Scripts.Audio.Core
 {
     /// <summary>
-    /// Logical routing target for every sound played through <see cref="AudioSystem"/>.
-    ///
-    /// The bus determines:
-    /// <list type="bullet">
-    ///   <item>Which output mix the sound ends up in (gameplay SFX, UI, music, dialogue, ambient...)</item>
-    ///   <item>How the sound participates in ducking / side-chain relationships</item>
-    ///   <item>Where the bus sits in the hierarchy — child buses inherit volume/pitch from parent</item>
-    /// </list>
-    ///
-    /// When integrating FMOD or Wwise, map each value to a corresponding bus/vca/group path
-    /// inside the IAudioBackend implementation.
+    /// Тип аудио-шины — определяет куда маршрутизируется звук в FMOD Studio.
+    /// Каждый тип соответствует шине (bus) в FMOD Studio: bus:/sfx, bus:/music, etc.
     /// </summary>
     public enum AudioBusType
     {
-        /// <summary>Master output — every bus ultimately routes here.</summary>
+        /// <summary>Мастер-шина — все шины в конечном счёте идут сюда.</summary>
         Master = 0,
 
-        /// <summary>Gameplay sound effects: digging, explosions, footsteps, weapon fire, ambient machinery.</summary>
+        /// <summary>Игровые звуки: копка, взрывы, шаги, выстрелы, механизмы.</summary>
         Sfx = 10,
 
-        /// <summary>Music / soundtrack.  Long-form, typically stereo, unaffected by spatial positioning.</summary>
+        /// <summary>Музыка / саундтрек. Длинные треки, стерео, без пространственного позиционирования.</summary>
         Music = 20,
 
-        /// <summary>Character voice / narration / dialogue system.</summary>
+        /// <summary>Голос персонажа / нарратив / диалоговая система.</summary>
         Voice = 30,
 
-        /// <summary>Environmental ambience: wind, cave reverb hum, lava bubbling.  Usually looped.</summary>
+        /// <summary>Эмбиент окружения: ветер, гул пещеры, лава. Обычно зациклено.</summary>
         Ambience = 40,
 
-        /// <summary>User-interface sounds: button clicks, inventory open/close, chat notification chimes.</summary>
+        /// <summary>Звуки интерфейса и системных уведомлений: клики, открытие инвентаря, достижения.</summary>
         Ui = 50,
-
-        /// <summary>Short-lived narrative stings: quest accepted, achievement unlocked, warning beep.</summary>
-        Narrative = 60,
     }
 
     /// <summary>
-    /// Per-layer configuration that determines how a sound instance behaves in the mixer
-    /// and how it interacts with spatialisation, priority, and voice-stealing.
-    ///
-    /// Every <see cref="AudioEvent"/> declares a set of default parameters,
-    /// but callers can override individual fields per play via
-    /// <c>AudioSystem.Play(myEvent, layer: myCustomLayer)</c>.
-    ///
-    /// <para>
-    /// <b>Why layers matter:</b>
-    /// If a bomb detonates 50m away the sound designer may want it quieter than the player's footsteps.
-    /// Layers let sound designers declare a priority so that important close-up sounds survive voice-stealing
-    /// while distant, low-priority sounds are culled first.
-    /// </para>
+    /// Параметры воспроизведения звука поверх FMOD.
+    /// Distance attenuation, spatialization и voice stealing настраиваются нативно в FMOD Studio.
+    /// Здесь только то что может меняться в рантайме: шина, громкость, питч, приоритет.
     /// </summary>
-    public readonly struct AudioLayer
+    [System.Serializable]
+    public struct AudioLayer
     {
-        /// <summary>The bus this sound routes through.  Default = <see cref="AudioBusType.Sfx"/>.</summary>
-        public AudioBusType Bus { get; init; }
+        /// <summary>Шина через которую идёт звук. По умолчанию = <see cref="AudioBusType.Sfx"/>.</summary>
+        [Tooltip("Шина микшера: Sfx, Music, Voice, Ambience, Ui.")]
+        public AudioBusType Bus;
 
         /// <summary>
-        /// Linear volume multiplier applied on top of the bus and master volumes.
-        /// <list type="bullet">
-        ///   <item>1.0 = play at bus volume</item>
-        ///   <item>0.5 = half bus volume</item>
-        ///   <item>2.0 = +6 dB boost (use sparingly)</item>
-        /// </list>
+        /// Линейный множитель громкости поверх громкости шины.
+        /// 1.0 = громкость шины, 0.5 = -6 dB.
         /// </summary>
-        public float Volume { get; init; }
+        [Range(0f, 2f)]
+        public float Volume;
 
         /// <summary>
-        /// Pitch multiplier.  1.0 = identity.
-        /// Useful for randomised variation: play with pitch between 0.95 and 1.05 to avoid repetitive-sounding machines.
+        /// Множитель питча. 1.0 = без изменений.
+        /// Используется для рандомизации вариаций одного звука.
         /// </summary>
-        public float Pitch { get; init; }
+        [Range(0.01f, 4f)]
+        public float Pitch;
 
         /// <summary>
-        /// Priority [0..255], higher = more important.  Used by <see cref="AudioBus.VoiceStealMode.Quietest"/>.
-        /// Defaults:
-        /// <list type="bullet">
-        ///   <item>128 = normal gameplay SFX</item>
-        ///   <item>200 = dialogue / mission-critical audio</item>
-        ///   <item>80  = distant ambience / decorative loops</item>
-        /// </list>
+        /// true = 3D пространственный звук (позиция передаётся в FMOD set3DAttributes).
+        /// false = 2D (без пространственного позиционирования, UI/Music).
         /// </summary>
-        public int Priority { get; init; }
+        [Tooltip("Пространственный звук: позиция передаётся в FMOD.")]
+        public bool IsSpatial;
 
-        /// <summary>
-        /// When <c>true</c>, the sound is positioned in the 3D world (stereo panning, distance attenuation).
-        /// When <c>false</c>, the sound is 2D (full-volume, no spatialisation).  Default = true for Sfx, false for Ui/Music.
-        /// </summary>
-        public bool IsSpatial { get; init; }
-
-        /// <summary>
-        /// Minimum distance at which the sound starts attenuating.  Only relevant when <see cref="IsSpatial"/> is true.
-        /// Default = 1.0 (one world unit = one tile cell).
-        /// </summary>
-        public float MinDistance { get; init; }
-
-        /// <summary>
-        /// Distance at which the sound is fully attenuated.  Sounds beyond this distance are silent.
-        /// Default = 20.0 (20 tiles).
-        /// </summary>
-        public float MaxDistance { get; init; }
-
-        /// <summary>
-        /// Convenience factory: gameplay SFX at default priority, spatial, world-scale distances.
-        /// </summary>
+        /// <summary>Фабрика: игровой SFX — пространственный, стандартная шина Sfx.</summary>
         public static AudioLayer SfxDefault() => new()
         {
-            Bus         = AudioBusType.Sfx,
-            Volume      = 1f,
-            Pitch       = 1f,
-            Priority    = 128,
-            IsSpatial   = true,
-            MinDistance = 1f,
-            MaxDistance = 20f,
+            Bus = AudioBusType.Sfx,
+            Volume = 1f,
+            Pitch = 1f,
+            IsSpatial = true,
         };
 
-        /// <summary>
-        /// Convenience factory: non-spatial UI sound.
-        /// </summary>
+        /// <summary>Фабрика: не-пространственный UI-звук.</summary>
         public static AudioLayer UiDefault() => new()
         {
-            Bus       = AudioBusType.Ui,
-            Volume    = 1f,
-            Pitch     = 1f,
-            Priority  = 128,
+            Bus = AudioBusType.Ui,
+            Volume = 1f,
+            Pitch = 1f,
             IsSpatial = false,
         };
 
-        /// <summary>
-        /// Convenience factory: music — always stereo, unconditional.
-        /// </summary>
+        /// <summary>Фабрика: музыка — всегда стерео, без условий.</summary>
         public static AudioLayer MusicDefault() => new()
         {
-            Bus       = AudioBusType.Music,
-            Volume    = 1f,
-            Pitch     = 1f,
-            Priority  = 255,
+            Bus = AudioBusType.Music,
+            Volume = 1f,
+            Pitch = 1f,
             IsSpatial = false,
         };
 
-        /// <summary>
-        /// Convenience factory: voice / dialogue.
-        /// </summary>
+        /// <summary>Фабрика: голос / диалог.</summary>
         public static AudioLayer VoiceDefault() => new()
         {
-            Bus         = AudioBusType.Voice,
-            Volume      = 1f,
-            Pitch       = 1f,
-            Priority    = 200,
-            IsSpatial   = true,
-            MinDistance = 2f,
-            MaxDistance = 15f,
+            Bus = AudioBusType.Voice,
+            Volume = 1f,
+            Pitch = 1f,
+            IsSpatial = true,
         };
     }
 }

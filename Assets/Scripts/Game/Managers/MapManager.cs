@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Fodinae.Scripts.Utils;
+using Fodinae.Scripts.Core;
 using Fodinae.Scripts.World;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
@@ -82,7 +82,7 @@ namespace Fodinae.Scripts.Game.Managers
 
             PackManager.Instance?.ClearAllPacks();
             RobotManager.InstanceIfExists?.ClearAllRobots();
-            SFXEffectManager.InstanceIfExists?.ClearAllEffects();
+            ServerAudioEventManager.InstanceIfExists?.ClearAllEffects();
 
             if (packet == null)
             {
@@ -264,7 +264,7 @@ namespace Fodinae.Scripts.Game.Managers
             return _cellConfigurations[(int)cellType];
         }
 
-        public bool IsLooseRockType(CellType type)
+        public static bool IsLooseRockType(CellType type)
         {
             return type == CellType.BlackBoulder1 || type == CellType.BlackBoulder2 || type == CellType.BlackBoulder3 ||
                    type == CellType.MetalBoulder1 || type == CellType.MetalBoulder2 || type == CellType.MetalBoulder3 ||
@@ -278,7 +278,7 @@ namespace Fodinae.Scripts.Game.Managers
                    type == CellType.GrayAcid || type == CellType.PurpleAcid;
         }
 
-        public bool IsRoundableLoose(CellType type)
+        public static bool IsRoundableLoose(CellType type)
         {
             return type == CellType.WhiteSand || type == CellType.DarkWhiteSand ||
                    type == CellType.RustySand || type == CellType.DarkRustySand ||
@@ -366,7 +366,7 @@ namespace Fodinae.Scripts.Game.Managers
 
             Gizmos.color = Color.magenta;
             Gizmos.DrawSphere(Vector3.zero, 0.5f);
-            Utils.FodislopGizmos.DrawLabel(Vector3.zero, "World Origin (0,0)", Color.magenta);
+            Fodinae.Scripts.World.FodinaeGizmos.DrawLabel(Vector3.zero, "World Origin (0,0)", Color.magenta);
 
             if (MapStorage.Instance.IsReady && MapStorage.Instance.CellLayer != null)
             {
@@ -379,28 +379,28 @@ namespace Fodinae.Scripts.Game.Managers
                     int cy = index % layer.HeightChunks;
                     int cx = index / layer.HeightChunks;
 
-                    float unityY = CoordinateUtils.ServerToUnityY(cy * chunkSize, WorldHeight) - chunkSize * 0.5f;
-                    Vector3 chunkPos = new Vector3(cx * chunkSize + chunkSize * 0.5f, unityY, 0);
+                    float unityY = (cy * chunkSize) + (chunkSize * 0.5f);
+                    Vector3 chunkPos = new Vector3((cx * chunkSize) + (chunkSize * 0.5f), unityY, 0);
 
-                    Utils.FodislopGizmos.DrawSolidRect(chunkPos, new Vector2(chunkSize - 0.2f, chunkSize - 0.2f),
+                    Fodinae.Scripts.World.FodinaeGizmos.DrawSolidRect(chunkPos, new Vector2(chunkSize - 0.2f, chunkSize - 0.2f),
                         new Color(0, 1, 0, 0.02f), new Color(0, 1, 0, 0.1f));
                 }
 
-                Vector3 labelPos = worldCenter + Vector3.down * (WorldHeight * 0.5f + 2f);
+                Vector3 labelPos = worldCenter + (Vector3.down * ((WorldHeight * 0.5f) + 2f));
                 string stats = $"Chunks: {layer.GetLoadedCount()}/{layer.MaxChunksInMemory} loaded | {layer.GetDirtyCount()} dirty";
-                Utils.FodislopGizmos.DrawLabel(labelPos, stats, Color.green);
+                Fodinae.Scripts.World.FodinaeGizmos.DrawLabel(labelPos, stats, Color.green);
 
                 Camera cam = MainCamera;
                 if (cam != null && Application.isPlaying)
                 {
                     Vector3 camPos = cam.transform.position;
-                    int range = GameConstants.Debug.COLLISION_DEBUG_RANGE;
+                    const int range = GameConstants.Debug.COLLISIONDEBUGRANGE;
                     int startX = Mathf.FloorToInt(camPos.x) - range;
                     int startY = Mathf.FloorToInt(camPos.y) - range;
 
-                    for (int x = startX; x < startX + range * 2; x++)
+                    for (int x = startX; x < startX + (range * 2); x++)
                     {
-                        for (int y = startY; y < startY + range * 2; y++)
+                        for (int y = startY; y < startY + (range * 2); y++)
                         {
                             int worldX = x;
                             int worldY = CoordinateUtils.UnityToServerY(y, WorldHeight);

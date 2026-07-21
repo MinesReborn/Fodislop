@@ -11,11 +11,13 @@ namespace Fodinae.Scripts.UI.Builders
         public override VisualElement Build(IGUIComponentPacket packet, PacketUIBuilder builder)
         {
             if (packet is not SliderPacket sliderPkt)
+            {
                 return null;
+            }
 
             var slider = new Slider(sliderPkt.MinValue, sliderPkt.MaxValue)
             {
-                value = Mathf.Clamp(sliderPkt.DefaultValue, sliderPkt.MinValue, sliderPkt.MaxValue)
+                value = Mathf.Clamp(sliderPkt.DefaultValue, sliderPkt.MinValue, sliderPkt.MaxValue),
             };
             var knob = builder.Build(sliderPkt.Knob);
             if (knob == null)
@@ -40,6 +42,7 @@ namespace Fodinae.Scripts.UI.Builders
                 Debug.LogError("Slider drag container not found.");
                 return slider;
             }
+
             dragContainer.style.backgroundColor = Color.clear;
 
             var dragger = dragContainer.Q(className: "unity-base-slider__dragger");

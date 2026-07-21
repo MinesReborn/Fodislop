@@ -6,17 +6,19 @@ namespace Fodinae.Scripts.World
     public class WorldBackgroundSetup : MonoBehaviour
     {
         [Header("Background Renderer Settings")]
-        [SerializeField] private SingleMeshTerrainRenderer _backgroundRendererPrefab;
-        [SerializeField] private Transform _backgroundParent;
+        [SerializeField]
+        private SingleMeshTerrainRenderer _backgroundRendererPrefab;
+        [SerializeField]
+        private Transform _backgroundParent;
 
         private SingleMeshTerrainRenderer _backgroundRenderer;
 
-        void Awake()
+        protected void Awake()
         {
             SetupBackgroundRenderer();
         }
 
-        void Update()
+        protected void Update()
         {
             if (_backgroundRenderer != null)
             {
@@ -40,11 +42,15 @@ namespace Fodinae.Scripts.World
                     var backgroundGO = new GameObject("SingleMeshTerrainRenderer");
                     _backgroundRenderer = backgroundGO.AddComponent<SingleMeshTerrainRenderer>();
 
-                    var meshRenderer = _backgroundRenderer.GetComponent<MeshRenderer>();
-                    if (meshRenderer != null) meshRenderer.sortingOrder = -1000;
+                    if (_backgroundRenderer.TryGetComponent<MeshRenderer>(out var meshRenderer))
+                    {
+                        meshRenderer.sortingOrder = -1000;
+                    }
 
-                    var transformComp = _backgroundRenderer.GetComponent<Transform>();
-                    if (transformComp != null) transformComp.position = new Vector3(0, 0, 0); // FIX: Z=0
+                    if (_backgroundRenderer.TryGetComponent<Transform>(out var transformComp))
+                    {
+                        transformComp.position = new Vector3(0, 0, 0); // FIX: Z=0
+                    }
                 }
 
                 if (_backgroundParent != null)
@@ -56,7 +62,10 @@ namespace Fodinae.Scripts.World
 
         private void EnsureBackgroundConfiguration()
         {
-            if (_backgroundRenderer == null) return;
+            if (_backgroundRenderer == null)
+            {
+                return;
+            }
 
             var renderer = _backgroundRenderer.GetComponent<MeshRenderer>();
             var trans = _backgroundRenderer.transform;

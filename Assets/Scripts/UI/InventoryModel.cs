@@ -8,21 +8,25 @@ namespace Fodinae.Scripts.UI
 {
     public class InventoryModel
     {
-        public const int HOTBAR_SIZE = 9;
-        public const int INVENTORY_SIZE = 6 * 9;
-        public const int TOTAL_SLOTS = HOTBAR_SIZE + INVENTORY_SIZE;
+        public const int HOTBARSIZE = 9;
+        public const int INVENTORYSIZE = 6 * 9;
+        public const int TOTALSLOTS = HOTBARSIZE + INVENTORYSIZE;
 
         private static InventoryModel _instance;
         public static InventoryModel Instance
         {
             get
             {
-                if (_instance == null) _instance = new InventoryModel();
+                if (_instance == null)
+                {
+                    _instance = new InventoryModel();
+                }
+
                 return _instance;
             }
         }
 
-        private ItemData[] _slots = new ItemData[TOTAL_SLOTS];
+        private ItemData[] _slots = new ItemData[TOTALSLOTS];
 
         public event Action<int> OnSlotChanged;
 
@@ -36,12 +40,18 @@ namespace Fodinae.Scripts.UI
             _slots[index] = item;
             OnSlotChanged?.Invoke(index);
             if (index == _selectedSlot)
+            {
                 OnSlotSelected?.Invoke(index);
+            }
         }
 
-        public bool CanStack(ItemData a, ItemData b)
+        public static bool CanStack(ItemData a, ItemData b)
         {
-            if (a == null || b == null) return false;
+            if (a == null || b == null)
+            {
+                return false;
+            }
+
             return a.Name == b.Name && a.IconColor == b.IconColor;
         }
 
@@ -59,7 +69,10 @@ namespace Fodinae.Scripts.UI
             var fromItem = _slots[from];
             var toItem = _slots[to];
 
-            if (fromItem == null) return false;
+            if (fromItem == null)
+            {
+                return false;
+            }
 
             if (toItem == null)
             {
@@ -71,7 +84,9 @@ namespace Fodinae.Scripts.UI
             }
 
             if (!CanStack(fromItem, toItem))
+            {
                 return false;
+            }
 
             toItem.Quantity += fromItem.Quantity;
             _slots[from] = null;
@@ -82,7 +97,11 @@ namespace Fodinae.Scripts.UI
 
         public void SelectSlot(int index)
         {
-            if (_selectedSlot == index) return;
+            if (_selectedSlot == index)
+            {
+                return;
+            }
+
             _selectedSlot = index;
             OnSlotSelected?.Invoke(index);
 
@@ -96,12 +115,12 @@ namespace Fodinae.Scripts.UI
             if (item != null)
             {
                 Debug.Log($"[InventoryModel] Sending SelectItemPacket: slot={index}, item={item.ItemType}");
-                NetworkService.Instance.Send(new SelectItemPacket(item.ItemType));
+                NetworkService.Send(new SelectItemPacket(item.ItemType));
             }
             else
             {
                 Debug.Log($"[InventoryModel] Sending DeselectItemPacket (empty slot {index})");
-                NetworkService.Instance.Send(new DeselectItemPacket());
+                NetworkService.Send(new DeselectItemPacket());
             }
         }
 
@@ -110,9 +129,13 @@ namespace Fodinae.Scripts.UI
             _selectedSlot = -1;
             OnSlotSelected?.Invoke(-1);
 
-            if (NetworkService.Instance == null) return;
+            if (NetworkService.Instance == null)
+            {
+                return;
+            }
+
             Debug.Log("[InventoryModel] Sending DeselectItemPacket");
-            NetworkService.Instance.Send(new DeselectItemPacket());
+            NetworkService.Send(new DeselectItemPacket());
         }
 
         public void ClearSelection()
@@ -123,8 +146,12 @@ namespace Fodinae.Scripts.UI
 
         public void UseSelectedItem()
         {
-            if (_selectedSlot < 0 || _slots[_selectedSlot] == null) return;
-            NetworkService.Instance.Send(new UseItemPacket());
+            if (_selectedSlot < 0 || _slots[_selectedSlot] == null)
+            {
+                return;
+            }
+
+            NetworkService.Send(new UseItemPacket());
         }
     }
 }

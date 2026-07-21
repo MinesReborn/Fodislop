@@ -1,11 +1,11 @@
 using System;
 using System.Threading;
+using Cysharp.Threading.Tasks;
 using Fodinae.Scripts.Game.Managers;
 using MinesServer.Networking.Server.Packets.Chat;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
-using Cysharp.Threading.Tasks;
 
 namespace Fodinae.Scripts.UI
 {
@@ -17,7 +17,10 @@ namespace Fodinae.Scripts.UI
             get
             {
                 if (_instance == null)
+                {
                     _instance = FindAnyObjectByType<GlobalChatUI>();
+                }
+
                 return _instance;
             }
         }
@@ -29,47 +32,60 @@ namespace Fodinae.Scripts.UI
         private VisualElement _internalInput;
         private Button _sendButton;
         private bool _isOpen = false;
-        private const int MAX_MESSAGES = 20;
-        private IVisualElementScheduledItem _blinkItem;
+        private const int MAXMESSAGES = 20;
+        private Controls.ChatInputBlinker _blinker;
         private CancellationTokenSource _idleCts;
-        private bool _cursorVisible = true;
 
-        private void Awake()
+        protected void Awake()
         {
             if (_instance != null && _instance != this)
             {
                 Destroy(gameObject);
                 return;
             }
+
             _instance = this;
         }
 
-        private void OnDestroy()
+        protected void OnDestroy()
         {
             _idleCts?.Cancel();
             _idleCts?.Dispose();
         }
 
-        private void Start()
+        protected void Start()
         {
             _doc = FindAnyObjectByType<UIDocument>();
-            if (_doc == null) return;
+            if (_doc == null)
+            {
+                return;
+            }
+
             CreateUI();
             _panel.style.display = DisplayStyle.None;
         }
 
-        void Update()
+        protected void Update()
         {
-            if (Keyboard.current == null) return;
+            if (Keyboard.current == null)
+            {
+                return;
+            }
 
             if (Keyboard.current.tabKey.wasPressedThisFrame)
             {
                 if (_isOpen || !ChatInput.IsFocused)
+                {
                     Toggle();
+                }
+
                 return;
             }
 
-            if (!_isOpen) return;
+            if (!_isOpen)
+            {
+                return;
+            }
 
             if (Keyboard.current.enterKey.wasPressedThisFrame ||
                 Keyboard.current.numpadEnterKey.wasPressedThisFrame)
@@ -160,8 +176,16 @@ namespace Fodinae.Scripts.UI
             _inputField.maxLength = ServerConfig.Instance.MaxGlobalChatLength;
             bottomRow.Add(_inputField);
 
-            _inputField.RegisterCallback<FocusEvent>(_ => { StartBlink(); ChatInput.OnFocus(); });
-            _inputField.RegisterCallback<BlurEvent>(_ => { StopBlink(); ChatInput.OnBlur(); });
+            _inputField.RegisterCallback<FocusEvent>(_ =>
+            {
+                StartBlink();
+                ChatInput.OnFocus();
+            });
+            _inputField.RegisterCallback<BlurEvent>(_ =>
+            {
+                StopBlink();
+                ChatInput.OnBlur();
+            });
             _inputField.RegisterValueChangedCallback(_ => OnInputChanged());
 
             _sendButton = new Button(OnSendClicked);
@@ -208,6 +232,7 @@ namespace Fodinae.Scripts.UI
                 _internalInput.style.color = Color.white;
             }
 
+            _blinker = new Controls.ChatInputBlinker(_inputField, _internalInput);
             var uss = Resources.Load<StyleSheet>("chat-input");
             if (uss != null)
             {
@@ -218,22 +243,33 @@ namespace Fodinae.Scripts.UI
         private void OnSendClicked()
         {
             string text = _inputField.value.Trim();
-            if (string.IsNullOrEmpty(text)) return;
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
 
             if (text.Length > ServerConfig.Instance.MaxGlobalChatLength)
+            {
                 text = text.Substring(0, ServerConfig.Instance.MaxGlobalChatLength);
+            }
 
             var ns = Networking.NetworkService.Instance;
-            ns.Send(new MinesServer.Networking.Client.Packets.Chat.SendChatMessagePacket("global", text));
+            Networking.NetworkService.Send(new MinesServer.Networking.Client.Packets.Chat.SendChatMessagePacket("global", text));
 
-            _inputField.value = "";
+            _inputField.value = string.Empty;
             _inputField.Focus();
         }
 
         public void Toggle()
         {
-            if (_isOpen) Hide();
-            else Show();
+            if (_isOpen)
+            {
+                Hide();
+            }
+            else
+            {
+                Show();
+            }
         }
 
         public void Show()
@@ -247,41 +283,25 @@ namespace Fodinae.Scripts.UI
         {
             _isOpen = false;
             _panel.style.display = DisplayStyle.None;
-            _inputField.value = "";
+            _inputField.value = string.Empty;
             _inputField.Blur();
         }
 
         private void StartBlink()
         {
-            _blinkItem?.Pause();
-            _blinkItem = null;
-            _cursorVisible = true;
-            _internalInput?.RemoveFromClassList("cursor-hidden");
-            _blinkItem = _inputField.schedule.Execute(() =>
-            {
-                _cursorVisible = !_cursorVisible;
-                if (_internalInput == null) return;
-                if (_cursorVisible)
-                    _internalInput.RemoveFromClassList("cursor-hidden");
-                else
-                    _internalInput.AddToClassList("cursor-hidden");
-            }).StartingIn(530).Every(530);
+            _blinker?.StartBlink();
         }
 
         private void StopBlink()
         {
-            _blinkItem?.Pause();
-            _blinkItem = null;
+            _blinker?.StopBlink();
             _idleCts?.Cancel();
-            _internalInput?.RemoveFromClassList("cursor-hidden");
         }
 
         private void OnInputChanged()
         {
-            _blinkItem?.Pause();
-            _blinkItem = null;
+            _blinker?.StopBlink();
             _idleCts?.Cancel();
-            _internalInput?.RemoveFromClassList("cursor-hidden");
             _idleCts = new CancellationTokenSource();
             var token = _idleCts.Token;
             DelayedStartBlink(token).Forget();
@@ -291,7 +311,9 @@ namespace Fodinae.Scripts.UI
         {
             await UniTask.Delay(500, cancellationToken: token);
             if (!token.IsCancellationRequested)
+            {
                 StartBlink();
+            }
         }
 
         public void AddMessage(ChatMessagePacket msg)
@@ -312,8 +334,10 @@ namespace Fodinae.Scripts.UI
 
             _scrollView.Add(label);
 
-            while (_scrollView.childCount > MAX_MESSAGES)
+            while (_scrollView.childCount > MAXMESSAGES)
+            {
                 _scrollView.RemoveAt(0);
+            }
 
             _scrollView.scrollOffset = new Vector2(0, float.MaxValue);
         }

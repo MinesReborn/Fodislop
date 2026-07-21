@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Fodinae.Scripts.Audio.Core
@@ -23,19 +24,17 @@ namespace Fodinae.Scripts.Audio.Core
         {
             get
             {
-                if (_disposed) return false;
+                if (_disposed)
+                {
+                    return false;
+                }
+
                 return _isPlayingFunc?.Invoke(this) ?? false;
             }
         }
 
         /// <summary>Идентификатор для сопоставления с внутренним голосом бэкенда.</summary>
         public readonly int HandleId;
-
-        /// <summary>Приоритет голоса для кражи (см. <see cref="AudioLayer.Priority"/>).</summary>
-        public int Priority { get; internal set; }
-
-        /// <summary>Время старта (Time.unscaledTime).</summary>
-        public float StartTime { get; internal set; }
 
         internal bool _disposed;
         internal global::System.Func<AudioPlaybackHandle, bool> _isPlayingFunc;
@@ -54,7 +53,11 @@ namespace Fodinae.Scripts.Audio.Core
         /// <summary>Остановить с плавным затуханием за fadeOut секунд.</summary>
         public void Stop(float fadeOut = 0f)
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
+
             _disposed = true;
             _stopAction?.Invoke(this, fadeOut);
         }
@@ -62,21 +65,33 @@ namespace Fodinae.Scripts.Audio.Core
         /// <summary>Установить позицию в мире (для пространственных звуков).</summary>
         public void SetPosition(Vector3 worldPosition)
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
+
             _positionAction?.Invoke(this, worldPosition);
         }
 
         /// <summary>Изменить громкость этого конкретного голоса (0..+∞, линейно).</summary>
         public void SetVolume(float linearVolume)
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
+
             _volumeAction?.Invoke(this, Mathf.Max(0f, linearVolume));
         }
 
         /// <summary>Изменить питч этого конкретного голоса.</summary>
         public void SetPitch(float pitch)
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
+
             _pitchAction?.Invoke(this, Mathf.Clamp(pitch, 0.01f, 4f));
         }
     }

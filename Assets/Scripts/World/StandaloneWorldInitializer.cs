@@ -8,7 +8,7 @@ namespace Fodinae.Scripts.World
 {
     /// <summary>
     /// Handles standalone world initialization when no server connection is available
-    /// Automatically creates a test world to enable terrain rendering in standalone mode
+    /// Automatically creates a test world to enable terrain rendering in standalone mode.
     /// </summary>
     [RequireComponent(typeof(MapManager))]
     [ExecuteAlways]
@@ -45,7 +45,7 @@ namespace Fodinae.Scripts.World
         private bool _isInitialized = false;
 
         /// <summary>
-        /// Force standalone initialization (for debugging)
+        /// Force standalone initialization (for debugging).
         /// </summary>
         public void ForceStandaloneInitialization()
         {
@@ -59,7 +59,7 @@ namespace Fodinae.Scripts.World
         }
 
         /// <summary>
-        /// Get current initialization status
+        /// Get current initialization status.
         /// </summary>
         public string GetInitializationStatus()
         {
@@ -82,14 +82,14 @@ namespace Fodinae.Scripts.World
         }
 
         /// <summary>
-        /// Check if standalone initialization is enabled and ready
+        /// Check if standalone initialization is enabled and ready.
         /// </summary>
         public bool IsReady()
         {
             return _enableStandaloneMode && (_isInitialized || (MapStorage.Instance?.IsReady == true));
         }
 
-        private void Awake()
+        protected void Awake()
         {
             if (!_enableStandaloneMode)
             {
@@ -110,7 +110,7 @@ namespace Fodinae.Scripts.World
             }
         }
 
-        private void Start()
+        protected void Start()
         {
             if (!_enableStandaloneMode)
             {
@@ -137,7 +137,7 @@ namespace Fodinae.Scripts.World
             }
         }
 
-        private void Update()
+        protected void Update()
         {
             if (!_enableStandaloneMode || _isInitialized || !_initializationAttempted)
             {
@@ -161,7 +161,7 @@ namespace Fodinae.Scripts.World
             }
         }
 
-        private void OnEnable()
+        protected void OnEnable()
         {
             if (!_enableStandaloneMode)
             {
@@ -175,7 +175,7 @@ namespace Fodinae.Scripts.World
             }
         }
 
-        private void OnDisable()
+        protected void OnDisable()
         {
             CancelInvoke(nameof(CheckInitializationTimeout));
         }
@@ -236,7 +236,7 @@ namespace Fodinae.Scripts.World
                     DisplayName = _testWorldName,
                     Width = (ushort)_testWorldWidth,
                     Height = (ushort)_testWorldHeight,
-                    Cells = cellConfigurations
+                    Cells = cellConfigurations,
                 };
 
                 // Use MapManager to initialize the world
@@ -254,7 +254,7 @@ namespace Fodinae.Scripts.World
             }
         }
 
-        private CellConfigurationPacket[] CreateTestCellConfigurations()
+        private static CellConfigurationPacket[] CreateTestCellConfigurations()
         {
             // Create basic cell configurations for testing
             // This provides minimal configuration for common cell types
@@ -268,7 +268,7 @@ namespace Fodinae.Scripts.World
                     AnimationSpeed = 0,
                     Color = unchecked((int)0x00000000), // Transparent default instead of white
                     FrameOffset = 0,
-                    Properties = 0
+                    Properties = 0,
                 };
             }
 
@@ -282,7 +282,7 @@ namespace Fodinae.Scripts.World
                     AnimationSpeed = 0,
                     Color = unchecked((int)0xFF00FF00), // Green
                     FrameOffset = 0,
-                    Properties = 0
+                    Properties = 0,
                 };
             }
 
@@ -295,7 +295,7 @@ namespace Fodinae.Scripts.World
                     AnimationSpeed = 0,
                     Color = unchecked((int)0xFF8B4513), // Brown
                     FrameOffset = 0,
-                    Properties = 0
+                    Properties = 0,
                 };
             }
 
@@ -308,7 +308,7 @@ namespace Fodinae.Scripts.World
                     AnimationSpeed = 0,
                     Color = unchecked((int)0xFF808080), // Gray
                     FrameOffset = 0,
-                    Properties = 0
+                    Properties = 0,
                 };
             }
 
@@ -317,9 +317,9 @@ namespace Fodinae.Scripts.World
 
         /// <summary>
         /// Trigger OnWorldDataLoaded event to notify terrain renderer
-        /// This is CRITICAL for terrain rendering to start
+        /// This is CRITICAL for terrain rendering to start.
         /// </summary>
-        private void TriggerWorldDataLoaded()
+        private static void TriggerWorldDataLoaded()
         {
             if (MapManager.Instance != null)
             {
@@ -335,9 +335,9 @@ namespace Fodinae.Scripts.World
 
         /// <summary>
         /// Handle OnWorldDataLoaded event from MapManager
-        /// This ensures proper coordination with WorldBackgroundRenderer
+        /// This ensures proper coordination with WorldBackgroundRenderer.
         /// </summary>
-        private void OnWorldDataLoaded()
+        private static void OnWorldDataLoaded()
         {
             Debug.Log("StandaloneWorldInitializer: World data loaded, notifying renderer");
 

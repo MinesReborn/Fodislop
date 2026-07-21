@@ -7,15 +7,22 @@ namespace Fodinae.Scripts.Player
     public class CameraFollow : MonoBehaviour
     {
         [Header("Follow Settings")]
-        [SerializeField] private Transform _target;
-        [SerializeField] private float _smoothSpeed = 5f;
-        [SerializeField] private Vector2 _offset = Vector2.zero;
+        [SerializeField]
+        private Transform _target;
+        [SerializeField]
+        private float _smoothSpeed = 5f;
+        [SerializeField]
+        private Vector2 _offset = Vector2.zero;
 
         [Header("Zoom Settings")]
-        [SerializeField] private float _zoomSpeed = 10f;
-        [SerializeField] private float _minZoom = 5f;
-        [SerializeField] private float _maxZoom = 30f;
-        [SerializeField] private float _zoomSmoothness = 8f;
+        [SerializeField]
+        private float _zoomSpeed = 10f;
+        [SerializeField]
+        private float _minZoom = 5f;
+        [SerializeField]
+        private float _maxZoom = 30f;
+        [SerializeField]
+        private float _zoomSmoothness = 8f;
 
         private float _originalZ;
         private Camera _camera;
@@ -27,12 +34,12 @@ namespace Fodinae.Scripts.Player
         private bool _scrollEnabled = true;
         private Vector3 _followVelocity;
 
-        private void Awake()
+        protected void Awake()
         {
             _camera = GetComponent<Camera>();
         }
 
-        private void Start()
+        protected void Start()
         {
             _originalZ = transform.position.z;
             _camera = GetComponent<Camera>();
@@ -43,6 +50,11 @@ namespace Fodinae.Scripts.Player
                 return;
             }
 
+            if (GetComponent<FMODUnity.StudioListener>() == null)
+            {
+                gameObject.AddComponent<FMODUnity.StudioListener>();
+            }
+
             _targetZoom = _camera.orthographicSize;
             _currentZoom = _targetZoom;
             _lastZoom = _currentZoom;
@@ -50,10 +62,15 @@ namespace Fodinae.Scripts.Player
             {
                 var player = FindAnyObjectByType<PlayerMovementController>();
                 if (player != null)
+                {
                     _target = player.transform;
+                }
                 else
+                {
                     Debug.LogWarning("CameraFollow: No target assigned and no PlayerMovementController found!");
+                }
             }
+
             InitializeInput();
         }
 
@@ -63,31 +80,37 @@ namespace Fodinae.Scripts.Player
             _scrollAction.Enable();
         }
 
-        private void OnDestroy()
+        protected void OnDestroy()
         {
             _scrollAction?.Disable();
             _scrollAction?.Dispose();
         }
 
-        private void LateUpdate()
+        protected void LateUpdate()
         {
             HandleZoom();
             HandleFollow();
         }
+
         private void HandleZoom()
         {
-            if (!_scrollEnabled) return;
+            if (!_scrollEnabled)
+            {
+                return;
+            }
 
             if (_camera == null)
             {
                 Debug.LogError("CameraFollow: Camera is null in HandleZoom!");
                 return;
             }
+
             if (_scrollAction == null)
             {
                 Debug.LogError("CameraFollow: Scroll action is null in HandleZoom!");
                 return;
             }
+
             float scrollInput = 0f;
             try
             {
@@ -114,17 +137,23 @@ namespace Fodinae.Scripts.Player
                 OnZoomChanged?.Invoke(_currentZoom);
             }
         }
+
         private void HandleFollow()
         {
             if (_target == null)
             {
                 var player = FindAnyObjectByType<PlayerMovementController>();
                 if (player != null)
+                {
                     _target = player.transform;
+                }
+
                 return;
             }
+
             Vector3 targetPosition = _target.position + new Vector3(_offset.x, _offset.y, 0f);
             Vector3 desiredPosition = new Vector3(targetPosition.x, targetPosition.y, _originalZ);
+
             // SmoothDamp is frame-rate independent — unlike Lerp(dt), it handles variable dt
             // without introducing jitter during frame spikes (e.g. terrain mesh rebuilds).
             // smoothTime ≈ 1 / _smoothSpeed gives equivalent response to the old Lerp, but we
@@ -137,10 +166,15 @@ namespace Fodinae.Scripts.Player
         public void SetZoom(float zoomLevel)
         {
             if (_camera != null)
+            {
                 _targetZoom = Mathf.Clamp(zoomLevel, _minZoom, _maxZoom);
+            }
             else
+            {
                 Debug.LogError("CameraFollow: Cannot set zoom - camera is null!");
+            }
         }
+
         public float GetCurrentZoom() => _currentZoom;
         public void SetScrollEnabled(bool enabled) => _scrollEnabled = enabled;
         public void Reinitialize()
@@ -149,7 +183,7 @@ namespace Fodinae.Scripts.Player
         }
 
 #if UNITY_EDITOR
-        private void OnDrawGizmosSelected()
+        protected void OnDrawGizmosSelected()
         {
             if (_target != null)
             {
@@ -160,7 +194,7 @@ namespace Fodinae.Scripts.Player
                 // Draw target marker
                 Gizmos.DrawWireSphere(_target.position, 0.5f);
 
-                Utils.FodislopGizmos.DrawLabel(_target.position + Vector3.up * 0.7f, "Camera Target", Color.yellow);
+                Fodinae.Scripts.World.FodinaeGizmos.DrawLabel(_target.position + (Vector3.up * 0.7f), "Camera Target", Color.yellow);
             }
 
             // Draw current viewport visualization

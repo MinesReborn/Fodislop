@@ -14,7 +14,9 @@ namespace Fodinae.Scripts.UI.Builders
         public override VisualElement Build(IGUIComponentPacket packet, PacketUIBuilder builder)
         {
             if (packet is not ImagePacket imagePacket)
+            {
                 return null;
+            }
 
             var element = new VisualElement();
             element.style.width = imagePacket.Width;
@@ -32,9 +34,10 @@ namespace Fodinae.Scripts.UI.Builders
             return element;
         }
 
-        private void LoadImage(VisualElement element, string uri, CancellationToken token)
+        private static void LoadImage(VisualElement element, string uri, CancellationToken token)
         {
-            Fodinae.Scripts.ClientAssetLoader.Instance.LoadAndApplyTexture((texture) =>
+            Fodinae.Scripts.ClientAssetLoader.Instance.LoadAndApplyTexture(
+                (texture) =>
             {
                 if (element != null)
                 {

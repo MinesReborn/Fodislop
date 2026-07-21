@@ -10,14 +10,16 @@ namespace Fodinae.Scripts.UI.Builders
         public override VisualElement Build(IGUIComponentPacket packet, PacketUIBuilder builder)
         {
             if (packet is not CanvasPacket canvasPacket)
+            {
                 return null;
+            }
 
             var element = new VisualElement
             {
                 style =
                 {
-                    position = Position.Relative
-                }
+                    position = Position.Relative,
+                },
             };
 
             foreach (var childPacket in canvasPacket.Children)

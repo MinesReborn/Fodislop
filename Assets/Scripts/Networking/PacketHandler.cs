@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using MinesServer.Data;
 using Fodinae.Scripts.Audio;
 using Fodinae.Scripts.Game;
 using Fodinae.Scripts.Game.Managers;
@@ -8,6 +7,7 @@ using Fodinae.Scripts.Player;
 using Fodinae.Scripts.UI;
 using Fodinae.UI;
 using Fodinae.UI.Binding;
+using MinesServer.Data;
 using MinesServer.Networking.Client.Packets.Connection;
 using MinesServer.Networking.Client.Packets.GUI;
 using MinesServer.Networking.Server;
@@ -22,7 +22,6 @@ using MinesServer.Networking.Server.Packets.Inventory;
 using MinesServer.Networking.Server.Packets.Mission;
 using MinesServer.Networking.Server.Packets.Movement;
 using MinesServer.Networking.Server.Packets.World;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UIElements;
@@ -220,8 +219,11 @@ namespace Fodinae.Scripts.Networking
             {
                 binding.Dispose();
                 if (_uiDocument != null)
+                {
                     _uiDocument.rootVisualElement.Remove(root);
+                }
             }
+
             _openWindows.Clear();
 
             var mm = MapManager.InstanceIfExists;
@@ -296,7 +298,9 @@ namespace Fodinae.Scripts.Networking
             }
 
             foreach (var child in element.Children())
+            {
                 WalkForClickable(child, clickableElements, windowTag);
+            }
         }
 
         private void WireClickHandler(VisualElement element, int elementIndex, string windowTag)
@@ -334,7 +338,7 @@ namespace Fodinae.Scripts.Networking
 
             // Send the ElementClickPacket
             var elementClickPacket = new ElementClickPacket(windowTag, elementIndex, inputValues);
-            NetworkService.Instance.Send(elementClickPacket);
+            NetworkService.Send(elementClickPacket);
 
             Debug.Log($"[PacketHandler] Sent ElementClickPacket: index={elementIndex}, contextValues={inputValues.Length}");
         }
@@ -346,7 +350,10 @@ namespace Fodinae.Scripts.Networking
 
             _modalWindowHandler?.Hide();
 
-            if (_openWindows.Count == 0) return;
+            if (_openWindows.Count == 0)
+            {
+                return;
+            }
 
             var (_, root, binding, _) = _openWindows[^1];
             binding.Dispose();
@@ -357,32 +364,33 @@ namespace Fodinae.Scripts.Networking
         private void HandleRobotInfoPacket(RobotInfoPacket packet)
         {
             _packetCount++;
-            //Debug.Log($"[PacketHandler] Handling RobotInfoPacket for BotId: {packet.BotId}, Name: {packet.Name}");
+
+            // Debug.Log($"[PacketHandler] Handling RobotInfoPacket for BotId: {packet.BotId}, Name: {packet.Name}");
             RobotManager.Instance?.UpdateRobotMetadata(packet.BotId, packet.PlayerId, packet.ClanId, packet.Name, packet.Skin, packet.Tail);
         }
 
         private void HandlePlayerInfoPacket(PlayerInfoPacket packet)
         {
             _packetCount++;
-            //Debug.Log($"[PacketHandler] Handling PlayerInfoPacket for BotId: {packet.BotId}, PlayerId: {packet.PlayerId}, Name: {packet.Nickname}");
+
+            // Debug.Log($"[PacketHandler] Handling PlayerInfoPacket for BotId: {packet.BotId}, PlayerId: {packet.PlayerId}, Name: {packet.Nickname}");
             var rm = RobotManager.Instance;
             if (rm != null)
             {
                 rm.LocalPlayerBotId = packet.BotId;
             }
+
             PlayerStatsModel.Instance.SetNickname(packet.Nickname);
 
             var playerObj = GameObject.FindGameObjectWithTag("Player");
             if (playerObj != null)
             {
-                var robot = playerObj.GetComponent<Robot>();
-                if (robot != null)
+                if (playerObj.TryGetComponent<Robot>(out var robot))
                 {
                     robot.Initialize(packet.BotId);
                 }
 
-                var controller = playerObj.GetComponent<PlayerMovementController>();
-                if (controller != null)
+                if (playerObj.TryGetComponent<PlayerMovementController>(out var controller))
                 {
                     controller.Initialize(packet.BotId);
                 }
@@ -410,8 +418,7 @@ namespace Fodinae.Scripts.Networking
                     var player = GameObject.FindGameObjectWithTag("Player");
                     if (player != null)
                     {
-                        var controller = player.GetComponent<PlayerMovementController>();
-                        if (controller != null)
+                        if (player.TryGetComponent<PlayerMovementController>(out var controller))
                         {
                             controller.UpdateServerPosition(new Vector2Int(robotPositionPacket.X, robotPositionPacket.Y));
                         }
@@ -424,7 +431,8 @@ namespace Fodinae.Scripts.Networking
         {
             _packetCount++;
             _mapRegionPacketsReceived++;
-            //Debug.Log($"[PacketHandler] Processing MapRegionPacket #{_mapRegionPacketsReceived}: X={mapRegionPacket.X}, Y={mapRegionPacket.Y}, Size={mapRegionPacket.Width + 1}x{mapRegionPacket.Height + 1}");
+
+            // Debug.Log($"[PacketHandler] Processing MapRegionPacket #{_mapRegionPacketsReceived}: X={mapRegionPacket.X}, Y={mapRegionPacket.Y}, Size={mapRegionPacket.Width + 1}x{mapRegionPacket.Height + 1}");
 
             if (MapStorage.Instance == null || MapStorage.Instance.CellLayer == null)
             {
@@ -486,7 +494,7 @@ namespace Fodinae.Scripts.Networking
             // Only trigger world data loaded event if we received at least one MapRegion packet in this heartbeat
             if (hasMapData)
             {
-                //Debug.Log("[PacketHandler] Map data received in HBPacket, triggering OnWorldDataLoaded event");
+                // Debug.Log("[PacketHandler] Map data received in HBPacket, triggering OnWorldDataLoaded event");
                 MapManager.Instance?.OnWorldDataLoaded?.Invoke();
             }
         }
@@ -525,7 +533,9 @@ namespace Fodinae.Scripts.Networking
         {
             var player = FindAnyObjectByType<PlayerMovementController>();
             if (player != null)
+            {
                 player.AutoDig = packet.Enabled;
+            }
         }
 
         private void HandleAggressionStatePacket(AggressionStatePacket packet)
@@ -533,7 +543,9 @@ namespace Fodinae.Scripts.Networking
             Debug.Log($"[PacketHandler] AggressionStatePacket: {packet.Enabled}");
             var player = FindAnyObjectByType<PlayerMovementController>();
             if (player != null)
+            {
                 player.Aggression = packet.Enabled;
+            }
         }
 
         private void HandleDailyBonusStatePacket(DailyBonusStatePacket packet)
@@ -548,13 +560,19 @@ namespace Fodinae.Scripts.Networking
             Debug.Log($"[PacketHandler] TeleportPacket: X={packet.X}, Y={packet.Y}, Smooth={packet.SmoothTransition}");
 
             var player = FindAnyObjectByType<PlayerMovementController>();
-            if (player == null) return;
+            if (player == null)
+            {
+                return;
+            }
 
             var mm = MapManager.Instance;
-            if (mm == null) return;
+            if (mm == null)
+            {
+                return;
+            }
 
             int unityX = packet.X;
-            int unityY = mm.WorldHeight - 1 - packet.Y;
+            int unityY = packet.Y;
 
             player.transform.position = new Vector3(unityX + 0.5f, unityY + 0.5f, 0);
             player.UpdateServerPosition(new Vector2Int(packet.X, packet.Y));
@@ -571,7 +589,9 @@ namespace Fodinae.Scripts.Networking
             foreach (var msg in packet.Messages)
             {
                 if (GlobalChatUI.Instance != null)
+                {
                     GlobalChatUI.Instance.AddMessage(msg);
+                }
             }
         }
 
@@ -586,7 +606,9 @@ namespace Fodinae.Scripts.Networking
             _packetCount++;
             Debug.Log($"[PacketHandler] Local chat from BotId={packet.BotId}: {packet.Text}");
             if (FloatingChatManager.Instance != null)
+            {
                 FloatingChatManager.Instance.ShowLocalChat(packet);
+            }
         }
 
         private void HandleChatMute(ChatMutePacket packet)
@@ -605,7 +627,9 @@ namespace Fodinae.Scripts.Networking
             _packetCount++;
             var fps = FindAnyObjectByType<FPSCounter>();
             if (fps != null)
+            {
                 fps.SetOnline((int)packet.Players, (int)packet.Programmator);
+            }
         }
 
         private void HandlePingPacket(PingPacket packet)
@@ -613,8 +637,11 @@ namespace Fodinae.Scripts.Networking
             _packetCount++;
             var fps = FindAnyObjectByType<FPSCounter>();
             if (fps != null)
+            {
                 fps.SetPing(packet.PreviousPing);
-            NetworkService.Instance.Send(new PongPacket(packet.SentAt));
+            }
+
+            NetworkService.Send(new PongPacket(packet.SentAt));
         }
 
         private void HandleOutdatedClient(OutdatedClientPacket packet)
@@ -631,15 +658,20 @@ namespace Fodinae.Scripts.Networking
             var model = InventoryModel.Instance;
             var remaining = new Dictionary<ItemType, long>(packet.Changes);
 
-            for (int i = 0; i < InventoryModel.TOTAL_SLOTS; i++)
+            for (int i = 0; i < InventoryModel.TOTALSLOTS; i++)
             {
                 var existing = model.GetSlot(i);
-                if (existing == null) continue;
+                if (existing == null)
+                {
+                    continue;
+                }
 
                 if (remaining.TryGetValue(existing.ItemType, out long qty))
                 {
                     if (qty <= 0)
+                    {
                         model.SetSlot(i, null);
+                    }
                     else
                     {
                         existing.Quantity = (int)qty;
@@ -652,11 +684,17 @@ namespace Fodinae.Scripts.Networking
 
             foreach (var kvp in remaining)
             {
-                if (kvp.Value <= 0) continue;
-
-                for (int i = 0; i < InventoryModel.TOTAL_SLOTS; i++)
+                if (kvp.Value <= 0)
                 {
-                    if (model.GetSlot(i) != null) continue;
+                    continue;
+                }
+
+                for (int i = 0; i < InventoryModel.TOTALSLOTS; i++)
+                {
+                    if (model.GetSlot(i) != null)
+                    {
+                        continue;
+                    }
 
                     var item = new ItemData(
                         kvp.Key.ToString(),
@@ -675,10 +713,16 @@ namespace Fodinae.Scripts.Networking
             _packetCount++;
             var model = InventoryModel.Instance;
             int slot = model.SelectedSlot;
-            if (slot < 0) return;
+            if (slot < 0)
+            {
+                return;
+            }
 
             var item = model.GetSlot(slot);
-            if (item == null) return;
+            if (item == null)
+            {
+                return;
+            }
 
             item.Name = packet.Name;
             item.Description = packet.Description;
@@ -695,7 +739,7 @@ namespace Fodinae.Scripts.Networking
         private void HandleSFXPacket(SFXPacket packet)
         {
             _packetCount++;
-            SFXEffectManager.Instance?.PlayEffect(packet);
+            ServerAudioEventManager.Instance?.PlayEffect(packet);
         }
 
         private void HandleAddStatusLine(AddStatusLinePacket packet)
@@ -705,7 +749,10 @@ namespace Fodinae.Scripts.Networking
             var unityColor = new Color(sysColor.R / 255f, sysColor.G / 255f, sysColor.B / 255f, sysColor.A / 255f);
             long expiry = 0;
             if (packet.Text.Count > 1)
+            {
                 long.TryParse(packet.Text[1], out expiry);
+            }
+
             PlayerStatsModel.Instance.AddStatusLine(packet.Tag, packet.Text.ToArray(), unityColor, packet.BlinkRate, expiry);
         }
 
@@ -743,8 +790,7 @@ namespace Fodinae.Scripts.Networking
             var player = GameObject.FindGameObjectWithTag("Player");
             if (player != null)
             {
-                var robot = player.GetComponent<Robot>();
-                if (robot != null)
+                if (player.TryGetComponent<Robot>(out var robot))
                 {
                     robot.SetClanBadge(packet.ClanId);
                 }
@@ -759,8 +805,7 @@ namespace Fodinae.Scripts.Networking
             var player = GameObject.FindGameObjectWithTag("Player");
             if (player != null)
             {
-                var robot = player.GetComponent<Robot>();
-                if (robot != null)
+                if (player.TryGetComponent<Robot>(out var robot))
                 {
                     robot.ClearClanBadge();
                 }
@@ -783,6 +828,7 @@ namespace Fodinae.Scripts.Networking
                 PlayerStatsModel.Instance.ClearMission();
                 return;
             }
+
             PlayerStatsModel.Instance.SetMission(packet.Title, packet.Description, 0);
         }
 
@@ -793,12 +839,14 @@ namespace Fodinae.Scripts.Networking
             var stats = PlayerStatsModel.Instance;
             stats.SetMissionProgress(packet.Current);
             if (packet.Max > 0)
+            {
                 stats.SetMissionMaxProgress(packet.Max);
+            }
         }
 
         private void OnWorldDataLoaded()
         {
-            //Debug.Log("[PacketHandler] World data loaded event received from MapManager");
+            // Debug.Log("[PacketHandler] World data loaded event received from MapManager");
         }
     }
 }

@@ -19,7 +19,7 @@ namespace Fodinae.Scripts.Audio.Data
     /// <b>Как звукорежиссёр работает с библиотекой:</b>
     /// <code>
     /// 1. Открывает AudioLibrary.asset в инспекторе
-    /// 2. Добавляет новое событие: имя "dig_rock", файлы ["audio/dig_01", "audio/dig_02"]
+    /// 2. Добавляет новое событие: имя "dig_rock", файлы ["Audio/dig_01", "Audio/dig_02"]
     /// 3. Выбирает слой: Sfx, громкость 0.8, пространственный (галочка IsSpatial)
     /// 4. Всё — программист пишет AudioSystem.Play("dig_rock")
     /// </code>
@@ -50,11 +50,17 @@ namespace Fodinae.Scripts.Audio.Data
         /// <summary>Найти событие по имени. null если не найдено.</summary>
         public AudioEvent Find(string name)
         {
-            if (_events == null) return null;
+            if (_events == null)
+            {
+                return null;
+            }
+
             foreach (var e in _events)
             {
                 if (e != null && e.Name == name)
+                {
                     return e;
+                }
             }
 
             return null;
@@ -67,13 +73,19 @@ namespace Fodinae.Scripts.Audio.Data
         private void OnValidate()
         {
             // Проверка на дубликаты имён и пустые ссылки
-            if (_events == null) return;
+            if (_events == null)
+            {
+                return;
+            }
 
             var names = new HashSet<string>();
             for (int i = 0; i < _events.Length; i++)
             {
                 var evt = _events[i];
-                if (evt == null) continue;
+                if (evt == null)
+                {
+                    continue;
+                }
 
                 if (string.IsNullOrEmpty(evt.Name))
                 {
@@ -84,11 +96,6 @@ namespace Fodinae.Scripts.Audio.Data
                 if (!names.Add(evt.Name))
                 {
                     Debug.LogWarning($"[AudioLibrary] Дубликат имени события: '{evt.Name}' (индекс {i})");
-                }
-
-                if (evt.AssetPaths == null || evt.AssetPaths.Length == 0)
-                {
-                    Debug.LogWarning($"[AudioLibrary] Событие '{evt.Name}': нет ни одного аудио-файла");
                 }
             }
         }

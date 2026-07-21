@@ -344,7 +344,7 @@
 | 1  | `SurfaceRenderer` — два меша перестраиваются каждый кадр | `LateUpdate`, bounds 100×100×10. Transit + Perspective mesh rebuild every frame |
 | 2  | `WorldMapRenderer` — обновление каждые ~30 FPS | 512×height пикселей текстура, RGBA32, перестраивается даже когда миникарта не видна |
 | 3  | `WorldTextureManager` — атлас 4096×4096 | При превышении максимального размера новые текстуры просто не попадают в атлас — нет обработки переполнения |
-| 4  | `gif` декодер — `mgGif.cs` | Старый сторонний код в `Assets/Scripts/mfGif/`, вероятно не обновляется, упомянут в `TODO.md` |
+| 4  | `gif` декодер — `mgGif.cs` | Старый сторонний код в `Assets/Scripts/MfGif/`, вероятно не обновляется, упомянут в `TODO.md` |
 | 5  | Асинхронная загрузка без CancellationToken | `ClientAssetLoader.LoadAndApplyTexture()` возвращает `UniTaskVoid` — нельзя отменить загрузку при выходе из сцены |
 | 6  | Нет обработки `OnApplicationFocus` / `OnApplicationPause` | Синглтоны не сбрасывают состояние при сворачивании игры |
 | 7  | `InventoryModel` — разделение между несколькими InventoryUI | Статический синглтон, но InventoryUI создаёт экземпляр в Start. Кто владеет состоянием инвентаря? |

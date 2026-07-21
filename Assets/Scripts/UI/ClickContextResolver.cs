@@ -1,7 +1,7 @@
-using MinesServer.Networking.Shared.Packets;
 using System.Collections.Generic;
 using System.Linq;
 using Fodinae.UI.Controls;
+using MinesServer.Networking.Shared.Packets;
 using UnityEngine.UIElements;
 
 namespace Fodinae.UI
@@ -22,7 +22,9 @@ namespace Fodinae.UI
         public static VisualElement ResolveRoot(VisualElement clickedElement, VisualElement windowRoot, string clickContext)
         {
             if (string.IsNullOrEmpty(clickContext))
+            {
                 return clickedElement;
+            }
 
             // Determine starting element
             VisualElement current;
@@ -39,13 +41,17 @@ namespace Fodinae.UI
             }
 
             if (string.IsNullOrEmpty(clickContext))
+            {
                 return current;
+            }
 
             var segments = clickContext.Split('/');
             foreach (var segment in segments)
             {
                 if (string.IsNullOrEmpty(segment) || segment == "." || segment == "./")
+                {
                     continue;
+                }
 
                 if ((segment == ".." || segment == "../") && current != null)
                 {
@@ -57,7 +63,9 @@ namespace Fodinae.UI
                 {
                     var children = current.Children().ToList();
                     if (index >= 0 && index < children.Count)
+                    {
                         current = children[index];
+                    }
                 }
             }
 
@@ -84,7 +92,9 @@ namespace Fodinae.UI
             }
 
             foreach (var child in element.Children())
+            {
                 CollectRecursive(child, result);
+            }
         }
 
         private static bool IsInputElement(VisualElement element)
@@ -105,7 +115,7 @@ namespace Fodinae.UI
                 Slider sl => sl.value.ToString(),
                 Toggle tg => tg.value.ToString(),
                 Selectable sel => sel.value.ToString(),
-                _ => ""
+                _ => string.Empty,
             };
         }
     }

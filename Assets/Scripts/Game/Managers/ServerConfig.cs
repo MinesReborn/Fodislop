@@ -18,6 +18,7 @@ namespace Fodinae.Scripts.Game.Managers
                         _instance = go.AddComponent<ServerConfig>();
                     }
                 }
+
                 return _instance;
             }
         }
@@ -26,13 +27,14 @@ namespace Fodinae.Scripts.Game.Managers
         public int MaxGlobalChatLength = 50;
         public int MaxLocalChatLength = 20;
 
-        private void Awake()
+        protected void Awake()
         {
             if (_instance != null && _instance != this)
             {
                 Destroy(gameObject);
                 return;
             }
+
             _instance = this;
             DontDestroyOnLoad(gameObject);
         }

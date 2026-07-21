@@ -30,7 +30,7 @@ Fodinae/
 │   │               ├── TextureStorageManager.cs
 │   │               └── TextureStorageTest.cs
 │   └── Textures/           ← Preferred location for development
-│       └── cells/
+│       └── Cells/
 │           ├── 1.png
 │           ├── 2.png
 │           └── 42.png
@@ -41,7 +41,7 @@ Fodinae/
 Game/
 ├── Game.exe
 ├── Textures/               ← Preferred location for builds
-│   └── cells/
+│   └── Cells/
 │       ├── 1.png
 │       ├── 2.png
 │       └── 42.png
@@ -56,11 +56,11 @@ Game/
 
 Textures must be named according to the cell type they represent:
 
-- **Format**: `/cells/{cellType}.png`
+- **Format**: `/Cells/{cellType}.png`
 - **Examples**:
-  - `/cells/1.png` - Cell type 1
-  - `/cells/42.png` - Cell type 42
-  - `/cells/255.png` - Cell type 255
+  - `/Cells/1.png` - Cell type 1
+  - `/Cells/42.png` - Cell type 42
+  - `/Cells/255.png` - Cell type 255
 
 The system automatically handles the leading slash in filenames.
 
@@ -85,10 +85,10 @@ You can test the texture storage system using the `TextureStorageTest` component
 using Fodinae.Assets.Scripts.Networking.Connection.Client;
 
 // Get texture data
-var textureData = await TextureStorageManager.Instance.GetTextureData("/cells/1.png");
+var textureData = await TextureStorageManager.Instance.GetTextureData("/Cells/1.png");
 
 // Check if texture exists in storage
-bool hasTexture = TextureStorageManager.Instance.HasTexture("/cells/1.png");
+bool hasTexture = TextureStorageManager.Instance.HasTexture("/Cells/1.png");
 
 // Get current texture folder path
 string folderPath = TextureStorageManager.Instance.GetTextureFolderPath();
@@ -124,9 +124,9 @@ The system provides detailed logging when debug mode is enabled:
 
 ```
 [TextureStorageManager] Using texture folder: C:/Project/Assets/Textures
-[TextureStorageManager] Loaded texture from storage: cells/1.png
-[TextureStorageManager] Cache hit for: cells/1.png
-[TextureStorageManager] Texture not found, generating fallback: cells/999.png
+[TextureStorageManager] Loaded texture from storage: Cells/1.png
+[TextureStorageManager] Cache hit for: Cells/1.png
+[TextureStorageManager] Texture not found, generating fallback: Cells/999.png
 ```
 
 ### Test Output
@@ -135,10 +135,10 @@ The `TextureStorageTest` component provides comprehensive test results:
 
 ```
 [TextureStorageTest] === TEST RESULTS ===
-[TextureStorageTest] /cells/1.png: SUCCESS (FROM_STORAGE) in 0.002s
-[TextureStorageTest] /cells/2.png: SUCCESS (FALLBACK_GENERATED) in 0.001s
-[TextureStorageTest] /cells/42.png: SUCCESS (FROM_STORAGE) in 0.001s
-[TextureStorageTest] Cache test for /cells/1.png: 0.000s
+[TextureStorageTest] /Cells/1.png: SUCCESS (FROM_STORAGE) in 0.002s
+[TextureStorageTest] /Cells/2.png: SUCCESS (FALLBACK_GENERATED) in 0.001s
+[TextureStorageTest] /Cells/42.png: SUCCESS (FROM_STORAGE) in 0.001s
+[TextureStorageTest] Cache test for /Cells/1.png: 0.000s
 [TextureStorageTest] Final cache stats: Texture Cache: 3 entries, Folder: C:/Project/Assets/Textures
 [TextureStorageTest] === TEST COMPLETE ===
 ```
@@ -164,7 +164,7 @@ The `TextureStorageTest` component provides comprehensive test results:
 
 1. **Textures not loading from storage**
    - Check that files are in the correct folder
-   - Verify file naming convention (`/cells/{cellType}.png`)
+   - Verify file naming convention (`/Cells/{cellType}.png`)
    - Ensure files are valid PNG format
 
 2. **Wrong texture folder being used**
@@ -205,7 +205,7 @@ Potential future improvements include:
 ### Development Workflow
 
 1. Create your texture files (e.g., `1.png`, `2.png`, `42.png`)
-2. Place them in `Assets/Textures/cells/`
+2. Place them in `Assets/Textures/Cells/`
 3. Run your Unity project
 4. The DummyConnection will automatically use your real textures
 5. Missing textures will fall back to random generation
@@ -213,7 +213,7 @@ Potential future improvements include:
 ### Build Workflow
 
 1. Build your project
-2. Create a `Textures/cells/` folder next to your executable
+2. Create a `Textures/Cells/` folder next to your executable
 3. Copy your texture files to the build folder
 4. Run the built application
 5. Your real textures will be loaded automatically

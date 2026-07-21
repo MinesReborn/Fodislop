@@ -1,5 +1,5 @@
-using Fodinae.Scripts.Audio.Core;
 using Fodinae.Scripts.Audio.Backend;
+using Fodinae.Scripts.Audio.Core;
 using UnityEngine;
 
 namespace Fodinae.Scripts.Audio.Spatial
@@ -30,29 +30,38 @@ namespace Fodinae.Scripts.Audio.Spatial
     public sealed class AudioSpatial : MonoBehaviour
     {
         [Tooltip("Имя аудио-события.  Можно сменить на лету через SetEvent().")]
-        [SerializeField] private string _eventName;
+        [SerializeField]
+        private string _eventName;
 
         [Tooltip("Слой.  Если не задан — используется DefaultLayer из AudioEvent.")]
-        [SerializeField] private AudioLayer _layer = AudioLayer.SfxDefault();
+        [SerializeField]
+        private AudioLayer _layer = AudioLayer.SfxDefault();
 
         [Tooltip("Громкость.  Если 0 или меньше — используется DefaultVolume из AudioEvent.")]
-        [SerializeField, Range(0f, 2f)] private float _volume;
+        [SerializeField]
+        [Range(0f, 2f)]
+        private float _volume;
 
         [Tooltip("Играть автоматически при Start().")]
-        [SerializeField] private bool _playOnStart = true;
+        [SerializeField]
+        private bool _playOnStart = true;
 
         private AudioPlaybackHandle _handle;
 
         private void Start()
         {
             if (_playOnStart && !string.IsNullOrEmpty(_eventName))
+            {
                 PlayCurrent();
+            }
         }
 
         private void Update()
         {
-            if (_handle != null && !_handle._disposed)
+            if (_handle != null && _handle.IsPlaying)
+            {
                 _handle.SetPosition(transform.position);
+            }
         }
 
         private void OnDestroy()
@@ -65,7 +74,9 @@ namespace Fodinae.Scripts.Audio.Spatial
         public void PlayCurrent()
         {
             if (string.IsNullOrEmpty(_eventName))
+            {
                 return;
+            }
 
             Stop();
             float? vol = _volume > 0f ? _volume : null;
@@ -76,8 +87,16 @@ namespace Fodinae.Scripts.Audio.Spatial
         public void SetEvent(string eventName, AudioLayer? layer = null, float? volume = null)
         {
             _eventName = eventName;
-            if (layer.HasValue) _layer = layer.Value;
-            if (volume.HasValue) _volume = volume.Value;
+            if (layer.HasValue)
+            {
+                _layer = layer.Value;
+            }
+
+            if (volume.HasValue)
+            {
+                _volume = volume.Value;
+            }
+
             PlayCurrent();
         }
 
@@ -89,6 +108,6 @@ namespace Fodinae.Scripts.Audio.Spatial
         }
 
         /// <summary>Играет ли сейчас звук.</summary>
-        public bool IsPlaying => _handle != null && !_handle._disposed && _handle.IsPlaying;
+        public bool IsPlaying => _handle != null && _handle.IsPlaying;
     }
 }

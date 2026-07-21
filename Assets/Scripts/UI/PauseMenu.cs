@@ -1,4 +1,5 @@
-using Fodinae.Scripts.Audio;
+using Fodinae.Scripts.Audio.Backend;
+using Fodinae.Scripts.Audio.Core;
 using Fodinae.Scripts.Game;
 using Fodinae.Scripts.Networking;
 using Fodinae.Scripts.World;
@@ -30,7 +31,7 @@ namespace Fodinae.Scripts.UI
         private Button _simpleGraphicsButton;
         private Button _headlightButton;
 
-        void Start()
+        protected void Start()
         {
             _escapeAction = new InputAction("Escape", binding: "<Keyboard>/escape");
             _escapeAction.performed += _ => ToggleMenu();
@@ -51,14 +52,50 @@ namespace Fodinae.Scripts.UI
             var savedScale = PlayerPrefs.GetFloat("UIScale", 1f);
             _doc.panelSettings.scale = savedScale;
             foreach (var canvas in FindObjectsByType<Canvas>())
+            {
                 canvas.scaleFactor = savedScale;
+            }
         }
 
-        void OnDestroy()
+        protected void OnDestroy()
         {
             if (_doc != null && _doc.panelSettings != null)
+            {
                 _doc.panelSettings.scale = _originalScale;
+            }
+
             _escapeAction?.Dispose();
+        }
+
+        private static VisualElement CreateSlider(string labelText, float initialValue, System.Action<float> onChange, float min, float max)
+        {
+            var container = new VisualElement();
+            container.style.flexDirection = FlexDirection.Column;
+            container.style.marginBottom = 16;
+            container.style.minWidth = 220;
+
+            var label = new Label(labelText);
+            label.style.fontSize = 14;
+            label.style.color = Color.white;
+            label.style.marginBottom = 4;
+            container.Add(label);
+
+            var slider = new Slider(min, max);
+            slider.value = initialValue;
+            slider.RegisterValueChangedCallback(evt => onChange(evt.newValue));
+            container.Add(slider);
+
+            return container;
+        }
+
+        private static bool IsSimpleGraphics()
+        {
+            return PlayerPrefs.GetInt("SimpleGraphics", 0) == 1;
+        }
+
+        private static bool IsHeadlightOn()
+        {
+            return PlayerPrefs.GetInt("UseLight2D", 0) == 1;
         }
 
         private VisualElement CreateStyledPanel()
@@ -124,19 +161,46 @@ namespace Fodinae.Scripts.UI
             _settingsPage = CreateStyledPanel();
             _settingsPage.style.maxWidth = 320;
             _settingsPage.Add(CreateTitle("Настройки"));
-            _settingsPage.Add(CreateSlider("Музыка", AudioManager.Instance.AmbientVolume, v => AudioManager.Instance.AmbientVolume = v, 0f, 1f));
-            _settingsPage.Add(CreateSlider("Звуки", AudioManager.Instance.SfxVolume, v => AudioManager.Instance.SfxVolume = v, 0f, 1f));
-            _settingsPage.Add(CreateSlider("Масштаб UI",
-               PlayerPrefs.GetFloat("UIScale", 1f),
-               v =>
-               {
-                   PlayerPrefs.SetFloat("UIScale", v);
-                   PlayerPrefs.Save();
-                   _doc.panelSettings.scale = v;
-                   foreach (var canvas in FindObjectsByType<Canvas>())
-                       canvas.scaleFactor = v;
-               },
-               0.65f, 2f));
+
+            _settingsPage.Add(CreateSlider(
+                "Музыка",
+                AudioSystem.Instance.GetBus(AudioBusType.Music).Volume,
+                v =>
+                {
+                    AudioSystem.Instance.GetBus(AudioBusType.Music).Volume = v;
+                    PlayerPrefs.SetFloat("Audio_Ambient", v);
+                    PlayerPrefs.Save();
+                },
+                0f,
+                1f));
+
+            _settingsPage.Add(CreateSlider(
+                "Звуки",
+                AudioSystem.Instance.GetBus(AudioBusType.Sfx).Volume,
+                v =>
+                {
+                    AudioSystem.Instance.GetBus(AudioBusType.Sfx).Volume = v;
+                    PlayerPrefs.SetFloat("Audio_Sfx", v);
+                    PlayerPrefs.Save();
+                },
+                0f,
+                1f));
+
+            _settingsPage.Add(CreateSlider(
+                "Масштаб UI",
+                PlayerPrefs.GetFloat("UIScale", 1f),
+                v =>
+                {
+                    PlayerPrefs.SetFloat("UIScale", v);
+                    PlayerPrefs.Save();
+                    _doc.panelSettings.scale = v;
+                    foreach (var canvas in FindObjectsByType<Canvas>())
+                    {
+                        canvas.scaleFactor = v;
+                    }
+                },
+                0.65f,
+                2f));
 
             var fsLabel = new Label("Экран");
             fsLabel.style.fontSize = 14;
@@ -166,14 +230,20 @@ namespace Fodinae.Scripts.UI
             _fullscreenButton.style.unityTextAlign = TextAnchor.MiddleCenter;
 
             _fullscreenButton.RegisterCallback<MouseEnterEvent>(_ =>
-                _fullscreenButton.style.backgroundColor = _btnHover);
+            {
+                _fullscreenButton.style.backgroundColor = _btnHover;
+            });
             _fullscreenButton.RegisterCallback<MouseLeaveEvent>(_ =>
-                _fullscreenButton.style.backgroundColor = _btnBg);
+            {
+                _fullscreenButton.style.backgroundColor = _btnBg;
+            });
 
             _settingsPage.Add(_fullscreenButton);
 
             var sgLabel = new Label("Графика");
-            sgLabel.style.fontSize = 14; sgLabel.style.color = Color.white; sgLabel.style.marginBottom = 4;
+            sgLabel.style.fontSize = 14;
+            sgLabel.style.color = Color.white;
+            sgLabel.style.marginBottom = 4;
             _settingsPage.Add(sgLabel);
 
             _simpleGraphicsButton = new Button(ToggleSimpleGraphics);
@@ -181,7 +251,9 @@ namespace Fodinae.Scripts.UI
             _settingsPage.Add(_simpleGraphicsButton);
 
             var hlLabel = new Label("Фары");
-            hlLabel.style.fontSize = 14; hlLabel.style.color = Color.white; hlLabel.style.marginBottom = 4;
+            hlLabel.style.fontSize = 14;
+            hlLabel.style.color = Color.white;
+            hlLabel.style.marginBottom = 4;
             _settingsPage.Add(hlLabel);
 
             _headlightButton = new Button(ToggleHeadlight);
@@ -218,41 +290,32 @@ namespace Fodinae.Scripts.UI
             btn.style.fontSize = 14;
             btn.style.unityTextAlign = TextAnchor.MiddleCenter;
 
-            btn.RegisterCallback<MouseEnterEvent>(_ => btn.style.backgroundColor = _btnHover);
-            btn.RegisterCallback<MouseLeaveEvent>(_ => btn.style.backgroundColor = _btnBg);
+            btn.RegisterCallback<MouseEnterEvent>(_ =>
+            {
+                btn.style.backgroundColor = _btnHover;
+            });
+            btn.RegisterCallback<MouseLeaveEvent>(_ =>
+            {
+                btn.style.backgroundColor = _btnBg;
+            });
             return btn;
-        }
-
-        private static VisualElement CreateSlider(string labelText, float initialValue, System.Action<float> onChange, float min, float max)
-        {
-            var container = new VisualElement();
-            container.style.flexDirection = FlexDirection.Column;
-            container.style.marginBottom = 16;
-            container.style.minWidth = 220;
-
-            var label = new Label(labelText);
-            label.style.fontSize = 14;
-            label.style.color = Color.white;
-            label.style.marginBottom = 4;
-            container.Add(label);
-
-            var slider = new Slider(min, max);
-            slider.value = initialValue;
-            slider.RegisterValueChangedCallback(evt => onChange(evt.newValue));
-            container.Add(slider);
-
-            return container;
         }
 
         private void ToggleMenu()
         {
-            if (!enabled) return;
+            if (!enabled)
+            {
+                return;
+            }
 
             if (PacketHandler.IsInputBlocked)
             {
                 var topTag = PacketHandler.TopWindowTag;
                 if (topTag != null)
-                    NetworkService.Instance.Send(new ElementClickPacket(topTag, 0, System.Array.Empty<StringPairPacket>()));
+                {
+                    NetworkService.Send(new ElementClickPacket(topTag, 0, System.Array.Empty<StringPairPacket>()));
+                }
+
                 return;
             }
 
@@ -261,8 +324,15 @@ namespace Fodinae.Scripts.UI
                 CloseSettings();
                 return;
             }
-            if (_isOpen) CloseMenu();
-            else OpenMenu();
+
+            if (_isOpen)
+            {
+                CloseMenu();
+            }
+            else
+            {
+                OpenMenu();
+            }
         }
 
         private void ToggleFullscreen()
@@ -275,14 +345,15 @@ namespace Fodinae.Scripts.UI
         private void ToggleSimpleGraphics()
         {
             var terrain = FindAnyObjectByType<SingleMeshTerrainRenderer>();
-            if (terrain == null) return;
+            if (terrain == null)
+            {
+                return;
+            }
+
             bool current = PlayerPrefs.GetInt("SimpleGraphics", 0) == 1;
             terrain.SetSimpleGraphics(!current);
             _simpleGraphicsButton.text = !current ? "Простая" : "Обычная";
         }
-
-        private static bool IsSimpleGraphics()
-            => PlayerPrefs.GetInt("SimpleGraphics", 0) == 1;
 
         private void ToggleHeadlight()
         {
@@ -291,23 +362,27 @@ namespace Fodinae.Scripts.UI
 
             var terrain = FindAnyObjectByType<SingleMeshTerrainRenderer>();
             if (terrain != null)
+            {
                 terrain.SetUseLight2D(newValue);
+            }
 
             var player = GameObject.FindGameObjectWithTag("Player");
             if (player != null)
             {
                 var headlight = player.GetComponent<RobotHeadlight>();
                 if (headlight == null && newValue)
+                {
                     headlight = player.AddComponent<RobotHeadlight>();
+                }
+
                 if (headlight != null)
+                {
                     headlight.SetEnabled(newValue);
+                }
             }
 
             _headlightButton.text = newValue ? "Вкл" : "Выкл";
         }
-
-        private static bool IsHeadlightOn()
-            => PlayerPrefs.GetInt("UseLight2D", 0) == 1;
 
         private void OpenMenu()
         {

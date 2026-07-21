@@ -4,7 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Fodinae.Scripts.Game.Managers;
-using Fodinae.Scripts.Utils;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using UnityEngine;
@@ -20,7 +19,7 @@ namespace Fodinae.Scripts.World
     {
         [Header("Configuration")]
         [SerializeField]
-        private float _cellSize = GameConstants.World.CELL_SIZE;
+        private float _cellSize = GameConstants.World.CELLSIZE;
 
         [SerializeField]
         private Shader _terrainShader;
@@ -384,7 +383,7 @@ namespace Fodinae.Scripts.World
                 (_lastGridPos.y * _cellSize) + (_meshHeight * _cellSize * 0.5f),
                 0);
             Vector3 viewportSize = new Vector3(_meshWidth * _cellSize, _meshHeight * _cellSize, 0);
-            Utils.FodislopGizmos.DrawSolidRect(center, (Vector2)viewportSize, new Color(0, 0.5f, 1f, 0.03f), new Color(0, 0.5f, 1f, 0.3f));
+            FodinaeGizmos.DrawSolidRect(center, (Vector2)viewportSize, new Color(0, 0.5f, 1f, 0.03f), new Color(0, 0.5f, 1f, 0.3f));
         }
 #endif
 
@@ -723,11 +722,11 @@ namespace Fodinae.Scripts.World
 
                     var mmForCat = MapManager.Instance;
                     byte sm = 0;
-                    if (mmForCat.IsRoundableLoose(_cellCache[cx, cy + 1].Type)) sm |= 1;
-                    if (mmForCat.IsRoundableLoose(_cellCache[cx - 1, cy].Type)) sm |= 2;
+                    if (MapManager.IsRoundableLoose(_cellCache[cx, cy + 1].Type)) sm |= 1;
+                    if (MapManager.IsRoundableLoose(_cellCache[cx - 1, cy].Type)) sm |= 2;
                     int bt = (int)_cellCache[cx, cy - 1].Type;
-                    if (mmForCat.IsRoundableLoose((CellType)bt) || (bt < 32 || bt > 35)) sm |= 4;
-                    if (mmForCat.IsRoundableLoose(_cellCache[cx + 1, cy].Type)) sm |= 8;
+                    if (MapManager.IsRoundableLoose((CellType)bt) || (bt < 32 || bt > 35)) sm |= 4;
+                    if (MapManager.IsRoundableLoose(_cellCache[cx + 1, cy].Type)) sm |= 8;
                     _cellSameCatMasks[x, y] = sm;
                 }
             }
@@ -1197,11 +1196,11 @@ namespace Fodinae.Scripts.World
 
                             var mmForCat = MapManager.Instance;
                             byte sm = 0;
-                            if (mmForCat.IsRoundableLoose(_cellCache[cx, cy + 1].Type)) sm |= 1;
-                            if (mmForCat.IsRoundableLoose(_cellCache[cx - 1, cy].Type)) sm |= 2;
+                            if (MapManager.IsRoundableLoose(_cellCache[cx, cy + 1].Type)) sm |= 1;
+                            if (MapManager.IsRoundableLoose(_cellCache[cx - 1, cy].Type)) sm |= 2;
                             int bt = (int)_cellCache[cx, cy - 1].Type;
-                            if (mmForCat.IsRoundableLoose((CellType)bt) || (bt < 32 || bt > 35)) sm |= 4;
-                            if (mmForCat.IsRoundableLoose(_cellCache[cx + 1, cy].Type)) sm |= 8;
+                            if (MapManager.IsRoundableLoose((CellType)bt) || (bt < 32 || bt > 35)) sm |= 4;
+                            if (MapManager.IsRoundableLoose(_cellCache[cx + 1, cy].Type)) sm |= 8;
                             _cellSameCatMasks[x, y] = sm;
                         }
                     }
@@ -1283,11 +1282,11 @@ namespace Fodinae.Scripts.World
 
                                 var mmForCat = MapManager.Instance;
                                 byte sm = 0;
-                                if (mmForCat.IsRoundableLoose(_cellCache[cx, cy + 1].Type)) sm |= 1;
-                                if (mmForCat.IsRoundableLoose(_cellCache[cx - 1, cy].Type)) sm |= 2;
+                                if (MapManager.IsRoundableLoose(_cellCache[cx, cy + 1].Type)) sm |= 1;
+                                if (MapManager.IsRoundableLoose(_cellCache[cx - 1, cy].Type)) sm |= 2;
                                 int bt = (int)_cellCache[cx, cy - 1].Type;
-                                if (mmForCat.IsRoundableLoose((CellType)bt) || (bt < 32 || bt > 35)) sm |= 4;
-                                if (mmForCat.IsRoundableLoose(_cellCache[cx + 1, cy].Type)) sm |= 8;
+                                if (MapManager.IsRoundableLoose((CellType)bt) || (bt < 32 || bt > 35)) sm |= 4;
+                                if (MapManager.IsRoundableLoose(_cellCache[cx + 1, cy].Type)) sm |= 8;
                                 _cellSameCatMasks[x, y] = sm;
                             }
                         }
@@ -1953,7 +1952,9 @@ namespace Fodinae.Scripts.World
                     else
                     {
                         for (int y = 0; y < _cacheHeight; y++)
+                        {
                             _cellCache[x, y] = _cellCache[srcX, y];
+                        }
                     }
                 }
             }
@@ -1965,17 +1966,23 @@ namespace Fodinae.Scripts.World
                     if (dy > 0)
                     {
                         for (int y = 0; y < _cacheHeight - dy; y++)
+                        {
                             _cellCache[x, y] = _cellCache[srcX, y + dy];
+                        }
                     }
                     else if (dy < 0)
                     {
                         for (int y = _cacheHeight - 1; y >= -dy; y--)
+                        {
                             _cellCache[x, y] = _cellCache[srcX, y + dy];
+                        }
                     }
                     else
                     {
                         for (int y = 0; y < _cacheHeight; y++)
+                        {
                             _cellCache[x, y] = _cellCache[srcX, y];
+                        }
                     }
                 }
             }
@@ -1986,14 +1993,22 @@ namespace Fodinae.Scripts.World
                 if (dy > 0)
                 {
                     for (int x = 0; x < xEnd; x++)
+                    {
                         for (int y = 0; y < _cacheHeight - dy; y++)
+                        {
                             _cellCache[x, y] = _cellCache[x, y + dy];
+                        }
+                    }
                 }
                 else
                 {
                     for (int x = 0; x < xEnd; x++)
+                    {
                         for (int y = _cacheHeight - 1; y >= -dy; y--)
+                        {
                             _cellCache[x, y] = _cellCache[x, y + dy];
+                        }
+                    }
                 }
             }
 
@@ -2007,7 +2022,10 @@ namespace Fodinae.Scripts.World
             // Build a set of (chunkIndex, localIndex)-pairs we need to fill.
             // We process rows/columns that entered the cache due to the scroll.
             var layer = mapStorage.CellLayer;
-            if (layer == null) return;
+            if (layer == null)
+            {
+                return;
+            }
 
             // Helper: fetch CellType at a world position and update the cache entry + its metadata.
             void FillCell(int cx, int cy)
@@ -2019,9 +2037,13 @@ namespace Fodinae.Scripts.World
                 if (gridX < 0 || gridX >= worldWidth || unityY < 0 || unityY >= worldHeight)
                 {
                     if (gridX < 0 || gridX >= worldWidth || unityY < 0)
+                    {
                         type = (CellType)0;
+                    }
                     else
+                    {
                         type = CellType.Unloaded;
+                    }
                 }
                 else
                 {
@@ -2067,30 +2089,46 @@ namespace Fodinae.Scripts.World
             {
                 // Right edge entered view: fill columns _cacheWidth-dx .. _cacheWidth-1
                 for (int x = _cacheWidth - dx; x < _cacheWidth; x++)
+                {
                     for (int y = 0; y < _cacheHeight; y++)
+                    {
                         FillCell(x, y);
+                    }
+                }
             }
             else if (dx < 0)
             {
                 // Left edge entered view: fill columns 0 .. -dx-1
                 for (int x = 0; x < -dx; x++)
+                {
                     for (int y = 0; y < _cacheHeight; y++)
+                    {
                         FillCell(x, y);
+                    }
+                }
             }
 
             if (dy > 0)
             {
                 // Top edge entered view: fill rows _cacheHeight-dy .. _cacheHeight-1
                 for (int y = _cacheHeight - dy; y < _cacheHeight; y++)
+                {
                     for (int x = 0; x < _cacheWidth; x++)
+                    {
                         FillCell(x, y);
+                    }
+                }
             }
             else if (dy < 0)
             {
                 // Bottom edge entered view: fill rows 0 .. -dy-1
                 for (int y = 0; y < -dy; y++)
+                {
                     for (int x = 0; x < _cacheWidth; x++)
+                    {
                         FillCell(x, y);
+                    }
+                }
             }
 
             // Request flow-map fallback texture.
@@ -2294,7 +2332,7 @@ namespace Fodinae.Scripts.World
 
             float glowFlags = 0f;
             if (glowZ > 0.5f) glowFlags += 1f;
-            if (!isBackground && mm.IsRoundableLoose(cellFgType)) glowFlags += 2f;
+            if (!isBackground && MapManager.IsRoundableLoose(cellFgType)) glowFlags += 2f;
             float sameCatMask = isSameCell ? _cellSameCatMasks[x, y] : 0f;
             Vector4 glowVec = new Vector4(glowX, glowY, glowFlags, sameCatMask);
             _vertexBuffer[vIdx + 0].UV6 = glowVec;
