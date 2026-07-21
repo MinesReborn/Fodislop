@@ -139,6 +139,7 @@ namespace Fodinae.Scripts.World
             public float FrameHeightTiles;
             public bool IsTextureReady;
         }
+
         private static readonly Vector2[] _localUVsBuffer =
         {
             new(-0.70710678f, -0.70710678f),
@@ -342,8 +343,7 @@ namespace Fodinae.Scripts.World
             Vector3 camPos = _mainCamera.transform.position;
             Vector2Int currentGridPos = new Vector2Int(
                 Mathf.FloorToInt(camPos.x / _cellSize) - (_meshWidth / 2),
-                Mathf.FloorToInt(camPos.y / _cellSize) - (_meshHeight / 2)
-            );
+                Mathf.FloorToInt(camPos.y / _cellSize) - (_meshHeight / 2));
 
             if (currentGridPos != _lastGridPos || _needsRefresh || dimensionsChanged)
             {
@@ -412,11 +412,17 @@ namespace Fodinae.Scripts.World
 
         private CellMetadata GetMetadata(CellType type, List<TextureAtlas> atlases)
         {
-            if (_metadataCache.TryGetValue(type, out var meta)) return meta;
+            if (_metadataCache.TryGetValue(type, out var meta))
+            {
+                return meta;
+            }
 
             var mm = MapManager.Instance;
             var wtm = WorldTextureManager.Instance;
-            if (mm == null || wtm == null) return default;
+            if (mm == null || wtm == null)
+            {
+                return default;
+            }
 
             var config = mm.GetCellConfig(type);
 
@@ -464,7 +470,10 @@ namespace Fodinae.Scripts.World
         {
             var mm = MapManager.Instance;
             var mapStorage = MapStorage.Instance;
-            if (mm == null || mapStorage == null || !mapStorage.IsReady) return;
+            if (mm == null || mapStorage == null || !mapStorage.IsReady)
+            {
+                return;
+            }
 
             int worldWidth = mm.WorldWidth;
             int worldHeight = mm.WorldHeight;
@@ -498,9 +507,13 @@ namespace Fodinae.Scripts.World
                     {
                         // Outside world: sides/bottom render as rock, top is drawn by SurfaceRenderer
                         if (gridX < 0 || gridX >= worldWidth || unityY < 0)
+                        {
                             type = (CellType)0;
+                        }
                         else
+                        {
                             type = CellType.Unloaded;
+                        }
                     }
                     else
                     {
@@ -521,6 +534,7 @@ namespace Fodinae.Scripts.World
                             type = currentChunk != null ? currentChunk[localIndex] : CellType.Unloaded;
                         }
                     }
+
                     var meta = GetMetadata(type, atlases);
                     _cellCache[x, y] = new CachedCellData
                     {
@@ -604,7 +618,7 @@ namespace Fodinae.Scripts.World
                         }
                         else
                         {
-                            uint seed = (uint)((_cacheMinX + cx) * 374761397 + (_cacheMinY + cy) * 668265263);
+                            uint seed = (uint)(((_cacheMinX + cx) * 374761397) + ((_cacheMinY + cy) * 668265263));
                             seed = (seed ^ (seed >> 13)) * 1274126177;
                             seed = seed ^ (seed >> 16);
                             float r = ((seed % 4) + 1) * 0.0625f;
@@ -722,11 +736,27 @@ namespace Fodinae.Scripts.World
 
                     var mmForCat = MapManager.Instance;
                     byte sm = 0;
-                    if (MapManager.IsRoundableLoose(_cellCache[cx, cy + 1].Type)) sm |= 1;
-                    if (MapManager.IsRoundableLoose(_cellCache[cx - 1, cy].Type)) sm |= 2;
+                    if (MapManager.IsRoundableLoose(_cellCache[cx, cy + 1].Type))
+                    {
+                        sm |= 1;
+                    }
+
+                    if (MapManager.IsRoundableLoose(_cellCache[cx - 1, cy].Type))
+                    {
+                        sm |= 2;
+                    }
+
                     int bt = (int)_cellCache[cx, cy - 1].Type;
-                    if (MapManager.IsRoundableLoose((CellType)bt) || (bt < 32 || bt > 35)) sm |= 4;
-                    if (MapManager.IsRoundableLoose(_cellCache[cx + 1, cy].Type)) sm |= 8;
+                    if (MapManager.IsRoundableLoose((CellType)bt) || (bt < 32 || bt > 35))
+                    {
+                        sm |= 4;
+                    }
+
+                    if (MapManager.IsRoundableLoose(_cellCache[cx + 1, cy].Type))
+                    {
+                        sm |= 8;
+                    }
+
                     _cellSameCatMasks[x, y] = sm;
                 }
             }
@@ -894,17 +924,23 @@ namespace Fodinae.Scripts.World
                     if (dy > 0)
                     {
                         for (int y = 0; y < h - dy; y++)
+                        {
                             buffer[x, y] = buffer[srcX, y + dy];
+                        }
                     }
                     else if (dy < 0)
                     {
                         for (int y = h - 1; y >= -dy; y--)
+                        {
                             buffer[x, y] = buffer[srcX, y + dy];
+                        }
                     }
                     else
                     {
                         for (int y = 0; y < h; y++)
+                        {
                             buffer[x, y] = buffer[srcX, y];
+                        }
                     }
                 }
             }
@@ -916,17 +952,23 @@ namespace Fodinae.Scripts.World
                     if (dy > 0)
                     {
                         for (int y = 0; y < h - dy; y++)
+                        {
                             buffer[x, y] = buffer[srcX, y + dy];
+                        }
                     }
                     else if (dy < 0)
                     {
                         for (int y = h - 1; y >= -dy; y--)
+                        {
                             buffer[x, y] = buffer[srcX, y + dy];
+                        }
                     }
                     else
                     {
                         for (int y = 0; y < h; y++)
+                        {
                             buffer[x, y] = buffer[srcX, y];
+                        }
                     }
                 }
             }
@@ -935,14 +977,22 @@ namespace Fodinae.Scripts.World
                 if (dy > 0)
                 {
                     for (int x = 0; x < w; x++)
+                    {
                         for (int y = 0; y < h - dy; y++)
+                        {
                             buffer[x, y] = buffer[x, y + dy];
+                        }
+                    }
                 }
                 else
                 {
                     for (int x = 0; x < w; x++)
+                    {
                         for (int y = h - 1; y >= -dy; y--)
+                        {
                             buffer[x, y] = buffer[x, y + dy];
+                        }
+                    }
                 }
             }
         }
@@ -975,11 +1025,27 @@ namespace Fodinae.Scripts.World
             // The scroll copies w - |dx| entries, leaving the last |dx| entries with
             // stale values. These stale entries are exactly the new edge region.
             int vxStart = 0, vxLen = 0, vyStart = 0, vyLen = 0;
-            if (dx > 0) { vxStart = gw - dx; vxLen = dx; }
-            else if (dx < 0) { vxStart = 0; vxLen = -dx; }
+            if (dx > 0)
+            {
+                vxStart = gw - dx;
+                vxLen = dx;
+            }
+            else if (dx < 0)
+            {
+                vxStart = 0;
+                vxLen = -dx;
+            }
 
-            if (dy > 0) { vyStart = gh - dy; vyLen = dy; }
-            else if (dy < 0) { vyStart = 0; vyLen = -dy; }
+            if (dy > 0)
+            {
+                vyStart = gh - dy;
+                vyLen = dy;
+            }
+            else if (dy < 0)
+            {
+                vyStart = 0;
+                vyLen = -dy;
+            }
 
             // --- Recompute vertex border ---
             // Vertices at the exposed edge depend on newly fetched cells.
@@ -1009,10 +1075,29 @@ namespace Fodinae.Scripts.World
                             else
                             {
                                 int xSign = 0, ySign = 0;
-                                if (bl.Distortion == CellDistortionType.Cause) { xSign -= 1; ySign += 1; }
-                                if (br.Distortion == CellDistortionType.Cause) { xSign += 1; ySign += 1; }
-                                if (tl.Distortion == CellDistortionType.Cause) { xSign -= 1; ySign -= 1; }
-                                if (tr.Distortion == CellDistortionType.Cause) { xSign += 1; ySign -= 1; }
+                                if (bl.Distortion == CellDistortionType.Cause)
+                                {
+                                    xSign -= 1;
+                                    ySign += 1;
+                                }
+
+                                if (br.Distortion == CellDistortionType.Cause)
+                                {
+                                    xSign += 1;
+                                    ySign += 1;
+                                }
+
+                                if (tl.Distortion == CellDistortionType.Cause)
+                                {
+                                    xSign -= 1;
+                                    ySign -= 1;
+                                }
+
+                                if (tr.Distortion == CellDistortionType.Cause)
+                                {
+                                    xSign += 1;
+                                    ySign -= 1;
+                                }
 
                                 if (xSign == 0 && ySign == 0)
                                 {
@@ -1020,7 +1105,7 @@ namespace Fodinae.Scripts.World
                                 }
                                 else
                                 {
-                                    uint seed = (uint)((_cacheMinX + cx) * 374761397 + (_cacheMinY + cy) * 668265263);
+                                    uint seed = (uint)(((_cacheMinX + cx) * 374761397) + ((_cacheMinY + cy) * 668265263));
                                     seed = (seed ^ (seed >> 13)) * 1274126177;
                                     seed = seed ^ (seed >> 16);
                                     float r = ((seed % 4) + 1) * 0.0625f;
@@ -1094,16 +1179,37 @@ namespace Fodinae.Scripts.World
                                 else
                                 {
                                     int xSign = 0, ySign = 0;
-                                    if (bl.Distortion == CellDistortionType.Cause) { xSign -= 1; ySign += 1; }
-                                    if (br.Distortion == CellDistortionType.Cause) { xSign += 1; ySign += 1; }
-                                    if (tl.Distortion == CellDistortionType.Cause) { xSign -= 1; ySign -= 1; }
-                                    if (tr.Distortion == CellDistortionType.Cause) { xSign += 1; ySign -= 1; }
+                                    if (bl.Distortion == CellDistortionType.Cause)
+                                    {
+                                        xSign -= 1;
+                                        ySign += 1;
+                                    }
+
+                                    if (br.Distortion == CellDistortionType.Cause)
+                                    {
+                                        xSign += 1;
+                                        ySign += 1;
+                                    }
+
+                                    if (tl.Distortion == CellDistortionType.Cause)
+                                    {
+                                        xSign -= 1;
+                                        ySign -= 1;
+                                    }
+
+                                    if (tr.Distortion == CellDistortionType.Cause)
+                                    {
+                                        xSign += 1;
+                                        ySign -= 1;
+                                    }
 
                                     if (xSign == 0 && ySign == 0)
+                                    {
                                         _gridVertexOffsets[x, y] = Vector3.zero;
+                                    }
                                     else
                                     {
-                                        uint seed = (uint)((_cacheMinX + cx) * 374761397 + (_cacheMinY + cy) * 668265263);
+                                        uint seed = (uint)(((_cacheMinX + cx) * 374761397) + ((_cacheMinY + cy) * 668265263));
                                         seed = (seed ^ (seed >> 13)) * 1274126177;
                                         seed = seed ^ (seed >> 16);
                                         float r = ((seed % 4) + 1) * 0.0625f;
@@ -1132,11 +1238,27 @@ namespace Fodinae.Scripts.World
 
             // --- Determine cell border range ---
             int cxStart = 0, cxLen = 0, cyStart = 0, cyLen = 0;
-            if (dx > 0) { cxStart = _meshWidth - dx; cxLen = dx; }
-            else if (dx < 0) { cxStart = 0; cxLen = -dx; }
+            if (dx > 0)
+            {
+                cxStart = _meshWidth - dx;
+                cxLen = dx;
+            }
+            else if (dx < 0)
+            {
+                cxStart = 0;
+                cxLen = -dx;
+            }
 
-            if (dy > 0) { cyStart = _meshHeight - dy; cyLen = dy; }
-            else if (dy < 0) { cyStart = 0; cyLen = -dy; }
+            if (dy > 0)
+            {
+                cyStart = _meshHeight - dy;
+                cyLen = dy;
+            }
+            else if (dy < 0)
+            {
+                cyStart = 0;
+                cyLen = -dy;
+            }
 
             bool hasCBorder = cxLen > 0 || cyLen > 0;
             if (hasCBorder)
@@ -1157,21 +1279,44 @@ namespace Fodinae.Scripts.World
                             {
                                 byte m = 0;
                                 if (_cellCache[cx - 1, cy].HasTileGroup && _cellCache[cx - 1, cy].TileGroupId == data.TileGroupId)
+                                {
                                     m |= 1 << 0;
+                                }
+
                                 if (_cellCache[cx - 1, cy - 1].HasTileGroup && _cellCache[cx - 1, cy - 1].TileGroupId == data.TileGroupId)
+                                {
                                     m |= 1 << 1;
+                                }
+
                                 if (_cellCache[cx, cy - 1].HasTileGroup && _cellCache[cx, cy - 1].TileGroupId == data.TileGroupId)
+                                {
                                     m |= 1 << 2;
+                                }
+
                                 if (_cellCache[cx + 1, cy - 1].HasTileGroup && _cellCache[cx + 1, cy - 1].TileGroupId == data.TileGroupId)
+                                {
                                     m |= 1 << 3;
+                                }
+
                                 if (_cellCache[cx + 1, cy].HasTileGroup && _cellCache[cx + 1, cy].TileGroupId == data.TileGroupId)
+                                {
                                     m |= 1 << 4;
+                                }
+
                                 if (_cellCache[cx + 1, cy + 1].HasTileGroup && _cellCache[cx + 1, cy + 1].TileGroupId == data.TileGroupId)
+                                {
                                     m |= 1 << 5;
+                                }
+
                                 if (_cellCache[cx, cy + 1].HasTileGroup && _cellCache[cx, cy + 1].TileGroupId == data.TileGroupId)
+                                {
                                     m |= 1 << 6;
+                                }
+
                                 if (_cellCache[cx - 1, cy + 1].HasTileGroup && _cellCache[cx - 1, cy + 1].TileGroupId == data.TileGroupId)
+                                {
                                     m |= 1 << 7;
+                                }
 
                                 _cellTilingDescriptors[x, y] = TileBitmaskConverter.GetDescriptor(m);
                             }
@@ -1183,24 +1328,68 @@ namespace Fodinae.Scripts.World
                             // Relief mask
                             byte rm = 0;
                             bool isR = false;
-                            if (_cellCache[cx, cy + 1].ReliefGroup >= data.ReliefGroup) { rm |= 1; }
-                            else { isR = true; }
-                            if (_cellCache[cx - 1, cy].ReliefGroup >= data.ReliefGroup) { rm |= 2; }
-                            else { isR = true; }
-                            if (_cellCache[cx, cy - 1].ReliefGroup >= data.ReliefGroup) { rm |= 4; }
-                            else { isR = true; }
-                            if (_cellCache[cx + 1, cy].ReliefGroup >= data.ReliefGroup) { rm |= 8; }
-                            else { isR = true; }
+                            if (_cellCache[cx, cy + 1].ReliefGroup >= data.ReliefGroup)
+                            {
+                                rm |= 1;
+                            }
+                            else
+                            {
+                                isR = true;
+                            }
+
+                            if (_cellCache[cx - 1, cy].ReliefGroup >= data.ReliefGroup)
+                            {
+                                rm |= 2;
+                            }
+                            else
+                            {
+                                isR = true;
+                            }
+
+                            if (_cellCache[cx, cy - 1].ReliefGroup >= data.ReliefGroup)
+                            {
+                                rm |= 4;
+                            }
+                            else
+                            {
+                                isR = true;
+                            }
+
+                            if (_cellCache[cx + 1, cy].ReliefGroup >= data.ReliefGroup)
+                            {
+                                rm |= 8;
+                            }
+                            else
+                            {
+                                isR = true;
+                            }
+
                             _cellReliefMasks[x, y] = rm;
                             _cellIsRelief[x, y] = isR;
 
                             var mmForCat = MapManager.Instance;
                             byte sm = 0;
-                            if (MapManager.IsRoundableLoose(_cellCache[cx, cy + 1].Type)) sm |= 1;
-                            if (MapManager.IsRoundableLoose(_cellCache[cx - 1, cy].Type)) sm |= 2;
+                            if (MapManager.IsRoundableLoose(_cellCache[cx, cy + 1].Type))
+                            {
+                                sm |= 1;
+                            }
+
+                            if (MapManager.IsRoundableLoose(_cellCache[cx - 1, cy].Type))
+                            {
+                                sm |= 2;
+                            }
+
                             int bt = (int)_cellCache[cx, cy - 1].Type;
-                            if (MapManager.IsRoundableLoose((CellType)bt) || (bt < 32 || bt > 35)) sm |= 4;
-                            if (MapManager.IsRoundableLoose(_cellCache[cx + 1, cy].Type)) sm |= 8;
+                            if (MapManager.IsRoundableLoose((CellType)bt) || (bt < 32 || bt > 35))
+                            {
+                                sm |= 4;
+                            }
+
+                            if (MapManager.IsRoundableLoose(_cellCache[cx + 1, cy].Type))
+                            {
+                                sm |= 8;
+                            }
+
                             _cellSameCatMasks[x, y] = sm;
                         }
                     }
@@ -1244,21 +1433,44 @@ namespace Fodinae.Scripts.World
                                 {
                                     byte m = 0;
                                     if (_cellCache[cx - 1, cy].HasTileGroup && _cellCache[cx - 1, cy].TileGroupId == data.TileGroupId)
+                                    {
                                         m |= 1 << 0;
+                                    }
+
                                     if (_cellCache[cx - 1, cy - 1].HasTileGroup && _cellCache[cx - 1, cy - 1].TileGroupId == data.TileGroupId)
+                                    {
                                         m |= 1 << 1;
+                                    }
+
                                     if (_cellCache[cx, cy - 1].HasTileGroup && _cellCache[cx, cy - 1].TileGroupId == data.TileGroupId)
+                                    {
                                         m |= 1 << 2;
+                                    }
+
                                     if (_cellCache[cx + 1, cy - 1].HasTileGroup && _cellCache[cx + 1, cy - 1].TileGroupId == data.TileGroupId)
+                                    {
                                         m |= 1 << 3;
+                                    }
+
                                     if (_cellCache[cx + 1, cy].HasTileGroup && _cellCache[cx + 1, cy].TileGroupId == data.TileGroupId)
+                                    {
                                         m |= 1 << 4;
+                                    }
+
                                     if (_cellCache[cx + 1, cy + 1].HasTileGroup && _cellCache[cx + 1, cy + 1].TileGroupId == data.TileGroupId)
+                                    {
                                         m |= 1 << 5;
+                                    }
+
                                     if (_cellCache[cx, cy + 1].HasTileGroup && _cellCache[cx, cy + 1].TileGroupId == data.TileGroupId)
+                                    {
                                         m |= 1 << 6;
+                                    }
+
                                     if (_cellCache[cx - 1, cy + 1].HasTileGroup && _cellCache[cx - 1, cy + 1].TileGroupId == data.TileGroupId)
+                                    {
                                         m |= 1 << 7;
+                                    }
 
                                     _cellTilingDescriptors[x, y] = TileBitmaskConverter.GetDescriptor(m);
                                 }
@@ -1269,24 +1481,68 @@ namespace Fodinae.Scripts.World
 
                                 byte rm = 0;
                                 bool isR = false;
-                                if (_cellCache[cx, cy + 1].ReliefGroup >= data.ReliefGroup) { rm |= 1; }
-                                else { isR = true; }
-                                if (_cellCache[cx - 1, cy].ReliefGroup >= data.ReliefGroup) { rm |= 2; }
-                                else { isR = true; }
-                                if (_cellCache[cx, cy - 1].ReliefGroup >= data.ReliefGroup) { rm |= 4; }
-                                else { isR = true; }
-                                if (_cellCache[cx + 1, cy].ReliefGroup >= data.ReliefGroup) { rm |= 8; }
-                                else { isR = true; }
+                                if (_cellCache[cx, cy + 1].ReliefGroup >= data.ReliefGroup)
+                                {
+                                    rm |= 1;
+                                }
+                                else
+                                {
+                                    isR = true;
+                                }
+
+                                if (_cellCache[cx - 1, cy].ReliefGroup >= data.ReliefGroup)
+                                {
+                                    rm |= 2;
+                                }
+                                else
+                                {
+                                    isR = true;
+                                }
+
+                                if (_cellCache[cx, cy - 1].ReliefGroup >= data.ReliefGroup)
+                                {
+                                    rm |= 4;
+                                }
+                                else
+                                {
+                                    isR = true;
+                                }
+
+                                if (_cellCache[cx + 1, cy].ReliefGroup >= data.ReliefGroup)
+                                {
+                                    rm |= 8;
+                                }
+                                else
+                                {
+                                    isR = true;
+                                }
+
                                 _cellReliefMasks[x, y] = rm;
                                 _cellIsRelief[x, y] = isR;
 
                                 var mmForCat = MapManager.Instance;
                                 byte sm = 0;
-                                if (MapManager.IsRoundableLoose(_cellCache[cx, cy + 1].Type)) sm |= 1;
-                                if (MapManager.IsRoundableLoose(_cellCache[cx - 1, cy].Type)) sm |= 2;
+                                if (MapManager.IsRoundableLoose(_cellCache[cx, cy + 1].Type))
+                                {
+                                    sm |= 1;
+                                }
+
+                                if (MapManager.IsRoundableLoose(_cellCache[cx - 1, cy].Type))
+                                {
+                                    sm |= 2;
+                                }
+
                                 int bt = (int)_cellCache[cx, cy - 1].Type;
-                                if (MapManager.IsRoundableLoose((CellType)bt) || (bt < 32 || bt > 35)) sm |= 4;
-                                if (MapManager.IsRoundableLoose(_cellCache[cx + 1, cy].Type)) sm |= 8;
+                                if (MapManager.IsRoundableLoose((CellType)bt) || (bt < 32 || bt > 35))
+                                {
+                                    sm |= 4;
+                                }
+
+                                if (MapManager.IsRoundableLoose(_cellCache[cx + 1, cy].Type))
+                                {
+                                    sm |= 8;
+                                }
+
                                 _cellSameCatMasks[x, y] = sm;
                             }
                         }
@@ -1310,16 +1566,35 @@ namespace Fodinae.Scripts.World
 
             // Determine border range (stale entries not overwritten by scroll)
             int xStart = 0, xLen = 0, yStart = 0, yLen = 0;
-            if (dx > 0) { xStart = _meshWidth - dx; xLen = dx; }
-            else if (dx < 0) { xStart = 0; xLen = -dx; }
+            if (dx > 0)
+            {
+                xStart = _meshWidth - dx;
+                xLen = dx;
+            }
+            else if (dx < 0)
+            {
+                xStart = 0;
+                xLen = -dx;
+            }
 
-            if (dy > 0) { yStart = _meshHeight - dy; yLen = dy; }
-            else if (dy < 0) { yStart = 0; yLen = -dy; }
+            if (dy > 0)
+            {
+                yStart = _meshHeight - dy;
+                yLen = dy;
+            }
+            else if (dy < 0)
+            {
+                yStart = 0;
+                yLen = -dy;
+            }
 
             bool hasXBorder = xLen > 0;
             bool hasYBorder = yLen > 0;
 
-            if (!hasXBorder && !hasYBorder) { return; }
+            if (!hasXBorder && !hasYBorder)
+            {
+                return;
+            }
 
             // Phase 1+2: Serial scan of border cells only (border is small — no Parallel.For overhead needed)
             var frontier = _fbpwFrontier;
@@ -1358,18 +1633,30 @@ namespace Fodinae.Scripts.World
             if (hasXBorder)
             {
                 for (int x = xStart; x < xStart + xLen; x++)
+                {
                     for (int y = 0; y < h; y++)
+                    {
                         if (_bgMapBuffer[x, y] == CellType.Unloaded)
+                        {
                             _bgMapBuffer[x, y] = CellType.Empty;
+                        }
+                    }
+                }
             }
 
             if (hasYBorder)
             {
                 int xSweepStart = hasXBorder ? xStart + xLen : 0;
                 for (int y = yStart; y < yStart + yLen; y++)
+                {
                     for (int x = xSweepStart; x < w; x++)
+                    {
                         if (_bgMapBuffer[x, y] == CellType.Unloaded)
+                        {
                             _bgMapBuffer[x, y] = CellType.Empty;
+                        }
+                    }
+                }
             }
         }
 
@@ -1384,7 +1671,10 @@ namespace Fodinae.Scripts.World
             if ((cell.Properties & CellConfigProperties.Passable) != 0)
             {
                 _bgMapBuffer[x, y] = cell.Type;
-                lock (_fbpwLock) { frontier.Add((x, y)); }
+                lock (_fbpwLock)
+                {
+                    frontier.Add((x, y));
+                }
             }
             else
             {
@@ -1396,11 +1686,17 @@ namespace Fodinae.Scripts.World
                 {
                     for (int dx = -1; dx <= 1; dx++)
                     {
-                        if (dx == 0 && dy == 0) { continue; }
+                        if (dx == 0 && dy == 0)
+                        {
+                            continue;
+                        }
 
                         int nx = x + dx;
                         int ny = y + dy;
-                        if (nx < 0 || nx >= w || ny < 0 || ny >= h) { continue; }
+                        if (nx < 0 || nx >= w || ny < 0 || ny >= h)
+                        {
+                            continue;
+                        }
 
                         var n = _cellCache[nx + 1, ny + 1];
                         if ((n.Properties & CellConfigProperties.Passable) != 0)
@@ -1438,7 +1734,10 @@ namespace Fodinae.Scripts.World
                     }
 
                     _bgMapBuffer[x, y] = mostFrequent;
-                    lock (_fbpwLock) { frontier.Add((x, y)); }
+                    lock (_fbpwLock)
+                    {
+                        frontier.Add((x, y));
+                    }
                 }
             }
         }
@@ -1464,7 +1763,10 @@ namespace Fodinae.Scripts.World
         /// </summary>
         private void FBPWPropagate(List<(int, int)> frontier, bool useParallel = false)
         {
-            if (frontier.Count == 0) { return; }
+            if (frontier.Count == 0)
+            {
+                return;
+            }
 
             int w = _meshWidth, h = _meshHeight;
 
@@ -1495,14 +1797,23 @@ namespace Fodinae.Scripts.World
                             {
                                 for (int dx = -1; dx <= 1; dx++)
                                 {
-                                    if (dx == 0 && dy == 0) { continue; }
+                                    if (dx == 0 && dy == 0)
+                                    {
+                                        continue;
+                                    }
 
                                     int nx = x + dx;
                                     int ny = y + dy;
-                                    if (nx < 0 || nx >= w || ny < 0 || ny >= h) { continue; }
+                                    if (nx < 0 || nx >= w || ny < 0 || ny >= h)
+                                    {
+                                        continue;
+                                    }
 
                                     // Skip cells already filled (not Unloaded)
-                                    if (_bgMapBuffer[nx, ny] != CellType.Unloaded) { continue; }
+                                    if (_bgMapBuffer[nx, ny] != CellType.Unloaded)
+                                    {
+                                        continue;
+                                    }
 
                                     // Atomically claim this cell for the current wave via generation barrier
                                     int idx = nx + (ny * w);
@@ -1522,7 +1833,10 @@ namespace Fodinae.Scripts.World
                         {
                             if (local.Count > 0)
                             {
-                                lock (_fbpwLock) { _fbpwNextFrontier.AddRange(local); }
+                                lock (_fbpwLock)
+                                {
+                                    _fbpwNextFrontier.AddRange(local);
+                                }
                             }
                         });
                 }
@@ -1536,13 +1850,22 @@ namespace Fodinae.Scripts.World
                         {
                             for (int dx = -1; dx <= 1; dx++)
                             {
-                                if (dx == 0 && dy == 0) { continue; }
+                                if (dx == 0 && dy == 0)
+                                {
+                                    continue;
+                                }
 
                                 int nx = x + dx;
                                 int ny = y + dy;
-                                if (nx < 0 || nx >= w || ny < 0 || ny >= h) { continue; }
+                                if (nx < 0 || nx >= w || ny < 0 || ny >= h)
+                                {
+                                    continue;
+                                }
 
-                                if (_bgMapBuffer[nx, ny] != CellType.Unloaded) { continue; }
+                                if (_bgMapBuffer[nx, ny] != CellType.Unloaded)
+                                {
+                                    continue;
+                                }
 
                                 int idx = nx + (ny * w);
                                 if (Interlocked.CompareExchange(ref _fbpwGeneration[idx], gen, gen - 1) != gen - 1)
@@ -1614,6 +1937,7 @@ namespace Fodinae.Scripts.World
                     _materials[i].SetTexture("_BaseMap", atlasTex);
                     _materials[i].SetFloat("_SimpleGraphics", _targetSimpleGraphics);
                     _materials[i].SetFloat("_UseLight2D", _targetUseLight2D);
+
                     // _LooseRockRoundRadius removed — rounding now uses UNION formulation
                 }
 
@@ -1655,7 +1979,7 @@ namespace Fodinae.Scripts.World
                 float gridX = minX + x;
                 for (int y = 0; y < mh; y++)
                 {
-                    int cellBase = colBase + y * 8;
+                    int cellBase = colBase + (y * 8);
                     float unityY = minY + y;
                     int serverY = CoordinateUtils.UnityToServerY((int)unityY, worldHeight);
                     Vector4 uv3Base = new Vector4(gridX, serverY, 0, 0);
@@ -1710,7 +2034,7 @@ namespace Fodinae.Scripts.World
                 {
                     for (int x = 0; x < mw; x++)
                     {
-                        int vIdx = (x * mh + y) * 8;
+                        int vIdx = ((x * mh) + y) * 8;
                         int gridX = minX + x;
                         int unityY = minY + y;
                         FillQuadData(x, y, gridX, unityY, worldWidth, worldHeight, true, ref vIdx, atlases);
@@ -1725,7 +2049,7 @@ namespace Fodinae.Scripts.World
                 {
                     for (int x = 0; x < mw; x++)
                     {
-                        int vIdx = (x * mh + y) * 8;
+                        int vIdx = ((x * mh) + y) * 8;
                         int gridX = minX + x;
                         int unityY = minY + y;
                         FillQuadData(x, y, gridX, unityY, worldWidth, worldHeight, true, ref vIdx, atlases);
@@ -1756,11 +2080,14 @@ namespace Fodinae.Scripts.World
         /// </summary>
         private void ScrollVertexBuffer(int dx, int dy)
         {
-            if (dx == 0 && dy == 0) return;
+            if (dx == 0 && dy == 0)
+            {
+                return;
+            }
 
             int mw = _meshWidth;
             int mh = _meshHeight;
-            int stride = 8;
+            const int stride = 8;
             int rowStride = mh * stride;
             Vector3 posOffset = new Vector3(-dx * _cellSize, -dy * _cellSize, 0);
 
@@ -1781,8 +2108,8 @@ namespace Fodinae.Scripts.World
                     {
                         for (int y = 0; y < mh - dy; y++)
                         {
-                            int src = srcBase + (y + dy) * stride;
-                            int dst = dstBase + y * stride;
+                            int src = srcBase + ((y + dy) * stride);
+                            int dst = dstBase + (y * stride);
                             for (int v = 0; v < stride; v++)
                             {
                                 TerrainVertex vert = _vertexBuffer[src + v];
@@ -1795,8 +2122,8 @@ namespace Fodinae.Scripts.World
                     {
                         for (int y = mh - 1; y >= -dy; y--)
                         {
-                            int src = srcBase + (y + dy) * stride;
-                            int dst = dstBase + y * stride;
+                            int src = srcBase + ((y + dy) * stride);
+                            int dst = dstBase + (y * stride);
                             for (int v = 0; v < stride; v++)
                             {
                                 TerrainVertex vert = _vertexBuffer[src + v];
@@ -1809,8 +2136,8 @@ namespace Fodinae.Scripts.World
                     {
                         for (int y = 0; y < mh; y++)
                         {
-                            int src = srcBase + y * stride;
-                            int dst = dstBase + y * stride;
+                            int src = srcBase + (y * stride);
+                            int dst = dstBase + (y * stride);
                             for (int v = 0; v < stride; v++)
                             {
                                 TerrainVertex vert = _vertexBuffer[src + v];
@@ -1832,8 +2159,8 @@ namespace Fodinae.Scripts.World
                     {
                         for (int y = 0; y < mh - dy; y++)
                         {
-                            int src = srcBase + (y + dy) * stride;
-                            int dst = dstBase + y * stride;
+                            int src = srcBase + ((y + dy) * stride);
+                            int dst = dstBase + (y * stride);
                             for (int v = 0; v < stride; v++)
                             {
                                 TerrainVertex vert = _vertexBuffer[src + v];
@@ -1846,8 +2173,8 @@ namespace Fodinae.Scripts.World
                     {
                         for (int y = mh - 1; y >= -dy; y--)
                         {
-                            int src = srcBase + (y + dy) * stride;
-                            int dst = dstBase + y * stride;
+                            int src = srcBase + ((y + dy) * stride);
+                            int dst = dstBase + (y * stride);
                             for (int v = 0; v < stride; v++)
                             {
                                 TerrainVertex vert = _vertexBuffer[src + v];
@@ -1860,8 +2187,8 @@ namespace Fodinae.Scripts.World
                     {
                         for (int y = 0; y < mh; y++)
                         {
-                            int src = srcBase + y * stride;
-                            int dst = dstBase + y * stride;
+                            int src = srcBase + (y * stride);
+                            int dst = dstBase + (y * stride);
                             for (int v = 0; v < stride; v++)
                             {
                                 TerrainVertex vert = _vertexBuffer[src + v];
@@ -1882,8 +2209,8 @@ namespace Fodinae.Scripts.World
                     {
                         for (int y = 0; y < mh - dy; y++)
                         {
-                            int src = baseX + (y + dy) * stride;
-                            int dst = baseX + y * stride;
+                            int src = baseX + ((y + dy) * stride);
+                            int dst = baseX + (y * stride);
                             for (int v = 0; v < stride; v++)
                             {
                                 TerrainVertex vert = _vertexBuffer[src + v];
@@ -1896,8 +2223,8 @@ namespace Fodinae.Scripts.World
                     {
                         for (int y = mh - 1; y >= -dy; y--)
                         {
-                            int src = baseX + (y + dy) * stride;
-                            int dst = baseX + y * stride;
+                            int src = baseX + ((y + dy) * stride);
+                            int dst = baseX + (y * stride);
                             for (int v = 0; v < stride; v++)
                             {
                                 TerrainVertex vert = _vertexBuffer[src + v];
@@ -1922,7 +2249,10 @@ namespace Fodinae.Scripts.World
         {
             var mm = MapManager.Instance;
             var mapStorage = MapStorage.Instance;
-            if (mm == null || mapStorage == null || !mapStorage.IsReady) return;
+            if (mm == null || mapStorage == null || !mapStorage.IsReady)
+            {
+                return;
+            }
 
             int worldWidth = mm.WorldWidth;
             int worldHeight = mm.WorldHeight;
@@ -1942,12 +2272,16 @@ namespace Fodinae.Scripts.World
                     if (dy > 0)
                     {
                         for (int y = 0; y < _cacheHeight - dy; y++)
+                        {
                             _cellCache[x, y] = _cellCache[srcX, y + dy];
+                        }
                     }
                     else if (dy < 0)
                     {
                         for (int y = _cacheHeight - 1; y >= -dy; y--)
+                        {
                             _cellCache[x, y] = _cellCache[srcX, y + dy];
+                        }
                     }
                     else
                     {
@@ -2202,13 +2536,17 @@ namespace Fodinae.Scripts.World
             else
             {
                 for (int dy = -1; dy <= 1 && glowZ == 0f; dy++)
+                {
                     for (int dx = -1; dx <= 1 && glowZ == 0f; dx++)
+                    {
                         if ((dx != 0 || dy != 0) && Array.IndexOf(GlowingCellTypes, _cellCache[cx + dx, cy + dy].Type) >= 0)
                         {
                             glowX = gridX + dx + 0.5f;
                             glowY = unityY + dy + 0.5f;
                             glowZ = 1f;
                         }
+                    }
+                }
             }
 
             CellType cellType = isBackground ? _bgMapBuffer[x, y] : cellFgType;
@@ -2246,7 +2584,7 @@ namespace Fodinae.Scripts.World
 
             int descriptor = isSameCell ? _cellTilingDescriptors[x, y] : 0;
             bool isOffWorld = gridX < 0 || gridX >= worldWidth || unityY < 0 || unityY >= worldHeight;
-            float packedW = (data.HasTileGroup ? 1f : 0f);
+            float packedW = data.HasTileGroup ? 1f : 0f;
 
             if (data.HasTileGroup && descriptor != 0)
             {
@@ -2283,7 +2621,7 @@ namespace Fodinae.Scripts.World
             float animOffset = 0f;
             if (!useFallback && data.Animation == CellAnimationType.Blinking)
             {
-                uint seed = (uint)(gridX * 374761397 + serverY * 668265263);
+                uint seed = (uint)((gridX * 374761397) + (serverY * 668265263));
                 seed = (seed ^ (seed >> 13)) * 1274126177;
                 seed = seed ^ (seed >> 16);
                 animOffset = (seed % 6283) / 1000f;
@@ -2331,8 +2669,16 @@ namespace Fodinae.Scripts.World
             _vertexBuffer[vIdx + 3].UV5 = new Vector4(textureType, isRelief ? reliefMask : sv01, _localUVsBuffer[3].x, _localUVsBuffer[3].y);
 
             float glowFlags = 0f;
-            if (glowZ > 0.5f) glowFlags += 1f;
-            if (!isBackground && MapManager.IsRoundableLoose(cellFgType)) glowFlags += 2f;
+            if (glowZ > 0.5f)
+            {
+                glowFlags += 1f;
+            }
+
+            if (!isBackground && MapManager.IsRoundableLoose(cellFgType))
+            {
+                glowFlags += 2f;
+            }
+
             float sameCatMask = isSameCell ? _cellSameCatMasks[x, y] : 0f;
             Vector4 glowVec = new Vector4(glowX, glowY, glowFlags, sameCatMask);
             _vertexBuffer[vIdx + 0].UV6 = glowVec;
@@ -2417,11 +2763,17 @@ namespace Fodinae.Scripts.World
                         {
                             for (int dx = -1; dx <= 1; dx++)
                             {
-                                if (dx == 0 && dy == 0) { continue; }
+                                if (dx == 0 && dy == 0)
+                                {
+                                    continue;
+                                }
 
                                 int nx = x + dx;
                                 int ny = y + dy;
-                                if (nx < 0 || nx >= w || ny < 0 || ny >= h) { continue; }
+                                if (nx < 0 || nx >= w || ny < 0 || ny >= h)
+                                {
+                                    continue;
+                                }
 
                                 var n = _cellCache[nx + 1, ny + 1];
                                 if ((n.Properties & CellConfigProperties.Passable) != 0)
@@ -2466,7 +2818,10 @@ namespace Fodinae.Scripts.World
 
                 if (localFrontier.Count > 0)
                 {
-                    lock (_fbpwLock) { frontier.AddRange(localFrontier); }
+                    lock (_fbpwLock)
+                    {
+                        frontier.AddRange(localFrontier);
+                    }
                 }
             });
 
@@ -2543,8 +2898,13 @@ namespace Fodinae.Scripts.World
         {
             _targetSimpleGraphics = enabled ? 1f : 0f;
             foreach (var mat in _materials)
+            {
                 if (mat != null)
+                {
                     mat.SetFloat("_SimpleGraphics", _targetSimpleGraphics);
+                }
+            }
+
             PlayerPrefs.SetInt("SimpleGraphics", enabled ? 1 : 0);
             PlayerPrefs.Save();
         }
@@ -2553,8 +2913,13 @@ namespace Fodinae.Scripts.World
         {
             _targetUseLight2D = enabled ? 1f : 0f;
             foreach (var mat in _materials)
+            {
                 if (mat != null)
+                {
                     mat.SetFloat("_UseLight2D", _targetUseLight2D);
+                }
+            }
+
             PlayerPrefs.SetInt("UseLight2D", enabled ? 1 : 0);
             PlayerPrefs.Save();
         }

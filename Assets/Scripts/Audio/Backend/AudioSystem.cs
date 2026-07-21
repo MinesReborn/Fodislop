@@ -141,7 +141,7 @@ namespace Fodinae.Scripts.Audio.Backend
 
         private void Update()
         {
-            _backend?.Update(Time.unscaledDeltaTime);
+            _backend?.Update();
         }
     }
 }

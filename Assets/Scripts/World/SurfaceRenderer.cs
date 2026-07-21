@@ -8,19 +8,25 @@ namespace Fodinae.Scripts.World
     public class SurfaceRenderer : MonoBehaviour
     {
         [Header("Materials")]
-        [SerializeField] private Material _transitMaterial;
-        [SerializeField] private Material _perspectiveMaterial;
+        [SerializeField]
+        private Material _transitMaterial;
+        [SerializeField]
+        private Material _perspectiveMaterial;
 
         [Header("Settings")]
-        [SerializeField] private string _transitTexturePath = "transit";
-        [SerializeField] private string _perspectiveTexturePath = "perspective";
-        [SerializeField] private int _transitSortingOrder = -501;
-        [SerializeField] private int _perspectiveSortingOrder = -502;
+        [SerializeField]
+        private string _transitTexturePath = "transit";
+        [SerializeField]
+        private string _perspectiveTexturePath = "perspective";
+        [SerializeField]
+        private int _transitSortingOrder = -501;
+        [SerializeField]
+        private int _perspectiveSortingOrder = -502;
 
-        private const float TRANSIT_HEIGHT = 2f;
-        private const float PERSPECTIVE_HEIGHT = 2f;
-        private const float TILE_SIZE = 32f;
-        private const float PERSPECTIVE_OFFSET = 32f;
+        private const float TransitHeight = 2f;
+        private const float PerspectiveHeight = 2f;
+        private const float TileSize = 32f;
+        private const float PerspectiveOffset = 32f;
 
         private Mesh _transitMesh;
         private Mesh _perspectiveMesh;
@@ -38,7 +44,7 @@ namespace Fodinae.Scripts.World
         private Camera _mainCamera;
         private bool _texturesLoading;
 
-        private void Start()
+        protected void Start()
         {
             _mainCamera = Camera.main;
 
@@ -64,9 +70,16 @@ namespace Fodinae.Scripts.World
             _perspectiveMesh.triangles = Triangles;
             _perspectiveFilter.mesh = _perspectiveMesh;
 
-            // Create materials
-            if (_transitMaterial == null) _transitMaterial = CreateDefaultMaterial();
-            if (_perspectiveMaterial == null) _perspectiveMaterial = CreateDefaultMaterial();
+            if (_transitMaterial == null)
+            {
+                _transitMaterial = CreateDefaultMaterial();
+            }
+
+            if (_perspectiveMaterial == null)
+            {
+                _perspectiveMaterial = CreateDefaultMaterial();
+            }
+
             _transitRenderer.material = _transitMaterial;
             _perspectiveRenderer.material = _perspectiveMaterial;
 
@@ -85,16 +98,26 @@ namespace Fodinae.Scripts.World
 
         private async UniTaskVoid LoadTexturesAsync()
         {
-            if (_texturesLoading) return;
+            if (_texturesLoading)
+            {
+                return;
+            }
+
             _texturesLoading = true;
 
             try
             {
                 var transitTex = await ClientAssetLoader.Instance.GetTextureAsync(_transitTexturePath);
-                if (transitTex != null) _transitMaterial.mainTexture = transitTex;
+                if (transitTex != null)
+                {
+                    _transitMaterial.mainTexture = transitTex;
+                }
 
                 var persTex = await ClientAssetLoader.Instance.GetTextureAsync(_perspectiveTexturePath);
-                if (persTex != null) _perspectiveMaterial.mainTexture = persTex;
+                if (persTex != null)
+                {
+                    _perspectiveMaterial.mainTexture = persTex;
+                }
             }
             catch (Exception ex)
             {
@@ -106,11 +129,22 @@ namespace Fodinae.Scripts.World
             }
         }
 
-        private void LateUpdate()
+        protected void LateUpdate()
         {
-            if (_mainCamera == null) _mainCamera = Camera.main;
-            if (_mainCamera == null) return;
-            if (MapManager.Instance == null) return;
+            if (_mainCamera == null)
+            {
+                _mainCamera = Camera.main;
+            }
+
+            if (_mainCamera == null)
+            {
+                return;
+            }
+
+            if (MapManager.Instance == null)
+            {
+                return;
+            }
 
             int worldHeight = MapManager.Instance.WorldHeight;
             float camX = _mainCamera.transform.position.x;
@@ -126,8 +160,8 @@ namespace Fodinae.Scripts.World
 
         private void UpdateTransit(float left, float right, float baseY, float camX)
         {
-            float uLeft = -(left - Mathf.Floor(left / TILE_SIZE) * TILE_SIZE) / TILE_SIZE;
-            float uRight = uLeft + (left - right) / TILE_SIZE;
+            float uLeft = -(left - (Mathf.Floor(left / TileSize) * TileSize)) / TileSize;
+            float uRight = uLeft + ((left - right) / TileSize);
 
             _uvTransit[0] = new Vector2(uLeft, 0f);
             _uvTransit[1] = new Vector2(uLeft, 1f);
@@ -135,9 +169,9 @@ namespace Fodinae.Scripts.World
             _uvTransit[3] = new Vector2(uRight, 1f);
 
             _verticesTransit[0] = new Vector3(left, baseY, 0f);
-            _verticesTransit[1] = new Vector3(left, baseY + TRANSIT_HEIGHT, 0f);
+            _verticesTransit[1] = new Vector3(left, baseY + TransitHeight, 0f);
             _verticesTransit[2] = new Vector3(right, baseY, 0f);
-            _verticesTransit[3] = new Vector3(right, baseY + TRANSIT_HEIGHT, 0f);
+            _verticesTransit[3] = new Vector3(right, baseY + TransitHeight, 0f);
 
             _transitMesh.vertices = _verticesTransit;
             _transitMesh.uv = _uvTransit;
@@ -147,23 +181,23 @@ namespace Fodinae.Scripts.World
         private void UpdatePerspective(float left, float right, float baseY, float camX)
         {
             const float persTileSize = 5f;
-            float uLeft = -(left - Mathf.Floor(left / persTileSize) * persTileSize) / persTileSize;
-            float uRight = uLeft + (left - right) / persTileSize;
+            float uLeft = -(left - (Mathf.Floor(left / persTileSize) * persTileSize)) / persTileSize;
+            float uRight = uLeft + ((left - right) / persTileSize);
 
             float uMid = 0.5f * (uLeft + uRight);
             float uWidth = uRight - uLeft;
-            float persLeft = uMid - 0.5f * uWidth;
-            float persRight = uMid + 0.5f * uWidth;
+            float persLeft = uMid - (0.5f * uWidth);
+            float persRight = uMid + (0.5f * uWidth);
 
             _uvPers[0] = new Vector2(persLeft, 0f);
             _uvPers[1] = new Vector2(persLeft, 1f);
             _uvPers[2] = new Vector2(persRight, 0f);
             _uvPers[3] = new Vector2(persRight, 1f);
 
-            _verticesPers[0] = new Vector3(left, baseY + TRANSIT_HEIGHT, 0f);
-            _verticesPers[1] = new Vector3(left, baseY + TRANSIT_HEIGHT + PERSPECTIVE_HEIGHT, 0f);
-            _verticesPers[2] = new Vector3(right, baseY + TRANSIT_HEIGHT, 0f);
-            _verticesPers[3] = new Vector3(right, baseY + TRANSIT_HEIGHT + PERSPECTIVE_HEIGHT, 0f);
+            _verticesPers[0] = new Vector3(left, baseY + TransitHeight, 0f);
+            _verticesPers[1] = new Vector3(left, baseY + TransitHeight + PerspectiveHeight, 0f);
+            _verticesPers[2] = new Vector3(right, baseY + TransitHeight, 0f);
+            _verticesPers[3] = new Vector3(right, baseY + TransitHeight + PerspectiveHeight, 0f);
 
             _perspectiveMesh.vertices = _verticesPers;
             _perspectiveMesh.uv = _uvPers;
