@@ -9,12 +9,14 @@ namespace Fodinae.Scripts.Game.Managers
 {
     public class PackManager : SingletonMonoBehaviour<PackManager>
     {
+        private const string TAG = "[PackManager]";
         private Dictionary<Vector2Int, Pack> _packs = new();
 
         public void AddOrUpdatePack(ushort x, ushort y, PackType packType, byte variant, byte linkedClan)
         {
             if (MapManager.Instance == null)
             {
+                Debug.LogWarning($"{TAG} MapManager not ready, skipping pack at ({x},{y})");
                 return;
             }
 
@@ -41,10 +43,15 @@ namespace Fodinae.Scripts.Game.Managers
                 Destroy(pack.gameObject);
                 _packs.Remove(pos);
             }
+            else
+            {
+                Debug.LogWarning($"{TAG} RemovePack: no pack at ({x},{y})");
+            }
         }
 
         public void ClearAllPacks()
         {
+            int count = _packs.Count;
             foreach (var pack in _packs.Values)
             {
                 if (pack != null)
@@ -54,6 +61,7 @@ namespace Fodinae.Scripts.Game.Managers
             }
 
             _packs.Clear();
+            Debug.Log($"{TAG} Cleared {count} packs");
         }
     }
 }

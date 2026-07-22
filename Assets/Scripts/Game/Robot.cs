@@ -9,6 +9,8 @@ namespace Fodinae.Scripts.Game
 {
     public class Robot : MonoBehaviour
     {
+        private const string TAG = "[Robot]";
+
         [SerializeField]
         private uint _botId;
         [SerializeField]
@@ -299,6 +301,7 @@ namespace Fodinae.Scripts.Game
         {
             _botId = botId;
             RobotManager.Instance?.RegisterRobot(this);
+            Debug.Log($"{TAG} Initialized botId={botId} (local={IsLocalPlayer})");
 
             _isMetadataLoaded = false;
             if (_spriteRenderer != null)
@@ -325,6 +328,7 @@ namespace Fodinae.Scripts.Game
             _skinPath = skinPath;
             _tailPath = tailPath;
             _isMetadataLoaded = true;
+            Debug.Log($"{TAG} Metadata set for bot {_botId}: name='{nickname}', skin='{skinPath}', tail='{tailPath}', clan={clanid}");
 
             if (_spriteRenderer != null)
             {
@@ -399,6 +403,7 @@ namespace Fodinae.Scripts.Game
             var loader = ClientAssetLoader.Instance;
             if (loader == null)
             {
+                Debug.LogWarning($"{TAG} ClientAssetLoader not available for skin load on bot {_botId}");
                 return;
             }
 
@@ -407,6 +412,8 @@ namespace Fodinae.Scripts.Game
             {
                 return;
             }
+
+            Debug.Log($"{TAG} Skin loaded for bot {_botId}: {_skinPath}");
 
             if (_skinSprite != null)
             {
@@ -428,6 +435,7 @@ namespace Fodinae.Scripts.Game
             var loader = ClientAssetLoader.Instance;
             if (loader == null)
             {
+                Debug.LogWarning($"{TAG} ClientAssetLoader not available for tail load on bot {_botId}");
                 return;
             }
 
@@ -439,10 +447,12 @@ namespace Fodinae.Scripts.Game
 
             if (tailTexture != null)
             {
+                Debug.Log($"{TAG} Tail loaded for bot {_botId}: {_tailPath}");
                 CreateTentacles(tailTexture);
             }
             else
             {
+                Debug.LogWarning($"{TAG} Tail texture not found for bot {_botId}: {_tailPath}");
                 ClearTentacles();
             }
         }
@@ -457,6 +467,7 @@ namespace Fodinae.Scripts.Game
             var loader = ClientAssetLoader.Instance;
             if (loader == null)
             {
+                Debug.LogWarning($"{TAG} ClientAssetLoader not available for clan load on bot {_botId}");
                 return;
             }
 
@@ -465,6 +476,8 @@ namespace Fodinae.Scripts.Game
             {
                 return;
             }
+
+            Debug.Log($"{TAG} Clan badge loaded for bot {_botId}: clan={_clanId}");
 
             if (_clanSprite != null)
             {
@@ -517,6 +530,7 @@ namespace Fodinae.Scripts.Game
 
         protected void OnDestroy()
         {
+            Debug.Log($"{TAG} Destroying bot {_botId}");
             _cts?.Cancel();
             _cts?.Dispose();
 

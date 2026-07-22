@@ -26,7 +26,7 @@ namespace Fodinae.Scripts
             _doc = GetComponent<UIDocument>();
             if (_doc == null)
             {
-                Debug.LogError("UIDocument component not found on MainMenu GameObject");
+                Debug.LogError("[MainMenu] UIDocument component not found on MainMenu GameObject");
                 return;
             }
 
@@ -38,7 +38,7 @@ namespace Fodinae.Scripts
             var mainMenuUXML = Resources.Load<VisualTreeAsset>("UI/MainMenu");
             if (mainMenuUXML == null)
             {
-                Debug.LogError("MainMenu.uxml не найден в Resources/UI/");
+                Debug.LogError("[MainMenu] MainMenu.uxml not found in Resources/UI/");
                 return;
             }
 
@@ -98,7 +98,7 @@ namespace Fodinae.Scripts
             if (loaderTexture == null)
             {
                 loaderTexture = CreateSimpleLoaderTexture();
-                Debug.LogWarning("Картинка не найдена, используется заглушка");
+                Debug.LogWarning("[MainMenu] Loader texture not assigned, using placeholder");
             }
 
             image.image = loaderTexture;
@@ -110,7 +110,7 @@ namespace Fodinae.Scripts
             root.Add(_loaderContainer);
             _hasShownLoader = true;
 
-            Debug.Log("✅ Лоадер показан");
+            Debug.Log("[MainMenu] Loader shown");
         }
 
         private static Texture2D CreateSimpleLoaderTexture()
@@ -160,7 +160,7 @@ namespace Fodinae.Scripts
             {
                 _loaderContainer.RemoveFromHierarchy();
                 _hasShownLoader = false;
-                Debug.Log("✅ Лоадер скрыт");
+                Debug.Log("[MainMenu] Loader hidden");
             }
         }
 
@@ -169,13 +169,13 @@ namespace Fodinae.Scripts
             if (_mainMenuContainer != null)
             {
                 _mainMenuContainer.style.display = DisplayStyle.None;
-                Debug.Log("✅ Меню скрыто");
+                Debug.Log("[MainMenu] Menu hidden");
             }
         }
 
         private void OnPlayButtonClicked()
         {
-            Debug.Log("🔘 Нажата кнопка Play");
+            Debug.Log("[MainMenu] Play button clicked");
 
             RobotManager.ShowDebugVisuals = true;
 
@@ -195,7 +195,7 @@ namespace Fodinae.Scripts
 
         private void OnOldClientButtonClicked()
         {
-            Debug.Log("🔘 Старый клиент");
+            Debug.Log("[MainMenu] Old client button clicked");
             RobotManager.ShowDebugVisuals = true;
             HideLoader();
             HideMenu();

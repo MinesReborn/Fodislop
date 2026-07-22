@@ -106,9 +106,6 @@ namespace Fodinae.Scripts.Game.Managers
                 int widthChunks = (width + chunkSize - 1) / chunkSize;
                 int heightChunks = (height + chunkSize - 1) / chunkSize;
 
-                Debug.Log($"Calculating chunks: width={width}, height={height}, chunkSize={chunkSize}");
-                Debug.Log($"Resulting chunks: {widthChunks}x{heightChunks} = {widthChunks * heightChunks} total chunks");
-
                 // Validate chunk calculations - CRITICAL FIX
                 if (widthChunks <= 0 || heightChunks <= 0)
                 {
@@ -134,7 +131,6 @@ namespace Fodinae.Scripts.Game.Managers
                     try
                     {
                         Directory.CreateDirectory(directory);
-                        Debug.Log($"Created directory: {directory}");
                     }
                     catch (System.Exception dirEx)
                     {
@@ -145,8 +141,6 @@ namespace Fodinae.Scripts.Game.Managers
                 // Create the WorldLayer
                 try
                 {
-                    Debug.Log($"[MapStorage] Creating WorldLayer with parameters: path={path}, widthChunks={widthChunks}, heightChunks={heightChunks}, chunkSize={chunkSize}");
-
                     // CRITICAL FIX: Ensure proper parameter order and validation
                     // WorldLayer constructor expects: path, widthChunks, heightChunks, chunkSize
                     _cellLayer = new WorldLayer<CellType>(path, widthChunks, heightChunks, chunkSize);
@@ -159,9 +153,6 @@ namespace Fodinae.Scripts.Game.Managers
                         return;
                     }
 
-                    Debug.Log($"[MapStorage] WorldLayer created successfully");
-                    Debug.Log($"[MapStorage] WorldLayer verification: WidthChunks={_cellLayer.WidthChunks}, HeightChunks={_cellLayer.HeightChunks}, ChunkSize={_cellLayer.ChunkSize}");
-
                     // Additional verification - CRITICAL CHECK
                     if (_cellLayer.WidthChunks != widthChunks || _cellLayer.HeightChunks != heightChunks)
                     {
@@ -172,7 +163,6 @@ namespace Fodinae.Scripts.Game.Managers
                     try
                     {
                         var testCell = _cellLayer[0, 0];
-                        Debug.Log($"[MapStorage] WorldLayer basic cell access test passed: {testCell}");
                     }
                     catch (System.Exception cellTestEx)
                     {
@@ -185,15 +175,9 @@ namespace Fodinae.Scripts.Game.Managers
                 }
                 catch (System.Exception worldLayerEx)
                 {
-                    Debug.LogError($"[MapStorage] CRITICAL: Exception while creating WorldLayer: {worldLayerEx.Message}");
-                    Debug.LogError($"[MapStorage] Exception type: {worldLayerEx.GetType().Name}");
-                    Debug.LogError($"[MapStorage] Stack trace: {worldLayerEx.StackTrace}");
-
                     // Attempt to identify specific issue
                     if (worldLayerEx is System.IO.IOException)
                     {
-                        Debug.LogError("[MapStorage] This is likely an I/O issue (disk full, permission, file in use)");
-
                         // Try fallback path if permission error
                         TryCreateFallbackWorld(worldCodeName, width, height);
                     }
@@ -222,19 +206,14 @@ namespace Fodinae.Scripts.Game.Managers
                 // Final verification that everything is ready - CRITICAL CHECK
                 if (IsReady)
                 {
-                    Debug.Log($"[MapStorage] VERIFICATION: MapStorage is fully ready for terrain rendering");
-                    Debug.Log($"[MapStorage] Ready state: IsReady={IsReady}, IsInitialized={IsInitialized()}, _cellLayer={(_cellLayer != null ? "not null" : "NULL")}");
-
                     // CRITICAL: Log detailed _cellLayer information for debugging
                     if (_cellLayer != null)
                     {
-                        Debug.Log($"[MapStorage] _cellLayer details: WidthChunks={_cellLayer.WidthChunks}, HeightChunks={_cellLayer.HeightChunks}, ChunkSize={_cellLayer.ChunkSize}");
                     }
                 }
                 else
                 {
                     Debug.LogError($"[MapStorage] CRITICAL: MapStorage initialization completed but not ready for terrain rendering");
-                    Debug.LogError($"[MapStorage] This indicates a fundamental problem - terrain rendering will fail");
                     Debug.LogError($"[MapStorage] Ready state: IsReady={IsReady}, IsInitialized={IsInitialized()}, _cellLayer={(_cellLayer != null ? "not null" : "NULL")}");
 
                     // CRITICAL: If we got here, something is wrong with our initialization
@@ -303,8 +282,6 @@ namespace Fodinae.Scripts.Game.Managers
             catch (System.Exception ex)
             {
                 Debug.LogError($"[MapStorage] CRITICAL: Unexpected error while initializing world '{worldCodeName}': {ex.Message}");
-                Debug.LogError($"[MapStorage] Exception type: {ex.GetType().Name}");
-                Debug.LogError($"[MapStorage] Stack trace: {ex.StackTrace}");
                 Debug.LogError("[MapStorage] CRITICAL: Unknown error prevents terrain rendering");
 
                 TryEmergencyFallback(worldCodeName, width, height);

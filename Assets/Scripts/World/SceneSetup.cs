@@ -104,11 +104,11 @@ namespace Fodinae.Scripts.World
                     DontDestroyOnLoad(setupGO);
                 }
 
-                Debug.Log("WorldBackgroundSetup automatically created");
+                Debug.Log("[SceneSetup] WorldBackgroundSetup automatically created");
             }
             else
             {
-                Debug.Log("WorldBackgroundSetup already exists in scene");
+                Debug.Log("[SceneSetup] WorldBackgroundSetup already exists in scene");
             }
         }
     }

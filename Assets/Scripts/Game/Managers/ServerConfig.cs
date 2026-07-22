@@ -4,6 +4,7 @@ namespace Fodinae.Scripts.Game.Managers
 {
     public class ServerConfig : MonoBehaviour
     {
+        private const string TAG = "[ServerConfig]";
         private static ServerConfig _instance;
         public static ServerConfig Instance
         {
@@ -37,6 +38,7 @@ namespace Fodinae.Scripts.Game.Managers
 
             _instance = this;
             DontDestroyOnLoad(gameObject);
+            Debug.Log($"{TAG} Initialized: DigCooldown={DigCooldown}, MaxGlobalChat={MaxGlobalChatLength}, MaxLocalChat={MaxLocalChatLength}");
         }
     }
 }

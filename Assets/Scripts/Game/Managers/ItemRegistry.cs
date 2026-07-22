@@ -7,6 +7,7 @@ namespace Fodinae.Scripts.Game.Managers
 {
     public static class ItemRegistry
     {
+        private const string TAG = "[ItemRegistry]";
         private static readonly Dictionary<ItemType, Texture2D> _iconCache = new();
 
         public static string GetName(ItemType type) => type.ToString();
@@ -32,6 +33,7 @@ namespace Fodinae.Scripts.Game.Managers
 
             if (!File.Exists(path))
             {
+                Debug.LogWarning($"{TAG} Icon not found for {type} (searched {camelName}.png, {typeName.ToLowerInvariant()}.png)");
                 return null;
             }
 

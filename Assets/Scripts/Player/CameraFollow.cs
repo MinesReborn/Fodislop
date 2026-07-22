@@ -45,7 +45,7 @@ namespace Fodinae.Scripts.Player
             _camera = GetComponent<Camera>();
             if (_camera == null)
             {
-                Debug.LogError("CameraFollow: Camera component not found on this GameObject!");
+                Debug.LogError("[CameraFollow] Camera component not found on this GameObject!");
                 enabled = false;
                 return;
             }
@@ -67,7 +67,7 @@ namespace Fodinae.Scripts.Player
                 }
                 else
                 {
-                    Debug.LogWarning("CameraFollow: No target assigned and no PlayerMovementController found!");
+                    Debug.LogWarning("[CameraFollow] No target assigned and no PlayerMovementController found!");
                 }
             }
 
@@ -101,13 +101,13 @@ namespace Fodinae.Scripts.Player
 
             if (_camera == null)
             {
-                Debug.LogError("CameraFollow: Camera is null in HandleZoom!");
+                Debug.LogError("[CameraFollow] Camera is null in HandleZoom!");
                 return;
             }
 
             if (_scrollAction == null)
             {
-                Debug.LogError("CameraFollow: Scroll action is null in HandleZoom!");
+                Debug.LogError("[CameraFollow] Scroll action is null in HandleZoom!");
                 return;
             }
 
@@ -118,7 +118,7 @@ namespace Fodinae.Scripts.Player
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"CameraFollow: Error reading scroll input: {e.Message}");
+                Debug.LogError($"[CameraFollow] Error reading scroll input: {e.Message}");
                 return;
             }
 
@@ -172,7 +172,7 @@ namespace Fodinae.Scripts.Player
             }
             else
             {
-                Debug.LogError("CameraFollow: Cannot set zoom - camera is null!");
+                Debug.LogError("[CameraFollow] Cannot set zoom - camera is null!");
             }
         }
 

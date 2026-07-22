@@ -17,6 +17,7 @@ namespace Fodinae.Scripts.Audio.Backend
     [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Gracefully catch startup exceptions to prevent game crash.")]
     public sealed class AudioSystem : SingletonMonoBehaviour<AudioSystem>
     {
+        private const string TAG = "[AudioSystem]";
         private FmodAudioBackend _backend;
 
         public float GetBusVolume(AudioBusType type)
@@ -39,6 +40,7 @@ namespace Fodinae.Scripts.Audio.Backend
                 return await _backend.EnsureBankLoadedAsync(bankName);
             }
 
+            Debug.LogWarning($"{TAG} Cannot load bank '{bankName}': backend not initialized");
             return false;
         }
 
@@ -64,7 +66,13 @@ namespace Fodinae.Scripts.Audio.Backend
                 layer.Volume = overrideVolume.Value;
             }
 
-            return _backend?.CreateVoice(eventName, layer, worldPosition);
+            var handle = _backend?.CreateVoice(eventName, layer, worldPosition);
+            if (handle == null)
+            {
+                Debug.LogWarning($"{TAG} Failed to play '{eventName}': backend returned null");
+            }
+
+            return handle;
         }
 
         /// <summary>Воспроизвести 3D-событие с нативной привязкой FMOD к GameObject (позиция/поворот следуют автоматически в C++).</summary>
@@ -81,7 +89,13 @@ namespace Fodinae.Scripts.Audio.Backend
                 layer.Volume = overrideVolume.Value;
             }
 
-            return _backend?.CreateVoice(eventName, layer, null, targetGameObject);
+            var handle = _backend?.CreateVoice(eventName, layer, null, targetGameObject);
+            if (handle == null)
+            {
+                Debug.LogWarning($"{TAG} Failed to play attached '{eventName}': backend returned null");
+            }
+
+            return handle;
         }
 
         /// <summary>Воспроизвести FMOD Snapshot (например "snapshot:/Cave_Ambient").</summary>
@@ -92,7 +106,13 @@ namespace Fodinae.Scripts.Audio.Backend
                 return null;
             }
 
-            return _backend?.PlaySnapshot(snapshotPath);
+            var handle = _backend?.PlaySnapshot(snapshotPath);
+            if (handle == null)
+            {
+                Debug.LogWarning($"{TAG} Failed to play snapshot '{snapshotPath}': backend returned null");
+            }
+
+            return handle;
         }
 
         /// <summary>Установить значения глобального FMOD параметра в Studio (например "Depth", "Weather").</summary>

@@ -11,6 +11,7 @@ namespace Fodinae.Scripts.Game.Managers
 {
     public class ServerAudioEventManager : SingletonMonoBehaviour<ServerAudioEventManager>
     {
+        private const string TAG = "[ServerAudioEventManager]";
         private readonly List<ServerAudioEvent> _activeEffects = new();
 
         public void PlayEffect(AudioPacket packet)
@@ -23,12 +24,17 @@ namespace Fodinae.Scripts.Game.Managers
 
         public void ClearAllEffects()
         {
+            int count = _activeEffects.Count;
             foreach (var effect in _activeEffects)
             {
                 effect.Dispose();
             }
 
             _activeEffects.Clear();
+            if (count > 0)
+            {
+                Debug.Log($"{TAG} Cleared {count} active effects");
+            }
         }
 
         protected override void OnDestroyed()

@@ -9,6 +9,7 @@ namespace Fodinae.Scripts.Player
 {
     public class PlayerInteractionController : MonoBehaviour
     {
+        private const string TAG = "[PlayerInteraction]";
         private Camera _mainCamera;
 
         protected void Awake()

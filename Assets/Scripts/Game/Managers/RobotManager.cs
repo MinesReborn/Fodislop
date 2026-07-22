@@ -8,6 +8,8 @@ namespace Fodinae.Scripts.Game.Managers
 {
     public class RobotManager : SingletonMonoBehaviour<RobotManager>
     {
+        private const string TAG = "[RobotManager]";
+
         [SerializeField]
         private GameObject _robotPrefab;
 
@@ -21,7 +23,13 @@ namespace Fodinae.Scripts.Game.Managers
         {
             if (robot == null)
             {
+                Debug.LogWarning($"{TAG} RegisterRobot called with null robot");
                 return;
+            }
+
+            if (_robots.ContainsKey(robot.BotId))
+            {
+                Debug.LogWarning($"{TAG} Robot {robot.BotId} already registered, overwriting");
             }
 
             _robots[robot.BotId] = robot;
@@ -56,6 +64,7 @@ namespace Fodinae.Scripts.Game.Managers
             }
             else
             {
+                Debug.LogWarning($"{TAG} Robot prefab not assigned, creating empty GameObject for bot {botId}");
                 robotGo = new GameObject($"Robot_{botId}");
                 robotGo.transform.SetParent(transform);
                 robotGo.AddComponent<SpriteRenderer>();
@@ -92,10 +101,15 @@ namespace Fodinae.Scripts.Game.Managers
                 Destroy(robot.gameObject);
                 _robots.Remove(botId);
             }
+            else
+            {
+                Debug.LogWarning($"{TAG} RemoveRobot: bot {botId} not found");
+            }
         }
 
         public void ClearAllRobots()
         {
+            int cleared = 0;
             var keysToRemove = new List<uint>();
             foreach (var kvp in _robots)
             {
@@ -115,7 +129,10 @@ namespace Fodinae.Scripts.Game.Managers
             foreach (var key in keysToRemove)
             {
                 _robots.Remove(key);
+                cleared++;
             }
+
+            Debug.Log($"{TAG} Cleared {cleared} robots, kept {(_robots.ContainsKey(LocalPlayerBotId) ? "local player" : "none")}");
         }
 
         public void UnregisterRobot(uint botId, Robot instance)

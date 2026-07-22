@@ -81,7 +81,7 @@ namespace Fodinae.Scripts.World
                 var pos = trans.position;
                 pos.z = 0f;
                 trans.position = pos;
-                Debug.Log("WorldBackgroundSetup: Fixed Z position to 0 for visibility");
+                Debug.Log("[WorldBackgroundSetup] Fixed Z position to 0 for visibility");
             }
         }
 
