@@ -60,7 +60,7 @@ namespace Fodinae.Scripts.Player
             _lastZoom = _currentZoom;
             if (_target == null)
             {
-                var player = FindAnyObjectByType<PlayerMovementController>();
+                var player = PlayerMovementController.LocalPlayer;
                 if (player != null)
                 {
                     _target = player.transform;

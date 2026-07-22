@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Fodinae.Scripts.Core.Interfaces;
 using Fodinae.Scripts.UI;
 using Fodinae.UI;
 using Fodinae.UI.Binding;
@@ -15,13 +16,22 @@ namespace Fodinae.Scripts.Networking.Processors
     /// Decoupled SOLID Processor for dynamic server WPF windows and element click contexts.
     /// Handles OpenWindowPacket, CloseWindowPacket, and ElementClickPacket dispatching.
     /// </summary>
-    public class WindowPacketProcessor : IPacketProcessor<OpenWindowPacket>, IPacketProcessor<CloseWindowPacket>
+    public class WindowPacketProcessor : IPacketProcessor<OpenWindowPacket>, IPacketProcessor<CloseWindowPacket>, IInputBlocker
     {
         private UIDocument _uiDocument;
+        private ModalWindowHandler _modalWindowHandler;
         private readonly List<(string tag, VisualElement root, WindowBinding binding, List<VisualElement> clickableElements)> _openWindows = new();
 
         public bool HasOpenWindows => _openWindows.Count > 0;
         public string TopWindowTag => _openWindows.Count > 0 ? _openWindows[^1].tag : null;
+        public bool IsModalShowing => _modalWindowHandler?.IsShowing == true;
+        bool IInputBlocker.IsInputBlocked => HasOpenWindows || IsModalShowing || PauseMenu.IsMenuOpen;
+
+        public void Initialize(UIDocument doc, ModalWindowHandler handler)
+        {
+            _uiDocument = doc;
+            _modalWindowHandler = handler;
+        }
 
         public void Process(OpenWindowPacket packet)
         {
@@ -78,6 +88,23 @@ namespace Fodinae.Scripts.Networking.Processors
             _openWindows.RemoveAt(_openWindows.Count - 1);
         }
 
+        public void HandleModalWindow(ModalWindowPacket packet)
+        {
+            Debug.Log("[WindowPacketProcessor] Handling ModalWindowPacket");
+
+            if (_uiDocument == null)
+            {
+                _uiDocument = Object.FindAnyObjectByType<UIDocument>();
+            }
+
+            if (_modalWindowHandler == null && _uiDocument != null)
+            {
+                _modalWindowHandler = new ModalWindowHandler(_uiDocument);
+            }
+
+            _modalWindowHandler?.Show(packet);
+        }
+
         private List<VisualElement> RegisterClickableElements(VisualElement windowRoot, string windowTag)
         {
             var clickableElements = new List<VisualElement>();
@@ -120,6 +147,22 @@ namespace Fodinae.Scripts.Networking.Processors
             var inputValues = ClickContextResolver.CollectInputValues(inputRoot);
 
             NetworkService.Send(new ElementClickPacket(windowTag, elementIndex, inputValues));
+        }
+
+        public void Dispose()
+        {
+            _modalWindowHandler?.Hide();
+
+            foreach (var (_, root, binding, _) in _openWindows)
+            {
+                binding.Dispose();
+                if (_uiDocument != null)
+                {
+                    _uiDocument.rootVisualElement.Remove(root);
+                }
+            }
+
+            _openWindows.Clear();
         }
     }
 }

@@ -115,22 +115,22 @@ namespace Fodinae.Scripts
 
         private static Texture2D CreateSimpleLoaderTexture()
         {
-            const int width = 1920;
-            const int height = 1080;
+            const int width = 192;
+            const int height = 108;
 
-            Texture2D texture = new Texture2D(width, height);
+            Texture2D texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
 
-            // Заливаем чёрным
-            Color[] pixels = new Color[width * height];
+            Color32 black = Color.black;
+            Color32 white = Color.white;
+            Color32[] pixels = new Color32[width * height];
             for (int i = 0; i < pixels.Length; i++)
             {
-                pixels[i] = Color.black;
+                pixels[i] = black;
             }
 
-            // Рисуем белый круг в центре
             const int CENTER_X = width / 2;
             const int CENTER_Y = height / 2;
-            const int radius = 150;
+            const int radius = 15;
 
             for (int y = -radius; y < radius; y++)
             {
@@ -142,13 +142,13 @@ namespace Fodinae.Scripts
                         int py = CENTER_Y + y;
                         if (px >= 0 && px < width && py >= 0 && py < height)
                         {
-                            pixels[(py * width) + px] = Color.white;
+                            pixels[(py * width) + px] = white;
                         }
                     }
                 }
             }
 
-            texture.SetPixels(pixels);
+            texture.SetPixels32(pixels);
             texture.Apply();
 
             return texture;
@@ -176,8 +176,6 @@ namespace Fodinae.Scripts
         private void OnPlayButtonClicked()
         {
             Debug.Log("[MainMenu] Play button clicked");
-
-            RobotManager.ShowDebugVisuals = true;
 
             // Скрываем лоадер
             HideLoader();

@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
+using Fodinae.Scripts.Core.Interfaces;
 using MinesServer.Data;
 using UnityEngine;
 
 namespace Fodinae.Scripts.UI
 {
     public readonly record struct StatusLineEntry(string[] Text, Color Color, byte BlinkRate, long Expiry);
-    public class PlayerStatsModel : MonoBehaviour
+    public class PlayerStatsModel : MonoBehaviour, IPlayerStats
     {
         private static PlayerStatsModel _instance;
         public static PlayerStatsModel Instance
@@ -34,7 +35,7 @@ namespace Fodinae.Scripts.UI
 
         public IReadOnlyDictionary<string, StatusLineEntry> StatusLines => _statusLines;
 
-        public void AddStatusLine(string tag, string[] text, Color color, byte blinkRate, long expiry = 0)
+        public void AddStatusLine(string tag, string[] text, Color color, byte blinkRate, long expiry)
         {
             _statusLines[tag] = new StatusLineEntry(text, color, blinkRate, expiry);
             OnStatusLinesChanged?.Invoke();

@@ -55,47 +55,16 @@ namespace Fodinae.Scripts.World
                 return Array.Empty<Sprite>();
             }
 
-            if (!atlas.isReadable)
-            {
-                var readable = new Texture2D(atlas.width, atlas.height, TextureFormat.RGBA32, false);
-                readable.filterMode = FilterMode.Point;
-                Graphics.CopyTexture(atlas, readable);
-                readable.Apply();
-                atlas = readable;
-            }
-
             Sprite[] frames = new Sprite[frameCount];
             int framesPerRow = atlas.width / width;
+            int atlasHeight = atlas.height;
 
             for (int i = 0; i < frameCount; i++)
             {
                 int x = (i % framesPerRow) * width;
                 int y = (i / framesPerRow) * height;
 
-                Texture2D frameTex = new Texture2D(width, height, TextureFormat.RGBA32, false);
-                frameTex.filterMode = FilterMode.Point;
-
-                Color[] colors = atlas.GetPixels(x, y, width, height);
-                frameTex.SetPixels(colors);
-                frameTex.Apply();
-
-                // Flip Y manually
-                Color32[] pixels = frameTex.GetPixels32();
-                Color32[] rowBuffer = new Color32[width];
-                for (int yy = 0; yy < height / 2; yy++)
-                {
-                    int topIndex = yy * width;
-                    int bottomIndex = (height - 1 - yy) * width;
-
-                    Array.Copy(pixels, topIndex, rowBuffer, 0, width);
-                    Array.Copy(pixels, bottomIndex, pixels, topIndex, width);
-                    Array.Copy(rowBuffer, 0, pixels, bottomIndex, width);
-                }
-
-                frameTex.SetPixels32(pixels);
-                frameTex.Apply();
-
-                frames[i] = Sprite.Create(frameTex, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), RenderingConstants.PIXELS_PER_UNIT);
+                frames[i] = Sprite.Create(atlas, new Rect(x, atlasHeight - y - height, width, height), new Vector2(0.5f, 0.5f), RenderingConstants.PIXELS_PER_UNIT);
             }
 
             return frames;

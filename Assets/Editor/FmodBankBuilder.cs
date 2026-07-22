@@ -72,10 +72,10 @@ namespace Fodinae.Editor
                 return;
             }
 
-            const string fmodCliPath = "/Applications/FMOD Studio.app/Contents/MacOS/fmodstudiocl";
-            if (!File.Exists(fmodCliPath))
+            var fmodCliPath = ResolveFmodStudioCliPath();
+            if (fmodCliPath == null)
             {
-                Log($"FMOD Studio CLI not found at default macOS path: {fmodCliPath}");
+                Log("FMOD Studio CLI not found. Skipping compilation step — sync will use previously built banks.");
                 return;
             }
 
@@ -104,6 +104,31 @@ namespace Fodinae.Editor
             {
                 Log($"Could not run FMOD Studio CLI compiler: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Resolves the FMOD Studio command-line compiler path for the current OS.
+        /// Returns null if the executable cannot be found on either macOS or Windows.
+        /// </summary>
+        private static string ResolveFmodStudioCliPath()
+        {
+            // macOS default installation path
+            const string macos = "/Applications/FMOD Studio.app/Contents/MacOS/fmodstudiocl";
+
+            // Windows default installation path (64-bit)
+            const string windows = @"C:\Program Files (x86)\FMOD SoundSystem\FMOD Studio\fmodstudiocl.exe";
+
+            if (File.Exists(macos))
+            {
+                return macos;
+            }
+
+            if (File.Exists(windows))
+            {
+                return windows;
+            }
+
+            return null;
         }
 
         private static void Log(string message) => Debug.Log($"[FmodBankBuilder] {message}");

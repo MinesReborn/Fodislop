@@ -1,0 +1,43 @@
+/* ═══════════════════════════════════════════════════════════
+   Button — общие стили кнопок
+   ═══════════════════════════════════════════════════════════ */
+
+.btn {
+    background-color: var(--btn-bg);
+    border-color: var(--btn-border);
+    border-width: 1px;
+    border-radius: 3px;
+    padding: var(--btn-padding);
+    min-width: var(--btn-min-width);
+    font-size: var(--btn-font-size);
+    color: var(--color-text);
+    -unity-text-align: middle-center;
+}
+
+.btn:hover {
+    background-color: var(--btn-hover);
+}
+
+.btn:active {
+    background-color: var(--color-accent);
+}
+
+.btn-accent {
+    background-color: var(--color-accent);
+    color: black;
+}
+
+.btn-accent:hover {
+    background-color: var(--color-accent-hover);
+}
+
+.btn-danger {
+    background-color: var(--color-danger);
+    color: white;
+}
+
+.btn-small {
+    min-width: 0;
+    padding: 4px 10px;
+    font-size: var(--font-size-sm);
+}

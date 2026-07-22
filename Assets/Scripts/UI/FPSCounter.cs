@@ -11,6 +11,8 @@ namespace Fodinae.Scripts.UI
     /// </summary>
     public class FPSCounter : MonoBehaviour
     {
+        public static FPSCounter Instance { get; private set; }
+
         private const int SAMPLE_SIZE = 30;
         private readonly float[] _frameTimes = new float[SAMPLE_SIZE];
         private int _frameIndex;
@@ -23,6 +25,8 @@ namespace Fodinae.Scripts.UI
 
         protected void Awake()
         {
+            Instance = this;
+
             Canvas canvas = FindAnyObjectByType<Canvas>();
             if (canvas == null)
             {

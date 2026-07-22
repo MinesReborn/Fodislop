@@ -1,12 +1,13 @@
 using System;
 using System.IO;
 using Cysharp.Threading.Tasks;
+using Fodinae.Scripts.Core.Interfaces;
 using MinesServer.Data;
 using UnityEngine;
 
 namespace Fodinae.Scripts.Game.Managers
 {
-    public class MapStorage
+    public class MapStorage : IWorldDataStorage
     {
         private static MapStorage _instance;
 
@@ -328,7 +329,7 @@ namespace Fodinae.Scripts.Game.Managers
         /// <param name="x">World X coordinate.</param>
         /// <param name="y">World Y coordinate.</param>
         /// <param name="cellType">Cell type to set.</param>
-        public void SetCell(int x, int y, CellType cellType)
+        public void SetCell(int x, int y, CellType type)
         {
             if (!_isInitialized || _cellLayer == null)
             {
@@ -338,11 +339,11 @@ namespace Fodinae.Scripts.Game.Managers
 
             try
             {
-                _cellLayer[x, y] = cellType;
+                _cellLayer[x, y] = type;
             }
             catch (System.Exception ex)
             {
-                Debug.LogError($"Error setting cell at ({x}, {y}) to {cellType}: {ex.Message}");
+                Debug.LogError($"Error setting cell at ({x}, {y}) to {type}: {ex.Message}");
             }
         }
 

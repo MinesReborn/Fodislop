@@ -2,6 +2,7 @@ using Fodinae.Scripts.Audio.Backend;
 using Fodinae.Scripts.Audio.Core;
 using Fodinae.Scripts.Game;
 using Fodinae.Scripts.Networking;
+using Fodinae.Scripts.Player;
 using Fodinae.Scripts.World;
 using MinesServer.Networking.Client.Packets.GUI;
 using MinesServer.Networking.Shared.Packets;
@@ -233,6 +234,54 @@ namespace Fodinae.Scripts.UI
 
             scrollContainer.Add(_fullscreenButton);
 
+            var resLabel = new Label("Разрешение");
+            resLabel.style.fontSize = 14;
+            resLabel.style.color = Color.white;
+            resLabel.style.marginBottom = 4;
+            scrollContainer.Add(resLabel);
+
+            var resolutions = Screen.resolutions;
+            var uniqueResolutions = new System.Collections.Generic.List<Resolution>();
+            var seen = new System.Collections.Generic.HashSet<string>();
+            foreach (var res in resolutions)
+            {
+                var key = $"{res.width}x{res.height}";
+                if (seen.Add(key))
+                {
+                    uniqueResolutions.Add(res);
+                }
+            }
+
+            int currentResIndex = 0;
+            for (int i = 0; i < uniqueResolutions.Count; i++)
+            {
+                if (uniqueResolutions[i].width == Screen.currentResolution.width &&
+                    uniqueResolutions[i].height == Screen.currentResolution.height)
+                {
+                    currentResIndex = i;
+                    break;
+                }
+            }
+
+            var resOptions = new System.Collections.Generic.List<string>();
+            foreach (var res in uniqueResolutions)
+            {
+                resOptions.Add($"{res.width} x {res.height}");
+            }
+
+            var resDropdown = new DropdownField(resOptions, currentResIndex);
+            resDropdown.RegisterValueChangedCallback(evt =>
+            {
+                var index = resDropdown.index;
+                if (index >= 0 && index < uniqueResolutions.Count)
+                {
+                    var res = uniqueResolutions[index];
+                    Screen.SetResolution(res.width, res.height, Screen.fullScreen);
+                    Debug.Log($"[PauseMenu] Resolution: {res.width}x{res.height}");
+                }
+            });
+            scrollContainer.Add(resDropdown);
+
             var sgLabel = new Label("Графика");
             sgLabel.style.fontSize = 14;
             sgLabel.style.color = Color.white;
@@ -354,7 +403,7 @@ namespace Fodinae.Scripts.UI
 
         private void ToggleSimpleGraphics()
         {
-            var terrain = FindAnyObjectByType<SingleMeshTerrainRenderer>();
+            var terrain = SingleMeshTerrainRenderer.Instance;
             if (terrain == null)
             {
                 return;
@@ -370,19 +419,19 @@ namespace Fodinae.Scripts.UI
             bool current = PlayerPrefs.GetInt("UseLight2D", 0) == 1;
             bool newValue = !current;
 
-            var terrain = FindAnyObjectByType<SingleMeshTerrainRenderer>();
+            var terrain = SingleMeshTerrainRenderer.Instance;
             if (terrain != null)
             {
                 terrain.SetUseLight2D(newValue);
             }
 
-            var player = GameObject.FindGameObjectWithTag("Player");
+            var player = PlayerMovementController.LocalPlayer;
             if (player != null)
             {
                 var headlight = player.GetComponent<RobotHeadlight>();
                 if (headlight == null && newValue)
                 {
-                    headlight = player.AddComponent<RobotHeadlight>();
+                    headlight = player.gameObject.AddComponent<RobotHeadlight>();
                 }
 
                 if (headlight != null)
@@ -424,11 +473,116 @@ namespace Fodinae.Scripts.UI
 
         private void QuitGame()
         {
+            ShowQuitConfirmation();
+        }
+
+        private void ShowQuitConfirmation()
+        {
+            var root = _doc.rootVisualElement;
+
+            var overlay = new VisualElement();
+            overlay.name = "QuitConfirmOverlay";
+            overlay.style.position = Position.Absolute;
+            overlay.style.left = 0;
+            overlay.style.right = 0;
+            overlay.style.top = 0;
+            overlay.style.bottom = 0;
+            overlay.style.backgroundColor = new Color(0f, 0f, 0f, 0.5f);
+            overlay.style.alignItems = Align.Center;
+            overlay.style.justifyContent = Justify.Center;
+
+            var panel = new VisualElement();
+            panel.style.backgroundColor = new Color(0.08f, 0.08f, 0.08f, 0.95f);
+            panel.style.borderTopWidth = 2;
+            panel.style.borderBottomWidth = 2;
+            panel.style.borderLeftWidth = 2;
+            panel.style.borderRightWidth = 2;
+            panel.style.borderTopColor = new Color(0.35f, 0.35f, 0.35f, 1f);
+            panel.style.borderBottomColor = new Color(0.35f, 0.35f, 0.35f, 1f);
+            panel.style.borderLeftColor = new Color(0.35f, 0.35f, 0.35f, 1f);
+            panel.style.borderRightColor = new Color(0.35f, 0.35f, 0.35f, 1f);
+            panel.style.paddingTop = 20;
+            panel.style.paddingBottom = 20;
+            panel.style.paddingLeft = 40;
+            panel.style.paddingRight = 40;
+            panel.style.flexDirection = FlexDirection.Column;
+            panel.style.alignItems = Align.Center;
+            panel.style.minWidth = 300;
+
+            var titleLabel = new Label("Выход из игры");
+            titleLabel.style.fontSize = 18;
+            titleLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            titleLabel.style.color = new Color(0.7f, 0.65f, 0.5f, 1f);
+            titleLabel.style.marginBottom = 12;
+            panel.Add(titleLabel);
+
+            var descLabel = new Label("Вы уверены, что хотите выйти?");
+            descLabel.style.fontSize = 14;
+            descLabel.style.color = Color.white;
+            descLabel.style.whiteSpace = WhiteSpace.Normal;
+            descLabel.style.marginBottom = 20;
+            descLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            panel.Add(descLabel);
+
+            var buttonsRow = new VisualElement();
+            buttonsRow.style.flexDirection = FlexDirection.Row;
+            buttonsRow.style.justifyContent = Justify.Center;
+
+            var confirmBtn = new Button(() =>
+            {
+                root.Remove(overlay);
 #if UNITY_EDITOR
-            Debug.Log("[PauseMenu] Выход из игры");
+                Debug.Log("[PauseMenu] Выход из игры");
 #else
-            Application.Quit();
+                Application.Quit();
 #endif
+            });
+            confirmBtn.text = "Выйти";
+            confirmBtn.style.backgroundColor = new Color(0.5f, 0.15f, 0.15f, 1f);
+            confirmBtn.style.borderTopWidth = 2;
+            confirmBtn.style.borderBottomWidth = 2;
+            confirmBtn.style.borderLeftWidth = 2;
+            confirmBtn.style.borderRightWidth = 2;
+            confirmBtn.style.borderTopColor = new Color(0.6f, 0.2f, 0.2f, 1f);
+            confirmBtn.style.borderBottomColor = new Color(0.6f, 0.2f, 0.2f, 1f);
+            confirmBtn.style.borderLeftColor = new Color(0.6f, 0.2f, 0.2f, 1f);
+            confirmBtn.style.borderRightColor = new Color(0.6f, 0.2f, 0.2f, 1f);
+            confirmBtn.style.paddingTop = 8;
+            confirmBtn.style.paddingBottom = 8;
+            confirmBtn.style.paddingLeft = 20;
+            confirmBtn.style.paddingRight = 20;
+            confirmBtn.style.minWidth = 100;
+            confirmBtn.style.color = Color.white;
+            confirmBtn.style.fontSize = 14;
+            confirmBtn.style.unityTextAlign = TextAnchor.MiddleCenter;
+            confirmBtn.style.marginRight = 10;
+
+            var cancelBtn = new Button(() => root.Remove(overlay));
+            cancelBtn.text = "Отмена";
+            cancelBtn.style.backgroundColor = new Color(0.15f, 0.15f, 0.15f, 1f);
+            cancelBtn.style.borderTopWidth = 2;
+            cancelBtn.style.borderBottomWidth = 2;
+            cancelBtn.style.borderLeftWidth = 2;
+            cancelBtn.style.borderRightWidth = 2;
+            cancelBtn.style.borderTopColor = new Color(0.4f, 0.4f, 0.4f, 1f);
+            cancelBtn.style.borderBottomColor = new Color(0.4f, 0.4f, 0.4f, 1f);
+            cancelBtn.style.borderLeftColor = new Color(0.4f, 0.4f, 0.4f, 1f);
+            cancelBtn.style.borderRightColor = new Color(0.4f, 0.4f, 0.4f, 1f);
+            cancelBtn.style.paddingTop = 8;
+            cancelBtn.style.paddingBottom = 8;
+            cancelBtn.style.paddingLeft = 20;
+            cancelBtn.style.paddingRight = 20;
+            cancelBtn.style.minWidth = 100;
+            cancelBtn.style.color = Color.white;
+            cancelBtn.style.fontSize = 14;
+            cancelBtn.style.unityTextAlign = TextAnchor.MiddleCenter;
+
+            buttonsRow.Add(confirmBtn);
+            buttonsRow.Add(cancelBtn);
+            panel.Add(buttonsRow);
+
+            overlay.Add(panel);
+            root.Add(overlay);
         }
     }
 }

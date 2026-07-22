@@ -3,6 +3,7 @@ using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Player;
 using MinesServer.Data;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace Fodinae.Scripts.UI
@@ -20,6 +21,8 @@ namespace Fodinae.Scripts.UI
         private Text _coordinatesText;
         private RawImage _minimapImage;
         private Texture2D _minimapTexture;
+        private GameObject _minimapObj;
+        private GameObject _textObj;
 
         // World state
         private PlayerMovementController _player;
@@ -42,6 +45,10 @@ namespace Fodinae.Scripts.UI
         private Vector2Int _lastUpdatePos;
         private float _lastUpdateTime;
         private bool _ready;
+
+        // Toggle state
+        private bool _isVisible = true;
+        private string _togglePrefKey = "MinimapVisible";
 
         private const int TEXTURE_SIZE = GameConstants.UI.MINIMAP_WIDTH; // 128
         private const float UPDATE_DELAY = 0.1f; // 10 FPS — sufficient for minimap
@@ -105,6 +112,11 @@ namespace Fodinae.Scripts.UI
             {
                 TryInitialize();
             }
+
+            if (Keyboard.current != null && Keyboard.current.nKey.wasPressedThisFrame)
+            {
+                ToggleVisibility();
+            }
         }
 
         private void TryInitialize()
@@ -167,13 +179,13 @@ namespace Fodinae.Scripts.UI
             }
 
             // Minimap image
-            GameObject minimapObj = new("Minimap");
-            minimapObj.transform.SetParent(canvas.transform, false);
-            _minimapImage = minimapObj.AddComponent<RawImage>();
+            _minimapObj = new GameObject("Minimap");
+            _minimapObj.transform.SetParent(canvas.transform, false);
+            _minimapImage = _minimapObj.AddComponent<RawImage>();
             _minimapImage.texture = _minimapTexture;
             _minimapImage.color = Color.white;
 
-            RectTransform rt = minimapObj.GetComponent<RectTransform>();
+            RectTransform rt = _minimapObj.GetComponent<RectTransform>();
             rt.anchorMin = Vector2.zero;
             rt.anchorMax = Vector2.zero;
             rt.pivot = Vector2.zero;
@@ -181,9 +193,9 @@ namespace Fodinae.Scripts.UI
             rt.sizeDelta = new Vector2(_uiSize, _uiSize);
 
             // Coordinates text
-            GameObject textObj = new("PlayerCoordinates");
-            textObj.transform.SetParent(canvas.transform, false);
-            _coordinatesText = textObj.AddComponent<Text>();
+            _textObj = new GameObject("PlayerCoordinates");
+            _textObj.transform.SetParent(canvas.transform, false);
+            _coordinatesText = _textObj.AddComponent<Text>();
             _coordinatesText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             if (_coordinatesText.font == null)
             {
@@ -197,17 +209,20 @@ namespace Fodinae.Scripts.UI
             _coordinatesText.fontStyle = FontStyle.Bold;
             _coordinatesText.raycastTarget = false;
 
-            Shadow shadow = textObj.AddComponent<Shadow>();
+            Shadow shadow = _textObj.AddComponent<Shadow>();
             shadow.effectColor = Color.black;
             shadow.effectDistance = new Vector2(2, -2);
 
-            RectTransform textRt = textObj.GetComponent<RectTransform>();
+            RectTransform textRt = _textObj.GetComponent<RectTransform>();
             textRt.anchorMin = Vector2.zero;
             textRt.anchorMax = Vector2.zero;
             textRt.pivot = new Vector2(0.5f, 1f);
             textRt.anchoredPosition = new Vector2(10 + (_uiSize * 0.5f), 10 + _uiSize + 5);
             textRt.sizeDelta = new Vector2(200, 30);
-            textObj.transform.SetAsLastSibling();
+            _textObj.transform.SetAsLastSibling();
+
+            _isVisible = PlayerPrefs.GetInt(_togglePrefKey, 1) == 1;
+            SetVisible(_isVisible);
         }
 
         private void OnPlayerMoved(Vector2Int oldPos, Vector2Int newPos)
@@ -341,6 +356,27 @@ namespace Fodinae.Scripts.UI
             if (_minimapTexture != null)
             {
                 Destroy(_minimapTexture);
+            }
+        }
+
+        private void ToggleVisibility()
+        {
+            _isVisible = !_isVisible;
+            SetVisible(_isVisible);
+            PlayerPrefs.SetInt(_togglePrefKey, _isVisible ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+
+        private void SetVisible(bool visible)
+        {
+            if (_minimapObj != null)
+            {
+                _minimapObj.SetActive(visible);
+            }
+
+            if (_textObj != null)
+            {
+                _textObj.SetActive(visible);
             }
         }
     }

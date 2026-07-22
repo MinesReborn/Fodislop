@@ -22,6 +22,8 @@ namespace Fodinae.Scripts.Audio.Spatial
         [Range(0f, 1f)]
         private float _musicVolume = 0.5f;
 
+        private AudioPlaybackHandle _musicHandle;
+
         private void Start()
         {
             if (MapManager.Instance != null)
@@ -46,6 +48,12 @@ namespace Fodinae.Scripts.Audio.Spatial
             {
                 GameManager.InstanceIfExists.OnWorldLoaded -= OnWorldLoaded;
             }
+
+            if (_musicHandle != null)
+            {
+                _musicHandle.Stop();
+                _musicHandle = null;
+            }
         }
 
         private void OnWorldInitialized()
@@ -65,7 +73,13 @@ namespace Fodinae.Scripts.Audio.Spatial
                 return;
             }
 
-            AudioSystem.Instance.Play2D(_worldMusicEvent, AudioLayer.MusicDefault(), _musicVolume);
+            if (_musicHandle != null)
+            {
+                _musicHandle.Stop();
+                _musicHandle = null;
+            }
+
+            _musicHandle = AudioSystem.Instance.Play2D(_worldMusicEvent, AudioLayer.MusicDefault(), _musicVolume);
         }
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Fodinae.Scripts.Audio.Core;
@@ -18,7 +19,7 @@ namespace Fodinae.Scripts.Audio.Backend
     {
         private AudioSystem _system;
         private readonly Dictionary<AudioBusType, FMOD.Studio.Bus> _fmodBuses = new();
-        private readonly Dictionary<string, FMOD.Studio.Bank> _loadedBanks = new(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, FMOD.Studio.Bank> _loadedBanks = new(StringComparer.OrdinalIgnoreCase);
 
         private const string BANK_PATH = "banks";
 
@@ -110,7 +111,7 @@ namespace Fodinae.Scripts.Audio.Backend
             if (_loadedBanks.TryGetValue(cleanBankName, out var bank))
             {
                 bank.unload();
-                _loadedBanks.Remove(cleanBankName);
+                _loadedBanks.TryRemove(cleanBankName, out _);
                 Debug.Log($"[FmodAudioBackend] Банк '{cleanBankName}' выгружен из памяти.");
             }
         }
@@ -202,9 +203,7 @@ namespace Fodinae.Scripts.Audio.Backend
             instance.setPitch(layer.Pitch);
             instance.start();
 
-            // Автоматически освобождаем C++ память FMOD после завершения звучания
-            instance.release();
-
+            // Владельцем release() является AudioPlaybackHandle.Stop() — не вызываем release() здесь.
             return new AudioPlaybackHandle(instance, layer.Bus);
         }
 

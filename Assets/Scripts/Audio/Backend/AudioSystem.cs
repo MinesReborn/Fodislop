@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Fodinae.Scripts.Audio.Core;
 using Fodinae.Scripts.Core;
+using Fodinae.Scripts.Core.Interfaces;
 using UnityEngine;
 
 namespace Fodinae.Scripts.Audio.Backend
@@ -15,7 +16,7 @@ namespace Fodinae.Scripts.Audio.Backend
     /// Пример: Play("sfx_dig") → FMOD event:/sfx_dig
     /// </summary>
     [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Gracefully catch startup exceptions to prevent game crash.")]
-    public sealed class AudioSystem : SingletonMonoBehaviour<AudioSystem>
+    public sealed class AudioSystem : SingletonMonoBehaviour<AudioSystem>, IAudioSystem
     {
         private const string TAG = "[AudioSystem]";
         private FmodAudioBackend _backend;

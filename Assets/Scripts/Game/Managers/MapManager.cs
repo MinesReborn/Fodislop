@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Fodinae.Scripts.Core;
+using Fodinae.Scripts.Core.Interfaces;
 using Fodinae.Scripts.World;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
@@ -10,7 +11,7 @@ using UnityEngine;
 namespace Fodinae.Scripts.Game.Managers
 {
     [ExecuteAlways]
-    public class MapManager : SingletonMonoBehaviour<MapManager>
+    public class MapManager : SingletonMonoBehaviour<MapManager>, IMapDataProvider
     {
         private Camera _mainCamera;
 
@@ -254,50 +255,54 @@ namespace Fodinae.Scripts.Game.Managers
             return 0f;
         }
 
-        public CellConfigurationPacket GetCellConfig(CellType cellType)
+        public CellConfigurationPacket GetCellConfig(CellType type)
         {
-            if (_cellConfigurations == null || (int)cellType < 0 || (int)cellType >= _cellConfigurations.Length)
+            if (_cellConfigurations == null || (int)type < 0 || (int)type >= _cellConfigurations.Length)
             {
                 return _fallbackConfig;
             }
 
-            return _cellConfigurations[(int)cellType];
+            return _cellConfigurations[(int)type];
         }
 
-        public static bool IsLooseRockType(CellType type)
+        private static readonly System.Collections.Generic.HashSet<CellType> LooseRockTypes = new()
         {
-            return type == CellType.BlackBoulder1 || type == CellType.BlackBoulder2 || type == CellType.BlackBoulder3 ||
-                   type == CellType.MetalBoulder1 || type == CellType.MetalBoulder2 || type == CellType.MetalBoulder3 ||
-                   type == CellType.WhiteSand || type == CellType.DarkWhiteSand ||
-                   type == CellType.RustySand || type == CellType.DarkRustySand ||
-                   type == CellType.BlackSand || type == CellType.DarkBlackSand ||
-                   type == CellType.BlueSand || type == CellType.DarkBlueSand ||
-                   type == CellType.YellowSand || type == CellType.DarkYellowSand ||
-                   type == CellType.DeepMagmaBoulder || type == CellType.MilitaryBlockSand ||
-                   type == CellType.Lava || type == CellType.Boulder1 || type == CellType.Boulder2 || type == CellType.Boulder3 ||
-                   type == CellType.GrayAcid || type == CellType.PurpleAcid;
+            CellType.BlackBoulder1, CellType.BlackBoulder2, CellType.BlackBoulder3,
+            CellType.MetalBoulder1, CellType.MetalBoulder2, CellType.MetalBoulder3,
+            CellType.WhiteSand, CellType.DarkWhiteSand,
+            CellType.RustySand, CellType.DarkRustySand,
+            CellType.BlackSand, CellType.DarkBlackSand,
+            CellType.BlueSand, CellType.DarkBlueSand,
+            CellType.YellowSand, CellType.DarkYellowSand,
+            CellType.DeepMagmaBoulder, CellType.MilitaryBlockSand,
+            CellType.Lava, CellType.Boulder1, CellType.Boulder2, CellType.Boulder3,
+            CellType.GrayAcid, CellType.PurpleAcid,
+        };
+
+        private static readonly System.Collections.Generic.HashSet<CellType> RoundableLooseTypes = new()
+        {
+            CellType.WhiteSand, CellType.DarkWhiteSand,
+            CellType.RustySand, CellType.DarkRustySand,
+            CellType.BlackSand, CellType.DarkBlackSand,
+            CellType.BlueSand, CellType.DarkBlueSand,
+            CellType.YellowSand, CellType.DarkYellowSand,
+            CellType.MilitaryBlockSand,
+            CellType.Lava,
+            CellType.GrayAcid, CellType.PurpleAcid,
+        };
+
+        public static bool IsLooseRockType(CellType type) => LooseRockTypes.Contains(type);
+
+        public static bool IsRoundableLoose(CellType type) => RoundableLooseTypes.Contains(type);
+
+        public bool TryGetTileGroup(CellType type, out int groupId)
+        {
+            return _cellToTileGroup.TryGetValue(type, out groupId);
         }
 
-        public static bool IsRoundableLoose(CellType type)
+        public Color GetCellMinimapColor(CellType type)
         {
-            return type == CellType.WhiteSand || type == CellType.DarkWhiteSand ||
-                   type == CellType.RustySand || type == CellType.DarkRustySand ||
-                   type == CellType.BlackSand || type == CellType.DarkBlackSand ||
-                   type == CellType.BlueSand || type == CellType.DarkBlueSand ||
-                   type == CellType.YellowSand || type == CellType.DarkYellowSand ||
-                   type == CellType.MilitaryBlockSand ||
-                   type == CellType.Lava ||
-                   type == CellType.GrayAcid || type == CellType.PurpleAcid;
-        }
-
-        public bool TryGetTileGroup(CellType cellType, out int groupId)
-        {
-            return _cellToTileGroup.TryGetValue(cellType, out groupId);
-        }
-
-        public Color GetCellMinimapColor(CellType cellType)
-        {
-            var config = GetCellConfig(cellType);
+            var config = GetCellConfig(type);
             if (config.Color == 0)
             {
                 return new Color(0, 0, 0, 0);

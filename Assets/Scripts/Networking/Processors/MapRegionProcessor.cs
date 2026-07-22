@@ -1,18 +1,15 @@
-using Fodinae.Scripts.Game.Managers;
+using Fodinae.Scripts.Core;
+using Fodinae.Scripts.Core.Interfaces;
 using MinesServer.Networking.Server.Packets.World;
-using UnityEngine;
 
 namespace Fodinae.Scripts.Networking.Processors
 {
-    /// <summary>
-    /// Decoupled SOLID Processor for World Map Region Chunk Packets.
-    /// Manages RLE chunk decoding, MapStorage updates, and map region load notifications.
-    /// </summary>
     public class MapRegionProcessor : IPacketProcessor<MapRegionPacket>
     {
         public void Process(MapRegionPacket packet)
         {
-            if (MapStorage.Instance == null || MapStorage.Instance.CellLayer == null || packet.Payload == null)
+            var storage = ServiceLocator.Resolve<IWorldDataStorage>();
+            if (storage?.CellLayer == null || packet.Payload == null)
             {
                 return;
             }
@@ -24,7 +21,7 @@ namespace Fodinae.Scripts.Networking.Processors
                 {
                     if (index < packet.Payload.Length)
                     {
-                        MapStorage.Instance.SetCell(packet.X + x, packet.Y + y, packet.Payload[index++]);
+                        storage.SetCell(packet.X + x, packet.Y + y, packet.Payload[index++]);
                     }
                 }
             }

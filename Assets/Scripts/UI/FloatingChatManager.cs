@@ -1,3 +1,4 @@
+using Fodinae.Scripts.Core;
 using MinesServer.Networking.Server.Packets.World;
 using UnityEngine;
 
@@ -20,6 +21,8 @@ namespace Fodinae.Scripts.UI
         }
 
         private Camera _camera;
+        private FloatingChatBubble _bubblePrefab;
+        private readonly System.Collections.Generic.List<FloatingChatBubble> _activeBubbles = new();
 
         protected void Awake()
         {
@@ -35,6 +38,22 @@ namespace Fodinae.Scripts.UI
         protected void Start()
         {
             _camera = Camera.main;
+
+            var prefabGo = new GameObject("ChatBubblePrefab");
+            prefabGo.transform.SetParent(transform);
+            _bubblePrefab = prefabGo.AddComponent<FloatingChatBubble>();
+            prefabGo.SetActive(false);
+        }
+
+        protected void Update()
+        {
+            for (int i = _activeBubbles.Count - 1; i >= 0; i--)
+            {
+                if (_activeBubbles[i] == null || !_activeBubbles[i].gameObject.activeInHierarchy)
+                {
+                    _activeBubbles.RemoveAt(i);
+                }
+            }
         }
 
         public void ShowLocalChat(LocalChatMessagePacket packet)
@@ -50,9 +69,11 @@ namespace Fodinae.Scripts.UI
                 return;
             }
 
-            var go = new GameObject("ChatBubble");
+            var go = Instantiate(_bubblePrefab.gameObject, transform);
             go.transform.position = robot.transform.position + (Vector3.up * 1.8f);
-            go.AddComponent<FloatingChatBubble>().Init(packet.Text);
+            var bubble = go.GetComponent<FloatingChatBubble>();
+            bubble.Init(packet.Text);
+            _activeBubbles.Add(bubble);
         }
 
         private bool IsInCameraView(Vector3 worldPos)

@@ -15,8 +15,16 @@ namespace Fodinae.Scripts.World
     [RequireComponent(typeof(MeshRenderer))]
     [DefaultExecutionOrder(100)]
     [ExecuteAlways]
-    public partial class SingleMeshTerrainRenderer : MonoBehaviour
+    public partial class SingleMeshTerrainRenderer : MonoBehaviour, ICachedCellDataProvider
     {
+        public static SingleMeshTerrainRenderer Instance { get; private set; }
+
+        CachedCellInfo ICachedCellDataProvider.GetCell(int x, int y)
+        {
+            var c = _cellCache[x, y];
+            return new CachedCellInfo { Type = c.Type, Properties = c.Properties };
+        }
+
         [Header("Configuration")]
         [SerializeField]
         private float _cellSize = GameConstants.World.CELLSIZE;
@@ -113,8 +121,6 @@ namespace Fodinae.Scripts.World
         private int _cacheMinY = int.MinValue;
         private int _cacheWidth;
         private int _cacheHeight;
-        private CachedCellData _fallbackCacheEntry;
-
         private Vector3[,] _gridVertexOffsets;
         private float[,] _gridShadowValues;
         private int[,] _cellTilingDescriptors;
@@ -149,23 +155,13 @@ namespace Fodinae.Scripts.World
         };
 
         // Cell types that emit magma glow (source cells for glow)
-        private static readonly CellType[] GlowingCellTypes = { CellType.Lava };
+        private static readonly HashSet<CellType> GlowingCellTypes = new() { CellType.Lava };
 
         private readonly Dictionary<CellType, CellMetadata> _metadataCache = new();
-        private readonly List<(int X, int Y)> _pass2Cells = new();
-        private readonly Queue<(int X, int Y)> _floodFillQueue = new();
 
-        // FBPW (Frontier-Based Parallel Wavefront) state for lock-free parallel flood fill.
-        // _fbpwGeneration is a generation-counter barrier array used with Interlocked.CompareExchange
-        // to claim cells for the current wave without locks. _fbpwCurrentGen increments each wave,
-        // so a cell is "unclaimed" in wave N if _fbpwGeneration[cell] < N.
-        private int[] _fbpwGeneration;
-        private int _fbpwCurrentGen = 1;
-        private readonly List<(int X, int Y)> _fbpwFrontier = new(64);
-        private readonly List<(int X, int Y)> _fbpwNextFrontier = new(64);
-        private readonly object _fbpwLock = new();
-
-        private CellType[,] _bgMapBuffer;
+        // FBPW (Frontier-Based Parallel Wavefront) state now delegated to BackgroundFloodFill
+        private readonly BackgroundFloodFill _backgroundFloodFill = new();
+        private CellType[,] BgMapBuffer => _backgroundFloodFill.Buffer;
         private bool _needsRefresh = false;
         private bool _useColorLod = false;
 
@@ -190,6 +186,7 @@ namespace Fodinae.Scripts.World
 
         protected void Awake()
         {
+            Instance = this;
             _targetSimpleGraphics = PlayerPrefs.GetInt("SimpleGraphics", 0) == 1 ? 1f : 0f;
             _targetUseLight2D = PlayerPrefs.GetInt("UseLight2D", 0) == 1 ? 1f : 0f;
             InitializeShader();
@@ -397,11 +394,10 @@ namespace Fodinae.Scripts.World
                 _vertexBuffer = new TerrainVertex[vertCount];
             }
 
-            _bgMapBuffer = new CellType[_meshWidth, _meshHeight];
             _cacheWidth = _meshWidth + 2;
             _cacheHeight = _meshHeight + 2;
             _cellCache = new CachedCellData[_cacheWidth, _cacheHeight];
-            _fbpwGeneration = new int[_meshWidth * _meshHeight];
+            _backgroundFloodFill.Allocate(_meshWidth, _meshHeight);
             _gridVertexOffsets = new Vector3[_meshWidth + 1, _meshHeight + 1];
             _gridShadowValues = new float[_meshWidth + 1, _meshHeight + 1];
             _cellTilingDescriptors = new int[_meshWidth, _meshHeight];
@@ -886,7 +882,7 @@ namespace Fodinae.Scripts.World
         {
             PopulateCellCache(minX, minY);
             PrecalculateData();
-            ComputeBackgroundMap();
+            _backgroundFloodFill.ComputeFull(this);
             BuildMeshData(minX, minY, atlases, clearMesh: true);
         }
 
@@ -906,7 +902,7 @@ namespace Fodinae.Scripts.World
             // Interior cells were scrolled together — their neighborhood relationships
             // are preserved, so their tiling, relief, and background values are still valid.
             IncrementalPrecalculateData(dx, dy);
-            IncrementalComputeBackgroundMap(dx, dy);
+            _backgroundFloodFill.ComputeIncremental(dx, dy, this);
             BuildMeshDataIncremental(minX, minY, dx, dy, atlases);
         }
 
@@ -1556,338 +1552,6 @@ namespace Fodinae.Scripts.World
         /// Wavefront (FBPW). Scrolls bgMapBuffer by (dx, dy), then only processes
         /// the exposed border region with parallel scan + wavefront propagation.
         ///
-        /// The interior bgMapBuffer is already valid after the scroll, so the
-        /// border-only frontier stops upon reaching known interior cells.
-        /// </summary>
-        private void IncrementalComputeBackgroundMap(int dx, int dy)
-        {
-            // Scroll bgMapBuffer by (dx, dy)
-            Scroll2DArray(_bgMapBuffer, _meshWidth, _meshHeight, dx, dy);
-
-            // Determine border range (stale entries not overwritten by scroll)
-            int xStart = 0, xLen = 0, yStart = 0, yLen = 0;
-            if (dx > 0)
-            {
-                xStart = _meshWidth - dx;
-                xLen = dx;
-            }
-            else if (dx < 0)
-            {
-                xStart = 0;
-                xLen = -dx;
-            }
-
-            if (dy > 0)
-            {
-                yStart = _meshHeight - dy;
-                yLen = dy;
-            }
-            else if (dy < 0)
-            {
-                yStart = 0;
-                yLen = -dy;
-            }
-
-            bool hasXBorder = xLen > 0;
-            bool hasYBorder = yLen > 0;
-
-            if (!hasXBorder && !hasYBorder)
-            {
-                return;
-            }
-
-            // Phase 1+2: Serial scan of border cells only (border is small — no Parallel.For overhead needed)
-            var frontier = _fbpwFrontier;
-            int w = _meshWidth, h = _meshHeight;
-            frontier.Clear();
-
-            // Full-height x-border columns
-            if (hasXBorder)
-            {
-                for (int x = xStart; x < xStart + xLen; x++)
-                {
-                    for (int y = 0; y < h; y++)
-                    {
-                        SeedBorderCell(x, y, frontier);
-                    }
-                }
-            }
-
-            // Full-width y-border rows (excluding x-border corners)
-            if (hasYBorder)
-            {
-                int x2Start = hasXBorder ? xStart + xLen : 0;
-                for (int y = yStart; y < yStart + yLen; y++)
-                {
-                    for (int x = x2Start; x < w; x++)
-                    {
-                        SeedBorderCell(x, y, frontier);
-                    }
-                }
-            }
-
-            // Phase 3: FBPW wavefront propagation (single-threaded — border is small, Parallel.For overhead dominates)
-            FBPWPropagate(frontier, useParallel: false);
-
-            // Phase 4: Safety sweep on border region only
-            if (hasXBorder)
-            {
-                for (int x = xStart; x < xStart + xLen; x++)
-                {
-                    for (int y = 0; y < h; y++)
-                    {
-                        if (_bgMapBuffer[x, y] == CellType.Unloaded)
-                        {
-                            _bgMapBuffer[x, y] = CellType.Empty;
-                        }
-                    }
-                }
-            }
-
-            if (hasYBorder)
-            {
-                int xSweepStart = hasXBorder ? xStart + xLen : 0;
-                for (int y = yStart; y < yStart + yLen; y++)
-                {
-                    for (int x = xSweepStart; x < w; x++)
-                    {
-                        if (_bgMapBuffer[x, y] == CellType.Unloaded)
-                        {
-                            _bgMapBuffer[x, y] = CellType.Empty;
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Fills a single border cell in bgMapBuffer during the incremental scan.
-        /// Passable cells get their own type; non-passable cells vote from their
-        /// passable 8-neighbors for the most frequent type.
-        /// </summary>
-        private void SeedBorderCell(int x, int y, List<(int, int)> frontier)
-        {
-            var cell = _cellCache[x + 1, y + 1];
-            if ((cell.Properties & CellConfigProperties.Passable) != 0)
-            {
-                _bgMapBuffer[x, y] = cell.Type;
-                lock (_fbpwLock)
-                {
-                    frontier.Add((x, y));
-                }
-            }
-            else
-            {
-                Span<TypeCount> typeCounts = stackalloc TypeCount[8];
-                int distinctCount = 0;
-                int w = _meshWidth, h = _meshHeight;
-
-                for (int dy = -1; dy <= 1; dy++)
-                {
-                    for (int dx = -1; dx <= 1; dx++)
-                    {
-                        if (dx == 0 && dy == 0)
-                        {
-                            continue;
-                        }
-
-                        int nx = x + dx;
-                        int ny = y + dy;
-                        if (nx < 0 || nx >= w || ny < 0 || ny >= h)
-                        {
-                            continue;
-                        }
-
-                        var n = _cellCache[nx + 1, ny + 1];
-                        if ((n.Properties & CellConfigProperties.Passable) != 0)
-                        {
-                            bool found = false;
-                            for (int i = 0; i < distinctCount; i++)
-                            {
-                                if (typeCounts[i].Type == n.Type)
-                                {
-                                    typeCounts[i].Count++;
-                                    found = true;
-                                    break;
-                                }
-                            }
-
-                            if (!found && distinctCount < 8)
-                            {
-                                typeCounts[distinctCount++] = new TypeCount { Type = n.Type, Count = 1 };
-                            }
-                        }
-                    }
-                }
-
-                if (distinctCount > 0)
-                {
-                    CellType mostFrequent = typeCounts[0].Type;
-                    int maxC = typeCounts[0].Count;
-                    for (int i = 1; i < distinctCount; i++)
-                    {
-                        if (typeCounts[i].Count > maxC)
-                        {
-                            maxC = typeCounts[i].Count;
-                            mostFrequent = typeCounts[i].Type;
-                        }
-                    }
-
-                    _bgMapBuffer[x, y] = mostFrequent;
-                    lock (_fbpwLock)
-                    {
-                        frontier.Add((x, y));
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Frontier-Based Parallel Wavefront (FBPW) propagation.
-        ///
-        /// Processes all frontier cells in parallel using a generation-counter barrier
-        /// for lock-free cell claiming. Each wave: all frontier cells expand to their
-        /// 8-neighbors; newly filled cells become the next wave's frontier. Repeats
-        /// until no new cells are discovered (flood fill converged).
-        ///
-        /// Thread safety:
-        /// - _fbpwGeneration[] is an int array used with Interlocked.CompareExchange
-        ///   to atomically claim an Unloaded cell. Each wave has a unique generation
-        ///   number, so cells claimed in older waves are never re-processed.
-        /// - Per-thread local frontier lists avoid lock contention during accumulation.
-        /// </summary>
-        /// <summary>
-        /// Processes frontier cells using FBPW (Frontier-Based Parallel Wavefront) propagation.
-        /// Full-rebuild paths (large frontier) use Parallel.For; incremental paths (small border
-        /// frontier, typically 2–64 cells) use a single-threaded loop to avoid thread-pool overhead.
-        /// </summary>
-        private void FBPWPropagate(List<(int, int)> frontier, bool useParallel = false)
-        {
-            if (frontier.Count == 0)
-            {
-                return;
-            }
-
-            int w = _meshWidth, h = _meshHeight;
-
-            while (frontier.Count > 0)
-            {
-                _fbpwNextFrontier.Clear();
-                int gen = _fbpwCurrentGen++;
-
-                // Guard against absurd overflow (would take weeks at 60 FPS)
-                if (_fbpwCurrentGen >= int.MaxValue - 1)
-                {
-                    Array.Clear(_fbpwGeneration, 0, _fbpwGeneration.Length);
-                    _fbpwCurrentGen = 1;
-                }
-
-                if (useParallel)
-                {
-                    Parallel.For(
-                        0,
-                        frontier.Count,
-                        () => new List<(int, int)>(16),
-                        (i, state, local) =>
-                        {
-                            var (x, y) = frontier[i];
-                            CellType bg = _bgMapBuffer[x, y];
-
-                            for (int dy = -1; dy <= 1; dy++)
-                            {
-                                for (int dx = -1; dx <= 1; dx++)
-                                {
-                                    if (dx == 0 && dy == 0)
-                                    {
-                                        continue;
-                                    }
-
-                                    int nx = x + dx;
-                                    int ny = y + dy;
-                                    if (nx < 0 || nx >= w || ny < 0 || ny >= h)
-                                    {
-                                        continue;
-                                    }
-
-                                    // Skip cells already filled (not Unloaded)
-                                    if (_bgMapBuffer[nx, ny] != CellType.Unloaded)
-                                    {
-                                        continue;
-                                    }
-
-                                    // Atomically claim this cell for the current wave via generation barrier
-                                    int idx = nx + (ny * w);
-                                    if (Interlocked.CompareExchange(ref _fbpwGeneration[idx], gen, gen - 1) != gen - 1)
-                                    {
-                                        continue;
-                                    }
-
-                                    _bgMapBuffer[nx, ny] = bg;
-                                    local.Add((nx, ny));
-                                }
-                            }
-
-                            return local;
-                        },
-                        local =>
-                        {
-                            if (local.Count > 0)
-                            {
-                                lock (_fbpwLock)
-                                {
-                                    _fbpwNextFrontier.AddRange(local);
-                                }
-                            }
-                        });
-                }
-                else
-                {
-                    foreach (var (x, y) in frontier)
-                    {
-                        CellType bg = _bgMapBuffer[x, y];
-
-                        for (int dy = -1; dy <= 1; dy++)
-                        {
-                            for (int dx = -1; dx <= 1; dx++)
-                            {
-                                if (dx == 0 && dy == 0)
-                                {
-                                    continue;
-                                }
-
-                                int nx = x + dx;
-                                int ny = y + dy;
-                                if (nx < 0 || nx >= w || ny < 0 || ny >= h)
-                                {
-                                    continue;
-                                }
-
-                                if (_bgMapBuffer[nx, ny] != CellType.Unloaded)
-                                {
-                                    continue;
-                                }
-
-                                int idx = nx + (ny * w);
-                                if (Interlocked.CompareExchange(ref _fbpwGeneration[idx], gen, gen - 1) != gen - 1)
-                                {
-                                    continue;
-                                }
-
-                                _bgMapBuffer[nx, ny] = bg;
-                                _fbpwNextFrontier.Add((nx, ny));
-                            }
-                        }
-                    }
-                }
-
-                // Swap frontiers for next wave
-                var temp = frontier;
-                frontier.Clear();
-                frontier.AddRange(_fbpwNextFrontier);
-                _fbpwNextFrontier.Clear();
-            }
-        }
-
         /// <summary>
         /// Builds vertex/index buffers from cached cell/precalc data and uploads to the GPU.
         /// Shared between full rebuild and incremental paths.
@@ -1963,36 +1627,8 @@ namespace Fodinae.Scripts.World
             int worldWidth = mm.WorldWidth;
             int worldHeight = mm.WorldHeight;
 
-            // Step 1: Scroll vertex buffer in-place.
+            // Step 1: Scroll vertex buffer in-place (also fixes UV3.xy via uv3Offset).
             ScrollVertexBuffer(dx, dy);
-
-            // Step 1.5: Fix UV3 for all cells.
-            // ScrollVertexBuffer copies the entire TerrainVertex struct including UV3,
-            // so scrolled interior cells have stale UV3.xy from their source.
-            // Fix: reset UV3.xy to (gridX, unityY) = world position for every vertex.
-            // Border cells will be overwritten again by FillQuadData in Step 2
-            // (harmlessly redundant writes).
-            int rowStride = mh * 8;
-            for (int x = 0; x < mw; x++)
-            {
-                int colBase = x * rowStride;
-                float gridX = minX + x;
-                for (int y = 0; y < mh; y++)
-                {
-                    int cellBase = colBase + (y * 8);
-                    float unityY = minY + y;
-                    int serverY = CoordinateUtils.UnityToServerY((int)unityY, worldHeight);
-                    Vector4 uv3Base = new Vector4(gridX, serverY, 0, 0);
-                    for (int v = 0; v < 8; v++)
-                    {
-                        TerrainVertex vert = _vertexBuffer[cellBase + v];
-                        uv3Base.z = vert.UV3.z;
-                        uv3Base.w = vert.UV3.w;
-                        vert.UV3 = uv3Base;
-                        _vertexBuffer[cellBase + v] = vert;
-                    }
-                }
-            }
 
             // Step 2: Only fill border cells (those entering the viewport).
             // Border cells are the complement of the scroll region.
@@ -2090,16 +1726,10 @@ namespace Fodinae.Scripts.World
             const int stride = 8;
             int rowStride = mh * stride;
             Vector3 posOffset = new Vector3(-dx * _cellSize, -dy * _cellSize, 0);
-
-            // Copy data then fix positions in the overlapping (scroll) region.
-            // After the copy, data that was at (x+dx, y+dy) now lives at (x, y)
-            // but its Position field still encodes the old local offset.
-            // Note: TerrainVertex is a struct, so we must read → modify → write back
-            // through a local variable; mutation through the array indexer is lost.
+            Vector4 uv3Offset = new Vector4(-dx, dy, 0, 0);
 
             if (dx > 0)
             {
-                // Source x+dx > dest x → iterate x ascending to avoid overwrite.
                 for (int x = 0; x < mw - dx; x++)
                 {
                     int srcBase = (x + dx) * rowStride;
@@ -2114,6 +1744,7 @@ namespace Fodinae.Scripts.World
                             {
                                 TerrainVertex vert = _vertexBuffer[src + v];
                                 vert.Position += posOffset;
+                                vert.UV3 += uv3Offset;
                                 _vertexBuffer[dst + v] = vert;
                             }
                         }
@@ -2128,6 +1759,7 @@ namespace Fodinae.Scripts.World
                             {
                                 TerrainVertex vert = _vertexBuffer[src + v];
                                 vert.Position += posOffset;
+                                vert.UV3 += uv3Offset;
                                 _vertexBuffer[dst + v] = vert;
                             }
                         }
@@ -2142,6 +1774,7 @@ namespace Fodinae.Scripts.World
                             {
                                 TerrainVertex vert = _vertexBuffer[src + v];
                                 vert.Position += posOffset;
+                                vert.UV3 += uv3Offset;
                                 _vertexBuffer[dst + v] = vert;
                             }
                         }
@@ -2150,7 +1783,6 @@ namespace Fodinae.Scripts.World
             }
             else if (dx < 0)
             {
-                // Source x+dx < dest x → iterate x descending to avoid overwrite.
                 for (int x = mw - 1; x >= -dx; x--)
                 {
                     int srcBase = (x + dx) * rowStride;
@@ -2165,6 +1797,7 @@ namespace Fodinae.Scripts.World
                             {
                                 TerrainVertex vert = _vertexBuffer[src + v];
                                 vert.Position += posOffset;
+                                vert.UV3 += uv3Offset;
                                 _vertexBuffer[dst + v] = vert;
                             }
                         }
@@ -2179,6 +1812,7 @@ namespace Fodinae.Scripts.World
                             {
                                 TerrainVertex vert = _vertexBuffer[src + v];
                                 vert.Position += posOffset;
+                                vert.UV3 += uv3Offset;
                                 _vertexBuffer[dst + v] = vert;
                             }
                         }
@@ -2193,6 +1827,7 @@ namespace Fodinae.Scripts.World
                             {
                                 TerrainVertex vert = _vertexBuffer[src + v];
                                 vert.Position += posOffset;
+                                vert.UV3 += uv3Offset;
                                 _vertexBuffer[dst + v] = vert;
                             }
                         }
@@ -2201,7 +1836,6 @@ namespace Fodinae.Scripts.World
             }
             else if (dy != 0)
             {
-                // dx == 0, only vertical scroll
                 for (int x = 0; x < mw; x++)
                 {
                     int baseX = x * rowStride;
@@ -2215,6 +1849,7 @@ namespace Fodinae.Scripts.World
                             {
                                 TerrainVertex vert = _vertexBuffer[src + v];
                                 vert.Position += posOffset;
+                                vert.UV3 += uv3Offset;
                                 _vertexBuffer[dst + v] = vert;
                             }
                         }
@@ -2229,6 +1864,7 @@ namespace Fodinae.Scripts.World
                             {
                                 TerrainVertex vert = _vertexBuffer[src + v];
                                 vert.Position += posOffset;
+                                vert.UV3 += uv3Offset;
                                 _vertexBuffer[dst + v] = vert;
                             }
                         }
@@ -2525,7 +2161,7 @@ namespace Fodinae.Scripts.World
             CellType cellFgType = ccd.Type;
 
             float glowX = 0f, glowY = 0f, glowZ = 0f;
-            bool isGlowSource = Array.IndexOf(GlowingCellTypes, cellFgType) >= 0;
+            bool isGlowSource = GlowingCellTypes.Contains(cellFgType);
 
             if (isGlowSource)
             {
@@ -2539,7 +2175,7 @@ namespace Fodinae.Scripts.World
                 {
                     for (int dx = -1; dx <= 1 && glowZ == 0f; dx++)
                     {
-                        if ((dx != 0 || dy != 0) && Array.IndexOf(GlowingCellTypes, _cellCache[cx + dx, cy + dy].Type) >= 0)
+                        if ((dx != 0 || dy != 0) && GlowingCellTypes.Contains(_cellCache[cx + dx, cy + dy].Type))
                         {
                             glowX = gridX + dx + 0.5f;
                             glowY = unityY + dy + 0.5f;
@@ -2549,15 +2185,16 @@ namespace Fodinae.Scripts.World
                 }
             }
 
-            CellType cellType = isBackground ? _bgMapBuffer[x, y] : cellFgType;
+            CellType cellType = isBackground ? BgMapBuffer[x, y] : cellFgType;
             bool isSameCell = !isBackground || cellType == cellFgType;
-            if (isBackground && (cellType == cellFgType || cellType == 0))
+            if (isBackground && (cellType == cellFgType || cellType == CellType.Unloaded))
             {
                 cellType = CellType.Unloaded;
                 isSameCell = false;
             }
 
-            ref CachedCellData data = ref (isSameCell ? ref _cellCache[cx, cy] : ref GetNeighborCacheEntry(cellType, cx, cy, atlases));
+            CachedCellData localFallback = default;
+            ref CachedCellData data = ref (isSameCell ? ref _cellCache[cx, cy] : ref GetNeighborCacheEntry(cellType, cx, cy, atlases, ref localFallback));
             int atlasIndex = data.AtlasIndex;
 
             float zOffset = isBackground ? 0.1f : 0.0f;
@@ -2696,7 +2333,7 @@ namespace Fodinae.Scripts.World
             vIdx += 4;
         }
 
-        private ref CachedCellData GetNeighborCacheEntry(CellType type, int cx, int cy, List<TextureAtlas> atlases)
+        private ref CachedCellData GetNeighborCacheEntry(CellType type, int cx, int cy, List<TextureAtlas> atlases, ref CachedCellData fallback)
         {
             for (int dy = -1; dy <= 1; dy++)
             {
@@ -2710,7 +2347,7 @@ namespace Fodinae.Scripts.World
             }
 
             var meta = GetMetadata(type, atlases);
-            _fallbackCacheEntry = new CachedCellData
+            fallback = new CachedCellData
             {
                 Type = type,
                 Properties = meta.Properties,
@@ -2727,118 +2364,7 @@ namespace Fodinae.Scripts.World
                 AnimationFrameCount = meta.AnimationFrameCount,
                 FrameHeightTiles = meta.FrameHeightTiles
             };
-            return ref _fallbackCacheEntry;
-        }
-
-        private void ComputeBackgroundMap()
-        {
-            int w = _meshWidth, h = _meshHeight;
-            Array.Clear(_bgMapBuffer, 0, _bgMapBuffer.Length);
-
-            // Phase 1+2: Parallel scan — passable cells fill directly,
-            // non-passable cells vote from their passable 8-neighbors for most frequent type.
-            // Combined into a single parallel pass over columns for cache efficiency.
-            var frontier = _fbpwFrontier;
-            frontier.Clear();
-
-            Parallel.For(0, w, x =>
-            {
-                var localFrontier = new List<(int, int)>(32);
-                Span<TypeCount> typeCounts = stackalloc TypeCount[8];
-
-                for (int y = 0; y < h; y++)
-                {
-                    int cx = x + 1, cy = y + 1;
-                    var cell = _cellCache[cx, cy];
-
-                    if ((cell.Properties & CellConfigProperties.Passable) != 0)
-                    {
-                        _bgMapBuffer[x, y] = cell.Type;
-                        localFrontier.Add((x, y));
-                    }
-                    else
-                    {
-                        int distinctCount = 0;
-                        for (int dy = -1; dy <= 1; dy++)
-                        {
-                            for (int dx = -1; dx <= 1; dx++)
-                            {
-                                if (dx == 0 && dy == 0)
-                                {
-                                    continue;
-                                }
-
-                                int nx = x + dx;
-                                int ny = y + dy;
-                                if (nx < 0 || nx >= w || ny < 0 || ny >= h)
-                                {
-                                    continue;
-                                }
-
-                                var n = _cellCache[nx + 1, ny + 1];
-                                if ((n.Properties & CellConfigProperties.Passable) != 0)
-                                {
-                                    bool found = false;
-                                    for (int i = 0; i < distinctCount; i++)
-                                    {
-                                        if (typeCounts[i].Type == n.Type)
-                                        {
-                                            typeCounts[i].Count++;
-                                            found = true;
-                                            break;
-                                        }
-                                    }
-
-                                    if (!found && distinctCount < 8)
-                                    {
-                                        typeCounts[distinctCount++] = new TypeCount { Type = n.Type, Count = 1 };
-                                    }
-                                }
-                            }
-                        }
-
-                        if (distinctCount > 0)
-                        {
-                            CellType mostFrequent = typeCounts[0].Type;
-                            int maxC = typeCounts[0].Count;
-                            for (int i = 1; i < distinctCount; i++)
-                            {
-                                if (typeCounts[i].Count > maxC)
-                                {
-                                    maxC = typeCounts[i].Count;
-                                    mostFrequent = typeCounts[i].Type;
-                                }
-                            }
-
-                            _bgMapBuffer[x, y] = mostFrequent;
-                            localFrontier.Add((x, y));
-                        }
-                    }
-                }
-
-                if (localFrontier.Count > 0)
-                {
-                    lock (_fbpwLock)
-                    {
-                        frontier.AddRange(localFrontier);
-                    }
-                }
-            });
-
-            // Phase 3: FBPW wavefront propagation (parallel — frontier is large enough for Parallel.For)
-            FBPWPropagate(frontier, useParallel: true);
-
-            // Phase 4: Safety sweep — remaining Unloaded cells become Empty
-            for (int x = 0; x < w; x++)
-            {
-                for (int y = 0; y < h; y++)
-                {
-                    if (_bgMapBuffer[x, y] == CellType.Unloaded)
-                    {
-                        _bgMapBuffer[x, y] = CellType.Empty;
-                    }
-                }
-            }
+            return ref fallback;
         }
 
         private void CleanupMaterials()
@@ -2886,12 +2412,6 @@ namespace Fodinae.Scripts.World
             {
                 _meshFilter.sharedMesh = _mesh;
             }
-        }
-
-        private struct TypeCount
-        {
-            public CellType Type;
-            public int Count;
         }
 
         public void SetSimpleGraphics(bool enabled)

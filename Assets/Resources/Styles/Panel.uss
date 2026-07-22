@@ -1,0 +1,22 @@
+/* ═══════════════════════════════════════════════════════════
+   Panel — общие стили панелей
+   ═══════════════════════════════════════════════════════════ */
+
+.panel {
+    background-color: var(--color-panel-bg);
+    border-color: var(--color-panel-border);
+    border-width: var(--panel-border-width);
+    border-radius: 4px;
+    padding: var(--panel-padding);
+    color: var(--color-text);
+}
+
+.panel-header {
+    font-size: var(--font-size-xl);
+    color: var(--color-accent);
+    margin-bottom: 8px;
+}
+
+.panel-body {
+    flex-grow: 1;
+}

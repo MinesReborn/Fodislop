@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
 using Fodinae.Scripts.Networking;
 using MinesServer.Data;
+using MinesServer.Networking.Client.Packets.GUI;
+using MinesServer.Networking.Shared.Packets;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
@@ -24,6 +27,7 @@ namespace Fodinae.Scripts.UI
         private Color _inventoryButtonHoverColor = new Color(0.8f, 0.75f, 0.6f, 1f);
         private Color _panelBgColor = new Color(0.08f, 0.08f, 0.08f, 0.85f);
         private Color _panelBorderColor = new Color(0.35f, 0.35f, 0.35f, 1f);
+        private Color _contextMenuBg = new Color(0.12f, 0.12f, 0.12f, 0.95f);
 
         private UIDocument _doc;
         private InventoryModel _model;
@@ -37,6 +41,10 @@ namespace Fodinae.Scripts.UI
         private VisualElement _floatingItem;
         private int _dragFromSlot = -1;
         private ItemData _draggedItem;
+
+        // Context menu
+        private VisualElement _contextMenu;
+        private int _contextMenuSlot = -1;
 
         // Selection
         private int _lastSelectedSlot = -1;
@@ -433,51 +441,58 @@ namespace Fodinae.Scripts.UI
             // Выбор по клику
             cell.RegisterCallback<MouseDownEvent>(evt =>
             {
-                if (evt.button != 0)
+                if (evt.button == 0)
                 {
-                    return;
+                    _model.SelectSlot(slotIndex);
+                    var item = _model.GetSlot(slotIndex);
+
+                    if (item == null)
+                    {
+                        return;
+                    }
+
+                    _dragFromSlot = slotIndex;
+                    _draggedItem = item;
+                    cell.style.backgroundColor = _cellBgColor;
+
+                    HideContextMenu();
+
+                    _floatingItem = new VisualElement();
+                    _floatingItem.style.position = Position.Absolute;
+                    _floatingItem.style.width = ICON_SIZE;
+                    _floatingItem.style.height = ICON_SIZE;
+                    _floatingItem.style.borderTopLeftRadius = ICON_SIZE / 2;
+                    _floatingItem.style.borderTopRightRadius = ICON_SIZE / 2;
+                    _floatingItem.style.borderBottomLeftRadius = ICON_SIZE / 2;
+                    _floatingItem.style.borderBottomRightRadius = ICON_SIZE / 2;
+                    if (item.Icon != null)
+                    {
+                        _floatingItem.style.backgroundImage = new StyleBackground(item.Icon);
+                        _floatingItem.style.backgroundColor = Color.clear;
+                    }
+                    else
+                    {
+                        _floatingItem.style.backgroundColor = Color.gray;
+                    }
+
+                    _floatingItem.style.opacity = 0.8f;
+                    _floatingItem.pickingMode = PickingMode.Ignore;
+
+                    var root = _doc.rootVisualElement;
+                    root.Add(_floatingItem);
+                    UpdateFloatingPosition(evt.mousePosition);
+
+                    root.RegisterCallback<MouseMoveEvent>(OnDragMove);
+                    root.RegisterCallback<MouseUpEvent>(OnDragDrop);
+                    evt.StopPropagation();
                 }
-
-                _model.SelectSlot(slotIndex);
-                var item = _model.GetSlot(slotIndex);
-
-                if (item == null)
+                else if (evt.button == 1)
                 {
-                    return;
+                    HideContextMenu();
+                    _contextMenuSlot = slotIndex;
+                    ShowContextMenu(evt.mousePosition, slotIndex);
+                    evt.StopPropagation();
                 }
-
-                _dragFromSlot = slotIndex;
-                _draggedItem = item;
-                cell.style.backgroundColor = _cellBgColor;
-
-                _floatingItem = new VisualElement();
-                _floatingItem.style.position = Position.Absolute;
-                _floatingItem.style.width = ICON_SIZE;
-                _floatingItem.style.height = ICON_SIZE;
-                _floatingItem.style.borderTopLeftRadius = ICON_SIZE / 2;
-                _floatingItem.style.borderTopRightRadius = ICON_SIZE / 2;
-                _floatingItem.style.borderBottomLeftRadius = ICON_SIZE / 2;
-                _floatingItem.style.borderBottomRightRadius = ICON_SIZE / 2;
-                if (item.Icon != null)
-                {
-                    _floatingItem.style.backgroundImage = new StyleBackground(item.Icon);
-                    _floatingItem.style.backgroundColor = Color.clear;
-                }
-                else
-                {
-                    _floatingItem.style.backgroundColor = Color.gray;
-                }
-
-                _floatingItem.style.opacity = 0.8f;
-                _floatingItem.pickingMode = PickingMode.Ignore;
-
-                var root = _doc.rootVisualElement;
-                root.Add(_floatingItem);
-                UpdateFloatingPosition(evt.mousePosition);
-
-                root.RegisterCallback<MouseMoveEvent>(OnDragMove);
-                root.RegisterCallback<MouseUpEvent>(OnDragDrop);
-                evt.StopPropagation();
             });
 
             if (!_slotElements.ContainsKey(slotIndex))
@@ -522,11 +537,82 @@ namespace Fodinae.Scripts.UI
                     _model.SwapSlots(_dragFromSlot, target);
                 }
             }
+            else if (target < 0 && _draggedItem != null)
+            {
+                DropItemOnGround(_dragFromSlot, _draggedItem);
+            }
 
             root.Remove(_floatingItem);
             _floatingItem = null;
             _dragFromSlot = -1;
             _draggedItem = null;
+        }
+
+        private void DropItemOnGround(int slotIndex, ItemData item)
+        {
+            NetworkService.Send(new ElementClickPacket("drop_item", 0, Array.Empty<StringPairPacket>()));
+            _model.SetSlot(slotIndex, null);
+            AnimateDrop(item);
+            Debug.Log($"[InventoryUI] Dropped item '{item.Name}' from slot {slotIndex}");
+        }
+
+        private void AnimateDrop(ItemData item)
+        {
+            if (_floatingItem == null)
+            {
+                return;
+            }
+
+            const float duration = 0.3f;
+            float startTime = Time.unscaledTime;
+            var root = _doc.rootVisualElement;
+
+            var itemEl = new VisualElement();
+            itemEl.style.position = Position.Absolute;
+            itemEl.style.left = _floatingItem.style.left;
+            itemEl.style.top = _floatingItem.style.top;
+            itemEl.style.width = ICON_SIZE;
+            itemEl.style.height = ICON_SIZE;
+            itemEl.style.borderTopLeftRadius = ICON_SIZE / 2;
+            itemEl.style.borderTopRightRadius = ICON_SIZE / 2;
+            itemEl.style.borderBottomLeftRadius = ICON_SIZE / 2;
+            itemEl.style.borderBottomRightRadius = ICON_SIZE / 2;
+            itemEl.pickingMode = PickingMode.Ignore;
+
+            if (item.Icon != null)
+            {
+                itemEl.style.backgroundImage = new StyleBackground(item.Icon);
+                itemEl.style.backgroundColor = Color.clear;
+            }
+            else
+            {
+                itemEl.style.backgroundColor = item.IconColor;
+            }
+
+            root.Add(itemEl);
+
+            itemEl.schedule.Execute(() =>
+            {
+                float t = (Time.unscaledTime - startTime) / duration;
+                if (t >= 1f)
+                {
+                    root.Remove(itemEl);
+                    return;
+                }
+
+                float eased = 1f - Mathf.Pow(1f - t, 3f);
+                itemEl.style.opacity = 1f - eased;
+                itemEl.style.scale = new Scale(new Vector2(1f - (eased * 0.5f), 1f - (eased * 0.5f)));
+                itemEl.style.translate = new Translate(0, eased * 60f);
+            }).Every(16).Until(() =>
+            {
+                if (itemEl.parent == null)
+                {
+                    return true;
+                }
+
+                return Time.unscaledTime - startTime >= duration;
+            });
         }
 
         private int FindSlotUnderMouse(Vector2 mousePos)
@@ -634,9 +720,125 @@ namespace Fodinae.Scripts.UI
         {
             _isInventoryOpen = !_isInventoryOpen;
             _fullInventoryPanel.style.display = _isInventoryOpen ? DisplayStyle.Flex : DisplayStyle.None;
-            _hotbarContainer.style.display = _isInventoryOpen ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
         public InventoryModel GetModel() => _model;
+
+        private void ShowContextMenu(Vector2 mousePos, int slotIndex)
+        {
+            var item = _model.GetSlot(slotIndex);
+            if (item == null)
+            {
+                return;
+            }
+
+            _contextMenu = new VisualElement();
+            _contextMenu.name = "ContextMenu";
+            _contextMenu.style.position = Position.Absolute;
+            _contextMenu.style.left = mousePos.x;
+            _contextMenu.style.top = mousePos.y;
+            _contextMenu.style.backgroundColor = _contextMenuBg;
+            _contextMenu.style.borderTopWidth = 1;
+            _contextMenu.style.borderBottomWidth = 1;
+            _contextMenu.style.borderLeftWidth = 1;
+            _contextMenu.style.borderRightWidth = 1;
+            _contextMenu.style.borderTopColor = _panelBorderColor;
+            _contextMenu.style.borderBottomColor = _panelBorderColor;
+            _contextMenu.style.borderLeftColor = _panelBorderColor;
+            _contextMenu.style.borderRightColor = _panelBorderColor;
+            _contextMenu.style.paddingTop = 4;
+            _contextMenu.style.paddingBottom = 4;
+            _contextMenu.style.paddingLeft = 0;
+            _contextMenu.style.paddingRight = 0;
+            _contextMenu.style.flexDirection = FlexDirection.Column;
+            _contextMenu.style.minWidth = 160;
+            _contextMenu.pickingMode = PickingMode.Position;
+
+            AddContextMenuItem("Использовать", () =>
+            {
+                _model.SelectSlot(slotIndex);
+                _model.UseSelectedItem();
+                HideContextMenu();
+            });
+
+            AddContextMenuItem("Выбросить", () =>
+            {
+                DropItemOnGround(slotIndex, item);
+                HideContextMenu();
+            });
+
+            AddContextMenuItem("Информация", () =>
+            {
+                ShowItemInfo(item);
+                HideContextMenu();
+            });
+
+            _doc.rootVisualElement.Add(_contextMenu);
+
+            _doc.rootVisualElement.RegisterCallback<MouseDownEvent>(OnContextMenuOutsideClick, TrickleDown.TrickleDown);
+            _doc.rootVisualElement.RegisterCallback<KeyDownEvent>(OnContextMenuEscape, TrickleDown.TrickleDown);
+        }
+
+        private void AddContextMenuItem(string labelText, System.Action onClick)
+        {
+            var btn = new Button(onClick);
+            btn.text = labelText;
+            btn.style.backgroundColor = Color.clear;
+            btn.style.borderTopWidth = 0;
+            btn.style.borderBottomWidth = 0;
+            btn.style.borderLeftWidth = 0;
+            btn.style.borderRightWidth = 0;
+            btn.style.paddingTop = 6;
+            btn.style.paddingBottom = 6;
+            btn.style.paddingLeft = 12;
+            btn.style.paddingRight = 12;
+            btn.style.color = Color.white;
+            btn.style.fontSize = 13;
+            btn.style.unityTextAlign = TextAnchor.MiddleLeft;
+            btn.style.minHeight = 28;
+
+            btn.RegisterCallback<MouseEnterEvent>(_ =>
+                btn.style.backgroundColor = new Color(0.25f, 0.25f, 0.35f, 1f));
+            btn.RegisterCallback<MouseLeaveEvent>(_ =>
+                btn.style.backgroundColor = Color.clear);
+
+            _contextMenu.Add(btn);
+        }
+
+        private void HideContextMenu()
+        {
+            if (_contextMenu != null)
+            {
+                _contextMenu.RemoveFromHierarchy();
+                _contextMenu = null;
+            }
+
+            _contextMenuSlot = -1;
+            _doc?.rootVisualElement.UnregisterCallback<MouseDownEvent>(OnContextMenuOutsideClick);
+            _doc?.rootVisualElement.UnregisterCallback<KeyDownEvent>(OnContextMenuEscape);
+        }
+
+        private void OnContextMenuOutsideClick(MouseDownEvent evt)
+        {
+            if (_contextMenu != null && !_contextMenu.worldBound.Contains(evt.mousePosition))
+            {
+                HideContextMenu();
+            }
+        }
+
+        private void OnContextMenuEscape(KeyDownEvent evt)
+        {
+            if (evt.keyCode == KeyCode.Escape)
+            {
+                HideContextMenu();
+            }
+        }
+
+        private void ShowItemInfo(ItemData item)
+        {
+            _tooltipName.text = $"Предмет: {item.Name ?? item.ItemType.ToString()} ({item.ItemType}) x{item.Quantity}";
+            _tooltipDesc.text = $"Тип: {item.ItemType}\n{item.Description ?? "Нет описания"}";
+            _tooltipWrapper.style.display = DisplayStyle.Flex;
+        }
     }
 }

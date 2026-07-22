@@ -4,31 +4,41 @@ using UnityEngine;
 
 namespace Fodinae.Editor
 {
-    public class ExportSprites : EditorWindow
+    /// <summary>
+    /// Dev-utility: exports all sprites from a selected Texture2D asset
+    /// into individual PNG files under the project-root 'exported/' folder.
+    ///
+    /// Menu: Tools > Export Sprites to PNG
+    /// </summary>
+    public static class ExportSprites
     {
-    [MenuItem("Tools/Export Sprites to PNG")]
-    private static void ExportSelectedSpriteToPNG()
-    {
-        var texture = Selection.activeObject as Texture2D;
-        if (texture == null)
+        [MenuItem("Tools/Export Sprites to PNG")]
+        private static void ExportSelectedSpriteToPNG()
         {
-            Debug.LogError("Select a texture first");
-            return;
-        }
-
-        var assetPath = AssetDatabase.GetAssetPath(texture);
-        var outputDir = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "exported"));
-        Directory.CreateDirectory(outputDir);
-
-        var sprites = AssetDatabase.LoadAllAssetsAtPath(assetPath);
-        var exportedCount = 0;
-        foreach (var obj in sprites)
-        {
-            if (obj is Sprite sprite)
+            var texture = Selection.activeObject as Texture2D;
+            if (texture == null)
             {
+                Debug.LogError("[ExportSprites] Select a Texture2D asset first.");
+                return;
+            }
+
+            var assetPath = AssetDatabase.GetAssetPath(texture);
+            var outputDir = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "exported"));
+            Directory.CreateDirectory(outputDir);
+
+            var sprites = AssetDatabase.LoadAllAssetsAtPath(assetPath);
+            var exportedCount = 0;
+
+            foreach (var obj in sprites)
+            {
+                if (obj is not Sprite sprite)
+                {
+                    continue;
+                }
+
                 if (sprite.texture == null)
                 {
-                    Debug.LogWarning($"Sprite '{sprite.name}' has no source texture, skipping");
+                    Debug.LogWarning($"[ExportSprites] Sprite '{sprite.name}' has no source texture, skipping.");
                     continue;
                 }
 
@@ -43,7 +53,7 @@ namespace Fodinae.Editor
                 }
                 else
                 {
-                    // Fallback: copy through RenderTexture for non-readable textures
+                    // Fallback: copy through RenderTexture for non-readable textures.
                     var rt = RenderTexture.GetTemporary(
                         sprite.texture.width, sprite.texture.height, 0,
                         RenderTextureFormat.Default, RenderTextureReadWrite.sRGB);
@@ -61,14 +71,13 @@ namespace Fodinae.Editor
                 tex.Apply();
 
                 var png = tex.EncodeToPNG();
-                var path = $"{outputDir}/{sprite.name}.png";
-                File.WriteAllBytes(path, png);
-                DestroyImmediate(tex);
+                var filePath = Path.Combine(outputDir, $"{sprite.name}.png");
+                File.WriteAllBytes(filePath, png);
+                Object.DestroyImmediate(tex);
                 exportedCount++;
             }
-        }
 
-        Debug.Log($"Exported {exportedCount} sprite(s) to {outputDir}");
+            Debug.Log($"[ExportSprites] Exported {exportedCount} sprite(s) to {outputDir}");
+        }
     }
-}
 }

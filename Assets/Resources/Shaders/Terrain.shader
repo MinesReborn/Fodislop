@@ -71,10 +71,10 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float4 _DebugColor;
                 float _DebugMode;
                 float _SimpleGraphics;
-                float _DarknessFactor;
                 float _UseLight2D;
             CBUFFER_END
 
+            float _DarknessFactor;
             float4 _HeadlightPos;
             float4 _HeadlightDir;
             float _HeadlightAngleCos;
@@ -420,10 +420,10 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float4 _DebugColor;
                 float _DebugMode;
                 float _SimpleGraphics;
-                float _DarknessFactor;
                 float _UseLight2D;
             CBUFFER_END
 
+            float _DarknessFactor;
             float4 _HeadlightPos;
             float4 _HeadlightDir;
             float _HeadlightAngleCos;

@@ -5,6 +5,7 @@ using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Networking.Connection;
 using Fodinae.Scripts.Player;
 using Fodinae.Scripts.Core;
+using Fodinae.Scripts.Core.Interfaces;
 using Fodinae.Scripts.World;
 using MinesServer.Networking.Client;
 using MinesServer.Networking.Client.Packets;
@@ -15,7 +16,7 @@ using UnityEngine;
 
 namespace Fodinae.Scripts.Networking
 {
-    public class NetworkService : SingletonMonoBehaviour<NetworkService>
+    public class NetworkService : SingletonMonoBehaviour<NetworkService>, INetworkService
     {
         private readonly Dictionary<Type, List<Subscription>> _subscribers = new();
 
@@ -40,10 +41,19 @@ namespace Fodinae.Scripts.Networking
                 return;
             }
 
-            var cm = FindAnyObjectByType<ConnectionManager>();
+            var cm = ConnectionManager.InstanceIfExists;
             if (cm != null)
             {
                 cm.OnPacketReceived -= OnPacketReceived;
+            }
+        }
+
+        public static bool IsConnected
+        {
+            get
+            {
+                var cm = ConnectionManager.InstanceIfExists;
+                return cm != null && cm.Connection != null && cm.Connection.ConnectionStatus == MinesServer.Networking.Shared.ConnectionStatus.Connected;
             }
         }
 
@@ -51,9 +61,14 @@ namespace Fodinae.Scripts.Networking
 
         public void SendAction(IActionClientPacket action)
         {
+            if (!IsConnected)
+            {
+                return;
+            }
+
             if (_cachedPlayerController == null)
             {
-                _cachedPlayerController = FindAnyObjectByType<PlayerMovementController>();
+                _cachedPlayerController = PlayerMovementController.LocalPlayer;
             }
 
             if (_cachedPlayerController == null)
@@ -69,18 +84,18 @@ namespace Fodinae.Scripts.Networking
             Send(new ActionClientPacket(serverX, serverY, action));
         }
 
+        void INetworkService.Send(IRootClientPacket packet) => Send(packet);
+
         public static void Send(IRootClientPacket packet)
         {
             if (ConnectionManager.Instance == null)
             {
-                Debug.LogError("[NetworkService] Cannot send packet: ConnectionManager.Instance is null!");
                 return;
             }
 
             var connection = ConnectionManager.Instance.Connection;
             if (connection == null || connection.ConnectionStatus != MinesServer.Networking.Shared.ConnectionStatus.Connected)
             {
-                Debug.LogWarning($"[NetworkService] Cannot send packet {packet.GetType().Name}: Not connected.");
                 return;
             }
 
@@ -97,7 +112,17 @@ namespace Fodinae.Scripts.Networking
                 _subscribers[type] = handlers;
             }
 
-            if (handlers.Any(s => s.OriginalHandler == (Delegate)handler))
+            bool alreadySubscribed = false;
+            for (int i = 0; i < handlers.Count; i++)
+            {
+                if (handlers[i].OriginalHandler == (Delegate)handler)
+                {
+                    alreadySubscribed = true;
+                    break;
+                }
+            }
+
+            if (alreadySubscribed)
             {
                 return;
             }
@@ -165,7 +190,6 @@ namespace Fodinae.Scripts.Networking
         private class Subscription
         {
             public Delegate OriginalHandler { get; set; }
-
             public Action<object> Wrapper { get; set; }
         }
     }

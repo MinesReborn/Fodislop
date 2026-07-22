@@ -3,13 +3,11 @@ using UnityEngine;
 
 namespace Fodinae.Scripts.World
 {
-    /// <summary>
-    /// Centralized utility class for coordinate conversions between Server (0 at top, Y+)
-    /// and Unity (0 at bottom, Y+) systems using worldHeight.
-    /// Handles wrapping and snapping to grid consistently across the project.
-    /// </summary>
     public static class CoordinateUtils
     {
+        private static int _cachedHeight;
+        private static int _lastFrame = -1;
+
         private static int ResolveHeight(int worldHeight)
         {
             if (worldHeight > 0)
@@ -17,12 +15,23 @@ namespace Fodinae.Scripts.World
                 return worldHeight;
             }
 
-            if (MapManager.Instance != null && MapManager.Instance.WorldHeight > 0)
+            int frame = Time.frameCount;
+            if (_lastFrame == frame)
             {
-                return MapManager.Instance.WorldHeight;
+                return _cachedHeight;
             }
 
-            return 128;
+            _lastFrame = frame;
+            if (MapManager.Instance != null && MapManager.Instance.WorldHeight > 0)
+            {
+                _cachedHeight = MapManager.Instance.WorldHeight;
+            }
+            else
+            {
+                _cachedHeight = 128;
+            }
+
+            return _cachedHeight;
         }
 
         /// <summary>

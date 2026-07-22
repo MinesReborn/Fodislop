@@ -1,0 +1,123 @@
+/* ═══════════════════════════════════════════════════════════
+   Inventory — стили инвентаря
+   ═══════════════════════════════════════════════════════════ */
+
+.inventory-root {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    translate: -50% -50%;
+    background-color: var(--color-panel-bg);
+    border-color: var(--color-panel-border);
+    border-width: var(--panel-border-width);
+    border-radius: 4px;
+    padding: var(--panel-padding);
+}
+
+.inventory-grid {
+    flex-wrap: wrap;
+    width: 540px;
+}
+
+.inventory-cell {
+    width: var(--cell-size);
+    height: var(--cell-size);
+    background-color: rgba(38, 38, 38, 0.8);
+    border-color: var(--btn-border);
+    border-width: 1px;
+    border-radius: 3px;
+    margin: 5px;
+    -unity-text-align: middle-center;
+}
+
+.inventory-cell:hover {
+    border-color: var(--color-accent);
+}
+
+.inventory-cell.selected {
+    border-color: var(--color-accent);
+    background-color: rgba(178, 166, 128, 0.2);
+}
+
+.inventory-cell-icon {
+    width: 36px;
+    height: 36px;
+}
+
+.inventory-cell-count {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    font-size: 10px;
+    color: var(--color-text);
+}
+
+.hotbar-root {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    translate: -50% 0;
+    flex-direction: row;
+}
+
+.hotbar-cell {
+    width: var(--cell-size);
+    height: var(--cell-size);
+    background-color: rgba(38, 38, 38, 0.85);
+    border-color: var(--btn-border);
+    border-width: 1px;
+    border-radius: 3px;
+    margin: 2px;
+    -unity-text-align: middle-center;
+}
+
+.hotbar-cell.selected {
+    border-color: var(--color-accent);
+    background-color: rgba(178, 166, 128, 0.3);
+}
+
+.inventory-btn {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background-color: var(--btn-bg);
+    border-color: var(--btn-border);
+    border-width: 2px;
+    border-radius: 3px;
+    padding: 8px 16px;
+    font-size: 13px;
+    color: var(--color-text);
+    -unity-text-align: middle-center;
+}
+
+.inventory-btn:hover {
+    background-color: var(--btn-hover);
+}
+
+.inventory-hint {
+    position: absolute;
+    bottom: 55px;
+    right: 10px;
+    font-size: 11px;
+    color: var(--color-text-dim);
+    -unity-text-align: middle-right;
+}
+
+.inventory-context-menu {
+    position: absolute;
+    background-color: rgba(30, 30, 30, 0.95);
+    border-color: var(--color-panel-border);
+    border-width: 1px;
+    padding: 4px;
+    min-width: 150px;
+}
+
+.inventory-context-item {
+    padding: 6px 12px;
+    font-size: 13px;
+    color: var(--color-text);
+}
+
+.inventory-context-item:hover {
+    background-color: var(--btn-hover);
+}
