@@ -1601,15 +1601,18 @@ namespace MinesServer.Networking.Connection.Client
             {
                 var data = await Fodinae.Scripts.Networking.Connection.Client.TextureStorageManager.Instance.GetTextureData(assetEntry.Filename.TrimStart('/'));
 
+                RuntimeAssetPacket response;
                 if (data != null)
                 {
-                    var response = new RuntimeAssetPacket(assetEntry.Filename, Guid.NewGuid().ToString(), data);
-                    OnReceived?.Invoke(new ServerPacket(response));
+                    response = new RuntimeAssetPacket(assetEntry.Filename, Guid.NewGuid().ToString(), data);
                 }
                 else
                 {
-                    Debug.LogError($"[DummyConnection] Failed to get asset data for: {assetEntry.Filename}");
+                    Debug.LogWarning($"[DummyConnection] Asset not found locally: {assetEntry.Filename}");
+                    response = new RuntimeAssetPacket(assetEntry.Filename, string.Empty, System.Array.Empty<byte>());
                 }
+
+                OnReceived?.Invoke(new ServerPacket(response));
             }
         }
 
