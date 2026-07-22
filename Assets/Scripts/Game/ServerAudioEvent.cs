@@ -46,6 +46,8 @@ namespace Fodinae.Scripts.Game
         private ushort _attractorY;
         private bool _hasAttractorPosition;
 
+        private Dictionary<string, string> _textureOverrideMap;
+
         private float[] _effekseerDynamicInputs;
 
         private Sprite[] _animationFrames;
@@ -256,6 +258,32 @@ namespace Fodinae.Scripts.Game
                         }
 
                         break;
+                    case "map":
+                        if (!string.IsNullOrEmpty(param.Value))
+                        {
+                            _textureOverrideMap = new Dictionary<string, string>();
+                            var entries = param.Value.Split(';');
+                            foreach (var entry in entries)
+                            {
+                                if (string.IsNullOrEmpty(entry))
+                                {
+                                    continue;
+                                }
+
+                                var eqIdx = entry.IndexOf('=');
+                                if (eqIdx > 0 && eqIdx < entry.Length - 1)
+                                {
+                                    var key = entry.Substring(0, eqIdx).Trim();
+                                    var val = entry.Substring(eqIdx + 1).Trim();
+                                    if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(val))
+                                    {
+                                        _textureOverrideMap[key] = val;
+                                    }
+                                }
+                            }
+                        }
+
+                        break;
                     case "props":
                         if (!string.IsNullOrEmpty(param.Value))
                         {
@@ -415,7 +443,16 @@ namespace Fodinae.Scripts.Game
                 var effectAsset = await RuntimeEffekseerLoader.LoadEffectAsync(
                     bytes,
                     _effectType.ToString(),
-                    texturePathMapper: null,
+                    texturePathMapper: path =>
+                    {
+                        if (_textureOverrideMap != null && _textureOverrideMap.TryGetValue(path, out var mapped))
+                        {
+                            Debug.Log($"[ServerAudioEvent] Remapping texture '{path}' → '{mapped}' for effect '{_effectType}'");
+                            return mapped;
+                        }
+
+                        return path;
+                    },
                     textureTimeoutSeconds: 10);
 
                 if (token.IsCancellationRequested)
