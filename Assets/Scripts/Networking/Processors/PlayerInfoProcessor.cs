@@ -3,6 +3,7 @@ using Fodinae.Scripts.Core.Interfaces;
 using Fodinae.Scripts.Game;
 using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Player;
+using Fodinae.Scripts.UI;
 using MinesServer.Networking.Server.Packets.Information;
 using MinesServer.Networking.Server.Packets.Movement;
 using MinesServer.Networking.Server.Packets.World;
@@ -13,7 +14,7 @@ namespace Fodinae.Scripts.Networking.Processors
     public class PlayerInfoProcessor : IPacketProcessor<PlayerInfoPacket>, IPacketProcessor<MovementSpeedPacket>, IPacketProcessor<TeleportPacket>
     {
         private static IMapDataProvider Map => ServiceLocator.Resolve<IMapDataProvider>();
-        private static IPlayerStats Stats => ServiceLocator.Resolve<IPlayerStats>();
+        private static IPlayerStats Stats => ServiceLocator.Resolve<IPlayerStats>() ?? PlayerStatsModel.Instance;
 
         public void Process(PlayerInfoPacket packet)
         {
@@ -23,7 +24,12 @@ namespace Fodinae.Scripts.Networking.Processors
                 rm.LocalPlayerBotId = packet.BotId;
             }
 
-            Stats.SetNickname(packet.Nickname);
+            var s = Stats;
+            if (s != null)
+            {
+                s.SetNickname(packet.Nickname);
+            }
+
             var player = PlayerMovementController.LocalPlayer;
             if (player != null)
             {

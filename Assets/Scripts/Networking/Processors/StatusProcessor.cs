@@ -12,7 +12,7 @@ namespace Fodinae.Scripts.Networking.Processors
 {
     public class StatusProcessor : IPacketProcessor<OnlinePacket>, IPacketProcessor<PingPacket>, IPacketProcessor<OutdatedClientPacket>, IPacketProcessor<AddStatusLinePacket>, IPacketProcessor<ClearStatusLinePacket>, IPacketProcessor<ClearStatusPacket>
     {
-        private static IPlayerStats Stats => ServiceLocator.Resolve<IPlayerStats>();
+        private static IPlayerStats Stats => ServiceLocator.Resolve<IPlayerStats>() ?? PlayerStatsModel.Instance;
 
         public void Process(OnlinePacket packet)
         {

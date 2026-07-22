@@ -3,6 +3,7 @@ using Fodinae.Scripts.Core.Interfaces;
 using Fodinae.Scripts.Game;
 using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Player;
+using Fodinae.Scripts.UI;
 using MinesServer.Networking.Server.Packets.Information;
 
 namespace Fodinae.Scripts.Networking.Processors
@@ -23,7 +24,12 @@ namespace Fodinae.Scripts.Networking.Processors
 
         public void Process(HideClanPacket packet)
         {
-            Stats.SetClanId(0);
+            var s = Stats;
+            if (s != null)
+            {
+                s.SetClanId(0);
+            }
+
             var player = PlayerMovementController.LocalPlayer;
             if (player != null && player.TryGetComponent<Robot>(out var robot))
             {
