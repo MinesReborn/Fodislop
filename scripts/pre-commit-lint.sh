@@ -7,14 +7,12 @@ set -e
 export HOME="${HOME:-~}"
 export DOTNET_CLI_HOME="${DOTNET_CLI_HOME:-$HOME}"
 
-# Build dependency projects first so Temp/bin/Debug references exist for Assembly-CSharp
-if [ -f "Effekseer.csproj" ]; then
-    dotnet build Effekseer.csproj -clp:NoSummary >/dev/null 2>&1 || true
-fi
-
-if [ -f "UniTask.csproj" ]; then
-    dotnet build UniTask.csproj -clp:NoSummary >/dev/null 2>&1 || true
-fi
+# Build all sub-projects first so DLL references in Temp/bin/Debug exist before Assembly-CSharp build
+for DEPENDENCY in Effekseer.csproj EffekseerEditor.csproj Effekseer.URP.csproj UniTask.csproj UniTask.Linq.csproj UniTask.Editor.csproj UniTask.DOTween.csproj UniTask.Addressables.csproj UniTask.TextMeshPro.csproj McpUnity.Editor.csproj; do
+    if [ -f "$DEPENDENCY" ]; then
+        dotnet build "$DEPENDENCY" -clp:NoSummary >/dev/null 2>&1 || true
+    fi
+done
 
 # Find all generated Assembly-CSharp project files
 PROJECTS=$(find . -maxdepth 1 -name "Assembly-CSharp*.csproj")
@@ -33,28 +31,15 @@ HAS_WARNINGS=0
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 
-PIDS=()
-PROJ_LIST=()
-
+# Build projects sequentially to prevent MSBuild race conditions during CS0006 DLL file linking
 for PROJECT_FILE in $PROJECTS; do
     PROJECT_NAME=$(basename "$PROJECT_FILE")
-    PROJ_LIST+=("$PROJECT_NAME")
     LOG_FILE="$TMP_DIR/$PROJECT_NAME.log"
 
     echo "Running full C# Roslyn analyzer check for $PROJECT_NAME..."
 
-    # Run full --no-incremental analysis in parallel using shared Roslyn compiler server & all CPU cores
-    (
-        dotnet build "$PROJECT_FILE" --no-incremental -maxcpucount -p:UseSharedCompilation=true -nodeReuse:true -clp:NoSummary > "$LOG_FILE" 2>&1
-    ) &
-    PIDS+=($!)
-done
-
-# Wait for all parallel analyzer jobs to complete
-for i in "${!PIDS[@]}"; do
-    wait "${PIDS[$i]}" || true
-    PROJECT_NAME="${PROJ_LIST[$i]}"
-    LOG_FILE="$TMP_DIR/$PROJECT_NAME.log"
+    # Build sequentially with shared compilation
+    dotnet build "$PROJECT_FILE" -maxcpucount -p:UseSharedCompilation=true -nodeReuse:true -clp:NoSummary > "$LOG_FILE" 2>&1 || true
 
     if [ -f "$LOG_FILE" ]; then
         BUILD_LOG=$(cat "$LOG_FILE")
