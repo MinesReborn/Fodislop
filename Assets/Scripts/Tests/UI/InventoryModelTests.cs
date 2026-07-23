@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using Fodinae.Scripts.UI.HUD.Inventory.Model;
+using MinesServer.Data;
 using UnityEngine;
 
 namespace Fodinae.Tests.UI
@@ -31,7 +32,7 @@ namespace Fodinae.Tests.UI
             int changedIndex = -1;
             _model.OnSlotChanged += (idx) => changedIndex = idx;
 
-            var item = new ItemData { ItemType = 1, Name = "Iron Ore", Quantity = 5, IconColor = Color.gray };
+            var item = new ItemData("Iron Ore", Color.gray, 5) { ItemType = (ItemType)1 };
             _model.SetSlot(3, item);
 
             Assert.AreEqual(3, changedIndex, "OnSlotChanged should be invoked with slot index 3.");
@@ -41,8 +42,8 @@ namespace Fodinae.Tests.UI
         [Test]
         public void SwapSlots_ExchangesItems_FiresSlotChangedEvents()
         {
-            var itemA = new ItemData { ItemType = 1, Name = "Iron", Quantity = 10 };
-            var itemB = new ItemData { ItemType = 2, Name = "Gold", Quantity = 5 };
+            var itemA = new ItemData("Iron", Color.gray, 10) { ItemType = (ItemType)1 };
+            var itemB = new ItemData("Gold", Color.yellow, 5) { ItemType = (ItemType)2 };
 
             _model.SetSlot(0, itemA);
             _model.SetSlot(1, itemB);
@@ -56,8 +57,8 @@ namespace Fodinae.Tests.UI
         [Test]
         public void TryStackSlots_SameItemType_CombinesQuantities()
         {
-            var itemFrom = new ItemData { ItemType = 1, Name = "Coal", Quantity = 15, IconColor = Color.black };
-            var itemTo = new ItemData { ItemType = 1, Name = "Coal", Quantity = 20, IconColor = Color.black };
+            var itemFrom = new ItemData("Coal", Color.black, 15) { ItemType = (ItemType)1 };
+            var itemTo = new ItemData("Coal", Color.black, 20) { ItemType = (ItemType)1 };
 
             _model.SetSlot(0, itemFrom);
             _model.SetSlot(1, itemTo);
@@ -72,8 +73,8 @@ namespace Fodinae.Tests.UI
         [Test]
         public void TryStackSlots_DifferentItems_ReturnsFalseAndPreservesSlots()
         {
-            var itemFrom = new ItemData { ItemType = 1, Name = "Coal", Quantity = 15, IconColor = Color.black };
-            var itemTo = new ItemData { ItemType = 2, Name = "Diamond", Quantity = 1, IconColor = Color.cyan };
+            var itemFrom = new ItemData("Coal", Color.black, 15) { ItemType = (ItemType)1 };
+            var itemTo = new ItemData("Diamond", Color.cyan, 1) { ItemType = (ItemType)2 };
 
             _model.SetSlot(0, itemFrom);
             _model.SetSlot(1, itemTo);

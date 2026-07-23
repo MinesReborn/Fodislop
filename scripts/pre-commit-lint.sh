@@ -6,11 +6,11 @@ set -e
 export HOME="${HOME:-/Users/murasama}"
 export DOTNET_CLI_HOME="${DOTNET_CLI_HOME:-/Users/murasama}"
 
-# Find all C# project files in root
-PROJECTS=$(find . -maxdepth 1 -name "*.csproj" | grep -E "Assembly-CSharp|Effekseer|UniTask|McpUnity" || find . -maxdepth 1 -name "*.csproj")
+# Find all generated Assembly-CSharp project files
+PROJECTS=$(find . -maxdepth 1 -name "Assembly-CSharp*.csproj")
 
 if [ -z "$PROJECTS" ]; then
-    echo -e "\033[0;31mError: No .csproj files found in repository root.\033[0m"
+    echo -e "\033[0;31mError: No Assembly-CSharp*.csproj files found in repository root.\033[0m"
     echo "Please open the project in Unity Editor to generate C# project files."
     if [ "$CI" = "true" ] || [ "$STRICT_LINT" = "1" ]; then
         exit 1
@@ -49,11 +49,11 @@ for i in "${!PIDS[@]}"; do
     if [ -f "$LOG_FILE" ]; then
         BUILD_LOG=$(cat "$LOG_FILE")
 
-        # All compilation errors
-        PROJECT_ERRORS=$(echo "$BUILD_LOG" | grep -E ": error " | grep -E "/Assets/(Scripts|Editor)/" || true)
+        # All compilation errors in user codebase (Assets/Scripts or Assets/Editor)
+        PROJECT_ERRORS=$(echo "$BUILD_LOG" | grep -E ": error " | grep -E "(^|/|\\\\)Assets/(Scripts|Editor)/" || echo "$BUILD_LOG" | grep -E ": error CS" || true)
 
-        # All warnings from any analyzer or compiler in Assets/Scripts or Assets/Editor
-        PROJECT_WARNINGS=$(echo "$BUILD_LOG" | grep -E ": warning " | grep -E "/Assets/(Scripts|Editor)/" || true)
+        # All warnings in user codebase (Assets/Scripts or Assets/Editor)
+        PROJECT_WARNINGS=$(echo "$BUILD_LOG" | grep -E ": warning " | grep -E "(^|/|\\\\)Assets/(Scripts|Editor)/" || true)
 
         if [ -n "$PROJECT_ERRORS" ]; then
             echo -e "\n\033[0;31mError: Compilation failed for $PROJECT_NAME:\033[0m"
