@@ -169,15 +169,12 @@ namespace Fodinae.Scripts.Player.Logic
             Vector2Int oldPos = Position;
             Position = position;
 
-            var mm = MapManager.Instance;
-            if (mm != null)
+            int worldHeight = MapManager.Instance != null ? MapManager.Instance.WorldHeight : 0;
+            Vector3 targetWorldPos = CoordinateUtils.ServerToUnityPos(position.x, position.y, worldHeight, transform.position.z);
+            transform.position = targetWorldPos;
+            if (_robot != null)
             {
-                Vector3 targetWorldPos = CoordinateUtils.ServerToUnityPos(position.x, position.y, mm.WorldHeight, transform.position.z);
-                transform.position = targetWorldPos;
-                if (_robot != null)
-                {
-                    _robot.TargetPosition = targetWorldPos;
-                }
+                _robot.TargetPosition = targetWorldPos;
             }
 
             OnPlayerMoved?.Invoke(oldPos, Position);

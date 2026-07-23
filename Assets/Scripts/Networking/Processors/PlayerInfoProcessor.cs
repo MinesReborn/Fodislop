@@ -51,13 +51,12 @@ namespace Fodinae.Scripts.Networking.Processors
 
         public void Process(TeleportPacket packet)
         {
-            var player = Object.FindAnyObjectByType<PlayerMovementController>();
-            if (player == null || Map == null)
+            var player = PlayerMovementController.LocalPlayer ?? Object.FindAnyObjectByType<PlayerMovementController>();
+            if (player == null)
             {
                 return;
             }
 
-            player.transform.position = new Vector3(packet.X + 0.5f, packet.Y + 0.5f, 0);
             player.UpdateServerPosition(new Vector2Int(packet.X, packet.Y));
         }
     }
