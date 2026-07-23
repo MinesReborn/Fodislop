@@ -18,7 +18,6 @@ using UnityEngine.InputSystem;
 
 namespace Fodinae.Scripts.Player.Logic
 {
-    [RequireComponent(typeof(PlayerInputHandler))]
     public class PlayerMovementController : MonoBehaviour
     {
         [Header("Movement Settings")]
