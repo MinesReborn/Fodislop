@@ -152,31 +152,53 @@ namespace MinesServer.Networking.Connection.Client
             _status = ConnectionStatus.Connected;
             OnConnected?.Invoke();
 
-            var minimapObj = new GameObject("MinimapRoot");
-            minimapObj.AddComponent<MinimapController>();
+            if (UnityEngine.Object.FindAnyObjectByType<MinimapController>() == null)
+            {
+                var minimapObj = new GameObject("MinimapRoot");
+                minimapObj.AddComponent<MinimapController>();
+            }
 
-            var inventoryObj = new GameObject("InventoryRoot");
-            inventoryObj.AddComponent<Fodinae.Scripts.UI.HUD.Inventory.View.InventoryView>();
-            inventoryObj.AddComponent<Fodinae.Scripts.UI.HUD.Inventory.Presenter.InventoryPresenter>();
+            if (UnityEngine.Object.FindAnyObjectByType<Fodinae.Scripts.UI.HUD.Inventory.View.InventoryView>() == null)
+            {
+                var inventoryObj = new GameObject("InventoryRoot");
+                inventoryObj.AddComponent<Fodinae.Scripts.UI.HUD.Inventory.View.InventoryView>();
+                inventoryObj.AddComponent<Fodinae.Scripts.UI.HUD.Inventory.Presenter.InventoryPresenter>();
+            }
 
+            if (UnityEngine.Object.FindAnyObjectByType<Fodinae.Scripts.UI.HUD.Player.View.PlayerHUDView>() == null)
+            {
+                var hudObj = new GameObject("PlayerHUD");
+                if (PlayerStatsModel.Instance == null)
+                {
+                    hudObj.AddComponent<PlayerStatsModel>();
+                }
 
-            var hudObj = new GameObject("PlayerHUD");
-            hudObj.AddComponent<PlayerStatsModel>();
-            hudObj.AddComponent<Fodinae.Scripts.UI.HUD.Player.View.PlayerHUDView>();
-            hudObj.AddComponent<Fodinae.Scripts.UI.HUD.Player.Presenter.PlayerHUDPresenter>();
+                hudObj.AddComponent<Fodinae.Scripts.UI.HUD.Player.View.PlayerHUDView>();
+                hudObj.AddComponent<Fodinae.Scripts.UI.HUD.Player.Presenter.PlayerHUDPresenter>();
+            }
 
+            if (UnityEngine.Object.FindAnyObjectByType<PauseMenu>() == null)
+            {
+                var pauseObj = new GameObject("PauseMenu");
+                pauseObj.AddComponent<PauseMenu>();
+            }
 
-            var pauseObj = new GameObject("PauseMenu");
-            pauseObj.AddComponent<PauseMenu>();
-
-            var chatObj = new GameObject("ChatSystem");
-            chatObj.AddComponent<LocalChatPopup>();
-            chatObj.AddComponent<GlobalChatUI>();
-            chatObj.AddComponent<FloatingChatManager>();
+            if (UnityEngine.Object.FindAnyObjectByType<GlobalChatUI>() == null)
+            {
+                var chatObj = new GameObject("ChatSystem");
+                chatObj.AddComponent<LocalChatPopup>();
+                chatObj.AddComponent<GlobalChatUI>();
+                chatObj.AddComponent<FloatingChatManager>();
+            }
         }
 
         private void CreateFPSCounter()
         {
+            if (_fpsCounter != null || UnityEngine.Object.FindAnyObjectByType<FPSCounter>() != null)
+            {
+                return;
+            }
+
             GameObject fpsObject = new GameObject("FPSCounter");
             _fpsCounter = fpsObject.AddComponent<FPSCounter>();
             UnityEngine.Object.DontDestroyOnLoad(fpsObject);
