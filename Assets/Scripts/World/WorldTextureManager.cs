@@ -570,11 +570,12 @@ namespace Fodinae.Scripts.World
 
         private static CellType GetCellTypeAt(int x, int y)
         {
-            if (ServiceLocator.Resolve<IWorldDataStorage>() != null && ServiceLocator.Resolve<IWorldDataStorage>().CellLayer != null)
+            var storage = ServiceLocator.Resolve<IWorldDataStorage>();
+            if (storage?.CellLayer != null)
             {
                 try
                 {
-                    return ServiceLocator.Resolve<IWorldDataStorage>().GetCell(x, y);
+                    return storage.GetCell(x, y);
                 }
                 catch (Exception ex)
                 {

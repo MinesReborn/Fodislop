@@ -232,7 +232,13 @@ namespace Fodinae.Scripts.Player.Logic
                     ushort currentX = (ushort)Mathf.Clamp(Position.x, 0, ushort.MaxValue);
                     ushort currentServerY = (ushort)Mathf.Clamp(Position.y, 0, ushort.MaxValue);
 
-                    var currentCellType = ServiceLocator.Resolve<IWorldDataStorage>().GetCell(currentX, currentServerY);
+                    var storage = ServiceLocator.Resolve<IWorldDataStorage>();
+                    if (storage == null)
+                    {
+                        return;
+                    }
+
+                    var currentCellType = storage.GetCell(currentX, currentServerY);
                     float cooldown = mm.GetMoveCooldown(currentCellType);
                     if (cooldown > 0)
                     {
@@ -271,7 +277,7 @@ namespace Fodinae.Scripts.Player.Logic
                     int targetServerXInt = Position.x + deltaServerX;
                     int targetServerYInt = Position.y + deltaServerY;
 
-                    var layer = ServiceLocator.Resolve<IWorldDataStorage>().CellLayer;
+                    var layer = storage.CellLayer;
                     if (layer == null)
                     {
                         return;
@@ -288,7 +294,7 @@ namespace Fodinae.Scripts.Player.Logic
                     ushort targetServerX = (ushort)targetServerXInt;
                     ushort targetServerY = (ushort)targetServerYInt;
 
-                    var cellType = ServiceLocator.Resolve<IWorldDataStorage>().GetCell(targetServerX, targetServerY);
+                    var cellType = storage.GetCell(targetServerX, targetServerY);
                     var cellConfig = mm.GetCellConfig(cellType);
 
                     bool isPassable = cellType == CellType.Empty || ((CellConfigProperties)cellConfig.Properties).HasFlag(CellConfigProperties.Passable);

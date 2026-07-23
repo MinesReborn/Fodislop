@@ -291,9 +291,10 @@ namespace MinesServer.Networking.Connection.Client
                         return;
                     }
 
-                    if (ServiceLocator.Resolve<IWorldDataStorage>()?.CellLayer != null && ServiceLocator.Resolve<IWorldDataStorage>().IsReady)
+                    var storage = ServiceLocator.Resolve<IWorldDataStorage>();
+                    if (storage?.CellLayer != null && storage.IsReady)
                     {
-                        var cellType = ServiceLocator.Resolve<IWorldDataStorage>().GetCell(move.X, move.Y);
+                        var cellType = storage.GetCell(move.X, move.Y);
                         var cellConfig = MapManager.Instance?.GetCellConfig(cellType);
                         if (cellConfig.HasValue)
                         {
