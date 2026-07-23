@@ -34,7 +34,7 @@ namespace Fodinae.Scripts
 
                 if (_instance == null)
                 {
-                    _instance = FindFirstObjectByType<T>();
+                    _instance = FindAnyObjectByType<T>();
                     if (_instance == null && !_isQuitting)
                     {
                         var go = new GameObject($"[{typeof(T).Name}]");
