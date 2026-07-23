@@ -539,82 +539,11 @@ namespace Fodinae.Scripts.UI.HUD.Inventory.View
                     _model.SwapSlots(_dragFromSlot, target);
                 }
             }
-            else if (target < 0 && _draggedItem != null)
-            {
-                DropItemOnGround(_dragFromSlot, _draggedItem);
-            }
 
             root.Remove(_floatingItem);
             _floatingItem = null;
             _dragFromSlot = -1;
             _draggedItem = null;
-        }
-
-        private void DropItemOnGround(int slotIndex, ItemData item)
-        {
-            NetworkService.Send(new ElementClickPacket("drop_item", 0, Array.Empty<StringPairPacket>()));
-            _model.SetSlot(slotIndex, null);
-            AnimateDrop(item);
-            Debug.Log($"[InventoryUI] Dropped item '{item.Name}' from slot {slotIndex}");
-        }
-
-        private void AnimateDrop(ItemData item)
-        {
-            if (_floatingItem == null)
-            {
-                return;
-            }
-
-            const float duration = 0.3f;
-            float startTime = Time.unscaledTime;
-            var root = _doc.rootVisualElement;
-
-            var itemEl = new VisualElement();
-            itemEl.style.position = Position.Absolute;
-            itemEl.style.left = _floatingItem.style.left;
-            itemEl.style.top = _floatingItem.style.top;
-            itemEl.style.width = ICON_SIZE;
-            itemEl.style.height = ICON_SIZE;
-            itemEl.style.borderTopLeftRadius = ICON_SIZE / 2;
-            itemEl.style.borderTopRightRadius = ICON_SIZE / 2;
-            itemEl.style.borderBottomLeftRadius = ICON_SIZE / 2;
-            itemEl.style.borderBottomRightRadius = ICON_SIZE / 2;
-            itemEl.pickingMode = PickingMode.Ignore;
-
-            if (item.Icon != null)
-            {
-                itemEl.style.backgroundImage = new StyleBackground(item.Icon);
-                itemEl.style.backgroundColor = Color.clear;
-            }
-            else
-            {
-                itemEl.style.backgroundColor = item.IconColor;
-            }
-
-            root.Add(itemEl);
-
-            itemEl.schedule.Execute(() =>
-            {
-                float t = (Time.unscaledTime - startTime) / duration;
-                if (t >= 1f)
-                {
-                    root.Remove(itemEl);
-                    return;
-                }
-
-                float eased = 1f - Mathf.Pow(1f - t, 3f);
-                itemEl.style.opacity = 1f - eased;
-                itemEl.style.scale = new Scale(new Vector2(1f - (eased * 0.5f), 1f - (eased * 0.5f)));
-                itemEl.style.translate = new Translate(0, eased * 60f);
-            }).Every(16).Until(() =>
-            {
-                if (itemEl.parent == null)
-                {
-                    return true;
-                }
-
-                return Time.unscaledTime - startTime >= duration;
-            });
         }
 
         private int FindSlotUnderMouse(Vector2 mousePos)
@@ -760,12 +689,6 @@ namespace Fodinae.Scripts.UI.HUD.Inventory.View
             {
                 _model.SelectSlot(slotIndex);
                 _model.UseSelectedItem();
-                HideContextMenu();
-            });
-
-            AddContextMenuItem("Выбросить", () =>
-            {
-                DropItemOnGround(slotIndex, item);
                 HideContextMenu();
             });
 

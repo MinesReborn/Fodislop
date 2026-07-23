@@ -231,13 +231,13 @@ Audio/
 **Примеры использования:**
 ```csharp
 // Проигрывание звука UI (2D)
-AudioSystem.Instance.Play2D("ui_click");
+AudioSystem.Instance.Play2D("ui/click");
 
 // Проигрывание 3D-звука с нативной привязкой к GameObject
 AudioSystem.Instance.PlayAttached("robot_engine", gameObject);
 
 // Запуск FMOD Snapshot (например пещера)
-var snapshot = AudioSystem.Instance.PlaySnapshot("snapshot:/Cave_Ambient");
+var snapshot = AudioSystem.Instance.PlaySnapshot("snapshot:/cave_ambient");
 
 // Установка глобального параметра FMOD (глубина)
 AudioSystem.Instance.SetGlobalParameter("Depth", 450f);
@@ -263,6 +263,7 @@ AudioSystem.Instance.SetBusVolume(AudioBusType.SFX, 0.8f);
 ### 3.6 UI-системы
 
 - **Пакетный UI** (см. 3.1): Динамическая сборка окон из `OpenWindowPacket` — фабрика `PacketUIBuilderFactory` и несколько типовых билдеров (Canvas, Panel, Grid, Text, Slider, Dropdown, ScrollView, Line, DockPanel...).
+- **Принцип авторитета сервера при закрытии окон (ESC)**: Нажатие клавиши `ESC` или клик по кнопке закрытия окна **НЕ ДОЛЖНЫ** принудительно скрывать пакетное окно локально на клиенте. Клиент отправляет пакет закрытия окна на сервер. Только сервер решает, закрывается ли окно, и отправляет клиенту подтверждающий пакет закрытия (`CloseWindowPacket`). Локальное самовольное закрытие окна клиентом ломает состояние `PacketHandler.IsInputBlocked`, из-за чего игрок вечно застревает без возможности движения.
 - **Binding**: `WindowBinding` привязывает данные через `SmartFormat`. Сканирует VisualElement-дерево, ищет именованные поля ввода (источники) и Label с SmartFormat-шаблонами (потребители), пересчитывает при любом изменении.
 - **PauseMenu**: Меню паузы с настройкой всех 6 шин громкости FMOD (`Master`, `SFX`, `Music`, `Voice`, `Ambience`, `UI`), масштабом UI, графикой и выбором разрешения. Автоматически выставляет `PauseMenu.IsMenuOpen`, блокируя ввод движения и кликов (`PacketHandler.IsInputBlocked`).
 - **Инвентарь**: `InventoryUI` (сетка 9×6 + хотбар 9 ячеек), `InventoryModel` (данные), `ItemData` (тип/количество).

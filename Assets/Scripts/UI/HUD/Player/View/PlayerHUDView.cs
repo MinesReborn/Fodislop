@@ -598,6 +598,8 @@ namespace Fodinae.Scripts.UI.HUD.Player.View
                 _aggressionButton.style.backgroundColor = new Color(0.25f, 0.05f, 0.05f, 0.85f));
             _aggressionButton.RegisterCallback<MouseLeaveEvent>(_ =>
                 _aggressionButton.style.backgroundColor = new Color(0.15f, 0.05f, 0.05f, 0.85f));
+
+            // TODO: заменить текст
             Tooltip.AttachTo(_aggressionButton, "Робот атакует враждебных существ", _tooltip);
 
             root.Add(_aggressionButton);

@@ -228,7 +228,7 @@ namespace Fodinae.Scripts
             }
 
             string ext = Path.GetExtension(filename).ToLowerInvariant();
-            return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".webp" || ext == ".tga" || ext == ".bmp";
+            return string.IsNullOrEmpty(ext) || ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".webp" || ext == ".tga" || ext == ".bmp";
         }
 
         private async UniTaskVoid ProcessBatchLoop(CancellationToken ct)
