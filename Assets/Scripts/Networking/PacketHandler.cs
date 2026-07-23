@@ -41,7 +41,7 @@ namespace Fodinae.Scripts.Networking
         private int _mapRegionPacketsReceived = 0;
         private UIDocument _uiDocument;
         private ModalWindowHandler _modalWindowHandler;
-        private readonly List<(string tag, VisualElement root, WindowBinding binding, List<VisualElement> clickableElements)> _openWindows = new();
+        private readonly List<(string tag, VisualElement root, VisualElement overlay, WindowBinding binding, List<VisualElement> clickableElements)> _openWindows = new();
 
         public void HandleWorldInitPacket(WorldInitPacket worldInitPacket)
         {
@@ -144,6 +144,7 @@ namespace Fodinae.Scripts.Networking
                 ns.Subscribe<MaxDepthPacket>(HandleMaxDepthPacket);
                 ns.Subscribe<MissionInitPacket>(HandleMissionInitPacket);
                 ns.Subscribe<MissionProgressPacket>(HandleMissionProgressPacket);
+                ns.Subscribe<AuthTokenPacket>(HandleAuthTokenPacket);
             }
 
             var mm = MapManager.Instance;
@@ -211,15 +212,22 @@ namespace Fodinae.Scripts.Networking
                 ns.Unsubscribe<MaxDepthPacket>(HandleMaxDepthPacket);
                 ns.Unsubscribe<MissionInitPacket>(HandleMissionInitPacket);
                 ns.Unsubscribe<MissionProgressPacket>(HandleMissionProgressPacket);
+                ns.Unsubscribe<AuthTokenPacket>(HandleAuthTokenPacket);
             }
 
             // Close modal and any open windows
             _modalWindowHandler?.Hide();
-            foreach (var (_, root, binding, _) in _openWindows)
+
+            foreach (var (_, root, overlay, binding, _) in _openWindows)
             {
                 binding.Dispose();
                 if (_uiDocument != null)
                 {
+                    if (overlay.parent != null)
+                    {
+                        overlay.parent.Remove(overlay);
+                    }
+
                     _uiDocument.rootVisualElement.Remove(root);
                 }
             }
@@ -526,6 +534,27 @@ namespace Fodinae.Scripts.Networking
             Debug.LogError($"[PacketHandler] {packet.Description}");
             Debug.LogError($"[PacketHandler] Скачать: {packet.UpdateURL}");
             Application.OpenURL(packet.UpdateURL);
+        }
+
+        private void HandleAuthTokenPacket(AuthTokenPacket packet)
+        {
+            _packetCount++;
+            string newToken = packet.Token;
+            if (string.IsNullOrEmpty(newToken))
+            {
+                Debug.LogError("[Auth] Received empty token from server");
+                return;
+            }
+
+            Auth.AuthTokenManager.SaveToken(newToken);
+
+            var gm = GameManager.Instance;
+            if (gm != null)
+            {
+                gm.AuthorizeUI();
+            }
+
+            Debug.Log($"[Auth] Token received and saved, length={newToken.Length}");
         }
 
         private void HandleInventoryPacket(InventoryPacket packet)

@@ -324,9 +324,8 @@ namespace Fodinae.Scripts.UI
                 if (topTag != null)
                 {
                     NetworkService.Send(new ElementClickPacket(topTag, 0, System.Array.Empty<StringPairPacket>()));
+                    return;
                 }
-
-                return;
             }
 
             if (_settingsPage.style.display == DisplayStyle.Flex)

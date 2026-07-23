@@ -111,6 +111,7 @@ namespace Fodinae.Scripts.Player
             ReadInput();
             ApplyMovement();
             HandleDigInput();
+
             if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
             {
                 AutoDig = !_autoDig;

@@ -42,6 +42,15 @@ namespace Fodinae.Scripts.Networking
             element.style.top = new Length(50, LengthUnit.Percent);
             element.style.translate = new Translate(new Length(-50, LengthUnit.Percent), new Length(-50, LengthUnit.Percent));
 
+            var overlay = new VisualElement();
+            overlay.style.position = Position.Absolute;
+            overlay.style.left = 0;
+            overlay.style.right = 0;
+            overlay.style.top = 0;
+            overlay.style.bottom = 0;
+            overlay.style.backgroundColor = new Color(0f, 0f, 0f, 0.5f);
+            _uiDocument.rootVisualElement.Add(overlay);
+
             _uiDocument.rootVisualElement.Add(element);
             UIInputManager.Instance.PushModal(element);
 
@@ -53,7 +62,7 @@ namespace Fodinae.Scripts.Networking
             var clickableElements = RegisterClickableElements(element, packet.WindowTag);
 
             var windowIndex = _openWindows.Count;
-            _openWindows.Add((packet.WindowTag, element, binding, clickableElements));
+            _openWindows.Add((packet.WindowTag, element, overlay, binding, clickableElements));
             Debug.Log($"[PacketHandler] Window '{packet.WindowTag}' opened with {clickableElements.Count} clickable elements (window index {windowIndex})");
         }
 
@@ -94,7 +103,7 @@ namespace Fodinae.Scripts.Networking
                 return;
             }
 
-            var (_, windowRoot, _, _) = windowEntry;
+            var (_, windowRoot, _, _, _) = windowEntry;
 
             if (clickedElement.userData is not IGUIComponentPacket componentPacket)
             {
@@ -126,9 +135,14 @@ namespace Fodinae.Scripts.Networking
                 return;
             }
 
-            var (_, root, binding, _) = _openWindows[^1];
+            var (_, root, overlay, binding, _) = _openWindows[^1];
             binding.Dispose();
             UIInputManager.Instance.PopModal(root);
+            if (overlay.parent != null)
+            {
+                overlay.parent.Remove(overlay);
+            }
+
             _uiDocument.rootVisualElement.Remove(root);
             _openWindows.RemoveAt(_openWindows.Count - 1);
         }
