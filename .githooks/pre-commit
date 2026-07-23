@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Tracked Git pre-commit hook
+
+HERE="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$HERE"
+
+# Run pre-commit framework if available, otherwise fallback to pre-commit-lint.sh
+if command -v pre-commit > /dev/null 2>&1; then
+    exec pre-commit run --hook-stage commit "$@"
+elif [ -f "./scripts/pre-commit-lint.sh" ]; then
+    exec ./scripts/pre-commit-lint.sh "$@"
+else
+    echo "Error: Neither pre-commit tool nor scripts/pre-commit-lint.sh was found."
+    exit 1
+fi

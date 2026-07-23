@@ -6,12 +6,15 @@ set -e
 export HOME="${HOME:-/Users/murasama}"
 export DOTNET_CLI_HOME="${DOTNET_CLI_HOME:-/Users/murasama}"
 
-# Find all generated Assembly-CSharp project files
-PROJECTS=$(find . -maxdepth 1 -name "Assembly-CSharp*.csproj")
+# Find all C# project files in root
+PROJECTS=$(find . -maxdepth 1 -name "*.csproj" | grep -E "Assembly-CSharp|Effekseer|UniTask|McpUnity" || find . -maxdepth 1 -name "*.csproj")
 
 if [ -z "$PROJECTS" ]; then
-    echo "Warning: Assembly-CSharp*.csproj files not found."
-    echo "Please open the project in Unity Editor first to generate C# project files."
+    echo -e "\033[0;31mError: No .csproj files found in repository root.\033[0m"
+    echo "Please open the project in Unity Editor to generate C# project files."
+    if [ "$CI" = "true" ] || [ "$STRICT_LINT" = "1" ]; then
+        exit 1
+    fi
     echo "Skipping C# Roslyn analyzer checks for this commit."
     exit 0
 fi

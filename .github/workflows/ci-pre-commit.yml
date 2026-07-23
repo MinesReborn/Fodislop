@@ -1,0 +1,26 @@
+name: C# Compilation & Pre-Commit Lint CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  lint-and-build:
+    name: Check C# Compilation & Roslyn Analyzers
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Run C# Pre-Commit Lint
+        run: |
+          chmod +x scripts/pre-commit-lint.sh
+          ./scripts/pre-commit-lint.sh
