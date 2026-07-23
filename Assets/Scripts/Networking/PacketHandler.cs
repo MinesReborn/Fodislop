@@ -547,6 +547,13 @@ namespace Fodinae.Scripts.Networking
             }
 
             Auth.AuthTokenManager.SaveToken(newToken);
+
+            var gm = GameManager.Instance;
+            if (gm != null)
+            {
+                gm.AuthorizeUI();
+            }
+
             Debug.Log($"[Auth] Token received and saved, length={newToken.Length}");
         }
 

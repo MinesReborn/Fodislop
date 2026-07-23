@@ -66,6 +66,7 @@ namespace Fodinae.Scripts.Networking.Connection
             Connection = new DummyConnection();
             Connection.OnReceived += OnReceived;
             Connection.OnConnected += OnConnected;
+            Connection.OnDisconnected += OnDisconnected;
             Connection.Connect();
         }
 
@@ -77,6 +78,11 @@ namespace Fodinae.Scripts.Networking.Connection
             NetworkService.Send(new ClientHelloPacket(version, "Windows", 10, "fingerprint", token));
 
             NetworkService.Send(new OpenHelpClickPacket());
+        }
+
+        private void OnDisconnected()
+        {
+            Game.Managers.GameManager.InstanceIfExists?.DeauthorizeUI();
         }
 
         private void OnReceived(ServerPacket obj)
@@ -94,6 +100,9 @@ namespace Fodinae.Scripts.Networking.Connection
                 return;
             }
 
+            Connection.OnReceived -= OnReceived;
+            Connection.OnConnected -= OnConnected;
+            Connection.OnDisconnected -= OnDisconnected;
             Connection.Disconnect();
             Connection = null;
         }

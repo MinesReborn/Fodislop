@@ -4,12 +4,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using Cysharp.Threading.Tasks;
 using Cysharp.Threading.Tasks.CompilerServices;
-using Fodinae.Scripts.Audio;
+using Fodinae.Scripts;
 using Fodinae.Scripts.Game.Managers;
-using Fodinae.Scripts.Networking.Auth;
-using Fodinae.Scripts.UI;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.Actions;
@@ -36,7 +35,6 @@ using MinesServer.Networking.Server.Packets.World;
 using MinesServer.Networking.Shared;
 using MinesServer.Networking.Shared.Packets;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace MinesServer.Networking.Connection.Client
 {
@@ -54,8 +52,10 @@ namespace MinesServer.Networking.Connection.Client
 
         public static bool IgnoreCollision = false;
 
-        private readonly HashSet<string> _validTokens = new();
-        private const string _knownToken = "myToken3";
+        private static readonly string TokenStorePath =
+            Path.Combine(Application.temporaryCachePath, "server_tokens.json");
+
+        private static readonly HashSet<string> _validTokens = LoadTokensFromFile();
         private bool _awaitingAuth;
 
         private const ushort _mockBotId = 456;
@@ -69,8 +69,6 @@ namespace MinesServer.Networking.Connection.Client
         private volatile bool _bonusClaimed;
         private ItemType _pendingBonusItem;
         private int _pendingBonusAmount;
-        private FPSCounter _fpsCounter;
-        private GameObject _uiRoot;
         private readonly List<(ushort X, ushort Y)> _teleportPositions = new();
         private List<(ushort X, ushort Y)> _teleportDestinations = new();
         private bool _teleportWindowOpen;
@@ -78,8 +76,12 @@ namespace MinesServer.Networking.Connection.Client
         private bool _buffLoopStarted;
         private const int _maxDepth = 200;
         private bool _depthWarningActive;
+        private static readonly System.Random _rng = new();
 
-        [Header("Prebaked Map")]
+        private WorldLayer<CellType> _worldLayer;
+        private CellConfigurationPacket[] _cellConfigs;
+        private long[] _basketContents = new long[6];
+
         public bool UsePrebakedMap = true;
         public string PrebakedWorldCodeName = "pallada";
 
@@ -150,50 +152,9 @@ namespace MinesServer.Networking.Connection.Client
         private async UniTaskVoid ConnectAsync()
         {
             await UniTask.Yield();
-            CreateFPSCounter();
-
-            _uiRoot = new GameObject("UIRoot");
-            _uiRoot.SetActive(false);
-
-            var minimapObj = new GameObject("MinimapRoot");
-            minimapObj.AddComponent<MinimapController>();
-            minimapObj.transform.SetParent(_uiRoot.transform);
-
-            var inventoryObj = new GameObject("InventoryRoot");
-            inventoryObj.AddComponent<InventoryUI>();
-            inventoryObj.transform.SetParent(_uiRoot.transform);
-
-            var hudObj = new GameObject("PlayerHUD");
-            hudObj.AddComponent<PlayerStatsModel>();
-            hudObj.AddComponent<PlayerHUD>();
-            hudObj.transform.SetParent(_uiRoot.transform);
-
-            var pauseObj = new GameObject("PauseMenu");
-            pauseObj.AddComponent<PauseMenu>();
-            pauseObj.transform.SetParent(_uiRoot.transform);
-
-            var chatObj = new GameObject("ChatSystem");
-            chatObj.AddComponent<LocalChatPopup>();
-            chatObj.AddComponent<GlobalChatUI>();
-            chatObj.AddComponent<FloatingChatManager>();
-            chatObj.transform.SetParent(_uiRoot.transform);
-
-            string savedToken = AuthTokenManager.LoadToken();
-            string savedKnownToken = PlayerPrefs.GetString("AuthKnownToken", "");
-            if (!string.IsNullOrEmpty(savedToken) && savedKnownToken == _knownToken)
-            {
-                _validTokens.Add(savedToken);
-            }
 
             _status = ConnectionStatus.Connected;
             OnConnected?.Invoke();
-        }
-
-        private void CreateFPSCounter()
-        {
-            GameObject fpsObject = new GameObject("FPSCounter");
-            _fpsCounter = fpsObject.AddComponent<FPSCounter>();
-            UnityEngine.Object.DontDestroyOnLoad(fpsObject);
         }
 
         public void Disconnect()
@@ -213,23 +174,6 @@ namespace MinesServer.Networking.Connection.Client
             await UniTask.Delay(100);
             _status = ConnectionStatus.Disconnected;
             OnDisconnected?.Invoke();
-            var gm = GameManager.InstanceIfExists;
-            if (gm != null)
-            {
-                gm.DeauthorizeUI();
-            }
-
-            if (_fpsCounter != null)
-            {
-                UnityEngine.Object.Destroy(_fpsCounter.gameObject);
-                _fpsCounter = null;
-            }
-
-            if (_uiRoot != null)
-            {
-                UnityEngine.Object.Destroy(_uiRoot);
-                _uiRoot = null;
-            }
         }
 
         private async UniTaskVoid UpdatePosition()
@@ -238,19 +182,45 @@ namespace MinesServer.Networking.Connection.Client
             OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[] { new RobotPositionPacket(_mockBotId, _x, _y, (byte)_rot) })));
         }
 
-        public void Dispose()
+        private static HashSet<string> LoadTokensFromFile()
         {
-            if (_fpsCounter != null)
+            try
             {
-                UnityEngine.Object.Destroy(_fpsCounter.gameObject);
-                _fpsCounter = null;
+                if (!File.Exists(TokenStorePath))
+                {
+                    return new HashSet<string>();
+                }
+
+                string json = File.ReadAllText(TokenStorePath);
+                var tokens = JsonConvert.DeserializeObject<List<string>>(json);
+                if (tokens != null && tokens.Count > 0)
+                {
+                    return new HashSet<string>(tokens);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DummyConnection] Failed to load tokens: {ex.Message}");
             }
 
-            if (_uiRoot != null)
+            return new HashSet<string>();
+        }
+
+        private static void SaveTokensToFile()
+        {
+            try
             {
-                UnityEngine.Object.Destroy(_uiRoot);
-                _uiRoot = null;
+                string json = JsonConvert.SerializeObject(new List<string>(_validTokens));
+                File.WriteAllText(TokenStorePath, json);
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DummyConnection] Failed to save tokens: {ex.Message}");
+            }
+        }
+
+        public void Dispose()
+        {
         }
 
         public void SendAsync(ClientPacket packet)
@@ -270,7 +240,7 @@ namespace MinesServer.Networking.Connection.Client
 
                     if (!isAdjacent)
                     {
-                        Debug.Log($"[DummyConnection] Rejected move ({move.X},{move.Y}) - not adjacent to ({_x},{_y})");
+                        Console.WriteLine($"[DummyConnection] Rejected move ({move.X},{move.Y}) - not adjacent to ({_x},{_y})");
                         OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[]
                         {
                             new RobotPositionPacket(_mockBotId, _x, _y, (byte)_rot),
@@ -278,23 +248,17 @@ namespace MinesServer.Networking.Connection.Client
                         return;
                     }
 
-                    if (MapStorage.Instance?.CellLayer != null && MapStorage.Instance.IsReady)
+                    var cellType = _worldLayer[move.X, move.Y];
+                    var props = _cellConfigs[(int)cellType].Properties;
+                    bool isPassable = ((CellConfigProperties)props).HasFlag(CellConfigProperties.Passable);
+                    if (!isPassable && !IgnoreCollision)
                     {
-                        var cellType = MapStorage.Instance.GetCell(move.X, move.Y);
-                        var cellConfig = MapManager.Instance?.GetCellConfig(cellType);
-                        if (cellConfig.HasValue)
+                        Console.WriteLine($"[DummyConnection] Rejected move ({move.X},{move.Y}) - not passable ({cellType})");
+                        OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[]
                         {
-                            bool isPassable = ((CellConfigProperties)cellConfig.Value.Properties).HasFlag(CellConfigProperties.Passable);
-                            if (!isPassable && !IgnoreCollision)
-                            {
-                                Debug.Log($"[DummyConnection] Rejected move ({move.X},{move.Y}) - not passable ({cellType})");
-                                OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[]
-                                {
-                                    new RobotPositionPacket(_mockBotId, _x, _y, (byte)_rot),
-                                })));
-                                return;
-                            }
-                        }
+                            new RobotPositionPacket(_mockBotId, _x, _y, (byte)_rot),
+                        })));
+                        return;
                     }
 
                     _x = move.X;
@@ -304,7 +268,7 @@ namespace MinesServer.Networking.Connection.Client
                 }
                 else if (actionPacket.Payload is RotatePacket rotate)
                 {
-                    Debug.Log($"  - Rotate to {rotate.Direction}");
+                    Console.WriteLine($"  - Rotate to {rotate.Direction}");
                     _rot = rotate.Direction;
                     UpdatePosition().Forget();
                 }
@@ -314,54 +278,48 @@ namespace MinesServer.Networking.Connection.Client
                 else if (actionPacket.Payload is ToggleAgressionPacket)
                 {
                     _aggression = !_aggression;
-                    Debug.Log($"[DummyConnection] Aggression toggled: {_aggression}");
+                    Console.WriteLine($"[DummyConnection] Aggression toggled: {_aggression}");
                     OnReceived?.Invoke(new ServerPacket(new AggressionStatePacket(_aggression)));
                 }
                 else if (actionPacket.Payload is BzPacket)
                 {
                     ushort cellX = actionPacket.X;
                     ushort cellY = actionPacket.Y;
-                    Debug.Log($"[DummyConnection] DIG at ({cellX}, {cellY})");
+                    Console.WriteLine($"[DummyConnection] DIG at ({cellX}, {cellY})");
 
                     OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[]
                     {
                         new SFXPacket(SFX.Bz, _mockBotId, cellX, cellY, Array.Empty<StringPairPacket>()),
                     })));
 
-                    if (MapStorage.Instance.CellLayer != null && MapStorage.Instance.IsReady)
+                    var cellType = _worldLayer[cellX, cellY];
+                    int crystalIdx = GetCrystalBasketIndex(cellType);
+                    var props = _cellConfigs[(int)cellType].Properties;
+                    bool isBreakable = ((CellConfigProperties)props).HasFlag(CellConfigProperties.Breakable);
+
+                    if (!isBreakable)
                     {
-                        var cellType = MapStorage.Instance.GetCell(cellX, cellY);
-                        int crystalIdx = GetCrystalBasketIndex(cellType);
-                        var cellConfig = MapManager.Instance.GetCellConfig(cellType);
-                        bool isBreakable = ((CellConfigProperties)cellConfig.Properties).HasFlag(CellConfigProperties.Breakable);
-
-                        if (!isBreakable)
-                        {
-                            Debug.Log($"[DummyConnection] Cell ({cellX}, {cellY}) = {cellType} is not breakable");
-                            return;
-                        }
-
-                        MapStorage.Instance.SetCell(cellX, cellY, CellType.Empty);
-
-                        if (crystalIdx >= 0)
-                        {
-                            var stats = PlayerStatsModel.Instance;
-                            if (stats.BasketContents.Length > crystalIdx)
-                            {
-                                var newContents = new long[stats.BasketContents.Length];
-                                Array.Copy(stats.BasketContents, newContents, newContents.Length);
-                                newContents[crystalIdx] += UnityEngine.Random.Range(1, 101);
-                                OnReceived?.Invoke(new ServerPacket(new BasketPacket(stats.BasketCapacity, newContents)));
-                            }
-                        }
-
-                        OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[]
-                        {
-                            new MapRegionPacket(cellX, cellY, 0, 0, new[] { CellType.Empty }),
-                            new SFXPacket(SFX.Destroy, _mockBotId, cellX, cellY, Array.Empty<StringPairPacket>()),
-                        })));
-                        Debug.Log($"[DummyConnection] Cell ({cellX}, {cellY}) broken → Empty");
+                        Console.WriteLine($"[DummyConnection] Cell ({cellX}, {cellY}) = {cellType} is not breakable");
+                        return;
                     }
+
+                    _worldLayer[cellX, cellY] = CellType.Empty;
+
+                    if (crystalIdx >= 0)
+                    {
+                        var newBasket = new long[_basketContents.Length];
+                        Array.Copy(_basketContents, newBasket, newBasket.Length);
+                        newBasket[crystalIdx] += _rng.Next(1, 101);
+                        _basketContents = newBasket;
+                        OnReceived?.Invoke(new ServerPacket(new BasketPacket(50000, newBasket)));
+                    }
+
+                    OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[]
+                    {
+                        new MapRegionPacket(cellX, cellY, 0, 0, new[] { CellType.Empty }),
+                        new SFXPacket(SFX.Destroy, _mockBotId, cellX, cellY, Array.Empty<StringPairPacket>()),
+                    })));
+                    Console.WriteLine($"[DummyConnection] Cell ({cellX}, {cellY}) broken → Empty");
 
                     if (_activeMissionId >= 0)
                     {
@@ -375,7 +333,7 @@ namespace MinesServer.Networking.Connection.Client
                 }
                 else if (actionPacket.Payload is SuicidePacket)
                 {
-                    Debug.Log("[DummyConnection] Suicide / Respawn");
+                    Console.WriteLine("[DummyConnection] Suicide / Respawn");
                     const ushort SPAWN_X = 25;
                     const ushort SPAWN_Y = 50;
                     var effectX = _x;
@@ -399,7 +357,7 @@ namespace MinesServer.Networking.Connection.Client
             {
                 case ClientHelloPacket clientHello:
                     string receivedToken = clientHello.AuthToken;
-                    bool isTokenValid = !string.IsNullOrEmpty(receivedToken) && (_validTokens.Contains(receivedToken) || receivedToken == _knownToken);
+                    bool isTokenValid = !string.IsNullOrEmpty(receivedToken) && _validTokens.Contains(receivedToken);
 
                     if (!isTokenValid)
                     {
@@ -417,16 +375,7 @@ namespace MinesServer.Networking.Connection.Client
                         return;
                     }
 
-                    var gm = GameManager.Instance;
-                    if (gm != null)
-                    {
-                        gm.AuthorizeUI();
-                    }
-
-                    if (_uiRoot != null)
-                    {
-                        _uiRoot.SetActive(true);
-                    }
+                    OnReceived?.Invoke(new ServerPacket(new AuthTokenPacket(receivedToken)));
 
                     InitWorld();
                     break;
@@ -438,12 +387,12 @@ namespace MinesServer.Networking.Connection.Client
                 case OpenSettingsClickPacket:
                     break;
                 case SendLocalChatMessagePacket localMsg:
-                    Debug.Log($"[DummyConnection] Local chat: {localMsg.Message}");
+                    Console.WriteLine($"[DummyConnection] Local chat: {localMsg.Message}");
                     OnReceived?.Invoke(new ServerPacket(new LocalChatMessagePacket(_mockBotId, _x, _y, localMsg.Message)));
                     break;
 
                 case SendChatMessagePacket globalMsg:
-                    Debug.Log($"[DummyConnection] Global chat ({globalMsg.Tag}): {globalMsg.Message}");
+                    Console.WriteLine($"[DummyConnection] Global chat ({globalMsg.Tag}): {globalMsg.Message}");
                     var chatMsg = new ChatMessagePacket(
                         DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                         DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
@@ -455,12 +404,12 @@ namespace MinesServer.Networking.Connection.Client
                     OnReceived?.Invoke(new ServerPacket(new ChatMessageListPacket("global", new[] { chatMsg })));
                     break;
                 case MinesServer.Networking.Client.Packets.Inventory.SelectItemPacket selectItem:
-                    Debug.Log($"[DummyConnection] SelectItem: {selectItem.Item}");
+                    Console.WriteLine($"[DummyConnection] SelectItem: {selectItem.Item}");
                     _selectedItemType = selectItem.Item;
                     OnReceived?.Invoke(new ServerPacket(GetItemInfoPacket(selectItem.Item)));
                     break;
                 case MinesServer.Networking.Client.Packets.Inventory.UseItemPacket:
-                    Debug.Log($"[DummyConnection] UseItem: {_selectedItemType}");
+                    Console.WriteLine($"[DummyConnection] UseItem: {_selectedItemType}");
                     HandleUseItem();
                     break;
                 case ElementClickPacket elementClick:
@@ -655,7 +604,7 @@ namespace MinesServer.Networking.Connection.Client
 
         private void HandleElementClick(ElementClickPacket packet)
         {
-            Debug.Log($"[DummyConnection] ElementClick: WindowTag={packet.WindowTag}, Index={packet.ElementIndex}");
+            Console.WriteLine($"[DummyConnection] ElementClick: WindowTag={packet.WindowTag}, Index={packet.ElementIndex}");
             if (packet.WindowTag == "daily_bonus")
             {
                 HandleDailyBonusClaim();
@@ -684,17 +633,17 @@ namespace MinesServer.Networking.Connection.Client
                     "Это модальное окно вызывается из HUD.\n\nНажмите OK чтобы продолжить.",
                     "OK",
                     string.Empty)));
-                Debug.Log("[DummyConnection] Modal window sent to client");
+                Console.WriteLine("[DummyConnection] Modal window sent to client");
             }
             else if (packet.WindowTag == "join_clan")
             {
                 OnReceived?.Invoke(new ServerPacket(new ShowClanPacket(1)));
-                Debug.Log("[DummyConnection] ShowClanPacket sent (clanId=1)");
+                Console.WriteLine("[DummyConnection] ShowClanPacket sent (clanId=1)");
             }
             else if (packet.WindowTag == "leave_clan")
             {
                 OnReceived?.Invoke(new ServerPacket(new HideClanPacket()));
-                Debug.Log("[DummyConnection] HideClanPacket sent");
+                Console.WriteLine("[DummyConnection] HideClanPacket sent");
             }
             else if (packet.WindowTag == "open_missions")
             {
@@ -727,20 +676,8 @@ namespace MinesServer.Networking.Connection.Client
 
                 string newToken = Guid.NewGuid().ToString("N");
                 _validTokens.Add(newToken);
-                PlayerPrefs.SetString("AuthKnownToken", _knownToken);
-                PlayerPrefs.Save();
+                SaveTokensToFile();
                 OnReceived?.Invoke(new ServerPacket(new AuthTokenPacket(newToken)));
-
-                var gm = GameManager.Instance;
-                if (gm != null)
-                {
-                    gm.AuthorizeUI();
-                }
-
-                if (_uiRoot != null)
-                {
-                    _uiRoot.SetActive(true);
-                }
 
                 InitWorld();
             }
@@ -809,36 +746,69 @@ namespace MinesServer.Networking.Connection.Client
             };
 
             OnReceived?.Invoke(new ServerPacket(new OpenWindowPacket("auth", 300, 160, root)));
-            Debug.Log("[DummyConnection] Auth window opened");
+            Console.WriteLine("[DummyConnection] Auth window opened");
         }
 
         private void InitWorld()
         {
-            var cellConfigs = CreateTestCellConfigurations();
+            _cellConfigs = CreateTestCellConfigurations();
+            _worldLayer?.Dispose();
+            _worldLayer = null;
+
             int worldWidth;
             int worldHeight;
-            bool skipMapDataGeneration = false;
+            bool generated = false;
 
             if (UsePrebakedMap)
             {
-                string prebakedPath = $"{Application.persistentDataPath}/{PrebakedWorldCodeName}_cells.mapb";
-                (worldWidth, worldHeight) = ReadPrebakedWorldDimensions(prebakedPath);
+                string mapbPath = $"{Application.persistentDataPath}/{PrebakedWorldCodeName}_cells.mapb";
+                (worldWidth, worldHeight) = ReadPrebakedWorldDimensions(mapbPath);
                 if (worldWidth > 0 && worldHeight > 0)
                 {
-                    skipMapDataGeneration = true;
-                    Debug.Log($"[DummyConnection] Using prebaked map: {worldWidth}x{worldHeight}");
+                    string serverCopy = Path.Combine(Application.temporaryCachePath, $"{PrebakedWorldCodeName}_cells_server.mapb");
+                    try
+                    {
+                        File.Copy(mapbPath, serverCopy, true);
+                    }
+                    catch
+                    {
+                    }
+
+                    int wChunks = (worldWidth + 31) / 32;
+                    int hChunks = (worldHeight + 31) / 32;
+                    _worldLayer = new WorldLayer<CellType>(serverCopy, wChunks, hChunks, 32, 36);
+                    Console.WriteLine($"[DummyConnection] Using prebaked map: {worldWidth}x{worldHeight} ({wChunks}x{hChunks} chunks)");
                 }
                 else
                 {
                     worldWidth = 500;
                     worldHeight = 500;
-                    Debug.LogWarning("[DummyConnection] Prebaked map not found or invalid, falling back to generation");
+                    Console.WriteLine("[DummyConnection] Prebaked map not found or invalid, falling back to generation");
+                    generated = true;
                 }
             }
             else
             {
                 worldWidth = 500;
                 worldHeight = 500;
+                generated = true;
+            }
+
+            if (generated)
+            {
+                string tmpPath = Path.Combine(Application.temporaryCachePath, "test_cells.mapb");
+                int wChunks = (worldWidth + 31) / 32;
+                int hChunks = (worldHeight + 31) / 32;
+                _worldLayer = new WorldLayer<CellType>(tmpPath, wChunks, hChunks, 32, 36);
+
+                var testData = CreateTestMapData(worldWidth, worldHeight);
+                for (int y = 0; y < worldHeight; y++)
+                {
+                    for (int x = 0; x < worldWidth; x++)
+                    {
+                        _worldLayer[x, y] = testData[x, y];
+                    }
+                }
             }
 
             OnReceived?.Invoke(new ServerPacket(new WorldInitPacket(
@@ -846,13 +816,13 @@ namespace MinesServer.Networking.Connection.Client
                 "Pallada",
                 (ushort)worldWidth,
                 (ushort)worldHeight,
-                cellConfigs,
+                _cellConfigs,
                 new byte[][]
                 {
                     new byte[] { 37, 38, 106 },
                 })));
 
-            if (!skipMapDataGeneration)
+            if (generated)
             {
                 SendTestWorldMapData(worldWidth, worldHeight);
             }
@@ -872,7 +842,8 @@ namespace MinesServer.Networking.Connection.Client
             OnReceived?.Invoke(new ServerPacket(new CurrencyPacket(123456, 1234)));
             _health = 250;
             OnReceived?.Invoke(new ServerPacket(new HealthPacket(250, 500)));
-            OnReceived?.Invoke(new ServerPacket(new BasketPacket(50000, new[] { 0L, 0L, 0L, 0L, 0L, 0L })));
+            _basketContents = new long[6];
+            OnReceived?.Invoke(new ServerPacket(new BasketPacket(50000, _basketContents)));
             OnReceived?.Invoke(new ServerPacket(new GeologyPacket(5, 10, CellType.Lava, "Lava")));
             OnReceived?.Invoke(new ServerPacket(new LevelPacket(12345)));
 
@@ -1040,7 +1011,7 @@ namespace MinesServer.Networking.Connection.Client
             };
 
             OnReceived?.Invoke(new ServerPacket(new OpenWindowPacket("missions", 400, 300, root)));
-            Debug.Log("[DummyConnection] Mission selection window opened");
+            Console.WriteLine("[DummyConnection] Mission selection window opened");
         }
 
         private void StartMission(int missionId)
@@ -1061,7 +1032,7 @@ namespace MinesServer.Networking.Connection.Client
             OnReceived?.Invoke(new ServerPacket(new CloseWindowPacket()));
             OnReceived?.Invoke(new ServerPacket(new MissionInitPacket(string.Empty, 0, 0, m.Title, m.Description)));
             OnReceived?.Invoke(new ServerPacket(new MissionProgressPacket(0, m.Target)));
-            Debug.Log($"[DummyConnection] Started mission: {m.Title}");
+            Console.WriteLine($"[DummyConnection] Started mission: {m.Title}");
         }
 
         private void CancelMission()
@@ -1076,7 +1047,7 @@ namespace MinesServer.Networking.Connection.Client
             _missionProgress = 0;
             OnReceived?.Invoke(new ServerPacket(new CloseWindowPacket()));
             OnReceived?.Invoke(new ServerPacket(new MissionInitPacket(string.Empty, 0, 0, string.Empty, string.Empty)));
-            Debug.Log("[DummyConnection] Mission cancelled");
+            Console.WriteLine("[DummyConnection] Mission cancelled");
         }
 
         private void CompleteMission()
@@ -1087,7 +1058,7 @@ namespace MinesServer.Networking.Connection.Client
             }
 
             var m = _missions[_activeMissionId];
-            Debug.Log($"[DummyConnection] Mission complete: {m.Title}");
+            Console.WriteLine($"[DummyConnection] Mission complete: {m.Title}");
 
             _inventory.TryGetValue(m.RewardItem, out long current);
             _inventory[m.RewardItem] = current + m.RewardAmount;
@@ -1110,7 +1081,7 @@ namespace MinesServer.Networking.Connection.Client
         {
             var rewardItem = _pendingBonusItem;
             var rewardAmount = _pendingBonusAmount;
-            Debug.Log($"[DummyConnection] Daily bonus claimed: {rewardItem} x{rewardAmount}");
+            Console.WriteLine($"[DummyConnection] Daily bonus claimed: {rewardItem} x{rewardAmount}");
 
             _inventory.TryGetValue(rewardItem, out long current);
             long newQty = current + rewardAmount;
@@ -1144,7 +1115,7 @@ namespace MinesServer.Networking.Connection.Client
                 {
                     _activeBuffs.Remove(tag);
                     OnReceived?.Invoke(new ServerPacket(new ClearStatusLinePacket(tag)));
-                    Debug.Log($"[DummyConnection] Buff expired: {tag}");
+                    Console.WriteLine($"[DummyConnection] Buff expired: {tag}");
                 }
 
                 // Depth warning check
@@ -1155,7 +1126,7 @@ namespace MinesServer.Networking.Connection.Client
                         _depthWarningActive = true;
                         OnReceived?.Invoke(new ServerPacket(new AddStatusLinePacket(
                             0, System.Drawing.Color.Red, "depth_warning", new[] { "⚠ Критическая глубина!" })));
-                        Debug.Log("[DummyConnection] Depth warning activated");
+                        Console.WriteLine("[DummyConnection] Depth warning activated");
                     }
                 }
                 else
@@ -1164,7 +1135,7 @@ namespace MinesServer.Networking.Connection.Client
                     {
                         _depthWarningActive = false;
                         OnReceived?.Invoke(new ServerPacket(new ClearStatusLinePacket("depth_warning")));
-                        Debug.Log("[DummyConnection] Depth warning cleared");
+                        Console.WriteLine("[DummyConnection] Depth warning cleared");
                     }
                 }
 
@@ -1175,10 +1146,10 @@ namespace MinesServer.Networking.Connection.Client
                     int damage = (((blocksBelow - 1) / 10) + 1) * 10;
                     _health = Math.Max(0, _health - damage);
                     OnReceived?.Invoke(new ServerPacket(new HealthPacket(_health, 500)));
-                    Debug.Log($"[DummyConnection] Depth damage: {damage} (HP: {_health}/500)");
+                    Console.WriteLine($"[DummyConnection] Depth damage: {damage} (HP: {_health}/500)");
                     if (_health <= 0)
                     {
-                        Debug.Log("[DummyConnection] Player died from depth damage");
+                        Console.WriteLine("[DummyConnection] Player died from depth damage");
                         Disconnect();
                     }
                 }
@@ -1282,7 +1253,7 @@ namespace MinesServer.Networking.Connection.Client
 
             OnReceived?.Invoke(new ServerPacket(new OpenWindowPacket("teleport", 400, 300, root)));
             _teleportWindowOpen = true;
-            Debug.Log($"[DummyConnection] Teleport window opened with {_teleportDestinations.Count} destinations");
+            Console.WriteLine($"[DummyConnection] Teleport window opened with {_teleportDestinations.Count} destinations");
         }
 
         private void SendTeleportWindowNoDestinations()
@@ -1341,7 +1312,7 @@ namespace MinesServer.Networking.Connection.Client
 
             OnReceived?.Invoke(new ServerPacket(new OpenWindowPacket("teleport", 400, 200, root)));
             _teleportWindowOpen = true;
-            Debug.Log("[DummyConnection] Teleport window opened with no destinations");
+            Console.WriteLine("[DummyConnection] Teleport window opened with no destinations");
         }
 
         private void HandleTeleportClick(int index)
@@ -1352,7 +1323,7 @@ namespace MinesServer.Networking.Connection.Client
             }
 
             var (destX, destY) = _teleportDestinations[index];
-            Debug.Log($"[DummyConnection] Teleporting to ({destX}, {destY})");
+            Console.WriteLine($"[DummyConnection] Teleporting to ({destX}, {destY})");
 
             _x = destX;
             _y = destY;
@@ -1373,7 +1344,7 @@ namespace MinesServer.Networking.Connection.Client
                 ItemType.GeoCyan, ItemType.GeoHypno, ItemType.Rem, ItemType.Charge,
                 ItemType.Geopack, ItemType.Poly, ItemType.RazBomb, ItemType.ProtonBomb,
             };
-            return items[UnityEngine.Random.Range(0, items.Length)];
+            return items[_rng.Next(items.Length)];
         }
 
         private static long PickRandomAmount(ItemType item)
@@ -1381,11 +1352,10 @@ namespace MinesServer.Networking.Connection.Client
             return item switch
             {
                 ItemType.Teleport or ItemType.PortableTeleporter => 1,
-                ItemType.Cred => UnityEngine.Random.Range(5, 11),
-                ItemType.Rem => UnityEngine.Random.Range(50, 101),
-                ItemType.Geopack => UnityEngine.Random.Range(10, 16),
-                ItemType.Poly => UnityEngine.Random.Range(50, 101),
-                _ => UnityEngine.Random.Range(5, 20),
+                ItemType.Cred => _rng.Next(5, 11),
+                ItemType.Rem => _rng.Next(50, 101),
+                ItemType.Geopack => _rng.Next(10, 16),
+                _ => _rng.Next(5, 20),
             };
         }
 
@@ -1410,7 +1380,7 @@ namespace MinesServer.Networking.Connection.Client
                 _pendingBonusItem = PickRandomBonusItem();
                 _pendingBonusAmount = (int)PickRandomAmount(_pendingBonusItem);
                 OnReceived?.Invoke(new ServerPacket(new DailyBonusStatePacket(true)));
-                Debug.Log($"[DummyConnection] Daily bonus now available: {_pendingBonusItem} x{_pendingBonusAmount}");
+                Console.WriteLine($"[DummyConnection] Daily bonus now available: {_pendingBonusItem} x{_pendingBonusAmount}");
 
                 while (!_bonusClaimed && _status == ConnectionStatus.Connected)
                 {
@@ -1576,13 +1546,13 @@ namespace MinesServer.Networking.Connection.Client
                 {
                     int w = WIDTH_CHUNKS * CHUNK_SIZE;
                     int h = HEIGHT_CHUNKS * CHUNK_SIZE;
-                    Debug.Log($"[DummyConnection] Prebaked map dimensions: {w}x{h} ({WIDTH_CHUNKS}x{HEIGHT_CHUNKS} chunks x{CHUNK_SIZE})");
+                    Console.WriteLine($"[DummyConnection] Prebaked map dimensions: {w}x{h} ({WIDTH_CHUNKS}x{HEIGHT_CHUNKS} chunks x{CHUNK_SIZE})");
                     return (w, h);
                 }
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[DummyConnection] Failed to read prebaked map header: {ex.Message}");
+                Console.WriteLine($"[DummyConnection] Failed to read prebaked map header: {ex.Message}");
             }
 
             return (0, 0);
@@ -1593,7 +1563,6 @@ namespace MinesServer.Networking.Connection.Client
         /// </summary>
         private void SendTestWorldMapData(int testWorldWidth, int testWorldHeight)
         {
-            var testMap = CreateTestMapData(testWorldWidth, testWorldHeight);
             const int CHUNK_SIZE = 32;
             for (int y = 0; y < testWorldHeight; y += CHUNK_SIZE)
             {
@@ -1607,7 +1576,7 @@ namespace MinesServer.Networking.Connection.Client
                     {
                         for (int cx = 0; cx < chunkWidth; cx++)
                         {
-                            chunkData[dataIndex++] = testMap[x + cx, y + cy];
+                            chunkData[dataIndex++] = _worldLayer[x + cx, y + cy];
                         }
                     }
 
@@ -1724,9 +1693,9 @@ namespace MinesServer.Networking.Connection.Client
                 OnReceived?.Invoke(new ServerPacket(new RobotInfoPacket(botId, 1000, 0,
                     "Skin/bee.png", "Tail/default.png", $"")));
 
-                float radius = UnityEngine.Random.Range(0.5f, 5f);
-                float angle = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
-                float speed = 0.3f + UnityEngine.Random.Range(-0.1f, 0.1f);
+                float radius = (float)(_rng.NextDouble() * 4.5 + 0.5);
+                float angle = (float)(_rng.NextDouble() * Math.PI * 2);
+                float speed = 0.3f + (float)(_rng.NextDouble() * 0.2 - 0.1);
                 bots.Add((botId, 50f, 50f, radius, angle, speed));
             }
 
@@ -1736,9 +1705,9 @@ namespace MinesServer.Networking.Connection.Client
                 for (int i = 0; i < bots.Count; i++)
                 {
                     var b = bots[i];
-                    int x = Mathf.RoundToInt(b.cx + (Mathf.Cos(b.a) * b.r));
-                    int y = Mathf.RoundToInt(b.cy + (Mathf.Sin(b.a) * b.r));
-                    float deg = ((Mathf.Atan2(Mathf.Sin(b.a), Mathf.Cos(b.a)) * Mathf.Rad2Deg) + 360) % 360;
+                    int x = (int)Math.Round(b.cx + (Math.Cos(b.a) * b.r), MidpointRounding.AwayFromZero);
+                    int y = (int)Math.Round(b.cy + (Math.Sin(b.a) * b.r), MidpointRounding.AwayFromZero);
+                    double deg = ((Math.Atan2(Math.Sin(b.a), Math.Cos(b.a)) * (180.0 / Math.PI)) + 360) % 360;
                     byte rot = deg switch
                     {
                         > 225 and <= 315 => 0,
@@ -1768,7 +1737,7 @@ namespace MinesServer.Networking.Connection.Client
                 }
                 else
                 {
-                    Debug.LogWarning($"[DummyConnection] Asset not found locally: {assetEntry.Filename}");
+                    Console.WriteLine($"[DummyConnection] Asset not found locally: {assetEntry.Filename}");
                     response = new RuntimeAssetPacket(assetEntry.Filename, string.Empty, System.Array.Empty<byte>());
                 }
 
@@ -1831,7 +1800,7 @@ namespace MinesServer.Networking.Connection.Client
             await UniTask.Delay(2000);
             while (_status == ConnectionStatus.Connected)
             {
-                OnReceived?.Invoke(new ServerPacket(new PingPacket(DateTimeOffset.UtcNow.Ticks, UnityEngine.Random.Range(15, 60))));
+                OnReceived?.Invoke(new ServerPacket(new PingPacket(DateTimeOffset.UtcNow.Ticks, _rng.Next(15, 60))));
                 await UniTask.Delay(5000);
             }
         }

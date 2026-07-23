@@ -5,7 +5,7 @@ namespace Fodinae.Scripts.Networking.Auth
 {
     public static class AuthTokenManager
     {
-        private const string PlayerPrefsKey = "AuthToken3";
+        private const string PlayerPrefsKey = "AuthToken5";
 
         public static event Action<string> OnTokenChanged;
 
