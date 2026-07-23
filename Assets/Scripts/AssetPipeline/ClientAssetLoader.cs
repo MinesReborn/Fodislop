@@ -164,12 +164,6 @@ namespace Fodinae.Scripts
                 {
                     return await GetAssetAsync(filename);
                 }
-
-                var localBytes = TryLoadLocalProjectAsset(filename);
-                if (localBytes != null && localBytes.Length > 0)
-                {
-                    return localBytes;
-                }
             }
 
             // 2. Check local TextureStorageManager if available
@@ -207,16 +201,10 @@ namespace Fodinae.Scripts
                 }
             }
 
-            // 4. Fallback to cached asset or local project storage
+            // 4. Fallback to cached asset
             if (HasAsset(filename))
             {
                 return await GetAssetAsync(filename);
-            }
-
-            var projectFallbackBytes = TryLoadLocalProjectAsset(filename);
-            if (projectFallbackBytes != null && projectFallbackBytes.Length > 0)
-            {
-                return projectFallbackBytes;
             }
 
             if (IsTextureFile(filename) && TextureStorageManager.Instance != null)
@@ -227,33 +215,6 @@ namespace Fodinae.Scripts
                     await SaveAssetAsync(filename, localData, null);
                     return localData;
                 }
-            }
-
-            return null;
-        }
-
-        private static byte[] TryLoadLocalProjectAsset(string filename)
-        {
-            try
-            {
-                string relativePath = filename.TrimStart('/');
-                string fullPath = Path.Combine(Application.dataPath, "Textures", relativePath);
-                if (File.Exists(fullPath))
-                {
-                    return File.ReadAllBytes(fullPath);
-                }
-
-                if (!fullPath.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
-                {
-                    string pngPath = fullPath + ".png";
-                    if (File.Exists(pngPath))
-                    {
-                        return File.ReadAllBytes(pngPath);
-                    }
-                }
-            }
-            catch
-            {
             }
 
             return null;
