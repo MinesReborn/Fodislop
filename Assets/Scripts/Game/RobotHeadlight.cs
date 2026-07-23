@@ -57,15 +57,7 @@ namespace Fodinae.Scripts.Game
                 return;
             }
 
-            Vector2 dir = player.LastDirection switch
-            {
-                Direction.Up => Vector2.up,
-                Direction.Right => Vector2.right,
-                Direction.Down => Vector2.down,
-                Direction.Left => Vector2.left,
-                _ => Vector2.up
-            };
-
+            Vector2 dir = player.transform.up;
             Vector2 pos = (Vector2)player.transform.position + (dir * 0.5f);
 
             Shader.SetGlobalVector("_HeadlightPos", pos);
