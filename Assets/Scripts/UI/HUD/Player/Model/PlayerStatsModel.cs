@@ -4,7 +4,7 @@ using Fodinae.Scripts.Core.Interfaces;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.Scripts.UI
+namespace Fodinae.Scripts.UI.HUD.Player.Model
 {
     public readonly record struct StatusLineEntry(string[] Text, Color Color, byte BlinkRate, long Expiry);
     public class PlayerStatsModel : MonoBehaviour, IPlayerStats

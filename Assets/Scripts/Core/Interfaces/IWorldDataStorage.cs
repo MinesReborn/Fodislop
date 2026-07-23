@@ -10,5 +10,9 @@ namespace Fodinae.Scripts.Core.Interfaces
         void SetCell(int x, int y, CellType type);
         CellType GetCell(int x, int y);
         void InitWorld(string worldCodeName, int width, int height);
+        void Dispose();
+        bool IsInitialized();
+        string GetWorldCodeName();
+        void EnsureEditorInitialized();
     }
 }

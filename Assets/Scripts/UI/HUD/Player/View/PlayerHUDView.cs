@@ -12,9 +12,9 @@ using MinesServer.Networking.Shared.Packets;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.Scripts.UI
+namespace Fodinae.Scripts.UI.HUD.Player.View
 {
-    public partial class PlayerHUD : MonoBehaviour
+    public class PlayerHUDView : MonoBehaviour
     {
         private const int PANEL_WIDTH = 240;
         private const int PADDING = 12;

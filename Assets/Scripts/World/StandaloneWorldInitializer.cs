@@ -86,7 +86,7 @@ namespace Fodinae.Scripts.World
         /// </summary>
         public bool IsReady()
         {
-            return _enableStandaloneMode && (_isInitialized || (MapStorage.Instance?.IsReady == true));
+            return _enableStandaloneMode && (_isInitialized || (ServiceLocator.Resolve<IWorldDataStorage>()?.IsReady == true));
         }
 
         protected void Awake()
@@ -145,7 +145,7 @@ namespace Fodinae.Scripts.World
             }
 
             // Check if MapStorage is ready after our initialization attempt
-            if (MapStorage.Instance != null && MapStorage.Instance.IsReady)
+            if (ServiceLocator.Resolve<IWorldDataStorage>() != null && ServiceLocator.Resolve<IWorldDataStorage>().IsReady)
             {
                 _isInitialized = true;
                 if (Application.isPlaying)

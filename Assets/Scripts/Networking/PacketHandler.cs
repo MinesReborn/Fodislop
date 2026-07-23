@@ -70,7 +70,7 @@ namespace Fodinae.Scripts.Networking
                 return;
             }
 
-            if (MapStorage.Instance == null)
+            if (ServiceLocator.Resolve<IWorldDataStorage>() == null)
             {
                 Debug.LogError("[PacketHandler] MapStorage not found - cannot process map data");
                 return;

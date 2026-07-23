@@ -4,9 +4,9 @@ using Fodinae.Scripts.Networking;
 using MinesServer.Networking.Client.Packets.Inventory;
 using UnityEngine;
 
-namespace Fodinae.Scripts.UI
+namespace Fodinae.Scripts.UI.HUD.Inventory.Model
 {
-    public class InventoryModel
+    public class InventoryModel : Fodinae.Scripts.UI.HUD.Inventory.Interfaces.IInventoryModel
     {
         public const int HOTBAR_SIZE = 9;
         public const int INVENTORY_SIZE = 6 * 9;

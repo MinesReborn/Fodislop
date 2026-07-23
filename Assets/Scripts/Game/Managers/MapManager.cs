@@ -75,7 +75,7 @@ namespace Fodinae.Scripts.Game.Managers
 
         protected override void OnApplicationQuitting()
         {
-            MapStorage.Instance?.Dispose();
+            ServiceLocator.Resolve<IWorldDataStorage>()?.Dispose();
         }
 
         public void LoadWorldInit(WorldInitPacket packet)
@@ -132,22 +132,22 @@ namespace Fodinae.Scripts.Game.Managers
 
             try
             {
-                MapStorage.Instance.InitWorld(packet.CodeName, _width, _height);
+                ServiceLocator.Resolve<IWorldDataStorage>().InitWorld(packet.CodeName, _width, _height);
 
-                if (!MapStorage.Instance.IsReady)
+                if (!ServiceLocator.Resolve<IWorldDataStorage>().IsReady)
                 {
                     Debug.LogError($"[MapManager] CRITICAL: MapStorage failed to initialize for world {packet.CodeName}");
-                    Debug.LogError($"[MapManager] MapStorage state: IsReady={MapStorage.Instance.IsReady}, IsInitialized={MapStorage.Instance.IsInitialized()}");
-                    Debug.LogError($"[MapManager] MapStorage CellLayer: {(MapStorage.Instance.CellLayer != null ? "not null" : "NULL - this is the problem!")}");
-                    Debug.LogError($"[MapManager] MapStorage world name: {MapStorage.Instance.GetWorldCodeName()}");
+                    Debug.LogError($"[MapManager] MapStorage state: IsReady={ServiceLocator.Resolve<IWorldDataStorage>().IsReady}, IsInitialized={ServiceLocator.Resolve<IWorldDataStorage>().IsInitialized()}");
+                    Debug.LogError($"[MapManager] MapStorage CellLayer: {(ServiceLocator.Resolve<IWorldDataStorage>().CellLayer != null ? "not null" : "NULL - this is the problem!")}");
+                    Debug.LogError($"[MapManager] MapStorage world name: {ServiceLocator.Resolve<IWorldDataStorage>().GetWorldCodeName()}");
 
                     Debug.LogWarning("[MapManager] Attempting emergency MapStorage initialization...");
                     try
                     {
-                        MapStorage.Instance.Dispose();
-                        MapStorage.Instance.InitWorld(packet.CodeName, _width, _height);
+                        ServiceLocator.Resolve<IWorldDataStorage>().Dispose();
+                        ServiceLocator.Resolve<IWorldDataStorage>().InitWorld(packet.CodeName, _width, _height);
 
-                        if (MapStorage.Instance.IsReady)
+                        if (ServiceLocator.Resolve<IWorldDataStorage>().IsReady)
                         {
                             Debug.Log("[MapManager] Emergency MapStorage initialization successful!");
                         }
@@ -157,10 +157,10 @@ namespace Fodinae.Scripts.Game.Managers
                             Debug.LogError("[MapManager] This is a CRITICAL failure - terrain rendering system cannot function");
 
                             Debug.LogWarning("[MapManager] Creating test world as fallback...");
-                            MapStorage.Instance.Dispose();
-                            MapStorage.Instance.InitWorld("fallback_test_world", 64, 64);
+                            ServiceLocator.Resolve<IWorldDataStorage>().Dispose();
+                            ServiceLocator.Resolve<IWorldDataStorage>().InitWorld("fallback_test_world", 64, 64);
 
-                            if (MapStorage.Instance.IsReady)
+                            if (ServiceLocator.Resolve<IWorldDataStorage>().IsReady)
                             {
                                 Debug.Log("[MapManager] Test world created successfully as fallback");
                                 _worldCodeName = "fallback_test_world";
@@ -182,8 +182,8 @@ namespace Fodinae.Scripts.Game.Managers
                 else
                 {
                     Debug.Log($"[MapManager] MapStorage initialized successfully for world '{packet.CodeName}'");
-                    Debug.Log($"[MapManager] WorldLayer created: {MapStorage.Instance.CellLayer.WidthChunks}x{MapStorage.Instance.CellLayer.HeightChunks} chunks");
-                    Debug.Log($"[MapManager] Chunk size: {MapStorage.Instance.CellLayer.ChunkSize}");
+                    Debug.Log($"[MapManager] WorldLayer created: {ServiceLocator.Resolve<IWorldDataStorage>().CellLayer.WidthChunks}x{ServiceLocator.Resolve<IWorldDataStorage>().CellLayer.HeightChunks} chunks");
+                    Debug.Log($"[MapManager] Chunk size: {ServiceLocator.Resolve<IWorldDataStorage>().CellLayer.ChunkSize}");
                 }
             }
             catch (System.Exception ex)
@@ -210,7 +210,7 @@ namespace Fodinae.Scripts.Game.Managers
             Debug.Log($"[MapManager] Triggering OnWorldInitialized event");
             OnWorldInitialized?.Invoke();
 
-            if (MapStorage.Instance.IsReady)
+            if (ServiceLocator.Resolve<IWorldDataStorage>().IsReady)
             {
                 Debug.Log($"[MapManager] MapStorage is ready, triggering OnWorldDataLoaded event");
                 OnWorldDataLoaded?.Invoke();
@@ -227,7 +227,7 @@ namespace Fodinae.Scripts.Game.Managers
         {
             yield return new WaitForSeconds(2.0f);
 
-            if (MapStorage.Instance.IsReady)
+            if (ServiceLocator.Resolve<IWorldDataStorage>().IsReady)
             {
                 Debug.Log("[MapManager] MapStorage became ready after delay, triggering OnWorldDataLoaded event");
                 OnWorldDataLoaded?.Invoke();
@@ -374,9 +374,9 @@ namespace Fodinae.Scripts.Game.Managers
             Gizmos.DrawSphere(Vector3.zero, 0.5f);
             Fodinae.Scripts.World.FodinaeGizmos.DrawLabel(Vector3.zero, "World Origin (0,0)", Color.magenta);
 
-            if (MapStorage.Instance.IsReady && MapStorage.Instance.CellLayer != null)
+            if (ServiceLocator.Resolve<IWorldDataStorage>().IsReady && ServiceLocator.Resolve<IWorldDataStorage>().CellLayer != null)
             {
-                var layer = MapStorage.Instance.CellLayer;
+                var layer = ServiceLocator.Resolve<IWorldDataStorage>().CellLayer;
                 int CHUNK_SIZE = layer.ChunkSize;
                 var loaded = layer.GetLoadedChunkIndices();
 
@@ -411,7 +411,7 @@ namespace Fodinae.Scripts.Game.Managers
                             int worldX = x;
                             int worldY = CoordinateUtils.UnityToServerY(y, WorldHeight);
 
-                            var cellType = MapStorage.Instance.GetCell(worldX, worldY);
+                            var cellType = ServiceLocator.Resolve<IWorldDataStorage>().GetCell(worldX, worldY);
                             var config = GetCellConfig(cellType);
 
                             if (config.Properties != 0)

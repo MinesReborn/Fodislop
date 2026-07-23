@@ -67,7 +67,7 @@ namespace Fodinae.Scripts.UI
                 return;
             }
 
-            _mapStorage = MapStorage.Instance;
+            _mapStorage = ServiceLocator.Resolve<IWorldDataStorage>();
 
             CacheCellColors();
 

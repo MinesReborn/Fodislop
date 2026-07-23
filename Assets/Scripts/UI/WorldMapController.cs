@@ -19,8 +19,8 @@ namespace Fodinae.Scripts.UI
         private float _storedCamZoom;
 
         // HUD elements
-        private PlayerHUD _playerHud;
-        private InventoryUI _inventory;
+        private Fodinae.Scripts.UI.HUD.Player.View.PlayerHUDView _playerHud;
+        private Fodinae.Scripts.UI.HUD.Inventory.View.InventoryView _inventory;
         private FPSCounter _fps;
         private MinimapController _minimap;
         private PauseMenu _pauseMenu;
@@ -30,8 +30,8 @@ namespace Fodinae.Scripts.UI
             _cameraFollow = FindAnyObjectByType<CameraFollow>();
             _player = FindAnyObjectByType<PlayerMovementController>();
             _terrain = FindAnyObjectByType<SingleMeshTerrainRenderer>();
-            _playerHud = FindAnyObjectByType<PlayerHUD>();
-            _inventory = FindAnyObjectByType<InventoryUI>();
+            _playerHud = FindAnyObjectByType<Fodinae.Scripts.UI.HUD.Player.View.PlayerHUDView>();
+            _inventory = FindAnyObjectByType<Fodinae.Scripts.UI.HUD.Inventory.View.InventoryView>();
             _fps = FindAnyObjectByType<FPSCounter>();
             _minimap = FindAnyObjectByType<MinimapController>();
             _pauseMenu = FindAnyObjectByType<PauseMenu>();
@@ -60,7 +60,7 @@ namespace Fodinae.Scripts.UI
                 return;
             }
 
-            if (MapStorage.Instance == null || !MapStorage.Instance.IsReady)
+            if (ServiceLocator.Resolve<IWorldDataStorage>() == null || !ServiceLocator.Resolve<IWorldDataStorage>().IsReady)
             {
                 return;
             }
@@ -82,7 +82,7 @@ namespace Fodinae.Scripts.UI
                 return;
             }
 
-            if (MapStorage.Instance == null || !MapStorage.Instance.IsReady)
+            if (ServiceLocator.Resolve<IWorldDataStorage>() == null || !ServiceLocator.Resolve<IWorldDataStorage>().IsReady)
             {
                 return;
             }

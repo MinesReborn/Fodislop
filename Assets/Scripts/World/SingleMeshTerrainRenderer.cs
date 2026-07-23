@@ -292,11 +292,11 @@ namespace Fodinae.Scripts.World
 #if UNITY_EDITOR
             if (!Application.isPlaying)
             {
-                MapStorage.Instance?.EnsureEditorInitialized();
+                ServiceLocator.Resolve<IWorldDataStorage>()?.EnsureEditorInitialized();
             }
 #endif
             var mm = MapManager.Instance;
-            if (mm == null || MapStorage.Instance == null || !MapStorage.Instance.IsReady)
+            if (mm == null || ServiceLocator.Resolve<IWorldDataStorage>() == null || !ServiceLocator.Resolve<IWorldDataStorage>().IsReady)
             {
                 return;
             }
@@ -469,7 +469,7 @@ namespace Fodinae.Scripts.World
         private void PopulateCellCache(int minX, int minY)
         {
             var mm = MapManager.Instance;
-            var mapStorage = MapStorage.Instance;
+            var mapStorage = ServiceLocator.Resolve<IWorldDataStorage>();
             if (mm == null || mapStorage == null || !mapStorage.IsReady)
             {
                 return;
@@ -1893,7 +1893,7 @@ namespace Fodinae.Scripts.World
         private void ScrollCellCache(int dx, int dy, List<TextureAtlas> atlases)
         {
             var mm = MapManager.Instance;
-            var mapStorage = MapStorage.Instance;
+            var mapStorage = ServiceLocator.Resolve<IWorldDataStorage>();
             if (mm == null || mapStorage == null || !mapStorage.IsReady)
             {
                 return;

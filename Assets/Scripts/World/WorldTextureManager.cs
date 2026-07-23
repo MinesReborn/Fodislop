@@ -569,11 +569,11 @@ namespace Fodinae.Scripts.World
 
         private static CellType GetCellTypeAt(int x, int y)
         {
-            if (MapStorage.Instance != null && MapStorage.Instance.CellLayer != null)
+            if (ServiceLocator.Resolve<IWorldDataStorage>() != null && ServiceLocator.Resolve<IWorldDataStorage>().CellLayer != null)
             {
                 try
                 {
-                    return MapStorage.Instance.GetCell(x, y);
+                    return ServiceLocator.Resolve<IWorldDataStorage>().GetCell(x, y);
                 }
                 catch (Exception ex)
                 {

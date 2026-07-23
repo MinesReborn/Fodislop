@@ -1,6 +1,7 @@
 using Fodinae.Scripts.Core;
 using Fodinae.Scripts.Core.Interfaces;
 using Fodinae.Scripts.UI;
+using Fodinae.Scripts.UI.HUD.Player.Model;
 using MinesServer.Networking.Server.Packets.Mission;
 
 namespace Fodinae.Scripts.Networking.Processors

@@ -12,6 +12,7 @@ namespace Fodinae.Scripts.Core.Interfaces
         ushort WorldWidth { get; }
         ushort WorldHeight { get; }
         Camera MainCamera { get; }
+        bool IsStandaloneMode { get; }
         CellConfigurationPacket GetCellConfig(CellType type);
         bool TryGetTileGroup(CellType type, out int groupId);
         Color GetCellMinimapColor(CellType type);

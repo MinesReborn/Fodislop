@@ -9,6 +9,7 @@ using Cysharp.Threading.Tasks.CompilerServices;
 using Fodinae.Scripts.Audio;
 using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.UI;
+using Fodinae.Scripts.UI.HUD.Player.Model;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.Actions;
@@ -153,11 +154,15 @@ namespace MinesServer.Networking.Connection.Client
             minimapObj.AddComponent<MinimapController>();
 
             var inventoryObj = new GameObject("InventoryRoot");
-            inventoryObj.AddComponent<InventoryUI>();
+            inventoryObj.AddComponent<Fodinae.Scripts.UI.HUD.Inventory.View.InventoryView>();
+            inventoryObj.AddComponent<Fodinae.Scripts.UI.HUD.Inventory.Presenter.InventoryPresenter>();
+
 
             var hudObj = new GameObject("PlayerHUD");
             hudObj.AddComponent<PlayerStatsModel>();
-            hudObj.AddComponent<PlayerHUD>();
+            hudObj.AddComponent<Fodinae.Scripts.UI.HUD.Player.View.PlayerHUDView>();
+            hudObj.AddComponent<Fodinae.Scripts.UI.HUD.Player.Presenter.PlayerHUDPresenter>();
+
 
             var pauseObj = new GameObject("PauseMenu");
             pauseObj.AddComponent<PauseMenu>();
@@ -239,9 +244,9 @@ namespace MinesServer.Networking.Connection.Client
                         return;
                     }
 
-                    if (MapStorage.Instance?.CellLayer != null && MapStorage.Instance.IsReady)
+                    if (ServiceLocator.Resolve<IWorldDataStorage>()?.CellLayer != null && ServiceLocator.Resolve<IWorldDataStorage>().IsReady)
                     {
-                        var cellType = MapStorage.Instance.GetCell(move.X, move.Y);
+                        var cellType = ServiceLocator.Resolve<IWorldDataStorage>().GetCell(move.X, move.Y);
                         var cellConfig = MapManager.Instance?.GetCellConfig(cellType);
                         if (cellConfig.HasValue)
                         {
@@ -289,9 +294,9 @@ namespace MinesServer.Networking.Connection.Client
                         new SFXPacket(SFX.Bz, _mockBotId, cellX, cellY, Array.Empty<StringPairPacket>()),
                     })));
 
-                    if (MapStorage.Instance.CellLayer != null && MapStorage.Instance.IsReady)
+                    if (ServiceLocator.Resolve<IWorldDataStorage>().CellLayer != null && ServiceLocator.Resolve<IWorldDataStorage>().IsReady)
                     {
-                        var cellType = MapStorage.Instance.GetCell(cellX, cellY);
+                        var cellType = ServiceLocator.Resolve<IWorldDataStorage>().GetCell(cellX, cellY);
                         int crystalIdx = GetCrystalBasketIndex(cellType);
                         var cellConfig = MapManager.Instance.GetCellConfig(cellType);
                         bool isBreakable = ((CellConfigProperties)cellConfig.Properties).HasFlag(CellConfigProperties.Breakable);
@@ -302,7 +307,7 @@ namespace MinesServer.Networking.Connection.Client
                             return;
                         }
 
-                        MapStorage.Instance.SetCell(cellX, cellY, CellType.Empty);
+                        ServiceLocator.Resolve<IWorldDataStorage>().SetCell(cellX, cellY, CellType.Empty);
 
                         if (crystalIdx >= 0)
                         {

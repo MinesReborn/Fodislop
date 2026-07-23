@@ -9,7 +9,7 @@ namespace Fodinae.Scripts.Networking.Processors
     {
         public void Process(MapRegionPacket packet)
         {
-            var storage = ServiceLocator.Resolve<IWorldDataStorage>() ?? MapStorage.Instance;
+            var storage = ServiceLocator.Resolve<IWorldDataStorage>();
             if (storage?.CellLayer == null || packet.Payload == null)
             {
                 return;

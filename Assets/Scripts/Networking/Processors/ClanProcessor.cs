@@ -4,6 +4,7 @@ using Fodinae.Scripts.Game;
 using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Player;
 using Fodinae.Scripts.UI;
+using Fodinae.Scripts.UI.HUD.Player.Model;
 using MinesServer.Networking.Server.Packets.Information;
 
 namespace Fodinae.Scripts.Networking.Processors

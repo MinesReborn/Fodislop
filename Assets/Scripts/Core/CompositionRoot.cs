@@ -3,6 +3,9 @@ using Fodinae.Scripts.Audio.Backend;
 using Fodinae.Scripts.Core.Interfaces;
 using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.UI;
+using Fodinae.Scripts.UI.HUD.Player.Model;
+using Fodinae.Scripts.UI.HUD.Inventory.Interfaces;
+using Fodinae.Scripts.UI.HUD.Inventory.Model;
 using UnityEngine;
 
 namespace Fodinae.Scripts.Core
@@ -45,6 +48,11 @@ namespace Fodinae.Scripts.Core
             if (stats != null)
             {
                 ServiceLocator.Register<IPlayerStats>(stats);
+            }
+
+            if (InventoryModel.Instance != null)
+            {
+                ServiceLocator.Register<IInventoryModel>(InventoryModel.Instance);
             }
 
             DontDestroyOnLoad(gameObject);

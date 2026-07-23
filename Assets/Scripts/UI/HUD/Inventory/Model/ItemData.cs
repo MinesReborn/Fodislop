@@ -1,7 +1,7 @@
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.Scripts.UI
+namespace Fodinae.Scripts.UI.HUD.Inventory.Model
 {
     public class ItemData
     {

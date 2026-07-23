@@ -5,12 +5,13 @@ using MinesServer.Data;
 using MinesServer.Networking.Client.Packets.GUI;
 using MinesServer.Networking.Shared.Packets;
 using UnityEngine;
+using Fodinae.Scripts.UI.HUD.Inventory.Model;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
-namespace Fodinae.Scripts.UI
+namespace Fodinae.Scripts.UI.HUD.Inventory.View
 {
-    public class InventoryUI : MonoBehaviour
+    public class InventoryView : MonoBehaviour
     {
         private const int HOTBAR_COLS = 9;
         private const int INVENTORY_ROWS = 6;
@@ -121,7 +122,7 @@ namespace Fodinae.Scripts.UI
                 return;
             }
 
-            _model = InventoryModel.Instance;
+            _model = Fodinae.Scripts.Core.ServiceLocator.Resolve<Fodinae.Scripts.UI.HUD.Inventory.Interfaces.IInventoryModel>() ?? InventoryModel.Instance;
             _model.OnSlotChanged += RefreshSlot;
             _model.OnSlotSelected += OnModelSlotSelected;
 

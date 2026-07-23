@@ -201,7 +201,7 @@ namespace Fodinae.Scripts.Game.Managers
                 _isInitialized = true;
 
                 // Set StandaloneMode in MapManager if we are inStandaloneMode
-                if (MapManager.Instance != null && MapManager.Instance.IsStandaloneMode)
+                if (ServiceLocator.Resolve<IMapDataProvider>() != null && ServiceLocator.Resolve<IMapDataProvider>().IsStandaloneMode)
                 {
                     Debug.Log("[MapStorage] Standalone mode detected, MapStorage ready");
                 }
