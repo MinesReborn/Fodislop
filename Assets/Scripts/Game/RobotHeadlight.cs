@@ -30,6 +30,7 @@ namespace Fodinae.Scripts.Game
         protected void OnDisable()
         {
             _isEnabled = false;
+            Shader.SetGlobalFloat("_HeadlightIntensity", 0f);
         }
 
         protected void LateUpdate()
@@ -39,8 +40,7 @@ namespace Fodinae.Scripts.Game
                 return;
             }
 
-            float angleRad = transform.eulerAngles.z * Mathf.Deg2Rad;
-            Vector2 dir = new Vector2(-Mathf.Sin(angleRad), Mathf.Cos(angleRad));
+            Vector2 dir = transform.up;
             Vector2 pos = (Vector2)transform.position + (dir * 0.5f);
 
             Shader.SetGlobalVector("_HeadlightPos", pos);

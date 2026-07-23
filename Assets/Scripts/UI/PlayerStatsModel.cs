@@ -9,14 +9,23 @@ namespace Fodinae.Scripts.UI
     public class PlayerStatsModel : MonoBehaviour
     {
         private static PlayerStatsModel _instance;
+        private static bool _isQuitting;
+
+        public static PlayerStatsModel InstanceIfExists => _instance;
+
         public static PlayerStatsModel Instance
         {
             get
             {
+                if (_isQuitting)
+                {
+                    return null;
+                }
+
                 if (_instance == null)
                 {
                     _instance = FindAnyObjectByType<PlayerStatsModel>();
-                    if (_instance == null)
+                    if (_instance == null && !_isQuitting && Application.isPlaying)
                     {
                         var go = new GameObject("[PlayerStatsModel]");
                         _instance = go.AddComponent<PlayerStatsModel>();
