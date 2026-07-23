@@ -132,6 +132,7 @@ namespace Fodinae.Scripts.Networking
                 ns.Subscribe<HideClanPacket>(Clan.Process);
                 ns.Subscribe<MissionInitPacket>(Mission.Process);
                 ns.Subscribe<MissionProgressPacket>(Mission.Process);
+                ns.Subscribe<AuthTokenPacket>(HandleAuthTokenPacket);
             }
 
             var mm = MapManager.Instance;
@@ -196,6 +197,7 @@ namespace Fodinae.Scripts.Networking
                 ns.Unsubscribe<MaxDepthPacket>(PlayerStats.Process);
                 ns.Unsubscribe<MissionInitPacket>(Mission.Process);
                 ns.Unsubscribe<MissionProgressPacket>(Mission.Process);
+                ns.Unsubscribe<AuthTokenPacket>(HandleAuthTokenPacket);
             }
 
             // Close modal and any open windows
@@ -218,6 +220,26 @@ namespace Fodinae.Scripts.Networking
                 GameManager.Instance.SetState(GameState.InGame);
                 GameManager.Instance.NotifyWorldLoaded();
             }
+        }
+
+        private void HandleAuthTokenPacket(AuthTokenPacket packet)
+        {
+            string newToken = packet.Token;
+            if (string.IsNullOrEmpty(newToken))
+            {
+                Debug.LogError("[Auth] Received empty token from server");
+                return;
+            }
+
+            Auth.AuthTokenManager.SaveToken(newToken);
+
+            var gm = GameManager.Instance;
+            if (gm != null)
+            {
+                gm.AuthorizeUI();
+            }
+
+            Debug.Log($"[Auth] Token received and saved, length={newToken.Length}");
         }
     }
 }

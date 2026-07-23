@@ -1,4 +1,4 @@
-﻿<Project>
+<Project>
   <!-- Generated file, do not modify, your changes will be overwritten (use AssetPostprocessor.OnGeneratedCSProject) -->
   <PropertyGroup>
     <BaseIntermediateOutputPath>Temp/obj/$(MSBuildProjectName)</BaseIntermediateOutputPath>
@@ -149,6 +149,7 @@
     <Compile Include="Assets/Scripts/Player/Interfaces/IPlayerInput.cs" />
     <Compile Include="Assets/Scripts/AssetPipeline/ClientAssetLoader.cs" />
     <Compile Include="Assets/Scripts/Networking/PacketHandler.cs" />
+    <Compile Include="Assets/Scripts/Networking/Auth/AuthTokenManager.cs" />
     <Compile Include="Assets/Scripts/Game/VFXPool.cs" />
     <Compile Include="Assets/Scripts/UI/Builders/SelectablePacketBuilder.cs" />
     <Compile Include="Assets/Scripts/UI/FloatingChatManager.cs" />
