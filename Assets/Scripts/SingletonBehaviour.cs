@@ -35,16 +35,13 @@ namespace Fodinae.Scripts
                 if (_instance == null)
                 {
                     _instance = FindAnyObjectByType<T>();
-                    if (_instance == null && !_isQuitting)
+                    if (_instance == null && !_isQuitting && Application.isPlaying)
                     {
                         var go = new GameObject($"[{typeof(T).Name}]");
                         _instance = go.AddComponent<T>();
-                        if (Application.isPlaying)
-                        {
-                            var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
-                            DontDestroyOnLoad(parent);
-                            go.transform.SetParent(parent.transform);
-                        }
+                        var parent = GameObject.Find("[Systems]") ?? new GameObject("[Systems]");
+                        DontDestroyOnLoad(parent);
+                        go.transform.SetParent(parent.transform);
                     }
                 }
 

@@ -3,8 +3,18 @@
 
 set -e
 
-export HOME="${HOME:-/Users/murasama}"
-export DOTNET_CLI_HOME="${DOTNET_CLI_HOME:-/Users/murasama}"
+# Use current environment HOME or fallback to user home directory
+export HOME="${HOME:-~}"
+export DOTNET_CLI_HOME="${DOTNET_CLI_HOME:-$HOME}"
+
+# Build dependency projects first so Temp/bin/Debug references exist for Assembly-CSharp
+if [ -f "Effekseer.csproj" ]; then
+    dotnet build Effekseer.csproj -clp:NoSummary >/dev/null 2>&1 || true
+fi
+
+if [ -f "UniTask.csproj" ]; then
+    dotnet build UniTask.csproj -clp:NoSummary >/dev/null 2>&1 || true
+fi
 
 # Find all generated Assembly-CSharp project files
 PROJECTS=$(find . -maxdepth 1 -name "Assembly-CSharp*.csproj")
