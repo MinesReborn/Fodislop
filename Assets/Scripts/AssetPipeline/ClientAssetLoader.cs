@@ -38,6 +38,7 @@ namespace Fodinae.Scripts
 
         protected override void OnAwake()
         {
+            ServiceLocator.Register<IAssetLoader>(this);
             _placeholderTexture = new Texture2D(1, 1);
             _placeholderTexture.SetPixel(0, 0, Color.gray);
             _placeholderTexture.Apply();

@@ -7,10 +7,6 @@ namespace Fodinae.Scripts.Core
     /// Lightweight service locator for dependency resolution.
     /// Services are registered once at startup by CompositionRoot and resolved
     /// through interfaces rather than concrete singletons.
-    ///
-    /// Usage:
-    ///   ServiceLocator.Register<IMapDataProvider>(MapManager.Instance);
-    ///   var map = ServiceLocator.Resolve<IMapDataProvider>();
     /// </summary>
     public static class ServiceLocator
     {
@@ -19,14 +15,7 @@ namespace Fodinae.Scripts.Core
         public static void Register<T>(T service)
             where T : class
         {
-            var type = typeof(T);
-            if (_services.ContainsKey(type))
-            {
-                _services[type] = service;
-                return;
-            }
-
-            _services[type] = service;
+            _services[typeof(T)] = service;
         }
 
         public static T Resolve<T>()

@@ -149,6 +149,7 @@ namespace Fodinae.Scripts.Audio.Backend
 
         protected override void OnAwake()
         {
+            ServiceLocator.Register<IAudioSystem>(this);
             _backend = new FmodAudioBackend();
             _backend.Initialize(this);
             ApplySavedBusVolumes();

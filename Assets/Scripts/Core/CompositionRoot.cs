@@ -1,29 +1,27 @@
-using Fodinae.Scripts;
 using Fodinae.Scripts.Audio.Backend;
 using Fodinae.Scripts.Core.Interfaces;
 using Fodinae.Scripts.Game.Managers;
-using Fodinae.Scripts.UI;
-using Fodinae.Scripts.UI.HUD.Player.Model;
 using Fodinae.Scripts.UI.HUD.Inventory.Interfaces;
 using Fodinae.Scripts.UI.HUD.Inventory.Model;
+using Fodinae.Scripts.UI.HUD.Player.Model;
 using UnityEngine;
 
 namespace Fodinae.Scripts.Core
 {
     /// <summary>
-    /// Composition root that registers all services in ServiceLocator at startup.
-    /// Runs on scene load via DefaultExecutionOrder to ensure services are available
-    /// before any consumer accesses them through ServiceLocator.
-    ///
-    /// This does not replace SingletonMonoBehaviour.Instance — it augments it.
-    /// Existing Instance accessors still work. ServiceLocator provides the abstraction
-    /// layer for testability.
+    /// Native Unity composition root that automatically registers all core services in ServiceLocator
+    /// before any scene is loaded or any Awake() method is executed.
     /// </summary>
-    [DefaultExecutionOrder(-10000)]
-    public sealed class CompositionRoot : MonoBehaviour
+    public static class CompositionRoot
     {
-        private void Awake()
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        public static void Initialize()
         {
+            // Pure C# Singletons — register immediately
+            ServiceLocator.Register<IWorldDataStorage>(MapStorage.Instance);
+            ServiceLocator.Register<IInventoryModel>(InventoryModel.Instance);
+
+            // MonoBehaviour Singletons — register if present or lazily when Awake runs
             if (ClientAssetLoader.Instance != null)
             {
                 ServiceLocator.Register<IAssetLoader>(ClientAssetLoader.Instance);
@@ -34,28 +32,15 @@ namespace Fodinae.Scripts.Core
                 ServiceLocator.Register<IMapDataProvider>(MapManager.Instance);
             }
 
-            if (MapStorage.Instance != null)
-            {
-                ServiceLocator.Register<IWorldDataStorage>(MapStorage.Instance);
-            }
-
             if (AudioSystem.Instance != null)
             {
                 ServiceLocator.Register<IAudioSystem>(AudioSystem.Instance);
             }
 
-            var stats = FindAnyObjectByType<PlayerStatsModel>();
-            if (stats != null)
+            if (PlayerStatsModel.Instance != null)
             {
-                ServiceLocator.Register<IPlayerStats>(stats);
+                ServiceLocator.Register<IPlayerStats>(PlayerStatsModel.Instance);
             }
-
-            if (InventoryModel.Instance != null)
-            {
-                ServiceLocator.Register<IInventoryModel>(InventoryModel.Instance);
-            }
-
-            DontDestroyOnLoad(gameObject);
         }
     }
 }

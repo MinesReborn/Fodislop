@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Fodinae.Scripts.Core;
 using Fodinae.Scripts.Core.Interfaces;
 using MinesServer.Data;
 using UnityEngine;
@@ -72,6 +73,7 @@ namespace Fodinae.Scripts.UI.HUD.Player.Model
             }
 
             _instance = this;
+            ServiceLocator.Register<IPlayerStats>(this);
             DontDestroyOnLoad(gameObject);
         }
 
