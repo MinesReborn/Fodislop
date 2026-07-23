@@ -270,6 +270,9 @@ namespace Fodinae.Scripts.World
 
             // Apply hardcoded world darkness factor globally (not player-configurable)
             Shader.SetGlobalFloat("_DarknessFactor", GameConstants.World.WORLD_DARKNESS_FACTOR);
+            Shader.SetGlobalVector("_HeadlightPos", Vector4.zero);
+            Shader.SetGlobalVector("_HeadlightDir", new Vector4(0, -1, 0, 0));
+            Shader.SetGlobalFloat("_HeadlightIntensity", 0f);
         }
 
         private void OnTextureLoaded(string filename, Texture2D texture)

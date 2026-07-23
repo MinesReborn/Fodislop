@@ -64,6 +64,14 @@ namespace Fodinae.Scripts.Player.Logic
             {
                 _input = gameObject.AddComponent<PlayerInputHandler>();
             }
+
+            if (!TryGetComponent<RobotHeadlight>(out var headlight))
+            {
+                headlight = gameObject.AddComponent<RobotHeadlight>();
+            }
+
+            bool useLight2D = PlayerPrefs.GetInt("UseLight2D", 0) == 1;
+            headlight.SetEnabled(useLight2D);
         }
 
         protected void OnDestroy()
