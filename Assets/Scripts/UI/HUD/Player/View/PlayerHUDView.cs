@@ -96,6 +96,11 @@ namespace Fodinae.Scripts.UI.HUD.Player.View
         private async UniTaskVoid StartAsync(System.Threading.CancellationToken cancellationToken)
         {
             await LoadCrystalTextures(cancellationToken);
+            if (cancellationToken.IsCancellationRequested || this == null)
+            {
+                return;
+            }
+
             InitializeHUD();
         }
 
@@ -135,6 +140,11 @@ namespace Fodinae.Scripts.UI.HUD.Player.View
 
                 string name = ct.ToString().ToLowerInvariant();
                 var tex = await ClientAssetLoader.Instance.GetTextureAsync("Crystals/" + name, cancellationToken);
+                if (cancellationToken.IsCancellationRequested || this == null)
+                {
+                    return;
+                }
+
                 _crystalTextures.Add(tex);
             }
         }
