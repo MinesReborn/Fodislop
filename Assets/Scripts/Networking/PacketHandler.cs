@@ -84,10 +84,6 @@ namespace Fodinae.Scripts.Networking
                 var mwh = new ModalWindowHandler(uiDocument);
                 _windowProcessor.Initialize(uiDocument, mwh);
             }
-            else
-            {
-                Debug.LogWarning("[PacketHandler] UIDocument not found - window packets will not be displayed");
-            }
 
             // Subscribe to events via NetworkService
             var ns = NetworkService.Instance;
