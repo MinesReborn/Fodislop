@@ -183,12 +183,6 @@ namespace MinesServer.Networking.Connection.Client
                 hudObj.AddComponent<Fodinae.Scripts.UI.HUD.Player.Presenter.PlayerHUDPresenter>();
             }
 
-            if (UnityEngine.Object.FindAnyObjectByType<PauseMenu>() == null)
-            {
-                var pauseObj = new GameObject("PauseMenu");
-                pauseObj.AddComponent<PauseMenu>();
-            }
-
             if (UnityEngine.Object.FindAnyObjectByType<GlobalChatUI>() == null)
             {
                 var chatObj = new GameObject("ChatSystem");
