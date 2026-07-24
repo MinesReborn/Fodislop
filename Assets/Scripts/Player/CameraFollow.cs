@@ -1,4 +1,5 @@
 using System;
+using Fodinae.Scripts.Networking;
 using Fodinae.Scripts.Player.Logic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -95,6 +96,11 @@ namespace Fodinae.Scripts.Player
 
         private void HandleZoom()
         {
+            if (PacketHandler.IsInputBlocked)
+            {
+                return;
+            }
+
             if (!_scrollEnabled)
             {
                 return;

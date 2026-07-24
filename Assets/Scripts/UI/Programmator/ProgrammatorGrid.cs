@@ -1,3 +1,5 @@
+using System;
+using MinesServer.Data;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
@@ -12,11 +14,15 @@ namespace Fodinae.Scripts.UI.Programmator
         private VisualElement[,] _cells;
         private Label[,] _cellLabels;
         private RadialMenu _radial;
+        private ObserverJoystick _joystick; 
         private bool _isOpen;
         private bool _radialShown;
+        private int _radialCellIndex = -1;
         private Tooltip _tooltip;
         private const float CELLSIZE = 30f;
         private const float CELL_GAP = 2f;
+
+        public static bool IsOpen { get; private set; }
 
         protected void Start()
         {
@@ -26,11 +32,11 @@ namespace Fodinae.Scripts.UI.Programmator
                 return;
             }
 
-            _tooltip = new Tooltip();
-            _tooltip.Initialize(_doc);
-
             CreateUI();
             _popup.style.display = DisplayStyle.None;
+
+            _tooltip = new Tooltip();
+            _tooltip.Initialize(_doc);
         }
 
         private void CreateUI()
@@ -163,6 +169,29 @@ namespace Fodinae.Scripts.UI.Programmator
                         _tooltip?.UpdatePosition(evt.position);
                     });
 
+                    cell.RegisterCallback<PointerDownEvent>(evt =>
+                    {
+                        if (evt.button != 0 && evt.button != 1)
+                        {
+                            return;
+                        }
+
+                        if (_radialShown)
+                        {
+                            _joystick.Hide();
+                            _radial.Hide();
+                            _radialShown = false;
+                            _radialCellIndex = -1;
+                            return;
+                        }
+
+                        _radialCellIndex = (row * ProgrammatorData.COLS) + col;
+                        ShowCategoryRing();
+                        var cellCenter = _cells[row, col].worldBound.center;
+                        _radial.ShowAt(_doc.rootVisualElement, cellCenter);
+                        _radialShown = true;
+                    });
+
                     var label = new Label();
                     label.style.fontSize = 8;
                     label.style.color = Color.white;
@@ -189,8 +218,27 @@ namespace Fodinae.Scripts.UI.Programmator
             _popup.Add(panel);
             _doc.rootVisualElement.Add(_popup);
 
-            _radial = new RadialMenu(ProgrammatorData.WOPERATORS);
+            _radial = new RadialMenu();
+            _radial.OnCategoryClicked += OnRadialCategoryClicked;
             _radial.OnItemClicked += OnRadialItemClicked;
+            _radial.OnBackClicked += OnRadialBackClicked;
+
+            _joystick = new ObserverJoystick();
+            _joystick.OnOperatorSelected += OnJoystickOperatorSelected;
+        }
+
+        private void ShowCategoryRing()
+        {
+            _joystick.Hide();
+            var cats = ProgrammatorData.CATEGORIES;
+            var colors = new Color[cats.Length];
+            for (int i = 0; i < cats.Length; i++)
+            {
+                colors[i] = ProgrammatorData.CATEGORY_COLORS[cats[i]];
+            }
+
+            _radial.SetInnerItems(cats, colors);
+            _radial.ClearOuterItems();
         }
 
         private void HighlightCell(int row, int col, bool highlight)
@@ -217,45 +265,116 @@ namespace Fodinae.Scripts.UI.Programmator
             int idx = (ProgrammatorData.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
                       + (row * ProgrammatorData.COLS) + col;
             int id = ProgrammatorData.Codes[idx];
+            var action = (ProgAction)id;
             var cell = _cells[row, col];
             var label = _cellLabels[row, col];
 
-            var tex = ProgrammatorTextureRegistry.GetTexture(id);
+            var tex = ProgrammatorTextureRegistry.GetTexture(action);
             if (tex != null)
             {
                 cell.style.backgroundImage = new StyleBackground(tex);
                 cell.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Contain);
                 cell.style.backgroundColor = Color.clear;
+                label.text = string.Empty;
             }
             else if (id == 0)
             {
                 cell.style.backgroundImage = null;
                 cell.style.backgroundColor = new Color(0.15f, 0.15f, 0.15f, 1f);
+                label.text = string.Empty;
             }
             else
             {
                 cell.style.backgroundImage = null;
                 cell.style.backgroundColor = new Color(0.3f, 0.1f, 0.1f, 1f);
+                string name = ProgrammatorData.OPERATOR_NAMES.TryGetValue(action, out var n) ? n : string.Empty;
+                label.text = name;
             }
-
-            string name = ProgrammatorData.OPERATOR_NAMES.TryGetValue(id, out var n) ? n : string.Empty;
-            label.text = name;
         }
 
-        private void OnRadialItemClicked(int selectedId)
+        private void OnRadialCategoryClicked(int categoryId)
         {
-            if (ProgrammatorData.HoveredCell < 0)
+            // Category clicked — populate outer ring with operators
+            if (!ProgrammatorData.CATEGORY_OPERATORS.TryGetValue(categoryId, out var ops))
             {
                 return;
             }
 
-            int row = ProgrammatorData.HoveredCell / ProgrammatorData.COLS;
-            int col = ProgrammatorData.HoveredCell % ProgrammatorData.COLS;
+            // CAT_OBSERVER uses a joystick instead of the outer ring
+            if (categoryId == ProgrammatorData.CAT_OBSERVER)
+            {
+                _radial.ClearOuterItems();
+                _joystick.Hide();
+                var cellCenter = _cells[_radialCellIndex / ProgrammatorData.COLS,
+                                         _radialCellIndex % ProgrammatorData.COLS].worldBound.center;
+                _joystick.ShowAt(_doc.rootVisualElement, cellCenter);
+                return;
+            }
+
+            // Other categories: populate standard outer ring
+            _joystick.Hide();
+
+            if (!ProgrammatorData.CATEGORY_COLORS.TryGetValue(categoryId, out var catColor))
+            {
+                catColor = Color.white;
+            }
+
+            var colors = new Color[ops.Length];
+            for (int i = 0; i < ops.Length; i++)
+            {
+                colors[i] = catColor;
+            }
+
+            _radial.SetOuterItems(Array.ConvertAll(ops, op => (int)op), colors);
+        }
+
+        private void OnJoystickOperatorSelected(ProgAction action)
+        {
+            if (_radialCellIndex < 0)
+            {
+                return;
+            }
+
+            int row = _radialCellIndex / ProgrammatorData.COLS;
+            int col = _radialCellIndex % ProgrammatorData.COLS;
+            int idx = (ProgrammatorData.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
+                      + (row * ProgrammatorData.COLS) + col;
+            ProgrammatorData.PushUndo();
+            ProgrammatorData.Codes[idx] = (int)action;
+            UpdateCell(row, col);
+
+            _joystick.Hide();
+            _radial.Hide();
+            _radialShown = false;
+            _radialCellIndex = -1;
+        }
+
+        private void OnRadialItemClicked(int selectedId)
+        {
+            // Outer ring item clicked — place the operator in the cell
+            if (_radialCellIndex < 0)
+            {
+                return;
+            }
+
+            int row = _radialCellIndex / ProgrammatorData.COLS;
+            int col = _radialCellIndex % ProgrammatorData.COLS;
             int idx = (ProgrammatorData.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
                       + (row * ProgrammatorData.COLS) + col;
             ProgrammatorData.PushUndo();
             ProgrammatorData.Codes[idx] = selectedId;
             UpdateCell(row, col);
+
+            _radial.Hide();
+            _radialShown = false;
+            _radialCellIndex = -1;
+        }
+
+        private void OnRadialBackClicked()
+        {
+            // Back button — clear outer ring and joystick, keep inner ring visible
+            _radial.ClearOuterItems();
+            _joystick.Hide();
         }
 
         protected void Update()
@@ -270,26 +389,35 @@ namespace Fodinae.Scripts.UI.Programmator
                 return;
             }
 
-            if (!_radialShown)
+            // DEL clears the cell when radial menu is open
+            if (Keyboard.current.deleteKey.wasPressedThisFrame && _radialShown)
             {
-                if (Keyboard.current.wKey.wasPressedThisFrame && ProgrammatorData.HoveredCell >= 0)
+                if (_radialCellIndex >= 0)
                 {
-                    int row = ProgrammatorData.HoveredCell / ProgrammatorData.COLS;
-                    int col = ProgrammatorData.HoveredCell % ProgrammatorData.COLS;
-                    var cellCenter = _cells[row, col].worldBound.center;
-                    _radial.ShowAt(_doc.rootVisualElement, cellCenter);
-                    _radialShown = true;
+                    int row = _radialCellIndex / ProgrammatorData.COLS;
+                    int col = _radialCellIndex % ProgrammatorData.COLS;
+                    int idx = (ProgrammatorData.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
+                              + (row * ProgrammatorData.COLS) + col;
+                    ProgrammatorData.PushUndo();
+                    ProgrammatorData.Codes[idx] = 0;
+                    UpdateCell(row, col);
                 }
-            }
-            else
-            {
-                if (Keyboard.current.wKey.wasReleasedThisFrame)
-                {
-                    _radial.Hide();
-                    _radialShown = false;
-                }
+
+                _joystick.Hide();
+                _radial.Hide();
+                _radialShown = false;
+                _radialCellIndex = -1;
+                return;
             }
 
+            // ESC closes the programmator window
+            if (Keyboard.current.escapeKey.wasPressedThisFrame)
+            {
+                Hide();
+                return;
+            }
+
+            // Ctrl+Z / Ctrl+Y undo/redo
             if (Keyboard.current.ctrlKey.isPressed)
             {
                 if (Keyboard.current.zKey.wasPressedThisFrame)
@@ -312,15 +440,19 @@ namespace Fodinae.Scripts.UI.Programmator
         public void Show()
         {
             _isOpen = true;
+            IsOpen = true;
             RefreshAllCells();
             _popup.style.display = DisplayStyle.Flex;
         }
 
         public void Hide()
         {
+            _joystick.Hide();
             _radial.Hide();
             _radialShown = false;
+            _radialCellIndex = -1;
             _isOpen = false;
+            IsOpen = false;
             _popup.style.display = DisplayStyle.None;
         }
 
@@ -340,8 +472,9 @@ namespace Fodinae.Scripts.UI.Programmator
             int idx = (ProgrammatorData.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
                       + (row * ProgrammatorData.COLS) + col;
             int opId = ProgrammatorData.Codes[idx];
-            string name = ProgrammatorData.OPERATOR_NAMES.TryGetValue(opId, out var n) ? n : $"Код {opId}";
-            string desc = ProgrammatorData.OPERATOR_DESCRIPTIONS.TryGetValue(opId, out var d) ? d : string.Empty;
+            var action = (ProgAction)opId;
+            string name = ProgrammatorData.OPERATOR_NAMES.TryGetValue(action, out var n) ? n : $"Код {opId}";
+            string desc = ProgrammatorData.OPERATOR_DESCRIPTIONS.TryGetValue(action, out var d) ? d : string.Empty;
             string text = string.IsNullOrEmpty(desc)
                 ? $"Ячейка [{col},{row}]: {name}"
                 : $"Ячейка [{col},{row}]: {name} — {desc}";

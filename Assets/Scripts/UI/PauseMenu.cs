@@ -4,6 +4,7 @@ using Fodinae.Scripts.Game;
 using Fodinae.Scripts.Networking;
 using Fodinae.Scripts.Player;
 using Fodinae.Scripts.Player.Logic;
+using Fodinae.Scripts.UI.Programmator;
 using Fodinae.Scripts.World;
 using MinesServer.Networking.Client.Packets.GUI;
 using MinesServer.Networking.Shared.Packets;
@@ -370,6 +371,12 @@ namespace Fodinae.Scripts.UI
         private void ToggleMenu()
         {
             if (!enabled)
+            {
+                return;
+            }
+
+            // Programmator handles ESC itself — don't cascade into pause menu
+            if (ProgrammatorGrid.IsOpen)
             {
                 return;
             }

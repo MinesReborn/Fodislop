@@ -6,6 +6,7 @@ using Fodinae.Scripts.Game;
 using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Player;
 using Fodinae.Scripts.UI;
+using Fodinae.Scripts.UI.Programmator;
 using Fodinae.UI;
 using Fodinae.UI.Binding;
 using VContainer;
@@ -35,7 +36,7 @@ namespace Fodinae.Scripts.Networking
     {
         public static PacketHandler Instance { get; private set; }
 
-        public static bool IsInputBlocked => Instance != null && (Instance._windowProcessor.HasOpenWindows || Instance._windowProcessor.IsModalShowing || PauseMenu.IsMenuOpen);
+        public static bool IsInputBlocked => Instance != null && (Instance._windowProcessor.HasOpenWindows || Instance._windowProcessor.IsModalShowing || PauseMenu.IsMenuOpen || ProgrammatorGrid.IsOpen);
         public static string TopWindowTag => Instance?._windowProcessor.TopWindowTag;
 
         private static readonly WorldInitProcessor WorldInit = new();
