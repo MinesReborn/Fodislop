@@ -8,6 +8,7 @@ using Fodinae.Scripts.Networking.Connection;
 using Fodinae.Scripts.Player.Interfaces;
 using Fodinae.Scripts.Player.Input;
 using Fodinae.Scripts.World;
+using VContainer;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets.Actions;
 using MinesServer.Networking.Client.Packets.Movement;
@@ -18,6 +19,7 @@ using UnityEngine.InputSystem;
 
 namespace Fodinae.Scripts.Player.Logic
 {
+    #pragma warning disable CS0649
     public class PlayerMovementController : MonoBehaviour
     {
         [Header("Movement Settings")]
@@ -38,6 +40,8 @@ namespace Fodinae.Scripts.Player.Logic
         private float _lastMoveTime;
         private float _lastDigTime;
         private Direction? _lastSentDirection;
+        [Inject]
+        private IWorldDataStorage _storage;
 
         public static PlayerMovementController LocalPlayer { get; private set; }
         public static event Action<PlayerMovementController> OnLocalPlayerSpawned;
@@ -91,6 +95,7 @@ namespace Fodinae.Scripts.Player.Logic
             }
 
             Position = CoordinateUtils.UnityToServerPos(transform.position, MapManager.Instance?.WorldHeight ?? 0);
+            _lastSentDirection = Direction.Down;
         }
 
         protected void Update()
@@ -186,12 +191,12 @@ namespace Fodinae.Scripts.Player.Logic
 
         private void ApplyMovement()
         {
-            if (_robot is null || PacketHandler.IsInputBlocked)
+            if (_robot is null || _input is null || ServerConfig.Instance is null || PacketHandler.IsInputBlocked)
             {
                 return;
             }
 
-            if (Time.time - _lastDigTime < ServerConfig.Instance.DigCooldown)
+            if (_input.WantsToDig || Time.time - _lastDigTime < ServerConfig.Instance.DigCooldown)
             {
                 return;
             }
@@ -226,7 +231,7 @@ namespace Fodinae.Scripts.Player.Logic
                     ushort currentX = (ushort)Mathf.Clamp(Position.x, 0, ushort.MaxValue);
                     ushort currentServerY = (ushort)Mathf.Clamp(Position.y, 0, ushort.MaxValue);
 
-                    var storage = ServiceLocator.Resolve<IWorldDataStorage>();
+                    var storage = _storage ?? MapStorage.Instance;
                     if (storage == null)
                     {
                         return;

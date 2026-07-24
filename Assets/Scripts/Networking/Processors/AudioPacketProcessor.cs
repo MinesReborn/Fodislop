@@ -3,13 +3,9 @@ using MinesServer.Networking.Server.Packets.World;
 
 namespace Fodinae.Scripts.Networking.Processors
 {
-    /// <summary>
-    /// Decoupled SOLID Processor for Server Audio & SFX Event Packets.
-    /// Dispatches server sound triggers to ServerAudioEventManager for FMOD & Effekseer playback.
-    /// </summary>
-    public class AudioPacketProcessor : IPacketProcessor<SFXPacket>
+    public class AudioPacketProcessor : IPacketProcessor<AudioPacket>
     {
-        public void Process(SFXPacket packet)
+        public void Process(AudioPacket packet)
         {
             if (ServerAudioEventManager.Instance != null)
             {

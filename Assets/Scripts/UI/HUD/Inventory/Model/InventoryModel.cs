@@ -13,17 +13,11 @@ namespace Fodinae.Scripts.UI.HUD.Inventory.Model
         public const int TOTALSLOTS = HOTBAR_SIZE + INVENTORY_SIZE;
 
         private static InventoryModel _instance;
-        public static InventoryModel Instance
-        {
-            get
-            {
-                if (_instance == null)
-                {
-                    _instance = new InventoryModel();
-                }
+        public static InventoryModel Instance => _instance;
 
-                return _instance;
-            }
+        public InventoryModel()
+        {
+            _instance = this;
         }
 
         private ItemData[] _slots = new ItemData[TOTALSLOTS];

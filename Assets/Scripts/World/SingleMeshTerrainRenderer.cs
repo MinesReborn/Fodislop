@@ -6,6 +6,7 @@ using Cysharp.Threading.Tasks;
 using Fodinae.Scripts.Core;
 using Fodinae.Scripts.Core.Interfaces;
 using Fodinae.Scripts.Game.Managers;
+using VContainer;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using UnityEngine;
@@ -13,6 +14,7 @@ using UnityEngine.Rendering;
 
 namespace Fodinae.Scripts.World
 {
+    #pragma warning disable CS0649
     [RequireComponent(typeof(MeshFilter))]
     [RequireComponent(typeof(MeshRenderer))]
     [DefaultExecutionOrder(100)]
@@ -48,6 +50,8 @@ namespace Fodinae.Scripts.World
 
         private MeshFilter _meshFilter;
         private MeshRenderer _meshRenderer;
+        [Inject]
+        private IWorldDataStorage _storage;
         private Mesh _mesh;
         private Camera _mainCamera;
 
@@ -165,6 +169,20 @@ namespace Fodinae.Scripts.World
         private readonly BackgroundFloodFill _backgroundFloodFill = new();
         private CellType[,] BgMapBuffer => _backgroundFloodFill.Buffer;
         private bool _needsRefresh = false;
+
+        private static void SetNeedsRefresh()
+        {
+            if (Instance != null)
+            {
+                Instance._needsRefresh = true;
+            }
+        }
+
+        public static void OnCellChanged(int x, int y)
+        {
+            SetNeedsRefresh();
+        }
+
         private bool _useColorLod = false;
 
         // Atlas index cache: maps CellType → atlas index for O(1) lookup.
@@ -297,11 +315,12 @@ namespace Fodinae.Scripts.World
 #if UNITY_EDITOR
             if (!Application.isPlaying)
             {
-                ServiceLocator.Resolve<IWorldDataStorage>()?.EnsureEditorInitialized();
+                _storage?.EnsureEditorInitialized();
             }
 #endif
             var mm = MapManager.Instance;
-            if (mm == null || ServiceLocator.Resolve<IWorldDataStorage>() == null || !ServiceLocator.Resolve<IWorldDataStorage>().IsReady)
+            var storage = _storage ?? MapStorage.Instance;
+            if (mm == null || storage == null || !storage.IsReady)
             {
                 return;
             }
@@ -474,7 +493,7 @@ namespace Fodinae.Scripts.World
         private void PopulateCellCache(int minX, int minY)
         {
             var mm = MapManager.Instance;
-            var mapStorage = ServiceLocator.Resolve<IWorldDataStorage>();
+            var mapStorage = _storage ?? MapStorage.Instance;
             if (mm == null || mapStorage == null || !mapStorage.IsReady)
             {
                 return;
@@ -1898,7 +1917,7 @@ namespace Fodinae.Scripts.World
         private void ScrollCellCache(int dx, int dy, List<TextureAtlas> atlases)
         {
             var mm = MapManager.Instance;
-            var mapStorage = ServiceLocator.Resolve<IWorldDataStorage>();
+            var mapStorage = _storage ?? MapStorage.Instance;
             if (mm == null || mapStorage == null || !mapStorage.IsReady)
             {
                 return;

@@ -23,8 +23,13 @@ namespace Fodinae.Scripts
     using static ETagCalculator;
     using static PersistentAssetCache;
 
-    public class ClientAssetLoader : SingletonMonoBehaviour<ClientAssetLoader>, IAssetLoader
+    [DefaultExecutionOrder(-10000)]
+    public class ClientAssetLoader : MonoBehaviour, IAssetLoader
     {
+        private static ClientAssetLoader _instance;
+        public static ClientAssetLoader Instance => _instance;
+        public static ClientAssetLoader InstanceIfExists => _instance;
+
         public event Action<string, Texture2D> OnTextureLoaded;
 
         private readonly AssetCache _cache = new(LoadBytesFromServerInternal);
@@ -36,9 +41,9 @@ namespace Fodinae.Scripts
         private Texture2D _placeholderTexture;
         private Texture2D _errorTexture;
 
-        protected override void OnAwake()
+        protected void Awake()
         {
-            ServiceLocator.Register<IAssetLoader>(this);
+            _instance = this;
             _placeholderTexture = new Texture2D(1, 1);
             _placeholderTexture.SetPixel(0, 0, Color.gray);
             _placeholderTexture.Apply();
@@ -58,8 +63,13 @@ namespace Fodinae.Scripts
             ProcessBatchLoop(_loopCts.Token).Forget();
         }
 
-        protected override void OnDestroyed()
+        protected void OnDestroy()
         {
+            if (_instance != this)
+            {
+                return;
+            }
+
             _loopCts?.Cancel();
             _loopCts?.Dispose();
             var cm = ConnectionManager.InstanceIfExists;

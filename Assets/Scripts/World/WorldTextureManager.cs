@@ -5,17 +5,20 @@ using System.Linq;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Fodinae.Scripts;
-using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Core;
-using Fodinae.Scripts.Core.Interfaces;
+using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.World;
 using MinesServer.Data;
 using UnityEngine;
 
 namespace Fodinae.Scripts.World
 {
-    public class WorldTextureManager : SingletonMonoBehaviour<WorldTextureManager>
+    public class WorldTextureManager : MonoBehaviour
     {
+        private static WorldTextureManager _instance;
+        public static WorldTextureManager Instance => _instance;
+        public static WorldTextureManager InstanceIfExists => _instance;
+
         [Header("Atlas Configuration")]
         [SerializeField]
         private int _initialAtlasSize = 4096;
@@ -38,13 +41,19 @@ namespace Fodinae.Scripts.World
 
         private Texture2D _cachedEmptyTexture;
 
-        protected override void OnAwake()
+        protected void Awake()
         {
+            _instance = this;
             Initialize();
         }
 
-        protected override void OnDestroyed()
+        protected void OnDestroy()
         {
+            if (_instance != this)
+            {
+                return;
+            }
+
             if (ClientAssetLoader.InstanceIfExists != null)
             {
                 ClientAssetLoader.InstanceIfExists.OnTextureLoaded -= OnTextureLoadedHandler;
@@ -570,7 +579,7 @@ namespace Fodinae.Scripts.World
 
         private static CellType GetCellTypeAt(int x, int y)
         {
-            var storage = ServiceLocator.Resolve<IWorldDataStorage>();
+            var storage = MapStorage.Instance;
             if (storage?.CellLayer != null)
             {
                 try

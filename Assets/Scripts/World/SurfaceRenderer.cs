@@ -108,16 +108,20 @@ namespace Fodinae.Scripts.World
 
             try
             {
-                var transitTex = await ClientAssetLoader.Instance.GetTextureAsync(_transitTexturePath);
-                if (transitTex != null)
+                var loader = ClientAssetLoader.Instance;
+                if (loader != null)
                 {
-                    _transitMaterial.mainTexture = transitTex;
-                }
+                    var transitTex = await loader.GetTextureAsync(_transitTexturePath);
+                    if (transitTex != null && _transitMaterial != null)
+                    {
+                        _transitMaterial.mainTexture = transitTex;
+                    }
 
-                var persTex = await ClientAssetLoader.Instance.GetTextureAsync(_perspectiveTexturePath);
-                if (persTex != null)
-                {
-                    _perspectiveMaterial.mainTexture = persTex;
+                    var persTex = await loader.GetTextureAsync(_perspectiveTexturePath);
+                    if (persTex != null && _perspectiveMaterial != null)
+                    {
+                        _perspectiveMaterial.mainTexture = persTex;
+                    }
                 }
             }
             catch (Exception ex)

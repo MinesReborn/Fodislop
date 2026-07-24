@@ -1,15 +1,14 @@
-using Fodinae.Scripts.Core;
 using Fodinae.Scripts.Core.Interfaces;
-using Fodinae.Scripts.UI;
 using Fodinae.Scripts.UI.HUD.Player.Model;
 using MinesServer.Networking.Server.Packets;
 using MinesServer.Networking.Server.Packets.Information;
+using UnityEngine;
 
 namespace Fodinae.Scripts.Networking.Processors
 {
     public class PlayerStatsProcessor : IPacketProcessor<LevelPacket>, IPacketProcessor<HealthPacket>, IPacketProcessor<CurrencyPacket>, IPacketProcessor<GeologyPacket>, IPacketProcessor<BasketPacket>, IPacketProcessor<MaxDepthPacket>, IPacketProcessor<DailyBonusStatePacket>, IPacketProcessor<SkillProgressPacket>
     {
-        private static IPlayerStats Stats => ServiceLocator.Resolve<IPlayerStats>() ?? PlayerStatsModel.Instance;
+        private static IPlayerStats Stats => PlayerStatsModel.Instance;
 
         public void Process(LevelPacket packet)
         {

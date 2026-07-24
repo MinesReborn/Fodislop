@@ -8,36 +8,13 @@ using UnityEngine;
 namespace Fodinae.Scripts.UI.HUD.Player.Model
 {
     public readonly record struct StatusLineEntry(string[] Text, Color Color, byte BlinkRate, long Expiry);
+    [DefaultExecutionOrder(-10000)]
     public class PlayerStatsModel : MonoBehaviour, IPlayerStats
     {
         private static PlayerStatsModel _instance;
-        private static bool _isQuitting;
 
         public static PlayerStatsModel InstanceIfExists => _instance;
-
-        public static PlayerStatsModel Instance
-        {
-            get
-            {
-                if (_isQuitting)
-                {
-                    return null;
-                }
-
-                if (_instance == null)
-                {
-                    _instance = FindAnyObjectByType<PlayerStatsModel>();
-                    if (_instance == null && !_isQuitting && Application.isPlaying)
-                    {
-                        var go = new GameObject("[PlayerStatsModel]");
-                        _instance = go.AddComponent<PlayerStatsModel>();
-                        DontDestroyOnLoad(go);
-                    }
-                }
-
-                return _instance;
-            }
-        }
+        public static PlayerStatsModel Instance => _instance;
 
         private readonly Dictionary<string, StatusLineEntry> _statusLines = new();
 
@@ -75,30 +52,15 @@ namespace Fodinae.Scripts.UI.HUD.Player.Model
 
         protected void Awake()
         {
-            if (_instance != null && _instance != this)
-            {
-                Destroy(gameObject);
-                return;
-            }
-
             _instance = this;
-            _isQuitting = false;
-            ServiceLocator.Register<IPlayerStats>(this);
-            DontDestroyOnLoad(gameObject);
         }
 
         protected void OnDestroy()
         {
             if (_instance == this)
             {
-                _isQuitting = true;
                 _instance = null;
             }
-        }
-
-        protected void OnApplicationQuit()
-        {
-            _isQuitting = true;
         }
 
         public string Nickname { get; private set; }

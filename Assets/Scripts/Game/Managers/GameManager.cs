@@ -24,8 +24,12 @@ namespace Fodinae.Scripts.Game.Managers
     ///
     /// Управляет высокими состояниями сессии и связывает событийно геймплейные подсистемы.
     /// </summary>
-    public sealed class GameManager : SingletonMonoBehaviour<GameManager>
+    public sealed class GameManager : MonoBehaviour
     {
+        private static GameManager _instance;
+        public static GameManager Instance => _instance;
+        public static GameManager InstanceIfExists => _instance;
+
         public GameState CurrentState { get; private set; } = GameState.Offline;
         public bool IsUIAuthorized { get; private set; }
 
@@ -34,13 +38,19 @@ namespace Fodinae.Scripts.Game.Managers
 
         private GameObject _uiRoot;
 
-        protected override void OnAwake()
+        private void Awake()
         {
+            _instance = this;
             SetupUI();
         }
 
-        protected override void OnDestroyed()
+        private void OnDestroy()
         {
+            if (_instance != this)
+            {
+                return;
+            }
+
             if (_uiRoot != null)
             {
                 Destroy(_uiRoot);

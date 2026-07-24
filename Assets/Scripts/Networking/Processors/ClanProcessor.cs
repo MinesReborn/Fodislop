@@ -1,18 +1,17 @@
-using Fodinae.Scripts.Core;
 using Fodinae.Scripts.Core.Interfaces;
 using Fodinae.Scripts.Game;
 using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Player;
 using Fodinae.Scripts.Player.Logic;
-using Fodinae.Scripts.UI;
 using Fodinae.Scripts.UI.HUD.Player.Model;
 using MinesServer.Networking.Server.Packets.Information;
+using UnityEngine;
 
 namespace Fodinae.Scripts.Networking.Processors
 {
     public class ClanProcessor : IPacketProcessor<ShowClanPacket>, IPacketProcessor<HideClanPacket>
     {
-        private static IPlayerStats Stats => ServiceLocator.Resolve<IPlayerStats>() ?? PlayerStatsModel.Instance;
+        private static IPlayerStats Stats => PlayerStatsModel.Instance;
 
         public void Process(ShowClanPacket packet)
         {

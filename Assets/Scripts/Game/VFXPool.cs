@@ -7,8 +7,12 @@ using UnityEngine;
 
 namespace Fodinae.Scripts.Game
 {
-    public class VFXPool : SingletonMonoBehaviour<VFXPool>
+    public class VFXPool : MonoBehaviour
     {
+        private static VFXPool _instance;
+        public static VFXPool Instance => _instance;
+        public static VFXPool InstanceIfExists => _instance;
+
         [Serializable]
         public struct PoolConfig
         {
@@ -37,13 +41,19 @@ namespace Fodinae.Scripts.Game
 
         private readonly Dictionary<SFX, SubPool> _pools = new();
 
-        protected override void OnAwake()
+        protected void Awake()
         {
+            _instance = this;
             InitializePools();
         }
 
-        protected override void OnDestroyed()
+        protected void OnDestroy()
         {
+            if (_instance != this)
+            {
+                return;
+            }
+
             foreach (var kvp in _pools)
             {
                 TeardownSubPool(kvp.Value);

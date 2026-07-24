@@ -1,8 +1,5 @@
-using Fodinae.Scripts.Core;
-using Fodinae.Scripts.Core.Interfaces;
 using Fodinae.Scripts.Game.Managers;
 using MinesServer.Networking.Server.Packets.Connection;
-using UnityEngine;
 
 namespace Fodinae.Scripts.Networking.Processors
 {
@@ -10,10 +7,7 @@ namespace Fodinae.Scripts.Networking.Processors
     {
         public void Process(WorldInitPacket packet)
         {
-            Debug.Log($"[WorldInitProcessor] Processing WorldInit: width={packet.Width}, height={packet.Height}");
-
-            var map = ServiceLocator.Resolve<IMapDataProvider>() ?? MapManager.Instance;
-            map?.LoadWorldInit(packet);
+            MapManager.Instance.LoadWorldInit(packet);
         }
     }
 }

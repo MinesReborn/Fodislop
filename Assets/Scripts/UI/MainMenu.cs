@@ -68,6 +68,14 @@ namespace Fodinae.Scripts
             {
                 _loaderContainer.pickingMode = PickingMode.Ignore;
             }
+
+            // UI Toolkit иногда не регистрирует ивенты при старте — форсируем пересоздание панэли
+            if (_doc != null && _doc.panelSettings != null)
+            {
+                var ps = _doc.panelSettings;
+                _doc.panelSettings = null;
+                _doc.panelSettings = ps;
+            }
         }
 
         protected void OnDisable()

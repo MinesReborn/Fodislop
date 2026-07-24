@@ -48,6 +48,12 @@ namespace Fodinae.Scripts.UI
                 return;
             }
 
+            if (_doc.panelSettings == null)
+            {
+                Debug.LogError("[PauseMenu] PanelSettings не назначен на UIDocument");
+                return;
+            }
+
             _originalScale = _doc.panelSettings.scale;
 
             CreateMenu(_doc.rootVisualElement);

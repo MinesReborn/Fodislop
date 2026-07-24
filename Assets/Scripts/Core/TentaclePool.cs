@@ -3,6 +3,7 @@ using UnityEngine;
 
 namespace Fodinae.Scripts.Core
 {
+    // TODO: шейдеры улучшить
     public static class TentaclePool
     {
         private static readonly Queue<LineRenderer> _pool = new();

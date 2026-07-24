@@ -1,6 +1,4 @@
 using System;
-using Fodinae.Scripts.Core;
-using Fodinae.Scripts.Core.Interfaces;
 using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Networking.Connection;
 using MinesServer.Networking.Server.Packets.Connection;
@@ -88,7 +86,7 @@ namespace Fodinae.Scripts.World
         /// </summary>
         public bool IsReady()
         {
-            return _enableStandaloneMode && (_isInitialized || (ServiceLocator.Resolve<IWorldDataStorage>()?.IsReady ?? false));
+            return _enableStandaloneMode && (_isInitialized || (MapStorage.Instance?.IsReady ?? false));
         }
 
         protected void Awake()
@@ -147,7 +145,7 @@ namespace Fodinae.Scripts.World
             }
 
             // Check if MapStorage is ready after our initialization attempt
-            if (ServiceLocator.Resolve<IWorldDataStorage>() != null && ServiceLocator.Resolve<IWorldDataStorage>().IsReady)
+            if (MapStorage.Instance != null && MapStorage.Instance.IsReady)
             {
                 _isInitialized = true;
                 if (Application.isPlaying)

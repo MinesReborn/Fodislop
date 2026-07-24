@@ -1,19 +1,18 @@
 using System.Linq;
-using Fodinae.Scripts.Core;
-using Fodinae.Scripts.Core.Interfaces;
-using Fodinae.Scripts.UI;
 using Fodinae.Scripts.UI.HUD.Player.Model;
 using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.Information;
 using MinesServer.Networking.Server.Packets.Information.StatusPanel;
 using MinesServer.Networking.Client.Packets.Connection;
 using UnityEngine;
+using Fodinae.Scripts.Core.Interfaces;
+using Fodinae.Scripts.UI;
 
 namespace Fodinae.Scripts.Networking.Processors
 {
     public class StatusProcessor : IPacketProcessor<OnlinePacket>, IPacketProcessor<PingPacket>, IPacketProcessor<OutdatedClientPacket>, IPacketProcessor<AddStatusLinePacket>, IPacketProcessor<ClearStatusLinePacket>, IPacketProcessor<ClearStatusPacket>
     {
-        private static IPlayerStats Stats => ServiceLocator.Resolve<IPlayerStats>() ?? PlayerStatsModel.Instance;
+        private static IPlayerStats Stats => PlayerStatsModel.Instance;
 
         public void Process(OnlinePacket packet)
         {

@@ -1,5 +1,3 @@
-using Fodinae.Scripts.Core;
-using Fodinae.Scripts.Core.Interfaces;
 using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Player;
 using Fodinae.Scripts.Player.Logic;
@@ -63,7 +61,7 @@ namespace Fodinae.Scripts.UI
                 return;
             }
 
-            if (ServiceLocator.Resolve<IWorldDataStorage>() == null || !ServiceLocator.Resolve<IWorldDataStorage>().IsReady)
+            if (MapStorage.Instance == null || !MapStorage.Instance.IsReady)
             {
                 return;
             }
@@ -85,7 +83,7 @@ namespace Fodinae.Scripts.UI
                 return;
             }
 
-            if (ServiceLocator.Resolve<IWorldDataStorage>() == null || !ServiceLocator.Resolve<IWorldDataStorage>().IsReady)
+            if (MapStorage.Instance == null || !MapStorage.Instance.IsReady)
             {
                 return;
             }

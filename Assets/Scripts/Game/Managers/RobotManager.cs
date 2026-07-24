@@ -6,11 +6,19 @@ using UnityEngine;
 
 namespace Fodinae.Scripts.Game.Managers
 {
-    public class RobotManager : SingletonMonoBehaviour<RobotManager>
+    public class RobotManager : MonoBehaviour
     {
-        private const string TAG = "[RobotManager]";
+        private static RobotManager _instance;
+        public static RobotManager Instance => _instance;
+        public static RobotManager InstanceIfExists => _instance;
 
+        private const string TAG = "[RobotManager]";
         private Dictionary<uint, Robot> _robots = new();
+
+        protected void Awake()
+        {
+            _instance = this;
+        }
 
         public static bool ShowDebugVisuals { get; set; }
 

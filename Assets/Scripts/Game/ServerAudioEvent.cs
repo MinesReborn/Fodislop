@@ -14,8 +14,6 @@ using MinesServer.Networking.Server.Packets.World;
 using MinesServer.Networking.Shared.Packets;
 using UnityEngine;
 
-using AudioPacket = MinesServer.Networking.Server.Packets.World.SFXPacket;
-
 namespace Fodinae.Scripts.Game
 {
     /// <summary>

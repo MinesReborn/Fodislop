@@ -10,39 +10,10 @@ namespace Fodinae.Scripts.World
     [DefaultExecutionOrder(-1000)] // Run before other scripts
     public class SceneSetup : MonoBehaviour
     {
-        private static SceneSetup _instance;
         private WorldBackgroundSetup _backgroundSetup;
-
-        /// <summary>
-        /// Get the background setup instance.
-        /// </summary>
-        public static WorldBackgroundSetup GetBackgroundSetup()
-        {
-            return _instance?._backgroundSetup;
-        }
-
-        /// <summary>
-        /// Get the background renderer instance.
-        /// </summary>
-        public static SingleMeshTerrainRenderer GetBackgroundRenderer()
-        {
-            return _instance?._backgroundSetup?.GetBackgroundRenderer();
-        }
 
         protected void Awake()
         {
-            if (_instance != null && _instance != this)
-            {
-                Destroy(gameObject);
-                return;
-            }
-
-            _instance = this;
-            if (Application.isPlaying)
-            {
-                DontDestroyOnLoad(gameObject);
-            }
-
             SetupWorldBackground();
             SetupSurfaceRenderer();
             SetupWorldMapController();

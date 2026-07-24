@@ -95,13 +95,14 @@ namespace Fodinae.Scripts.UI.HUD.Player.View
 
         private async UniTaskVoid StartAsync(System.Threading.CancellationToken cancellationToken)
         {
+            InitializeHUD();
             await LoadCrystalTextures(cancellationToken);
             if (cancellationToken.IsCancellationRequested || this == null)
             {
                 return;
             }
 
-            InitializeHUD();
+            RebuildCrystalRows();
         }
 
         protected void OnDestroy()
@@ -206,6 +207,7 @@ namespace Fodinae.Scripts.UI.HUD.Player.View
             RefreshAll();
 
             var root = _doc.rootVisualElement;
+            Debug.Log("[PlayerHUD] InitializeHUD complete, skills container created=" + (_skillContainer != null));
 
             // Условная блокировка навигации: когда открыто окно — Tab/стрелки работают (IsInputBlocked),
             // когда окна нет — блокируем, чтобы стрелки управляли движением.
@@ -226,16 +228,6 @@ namespace Fodinae.Scripts.UI.HUD.Player.View
                     evt.StopPropagation();
                 }
             }, TrickleDown.TrickleDown);
-
-            // Escape — закрывает верхнее модальное окно через UIInputManager
-            root.RegisterCallback<KeyDownEvent>(evt =>
-            {
-                if (evt.keyCode == KeyCode.Escape && PacketHandler.IsInputBlocked)
-                {
-                    UIInputManager.Instance.TryPopTopModal();
-                    evt.StopPropagation();
-                }
-            });
         }
 
         private void CreatePanel(VisualElement root)
@@ -611,6 +603,7 @@ namespace Fodinae.Scripts.UI.HUD.Player.View
             _skillContainer.name = "MiniSkills";
             _skillContainer.AddToClassList("hud-skill-container");
             root.Add(_skillContainer);
+            Debug.Log("[PlayerHUD] Skill container created");
         }
 
         private void EnsureSkillRow()
@@ -928,6 +921,7 @@ namespace Fodinae.Scripts.UI.HUD.Player.View
 
         private void OnSkillProgress(SkillType skill, long current, long max)
         {
+            Debug.Log($"[PlayerHUD] OnSkillProgress: skill={skill}, current={current}, max={max}");
             if (!_skillIcons.TryGetValue(skill, out var icon))
             {
                 var created = CreateSkillIcon(skill);

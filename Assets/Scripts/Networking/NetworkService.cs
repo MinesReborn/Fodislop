@@ -17,9 +17,19 @@ using UnityEngine;
 
 namespace Fodinae.Scripts.Networking
 {
-    public class NetworkService : SingletonMonoBehaviour<NetworkService>, INetworkService
+    #pragma warning disable CS0649
+    public class NetworkService : MonoBehaviour, INetworkService
     {
+        private static NetworkService _instance;
+        public static NetworkService Instance => _instance;
+        public static NetworkService InstanceIfExists => _instance;
+
         private readonly Dictionary<Type, List<Subscription>> _subscribers = new();
+
+        protected void Awake()
+        {
+            _instance = this;
+        }
 
         protected void OnEnable()
         {
@@ -187,6 +197,7 @@ namespace Fodinae.Scripts.Networking
                 }
             }
         }
+
 
         private class Subscription
         {

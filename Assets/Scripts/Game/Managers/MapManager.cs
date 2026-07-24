@@ -11,8 +11,13 @@ using UnityEngine;
 namespace Fodinae.Scripts.Game.Managers
 {
     [ExecuteAlways]
-    public class MapManager : SingletonMonoBehaviour<MapManager>, IMapDataProvider
+    [DefaultExecutionOrder(-10000)]
+    public class MapManager : MonoBehaviour, IMapDataProvider
     {
+        private static MapManager _instance;
+        public static MapManager Instance => _instance;
+        public static MapManager InstanceIfExists => _instance;
+
         private Camera _mainCamera;
 
         public Camera MainCamera
@@ -54,9 +59,9 @@ namespace Fodinae.Scripts.Game.Managers
 
         public bool IsStandaloneMode { get; set; } = false;
 
-        protected override void OnAwake()
+        protected void Awake()
         {
-            ServiceLocator.Register<IMapDataProvider>(this);
+            _instance = this;
 #if UNITY_EDITOR
             if (!Application.isPlaying && !IsWorldInitialized)
             {
@@ -68,22 +73,15 @@ namespace Fodinae.Scripts.Game.Managers
 #endif
         }
 
-        private static IWorldDataStorage WorldStorage => ServiceLocator.Resolve<IWorldDataStorage>();
+        private static IWorldDataStorage WorldStorage => MapStorage.Instance;
 
-        protected override void OnDestroyed()
+        protected void OnDestroy()
         {
             MapStorage.InstanceIfExists?.Dispose();
         }
 
-        protected override void OnApplicationQuitting()
-        {
-            WorldStorage?.Dispose();
-        }
-
         public void LoadWorldInit(WorldInitPacket packet)
         {
-            Debug.Log($"[MapManager] LoadWorldInit called: {packet.DisplayName} ({packet.CodeName}) [{packet.Width}x{packet.Height}]");
-
             PackManager.Instance?.ClearAllPacks();
             RobotManager.InstanceIfExists?.ClearAllRobots();
             ServerAudioEventManager.InstanceIfExists?.ClearAllEffects();
@@ -102,7 +100,7 @@ namespace Fodinae.Scripts.Game.Managers
 
             if (packet.Width <= 0 || packet.Height <= 0)
             {
-                Debug.LogError($"[MapManager] LoadWorldInit called with invalid dimensions: {packet.Width}x{packet.Height}");
+                Debug.LogError($"[MapManager] Invalid dimensions: {packet.Width}x{packet.Height}");
                 return;
             }
 
@@ -129,116 +127,28 @@ namespace Fodinae.Scripts.Game.Managers
                 }
             }
 
-            Debug.Log($"[MapManager] World initialized: {packet.DisplayName} ({packet.CodeName}) [{_width}x{_height}]");
-            Debug.Log($"[MapManager] IMMEDIATELY initializing MapStorage with world '{packet.CodeName}' dimensions {_width}x{_height}");
+            Debug.Log($"[MapManager] World: {packet.DisplayName} ({packet.CodeName}) [{_width}x{_height}]");
 
-            try
+            var storage = WorldStorage;
+            if (storage == null)
             {
-                var storage = WorldStorage;
-                storage?.InitWorld(packet.CodeName, _width, _height);
-
-                if (storage == null || !storage.IsReady)
-                {
-                    Debug.LogError($"[MapManager] CRITICAL: MapStorage failed to initialize for world {packet.CodeName}");
-                    Debug.LogError($"[MapManager] MapStorage state: IsReady={storage?.IsReady}, IsInitialized={storage?.IsInitialized()}");
-                    Debug.LogError($"[MapManager] MapStorage CellLayer: {(storage?.CellLayer != null ? "not null" : "NULL - this is the problem!")}");
-                    Debug.LogError($"[MapManager] MapStorage world name: {storage?.GetWorldCodeName()}");
-
-                    Debug.LogWarning("[MapManager] Attempting emergency MapStorage initialization...");
-                    try
-                    {
-                        storage?.Dispose();
-                        storage?.InitWorld(packet.CodeName, _width, _height);
-
-                        if (storage != null && storage.IsReady)
-                        {
-                            Debug.Log("[MapManager] Emergency MapStorage initialization successful!");
-                        }
-                        else
-                        {
-                            Debug.LogError("[MapManager] Emergency MapStorage initialization FAILED - terrain rendering will not work");
-                            Debug.LogError("[MapManager] This is a CRITICAL failure - terrain rendering system cannot function");
-
-                            Debug.LogWarning("[MapManager] Creating test world as fallback...");
-                            storage?.Dispose();
-                            storage?.InitWorld("fallback_test_world", 64, 64);
-
-                            if (storage != null && storage.IsReady)
-                            {
-                                Debug.Log("[MapManager] Test world created successfully as fallback");
-                                _worldCodeName = "fallback_test_world";
-                                _width = 64;
-                                _height = 64;
-                            }
-                            else
-                            {
-                                Debug.LogError("[MapManager] Even test world creation failed - terrain rendering system is broken");
-                            }
-                        }
-                    }
-                    catch (System.Exception emergencyEx)
-                    {
-                        Debug.LogError($"[MapManager] Emergency MapStorage initialization threw exception: {emergencyEx.Message}");
-                        Debug.LogError($"[MapManager] Exception details: {emergencyEx.GetType().Name}");
-                    }
-                }
-                else
-                {
-                    Debug.Log($"[MapManager] MapStorage initialized successfully for world '{packet.CodeName}'");
-                    Debug.Log($"[MapManager] WorldLayer created: {storage.CellLayer.WidthChunks}x{storage.CellLayer.HeightChunks} chunks");
-                    Debug.Log($"[MapManager] Chunk size: {storage.CellLayer.ChunkSize}");
-                }
+                Debug.LogError("[MapManager] WorldStorage is null — MapStorage.Instance is null");
+                return;
             }
-            catch (System.Exception ex)
+
+            storage.InitWorld(packet.CodeName, _width, _height);
+
+            if (!storage.IsReady)
             {
-                Debug.LogError($"[MapManager] CRITICAL ERROR during MapStorage initialization: {ex.Message}");
-                Debug.LogError($"[MapManager] Exception type: {ex.GetType().Name}");
-                Debug.LogError($"[MapManager] Stack trace: {ex.StackTrace}");
-
-                if (ex is System.IO.IOException)
-                {
-                    Debug.LogError("[MapManager] This is likely a file I/O issue. Check disk space and file permissions.");
-                }
-                else if (ex is System.ArgumentException)
-                {
-                    Debug.LogError("[MapManager] This is likely an invalid parameter issue. Check world dimensions.");
-                }
-                else if (ex is System.OutOfMemoryException)
-                {
-                    Debug.LogError("[MapManager] This is a memory issue. The world may be too large for available memory.");
-                }
+                Debug.LogError($"[MapManager] MapStorage.InitWorld failed: IsReady=false, IsInitialized={storage.IsInitialized()}, CellLayer={(storage.CellLayer != null ? "ok" : "NULL")}");
+                return;
             }
+
+            Debug.Log($"[MapManager] WorldLayer: {storage.CellLayer.WidthChunks}x{storage.CellLayer.HeightChunks} chunks, size={storage.CellLayer.ChunkSize}");
 
             IsWorldInitialized = true;
-            Debug.Log($"[MapManager] Triggering OnWorldInitialized event");
             OnWorldInitialized?.Invoke();
-
-            if (WorldStorage?.IsReady ?? false)
-            {
-                Debug.Log($"[MapManager] MapStorage is ready, triggering OnWorldDataLoaded event");
-                OnWorldDataLoaded?.Invoke();
-                Debug.Log("[MapManager] World data loaded event triggered successfully");
-            }
-            else
-            {
-                Debug.LogError("[MapManager] CRITICAL: MapStorage not ready, skipping OnWorldDataLoaded event");
-                StartCoroutine(DelayedWorldDataLoadedTrigger());
-            }
-        }
-
-        private System.Collections.IEnumerator DelayedWorldDataLoadedTrigger()
-        {
-            yield return new WaitForSeconds(2.0f);
-
-            if (WorldStorage?.IsReady ?? false)
-            {
-                Debug.Log("[MapManager] MapStorage became ready after delay, triggering OnWorldDataLoaded event");
-                OnWorldDataLoaded?.Invoke();
-            }
-            else
-            {
-                Debug.LogError("[MapManager] CRITICAL: MapStorage still not ready after delay");
-            }
+            OnWorldDataLoaded?.Invoke();
         }
 
         public void UpdateMovementSpeeds(MovementSpeedPacket packet)
@@ -269,7 +179,18 @@ namespace Fodinae.Scripts.Game.Managers
             return _cellConfigurations[(int)type];
         }
 
-        private static readonly System.Collections.Generic.HashSet<CellType> LooseRockTypes = new()
+        public int GetConfigLength()
+        {
+            if (_cellConfigurations == null)
+            {
+                Debug.LogWarning("[MapManager] GetConfigLength called but _cellConfigurations is null");
+                return -1;
+            }
+
+            return _cellConfigurations.Length;
+        }
+
+        private static readonly HashSet<CellType> LooseRockTypes = new()
         {
             CellType.BlackBoulder1, CellType.BlackBoulder2, CellType.BlackBoulder3,
             CellType.MetalBoulder1, CellType.MetalBoulder2, CellType.MetalBoulder3,
@@ -283,7 +204,7 @@ namespace Fodinae.Scripts.Game.Managers
             CellType.GrayAcid, CellType.PurpleAcid,
         };
 
-        private static readonly System.Collections.Generic.HashSet<CellType> RoundableLooseTypes = new()
+        private static readonly HashSet<CellType> RoundableLooseTypes = new()
         {
             CellType.WhiteSand, CellType.DarkWhiteSand,
             CellType.RustySand, CellType.DarkRustySand,
@@ -309,7 +230,7 @@ namespace Fodinae.Scripts.Game.Managers
             var config = GetCellConfig(type);
             if (config.Color == 0)
             {
-                return new Color(0, 0, 0, 0);
+                return Color.clear;
             }
 
             int argb = config.Color;
@@ -347,8 +268,8 @@ namespace Fodinae.Scripts.Game.Managers
 
         public string WorldCodeName => _worldCodeName;
         public string WorldDisplayName => _worldDisplayName;
-        public ushort WorldWidth => (_width > 0) ? _width : (ushort)128;
-        public ushort WorldHeight => (_height > 0) ? _height : (ushort)128;
+        public ushort WorldWidth => _width;
+        public ushort WorldHeight => _height;
 
 #if UNITY_EDITOR
         protected virtual void OnDrawGizmos()
@@ -381,7 +302,7 @@ namespace Fodinae.Scripts.Game.Managers
             if (storage != null && storage.IsReady && storage.CellLayer != null)
             {
                 var layer = storage.CellLayer;
-                int CHUNK_SIZE = layer.ChunkSize;
+                int chunkSize = layer.ChunkSize;
                 var loaded = layer.GetLoadedChunkIndices();
 
                 foreach (int index in loaded)
@@ -389,10 +310,10 @@ namespace Fodinae.Scripts.Game.Managers
                     int cy = index % layer.HeightChunks;
                     int cx = index / layer.HeightChunks;
 
-                    float unityY = (cy * CHUNK_SIZE) + (CHUNK_SIZE * 0.5f);
-                    Vector3 chunkPos = new Vector3((cx * CHUNK_SIZE) + (CHUNK_SIZE * 0.5f), unityY, 0);
+                    float unityY = (cy * chunkSize) + (chunkSize * 0.5f);
+                    Vector3 chunkPos = new Vector3((cx * chunkSize) + (chunkSize * 0.5f), unityY, 0);
 
-                    Fodinae.Scripts.World.FodinaeGizmos.DrawSolidRect(chunkPos, new Vector2(CHUNK_SIZE - 0.2f, CHUNK_SIZE - 0.2f),
+                    Fodinae.Scripts.World.FodinaeGizmos.DrawSolidRect(chunkPos, new Vector2(chunkSize - 0.2f, chunkSize - 0.2f),
                         new Color(0, 1, 0, 0.02f), new Color(0, 1, 0, 0.1f));
                 }
 

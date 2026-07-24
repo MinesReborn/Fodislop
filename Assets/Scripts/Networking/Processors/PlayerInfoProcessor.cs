@@ -1,22 +1,21 @@
-using Fodinae.Scripts.Core;
-using Fodinae.Scripts.Core.Interfaces;
 using Fodinae.Scripts.Game;
 using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Player;
 using Fodinae.Scripts.Player.Logic;
-using Fodinae.Scripts.UI;
 using Fodinae.Scripts.UI.HUD.Player.Model;
 using MinesServer.Networking.Server.Packets.Information;
 using MinesServer.Networking.Server.Packets.Movement;
 using MinesServer.Networking.Server.Packets.World;
 using UnityEngine;
+using Fodinae.Scripts.Core.Interfaces;
 
 namespace Fodinae.Scripts.Networking.Processors
 {
     public class PlayerInfoProcessor : IPacketProcessor<PlayerInfoPacket>, IPacketProcessor<MovementSpeedPacket>, IPacketProcessor<TeleportPacket>
     {
-        private static IMapDataProvider Map => ServiceLocator.Resolve<IMapDataProvider>() ?? MapManager.Instance;
-        private static IPlayerStats Stats => ServiceLocator.Resolve<IPlayerStats>() ?? PlayerStatsModel.Instance;
+        private static IMapDataProvider Map => MapManager.Instance;
+
+        private static IPlayerStats Stats => PlayerStatsModel.Instance;
 
         public void Process(PlayerInfoPacket packet)
         {

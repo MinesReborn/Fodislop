@@ -62,7 +62,8 @@ for PROJECT_FILE in $PROJECTS; do
         PROJECT_ERRORS=$(echo "$BUILD_LOG" | grep -E ": error " | grep -E "(^|/|\\\\)Assets/(Scripts|Editor)/" || true)
 
         # Only catch warnings in user codebase (Assets/Scripts or Assets/Editor)
-        PROJECT_WARNINGS=$(echo "$BUILD_LOG" | grep -E ": warning " | grep -E "(^|/|\\\\)Assets/(Scripts|Editor)/" || true)
+        # Exclude vendored VContainer runtime from linting
+        PROJECT_WARNINGS=$(echo "$BUILD_LOG" | grep -E ": warning " | grep -E "(^|/|\\\\)Assets/(Scripts|Editor)/" | grep -v "Assets/Scripts/VContainer/" || true)
 
         if [ -n "$PROJECT_ERRORS" ]; then
             echo -e "\n\033[0;31mError: Compilation failed for $PROJECT_NAME in user codebase:\033[0m"

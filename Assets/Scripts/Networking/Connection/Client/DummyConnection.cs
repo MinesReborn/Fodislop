@@ -9,8 +9,6 @@ using Cysharp.Threading.Tasks;
 using Cysharp.Threading.Tasks.CompilerServices;
 using Fodinae.Scripts;
 using Fodinae.Scripts.Audio;
-using Fodinae.Scripts.Core;
-using Fodinae.Scripts.Core.Interfaces;
 using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.UI;
 using Fodinae.Scripts.UI.HUD.Player.Model;
@@ -291,7 +289,7 @@ namespace MinesServer.Networking.Connection.Client
                         return;
                     }
 
-                    var storage = ServiceLocator.Resolve<IWorldDataStorage>();
+                    var storage = MapStorage.Instance;
                     if (storage?.CellLayer != null && storage.IsReady)
                     {
                         var cellType = storage.GetCell(move.X, move.Y);
@@ -339,20 +337,30 @@ namespace MinesServer.Networking.Connection.Client
 
                     OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[]
                     {
-                        new SFXPacket(SFX.Bz, _mockBotId, cellX, cellY, Array.Empty<StringPairPacket>()),
+                        new AudioPacket(SFX.Bz, _mockBotId, cellX, cellY, Array.Empty<StringPairPacket>()),
                     })));
 
-                    var storage = ServiceLocator.Resolve<IWorldDataStorage>();
+                    var storage = MapStorage.Instance;
+                    if (storage?.CellLayer != null && storage.IsReady)
+                    {
+                        var cellType = storage.GetCell(cellX, cellY);
+                        if (cellType == CellType.Empty)
+                        {
+                            return;
+                        }
+                    }
+
                     if (storage?.CellLayer != null && storage.IsReady)
                     {
                         var cellType = storage.GetCell(cellX, cellY);
                         int crystalIdx = GetCrystalBasketIndex(cellType);
-                        var cellConfig = MapManager.Instance?.GetCellConfig(cellType);
+                        var mm = MapManager.Instance;
+                        var cellConfig = mm?.GetCellConfig(cellType);
                         bool isBreakable = cellConfig.HasValue && ((CellConfigProperties)cellConfig.Value.Properties).HasFlag(CellConfigProperties.Breakable);
 
                         if (!isBreakable && cellType != CellType.Empty)
                         {
-                            Debug.Log($"[DummyConnection] Cell ({cellX}, {cellY}) = {cellType} is not breakable");
+                            Debug.Log($"[DummyConnection] Cell ({cellX}, {cellY}) = {cellType} is not breakable | mm={mm != null} props={(cellConfig.HasValue ? cellConfig.Value.Properties.ToString() : "null")} cfgLen={(mm != null ? mm.GetConfigLength() : -1)}");
                             return;
                         }
 
@@ -373,7 +381,7 @@ namespace MinesServer.Networking.Connection.Client
                         OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[]
                         {
                             new MapRegionPacket(cellX, cellY, 0, 0, new[] { CellType.Empty }),
-                            new SFXPacket(SFX.Destroy, _mockBotId, cellX, cellY, Array.Empty<StringPairPacket>()),
+                            new AudioPacket(SFX.Destroy, _mockBotId, cellX, cellY, Array.Empty<StringPairPacket>()),
                         })));
                         Debug.Log($"[DummyConnection] Cell ({cellX}, {cellY}) broken → Empty");
                     }
@@ -403,7 +411,7 @@ namespace MinesServer.Networking.Connection.Client
                     OnReceived?.Invoke(new ServerPacket(new HBPacket(new IHBPacket[]
                     {
                         new RobotPositionPacket(_mockBotId, SPAWN_X, SPAWN_Y, (byte)_rot),
-                        new SFXPacket(SFX.Death, _mockBotId, effectX, effectY, Array.Empty<StringPairPacket>()),
+                        new AudioPacket(SFX.Death, _mockBotId, effectX, effectY, Array.Empty<StringPairPacket>()),
                     })));
                 }
 
@@ -458,6 +466,11 @@ namespace MinesServer.Networking.Connection.Client
                     {
                         worldWidth = 500;
                         worldHeight = 500;
+                    }
+
+                    if (_cellConfigs == null)
+                    {
+                        _cellConfigs = CreateTestCellConfigurations();
                     }
 
                     OnReceived?.Invoke(new ServerPacket(new WorldInitPacket(

@@ -123,7 +123,7 @@ namespace Fodinae.Scripts.UI.HUD.Inventory.View
                 return;
             }
 
-            _model = Fodinae.Scripts.Core.ServiceLocator.Resolve<Fodinae.Scripts.UI.HUD.Inventory.Interfaces.IInventoryModel>() ?? InventoryModel.Instance;
+            _model = InventoryModel.Instance;
             _model.OnSlotChanged += RefreshSlot;
             _model.OnSlotSelected += OnModelSlotSelected;
 

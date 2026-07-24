@@ -70,9 +70,7 @@ namespace Fodinae.Scripts.UI
                 return;
             }
 
-            _mapStorage = (MapStorage)ServiceLocator.Resolve<IWorldDataStorage>();
-
-            CacheCellColors();
+            _mapStorage = MapStorage.Instance;
 
             _minimapTexture = new Texture2D(TEXTURE_SIZE, TEXTURE_SIZE, TextureFormat.RGBA32, false)
             {
@@ -171,6 +169,7 @@ namespace Fodinae.Scripts.UI
             _worldHeight = _mapManager.WorldHeight;
             _chunkSize = _cellLayer.ChunkSize;
             _heightChunks = _cellLayer.HeightChunks;
+            CacheCellColors();
             _ready = true;
             SetVisible(_isVisible);
         }
