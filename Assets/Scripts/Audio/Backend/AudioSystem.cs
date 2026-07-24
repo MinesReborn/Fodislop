@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Fodinae.Scripts.Audio.Core;
 using Fodinae.Scripts.Core;
+using Fodinae.Scripts.Core.Interfaces;
 using UnityEngine;
 
 namespace Fodinae.Scripts.Audio.Backend
@@ -12,11 +13,15 @@ namespace Fodinae.Scripts.Audio.Backend
     /// Использует FmodAudioBackend для проигрывания FMOD Studio событий.
     /// Все события адресуются по строковому имени, соответствующему FMOD event path без prefix event:/.
     ///
-    /// Пример: Play("sfx_dig") → FMOD event:/sfx_dig
+    /// Пример: Play("sfx/dig") → FMOD event:/sfx/dig
     /// </summary>
     [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Gracefully catch startup exceptions to prevent game crash.")]
-    public sealed class AudioSystem : SingletonMonoBehaviour<AudioSystem>
+    [DefaultExecutionOrder(-10000)]
+    public sealed class AudioSystem : MonoBehaviour, IAudioSystem
     {
+        private static AudioSystem _instance;
+        public static AudioSystem Instance => _instance;
+        public static AudioSystem InstanceIfExists => _instance;
         private const string TAG = "[AudioSystem]";
         private FmodAudioBackend _backend;
 
@@ -98,7 +103,7 @@ namespace Fodinae.Scripts.Audio.Backend
             return handle;
         }
 
-        /// <summary>Воспроизвести FMOD Snapshot (например "snapshot:/Cave_Ambient").</summary>
+        /// <summary>Воспроизвести FMOD Snapshot (например "snapshot:/cave_ambient").</summary>
         public AudioPlaybackHandle PlaySnapshot(string snapshotPath)
         {
             if (string.IsNullOrEmpty(snapshotPath))
@@ -146,15 +151,21 @@ namespace Fodinae.Scripts.Audio.Backend
             SetBusVolume(AudioBusType.UI, PlayerPrefs.GetFloat("Audio_UI", 1f));
         }
 
-        protected override void OnAwake()
+        private void Awake()
         {
+            _instance = this;
             _backend = new FmodAudioBackend();
             _backend.Initialize(this);
             ApplySavedBusVolumes();
         }
 
-        protected override void OnDestroyed()
+        private void OnDestroy()
         {
+            if (_instance != this)
+            {
+                return;
+            }
+
             _backend?.Shutdown();
             _backend = null;
         }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
@@ -19,8 +20,14 @@ namespace Fodinae.Scripts
     /// </summary>
     public sealed class AssetCache
     {
+        private const long DEFAULT_MAX_BYTES = 256L * 1024 * 1024; // 256 MB
+
         private readonly ConcurrentDictionary<string, CacheEntry> _entries = new(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, long> _entrySizes = new(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentQueue<string> _accessOrder = new();
         private readonly Func<string, CancellationToken, int, UniTask<byte[]>> _bytesLoader;
+        private long _totalBytes;
+        private long _maxBytes = DEFAULT_MAX_BYTES;
 
         public AssetCache(Func<string, CancellationToken, int, UniTask<byte[]>> bytesLoader)
         {
@@ -30,28 +37,28 @@ namespace Fodinae.Scripts
         /// <summary>Retrieve raw bytes. Cached and deduplicated.</summary>
         public UniTask<byte[]> GetBytesAsync(string filename, CancellationToken ct = default, int timeoutSeconds = 5)
         {
-            var entry = _entries.GetOrAdd(filename, _ => new CacheEntry());
+            var entry = _entries.GetOrAdd(filename, name => new CacheEntry(name, this));
             return entry.GetBytesAsync(() => _bytesLoader(filename, ct, timeoutSeconds));
         }
 
         /// <summary>Retrieve a decoded Texture2D. Cached after first decode.</summary>
         public UniTask<Texture2D> GetTextureAsync(string filename, CancellationToken ct = default, int timeoutSeconds = 5)
         {
-            var entry = _entries.GetOrAdd(filename, _ => new CacheEntry());
+            var entry = _entries.GetOrAdd(filename, name => new CacheEntry(name, this));
             return entry.GetTextureAsync(() => _bytesLoader(filename, ct, timeoutSeconds));
         }
 
         /// <summary>Retrieve a decoded AudioClip from WAV bytes. Cached after first decode.</summary>
         public UniTask<AudioClip> GetAudioAsync(string filename, CancellationToken ct = default, int timeoutSeconds = 10)
         {
-            var entry = _entries.GetOrAdd(filename, _ => new CacheEntry());
+            var entry = _entries.GetOrAdd(filename, name => new CacheEntry(name, this));
             return entry.GetAudioAsync(() => _bytesLoader(filename, ct, timeoutSeconds));
         }
 
         /// <summary>Retrieve an animated Sprite[] from GIF/WebP. Cached after first decode.</summary>
         public UniTask<Sprite[]> GetSpritesAsync(string filename, CancellationToken ct = default, int timeoutSeconds = 10)
         {
-            var entry = _entries.GetOrAdd(filename, _ => new CacheEntry());
+            var entry = _entries.GetOrAdd(filename, name => new CacheEntry(name, this));
             return entry.GetSpritesAsync(() => _bytesLoader(filename, ct, timeoutSeconds));
         }
 
@@ -61,7 +68,7 @@ namespace Fodinae.Scripts
         /// </summary>
         public UniTask<AnimatedSpriteData> GetAnimatedSpritesAsync(string filename, CancellationToken ct = default, int timeoutSeconds = 10)
         {
-            var entry = _entries.GetOrAdd(filename, _ => new CacheEntry());
+            var entry = _entries.GetOrAdd(filename, name => new CacheEntry(name, this));
             return entry.GetAnimatedSpritesAsync(() => _bytesLoader(filename, ct, timeoutSeconds));
         }
 
@@ -75,6 +82,47 @@ namespace Fodinae.Scripts
         public void Clear()
         {
             _entries.Clear();
+            _entrySizes.Clear();
+            while (_accessOrder.TryDequeue(out _))
+            {
+            }
+
+            Interlocked.Exchange(ref _totalBytes, 0);
+        }
+
+        /// <summary>Set the maximum cache size in bytes. Default is 256 MB.</summary>
+        public void SetMaxSize(long maxBytes)
+        {
+            _maxBytes = maxBytes;
+            EvictIfNeeded();
+        }
+
+        internal void TrackAccess(string filename, long byteSize)
+        {
+            _accessOrder.Enqueue(filename);
+            _entrySizes.AddOrUpdate(filename, byteSize, (_, _) => byteSize);
+            Interlocked.Add(ref _totalBytes, byteSize);
+            EvictIfNeeded();
+        }
+
+        private void EvictIfNeeded()
+        {
+            while (Interlocked.Read(ref _totalBytes) > _maxBytes && _accessOrder.Count > 0)
+            {
+                if (!_accessOrder.TryDequeue(out var oldest))
+                {
+                    break;
+                }
+
+                if (_entries.TryRemove(oldest, out var entry))
+                {
+                    entry.Dispose();
+                    if (_entrySizes.TryRemove(oldest, out var size))
+                    {
+                        Interlocked.Add(ref _totalBytes, -size);
+                    }
+                }
+            }
         }
 
         // ──────────────────────────────────────────────────────────────
@@ -84,6 +132,8 @@ namespace Fodinae.Scripts
         private sealed class CacheEntry
         {
             private readonly object _lock = new();
+            private readonly string _filename;
+            private readonly AssetCache _cache;
 
             // ── Raw bytes ──
             private byte[] _bytes;
@@ -102,6 +152,41 @@ namespace Fodinae.Scripts
             // Stored alongside sprites for AnimatedSpriteData lookups
             private float _spriteFps;
             private int _spriteFrameHeight;
+
+            internal CacheEntry(string filename, AssetCache cache)
+            {
+                _filename = filename;
+                _cache = cache;
+            }
+
+            internal void Dispose()
+            {
+                lock (_lock)
+                {
+                    if (_texture != null)
+                    {
+                        UnityEngine.Object.Destroy(_texture);
+                        _texture = null;
+                    }
+
+                    if (_sprites != null)
+                    {
+                        for (int i = 0; i < _sprites.Length; i++)
+                        {
+                            if (_sprites[i] != null)
+                            {
+                                UnityEngine.Object.Destroy(_sprites[i].texture);
+                                UnityEngine.Object.Destroy(_sprites[i]);
+                            }
+                        }
+
+                        _sprites = null;
+                    }
+
+                    _bytes = null;
+                    _audio = null;
+                }
+            }
 
             // ── Public API ──
 
@@ -303,6 +388,11 @@ namespace Fodinae.Scripts
                     {
                         _bytes = bytes;
                         _bytesPromise = null;
+                    }
+
+                    if (bytes != null && bytes.Length > 0)
+                    {
+                        _cache.TrackAccess(_filename, bytes.Length);
                     }
 
                     promise.TrySetResult(bytes);

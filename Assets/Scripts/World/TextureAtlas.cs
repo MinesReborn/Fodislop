@@ -49,6 +49,7 @@ namespace Fodinae.Scripts.World
         private readonly ConcurrentDictionary<CellType, AtlasCell> _cells = new();
         private readonly List<Rectangle> _freeRectangles = new();
         private readonly List<Rectangle> _usedRectangles = new();
+        private readonly Dictionary<CellType, Texture2D> _placeholderTextures = new();
 
         private bool _isDirty = false;
 
@@ -65,14 +66,8 @@ namespace Fodinae.Scripts.World
             _atlasTexture = new Texture2D(size, size, TextureFormat.RGBA32, false);
             _atlasTexture.filterMode = FilterMode.Point;
             _atlasTexture.wrapMode = TextureWrapMode.Clamp;
-            _atlasPixels = new Color32[size * size];
 
-            for (int i = 0; i < _atlasPixels.Length; i++)
-            {
-                _atlasPixels[i] = new Color32(0, 0, 0, 0);
-            }
-
-            _atlasTexture.SetPixels32(_atlasPixels);
+            _atlasTexture.SetPixels32(new Color32[size * size]);
             _atlasTexture.Apply();
 
             _freeRectangles.Add(new Rectangle(0, 0, size, size));
@@ -93,6 +88,16 @@ namespace Fodinae.Scripts.World
 
                 _atlasTexture = null;
             }
+
+            _atlasPixels = null;
+        }
+
+        private void EnsurePixelBuffer()
+        {
+            if (_atlasPixels == null)
+            {
+                _atlasPixels = new Color32[Size * Size];
+            }
         }
 
         public void Clear()
@@ -104,11 +109,22 @@ namespace Fodinae.Scripts.World
                 _freeRectangles.Clear();
                 _freeRectangles.Add(new Rectangle(0, 0, Size, Size));
 
-                for (int i = 0; i < _atlasPixels.Length; i++)
+                foreach (var placeholder in _placeholderTextures.Values)
                 {
-                    _atlasPixels[i] = new Color32(0, 0, 0, 0);
+                    if (Application.isPlaying)
+                    {
+                        UnityEngine.Object.Destroy(placeholder);
+                    }
+                    else
+                    {
+                        UnityEngine.Object.DestroyImmediate(placeholder);
+                    }
                 }
 
+                _placeholderTextures.Clear();
+
+                EnsurePixelBuffer();
+                Array.Clear(_atlasPixels, 0, _atlasPixels.Length);
                 _atlasTexture.SetPixels32(_atlasPixels);
                 _atlasTexture.Apply();
 
@@ -249,6 +265,7 @@ namespace Fodinae.Scripts.World
                 return;
             }
 
+            EnsurePixelBuffer();
             var rect = cell.Rectangle;
             var sourcePixels = texture.GetPixels32();
             CopyPixelsToAtlasArray(sourcePixels, texture.width, texture.height, rect);
@@ -262,7 +279,7 @@ namespace Fodinae.Scripts.World
         /// </summary>
         public void SyncApply()
         {
-            if (!_isDirty)
+            if (!_isDirty || _atlasPixels == null)
             {
                 return;
             }
@@ -323,6 +340,8 @@ namespace Fodinae.Scripts.World
         private async UniTask CopyTexturesToAtlas(List<(Texture2D texture, Rectangle rect)> textures)
         {
             const int BATCH_SIZE = 10;
+
+            EnsurePixelBuffer();
 
             for (int i = 0; i < textures.Count; i += BATCH_SIZE)
             {
@@ -388,6 +407,11 @@ namespace Fodinae.Scripts.World
 
         private Texture2D CreatePlaceholderTexture(CellType cellType)
         {
+            if (_placeholderTextures.TryGetValue(cellType, out var cached))
+            {
+                return cached;
+            }
+
             var texture = new Texture2D(CELL_SIZE, CELL_SIZE);
             var color = GetCellColor(cellType);
             var pixels = new Color[CELL_SIZE * CELL_SIZE];
@@ -398,6 +422,7 @@ namespace Fodinae.Scripts.World
 
             texture.SetPixels(pixels);
             texture.Apply();
+            _placeholderTextures[cellType] = texture;
             return texture;
         }
 

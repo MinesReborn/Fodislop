@@ -408,6 +408,7 @@ FodyWeavers.xsd
 ExportedObj/
 .consulo/
 *.csproj
+!/*.csproj
 *.unityproj
 *.sln
 *.suo
@@ -478,6 +479,7 @@ InitTestScene*.unity*
 .vs/
 .idea/
 *.csproj
+!/*.csproj
 *.sln
 *.slnx
 *.suo

@@ -48,7 +48,7 @@
                     радиус видимости, какие звуки вызваны вокруг).</li>
                 <li><strong>Однократный запрос ассетов (On-Demand)</strong>: Когда на экране впервые появляется
                     неизвестный клиенту объект (новый тип блока, скин робота, иконка пака, аудио-банк), клиент
-                    запрашивает тяжелые ассеты (текстуры, спрайты, FMOD `.bank`) с сервера/CDN ровно один раз.</li>
+                    запрашивает тяжелые ассеты (текстуры, спрайты, FMOD <code>.bank</code>) с сервера/CDN ровно один раз.</li>
                 <li><strong>Автономный рендер из кэша</strong>: Все полученные ассеты сохраняются в дисковом кэше
                     <code>PersistentAssetCache</code> (с ETag/MD5 валидацией) и ОЗУ. При последующих появлениях
                     аналогичных объектов клиент строит тяжелый рендеринг строго из локального кэша, не обращаясь
@@ -59,18 +59,18 @@
         <!-- Системный стек -->
         <section>
             <h2>Технологический стек</h2>
-            <p>Клиент Fodinae построен на базe Unity 6 (6000.2.10f1) с использованием 2D Universal Render Pipeline
+            <p>Клиент Fodinae построен на базе Unity 6 (6000.2.10f1) с использованием 2D Universal Render Pipeline
                 (URP). Основные системные зависимости:</p>
             <ul>
-                <li><strong>Рендеринг</strong>: 2D Render Pipeline (`com.unity.render-pipelines.universal` 17.2.0),
+                <li><strong>Рендеринг</strong>: 2D Render Pipeline (<code>com.unity.render-pipelines.universal</code> 17.2.0),
                     процедурный меш <code>SingleMeshTerrainRenderer</code>.</li>
-                <li><strong>Аудио</strong>: FMOD Studio C++ Engine via Native Wrapper, диск-стриминг `.bank` через
+                <li><strong>Аудио</strong>: FMOD Studio C++ Engine via Native Wrapper, диск-стриминг <code>.bank</code> через
                     <code>loadBankFile</code>.</li>
                 <li><strong>Сеть</strong>: TCP сокеты через сетевой стек <code>MinesServer.Networking</code> (пакеты
                     <code>darkar25.fodinae.*</code>).</li>
                 <li><strong>Асинхронность</strong>: <code>UniTask</code> (Cysharp) без выделений GC на генераторах
                     сопрограмм.</li>
-                <li><strong>Интерфейс</strong>: UI Toolkit (`UIDocument`, UXML, TSS темы) + пакетная сборка окон
+                <li><strong>Интерфейс</strong>: UI Toolkit (<code>UIDocument</code>, UXML, TSS темы) + пакетная сборка окон
                     <code>PacketUIBuilderFactory</code>.</li>
             </ul>
         </section>
@@ -92,15 +92,14 @@
                     <a href="networking.html" class="class-ref">Подробнее о сети →</a>
                 </div>
                 <div class="card-item">
-                    <h3>Аудиоподсистема FMOD</h3>
-                    <p>Управление 6 шинами FMOD Studio, нативное 3D-позиционирование
-                        <code>AttachInstanceToGameObject</code> и акустические FMOD Snapshots.</p>
+                    <h3>Аудиоподсистема и SFX</h3>
+                    <p>Сетевые звуковые события ServerAudioEventManager, фоновый звукоряд биомов WorldAudioController, 6 шин микшера и FMOD C++ Engine.</p>
                     <a href="audio.html" class="class-ref">Подробнее об аудио →</a>
                 </div>
                 <div class="card-item">
                     <h3>Кэширование и CDN ассетов</h3>
                     <p>Загрузчик <code>ClientAssetLoader</code> с HTTP ETag/MD5 валидацией, кэшированием на
-                        `persistentDataPath` и дедупликацией параллельных запросов.</p>
+                        <code>persistentDataPath</code> и дедупликацией параллельных запросов.</p>
                     <a href="assets_loading.html" class="class-ref">Подробнее о загрузке →</a>
                 </div>
             </div>
@@ -111,12 +110,12 @@
             <h2>Система координат и позиционирования</h2>
             <p>В проекте строго соблюдается единая система пространственных координат:</p>
             <ul>
-                <li><strong>Серверные координаты</strong>: Точка `(0, 0)` находится в левом верхнем углу (поверхность
+                <li><strong>Серверные координаты</strong>: Точка <code>(0, 0)</code> находится в левом верхнем углу (поверхность
                     мира). Ось X растёт вправо, ось Y растёт вниз (вглубь шахты).</li>
                 <li><strong>Конвертация</strong>: Все пространственные преобразования централизованы в <a
                         href="../Assets/Scripts/World/CoordinateUtils.cs" class="class-ref">CoordinateUtils</a>.</li>
-                <li><strong>Единственный источник истины</strong>: Позиция игрока хранится в свойстве
-                    <code>PlayerMovementController.Position</code> (`Vector2Int` серверных координат).</li>
+                <li><strong>Еединственный источник истины</strong>: Позиция игрока хранится в свойстве
+                    <code>PlayerMovementController.Position</code> (<code>Vector2Int</code> серверных координат).</li>
             </ul>
         </section>
     </main>

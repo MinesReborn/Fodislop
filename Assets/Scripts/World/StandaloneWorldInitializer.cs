@@ -86,7 +86,7 @@ namespace Fodinae.Scripts.World
         /// </summary>
         public bool IsReady()
         {
-            return _enableStandaloneMode && (_isInitialized || (MapStorage.Instance?.IsReady == true));
+            return _enableStandaloneMode && (_isInitialized || (MapStorage.Instance?.IsReady ?? false));
         }
 
         protected void Awake()

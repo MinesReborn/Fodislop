@@ -71,10 +71,10 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float4 _DebugColor;
                 float _DebugMode;
                 float _SimpleGraphics;
-                float _DarknessFactor;
                 float _UseLight2D;
             CBUFFER_END
 
+            float _DarknessFactor;
             float4 _HeadlightPos;
             float4 _HeadlightDir;
             float _HeadlightAngleCos;
@@ -146,12 +146,12 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
             half4 frag (Varyings input) : SV_Target
             {
-                if (input.color.a < 0.05) discard;
                 if (input.worldPos.w > 1.5) discard;
                 if (input.subAtlasRect.z < 0.0001)
                 {
                     return input.color;
                 }
+                if (input.color.a < 0.05) discard;
 
                 if (_DebugMode > 0.5)
                 {
@@ -420,10 +420,10 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float4 _DebugColor;
                 float _DebugMode;
                 float _SimpleGraphics;
-                float _DarknessFactor;
                 float _UseLight2D;
             CBUFFER_END
 
+            float _DarknessFactor;
             float4 _HeadlightPos;
             float4 _HeadlightDir;
             float _HeadlightAngleCos;
@@ -495,12 +495,12 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
             half4 frag (Varyings input) : SV_Target
             {
-                if (input.color.a < 0.05) discard;
                 if (input.worldPos.w > 1.5) discard;
                 if (input.subAtlasRect.z < 0.0001)
                 {
                     return input.color;
                 }
+                if (input.color.a < 0.05) discard;
 
                 if (_DebugMode > 0.5)
                 {

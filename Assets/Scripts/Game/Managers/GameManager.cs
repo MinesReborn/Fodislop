@@ -1,6 +1,7 @@
 using System;
 using Fodinae.Scripts.Core;
 using Fodinae.Scripts.UI;
+using Fodinae.Scripts.UI.HUD.Player.Model;
 using UnityEngine;
 
 namespace Fodinae.Scripts.Game.Managers
@@ -23,8 +24,12 @@ namespace Fodinae.Scripts.Game.Managers
     ///
     /// Управляет высокими состояниями сессии и связывает событийно геймплейные подсистемы.
     /// </summary>
-    public sealed class GameManager : SingletonMonoBehaviour<GameManager>
+    public sealed class GameManager : MonoBehaviour
     {
+        private static GameManager _instance;
+        public static GameManager Instance => _instance;
+        public static GameManager InstanceIfExists => _instance;
+
         public GameState CurrentState { get; private set; } = GameState.Offline;
         public bool IsUIAuthorized { get; private set; }
 
@@ -33,13 +38,19 @@ namespace Fodinae.Scripts.Game.Managers
 
         private GameObject _uiRoot;
 
-        protected override void OnAwake()
+        private void Awake()
         {
+            _instance = this;
             SetupUI();
         }
 
-        protected override void OnDestroyed()
+        private void OnDestroy()
         {
+            if (_instance != this)
+            {
+                return;
+            }
+
             if (_uiRoot != null)
             {
                 Destroy(_uiRoot);
@@ -62,12 +73,14 @@ namespace Fodinae.Scripts.Game.Managers
             mmGO.transform.SetParent(_uiRoot.transform);
 
             var invGO = new GameObject("InventoryRoot");
-            invGO.AddComponent<InventoryUI>();
+            invGO.AddComponent<Fodinae.Scripts.UI.HUD.Inventory.View.InventoryView>();
+            invGO.AddComponent<Fodinae.Scripts.UI.HUD.Inventory.Presenter.InventoryPresenter>();
             invGO.transform.SetParent(_uiRoot.transform);
 
             var hudGO = new GameObject("PlayerHUD");
             hudGO.AddComponent<PlayerStatsModel>();
-            hudGO.AddComponent<PlayerHUD>();
+            hudGO.AddComponent<Fodinae.Scripts.UI.HUD.Player.View.PlayerHUDView>();
+            hudGO.AddComponent<Fodinae.Scripts.UI.HUD.Player.Presenter.PlayerHUDPresenter>();
             hudGO.transform.SetParent(_uiRoot.transform);
 
             var pauseGO = new GameObject("PauseMenu");

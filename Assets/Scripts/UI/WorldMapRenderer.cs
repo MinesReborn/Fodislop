@@ -1,5 +1,8 @@
+using Fodinae.Scripts.Core;
+using Fodinae.Scripts.Core.Interfaces;
 using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Player;
+using Fodinae.Scripts.Player.Logic;
 using MinesServer.Data;
 using UnityEngine;
 using UnityEngine.InputSystem;

@@ -14,8 +14,6 @@ using MinesServer.Networking.Server.Packets.World;
 using MinesServer.Networking.Shared.Packets;
 using UnityEngine;
 
-using AudioPacket = MinesServer.Networking.Server.Packets.World.SFXPacket;
-
 namespace Fodinae.Scripts.Game
 {
     /// <summary>
@@ -199,8 +197,7 @@ namespace Fodinae.Scripts.Game
             }
 
             var name = sfx.ToString();
-            var sb = new System.Text.StringBuilder();
-            sb.Append("sfx_");
+            var sb = new System.Text.StringBuilder("sfx/");
             for (int i = 0; i < name.Length; i++)
             {
                 char c = name[i];

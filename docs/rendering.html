@@ -122,8 +122,8 @@
                     class="class-ref">MinimapController</a> и <a href="../Assets/Scripts/UI/WorldMapRenderer.cs"
                     class="class-ref">WorldMapRenderer</a> применяется точное сопоставление координат:</p>
             <ul>
-                <li>Серверные координаты: `serverY = 0` (поверхность мира, верх). `serverY` растёт вниз.</li>
-                <li>Текстурные пиксели `Texture2D`: `py = 0` (низ экрана), `py = texH - 1` (верх экрана).</li>
+                <li>Серверные координаты: <code>serverY = 0</code> (поверхность мира, верх). <code>serverY</code> растёт вниз.</li>
+                <li>Текстурные пиксели <code>Texture2D</code>: <code>py = 0</code> (низ экрана), <code>py = texH - 1</code> (верх экрана).</li>
                 <li>Формула проекции: <code>float pixelY = ((cy - cellY) / cp) + (texH * 0.5f);</code> — обеспечивает
                     правильную ориентацию севера/юга на экранах без вертикального переворота.</li>
             </ul>

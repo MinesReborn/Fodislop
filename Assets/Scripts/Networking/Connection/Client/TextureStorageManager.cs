@@ -15,13 +15,22 @@ namespace Fodinae.Scripts.Networking.Connection.Client
     /// Writes downloaded assets to persistentDataPath to prevent Unity AssetDatabase reloads in Editor.
     /// </summary>
     [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Gracefully catch file and texture loading exceptions to fall back to random texture generation.")]
-    public class TextureStorageManager : SingletonMonoBehaviour<TextureStorageManager>
+    public class TextureStorageManager : MonoBehaviour
     {
+        private static TextureStorageManager _instance;
+        public static TextureStorageManager Instance => _instance;
+        public static TextureStorageManager InstanceIfExists => _instance;
+
         [SerializeField]
         private bool _enableDebugLogging = false;
 
         [SerializeField]
         private int _fallbackTextureSize = 64;
+
+        protected void Awake()
+        {
+            _instance = this;
+        }
 
         private readonly ConcurrentDictionary<string, Texture2D> _textureCache = new();
         private readonly ConcurrentDictionary<string, string> _resolvedPathsCache = new();

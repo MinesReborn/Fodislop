@@ -12,13 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 19101, guid: 0000000000000000e000000000000000, type: 0}
   m_Name: PanelSettings
   m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.PanelSettings
-  themeUss: {fileID: -4733365628477956816, guid: 74cf85849551e2b489f78132f4d7b79d, type: 3}
+  themeUss: {fileID: -4733365628477956816, guid: 1699cef9e96a64bfe809999150b2ca4a, type: 3}
   m_DisableNoThemeWarning: 0
   m_TargetTexture: {fileID: 0}
   m_RenderMode: 0
   m_ColliderUpdateMode: 0
   m_ColliderIsTrigger: 1
-  m_ScaleMode: 1
+  m_ScaleMode: 0
   m_ReferenceSpritePixelsPerUnit: 100
   m_PixelsPerUnit: 100
   m_Scale: 1

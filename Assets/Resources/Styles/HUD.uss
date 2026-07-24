@@ -1,0 +1,372 @@
+/* ═══════════════════════════════════════════════════════════
+   HUD — стили интерфейса игрока
+   ═══════════════════════════════════════════════════════════ */
+
+.hud-root {
+    position: absolute;
+    flex-grow: 1;
+}
+
+.hud-top-left {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+}
+
+.hud-top-right {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+
+.hud-bottom-left {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+}
+
+.hud-bottom-right {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+}
+
+.hud-button {
+    background-color: var(--btn-bg);
+    border-color: var(--btn-border);
+    border-width: 1px;
+    border-radius: 3px;
+    padding: 6px 12px;
+    min-width: 100px;
+    font-size: var(--font-size-sm);
+    color: var(--color-text);
+    -unity-text-align: middle-center;
+    margin: 2px;
+}
+
+.hud-button:hover {
+    background-color: var(--btn-hover);
+}
+
+.hud-button.active {
+    background-color: var(--color-accent);
+    color: black;
+}
+
+.hud-stat {
+    color: var(--color-text);
+    font-size: var(--font-size-md);
+    margin: 2px 0;
+}
+
+.hud-stat-label {
+    color: var(--color-text-dim);
+    font-size: var(--font-size-sm);
+}
+
+.hud-bar {
+    background-color: rgba(40, 40, 40, 1);
+    border-color: var(--btn-border);
+    border-width: 1px;
+    border-radius: 2px;
+    height: 12px;
+    width: 150px;
+}
+
+.hud-bar-fill {
+    background-color: var(--color-accent);
+    border-radius: 2px;
+}
+
+.hud-panel {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 240px;
+    padding: 12px;
+    background-color: var(--color-panel-bg);
+    border-color: var(--color-panel-border);
+    border-width: 2px;
+    flex-direction: column;
+}
+
+.hud-title-row {
+    flex-direction: row;
+    margin-bottom: 10px;
+}
+
+.hud-panel .hud-title-row {
+    flex-direction: row;
+    margin-bottom: 4px;
+}
+
+.hud-panel .hud-nickname {
+    font-size: var(--font-size-lg);
+    -unity-font-style: bold;
+    color: var(--color-accent);
+    flex-grow: 1;
+}
+
+.hud-panel .hud-level {
+    font-size: var(--font-size-lg);
+    color: var(--color-text);
+    margin-right: 2px;
+}
+
+.hud-panel .hud-separator {
+    height: 1px;
+    background-color: var(--color-text-dim);
+    margin-bottom: 4px;
+}
+
+.hud-panel .hud-stat {
+    font-size: var(--font-size-md);
+    color: var(--color-text);
+    margin: 0 0 2px;
+}
+
+.hud-panel .hud-money {
+    -unity-font-style: bold;
+    font-size: var(--font-size-md);
+    color: rgb(0, 200, 0);
+    margin: 0;
+}
+
+.hud-panel .hud-creds {
+    -unity-font-style: bold;
+    font-size: var(--font-size-md);
+    color: rgb(200, 200, 0);
+    margin: 0;
+}
+
+.hud-panel .hud-basket {
+    -unity-font-style: bold;
+    font-size: var(--font-size-md);
+    color: var(--color-text);
+    margin-bottom: 2px;
+}
+
+.hud-basket-container {
+    flex-direction: column;
+}
+
+.hud-stat-wrap {
+    white-space: normal;
+}
+
+.hud-hp-bar {
+    height: 14px;
+    background-color: rgba(40, 40, 40, 1);
+    border-radius: 3px;
+    flex-direction: row;
+    margin-bottom: 4px;
+}
+
+.hud-hp-fill {
+    height: 14px;
+    border-radius: 3px;
+}
+
+.hud-button {
+    background-color: var(--btn-bg);
+    border-color: var(--btn-border);
+    border-width: 2px;
+    border-radius: 3px;
+    padding: 0;
+    min-width: 100px;
+    height: 28px;
+    font-size: var(--font-size-sm);
+    color: var(--color-text);
+    -unity-text-align: middle-center;
+}
+
+.hud-button:hover {
+    background-color: var(--btn-hover);
+}
+
+.hud-button.active {
+    background-color: var(--color-accent);
+    color: black;
+}
+
+.hud-button-accent {
+    background-color: var(--color-accent);
+    border-color: var(--color-panel-border);
+    border-width: 2px;
+    border-radius: 3px;
+    color: rgba(38, 38, 38, 1);
+    font-size: var(--font-size-title);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    padding: 0;
+}
+
+.hud-button-accent:hover {
+    background-color: var(--color-accent-hover);
+}
+
+.hud-button-close {
+    width: 24px;
+    height: 24px;
+    background-color: transparent;
+    color: rgba(180, 180, 180, 1);
+    font-size: 18px;
+    padding: 0;
+    border-width: 0;
+}
+
+.hud-button-claim {
+    align-self: center;
+    background-color: rgba(25, 100, 25, 1);
+    color: white;
+    border-color: rgba(40, 130, 40, 1);
+    border-width: 2px;
+    border-radius: 3px;
+    padding: 4px 16px;
+    font-size: var(--font-size-md);
+}
+
+.hud-button-claim:hover {
+    background-color: rgba(50, 130, 50, 1);
+}
+
+.hud-button-label {
+    font-size: 12px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    flex-grow: 1;
+}
+
+.hud-bonus-panel {
+    position: absolute;
+    top: 45px;
+    left: 10px;
+    width: 260px;
+    padding: 10px;
+    background-color: var(--color-panel-bg);
+    border-color: var(--color-panel-border);
+    border-width: 2px;
+    flex-direction: column;
+}
+
+.hud-bonus-panel .hud-stat {
+    margin: 2px 0;
+}
+
+.hud-bonus-panel .hud-title-row {
+    flex-direction: row;
+    margin-bottom: 10px;
+}
+
+.hud-bonus-panel .hud-title-row .hud-stat {
+    color: var(--color-accent);
+    flex-grow: 1;
+}
+
+.hud-status-panel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 220px;
+    padding: 12px;
+    background-color: var(--color-panel-bg);
+    border-color: var(--color-panel-border);
+    border-width: 2px;
+    flex-direction: column;
+}
+
+.hud-status-line {
+    font-size: var(--font-size-md);
+    margin-bottom: 2px;
+    white-space: normal;
+}
+
+.hud-skill-container {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    padding: 8px;
+    flex-direction: column-reverse;
+    align-items: flex-end;
+}
+
+.hud-skill-row {
+    flex-direction: row;
+    align-items: flex-start;
+    margin-bottom: 2px;
+}
+
+.hud-skill-icon {
+    flex-direction: row;
+    align-items: flex-end;
+    margin-right: 4px;
+    margin-bottom: 2px;
+}
+
+.hud-skill-icon-column {
+    position: relative;
+    flex-direction: column;
+    align-items: center;
+    width: 24px;
+}
+
+.hud-skill-arrow {
+    position: absolute;
+    top: -13px;
+    left: 0;
+    width: 24px;
+    font-size: 11px;
+    -unity-font-style: bold;
+    color: var(--color-accent);
+    -unity-text-align: middle-center;
+}
+
+.hud-skill-bar-bg {
+    width: 20px;
+    height: 3px;
+    background-color: rgba(60, 60, 60, 1);
+    border-radius: 1px;
+    margin-top: 1px;
+}
+
+.hud-skill-bar-fill {
+    height: 3px;
+    border-radius: 1px;
+    background-color: rgb(0, 180, 0);
+}
+
+.hud-crystal-row {
+    flex-direction: row;
+    margin: 2px 0;
+}
+
+.hud-crystal-row .hud-stat {
+    margin: 0 4px;
+}
+
+.hud-mission-panel {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    padding: 8px;
+    background-color: var(--color-panel-bg);
+    border-color: var(--color-panel-border);
+    border-width: 1px;
+}
+
+.hud-btn-action {
+    position: absolute;
+    background-color: rgba(25, 25, 38, 0.85);
+    border-color: rgba(90, 90, 90, 1);
+    border-width: 2px;
+    font-size: var(--font-size-sm);
+    -unity-font-style: bold;
+    color: var(--color-text);
+    -unity-text-align: middle-center;
+    padding: 0;
+    height: 28px;
+}
+
+.hud-btn-action:hover {
+    background-color: rgba(50, 50, 75, 0.85);
+}

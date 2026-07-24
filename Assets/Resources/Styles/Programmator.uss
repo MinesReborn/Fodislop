@@ -1,0 +1,51 @@
+/* ═══════════════════════════════════════════════════════════
+   Programmator — стили программатора
+   ═══════════════════════════════════════════════════════════ */
+
+.programmator-root {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    translate: -50% -50%;
+    background-color: var(--color-panel-bg);
+    border-color: var(--color-panel-border);
+    border-width: var(--panel-border-width);
+    border-radius: 4px;
+    padding: var(--panel-padding);
+}
+
+.programmator-grid {
+    flex-wrap: wrap;
+    background-color: rgba(30, 30, 30, 1);
+    border-color: var(--btn-border);
+    border-width: 1px;
+    border-radius: 3px;
+    padding: 4px;
+}
+
+.programmator-cell {
+    width: 40px;
+    height: 40px;
+    background-color: rgba(38, 38, 38, 1);
+    border-color: var(--btn-border);
+    border-width: 1px;
+    border-radius: 2px;
+    margin: 1px;
+    -unity-text-align: middle-center;
+    font-size: var(--font-size-sm);
+    color: var(--color-text);
+}
+
+.programmator-cell:hover {
+    border-color: var(--color-accent);
+}
+
+.programmator-cell.has-operator {
+    background-color: rgba(178, 166, 128, 0.3);
+    color: var(--color-accent);
+}
+
+.programmator-toolbar {
+    flex-direction: row;
+    margin-top: 8px;
+}

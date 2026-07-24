@@ -1,0 +1,36 @@
+/* ═══════════════════════════════════════════════════════════
+   Chat — стили чата
+   ═══════════════════════════════════════════════════════════ */
+
+.chat-container {
+    background-color: var(--color-panel-bg);
+    border-color: var(--color-panel-border);
+    border-width: var(--panel-border-width);
+    border-radius: 4px;
+    padding: var(--panel-padding);
+    width: 400px;
+    max-height: 300px;
+}
+
+.chat-scroll {
+    flex-grow: 1;
+    margin-bottom: 6px;
+}
+
+.chat-message {
+    font-size: var(--font-size-sm);
+    color: var(--color-text);
+    padding: 2px;
+    white-space: normal;
+    overflow: hidden;
+}
+
+.chat-input {
+    background-color: rgba(30, 30, 30, 1);
+    border-color: var(--btn-border);
+    border-width: 1px;
+    border-radius: 3px;
+    padding: 4px 8px;
+    color: var(--color-text);
+    font-size: var(--font-size-sm);
+}

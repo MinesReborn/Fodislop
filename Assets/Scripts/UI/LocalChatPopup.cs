@@ -212,9 +212,16 @@ namespace Fodinae.Scripts.UI
         public void Hide()
         {
             _isOpen = false;
-            _overlay.style.display = DisplayStyle.None;
-            _inputField.value = string.Empty;
-            _inputField.Blur();
+            if (_overlay != null)
+            {
+                _overlay.style.display = DisplayStyle.None;
+            }
+
+            if (_inputField != null)
+            {
+                _inputField.value = string.Empty;
+                _inputField.Blur();
+            }
         }
 
         private void StartBlink()

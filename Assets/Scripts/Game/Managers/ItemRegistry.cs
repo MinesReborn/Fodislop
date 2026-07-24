@@ -9,6 +9,7 @@ namespace Fodinae.Scripts.Game.Managers
     {
         private const string TAG = "[ItemRegistry]";
         private static readonly Dictionary<ItemType, Texture2D> _iconCache = new();
+        private static readonly HashSet<ItemType> _missingIconWarned = new();
 
         public static string GetName(ItemType type) => type.ToString();
 
@@ -25,15 +26,21 @@ namespace Fodinae.Scripts.Game.Managers
 
             var typeName = type.ToString();
             var camelName = char.ToLowerInvariant(typeName[0]) + typeName.Substring(1);
-            var path = Path.Combine(Application.dataPath, "Textures", "Items", camelName + ".png");
+            var itemsDir = Path.Combine(Application.dataPath, "Textures", "Items");
+
+            var path = Path.Combine(itemsDir, camelName + ".png");
             if (!File.Exists(path))
             {
-                path = Path.Combine(Application.dataPath, "Textures", "Items", typeName.ToLowerInvariant() + ".png");
+                path = Path.Combine(itemsDir, typeName.ToLowerInvariant() + ".png");
             }
 
             if (!File.Exists(path))
             {
-                Debug.LogWarning($"{TAG} Icon not found for {type} (searched {camelName}.png, {typeName.ToLowerInvariant()}.png)");
+                if (_missingIconWarned.Add(type))
+                {
+                    Debug.Log($"{TAG} No local icon for item type '{type}' (searched {camelName}.png), will use server texture if available");
+                }
+
                 return null;
             }
 

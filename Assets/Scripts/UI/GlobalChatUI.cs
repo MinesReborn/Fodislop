@@ -274,16 +274,27 @@ namespace Fodinae.Scripts.UI
         public void Show()
         {
             _isOpen = true;
-            _panel.style.display = DisplayStyle.Flex;
-            _inputField.Focus();
+            if (_panel != null)
+            {
+                _panel.style.display = DisplayStyle.Flex;
+            }
+
+            _inputField?.Focus();
         }
 
         public void Hide()
         {
             _isOpen = false;
-            _panel.style.display = DisplayStyle.None;
-            _inputField.value = string.Empty;
-            _inputField.Blur();
+            if (_panel != null)
+            {
+                _panel.style.display = DisplayStyle.None;
+            }
+
+            if (_inputField != null)
+            {
+                _inputField.value = string.Empty;
+                _inputField.Blur();
+            }
         }
 
         private void StartBlink()

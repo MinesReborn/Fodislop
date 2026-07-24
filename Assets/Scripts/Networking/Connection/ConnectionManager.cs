@@ -13,21 +13,33 @@ using UnityEngine;
 
 namespace Fodinae.Scripts.Networking.Connection
 {
-    public class ConnectionManager : SingletonMonoBehaviour<ConnectionManager>
+    public class ConnectionManager : MonoBehaviour
     {
+        private static ConnectionManager _instance;
+        public static ConnectionManager Instance => _instance;
+        public static ConnectionManager InstanceIfExists => _instance;
+
         public IServerConnection Connection { get; private set; }
         private bool _useOldClient;
         public event Action<ServerPacket> OnPacketReceived;
 
         private readonly System.Collections.Concurrent.ConcurrentQueue<ServerPacket> _packetQueue = new();
 
-        protected override void OnAwake()
+        protected void Awake()
         {
+            Debug.Log("[ConnectionManager] Awake START");
+            _instance = this;
             gameObject.AddComponent<PacketHandler>();
+            Debug.Log("[ConnectionManager] Awake END");
         }
 
-        protected override void OnDestroyed()
+        protected void OnDestroy()
         {
+            if (_instance != this)
+            {
+                return;
+            }
+
             Disconnect();
         }
 

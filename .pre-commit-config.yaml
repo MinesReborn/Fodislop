@@ -22,5 +22,5 @@ repos:
         name: C# Roslyn Analyzers
         entry: ./scripts/pre-commit-lint.sh
         language: script
-        files: \.cs$
+        always_run: true
         pass_filenames: false

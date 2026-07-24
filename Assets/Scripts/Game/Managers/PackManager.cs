@@ -7,10 +7,19 @@ using UnityEngine;
 
 namespace Fodinae.Scripts.Game.Managers
 {
-    public class PackManager : SingletonMonoBehaviour<PackManager>
+    public class PackManager : MonoBehaviour
     {
+        private static PackManager _instance;
+        public static PackManager Instance => _instance;
+        public static PackManager InstanceIfExists => _instance;
+
         private const string TAG = "[PackManager]";
         private Dictionary<Vector2Int, Pack> _packs = new();
+
+        protected void Awake()
+        {
+            _instance = this;
+        }
 
         public void AddOrUpdatePack(ushort x, ushort y, PackType packType, byte variant, byte linkedClan)
         {

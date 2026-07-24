@@ -14,6 +14,7 @@ namespace Fodinae.Scripts
             public const float WORLD_DARKNESS_FACTOR = 0.8f;
         }
 
+        // TODO: обсудить файл
         public static class UI
         {
             public const float MINIMAP_UPDATE_DELAY = 0.033f; // 30 FPS

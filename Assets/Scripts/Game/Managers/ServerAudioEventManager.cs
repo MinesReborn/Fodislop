@@ -1,16 +1,17 @@
 using System.Collections.Generic;
-using Fodinae.Scripts.Audio;
 using Fodinae.Scripts.Core;
 using Fodinae.Scripts.World;
 using MinesServer.Networking.Server.Packets.World;
 using UnityEngine;
 
-using AudioPacket = MinesServer.Networking.Server.Packets.World.SFXPacket;
-
 namespace Fodinae.Scripts.Game.Managers
 {
-    public class ServerAudioEventManager : SingletonMonoBehaviour<ServerAudioEventManager>
+    public class ServerAudioEventManager : MonoBehaviour
     {
+        private static ServerAudioEventManager _instance;
+        public static ServerAudioEventManager Instance => _instance;
+        public static ServerAudioEventManager InstanceIfExists => _instance;
+
         private const string TAG = "[ServerAudioEventManager]";
         private readonly List<ServerAudioEvent> _activeEffects = new();
 
@@ -37,13 +38,18 @@ namespace Fodinae.Scripts.Game.Managers
             }
         }
 
-        protected override void OnDestroyed()
+        protected void Awake()
         {
-            ClearAllEffects();
+            _instance = this;
         }
 
-        protected override void OnApplicationQuitting()
+        protected void OnDestroy()
         {
+            if (_instance != this)
+            {
+                return;
+            }
+
             ClearAllEffects();
         }
 

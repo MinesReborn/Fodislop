@@ -4,6 +4,7 @@ using Fodinae.Scripts.UI;
 using MinesServer.Networking.Client.Packets.Actions;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.Controls;
 
 namespace Fodinae.Scripts.Player
 {
@@ -11,10 +12,12 @@ namespace Fodinae.Scripts.Player
     {
         private const string TAG = "[PlayerInteraction]";
         private Camera _mainCamera;
+        private UnityEngine.InputSystem.Utilities.ReadOnlyArray<KeyControl> _cachedAllKeys;
 
         protected void Awake()
         {
             _mainCamera = Camera.main;
+            _cachedAllKeys = Keyboard.current.allKeys;
         }
 
         protected void Update()
@@ -87,8 +90,9 @@ namespace Fodinae.Scripts.Player
 
             // This is a bit expensive but since it's for "unmapped" keys,
             // we might want to check all keys if they were pressed this frame.
-            foreach (var keyControl in Keyboard.current.allKeys)
+            for (int i = 0; i < _cachedAllKeys.Count; i++)
             {
+                var keyControl = _cachedAllKeys[i];
                 if (keyControl.wasPressedThisFrame)
                 {
                     byte code = MapKeyToByte(keyControl.keyCode);

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Аудиоподсистема FMOD — Fodinae Client Documentation</title>
+    <title>Аудиоподсистема — Fodinae Client Documentation</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -20,8 +20,8 @@
         <div class="header-title-group">
             <div class="logo-badge">F</div>
             <div>
-                <h1>Аудиоподсистема FMOD Studio</h1>
-                <p class="subtitle">Спецификация интеграции FMOD C++ Engine и звукового микшера</p>
+                <h1>Аудиоподсистема Fodinae</h1>
+                <p class="subtitle">Полная спецификация звукового домена: события, 3D-пространство, шины и FMOD C++ Engine</p>
             </div>
         </div>
         <nav>
@@ -35,54 +35,70 @@
     </header>
 
     <main>
-        <!-- Обзор подсистемы -->
+        <!-- Обзор звукового домена -->
         <section>
-            <h2>Архитектура аудио-домена</h2>
-            <p>Аудиоподсистема взаимодействует напрямую с **FMOD Studio C++ Engine**. Все звуковые события адресуются по
-                именам событий (`event:/...` или `snapshot:/...`).</p>
+            <h2>Архитектурный обзор аудио-домена</h2>
+            <p>Аудиоподсистема Fodinae спроектирована как многоуровневая система, связывающая сетевые пакеты сервера, климатические зоны мира, UI микшер и низкоуровневый движок FMOD Studio C++.</p>
             <ul>
-                <li><a href="../Assets/Scripts/Audio/Backend/AudioSystem.cs" class="class-ref">AudioSystem</a> —
-                    глобальный синглтон-контроллер в <code>DontDestroyOnLoad</code>. Принимает вызовы <code>Play</code>,
-                    <code>PlayAttached</code>, <code>PlaySnapshot</code>, <code>SetGlobalParameter</code>,
-                    <code>SetBusVolume</code>.</li>
-                <li><a href="../Assets/Scripts/Audio/Backend/FmodAudioBackend.cs" class="class-ref">FmodAudioBackend</a>
-                    — низкоуровневая обёртка над C++ FMOD API (загрузка банков с диска через <code>loadBankFile</code>,
-                    нативная привязка к <code>GameObject</code>, управление сэмплами и шинами).</li>
-                <li><a href="../Assets/Scripts/Audio/Core/AudioPlaybackHandle.cs"
-                        class="class-ref">AudioPlaybackHandle</a> — легкий хендл активного голоса, оборачивающий
-                    <code>FMOD.Studio.EventInstance</code> без C#-делегатов и аллокаций в памяти.</li>
-                <li><a href="../Assets/Scripts/Audio/Spatial/AudioSpatial.cs" class="class-ref">AudioSpatial</a> —
-                    привязывает пространственные 3D-звуки к `Transform` с нативной трансляцией координат на C++ стороне
-                    FMOD.</li>
-                <li><a href="../Assets/Scripts/Audio/Spatial/AudioZone.cs" class="class-ref">AudioZone</a> — триггерный
-                    регион, активирующий **FMOD Snapshots** (например <code>snapshot:/Cave_Ambient</code>) без
-                    перезаписи пользовательских настроек микшера.</li>
+                <li><strong>Сетевой поток звуков (ServerAudioEventManager)</strong> — приём пакетов <code>SFXPacket</code> от сервера, расчёт затухания по дистанции, синхронизация с визуальными эффектами <code>VFXPool</code>.</li>
+                <li><strong>Динамический фоновый звукоряд (WorldAudioController)</strong> — интеграция глубины шахты (параметр <code>Depth</code>), смены биомов, эмбиентных треков и плавных кроссфейдов.</li>
+                <li><strong>Пространственное 3D-позиционирование (AudioSpatial & AudioZone)</strong> — нативное связывание движущихся объектов <code>Transform</code> с аудио-источниками и акустическими зонами <code>FMOD Snapshots</code> (пещеры, коридоры).</li>
+                <li><strong>Микшер и пользовательские настройки (AudioBusType & PauseMenu)</strong> — централизованная регулировка 6 шин громкости с мгновенным сохранением в <code>PlayerPrefs</code>.</li>
+                <li><strong>Низкоуровневый C++ бэкенд (AudioSystem & FmodAudioBackend)</strong> — ленивая загрузка аудио-банков <code>.bank</code> с диска через <code>loadBankFile</code>, нулевые GC-аллокации на воспроизведение.</li>
             </ul>
         </section>
 
-        <!-- Примеры C# API -->
+        <!-- Сетевой слой и SFX -->
         <section>
-            <h2>Интерфейс программирования (C# API)</h2>
-            <pre><code><span class="c-comment">// 2D звук интерфейса</span>
-AudioSystem.Instance.Play2D(<span class="c-string">"ui_click"</span>);
-
-<span class="c-comment">// 3D звук с нативной привязкой к GameObject</span>
-AudioSystem.Instance.PlayAttached(<span class="c-string">"robot_engine"</span>, gameObject);
-
-<span class="c-comment">// Запуск FMOD Snapshot (акустика зоны)</span>
-var snapshot = AudioSystem.Instance.PlaySnapshot(<span class="c-string">"snapshot:/Cave_Ambient"</span>);
-
-<span class="c-comment">// Глобальный параметр FMOD (глубина шахты)</span>
-AudioSystem.Instance.SetGlobalParameter(<span class="c-string">"Depth"</span>, <span class="c-num">350f</span>);
-
-<span class="c-comment">// Установка громкости шины SFX</span>
-AudioSystem.Instance.SetBusVolume(AudioBusType.SFX, <span class="c-num">0.8f</span>);</code></pre>
+            <h2>1. Сетевые звуковые события (ServerAudioEventManager)</h2>
+            <p>Сервер передаёт звуки мира через пакеты <code>SFXPacket</code>. Класс <a href="../Assets/Scripts/Game/Managers/ServerAudioEventManager.cs" class="class-ref">ServerAudioEventManager</a> выступает связующим звеном:</p>
+            <ul>
+                <li>Декодирует координаты <code>Vector2Int</code> и идентификатор звукового события.</li>
+                <li>Вызывает воспроизведение через <code>AudioSystem.Instance.PlayAt(eventId, position)</code>.</li>
+                <li>Параллельно запрашивает спавн визуального эффекта (Effekseer / GIF-спрайт) из пула <code>VFXPool.PooledSlot</code>.</li>
+            </ul>
         </section>
 
-        <!-- Иерархия шин -->
+        <!-- Атмосфера мира -->
         <section>
-            <h2>Шины FMOD Studio (AudioBusType)</h2>
-            <p>В микшере FMOD Studio зафиксированы 6 шин управления громкостью:</p>
+            <h2>2. Фоновый звукоряд и динамика мира (WorldAudioController)</h2>
+            <p>Класс <a href="../Assets/Scripts/Audio/Spatial/WorldAudioController.cs" class="class-ref">WorldAudioController</a> управляет атмосферой окружения по мере погружения игрока в шахту:</p>
+            <ul>
+                <li><strong>Глобальный параметр глубины</strong>: Транслирует текущую Y-координату игрока в FMOD через <code>AudioSystem.Instance.SetGlobalParameter("Depth", currentDepth)</code>, меняя фильтрацию и реверберацию.</li>
+                <li><strong>Переключение биомов</strong>: Активирует FMOD Snapshots (например <code>snapshot:/Cave_Ambient</code> или <code>snapshot:/Lava_Zone</code>) в зависимости от текущего региона карты.</li>
+            </ul>
+        </section>
+
+        <!-- Пространственные компоненты -->
+        <section>
+            <h2>3. Пространственное позиционирование (AudioSpatial & AudioZone)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Компонент</th>
+                        <th>Файл</th>
+                        <th>Функционал</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>AudioSpatial</code></td>
+                        <td><a href="../Assets/Scripts/Audio/Spatial/AudioSpatial.cs" class="class-ref">AudioSpatial.cs</a></td>
+                        <td>Компонент на <code>GameObject</code>. Вызывает <code>FmodAudioBackend.AttachInstanceToGameObject</code> для нативного C++ трекинга 3D-позиции без поллинга в C# Update.</td>
+                    </tr>
+                    <tr>
+                        <td><code>AudioZone</code></td>
+                        <td><a href="../Assets/Scripts/Audio/Spatial/AudioZone.cs" class="class-ref">AudioZone.cs</a></td>
+                        <td>Триггерный коллайдер. При входе игрока активирует акустический <code>FMOD Snapshot</code> и выставляет локальные параметры эмбиента.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Шины и Управление -->
+        <section>
+            <h2>4. Управление микшером и шинами (AudioBusType)</h2>
+            <p>Управление громкостью распределено по 6 независимым шинам, настраиваемым в <a href="../Assets/Scripts/UI/PauseMenu.cs" class="class-ref">PauseMenu</a>:</p>
             <table>
                 <thead>
                     <tr>
@@ -96,50 +112,60 @@ AudioSystem.Instance.SetBusVolume(AudioBusType.SFX, <span class="c-num">0.8f</sp
                     <tr>
                         <td><code>Master</code></td>
                         <td><code>bus:/</code></td>
-                        <td>Главный выходной канал проекта</td>
+                        <td>Общий выходной микс</td>
                         <td><code>Audio_Master</code></td>
                     </tr>
                     <tr>
                         <td><code>SFX</code></td>
                         <td><code>bus:/sfx</code></td>
-                        <td>Игровые эффекты (копка, шаги, взрывы)</td>
+                        <td>Звуки копки, взрывов, механизмов</td>
                         <td><code>Audio_SFX</code></td>
                     </tr>
                     <tr>
                         <td><code>Music</code></td>
                         <td><code>bus:/music</code></td>
-                        <td>Фоновые музыкальные треки</td>
+                        <td>Музыкальное сопровождение</td>
                         <td><code>Audio_Music</code></td>
                     </tr>
                     <tr>
                         <td><code>Voice</code></td>
                         <td><code>bus:/voice</code></td>
-                        <td>Голоса персонажей и диктора</td>
+                        <td>Озвучка персонажей и сообщений</td>
                         <td><code>Audio_Voice</code></td>
                     </tr>
                     <tr>
                         <td><code>Ambience</code></td>
                         <td><code>bus:/ambience</code></td>
-                        <td>Эмбиент окружения (пещеры, эхо, ветер)</td>
+                        <td>Фоновые шумы пещер, эхо, лава</td>
                         <td><code>Audio_Ambience</code></td>
                     </tr>
                     <tr>
                         <td><code>UI</code></td>
                         <td><code>bus:/ui</code></td>
-                        <td>Интерфейс, клики, открываемые окна</td>
+                        <td>Звуки интерфейса, клики, модалки</td>
                         <td><code>Audio_UI</code></td>
                     </tr>
                 </tbody>
             </table>
         </section>
 
-        <!-- Обработка сетевых SFX -->
+        <!-- API Синглтона -->
         <section>
-            <h2>Обработка сетевых SFX</h2>
-            <p>В <a href="../Assets/Scripts/Game/Managers/ServerAudioEventManager.cs"
-                    class="class-ref">ServerAudioEventManager</a> при получении <code>SFXPacket</code> воспроизведение
-                FMOD-звуков выполняется через <code>AudioSystem.Instance.PlayAt()</code> в мировых координатах, а
-                визуальные эффекты рендерятся через <code>VFXPool.PooledSlot</code>.</p>
+            <h2>5. Программирование вызовов (AudioSystem C# API)</h2>
+            <pre><code><span class="c-comment">// 2D UI звук</span>
+AudioSystem.Instance.Play2D(<span class="c-string">"ui_click"</span>);
+
+// 3D звук с нативной привязкой к роботу
+AudioSystem.Instance.PlayAttached(<span class="c-string">"robot_engine"</span>, gameObject);
+
+// Акустический FMOD Snapshot
+var snapshot = AudioSystem.Instance.PlaySnapshot(<span class="c-string">"snapshot:/Cave_Ambient"</span>);
+
+// Глобальный параметр FMOD (глубина шахты)
+AudioSystem.Instance.SetGlobalParameter(<span class="c-string">"Depth"</span>, <span class="c-num">350f</span>);
+
+// Установка громкости шины SFX
+AudioSystem.Instance.SetBusVolume(AudioBusType.SFX, <span class="c-num">0.8f</span>);</code></pre>
         </section>
     </main>
 

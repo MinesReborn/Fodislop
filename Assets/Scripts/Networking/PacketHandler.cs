@@ -1,12 +1,14 @@
 using System.Collections.Generic;
 using System.Linq;
-using Fodinae.Scripts.Audio;
+using Fodinae.Scripts.Networking.Processors;
+using Fodinae.Scripts.Core.Interfaces;
 using Fodinae.Scripts.Game;
 using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Player;
 using Fodinae.Scripts.UI;
 using Fodinae.UI;
 using Fodinae.UI.Binding;
+using VContainer;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets.Connection;
 using MinesServer.Networking.Client.Packets.GUI;
@@ -28,51 +30,46 @@ using UnityEngine.UIElements;
 
 namespace Fodinae.Scripts.Networking
 {
+    #pragma warning disable CS0649
     public partial class PacketHandler : MonoBehaviour
     {
         public static PacketHandler Instance { get; private set; }
 
-        public static bool IsInputBlocked => Instance != null && (Instance._openWindows.Count > 0 || Instance._modalWindowHandler?.IsShowing == true || PauseMenu.IsMenuOpen);
-        public static string TopWindowTag => Instance?._openWindows.Count > 0 ? Instance._openWindows[^1].tag : null;
+        public static bool IsInputBlocked => Instance != null && (Instance._windowProcessor.HasOpenWindows || Instance._windowProcessor.IsModalShowing || PauseMenu.IsMenuOpen);
+        public static string TopWindowTag => Instance?._windowProcessor.TopWindowTag;
 
-        private bool _isInitialized = false;
-        private int _packetCount = 0;
-        private int _worldInitPacketsReceived = 0;
-        private int _mapRegionPacketsReceived = 0;
-        private UIDocument _uiDocument;
-        private ModalWindowHandler _modalWindowHandler;
-        private readonly List<(string tag, VisualElement root, VisualElement overlay, WindowBinding binding, List<VisualElement> clickableElements)> _openWindows = new();
+        private static readonly WorldInitProcessor WorldInit = new();
+        private static readonly RobotInfoProcessor RobotInfo = new();
+        private static readonly MapRegionProcessor MapRegion = new();
+        private static readonly AudioPacketProcessor Audio = new();
+        private static readonly PlayerInfoProcessor PlayerInfo = new();
+        private static readonly PlayerStatsProcessor PlayerStats = new();
+        private static readonly PlayerStateProcessor PlayerState = new();
+        private static readonly RobotPositionProcessor RobotPosition = new();
+        private static readonly ChatProcessor Chat = new();
+        private static readonly StatusProcessor Status = new();
+        private static readonly InventoryProcessor Inventory = new();
+        private static readonly ClanProcessor Clan = new();
+        private static readonly MissionProcessor Mission = new();
+        private static readonly PackProcessor Pack = new();
+        private readonly WindowPacketProcessor _windowProcessor = new();
+        private bool _isInitialized;
 
-        public void HandleWorldInitPacket(WorldInitPacket worldInitPacket)
-        {
-            _packetCount++;
-            _worldInitPacketsReceived++;
-            Debug.Log($"[PacketHandler] Processing WorldInitPacket #{_worldInitPacketsReceived}");
-            Debug.Log($"[PacketHandler] World: {worldInitPacket.DisplayName} ({worldInitPacket.CodeName}) [{worldInitPacket.Width}x{worldInitPacket.Height}]");
-
-            try
-            {
-                // Call MapManager.LoadWorldInit immediately
-                MapManager.Instance?.LoadWorldInit(worldInitPacket);
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogError($"[PacketHandler] Error processing WorldInitPacket: {ex.Message}");
-            }
-        }
-
-        public string GetStatistics()
-        {
-            return $"[PacketHandler Stats] Total: {_packetCount}, WorldInit: {_worldInitPacketsReceived}, MapRegion: {_mapRegionPacketsReceived}, Initialized: {_isInitialized}";
-        }
+        private INetworkService _networkService;
 
         protected virtual void Awake()
         {
+            if (Instance != null && Instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
             Instance = this;
             Debug.Log("[PacketHandler] Starting initialization...");
 
             // Verify Dependencies
-            if (MapManager.Instance == null)
+            if (MapManager.Instance is null)
             {
                 Debug.LogError("[PacketHandler] MapManager not found - cannot process world initialization");
                 return;
@@ -84,78 +81,87 @@ namespace Fodinae.Scripts.Networking
                 return;
             }
 
-            _uiDocument = FindAnyObjectByType<UIDocument>();
-            if (_uiDocument == null)
+            var uiDocument = FindAnyObjectByType<UIDocument>();
+            if (uiDocument != null)
             {
-                Debug.LogWarning("[PacketHandler] UIDocument not found - window packets will not be displayed");
-            }
-            else
-            {
-                _modalWindowHandler = new ModalWindowHandler(_uiDocument);
+                var mwh = new ModalWindowHandler(uiDocument);
+                _windowProcessor.Initialize(uiDocument, mwh);
             }
 
             // Subscribe to events via NetworkService
-            var ns = NetworkService.Instance;
-            if (ns != null)
-            {
-                ns.Subscribe<WorldInitPacket>(HandleWorldInitPacket);
-                ns.Subscribe<HBPacket>(HandleHBPacket);
-                ns.Subscribe<RobotInfoPacket>(HandleRobotInfoPacket);
-                ns.Subscribe<PlayerInfoPacket>(HandlePlayerInfoPacket);
-                ns.Subscribe<MovementSpeedPacket>(HandleMovementSpeedPacket);
-                ns.Subscribe<OpenWindowPacket>(HandleOpenWindowPacket);
-                ns.Subscribe<CloseWindowPacket>(HandleCloseWindowPacket);
-                ns.Subscribe<RobotPositionPacket>(HandleRobotPositionPacket);
-                ns.Subscribe<MapRegionPacket>(HandleMapRegionPacket);
-                ns.Subscribe<PackPacket>(HandlePackPacket);
-                ns.Subscribe<RemovePackPacket>(HandleRemovePackPacket);
-
-                // Player stats
-                ns.Subscribe<LevelPacket>(HandleLevelPacket);
-                ns.Subscribe<HealthPacket>(HandleHealthPacket);
-                ns.Subscribe<CurrencyPacket>(HandleCurrencyPacket);
-                ns.Subscribe<GeologyPacket>(HandleGeologyPacket);
-                ns.Subscribe<BasketPacket>(HandleBasketPacket);
-
-                ns.Subscribe<AutoMineStatePacket>(HandleAutoMineStatePacket);
-                ns.Subscribe<AggressionStatePacket>(HandleAggressionStatePacket);
-                ns.Subscribe<SkillProgressPacket>(HandleSkillProgressPacket);
-                ns.Subscribe<ChatMessageListPacket>(HandleChatMessageList);
-                ns.Subscribe<ChatListPacket>(HandleChatList);
-                ns.Subscribe<LocalChatMessagePacket>(HandleLocalChatMessage);
-                ns.Subscribe<ChatMutePacket>(HandleChatMute);
-
-                ns.Subscribe<OnlinePacket>(HandleOnlinePacket);
-                ns.Subscribe<PingPacket>(HandlePingPacket);
-
-                ns.Subscribe<OutdatedClientPacket>(HandleOutdatedClient);
-                ns.Subscribe<SFXPacket>(HandleSFXPacket);
-                ns.Subscribe<InventoryPacket>(HandleInventoryPacket);
-                ns.Subscribe<MinesServer.Networking.Server.Packets.Inventory.SelectItemPacket>(HandleServerSelectItem);
-                ns.Subscribe<MinesServer.Networking.Server.Packets.Inventory.DeselectItemPacket>(HandleServerDeselect);
-                ns.Subscribe<DailyBonusStatePacket>(HandleDailyBonusStatePacket);
-                ns.Subscribe<TeleportPacket>(HandleTeleportPacket);
-                ns.Subscribe<AddStatusLinePacket>(HandleAddStatusLine);
-                ns.Subscribe<ClearStatusLinePacket>(HandleClearStatusLine);
-                ns.Subscribe<ClearStatusPacket>(HandleClearStatus);
-                ns.Subscribe<ModalWindowPacket>(HandleModalWindowPacket);
-                ns.Subscribe<ShowClanPacket>(HandleShowClanPacket);
-                ns.Subscribe<HideClanPacket>(HandleHideClanPacket);
-                ns.Subscribe<MaxDepthPacket>(HandleMaxDepthPacket);
-                ns.Subscribe<MissionInitPacket>(HandleMissionInitPacket);
-                ns.Subscribe<MissionProgressPacket>(HandleMissionProgressPacket);
-                ns.Subscribe<AuthTokenPacket>(HandleAuthTokenPacket);
-            }
+            TrySubscribeToNetworkService();
 
             var mm = MapManager.Instance;
             if (mm != null)
             {
                 mm.OnWorldInitialized += OnWorldInitialized;
-                mm.OnWorldDataLoaded += OnWorldDataLoaded;
             }
 
-            _isInitialized = true;
             Debug.Log("[PacketHandler] Initialization complete - ready to receive packets");
+            _isInitialized = true;
+        }
+
+        protected void Start()
+        {
+            TrySubscribeToNetworkService();
+        }
+
+        private void TrySubscribeToNetworkService()
+        {
+            if (_networkService != null)
+            {
+                return;
+            }
+
+            _networkService = NetworkService.Instance;
+            if (_networkService == null)
+            {
+                return;
+            }
+
+            _networkService.Subscribe<WorldInitPacket>(WorldInit.Process);
+            _networkService.Subscribe<RobotInfoPacket>(RobotInfo.Process);
+            _networkService.Subscribe<PlayerInfoPacket>(PlayerInfo.Process);
+            _networkService.Subscribe<MovementSpeedPacket>(PlayerInfo.Process);
+            _networkService.Subscribe<OpenWindowPacket>(_windowProcessor.Process);
+            _networkService.Subscribe<CloseWindowPacket>(_windowProcessor.Process);
+            _networkService.Subscribe<RobotPositionPacket>(RobotPosition.Process);
+            _networkService.Subscribe<MapRegionPacket>(MapRegion.Process);
+            _networkService.Subscribe<PackPacket>(Pack.Process);
+            _networkService.Subscribe<RemovePackPacket>(Pack.Process);
+
+            _networkService.Subscribe<LevelPacket>(PlayerStats.Process);
+            _networkService.Subscribe<HealthPacket>(PlayerStats.Process);
+            _networkService.Subscribe<CurrencyPacket>(PlayerStats.Process);
+            _networkService.Subscribe<GeologyPacket>(PlayerStats.Process);
+            _networkService.Subscribe<BasketPacket>(PlayerStats.Process);
+            _networkService.Subscribe<MaxDepthPacket>(PlayerStats.Process);
+
+            _networkService.Subscribe<AutoMineStatePacket>(PlayerState.Process);
+            _networkService.Subscribe<AggressionStatePacket>(PlayerState.Process);
+            _networkService.Subscribe<SkillProgressPacket>(PlayerStats.Process);
+            _networkService.Subscribe<DailyBonusStatePacket>(PlayerStats.Process);
+            _networkService.Subscribe<TeleportPacket>(PlayerInfo.Process);
+            _networkService.Subscribe<ChatMessageListPacket>(Chat.Process);
+            _networkService.Subscribe<LocalChatMessagePacket>(Chat.Process);
+            _networkService.Subscribe<ChatMutePacket>(Chat.Process);
+
+            _networkService.Subscribe<OnlinePacket>(Status.Process);
+            _networkService.Subscribe<PingPacket>(Status.Process);
+            _networkService.Subscribe<OutdatedClientPacket>(Status.Process);
+            _networkService.Subscribe<AudioPacket>(Audio.Process);
+            _networkService.Subscribe<InventoryPacket>(Inventory.Process);
+            _networkService.Subscribe<MinesServer.Networking.Server.Packets.Inventory.SelectItemPacket>(Inventory.Process);
+            _networkService.Subscribe<MinesServer.Networking.Server.Packets.Inventory.DeselectItemPacket>(Inventory.Process);
+            _networkService.Subscribe<AddStatusLinePacket>(Status.Process);
+            _networkService.Subscribe<ClearStatusLinePacket>(Status.Process);
+            _networkService.Subscribe<ClearStatusPacket>(Status.Process);
+            _networkService.Subscribe<ModalWindowPacket>(_windowProcessor.HandleModalWindow);
+            _networkService.Subscribe<ShowClanPacket>(Clan.Process);
+            _networkService.Subscribe<HideClanPacket>(Clan.Process);
+            _networkService.Subscribe<MissionInitPacket>(Mission.Process);
+            _networkService.Subscribe<MissionProgressPacket>(Mission.Process);
+            _networkService.Subscribe<AuthTokenPacket>(HandleAuthTokenPacket);
         }
 
         protected virtual void OnDestroy()
@@ -165,334 +171,63 @@ namespace Fodinae.Scripts.Networking
                 return;
             }
 
-            var ns = NetworkService.InstanceIfExists;
-            if (ns != null)
+            if (_networkService != null)
             {
-                ns.Unsubscribe<WorldInitPacket>(HandleWorldInitPacket);
-                ns.Unsubscribe<HBPacket>(HandleHBPacket);
-                ns.Unsubscribe<RobotInfoPacket>(HandleRobotInfoPacket);
-                ns.Unsubscribe<PlayerInfoPacket>(HandlePlayerInfoPacket);
-                ns.Unsubscribe<MovementSpeedPacket>(HandleMovementSpeedPacket);
-                ns.Unsubscribe<OpenWindowPacket>(HandleOpenWindowPacket);
-                ns.Unsubscribe<CloseWindowPacket>(HandleCloseWindowPacket);
-                ns.Unsubscribe<RobotPositionPacket>(HandleRobotPositionPacket);
-                ns.Unsubscribe<MapRegionPacket>(HandleMapRegionPacket);
-                ns.Unsubscribe<PackPacket>(HandlePackPacket);
-                ns.Unsubscribe<RemovePackPacket>(HandleRemovePackPacket);
-                ns.Unsubscribe<SkillProgressPacket>(HandleSkillProgressPacket);
-                ns.Unsubscribe<AutoMineStatePacket>(HandleAutoMineStatePacket);
-                ns.Unsubscribe<AggressionStatePacket>(HandleAggressionStatePacket);
-                ns.Unsubscribe<ChatMessageListPacket>(HandleChatMessageList);
-                ns.Unsubscribe<ChatListPacket>(HandleChatList);
-                ns.Unsubscribe<LocalChatMessagePacket>(HandleLocalChatMessage);
-                ns.Unsubscribe<ChatMutePacket>(HandleChatMute);
+                _networkService.Unsubscribe<WorldInitPacket>(WorldInit.Process);
+                _networkService.Unsubscribe<RobotInfoPacket>(RobotInfo.Process);
+                _networkService.Unsubscribe<PlayerInfoPacket>(PlayerInfo.Process);
+                _networkService.Unsubscribe<MovementSpeedPacket>(PlayerInfo.Process);
+                _networkService.Unsubscribe<OpenWindowPacket>(_windowProcessor.Process);
+                _networkService.Unsubscribe<CloseWindowPacket>(_windowProcessor.Process);
+                _networkService.Unsubscribe<RobotPositionPacket>(RobotPosition.Process);
+                _networkService.Unsubscribe<MapRegionPacket>(MapRegion.Process);
+                _networkService.Unsubscribe<PackPacket>(Pack.Process);
+                _networkService.Unsubscribe<RemovePackPacket>(Pack.Process);
+                _networkService.Unsubscribe<SkillProgressPacket>(PlayerStats.Process);
+                _networkService.Unsubscribe<AutoMineStatePacket>(PlayerState.Process);
+                _networkService.Unsubscribe<AggressionStatePacket>(PlayerState.Process);
+                _networkService.Unsubscribe<ChatMessageListPacket>(Chat.Process);
+                _networkService.Unsubscribe<LocalChatMessagePacket>(Chat.Process);
+                _networkService.Unsubscribe<ChatMutePacket>(Chat.Process);
 
-                ns.Unsubscribe<LevelPacket>(HandleLevelPacket);
-                ns.Unsubscribe<HealthPacket>(HandleHealthPacket);
-                ns.Unsubscribe<CurrencyPacket>(HandleCurrencyPacket);
-                ns.Unsubscribe<GeologyPacket>(HandleGeologyPacket);
-                ns.Unsubscribe<BasketPacket>(HandleBasketPacket);
+                _networkService.Unsubscribe<LevelPacket>(PlayerStats.Process);
+                _networkService.Unsubscribe<HealthPacket>(PlayerStats.Process);
+                _networkService.Unsubscribe<CurrencyPacket>(PlayerStats.Process);
+                _networkService.Unsubscribe<GeologyPacket>(PlayerStats.Process);
+                _networkService.Unsubscribe<BasketPacket>(PlayerStats.Process);
 
-                ns.Unsubscribe<OnlinePacket>(HandleOnlinePacket);
-                ns.Unsubscribe<PingPacket>(HandlePingPacket);
+                _networkService.Unsubscribe<OnlinePacket>(Status.Process);
+                _networkService.Unsubscribe<PingPacket>(Status.Process);
 
-                ns.Unsubscribe<OutdatedClientPacket>(HandleOutdatedClient);
-                ns.Unsubscribe<SFXPacket>(HandleSFXPacket);
-                ns.Unsubscribe<InventoryPacket>(HandleInventoryPacket);
-                ns.Unsubscribe<MinesServer.Networking.Server.Packets.Inventory.SelectItemPacket>(HandleServerSelectItem);
-                ns.Unsubscribe<MinesServer.Networking.Server.Packets.Inventory.DeselectItemPacket>(HandleServerDeselect);
-                ns.Unsubscribe<DailyBonusStatePacket>(HandleDailyBonusStatePacket);
-                ns.Unsubscribe<TeleportPacket>(HandleTeleportPacket);
-                ns.Unsubscribe<AddStatusLinePacket>(HandleAddStatusLine);
-                ns.Unsubscribe<ClearStatusLinePacket>(HandleClearStatusLine);
-                ns.Unsubscribe<ClearStatusPacket>(HandleClearStatus);
-                ns.Unsubscribe<ModalWindowPacket>(HandleModalWindowPacket);
-                ns.Unsubscribe<ShowClanPacket>(HandleShowClanPacket);
-                ns.Unsubscribe<HideClanPacket>(HandleHideClanPacket);
-                ns.Unsubscribe<MaxDepthPacket>(HandleMaxDepthPacket);
-                ns.Unsubscribe<MissionInitPacket>(HandleMissionInitPacket);
-                ns.Unsubscribe<MissionProgressPacket>(HandleMissionProgressPacket);
-                ns.Unsubscribe<AuthTokenPacket>(HandleAuthTokenPacket);
+                _networkService.Unsubscribe<OutdatedClientPacket>(Status.Process);
+                _networkService.Unsubscribe<AudioPacket>(Audio.Process);
+                _networkService.Unsubscribe<InventoryPacket>(Inventory.Process);
+                _networkService.Unsubscribe<MinesServer.Networking.Server.Packets.Inventory.SelectItemPacket>(Inventory.Process);
+                _networkService.Unsubscribe<MinesServer.Networking.Server.Packets.Inventory.DeselectItemPacket>(Inventory.Process);
+                _networkService.Unsubscribe<DailyBonusStatePacket>(PlayerStats.Process);
+                _networkService.Unsubscribe<TeleportPacket>(PlayerInfo.Process);
+                _networkService.Unsubscribe<AddStatusLinePacket>(Status.Process);
+                _networkService.Unsubscribe<ClearStatusLinePacket>(Status.Process);
+                _networkService.Unsubscribe<ClearStatusPacket>(Status.Process);
+                _networkService.Unsubscribe<ModalWindowPacket>(_windowProcessor.HandleModalWindow);
+                _networkService.Unsubscribe<ShowClanPacket>(Clan.Process);
+                _networkService.Unsubscribe<HideClanPacket>(Clan.Process);
+                _networkService.Unsubscribe<MaxDepthPacket>(PlayerStats.Process);
+                _networkService.Unsubscribe<MissionInitPacket>(Mission.Process);
+                _networkService.Unsubscribe<MissionProgressPacket>(Mission.Process);
+                _networkService.Unsubscribe<AuthTokenPacket>(HandleAuthTokenPacket);
             }
 
             // Close modal and any open windows
-            _modalWindowHandler?.Hide();
-
-            foreach (var (_, root, overlay, binding, _) in _openWindows)
-            {
-                binding.Dispose();
-                if (_uiDocument != null)
-                {
-                    if (overlay.parent != null)
-                    {
-                        overlay.parent.Remove(overlay);
-                    }
-
-                    _uiDocument.rootVisualElement.Remove(root);
-                }
-            }
-
-            _openWindows.Clear();
+            _windowProcessor.Dispose();
 
             var mm = MapManager.InstanceIfExists;
             if (mm != null)
             {
                 mm.OnWorldInitialized -= OnWorldInitialized;
-                mm.OnWorldDataLoaded -= OnWorldDataLoaded;
             }
 
-            Debug.Log($"[PacketHandler] Destroyed - processed {_packetCount} total packets ({_worldInitPacketsReceived} WorldInit, {_mapRegionPacketsReceived} MapRegion)");
-        }
-
-        private void HandleRobotInfoPacket(RobotInfoPacket packet)
-        {
-            _packetCount++;
-
-            RobotManager.Instance?.UpdateRobotMetadata(packet.BotId, packet.PlayerId, packet.ClanId, packet.Name, packet.Skin, packet.Tail);
-        }
-
-        private void HandlePlayerInfoPacket(PlayerInfoPacket packet)
-        {
-            _packetCount++;
-
-            var rm = RobotManager.Instance;
-            if (rm != null)
-            {
-                rm.LocalPlayerBotId = packet.BotId;
-            }
-
-            PlayerStatsModel.Instance.SetNickname(packet.Nickname);
-
-            var playerObj = GameObject.FindGameObjectWithTag("Player");
-            if (playerObj != null)
-            {
-                if (playerObj.TryGetComponent<Robot>(out var robot))
-                {
-                    robot.Initialize(packet.BotId);
-                }
-
-                if (playerObj.TryGetComponent<PlayerMovementController>(out var controller))
-                {
-                    controller.Initialize(packet.BotId);
-                }
-            }
-        }
-
-        private void HandleMovementSpeedPacket(MovementSpeedPacket packet)
-        {
-            _packetCount++;
-            Debug.Log($"[PacketHandler] Handling MovementSpeedPacket with {packet.CooldownMap.Count} entries");
-            MapManager.Instance?.UpdateMovementSpeeds(packet);
-        }
-
-        private void HandleRobotPositionPacket(RobotPositionPacket robotPositionPacket)
-        {
-            _packetCount++;
-            var rm = RobotManager.Instance;
-            if (rm != null)
-            {
-                rm.UpdateRobotPosition(robotPositionPacket.BotId, robotPositionPacket.X, robotPositionPacket.Y, robotPositionPacket.Rotation);
-
-                // If this is the local player, update the server position in the movement controller
-                if (robotPositionPacket.BotId != 0 && robotPositionPacket.BotId == rm.LocalPlayerBotId)
-                {
-                    var player = GameObject.FindGameObjectWithTag("Player");
-                    if (player != null)
-                    {
-                        if (player.TryGetComponent<PlayerMovementController>(out var controller))
-                        {
-                            controller.UpdateServerPosition(new Vector2Int(robotPositionPacket.X, robotPositionPacket.Y));
-                        }
-                    }
-                }
-            }
-        }
-
-        private void HandleMapRegionPacket(MapRegionPacket mapRegionPacket)
-        {
-            _packetCount++;
-            _mapRegionPacketsReceived++;
-
-            if (MapStorage.Instance == null || MapStorage.Instance.CellLayer == null)
-            {
-                Debug.LogError("[PacketHandler] MapStorage or CellLayer not available for MapRegion processing");
-                return;
-            }
-
-            int expectedPayloadLength = (mapRegionPacket.Width + 1) * (mapRegionPacket.Height + 1);
-            if (mapRegionPacket.Payload == null || mapRegionPacket.Payload.Length != expectedPayloadLength)
-            {
-                Debug.LogError($"[PacketHandler] MapRegionPacket has malformed payload: expected {expectedPayloadLength} cells, got {mapRegionPacket.Payload?.Length.ToString() ?? "null"}. Discarding.");
-                return;
-            }
-
-            try
-            {
-                int index = 0;
-                for (int y = 0; y <= mapRegionPacket.Height; y++)
-                {
-                    for (int x = 0; x <= mapRegionPacket.Width; x++)
-                    {
-                        if (index < mapRegionPacket.Payload.Length)
-                        {
-                            MapStorage.Instance.SetCell(mapRegionPacket.X + x, mapRegionPacket.Y + y, mapRegionPacket.Payload[index++]);
-                        }
-                    }
-                }
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogError($"[PacketHandler] Error processing MapRegionPacket: {ex.Message}");
-            }
-        }
-
-        private void HandlePackPacket(PackPacket packPacket)
-        {
-            _packetCount++;
-            Debug.Log($"[PacketHandler] Processing PackPacket: X={packPacket.X}, Y={packPacket.Y}, Type={packPacket.PackCode}");
-            PackManager.Instance?.AddOrUpdatePack(packPacket.X, packPacket.Y, packPacket.PackCode, packPacket.Variant, packPacket.LinkedClan);
-        }
-
-        private void HandleRemovePackPacket(RemovePackPacket removePackPacket)
-        {
-            _packetCount++;
-            Debug.Log($"[PacketHandler] Processing RemovePackPacket: X={removePackPacket.X}, Y={removePackPacket.Y}");
-            PackManager.Instance?.RemovePack(removePackPacket.X, removePackPacket.Y);
-        }
-
-        private void HandleHBPacket(HBPacket hbPacket)
-        {
-            _packetCount++;
-            if (hbPacket.Payload == null)
-            {
-                return;
-            }
-
-            bool hasMapData = hbPacket.Payload.Any(p => p is MapRegionPacket);
-
-            // Only trigger world data loaded event if we received at least one MapRegion packet in this heartbeat
-            if (hasMapData)
-            {
-                MapManager.Instance?.OnWorldDataLoaded?.Invoke();
-            }
-        }
-
-        private void HandleLevelPacket(LevelPacket packet)
-        {
-            _packetCount++;
-            PlayerStatsModel.Instance.SetLevel(packet.Level);
-        }
-
-        private void HandleHealthPacket(HealthPacket packet)
-        {
-            _packetCount++;
-            PlayerStatsModel.Instance.SetHealth(packet.Current, packet.Max);
-        }
-
-        private void HandleCurrencyPacket(CurrencyPacket packet)
-        {
-            _packetCount++;
-            PlayerStatsModel.Instance.SetCurrency(packet.Money, packet.Creds);
-        }
-
-        private void HandleGeologyPacket(GeologyPacket packet)
-        {
-            _packetCount++;
-            PlayerStatsModel.Instance.SetGeology(packet.Current, packet.Max, packet.Cell, packet.Text);
-        }
-
-        private void HandleBasketPacket(BasketPacket packet)
-        {
-            _packetCount++;
-            PlayerStatsModel.Instance.SetBasket(packet.Capacity, packet.Contents);
-        }
-
-        private void HandleAutoMineStatePacket(AutoMineStatePacket packet)
-        {
-            var player = FindAnyObjectByType<PlayerMovementController>();
-            if (player != null)
-            {
-                player.AutoDig = packet.Enabled;
-            }
-        }
-
-        private void HandleAggressionStatePacket(AggressionStatePacket packet)
-        {
-            Debug.Log($"[PacketHandler] AggressionStatePacket: {packet.Enabled}");
-            var player = FindAnyObjectByType<PlayerMovementController>();
-            if (player != null)
-            {
-                player.Aggression = packet.Enabled;
-            }
-        }
-
-        private void HandleDailyBonusStatePacket(DailyBonusStatePacket packet)
-        {
-            Debug.Log($"[PacketHandler] DailyBonusStatePacket: {packet.Enabled}");
-            PlayerStatsModel.Instance.SetDailyBonusAvailable(packet.Enabled);
-        }
-
-        private void HandleTeleportPacket(TeleportPacket packet)
-        {
-            _packetCount++;
-            Debug.Log($"[PacketHandler] TeleportPacket: X={packet.X}, Y={packet.Y}, Smooth={packet.SmoothTransition}");
-
-            var player = FindAnyObjectByType<PlayerMovementController>();
-            if (player == null)
-            {
-                return;
-            }
-
-            var mm = MapManager.Instance;
-            if (mm == null)
-            {
-                return;
-            }
-
-            int unityX = packet.X;
-            int unityY = packet.Y;
-
-            player.transform.position = new Vector3(unityX + 0.5f, unityY + 0.5f, 0);
-            player.UpdateServerPosition(new Vector2Int(packet.X, packet.Y));
-        }
-
-        private void HandleSkillProgressPacket(SkillProgressPacket packet)
-        {
-            PlayerStatsModel.Instance.SetSkillProgress(packet.Skill, packet.Current, packet.Max);
-        }
-
-        private void HandleChatMessageList(ChatMessageListPacket packet)
-        {
-            _packetCount++;
-            foreach (var msg in packet.Messages)
-            {
-                if (GlobalChatUI.Instance != null)
-                {
-                    GlobalChatUI.Instance.AddMessage(msg);
-                }
-            }
-        }
-
-        private void HandleChatList(ChatListPacket packet)
-        {
-            _packetCount++;
-            Debug.Log($"[PacketHandler] Received {packet.Chats.Count} chat channels");
-        }
-
-        private void HandleLocalChatMessage(LocalChatMessagePacket packet)
-        {
-            _packetCount++;
-            Debug.Log($"[PacketHandler] Local chat from BotId={packet.BotId}: {packet.Text}");
-            if (FloatingChatManager.Instance != null)
-            {
-                FloatingChatManager.Instance.ShowLocalChat(packet);
-            }
-        }
-
-        private void HandleChatMute(ChatMutePacket packet)
-        {
-            _packetCount++;
-            Debug.Log($"[PacketHandler] Chat mute until {packet.EndsAt}: {packet.Reason}");
+            Debug.Log("[PacketHandler] Destroyed");
         }
 
         private void OnWorldInitialized()
@@ -505,40 +240,8 @@ namespace Fodinae.Scripts.Networking
             }
         }
 
-        private void HandleOnlinePacket(OnlinePacket packet)
-        {
-            _packetCount++;
-            var fps = FindAnyObjectByType<FPSCounter>();
-            if (fps != null)
-            {
-                fps.SetOnline((int)packet.Players, (int)packet.Programmator);
-            }
-        }
-
-        private void HandlePingPacket(PingPacket packet)
-        {
-            _packetCount++;
-            var fps = FindAnyObjectByType<FPSCounter>();
-            if (fps != null)
-            {
-                fps.SetPing(packet.PreviousPing);
-            }
-
-            NetworkService.Send(new PongPacket(packet.SentAt));
-        }
-
-        private void HandleOutdatedClient(OutdatedClientPacket packet)
-        {
-            _packetCount++;
-            Debug.LogError($"[PacketHandler] Клиент устарел: {packet.Name}");
-            Debug.LogError($"[PacketHandler] {packet.Description}");
-            Debug.LogError($"[PacketHandler] Скачать: {packet.UpdateURL}");
-            Application.OpenURL(packet.UpdateURL);
-        }
-
         private void HandleAuthTokenPacket(AuthTokenPacket packet)
         {
-            _packetCount++;
             string newToken = packet.Token;
             if (string.IsNullOrEmpty(newToken))
             {
@@ -555,187 +258,6 @@ namespace Fodinae.Scripts.Networking
             }
 
             Debug.Log($"[Auth] Token received and saved, length={newToken.Length}");
-        }
-
-        private void HandleInventoryPacket(InventoryPacket packet)
-        {
-            var model = InventoryModel.Instance;
-            var remaining = new Dictionary<ItemType, long>(packet.Changes);
-
-            for (int i = 0; i < InventoryModel.TOTALSLOTS; i++)
-            {
-                var existing = model.GetSlot(i);
-                if (existing == null)
-                {
-                    continue;
-                }
-
-                if (remaining.TryGetValue(existing.ItemType, out long qty))
-                {
-                    if (qty <= 0)
-                    {
-                        model.SetSlot(i, null);
-                    }
-                    else
-                    {
-                        existing.Quantity = (int)qty;
-                        model.SetSlot(i, existing);
-                    }
-
-                    remaining.Remove(existing.ItemType);
-                }
-            }
-
-            foreach (var kvp in remaining)
-            {
-                if (kvp.Value <= 0)
-                {
-                    continue;
-                }
-
-                for (int i = 0; i < InventoryModel.TOTALSLOTS; i++)
-                {
-                    if (model.GetSlot(i) != null)
-                    {
-                        continue;
-                    }
-
-                    var item = new ItemData(
-                        kvp.Key.ToString(),
-                        Color.gray,
-                        (int)kvp.Value);
-                    item.ItemType = kvp.Key;
-                    item.Icon = ItemRegistry.GetIcon(kvp.Key);
-                    model.SetSlot(i, item);
-                    break;
-                }
-            }
-        }
-
-        private void HandleServerSelectItem(MinesServer.Networking.Server.Packets.Inventory.SelectItemPacket packet)
-        {
-            _packetCount++;
-            var model = InventoryModel.Instance;
-            int slot = model.SelectedSlot;
-            if (slot < 0)
-            {
-                return;
-            }
-
-            var item = model.GetSlot(slot);
-            if (item == null)
-            {
-                return;
-            }
-
-            item.Name = packet.Name;
-            item.Description = packet.Description;
-            model.SetSlot(slot, item);
-        }
-
-        private void HandleServerDeselect(MinesServer.Networking.Server.Packets.Inventory.DeselectItemPacket packet)
-        {
-            _packetCount++;
-            Debug.Log("[PacketHandler] Server deselected item");
-            InventoryModel.Instance.ClearSelection();
-        }
-
-        private void HandleSFXPacket(SFXPacket packet)
-        {
-            _packetCount++;
-            ServerAudioEventManager.Instance?.PlayEffect(packet);
-        }
-
-        private void HandleAddStatusLine(AddStatusLinePacket packet)
-        {
-            _packetCount++;
-            var sysColor = packet.Color;
-            var unityColor = new Color(sysColor.R / 255f, sysColor.G / 255f, sysColor.B / 255f, sysColor.A / 255f);
-            long expiry = 0;
-            if (packet.Text.Count > 1)
-            {
-                long.TryParse(packet.Text[1], out expiry);
-            }
-
-            PlayerStatsModel.Instance.AddStatusLine(packet.Tag, packet.Text.ToArray(), unityColor, packet.BlinkRate, expiry);
-        }
-
-        private void HandleClearStatusLine(ClearStatusLinePacket packet)
-        {
-            _packetCount++;
-            PlayerStatsModel.Instance.RemoveStatusLine(packet.Tag);
-        }
-
-        private void HandleClearStatus(ClearStatusPacket packet)
-        {
-            _packetCount++;
-            PlayerStatsModel.Instance.ClearStatusLines();
-        }
-
-        private void HandleShowClanPacket(ShowClanPacket packet)
-        {
-            _packetCount++;
-            Debug.Log($"[PacketHandler] ShowClanPacket: ClanId={packet.ClanId}");
-            PlayerStatsModel.Instance.SetClanId(packet.ClanId);
-            var player = GameObject.FindGameObjectWithTag("Player");
-            if (player != null)
-            {
-                if (player.TryGetComponent<Robot>(out var robot))
-                {
-                    robot.SetClanBadge(packet.ClanId);
-                }
-            }
-        }
-
-        private void HandleHideClanPacket(HideClanPacket packet)
-        {
-            _packetCount++;
-            Debug.Log("[PacketHandler] HideClanPacket");
-            PlayerStatsModel.Instance.SetClanId(0);
-            var player = GameObject.FindGameObjectWithTag("Player");
-            if (player != null)
-            {
-                if (player.TryGetComponent<Robot>(out var robot))
-                {
-                    robot.ClearClanBadge();
-                }
-            }
-        }
-
-        private void HandleMaxDepthPacket(MaxDepthPacket packet)
-        {
-            _packetCount++;
-            Debug.Log($"[PacketHandler] MaxDepthPacket: Depth={packet.Depth}");
-            PlayerStatsModel.Instance.SetMaxDepth(packet.Depth);
-        }
-
-        private void HandleMissionInitPacket(MissionInitPacket packet)
-        {
-            _packetCount++;
-            Debug.Log($"[PacketHandler] MissionInitPacket: {packet.Title}");
-            if (string.IsNullOrEmpty(packet.Title))
-            {
-                PlayerStatsModel.Instance.ClearMission();
-                return;
-            }
-
-            PlayerStatsModel.Instance.SetMission(packet.Title, packet.Description, 0);
-        }
-
-        private void HandleMissionProgressPacket(MissionProgressPacket packet)
-        {
-            _packetCount++;
-            Debug.Log($"[PacketHandler] MissionProgressPacket: {packet.Current}/{packet.Max}");
-            var stats = PlayerStatsModel.Instance;
-            stats.SetMissionProgress(packet.Current);
-            if (packet.Max > 0)
-            {
-                stats.SetMissionMaxProgress(packet.Max);
-            }
-        }
-
-        private void OnWorldDataLoaded()
-        {
         }
     }
 }

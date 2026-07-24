@@ -1,0 +1,11 @@
+/* Fodinae Runtime Theme */
+@import url("unity-theme://default");
+@import url("../Resources/Styles/Theme.uss");
+@import url("../Resources/Styles/Panel.uss");
+@import url("../Resources/Styles/Button.uss");
+@import url("../Resources/Styles/Input.uss");
+@import url("../Resources/Styles/HUD.uss");
+@import url("../Resources/Styles/Chat.uss");
+@import url("../Resources/Styles/Inventory.uss");
+@import url("../Resources/Styles/Programmator.uss");
+@import url("../Resources/Styles/Modal.uss");

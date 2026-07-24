@@ -191,6 +191,14 @@ dotnet_diagnostic.UNT0035.severity = none     # Vector2 -> Vector3 не спам
 dotnet_diagnostic.UNT0042.severity = none     # Mesh array access in loop — слишком шумно
 dotnet_diagnostic.UNT0043.severity = warning  # Опечатка в conditional compilation symbol
 
+# Vendored VContainer — полностью отключаем внешние анализаторы
+[Assets/Scripts/VContainer/**/*.cs]
+dotnet_diagnostic.SA*.severity = none
+dotnet_diagnostic.CA*.severity = none
+dotnet_diagnostic.RCS*.severity = none
+dotnet_diagnostic.S*.severity = none
+dotnet_diagnostic.UNT*.severity = none
+
 # Шейдеры
 [*.{shader,hlsl,cginc,compute}]
 indent_size = 4

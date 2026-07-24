@@ -3,6 +3,7 @@ using Cysharp.Threading.Tasks;
 using Fodinae.Scripts.Game.Managers;
 using Fodinae.Scripts.Core;
 using Fodinae.Scripts.World;
+using TMPro;
 using UnityEngine;
 
 namespace Fodinae.Scripts.Game
@@ -20,7 +21,7 @@ namespace Fodinae.Scripts.Game
         [SerializeField]
         private SpriteRenderer _spriteRenderer;
         private SpriteRenderer _clanRenderer;
-        private TextMesh _nicknameText;
+        private TextMeshPro _nicknameText;
         [SerializeField]
         private string _nickname;
         [SerializeField]
@@ -143,11 +144,11 @@ namespace Fodinae.Scripts.Game
 
             var textGo = new GameObject("Nickname");
             textGo.transform.SetParent(transform);
-            _nicknameText = textGo.AddComponent<TextMesh>();
-            _nicknameText.anchor = TextAnchor.MiddleLeft;
-            _nicknameText.alignment = TextAlignment.Left;
-            _nicknameText.fontSize = 64;
-            _nicknameText.characterSize = 0.1f;
+            _nicknameText = textGo.AddComponent<TextMeshPro>();
+            _nicknameText.alignment = TextAlignmentOptions.Center;
+            _nicknameText.fontSize = 6.4f;
+            _nicknameText.textWrappingMode = TextWrappingModes.NoWrap;
+            _nicknameText.overflowMode = TextOverflowModes.Overflow;
             _nicknameText.color = Color.white;
 
             var textRenderer = textGo.GetComponent<MeshRenderer>();
@@ -288,7 +289,7 @@ namespace Fodinae.Scripts.Game
         {
             if (_nicknameText != null)
             {
-                _nicknameText.transform.SetPositionAndRotation(transform.position + new Vector3(0.6f, 0.5f, 0), Quaternion.identity);
+                _nicknameText.transform.SetPositionAndRotation(transform.position + new Vector3(0f, 0.5f, 0f), Quaternion.identity);
             }
 
             if (_clanRenderer != null)
@@ -551,12 +552,12 @@ namespace Fodinae.Scripts.Game
 
         private class Tentacle
         {
-            private readonly LineRenderer _line;
-            private readonly Material _material;
+            private LineRenderer _line;
+            private MaterialPropertyBlock _propBlock;
             private readonly Vector3[] _positions;
             private readonly Vector3[] _velocities;
             private readonly float _wiggleOffset;
-            private const int POINT_COUNT = 5; // root + 4 segments
+            private const int POINT_COUNT = 5;
             private const float SMOOTH_TIME = 0.08f;
             private const float MAX_SEGMENT_DIST = 0.2f;
 
@@ -566,27 +567,22 @@ namespace Fodinae.Scripts.Game
                 _positions = new Vector3[POINT_COUNT];
                 _velocities = new Vector3[POINT_COUNT];
 
-                var go = new GameObject($"Tentacle_{wiggleOffset}");
-                go.transform.SetParent(container.transform);
-                _line = go.AddComponent<LineRenderer>();
+                _line = TentaclePool.Get();
+                _line.transform.SetParent(container.transform);
+                _line.transform.localPosition = Vector3.zero;
 
-                _material = new Material(Shader.Find("Sprites/Default"));
-                _material.mainTexture = texture;
+                var sharedMat = SharedMaterialCache.GetForTexture(texture);
+                _line.sharedMaterial = sharedMat;
+                _line.sortingOrder = sortingOrder;
 
-                // Apply texture slicing
+                _propBlock = new MaterialPropertyBlock();
                 float sliceHeight = 1.0f / totalSlices;
-                _material.mainTextureScale = new Vector2(1, sliceHeight);
-                _material.mainTextureOffset = new Vector2(0, sliceIndex * sliceHeight);
-
-                _line.material = _material;
+                _propBlock.SetVector("_MainTex_ST", new Vector4(1, sliceHeight, 0, sliceIndex * sliceHeight));
+                _line.SetPropertyBlock(_propBlock);
 
                 _line.startWidth = 0.15f;
                 _line.endWidth = 0.02f;
-                _line.positionCount = POINT_COUNT;
-                _line.sortingOrder = sortingOrder;
-                _line.textureMode = LineTextureMode.Stretch;
 
-                // Set initial positions
                 for (int i = 0; i < POINT_COUNT; i++)
                 {
                     _positions[i] = container.transform.position;
@@ -619,15 +615,12 @@ namespace Fodinae.Scripts.Game
 
                 for (int i = 1; i < POINT_COUNT; i++)
                 {
-                    // Spring movement
                     _positions[i] = Vector3.SmoothDamp(_positions[i], targetPos, ref _velocities[i], SMOOTH_TIME, 50f, deltaTime);
 
-                    // Wiggle logic
                     float wiggle = Mathf.Sin((Time.time * 15f) + (i * 1.5f) + _wiggleOffset) * 0.1f * movementFactor;
                     Vector3 direction = (_positions[i] - lastPos).normalized;
                     if (direction == Vector3.zero)
                     {
-                        // Default to pointing backwards from the robot's rotation
                         direction = new Vector3(-Mathf.Cos(angleRad), -Mathf.Sin(angleRad), 0);
                     }
 
@@ -635,7 +628,6 @@ namespace Fodinae.Scripts.Game
 
                     _line.SetPosition(i, _positions[i] + (perpendicular * wiggle));
 
-                    // Set target for next segment (moving further along the chain)
                     lastPos = _positions[i];
                     targetPos = _positions[i] + (MAX_SEGMENT_DIST * movementFactor * direction);
                 }
@@ -645,12 +637,10 @@ namespace Fodinae.Scripts.Game
             {
                 if (_line != null)
                 {
-                    Object.Destroy(_line.gameObject);
-                }
-
-                if (_material != null)
-                {
-                    Object.Destroy(_material);
+                    _line.transform.SetParent(null);
+                    _propBlock = null;
+                    TentaclePool.Return(_line);
+                    _line = null;
                 }
             }
         }

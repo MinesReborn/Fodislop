@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using Fodinae.Scripts.UI.HUD.Player.Model;
 using UnityEngine;
 using UnityEngine.UIElements;
+
 
 namespace Fodinae.Scripts.UI.HUD.Controllers
 {

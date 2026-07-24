@@ -10,9 +10,11 @@ namespace Fodinae.Scripts.UI.Programmator
         private VisualElement _popup;
         private VisualElement _gridContainer;
         private VisualElement[,] _cells;
+        private Label[,] _cellLabels;
         private RadialMenu _radial;
         private bool _isOpen;
         private bool _radialShown;
+        private Tooltip _tooltip;
         private const float CELLSIZE = 30f;
         private const float CELL_GAP = 2f;
 
@@ -23,6 +25,9 @@ namespace Fodinae.Scripts.UI.Programmator
             {
                 return;
             }
+
+            _tooltip = new Tooltip();
+            _tooltip.Initialize(_doc);
 
             CreateUI();
             _popup.style.display = DisplayStyle.None;
@@ -112,6 +117,7 @@ namespace Fodinae.Scripts.UI.Programmator
             _gridContainer.style.width = ProgrammatorData.COLS * (CELLSIZE + (CELL_GAP * 2));
 
             _cells = new VisualElement[ProgrammatorData.ROWS, ProgrammatorData.COLS];
+            _cellLabels = new Label[ProgrammatorData.ROWS, ProgrammatorData.COLS];
 
             for (int i = 0; i < ProgrammatorData.ROWS; i++)
             {
@@ -139,6 +145,7 @@ namespace Fodinae.Scripts.UI.Programmator
                     {
                         ProgrammatorData.HoveredCell = (row * ProgrammatorData.COLS) + col;
                         HighlightCell(row, col, true);
+                        ShowCellTooltip(row, col);
                     });
                     cell.RegisterCallback<PointerLeaveEvent>(_ =>
                     {
@@ -147,9 +154,31 @@ namespace Fodinae.Scripts.UI.Programmator
                             HighlightCell(row, col, false);
                             ProgrammatorData.HoveredCell = -1;
                         }
+
+                        _tooltip?.Hide();
                     });
 
+                    cell.RegisterCallback<PointerMoveEvent>(evt =>
+                    {
+                        _tooltip?.UpdatePosition(evt.position);
+                    });
+
+                    var label = new Label();
+                    label.style.fontSize = 8;
+                    label.style.color = Color.white;
+                    label.style.unityTextAlign = TextAnchor.MiddleCenter;
+                    label.style.position = Position.Absolute;
+                    label.style.left = 0;
+                    label.style.right = 0;
+                    label.style.top = 0;
+                    label.style.bottom = 0;
+                    label.style.paddingTop = 0;
+                    label.style.paddingBottom = 0;
+                    label.pickingMode = PickingMode.Ignore;
+                    cell.Add(label);
+
                     _cells[row, col] = cell;
+                    _cellLabels[row, col] = label;
                     _gridContainer.Add(cell);
                 }
             }
@@ -189,6 +218,7 @@ namespace Fodinae.Scripts.UI.Programmator
                       + (row * ProgrammatorData.COLS) + col;
             int id = ProgrammatorData.Codes[idx];
             var cell = _cells[row, col];
+            var label = _cellLabels[row, col];
 
             var tex = ProgrammatorTextureRegistry.GetTexture(id);
             if (tex != null)
@@ -207,6 +237,9 @@ namespace Fodinae.Scripts.UI.Programmator
                 cell.style.backgroundImage = null;
                 cell.style.backgroundColor = new Color(0.3f, 0.1f, 0.1f, 1f);
             }
+
+            string name = ProgrammatorData.OPERATOR_NAMES.TryGetValue(id, out var n) ? n : string.Empty;
+            label.text = name;
         }
 
         private void OnRadialItemClicked(int selectedId)
@@ -220,6 +253,7 @@ namespace Fodinae.Scripts.UI.Programmator
             int col = ProgrammatorData.HoveredCell % ProgrammatorData.COLS;
             int idx = (ProgrammatorData.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
                       + (row * ProgrammatorData.COLS) + col;
+            ProgrammatorData.PushUndo();
             ProgrammatorData.Codes[idx] = selectedId;
             UpdateCell(row, col);
         }
@@ -255,6 +289,24 @@ namespace Fodinae.Scripts.UI.Programmator
                     _radialShown = false;
                 }
             }
+
+            if (Keyboard.current.ctrlKey.isPressed)
+            {
+                if (Keyboard.current.zKey.wasPressedThisFrame)
+                {
+                    if (ProgrammatorData.Undo())
+                    {
+                        RefreshAllCells();
+                    }
+                }
+                else if (Keyboard.current.yKey.wasPressedThisFrame)
+                {
+                    if (ProgrammatorData.Redo())
+                    {
+                        RefreshAllCells();
+                    }
+                }
+            }
         }
 
         public void Show()
@@ -281,6 +333,19 @@ namespace Fodinae.Scripts.UI.Programmator
                     UpdateCell(i, j);
                 }
             }
+        }
+
+        private void ShowCellTooltip(int row, int col)
+        {
+            int idx = (ProgrammatorData.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
+                      + (row * ProgrammatorData.COLS) + col;
+            int opId = ProgrammatorData.Codes[idx];
+            string name = ProgrammatorData.OPERATOR_NAMES.TryGetValue(opId, out var n) ? n : $"Код {opId}";
+            string desc = ProgrammatorData.OPERATOR_DESCRIPTIONS.TryGetValue(opId, out var d) ? d : string.Empty;
+            string text = string.IsNullOrEmpty(desc)
+                ? $"Ячейка [{col},{row}]: {name}"
+                : $"Ячейка [{col},{row}]: {name} — {desc}";
+            _tooltip?.Show(text, Vector2.zero);
         }
     }
 }

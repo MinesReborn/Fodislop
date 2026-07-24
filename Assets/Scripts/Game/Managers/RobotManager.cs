@@ -6,14 +6,19 @@ using UnityEngine;
 
 namespace Fodinae.Scripts.Game.Managers
 {
-    public class RobotManager : SingletonMonoBehaviour<RobotManager>
+    public class RobotManager : MonoBehaviour
     {
+        private static RobotManager _instance;
+        public static RobotManager Instance => _instance;
+        public static RobotManager InstanceIfExists => _instance;
+
         private const string TAG = "[RobotManager]";
-
-        [SerializeField]
-        private GameObject _robotPrefab;
-
         private Dictionary<uint, Robot> _robots = new();
+
+        protected void Awake()
+        {
+            _instance = this;
+        }
 
         public static bool ShowDebugVisuals { get; set; }
 
@@ -57,18 +62,9 @@ namespace Fodinae.Scripts.Game.Managers
                 }
             }
 
-            GameObject robotGo;
-            if (_robotPrefab != null)
-            {
-                robotGo = Instantiate(_robotPrefab, transform);
-            }
-            else
-            {
-                Debug.LogWarning($"{TAG} Robot prefab not assigned, creating empty GameObject for bot {botId}");
-                robotGo = new GameObject($"Robot_{botId}");
-                robotGo.transform.SetParent(transform);
-                robotGo.AddComponent<SpriteRenderer>();
-            }
+            GameObject robotGo = new GameObject($"Robot_{botId}");
+            robotGo.transform.SetParent(transform);
+            robotGo.AddComponent<SpriteRenderer>();
 
             robot = robotGo.GetComponent<Robot>();
             if (robot == null)

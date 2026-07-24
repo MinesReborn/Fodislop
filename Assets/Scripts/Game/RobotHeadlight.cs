@@ -1,8 +1,9 @@
+using Fodinae.Scripts.Player.Logic;
+using MinesServer.Data;
 using UnityEngine;
 
 namespace Fodinae.Scripts.Game
 {
-    [RequireComponent(typeof(Robot))]
     public class RobotHeadlight : MonoBehaviour
     {
         [SerializeField]
@@ -12,13 +13,11 @@ namespace Fodinae.Scripts.Game
         [SerializeField]
         private float _intensity = 1.0f;
 
-        private Robot _robot;
         private float _angleCos;
         private bool _isEnabled = true;
 
         protected void Awake()
         {
-            _robot = GetComponent<Robot>();
             _angleCos = Mathf.Cos(_outerAngle * 0.5f * Mathf.Deg2Rad);
         }
 
@@ -30,18 +29,36 @@ namespace Fodinae.Scripts.Game
         protected void OnDisable()
         {
             _isEnabled = false;
+            Shader.SetGlobalFloat("_HeadlightIntensity", 0f);
+        }
+
+        protected void OnDestroy()
+        {
+            Shader.SetGlobalFloat("_HeadlightIntensity", 0f);
         }
 
         protected void LateUpdate()
         {
             if (!_isEnabled)
             {
+                Shader.SetGlobalFloat("_HeadlightIntensity", 0f);
                 return;
             }
 
-            float angleRad = transform.eulerAngles.z * Mathf.Deg2Rad;
-            Vector2 dir = new Vector2(-Mathf.Sin(angleRad), Mathf.Cos(angleRad));
-            Vector2 pos = (Vector2)transform.position + (dir * 0.5f);
+            var player = PlayerMovementController.LocalPlayer
+                ?? GetComponent<PlayerMovementController>()
+                ?? GetComponentInParent<PlayerMovementController>()
+                ?? FindAnyObjectByType<PlayerMovementController>();
+
+            if (player == null)
+            {
+                // No active player found in scene — disable global headlight intensity to prevent orphan light spots on map
+                Shader.SetGlobalFloat("_HeadlightIntensity", 0f);
+                return;
+            }
+
+            Vector2 dir = player.transform.up;
+            Vector2 pos = (Vector2)player.transform.position + (dir * 0.5f);
 
             Shader.SetGlobalVector("_HeadlightPos", pos);
             Shader.SetGlobalVector("_HeadlightDir", dir);

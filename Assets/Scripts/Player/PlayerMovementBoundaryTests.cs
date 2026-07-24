@@ -1,4 +1,5 @@
 using Fodinae.Scripts.Player;
+using Fodinae.Scripts.Player.Logic;
 using NUnit.Framework;
 using UnityEngine;
 

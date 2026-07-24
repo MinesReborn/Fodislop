@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Fodinae.Scripts.Core;
+using Fodinae.Scripts.Core.Interfaces;
 using Fodinae.Scripts.Networking.Connection;
 using Fodinae.Scripts.Networking.Connection.Client;
 using Fodinae.Scripts.World;
@@ -22,8 +23,13 @@ namespace Fodinae.Scripts
     using static ETagCalculator;
     using static PersistentAssetCache;
 
-    public class ClientAssetLoader : SingletonMonoBehaviour<ClientAssetLoader>
+    [DefaultExecutionOrder(-10000)]
+    public class ClientAssetLoader : MonoBehaviour, IAssetLoader
     {
+        private static ClientAssetLoader _instance;
+        public static ClientAssetLoader Instance => _instance;
+        public static ClientAssetLoader InstanceIfExists => _instance;
+
         public event Action<string, Texture2D> OnTextureLoaded;
 
         private readonly AssetCache _cache = new(LoadBytesFromServerInternal);
@@ -35,8 +41,9 @@ namespace Fodinae.Scripts
         private Texture2D _placeholderTexture;
         private Texture2D _errorTexture;
 
-        protected override void OnAwake()
+        protected void Awake()
         {
+            _instance = this;
             _placeholderTexture = new Texture2D(1, 1);
             _placeholderTexture.SetPixel(0, 0, Color.gray);
             _placeholderTexture.Apply();
@@ -56,8 +63,13 @@ namespace Fodinae.Scripts
             ProcessBatchLoop(_loopCts.Token).Forget();
         }
 
-        protected override void OnDestroyed()
+        protected void OnDestroy()
         {
+            if (_instance != this)
+            {
+                return;
+            }
+
             _loopCts?.Cancel();
             _loopCts?.Dispose();
             var cm = ConnectionManager.InstanceIfExists;
@@ -151,35 +163,58 @@ namespace Fodinae.Scripts
         private async UniTask<byte[]> LoadBytesFromServer(string filename, CancellationToken ct, int timeoutSeconds)
         {
             filename = filename.TrimStart('/').ToLowerInvariant();
-            string etag = null;
+
+            // 1. Check local RAM/disk cache first when offline
+            var cm = ConnectionManager.InstanceIfExists;
+            var isConnected = cm != null && cm.Connection != null && cm.Connection.ConnectionStatus == MinesServer.Networking.Shared.ConnectionStatus.Connected;
+
+            if (!isConnected)
+            {
+                if (HasAsset(filename))
+                {
+                    return await GetAssetAsync(filename);
+                }
+            }
+
+            // 2. Check local TextureStorageManager if available
+            if (IsTextureFile(filename) && TextureStorageManager.Instance != null && TextureStorageManager.Instance.HasTexture(filename))
+            {
+                var localData = await TextureStorageManager.Instance.GetTextureData(filename);
+                if (localData != null && localData.Length > 0)
+                {
+                    await SaveAssetAsync(filename, localData, null);
+                    return localData;
+                }
+            }
+
+            // 3. Try server network request if connected
+            if (isConnected)
+            {
+                string etag = HasAsset(filename) ? await GetETagAsync(filename) : null;
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+
+                try
+                {
+                    var result = await GetAssetBytesFromServer(filename, etag, cts.Token);
+                    if (result != null && result.Length > 0)
+                    {
+                        return result;
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[ClientAssetLoader] Error fetching asset {filename}: {ex.Message}");
+                }
+            }
+
+            // 4. Fallback to cached asset
             if (HasAsset(filename))
             {
-                etag = GetETag(filename);
-            }
-
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
-
-            try
-            {
-                return await GetAssetBytesFromServer(filename, etag, cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                Debug.LogWarning($"[ClientAssetLoader] Timeout or cancelled while requesting asset: {filename}");
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"[ClientAssetLoader] Error fetching asset {filename}: {ex.Message}");
-            }
-            finally
-            {
-                cts.Dispose();
-            }
-
-            if (HasAsset(filename))
-            {
-                return GetAsset(filename);
+                return await GetAssetAsync(filename);
             }
 
             if (IsTextureFile(filename) && TextureStorageManager.Instance != null)
@@ -187,7 +222,7 @@ namespace Fodinae.Scripts
                 var localData = await TextureStorageManager.Instance.GetTextureData(filename);
                 if (localData != null && localData.Length > 0)
                 {
-                    SaveAsset(filename, localData, null);
+                    await SaveAssetAsync(filename, localData, null);
                     return localData;
                 }
             }
@@ -203,7 +238,7 @@ namespace Fodinae.Scripts
             }
 
             string ext = Path.GetExtension(filename).ToLowerInvariant();
-            return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".webp" || ext == ".tga" || ext == ".bmp";
+            return string.IsNullOrEmpty(ext) || ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".webp" || ext == ".tga" || ext == ".bmp";
         }
 
         private async UniTaskVoid ProcessBatchLoop(CancellationToken ct)
@@ -259,7 +294,7 @@ namespace Fodinae.Scripts
             }
         }
 
-        private void OnPacketReceived(ServerPacket obj)
+        private async void OnPacketReceived(ServerPacket obj)
         {
             if (obj.Payload is RuntimeAssetPacket assetPacket)
             {
@@ -268,13 +303,13 @@ namespace Fodinae.Scripts
                 {
                     if (assetPacket.Contents.Length == 0 && !string.IsNullOrEmpty(assetPacket.ETag))
                     {
-                        var cachedAsset = GetAsset(assetPacket.Filename);
+                        var cachedAsset = await GetAssetAsync(assetPacket.Filename).ConfigureAwait(false);
                         tcs.TrySetResult(cachedAsset);
                     }
                     else
                     {
                         var etag = Calculate(assetPacket.Contents);
-                        SaveAsset(assetPacket.Filename, assetPacket.Contents, etag);
+                        await SaveAssetAsync(assetPacket.Filename, assetPacket.Contents, etag).ConfigureAwait(false);
                         tcs.TrySetResult(assetPacket.Contents);
                     }
                 }

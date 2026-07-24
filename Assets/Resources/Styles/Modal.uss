@@ -1,0 +1,114 @@
+/* ═══════════════════════════════════════════════════════════
+   Modal — стили модальных окон
+   ═══════════════════════════════════════════════════════════ */
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-window {
+    background-color: var(--color-panel-bg);
+    border-color: var(--color-panel-border);
+    border-width: var(--panel-border-width);
+    border-radius: 6px;
+    padding: 16px;
+    min-width: 300px;
+    max-width: 500px;
+}
+
+.modal-title {
+    font-size: var(--font-size-lg);
+    color: var(--color-accent);
+    margin-bottom: 12px;
+    -unity-text-align: middle-center;
+}
+
+.modal-body {
+    color: var(--color-text);
+    font-size: var(--font-size-md);
+    margin-bottom: 16px;
+    -unity-text-align: middle-center;
+}
+
+.modal-buttons {
+    flex-direction: row;
+    justify-content: center;
+}
+
+/* In-game popup dialogs (respawn, buildings, FAQ) */
+.popup-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    justify-content: center;
+    align-items: center;
+    display: none;
+}
+
+.popup-dimmer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    picking-mode: ignore;
+}
+
+.popup-panel {
+    background-color: rgba(20, 20, 20, 0.95);
+    border-color: var(--color-panel-border);
+    border-width: 2px;
+    padding: 20px 40px;
+    flex-direction: column;
+    align-items: center;
+    min-width: 200px;
+}
+
+.popup-title {
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: var(--color-accent);
+    margin-bottom: 20px;
+    -unity-text-align: middle-center;
+}
+
+.popup-close-btn {
+    background-color: rgba(38, 38, 38, 1);
+    border-color: var(--color-panel-border);
+    border-width: 2px;
+    padding: 8px 20px;
+    color: white;
+    font-size: 14px;
+    -unity-text-align: middle-center;
+}
+
+.popup-btn-row {
+    flex-direction: row;
+    justify-content: center;
+}
+
+.popup-btn {
+    background-color: rgba(38, 38, 38, 1);
+    border-color: rgba(90, 90, 90, 1);
+    border-width: 2px;
+    padding: 8px 20px;
+    margin: 0 8px;
+    min-width: 100px;
+    color: white;
+    font-size: 14px;
+    -unity-text-align: middle-center;
+}
+
+.popup-btn:hover {
+    background-color: rgba(90, 90, 90, 1);
+}

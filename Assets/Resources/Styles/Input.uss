@@ -1,0 +1,23 @@
+/* ═══════════════════════════════════════════════════════════
+   Input — стили полей ввода
+   ═══════════════════════════════════════════════════════════ */
+
+.text-field {
+    background-color: rgba(30, 30, 30, 1);
+    border-color: var(--btn-border);
+    border-width: 1px;
+    border-radius: 3px;
+    padding: 6px 10px;
+    color: var(--color-text);
+    font-size: var(--font-size-md);
+}
+
+.text-field:focus {
+    border-color: var(--color-accent);
+}
+
+.text-field-label {
+    color: var(--color-text-dim);
+    font-size: var(--font-size-sm);
+    margin-bottom: 4px;
+}

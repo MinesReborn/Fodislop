@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace Fodinae.Scripts
@@ -24,7 +25,6 @@ namespace Fodinae.Scripts
         {
             try
             {
-                // Ensure cache is initialized
                 InitializeCachePath();
 
                 if (string.IsNullOrEmpty(filename))
@@ -48,11 +48,37 @@ namespace Fodinae.Scripts
             }
         }
 
+        public static async Task<byte[]> GetAssetAsync(string filename)
+        {
+            try
+            {
+                InitializeCachePath();
+
+                if (string.IsNullOrEmpty(filename))
+                {
+                    Debug.LogError("[PersistentAssetCache] Cannot get asset: filename is null or empty");
+                    return null;
+                }
+
+                var assetPath = GetAssetPath(filename);
+                if (File.Exists(assetPath))
+                {
+                    return await File.ReadAllBytesAsync(assetPath);
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[PersistentAssetCache] Failed to get asset '{filename}': {ex.Message}");
+                return null;
+            }
+        }
+
         public static void SaveAsset(string filename, byte[] data, string etag)
         {
             try
             {
-                // Ensure cache is initialized
                 InitializeCachePath();
 
                 if (string.IsNullOrEmpty(filename))
@@ -70,7 +96,6 @@ namespace Fodinae.Scripts
                 var assetPath = GetAssetPath(filename);
                 var etagPath = GetETagPath(filename);
 
-                // Ensure the directory exists
                 var directory = Path.GetDirectoryName(assetPath);
                 if (!Directory.Exists(directory))
                 {
@@ -89,11 +114,49 @@ namespace Fodinae.Scripts
             }
         }
 
+        public static async Task SaveAssetAsync(string filename, byte[] data, string etag)
+        {
+            try
+            {
+                InitializeCachePath();
+
+                if (string.IsNullOrEmpty(filename))
+                {
+                    Debug.LogError("[PersistentAssetCache] Cannot save asset: filename is null or empty");
+                    return;
+                }
+
+                if (data == null || data.Length == 0)
+                {
+                    Debug.LogError($"[PersistentAssetCache] Cannot save asset '{filename}': data is null or empty");
+                    return;
+                }
+
+                var assetPath = GetAssetPath(filename);
+                var etagPath = GetETagPath(filename);
+
+                var directory = Path.GetDirectoryName(assetPath);
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                await File.WriteAllBytesAsync(assetPath, data);
+                await File.WriteAllTextAsync(etagPath, etag ?? string.Empty);
+
+                Debug.Log($"[PersistentAssetCache] Successfully saved asset: {filename}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[PersistentAssetCache] Failed to save asset '{filename}': {ex.Message}");
+                throw;
+            }
+        }
+
         public static string GetETag(string filename)
         {
             try
             {
-                // Ensure cache is initialized
                 InitializeCachePath();
 
                 if (string.IsNullOrEmpty(filename))
@@ -106,6 +169,33 @@ namespace Fodinae.Scripts
                 if (File.Exists(etagPath))
                 {
                     return File.ReadAllText(etagPath);
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[PersistentAssetCache] Failed to get ETag for '{filename}': {ex.Message}");
+                return null;
+            }
+        }
+
+        public static async Task<string> GetETagAsync(string filename)
+        {
+            try
+            {
+                InitializeCachePath();
+
+                if (string.IsNullOrEmpty(filename))
+                {
+                    Debug.LogError("[PersistentAssetCache] Cannot get ETag: filename is null or empty");
+                    return null;
+                }
+
+                var etagPath = GetETagPath(filename);
+                if (File.Exists(etagPath))
+                {
+                    return await File.ReadAllTextAsync(etagPath);
                 }
 
                 return null;

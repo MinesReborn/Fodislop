@@ -24,9 +24,9 @@ namespace Fodinae.Scripts
         protected void OnEnable()
         {
             _doc = GetComponent<UIDocument>();
-            if (_doc == null)
+            if (_doc == null || _doc.rootVisualElement == null)
             {
-                Debug.LogError("[MainMenu] UIDocument component not found on MainMenu GameObject");
+                Debug.LogError("[MainMenu] UIDocument component or rootVisualElement not ready on MainMenu GameObject");
                 return;
             }
 
@@ -43,6 +43,12 @@ namespace Fodinae.Scripts
             }
 
             var mainMenu = mainMenuUXML.CloneTree();
+            if (mainMenu == null)
+            {
+                Debug.LogError("[MainMenu] Failed to clone MainMenu.uxml tree");
+                return;
+            }
+
             _mainMenuContainer = mainMenu.Q<VisualElement>("MainMenuContainer");
             _playButton = mainMenu.Q<Button>("PlayButton");
             if (_playButton != null)
@@ -52,11 +58,6 @@ namespace Fodinae.Scripts
 
             root.Add(mainMenu);
 
-            // The loader is a full-screen, absolutely-positioned background overlay
-            // that stays visible until the player presses PLAY (see HideLoader).
-            // The menu must therefore sit *above* the loader and the loader must
-            // not intercept pointer events, otherwise the PLAY button is occluded
-            // and unclickable.
             mainMenu.style.position = Position.Absolute;
             mainMenu.style.left = 0;
             mainMenu.style.top = 0;
@@ -66,6 +67,14 @@ namespace Fodinae.Scripts
             if (_loaderContainer != null)
             {
                 _loaderContainer.pickingMode = PickingMode.Ignore;
+            }
+
+            // UI Toolkit иногда не регистрирует ивенты при старте — форсируем пересоздание панэли
+            if (_doc != null && _doc.panelSettings != null)
+            {
+                var ps = _doc.panelSettings;
+                _doc.panelSettings = null;
+                _doc.panelSettings = ps;
             }
         }
 
@@ -79,6 +88,11 @@ namespace Fodinae.Scripts
 
         private void ShowLoader()
         {
+            if (_doc == null || _doc.rootVisualElement == null)
+            {
+                return;
+            }
+
             var root = _doc.rootVisualElement;
             root.style.width = new Length(100, LengthUnit.Percent);
             root.style.height = new Length(100, LengthUnit.Percent);
@@ -115,22 +129,22 @@ namespace Fodinae.Scripts
 
         private static Texture2D CreateSimpleLoaderTexture()
         {
-            const int width = 1920;
-            const int height = 1080;
+            const int width = 192;
+            const int height = 108;
 
-            Texture2D texture = new Texture2D(width, height);
+            Texture2D texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
 
-            // Заливаем чёрным
-            Color[] pixels = new Color[width * height];
+            Color32 black = Color.black;
+            Color32 white = Color.white;
+            Color32[] pixels = new Color32[width * height];
             for (int i = 0; i < pixels.Length; i++)
             {
-                pixels[i] = Color.black;
+                pixels[i] = black;
             }
 
-            // Рисуем белый круг в центре
             const int CENTER_X = width / 2;
             const int CENTER_Y = height / 2;
-            const int radius = 150;
+            const int radius = 15;
 
             for (int y = -radius; y < radius; y++)
             {
@@ -142,13 +156,13 @@ namespace Fodinae.Scripts
                         int py = CENTER_Y + y;
                         if (px >= 0 && px < width && py >= 0 && py < height)
                         {
-                            pixels[(py * width) + px] = Color.white;
+                            pixels[(py * width) + px] = white;
                         }
                     }
                 }
             }
 
-            texture.SetPixels(pixels);
+            texture.SetPixels32(pixels);
             texture.Apply();
 
             return texture;
@@ -177,8 +191,6 @@ namespace Fodinae.Scripts
         {
             Debug.Log("[MainMenu] Play button clicked");
 
-            RobotManager.ShowDebugVisuals = true;
-
             // Скрываем лоадер
             HideLoader();
 
@@ -196,7 +208,7 @@ namespace Fodinae.Scripts
         private void OnOldClientButtonClicked()
         {
             Debug.Log("[MainMenu] Old client button clicked");
-            RobotManager.ShowDebugVisuals = true;
+            RobotManager.ShowDebugVisuals = false;
             HideLoader();
             HideMenu();
             ConnectionManager.Instance.Connect(oldClient: true);

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Fodinae.Scripts.Game.Managers;
 using UnityEngine;
@@ -44,6 +45,7 @@ namespace Fodinae.Scripts.World
         private Camera _mainCamera;
         private bool _texturesLoading;
 
+
         protected void Start()
         {
             _mainCamera = Camera.main;
@@ -54,6 +56,7 @@ namespace Fodinae.Scripts.World
             _transitRenderer = transitGO.AddComponent<MeshRenderer>();
             _transitRenderer.sortingOrder = _transitSortingOrder;
             _transitMesh = new Mesh();
+            _transitMesh.MarkDynamic();
             _transitMesh.vertices = _verticesTransit;
             _transitMesh.uv = _uvTransit;
             _transitMesh.triangles = Triangles;
@@ -65,6 +68,7 @@ namespace Fodinae.Scripts.World
             _perspectiveRenderer = persGO.AddComponent<MeshRenderer>();
             _perspectiveRenderer.sortingOrder = _perspectiveSortingOrder;
             _perspectiveMesh = new Mesh();
+            _perspectiveMesh.MarkDynamic();
             _perspectiveMesh.vertices = _verticesPers;
             _perspectiveMesh.uv = _uvPers;
             _perspectiveMesh.triangles = Triangles;
@@ -86,13 +90,10 @@ namespace Fodinae.Scripts.World
             LoadTexturesAsync().Forget();
         }
 
-        private static Material CreateDefaultMaterial()
+        private Material CreateDefaultMaterial()
         {
             var mat = new Material(Shader.Find("Sprites/Default"));
-            var tempTex = new Texture2D(1, 1);
-            tempTex.SetPixel(0, 0, Color.white);
-            tempTex.Apply();
-            mat.mainTexture = tempTex;
+            mat.mainTexture = Texture2D.whiteTexture;
             return mat;
         }
 
@@ -107,16 +108,20 @@ namespace Fodinae.Scripts.World
 
             try
             {
-                var transitTex = await ClientAssetLoader.Instance.GetTextureAsync(_transitTexturePath);
-                if (transitTex != null)
+                var loader = ClientAssetLoader.Instance;
+                if (loader != null)
                 {
-                    _transitMaterial.mainTexture = transitTex;
-                }
+                    var transitTex = await loader.GetTextureAsync(_transitTexturePath);
+                    if (transitTex != null && _transitMaterial != null)
+                    {
+                        _transitMaterial.mainTexture = transitTex;
+                    }
 
-                var persTex = await ClientAssetLoader.Instance.GetTextureAsync(_perspectiveTexturePath);
-                if (persTex != null)
-                {
-                    _perspectiveMaterial.mainTexture = persTex;
+                    var persTex = await loader.GetTextureAsync(_perspectiveTexturePath);
+                    if (persTex != null && _perspectiveMaterial != null)
+                    {
+                        _perspectiveMaterial.mainTexture = persTex;
+                    }
                 }
             }
             catch (Exception ex)
@@ -131,11 +136,6 @@ namespace Fodinae.Scripts.World
 
         protected void LateUpdate()
         {
-            if (_mainCamera == null)
-            {
-                _mainCamera = Camera.main;
-            }
-
             if (_mainCamera == null)
             {
                 return;
@@ -202,6 +202,10 @@ namespace Fodinae.Scripts.World
             _perspectiveMesh.vertices = _verticesPers;
             _perspectiveMesh.uv = _uvPers;
             _perspectiveMesh.bounds = new Bounds(new Vector3(camX, baseY + 3f, 0f), new Vector3(100f, 100f, 10f));
+        }
+
+        protected void OnDestroy()
+        {
         }
     }
 }
