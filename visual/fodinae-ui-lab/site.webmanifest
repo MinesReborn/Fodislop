@@ -1,0 +1,17 @@
+{
+  "name": "Fodinae Interface Lab",
+  "short_name": "Fodinae UI",
+  "description": "Interactive UI prototype and living design system for Fodinae.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#05080d",
+  "theme_color": "#05080d",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

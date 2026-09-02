@@ -1,0 +1,42 @@
+name: Deploy Fodinae Interface Lab
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'visual/fodinae-ui-lab/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Publish Interface Lab
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload static site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: visual/fodinae-ui-lab
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

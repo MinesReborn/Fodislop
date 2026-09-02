@@ -1,0 +1,96 @@
+/* ==========================================================================
+   ДЕВ-ПАНЕЛЬ
+   ==========================================================================
+
+   Инструмент разработки, а не игра: в клиент не переносится.
+   @uss no
+
+   Выделено из styles.css. Границы не выдуманы: их задаёт машина
+   состояний #appViewport[data-state] в index.html. Порядок @import в
+   styles.css = порядок каскада = порядок, который воспроизведётся в
+   FodinaeTheme.tss.
+   ========================================================================== */
+
+/* ----------------------------------------------------
+   Компактная Dev-панель режимов
+   ---------------------------------------------------- */
+.dev-drawer {
+  position: fixed;
+  bottom: 56px;
+  left: 48px;
+  z-index: var(--layer-devtools);
+  display: flex;
+  gap: 5px;
+  background: var(--surface-abyss-solid);
+  border: 1px solid var(--border-cyan);
+  padding: 5px 8px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 30px var(--surface-void-dense), 0 0 20px var(--accent-cyan-wash);
+  backdrop-filter: blur(var(--blur-md));
+  align-items: center;
+}
+.dev-drawer span {
+  font-family: var(--face-data);
+  font-size: var(--size-2xs);
+  font-weight: 700;
+  color: var(--text-tertiary);
+  letter-spacing: 0.08em;
+  margin-right: 4px;
+}
+.dev-btn {
+  background: var(--light-film);
+  border: 1px solid var(--light-sheen);
+  color: var(--text-secondary);
+  font-family: var(--face-data);
+  font-size: var(--size-2xs);
+  padding: 4px 7px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--dur-fast) ease;
+}
+.dev-btn:hover {
+  background: var(--accent-cyan-wash);
+  border-color: var(--accent-cyan);
+  color: var(--text-primary);
+}
+.dev-btn--link {
+  text-decoration: none;
+  white-space: nowrap;
+}
+.dev-btn.active {
+  background: var(--accent-gold);
+  border-color: var(--accent-gold);
+  color: var(--shadow-solid);
+  font-weight: 700;
+}
+.dev-btn.danger {
+  border-color: var(--state-danger-glow);
+  color: var(--state-danger);
+}
+.dev-btn.danger:hover {
+  background: var(--state-danger-wash);
+}
+.dev-select {
+  background: var(--light-film);
+  border: 1px solid var(--light-sheen);
+  color: var(--text-secondary);
+  font-family: var(--face-data);
+  font-size: var(--size-2xs);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.sfx-toggle {
+  border-left: 1px solid var(--border-subtle);
+  padding-left: 8px;
+  margin-left: 3px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  color: var(--accent-cyan);
+  font-family: var(--face-data);
+  font-size: var(--size-2xs);
+  font-weight: 700;
+}

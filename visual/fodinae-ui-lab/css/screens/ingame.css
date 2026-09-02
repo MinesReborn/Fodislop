@@ -1,0 +1,399 @@
+/* ==========================================================================
+   ИГРА И HUD
+   ==========================================================================
+
+   Экран #ingameView: 2D-шахта, HUD, радар, колонка действий.
+
+   Выделено из styles.css. Границы не выдуманы: их задаёт машина
+   состояний #appViewport[data-state] в index.html. Порядок @import в
+   styles.css = порядок каскада = порядок, который воспроизведётся в
+   FodinaeTheme.tss.
+   ========================================================================== */
+
+/* 4. Игровой экран (In-Game 2D Mine + HUD) */
+.ingame-viewport {
+  position: absolute;
+  inset: 0;
+  z-index: var(--layer-content);
+  display: none;
+  overflow: hidden;
+  background: var(--surface-void-solid);
+}
+.ingame-viewport.active { display: block; }
+
+.mine-scene-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: var(--order-mine-canvas);
+  background:
+    radial-gradient(circle at 50% 60%, var(--state-magma-tint) 0%, transparent 70%),
+    linear-gradient(180deg, var(--mat-strata-0) 0%, var(--mat-strata-1) 30%, var(--mat-strata-2) 65%, var(--mat-strata-3) 100%);
+  overflow: hidden;
+}
+.mine-strata-container {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  grid-template-rows: repeat(14, 1fr);
+  gap: 1px;
+  padding: 64px 36px 84px 36px;
+}
+.mine-tile {
+  background: var(--surface-slate-dense);
+  border: 1px solid var(--border-hairline);
+  position: relative;
+  cursor: crosshair;
+  transition: all var(--dur-instant) ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--face-data);
+  font-size: var(--size-xs);
+}
+.mine-tile:hover {
+  border-color: var(--accent-cyan);
+  background: var(--accent-cyan-wash);
+}
+.mine-tile.redrock { background: linear-gradient(135deg, var(--mat-redrock-hi) 0%, var(--mat-redrock-lo) 100%); border-color: var(--state-danger-wash); }
+.mine-tile.basalt { background: linear-gradient(135deg, var(--mat-basalt-hi) 0%, var(--mat-basalt-lo) 100%); }
+.mine-tile.ore-titanium { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+.mine-tile.ore-titanium::after { content: "◆"; }
+.mine-tile.ore-gold { border-color: var(--accent-gold); color: var(--accent-gold); }
+.mine-tile.ore-gold::after { content: "★"; }
+.mine-tile.lava-crack { border-color: var(--state-warn); color: var(--state-warn); }
+.mine-tile.lava-crack::after { content: "♨"; }
+.mine-tile.mined-empty { background: var(--surface-void-shade) !important; border-color: var(--light-film) !important; }
+.mine-tile.mined-empty::after { content: none !important; }
+
+.mining-robot-entity {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 52px;
+  height: 52px;
+  z-index: var(--order-mine-robot);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.robot-hull {
+  width: 38px;
+  height: 38px;
+  background: var(--mat-mined);
+  border: 1.5px solid var(--accent-cyan);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: 0 0 15px var(--accent-cyan-glow);
+}
+.robot-eye { width: 10px; height: 4px; background: var(--accent-gold); border-radius: var(--radius-sharp); }
+.robot-drill-bit {
+  position: absolute;
+  bottom: -10px;
+  width: 8px;
+  height: 12px;
+  background: var(--text-primary);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+.robot-headlight {
+  position: absolute;
+  bottom: -50px;
+  width: 120px;
+  height: 65px;
+  background: radial-gradient(ellipse at top, var(--accent-cyan-glow) 0%, transparent 70%);
+  clip-path: polygon(35% 0%, 65% 0%, 100% 100%, 0% 100%);
+  pointer-events: none;
+}
+
+/* Игровой слой HUD */
+.game-hud-layer {
+  position: absolute;
+  inset: 0;
+  z-index: var(--layer-content);
+  pointer-events: none;
+  padding: var(--space-8) var(--space-10);
+  display: grid;
+  grid-template-columns: 280px 1fr 280px;
+  grid-template-rows: auto 1fr auto;
+  gap: var(--space-8);
+}
+.sci-fi-panel {
+  pointer-events: auto;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-subtle);
+  padding: var(--space-6) var(--space-7);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  backdrop-filter: blur(var(--blur-md));
+}
+.hud-title-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.hud-nickname { font-family: var(--face-display); font-size: var(--size-base); font-weight: 700; color: var(--light-solid); }
+.sci-fi-badge-mono {
+  font-family: var(--face-data);
+  font-size: var(--size-micro);
+  font-weight: 700;
+  color: var(--accent-cyan);
+  background: var(--accent-cyan-wash);
+  border: 1px solid var(--border-cyan);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sharp);
+}
+.hud-clan-btn {
+  background: var(--accent-gold-wash);
+  border: 1px solid var(--border-gold);
+  color: var(--accent-gold);
+  font-family: var(--face-data);
+  font-size: var(--size-2xs);
+  font-weight: 700;
+  padding: var(--space-1) var(--space-3);
+  cursor: pointer;
+  border-radius: var(--radius-sharp);
+}
+.hud-bar-group { display: flex; flex-direction: column; gap: 3px; }
+.hud-bar-header { display: flex; justify-content: space-between; font-family: var(--face-data); font-size: var(--size-2xs); color: var(--text-secondary); }
+.sci-fi-bar-track { height: 5px; background: var(--surface-void-veil); border: 1px solid var(--border-subtle); overflow: hidden; border-radius: var(--radius-sharp); }
+.sci-fi-bar-fill-hp { height: 100%; background: var(--state-ok); width: 84%; }
+.sci-fi-bar-fill-cyan { height: 100%; background: var(--accent-cyan); width: 92%; }
+.hud-currencies-row {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--face-data);
+  font-size: var(--size-xs);
+  border-top: 1px solid var(--light-film);
+  padding-top: 6px;
+}
+
+.hud-basket-panel { grid-row: 2; height: fit-content; }
+/* minmax(0, 1fr), а не 1fr: у 1fr нижняя граница трека — min-content, поэтому
+   ячейка с выросшим содержимым РАСПИРАЕТ сетку изнутри, и сетка вылезает за
+   свою коробку. Это не перенос и не обрезка — контракт data-fit тут бессилен,
+   потому что виновата раскладка, а не текст. */
+.basket-grid-mini { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; }
+.basket-slot-mini {
+  background: var(--surface-abyss-veil);
+  border: 1px solid var(--border-subtle);
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--face-data);
+  font-size: var(--size-2xs);
+  color: var(--text-tertiary);
+  border-radius: var(--radius-sharp);
+}
+.basket-slot-mini.filled { border-color: var(--accent-cyan); color: var(--accent-cyan); background: var(--accent-cyan-wash); }
+
+.hud-mission-panel {
+  grid-column: 2;
+  justify-self: center;
+  min-width: 420px;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-gold);
+}
+/* align-self: start — иначе панель растягивалась на всю высоту строки грида
+   и под экраном радара оставалась пустая полоса в треть панели. */
+.hud-radar-panel {
+  grid-column: 3;
+  align-self: start;
+  justify-self: end;
+  width: 240px;
+}
+.radar-screen {
+  height: 64px;
+  /* Экран радара — утопленная поверхность, а не «текст на золоте»:
+     токен был подставлен автозаменой по совпадению значения. */
+  background: var(--surface-void-solid);
+  border: 1px solid var(--border-subtle);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sharp);
+}
+/* Развёртка радара. Кейфрейм rotateClockwise раньше не существовал —
+   правило ссылалось в пустоту, и луч стоял неподвижно. */
+.radar-sweep-line {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+  background: linear-gradient(90deg, transparent 50%, var(--accent-cyan-glow) 100%);
+  animation: fdn-sweep 4s var(--ease-linear) infinite;
+}
+.radar-dot { position: absolute; width: 4px; height: 4px; background: var(--accent-gold); border-radius: var(--radius-pill); }
+
+/* Колонка действий.
+   Была align-items: flex-end при ширине кнопки по содержимому — левая грань
+   получалась рваной, семь кнопок разной длины выглядели случайным набором.
+   Теперь колонка фиксированной ширины, кнопки растянуты, а хоткей вынесен
+   в отдельный бейдж у правого края: подпись и клавиша встают в две ровные
+   вертикали. */
+.hud-actions-column {
+  pointer-events: auto;
+  grid-column: 3;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: stretch;
+  width: 208px;
+  justify-self: end;
+}
+
+.hud-action-sep {
+  height: 1px;
+  margin: var(--space-2) 0;
+  background: var(--border-subtle);
+}
+.hud-action-btn {
+  background: var(--surface-panel);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-family: var(--face-data);
+  font-size: var(--size-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-base);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  /* Кнопка сама ряд из подписи и клавиши: если подпись выросла, ряд переносит,
+     а не выпускает клавишу за границу кнопки. */
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  border-radius: var(--radius-sharp);
+  transition: border-color var(--dur-fast) var(--ease-standard),
+              color var(--dur-fast) var(--ease-standard),
+              background-color var(--dur-fast) var(--ease-standard);
+}
+
+/* Подпись занимает всё свободное место, поэтому клавиша всегда прижата вправо. */
+.hud-action-label {
+  flex-grow: 1;
+  text-align: left;
+  /* Подпись действия — фраза, а не имя команды: ей перенос разрешён явно,
+     иначе умолчание кнопки (nowrap) наследуется сюда и подпись, выросшая при
+     переводе, выходит за кнопку. min-width: 0 обязателен — без него флекс-дитя
+     не сжимается ниже своего содержимого, и перенос не наступает. */
+  white-space: normal;
+  min-width: 0;
+}
+
+/* Бейдж хоткея. Раньше клавиша была частью строки подписи («ЧАТ [ENTER]»),
+   из-за чего скользила по горизонтали от кнопки к кнопке. */
+.hud-action-key {
+  flex-shrink: 0;
+  min-width: 34px;
+  padding: 1px var(--space-2);
+  font-family: var(--face-data);
+  font-size: var(--size-micro);
+  font-weight: var(--weight-bold);
+  text-align: center;
+  color: var(--text-tertiary);
+  background: var(--surface-void-veil);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sharp);
+}
+
+.hud-action-btn:hover {
+  border-color: var(--accent-cyan);
+  color: var(--text-primary);
+  background: var(--accent-cyan-wash);
+}
+
+.hud-action-btn:hover .hud-action-key {
+  color: var(--accent-cyan);
+  border-color: var(--border-cyan);
+}
+
+.hud-action-btn.active {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+  background: var(--accent-gold-wash);
+}
+
+.hud-action-btn--gold {
+  border-color: var(--border-gold);
+  color: var(--accent-gold);
+}
+
+.hud-action-btn--gold:hover {
+  border-color: var(--accent-gold);
+  background: var(--accent-gold-wash);
+  color: var(--accent-gold-hover);
+}
+
+.led-indicator {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--text-disabled);
+  transition: background-color var(--dur-fast) var(--ease-standard);
+}
+
+/* Кнопки без индикатора всё равно резервируют его место — иначе их подписи
+   съезжали влево относительно переключателей. */
+.led-indicator--slot {
+  background: transparent;
+}
+
+.led-indicator.active { background: var(--state-ok); box-shadow: 0 0 6px var(--state-ok); }
+.led-indicator.alert { background: var(--state-danger); box-shadow: 0 0 6px var(--state-danger); }
+
+.hud-hotbar-container {
+  pointer-events: auto;
+  grid-column: 2;
+  grid-row: 3;
+  justify-self: center;
+  display: flex;
+  gap: var(--space-2);
+  background: var(--surface-panel);
+  border: 1px solid var(--border-subtle);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+}
+.hotbar-slot {
+  width: 44px;
+  height: 44px;
+  background: var(--surface-abyss-dense);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  border-radius: var(--radius-sharp);
+}
+.hotbar-slot:hover { border-color: var(--accent-cyan); }
+.hotbar-slot.active { border-color: var(--accent-gold); background: var(--accent-gold-wash); }
+.hotbar-num { position: absolute; top: 2px; left: 3px; font-family: var(--face-data); font-size: var(--size-micro); color: var(--text-tertiary); }
+.hotbar-slot.active .hotbar-num { color: var(--accent-gold); }
+/* Значок владеет ячейкой: номер слота и счётчик вынесены абсолютом в углы,
+   и место в центре свободно. При 1.15em значок занимал 42% ячейки 44×44 и
+   читался мелким — при том что он единственное, по чему слот и опознают.
+   Ступень --lg (1.6em) даёт 58%: цифры в углах остаются читаемыми, значок
+   становится главным. Размер берётся из шкалы иконок, а не назначается. */
+.hotbar-icon { font-size: var(--size-md); font-family: var(--face-data); font-weight: 700; color: var(--accent-cyan); }
+.hotbar-icon .fdn-icon { width: 1.6em; height: 1.6em; }
+.hotbar-count { position: absolute; bottom: 2px; right: 3px; font-family: var(--face-data); font-size: var(--size-micro); color: var(--light-solid); }
+
+/* Ширина боковой колонки HUD: одна величина, объявленная один раз. */
+.sci-fi-panel--rail { width: 260px; }
+.sci-fi-bar-track--clickable { cursor: pointer; }
+.sci-fi-bar-fill--gold { background: var(--accent-gold); }
+.sci-fi-badge-mono--gold { color: var(--accent-gold); border-color: var(--border-gold); }
+.hud-stat-strong { font-weight: 700; color: var(--light-solid); }
+.hud-stat-strong--gold { font-weight: 700; color: var(--accent-gold); }
+.hud-contract-title { font-size: var(--size-base); font-weight: 600; color: var(--light-solid); }
+.eyebrow-tag--flush { margin: 0; font-size: var(--size-2xs); }
+.radar-dot--danger { background: var(--state-danger); }
+.radar-dot--neutral { background: var(--light-solid); }
