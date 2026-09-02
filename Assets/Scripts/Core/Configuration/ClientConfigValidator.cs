@@ -40,13 +40,24 @@ internal sealed class ClientConfigValidator(
                 "Client config ProjectDefaultsHash does not match the active ProjectDefaults snapshot.");
         }
 
-        ValidateFloat(config.MasterVolume, 0f, 1f, nameof(config.MasterVolume));
-        ValidateFloat(config.SfxVolume, 0f, 1f, nameof(config.SfxVolume));
-        ValidateFloat(config.MusicVolume, 0f, 1f, nameof(config.MusicVolume));
-        ValidateFloat(config.AmbienceVolume, 0f, 1f, nameof(config.AmbienceVolume));
-        ValidateFloat(config.VoiceVolume, 0f, 1f, nameof(config.VoiceVolume));
-        ValidateFloat(config.UIVolume, 0f, 1f, nameof(config.UIVolume));
-        ValidateFloat(config.UIScale, 0.5f, 2f, nameof(config.UIScale));
+        AudioSettings audio = config.Audio ??
+            throw new InvalidDataException("Audio settings are missing.");
+        DisplaySettings display = config.Display ??
+            throw new InvalidDataException("Display settings are missing.");
+        InterfaceSettings interfaceSettings = config.Interface ??
+            throw new InvalidDataException("Interface settings are missing.");
+        AccessibilitySettings accessibility = config.Accessibility ??
+            throw new InvalidDataException("Accessibility settings are missing.");
+        ConnectionSettings connection = config.Connection ??
+            throw new InvalidDataException("Connection settings are missing.");
+        ValidateFloat(audio.MasterVolume, 0f, 1f, nameof(audio.MasterVolume));
+        ValidateFloat(audio.SfxVolume, 0f, 1f, nameof(audio.SfxVolume));
+        ValidateFloat(audio.MusicVolume, 0f, 1f, nameof(audio.MusicVolume));
+        ValidateFloat(audio.AmbienceVolume, 0f, 1f, nameof(audio.AmbienceVolume));
+        ValidateFloat(audio.VoiceVolume, 0f, 1f, nameof(audio.VoiceVolume));
+        ValidateFloat(audio.UIVolume, 0f, 1f, nameof(audio.UIVolume));
+        ValidateFloat(interfaceSettings.UIScale, 0.5f, 2f, nameof(interfaceSettings.UIScale));
+        ValidateGeneralSettings(config);
         if (!Enum.IsDefined(typeof(GraphicsPreset), config.GraphicsPreset))
         {
             throw new InvalidDataException(
@@ -104,69 +115,62 @@ internal sealed class ClientConfigValidator(
         ValidateFloat(config.TerrainPulseSpeedScale, 0f, 10f, nameof(config.TerrainPulseSpeedScale));
         ValidateColor(config.TerrainShimmerColor, nameof(config.TerrainShimmerColor));
         ValidateColor(config.TerrainDebugColor, nameof(config.TerrainDebugColor));
-        ValidateFloat(config.BloomThreshold, 0f, 2f, nameof(config.BloomThreshold));
-        ValidateFloat(config.BloomSoftKnee, 0f, 1f, nameof(config.BloomSoftKnee));
-        ValidateFloat(config.BloomRadius, 0.5f, 8f, nameof(config.BloomRadius));
-        ValidateFloat(config.BloomScatter, 0.1f, 1f, nameof(config.BloomScatter));
-        ValidateColor(config.BloomTint, nameof(config.BloomTint));
         ValidateColor(config.TransitEmissionColor, nameof(config.TransitEmissionColor));
         ValidateFloat(config.TransitEmissionStrength, 0f, 8f, nameof(config.TransitEmissionStrength));
         ValidateColor(config.PerspectiveEmissionColor, nameof(config.PerspectiveEmissionColor));
         ValidateFloat(config.PerspectiveEmissionStrength, 0f, 8f, nameof(config.PerspectiveEmissionStrength));
         ValidateFloat(config.SurfaceOccupancy, 0f, 1f, nameof(config.SurfaceOccupancy));
-        ValidateFloat(config.BloomIntensity, 0f, 5f, nameof(config.BloomIntensity));
-        ValidateFloat(config.VignetteIntensity, 0f, 1f, nameof(config.VignetteIntensity));
-        ValidateColor(config.VignetteColor, nameof(config.VignetteColor));
-        ValidateFloat(config.VignetteSmoothness, 0.01f, 1f, nameof(config.VignetteSmoothness));
-        ValidateFloat(config.VignetteCenter.x, 0f, 1f, nameof(config.VignetteCenter.x));
-        ValidateFloat(config.VignetteCenter.y, 0f, 1f, nameof(config.VignetteCenter.y));
-        ValidateFloat(config.ChromaticAberrationIntensity, 0f, 1f, nameof(config.ChromaticAberrationIntensity));
-        ValidateFloat(config.ColorGradingExposure, -4f, 4f, nameof(config.ColorGradingExposure));
-        ValidateColor(config.ColorGradingFilter, nameof(config.ColorGradingFilter));
-        ValidateFloat(config.ColorGradingSaturation, 0f, 2f, nameof(config.ColorGradingSaturation));
-        ValidateFloat(
-            config.ColorGradingToneMappingWhitePoint,
-            0.25f,
-            8f,
-            nameof(config.ColorGradingToneMappingWhitePoint));
-        ValidateFloat(config.EigengrauIntensity, 0f, 1f, nameof(config.EigengrauIntensity));
-        ValidateColor(config.EigengrauColor, nameof(config.EigengrauColor));
-        ValidateFloat(config.EigengrauDarknessThreshold, 0.02f, 0.75f, nameof(config.EigengrauDarknessThreshold));
-        ValidateFloat(config.EigengrauNoiseScale, 0.75f, 2f, nameof(config.EigengrauNoiseScale));
-        ValidateFloat(config.EigengrauAnimationSpeed, 1f, 60f, nameof(config.EigengrauAnimationSpeed));
-        ValidateFloat(config.MotionBlurIntensity, 0f, 1f, nameof(config.MotionBlurIntensity));
-        AdvancedPostProcessSettings advanced = config.AdvancedPostProcess ??
-            throw new InvalidDataException("AdvancedPostProcess settings are missing.");
-        ValidateFloat(advanced.LocalContrastIntensity, 0f, 0.5f, nameof(advanced.LocalContrastIntensity));
-        ValidateFloat(advanced.LensDirtIntensity, 0f, 0.35f, nameof(advanced.LensDirtIntensity));
-        ValidateFloat(advanced.LensDirtScale, 0.25f, 16f, nameof(advanced.LensDirtScale));
-        ValidateFloat(advanced.AnamorphicIntensity, 0f, 1f, nameof(advanced.AnamorphicIntensity));
-        ValidateFloat(advanced.AnamorphicLength, 0.25f, 8f, nameof(advanced.AnamorphicLength));
-        ValidateFloat(advanced.ChromaticDiffractionIntensity, 0f, 0.5f, nameof(advanced.ChromaticDiffractionIntensity));
-        ValidateFloat(advanced.HeatRefractionIntensity, 0f, 0.25f, nameof(advanced.HeatRefractionIntensity));
-        ValidateFloat(advanced.HeatRefractionScale, 0.25f, 16f, nameof(advanced.HeatRefractionScale));
-        ValidateFloat(advanced.GlintIntensity, 0f, 0.5f, nameof(advanced.GlintIntensity));
-        ValidateFloat(advanced.GlintThreshold, 0f, 4f, nameof(advanced.GlintThreshold));
-        ValidateFloat(advanced.VolumetricDustIntensity, 0f, 0.25f, nameof(advanced.VolumetricDustIntensity));
-        ValidateFloat(advanced.VolumetricDustScale, 0.1f, 8f, nameof(advanced.VolumetricDustScale));
-        ValidateFloat(advanced.VolumetricDustSpeed, 0f, 2f, nameof(advanced.VolumetricDustSpeed));
-        ValidateFloat(advanced.PhosphorMaskIntensity, 0f, 0.35f, nameof(advanced.PhosphorMaskIntensity));
-        ValidateFloat(advanced.DitheringIntensity, 0f, 1f, nameof(advanced.DitheringIntensity));
-        ValidateFloat(advanced.TemporalPersistenceIntensity, 0f, 0.8f, nameof(advanced.TemporalPersistenceIntensity));
-        ValidateFloat(advanced.TemporalPersistenceDecay, 0f, 0.98f, nameof(advanced.TemporalPersistenceDecay));
-        ValidateFloat(advanced.LightStability, 0f, 0.9f, nameof(advanced.LightStability));
-        if (string.IsNullOrWhiteSpace(config.ServerHost))
+        // Эффекты постпроцесса — тумблеры; проверять у bool нечего.
+        // Величины живут в PostProcessLook и в конфиг не попадают.
+        if (string.IsNullOrWhiteSpace(connection.ServerHost))
         {
             throw new InvalidDataException(
                 "Client config value 'ServerHost' must be a non-empty host name or IP address.");
         }
 
-        ValidateInt(config.ServerPort, 1, 65535, nameof(config.ServerPort));
-        if (!Enum.IsDefined(typeof(FullScreenMode), config.FullScreenMode))
+        ValidateInt(connection.ServerPort, 1, 65535, nameof(connection.ServerPort));
+        if (!Enum.IsDefined(typeof(FullScreenMode), display.FullScreenMode))
         {
             throw new InvalidDataException(
-                $"Client config value 'FullScreenMode' must be a valid FullScreenMode value, got {config.FullScreenMode}.");
+                $"Client config value 'FullScreenMode' must be a valid FullScreenMode value, got {display.FullScreenMode}.");
         }
+    }
+
+    private static void ValidateGeneralSettings(ClientConfig config)
+    {
+        InterfaceSettings interfaceSettings = config.Interface;
+        DisplaySettings display = config.Display;
+        AccessibilitySettings accessibility = config.Accessibility;
+        if (interfaceSettings.Language is not ("ru" or "en" or "zh" or "zh-hant"))
+        {
+            throw new InvalidDataException(
+                $"Client config value '{nameof(interfaceSettings.Language)}' is not a supported locale: " +
+                $"'{interfaceSettings.Language}'.");
+        }
+
+        bool usesCurrentResolution = display.ResolutionWidth == 0 && display.ResolutionHeight == 0;
+        bool usesExplicitResolution = display.ResolutionWidth is >= 320 and <= 16384 &&
+            display.ResolutionHeight is >= 200 and <= 16384;
+        if (!usesCurrentResolution && !usesExplicitResolution)
+        {
+            throw new InvalidDataException(
+                "Client resolution must be either 0x0 (current display mode) or a valid width and height.");
+        }
+
+        if (display.RefreshRate is < 0 or > 1000)
+        {
+            throw new InvalidDataException(
+                $"Client config value '{nameof(display.RefreshRate)}' must be within [0, 1000].");
+        }
+
+        if (display.TargetFrameRate != -1 && display.TargetFrameRate is < 30 or > 1000)
+        {
+            throw new InvalidDataException(
+                $"Client config value '{nameof(display.TargetFrameRate)}' must be -1 or within [30, 1000].");
+        }
+
+        ValidateInt(accessibility.ColorblindMode, 0, 4, nameof(accessibility.ColorblindMode));
+        ValidateInt(interfaceSettings.ControlScheme, 0, 1, nameof(interfaceSettings.ControlScheme));
     }
 
     private bool HasStandardGraphicsValues(ClientConfig config)
@@ -199,34 +203,21 @@ internal sealed class ClientConfigValidator(
             config.TerrainShimmerColor == shaders.TerrainShimmerColor &&
             config.TerrainDebugColor == shaders.TerrainDebugColor &&
             config.TerrainDebugMode == shaders.TerrainDebugMode &&
-            config.BloomThreshold == shaders.BloomThreshold &&
-            config.BloomSoftKnee == shaders.BloomSoftKnee &&
-            config.BloomRadius == shaders.BloomRadius &&
-            config.BloomScatter == shaders.BloomScatter &&
-            config.BloomTint == shaders.BloomTint &&
             config.TransitEmissionColor == shaders.TransitEmissionColor &&
             config.TransitEmissionStrength == shaders.TransitEmissionStrength &&
             config.PerspectiveEmissionColor == shaders.PerspectiveEmissionColor &&
             config.PerspectiveEmissionStrength == shaders.PerspectiveEmissionStrength &&
             config.SurfaceOccupancy == shaders.SurfaceOccupancy &&
-            config.BloomIntensity == shaders.BloomIntensity &&
-            config.VignetteIntensity == shaders.VignetteIntensity &&
-            config.VignetteColor == shaders.VignetteColor &&
-            config.VignetteSmoothness == shaders.VignetteSmoothness &&
-            config.VignetteCenter == shaders.VignetteCenter &&
-            config.ChromaticAberrationIntensity == shaders.ChromaticAberrationIntensity &&
-            config.ColorGradingExposure == shaders.ColorGradingExposure &&
-            config.ColorGradingFilter == shaders.ColorGradingFilter &&
-            config.ColorGradingContrast == shaders.ColorGradingContrast &&
-            config.ColorGradingSaturation == shaders.ColorGradingSaturation &&
-            config.ColorGradingToneMapping == shaders.ColorGradingToneMapping &&
-            config.ColorGradingToneMappingWhitePoint == shaders.ColorGradingToneMappingWhitePoint &&
-            config.EigengrauIntensity == shaders.EigengrauIntensity &&
-            config.EigengrauColor == shaders.EigengrauColor &&
-            config.EigengrauDarknessThreshold == shaders.EigengrauDarknessThreshold &&
-            config.EigengrauNoiseScale == shaders.EigengrauNoiseScale &&
-            config.EigengrauAnimationSpeed == shaders.EigengrauAnimationSpeed &&
-            config.MotionBlurIntensity == shaders.MotionBlurIntensity;
+            config.BloomEnabled == shaders.BloomEnabled &&
+            config.VignetteEnabled == shaders.VignetteEnabled &&
+            config.ChromaticAberrationEnabled == shaders.ChromaticAberrationEnabled &&
+            config.FilmGrainEnabled == shaders.FilmGrainEnabled &&
+            config.MotionBlurEnabled == shaders.MotionBlurEnabled &&
+            config.LocalContrastEnabled == shaders.LocalContrastEnabled &&
+            config.LensEffectsEnabled == shaders.LensEffectsEnabled &&
+            config.AtmosphereEnabled == shaders.AtmosphereEnabled &&
+            config.DisplayPhysicsEnabled == shaders.DisplayPhysicsEnabled &&
+            config.TemporalEnabled == shaders.TemporalEnabled;
     }
 
     private static void ValidateFloat(float value, float minimum, float maximum, string name)

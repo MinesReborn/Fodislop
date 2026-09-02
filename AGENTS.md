@@ -20,6 +20,23 @@ Fodinae — 2D MMORPG-песочница на Unity 6 (`6000.5.0f1`), URP 2D 17.
 
 ---
 
+## 0.1. Абсолютный запрет на откат без явного запроса пользователя
+
+**Агенту запрещено откатывать файлы, индекс, коммиты или историю Git, если пользователь в своём текущем сообщении явно не запросил конкретный откат.** Просьбы «исправь», «продолжай», «сделай коммит», «убери из коммита» и системное подтверждение команды не являются разрешением на откат.
+
+Без отдельного явного запроса пользователя запрещено:
+
+* выполнять `git reset` с любыми флагами, `git restore`, `git checkout` для восстановления файлов, `git revert`, `git clean` и эквивалентные операции;
+* использовать `git commit --amend`, `git rebase`, force-push и другие команды, переписывающие уже созданные коммиты или историю;
+* возвращать содержимое файлов или состояние индекса к `HEAD`, другому коммиту, stash, reflog либо иной сохранённой версии;
+* самостоятельно запрашивать системное разрешение на откат: инициатива должна исходить из явного сообщения пользователя и содержать понятную цель отката.
+
+Если агент случайно включил чужие изменения в коммит или обнаружил необходимость отката, он обязан остановиться, точно описать текущее состояние и дождаться прямого указания пользователя. Исправлять такую ситуацию откатом по собственной инициативе запрещено.
+
+Разрешение распространяется только на явно названную операцию и цель. Оно не разрешает дополнительные откаты, очистку рабочего дерева или переписывание других коммитов.
+
+---
+
 ## 1. Обязательные стандарты разработки
 
 ### C# и Unity-типы
@@ -65,8 +82,8 @@ Fodinae — 2D MMORPG-песочница на Unity 6 (`6000.5.0f1`), URP 2D 17.
 ### Флоу загрузки и выгрузки сцен (SceneTransitionTicket)
 
 * **Единственный путь перехода:** `BootstrapLifetimeScope.TransitionAsync(sceneName)`. На каждый переход создаётся `SceneTransitionTicket`, передаётся в дочерний скоуп через `LifetimeScope.EnqueueParent` + `Enqueue(builder => builder.RegisterInstance(ticket))`. Сериализованные `ParentReference` в сценах запрещены; поиск скоупа по загруженным сценам запрещён.
-* **Handshake тикета:** дочерний composition root обязан вызвать `ticket.Attach(scene)` ровно один раз (второй attach — исключение) → `RequestActivation` → `MarkStartupReady` → `MarkPresentationReady`. Bootstrap выгружает предыдущую сцену ТОЛЬКО после `WaitForPresentationAsync`.
-* **Провал:** любое исключение старта закрывает тикет через `Fail(ex)` — Bootstrap отменяет переход, выгружает кандидат-сцену и публикует `TransitionFailed`; UI возвращается в рабочее состояние с одной диагностической ошибкой.
+* **Handshake тикета:** дочерний composition root обязан вызвать `ticket.Attach(scene)` ровно один раз (второй attach — исключение) → `RequestActivation` → `MarkStartupReady` → `MarkPresentationReady`. Фаза хранится в `SceneTransitionPhase`, наружу публикуется единым `ISceneNavigator.TransitionChanged`; исключение подписчика не влияет на транзакцию.
+* **Провал:** любое исключение старта закрывает тикет через `Fail(ex)` — Bootstrap отменяет переход, выгружает кандидат-сцену и публикует `TransitionChanged` с фазой `Failed`; UI возвращается в рабочее состояние с одной диагностической ошибкой.
 * **Роли скоупов:** `BootstrapLifetimeScope` — application-сервисы + `ApplicationBootstrap`; `GatewayLifetimeScope`/`MainMenuLifetimeScope` — только typed references, контроллер и свой bootstrap; `GameLifetimeScope` — models, processors, factories, typed scene contract и `GameBootstrap`.
 * **Выход в меню (Game → Menu):** Реализован через `BootstrapLifetimeScope.ReturnToMainMenu()`: disconnect → teardown (`GameLifetimeScope.PrepareForUnload`) → повторная загрузка `MainMenu`.
 * **MainMenu живёт до готовности мира:** при входе в игру `MainMenu` остаётся загруженной и показывает loader, пока `GameManager.WorldReady` не опубликует готовность; только после этого тикет получает `MarkPresentationReady` и меню выгружается.
@@ -84,8 +101,8 @@ Fodinae — 2D MMORPG-песочница на Unity 6 (`6000.5.0f1`), URP 2D 17.
 
 * **`BootstrapLifetimeScope`** (`DontDestroyOnLoad`, `DefaultExecutionOrder -30000`): менеджеры, переживающие переходы сцен (`ConnectionManager`, `NetworkService`, `AudioSystem`, `ClientConfigManager`, `ClientAssetLoader`), плюс application-tier состояние (`LocalPlayerState`/`ILocalPlayerState` — публикуется игроком, читается сетевым слоем и UI).
 * **`GameLifetimeScope`** (в сцене `MainGame`, `DefaultExecutionOrder -20000`): игровые сервисы; зарегистрирован как entry point `GameBootstrap`.
-* **Регистрация компонентов:** `RegisterManager<T>` отдаёт предпочтение сериализованному типизированному контракту (`Core/Lifecycle/ManagerBinding`, список `_managerBindings` на скоупе): concrete reference без опоры на имена объектов. Пока биндинги не заполнены (сцена ещё не смигрирована), `RegisterManager<T>` откатывается на строгий поиск строго в своей сцене (`gameObject.scene == _ownScene`) по `Services/{group}/{T.Name}` и регистрирует экземпляр через `RegisterComponent(existing)`. Сцена — единственный источник истины для менеджеров: отсутствие менеджера — ошибка контракта (`SceneContractException`, fail-fast), ленивое создание в рантайме не используется.
-* **Заполнение контракта:** one-way editor-инструмент `Fodinae/Architecture/Populate Manager Contract` (`Editor/ManagerContractMigrator.cs`) читает вызовы `RegisterManager<T>(builder, "group")` прямо из `GameLifetimeScope.cs`, находит каждый менеджер в сцене и пишет `ManagerBinding`. Он ничего не чинит и не перемещает — только привязывает ссылки. Проверка охвата — `ProductionSceneContractValidator` (полностью пустой контракт даёт warning, частичный — ошибку перед build).
+* **Регистрация компонентов:** `RegisterManager<T>` требует сериализованный типизированный контракт (`Core/Lifecycle/ManagerBinding`, список `_managerBindings` на скоупе) и регистрирует concrete reference через `RegisterComponent`. Поиск по именам и runtime fallback запрещены; отсутствие или дублирование binding — `SceneContractException`.
+* **Заполнение контракта:** one-way editor-инструмент `Fodinae/Architecture/Populate Manager Contract` (`Editor/ManagerContractMigrator.cs`) читает вызовы `RegisterManager<T>(builder, "group")` прямо из `GameLifetimeScope.cs`, находит каждый менеджер в сцене и пишет `ManagerBinding`. Он ничего не чинит и не перемещает — только привязывает ссылки. Пустой и частичный контракт являются ошибками `ProductionSceneContractValidator`.
 
 ### Запрет на ручной `AddComponent` в `Configure`
 
@@ -93,20 +110,19 @@ Fodinae — 2D MMORPG-песочница на Unity 6 (`6000.5.0f1`), URP 2D 17.
 
 `Configure` выполняется до сборки контейнера: прямой `AddComponent` мгновенно вызывает `Awake`/`OnEnable`, пока `[Inject]`-поля не заполнены. Это порождает критические гонки (резолв `UIDocument` из Bootstrap, захват меню-камеры в `Awake`, NRE в `Start`).
 
-Порядок инициализации графа — в `GameBootstrap.PostStart` (IPostStartable), порядок читается в коде и охраняется линтером и тестами:
+Порядок инициализации графа — в `GameStartupPipeline`; `GameBootstrap` только связывает pipeline с `SceneTransitionTicket`. Порядок читается в типизированном коде и охраняется линтером и тестами:
 
 1. ожидание `ticket.WaitForActivationAsync()` (Bootstrap активирует сцену после attach);
 2. `scope.ActivateSceneServices()` — активация авторственного неактивного `Services` root (Awake/OnEnable менеджеров выполняются только после DI);
-3. `InitializeRequiredServices()`: config/сеть/процессоры/ассеты/terrain-подписки (fail-fast на недоступных подписках);
+3. infrastructure-фаза: config/сеть/процессоры/ассеты/terrain-подписки (fail-fast на недоступных подписках);
 4. применение настроек: `TerrainRenderer.ApplyClientConfig` → `PostProcessController.EnsureVolumeSetup` → `LightingEngine.EnsureInitialized` → `SurfaceRenderer.ApplyClientConfig` (линтер охраняет применение каждой настройки на старте);
 5. UI-сервисы: `GameManager.EnsureUISetup` → `PlayerHUDView.EnsureInitialized` → `InventoryView.EnsureInitialized`;
-6. `_connection.Connect()` — старт соединения ПОСЛЕ инициализации диспетчера;
-7. `ValidateStartup()` — шейдеры, compute-шейдеры, ProjectDefaults;
-8. `scope.MarkReady()` + `ticket.MarkStartupReady()`;
-9. ожидание полной готовности мира (`GameManager.IsWorldLoaded` — серверная позиция, terrain, surface, lighting, ассеты);
-10. `ticket.MarkPresentationReady()` — только теперь Bootstrap выгружает предыдущую сцену.
+6. валидация обязательных шейдеров, compute-шейдеров и `ProjectDefaults`, затем `_connection.Connect()` — соединение не стартует при критической ошибке контракта;
+7. `ticket.MarkStartupReady()`;
+8. ожидание полной готовности мира (`GameManager.IsWorldLoaded` — серверная позиция, terrain, surface, lighting, ассеты) и завершения загрузки обязательных FMOD-банков; отсутствие банков фиксируется как `Degraded`, но не блокирует игру;
+9. `scope.MarkReady()` + `ticket.MarkPresentationReady()` — только теперь Bootstrap выгружает предыдущую сцену.
 
-> **Контракт:** добавление подсистемы = одна регистрация в `GameLifetimeScope.Configure` + при необходимости один вызов в `PostStart`. Порядок инициализации живёт в типизированном коде `GameBootstrap`, а не в markdown: этот список — описание, а не источник истины.
+> **Контракт:** добавление подсистемы = регистрация в `GameLifetimeScope.Configure` и включение в соответствующую фазу `GameStartupPipeline`. Этот список — краткое описание, код pipeline является источником истины.
 
 ### Регистрация зависимостей
 
@@ -123,9 +139,9 @@ Fodinae — 2D MMORPG-песочница на Unity 6 (`6000.5.0f1`), URP 2D 17.
 ### Сетевой стек, кэширование и авторизация
 
 * Клиент получает от сервера лёгкое состояние (координаты и идентификаторы), а тяжёлые текстуры, спрайты и FMOD-банки загружает on-demand один раз.
-* **Иерархия кэширования:** RAM (`AssetCache`, `CellTextureCache`) → диск (`PersistentAssetCache`, ETag/MD5) → CDN/сервер. Рендеринг после загрузки выполняется локально.
+* **Иерархия кэширования:** RAM (`AssetCache`, `CellTextureCache`) → диск (`PersistentAssetCache`, versioned manifest с ETag/length/SHA-256) → CDN/сервер. Рендеринг после загрузки выполняется локально.
 * `NetworkService` / `ConnectionManager` — подписки, транспорт, авторизация и реконнект. `PacketHandler` — чистый диспетчер: связывает тип пакета с процессором и владеет временем жизни подписок; он не содержит UI, менеджеров сцены и состояния игрока. Логика пакетов — в `Networking/Processors/*` (обновляют модели, gateways и доменные сервисы: `WorldInitProcessor`, `AuthTokenProcessor`, `PlayerInfoProcessor`, `StatusProcessor` и т.д.).
-* `DummyConnection` — оффлайн-транспорт. Окна авторизации не вызывает: пермиссивно принимает VK-токены (`fdn_vk_*`), знакомые токены из `temporaryCachePath/server_tokens.json`, а для пустого/незнакомого токена сам выдаёт новый (первый вход без экрана; клиентский токен — в PlayerPrefs `AuthToken6`).
+* `DummyConnection` — оффлайн-транспорт. В `HappyPath` окна авторизации не вызывает: пермиссивно принимает VK-токены (`fdn_vk_*`), знакомые токены из `temporaryCachePath/server_tokens.json`, а для пустого/незнакомого токена сам выдаёт новый (первый вход без экрана; клиентский токен — в PlayerPrefs `AuthToken6`). Инъецируемый `IOfflineScenarioSettings` фиксирует на жизненный цикл один из детерминированных негативных сценариев: auth reject, disconnect during handshake, handshake timeout или world-init timeout.
 * Процессоры пакетов обрабатывают: `world`, `map`, `chat`, `clan`, `audio`, `windows`, `inventory`, `stats`, `player`, `robots`, `packs`, `missions`, `config`.
 
 ### UI Toolkit, слои и оконная система
@@ -254,7 +270,8 @@ Fodinae — 2D MMORPG-песочница на Unity 6 (`6000.5.0f1`), URP 2D 17.
 * **Настройки конвейера рендера:**
 * `Renderer2D.asset` содержит ровно одну активную `PostProcessRendererFeature`. Post-process применяется к базовой камере.
 * World-space UI на слое `UI` рисуется отдельной Overlay-камерой `WorldUICamera` без пост-процессинга. UI Toolkit / Screen Space Overlay рендерится поверх.
-* Внутренний URP HDR (`supportsHDR`) включён для корректного lighting/bloom, вывод на HDR-дисплей отключён (`PlayerSettings.allowHDRDisplaySupport = false`). Отключение URP HDR ради SDR запрещено.
+* HDR-буфер (`supportsHDR`) включён для lighting/bloom. HDR output на дисплей управляется переключателем в PauseMenu: `HDROutputSettings.RequestHDRModeChange(true/false)` через `DisplayManager.SetHDREnabled`. На HDR-capable дисплее — HDR; на SDR финальное сжатие в LDR делает **собственный тонмап AgX** в `PostProcess.compute` (`ToneMapAgX`, флаг `_ToneMappingEnabled`), а не URP-овский `Tonemapping` override: последнего в `PostProcessVolumeProfile` нет. Единственное условие тонмапа — режим вывода: при SDR он работает всегда, при `isHDROutputActive` гасится, чтобы света дожили до финального кодирования URP. Настройки «включить тонмап» не существует, как и тира «постпроцесс выключен», отладочного байпаса и гейта `IsEnabled`: без тонмапа всё ярче единицы клиппится в плоский белый, то есть выключённый постпроцесс давал не дешёвый кадр, а неверный. Тир (`Essential`/`Full`) выбирает только, платить ли за пирамиду блума и мо́ушен-блюр, и выводится из пресета кодом в `GraphicsQualityProfile.TierFor`, а не читается из `.asset`. Внутренний HDR-буфер (`camera.allowHDR`) остаётся включённым всегда — освещение и bloom рассчитываются в HDR вне зависимости от режима дисплея.
+* **Матрицы тонмапа:** референс AgX — GLSL, где `mat3(...)` заполняется по столбцам, а HLSL `float3x3(...)` — по строкам. Литералы, перенесённые один в один, дают транспонированную матрицу, и нейтрали красятся. Инвариант: сумма каждой строки обеих матриц равна 1.0; держится проверкой `checkToneMapMatrices` в `scripts/check-architecture.js`.
 * **Motion Blur:** строит вектор скорости (velocity) только для удалённых `Robot` с компонентом `MotionBlurTag`. Локальный игрок исключается. Передаются реальные текстуры спрайтов и матрицы GPU; delta при телепортации сбрасывается.
 
 ### Звуковой движок (FMOD)

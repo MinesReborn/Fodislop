@@ -12,15 +12,15 @@
     bottom: 0;
     justify-content: center;
     align-items: center;
-    background-color: rgba(0, 0, 0, 0.6);
+    background-color: var(--surface-sunken);
 }
 
 .inv-full-bg {
-    background-color: rgba(14, 18, 26, 0.95);
+    background-color: var(--surface-slate-dense);
     border-width: 1px;
-    border-color: rgba(80, 140, 200, 0.5);
-    border-radius: 6px;
-    padding: 20px;
+    border-color: var(--accent-cyan-fill);
+    border-radius: var(--radius-md);
+    padding: var(--space-9);
     flex-direction: column;
     align-items: center;
     min-width: 560px;
@@ -32,41 +32,41 @@
     right: 8px;
     width: 28px;
     height: 28px;
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: var(--surface-void-haze);
     border-width: 1px;
-    border-color: rgba(80, 140, 200, 0.3);
-    border-radius: 4px;
+    border-color: var(--accent-cyan-glow);
+    border-radius: var(--radius-md);
     padding: 0;
     justify-content: center;
     align-items: center;
 }
 
 .inv-close-btn:hover {
-    background-color: rgba(180, 40, 40, 0.8);
-    border-color: rgba(255, 80, 80, 0.8);
+    background-color: var(--state-danger-glow);
+    border-color: var(--state-danger);
 }
 
 .inv-close-label {
-    font-size: 16px;
-    color: rgb(200, 200, 200);
+    font-size: var(--size-md);
+    color: var(--accent-gold);
     -unity-text-align: middle-center;
     align-self: center;
     justify-content: center;
 }
 
 .inv-title {
-    font-size: 16px;
+    font-size: var(--size-md);
     -unity-font-style: bold;
-    color: rgb(220, 235, 255);
-    margin-bottom: 12px;
+    color: var(--text-primary);
+    margin-bottom: var(--space-6);
     align-self: flex-start;
 }
 
 .inv-separator {
     height: 1px;
-    background-color: rgba(80, 140, 200, 0.3);
-    margin-top: 12px;
-    margin-bottom: 12px;
+    background-color: var(--accent-cyan-glow);
+    margin-top: var(--space-6);
+    margin-bottom: var(--space-6);
     align-self: center;
 }
 
@@ -92,25 +92,25 @@
     justify-content: center;
     align-items: center;
     margin: 3px;
-    background-color: rgba(20, 26, 38, 0.85);
+    background-color: var(--surface-shelf-dense);
     border-width: 1px;
-    border-color: rgba(80, 140, 200, 0.4);
-    border-radius: 4px;
+    border-color: var(--accent-cyan-glow);
+    border-radius: var(--radius-md);
 }
 
 .inv-cell:hover {
-    border-color: rgba(80, 180, 255, 0.9);
-    background-color: rgba(30, 42, 62, 0.9);
+    border-color: var(--accent-cyan-dense);
+    background-color: var(--surface-shelf-dense);
 }
 
 .inv-cell--selected {
     border-width: 2px;
-    border-color: rgb(255, 214, 0);
-    background-color: rgba(60, 50, 20, 0.4);
+    border-color: var(--accent-gold);
+    background-color: var(--light-film);
 }
 
 .inv-cell--highlight {
-    background-color: rgba(50, 70, 100, 0.8);
+    background-color: var(--light-sheen);
 }
 
 .inv-icon {
@@ -126,8 +126,8 @@
     position: absolute;
     right: 3px;
     bottom: 2px;
-    font-size: 11px;
-    color: white;
+    font-size: var(--size-xs);
+    color: var(--light-solid);
     -unity-font-style: bold;
 }
 
@@ -135,7 +135,7 @@
     position: absolute;
     width: 36px;
     height: 36px;
-    border-radius: 18px;
+    border-radius: var(--radius-md);
     opacity: 0.8;
 }
 
@@ -160,8 +160,8 @@
     flex-direction: row;
     justify-content: center;
     align-items: center;
-    padding: 6px 12px;
-    border-radius: 8px;
+    padding: var(--space-3) var(--space-6);
+    border-radius: var(--radius-md);
 }
 
 .inv-hotbar-slots {
@@ -174,14 +174,14 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    margin-top: 10px;
+    margin-top: var(--space-5);
 }
 
 .inv-toggle-btn {
-    margin-left: 10px;
+    margin-left: var(--space-5);
     height: 48px;
-    padding-left: 14px;
-    padding-right: 14px;
+    padding-left: var(--space-7);
+    padding-right: var(--space-7);
     justify-content: center;
     align-items: center;
 }
@@ -199,18 +199,18 @@
     flex-shrink: 0;
     flex-grow: 0;
     margin: 3px;
-    background-color: rgba(30, 50, 75, 0.85);
+    background-color: var(--light-sheen);
     border-width: 1px;
-    border-color: rgba(80, 180, 255, 0.5);
-    border-radius: 4px;
+    border-color: var(--accent-cyan-fill);
+    border-radius: var(--radius-md);
     padding: 0;
     justify-content: center;
     align-items: center;
 }
 
 .inv-button:hover {
-    background-color: rgba(50, 85, 130, 0.95);
-    border-color: rgba(100, 210, 255, 0.9);
+    background-color: var(--accent-cyan-glow);
+    border-color: var(--accent-cyan-dense);
 }
 
 /* ─── Тултип выбранного предмета ─── */
@@ -228,48 +228,48 @@
 .inv-tooltip-bg {
     flex-direction: row;
     align-items: center;
-    background-color: rgba(14, 18, 26, 0.95);
+    background-color: var(--surface-slate-dense);
     border-width: 1px;
-    border-color: rgba(80, 140, 200, 0.5);
-    border-radius: 4px;
-    padding: 6px 12px;
+    border-color: var(--accent-cyan-fill);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-6);
 }
 
 .inv-tooltip-name {
-    font-size: 13px;
+    font-size: var(--size-base);
     -unity-font-style: bold;
-    color: rgb(255, 214, 0);
-    margin-right: 10px;
+    color: var(--accent-gold);
+    margin-right: var(--space-5);
 }
 
 .inv-tooltip-desc {
-    font-size: 12px;
-    color: rgb(210, 225, 240);
+    font-size: var(--size-sm);
+    color: var(--accent-cyan-solid);
 }
 
 /* ─── Контекстное меню ─── */
 
 .inv-context-menu {
     position: absolute;
-    background-color: rgba(14, 18, 26, 0.95);
+    background-color: var(--surface-slate-dense);
     border-width: 1px;
-    border-color: rgba(80, 140, 200, 0.5);
-    border-radius: 4px;
-    padding: 4px 0;
+    border-color: var(--accent-cyan-fill);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) 0;
     flex-direction: column;
     min-width: 150px;
 }
 
 .inv-context-btn {
-    background-color: rgba(0, 0, 0, 0);
+    background-color: transparent;
     border-width: 0;
-    padding: 6px 12px;
-    color: rgb(220, 235, 255);
-    font-size: 13px;
+    padding: var(--space-3) var(--space-6);
+    color: var(--text-primary);
+    font-size: var(--size-base);
     -unity-text-align: middle-left;
     min-height: 28px;
 }
 
 .inv-context-btn:hover {
-    background-color: rgba(50, 85, 130, 0.8);
+    background-color: var(--accent-cyan-glow);
 }

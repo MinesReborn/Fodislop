@@ -120,7 +120,8 @@ public sealed class TerrainMaterialManager
                 _materials[i].SetFloat(DebugModePropertyId, clientConfig.TerrainDebugMode ? 1f : 0f);
 
                 if (_materials[i].FindPass("Universal2D") < 0 ||
-                    _materials[i].FindPass("LightingMaterialField") < 0)
+                    _materials[i].FindPass(
+                        ProjectRuntimeContracts.ShaderPassNames.LightingMaterialField) < 0)
                 {
                     throw new InvalidOperationException(
                         $"Terrain material '{_materials[i].name}' is missing required " +
@@ -180,7 +181,8 @@ public sealed class TerrainMaterialManager
         {
             Material material = _materials[materialIndex];
             if (material.FindPass("Universal2D") < 0 ||
-                material.FindPass("LightingMaterialField") < 0)
+                material.FindPass(
+                    ProjectRuntimeContracts.ShaderPassNames.LightingMaterialField) < 0)
             {
                 throw new InvalidOperationException(
                     $"Terrain material '{material.name}' is missing world-lighting passes.");

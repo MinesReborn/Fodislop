@@ -1,3 +1,11 @@
+/* Экран загрузки бутстрапа.
+ *
+ * Лист лежит рядом с разметкой, а не в Assets/Resources/Styles, потому что
+ * подключается через <ui:Style> самим UXML: бутстрап поднимается раньше темы.
+ * Значения при этом берутся из общей палитры — токены объявлены в теме и
+ * доступны здесь по наследованию от корня панели.
+ */
+
 .bootstrap-loading-overlay {
     position: absolute;
     left: 0;
@@ -6,22 +14,17 @@
     bottom: 0;
     align-items: center;
     justify-content: center;
-    display: none;
-    background-color: rgba(4, 8, 18, 0.94);
-}
-
-.bootstrap-loading-overlay--visible {
-    display: flex;
+    background-color: var(--surface-scrim);
 }
 
 .bootstrap-loading-title {
-    color: rgb(230, 238, 255);
-    font-size: 28px;
+    color: var(--text-primary);
+    font-size: var(--size-2xl);
     -unity-font-style: bold;
 }
 
 .bootstrap-loading-phase {
-    margin-top: 12px;
-    color: rgb(144, 166, 204);
-    font-size: 16px;
+    margin-top: var(--space-6);
+    color: var(--text-secondary);
+    font-size: var(--size-lg);
 }

@@ -15,6 +15,7 @@ namespace Fodinae.UI.HUD.Player.View;
 public sealed class PlayerHUDStatusPanel
 {
     private readonly Dictionary<string, VisualElement> _statusLineElements = new();
+    private readonly Dictionary<string, string> _statusLineTexts = new();
     private readonly Dictionary<string, IVisualElementScheduledItem> _statusSchedules = new();
     private readonly List<string> _toRemove = new();
     private VisualElement? _statusPanel;
@@ -37,6 +38,7 @@ public sealed class PlayerHUDStatusPanel
             _statusPanel.style.display = DisplayStyle.None;
             ClearSchedules();
             _statusLineElements.Clear();
+            _statusLineTexts.Clear();
             _statusPanel.Clear();
             return;
         }
@@ -62,6 +64,7 @@ public sealed class PlayerHUDStatusPanel
             }
 
             _statusLineElements.Remove(key);
+            _statusLineTexts.Remove(key);
         }
 
         foreach (var kvp in currentLines)
@@ -70,7 +73,7 @@ public sealed class PlayerHUDStatusPanel
             {
                 if (existing is Label label)
                 {
-                    UpdateStatusLabel(label, kvp.Value);
+                    ApplyStatusLabel(label, kvp.Key, kvp.Value);
                     label.style.color = kvp.Value.Color;
                 }
             }
@@ -79,7 +82,7 @@ public sealed class PlayerHUDStatusPanel
                 var row = new Label();
                 row.AddToClassList("hud-status-line");
                 row.style.color = kvp.Value.Color;
-                UpdateStatusLabel(row, kvp.Value);
+                ApplyStatusLabel(row, kvp.Key, kvp.Value);
                 _statusPanel.Add(row);
 
                 if (kvp.Value.Expiry > 0)
@@ -97,7 +100,10 @@ public sealed class PlayerHUDStatusPanel
                             return;
                         }
 
-                        UpdateStatusLabel(row, entry);
+                        if (row is Label scheduledLabel)
+                        {
+                            ApplyStatusLabel(scheduledLabel, kvp.Key, entry);
+                        }
                     }).Every(1000);
                     _statusSchedules[kvp.Key] = schedule;
                 }
@@ -107,28 +113,38 @@ public sealed class PlayerHUDStatusPanel
         }
     }
 
-    private static void UpdateStatusLabel(Label label, StatusLineEntry entry)
+    private void ApplyStatusLabel(Label label, string key, StatusLineEntry entry)
+    {
+        string next = ComposeStatusText(entry);
+        if (_statusLineTexts.TryGetValue(key, out var cached) && cached == next)
+        {
+            return;
+        }
+
+        _statusLineTexts[key] = next;
+        label.text = next;
+    }
+
+    private static string ComposeStatusText(StatusLineEntry entry)
     {
         if (entry.Text == null || entry.Text.Length == 0)
         {
-            label.text = string.Empty;
-            return;
+            return string.Empty;
         }
 
         var name = entry.Text[0];
         if (entry.Expiry > 0)
         {
             var remaining = Math.Max(0, entry.Expiry - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-            label.text = $"{name}: {FormatTime(remaining)}";
+            return $"{name}: {FormatTime(remaining)}";
         }
-        else if (entry.Text.Length > 1)
+
+        if (entry.Text.Length > 1)
         {
-            label.text = $"{name}: {entry.Text[1]}";
+            return $"{name}: {entry.Text[1]}";
         }
-        else
-        {
-            label.text = name;
-        }
+
+        return name;
     }
 
     private static string FormatTime(long seconds)

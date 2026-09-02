@@ -69,9 +69,6 @@ namespace Fodinae.Game.Managers
 
         private void OnDestroy()
         {
-            SharedMaterialCache.Clear();
-            ItemRegistry.Clear();
-
             if (_uiRoot != null)
             {
                 Destroy(_uiRoot);
@@ -156,8 +153,8 @@ namespace Fodinae.Game.Managers
             ILocalPlayer? player = _localPlayer.Current;
             Robot? robot = player != null ? player.GetComponent<Robot>() : null;
             TerrainRenderer? terrain = _terrainRenderer;
-            int pendingAssets = _assetLoader is ClientAssetLoader ca ? ca.PendingAssetCount : -1;
-            int queuedAssets = _assetLoader is ClientAssetLoader cb ? cb.QueuedAssetCount : -1;
+            int pendingAssets = _assetLoader.PendingAssetCount;
+            int queuedAssets = _assetLoader.QueuedAssetCount;
 
             // Re-log the readiness gate roughly every two seconds while the
             // world is pending. The conditions converge at different times
@@ -228,8 +225,8 @@ namespace Fodinae.Game.Managers
             int robotCount = _robotService?.RobotCount ?? -1;
             Debug.Log(
                 $"[GameManager] World load completed: server position, terrain, shaders and textures are ready. " +
-                $"robots={robotCount}, pendingAssets={(_assetLoader is ClientAssetLoader c ? c.PendingAssetCount : -1)}, " +
-                $"queuedAssets={(_assetLoader is ClientAssetLoader c2 ? c2.QueuedAssetCount : -1)}, " +
+                $"robots={robotCount}, pendingAssets={_assetLoader.PendingAssetCount}, " +
+                $"queuedAssets={_assetLoader.QueuedAssetCount}, " +
                 $"pendingCellTextures={_textureService.PendingCellTextureRequests}");
             OnWorldLoaded?.Invoke();
         }

@@ -168,7 +168,7 @@ namespace Fodinae.Game
 
                 if (_targetBotId != 0)
                 {
-                    var targetBot = (_robotService as RobotManager)?.GetOrCreateRobot(_targetBotId);
+                    var targetBot = _robotService.GetOrCreateRobot(_targetBotId);
                     if (targetBot != null)
                     {
                         _effekseerHandle.SetTargetLocation(targetBot.transform.position);
@@ -337,7 +337,7 @@ namespace Fodinae.Game
 
             if (_hasSourceBot)
             {
-                var sourceBot = (_robotService as RobotManager)?.GetOrCreateRobot(_sourceBotId);
+                var sourceBot = _robotService.GetOrCreateRobot(_sourceBotId);
                 pos = sourceBot != null
                     ? sourceBot.transform.position
                     : CoordinateUtils.ServerToUnityPos(_sourceX, _sourceY, GetWorldHeight());
@@ -356,7 +356,7 @@ namespace Fodinae.Game
 
             if (_targetBotId != 0 && _gameObject != null)
             {
-                var targetBot = (_robotService as RobotManager)?.GetOrCreateRobot(_targetBotId);
+                var targetBot = _robotService.GetOrCreateRobot(_targetBotId);
                 if (targetBot != null)
                 {
                     // The dig effect must point the way the bot faces, toward
@@ -391,13 +391,7 @@ namespace Fodinae.Game
             try
             {
                 var filename = $"VFX/{_effectType.ToString().ToLowerInvariant()}";
-                if (_assetLoader is not ClientAssetLoader loader)
-                {
-                    MarkVisualCompleted();
-                    return;
-                }
-
-                var animData = await loader.GetAnimatedSpritesAsync(filename, token);
+                var animData = await _assetLoader.GetAnimatedSpritesAsync(filename, token);
                 if (token.IsCancellationRequested)
                 {
                     return;
@@ -416,7 +410,7 @@ namespace Fodinae.Game
                     return;
                 }
 
-                var texture = await loader.GetTextureAsync(filename);
+                var texture = await _assetLoader.GetTextureAsync(filename, token);
                 if (token.IsCancellationRequested)
                 {
                     return;
@@ -436,7 +430,7 @@ namespace Fodinae.Game
                     return;
                 }
 
-                var bytes = await loader.GetAssetBytesAsync(filename, timeoutSeconds: 10);
+                var bytes = await _assetLoader.GetAssetBytesAsync(filename, token, timeoutSeconds: 10);
                 if (token.IsCancellationRequested)
                 {
                     return;
@@ -471,9 +465,7 @@ namespace Fodinae.Game
                 var effectAsset = await RuntimeEffekseerLoader.LoadEffectAsync(
                     bytes,
                     _effectType.ToString(),
-                    _assetLoader as ClientAssetLoader ??
-                        throw new InvalidOperationException(
-                            "ClientAssetLoader is unavailable for runtime Effekseer textures."),
+                    _assetLoader,
                     texturePathMapper: path =>
                     {
                         if (_textureOverrideMap != null && _textureOverrideMap.TryGetValue(path, out var mapped))
@@ -510,7 +502,7 @@ namespace Fodinae.Game
 
                 if (_targetBotId != 0)
                 {
-                    var targetBot = (_robotService as RobotManager)?.GetOrCreateRobot(_targetBotId);
+                    var targetBot = _robotService.GetOrCreateRobot(_targetBotId);
                     if (targetBot != null)
                     {
                         _effekseerHandle.SetTargetLocation(targetBot.transform.position);

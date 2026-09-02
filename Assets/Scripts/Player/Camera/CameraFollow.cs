@@ -73,9 +73,14 @@ namespace Fodinae.Player
             _camera = _injectedCamera;
 
             _originalZ = _camera.transform.position.z;
-            _targetZoom = _camera.orthographicSize;
+            float initialZoom = (_minZoom + _maxZoom) * 0.5f;
+            _targetZoom = initialZoom;
             _currentZoom = _targetZoom;
             _lastZoom = _currentZoom;
+            if (!Mathf.Approximately(_camera.orthographicSize, _currentZoom))
+            {
+                _camera.orthographicSize = _currentZoom;
+            }
             if (_target == null || _target == _camera.transform)
             {
                 var player = _localPlayer?.Current;

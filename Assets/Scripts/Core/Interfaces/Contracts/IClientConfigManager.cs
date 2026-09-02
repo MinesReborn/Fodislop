@@ -14,6 +14,11 @@ namespace Fodinae.Core.Interfaces
         void MarkGraphicsAsCustom();
         void SelectGraphicsPreset(GraphicsPreset preset);
         void SetCustomGraphicsSettings(GraphicsQualitySettings settings);
+        void UpdateAudio(Action<AudioSettings> update);
+        void UpdateDisplay(Action<DisplaySettings> update);
+        void UpdateInterface(Action<InterfaceSettings> update);
+        void UpdateAccessibility(Action<AccessibilitySettings> update);
+        void UpdateConnection(Action<ConnectionSettings> update);
         void UpdatePostProcessAndSave(Action<ClientConfig> update);
         void UpdateAndSave(Action<ClientConfig> update);
         void Load();

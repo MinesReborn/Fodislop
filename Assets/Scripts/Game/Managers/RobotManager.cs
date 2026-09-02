@@ -23,8 +23,6 @@ namespace Fodinae.Game.Managers
         [Inject]
         private ILocalPlayerState _localPlayer = null!;
 
-        public static bool ShowDebugVisuals { get; set; }
-
         public uint LocalPlayerBotId { get; private set; }
 
         public int RobotCount => _robots.Count;

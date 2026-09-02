@@ -16,11 +16,13 @@ namespace Fodinae.Networking.Processors;
 public sealed class AuthTokenProcessor
 {
     private readonly ILocalPlayerState _localPlayer;
+    private readonly IGameTokenStore _tokens;
     private bool _emptyAuthTokenWarningLogged;
 
-    public AuthTokenProcessor(ILocalPlayerState localPlayer)
+    public AuthTokenProcessor(ILocalPlayerState localPlayer, IGameTokenStore tokens)
     {
         _localPlayer = localPlayer;
+        _tokens = tokens;
     }
 
     public void Process(AuthTokenPacket packet)
@@ -38,7 +40,7 @@ public sealed class AuthTokenProcessor
         }
 
         _emptyAuthTokenWarningLogged = false;
-        AuthTokenManager.SaveToken(newToken);
+        _tokens.Save(newToken);
         _localPlayer.SetAuthenticated(true);
     }
 }

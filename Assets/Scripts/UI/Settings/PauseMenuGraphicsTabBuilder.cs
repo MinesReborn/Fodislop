@@ -169,12 +169,15 @@ internal sealed class PauseMenuGraphicsTabBuilder
         UpdateLightingQualityTierButton();
         graphicsSection.Add(lightingQualityTierButton);
 
-        string[] postProcessTierNames =
-        [
-            "settings.post_process.full",
-            "settings.post_process.off",
-            "settings.post_process.core",
-        ];
+        // Индексация массива по (int)mode тут не годится: значение 1 из
+        // перечисления изъято, а Essential остался равным 2. Сопоставление
+        // явное, чтобы изъятое значение не читалось как чужая строка.
+        static string PostProcessTierKey(PostProcessQualityMode mode) => mode switch
+        {
+            PostProcessQualityMode.Essential => "settings.post_process.core",
+            _ => "settings.post_process.full",
+        };
+
         var postProcessTierButton = new Button();
         void UpdatePostProcessTierButton()
         {
@@ -183,7 +186,7 @@ internal sealed class PauseMenuGraphicsTabBuilder
                 _clientConfig.Config.GraphicsQualitySettings.PostProcessQuality;
             postProcessTierButton.text =
                 _loc.Get("settings.post_process.quality_label") + ": " +
-                _loc.Get(postProcessTierNames[(int)mode]);
+                _loc.Get(PostProcessTierKey(mode));
             postProcessTierButton.SetEnabled(preset == GraphicsPreset.Custom);
         }
 
@@ -196,12 +199,10 @@ internal sealed class PauseMenuGraphicsTabBuilder
 
             ApplyCustomTechnicalSettings(settings =>
             {
-                settings.PostProcessQuality = settings.PostProcessQuality switch
-                {
-                    PostProcessQualityMode.Off => PostProcessQualityMode.Essential,
-                    PostProcessQualityMode.Essential => PostProcessQualityMode.Full,
-                    _ => PostProcessQualityMode.Off,
-                };
+                settings.PostProcessQuality =
+                    settings.PostProcessQuality == PostProcessQualityMode.Full
+                        ? PostProcessQualityMode.Essential
+                        : PostProcessQualityMode.Full;
                 return settings;
             });
             UpdatePostProcessTierButton();

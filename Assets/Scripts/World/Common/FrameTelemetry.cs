@@ -3,21 +3,45 @@
 using System;
 using System.Diagnostics;
 using Unity.Profiling;
-using UnityEngine;
-
 namespace Fodinae.Core
 {
-    public static class FrameProfiler
+    public interface IFrameTelemetry
     {
-        public static float TerrainMeshTimeMs { get; set; }
-        public static float TerrainCacheTimeMs { get; set; }
-        public static float TerrainFloodFillTimeMs { get; set; }
-        public static float TerrainGpuUploadTimeMs { get; set; }
-        public static float LightingBuildCommandsTimeMs { get; set; }
-        public static float LightingExecuteCommandsTimeMs { get; set; }
-        public static int LightingCommandBufferBytes { get; set; }
-        public static int ActiveDynamicLights { get; set; }
-        public static long GcAllocPerFrameBytes { get; set; }
+        float TerrainMeshTimeMs { get; set; }
+        float TerrainCacheTimeMs { get; set; }
+        float TerrainFloodFillTimeMs { get; set; }
+        float TerrainGpuUploadTimeMs { get; set; }
+        float LightingBuildCommandsTimeMs { get; set; }
+        float LightingExecuteCommandsTimeMs { get; set; }
+        int LightingCommandBufferBytes { get; set; }
+        int ActiveDynamicLights { get; set; }
+        long GcAllocPerFrameBytes { get; set; }
+        int TerrainRebuildCount { get; set; }
+        int TerrainFullPopulateCount { get; set; }
+        int TerrainMeshClearCount { get; set; }
+        int TerrainDirtyPatchCount { get; set; }
+        int LightingRegionInvalidationCount { get; set; }
+        int LightingStaticSolveCount { get; set; }
+        int LightingDynamicSolveCount { get; set; }
+        long GcAllocTotalPerSecondBytes { get; }
+        int GcCollectionCount { get; }
+
+        void BeginFrame();
+        void SetAllocationTrackingEnabled(bool enabled);
+        void ResetFrameTimers();
+    }
+
+    public sealed class FrameTelemetry : IFrameTelemetry, IDisposable
+    {
+        public float TerrainMeshTimeMs { get; set; }
+        public float TerrainCacheTimeMs { get; set; }
+        public float TerrainFloodFillTimeMs { get; set; }
+        public float TerrainGpuUploadTimeMs { get; set; }
+        public float LightingBuildCommandsTimeMs { get; set; }
+        public float LightingExecuteCommandsTimeMs { get; set; }
+        public int LightingCommandBufferBytes { get; set; }
+        public int ActiveDynamicLights { get; set; }
+        public long GcAllocPerFrameBytes { get; set; }
 
         // Cumulative terrain rebuild counters, deliberately not reset per frame.
         //
@@ -26,20 +50,20 @@ namespace Fodinae.Core
         // rebuilds are frequent (a cost problem), or a rebuild produces a
         // different image from the one before it (a correctness problem). Rates
         // separate the two in one walk.
-        public static int TerrainRebuildCount { get; set; }
+        public int TerrainRebuildCount { get; set; }
 
         // Rebuilds that could not scroll the cache and repopulated from scratch.
-        public static int TerrainFullPopulateCount { get; set; }
+        public int TerrainFullPopulateCount { get; set; }
 
         // Rebuilds that had to drop and reallocate the mesh, which shows as a
         // frame with no terrain at all.
-        public static int TerrainMeshClearCount { get; set; }
+        public int TerrainMeshClearCount { get; set; }
 
-        public static int TerrainDirtyPatchCount { get; set; }
+        public int TerrainDirtyPatchCount { get; set; }
 
-        public static int LightingRegionInvalidationCount { get; set; }
-        public static int LightingStaticSolveCount { get; set; }
-        public static int LightingDynamicSolveCount { get; set; }
+        public int LightingRegionInvalidationCount { get; set; }
+        public int LightingStaticSolveCount { get; set; }
+        public int LightingDynamicSolveCount { get; set; }
 
         // Allocation rate for the whole process, sampled over a one second
         // window, from the "GC Allocated In Frame" profiler counter - the same
@@ -56,7 +80,7 @@ namespace Fodinae.Core
         //
         // The recorder needs the profiler enabled, which is the editor and
         // development builds - exactly where this overlay runs.
-        public static long GcAllocTotalPerSecondBytes { get; private set; }
+        public long GcAllocTotalPerSecondBytes { get; private set; }
 
         // Deliberately NOT split into "main thread" and "worker threads".
         //
@@ -75,34 +99,20 @@ namespace Fodinae.Core
 
         // Whether the collector runs at all. A heap that only grows is not the
         // same defect as a heap that is collected often and expensively.
-        public static int GcCollectionCount { get; private set; }
+        public int GcCollectionCount { get; private set; }
 
         private const double AllocationRateWindowSeconds = 1.0;
 
-        private static long _windowTotalAllocatedBytes;
-        private static double _windowStartSeconds;
-        private static readonly Stopwatch AllocationClock = Stopwatch.StartNew();
+        private long _windowTotalAllocatedBytes;
+        private double _windowStartSeconds;
+        private readonly Stopwatch _allocationClock = Stopwatch.StartNew();
 
         // The counter is per frame and resets itself, so it is accumulated
         // across the window rather than read as a running total.
-        private static ProfilerRecorder _allocatedInFrameRecorder;
-        private static bool _allocationRecorderStarted;
+        private ProfilerRecorder _allocatedInFrameRecorder;
+        private bool _allocationRecorderStarted;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetForDomainReload()
-        {
-            // A ProfilerRecorder is a native handle. It does not survive a
-            // domain reload, and the stale struct left in this static field
-            // would report Valid == false forever.
-            _allocationRecorderStarted = false;
-            _allocatedInFrameRecorder = default;
-            GcAllocTotalPerSecondBytes = 0;
-            GcAllocPerFrameBytes = 0;
-            _windowTotalAllocatedBytes = 0;
-            _windowStartSeconds = 0d;
-        }
-
-        public static void BeginFrame()
+        public void BeginFrame()
         {
             if (_allocationRecorderStarted)
             {
@@ -110,7 +120,7 @@ namespace Fodinae.Core
             }
         }
 
-        public static void SetAllocationTrackingEnabled(bool enabled)
+        public void SetAllocationTrackingEnabled(bool enabled)
         {
             if (enabled == _allocationRecorderStarted)
             {
@@ -138,10 +148,10 @@ namespace Fodinae.Core
                 "GC Allocated In Frame");
             _allocationRecorderStarted = true;
             _windowTotalAllocatedBytes = 0;
-            _windowStartSeconds = AllocationClock.Elapsed.TotalSeconds;
+            _windowStartSeconds = _allocationClock.Elapsed.TotalSeconds;
         }
 
-        private static void UpdateAllocationRates()
+        private void UpdateAllocationRates()
         {
             if (_allocatedInFrameRecorder.Valid)
             {
@@ -149,7 +159,7 @@ namespace Fodinae.Core
                 _windowTotalAllocatedBytes += GcAllocPerFrameBytes;
             }
 
-            double now = AllocationClock.Elapsed.TotalSeconds;
+            double now = _allocationClock.Elapsed.TotalSeconds;
             double elapsed = now - _windowStartSeconds;
             if (elapsed < AllocationRateWindowSeconds)
             {
@@ -166,7 +176,7 @@ namespace Fodinae.Core
             _windowStartSeconds = now;
         }
 
-        public static void ResetFrameTimers()
+        public void ResetFrameTimers()
         {
             TerrainMeshTimeMs = 0f;
             TerrainCacheTimeMs = 0f;
@@ -174,6 +184,12 @@ namespace Fodinae.Core
             TerrainGpuUploadTimeMs = 0f;
             LightingBuildCommandsTimeMs = 0f;
             LightingExecuteCommandsTimeMs = 0f;
+        }
+
+        public void Dispose()
+        {
+            SetAllocationTrackingEnabled(false);
+            _allocationClock.Stop();
         }
     }
 }

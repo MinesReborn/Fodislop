@@ -21,12 +21,14 @@ namespace Fodinae.World
     {
         private Camera? _mainCamera;
         private IWorldDataStorage _worldStorage = null!;
+        private IWorldPersistence _worldPersistence = null!;
         private bool _hasWorldStorage;
 
         [Inject]
-        public void Construct(IWorldDataStorage worldStorage)
+        public void Construct(IWorldDataStorage worldStorage, IWorldPersistence worldPersistence)
         {
             _worldStorage = worldStorage;
+            _worldPersistence = worldPersistence;
             _hasWorldStorage = true;
         }
 
@@ -84,6 +86,7 @@ namespace Fodinae.World
             }
 
             _worldStorage = storage ?? throw new ArgumentNullException(nameof(storage));
+            _worldPersistence = storage;
             _hasWorldStorage = true;
             IsStandaloneMode = true;
         }
@@ -146,12 +149,12 @@ namespace Fodinae.World
             }
 
             _nextMapFlushTime = Time.unscaledTime + DurableMapFlushInterval;
-            if (_worldStorage is MapStorage storage && storage.HasDirtyChunks)
+            if (_worldPersistence.HasDirtyChunks)
             {
                 // Not durable: see MapStorage.Flush. The fsync belongs to
                 // OnApplicationQuit/Pause/LowMemory above, which still pass the
                 // default. Here it only bought a periodic main-thread stall.
-                storage.Flush(durable: false);
+                _worldPersistence.Flush(durable: false);
             }
         }
 

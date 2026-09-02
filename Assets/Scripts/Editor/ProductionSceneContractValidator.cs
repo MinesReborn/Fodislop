@@ -330,12 +330,9 @@ namespace Fodinae.Editor
 
         private static void ValidateManagerContract(string sceneName, GameLifetimeScope scope, List<string> errors)
         {
-            // The typed manager contract is the build-time guarantee. Until the
-            // editor migrator has populated bindings, the scope falls back to
-            // group-by-name resolution, so a contractless scene still boots —
-            // but shipping one means relying on object names. Flag partial or
-            // empty contracts so authors run
-            // Fodinae/Architecture/Populate Manager Contract.
+            // The typed manager contract is both the runtime and build-time
+            // guarantee. There is no group-by-name runtime fallback: empty or
+            // partial bindings fail startup and must fail validation here too.
             int bindingCount = scope.ManagerBindings.Count;
             if (bindingCount == 0)
             {
@@ -345,23 +342,58 @@ namespace Fodinae.Editor
                 return;
             }
 
-            var bound = new HashSet<UnityEngine.Object>();
-            foreach (ManagerBinding binding in scope.ManagerBindings)
-            {
-                if (binding.Target != null)
-                {
-                    bound.Add(binding.Target);
-                }
-                else
-                {
-                    errors.Add($"{sceneName}: a ManagerBinding for '{binding.ManagerType}' has a null target.");
-                }
-            }
-
             Transform servicesRoot = scope.ServicesRoot;
             if (servicesRoot == null)
             {
                 return;
+            }
+
+            var bound = new HashSet<UnityEngine.Object>();
+            var boundTypes = new HashSet<string>(StringComparer.Ordinal);
+            foreach (ManagerBinding binding in scope.ManagerBindings)
+            {
+                MonoBehaviour? target = binding.Target;
+                if (target == null)
+                {
+                    errors.Add($"{sceneName}: a ManagerBinding for '{binding.ManagerType}' has a null target.");
+                    continue;
+                }
+
+                if (!bound.Add(target))
+                {
+                    errors.Add(
+                        $"{sceneName}: manager '{target.GetType().Name}' appears in more than one ManagerBinding.");
+                }
+
+                string expectedType = target.GetType().AssemblyQualifiedName ?? string.Empty;
+                if (!string.Equals(binding.ManagerType, expectedType, StringComparison.Ordinal))
+                {
+                    errors.Add(
+                        $"{sceneName}: ManagerBinding for '{target.GetType().Name}' has stale type identity '{binding.ManagerType}'.");
+                }
+                else if (!boundTypes.Add(expectedType))
+                {
+                    errors.Add(
+                        $"{sceneName}: duplicate ManagerBinding type '{target.GetType().Name}'.");
+                }
+
+                if (target.gameObject.scene != scope.gameObject.scene)
+                {
+                    errors.Add(
+                        $"{sceneName}: ManagerBinding for '{target.GetType().Name}' references another scene.");
+                    continue;
+                }
+
+                string? serviceGroup = binding.ServiceGroup;
+                Transform? groupRoot = string.IsNullOrWhiteSpace(serviceGroup)
+                    ? null
+                    : servicesRoot.Find(serviceGroup!);
+                if (groupRoot == null || !target.transform.IsChildOf(groupRoot))
+                {
+                    errors.Add(
+                        $"{sceneName}: ManagerBinding for '{target.GetType().Name}' does not belong to declared " +
+                        $"Services/{serviceGroup ?? "<null>"} group.");
+                }
             }
 
             string[] groups = { "Networking", "World", "Rendering", "Gameplay", "UI", "Audio" };

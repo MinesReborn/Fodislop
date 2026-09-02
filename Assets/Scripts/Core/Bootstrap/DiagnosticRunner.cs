@@ -35,22 +35,23 @@ namespace Fodinae
         private float _nextMemorySampleTime;
         private Camera? _mainCamera;
 
-        [Inject] private MapStorage _mapStorage = null!;
-        [Inject] private LightingEngine _lighting = null!;
-        [Inject] private INetworkService _networkService = null!;
-        [Inject] private IConnectionService _connection = null!;
-        [Inject] private IMapDataProvider _mapDataProvider = null!;
-        [Inject] private IAssetLoader _assetLoader = null!;
-        [Inject] private IInputBlocker _inputBlocker = null!;
-        [Inject] private IRobotService _robotService = null!;
-        [Inject] private MapManager _mapManager = null!;
-        [Inject] private GameManager _gameManager = null!;
-        [Inject] private RobotManager _robotManager = null!;
-        [Inject] private BuildingManager _buildingManager = null!;
-        [Inject] private PacketHandler _packetHandler = null!;
-        [Inject] private TerrainRenderer _terrain = null!;
-        [Inject] private ILocalPlayerState _localPlayer = null!;
-        [Inject] private IGameplayCamera _gameplayCamera = null!;
+        private MapStorage _mapStorage = null!;
+        private LightingEngine _lighting = null!;
+        private INetworkService _networkService = null!;
+        private IConnectionService _connection = null!;
+        private IMapDataProvider _mapDataProvider = null!;
+        private IAssetLoader _assetLoader = null!;
+        private IInputBlocker _inputBlocker = null!;
+        private IRobotService _robotService = null!;
+        private MapManager _mapManager = null!;
+        private GameManager _gameManager = null!;
+        private RobotManager _robotManager = null!;
+        private BuildingManager _buildingManager = null!;
+        private PacketHandler _packetHandler = null!;
+        private TerrainRenderer _terrain = null!;
+        private ILocalPlayerState _localPlayer = null!;
+        private IGameplayCamera _gameplayCamera = null!;
+        private IFrameTelemetry _telemetry = null!;
         private bool _dependenciesInjected;
 
         [Inject]
@@ -68,7 +69,10 @@ namespace Fodinae
             RobotManager robotManager,
             BuildingManager buildingManager,
             PacketHandler packetHandler,
-            TerrainRenderer terrain)
+            TerrainRenderer terrain,
+            ILocalPlayerState localPlayer,
+            IGameplayCamera gameplayCamera,
+            IFrameTelemetry telemetry)
         {
             _mapStorage = mapStorage;
             _lighting = lighting;
@@ -84,6 +88,9 @@ namespace Fodinae
             _buildingManager = buildingManager;
             _packetHandler = packetHandler;
             _terrain = terrain;
+            _localPlayer = localPlayer;
+            _gameplayCamera = gameplayCamera;
+            _telemetry = telemetry;
             _dependenciesInjected = true;
         }
 
@@ -94,7 +101,7 @@ namespace Fodinae
 
         protected void Update()
         {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_ENABLE_CHECKS
             if (!_dependenciesInjected)
             {
                 return;
@@ -124,8 +131,8 @@ namespace Fodinae
                 $"graphics={Profiler.GetAllocatedMemoryForGraphicsDriver() / (1024f * 1024f):F1}MB " +
                 $"mono={Profiler.GetMonoUsedSizeLong() / (1024f * 1024f):F1}MB " +
                 $"gc={System.GC.GetTotalMemory(false) / (1024f * 1024f):F1}MB " +
-                $"allocRate={Fodinae.Core.FrameProfiler.GcAllocTotalPerSecondBytes / (1024f * 1024f):F2}MB/s " +
-                $"collections={Fodinae.Core.FrameProfiler.GcCollectionCount} " +
+                $"allocRate={_telemetry.GcAllocTotalPerSecondBytes / (1024f * 1024f):F2}MB/s " +
+                $"collections={_telemetry.GcCollectionCount} " +
                 $"runtimeEffects={RuntimeEffekseerLoader.ActiveRuntimeEffectCount} " +
                 $"chunks={ms.CellLayer?.GetLoadedCount() ?? 0} " +
                 $"lightingSolves={lighting.SolveCount} " +
@@ -223,8 +230,6 @@ namespace Fodinae
             sb.AppendLine("\n[INPUT]");
             sb.AppendLine($"  IInputBlocker: IsInputBlocked={_inputBlocker.IsInputBlocked}");
             sb.AppendLine($"  Keyboard.current: {(Keyboard.current != null ? "OK" : "NULL")}");
-            sb.AppendLine($"  ChatInput.IsFocused: {ChatInput.IsFocused}");
-            sb.AppendLine($"  PauseMenu.IsMenuOpen: {Fodinae.UI.PauseMenu.IsMenuOpen}");
 
             sb.AppendLine("\n[GAME]");
             sb.AppendLine($"  State={_gameManager.CurrentState} Authorized={_gameManager.IsUIAuthorized}");

@@ -7,6 +7,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Fodinae;
+using Fodinae.Core;
 using UnityEngine;
 
 namespace Fodinae.Persistence
@@ -53,7 +54,7 @@ namespace Fodinae.Persistence
             int WIDTH_CHUNKS,
             int HEIGHT_CHUNKS,
             IAsyncOperationSupervisor operations,
-            int CHUNK_SIZE = 32,
+            int CHUNK_SIZE = ProjectRuntimeContracts.World.ChunkSize,
             int maxRamChunks = 1000)
         {
             if (string.IsNullOrWhiteSpace(filePath))

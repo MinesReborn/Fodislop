@@ -3,24 +3,17 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Fodinae;
 using Fodinae.Core.Interfaces;
-using MinesServer.Networking.Server.Packets.GUI.Components;
-using MinesServer.Networking.Server.Packets.GUI.Components.Visual; // Corrected using directive for ImagePacket
+using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Fodinae.UI.Builders
 {
-    public class ImagePacketBuilder : PacketUIBuilderBase
+    public class ImagePacketBuilder : PacketUIBuilderBase<ImagePacket>
     {
-        public override VisualElement? Build(IGUIComponentPacket packet, PacketUIBuilder builder)
+        protected override VisualElement BuildTyped(ImagePacket imagePacket, PacketUIBuilder builder)
         {
-            if (packet is not ImagePacket imagePacket)
-            {
-                return null;
-            }
-
             var element = new VisualElement();
             element.style.width = imagePacket.Width;
             element.style.height = imagePacket.Height;

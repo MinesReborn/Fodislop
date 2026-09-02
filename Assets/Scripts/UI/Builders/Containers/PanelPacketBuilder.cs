@@ -1,23 +1,14 @@
 #nullable enable
 
-using Fodinae;
-
-using MinesServer.Networking.Server.Packets.GUI.Components;
-using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
 using UnityEngine.UIElements;
 
 namespace Fodinae.UI.Builders
 {
-    public class PanelPacketBuilder : PacketUIBuilderBase
+    public class PanelPacketBuilder : PacketUIBuilderBase<PanelPacket>
     {
-        public override VisualElement? Build(IGUIComponentPacket packet, PacketUIBuilder builder)
+        protected override VisualElement BuildTyped(PanelPacket packet, PacketUIBuilder builder)
         {
-            if (packet is not PanelPacket)
-            {
-                return null;
-            }
-
             var element = new VisualElement();
             element.AddToClassList("sci-fi-panel");
 

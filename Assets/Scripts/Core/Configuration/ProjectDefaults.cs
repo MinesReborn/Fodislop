@@ -237,16 +237,6 @@ namespace Fodinae.Core
             [SerializeField]
             private bool _terrainDebugMode;
             [SerializeField]
-            private float _bloomThreshold;
-            [SerializeField]
-            private float _bloomSoftKnee = 0.5f;
-            [SerializeField]
-            private float _bloomRadius = 3f;
-            [SerializeField]
-            private float _bloomScatter;
-            [SerializeField]
-            private Color _bloomTint;
-            [SerializeField]
             private Color _transitEmissionColor;
             [SerializeField]
             private float _transitEmissionStrength;
@@ -256,42 +246,27 @@ namespace Fodinae.Core
             private float _perspectiveEmissionStrength;
             [SerializeField]
             private float _surfaceOccupancy;
+            // Тумблеры, а не величины: вид кадра задаёт PostProcessLook.
             [SerializeField]
-            private float _bloomIntensity;
+            private bool _bloomEnabled = true;
             [SerializeField]
-            private float _vignetteIntensity;
+            private bool _vignetteEnabled = true;
             [SerializeField]
-            private Color _vignetteColor;
+            private bool _chromaticAberrationEnabled;
             [SerializeField]
-            private float _vignetteSmoothness;
+            private bool _filmGrainEnabled = true;
             [SerializeField]
-            private Vector2 _vignetteCenter;
+            private bool _motionBlurEnabled;
             [SerializeField]
-            private float _chromaticAberrationIntensity;
+            private bool _localContrastEnabled = true;
             [SerializeField]
-            private float _colorGradingExposure;
+            private bool _lensEffectsEnabled = true;
             [SerializeField]
-            private Color _colorGradingFilter;
+            private bool _atmosphereEnabled = true;
             [SerializeField]
-            private float _colorGradingContrast;
+            private bool _displayPhysicsEnabled;
             [SerializeField]
-            private float _colorGradingSaturation;
-            [SerializeField]
-            private bool _colorGradingToneMapping;
-            [SerializeField]
-            private float _colorGradingToneMappingWhitePoint;
-            [SerializeField]
-            private float _eigengrauIntensity;
-            [SerializeField]
-            private Color _eigengrauColor;
-            [SerializeField]
-            private float _eigengrauDarknessThreshold;
-            [SerializeField]
-            private float _eigengrauNoiseScale;
-            [SerializeField]
-            private float _eigengrauAnimationSpeed;
-            [SerializeField]
-            private float _motionBlurIntensity;
+            private bool _temporalEnabled = true;
 
             public ShaderDefaultsSnapshot CreateSnapshot() => new(
                 _terrainFlowScale,
@@ -300,34 +275,21 @@ namespace Fodinae.Core
                 _terrainShimmerColor,
                 _terrainDebugColor,
                 _terrainDebugMode,
-                _bloomThreshold,
-                _bloomSoftKnee,
-                _bloomRadius,
-                _bloomScatter,
-                _bloomTint,
                 _transitEmissionColor,
                 _transitEmissionStrength,
                 _perspectiveEmissionColor,
                 _perspectiveEmissionStrength,
                 _surfaceOccupancy,
-                _bloomIntensity,
-                _vignetteIntensity,
-                _vignetteColor,
-                _vignetteSmoothness,
-                _vignetteCenter,
-                _chromaticAberrationIntensity,
-                _colorGradingExposure,
-                _colorGradingFilter,
-                _colorGradingContrast,
-                _colorGradingSaturation,
-                _colorGradingToneMapping,
-                _colorGradingToneMappingWhitePoint,
-                _eigengrauIntensity,
-                _eigengrauColor,
-                _eigengrauDarknessThreshold,
-                _eigengrauNoiseScale,
-                _eigengrauAnimationSpeed,
-                _motionBlurIntensity);
+                _bloomEnabled,
+                _vignetteEnabled,
+                _chromaticAberrationEnabled,
+                _filmGrainEnabled,
+                _motionBlurEnabled,
+                _localContrastEnabled,
+                _lensEffectsEnabled,
+                _atmosphereEnabled,
+                _displayPhysicsEnabled,
+                _temporalEnabled);
 
             public void Validate()
             {
@@ -337,42 +299,12 @@ namespace Fodinae.Core
                 ValidateRange(_terrainPulseSpeedScale, 0f, 10f, nameof(_terrainPulseSpeedScale));
                 ValidateColor(_terrainShimmerColor, nameof(_terrainShimmerColor));
                 ValidateColor(_terrainDebugColor, nameof(_terrainDebugColor));
-                ValidateRange(_bloomThreshold, 0f, 2f, nameof(_bloomThreshold));
-                ValidateRange(_bloomSoftKnee, 0f, 1f, nameof(_bloomSoftKnee));
-                ValidateRange(_bloomRadius, 0.5f, 8f, nameof(_bloomRadius));
-                ValidateRange(_bloomScatter, 0.1f, 1f, nameof(_bloomScatter));
-                ValidateColor(_bloomTint, nameof(_bloomTint));
                 ValidateColor(_transitEmissionColor, nameof(_transitEmissionColor));
                 ValidateRange(_transitEmissionStrength, 0f, 8f, nameof(_transitEmissionStrength));
                 ValidateColor(_perspectiveEmissionColor, nameof(_perspectiveEmissionColor));
                 ValidateRange(_perspectiveEmissionStrength, 0f, 8f, nameof(_perspectiveEmissionStrength));
                 ValidateRange(_surfaceOccupancy, 0f, 1f, nameof(_surfaceOccupancy));
-                ValidateRange(_bloomIntensity, 0f, 5f, nameof(_bloomIntensity));
-                ValidateRange(_vignetteIntensity, 0f, 1f, nameof(_vignetteIntensity));
-                ValidateColor(_vignetteColor, nameof(_vignetteColor));
-                ValidateRange(_vignetteSmoothness, 0.01f, 1f, nameof(_vignetteSmoothness));
-                ValidateRange(_vignetteCenter.x, 0f, 1f, nameof(_vignetteCenter.x));
-                ValidateRange(_vignetteCenter.y, 0f, 1f, nameof(_vignetteCenter.y));
-                ValidateRange(_chromaticAberrationIntensity, 0f, 1f, nameof(_chromaticAberrationIntensity));
-                ValidateRange(_colorGradingExposure, -4f, 4f, nameof(_colorGradingExposure));
-                ValidateColor(_colorGradingFilter, nameof(_colorGradingFilter));
-                ValidateRange(_colorGradingContrast, -1f, 1f, nameof(_colorGradingContrast));
-                ValidateRange(_colorGradingSaturation, 0f, 2f, nameof(_colorGradingSaturation));
-                ValidateRange(
-                    _colorGradingToneMappingWhitePoint,
-                    0.25f,
-                    8f,
-                    nameof(_colorGradingToneMappingWhitePoint));
-                ValidateColor(_eigengrauColor, nameof(_eigengrauColor));
-                ValidateRange(
-                    _eigengrauDarknessThreshold,
-                    0.02f,
-                    0.75f,
-                    nameof(_eigengrauDarknessThreshold));
-                ValidateRange(_eigengrauNoiseScale, 0.75f, 2f, nameof(_eigengrauNoiseScale));
-                ValidateRange(_eigengrauAnimationSpeed, 1f, 60f, nameof(_eigengrauAnimationSpeed));
-                ValidateRange(_eigengrauIntensity, 0f, 1f, nameof(_eigengrauIntensity));
-                ValidateRange(_motionBlurIntensity, 0f, 1f, nameof(_motionBlurIntensity));
+                // Тумблеры проверять нечем: bool не выходит за диапазон.
             }
         }
 

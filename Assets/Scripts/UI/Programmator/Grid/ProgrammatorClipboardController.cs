@@ -14,6 +14,7 @@ internal sealed class ProgrammatorClipboardController
 {
     private readonly ProgrammatorSelectionModel _selection;
     private readonly Action<int, int> _updateCell;
+    private readonly ProgrammatorData _data;
 
     private int[]? _clipboardCodes;
     private string?[]? _clipboardLabels;
@@ -22,10 +23,14 @@ internal sealed class ProgrammatorClipboardController
     private int _clipboardHeight;
     private bool _hasClipboard;
 
-    public ProgrammatorClipboardController(ProgrammatorSelectionModel selection, Action<int, int> updateCell)
+    public ProgrammatorClipboardController(
+        ProgrammatorSelectionModel selection,
+        Action<int, int> updateCell,
+        ProgrammatorData data)
     {
         _selection = selection ?? throw new ArgumentNullException(nameof(selection));
         _updateCell = updateCell ?? throw new ArgumentNullException(nameof(updateCell));
+        _data = data ?? throw new ArgumentNullException(nameof(data));
     }
 
     public bool HasClipboard => _hasClipboard;
@@ -63,12 +68,12 @@ internal sealed class ProgrammatorClipboardController
             {
                 for (int c = minCol; c <= maxCol; c++)
                 {
-                    int srcIdx = (ProgrammatorData.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
+                    int srcIdx = (_data.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
                                  + (r * ProgrammatorData.COLS) + c;
                     int dstIdx = ((r - minRow) * _clipboardWidth) + (c - minCol);
-                    _clipboardCodes[dstIdx] = ProgrammatorData.Codes[srcIdx];
-                    _clipboardLabels[dstIdx] = ProgrammatorData.Labels[srcIdx];
-                    _clipboardValues[dstIdx] = ProgrammatorData.Values[srcIdx];
+                    _clipboardCodes[dstIdx] = _data.Codes[srcIdx];
+                    _clipboardLabels[dstIdx] = _data.Labels[srcIdx];
+                    _clipboardValues[dstIdx] = _data.Values[srcIdx];
                 }
             }
 
@@ -83,7 +88,7 @@ internal sealed class ProgrammatorClipboardController
             }
 
             CopySelection();
-            ProgrammatorData.PushUndo();
+            _data.PushUndo();
             int minRow, maxRow, minCol, maxCol;
             if (_selection.SelectedCells.Count > 0)
             {
@@ -110,9 +115,9 @@ internal sealed class ProgrammatorClipboardController
                         continue;
                     }
 
-                    int idx = (ProgrammatorData.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
+                    int idx = (_data.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
                               + (r * ProgrammatorData.COLS) + c;
-                    ProgrammatorData.Codes[idx] = 0;
+                    _data.Codes[idx] = 0;
                     _updateCell(r, c);
                 }
             }
@@ -125,7 +130,7 @@ internal sealed class ProgrammatorClipboardController
                 return;
             }
 
-            ProgrammatorData.PushUndo();
+            _data.PushUndo();
             int anchorRow = 0, anchorCol = 0;
             if (_selection.SelectedCells.Count > 0)
             {
@@ -150,12 +155,12 @@ internal sealed class ProgrammatorClipboardController
                         continue;
                     }
 
-                    int dstIdx = (ProgrammatorData.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
+                    int dstIdx = (_data.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
                                  + (targetRow * ProgrammatorData.COLS) + targetCol;
                     int srcIdx = (r * _clipboardWidth) + c;
-                    ProgrammatorData.Codes[dstIdx] = _clipboardCodes![srcIdx];
-                    ProgrammatorData.Labels[dstIdx] = _clipboardLabels![srcIdx];
-                    ProgrammatorData.Values[dstIdx] = _clipboardValues![srcIdx];
+                    _data.Codes[dstIdx] = _clipboardCodes![srcIdx];
+                    _data.Labels[dstIdx] = _clipboardLabels![srcIdx];
+                    _data.Values[dstIdx] = _clipboardValues![srcIdx];
                     _updateCell(targetRow, targetCol);
                 }
             }
@@ -173,7 +178,7 @@ internal sealed class ProgrammatorClipboardController
                 return;
             }
 
-            int page = ProgrammatorData.CurrentPage;
+            int page = _data.CurrentPage;
             const int cols = ProgrammatorData.COLS;
             const int rows = ProgrammatorData.ROWS;
             const int cellsPerPage = ProgrammatorData.CELLS_PER_PAGE;
@@ -191,7 +196,7 @@ internal sealed class ProgrammatorClipboardController
                 foreach (long key in _selection.SelectedCells)
                 {
                     int idx = (page * cellsPerPage) + (int)key;
-                    temp[key] = (ProgrammatorData.Codes[idx], ProgrammatorData.Labels[idx], ProgrammatorData.Values[idx]);
+                    temp[key] = (_data.Codes[idx], _data.Labels[idx], _data.Values[idx]);
                 }
 
                 foreach (long key in _selection.SelectedCells)
@@ -199,9 +204,9 @@ internal sealed class ProgrammatorClipboardController
                     int r = (int)(key / cols);
                     int c = (int)(key % cols);
                     int idx = (page * cellsPerPage) + (int)key;
-                    ProgrammatorData.Codes[idx] = 0;
-                    ProgrammatorData.Labels[idx] = null;
-                    ProgrammatorData.Values[idx] = null;
+                    _data.Codes[idx] = 0;
+                    _data.Labels[idx] = null;
+                    _data.Values[idx] = null;
                     _updateCell(r, c);
                     _selection.SetSelectionBorder(r, c, false);
                 }
@@ -224,7 +229,7 @@ internal sealed class ProgrammatorClipboardController
                     ordered.Sort((a, b) => (int)((a / cols) - (b / cols)));
                 }
 
-                ProgrammatorData.PushUndo();
+                _data.PushUndo();
                 var newSet = new HashSet<long>();
                 foreach (long key in ordered)
                 {
@@ -235,9 +240,9 @@ internal sealed class ProgrammatorClipboardController
                     if (newR < 0 || newR >= rows || newC < 0 || newC >= cols)
                     {
                         int origIdx = (page * cellsPerPage) + (int)key;
-                        ProgrammatorData.Codes[origIdx] = temp[key].code;
-                        ProgrammatorData.Labels[origIdx] = temp[key].label;
-                        ProgrammatorData.Values[origIdx] = temp[key].value;
+                        _data.Codes[origIdx] = temp[key].code;
+                        _data.Labels[origIdx] = temp[key].label;
+                        _data.Values[origIdx] = temp[key].value;
                         _updateCell(oldR, oldC);
                         _selection.SetSelectionBorder(oldR, oldC, true);
                         newSet.Add(key);
@@ -245,7 +250,7 @@ internal sealed class ProgrammatorClipboardController
                     }
 
                     int destIdx = (page * cellsPerPage) + (newR * cols) + newC;
-                    if (ProgrammatorData.Codes[destIdx] != 0)
+                    if (_data.Codes[destIdx] != 0)
                     {
                         int pushR = newR + dy;
                         int pushC = newC + dx;
@@ -253,14 +258,14 @@ internal sealed class ProgrammatorClipboardController
                         while (pushR >= 0 && pushR < rows && pushC >= 0 && pushC < cols)
                         {
                             int pushIdx = (page * cellsPerPage) + (pushR * cols) + pushC;
-                            if (ProgrammatorData.Codes[pushIdx] == 0)
+                            if (_data.Codes[pushIdx] == 0)
                             {
-                                ProgrammatorData.Codes[pushIdx] = ProgrammatorData.Codes[destIdx];
-                                ProgrammatorData.Labels[pushIdx] = ProgrammatorData.Labels[destIdx];
-                                ProgrammatorData.Values[pushIdx] = ProgrammatorData.Values[destIdx];
-                                ProgrammatorData.Codes[destIdx] = 0;
-                                ProgrammatorData.Labels[destIdx] = null;
-                                ProgrammatorData.Values[destIdx] = null;
+                                _data.Codes[pushIdx] = _data.Codes[destIdx];
+                                _data.Labels[pushIdx] = _data.Labels[destIdx];
+                                _data.Values[pushIdx] = _data.Values[destIdx];
+                                _data.Codes[destIdx] = 0;
+                                _data.Labels[destIdx] = null;
+                                _data.Values[destIdx] = null;
                                 _updateCell(newR, newC);
                                 _updateCell(pushR, pushC);
                                 pushed = true;
@@ -274,9 +279,9 @@ internal sealed class ProgrammatorClipboardController
                         if (!pushed)
                         {
                             int origIdx = (page * cellsPerPage) + (int)key;
-                            ProgrammatorData.Codes[origIdx] = temp[key].code;
-                            ProgrammatorData.Labels[origIdx] = temp[key].label;
-                            ProgrammatorData.Values[origIdx] = temp[key].value;
+                            _data.Codes[origIdx] = temp[key].code;
+                            _data.Labels[origIdx] = temp[key].label;
+                            _data.Values[origIdx] = temp[key].value;
                             _updateCell(oldR, oldC);
                             _selection.SetSelectionBorder(oldR, oldC, true);
                             newSet.Add(key);
@@ -284,9 +289,9 @@ internal sealed class ProgrammatorClipboardController
                         }
                     }
 
-                    ProgrammatorData.Codes[destIdx] = temp[key].code;
-                    ProgrammatorData.Labels[destIdx] = temp[key].label;
-                    ProgrammatorData.Values[destIdx] = temp[key].value;
+                    _data.Codes[destIdx] = temp[key].code;
+                    _data.Labels[destIdx] = temp[key].label;
+                    _data.Values[destIdx] = temp[key].value;
                     _updateCell(newR, newC);
                     _selection.SetSelectionBorder(newR, newC, true);
                     newSet.Add(((long)newR * cols) + newC);
@@ -322,12 +327,12 @@ internal sealed class ProgrammatorClipboardController
                 {
                     for (int c = maxCol + 1; c <= maxCol + dx; c++)
                     {
-                        if (ProgrammatorData.Codes[(page * cellsPerPage) + (r * cols) + c] != 0)
+                        if (_data.Codes[(page * cellsPerPage) + (r * cols) + c] != 0)
                         {
                             bool found = false;
                             for (int e = c + dx; e < cols; e++)
                             {
-                                if (ProgrammatorData.Codes[(page * cellsPerPage) + (r * cols) + e] == 0)
+                                if (_data.Codes[(page * cellsPerPage) + (r * cols) + e] == 0)
                                 {
                                     found = true;
                                     break;
@@ -349,12 +354,12 @@ internal sealed class ProgrammatorClipboardController
                 {
                     for (int c = minCol + dx; c <= minCol - 1; c++)
                     {
-                        if (ProgrammatorData.Codes[(page * cellsPerPage) + (r * cols) + c] != 0)
+                        if (_data.Codes[(page * cellsPerPage) + (r * cols) + c] != 0)
                         {
                             bool found = false;
                             for (int e = c - absDx; e >= 0; e--)
                             {
-                                if (ProgrammatorData.Codes[(page * cellsPerPage) + (r * cols) + e] == 0)
+                                if (_data.Codes[(page * cellsPerPage) + (r * cols) + e] == 0)
                                 {
                                     found = true;
                                     break;
@@ -375,12 +380,12 @@ internal sealed class ProgrammatorClipboardController
                 {
                     for (int r = maxRow + 1; r <= maxRow + dy; r++)
                     {
-                        if (ProgrammatorData.Codes[(page * cellsPerPage) + (r * cols) + c] != 0)
+                        if (_data.Codes[(page * cellsPerPage) + (r * cols) + c] != 0)
                         {
                             bool found = false;
                             for (int e = r + dy; e < rows; e++)
                             {
-                                if (ProgrammatorData.Codes[(page * cellsPerPage) + (e * cols) + c] == 0)
+                                if (_data.Codes[(page * cellsPerPage) + (e * cols) + c] == 0)
                                 {
                                     found = true;
                                     break;
@@ -402,12 +407,12 @@ internal sealed class ProgrammatorClipboardController
                 {
                     for (int r = minRow + dy; r <= minRow - 1; r++)
                     {
-                        if (ProgrammatorData.Codes[(page * cellsPerPage) + (r * cols) + c] != 0)
+                        if (_data.Codes[(page * cellsPerPage) + (r * cols) + c] != 0)
                         {
                             bool found = false;
                             for (int e = r - absDy; e >= 0; e--)
                             {
-                                if (ProgrammatorData.Codes[(page * cellsPerPage) + (e * cols) + c] == 0)
+                                if (_data.Codes[(page * cellsPerPage) + (e * cols) + c] == 0)
                                 {
                                     found = true;
                                     break;
@@ -423,7 +428,7 @@ internal sealed class ProgrammatorClipboardController
                 }
             }
 
-            ProgrammatorData.PushUndo();
+            _data.PushUndo();
             int width = (maxCol - minCol) + 1;
             int height = (maxRow - minRow) + 1;
             int[] tmpCodes = new int[width * height];
@@ -435,12 +440,12 @@ internal sealed class ProgrammatorClipboardController
                 {
                     int srcIdx = (page * cellsPerPage) + (r * cols) + c;
                     int tmpIdx = ((r - minRow) * width) + (c - minCol);
-                    tmpCodes[tmpIdx] = ProgrammatorData.Codes[srcIdx];
-                    tmpLabels[tmpIdx] = ProgrammatorData.Labels[srcIdx];
-                    tmpValues[tmpIdx] = ProgrammatorData.Values[srcIdx];
-                    ProgrammatorData.Codes[srcIdx] = 0;
-                    ProgrammatorData.Labels[srcIdx] = null;
-                    ProgrammatorData.Values[srcIdx] = null;
+                    tmpCodes[tmpIdx] = _data.Codes[srcIdx];
+                    tmpLabels[tmpIdx] = _data.Labels[srcIdx];
+                    tmpValues[tmpIdx] = _data.Values[srcIdx];
+                    _data.Codes[srcIdx] = 0;
+                    _data.Labels[srcIdx] = null;
+                    _data.Values[srcIdx] = null;
                     _updateCell(r, c);
                     _selection.SetSelectionBorder(r, c, false);
                 }
@@ -453,7 +458,7 @@ internal sealed class ProgrammatorClipboardController
                     for (int c = maxCol + dx; c >= maxCol + 1; c--)
                     {
                         int idx = (page * cellsPerPage) + (r * cols) + c;
-                        if (ProgrammatorData.Codes[idx] == 0)
+                        if (_data.Codes[idx] == 0)
                         {
                             continue;
                         }
@@ -461,7 +466,7 @@ internal sealed class ProgrammatorClipboardController
                         int emptyCol = -1;
                         for (int e = c + dx; e < cols; e++)
                         {
-                            if (ProgrammatorData.Codes[(page * cellsPerPage) + (r * cols) + e] == 0)
+                            if (_data.Codes[(page * cellsPerPage) + (r * cols) + e] == 0)
                             {
                                 emptyCol = e;
                                 break;
@@ -474,12 +479,12 @@ internal sealed class ProgrammatorClipboardController
                         }
 
                         int dst = (page * cellsPerPage) + (r * cols) + emptyCol;
-                        ProgrammatorData.Codes[dst] = ProgrammatorData.Codes[idx];
-                        ProgrammatorData.Labels[dst] = ProgrammatorData.Labels[idx];
-                        ProgrammatorData.Values[dst] = ProgrammatorData.Values[idx];
-                        ProgrammatorData.Codes[idx] = 0;
-                        ProgrammatorData.Labels[idx] = null;
-                        ProgrammatorData.Values[idx] = null;
+                        _data.Codes[dst] = _data.Codes[idx];
+                        _data.Labels[dst] = _data.Labels[idx];
+                        _data.Values[dst] = _data.Values[idx];
+                        _data.Codes[idx] = 0;
+                        _data.Labels[idx] = null;
+                        _data.Values[idx] = null;
                         _updateCell(r, c);
                         _updateCell(r, emptyCol);
                     }
@@ -493,7 +498,7 @@ internal sealed class ProgrammatorClipboardController
                     for (int c = minCol + dx; c <= minCol - 1; c++)
                     {
                         int idx = (page * cellsPerPage) + (r * cols) + c;
-                        if (ProgrammatorData.Codes[idx] == 0)
+                        if (_data.Codes[idx] == 0)
                         {
                             continue;
                         }
@@ -501,7 +506,7 @@ internal sealed class ProgrammatorClipboardController
                         int emptyCol = -1;
                         for (int e = c - absDx; e >= 0; e--)
                         {
-                            if (ProgrammatorData.Codes[(page * cellsPerPage) + (r * cols) + e] == 0)
+                            if (_data.Codes[(page * cellsPerPage) + (r * cols) + e] == 0)
                             {
                                 emptyCol = e;
                                 break;
@@ -514,12 +519,12 @@ internal sealed class ProgrammatorClipboardController
                         }
 
                         int dst = (page * cellsPerPage) + (r * cols) + emptyCol;
-                        ProgrammatorData.Codes[dst] = ProgrammatorData.Codes[idx];
-                        ProgrammatorData.Labels[dst] = ProgrammatorData.Labels[idx];
-                        ProgrammatorData.Values[dst] = ProgrammatorData.Values[idx];
-                        ProgrammatorData.Codes[idx] = 0;
-                        ProgrammatorData.Labels[idx] = null;
-                        ProgrammatorData.Values[idx] = null;
+                        _data.Codes[dst] = _data.Codes[idx];
+                        _data.Labels[dst] = _data.Labels[idx];
+                        _data.Values[dst] = _data.Values[idx];
+                        _data.Codes[idx] = 0;
+                        _data.Labels[idx] = null;
+                        _data.Values[idx] = null;
                         _updateCell(r, c);
                         _updateCell(r, emptyCol);
                     }
@@ -532,7 +537,7 @@ internal sealed class ProgrammatorClipboardController
                     for (int r = maxRow + dy; r >= maxRow + 1; r--)
                     {
                         int idx = (page * cellsPerPage) + (r * cols) + c;
-                        if (ProgrammatorData.Codes[idx] == 0)
+                        if (_data.Codes[idx] == 0)
                         {
                             continue;
                         }
@@ -540,7 +545,7 @@ internal sealed class ProgrammatorClipboardController
                         int emptyRow = -1;
                         for (int e = r + dy; e < rows; e++)
                         {
-                            if (ProgrammatorData.Codes[(page * cellsPerPage) + (e * cols) + c] == 0)
+                            if (_data.Codes[(page * cellsPerPage) + (e * cols) + c] == 0)
                             {
                                 emptyRow = e;
                                 break;
@@ -553,12 +558,12 @@ internal sealed class ProgrammatorClipboardController
                         }
 
                         int dst = (page * cellsPerPage) + (emptyRow * cols) + c;
-                        ProgrammatorData.Codes[dst] = ProgrammatorData.Codes[idx];
-                        ProgrammatorData.Labels[dst] = ProgrammatorData.Labels[idx];
-                        ProgrammatorData.Values[dst] = ProgrammatorData.Values[idx];
-                        ProgrammatorData.Codes[idx] = 0;
-                        ProgrammatorData.Labels[idx] = null;
-                        ProgrammatorData.Values[idx] = null;
+                        _data.Codes[dst] = _data.Codes[idx];
+                        _data.Labels[dst] = _data.Labels[idx];
+                        _data.Values[dst] = _data.Values[idx];
+                        _data.Codes[idx] = 0;
+                        _data.Labels[idx] = null;
+                        _data.Values[idx] = null;
                         _updateCell(r, c);
                         _updateCell(emptyRow, c);
                     }
@@ -572,7 +577,7 @@ internal sealed class ProgrammatorClipboardController
                     for (int r = minRow + dy; r <= minRow - 1; r++)
                     {
                         int idx = (page * cellsPerPage) + (r * cols) + c;
-                        if (ProgrammatorData.Codes[idx] == 0)
+                        if (_data.Codes[idx] == 0)
                         {
                             continue;
                         }
@@ -580,7 +585,7 @@ internal sealed class ProgrammatorClipboardController
                         int emptyRow = -1;
                         for (int e = r - absDy; e >= 0; e--)
                         {
-                            if (ProgrammatorData.Codes[(page * cellsPerPage) + (e * cols) + c] == 0)
+                            if (_data.Codes[(page * cellsPerPage) + (e * cols) + c] == 0)
                             {
                                 emptyRow = e;
                                 break;
@@ -593,12 +598,12 @@ internal sealed class ProgrammatorClipboardController
                         }
 
                         int dst = (page * cellsPerPage) + (emptyRow * cols) + c;
-                        ProgrammatorData.Codes[dst] = ProgrammatorData.Codes[idx];
-                        ProgrammatorData.Labels[dst] = ProgrammatorData.Labels[idx];
-                        ProgrammatorData.Values[dst] = ProgrammatorData.Values[idx];
-                        ProgrammatorData.Codes[idx] = 0;
-                        ProgrammatorData.Labels[idx] = null;
-                        ProgrammatorData.Values[idx] = null;
+                        _data.Codes[dst] = _data.Codes[idx];
+                        _data.Labels[dst] = _data.Labels[idx];
+                        _data.Values[dst] = _data.Values[idx];
+                        _data.Codes[idx] = 0;
+                        _data.Labels[idx] = null;
+                        _data.Values[idx] = null;
                         _updateCell(r, c);
                         _updateCell(emptyRow, c);
                     }
@@ -611,9 +616,9 @@ internal sealed class ProgrammatorClipboardController
                 {
                     int dstIdx = (page * cellsPerPage) + (r * cols) + c;
                     int tmpIdx = ((r - newMinRow) * width) + (c - newMinCol);
-                    ProgrammatorData.Codes[dstIdx] = tmpCodes[tmpIdx];
-                    ProgrammatorData.Labels[dstIdx] = tmpLabels[tmpIdx];
-                    ProgrammatorData.Values[dstIdx] = tmpValues[tmpIdx];
+                    _data.Codes[dstIdx] = tmpCodes[tmpIdx];
+                    _data.Labels[dstIdx] = tmpLabels[tmpIdx];
+                    _data.Values[dstIdx] = tmpValues[tmpIdx];
                     _updateCell(r, c);
                     _selection.SetSelectionBorder(r, c, true);
                 }

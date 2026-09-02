@@ -12,7 +12,10 @@ public static class PostProcessDefaults
     // These values only construct valid VolumeParameter instances for Unity
     // serialization. ProjectDefaults/ClientConfig is the sole visual source
     // of truth and overwrites every parameter before the first render.
-    public static ClampedFloatParameter BloomIntensity() => new(0f, 0f, 5f);
+    public static ClampedFloatParameter BloomIntensity() => new(
+        PostProcessLimits.BloomIntensityMin,
+        PostProcessLimits.BloomIntensityMin,
+        PostProcessLimits.BloomIntensityMax);
 
     public static ClampedFloatParameter BloomThreshold() => new(0f, 0f, 2f);
 
@@ -32,21 +35,35 @@ public static class PostProcessDefaults
 
     public static Vector2Parameter VignetteCenter() => new(new Vector2(0.5f, 0.5f));
 
-    public static ClampedFloatParameter ChromaticAberrationIntensity() => new(0f, 0f, 1f);
+    public static ClampedFloatParameter ChromaticAberrationIntensity() => new(
+        PostProcessLimits.ChromaticAberrationIntensityMin,
+        PostProcessLimits.ChromaticAberrationIntensityMin,
+        PostProcessLimits.ChromaticAberrationIntensityMax);
 
-    public static ClampedFloatParameter ColorGradingExposure() => new(0f, -4f, 4f);
+    public static ClampedFloatParameter ColorGradingExposure() => new(
+        0f,
+        PostProcessLimits.ExposureMin,
+        PostProcessLimits.ExposureMax);
 
     public static ColorParameter ColorGradingFilter() => new(Color.white);
 
-    public static ClampedFloatParameter ColorGradingContrast() => new(0f, -1f, 1f);
+    public static ClampedFloatParameter ColorGradingContrast() => new(
+        0f,
+        PostProcessLimits.ContrastMin,
+        PostProcessLimits.ContrastMax);
 
     public static ClampedFloatParameter ColorGradingSaturation() => new(1f, 0f, 2f);
 
-    public static BoolParameter ColorGradingToneMapping() => new(false);
+    // 1.0, а не минимум диапазона: в ToneMapAgX белая точка — делитель, и
+    // значение 0.25 умножало кадр на четыре ещё до кривой. Конфиг это
+    // перекрывает, но параметр обязан быть нейтральным сам по себе — иначе
+    // любой путь без применения конфига даёт вчетверо пересвеченную картинку.
+    public static ClampedFloatParameter ColorGradingWhitePoint() => new(1f, 0.25f, 8f);
 
-    public static ClampedFloatParameter ColorGradingWhitePoint() => new(0.25f, 0.25f, 8f);
-
-    public static ClampedFloatParameter EigengrauIntensity() => new(0f, 0f, 1f);
+    public static ClampedFloatParameter EigengrauIntensity() => new(
+        PostProcessLimits.EigengrauIntensityMin,
+        PostProcessLimits.EigengrauIntensityMin,
+        PostProcessLimits.EigengrauIntensityMax);
 
     public static ColorParameter EigengrauColor() => new(Color.black);
 
@@ -56,7 +73,10 @@ public static class PostProcessDefaults
 
     public static ClampedFloatParameter EigengrauAnimationSpeed() => new(1f, 1f, 60f);
 
-    public static ClampedFloatParameter MotionBlurIntensity() => new(0f, 0f, 1f);
+    public static ClampedFloatParameter MotionBlurIntensity() => new(
+        PostProcessLimits.MotionBlurIntensityMin,
+        PostProcessLimits.MotionBlurIntensityMin,
+        PostProcessLimits.MotionBlurIntensityMax);
 
     public static void RequireVolumeComponent<T>(ref T? target, VolumeProfile profile)
         where T : VolumeComponent

@@ -1,42 +1,41 @@
 #nullable enable
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Cysharp.Threading.Tasks;
+using Fodinae.Core.Interfaces;
 using UnityEngine;
 using UnityEngine.Networking;
 
 namespace Fodinae.Core
 {
-    /// <summary>
-    /// Единственное место, где решается, откуда игра читает текстуры с диска.
-    ///
-    /// Часть текстур загружается не через AssetDatabase, а файлами в рантайме:
-    /// иконки предметов, тайлы клеток, ассеты, присланные сервером. Путь к ним
-    /// в редакторе и в собранном плеере разный, а раньше его независимо угадывали
-    /// три подсистемы — TextureStorageManager, MainMenu и ItemRegistry, — каждая
-    /// своим списком кандидатов. Из-за этого сборка раскладывала копию каталога
-    /// Textures сразу в четыре места, чтобы попасть хоть в один из списков: около
-    /// 29 МБ × 4 в каждом билде.
-    ///
-    /// Теперь корень один и вычисляется один раз. Сборка кладёт текстуры ровно в
-    /// StreamingAssets, редактор читает их прямо из Assets.
-    /// </summary>
-    public static class RuntimeAssetPaths
+    // Договор IRuntimeAssetPaths вынесен в Fodinae.Contracts: им пользуется
+    // Fodinae.AssetPipeline, который на эту сборку не ссылается.
+    public sealed class RuntimeAssetPaths : IRuntimeAssetPaths
     {
         private const string TexturesFolderName = "Textures";
 
-        private static string? _texturesRoot;
-        private static bool _resolved;
+        private string? _bundledTexturesRoot;
+        private readonly string? _bundledRootOverride;
+        private readonly string? _persistentRootOverride;
+
+        public RuntimeAssetPaths()
+        {
+        }
+
+        public RuntimeAssetPaths(string bundledRoot, string persistentRoot)
+        {
+            _bundledRootOverride = bundledRoot ?? throw new ArgumentNullException(nameof(bundledRoot));
+            _persistentRootOverride = persistentRoot ?? throw new ArgumentNullException(nameof(persistentRoot));
+        }
 
         /// <summary>
         /// Makes archived StreamingAssets available through ordinary file APIs.
         /// Android stores them inside the APK, while the texture decoders
         /// require seekable files. Other supported platforms need no copy.
         /// </summary>
-        public static async UniTask EnsureReadyAsync()
+        public async UniTask EnsureReadyAsync()
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
             string extractedRoot = Path.Combine(
@@ -83,71 +82,144 @@ namespace Fodinae.Core
                 await File.WriteAllTextAsync(markerPath, manifest);
             }
 
-            _texturesRoot = extractedRoot;
-            _resolved = true;
+            _bundledTexturesRoot = extractedRoot;
 #else
             await UniTask.CompletedTask;
 #endif
         }
 
         /// <summary>Required local texture directory.</summary>
-        public static string TexturesRoot
+        public string BundledTexturesRoot
         {
             get
             {
-                if (_resolved)
+                if (_bundledTexturesRoot != null)
                 {
-                    return _texturesRoot ?? throw new InvalidOperationException("Texture root was not initialized.");
+                    return _bundledTexturesRoot;
                 }
 
-                _texturesRoot = Resolve();
-                _resolved = true;
-
-                return _texturesRoot ?? throw new DirectoryNotFoundException(
-                    "Required Textures directory is missing. Ensure the build copied it to StreamingAssets.");
+                _bundledTexturesRoot = ResolveBundledRoot();
+                return _bundledTexturesRoot;
             }
         }
 
-        /// <summary>Required path to a subdirectory inside the texture root.</summary>
-        public static string TexturesSubfolder(string name)
+        public string PersistentTexturesRoot
         {
-            if (string.IsNullOrWhiteSpace(name))
+            get
             {
-                throw new System.ArgumentException("Texture subfolder name is required.", nameof(name));
+                string path = _persistentRootOverride ??
+                    Path.Combine(Application.persistentDataPath, TexturesFolderName);
+                Directory.CreateDirectory(path);
+                return Path.GetFullPath(path);
             }
-
-            string path = Path.Combine(TexturesRoot, name);
-            if (!Directory.Exists(path))
-            {
-                throw new DirectoryNotFoundException($"Required texture subdirectory is missing: {path}");
-            }
-
-            return path;
         }
 
-        private static string? Resolve()
-        {
-            // Порядок значим. StreamingAssets стоит первым, потому что это
-            // единственное место, куда кладёт файлы сборка; остальные пункты —
-            // редактор и совместимость со старыми билдами, где каталог лежал
-            // рядом с данными плеера.
-            IEnumerable<string> candidates = new[]
-            {
-                Path.Combine(Application.streamingAssetsPath, TexturesFolderName),
-                Path.Combine(Application.dataPath, TexturesFolderName),
-                Path.Combine(Application.dataPath, "Resources", "Data", TexturesFolderName),
-                Path.Combine(Application.dataPath, "..", TexturesFolderName),
-            };
+        public string? FindBundledTextureFile(string relativePath) =>
+            FindCaseInsensitive(BundledTexturesRoot, NormalizeRelativePath(relativePath));
 
-            string candidate = Application.isEditor
+        public string? FindTextureFile(string relativePath)
+        {
+            string normalized = NormalizeRelativePath(relativePath);
+            return FindCaseInsensitive(PersistentTexturesRoot, normalized) ??
+                FindCaseInsensitive(BundledTexturesRoot, normalized);
+        }
+
+        private string ResolveBundledRoot()
+        {
+            string candidate = _bundledRootOverride ?? (Application.isEditor
                 ? Path.Combine(Application.dataPath, TexturesFolderName)
-                : Path.Combine(Application.streamingAssetsPath, TexturesFolderName);
+                : Path.Combine(Application.streamingAssetsPath, TexturesFolderName));
             if (!Directory.Exists(candidate))
             {
                 throw new DirectoryNotFoundException($"Required texture directory is missing: {candidate}");
             }
 
             return Path.GetFullPath(candidate);
+        }
+
+        private static string NormalizeRelativePath(string relativePath)
+        {
+            if (string.IsNullOrWhiteSpace(relativePath) || Path.IsPathRooted(relativePath))
+            {
+                throw new ArgumentException("Texture path must be a non-empty relative path.", nameof(relativePath));
+            }
+
+            string[] segments = relativePath.Replace('\\', '/').Split('/');
+            if (segments.Any(segment =>
+                    string.IsNullOrWhiteSpace(segment) ||
+                    segment == "." ||
+                    segment == ".."))
+            {
+                throw new ArgumentException($"Texture path contains an invalid segment: '{relativePath}'.", nameof(relativePath));
+            }
+
+            return string.Join("/", segments);
+        }
+
+        private static string? FindCaseInsensitive(string root, string relativePath)
+        {
+            string current = root;
+            string[] segments = relativePath.Split('/');
+            for (int index = 0; index < segments.Length; index++)
+            {
+                string segment = segments[index];
+                string exact = Path.Combine(current, segment);
+                if (File.Exists(exact) || Directory.Exists(exact))
+                {
+                    current = exact;
+                    continue;
+                }
+
+                if (!Directory.Exists(current))
+                {
+                    return null;
+                }
+
+                bool isLeaf = index == segments.Length - 1;
+                string? match = Directory.EnumerateFileSystemEntries(current)
+                    .FirstOrDefault(entry => string.Equals(
+                        Path.GetFileName(entry),
+                        segment,
+                        StringComparison.OrdinalIgnoreCase));
+                if (match == null && isLeaf && string.IsNullOrEmpty(Path.GetExtension(segment)))
+                {
+                    match = Directory.EnumerateFiles(current)
+                        .Where(path => string.Equals(
+                            Path.GetFileNameWithoutExtension(path),
+                            segment,
+                            StringComparison.OrdinalIgnoreCase))
+                        .Where(path => TextureFilePriority(path) != int.MaxValue)
+                        .OrderBy(TextureFilePriority)
+                        .FirstOrDefault();
+                }
+
+                if (match == null)
+                {
+                    return null;
+                }
+
+                current = match;
+            }
+
+            return File.Exists(current) ? current : null;
+        }
+
+        private static int TextureFilePriority(string path)
+        {
+            if (path.EndsWith(".webp.bytes", StringComparison.OrdinalIgnoreCase))
+            {
+                return 0;
+            }
+
+            return Path.GetExtension(path).ToLowerInvariant() switch
+            {
+                ".webp" => 0,
+                ".gif" => 1,
+                ".png" => 2,
+                ".jpg" or ".jpeg" => 3,
+                ".exr" => 4,
+                _ => int.MaxValue,
+            };
         }
 
 #if UNITY_ANDROID && !UNITY_EDITOR

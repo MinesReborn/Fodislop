@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using Fodinae.Core.Interfaces;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -92,40 +93,33 @@ namespace Fodinae.Rendering.PostProcessing
         // the renderer asset, not by the scene, so there is no injection path
         // into it - the controller pushes, the pass reads.
         //
-        // Renderer features are created before the client config is available.
-        // Defaulting to Off prevents startup from eagerly constructing GPU
-        // resources for a feature whose actual preset may disable it.
-        private static PostProcessQualityMode _quality = PostProcessQualityMode.Off;
+        // Выключить постпроцесс нельзя ничем: ни настройкой, ни отладочным
+        // байпасом, ни ожиданием конфига. Тонмап сжимает HDR каскадного света
+        // в диапазон дисплея, и кадр без него не «проще», а неверен — света
+        // срезаются в плоский белый. Пока конфиг не доехал, проход работает на
+        // значениях профиля Volume; тир только выбирает, платить ли за
+        // пирамиду блума и мо́ушен-блюр.
+        private static PostProcessQualityMode _quality = PostProcessQualityMode.Full;
         private static AdvancedPostProcessSnapshot _advanced;
-        private static int _enableAfterFrame;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetForDomainReload()
         {
             _mainCamera = null;
             _cameraGeneration = 0;
-            _quality = PostProcessQualityMode.Off;
+            _quality = PostProcessQualityMode.Full;
             _advanced = default;
-            _enableAfterFrame = int.MaxValue;
         }
 
         public static void SetQuality(PostProcessQualityMode quality)
         {
             _quality = quality;
-            _enableAfterFrame = quality == PostProcessQualityMode.Off
-                ? int.MaxValue
-                : Time.frameCount + 1;
         }
 
         public static void SetAdvancedSettings(AdvancedPostProcessSettings settings)
         {
             _advanced = AdvancedPostProcessSnapshot.From(settings);
         }
-
-        public static bool IsEnabled =>
-            _quality != PostProcessQualityMode.Off &&
-            Time.frameCount >= _enableAfterFrame &&
-            !PostProcessRendererFeature.BypassPostProcessPass;
 
         private void RefreshVolumeComponents(VolumeStack stack)
         {
@@ -154,10 +148,10 @@ namespace Fodinae.Rendering.PostProcessing
         {
             if (_mainCamera != camera)
             {
+                // Смена камеры обесценивает историю временных эффектов: она
+                // снята с другого ракурса. Поколение сбрасывает её, не трогая
+                // сам проход.
                 _cameraGeneration++;
-                _enableAfterFrame = _quality == PostProcessQualityMode.Off
-                    ? int.MaxValue
-                    : Time.frameCount + 1;
             }
 
             _mainCamera = camera;
@@ -244,14 +238,6 @@ namespace Fodinae.Rendering.PostProcessing
             if (cameraData.renderType != CameraRenderType.Base ||
                 cameraData.camera.cameraType != CameraType.Game ||
                 cameraData.camera != _mainCamera)
-            {
-                return;
-            }
-
-            // Before touching the volume stack: Off means the graphics preset
-            // has bought out of post-processing entirely, and there is nothing
-            // downstream that could re-enable it.
-            if (!IsEnabled)
             {
                 return;
             }
@@ -416,7 +402,11 @@ namespace Fodinae.Rendering.PostProcessing
                 passData.ColorFilter = cg.colorFilter.value;
                 passData.Contrast = cg.contrast.value;
                 passData.Saturation = cg.saturation.value;
-                passData.ToneMappingEnabled = cg.toneMapping.value;
+                // Единственное условие — режим вывода. Настройки «включить
+                // тонмап» не существует: при SDR-выводе он обязателен, иначе
+                // света срезаются в плоский белый, а при HDR-выводе он вреден,
+                // потому что сжатие делает URP при финальном кодировании.
+                passData.ToneMappingEnabled = !cameraData.isHDROutputActive;
                 passData.ToneMappingWhitePoint = cg.toneMappingWhitePoint.value;
 
                 passData.EigengrauActive = eigengrauActive;
@@ -616,11 +606,11 @@ namespace Fodinae.Rendering.PostProcessing
                     cmd.SetComputeIntParam(
                         data.PostProcessCS,
                         ToneMappingEnabledID,
-                        data.CgActive && data.ToneMappingEnabled ? 1 : 0);
+                        data.ToneMappingEnabled ? 1 : 0);
                     cmd.SetComputeFloatParam(
                         data.PostProcessCS,
                         ToneMappingWhitePointID,
-                        data.CgActive ? data.ToneMappingWhitePoint : 1f);
+                        data.ToneMappingWhitePoint);
 
                     cmd.SetComputeFloatParam(data.PostProcessCS, EigengrauIntensityID, data.EigengrauActive ? data.EigengrauIntensity : 0f);
                     if (data.EigengrauActive)

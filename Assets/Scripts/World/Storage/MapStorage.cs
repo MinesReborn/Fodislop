@@ -14,7 +14,7 @@ using UnityEngine;
 
 namespace Fodinae.World
 {
-    public class MapStorage : IWorldDataStorage
+    public class MapStorage : IWorldDataStorage, IWorldPersistence
     {
         private WorldLayer<CellType>? _cellLayer;
         private string? _mapFilePath;
@@ -97,9 +97,10 @@ namespace Fodinae.World
             _worldWidth = width;
             _worldHeight = height;
             _clippedRegionWarningLogged = false;
-            const int CHUNK_SIZE = 32;
-            int widthChunks = (width + CHUNK_SIZE - 1) / CHUNK_SIZE;
-            int heightChunks = (height + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            int widthChunks = (width + ProjectRuntimeContracts.World.ChunkSize - 1) /
+                ProjectRuntimeContracts.World.ChunkSize;
+            int heightChunks = (height + ProjectRuntimeContracts.World.ChunkSize - 1) /
+                ProjectRuntimeContracts.World.ChunkSize;
 
             if (widthChunks <= 0 || heightChunks <= 0)
             {
@@ -121,7 +122,7 @@ namespace Fodinae.World
                     widthChunks,
                     heightChunks,
                     _operations,
-                    CHUNK_SIZE,
+                    ProjectRuntimeContracts.World.ChunkSize,
                     maxRamChunks: 2000);
                 _mapFilePath = path;
                 _isInitialized = true;

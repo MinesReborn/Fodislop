@@ -13,7 +13,6 @@ using Fodinae.World.Terrain;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets.Actions;
 using MinesServer.Networking.Client.Packets.Movement;
-using MinesServer.Networking.Connection.Client;
 using MinesServer.Networking.Server.Packets.Connection;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -27,7 +26,7 @@ namespace Fodinae.Player.Logic
     {
         [Header("Movement Settings")]
         [SerializeField]
-        private float _moveSpeed = 15f;
+        private float _moveSpeed = ProjectRuntimeContracts.Movement.RobotMoveSpeed;
 
         public uint BotId { get; private set; }
         public Vector2Int Position { get; private set; }
@@ -64,6 +63,9 @@ namespace Fodinae.Player.Logic
 
         [Inject]
         private Fodinae.Core.Interfaces.ILocalPlayerState _localPlayerState = null!;
+
+        [Inject]
+        private IRuntimeDebugSettings _debugSettings = null!;
 
         public void InitializeEditorPreview(IWorldDataStorage storage, IMapDataProvider mapDataProvider)
         {
@@ -269,7 +271,7 @@ namespace Fodinae.Player.Logic
             set
             {
                 _ignoreCollision = value;
-                DummyConnection.IgnoreCollision = value;
+                _debugSettings.IgnoreCollision = value;
                 OnCollisionChanged?.Invoke(value);
             }
         }

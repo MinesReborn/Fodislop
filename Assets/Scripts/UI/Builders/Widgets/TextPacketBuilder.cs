@@ -1,25 +1,18 @@
 #nullable enable
 
-using Fodinae;
-using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
 using UnityEngine.UIElements;
 
 namespace Fodinae.UI.Builders
 {
-    public class TextPacketBuilder : PacketUIBuilderBase
+    public class TextPacketBuilder : PacketUIBuilderBase<TextPacket>
     {
-        public override VisualElement? Build(IGUIComponentPacket packet, PacketUIBuilder builder)
+        protected override VisualElement BuildTyped(TextPacket packet, PacketUIBuilder builder)
         {
-            if (packet is not TextPacket textPkt)
-            {
-                return null;
-            }
-
-            var label = new Label(textPkt.Text);
+            var label = new Label(packet.Text);
             label.AddToClassList("sci-fi-text-body");
-            label.style.whiteSpace = WhiteSpace.Normal;
-            if (!string.IsNullOrEmpty(textPkt.OnClickContext))
+            label.AddToClassList("fit-wrap");
+            if (!string.IsNullOrEmpty(packet.OnClickContext))
             {
                 label.pickingMode = PickingMode.Position;
             }

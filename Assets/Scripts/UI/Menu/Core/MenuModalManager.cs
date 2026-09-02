@@ -5,6 +5,7 @@ using Cysharp.Threading.Tasks;
 using Fodinae.Core;
 using Fodinae.Core.Interfaces;
 using Fodinae.Core.Localization;
+using Fodinae.Networking.Connection;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -15,6 +16,10 @@ namespace Fodinae.UI;
 /// </summary>
 public sealed class MenuModalManager
 {
+    private const string SettingsPaneActiveClass = "mm-tab-pane--active";
+    private const int TartarusServerPort = 7778;
+    private const int CyberServerPort = 7779;
+
     private VisualElement? _modalOverlay;
     private VisualElement? _serverBrowserModal;
     private VisualElement? _settingsModal;
@@ -64,10 +69,7 @@ public sealed class MenuModalManager
         _serverItemCyber = tree.Q<Button>("ServerItemCyber");
         _confirmServerButton = tree.Q<Button>("ConfirmServerButton");
 
-        if (_modalOverlay != null)
-        {
-            _modalOverlay.style.display = DisplayStyle.None;
-        }
+        UIState.Hide(_modalOverlay);
     }
 
     public void SubscribeEvents(
@@ -116,10 +118,10 @@ public sealed class MenuModalManager
                 loc?.Get("gateway.onb.controls.keyboard") ?? "WASD",
                 loc?.Get("gateway.onb.controls.mouse") ?? "Mouse",
             };
-            controlSchemeDropdown.index = Mathf.Clamp(clientConfig.Config.ControlScheme, 0, 1);
+            controlSchemeDropdown.index = Mathf.Clamp(clientConfig.Config.Interface.ControlScheme, 0, 1);
             controlSchemeDropdown.RegisterValueChangedCallback(_ =>
             {
-                clientConfig.UpdateAndSave(cfg => cfg.ControlScheme = controlSchemeDropdown.index);
+                clientConfig.UpdateAndSave(cfg => cfg.Interface.ControlScheme = controlSchemeDropdown.index);
             });
         }
 
@@ -146,9 +148,9 @@ public sealed class MenuModalManager
                 if (srvHazard != null) srvHazard.text = loc?.Get("server.hazard.high") ?? "High";
                 clientConfig?.UpdateAndSave(cfg =>
                 {
-                    cfg.UseDummyConnection = false;
-                    cfg.ServerHost = "127.0.0.1";
-                    cfg.ServerPort = 7777;
+                    cfg.Connection.UseDummyConnection = false;
+                    cfg.Connection.ServerHost = ConnectionTransportConfig.DefaultServerHost;
+                    cfg.Connection.ServerPort = ConnectionTransportConfig.DefaultServerPort;
                 });
             };
         }
@@ -166,9 +168,9 @@ public sealed class MenuModalManager
                 if (srvHazard != null) srvHazard.text = loc?.Get("server.hazard.extreme") ?? "Extreme";
                 clientConfig?.UpdateAndSave(cfg =>
                 {
-                    cfg.UseDummyConnection = false;
-                    cfg.ServerHost = "127.0.0.1";
-                    cfg.ServerPort = 7778;
+                    cfg.Connection.UseDummyConnection = false;
+                    cfg.Connection.ServerHost = ConnectionTransportConfig.DefaultServerHost;
+                    cfg.Connection.ServerPort = TartarusServerPort;
                 });
             };
         }
@@ -186,9 +188,9 @@ public sealed class MenuModalManager
                 if (srvHazard != null) srvHazard.text = loc?.Get("server.hazard.medium") ?? "Medium";
                 clientConfig?.UpdateAndSave(cfg =>
                 {
-                    cfg.UseDummyConnection = false;
-                    cfg.ServerHost = "127.0.0.1";
-                    cfg.ServerPort = 7779;
+                    cfg.Connection.UseDummyConnection = false;
+                    cfg.Connection.ServerHost = ConnectionTransportConfig.DefaultServerHost;
+                    cfg.Connection.ServerPort = CyberServerPort;
                 });
             };
         }
@@ -204,7 +206,7 @@ public sealed class MenuModalManager
                 if (srvSeed != null) srvSeed.text = "#000000";
                 if (srvPing != null) srvPing.text = "0 ms";
                 if (srvHazard != null) srvHazard.text = loc?.Get("server.hazard.test") ?? "Test";
-                clientConfig?.UpdateAndSave(cfg => cfg.UseDummyConnection = true);
+                clientConfig?.UpdateAndSave(cfg => cfg.Connection.UseDummyConnection = true);
             };
         }
 
@@ -212,21 +214,20 @@ public sealed class MenuModalManager
         {
             directConnectBtn.clicked += () =>
             {
-                string raw = directIpInput.value?.Trim() ?? "127.0.0.1:7777";
-                string host = raw;
-                int port = 7777;
-                if (raw.Contains(':'))
+                if (!ConnectionTransportConfig.TryParseEndpoint(
+                        directIpInput.value,
+                        out string host,
+                        out int port))
                 {
-                    string[] parts = raw.Split(':');
-                    host = parts[0];
-                    if (int.TryParse(parts[1], out int p)) port = p;
+                    Debug.LogWarning($"[MenuModalManager] Invalid direct-connect endpoint: '{directIpInput.value}'.");
+                    return;
                 }
 
                 clientConfig?.UpdateAndSave(cfg =>
                 {
-                    cfg.UseDummyConnection = false;
-                    cfg.ServerHost = host;
-                    cfg.ServerPort = port;
+                    cfg.Connection.UseDummyConnection = false;
+                    cfg.Connection.ServerHost = host;
+                    cfg.Connection.ServerPort = port;
                 });
                 CloseCurrentModal();
                 onPlay();
@@ -247,7 +248,7 @@ public sealed class MenuModalManager
                 if (copyFeedback != null)
                 {
                     copyFeedback.text = loc?.Get("mainmenu.token_copied") ?? "Token copied!";
-                    copyFeedback.style.display = DisplayStyle.Flex;
+                    UIState.Show(copyFeedback);
                 }
             };
         }
@@ -261,7 +262,7 @@ public sealed class MenuModalManager
                 operations.Run(
                     "main_menu_switch_account",
                     cancellationToken => sceneNavigator.TransitionAsync(
-                        "Gateway",
+                        ProjectRuntimeContracts.SceneNames.Gateway,
                         cancellationToken));
             };
         }
@@ -272,7 +273,7 @@ public sealed class MenuModalManager
         {
             deferOfflineBtn.clicked += () =>
             {
-                clientConfig?.UpdateAndSave(cfg => cfg.UseDummyConnection = true);
+                clientConfig?.UpdateAndSave(cfg => cfg.Connection.UseDummyConnection = true);
                 CloseCurrentModal();
                 onPlay();
             };
@@ -286,7 +287,7 @@ public sealed class MenuModalManager
         {
             confirmUpdateBtn.clicked += () =>
             {
-                if (updateBlock != null) updateBlock.style.display = DisplayStyle.Flex;
+                UIState.Show(updateBlock);
                 if (updateFill != null) updateFill.style.width = new Length(100, LengthUnit.Percent);
                 if (updatePercent != null) updatePercent.text = "100%";
                 CloseCurrentModal();
@@ -333,53 +334,26 @@ public sealed class MenuModalManager
         }
 
         HideAllModals();
-        _modalOverlay.style.display = DisplayStyle.Flex;
-        modal.style.display = DisplayStyle.Flex;
+        UIState.Show(_modalOverlay);
+        UIState.Show(modal);
         _activeModal = modal;
     }
 
     public void CloseCurrentModal()
     {
-        if (_modalOverlay != null)
-        {
-            _modalOverlay.style.display = DisplayStyle.None;
-        }
-
+        UIState.Hide(_modalOverlay);
         HideAllModals();
         _activeModal = null;
     }
 
     private void HideAllModals()
     {
-        if (_serverBrowserModal != null)
-        {
-            _serverBrowserModal.style.display = DisplayStyle.None;
-        }
-
-        if (_settingsModal != null)
-        {
-            _settingsModal.style.display = DisplayStyle.None;
-        }
-
-        if (_chronicleModal != null)
-        {
-            _chronicleModal.style.display = DisplayStyle.None;
-        }
-
-        if (_repairModal != null)
-        {
-            _repairModal.style.display = DisplayStyle.None;
-        }
-
-        if (_profileModal != null)
-        {
-            _profileModal.style.display = DisplayStyle.None;
-        }
-
-        if (_updateModal != null)
-        {
-            _updateModal.style.display = DisplayStyle.None;
-        }
+        UIState.Hide(_serverBrowserModal);
+        UIState.Hide(_settingsModal);
+        UIState.Hide(_chronicleModal);
+        UIState.Hide(_repairModal);
+        UIState.Hide(_profileModal);
+        UIState.Hide(_updateModal);
     }
 
     private void BindModalClose(VisualElement tree, string buttonName)
@@ -398,31 +372,16 @@ public sealed class MenuModalManager
         _settingsTabControls?.RemoveFromClassList("mm-nav-tab--active");
         _settingsTabNetwork?.RemoveFromClassList("mm-nav-tab--active");
 
-        if (_settingsPaneGraphics != null)
+        // Пара mm-tab-pane / mm-tab-pane--active объявлена и в разметке, и в
+        // Theme.uss. Раньше код писал поверх неё инлайн, и класс не значил
+        // ничего: активная вкладка оставалась активной навсегда, потому что
+        // снять инлайн можно только инлайном.
+        foreach (var pane in new[] { _settingsPaneGraphics, _settingsPaneAudio, _settingsPaneControls, _settingsPaneNetwork })
         {
-            _settingsPaneGraphics.style.display = DisplayStyle.None;
-        }
-
-        if (_settingsPaneAudio != null)
-        {
-            _settingsPaneAudio.style.display = DisplayStyle.None;
-        }
-
-        if (_settingsPaneControls != null)
-        {
-            _settingsPaneControls.style.display = DisplayStyle.None;
-        }
-
-        if (_settingsPaneNetwork != null)
-        {
-            _settingsPaneNetwork.style.display = DisplayStyle.None;
+            pane?.EnableInClassList(SettingsPaneActiveClass, ReferenceEquals(pane, targetPane));
         }
 
         tabBtn.AddToClassList("mm-nav-tab--active");
-        if (targetPane != null)
-        {
-            targetPane.style.display = DisplayStyle.Flex;
-        }
     }
 
     private void SelectServer(Button serverCard)

@@ -7,6 +7,7 @@ using Fodinae.Core.Interfaces;
 using Fodinae.Core.Localization;
 using Fodinae.Rendering;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.UIElements;
 
 namespace Fodinae.UI;
@@ -39,6 +40,10 @@ internal sealed class PauseMenuDisplayTabBuilder
     {
         VisualElement displaySection = displayScroll.Q<VisualElement>("DisplaySection") ??
             throw new InvalidOperationException("[PauseMenu] DisplaySection is missing from PauseMenu.uxml.");
+        VisualElement hdrOutputGroup =
+            displayScroll.Q<VisualElement>("HDROutputGroup") ??
+            throw new InvalidOperationException(
+                "[PauseMenu] HDROutputGroup is missing from PauseMenu.uxml.");
 
         _fullscreenButton = new Button(ToggleFullscreen);
         _fullscreenButton.text = Screen.fullScreen ? _loc.Get("menu.settings.fullscreen") : _loc.Get("settings.display.windowed");
@@ -104,10 +109,17 @@ internal sealed class PauseMenuDisplayTabBuilder
 
         Toggle vSyncToggle = PauseMenuUIFactory.CreateBoundToggle(
             _loc.Get("menu.settings.vsync"),
-            () => _clientConfig.Config.VSync,
+            () => _clientConfig.Config.Display.VSync,
             value => _displayManager.SetVSync(value),
             _refreshers);
         displaySection.Add(vSyncToggle);
+
+        Toggle hdrToggle = PauseMenuUIFactory.CreateBoundToggle(
+            _loc.Get("menu.settings.hdr"),
+            () => _clientConfig.Config.Display.HDREnabled,
+            value => _displayManager.SetHDREnabled(value),
+            _refreshers);
+        hdrOutputGroup.Add(hdrToggle);
 
         return displayScroll;
     }

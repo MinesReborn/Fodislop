@@ -63,6 +63,8 @@ namespace Fodinae.UI.HUD.Player.View
         private Label? _aggressionLabel;
 
         private ProgrammatorGrid? _programmatorGrid;
+        [Inject]
+        private ProgrammatorData? _programmatorData;
         private bool _initializationStarted;
 
         [Inject]
@@ -77,6 +79,10 @@ namespace Fodinae.UI.HUD.Player.View
         private ILocalizationService _loc = null!;
         [Inject]
         private IAsyncOperationSupervisor _operations = null!;
+        [Inject]
+        private UIInputManager _uiInput = null!;
+        [Inject]
+        private IProgrammatorTextureCatalog _programmatorTextures = null!;
 
         protected void Start()
         {
@@ -216,7 +222,14 @@ namespace Fodinae.UI.HUD.Player.View
 
         private void InitializeHUD()
         {
-            _programmatorGrid ??= new ProgrammatorGrid(_doc, _loc);
+            _programmatorData ??= new ProgrammatorData();
+            _programmatorTextures ??= new ProgrammatorTextureRegistry();
+            _programmatorGrid ??= new ProgrammatorGrid(
+                _doc,
+                _loc,
+                _programmatorData,
+                _uiInput,
+                _programmatorTextures);
             _programmatorGrid?.Initialize();
             _tooltip = new Tooltip();
             _tooltip.Initialize(_doc);
@@ -283,7 +296,8 @@ namespace Fodinae.UI.HUD.Player.View
 
         private void LoadTemplate(VisualElement root)
         {
-            VisualTreeAsset template = Resources.Load<VisualTreeAsset>("UI/PlayerHUD") ??
+            VisualTreeAsset template = Resources.Load<VisualTreeAsset>(
+                ProjectRuntimeContracts.ResourcePaths.PlayerHudUxml) ??
                 throw new InvalidOperationException(
                     "[PlayerHUD] Resources/UI/PlayerHUD.uxml is required.");
             TemplateContainer tree = template.Instantiate();

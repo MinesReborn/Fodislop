@@ -8,9 +8,9 @@ using Fodinae.Core.Interfaces;
 using Fodinae.Core.Lifecycle;
 using Fodinae.Core.Localization;
 using Fodinae.Game.Managers;
-using Fodinae.World;
 using Fodinae.AssetPipeline;
 using Fodinae.Networking;
+using Fodinae.Networking.Auth;
 using Fodinae.Networking.Connection;
 using Fodinae.Rendering;
 using Fodinae.UI;
@@ -25,11 +25,11 @@ namespace Fodinae.Core
     [DefaultExecutionOrder(-30000)]
     public class BootstrapLifetimeScope : LifetimeScope, IMainMenuNavigation, ISceneNavigator
     {
-        private const string MainMenuSceneName = "MainMenu";
+        private const string MainMenuSceneName = ProjectRuntimeContracts.SceneNames.MainMenu;
 
         // Первой после Bootstrap грузится не меню, а Gateway: вход и онбординг.
         // Он сам загрузит MainMenu и выгрузится, когда игрок пройдёт ворота.
-        private const string GatewaySceneName = "Gateway";
+        private const string GatewaySceneName = ProjectRuntimeContracts.SceneNames.Gateway;
 
         [SerializeField] private Camera _applicationCamera = null!;
         [SerializeField] private ConnectionManager _connectionManager = null!;
@@ -47,11 +47,7 @@ namespace Fodinae.Core
 
         public string? CurrentSceneName => _currentSceneName;
 
-        public event Action<string>? TransitionStarted;
-
-        public event Action<string>? TransitionCompleted;
-
-        public event Action<string, Exception>? TransitionFailed;
+        public event Action<SceneTransitionStatus>? TransitionChanged;
 
         /// <summary>
         /// Stops Unity capturing a managed stack trace for plain
@@ -82,10 +78,32 @@ namespace Fodinae.Core
             // Bootstrap only owns application services. Scene transitions are
             // started by ApplicationBootstrap after the container is built.
             DontDestroyOnLoad(gameObject);
-            base.Awake();
+            try
+            {
+                base.Awake();
+            }
+            catch (Exception ex)
+            {
+                // Without this catch the failed container build takes the whole
+                // process down before ApplicationBootstrap or any UI can show
+                // a diagnostic. Surface a single error and rethrow so the
+                // bootstrap scene contract still fails fast in development.
+                Debug.LogError($"[Bootstrap] Container build failed at Awake: {ex}");
+                throw;
+            }
+
             if (Container != null)
             {
-                BindApplicationCamera();
+                try
+                {
+                    BindApplicationCamera();
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"[Bootstrap] Application camera bind failed: {ex.Message}");
+                    throw;
+                }
+
                 SceneManager.sceneLoaded += OnSceneLoaded;
             }
         }
@@ -104,6 +122,9 @@ namespace Fodinae.Core
 
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
+            // HDR is reconciled by HDROutputReconciler, an entry point on this
+            // scope: keeping the display surface in step is a rendering concern
+            // and does not belong in the composition root.
             EnforceSingleCamera(scene);
         }
 
@@ -193,7 +214,7 @@ namespace Fodinae.Core
                 // additive scenes are loaded, and can return an invalid Scene
                 // even when a correctly-named scene is resident. Scan the live
                 // scene list instead, matching the target-side lookup.
-                Scene previous = FindFirstLoadedScene(currentSceneName);
+                Scene previous = SceneTransitionSceneLookup.FindFirstLoaded(currentSceneName);
                 if (previous.IsValid() && previous.isLoaded)
                 {
                     previousScene = previous;
@@ -201,37 +222,42 @@ namespace Fodinae.Core
             }
 
             Debug.Log($"[Bootstrap] Loading scene '{sceneName}'...");
-            TransitionStarted?.Invoke(sceneName);
             // The outgoing scene is no longer the current transition owner.
             // Keep it loaded while the ticketed replacement reaches presentation.
             _currentSceneName = null;
             Scene candidateScene = default;
-            SceneTransitionTicket? ticket = null;
+            var ticket = new SceneTransitionTicket(sceneName);
+            ticket.Changed += PublishTransitionStatus;
+            PublishTransitionStatus(new SceneTransitionStatus(sceneName, SceneTransitionPhase.Created));
+            PublishTransitionStatus(new SceneTransitionStatus(sceneName, SceneTransitionPhase.Loading));
             try
             {
-                if (!candidateScene.isLoaded)
-                {
-                    if (!Application.CanStreamedLevelBeLoaded(sceneName))
-                    {
-                        throw new SceneContractException(
-                            $"Transition target scene '{sceneName}' is not present in the active build profile.");
-                    }
-
-                    ticket = new SceneTransitionTicket(sceneName);
-                    using (LifetimeScope.EnqueueParent(this))
-                    using (LifetimeScope.Enqueue(builder => builder.RegisterInstance(ticket)))
-                    {
-                        await SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive).ToUniTask();
-                    }
-
-                    candidateScene = FindUniqueLoadedScene(sceneName);
-                }
-                else
+                Scene existing = SceneTransitionSceneLookup.FindFirstLoaded(sceneName);
+                if (existing.IsValid() && existing.isLoaded)
                 {
                     throw new InvalidOperationException(
                         $"[Bootstrap] Transition target '{sceneName}' was already loaded outside the current transition. " +
                         "Content scenes must be loaded only through BootstrapLifetimeScope.");
                 }
+
+                if (!Application.CanStreamedLevelBeLoaded(sceneName))
+                {
+                    throw new SceneContractException(
+                        $"Transition target scene '{sceneName}' is not present in the active build profile.");
+                }
+
+                using (LifetimeScope.EnqueueParent(this))
+                using (LifetimeScope.Enqueue(builder => builder.RegisterInstance(ticket)))
+                {
+                    await SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive).ToUniTask();
+                    // Yield one frame so Unity finishes Awake/OnEnable on the new
+                    // scene's root objects before we touch them. Without this the
+                    // very first lookup against candidateScene can race the
+                    // internal scene registration and return default.
+                    await UniTask.Yield();
+                }
+
+                candidateScene = SceneTransitionSceneLookup.FindUniqueLoaded(sceneName);
 
                 await ticket.WaitUntilAttachedAsync().AttachExternalCancellation(cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
@@ -243,67 +269,58 @@ namespace Fodinae.Core
                 if (previousScene.HasValue && previousScene.Value != candidateScene &&
                     previousScene.Value.IsValid() && previousScene.Value.isLoaded)
                 {
-                    await PrepareSceneForUnloadAsync(previousScene.Value);
-                    await SceneManager.UnloadSceneAsync(previousScene.Value).ToUniTask();
+                    PublishTransitionStatus(new SceneTransitionStatus(
+                        sceneName,
+                        SceneTransitionPhase.CleaningPrevious));
+                    Exception? cleanupFailure = await SceneTransitionRuntime.TryCleanupPreviousSceneAsync(
+                        previousScene.Value,
+                        PrepareSceneForUnloadAsync);
+                    if (cleanupFailure != null)
+                    {
+                        Debug.LogError(
+                            $"[Bootstrap] Scene '{sceneName}' is ready, but previous scene " +
+                            $"'{previousScene.Value.name}' could not be unloaded: {cleanupFailure}");
+                        PublishTransitionStatus(new SceneTransitionStatus(
+                            sceneName,
+                            SceneTransitionPhase.CompletedWithWarnings,
+                            cleanupFailure));
+                        return;
+                    }
                 }
 
                 Debug.Log($"[Bootstrap] Scene '{sceneName}' entered successfully.");
-                TransitionCompleted?.Invoke(sceneName);
+                PublishTransitionStatus(new SceneTransitionStatus(sceneName, SceneTransitionPhase.Completed));
             }
             catch (Exception ex)
             {
-                ticket?.Fail(ex);
-                TransitionFailed?.Invoke(sceneName, ex);
+                ticket.Fail(ex);
                 _currentSceneName = previousScene?.name;
                 if (candidateScene.IsValid() && candidateScene.isLoaded &&
                     !string.Equals(candidateScene.name, _currentSceneName, StringComparison.Ordinal))
                 {
-                    await SceneManager.UnloadSceneAsync(candidateScene).ToUniTask();
+                    try
+                    {
+                        await SceneManager.UnloadSceneAsync(candidateScene).ToUniTask();
+                    }
+                    catch (Exception cleanupException)
+                    {
+                        Debug.LogError(
+                            $"[Bootstrap] Failed to roll back candidate scene '{sceneName}': {cleanupException}");
+                    }
                 }
 
                 throw;
             }
             finally
             {
-                ticket?.Dispose();
+                ticket.Changed -= PublishTransitionStatus;
+                ticket.Dispose();
             }
         }
 
-        private static Scene FindFirstLoadedScene(string sceneName)
+        private void PublishTransitionStatus(SceneTransitionStatus status)
         {
-            for (int index = 0; index < SceneManager.sceneCount; index++)
-            {
-                Scene scene = SceneManager.GetSceneAt(index);
-                if (scene.isLoaded && string.Equals(scene.name, sceneName, StringComparison.Ordinal))
-                {
-                    return scene;
-                }
-            }
-
-            return default;
-        }
-
-        private static Scene FindUniqueLoadedScene(string sceneName)
-        {
-            Scene result = default;
-            int count = 0;
-            for (int index = 0; index < SceneManager.sceneCount; index++)
-            {
-                Scene scene = SceneManager.GetSceneAt(index);
-                if (scene.isLoaded && string.Equals(scene.name, sceneName, StringComparison.Ordinal))
-                {
-                    result = scene;
-                    count++;
-                }
-            }
-
-            if (count > 1)
-            {
-                throw new InvalidOperationException(
-                    $"[Bootstrap] Transition target '{sceneName}' is loaded {count} times. Unload duplicate scene instances before continuing.");
-            }
-
-            return result;
+            SceneTransitionRuntime.PublishSafely(TransitionChanged, status);
         }
 
         private static GameLifetimeScope? FindGameScope(Scene scene)
@@ -337,13 +354,11 @@ namespace Fodinae.Core
                 return;
             }
 
-            await scope.PrepareForUnloadAsync(
-                scope.Container.Resolve<PacketHandler>(),
-                scope.Container.Resolve<GameManager>(),
-                scope.Container.Resolve<MapManager>(),
-                scope.Container.Resolve<AsyncOperationSupervisor>());
+            // Which subsystems are still alive is the game scope's own business:
+            // it owns that container and knows what an aborted previous unload
+            // may have left half-disposed.
+            await scope.PrepareForUnloadAsync();
         }
-
 
         /// <summary>
         /// Disconnects, tears down the current world, and returns to the main menu.
@@ -402,11 +417,19 @@ namespace Fodinae.Core
             builder.Register<AsyncOperationSupervisor>(Lifetime.Singleton)
                 .AsSelf()
                 .As<IAsyncOperationSupervisor>();
+            builder.Register<PersistentAssetCache>(Lifetime.Singleton).As<IPersistentAssetCache>();
+            builder.Register<RuntimeAssetPaths>(
+                _ => new RuntimeAssetPaths(),
+                Lifetime.Singleton).As<IRuntimeAssetPaths>();
 
-            // DummyConnection — офлайн-транспорт и точка подключения симуляторов
-            // (сейчас — VK-входа). Регистрируется интерфейсами, чтобы другие
-            // подсистемы могли подвязаться под него без зависимости от класса.
+            // DummyConnection emulates the game server in offline mode. External
+            // identity providers do not route authentication through it.
             builder.Register<DummyConnection>(Lifetime.Singleton).AsSelf().AsImplementedInterfaces();
+            builder.Register<GameTokenStore>(Lifetime.Singleton).As<IGameTokenStore>();
+            builder.Register<RuntimeDebugSettings>(Lifetime.Singleton).As<IRuntimeDebugSettings>();
+            builder.Register<OfflineScenarioSettings>(Lifetime.Singleton).As<IOfflineScenarioSettings>();
+            builder.Register<VkIdentityProvider>(Lifetime.Singleton);
+            builder.Register<AuthenticationService>(Lifetime.Singleton).As<IAuthenticationService>();
 
             // Application-tier session state: NetworkService (Bootstrap) and
             // Game-tier processors both resolve the same local-player state.
@@ -415,7 +438,7 @@ namespace Fodinae.Core
             // World-load phases are published by the Game scope but consumed by
             // the MainMenu loader (sibling scope), so the relay lives here.
             builder.Register<WorldLoadProgress>(Lifetime.Singleton).As<IWorldLoadProgress>();
-            builder.Register<IItemCatalog>(_ => new ItemRegistryAdapter(), Lifetime.Singleton);
+            builder.Register<ItemRegistry>(Lifetime.Singleton).As<IItemCatalog>();
 
             // The persistent application camera as a typed DI dependency.
             // RegisterComponent(applicationCamera) below exposes the Camera
@@ -431,6 +454,7 @@ namespace Fodinae.Core
             RegisterAuthored(builder, _textureStorageManager, nameof(_textureStorageManager));
             RegisterAuthored(builder, _loadingScreen, nameof(_loadingScreen));
             builder.Register<LocalizationService>(Lifetime.Singleton).AsImplementedInterfaces().AsSelf();
+            builder.RegisterEntryPoint<HDROutputReconciler>();
             builder.RegisterEntryPoint<ApplicationBootstrap>();
         }
 

@@ -44,7 +44,7 @@ namespace Fodinae.UI
         private Foldout? _customGraphicsSection;
         private Action? _updateLightingQualityButton;
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_ENABLE_CHECKS
         // Created before the graphics/advanced pages so the lighting debug
         // controls built alongside the advanced page can be appended to it.
         private Foldout? _debugSection;
@@ -122,6 +122,7 @@ namespace Fodinae.UI
             var builder = new PauseMenuInterfaceTabBuilder(
                 _doc,
                 _clientConfig,
+                _graphicsSettings,
                 _refreshers,
                 _loc);
             return builder.Build(interfaceScroll);
@@ -137,14 +138,14 @@ namespace Fodinae.UI
                 _refreshers,
                 _loc,
                 MarkGraphicsCustom
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_ENABLE_CHECKS
                 , AddLightingDebugControls
 #endif
             );
             return builder.Build(advancedScroll);
         }
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_ENABLE_CHECKS
         /// <summary>
         /// Creates the developer tools foldout. Must be called before
         /// <see cref="BuildAdvancedPage"/>, which appends the lighting debug

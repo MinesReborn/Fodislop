@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using Cysharp.Threading.Tasks;
 using Fodinae;
+using Fodinae.Core;
 using Fodinae.Persistence;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets;
@@ -80,14 +81,16 @@ internal sealed class DummyWorldSimulationState(IAsyncOperationSupervisor operat
                 $"Prebaked map file '{mapPath}' has invalid dimensions ({worldWidth}x{worldHeight}).");
         }
 
-        int widthChunks = (worldWidth + 31) / 32;
-        int heightChunks = (worldHeight + 31) / 32;
+        int widthChunks = (worldWidth + ProjectRuntimeContracts.World.ChunkSize - 1) /
+            ProjectRuntimeContracts.World.ChunkSize;
+        int heightChunks = (worldHeight + ProjectRuntimeContracts.World.ChunkSize - 1) /
+            ProjectRuntimeContracts.World.ChunkSize;
         Layer = new WorldLayer<CellType>(
             mapPath,
             widthChunks,
             heightChunks,
             _operations,
-            32,
+            ProjectRuntimeContracts.World.ChunkSize,
             36);
         _sentMapChunks.Clear();
         return new DummyWorldDescriptor(worldWidth, worldHeight, CellConfigurations);

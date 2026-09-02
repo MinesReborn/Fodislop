@@ -81,6 +81,7 @@
     <Compile Include="Assets/Scripts/Tests/ProjectDefaultsTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/Core/ClientConfigRepositoryTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/Core/ClientConfigMigrationTests.cs" />
+    <Compile Include="Assets/Scripts/Tests/Editor/Core/RuntimeDiagnosticsStateTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/Core/ClientConfigDecompositionContractTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/Core/SceneTransitionTicketTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/Core/LocalPlayerStateTests.cs" />

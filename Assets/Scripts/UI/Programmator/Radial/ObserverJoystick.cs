@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using Fodinae.Core;
 using MinesServer.Data;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -95,23 +96,29 @@ namespace Fodinae.UI.Programmator
         public VisualElement Root => _root;
         public bool IsShown => _root.parent != null;
 
-        public ObserverJoystick()
+        public ObserverJoystick(IProgrammatorTextureCatalog textures)
         {
+            if (textures == null)
+            {
+                throw new ArgumentNullException(nameof(textures));
+            }
+
             // Pre-load all textures
             for (int i = 0; i < 8; i++)
             {
-                _dirClickTex[i] = ProgrammatorTextureRegistry.GetTexture(DirClickOps[i]);
-                _dirDragTex[i] = ProgrammatorTextureRegistry.GetTexture(DirDragOps[i]);
-                _centerDragCellTex[i] = ProgrammatorTextureRegistry.GetTexture(CenterDragOps[i].cell);
-                _centerDragShiftTex[i] = ProgrammatorTextureRegistry.GetTexture(CenterDragOps[i].shift);
+                _dirClickTex[i] = textures.GetTexture(DirClickOps[i]);
+                _dirDragTex[i] = textures.GetTexture(DirDragOps[i]);
+                _centerDragCellTex[i] = textures.GetTexture(CenterDragOps[i].cell);
+                _centerDragShiftTex[i] = textures.GetTexture(CenterDragOps[i].shift);
             }
 
-            _centerTex = ProgrammatorTextureRegistry.GetTexture(CenterClickOp);
+            _centerTex = textures.GetTexture(CenterClickOp);
 
             // Статический скелет (рут, 8 кнопок направлений, центральная кнопка)
             // живёт в ObserverJoystick.uxml, геометрия — в .prog-joy-item--* / .prog-joy-center
             // (Programmator.uss). Здесь только клон и биндинги; иконки и ховер — динамика.
-            VisualTreeAsset template = Resources.Load<VisualTreeAsset>("UI/ObserverJoystick") ??
+            VisualTreeAsset template = Resources.Load<VisualTreeAsset>(
+                ProjectRuntimeContracts.ResourcePaths.ObserverJoystickUxml) ??
                 throw new InvalidOperationException(
                     "[ObserverJoystick] Resources/UI/ObserverJoystick.uxml is required.");
             TemplateContainer tree = template.Instantiate();

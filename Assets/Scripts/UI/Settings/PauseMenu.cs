@@ -26,8 +26,6 @@ namespace Fodinae.UI
 {
     public class PauseMenu : MonoBehaviour, ILocalizableUI
     {
-        public static bool IsMenuOpen { get; private set; }
-
         [Inject]
         private UIDocument _doc = null!;
         [Inject]
@@ -68,6 +66,8 @@ namespace Fodinae.UI
         private IConnectionService _connectionService = null!;
         [Inject]
         private IInputBlocker _inputBlocker = null!;
+        [Inject]
+        private UIInputManager _uiInput = null!;
 
         private PauseMenuSettingsBuilder? _settingsBuilder;
         private VisualElement[] _settingsPages = System.Array.Empty<VisualElement>();
@@ -172,7 +172,7 @@ namespace Fodinae.UI
 
             HideMenu();
 
-            var savedScale = _clientConfig.Config.UIScale;
+            var savedScale = _clientConfig.Config.Interface.UIScale;
             if (Mathf.Abs(_doc.panelSettings.scale - savedScale) > 0.0001f)
             {
                 _doc.panelSettings.scale = savedScale;
@@ -197,7 +197,7 @@ namespace Fodinae.UI
                 _lightingEngine.OnInitialized -= OnLightingReady;
             }
 
-            IsMenuOpen = false;
+            _uiInput.IsPauseMenuOpen = false;
 
             if (_menuTree != null && _menuTree.parent != null)
             {
@@ -230,7 +230,8 @@ namespace Fodinae.UI
                 }
             }
 
-            VisualTreeAsset menuTemplate = Resources.Load<VisualTreeAsset>("UI/PauseMenu") ??
+            VisualTreeAsset menuTemplate = Resources.Load<VisualTreeAsset>(
+                ProjectRuntimeContracts.ResourcePaths.PauseMenuUxml) ??
                 throw new InvalidOperationException(
                     "[PauseMenu] Resources/UI/PauseMenu.uxml is required.");
             TemplateContainer menuTree = menuTemplate.Instantiate();
@@ -367,7 +368,7 @@ namespace Fodinae.UI
                 CloseMenu,
                 _loc);
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_ENABLE_CHECKS
             // Built first: BuildAdvancedPage appends the lighting debug view
             // and the diagnostics readout to this section.
             VisualElement debugSection = _settingsBuilder.BuildDebugSection();
@@ -380,7 +381,7 @@ namespace Fodinae.UI
             _settingsBuilder.BuildInterfacePage(interfaceScroll);
             _settingsBuilder.BuildAdvancedPage(advancedScroll);
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_ENABLE_CHECKS
             advancedScroll.contentContainer.Add(debugSection);
 #endif
 
@@ -399,7 +400,7 @@ namespace Fodinae.UI
                 return;
             }
 
-            if (ProgrammatorGrid.IsOpen)
+            if (_uiInput.IsProgrammatorOpen)
             {
                 return;
             }
@@ -433,7 +434,7 @@ namespace Fodinae.UI
         private void OpenMenu()
         {
             _isOpen = true;
-            IsMenuOpen = true;
+            _uiInput.IsPauseMenuOpen = true;
             if (_menuTree != null)
             {
                 _menuTree.BringToFront();
@@ -465,7 +466,7 @@ namespace Fodinae.UI
         private void HideMenu()
         {
             _isOpen = false;
-            IsMenuOpen = false;
+            _uiInput.IsPauseMenuOpen = false;
             if (_menuPanel != null)
             {
                 _menuPanel.style.display = DisplayStyle.None;

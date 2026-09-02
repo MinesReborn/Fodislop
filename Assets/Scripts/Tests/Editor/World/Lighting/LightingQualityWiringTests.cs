@@ -139,19 +139,29 @@ namespace Fodinae.Tests.World.Lighting
                 "GraphicsQualityProfile");
             Assert.That(profile, Is.Not.Null, "Resources/GraphicsQualityProfile.asset is missing.");
 
-            // The whole point of the field is that the preset reaches the
-            // post-processing stack at all - before it existed, VeryLow ran the
-            // same bloom pyramid and motion blur as Ultra. If these ever all
-            // collapse back to one value the tier is decorative again, so pin
-            // the ones that differ.
-            Assert.That(
-                profile!.Get(GraphicsPreset.VeryLow).PostProcessQuality,
-                Is.EqualTo(PostProcessQualityMode.Off),
-                "VeryLow is the tier that buys out of post-processing entirely.");
-            Assert.That(
-                profile.Get(GraphicsPreset.Low).PostProcessQuality,
-                Is.EqualTo(PostProcessQualityMode.Essential),
-                "Low keeps the one-pass effects and drops bloom and motion blur.");
+            // Тир выводится из пресета в коде (GraphicsQualityProfile.TierFor),
+            // а не читается из ассета: иначе смена перечисления требовала бы
+            // отдельного шага правки `.asset`. Проверяем и вывод, и то, что
+            // Get() действительно им перекрывает сериализованное значение.
+            //
+            // Тира «выключено» нет ни у одного пресета: без тонмапа света
+            // срезаются в плоский белый, то есть это был бы не дешёвый кадр,
+            // а неверный. Самый дешёвый тир — Essential.
+            foreach (GraphicsPreset preset in new[]
+                     {
+                         GraphicsPreset.VeryLow,
+                         GraphicsPreset.Low,
+                     })
+            {
+                Assert.That(
+                    GraphicsQualityProfile.TierFor(preset),
+                    Is.EqualTo(PostProcessQualityMode.Essential),
+                    $"{preset} is the cheap tier: one-pass effects, no bloom pyramid.");
+                Assert.That(
+                    profile!.Get(preset).PostProcessQuality,
+                    Is.EqualTo(PostProcessQualityMode.Essential),
+                    $"{preset}: Get() must override whatever the asset still stores.");
+            }
 
             foreach (GraphicsPreset preset in new[]
                      {
@@ -162,9 +172,13 @@ namespace Fodinae.Tests.World.Lighting
                      })
             {
                 Assert.That(
-                    profile.Get(preset).PostProcessQuality,
+                    GraphicsQualityProfile.TierFor(preset),
                     Is.EqualTo(PostProcessQualityMode.Full),
                     $"{preset} is expected to run the full post-processing stack.");
+                Assert.That(
+                    profile!.Get(preset).PostProcessQuality,
+                    Is.EqualTo(PostProcessQualityMode.Full),
+                    $"{preset}: Get() must override whatever the asset still stores.");
             }
         }
 
@@ -179,7 +193,6 @@ namespace Fodinae.Tests.World.Lighting
                 lightingUpdatesPerSecond: 15f,
                 lightingCascadeAtlasLimit: 512,
                 renderScale: 0.8f,
-                vSyncCount: 0,
                 antiAliasing: 0,
                 lightingQuality: LightingQualityMode.PerBlock,
                 postProcessQuality: (PostProcessQualityMode)99);
@@ -206,7 +219,6 @@ namespace Fodinae.Tests.World.Lighting
                 lightingUpdatesPerSecond: 15f,
                 lightingCascadeAtlasLimit: 512,
                 renderScale: 0.8f,
-                vSyncCount: 0,
                 antiAliasing: 0,
                 lightingQuality: (LightingQualityMode)99);
 
@@ -225,7 +237,6 @@ namespace Fodinae.Tests.World.Lighting
                 lightingUpdatesPerSecond: 15f,
                 lightingCascadeAtlasLimit: 512,
                 renderScale: 0.8f,
-                vSyncCount: 0,
                 antiAliasing: 0,
                 lightingQuality: LightingQualityMode.PerPixel);
 

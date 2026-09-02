@@ -20,10 +20,9 @@ using VContainer;
 namespace Fodinae
 {
     using static ETagCalculator;
-    using static PersistentAssetCache;
 
     [DefaultExecutionOrder(-10000)]
-    public class ClientAssetLoader : MonoBehaviour, IAssetLoader
+    public class ClientAssetLoader : MonoBehaviour, IAssetLoader, IAssetSubscription
     {
         private AssetCache _cache = null!;
 
@@ -33,7 +32,6 @@ namespace Fodinae
         private readonly ConcurrentDictionary<string, byte> _reportedAssetFailures = new(StringComparer.OrdinalIgnoreCase);
         private CancellationTokenSource? _loopCts;
         private bool _batchLoopStarted;
-        private bool _packetSubscribed;
         private bool _isDestroyed;
         private bool _batchLoopFailureLogged;
 
@@ -54,6 +52,8 @@ namespace Fodinae
         private ITextureStorageService _textureStorage = null!;
         [Inject]
         private IAsyncOperationSupervisor _operations = null!;
+        [Inject]
+        private IPersistentAssetCache _persistentCache = null!;
 
         private IConnectionService ConnectionService =>
             _connectionService ??
@@ -71,7 +71,7 @@ namespace Fodinae
         {
             _isDestroyed = false;
             _batchLoopFailureLogged = false;
-            _cache = new AssetCache(LoadBytesFromServer);
+            _cache = new AssetCache(LoadBytesFromServer, () => _operations);
             _loopCts = new CancellationTokenSource();
         }
 
@@ -158,8 +158,6 @@ namespace Fodinae
                 _connectionService.OnPacketReceived -= OnPacketReceived;
             }
 
-            _packetSubscribed = false;
-
             if (_subscribedConnection == null)
             {
                 _assetSubscriptionEstablished = false;
@@ -199,7 +197,7 @@ namespace Fodinae
             }
 
             byte[]? bytes = await GetAssetBytesAsync(cleanFilename, cancellationToken, timeoutSeconds);
-            if (bytes == null || bytes.Length == 0 || !PersistentAssetCache.HasAsset(cleanFilename))
+            if (bytes == null || bytes.Length == 0 || !_persistentCache.HasAsset(cleanFilename))
             {
                 if (IsAudioBank(cleanFilename))
                 {
@@ -211,7 +209,7 @@ namespace Fodinae
                     cleanFilename);
             }
 
-            return PersistentAssetCache.GetAssetPath(cleanFilename);
+            return _persistentCache.GetAssetPath(cleanFilename);
         }
 
         public bool IsKnownMissing(string filename)
@@ -269,19 +267,6 @@ namespace Fodinae
             _reportedAssetFailures.Clear();
         }
 
-        public void EnsurePacketSubscription()
-        {
-            if (_packetSubscribed)
-            {
-                return;
-            }
-
-            var connectionService = ConnectionService;
-            connectionService.OnPacketReceived -= OnPacketReceived;
-            connectionService.OnPacketReceived += OnPacketReceived;
-            _packetSubscribed = true;
-        }
-
         private async UniTask<byte[]?> LoadBytesFromServer(string filename, CancellationToken ct, int timeoutSeconds)
         {
             filename = filename.TrimStart('/').ToLowerInvariant();
@@ -292,9 +277,9 @@ namespace Fodinae
 
             if (!isConnected)
             {
-                if (HasAsset(filename))
+                if (_persistentCache.HasAsset(filename))
                 {
-                    return await GetAssetAsync(filename);
+                    return await _persistentCache.GetAssetAsync(filename);
                 }
             }
 
@@ -308,7 +293,7 @@ namespace Fodinae
                     var localData = await tsm.GetTextureData(filename);
                     if (localData != null && localData.Length > 0)
                     {
-                        await SaveAssetAsync(filename, localData, string.Empty);
+                        await _persistentCache.SaveAssetAsync(filename, localData, string.Empty);
                         _reportedAssetFailures.TryRemove(filename, out _);
                         return localData;
                     }
@@ -318,7 +303,7 @@ namespace Fodinae
             // 3. Try server network request if connected
             if (isConnected)
             {
-                string? etag = HasAsset(filename) ? await GetETagAsync(filename) : null;
+                string? etag = _persistentCache.HasAsset(filename) ? await _persistentCache.GetETagAsync(filename) : null;
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
 
@@ -353,9 +338,9 @@ namespace Fodinae
             }
 
             // 4. Fallback to cached asset
-            if (HasAsset(filename))
+            if (_persistentCache.HasAsset(filename))
             {
-                byte[]? cached = await GetAssetAsync(filename);
+                byte[]? cached = await _persistentCache.GetAssetAsync(filename);
                 if (cached != null && cached.Length > 0)
                 {
                     _reportedAssetFailures.TryRemove(filename, out _);
@@ -372,7 +357,7 @@ namespace Fodinae
                     var localData = await tsm.GetTextureData(filename);
                     if (localData != null && localData.Length > 0)
                     {
-                        await SaveAssetAsync(filename, localData, string.Empty);
+                        await _persistentCache.SaveAssetAsync(filename, localData, string.Empty);
                         _reportedAssetFailures.TryRemove(filename, out _);
                         return localData;
                     }
@@ -424,7 +409,9 @@ namespace Fodinae
             {
                 try
                 {
-                    await UniTask.Delay(50, cancellationToken: ct);
+                    await UniTask.Delay(
+                        ProjectRuntimeContracts.AssetStreaming.RequestBatchIntervalMilliseconds,
+                        cancellationToken: ct);
                 }
                 catch (OperationCanceledException)
                 {
@@ -554,7 +541,7 @@ namespace Fodinae
                 if ((contents == null || contents.Length == 0) &&
                     !string.IsNullOrEmpty(assetPacket.ETag))
                 {
-                    byte[]? cachedAsset = await GetAssetAsync(filename);
+                    byte[]? cachedAsset = await _persistentCache.GetAssetAsync(filename);
                     if (cachedAsset == null || cachedAsset.Length == 0)
                     {
                         throw new InvalidDataException(
@@ -574,7 +561,7 @@ namespace Fodinae
                 string etag = Calculate(contents) ??
                     throw new InvalidDataException(
                         $"Asset '{filename}' produced no ETag after download.");
-                await SaveAssetAsync(filename, contents, etag);
+                await _persistentCache.SaveAssetAsync(filename, contents, etag);
                 _missingAssets.TryRemove(filename, out _);
                 tcs.TrySetResult(contents);
             }

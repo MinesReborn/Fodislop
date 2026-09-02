@@ -98,8 +98,10 @@ namespace Fodinae.UI.Controls
                 return;
             }
 
-            _checkedElement.style.display = _value ? DisplayStyle.Flex : DisplayStyle.None;
-            _uncheckedElement.style.display = !_value ? DisplayStyle.Flex : DisplayStyle.None;
+            // Классом, а не инлайном: оба элемента строятся здесь же из пакета,
+            // разметки с собственным display под ними нет.
+            UIState.SetHidden(_checkedElement, !_value);
+            UIState.SetHidden(_uncheckedElement, _value);
         }
     }
 }

@@ -93,7 +93,7 @@ namespace Fodinae.Core
         /// Forces config load synchronously, without waiting for the next
         /// Start/Update cycle. This manager is an authored Bootstrap-tier
         /// singleton authored under BootstrapLifetimeScope:
-        /// its Start() runs a frame later — too late for GameBootstrap.PostStart,
+        /// its Start() runs a frame later — too late for GameStartupPipeline,
         /// which reads Config in the same frame the manager is created.
         /// EnsureInitialized is called at Bootstrap startup (BootstrapLifetimeScope.Awake)
         /// before any game scope is built.
@@ -171,7 +171,6 @@ namespace Fodinae.Core
             Config.GraphicsQualitySettings = _graphicsQualityProfile.Get(preset);
             ClientConfigDefaults.ApplyLightingDefaults(Config, _projectDefaults.Lighting);
             ClientConfigDefaults.ApplyShaderDefaults(Config, _projectDefaults.Shaders);
-            Config.AdvancedPostProcess = new AdvancedPostProcessSettings();
         }
 
         public void SetCustomGraphicsSettings(GraphicsQualitySettings settings)
@@ -192,6 +191,43 @@ namespace Fodinae.Core
             Save();
         }
 
+        public void UpdateAudio(Action<AudioSettings> update)
+        {
+            UpdateSection(Config.Audio, update);
+        }
+
+        public void UpdateDisplay(Action<DisplaySettings> update)
+        {
+            UpdateSection(Config.Display, update);
+        }
+
+        public void UpdateInterface(Action<InterfaceSettings> update)
+        {
+            UpdateSection(Config.Interface, update);
+        }
+
+        public void UpdateAccessibility(Action<AccessibilitySettings> update)
+        {
+            UpdateSection(Config.Accessibility, update);
+        }
+
+        public void UpdateConnection(Action<ConnectionSettings> update)
+        {
+            UpdateSection(Config.Connection, update);
+        }
+
+        private void UpdateSection<TSettings>(TSettings settings, Action<TSettings> update)
+            where TSettings : class
+        {
+            if (update == null)
+            {
+                throw new ArgumentNullException(nameof(update));
+            }
+
+            update(settings);
+            Save();
+        }
+
         public void UpdatePostProcessAndSave(Action<ClientConfig> update)
         {
             if (update == null)
@@ -207,28 +243,19 @@ namespace Fodinae.Core
 
         private static void PromotePostProcessQualityForEnabledEffects(ClientConfig config)
         {
-            AdvancedPostProcessSettings advanced = config.AdvancedPostProcess;
-            bool requiresFull = config.BloomIntensity > 0f ||
-                config.MotionBlurIntensity > 0f ||
-                advanced.RequiresBloomTexture();
-            bool requiresEssential = requiresFull ||
-                config.VignetteIntensity > 0f ||
-                config.ChromaticAberrationIntensity > 0f ||
-                config.ColorGradingToneMapping ||
-                Mathf.Abs(config.ColorGradingExposure) > 0.001f ||
-                Mathf.Abs(config.ColorGradingContrast) > 0.001f ||
-                Mathf.Abs(config.ColorGradingSaturation - 1f) > 0.001f ||
-                config.EigengrauIntensity > 0f ||
-                advanced.HasAnyEffects();
+            // Пирамида блума нужна не только самому блуму: грязь на линзе,
+            // анаморфные лучи и дифракция берут из неё яркий проход.
+            bool requiresFull = config.BloomEnabled ||
+                config.MotionBlurEnabled ||
+                config.LensEffectsEnabled;
 
+            // Ветки «поднять до Essential» больше нет: тира ниже Essential не
+            // существует, поэтому поднимать неоткуда. Остаётся только подъём до
+            // Full, когда включён эффект, которому нужна пирамида блума.
             GraphicsQualitySettings quality = config.GraphicsQualitySettings;
             if (requiresFull)
             {
                 quality.PostProcessQuality = PostProcessQualityMode.Full;
-            }
-            else if (requiresEssential && quality.PostProcessQuality == PostProcessQualityMode.Off)
-            {
-                quality.PostProcessQuality = PostProcessQualityMode.Essential;
             }
 
             config.GraphicsQualitySettings = quality;

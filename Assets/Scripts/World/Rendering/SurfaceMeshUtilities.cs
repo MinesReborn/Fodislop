@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using Fodinae.Core;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -48,7 +49,8 @@ internal static class SurfaceMeshUtilities
             return;
         }
 
-        int pass = material.FindPass("LightingMaterialField");
+        int pass = material.FindPass(
+            ProjectRuntimeContracts.ShaderPassNames.LightingMaterialField);
         if (pass < 0)
         {
             throw new InvalidOperationException(

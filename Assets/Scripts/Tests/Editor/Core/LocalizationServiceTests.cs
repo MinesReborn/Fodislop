@@ -69,6 +69,11 @@ namespace Fodinae.Tests.Editor.Core
             public void MarkGraphicsAsCustom() { }
             public void SelectGraphicsPreset(GraphicsPreset preset) { }
             public void SetCustomGraphicsSettings(GraphicsQualitySettings settings) { }
+            public void UpdateAudio(Action<AudioSettings> update) { }
+            public void UpdateDisplay(Action<DisplaySettings> update) { }
+            public void UpdateInterface(Action<InterfaceSettings> update) { }
+            public void UpdateAccessibility(Action<AccessibilitySettings> update) { }
+            public void UpdateConnection(Action<ConnectionSettings> update) { }
             public void UpdatePostProcessAndSave(Action<ClientConfig> update) => update(Config);
             public void UpdateAndSave(Action<ClientConfig> update) => update(Config);
             public void Load() { }

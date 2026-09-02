@@ -32,12 +32,6 @@ internal sealed class ClientConfigMigration(
             migrated = true;
         }
 
-        if (config.SchemaVersion < 3)
-        {
-            ApplySchema3(config, shaders);
-            migrated = true;
-        }
-
         if (config.SchemaVersion < 4)
         {
             config.TerrainDebugColor = shaders.TerrainDebugColor;
@@ -86,9 +80,9 @@ internal sealed class ClientConfigMigration(
 
         if (config.SchemaVersion < 10)
         {
-            config.UseDummyConnection = true;
-            config.ServerHost = "127.0.0.1";
-            config.ServerPort = 7777;
+            config.Connection.UseDummyConnection = ProjectRuntimeContracts.ClientConfiguration.DefaultUseDummyConnection;
+            config.Connection.ServerHost = ProjectRuntimeContracts.ClientConfiguration.DefaultServerHost;
+            config.Connection.ServerPort = ProjectRuntimeContracts.ClientConfiguration.DefaultServerPort;
             config.SchemaVersion = 10;
             migrated = true;
         }
@@ -109,24 +103,32 @@ internal sealed class ClientConfigMigration(
             migrated = true;
         }
 
-        if (config.SchemaVersion < 13)
+        if (config.SchemaVersion < 16)
         {
-            config.BloomSoftKnee = shaders.BloomSoftKnee;
-            config.BloomRadius = shaders.BloomRadius;
-            config.SchemaVersion = 13;
+            config.Display.HDREnabled = ProjectRuntimeContracts.ClientConfiguration.DefaultHDREnabled;
+            config.SchemaVersion = 16;
             migrated = true;
         }
 
-        if (config.SchemaVersion < 14)
+        if (config.SchemaVersion < 17)
         {
-            config.AdvancedPostProcess = new AdvancedPostProcessSettings();
-            config.SchemaVersion = 14;
+            config.SchemaVersion = 17;
             migrated = true;
         }
 
-        if (config.SchemaVersion < 15)
+        if (config.SchemaVersion < 18)
         {
-            ApplySchema15(config);
+            config.SchemaVersion = 18;
+            migrated = true;
+        }
+
+        if (config.SchemaVersion < 19)
+        {
+            // Величины постпроцесса уехали в PostProcessLook, в конфиге
+            // остались тумблеры. Старые числа не переносятся: вид кадра
+            // теперь авторский, а не то, куда игрок подвинул ползунок.
+            ClientConfigDefaults.ApplyShaderDefaults(config, shaders);
+            config.SchemaVersion = 19;
             migrated = true;
         }
 
@@ -166,61 +168,7 @@ internal sealed class ClientConfigMigration(
         config.PerspectiveEmissionColor = shaders.PerspectiveEmissionColor;
         config.PerspectiveEmissionStrength = shaders.PerspectiveEmissionStrength;
         config.SurfaceOccupancy = shaders.SurfaceOccupancy;
-        config.BloomIntensity = shaders.BloomIntensity;
-        config.VignetteIntensity = shaders.VignetteIntensity;
-        config.ChromaticAberrationIntensity = shaders.ChromaticAberrationIntensity;
-        config.ColorGradingExposure = shaders.ColorGradingExposure;
-        config.ColorGradingContrast = shaders.ColorGradingContrast;
-        config.ColorGradingSaturation = shaders.ColorGradingSaturation;
-        config.ColorGradingToneMapping = shaders.ColorGradingToneMapping;
-        config.EigengrauIntensity = shaders.EigengrauIntensity;
-        config.MotionBlurIntensity = shaders.MotionBlurIntensity;
         config.SchemaVersion = 2;
-    }
-
-    private static void ApplySchema3(ClientConfig config, ShaderDefaultsSnapshot shaders)
-    {
-        config.BloomThreshold = shaders.BloomThreshold;
-        config.BloomScatter = shaders.BloomScatter;
-        config.BloomTint = shaders.BloomTint;
-        config.VignetteColor = shaders.VignetteColor;
-        config.VignetteSmoothness = shaders.VignetteSmoothness;
-        config.VignetteCenter = shaders.VignetteCenter;
-        config.ColorGradingFilter = shaders.ColorGradingFilter;
-        config.ColorGradingToneMappingWhitePoint = shaders.ColorGradingToneMappingWhitePoint;
-        config.EigengrauColor = shaders.EigengrauColor;
-        config.EigengrauDarknessThreshold = shaders.EigengrauDarknessThreshold;
-        config.EigengrauNoiseScale = shaders.EigengrauNoiseScale;
-        config.EigengrauAnimationSpeed = shaders.EigengrauAnimationSpeed;
-        config.SchemaVersion = 3;
-    }
-
-    private static void ApplySchema15(ClientConfig config)
-    {
-        AdvancedPostProcessSettings advanced = config.AdvancedPostProcess;
-        config.BloomIntensity = Mathf.Clamp(config.BloomIntensity, 0f, 2f);
-        config.BloomTint = new Color(
-            Mathf.Clamp(config.BloomTint.r, 0f, 2f),
-            Mathf.Clamp(config.BloomTint.g, 0f, 2f),
-            Mathf.Clamp(config.BloomTint.b, 0f, 2f),
-            Mathf.Clamp01(config.BloomTint.a));
-        config.ChromaticAberrationIntensity = Mathf.Clamp(config.ChromaticAberrationIntensity, 0f, 0.25f);
-        config.ColorGradingExposure = Mathf.Clamp(config.ColorGradingExposure, -2f, 2f);
-        config.ColorGradingContrast = Mathf.Clamp(config.ColorGradingContrast, -0.5f, 0.5f);
-        config.EigengrauIntensity = Mathf.Clamp(config.EigengrauIntensity, 0f, 0.25f);
-        config.MotionBlurIntensity = Mathf.Clamp(config.MotionBlurIntensity, 0f, 0.5f);
-        advanced.LocalContrastIntensity = Mathf.Clamp(advanced.LocalContrastIntensity, 0f, 0.5f);
-        advanced.LensDirtIntensity = Mathf.Clamp(advanced.LensDirtIntensity, 0f, 0.35f);
-        advanced.AnamorphicIntensity = Mathf.Clamp01(advanced.AnamorphicIntensity);
-        advanced.ChromaticDiffractionIntensity = Mathf.Clamp(advanced.ChromaticDiffractionIntensity, 0f, 0.5f);
-        advanced.HeatRefractionIntensity = Mathf.Clamp(advanced.HeatRefractionIntensity, 0f, 0.25f);
-        advanced.GlintIntensity = Mathf.Clamp(advanced.GlintIntensity, 0f, 0.5f);
-        advanced.VolumetricDustIntensity = Mathf.Clamp(advanced.VolumetricDustIntensity, 0f, 0.25f);
-        advanced.PhosphorMaskIntensity = Mathf.Clamp(advanced.PhosphorMaskIntensity, 0f, 0.35f);
-        advanced.TemporalPersistenceIntensity = Mathf.Clamp(advanced.TemporalPersistenceIntensity, 0f, 0.8f);
-        advanced.TemporalPersistenceDecay = Mathf.Clamp(advanced.TemporalPersistenceDecay, 0f, 0.98f);
-        advanced.LightStability = Mathf.Clamp(advanced.LightStability, 0f, 0.9f);
-        config.SchemaVersion = 15;
     }
 
     private void RefreshChangedProjectDefaults(ClientConfig config)
@@ -229,7 +177,6 @@ internal sealed class ClientConfigMigration(
         {
             ClientConfigDefaults.ApplyLightingDefaults(config, _projectDefaults.Lighting);
             ClientConfigDefaults.ApplyShaderDefaults(config, _projectDefaults.Shaders);
-            config.AdvancedPostProcess = new AdvancedPostProcessSettings();
             Debug.Log(
                 "[ClientConfigMigration] ProjectDefaults changed; refreshed the selected " +
                 "immutable standard graphics preset.");

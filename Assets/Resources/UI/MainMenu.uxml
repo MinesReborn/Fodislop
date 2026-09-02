@@ -16,8 +16,8 @@
                  (MenuSceneryController.TryGetStationViewportPosition), поэтому
                  подпись едет вместе со светящейся точкой. Оформление то же, что
                  у метки высадки: маркер + плашка mm-target-badge. -->
-            <ui:VisualElement name="MainMenuBeacon" class="mm-target-reticle mm-beacon">
-                <ui:VisualElement name="BeaconPing" class="mm-beacon-ping" picking-mode="Ignore" />
+            <ui:VisualElement name="MainMenuBeacon" class="is-hidden mm-target-reticle mm-beacon">
+                <ui:VisualElement name="BeaconPing" class="is-hidden mm-beacon-ping" picking-mode="Ignore" />
                 <ui:VisualElement class="mm-target-cross-v" />
                 <ui:VisualElement class="mm-target-cross-h" />
                 <ui:VisualElement name="StationBadge" class="mm-target-badge mm-target-badge--right">
@@ -27,7 +27,7 @@
             </ui:VisualElement>
 
             <!-- Прицел высадки с координатами -->
-            <ui:VisualElement name="TargetReticle" class="mm-target-reticle">
+            <ui:VisualElement name="TargetReticle" class="is-hidden mm-target-reticle">
                 <ui:VisualElement class="mm-target-cross-v" />
                 <ui:VisualElement class="mm-target-cross-h" />
                 <ui:VisualElement class="mm-target-dot" />
@@ -42,9 +42,12 @@
         <ui:Image name="LoaderShade" class="mm-loader-shade" picking-mode="Ignore" scale-mode="StretchToFill" />
 
         <!-- ЭКРАН СПУСКА (ФАЗЫ ЗАГРУЗКИ) -->
-        <ui:VisualElement name="LoaderContainer" class="mm-loader">
-            <ui:VisualElement name="LoaderContent" class="mm-loader-content">
-                <ui:Label class="mm-eyebrow" text="mainmenu.loading_eyebrow" />
+        <ui:VisualElement name="LoaderContainer" class="is-hidden mm-loader">
+            <ui:VisualElement name="LoaderContent" class="is-hidden mm-loader-content">
+                <ui:VisualElement class="mm-eyebrow">
+                    <ui:VisualElement class="mm-eyebrow-dash" />
+                    <ui:Label class="mm-eyebrow-text" text="mainmenu.loading_eyebrow" />
+                </ui:VisualElement>
                 <ui:Label class="mm-heading-white" text="mainmenu.loading_heading" />
                 <ui:Label class="mm-heading-gold" text="mainmenu.loading_heading_accent" />
                 <ui:Label class="mm-subtitle" text="mainmenu.loading_subtitle" />
@@ -56,7 +59,7 @@
                     <ui:Label name="LoaderPhaseCount" class="mm-loader-phase-count" text="1 / 5" />
                 </ui:VisualElement>
                 <ui:VisualElement name="LoaderPhaseList" class="mm-loader-phases" />
-                <ui:Button name="CancelDescentButton" class="mm-btn-outline" text="menu.cancel_descent" />
+                <ui:Button name="CancelDescentButton" class="mm-btn-outline fit-wrap" text="menu.cancel_descent" />
             </ui:VisualElement>
         </ui:VisualElement>
 
@@ -85,7 +88,10 @@
 
         <!-- ЛЕВАЯ КОЛОНКА МЕНЮ -->
         <ui:VisualElement name="MainMenuContainer" class="mm-menu">
-            <ui:Label class="mm-eyebrow" text="mainmenu.rig_ready" />
+            <ui:VisualElement class="mm-eyebrow">
+                <ui:VisualElement class="mm-eyebrow-dash" />
+                <ui:Label class="mm-eyebrow-text" text="mainmenu.rig_ready" />
+            </ui:VisualElement>
             <ui:VisualElement class="mm-heading-group">
                 <ui:Label class="mm-heading-white" text="mainmenu.planet_waiting" />
                 <ui:Label class="mm-heading-gold" text="mainmenu.below_surface" />
@@ -96,7 +102,7 @@
                  MainMenu.cs:265 запрашивает #UpdateAlertBanner и вешает на него
                  открытие окна обновления, но самого элемента в разметке не было —
                  биндинг молча получал null. Разметка соответствует
-                 .update-alert-banner из visual/main-menu-mirror. -->
+                 .update-alert-banner из visual/fodinae-ui-lab. -->
             <ui:Button name="UpdateAlertBanner" class="mm-update-banner">
                 <ui:VisualElement class="mm-update-banner-text">
                     <ui:Label class="mm-update-banner-title" text="mainmenu.update_banner_title" />
@@ -199,10 +205,10 @@
         </ui:VisualElement>
 
         <!-- МОДАЛЬНЫЕ ОКНА (OVERLAY) -->
-        <ui:VisualElement name="ModalOverlay" class="mm-modal-overlay">
+        <ui:VisualElement name="ModalOverlay" class="is-hidden mm-modal-overlay">
 
             <!-- 1. Браузер серверов (2 колонки + IP ввод + карточка деталей) -->
-            <ui:VisualElement name="ServerBrowserModal" class="mm-modal-card mm-modal-card--wide">
+            <ui:VisualElement name="ServerBrowserModal" class="is-hidden mm-modal-card mm-modal-card--wide">
                 <ui:VisualElement class="mm-modal-header">
                     <ui:Label class="mm-modal-title" text="mainmenu.server_modal_title" />
                     <ui:Button name="CloseServerModalButton" class="mm-modal-close" text="✕" />
@@ -261,7 +267,7 @@
                             <ui:VisualElement class="mm-card-box mm-ip-connect-box">
                                 <ui:Label class="mm-card-tag" text="IP:" />
                                 <ui:TextField name="DirectServerIpInput" value="127.0.0.1:7777" class="mm-flex-1" />
-                                <ui:Button name="DirectConnectButton" class="mm-btn-outline" text="mainmenu.server_direct_connect" />
+                                <ui:Button name="DirectConnectButton" class="mm-btn-outline fit-wrap" text="mainmenu.server_direct_connect" />
                             </ui:VisualElement>
                         </ui:VisualElement>
 
@@ -289,13 +295,13 @@
                     </ui:VisualElement>
                 </ui:VisualElement>
                 <ui:VisualElement class="mm-modal-footer">
-                    <ui:Button name="CloseServerFooterButton" class="mm-btn-outline" text="mainmenu.server_close" />
-                    <ui:Button name="ConfirmServerButton" class="mm-btn-gold" text="mainmenu.server_confirm" />
+                    <ui:Button name="CloseServerFooterButton" class="mm-btn-outline fit-wrap" text="mainmenu.server_close" />
+                    <ui:Button name="ConfirmServerButton" class="mm-btn-gold fit-wrap" text="mainmenu.server_confirm" />
                 </ui:VisualElement>
             </ui:VisualElement>
 
             <!-- 2. Настройки (2 колонки) -->
-            <ui:VisualElement name="SettingsModal" class="mm-modal-card mm-modal-card--wide">
+            <ui:VisualElement name="SettingsModal" class="is-hidden mm-modal-card mm-modal-card--wide">
                 <ui:VisualElement class="mm-modal-header">
                     <ui:Label class="mm-modal-title" text="mainmenu.settings_modal_title" />
                     <ui:Button name="CloseSettingsModalButton" class="mm-modal-close" text="✕" />
@@ -392,12 +398,12 @@
                     </ui:VisualElement>
                 </ui:VisualElement>
                 <ui:VisualElement class="mm-modal-footer">
-                    <ui:Button name="SaveSettingsButton" class="mm-btn-gold" text="mainmenu.settings_save" />
+                    <ui:Button name="SaveSettingsButton" class="mm-btn-gold fit-wrap" text="mainmenu.settings_save" />
                 </ui:VisualElement>
             </ui:VisualElement>
 
             <!-- 3. Хроника и таймлайн событий -->
-            <ui:VisualElement name="ChronicleModal" class="mm-modal-card">
+            <ui:VisualElement name="ChronicleModal" class="is-hidden mm-modal-card">
                 <ui:VisualElement class="mm-modal-header">
                     <ui:Label class="mm-modal-title" text="mainmenu.chronicle_modal_title" />
                     <ui:Button name="CloseChronicleModalButton" class="mm-modal-close" text="✕" />
@@ -409,7 +415,9 @@
                         <!-- Предстоящие события -->
                         <ui:Label class="mm-timeline-section-title mm-timeline-section--purple" text="mainmenu.chronicle_upcoming" />
                         <ui:VisualElement class="mm-timeline-card mm-tc--purple">
-                            <ui:VisualElement class="mm-timeline-bead mm-tb--purple" />
+                            <ui:VisualElement class="mm-timeline-bead mm-tb--purple">
+                                <ui:VisualElement class="mm-bead-core" />
+                            </ui:VisualElement>
                             <ui:VisualElement class="mm-tc-header">
                                 <ui:Label class="mm-tc-tag mm-tag--purple" text="mainmenu.chronicle_event_tag" />
                                 <ui:Label class="mm-tc-date" text="mainmenu.chronicle_event_date" />
@@ -421,7 +429,9 @@
                         <!-- Текущий патч -->
                         <ui:Label class="mm-timeline-section-title mm-timeline-section--gold" text="mainmenu.chronicle_current" />
                         <ui:VisualElement class="mm-timeline-card mm-tc--gold">
-                            <ui:VisualElement class="mm-timeline-bead mm-tb--gold" />
+                            <ui:VisualElement class="mm-timeline-bead mm-tb--gold">
+                                <ui:VisualElement class="mm-bead-core" />
+                            </ui:VisualElement>
                             <ui:VisualElement class="mm-tc-header">
                                 <ui:Label class="mm-tc-tag mm-tag--gold" text="mainmenu.chronicle_update_tag" />
                                 <ui:Label class="mm-tc-date" text="mainmenu.chronicle_today" />
@@ -433,7 +443,9 @@
                         <!-- Архив -->
                         <ui:Label class="mm-timeline-section-title mm-timeline-section--dim" text="mainmenu.chronicle_archive" />
                         <ui:VisualElement class="mm-timeline-card mm-tc--dim">
-                            <ui:VisualElement class="mm-timeline-bead mm-tb--dim" />
+                            <ui:VisualElement class="mm-timeline-bead mm-tb--dim">
+                                <ui:VisualElement class="mm-bead-core" />
+                            </ui:VisualElement>
                             <ui:VisualElement class="mm-tc-header">
                                 <ui:Label class="mm-tc-tag" text="mainmenu.chronicle_patch_tag" />
                                 <ui:Label class="mm-tc-date" text="mainmenu.chronicle_patch_date" />
@@ -444,12 +456,12 @@
                     </ui:VisualElement>
                 </ui:VisualElement>
                 <ui:VisualElement class="mm-modal-footer">
-                    <ui:Button name="CloseChronicleFooterButton" class="mm-btn-gold" text="mainmenu.chronicle_close" />
+                    <ui:Button name="CloseChronicleFooterButton" class="mm-btn-gold fit-wrap" text="mainmenu.chronicle_close" />
                 </ui:VisualElement>
             </ui:VisualElement>
 
             <!-- 4. Проверка и ремонт файлов -->
-            <ui:VisualElement name="RepairModal" class="mm-modal-card">
+            <ui:VisualElement name="RepairModal" class="is-hidden mm-modal-card">
                 <ui:VisualElement class="mm-modal-header">
                     <ui:Label class="mm-modal-title" text="mainmenu.repair_modal_title" />
                     <ui:Button name="CloseRepairModalButton" class="mm-modal-close" text="✕" />
@@ -465,13 +477,13 @@
                     </ui:VisualElement>
                 </ui:VisualElement>
                 <ui:VisualElement class="mm-modal-footer">
-                    <ui:Button name="RunFullRepairButton" class="mm-btn-outline" text="mainmenu.repair_rerun" />
-                    <ui:Button name="ConfirmRepairButton" class="mm-btn-gold" text="mainmenu.repair_close" />
+                    <ui:Button name="RunFullRepairButton" class="mm-btn-outline fit-wrap" text="mainmenu.repair_rerun" />
+                    <ui:Button name="ConfirmRepairButton" class="mm-btn-gold fit-wrap" text="mainmenu.repair_close" />
                 </ui:VisualElement>
             </ui:VisualElement>
 
             <!-- 5. Досье шахтера (Профиль) -->
-            <ui:VisualElement name="ProfileModal" class="mm-modal-card">
+            <ui:VisualElement name="ProfileModal" class="is-hidden mm-modal-card">
                 <ui:VisualElement class="mm-modal-header">
                     <ui:Label class="mm-modal-title" text="mainmenu.profile_modal_title" />
                     <ui:Button name="CloseProfileModalButton" class="mm-modal-close" text="✕" />
@@ -493,9 +505,9 @@
                         <ui:Label class="mm-card-tag" text="mainmenu.profile_token_title" />
                         <ui:VisualElement class="mm-row-item mm-row-item--gap">
                             <ui:TextField name="ProfileTokenField" value="fdn_tok_9948a204e18" is-read-only="true" class="mm-flex-1" />
-                            <ui:Button name="CopyTokenButton" class="mm-btn-outline" text="mainmenu.profile_copy_token" />
+                            <ui:Button name="CopyTokenButton" class="mm-btn-outline fit-wrap" text="mainmenu.profile_copy_token" />
                         </ui:VisualElement>
-                        <ui:Label name="CopyTokenFeedback" class="mm-card-tag mm-text--gold mm-feedback-tag" text="" />
+                        <ui:Label name="CopyTokenFeedback" class="is-hidden mm-card-tag mm-text--gold mm-feedback-tag" text="" />
                     </ui:VisualElement>
 
                     <!-- Экипировка -->
@@ -516,13 +528,13 @@
                     </ui:VisualElement>
                 </ui:VisualElement>
                 <ui:VisualElement class="mm-modal-footer mm-footer--between">
-                    <ui:Button name="SwitchAccountButton" class="mm-btn-outline" text="mainmenu.profile_switch_account" />
-                    <ui:Button name="CloseProfileFooterButton" class="mm-btn-gold" text="mainmenu.profile_close" />
+                    <ui:Button name="SwitchAccountButton" class="mm-btn-outline fit-wrap" text="mainmenu.profile_switch_account" />
+                    <ui:Button name="CloseProfileFooterButton" class="mm-btn-gold fit-wrap" text="mainmenu.profile_close" />
                 </ui:VisualElement>
             </ui:VisualElement>
 
             <!-- 6. Патч / Обновление -->
-            <ui:VisualElement name="UpdateModal" class="mm-modal-card">
+            <ui:VisualElement name="UpdateModal" class="is-hidden mm-modal-card">
                 <ui:VisualElement class="mm-modal-header">
                     <ui:Label class="mm-modal-title" text="mainmenu.update_modal_title" />
                     <ui:Button name="CloseUpdateModalButton" class="mm-modal-close" text="✕" />
@@ -551,7 +563,7 @@
                     </ui:VisualElement>
 
                     <!-- Блок симуляции скачивания -->
-                    <ui:VisualElement name="UpdateProgressBlock" class="mm-card-box mm-card-box--gap-top mm-progress-block">
+                    <ui:VisualElement name="UpdateProgressBlock" class="is-hidden mm-card-box mm-card-box--gap-top">
                         <ui:VisualElement class="mm-loader-progress-track">
                             <ui:VisualElement name="UpdateProgressFill" class="mm-loader-progress-fill mm-progress-fill--init" />
                         </ui:VisualElement>
@@ -562,8 +574,8 @@
                     </ui:VisualElement>
                 </ui:VisualElement>
                 <ui:VisualElement class="mm-modal-footer mm-footer--between">
-                    <ui:Button name="DeferUpdateOfflineButton" class="mm-btn-outline" text="mainmenu.update_offline" />
-                    <ui:Button name="ConfirmUpdateButton" class="mm-btn-gold" text="mainmenu.update_confirm" />
+                    <ui:Button name="DeferUpdateOfflineButton" class="mm-btn-outline fit-atomic" text="mainmenu.update_offline" />
+                    <ui:Button name="ConfirmUpdateButton" class="mm-btn-gold fit-wrap" text="mainmenu.update_confirm" />
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>

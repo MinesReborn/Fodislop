@@ -70,7 +70,6 @@
     <Compile Include="Assets/Scripts/Rendering/PostProcessing/Components/ChromaticAberrationComponent.cs" />
     <Compile Include="Assets/Scripts/Core/Interfaces/Contracts/ILocalizationService.cs" />
     <Compile Include="Assets\Scripts\World\Rendering\WorldBackgroundSetup.cs" />
-    <Compile Include="Assets\Scripts\UI\Chat\ChatInput.cs" />
     <Compile Include="Assets/Scripts/Audio/Spatial/WorldAudioController.cs" />
     <Compile Include="Assets/Scripts/Rendering/PostProcessing/Components/BloomComponent.cs" />
     <Compile Include="Assets\\Scripts\\AssetPipeline\\Cache\\AssetCache.cs" />
@@ -226,6 +225,7 @@
     <Compile Include="Assets/Scripts/Rendering/PostProcessing/Components/MotionBlurComponent.cs" />
     <Compile Include="Assets\\Scripts\\World\\Terrain\\Mesh\\TerrainVertex.cs" />
     <Compile Include="Assets\\Scripts\\Rendering\\Settings\\DisplayManager.cs" />
+    <Compile Include="Assets\\Scripts\\Rendering\\Settings\\HDROutputReconciler.cs" />
     <Compile Include="Assets/Scripts/VContainer/Runtime/Annotations/IAsyncStartable.cs" />
     <Compile Include="Assets\Scripts\World\Storage\MapStorage.cs" />
     <Compile Include="Assets/Scripts/Core/Bootstrap/GameBootstrap.cs" />
@@ -258,10 +258,11 @@
     <Compile Include="Assets\Scripts\World\Common\MapBlockColors.cs" />
     <Compile Include="Assets/Scripts/Networking/Connection/ConnectionManager.cs" />
     <Compile Include="Assets/Scripts/VContainer/Runtime/Unity/LifetimeScope.cs" />
-    <Compile Include="Assets\\Scripts\\AssetPipeline\\Animation\\AnimatedSpriteData.cs" />
+    <Compile Include="Assets\\Scripts\\Core\\Interfaces\\Contracts\\AnimatedSpriteData.cs" />
+    <Compile Include="Assets\\Scripts\\Core\\Interfaces\\Contracts\\IRuntimeAssetPaths.cs" />
     <Compile Include="Assets/Scripts/Core/Interfaces/Contracts/IServerAudioService.cs" />
     <Compile Include="Assets/Scripts/World/Lighting/Pipeline/LightingPipeline.cs" />
-    <Compile Include="Assets\Scripts\World\Common\FrameProfiler.cs" />
+    <Compile Include="Assets\Scripts\World\Common\FrameTelemetry.cs" />
     <Compile Include="Assets/Scripts/VContainer/Runtime/Internal/ListPool.cs" />
     <Compile Include="Assets/Scripts/Game/Managers/ServerConfig.cs" />
     <Compile Include="Assets/Scripts/VContainer/Runtime/RegistrationBuilder.cs" />
@@ -300,7 +301,6 @@
     <Compile Include="Assets/Scripts/Core/Interfaces/Contracts/IConnectionService.cs" />
     <Compile Include="Assets/Scripts/VContainer/Runtime/Annotations/IPostInitializable.cs" />
     <Compile Include="Assets/Scripts/VContainer/Runtime/IInjectParameter.cs" />
-    <Compile Include="Assets\\Scripts\\UI\\Builders\\Widgets\\IntDropdownPacketBuilder.cs" />
     <Compile Include="Assets/Scripts/Core/Interfaces/Contracts/AtlasCoordinate.cs" />
     <Compile Include="Assets/Scripts/Game/Managers/ServerAudioEventManager.cs" />
     <Compile Include="Assets/Scripts/VContainer/Runtime/Internal/FreeList.cs" />
@@ -333,9 +333,11 @@
     <Compile Include="Assets\Scripts\World\Textures\CellTextureCache.cs" />
     <Compile Include="Assets\Scripts\UI\Map\MapCellSampler.cs" />
     <Compile Include="Assets\\Scripts\\Core\\Rendering\\GameplayCamera.cs" />
-    <Compile Include="Assets\\Scripts\\UI\\Builders\\Widgets\\StringDropdownPacketBuilder.cs" />
     <Compile Include="Assets/Scripts/Rendering/PostProcessing/Components/VignetteComponent.cs" />
     <Compile Include="Assets\\Scripts\\UI\\Builders\\Widgets\\LinePacketBuilder.cs" />
+    <Compile Include="Assets\\Scripts\\UI\\Builders\\Widgets\\DropdownPacketBuilder.cs" />
+    <Compile Include="Assets\\Scripts\\UI\\Builders\\Core\\AttachedProperties.cs" />
+    <Compile Include="Assets\\Scripts\\UI\\Builders\\Containers\\PacketGridLayout.cs" />
     <Compile Include="Assets/Scripts/Core/Interfaces/Contracts/ILocalizableUI.cs" />
     <Compile Include="Assets\\Scripts\\UI\\Builders\\Containers\\CanvasPacketBuilder.cs" />
     <Compile Include="Assets/Scripts/Core/Bootstrap/BootstrapLoadingScreen.cs" />
@@ -404,7 +406,6 @@
     <Compile Include="Assets/Scripts/Core/Interfaces/Contracts/IWorldDataStorage.cs" />
     <Compile Include="Assets/Scripts/Core/Interfaces/Contracts/IInputBlocker.cs" />
     <Compile Include="Assets/Scripts/Core/Interfaces/Contracts/IItemCatalog.cs" />
-    <Compile Include="Assets/Scripts/Core/Lifecycle/ItemRegistryAdapter.cs" />
     <Compile Include="Assets/Scripts/Core/Interfaces/Contracts/IInventoryState.cs" />
     <Compile Include="Assets/Scripts/Core/Interfaces/Contracts/IWorldReadiness.cs" />
     <Compile Include="Assets\\Scripts\\UI\\Common\\Interaction\\Tooltip.cs" />

@@ -15,6 +15,8 @@ namespace Fodinae.UI
         private ISceneObjectFactory _sceneObjects = null!;
         [Inject]
         private IGameplayCamera _gameplayCamera = null!;
+        [Inject]
+        private ISharedMaterialCache _sharedMaterials = null!;
 
         private TextMesh? _textMesh;
         private MeshRenderer? _meshRenderer;
@@ -61,7 +63,7 @@ namespace Fodinae.UI
                 _bgFilter = bgGo.AddComponent<MeshFilter>();
                 _bgRenderer = bgGo.AddComponent<MeshRenderer>();
                 UnityRenderLayerContracts.ApplyWorldUI(_bgRenderer, 299);
-                _bgRenderer.sharedMaterial = SharedMaterialCache.GetForTexture(Texture2D.whiteTexture);
+                _bgRenderer.sharedMaterial = _sharedMaterials.GetForTexture(Texture2D.whiteTexture);
                 _bgPropertyBlock = new MaterialPropertyBlock();
                 SetBackgroundAlpha(0.5f);
             }

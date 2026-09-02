@@ -17,7 +17,7 @@ namespace Fodinae.UI
     [RequireComponent(typeof(UIDocument))]
     public class MainMenu : MonoBehaviour, ILocalizableUI
     {
-        private const string GameSceneName = "MainGame";
+        private const string GameSceneName = ProjectRuntimeContracts.SceneNames.MainGame;
 
         [SerializeField]
         private Texture2D? _shadeTexture;
@@ -79,7 +79,13 @@ namespace Fodinae.UI
         private bool _loaderHiddenAtDone;
         private MenuStarfield? _sceneStarfield;
         private MenuSceneryController? _sceneScenery;
-        private readonly MenuSceneryPresenter _sceneryPresenter = new();
+        private MenuSceneryPresenter _sceneryPresenter = null!;
+
+        [Inject]
+        private void Construct(IRuntimeAssetPaths runtimeAssetPaths)
+        {
+            _sceneryPresenter = new MenuSceneryPresenter(runtimeAssetPaths);
+        }
 
         protected void OnValidate()
         {
@@ -327,13 +333,10 @@ namespace Fodinae.UI
             if (_loaderContainer != null)
             {
                 _loaderContainer.pickingMode = PickingMode.Ignore;
-                _loaderContainer.style.display = DisplayStyle.None;
             }
 
-            if (_loaderContent != null)
-            {
-                _loaderContent.style.display = DisplayStyle.None;
-            }
+            UIState.Hide(_loaderContainer);
+            UIState.Hide(_loaderContent);
         }
 
         protected void Update()
@@ -595,18 +598,12 @@ namespace Fodinae.UI
 
         private void HideLoader()
         {
-            if (_loaderContainer != null)
-            {
-                _loaderContainer.style.display = DisplayStyle.None;
-            }
+            UIState.Hide(_loaderContainer);
         }
 
         private void HideMenu()
         {
-            if (_mainMenuContainer != null)
-            {
-                _mainMenuContainer.style.display = DisplayStyle.None;
-            }
+            UIState.Hide(_mainMenuContainer);
         }
 
         private void OnPlayButtonClicked()
@@ -626,15 +623,8 @@ namespace Fodinae.UI
             _descentCancellation = CancellationTokenSource.CreateLinkedTokenSource(
                 destroyCancellationToken);
 
-            if (_loaderContainer != null)
-            {
-                _loaderContainer.style.display = DisplayStyle.Flex;
-            }
-
-            if (_loaderContent != null)
-            {
-                _loaderContent.style.display = DisplayStyle.Flex;
-            }
+            UIState.Show(_loaderContainer);
+            UIState.Show(_loaderContent);
 
             _routeOrbit?.RemoveFromClassList("mm-route-item--active");
             _routeDescent?.AddToClassList("mm-route-item--active");
@@ -668,10 +658,7 @@ namespace Fodinae.UI
                 _loadingActive = false;
                 _sceneryPresenter.ResumeRenderers();
                 HideLoader();
-                if (_mainMenuContainer != null)
-                {
-                    _mainMenuContainer.style.display = DisplayStyle.Flex;
-                }
+                UIState.Show(_mainMenuContainer);
 
                 Debug.LogError($"[MainMenu] MainGame transition failed: {exception.Message}");
             }

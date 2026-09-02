@@ -2,6 +2,7 @@
 
 using System;
 using System.Text;
+using Fodinae.Core;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -31,7 +32,8 @@ internal sealed class MinimapView : IDisposable
         Texture2D texture,
         Action openMap)
     {
-        VisualTreeAsset template = Resources.Load<VisualTreeAsset>("UI/Minimap") ??
+        VisualTreeAsset template = Resources.Load<VisualTreeAsset>(
+            ProjectRuntimeContracts.ResourcePaths.MinimapUxml) ??
             throw new InvalidOperationException("[Minimap] Resources/UI/Minimap.uxml is required.");
         TemplateContainer tree = template.Instantiate();
         tree.AddToClassList("ui-fullscreen");

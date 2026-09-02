@@ -25,14 +25,17 @@ namespace Fodinae.Audio.Backend
     {
         private AudioSystem _system = null!;
         private IAssetLoader _assetLoader = null!;
+        private IPersistentAssetCache _persistentCache = null!;
 
         public void Initialize(
             AudioSystem system,
             IAssetLoader assetLoader,
+            IPersistentAssetCache persistentCache,
             IAsyncOperationSupervisor operations)
         {
             _system = system;
             _assetLoader = assetLoader;
+            _persistentCache = persistentCache;
             operations.Run("load_required_audio_banks", LoadRequiredBanksAsync);
         }
 
@@ -42,6 +45,8 @@ namespace Fodinae.Audio.Backend
         private readonly HashSet<string> _reportedMissingEvents = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _reportedInstanceFailures = new(StringComparer.OrdinalIgnoreCase);
         private bool _paused;
+        private bool _requiredBanksDegraded;
+        private bool _requiredBanksSettled;
 
         // Completed when the required-bank pass settles (loaded or the
         // supported no-audio fallback). Scene transitions await this before
@@ -60,7 +65,7 @@ namespace Fodinae.Audio.Backend
         private static readonly FMOD.VECTOR ForwardVector = new() { x = 0f, y = 0f, z = 1f };
         private static readonly FMOD.VECTOR UpVector = new() { x = 0f, y = 1f, z = 0f };
 
-
+        public bool IsDegraded => _requiredBanksSettled && _requiredBanksDegraded;
 
         public UniTask WaitUntilBanksReadyAsync(CancellationToken cancellationToken = default)
             => _banksReady.Task.AttachExternalCancellation(cancellationToken);
@@ -77,11 +82,19 @@ namespace Fodinae.Audio.Backend
                     {
                         if (await EnsureBankLoadedAsync(bankName))
                         {
-                            await RequestSampleDataAsync(bankName);
+                            if (!await RequestSampleDataAsync(bankName))
+                            {
+                                _requiredBanksDegraded = true;
+                            }
+                        }
+                        else
+                        {
+                            _requiredBanksDegraded = true;
                         }
                     }
                     catch (Exception exception)
                     {
+                        _requiredBanksDegraded = true;
                         Debug.LogWarning(
                             $"[FmodAudioBackend] FMOD bank '{bankName}' could not be loaded; " +
                             $"continuing with the remaining banks: {exception.Message}");
@@ -100,6 +113,7 @@ namespace Fodinae.Audio.Backend
             }
             catch (Exception exception)
             {
+                _requiredBanksDegraded = true;
                 // FMOD is optional presentation. A failed bank must not become
                 // an unobserved UniTaskVoid exception or block gameplay startup.
                 Debug.LogWarning(
@@ -107,21 +121,22 @@ namespace Fodinae.Audio.Backend
             }
             finally
             {
+                _requiredBanksSettled = true;
                 _banksReady.TrySetResult();
             }
         }
 
-        private async UniTask RequestSampleDataAsync(string bankName)
+        private async UniTask<bool> RequestSampleDataAsync(string bankName)
         {
             var cleanBankName = bankName.Replace(".bank", string.Empty);
             if (cleanBankName.Equals("Master.strings", StringComparison.OrdinalIgnoreCase))
             {
-                return;
+                return true;
             }
 
             if (!_loadedBanks.TryGetValue(cleanBankName, out var bank))
             {
-                return;
+                return false;
             }
 
             const int maxBankWaitFrames = 300;
@@ -139,7 +154,7 @@ namespace Fodinae.Audio.Backend
                 {
                     Debug.LogWarning(
                         $"[FmodAudioBackend] FMOD bank '{cleanBankName}' entered an error state before sample loading.");
-                    return;
+                    return false;
                 }
 
                 await UniTask.Yield();
@@ -149,7 +164,7 @@ namespace Fodinae.Audio.Backend
             {
                 Debug.LogWarning(
                     $"[FmodAudioBackend] Timed out waiting for bank '{cleanBankName}' to finish loading.");
-                return;
+                return false;
             }
 
             FMOD.RESULT result = bank.loadSampleData();
@@ -157,7 +172,10 @@ namespace Fodinae.Audio.Backend
             {
                 Debug.LogWarning(
                     $"[FmodAudioBackend] FMOD sample data request failed for '{cleanBankName}': {result}.");
+                return false;
             }
+
+            return true;
         }
 
         /// <summary>
@@ -185,25 +203,18 @@ namespace Fodinae.Audio.Backend
             }
             else
             {
-                if (_assetLoader is ClientAssetLoader assetLoader)
+                var relativeRemotePath = $"{BANK_PATH}/{cleanBankName}.bank";
+                if (_assetLoader.IsKnownMissing(relativeRemotePath))
                 {
-                    var relativeRemotePath = $"{BANK_PATH}/{cleanBankName}.bank";
-                    if (assetLoader.IsKnownMissing(relativeRemotePath))
-                    {
-                        _unavailableBanks.Add(cleanBankName);
-                        return false;
-                    }
-
-                    try
-                    {
-                        bankFilePath = await assetLoader.GetAssetPathAsync(relativeRemotePath);
-                    }
-                    catch (Exception)
-                    {
-                        return false;
-                    }
+                    _unavailableBanks.Add(cleanBankName);
+                    return false;
                 }
-                else
+
+                try
+                {
+                    bankFilePath = await _assetLoader.GetAssetPathAsync(relativeRemotePath);
+                }
+                catch (Exception)
                 {
                     return false;
                 }
@@ -220,10 +231,10 @@ namespace Fodinae.Audio.Backend
                 Debug.LogWarning(
                     $"[FmodAudioBackend] Ignoring invalid audio bank '{bankFilePath}'.");
                 if (bankFilePath.Equals(
-                    PersistentAssetCache.GetAssetPath($"banks/{cleanBankName}.bank"),
+                    _persistentCache.GetAssetPath($"banks/{cleanBankName}.bank"),
                     StringComparison.OrdinalIgnoreCase))
                 {
-                    PersistentAssetCache.RemoveAsset($"banks/{cleanBankName}.bank");
+                    _persistentCache.RemoveAsset($"banks/{cleanBankName}.bank");
                 }
 
                 _unavailableBanks.Add(cleanBankName);

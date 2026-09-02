@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using Fodinae.Audio;
-using Fodinae.Audio.Backend;
 using Fodinae.Audio.Core;
 using Fodinae.Core.Interfaces;
 using Fodinae.Core.Localization;
@@ -46,9 +45,9 @@ internal sealed class PauseMenuAudioTabBuilder
         audioSection.Add(CreateAudioSlider(_loc.Get("menu.settings.ui_volume"), AudioBusType.UI));
         Toggle muteInBackgroundToggle = PauseMenuUIFactory.CreateBoundToggle(
             _loc.Get("menu.settings.mute_background"),
-            () => _clientConfig.Config.MuteAudioInBackground,
-            value => _clientConfig.UpdateAndSave(
-                config => config.MuteAudioInBackground = value),
+            () => _clientConfig.Config.Audio.MuteInBackground,
+            value => _clientConfig.UpdateAudio(
+                settings => settings.MuteInBackground = value),
             _refreshers);
         audioSection.Add(muteInBackgroundToggle);
 
@@ -63,9 +62,9 @@ internal sealed class PauseMenuAudioTabBuilder
             currentVol,
             v =>
             {
-                if (_audioSystem is AudioSystem audioSystem && audioSystem.IsInitialized)
+                if (_audioSystem.IsInitialized)
                 {
-                    audioSystem.SetBusVolume(busType, v);
+                    _audioSystem.SetBusVolume(busType, v);
                 }
 
                 SetBusVolumeInConfig(busType, v);
@@ -83,39 +82,39 @@ internal sealed class PauseMenuAudioTabBuilder
 
         return busType switch
         {
-            AudioBusType.Master => _clientConfig.Config.MasterVolume,
-            AudioBusType.SFX => _clientConfig.Config.SfxVolume,
-            AudioBusType.Music => _clientConfig.Config.MusicVolume,
-            AudioBusType.Voice => _clientConfig.Config.VoiceVolume,
-            AudioBusType.Ambience => _clientConfig.Config.AmbienceVolume,
-            AudioBusType.UI => _clientConfig.Config.UIVolume,
+            AudioBusType.Master => _clientConfig.Config.Audio.MasterVolume,
+            AudioBusType.SFX => _clientConfig.Config.Audio.SfxVolume,
+            AudioBusType.Music => _clientConfig.Config.Audio.MusicVolume,
+            AudioBusType.Voice => _clientConfig.Config.Audio.VoiceVolume,
+            AudioBusType.Ambience => _clientConfig.Config.Audio.AmbienceVolume,
+            AudioBusType.UI => _clientConfig.Config.Audio.UIVolume,
             _ => throw new ArgumentOutOfRangeException(nameof(busType), busType, "Unsupported audio bus."),
         };
     }
 
     private void SetBusVolumeInConfig(AudioBusType busType, float volume)
     {
-        _clientConfig.UpdateAndSave(config =>
+        _clientConfig.UpdateAudio(settings =>
         {
             switch (busType)
             {
                 case AudioBusType.Master:
-                    config.MasterVolume = volume;
+                    settings.MasterVolume = volume;
                     break;
                 case AudioBusType.SFX:
-                    config.SfxVolume = volume;
+                    settings.SfxVolume = volume;
                     break;
                 case AudioBusType.Music:
-                    config.MusicVolume = volume;
+                    settings.MusicVolume = volume;
                     break;
                 case AudioBusType.Voice:
-                    config.VoiceVolume = volume;
+                    settings.VoiceVolume = volume;
                     break;
                 case AudioBusType.Ambience:
-                    config.AmbienceVolume = volume;
+                    settings.AmbienceVolume = volume;
                     break;
                 case AudioBusType.UI:
-                    config.UIVolume = volume;
+                    settings.UIVolume = volume;
                     break;
             }
         });

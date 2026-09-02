@@ -30,7 +30,7 @@ namespace Fodinae.UI
         private Image? _mapImage;
         private Texture2D? _mapTexture;
         private IWorldLayer<CellType>? _cellLayer;
-        private int _chunkSize = 32;
+        private int _chunkSize = ProjectRuntimeContracts.World.ChunkSize;
         private readonly MapCellSampler _cellSampler = new();
         private readonly MapInteractionController _interaction = new();
         private readonly MapViewportRenderer _viewportRenderer = new();
@@ -128,9 +128,9 @@ namespace Fodinae.UI
             int w = _manager.WorldWidth;
             int h = _manager.WorldHeight;
             BindWorldDimensions(w, h);
-            if (_storage is MapStorage mapStorage && mapStorage.CellLayer != null)
+            if (_storage != null && _storage.CellLayer != null)
             {
-                BindCellLayer(mapStorage.CellLayer);
+                BindCellLayer(_storage.CellLayer);
             }
 
             _cellsPerPixel = 1f;
@@ -221,15 +221,20 @@ namespace Fodinae.UI
 
         private void RebindRuntimeSources()
         {
+            if (_storage == null)
+            {
+                return;
+            }
+
             EnsurePlayerBinding();
 
-            if (_storage is not MapStorage mapStorage || mapStorage.CellLayer == null)
+            if (_storage.CellLayer == null)
             {
                 BindCellLayer(null);
                 return;
             }
 
-            IWorldLayer<CellType> cellLayer = mapStorage.CellLayer;
+            IWorldLayer<CellType> cellLayer = _storage.CellLayer;
             if (!ReferenceEquals(_subscribedCellLayer, cellLayer))
             {
                 BindCellLayer(cellLayer);

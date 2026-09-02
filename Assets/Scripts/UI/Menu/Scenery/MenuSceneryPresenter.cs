@@ -2,6 +2,8 @@
 
 using System;
 using System.IO;
+using Fodinae.Core;
+using Fodinae.Core.Interfaces;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -13,6 +15,13 @@ namespace Fodinae.UI
     /// </summary>
     internal sealed class MenuSceneryPresenter
     {
+        private readonly IRuntimeAssetPaths _runtimeAssetPaths;
+
+        public MenuSceneryPresenter(IRuntimeAssetPaths runtimeAssetPaths)
+        {
+            _runtimeAssetPaths = runtimeAssetPaths;
+        }
+
         // Единый источник направления точки высадки: его используют и камера
         // подлёта, и ретикль на поверхности. Дублировать константу в двух
         // местах значило бы рискнуть тихим расхождением цели и маркера.
@@ -152,7 +161,7 @@ namespace Fodinae.UI
             _uiTexturesReady = true;
         }
 
-        private static void ApplyImageTexture(Image? image, ref Texture2D? cache, string assetPath, string debugName)
+        private void ApplyImageTexture(Image? image, ref Texture2D? cache, string assetPath, string debugName)
         {
             if (image == null)
             {
@@ -299,7 +308,7 @@ namespace Fodinae.UI
                 Mathf.RoundToInt(resolvedHeight * panelScale));
         }
 
-        private static Texture2D? LoadDirectTexture(string assetPath)
+        private Texture2D? LoadDirectTexture(string assetPath)
         {
             string relativePath = assetPath.StartsWith("Assets/Textures/", StringComparison.Ordinal)
                 ? assetPath.Substring("Assets/Textures/".Length)
@@ -307,29 +316,7 @@ namespace Fodinae.UI
                     ? assetPath.Substring("Assets/".Length)
                     : assetPath);
 
-            string[] candidatePaths =
-            [
-                assetPath.StartsWith("Assets/", StringComparison.Ordinal)
-                    ? Path.Combine(Application.dataPath, assetPath.Substring("Assets/".Length))
-                    : assetPath,
-                Path.Combine(Application.dataPath, "Textures", relativePath),
-                Path.Combine(Application.dataPath, "Resources", "Data", "Textures", relativePath),
-                Path.Combine(Application.dataPath, "..", "Resources", "Data", "Textures", relativePath),
-                Path.Combine(Application.dataPath, "..", "Textures", relativePath),
-                Path.Combine(Application.streamingAssetsPath, "Textures", relativePath),
-                Path.Combine(Application.streamingAssetsPath, "..", "Textures", relativePath),
-                Path.Combine(Application.dataPath, relativePath),
-            ];
-
-            string? absolutePath = null;
-            foreach (string candidate in candidatePaths)
-            {
-                if (File.Exists(candidate))
-                {
-                    absolutePath = candidate;
-                    break;
-                }
-            }
+            string? absolutePath = _runtimeAssetPaths.FindBundledTextureFile(relativePath);
 
             if (absolutePath == null)
             {

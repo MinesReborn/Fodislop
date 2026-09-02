@@ -21,6 +21,10 @@ namespace Fodinae.Core.Interfaces
 
     public interface IAudioSystem
     {
+        bool IsInitialized { get; }
+
+        bool IsDegraded { get; }
+
         IAudioPlaybackHandle? Play(string eventName, Vector3? worldPosition = null, AudioLayer? overrideLayer = null, float? overrideVolume = null);
         IAudioPlaybackHandle? PlayAttached(string eventName, GameObject targetGameObject, AudioLayer? overrideLayer = null, float? overrideVolume = null);
         IAudioPlaybackHandle? PlaySnapshot(string snapshotPath);

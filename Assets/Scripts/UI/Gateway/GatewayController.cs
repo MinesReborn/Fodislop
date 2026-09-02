@@ -6,6 +6,7 @@ using Cysharp.Threading.Tasks;
 using Fodinae.Core;
 using Fodinae.Core.Interfaces;
 using Fodinae.Core.Localization;
+using Fodinae.Networking.Auth;
 using UnityEngine;
 using UnityEngine.UIElements;
 using VContainer;
@@ -27,7 +28,7 @@ namespace Fodinae.UI
     [RequireComponent(typeof(UIDocument))]
     public sealed class GatewayController : MonoBehaviour, ILocalizableUI
     {
-        private const string MainMenuSceneName = "MainMenu";
+        private const string MainMenuSceneName = ProjectRuntimeContracts.SceneNames.MainMenu;
         private const string OnboardingDonePrefsKey = "OnboardingCompleted1";
 
         // Состояние ворот. Ровно один класс на корне за раз: раньше видимость
@@ -92,6 +93,8 @@ namespace Fodinae.UI
         private ILocalizationService _loc = null!;
         [Inject]
         private IAsyncOperationSupervisor _operations = null!;
+        [Inject]
+        private IAuthenticationService _authentication = null!;
 
         private void OnEnable()
         {
@@ -159,7 +162,7 @@ namespace Fodinae.UI
             // некому и форма входа осталась бы видимой поверх онбординга.
             _gatewayRoot = _root.Q<VisualElement>("GatewayRoot") ?? _root;
 
-            _authGate = AuthGate.TryCreate(_root, _clientConfig, _loc);
+            _authGate = AuthGate.TryCreate(_root, _clientConfig, _authentication, _loc);
             if (_authGate == null)
             {
                 Debug.LogWarning("[Gateway] Ворота входа не собрались — сразу уходим в меню.");
@@ -317,7 +320,7 @@ namespace Fodinae.UI
                 }
 
                 uiScale.choices = labels;
-                uiScale.index = IndexOfUIScale(config.UIScale);
+                uiScale.index = IndexOfUIScale(config.Interface.UIScale);
 
                 // Применяем сразу при выборе, а не по кнопке «Далее»: смысл
                 // этой настройки в том, чтобы увидеть результат на себе.
@@ -335,7 +338,7 @@ namespace Fodinae.UI
                     _loc.Get("gateway.onb.colorblind.tritanopia"),
                     _loc.Get("gateway.onb.colorblind.high_contrast"),
                 };
-                colorblind.index = Mathf.Clamp(config.ColorblindMode, 0, 4);
+                colorblind.index = Mathf.Clamp(config.Accessibility.ColorblindMode, 0, 4);
             }
 
             var photoSens = _root.Q<DropdownField>("OnbPhotosensitivity");
@@ -346,7 +349,7 @@ namespace Fodinae.UI
                     _loc.Get("gateway.onb.photosens.off"),
                     _loc.Get("gateway.onb.photosens.on"),
                 };
-                photoSens.index = config.ReducePhotosensitivity ? 1 : 0;
+                photoSens.index = config.Accessibility.ReducePhotosensitivity ? 1 : 0;
             }
 
             var frameRate = _root.Q<DropdownField>("OnbFrameRate");
@@ -359,7 +362,7 @@ namespace Fodinae.UI
                 }
 
                 frameRate.choices = labels;
-                frameRate.index = IndexOfFrameRate(config.TargetFrameRate);
+                frameRate.index = IndexOfFrameRate(config.Display.TargetFrameRate);
             }
 
             var preset = _root.Q<DropdownField>("OnbGraphicsPreset");
@@ -378,7 +381,7 @@ namespace Fodinae.UI
             var vsync = _root.Q<Toggle>("OnbVSync");
             if (vsync != null)
             {
-                vsync.SetValueWithoutNotify(config.VSync);
+                vsync.SetValueWithoutNotify(config.Display.VSync);
             }
 
             var controlScheme = _root.Q<DropdownField>("OnbControlScheme");
@@ -389,14 +392,14 @@ namespace Fodinae.UI
                     _loc.Get("gateway.onb.controls.keyboard"),
                     _loc.Get("gateway.onb.controls.mouse"),
                 };
-                controlScheme.index = Mathf.Clamp(config.ControlScheme, 0, 1);
+                controlScheme.index = Mathf.Clamp(config.Interface.ControlScheme, 0, 1);
             }
 
             var masterVol = _root.Q<Slider>("OnbMasterVolume");
             var masterVolLbl = _root.Q<Label>("OnbMasterVolumeLabel");
             if (masterVol != null)
             {
-                masterVol.value = Mathf.RoundToInt(config.MasterVolume * 100f);
+                masterVol.value = Mathf.RoundToInt(config.Audio.MasterVolume * 100f);
                 if (masterVolLbl != null)
                 {
                     masterVolLbl.text = $"{Mathf.RoundToInt(masterVol.value)}%";
@@ -414,7 +417,7 @@ namespace Fodinae.UI
             var mute = _root.Q<Toggle>("OnbMuteInBackground");
             if (mute != null)
             {
-                mute.SetValueWithoutNotify(config.MuteAudioInBackground);
+                mute.SetValueWithoutNotify(config.Audio.MuteInBackground);
             }
 
             var prev = _root.Q<Button>("OnbPrevButton");
@@ -508,49 +511,49 @@ namespace Fodinae.UI
                 var uiScale = _root.Q<DropdownField>("OnbUIScale");
                 if (uiScale != null)
                 {
-                    config.UIScale = ValueOfUIScale(uiScale.index);
+                    config.Interface.UIScale = ValueOfUIScale(uiScale.index);
                 }
 
                 var colorblind = _root.Q<DropdownField>("OnbColorblind");
                 if (colorblind != null && colorblind.index >= 0)
                 {
-                    config.ColorblindMode = colorblind.index;
+                    config.Accessibility.ColorblindMode = colorblind.index;
                 }
 
                 var photoSens = _root.Q<DropdownField>("OnbPhotosensitivity");
                 if (photoSens != null && photoSens.index >= 0)
                 {
-                    config.ReducePhotosensitivity = photoSens.index == 1;
+                    config.Accessibility.ReducePhotosensitivity = photoSens.index == 1;
                 }
 
                 var frameRate = _root.Q<DropdownField>("OnbFrameRate");
                 if (frameRate != null && frameRate.index >= 0 && frameRate.index < FrameRates.Length)
                 {
-                    config.TargetFrameRate = FrameRates[frameRate.index].Value;
+                    config.Display.TargetFrameRate = FrameRates[frameRate.index].Value;
                 }
 
                 var vsync = _root.Q<Toggle>("OnbVSync");
                 if (vsync != null)
                 {
-                    config.VSync = vsync.value;
+                    config.Display.VSync = vsync.value;
                 }
 
                 var controlScheme = _root.Q<DropdownField>("OnbControlScheme");
                 if (controlScheme != null && controlScheme.index >= 0)
                 {
-                    config.ControlScheme = controlScheme.index;
+                    config.Interface.ControlScheme = controlScheme.index;
                 }
 
                 var masterVol = _root.Q<Slider>("OnbMasterVolume");
                 if (masterVol != null)
                 {
-                    config.MasterVolume = masterVol.value / 100f;
+                    config.Audio.MasterVolume = masterVol.value / 100f;
                 }
 
                 var mute = _root.Q<Toggle>("OnbMuteInBackground");
                 if (mute != null)
                 {
-                    config.MuteAudioInBackground = mute.value;
+                    config.Audio.MuteInBackground = mute.value;
                 }
             });
         }
@@ -568,7 +571,7 @@ namespace Fodinae.UI
                 return;
             }
 
-            float saved = _clientConfig.Config.UIScale;
+            float saved = _clientConfig.Config.Interface.UIScale;
 
             // Ноль означает «в конфиге ничего нет» — множитель ноль погасил бы
             // весь интерфейс, поэтому такое значение трактуем как штатное.

@@ -13,7 +13,7 @@ namespace Fodinae.Core;
 // starts - it stays alive only for the menu scene, so the whole
 // descent runs with both scenes present. For as long as any camera in the menu
 // scene is also tagged MainCamera, Camera.main is a coin flip, and it is queried
-// at exactly the wrong moment: GameBootstrap.PostStart resolves every manager
+// at exactly the wrong moment: GameStartupPipeline initializes every manager
 // while the menu is still up, and those managers cache the result.
 //
 // The consequences were not subtle. PostProcessRendererFeature gates its entire

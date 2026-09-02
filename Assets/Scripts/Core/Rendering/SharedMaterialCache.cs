@@ -6,37 +6,33 @@ using UnityEngine;
 
 namespace Fodinae.Core
 {
-    public static class SharedMaterialCache
+    public interface ISharedMaterialCache
     {
-        private static readonly Dictionary<Texture2D, Material> _materials = new();
-        private static Shader? _shader;
+        Material GetForTexture(Texture2D texture);
+    }
 
-        private static Shader Shader
+    public sealed class SharedMaterialCache : ISharedMaterialCache, IDisposable
+    {
+        private readonly Dictionary<Texture2D, Material> _materials = new();
+        private Shader? _shader;
+
+        private Shader Shader
         {
             get
             {
                 if (_shader == null)
                 {
-                    _shader = Shader.Find("Fodinae/World Entity") ??
+                    _shader = Shader.Find(ProjectRuntimeContracts.ShaderNames.WorldEntity) ??
                         throw new InvalidOperationException(
-                            "SharedMaterialCache requires the supported 'Fodinae/World Entity' shader.");
+                            "SharedMaterialCache requires the supported " +
+                            $"'{ProjectRuntimeContracts.ShaderNames.WorldEntity}' shader.");
                 }
 
                 return _shader;
             }
         }
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetForDomainReload()
-        {
-            // Runtime renderers survive script-domain reloads and keep their
-            // sharedMaterial references. Destroying those materials here leaves
-            // the restored renderers bound to Unity fake-null objects.
-            _materials.Clear();
-            _shader = null;
-        }
-
-        public static Material GetForTexture(Texture2D texture)
+        public Material GetForTexture(Texture2D texture)
         {
             if (texture == null)
             {
@@ -58,7 +54,7 @@ namespace Fodinae.Core
             return mat;
         }
 
-        public static void Clear()
+        public void Dispose()
         {
             foreach (var mat in _materials.Values)
             {
@@ -76,6 +72,7 @@ namespace Fodinae.Core
             }
 
             _materials.Clear();
+            _shader = null;
         }
     }
 }

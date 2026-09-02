@@ -43,6 +43,8 @@ namespace Fodinae.Game
         private bool _geometryDirty = true;
         [Inject]
         private ISceneObjectFactory _sceneObjects = null!;
+        [Inject]
+        private ISharedMaterialCache _sharedMaterials = null!;
 
         public sealed class SpriteHandle
         {
@@ -230,7 +232,7 @@ namespace Fodinae.Game
             filter.sharedMesh = _mesh;
 
             var renderer = renderObject.AddComponent<MeshRenderer>();
-            renderer.sharedMaterial = SharedMaterialCache.GetForTexture(_atlas.Texture);
+            renderer.sharedMaterial = _sharedMaterials.GetForTexture(_atlas.Texture);
             renderer.sortingOrder = BATCH_SORTING_ORDER;
 
             _overlayBatch = new WorldEntityOverlayBatch(

@@ -1,160 +1,58 @@
 #nullable enable
 
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Text;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using VContainer;
 
 namespace Fodinae;
 
-public static class PersistentAssetCache
+public interface IPersistentAssetCache
 {
-    private static string _cachePath = string.Empty;
-    private static bool _isInitialized;
+    UniTask<byte[]?> GetAssetAsync(string filename);
 
-    static PersistentAssetCache()
+    UniTask SaveAssetAsync(string filename, byte[] data, string etag);
+
+    UniTask<string?> GetETagAsync(string filename);
+
+    bool HasAsset(string filename);
+
+    void RemoveAsset(string filename);
+
+    string GetAssetPath(string filename);
+}
+
+public sealed class PersistentAssetCache : IPersistentAssetCache
+{
+    private readonly string _cachePath;
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _entryGates =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <remarks>
+    /// [Inject] обязателен, хотя параметров нет. Без него VContainer выбирает
+    /// конструктор с НАИБОЛЬШИМ числом параметров, просматривая и непубличные,
+    /// то есть тестовый (string cachePath) — и падает на разрешении System.String,
+    /// роняя сборку контейнера целиком в Awake бутстрапа.
+    /// </remarks>
+    [Inject]
+    public PersistentAssetCache()
+        : this(GetDefaultCachePath())
     {
-        InitializeCachePath();
     }
 
-    // ═══════════════════════════════════════════════════════════
-    //  Public API
-    // ═══════════════════════════════════════════════════════════
-
-    public static byte[]? GetAsset(string filename)
+    /// <summary>Путь задаётся только из тестов; контейнер сюда не ходит.</summary>
+    internal PersistentAssetCache(string cachePath)
     {
-        string assetPath = GetAssetPath(filename);
-        if (File.Exists(assetPath))
-        {
-            return File.ReadAllBytes(assetPath);
-        }
-
-        return null;
+        _cachePath = Path.GetFullPath(cachePath);
+        PersistentAssetCacheFormat.EnsureCurrent(_cachePath);
     }
 
-    public static async UniTask<byte[]?> GetAssetAsync(string filename)
+    private static string GetDefaultCachePath()
     {
-        string assetPath = GetAssetPath(filename);
-        if (File.Exists(assetPath))
-        {
-            return await File.ReadAllBytesAsync(assetPath).AsUniTask();
-        }
-
-        return null;
-    }
-
-    public static void SaveAsset(string filename, byte[] data, string etag)
-    {
-        InitializeCachePath();
-
-        if (string.IsNullOrWhiteSpace(filename))
-        {
-            throw new ArgumentException("Asset filename cannot be empty.", nameof(filename));
-        }
-
-        if (data == null || data.Length == 0)
-        {
-            throw new ArgumentException("Asset data cannot be null or empty.", nameof(data));
-        }
-
-        string assetPath = GetAssetPath(filename);
-        string etagPath = GetETagPath(filename);
-
-        string? directory = Path.GetDirectoryName(assetPath);
-        if (directory == null)
-        {
-            throw new InvalidOperationException(
-                $"Asset cache path has no parent directory: '{assetPath}'.");
-        }
-
-        Directory.CreateDirectory(directory);
-        WriteAtomically(assetPath, data);
-        WriteAtomically(etagPath, etag);
-    }
-
-    public static async UniTask SaveAssetAsync(string filename, byte[] data, string etag)
-    {
-        InitializeCachePath();
-
-        if (string.IsNullOrWhiteSpace(filename))
-        {
-            throw new ArgumentException("Asset filename cannot be empty.", nameof(filename));
-        }
-
-        if (data == null || data.Length == 0)
-        {
-            throw new ArgumentException("Asset data cannot be null or empty.", nameof(data));
-        }
-
-        string assetPath = GetAssetPath(filename);
-        string etagPath = GetETagPath(filename);
-
-        string? directory = Path.GetDirectoryName(assetPath);
-        if (directory == null)
-        {
-            throw new InvalidOperationException(
-                $"Asset cache path has no parent directory: '{assetPath}'.");
-        }
-
-        Directory.CreateDirectory(directory);
-        await WriteAtomicallyAsync(assetPath, data);
-        await WriteAtomicallyAsync(etagPath, etag);
-    }
-
-    public static string? GetETag(string filename)
-    {
-        string etagPath = GetETagPath(filename);
-        if (File.Exists(etagPath))
-        {
-            return File.ReadAllText(etagPath);
-        }
-
-        return null;
-    }
-
-    public static async UniTask<string?> GetETagAsync(string filename)
-    {
-        string etagPath = GetETagPath(filename);
-        if (File.Exists(etagPath))
-        {
-            return await File.ReadAllTextAsync(etagPath).AsUniTask();
-        }
-
-        return null;
-    }
-
-    public static bool HasAsset(string filename)
-    {
-        return File.Exists(GetAssetPath(filename));
-    }
-
-    public static void RemoveAsset(string filename)
-    {
-        string assetPath = GetAssetPath(filename);
-        string etagPath = GetETagPath(filename);
-        if (File.Exists(assetPath))
-        {
-            File.Delete(assetPath);
-        }
-
-        if (File.Exists(etagPath))
-        {
-            File.Delete(etagPath);
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    //  Private Helpers
-    // ═══════════════════════════════════════════════════════════
-
-    private static void InitializeCachePath()
-    {
-        if (_isInitialized)
-        {
-            return;
-        }
-
         string persistentPath = Application.persistentDataPath;
         if (string.IsNullOrWhiteSpace(persistentPath))
         {
@@ -169,15 +67,193 @@ public static class PersistentAssetCache
                 $"Persistent data parent directory '{parentPath}' does not exist.");
         }
 
-        _cachePath = Path.Combine(persistentPath, "AssetCache");
-        PersistentAssetCacheFormat.EnsureCurrent(_cachePath);
-        _isInitialized = true;
+        return Path.Combine(persistentPath, "AssetCache");
     }
 
-    public static string GetAssetPath(string filename)
-    {
-        InitializeCachePath();
+    // ═══════════════════════════════════════════════════════════
+    //  Public API
+    // ═══════════════════════════════════════════════════════════
 
+    public byte[]? GetAsset(string filename)
+    {
+        string assetPath = GetAssetPath(filename);
+        SemaphoreSlim gate = GetEntryGate(assetPath);
+        gate.Wait();
+        try
+        {
+            return ReadVerifiedAsset(assetPath, out _);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    public async UniTask<byte[]?> GetAssetAsync(string filename)
+    {
+        string assetPath = GetAssetPath(filename);
+        SemaphoreSlim gate = GetEntryGate(assetPath);
+        await gate.WaitAsync();
+        try
+        {
+            return await ReadVerifiedAssetAsync(assetPath);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    public void SaveAsset(string filename, byte[] data, string etag)
+    {
+        if (string.IsNullOrWhiteSpace(filename))
+        {
+            throw new ArgumentException("Asset filename cannot be empty.", nameof(filename));
+        }
+
+        if (data == null || data.Length == 0)
+        {
+            throw new ArgumentException("Asset data cannot be null or empty.", nameof(data));
+        }
+
+        string assetPath = GetAssetPath(filename);
+        SemaphoreSlim gate = GetEntryGate(assetPath);
+        gate.Wait();
+        try
+        {
+            SaveAssetCore(assetPath, data, etag);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    private static void SaveAssetCore(string assetPath, byte[] data, string etag)
+    {
+        string manifestPath = GetManifestPath(assetPath);
+
+        string? directory = Path.GetDirectoryName(assetPath);
+        if (directory == null)
+        {
+            throw new InvalidOperationException(
+                $"Asset cache path has no parent directory: '{assetPath}'.");
+        }
+
+        Directory.CreateDirectory(directory);
+        WriteAtomically(assetPath, data);
+        WriteAtomically(manifestPath, PersistentAssetCacheEntryManifest.Create(data, etag).Serialize());
+        DeleteIfExists(GetLegacyETagPath(assetPath));
+    }
+
+    public async UniTask SaveAssetAsync(string filename, byte[] data, string etag)
+    {
+        if (string.IsNullOrWhiteSpace(filename))
+        {
+            throw new ArgumentException("Asset filename cannot be empty.", nameof(filename));
+        }
+
+        if (data == null || data.Length == 0)
+        {
+            throw new ArgumentException("Asset data cannot be null or empty.", nameof(data));
+        }
+
+        string assetPath = GetAssetPath(filename);
+        SemaphoreSlim gate = GetEntryGate(assetPath);
+        await gate.WaitAsync();
+        try
+        {
+            await SaveAssetCoreAsync(assetPath, data, etag);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    private static async UniTask SaveAssetCoreAsync(string assetPath, byte[] data, string etag)
+    {
+        string manifestPath = GetManifestPath(assetPath);
+
+        string? directory = Path.GetDirectoryName(assetPath);
+        if (directory == null)
+        {
+            throw new InvalidOperationException(
+                $"Asset cache path has no parent directory: '{assetPath}'.");
+        }
+
+        Directory.CreateDirectory(directory);
+        await WriteAtomicallyAsync(assetPath, data);
+        await WriteAtomicallyAsync(
+            manifestPath,
+            PersistentAssetCacheEntryManifest.Create(data, etag).Serialize());
+        DeleteIfExists(GetLegacyETagPath(assetPath));
+    }
+
+    public string? GetETag(string filename)
+    {
+        string assetPath = GetAssetPath(filename);
+        SemaphoreSlim gate = GetEntryGate(assetPath);
+        gate.Wait();
+        try
+        {
+            return ReadVerifiedAsset(assetPath, out PersistentAssetCacheEntryManifest manifest) != null
+                ? manifest.ETag
+                : null;
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    public async UniTask<string?> GetETagAsync(string filename)
+    {
+        string assetPath = GetAssetPath(filename);
+        SemaphoreSlim gate = GetEntryGate(assetPath);
+        await gate.WaitAsync();
+        try
+        {
+            byte[]? payload = await ReadVerifiedAssetAsync(assetPath);
+            if (payload == null || !TryReadManifest(assetPath, out PersistentAssetCacheEntryManifest manifest))
+            {
+                return null;
+            }
+
+            return manifest.ETag;
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    public bool HasAsset(string filename)
+    {
+        return GetAsset(filename) != null;
+    }
+
+    public void RemoveAsset(string filename)
+    {
+        string assetPath = GetAssetPath(filename);
+        SemaphoreSlim gate = GetEntryGate(assetPath);
+        gate.Wait();
+        try
+        {
+            RemoveEntryFiles(assetPath);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  Private Helpers
+    // ═══════════════════════════════════════════════════════════
+
+    public string GetAssetPath(string filename)
+    {
         if (string.IsNullOrWhiteSpace(filename))
         {
             throw new ArgumentException("Asset filename cannot be empty.", nameof(filename));
@@ -195,7 +271,83 @@ public static class PersistentAssetCache
         return fullPath;
     }
 
-    private static string GetETagPath(string filename) => GetAssetPath(filename) + ".etag";
+    private SemaphoreSlim GetEntryGate(string assetPath) =>
+        _entryGates.GetOrAdd(assetPath, _ => new SemaphoreSlim(1, 1));
+
+    private static string GetManifestPath(string assetPath) => assetPath + ".entry";
+
+    private static string GetLegacyETagPath(string assetPath) => assetPath + ".etag";
+
+    private static byte[]? ReadVerifiedAsset(
+        string assetPath,
+        out PersistentAssetCacheEntryManifest manifest)
+    {
+        manifest = default;
+        if (!File.Exists(assetPath) || !TryReadManifest(assetPath, out manifest))
+        {
+            RemoveEntryFiles(assetPath);
+            return null;
+        }
+
+        byte[] payload = File.ReadAllBytes(assetPath);
+        if (manifest.Matches(payload))
+        {
+            return payload;
+        }
+
+        RemoveEntryFiles(assetPath);
+        manifest = default;
+        return null;
+    }
+
+    private static async UniTask<byte[]?> ReadVerifiedAssetAsync(string assetPath)
+    {
+        if (!File.Exists(assetPath) || !TryReadManifest(assetPath, out PersistentAssetCacheEntryManifest manifest))
+        {
+            RemoveEntryFiles(assetPath);
+            return null;
+        }
+
+        byte[] payload = await File.ReadAllBytesAsync(assetPath).AsUniTask();
+        if (manifest.Matches(payload))
+        {
+            return payload;
+        }
+
+        RemoveEntryFiles(assetPath);
+        return null;
+    }
+
+    private static bool TryReadManifest(
+        string assetPath,
+        out PersistentAssetCacheEntryManifest manifest)
+    {
+        string manifestPath = GetManifestPath(assetPath);
+        if (!File.Exists(manifestPath))
+        {
+            manifest = default;
+            return false;
+        }
+
+        return PersistentAssetCacheEntryManifest.TryParse(
+            File.ReadAllText(manifestPath),
+            out manifest);
+    }
+
+    private static void RemoveEntryFiles(string assetPath)
+    {
+        DeleteIfExists(assetPath);
+        DeleteIfExists(GetManifestPath(assetPath));
+        DeleteIfExists(GetLegacyETagPath(assetPath));
+    }
+
+    private static void DeleteIfExists(string path)
+    {
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
+    }
 
     private static void WriteAtomically(string path, byte[] data)
     {

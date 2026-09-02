@@ -15,6 +15,7 @@ namespace Fodinae.UI.Programmator;
 internal sealed class ProgrammatorSelectionModel
 {
     private readonly Action<int, int, bool> _setSelectionBorder;
+    private readonly ProgrammatorData _data;
 
     private bool _hasSelection;
     private int _selStartRow;
@@ -23,9 +24,12 @@ internal sealed class ProgrammatorSelectionModel
     private int _selEndCol;
     private readonly HashSet<long> _selectedCells = new HashSet<long>();
 
-    public ProgrammatorSelectionModel(Action<int, int, bool> setSelectionBorder)
+    public ProgrammatorSelectionModel(
+        Action<int, int, bool> setSelectionBorder,
+        ProgrammatorData data)
     {
         _setSelectionBorder = setSelectionBorder ?? throw new ArgumentNullException(nameof(setSelectionBorder));
+        _data = data ?? throw new ArgumentNullException(nameof(data));
     }
 
     public bool HasSelection
@@ -94,7 +98,7 @@ internal sealed class ProgrammatorSelectionModel
                 {
                     SetSelectionBorder(r, c, true);
                 }
-                else if (ProgrammatorData.HoveredCell != (r * ProgrammatorData.COLS) + c)
+                else if (_data.HoveredCell != (r * ProgrammatorData.COLS) + c)
                 {
                     SetSelectionBorder(r, c, false);
                 }
@@ -183,7 +187,7 @@ internal sealed class ProgrammatorSelectionModel
                 {
                     SetSelectionBorder(r, c, true);
                 }
-                else if (ProgrammatorData.HoveredCell != (r * ProgrammatorData.COLS) + c)
+                else if (_data.HoveredCell != (r * ProgrammatorData.COLS) + c)
                 {
                     SetSelectionBorder(r, c, false);
                 }
@@ -199,7 +203,7 @@ internal sealed class ProgrammatorSelectionModel
             {
                 int r = (int)(key / ProgrammatorData.COLS);
                 int c = (int)(key % ProgrammatorData.COLS);
-                if (ProgrammatorData.HoveredCell != (r * ProgrammatorData.COLS) + c)
+                if (_data.HoveredCell != (r * ProgrammatorData.COLS) + c)
                 {
                     SetSelectionBorder(r, c, false);
                 }
@@ -218,7 +222,7 @@ internal sealed class ProgrammatorSelectionModel
             {
                 for (int c = minCol; c <= maxCol; c++)
                 {
-                    if (ProgrammatorData.HoveredCell != (r * ProgrammatorData.COLS) + c)
+                    if (_data.HoveredCell != (r * ProgrammatorData.COLS) + c)
                     {
                         SetSelectionBorder(r, c, false);
                     }

@@ -61,6 +61,7 @@ namespace Fodinae.Game
         private Color _dynamicLightColor;
 
         private const float VISUAL_ROTATION_OFFSET = -90f;
+        private static bool s_previewFallbackWarningLogged;
 
         private bool _isMetadataLoaded;
         private bool _visualsLoadCompleted;
@@ -72,6 +73,8 @@ namespace Fodinae.Game
         private IRobotService _robotService = null!;
         [Inject]
         private IProjectDefaults _projectDefaults = null!;
+        [Inject]
+        private IRuntimeDebugSettings _debugSettings = null!;
 
         private RobotLighting _lighting = null!;
         private RobotVisuals _visuals = null!;
@@ -566,16 +569,32 @@ namespace Fodinae.Game
         {
             if (_spriteRenderer != null && _spriteRenderer.sprite == null)
             {
-                var botTex = Resources.Load<Texture2D>("Textures/bot") ?? Resources.Load<Texture2D>("bot");
+                Texture2D? botTex = Resources.Load<Texture2D>(
+                    ProjectRuntimeContracts.ResourcePaths.RobotPreviewTexture);
+                if (botTex == null)
+                {
+                    botTex = Resources.Load<Texture2D>(
+                        ProjectRuntimeContracts.ResourcePaths.LegacyRobotPreviewTexture);
+                    LogPreviewFallbackWarning(botTex != null);
+                }
+
                 Sprite previewSprite;
                 if (botTex != null)
                 {
-                    previewSprite = Sprite.Create(botTex, new Rect(0, 0, botTex.width, botTex.height), new Vector2(0.5f, 0.5f), 16);
+                    previewSprite = Sprite.Create(
+                        botTex,
+                        new Rect(0, 0, botTex.width, botTex.height),
+                        new Vector2(0.5f, 0.5f),
+                        ProjectRuntimeContracts.PreviewVisuals.RobotPixelsPerUnit);
                 }
                 else
                 {
                     var tex = Texture2D.whiteTexture;
-                    previewSprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 16);
+                    previewSprite = Sprite.Create(
+                        tex,
+                        new Rect(0, 0, tex.width, tex.height),
+                        new Vector2(0.5f, 0.5f),
+                        ProjectRuntimeContracts.PreviewVisuals.RobotPixelsPerUnit);
                 }
 
                 _visuals.SetSkinSprite(previewSprite);
@@ -583,6 +602,22 @@ namespace Fodinae.Game
                 _spriteRenderer.color = new Color(0.2f, 0.65f, 0.95f, 1f);
                 _spriteRenderer.enabled = true;
             }
+        }
+
+        private static void LogPreviewFallbackWarning(bool legacyPreviewFound)
+        {
+            if (s_previewFallbackWarningLogged)
+            {
+                return;
+            }
+
+            s_previewFallbackWarningLogged = true;
+            string fallback = legacyPreviewFound
+                ? $"legacy resource '{ProjectRuntimeContracts.ResourcePaths.LegacyRobotPreviewTexture}'"
+                : "the generated white placeholder";
+            Debug.LogWarning(
+                $"[Robot] Required preview resource " +
+                $"'{ProjectRuntimeContracts.ResourcePaths.RobotPreviewTexture}' was not found; using {fallback}.");
         }
 
         private async UniTask LoadTailAsync(CancellationToken token)
@@ -650,7 +685,9 @@ namespace Fodinae.Game
 #if UNITY_EDITOR
         protected void OnDrawGizmos()
         {
-            if (!Application.isPlaying || !RobotManager.ShowDebugVisuals)
+            if (!Application.isPlaying ||
+                _debugSettings == null ||
+                !_debugSettings.ShowRobotDebugVisuals)
             {
                 return;
             }

@@ -31,13 +31,26 @@ internal static class ClientConfigDefaults
         {
             SchemaVersion = ClientConfig.CurrentSchemaVersion,
             ProjectDefaultsHash = projectDefaults.ContentHash,
-            MasterVolume = defaults.MasterVolume,
-            SfxVolume = defaults.SfxVolume,
-            MusicVolume = defaults.MusicVolume,
-            AmbienceVolume = defaults.AmbienceVolume,
-            VoiceVolume = defaults.VoiceVolume,
-            UIVolume = defaults.UIVolume,
-            UIScale = defaults.UIScale,
+            Audio = new AudioSettings
+            {
+                MasterVolume = defaults.MasterVolume,
+                SfxVolume = defaults.SfxVolume,
+                MusicVolume = defaults.MusicVolume,
+                AmbienceVolume = defaults.AmbienceVolume,
+                VoiceVolume = defaults.VoiceVolume,
+                UIVolume = defaults.UIVolume,
+                MuteInBackground = true,
+            },
+            Display = new DisplaySettings
+            {
+                HDREnabled = ProjectRuntimeContracts.ClientConfiguration.DefaultHDREnabled,
+            },
+            Interface = new InterfaceSettings
+            {
+                UIScale = defaults.UIScale,
+            },
+            Accessibility = new AccessibilitySettings(),
+            Connection = new ConnectionSettings(),
             GraphicsPreset = graphicsPreset,
             GraphicsQualitySettings = graphicsQualityProfile.Get(graphicsPreset),
             AmbientOcclusionEnabled = lighting.AmbientOcclusionEnabled,
@@ -66,37 +79,21 @@ internal static class ClientConfigDefaults
             TerrainShimmerColor = shaders.TerrainShimmerColor,
             TerrainDebugColor = shaders.TerrainDebugColor,
             TerrainDebugMode = shaders.TerrainDebugMode,
-            BloomThreshold = shaders.BloomThreshold,
-            BloomSoftKnee = shaders.BloomSoftKnee,
-            BloomRadius = shaders.BloomRadius,
-            BloomScatter = shaders.BloomScatter,
-            BloomTint = shaders.BloomTint,
+            BloomEnabled = shaders.BloomEnabled,
+            VignetteEnabled = shaders.VignetteEnabled,
+            ChromaticAberrationEnabled = shaders.ChromaticAberrationEnabled,
+            FilmGrainEnabled = shaders.FilmGrainEnabled,
+            MotionBlurEnabled = shaders.MotionBlurEnabled,
+            LocalContrastEnabled = shaders.LocalContrastEnabled,
+            LensEffectsEnabled = shaders.LensEffectsEnabled,
+            AtmosphereEnabled = shaders.AtmosphereEnabled,
+            DisplayPhysicsEnabled = shaders.DisplayPhysicsEnabled,
+            TemporalEnabled = shaders.TemporalEnabled,
             TransitEmissionColor = shaders.TransitEmissionColor,
             TransitEmissionStrength = shaders.TransitEmissionStrength,
             PerspectiveEmissionColor = shaders.PerspectiveEmissionColor,
             PerspectiveEmissionStrength = shaders.PerspectiveEmissionStrength,
             SurfaceOccupancy = shaders.SurfaceOccupancy,
-            BloomIntensity = shaders.BloomIntensity,
-            VignetteIntensity = shaders.VignetteIntensity,
-            VignetteColor = shaders.VignetteColor,
-            VignetteSmoothness = shaders.VignetteSmoothness,
-            VignetteCenter = shaders.VignetteCenter,
-            ChromaticAberrationIntensity = shaders.ChromaticAberrationIntensity,
-            ColorGradingExposure = shaders.ColorGradingExposure,
-            ColorGradingFilter = shaders.ColorGradingFilter,
-            ColorGradingContrast = shaders.ColorGradingContrast,
-            ColorGradingSaturation = shaders.ColorGradingSaturation,
-            ColorGradingToneMapping = shaders.ColorGradingToneMapping,
-            ColorGradingToneMappingWhitePoint = shaders.ColorGradingToneMappingWhitePoint,
-            EigengrauIntensity = shaders.EigengrauIntensity,
-            EigengrauColor = shaders.EigengrauColor,
-            EigengrauDarknessThreshold = shaders.EigengrauDarknessThreshold,
-            EigengrauNoiseScale = shaders.EigengrauNoiseScale,
-            EigengrauAnimationSpeed = shaders.EigengrauAnimationSpeed,
-            MotionBlurIntensity = shaders.MotionBlurIntensity,
-            UseDummyConnection = true,
-            ServerHost = "127.0.0.1",
-            ServerPort = 7777,
         };
     }
 
@@ -123,34 +120,21 @@ internal static class ClientConfigDefaults
         config.TerrainShimmerColor = shaders.TerrainShimmerColor;
         config.TerrainDebugColor = shaders.TerrainDebugColor;
         config.TerrainDebugMode = shaders.TerrainDebugMode;
-        config.BloomThreshold = shaders.BloomThreshold;
-        config.BloomSoftKnee = shaders.BloomSoftKnee;
-        config.BloomRadius = shaders.BloomRadius;
-        config.BloomScatter = shaders.BloomScatter;
-        config.BloomTint = shaders.BloomTint;
+        config.BloomEnabled = shaders.BloomEnabled;
+        config.VignetteEnabled = shaders.VignetteEnabled;
+        config.ChromaticAberrationEnabled = shaders.ChromaticAberrationEnabled;
+        config.FilmGrainEnabled = shaders.FilmGrainEnabled;
+        config.MotionBlurEnabled = shaders.MotionBlurEnabled;
+        config.LocalContrastEnabled = shaders.LocalContrastEnabled;
+        config.LensEffectsEnabled = shaders.LensEffectsEnabled;
+        config.AtmosphereEnabled = shaders.AtmosphereEnabled;
+        config.DisplayPhysicsEnabled = shaders.DisplayPhysicsEnabled;
+        config.TemporalEnabled = shaders.TemporalEnabled;
         config.TransitEmissionColor = shaders.TransitEmissionColor;
         config.TransitEmissionStrength = shaders.TransitEmissionStrength;
         config.PerspectiveEmissionColor = shaders.PerspectiveEmissionColor;
         config.PerspectiveEmissionStrength = shaders.PerspectiveEmissionStrength;
         config.SurfaceOccupancy = shaders.SurfaceOccupancy;
-        config.BloomIntensity = shaders.BloomIntensity;
-        config.VignetteIntensity = shaders.VignetteIntensity;
-        config.VignetteColor = shaders.VignetteColor;
-        config.VignetteSmoothness = shaders.VignetteSmoothness;
-        config.VignetteCenter = shaders.VignetteCenter;
-        config.ChromaticAberrationIntensity = shaders.ChromaticAberrationIntensity;
-        config.ColorGradingExposure = shaders.ColorGradingExposure;
-        config.ColorGradingFilter = shaders.ColorGradingFilter;
-        config.ColorGradingContrast = shaders.ColorGradingContrast;
-        config.ColorGradingSaturation = shaders.ColorGradingSaturation;
-        config.ColorGradingToneMapping = shaders.ColorGradingToneMapping;
-        config.ColorGradingToneMappingWhitePoint = shaders.ColorGradingToneMappingWhitePoint;
-        config.EigengrauIntensity = shaders.EigengrauIntensity;
-        config.EigengrauColor = shaders.EigengrauColor;
-        config.EigengrauDarknessThreshold = shaders.EigengrauDarknessThreshold;
-        config.EigengrauNoiseScale = shaders.EigengrauNoiseScale;
-        config.EigengrauAnimationSpeed = shaders.EigengrauAnimationSpeed;
-        config.MotionBlurIntensity = shaders.MotionBlurIntensity;
     }
 
     public static void ApplyLightingDefaults(

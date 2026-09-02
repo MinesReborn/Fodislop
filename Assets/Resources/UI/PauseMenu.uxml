@@ -34,6 +34,9 @@
                         <ui:VisualElement name="DisplaySection" class="settings-section">
                             <ui:Label class="settings-section__title" text="settings.display.section_title" />
                             <ui:Label class="settings-section__description" text="settings.display.section_desc" />
+                            <ui:VisualElement name="HDROutputGroup" class="pause-subsection">
+                                <ui:Label class="pause-subsection-title" text="settings.display.hdr_output" />
+                            </ui:VisualElement>
                         </ui:VisualElement>
                     </ui:ScrollView>
                     <ui:ScrollView name="EffectsScroll" class="pause-scroll settings-page" mode="Vertical" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto">

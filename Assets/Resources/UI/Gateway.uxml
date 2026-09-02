@@ -10,7 +10,7 @@
     <ui:VisualElement name="GatewayRoot" class="gateway-root gateway--auth">
     <!-- ═══════════════════════════════════════════════════════
          ВОРОТА ВХОДА
-         Портировано из visual/main-menu-mirror (.auth-*). Замены по
+         Портировано из visual/fodinae-ui-lab (.auth-*). Замены по
          контракту переносимости: radial-gradient → плотная заливка,
          backdrop-filter → она же, ::before/::after угловые скобки →
          реальные элементы, box-shadow → рамка, gap → margin на детях.

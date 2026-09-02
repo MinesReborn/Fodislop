@@ -17,7 +17,6 @@ namespace Fodinae.UI
         private UIDocument _doc = null!;
         [Inject]
         private ILocalizationService _loc = null!;
-        [Inject]
         private IConnectionService _connection = null!;
 
         // Reconnect overlays must never float over the game scene before the
@@ -92,7 +91,8 @@ namespace Fodinae.UI
         {
             // Статическая структура (два оверлея с лейблами) живёт в Reconnect.uxml;
             // здесь только клон и биндинги. Видимость и enabled — рантайм-состояние.
-            VisualTreeAsset template = Resources.Load<VisualTreeAsset>("UI/Reconnect") ??
+            VisualTreeAsset template = Resources.Load<VisualTreeAsset>(
+                ProjectRuntimeContracts.ResourcePaths.ReconnectUxml) ??
                 throw new InvalidOperationException(
                     "[ReconnectUI] Resources/UI/Reconnect.uxml is required.");
             TemplateContainer tree = template.Instantiate();

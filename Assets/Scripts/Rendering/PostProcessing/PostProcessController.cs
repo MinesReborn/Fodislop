@@ -17,11 +17,6 @@ namespace Fodinae.Rendering.PostProcessing
         private static readonly ProfilerMarker PostProcessLateUpdateMarker =
             new("Fodinae.PostProcess.LateUpdate");
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetForDomainReload()
-        {
-        }
-
         [SerializeField]
         private Volume? _volume;
 
@@ -154,10 +149,6 @@ namespace Fodinae.Rendering.PostProcessing
             _mainCamera = _gameplayCamera?.Camera;
         }
 
-        private void OnDestroy()
-        {
-        }
-
         private void OnEnable()
         {
             if (Application.isPlaying &&
@@ -166,6 +157,13 @@ namespace Fodinae.Rendering.PostProcessing
             {
                 EnsureVolumeSetup();
             }
+        }
+
+        private void OnDisable()
+        {
+            // Только отвязка камеры. Выключать постпроцесс тут нечем и незачем:
+            // без него кадр не проще, а неверен.
+            PostProcessRenderPass.SetMainCamera(null);
         }
 
         public void Start()
@@ -244,47 +242,50 @@ namespace Fodinae.Rendering.PostProcessing
             // bloom pyramid, motion blur and all - no matter which preset the
             // player picked, and it kept costing that with world lighting
             // switched off, because the two subsystems are unrelated.
-            PostProcessRenderPass.SetAdvancedSettings(config.AdvancedPostProcess);
+            // Продвинутые эффекты собираются из вида и тумблеров: величины
+            // задаёт PostProcessLook, конфиг говорит только «платим или нет».
+            PostProcessRenderPass.SetAdvancedSettings(
+                AdvancedPostProcessComposer.From(config));
 
-            float bloomIntensity = config.BloomIntensity;
-            float chromaticAberration = config.ChromaticAberrationIntensity;
-            if (config.ReducePhotosensitivity)
-            {
-                bloomIntensity = Mathf.Min(bloomIntensity, 0.3f);
-                chromaticAberration = 0f;
-            }
+            bool photosensitive = config.Accessibility.ReducePhotosensitivity;
 
-            BloomIntensity = bloomIntensity;
             BloomComponent bloom = GetRequired(_bloom, nameof(_bloom));
             bloom.threshold.overrideState = true;
-            bloom.threshold.value = config.BloomThreshold;
+            bloom.threshold.value = PostProcessLook.Bloom.Threshold;
             bloom.softKnee.overrideState = true;
-            bloom.softKnee.value = config.BloomSoftKnee;
+            bloom.softKnee.value = PostProcessLook.Bloom.SoftKnee;
             bloom.radius.overrideState = true;
-            bloom.radius.value = config.BloomRadius;
+            bloom.radius.value = PostProcessLook.Bloom.Radius;
             bloom.scatter.overrideState = true;
-            bloom.scatter.value = config.BloomScatter;
+            bloom.scatter.value = PostProcessLook.Bloom.Scatter;
             bloom.tint.overrideState = true;
-            bloom.tint.value = config.BloomTint;
+            bloom.tint.value = PostProcessLook.Bloom.Tint;
+            BloomIntensity = config.BloomEnabled ? PostProcessLook.Bloom.Intensity : 0f;
 
-            VignetteIntensity = config.VignetteIntensity;
             VignetteComponent vignette = GetRequired(_vignette, nameof(_vignette));
             vignette.color.overrideState = true;
-            vignette.color.value = config.VignetteColor;
+            vignette.color.value = PostProcessLook.Vignette.Color;
             vignette.smoothness.overrideState = true;
-            vignette.smoothness.value = config.VignetteSmoothness;
+            vignette.smoothness.value = PostProcessLook.Vignette.Smoothness;
             vignette.center.overrideState = true;
-            vignette.center.value = config.VignetteCenter;
+            vignette.center.value = PostProcessLook.Vignette.Center;
+            VignetteIntensity = config.VignetteEnabled ? PostProcessLook.Vignette.Intensity : 0f;
 
-            ChromaticAberrationIntensity = chromaticAberration;
+            // Хроматика — мерцающий по краям эффект, и при светочувствительности
+            // она снимается целиком, а не приглушается.
+            ChromaticAberrationIntensity =
+                config.ChromaticAberrationEnabled && !photosensitive
+                    ? PostProcessLook.ChromaticAberration.Intensity
+                    : 0f;
+
             ColorGradingComponent colorGrading = GetRequired(_colorGrading, nameof(_colorGrading));
-            Exposure = config.ColorGradingExposure;
-            Color baseFilter = config.ColorGradingFilter;
-            float contrast = config.ColorGradingContrast;
-            float saturation = config.ColorGradingSaturation;
+            Exposure = PostProcessLook.ColorGrading.Exposure;
+            Color baseFilter = PostProcessLook.ColorGrading.Filter;
+            float contrast = PostProcessLook.ColorGrading.Contrast;
+            float saturation = PostProcessLook.ColorGrading.Saturation;
 
             // Apply colorblind accessibility matrix adjustment
-            switch (config.ColorblindMode)
+            switch (config.Accessibility.ColorblindMode)
             {
                 case 1: // Deuteranopia (green-weak)
                     baseFilter = new Color(baseFilter.r * 0.8f + baseFilter.g * 0.2f, baseFilter.g * 0.7f + baseFilter.b * 0.3f, baseFilter.b);
@@ -304,25 +305,29 @@ namespace Fodinae.Rendering.PostProcessing
             colorGrading.colorFilter.overrideState = true;
             colorGrading.colorFilter.value = baseFilter;
             colorGrading.toneMappingWhitePoint.overrideState = true;
-            colorGrading.toneMappingWhitePoint.value = config.ColorGradingToneMappingWhitePoint;
+            colorGrading.toneMappingWhitePoint.value =
+                PostProcessLook.ColorGrading.ToneMappingWhitePoint;
 
             Contrast = contrast;
             Saturation = saturation;
-            ToneMapping = config.ColorGradingToneMapping;
-            EigengrauIntensity = config.EigengrauIntensity;
+
             EigengrauComponent eigengrau = GetRequired(_eigengrau, nameof(_eigengrau));
             eigengrau.color.overrideState = true;
-            eigengrau.color.value = config.EigengrauColor;
+            eigengrau.color.value = PostProcessLook.FilmGrain.Color;
             eigengrau.darknessThreshold.overrideState = true;
-            eigengrau.darknessThreshold.value = config.EigengrauDarknessThreshold;
+            eigengrau.darknessThreshold.value = PostProcessLook.FilmGrain.DarknessThreshold;
             eigengrau.noiseScale.overrideState = true;
-            eigengrau.noiseScale.value = config.EigengrauNoiseScale;
+            eigengrau.noiseScale.value = PostProcessLook.FilmGrain.NoiseScale;
             eigengrau.animationSpeed.overrideState = true;
-            eigengrau.animationSpeed.value = config.EigengrauAnimationSpeed;
+            eigengrau.animationSpeed.value = PostProcessLook.FilmGrain.AnimationSpeed;
+            EigengrauIntensity = config.FilmGrainEnabled ? PostProcessLook.FilmGrain.Intensity : 0f;
 
-            MotionBlurIntensity = config.MotionBlurIntensity;
             MotionBlurComponent motionBlur = GetRequired(_motionBlur, nameof(_motionBlur));
             motionBlur.intensity.overrideState = true;
+            MotionBlurIntensity =
+                config.MotionBlurEnabled && !photosensitive
+                    ? PostProcessLook.MotionBlur.Intensity
+                    : 0f;
 
             // Enable the renderer pass only after every Volume value and every
             // fused setting has been applied as one coherent configuration.
@@ -344,18 +349,6 @@ namespace Fodinae.Rendering.PostProcessing
                 ColorGradingComponent colorGrading = GetRequired(_colorGrading, nameof(_colorGrading));
                 colorGrading.exposure.overrideState = true;
                 colorGrading.exposure.value = Mathf.Clamp(value, -4f, 4f);
-                UpdateColorGradingActiveState();
-            }
-        }
-
-        public bool ToneMapping
-        {
-            get => GetRequired(_colorGrading, nameof(_colorGrading)).toneMapping.value;
-            set
-            {
-                ColorGradingComponent colorGrading = GetRequired(_colorGrading, nameof(_colorGrading));
-                colorGrading.toneMapping.overrideState = true;
-                colorGrading.toneMapping.value = value;
                 UpdateColorGradingActiveState();
             }
         }
@@ -448,10 +441,10 @@ namespace Fodinae.Rendering.PostProcessing
                 _cachedMainCameraData = cameraData;
             }
 
-            // This project uses its own renderer feature. Keeping URP's built-in
-            // full-screen pass enabled would undermine the UI camera separation.
-            cameraData.renderPostProcessing = false;
-            cameraData.volumeLayerMask = -1;
+            DisplayManager.HDROutput.ConfigureCamera(mainCamera);
+            Volume volume = _volume ?? throw new InvalidOperationException(
+                "PostProcessController requires its authored Volume component.");
+            cameraData.volumeLayerMask = 1 << volume.gameObject.layer;
             cameraData.volumeTrigger = mainCamera.transform;
 
             _configuredMainCamera = mainCamera;

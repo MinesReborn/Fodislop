@@ -123,13 +123,13 @@ namespace Fodinae.World.Lighting
 
         private static readonly string[] RequiredKernels =
         [
-            "SolveCascade",
-            "SolveAutomaticNormals",
-            "SolveContactOcclusion",
-            "ResolveDirect",
-            "SolveDiffuseBounce",
-            "CompositeLighting",
-            "ResolveAndComposite",
+            ProjectRuntimeContracts.ComputeKernelNames.SolveCascade,
+            ProjectRuntimeContracts.ComputeKernelNames.SolveAutomaticNormals,
+            ProjectRuntimeContracts.ComputeKernelNames.SolveContactOcclusion,
+            ProjectRuntimeContracts.ComputeKernelNames.ResolveDirect,
+            ProjectRuntimeContracts.ComputeKernelNames.SolveDiffuseBounce,
+            ProjectRuntimeContracts.ComputeKernelNames.CompositeLighting,
+            ProjectRuntimeContracts.ComputeKernelNames.ResolveAndComposite,
         ];
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -214,6 +214,10 @@ namespace Fodinae.World.Lighting
         private IProjectDefaults _projectDefaults = null!;
         [Inject]
         private IClientConfigManager _clientConfig = null!;
+        [Inject]
+        private IFrameTelemetry _telemetry = null!;
+        [Inject]
+        private IRuntimeDebugSettings _debugSettings = null!;
         private Vector4 _lastVisibleRegion = new(float.NaN, float.NaN, float.NaN, float.NaN);
 
         private bool _hasRenderedLightState;
@@ -238,7 +242,11 @@ namespace Fodinae.World.Lighting
         private bool _hasDynamicRadianceState;
         private bool _dynamicSolveInProgress;
 
-        public static bool BypassLightingCompute { get; set; }
+        public bool BypassLightingCompute
+        {
+            get => _debugSettings.BypassLightingCompute;
+            set => _debugSettings.BypassLightingCompute = value;
+        }
 
         public GraphicsPreset ActiveGraphicsPreset => _graphicsPreset;
 
@@ -531,7 +539,7 @@ namespace Fodinae.World.Lighting
                 regionMaxY >= _lastVisibleRegion.y - 1f &&
                 worldY <= _lastVisibleRegion.y + _lastVisibleRegion.w + 1f))
             {
-                FrameProfiler.LightingRegionInvalidationCount++;
+                _telemetry.LightingRegionInvalidationCount++;
                 _fieldDirty = true;
             }
         }
@@ -905,7 +913,7 @@ namespace Fodinae.World.Lighting
 
                 if (staticRadianceChanged)
                 {
-                    FrameProfiler.LightingStaticSolveCount++;
+                    _telemetry.LightingStaticSolveCount++;
                     SolveRadianceHalf(
                         commandBuffer,
                         _staticEmissionField!,
@@ -919,7 +927,7 @@ namespace Fodinae.World.Lighting
 
                 if (dynamicRadianceNeeded)
                 {
-                    FrameProfiler.LightingDynamicSolveCount++;
+                    _telemetry.LightingDynamicSolveCount++;
                     SolveRadianceHalf(
                         commandBuffer,
                         _dynamicEmissionField!,
@@ -951,15 +959,15 @@ namespace Fodinae.World.Lighting
 
                 commandBuffer.EndSample("Fodinae.RadianceCascades");
                 }
-                FrameProfiler.LightingBuildCommandsTimeMs = (float)((System.Diagnostics.Stopwatch.GetTimestamp() - buildStart) * 1000.0 / System.Diagnostics.Stopwatch.Frequency);
-                FrameProfiler.LightingCommandBufferBytes = commandBuffer.sizeInBytes;
-                FrameProfiler.ActiveDynamicLights = dynamicLightCount;
+                _telemetry.LightingBuildCommandsTimeMs = (float)((System.Diagnostics.Stopwatch.GetTimestamp() - buildStart) * 1000.0 / System.Diagnostics.Stopwatch.Frequency);
+                _telemetry.LightingCommandBufferBytes = commandBuffer.sizeInBytes;
+                _telemetry.ActiveDynamicLights = dynamicLightCount;
                 long executeStart = System.Diagnostics.Stopwatch.GetTimestamp();
                 using (ExecuteCommandsMarker.Auto())
                 {
                     Graphics.ExecuteCommandBuffer(commandBuffer);
                 }
-                FrameProfiler.LightingExecuteCommandsTimeMs = (float)((System.Diagnostics.Stopwatch.GetTimestamp() - executeStart) * 1000.0 / System.Diagnostics.Stopwatch.Frequency);
+                _telemetry.LightingExecuteCommandsTimeMs = (float)((System.Diagnostics.Stopwatch.GetTimestamp() - executeStart) * 1000.0 / System.Diagnostics.Stopwatch.Frequency);
                 PublishLightingGlobals();
                 _solveCount++;
 
@@ -1000,6 +1008,7 @@ namespace Fodinae.World.Lighting
             Shader.SetGlobalVector(WorldLightRectId, new Vector4(-1000f, -1000f, 2000f, 2000f));
             Shader.SetGlobalVector(WorldLightTextureSizeId, new Vector4(1, 1, 1, 1));
             Shader.SetGlobalInteger(WorldLightDebugViewId, 0);
+            Shader.SetGlobalFloat(WorldEmissionScaleId, _configHolder.EmissionScale);
             _lightingDisabledStatePublished = true;
         }
 
@@ -1730,20 +1739,41 @@ namespace Fodinae.World.Lighting
                 }
             }
 
-            _solveCascadeKernel = _lightingCompute.FindKernel("SolveCascade");
-            _solveAutomaticNormalsKernel = _lightingCompute.FindKernel("SolveAutomaticNormals");
-            _solveContactOcclusionKernel = _lightingCompute.FindKernel("SolveContactOcclusion");
-            _resolveDirectKernel = _lightingCompute.FindKernel("ResolveDirect");
-            _solveDiffuseBounceKernel = _lightingCompute.FindKernel("SolveDiffuseBounce");
-            _compositeLightingKernel = _lightingCompute.FindKernel("CompositeLighting");
-            _resolveAndCompositeKernel = _lightingCompute.FindKernel("ResolveAndComposite");
-            ValidateKernelSupportOrThrow("SolveCascade", _solveCascadeKernel);
-            ValidateKernelSupportOrThrow("SolveAutomaticNormals", _solveAutomaticNormalsKernel);
-            ValidateKernelSupportOrThrow("SolveContactOcclusion", _solveContactOcclusionKernel);
-            ValidateKernelSupportOrThrow("ResolveDirect", _resolveDirectKernel);
-            ValidateKernelSupportOrThrow("SolveDiffuseBounce", _solveDiffuseBounceKernel);
-            ValidateKernelSupportOrThrow("CompositeLighting", _compositeLightingKernel);
-            ValidateKernelSupportOrThrow("ResolveAndComposite", _resolveAndCompositeKernel);
+            _solveCascadeKernel = _lightingCompute.FindKernel(
+                ProjectRuntimeContracts.ComputeKernelNames.SolveCascade);
+            _solveAutomaticNormalsKernel = _lightingCompute.FindKernel(
+                ProjectRuntimeContracts.ComputeKernelNames.SolveAutomaticNormals);
+            _solveContactOcclusionKernel = _lightingCompute.FindKernel(
+                ProjectRuntimeContracts.ComputeKernelNames.SolveContactOcclusion);
+            _resolveDirectKernel = _lightingCompute.FindKernel(
+                ProjectRuntimeContracts.ComputeKernelNames.ResolveDirect);
+            _solveDiffuseBounceKernel = _lightingCompute.FindKernel(
+                ProjectRuntimeContracts.ComputeKernelNames.SolveDiffuseBounce);
+            _compositeLightingKernel = _lightingCompute.FindKernel(
+                ProjectRuntimeContracts.ComputeKernelNames.CompositeLighting);
+            _resolveAndCompositeKernel = _lightingCompute.FindKernel(
+                ProjectRuntimeContracts.ComputeKernelNames.ResolveAndComposite);
+            ValidateKernelSupportOrThrow(
+                ProjectRuntimeContracts.ComputeKernelNames.SolveCascade,
+                _solveCascadeKernel);
+            ValidateKernelSupportOrThrow(
+                ProjectRuntimeContracts.ComputeKernelNames.SolveAutomaticNormals,
+                _solveAutomaticNormalsKernel);
+            ValidateKernelSupportOrThrow(
+                ProjectRuntimeContracts.ComputeKernelNames.SolveContactOcclusion,
+                _solveContactOcclusionKernel);
+            ValidateKernelSupportOrThrow(
+                ProjectRuntimeContracts.ComputeKernelNames.ResolveDirect,
+                _resolveDirectKernel);
+            ValidateKernelSupportOrThrow(
+                ProjectRuntimeContracts.ComputeKernelNames.SolveDiffuseBounce,
+                _solveDiffuseBounceKernel);
+            ValidateKernelSupportOrThrow(
+                ProjectRuntimeContracts.ComputeKernelNames.CompositeLighting,
+                _compositeLightingKernel);
+            ValidateKernelSupportOrThrow(
+                ProjectRuntimeContracts.ComputeKernelNames.ResolveAndComposite,
+                _resolveAndCompositeKernel);
             _contactOcclusionPipeline = new LightingPipeline(
                 new ContactOcclusionStage(_solveContactOcclusionKernel));
             _compositePipeline = new LightingPipeline(
@@ -1853,7 +1883,8 @@ namespace Fodinae.World.Lighting
             var validationMaterial = new Material(terrainShader);
             try
             {
-                if (validationMaterial.FindPass("LightingMaterialField") < 0)
+                if (validationMaterial.FindPass(
+                        ProjectRuntimeContracts.ShaderPassNames.LightingMaterialField) < 0)
                 {
                     throw new InvalidOperationException(
                         "The terrain shader is missing the LightingMaterialField pass.");
@@ -1934,17 +1965,8 @@ namespace Fodinae.World.Lighting
         /// Applies the parts of a graphics preset this engine actually owns.
         /// </summary>
         /// <remarks>
-        /// VSync is deliberately not among them, though the preset still carries
-        /// a VSyncCount field. DisplayManager sets QualitySettings.vSyncCount
-        /// from the user's own VSync toggle, and this ran afterwards and
-        /// overwrote it — so a preset whose VSyncCount is 0 silently disabled a
-        /// VSync the user had switched on, together with the frame cap
-        /// DisplayManager pairs with it. Nobody notices while the renderer is
-        /// too slow to reach the refresh rate; the moment it is fast enough, the
-        /// game renders flat out and the machine heats up for frames no display
-        /// ever shows.
-        ///
-        /// Frame pacing belongs to one owner, and that owner is DisplayManager.
+        /// VSync is deliberately not among them. Frame pacing belongs to one
+        /// owner, and that owner is DisplayManager.
         /// </remarks>
         private static void ApplyUnityRenderingSettings(GraphicsQualitySettings settings)
         {

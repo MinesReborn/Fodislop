@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using Fodinae.Core.Interfaces;
 using Fodinae.Networking;
 using Fodinae.UI.Binding;
@@ -68,20 +67,18 @@ public sealed class ServerWindowPresenter : IDisposable
 
     private void Open(OpenWindowPacket packet)
     {
-        VisualElement element = new PacketUIBuilder(_assetLoader, _operations).Build(packet.Content) ??
-            throw new InvalidDataException($"Server window '{packet.WindowTag}' produced no UI element.");
+        VisualElement element = new PacketUIBuilder(_assetLoader, _operations).Build(packet.Content);
+        // Размер приходит из пакета — он и остаётся инлайном. Центрирование
+        // же константа, и раньше оно тоже стояло инлайном: окно нельзя было
+        // сдвинуть ни темой, ни тиром, потому что инлайн бьёт любое правило.
         element.style.width = packet.Width;
         element.style.height = packet.Height;
-        element.style.position = Position.Absolute;
-        element.style.left = new Length(50, LengthUnit.Percent);
-        element.style.top = new Length(50, LengthUnit.Percent);
-        element.style.translate = new Translate(
-            new Length(-50, LengthUnit.Percent),
-            new Length(-50, LengthUnit.Percent));
+        element.AddToClassList("centered");
         element.AddToClassList("sci-fi-panel");
         element.AddToClassList("sci-fi-panel--tech");
         element.AddToClassList("sci-fi-window-anim");
         _document.rootVisualElement.Add(element);
+        UILayoutTier.Attach(element);
         _uiInputManager.PushModal(element);
 
         var binding = new WindowBinding();

@@ -17,6 +17,24 @@ public static class ProjectRuntimeContracts
         public const float DefaultDigCooldown = 0.3f;
     }
 
+    public static class ClientConfiguration
+    {
+        public const bool DefaultUseDummyConnection = true;
+        public const string DefaultServerHost = "127.0.0.1";
+        public const int DefaultServerPort = 7777;
+        public const bool DefaultHDREnabled = true;
+    }
+
+    /// <summary>
+    /// Deployment-owned authentication settings. These are application
+    /// metadata, not mutable player preferences.
+    /// </summary>
+    public static class Authentication
+    {
+        public const string VkClientId = "";
+        public const string VkBackendUrl = "";
+    }
+
     public static class Chat
     {
         public const int MaximumGlobalChatLength = 256;
@@ -37,6 +55,7 @@ public static class ProjectRuntimeContracts
 
     public static class AssetStreaming
     {
+        public const int RequestBatchIntervalMilliseconds = 50;
         public const int AssetRequestTimeoutSeconds = 5;
         public const int LargeAssetRequestTimeoutSeconds = 10;
         public const long AssetCacheCapacityBytes = 256L * 1024 * 1024;
@@ -56,6 +75,32 @@ public static class ProjectRuntimeContracts
         public const string AssetLoadingIndicatorUxml = "UI/AssetLoadingIndicator";
         public const string GlobalChatUxml = "UI/GlobalChat";
         public const string LocalChatUxml = "UI/LocalChat";
+        public const string PlayerHudUxml = "UI/PlayerHUD";
+        public const string ReconnectUxml = "UI/Reconnect";
+        public const string InventoryUxml = "UI/Inventory";
+        public const string BootstrapLoadingScreenUxml = "UI/BootstrapLoadingScreen";
+        public const string ProgrammatorUxml = "UI/Programmator";
+        public const string TooltipUxml = "UI/Tooltip";
+        public const string ModalWindowUxml = "UI/ModalWindow";
+        public const string ObserverJoystickUxml = "UI/ObserverJoystick";
+        public const string RadialMenuUxml = "UI/RadialMenu";
+        public const string PauseMenuUxml = "UI/PauseMenu";
+        public const string MinimapUxml = "UI/Minimap";
+        public const string RobotPreviewTexture = "Textures/bot";
+        public const string LegacyRobotPreviewTexture = "bot";
+    }
+
+    public static class SceneNames
+    {
+        public const string Bootstrap = "Bootstrap";
+        public const string Gateway = "Gateway";
+        public const string MainMenu = "MainMenu";
+        public const string MainGame = "MainGame";
+    }
+
+    public static class PreviewVisuals
+    {
+        public const float RobotPixelsPerUnit = 16f;
     }
 
     public static class ShaderNames
@@ -66,10 +111,27 @@ public static class ProjectRuntimeContracts
         public const string WorldEntity = "Fodinae/World Entity";
     }
 
+    public static class ShaderPassNames
+    {
+        public const string LightingMaterialField = "LightingMaterialField";
+    }
+
+    public static class ComputeKernelNames
+    {
+        public const string SolveCascade = "SolveCascade";
+        public const string SolveAutomaticNormals = "SolveAutomaticNormals";
+        public const string SolveContactOcclusion = "SolveContactOcclusion";
+        public const string ResolveDirect = "ResolveDirect";
+        public const string SolveDiffuseBounce = "SolveDiffuseBounce";
+        public const string CompositeLighting = "CompositeLighting";
+        public const string ResolveAndComposite = "ResolveAndComposite";
+    }
+
     public static class RequiredLayers
     {
         public const string WorldUI = "UI";
         public const string WorldUISortingLayer = "World UI";
+        public const int TerrainSortingOrder = -1000;
     }
 
     public static class RuntimeLimits

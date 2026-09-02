@@ -70,10 +70,11 @@ namespace Fodinae.UI
 
         [Inject]
         private IInputBlocker _inputBlocker = null!;
+        [Inject]
+        private UIInputManager _uiInput = null!;
 
         [Inject]
         private ILocalizationService _loc = null!;
-        [Inject]
         private ChatEventGateway _chatEvents = null!;
         [Inject]
         private IAsyncOperationSupervisor _operations = null!;
@@ -158,6 +159,11 @@ namespace Fodinae.UI
 
         protected void OnDestroy()
         {
+            if (_uiInput != null)
+            {
+                _uiInput.IsChatFocused = false;
+            }
+
             if (_loc != null)
             {
                 _loc.UnregisterLocalizable(this);
@@ -223,9 +229,9 @@ namespace Fodinae.UI
             if (Keyboard.current.enterKey.wasPressedThisFrame ||
                 Keyboard.current.numpadEnterKey.wasPressedThisFrame)
             {
-                // IsInputBlocked теперь включает ChatInput.IsFocused, поэтому «не
-                // заблокировано» или «печатаем в чате» — разрешаем отправку.
-                if (!inputBlocked || ChatInput.IsFocused)
+                // Input blocking includes chat focus, but Enter must remain
+                // available to the chat that currently owns keyboard focus.
+                if (!inputBlocked || _uiInput.IsChatFocused)
                 {
                     OnSendClicked();
                 }
@@ -241,7 +247,8 @@ namespace Fodinae.UI
 
         private void CreateUI()
         {
-            var uiUxml = Resources.Load<VisualTreeAsset>("UI/GlobalChat");
+            var uiUxml = Resources.Load<VisualTreeAsset>(
+                ProjectRuntimeContracts.ResourcePaths.GlobalChatUxml);
             if (uiUxml != null)
             {
             VisualElement tree = uiUxml.CloneTree();
@@ -282,12 +289,12 @@ namespace Fodinae.UI
                     _inputField.RegisterCallback<FocusEvent>(_ =>
                     {
                         StartBlink();
-                        ChatInput.OnFocus();
+                        _uiInput.IsChatFocused = true;
                     });
                     _inputField.RegisterCallback<BlurEvent>(_ =>
                     {
                         StopBlink();
-                        ChatInput.OnBlur();
+                        _uiInput.IsChatFocused = false;
                     });
                     _inputField.RegisterValueChangedCallback(_ => OnInputChanged());
                 }

@@ -130,7 +130,7 @@ namespace Fodinae.Player.Input
 
                 // Mouse pointer scheme: if enabled or right button held, move toward screen center offset
                 var cfg = _clientConfig != null ? _clientConfig.Config : null;
-                bool isMouseScheme = cfg != null && cfg.ControlScheme == 1;
+                bool isMouseScheme = cfg != null && cfg.Interface.ControlScheme == 1;
                 bool useMousePointer = isMouseScheme || (Mouse.current != null && Mouse.current.rightButton.isPressed);
                 if (useMousePointer && Mouse.current != null)
                 {

@@ -1,12 +1,10 @@
 #nullable enable
 
 using System;
-using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using Cysharp.Threading.Tasks;
 using Fodinae.Core;
-using Fodinae.Core.Interfaces;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -43,15 +41,54 @@ namespace Fodinae.Networking.Auth
         public string Error { get; init; }
     }
 
-    /// <summary>
-    /// Провайдер симуляции VK-входа для офлайн-режима (DummyConnection).
-    /// Заменяет реальный device-флоу, чтобы «Войти через VK» работало без сети
-    /// и без client_id. В бутстрапе подключается как IVkOfflineProvider;
-    /// когда появятся другие офлайн-провайдеры, они реализуют тот же интерфейс.
-    /// </summary>
-    public interface IVkOfflineProvider
+    public readonly record struct AuthenticationResult(
+        bool Success,
+        string DisplayName,
+        string Error);
+
+    public interface IAuthenticationService
     {
-        VkAuthResult SimulateVkLogin();
+        bool HasStoredCredentials { get; }
+
+        bool HasVkSession { get; }
+
+        string VkDisplayName { get; }
+
+        UniTask<AuthenticationResult> LoginWithVkAsync();
+    }
+
+    /// <summary>
+    /// Координирует получение игровой сессии. Конкретный внешний провайдер
+    /// идентичности остаётся деталью реализации и не связан с транспортом.
+    /// </summary>
+    public sealed class AuthenticationService : IAuthenticationService
+    {
+        private readonly VkIdentityProvider _vk;
+        private readonly IGameTokenStore _tokens;
+
+        public AuthenticationService(VkIdentityProvider vk, IGameTokenStore tokens)
+        {
+            _vk = vk;
+            _tokens = tokens;
+        }
+
+        public bool HasStoredCredentials => _tokens.HasToken;
+
+        public bool HasVkSession => _vk.HasValidSession;
+
+        public string VkDisplayName => _vk.LoadSession().DisplayName;
+
+        public async UniTask<AuthenticationResult> LoginWithVkAsync()
+        {
+            VkAuthResult result = await _vk.LoginAsync();
+            if (!result.Success)
+            {
+                return new AuthenticationResult(false, string.Empty, result.Error);
+            }
+
+            _tokens.Save(result.GameToken);
+            return new AuthenticationResult(true, result.Session.DisplayName, string.Empty);
+        }
     }
 
     /// <summary>
@@ -61,11 +98,11 @@ namespace Fodinae.Networking.Auth
     /// браузер открывает ссылку подтверждения, клиент опрашивает
     /// device_token. PKCE (code_verifier) позволяет работать без client_secret.
     /// </summary>
-    public static class VkAuthService
+    public sealed class VkIdentityProvider
     {
         /// <summary>
         /// Заглушка. Настоящий client_id VK-приложения задаётся в
-        /// ClientConfig.VkClientId (профиль проекта), иначе вход через VK
+        /// ProjectRuntimeContracts.Authentication.VkClientId, иначе вход через VK
         /// честно сообщает об ошибке.
         /// </summary>
         public const string DefaultClientId = "";
@@ -80,22 +117,9 @@ namespace Fodinae.Networking.Auth
         private const string DeviceAuthorizeUrl = "https://id.vk.com/oauth2/device_authorize";
         private const string DeviceTokenUrl = "https://id.vk.com/oauth2/device_token";
 
-        /// <summary>
-        /// Офлайн-провайдер VK-входа. Ставится бутстрапом из DI (сейчас это
-        /// DummyConnection); при UseDummyConnection=true LoginAsync идёт через
-        /// него и не трогает сеть VK.
-        /// </summary>
-        public static IVkOfflineProvider? OfflineProvider { get; set; }
+        public bool HasValidSession => LoadSession().IsValid;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetForDomainReload()
-        {
-            OfflineProvider = null;
-        }
-
-        public static bool HasValidSession => LoadSession().IsValid;
-
-        public static VkSession LoadSession()
+        public VkSession LoadSession()
         {
             long expiresAt = long.TryParse(PlayerPrefs.GetString(ExpiresAtKey, "0"), out long e) ? e : 0;
             return new VkSession
@@ -113,19 +137,10 @@ namespace Fodinae.Networking.Auth
         /// Запускает device-флоу: получает ссылку подтверждения, открывает её в
         /// браузере, опрашивает сервер до выдачи токена (или ошибки).
         /// </summary>
-        public static async UniTask<VkAuthResult> LoginAsync(IClientConfigManager clientConfig)
+        public async UniTask<VkAuthResult> LoginAsync()
         {
-            // Офлайн-режим: не ходим в VK, а просим dummy-провайдера сыграть
-            // вход. Возврат происходит синхронно, без браузера.
-            if (clientConfig?.Config is { UseDummyConnection: true } && OfflineProvider != null)
-            {
-                OpenDummyAuthPage();
-                await UniTask.Delay(1200);
-                return OfflineProvider.SimulateVkLogin();
-            }
-
-            string clientId = ResolveClientId(clientConfig);
-            string backendUrl = clientConfig?.Config?.VkAuthBackendUrl ?? string.Empty;
+            string clientId = ResolveClientId();
+            string backendUrl = ProjectRuntimeContracts.Authentication.VkBackendUrl;
             if (string.IsNullOrWhiteSpace(clientId) ||
                 !Uri.TryCreate(backendUrl, UriKind.Absolute, out Uri backendUri) ||
                 !string.Equals(backendUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
@@ -208,9 +223,9 @@ namespace Fodinae.Networking.Auth
             }
         }
 
-        public static string ResolveClientId(IClientConfigManager? clientConfig)
+        public static string ResolveClientId()
         {
-            string? configured = clientConfig?.Config?.VkClientId;
+            string configured = ProjectRuntimeContracts.Authentication.VkClientId;
             return string.IsNullOrWhiteSpace(configured) ? DefaultClientId : configured;
         }
 
@@ -253,26 +268,6 @@ namespace Fodinae.Networking.Auth
                 Session = session,
                 GameToken = response.game_token,
             };
-        }
-
-        private static void OpenDummyAuthPage()
-        {
-            const string html = """
-                <!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
-                <title>VK ID — тестовый вход</title><style>body{margin:0;background:#f2f3f5;font:16px system-ui;color:#19191a;display:grid;place-items:center;height:100vh}.card{width:min(420px,calc(100% - 48px));background:white;border-radius:20px;padding:32px;box-shadow:0 12px 48px #0002;text-align:center}.logo{margin:auto;width:56px;height:56px;border-radius:16px;background:#07f;color:white;font-weight:800;font-size:24px;display:grid;place-items:center}h1{font-size:22px}.note{color:#818c99;line-height:1.5}.ok{margin-top:22px;padding:13px;border-radius:12px;background:#07f;color:white;font-weight:650}</style>
-                <body><main class="card"><div class="logo">VK</div><h1>Тестовая авторизация</h1><p class="note">Это локальная имитация VK ID для Dummy-режима. Данные в VK не отправляются.</p><div class="ok">Вход подтверждён — вернитесь в игру</div></main></body></html>
-                """;
-
-            try
-            {
-                string path = Path.Combine(Application.temporaryCachePath, "fodinae-vk-auth-mock.html");
-                File.WriteAllText(path, html, Encoding.UTF8);
-                Application.OpenURL(new Uri(path).AbsoluteUri);
-            }
-            catch (Exception exception)
-            {
-                Debug.LogWarning($"[VkAuth] Could not open dummy browser page: {exception.Message}");
-            }
         }
 
         private static async UniTask<string> PostJsonAsync(string url, WWWForm form)

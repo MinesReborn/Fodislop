@@ -3,6 +3,7 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Fodinae.Core.Interfaces;
 using UnityEngine.SceneManagement;
 
 namespace Fodinae.Core;
@@ -30,9 +31,6 @@ public sealed class SceneTransitionTicket : IDisposable
     private readonly UniTaskCompletionSource _failureSignal = new();
     private readonly CancellationTokenSource _timeoutCts;
     private readonly TimeSpan _timeout;
-    private bool _isAttached;
-    private bool _isActivationRequested;
-    private bool _isFailed;
     private bool _isDisposed;
     private Exception? _failure;
 
@@ -54,11 +52,15 @@ public sealed class SceneTransitionTicket : IDisposable
 
     public string TargetSceneName { get; }
 
-    public bool IsAttached => _isAttached;
+    public SceneTransitionPhase Phase { get; private set; } = SceneTransitionPhase.Created;
 
-    public bool IsStartupReady { get; private set; }
+    public bool IsAttached => Phase is not SceneTransitionPhase.Created and not SceneTransitionPhase.Failed;
 
-    public bool IsPresentationReady { get; private set; }
+    public bool IsStartupReady => Phase is SceneTransitionPhase.StartupReady or SceneTransitionPhase.PresentationReady;
+
+    public bool IsPresentationReady => Phase == SceneTransitionPhase.PresentationReady;
+
+    internal event Action<SceneTransitionStatus>? Changed;
 
     public void Attach(Scene scene)
     {
@@ -68,58 +70,49 @@ public sealed class SceneTransitionTicket : IDisposable
                 $"Scene transition ticket for '{TargetSceneName}' was attached by invalid scene '{scene.name}'.");
         }
 
-        if (_isAttached)
+        if (Phase != SceneTransitionPhase.Created)
         {
             throw new InvalidOperationException(
                 $"Scene '{TargetSceneName}' attached more than one composition root to the same transition.");
         }
 
-        _isAttached = true;
+        SetPhase(SceneTransitionPhase.Attached);
         _attached.TrySetResult();
     }
 
     public void RequestActivation()
     {
-        EnsureAttached();
-        if (_isFailed || _isActivationRequested)
+        if (Phase != SceneTransitionPhase.Attached)
         {
             throw new InvalidOperationException(
                 $"Scene '{TargetSceneName}' received an invalid duplicate activation request.");
         }
 
-        _isActivationRequested = true;
+        SetPhase(SceneTransitionPhase.ActivationRequested);
         _activationRequested.TrySetResult();
     }
 
     public void MarkStartupReady()
     {
-        EnsureAttached();
-        if (_isFailed || IsStartupReady || !_isActivationRequested)
+        if (Phase != SceneTransitionPhase.ActivationRequested)
         {
             throw new InvalidOperationException(
                 $"Scene '{TargetSceneName}' reported startup readiness in an invalid transition state.");
         }
 
-        IsStartupReady = true;
+        SetPhase(SceneTransitionPhase.StartupReady);
         _startupReady.TrySetResult();
     }
 
     public void MarkPresentationReady()
     {
-        EnsureAttached();
-        if (_isFailed || IsPresentationReady || !_isActivationRequested)
+        if (Phase != SceneTransitionPhase.StartupReady)
         {
             throw new InvalidOperationException(
                 $"Scene '{TargetSceneName}' reported presentation readiness in an invalid transition state.");
         }
 
-        if (!IsStartupReady)
-        {
-            throw new InvalidOperationException(
-                $"Scene '{TargetSceneName}' reported presentation readiness before startup readiness.");
-        }
-
-        IsPresentationReady = true;
+        SetPhase(SceneTransitionPhase.PresentationReady);
         _presentationReady.TrySetResult();
     }
 
@@ -129,13 +122,13 @@ public sealed class SceneTransitionTicket : IDisposable
         {
             throw new ArgumentNullException(nameof(exception));
         }
-        if (_isFailed || IsPresentationReady)
+        if (Phase is SceneTransitionPhase.Failed or SceneTransitionPhase.PresentationReady)
         {
             return;
         }
 
-        _isFailed = true;
         _failure = exception;
+        SetPhase(SceneTransitionPhase.Failed, exception);
         _failureSignal.TrySetResult();
         _attached.TrySetResult();
         _activationRequested.TrySetResult();
@@ -174,7 +167,7 @@ public sealed class SceneTransitionTicket : IDisposable
 
     private void OnTimeout()
     {
-        if (_isDisposed || _isFailed || IsPresentationReady)
+        if (_isDisposed || Phase is SceneTransitionPhase.Failed or SceneTransitionPhase.PresentationReady)
         {
             return;
         }
@@ -192,12 +185,9 @@ public sealed class SceneTransitionTicket : IDisposable
         }
     }
 
-    private void EnsureAttached()
+    private void SetPhase(SceneTransitionPhase phase, Exception? failure = null)
     {
-        if (!_isAttached)
-        {
-            throw new InvalidOperationException(
-                $"Scene '{TargetSceneName}' attempted to change transition state before attaching its composition root.");
-        }
+        Phase = phase;
+        Changed?.Invoke(new SceneTransitionStatus(TargetSceneName, phase, failure));
     }
 }

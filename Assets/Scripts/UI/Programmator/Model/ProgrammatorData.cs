@@ -7,33 +7,21 @@ using UnityEngine;
 
 namespace Fodinae.UI.Programmator
 {
-    public static class ProgrammatorData
+    public sealed class ProgrammatorData
     {
         public const int COLS = 16;
         public const int ROWS = 12;
         public const int CELLS_PER_PAGE = COLS * ROWS;
 
-        public static List<int> Codes = new(new int[CELLS_PER_PAGE]);
-        public static List<string?> Values = new(new string?[CELLS_PER_PAGE]);
-        public static List<string?> Labels = new(new string?[CELLS_PER_PAGE]);
-        public static int PageCount => Codes.Count / CELLS_PER_PAGE;
+        public List<int> Codes = new(new int[CELLS_PER_PAGE]);
+        public List<string?> Values = new(new string?[CELLS_PER_PAGE]);
+        public List<string?> Labels = new(new string?[CELLS_PER_PAGE]);
+        public int PageCount => Codes.Count / CELLS_PER_PAGE;
 
-        public static int CurrentPage;
-        public static int HoveredCell = -1;
+        public int CurrentPage;
+        public int HoveredCell = -1;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetForDomainReload()
-        {
-            Codes = new List<int>(new int[CELLS_PER_PAGE]);
-            Values = new List<string?>(new string?[CELLS_PER_PAGE]);
-            Labels = new List<string?>(new string?[CELLS_PER_PAGE]);
-            CurrentPage = 0;
-            HoveredCell = -1;
-            _undoStack.Clear();
-            _redoStack.Clear();
-        }
-
-        public static void AddPage()
+        public void AddPage()
         {
             if (PageCount >= 100)
             {
@@ -45,7 +33,7 @@ namespace Fodinae.UI.Programmator
             Labels.AddRange(new string?[CELLS_PER_PAGE]);
         }
 
-        public static bool RemoveLastPage()
+        public bool RemoveLastPage()
         {
             if (PageCount <= 1)
             {
@@ -72,11 +60,11 @@ namespace Fodinae.UI.Programmator
             public string?[] Values;
         }
 
-        private static readonly Stack<UndoSnapshot> _undoStack = new();
-        private static readonly Stack<UndoSnapshot> _redoStack = new();
+        private readonly Stack<UndoSnapshot> _undoStack = new();
+        private readonly Stack<UndoSnapshot> _redoStack = new();
         private const int MAX_UNDO_STEPS = 50;
 
-        public static void PushUndo()
+        public void PushUndo()
         {
             _undoStack.Push(new UndoSnapshot
             {
@@ -97,10 +85,10 @@ namespace Fodinae.UI.Programmator
             }
         }
 
-        public static bool CanUndo => _undoStack.Count > 0;
-        public static bool CanRedo => _redoStack.Count > 0;
+        public bool CanUndo => _undoStack.Count > 0;
+        public bool CanRedo => _redoStack.Count > 0;
 
-        public static bool Undo()
+        public bool Undo()
         {
             if (_undoStack.Count == 0)
             {
@@ -120,7 +108,7 @@ namespace Fodinae.UI.Programmator
             return true;
         }
 
-        public static bool Redo()
+        public bool Redo()
         {
             if (_redoStack.Count == 0)
             {

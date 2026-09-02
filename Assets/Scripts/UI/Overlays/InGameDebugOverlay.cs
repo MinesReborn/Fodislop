@@ -39,6 +39,10 @@ namespace Fodinae.UI
         private ILocalPlayerState _localPlayer = null!;
         [Inject]
         private IGameplayCamera _gameplayCamera = null!;
+        [Inject]
+        private IFrameTelemetry _telemetry = null!;
+        [Inject]
+        private IRuntimeDebugSettings _debugSettings = null!;
 
         [Header("Visualization Channels")]
         [SerializeField]
@@ -461,7 +465,10 @@ namespace Fodinae.UI
                 _graphsRow.style.display = _showFrametimeGraph ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
-            FrameProfiler.SetAllocationTrackingEnabled(_isEnabled || _showFrametimeGraph);
+            if (_telemetry != null)
+            {
+                _telemetry.SetAllocationTrackingEnabled(_isEnabled || _showFrametimeGraph);
+            }
         }
 
         private void Update()
@@ -493,7 +500,7 @@ namespace Fodinae.UI
                 return;
             }
 
-            FrameProfiler.BeginFrame();
+            _telemetry.BeginFrame();
             HandleSubkeys();
             UpdateFps();
 
@@ -542,22 +549,17 @@ namespace Fodinae.UI
 
             if (kb.digit4Key.wasPressedThisFrame || kb.numpad4Key.wasPressedThisFrame || kb.f4Key.wasPressedThisFrame)
             {
-                Fodinae.World.Lighting.LightingEngine.BypassLightingCompute = !Fodinae.World.Lighting.LightingEngine.BypassLightingCompute;
-            }
-
-            if (kb.digit5Key.wasPressedThisFrame || kb.numpad5Key.wasPressedThisFrame || kb.f5Key.wasPressedThisFrame)
-            {
-                Fodinae.Rendering.PostProcessing.PostProcessRendererFeature.BypassPostProcessPass = !Fodinae.Rendering.PostProcessing.PostProcessRendererFeature.BypassPostProcessPass;
+                _debugSettings.BypassLightingCompute = !_debugSettings.BypassLightingCompute;
             }
 
             if (kb.digit6Key.wasPressedThisFrame || kb.numpad6Key.wasPressedThisFrame || kb.f6Key.wasPressedThisFrame)
             {
-                Fodinae.World.Terrain.TerrainRenderer.BypassTerrainDraw = !Fodinae.World.Terrain.TerrainRenderer.BypassTerrainDraw;
+                _debugSettings.BypassTerrainDraw = !_debugSettings.BypassTerrainDraw;
             }
 
             if (kb.digit7Key.wasPressedThisFrame || kb.numpad7Key.wasPressedThisFrame || kb.f7Key.wasPressedThisFrame)
             {
-                Fodinae.World.Terrain.TerrainRenderer.BypassCpuMeshRebuild = !Fodinae.World.Terrain.TerrainRenderer.BypassCpuMeshRebuild;
+                _debugSettings.BypassCpuMeshRebuild = !_debugSettings.BypassCpuMeshRebuild;
             }
 
             if (kb.digit8Key.wasPressedThisFrame || kb.numpad8Key.wasPressedThisFrame || kb.f8Key.wasPressedThisFrame)
@@ -574,7 +576,7 @@ namespace Fodinae.UI
         {
             float dt = Time.unscaledDeltaTime;
             float frameMs = dt * 1000f;
-            float allocKb = FrameProfiler.GcAllocPerFrameBytes / 1024f;
+            float allocKb = _telemetry.GcAllocPerFrameBytes / 1024f;
 
             // Push into circular history
             _frametimeHistory[_historyIndex] = frameMs;
@@ -632,7 +634,7 @@ namespace Fodinae.UI
                 {
                     _memoryHeaderSb.Clear();
                     _memoryHeaderSb.Append("GC Alloc: ").Append(allocKb.ToString("F1"))
-                        .Append(" KB/f (").Append((FrameProfiler.GcAllocTotalPerSecondBytes / (1024f * 1024f)).ToString("F1"))
+                        .Append(" KB/f (").Append((_telemetry.GcAllocTotalPerSecondBytes / (1024f * 1024f)).ToString("F1"))
                         .Append(" MB/s)");
                     string memText = _memoryHeaderSb.ToString();
                     if (_memoryGraphHeader.text != memText)
@@ -662,10 +664,10 @@ namespace Fodinae.UI
             if (player != null && player.HasServerPosition)
             {
                 Vector3 unityPos = player.transform.position;
-                int chunkX = player.Position.x / 32;
-                int chunkY = player.Position.y / 32;
-                int inChunkX = player.Position.x % 32;
-                int inChunkY = player.Position.y % 32;
+                int chunkX = player.Position.x / ProjectRuntimeContracts.World.ChunkSize;
+                int chunkY = player.Position.y / ProjectRuntimeContracts.World.ChunkSize;
+                int inChunkX = player.Position.x % ProjectRuntimeContracts.World.ChunkSize;
+                int inChunkY = player.Position.y % ProjectRuntimeContracts.World.ChunkSize;
 
                 _leftSb.Append("XYZ: ").Append(player.Position.x).Append(" / ").Append(player.Position.y).Append(" (Unity: ").Append(unityPos.x.ToString("F2")).Append(", ").Append(unityPos.y.ToString("F2")).Append(")\n")
                        .Append("Block: ").Append(player.Position.x).Append(" ").Append(player.Position.y).Append(" [").Append(inChunkX).Append(" ").Append(inChunkY).Append(" in Chunk ").Append(chunkX).Append(" ").Append(chunkY).Append("]\n")
@@ -679,7 +681,7 @@ namespace Fodinae.UI
             if (_mapManager != null && _mapManager.IsWorldInitialized)
             {
                 _leftSb.Append("World: ").Append(_mapManager.WorldWidth).Append("x").Append(_mapManager.WorldHeight)
-                       .Append(" [Chunks: ").Append(_mapManager.WorldWidth / 32).Append("x").Append(_mapManager.WorldHeight / 32).Append("] (").Append(_mapManager.WorldCodeName).Append(")\n");
+                       .Append(" [Chunks: ").Append(_mapManager.WorldWidth / ProjectRuntimeContracts.World.ChunkSize).Append("x").Append(_mapManager.WorldHeight / ProjectRuntimeContracts.World.ChunkSize).Append("] (").Append(_mapManager.WorldCodeName).Append(")\n");
             }
 
             // Target block info
@@ -691,9 +693,9 @@ namespace Fodinae.UI
                 if (worldPos.y >= 0f && worldPos.y < _mapManager.WorldHeight && worldPos.x >= 0f && worldPos.x < _mapManager.WorldWidth)
                 {
                     Vector2Int cell = CoordinateUtils.UnityToServerPos(worldPos, _mapManager.WorldHeight);
-                    if (_storage is MapStorage mapStorage && mapStorage.CellLayer != null)
+                    if (_storage.CellLayer != null)
                     {
-                        CellType cellType = mapStorage.CellLayer.GetCellSync(cell.x, cell.y);
+                        CellType cellType = _storage.CellLayer.GetCellSync(cell.x, cell.y);
                         var config = _mapManager.GetCellConfig(cellType);
                         bool passable = cellType == CellType.Empty || ((CellConfigProperties)config.Properties).HasFlag(CellConfigProperties.Passable);
                         bool breakable = ((CellConfigProperties)config.Properties).HasFlag(CellConfigProperties.Breakable);
@@ -719,33 +721,39 @@ namespace Fodinae.UI
             _rightSb.Append("<b>").Append(SystemInfo.graphicsDeviceName).Append("</b>\n")
                     .Append(SystemInfo.graphicsDeviceType).Append(" | ").Append(Screen.width).Append("x").Append(Screen.height).Append("@").Append(Screen.currentResolution.refreshRateRatio.value.ToString("F0")).Append("Hz\n\n");
 
+            Fodinae.Rendering.DisplayManager.HDROutput.AppendDebugInfo(
+                _rightSb,
+                _gameplayCamera?.Camera);
+
             long totalMemMb = Profiler.GetMonoUsedSizeLong() / (1024 * 1024);
             long totalAllocMb = Profiler.GetMonoHeapSizeLong() / (1024 * 1024);
             long totalReservedMb = Profiler.GetTotalReservedMemoryLong() / (1024 * 1024);
-            float gcAllocKb = FrameProfiler.GcAllocPerFrameBytes / 1024f;
-            float gcAllocPerSecMb = FrameProfiler.GcAllocTotalPerSecondBytes / (1024f * 1024f);
+            float gcAllocKb = _telemetry.GcAllocPerFrameBytes / 1024f;
+            float gcAllocPerSecMb = _telemetry.GcAllocTotalPerSecondBytes / (1024f * 1024f);
 
             _rightSb.Append("Mem: ").Append((totalMemMb * 100) / Math.Max(1, totalAllocMb)).Append("% ").Append(totalMemMb).Append("/").Append(totalAllocMb).Append("MB (Res: ").Append(totalReservedMb).Append("MB)\n")
-                    .Append("Alloc: ").Append(gcAllocKb.ToString("F1")).Append("KB/f (").Append(gcAllocPerSecMb.ToString("F2")).Append("MB/s) | GC: ").Append(FrameProfiler.GcCollectionCount).Append("\n\n");
+                    .Append("Alloc: ").Append(gcAllocKb.ToString("F1")).Append("KB/f (").Append(gcAllocPerSecMb.ToString("F2")).Append("MB/s) | GC: ").Append(_telemetry.GcCollectionCount).Append("\n\n");
 
             _rightSb.Append("<b>[Terrain Engine]</b>\n")
-                    .Append("Mesh: ").Append(FrameProfiler.TerrainMeshTimeMs.ToString("F2")).Append("ms | Flood: ").Append(FrameProfiler.TerrainFloodFillTimeMs.ToString("F2")).Append("ms\n")
-                    .Append("Cache: ").Append(FrameProfiler.TerrainCacheTimeMs.ToString("F2")).Append("ms | Upload: ").Append(FrameProfiler.TerrainGpuUploadTimeMs.ToString("F2")).Append("ms\n")
-                    .Append("Rebuilds: ").Append(FrameProfiler.TerrainRebuildCount).Append(" | Patches: ").Append(FrameProfiler.TerrainDirtyPatchCount).Append("\n\n");
+                    .Append("Mesh: ").Append(_telemetry.TerrainMeshTimeMs.ToString("F2")).Append("ms | Flood: ").Append(_telemetry.TerrainFloodFillTimeMs.ToString("F2")).Append("ms\n")
+                    .Append("Cache: ").Append(_telemetry.TerrainCacheTimeMs.ToString("F2")).Append("ms | Upload: ").Append(_telemetry.TerrainGpuUploadTimeMs.ToString("F2")).Append("ms\n")
+                    .Append("Rebuilds: ").Append(_telemetry.TerrainRebuildCount).Append(" | Patches: ").Append(_telemetry.TerrainDirtyPatchCount).Append("\n\n");
 
             var lighting = _lighting;
-            string lightPassState = !Fodinae.World.Lighting.LightingEngine.BypassLightingCompute ? "ON" : "MUTE";
-            string ppPassState = !Fodinae.Rendering.PostProcessing.PostProcessRendererFeature.BypassPostProcessPass ? "ON" : "MUTE";
-            string terrainDrawState = !Fodinae.World.Terrain.TerrainRenderer.BypassTerrainDraw ? "ON" : "MUTE";
-            string cpuMeshState = !Fodinae.World.Terrain.TerrainRenderer.BypassCpuMeshRebuild ? "ON" : "MUTE";
+            string lightPassState = !_debugSettings.BypassLightingCompute ? "ON" : "MUTE";
+            string terrainDrawState = !_debugSettings.BypassTerrainDraw ? "ON" : "MUTE";
+            string cpuMeshState = !_debugSettings.BypassCpuMeshRebuild ? "ON" : "MUTE";
 
             _rightSb.Append("<b>[Radiance Cascades]</b>\n")
                     .Append("Solves/s: ").Append(_solvesPerSecond.ToString("F1")).Append(" | DynLights: ").Append(lighting != null ? lighting.UploadedDynamicLightCount : 0).Append("\n")
-                    .Append("RC Build: ").Append(FrameProfiler.LightingBuildCommandsTimeMs.ToString("F2")).Append("ms | Exec: ").Append(FrameProfiler.LightingExecuteCommandsTimeMs.ToString("F2")).Append("ms\n")
-                    .Append("Static: ").Append(FrameProfiler.LightingStaticSolveCount).Append(" | Dyn: ").Append(FrameProfiler.LightingDynamicSolveCount).Append(" | Inval: ").Append(FrameProfiler.LightingRegionInvalidationCount).Append("\n\n");
+                    .Append("RC Build: ").Append(_telemetry.LightingBuildCommandsTimeMs.ToString("F2")).Append("ms | Exec: ").Append(_telemetry.LightingExecuteCommandsTimeMs.ToString("F2")).Append("ms\n")
+                    .Append("Static: ").Append(_telemetry.LightingStaticSolveCount).Append(" | Dyn: ").Append(_telemetry.LightingDynamicSolveCount).Append(" | Inval: ").Append(_telemetry.LightingRegionInvalidationCount).Append("\n\n");
 
-            _rightSb.Append("<b>[Pass Toggles: 4:RC 5:PP 6:Terr 7:Mesh 8:Dyn]</b>\n")
-                    .Append("RC: ").Append(lightPassState).Append(" | PostFX: ").Append(ppPassState).Append(" | Terr: ").Append(terrainDrawState).Append(" | Mesh: ").Append(cpuMeshState);
+            // Постпроцесс из этого списка изъят намеренно: его нельзя
+            // выключить ничем. Без тонмапа света срезаются в плоский белый,
+            // то есть «выключенный» кадр не проще, а неверен.
+            _rightSb.Append("<b>[Pass Toggles: 4:RC 6:Terr 7:Mesh 8:Dyn]</b>\n")
+                    .Append("RC: ").Append(lightPassState).Append(" | Terr: ").Append(terrainDrawState).Append(" | Mesh: ").Append(cpuMeshState);
 
             string rightText = _rightSb.ToString();
             if (_rightLabel!.text != rightText)
@@ -781,7 +789,7 @@ namespace Fodinae.UI
 
         private void DrawChunkGrid(Vector2Int playerServerPos, int worldHeight)
         {
-            const int chunkSize = 32;
+            const int chunkSize = ProjectRuntimeContracts.World.ChunkSize;
             int playerChunkX = playerServerPos.x / chunkSize;
             int playerChunkY = playerServerPos.y / chunkSize;
 
@@ -823,9 +831,9 @@ namespace Fodinae.UI
             Vector3 cellCenter = CoordinateUtils.ServerToUnityPos(serverCell.x, serverCell.y, worldHeight);
 
             bool passable = false;
-            if (_storage is MapStorage mapStorage && mapStorage.CellLayer != null && _mapManager != null)
+            if (_storage.CellLayer != null && _mapManager != null)
             {
-                CellType type = mapStorage.CellLayer.GetCellSync(serverCell.x, serverCell.y);
+                CellType type = _storage.CellLayer.GetCellSync(serverCell.x, serverCell.y);
                 var config = _mapManager.GetCellConfig(type);
                 passable = type == CellType.Empty || ((CellConfigProperties)config.Properties).HasFlag(CellConfigProperties.Passable);
             }

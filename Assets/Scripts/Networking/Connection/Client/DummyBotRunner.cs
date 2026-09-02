@@ -13,8 +13,6 @@ namespace MinesServer.Networking.Connection.Client;
 
 internal static class DummyBotRunner
 {
-    private static IHBPacket[] s_positionsArray = new IHBPacket[6];
-
     /// <summary>
     /// Имена ботов-«игроков». Единый источник истины: DummyChatSimulator
     /// ссылается на него, чтобы чат-игроки были теми же, кого видно на карте.
@@ -35,6 +33,7 @@ internal static class DummyBotRunner
         const float CENTER_X = 30f;
         const float CENTER_Y = 50f;
         string[] names = BotNames;
+        var positions = new IHBPacket[count];
 
         var bots = new List<(ushort id, string name, float cx, float cy, float r, float a, float speed)>();
         for (int i = 0; i < count; i++)
@@ -64,11 +63,11 @@ internal static class DummyBotRunner
                     > 45 and <= 135 => 2,
                     _ => 3,
                 };
-                s_positionsArray[i] = new RobotPositionPacket(b.id, (ushort)x, (ushort)y, rot);
+                positions[i] = new RobotPositionPacket(b.id, (ushort)x, (ushort)y, rot);
                 bots[i] = (b.id, b.name, b.cx, b.cy, b.r, b.a + (b.speed * 0.1f), b.speed);
             }
 
-            sendPacket(new ServerPacket(new HBPacket(s_positionsArray)));
+            sendPacket(new ServerPacket(new HBPacket(positions)));
             await UniTask.Delay(100);
         }
     }

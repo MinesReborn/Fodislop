@@ -25,7 +25,7 @@ internal sealed class PauseMenuAdvancedTabBuilder
     private readonly ICollection<Action> _refreshers;
     private readonly ILocalizationService _loc;
     private readonly Action _markGraphicsCustom;
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_ENABLE_CHECKS
     private readonly Action _addLightingDebugControls;
 #endif
 
@@ -37,7 +37,7 @@ internal sealed class PauseMenuAdvancedTabBuilder
         ICollection<Action> refreshers,
         ILocalizationService loc,
         Action markGraphicsCustom
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_ENABLE_CHECKS
         , Action addLightingDebugControls
 #endif
     )
@@ -49,7 +49,7 @@ internal sealed class PauseMenuAdvancedTabBuilder
         _refreshers = refreshers;
         _loc = loc;
         _markGraphicsCustom = markGraphicsCustom;
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_ENABLE_CHECKS
         _addLightingDebugControls = addLightingDebugControls;
 #endif
     }
@@ -285,7 +285,7 @@ internal sealed class PauseMenuAdvancedTabBuilder
         _refreshers.Add(RefreshMaximumLightMultiplierState);
         RefreshMaximumLightMultiplierState();
         boundsGroup.Add(maximumLightMultiplierSlider);
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_ENABLE_CHECKS
         boundsGroup.Add(PauseMenuUIFactory.CreateBoundSlider(
             _loc.Get("settings.advanced.transmittance_debug"),
             () => GetLightingValue(static engine => engine.TransmittanceDebugDistanceCells),
@@ -385,7 +385,7 @@ internal sealed class PauseMenuAdvancedTabBuilder
             8f,
             _refreshers));
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_ENABLE_CHECKS
         _addLightingDebugControls();
 #endif
 

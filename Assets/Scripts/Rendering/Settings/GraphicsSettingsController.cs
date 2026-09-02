@@ -73,6 +73,12 @@ public sealed class GraphicsSettingsController
         _postProcessController.ApplyClientConfig();
     }
 
+    public void UpdateAccessibilitySettings(Action<AccessibilitySettings> update)
+    {
+        _clientConfig.UpdateAccessibility(update);
+        _postProcessController.ApplyClientConfig();
+    }
+
     public void UpdateCustomWorldMaterialSettings(Action<ClientConfig> update)
     {
         MarkCustom();

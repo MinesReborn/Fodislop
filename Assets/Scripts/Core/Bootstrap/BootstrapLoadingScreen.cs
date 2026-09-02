@@ -1,6 +1,7 @@
 #nullable enable
 
 using Fodinae.Core.Localization;
+using Fodinae.Core.Interfaces;
 using Fodinae.UI;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -29,23 +30,23 @@ namespace Fodinae.Core
             }
 
             UIDocument document = GetComponent<UIDocument>();
-            VisualTreeAsset asset = Resources.Load<VisualTreeAsset>("UI/BootstrapLoadingScreen")
+            VisualTreeAsset asset = Resources.Load<VisualTreeAsset>(
+                ProjectRuntimeContracts.ResourcePaths.BootstrapLoadingScreenUxml)
                 ?? throw new System.InvalidOperationException("Required UI resource 'UI/BootstrapLoadingScreen' was not found.");
 
             VisualElement root = document.rootVisualElement;
             root.Clear();
             VisualElement tree = asset.CloneTree();
             root.Add(tree);
+            UILayoutTier.Attach(tree);
             UILocalizer.Apply(tree, _localization);
             _overlay = tree.Q<VisualElement>("BootstrapLoadingOverlay");
             _phase = tree.Q<Label>("BootstrapLoadingPhase");
 
-            _bootstrap.TransitionStarted += Show;
-            _bootstrap.TransitionCompleted += Hide;
-            _bootstrap.TransitionFailed += OnTransitionFailed;
+            _bootstrap.TransitionChanged += OnTransitionChanged;
             _localization.RegisterLocalizable(this);
             _initialized = true;
-            Hide(string.Empty);
+            Hide();
         }
 
         public void ApplyLocalizedText()
@@ -60,12 +61,25 @@ namespace Fodinae.Core
         {
             if (_bootstrap != null)
             {
-                _bootstrap.TransitionStarted -= Show;
-                _bootstrap.TransitionCompleted -= Hide;
-                _bootstrap.TransitionFailed -= OnTransitionFailed;
+                _bootstrap.TransitionChanged -= OnTransitionChanged;
             }
 
             _localization?.UnregisterLocalizable(this);
+        }
+
+        private void OnTransitionChanged(SceneTransitionStatus status)
+        {
+            switch (status.Phase)
+            {
+                case SceneTransitionPhase.Created:
+                    Show(status.TargetSceneName);
+                    break;
+                case SceneTransitionPhase.Completed:
+                case SceneTransitionPhase.CompletedWithWarnings:
+                case SceneTransitionPhase.Failed:
+                    Hide();
+                    break;
+            }
         }
 
         private void Show(string sceneName)
@@ -73,7 +87,10 @@ namespace Fodinae.Core
             // The MainMenu -> MainGame transition is owned entirely by the MainMenu
             // descent screen and loader (LoaderContainer with planet animation & phase steps).
             // Do not show the generic bootstrap overlay over it.
-            if (string.Equals(sceneName, "MainGame", System.StringComparison.Ordinal))
+            if (string.Equals(
+                    sceneName,
+                    ProjectRuntimeContracts.SceneNames.MainGame,
+                    System.StringComparison.Ordinal))
             {
                 return;
             }
@@ -83,17 +100,12 @@ namespace Fodinae.Core
                 _phase.text = $"{_localization.Get("network.connecting")} {sceneName}";
             }
 
-            _overlay?.EnableInClassList("bootstrap-loading-overlay--visible", true);
+            UIState.Show(_overlay);
         }
 
-        private void Hide(string _)
+        private void Hide()
         {
-            _overlay?.EnableInClassList("bootstrap-loading-overlay--visible", false);
-        }
-
-        private void OnTransitionFailed(string _, System.Exception __)
-        {
-            Hide(string.Empty);
+            UIState.Hide(_overlay);
         }
     }
 }

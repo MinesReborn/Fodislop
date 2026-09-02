@@ -1,7 +1,7 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
-    <ui:VisualElement name="ModalOverlay" class="modal-overlay ui-overlay ui-overlay--modal sci-fi-window-overlay" picking-mode="Ignore" style="display: none;">
+    <ui:VisualElement name="ModalOverlay" class="modal-overlay ui-overlay ui-overlay--modal sci-fi-window-overlay is-hidden" picking-mode="Ignore">
         <ui:VisualElement name="ModalPanel" class="popup-panel ui-panel ui-panel--modal sci-fi-window">
-            <ui:VisualElement name="ModalIcon" class="modal-icon" style="display: none;" />
+            <ui:VisualElement name="ModalIcon" class="modal-icon is-hidden" />
             <ui:Label name="ModalTitle" class="popup-title sci-fi-text-title" />
             <ui:Label name="ModalDesc" class="modal-desc sci-fi-text-body" />
             <ui:Button name="ModalOkButton" class="popup-btn sci-fi-btn-gold" />

@@ -9,34 +9,65 @@ using UnityEngine.Serialization;
 namespace Fodinae.Core
 {
     [Serializable]
-    public class ClientConfig
+    public sealed class AudioSettings
     {
-        public const int CurrentSchemaVersion = 15;
-
-        public int SchemaVersion;
-        public string ProjectDefaultsHash = string.Empty;
         public float MasterVolume;
         public float SfxVolume;
         public float MusicVolume;
         public float AmbienceVolume;
         public float VoiceVolume;
         public float UIVolume;
-        public float UIScale;
-        public string Language = "ru";
-        /// <summary>ID приложения VK ID (id.vk.com) для авторизации через VK. Пустое значение — вход через VK недоступен.</summary>
-        public string VkClientId = string.Empty;
-        /// <summary>HTTPS endpoint доверенного backend для обмена VK access token на игровую сессию.</summary>
-        public string VkAuthBackendUrl = string.Empty;
+        public bool MuteInBackground = true;
+    }
+
+    [Serializable]
+    public sealed class DisplaySettings
+    {
         public int ResolutionWidth;
         public int ResolutionHeight;
         public int RefreshRate;
-        public int FullScreenMode = 1; // FullScreenWindow
+        public int FullScreenMode = 1;
         public bool VSync = true;
+        [FormerlySerializedAs("HdrEnabled")]
+        public bool HDREnabled = ProjectRuntimeContracts.ClientConfiguration.DefaultHDREnabled;
         public int TargetFrameRate = -1;
-        public bool MuteAudioInBackground = true;
-        public int ColorblindMode; // 0: None, 1: Deuteranopia, 2: Protanopia, 3: Tritanopia, 4: HighContrast
+    }
+
+    [Serializable]
+    public sealed class InterfaceSettings
+    {
+        public float UIScale;
+        public string Language = "ru";
+        public int ControlScheme;
+    }
+
+    [Serializable]
+    public sealed class AccessibilitySettings
+    {
+        public int ColorblindMode;
         public bool ReducePhotosensitivity;
-        public int ControlScheme; // 0: Keyboard (WASD), 1: Mouse
+    }
+
+    [Serializable]
+    public sealed class ConnectionSettings
+    {
+        public bool UseDummyConnection = ProjectRuntimeContracts.ClientConfiguration.DefaultUseDummyConnection;
+        public string ServerHost = ProjectRuntimeContracts.ClientConfiguration.DefaultServerHost;
+        public int ServerPort = ProjectRuntimeContracts.ClientConfiguration.DefaultServerPort;
+    }
+
+    [Serializable]
+    public class ClientConfig
+    {
+        public const int CurrentSchemaVersion = 19;
+
+        public int SchemaVersion;
+        public string ProjectDefaultsHash = string.Empty;
+        public AudioSettings Audio = new();
+        public DisplaySettings Display = new();
+        public InterfaceSettings Interface = new();
+        public AccessibilitySettings Accessibility = new();
+        public ConnectionSettings Connection = new();
         [FormerlySerializedAs("GraphicsQuality")]
 
         public GraphicsPreset GraphicsPreset;
@@ -68,41 +99,25 @@ namespace Fodinae.Core
         public Color TerrainDebugColor;
         public bool TerrainDebugMode;
         public bool EnableTerrainDistortion = true;
-        public float BloomThreshold;
-        public float BloomSoftKnee;
-        public float BloomRadius;
-        public float BloomScatter;
-        public Color BloomTint;
         public Color TransitEmissionColor;
         public float TransitEmissionStrength;
         public Color PerspectiveEmissionColor;
         public float PerspectiveEmissionStrength;
         public float SurfaceOccupancy;
-        public float BloomIntensity;
-        public float VignetteIntensity;
-        public Color VignetteColor;
-        public float VignetteSmoothness;
-        public Vector2 VignetteCenter;
-        public float ChromaticAberrationIntensity;
-        public float ColorGradingExposure;
-        public Color ColorGradingFilter;
-        public float ColorGradingContrast;
-        public float ColorGradingSaturation;
-        public bool ColorGradingToneMapping;
-        public float ColorGradingToneMappingWhitePoint;
-        public float EigengrauIntensity;
-        public Color EigengrauColor;
-        public float EigengrauDarknessThreshold;
-        public float EigengrauNoiseScale;
-        public float EigengrauAnimationSpeed;
-        public float MotionBlurIntensity;
-        public AdvancedPostProcessSettings AdvancedPostProcess = new();
+        // Эффекты постпроцесса — тумблеры, а не числа. Величины задаёт
+        // PostProcessLook: вид кадра решает автор, игрок решает, платить ли за
+        // эффект. Промежуточных значений нет намеренно — тридцать пять
+        // ползунков давали не настройку, а разброс.
+        public bool BloomEnabled;
+        public bool VignetteEnabled;
+        public bool ChromaticAberrationEnabled;
+        public bool FilmGrainEnabled;
+        public bool MotionBlurEnabled;
+        public bool LocalContrastEnabled;
+        public bool LensEffectsEnabled;
+        public bool AtmosphereEnabled;
+        public bool DisplayPhysicsEnabled;
+        public bool TemporalEnabled;
 
-        // Сетевое подключение. DummyConnection — заглушка для локального теста без
-        // сервера. При UseDummyConnection = false клиент подключается к реальному
-        // серверу через Darkar25 TcpConnection (MinesServerNetworking).
-        public bool UseDummyConnection = true;
-        public string ServerHost = "127.0.0.1";
-        public int ServerPort = 7777;
     }
 }

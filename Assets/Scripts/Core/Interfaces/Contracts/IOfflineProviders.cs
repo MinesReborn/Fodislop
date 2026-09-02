@@ -3,27 +3,25 @@
 namespace Fodinae.Core.Interfaces
 {
     /// <summary>
-    /// Офлайн-идентичность игрока (имя и т.п.). Реализуется DummyConnection из
-    /// симулированной VK-сессии, чтобы мир в офлайн-режиме ощущался как
-    /// настоящий; реальные источники идентичности могут реализовать тот же
-    /// интерфейс и подхватятся бутстрапом (DummyConnection регистрируется
-    /// через AsImplementedInterfaces).
+    /// Runtime switches consumed by debug tooling and the systems being
+    /// diagnosed. The state is application-scoped so gameplay code does not
+    /// depend on a concrete debug or offline implementation.
     /// </summary>
-    public interface IOfflineIdentityProvider
+    public interface IRuntimeDebugSettings
     {
-        /// <summary>Имя игрока в мире (неймплейт, чат, профиль).</summary>
-        string PlayerName { get; }
+        bool IgnoreCollision { get; set; }
+        bool BypassLightingCompute { get; set; }
+        bool BypassTerrainDraw { get; set; }
+        bool BypassCpuMeshRebuild { get; set; }
+        bool ShowRobotDebugVisuals { get; set; }
     }
 
-    /// <summary>
-    /// Офлайн-статистика игрока (уровень, валюта). Аналог
-    /// <see cref="IOfflineIdentityProvider"/>: провайдеры подменяются по
-    /// интерфейсу, не трогая DummyConnection.
-    /// </summary>
-    public interface IOfflineStatsProvider
+    public sealed class RuntimeDebugSettings : IRuntimeDebugSettings
     {
-        long Level { get; }
-
-        long Currency { get; }
+        public bool IgnoreCollision { get; set; }
+        public bool BypassLightingCompute { get; set; }
+        public bool BypassTerrainDraw { get; set; }
+        public bool BypassCpuMeshRebuild { get; set; }
+        public bool ShowRobotDebugVisuals { get; set; }
     }
 }

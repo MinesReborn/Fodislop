@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using Fodinae.Core;
 using Fodinae.Rendering;
 using Fodinae.World.Lighting.Pipeline;
 using Fodinae.World.Lighting.Pipeline.Stages;
@@ -463,18 +464,19 @@ namespace Fodinae.World.Lighting
                 throw new NotSupportedException("Radiance Cascades requires compute shader support.");
             }
 
-            LightingCompute = Resources.Load<ComputeShader>("Shaders/Lighting/WorldLighting") ??
+            LightingCompute = Resources.Load<ComputeShader>(
+                ProjectRuntimeContracts.ResourcePaths.WorldLightingCompute) ??
                 throw new InvalidOperationException(
                     "Required compute shader Resources/Shaders/Lighting/WorldLighting.compute is missing.");
             string[] requiredKernels =
             {
-                "SolveCascade",
-                "SolveAutomaticNormals",
-                "SolveContactOcclusion",
-                "ResolveDirect",
-                "SolveDiffuseBounce",
-                "CompositeLighting",
-                "ResolveAndComposite",
+                ProjectRuntimeContracts.ComputeKernelNames.SolveCascade,
+                ProjectRuntimeContracts.ComputeKernelNames.SolveAutomaticNormals,
+                ProjectRuntimeContracts.ComputeKernelNames.SolveContactOcclusion,
+                ProjectRuntimeContracts.ComputeKernelNames.ResolveDirect,
+                ProjectRuntimeContracts.ComputeKernelNames.SolveDiffuseBounce,
+                ProjectRuntimeContracts.ComputeKernelNames.CompositeLighting,
+                ProjectRuntimeContracts.ComputeKernelNames.ResolveAndComposite,
             };
             foreach (string kernelName in requiredKernels)
             {
@@ -485,20 +487,41 @@ namespace Fodinae.World.Lighting
                 }
             }
 
-            SolveCascadeKernel = LightingCompute.FindKernel("SolveCascade");
-            SolveAutomaticNormalsKernel = LightingCompute.FindKernel("SolveAutomaticNormals");
-            SolveContactOcclusionKernel = LightingCompute.FindKernel("SolveContactOcclusion");
-            ResolveDirectKernel = LightingCompute.FindKernel("ResolveDirect");
-            SolveDiffuseBounceKernel = LightingCompute.FindKernel("SolveDiffuseBounce");
-            CompositeLightingKernel = LightingCompute.FindKernel("CompositeLighting");
-            ResolveAndCompositeKernel = LightingCompute.FindKernel("ResolveAndComposite");
-            ValidateKernelSupportOrThrow("SolveCascade", SolveCascadeKernel);
-            ValidateKernelSupportOrThrow("SolveAutomaticNormals", SolveAutomaticNormalsKernel);
-            ValidateKernelSupportOrThrow("SolveContactOcclusion", SolveContactOcclusionKernel);
-            ValidateKernelSupportOrThrow("ResolveDirect", ResolveDirectKernel);
-            ValidateKernelSupportOrThrow("SolveDiffuseBounce", SolveDiffuseBounceKernel);
-            ValidateKernelSupportOrThrow("CompositeLighting", CompositeLightingKernel);
-            ValidateKernelSupportOrThrow("ResolveAndComposite", ResolveAndCompositeKernel);
+            SolveCascadeKernel = LightingCompute.FindKernel(
+                ProjectRuntimeContracts.ComputeKernelNames.SolveCascade);
+            SolveAutomaticNormalsKernel = LightingCompute.FindKernel(
+                ProjectRuntimeContracts.ComputeKernelNames.SolveAutomaticNormals);
+            SolveContactOcclusionKernel = LightingCompute.FindKernel(
+                ProjectRuntimeContracts.ComputeKernelNames.SolveContactOcclusion);
+            ResolveDirectKernel = LightingCompute.FindKernel(
+                ProjectRuntimeContracts.ComputeKernelNames.ResolveDirect);
+            SolveDiffuseBounceKernel = LightingCompute.FindKernel(
+                ProjectRuntimeContracts.ComputeKernelNames.SolveDiffuseBounce);
+            CompositeLightingKernel = LightingCompute.FindKernel(
+                ProjectRuntimeContracts.ComputeKernelNames.CompositeLighting);
+            ResolveAndCompositeKernel = LightingCompute.FindKernel(
+                ProjectRuntimeContracts.ComputeKernelNames.ResolveAndComposite);
+            ValidateKernelSupportOrThrow(
+                ProjectRuntimeContracts.ComputeKernelNames.SolveCascade,
+                SolveCascadeKernel);
+            ValidateKernelSupportOrThrow(
+                ProjectRuntimeContracts.ComputeKernelNames.SolveAutomaticNormals,
+                SolveAutomaticNormalsKernel);
+            ValidateKernelSupportOrThrow(
+                ProjectRuntimeContracts.ComputeKernelNames.SolveContactOcclusion,
+                SolveContactOcclusionKernel);
+            ValidateKernelSupportOrThrow(
+                ProjectRuntimeContracts.ComputeKernelNames.ResolveDirect,
+                ResolveDirectKernel);
+            ValidateKernelSupportOrThrow(
+                ProjectRuntimeContracts.ComputeKernelNames.SolveDiffuseBounce,
+                SolveDiffuseBounceKernel);
+            ValidateKernelSupportOrThrow(
+                ProjectRuntimeContracts.ComputeKernelNames.CompositeLighting,
+                CompositeLightingKernel);
+            ValidateKernelSupportOrThrow(
+                ProjectRuntimeContracts.ComputeKernelNames.ResolveAndComposite,
+                ResolveAndCompositeKernel);
             ContactOcclusionPipeline = new LightingPipeline(
                 new ContactOcclusionStage(SolveContactOcclusionKernel));
             CompositePipeline = new LightingPipeline(
@@ -521,9 +544,9 @@ namespace Fodinae.World.Lighting
                 return;
             }
 
-            Shader shader = Shader.Find("Fodinae/DynamicEmission") ??
+            Shader shader = Shader.Find(ProjectRuntimeContracts.ShaderNames.DynamicEmission) ??
                 throw new InvalidOperationException(
-                    "Required shader 'Fodinae/DynamicEmission' is missing. " +
+                    $"Required shader '{ProjectRuntimeContracts.ShaderNames.DynamicEmission}' is missing. " +
                     "Dynamic light sources cannot be rasterized into the emission field.");
             DynamicEmissionMaterial = new Material(shader)
             {
@@ -557,12 +580,13 @@ namespace Fodinae.World.Lighting
 
         private static void ValidateMaterialFieldPass()
         {
-            Shader terrainShader = Shader.Find("Fodinae/Terrain") ??
+            Shader terrainShader = Shader.Find(ProjectRuntimeContracts.ShaderNames.Terrain) ??
                 throw new InvalidOperationException("The terrain shader required by lighting is missing.");
             var validationMaterial = new Material(terrainShader);
             try
             {
-                if (validationMaterial.FindPass("LightingMaterialField") < 0)
+                if (validationMaterial.FindPass(
+                        ProjectRuntimeContracts.ShaderPassNames.LightingMaterialField) < 0)
                 {
                     throw new InvalidOperationException(
                         "The terrain shader is missing the LightingMaterialField pass.");

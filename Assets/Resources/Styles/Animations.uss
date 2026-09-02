@@ -8,7 +8,7 @@
 .sci-fi-btn-dark,
 .sci-fi-slot,
 .sci-fi-clickable {
-    transition: background-color 0.15s ease-out, border-color 0.15s ease-out, translate 0.15s ease-out, scale 0.15s ease-out;
+    transition: background-color var(--dur-base) ease-out, border-color var(--dur-base) ease-out, translate var(--dur-base) ease-out, scale var(--dur-base) ease-out;
 }
 
 .sci-fi-btn-gold:hover,
@@ -26,7 +26,7 @@
 
 /* Модальные окна: плавное появление */
 .sci-fi-window-anim {
-    transition: opacity 0.2s ease-out, scale 0.2s ease-out;
+    transition: opacity var(--dur-slow) ease-out, scale var(--dur-slow) ease-out;
 }
 
 .sci-fi-window-anim--hidden {
@@ -41,19 +41,19 @@
 
 /* Слоты инвентаря */
 .sci-fi-slot {
-    background-color: rgba(14, 22, 32, 0.85);
+    background-color: var(--surface-slate-dense);
     border-width: 1px;
     border-color: var(--border-subtle);
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
 }
 
 .sci-fi-slot:hover {
-    background-color: rgba(26, 40, 58, 0.95);
+    background-color: var(--surface-shelf-dense);
     border-color: var(--border-cyan);
 }
 
 .sci-fi-slot--selected {
     border-color: var(--accent-gold);
     border-width: 2px;
-    background-color: rgba(242, 169, 0, 0.15);
+    background-color: var(--accent-gold-wash);
 }

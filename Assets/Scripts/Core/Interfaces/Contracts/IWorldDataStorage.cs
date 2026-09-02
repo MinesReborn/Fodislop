@@ -30,4 +30,11 @@ namespace Fodinae.Core.Interfaces
         void EnsureEditorInitialized();
 #endif
     }
+
+    public interface IWorldPersistence
+    {
+        bool HasDirtyChunks { get; }
+
+        void Flush(bool durable);
+    }
 }

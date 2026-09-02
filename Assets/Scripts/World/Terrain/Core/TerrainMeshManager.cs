@@ -50,7 +50,10 @@ public sealed class TerrainMeshManager
         }
     }
 
-    public void UploadVertexBuffer(TerrainMeshBuilder meshBuilder, int atlasCount)
+    public void UploadVertexBuffer(
+        TerrainMeshBuilder meshBuilder,
+        int atlasCount,
+        IFrameTelemetry telemetry)
     {
         if (_mesh == null)
         {
@@ -59,7 +62,7 @@ public sealed class TerrainMeshManager
 
         if (_mesh.vertexCount != meshBuilder.VertexBuffer.Length || _mesh.subMeshCount != atlasCount)
         {
-            FrameProfiler.TerrainMeshClearCount++;
+            telemetry.TerrainMeshClearCount++;
             _mesh.Clear();
             _mesh.subMeshCount = atlasCount;
             _mesh.SetVertexBufferParams(meshBuilder.VertexBuffer.Length, VertexLayout);
@@ -142,7 +145,8 @@ public sealed class TerrainMeshManager
             GL.GetGPUProjectionMatrix(projection, renderIntoTexture: true));
 
         int subMeshCount = Mathf.Min(_mesh.subMeshCount, materials.Length);
-        int materialFieldPass = materials[0].FindPass("LightingMaterialField");
+        int materialFieldPass = materials[0].FindPass(
+            ProjectRuntimeContracts.ShaderPassNames.LightingMaterialField);
         if (materialFieldPass < 0)
         {
             throw new InvalidOperationException(

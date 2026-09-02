@@ -6,24 +6,25 @@ namespace Fodinae.Rendering.PostProcessing
     /// How much of the post-processing stack a quality tier is allowed to run.
     /// </summary>
     /// <remarks>
-    /// The tiers are split by cost, not by taste. Bloom is a nine-dispatch
-    /// pyramid (five downsamples, four upsamples) and motion blur adds a
-    /// velocity pass plus a multi-tap resolve; between them they are almost the
-    /// whole cost of the stack. Vignette, chromatic aberration, colour grading
-    /// and eigengrau are one full-screen pass each and stay on wherever
-    /// post-processing runs at all.
+    /// Тиры разделены по стоимости, а не по вкусу. Блум — пирамида из девяти
+    /// диспатчей (пять downsample, четыре upsample), мо́ушен-блюр добавляет
+    /// проход скоростей и многотаповый resolve; вдвоём они и есть почти вся
+    /// цена стека. Виньетка, хроматика, грейдинг и зерно — по одному
+    /// полноэкранному проходу, и работают везде, где постпроцесс работает
+    /// вообще.
     ///
-    /// <see cref="Full"/> is the enum's zero value on purpose, for the same
-    /// reason <c>LightingQualityMode.PerBlock</c> is: serialized
-    /// <see cref="GraphicsQualitySettings"/> data predates this field, and
-    /// deserializing it must reproduce what that data used to do - which was
-    /// to run the entire stack - rather than silently switch effects off in
-    /// somebody's saved config.
+    /// Тира «выключено» нет: тонмап сжимает HDR каскадного света в диапазон
+    /// дисплея, и без него всё ярче единицы клипается в плоский белый.
+    /// Отключаемый постпроцесс означал испорченный кадр под видом настройки.
+    /// Служебное «конфиг ещё не применён» живёт отдельно, в
+    /// <c>PostProcessRenderPass.Suspend</c>.
+    ///
+    /// Full — ноль намеренно: обнулённая структура настроек обязана означать
+    /// «рисовать всё», а не молча ронять блум.
     /// </remarks>
     public enum PostProcessQualityMode
     {
         Full = 0,
-        Off = 1,
-        Essential = 2,
+        Essential = 1,
     }
 }

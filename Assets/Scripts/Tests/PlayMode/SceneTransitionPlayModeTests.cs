@@ -4,6 +4,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Cysharp.Threading.Tasks;
 using Fodinae.Core;
 using Fodinae.Core.Interfaces;
@@ -67,7 +68,8 @@ namespace Fodinae.Tests.PlayMode
 
         private void SeedDummyAuthentication()
         {
-            _originalClientToken = AuthTokenManager.LoadToken();
+            var gameTokenStore = new GameTokenStore();
+            _originalClientToken = gameTokenStore.Load();
             DummyTokenStore tokenStore = new();
             _originalDummyTokens = tokenStore.Load();
 
@@ -76,19 +78,20 @@ namespace Fodinae.Tests.PlayMode
                 TestDummyToken,
             };
             tokenStore.Save(tokens);
-            AuthTokenManager.SaveToken(TestDummyToken);
+            gameTokenStore.Save(TestDummyToken);
         }
 
         private void RestoreDummyAuthentication()
         {
+            var gameTokenStore = new GameTokenStore();
             new DummyTokenStore().Save(_originalDummyTokens);
             if (string.IsNullOrEmpty(_originalClientToken))
             {
-                AuthTokenManager.ClearToken();
+                gameTokenStore.Clear();
             }
             else
             {
-                AuthTokenManager.SaveToken(_originalClientToken);
+                gameTokenStore.Save(_originalClientToken);
             }
         }
 
@@ -204,7 +207,7 @@ namespace Fodinae.Tests.PlayMode
         public IEnumerator FailedTransition_FiresOnceAndKeepsPreviousUiOperational()
         {
             int failureCount = 0;
-            _bootstrap.TransitionFailed += OnFailed;
+            _bootstrap.TransitionChanged += OnChanged;
             try
             {
                 UniTask transition = _bootstrap.TransitionAsync("MissingSceneContractFixture").Preserve();
@@ -215,12 +218,54 @@ namespace Fodinae.Tests.PlayMode
             }
             finally
             {
-                _bootstrap.TransitionFailed -= OnFailed;
+                _bootstrap.TransitionChanged -= OnChanged;
             }
 
-            void OnFailed(string _, Exception __)
+            void OnChanged(SceneTransitionStatus status)
             {
-                failureCount++;
+                if (status.Phase == SceneTransitionPhase.Failed)
+                {
+                    failureCount++;
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ThrowingTransitionObserver_DoesNotAbortTransition()
+        {
+            int completionCount = 0;
+            LogAssert.Expect(
+                LogType.Error,
+                new Regex("\\[Bootstrap\\] Transition observer failed"));
+            _bootstrap.TransitionChanged += ThrowingObserver;
+            _bootstrap.TransitionChanged += CountingObserver;
+            try
+            {
+                yield return Await(_bootstrap.TransitionAsync("MainMenu"), UiTimeoutSeconds);
+
+                Assert.That(_bootstrap.CurrentSceneName, Is.EqualTo("MainMenu"));
+                Assert.That(completionCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                _bootstrap.TransitionChanged -= ThrowingObserver;
+                _bootstrap.TransitionChanged -= CountingObserver;
+            }
+
+            static void ThrowingObserver(SceneTransitionStatus status)
+            {
+                if (status.Phase == SceneTransitionPhase.Created)
+                {
+                    throw new InvalidOperationException("observer failure");
+                }
+            }
+
+            void CountingObserver(SceneTransitionStatus status)
+            {
+                if (status.Phase == SceneTransitionPhase.Completed)
+                {
+                    completionCount++;
+                }
             }
         }
 

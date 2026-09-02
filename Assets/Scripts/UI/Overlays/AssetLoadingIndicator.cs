@@ -2,6 +2,7 @@
 
 using System;
 using Fodinae.Core;
+using Fodinae.Core.Interfaces;
 using Fodinae.Core.Localization;
 using Fodinae.Game.Managers;
 using Fodinae.World.Terrain;
@@ -19,7 +20,7 @@ namespace Fodinae.UI
     public sealed class AssetLoadingIndicator : MonoBehaviour, ILocalizableUI
     {
         [Inject]
-        private ClientAssetLoader _assetLoader = null!;
+        private IAssetLoader _assetLoader = null!;
 
         [Inject]
         private FPSCounter _fpsCounter = null!;
@@ -69,7 +70,7 @@ namespace Fodinae.UI
             // indicator permanently dead with no error to diagnose.
             string? missing =
                 _gameManager == null ? nameof(GameManager) :
-                _assetLoader == null ? nameof(ClientAssetLoader) :
+                _assetLoader == null ? nameof(IAssetLoader) :
                 _fpsCounter == null ? nameof(FPSCounter) :
                 _document == null ? nameof(UIDocument) :
                 _terrainRenderer == null ? nameof(TerrainRenderer) :
@@ -214,7 +215,8 @@ namespace Fodinae.UI
                 return;
             }
 
-            var uiUxml = Resources.Load<VisualTreeAsset>("UI/AssetLoadingIndicator");
+            var uiUxml = Resources.Load<VisualTreeAsset>(
+                ProjectRuntimeContracts.ResourcePaths.AssetLoadingIndicatorUxml);
             if (uiUxml == null)
             {
                 return;

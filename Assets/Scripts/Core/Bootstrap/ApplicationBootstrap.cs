@@ -5,7 +5,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Fodinae.Core.Interfaces;
 using Fodinae.Core.Lifecycle;
-using Fodinae.Networking.Auth;
+using Fodinae.Rendering;
 using VContainer.Unity;
 
 namespace Fodinae.Core;
@@ -15,28 +15,28 @@ public sealed class ApplicationBootstrap : IStartable
     private readonly BootstrapLifetimeScope _scope;
     private readonly IClientConfigManager _clientConfig;
     private readonly BootstrapLoadingScreen _loadingScreen;
-    private readonly IVkOfflineProvider _offlineVk;
     private readonly AsyncOperationSupervisor _operations;
+    private readonly IRuntimeAssetPaths _runtimeAssetPaths;
+    private readonly IGameplayCamera _gameplayCamera;
 
     public ApplicationBootstrap(
         BootstrapLifetimeScope scope,
         IClientConfigManager clientConfig,
         BootstrapLoadingScreen loadingScreen,
-        IVkOfflineProvider offlineVk,
-        AsyncOperationSupervisor operations)
+        AsyncOperationSupervisor operations,
+        IRuntimeAssetPaths runtimeAssetPaths,
+        IGameplayCamera gameplayCamera)
     {
         _scope = scope;
         _clientConfig = clientConfig;
         _loadingScreen = loadingScreen;
-        _offlineVk = offlineVk;
         _operations = operations;
+        _runtimeAssetPaths = runtimeAssetPaths;
+        _gameplayCamera = gameplayCamera;
     }
 
     public void Start()
     {
-        // Офлайн-симулятор VK-входа подключается в бутстрапе: VkAuthService
-        // пойдёт через него при UseDummyConnection=true (без сети и client_id).
-        VkAuthService.OfflineProvider = _offlineVk;
         _operations.Run("application_startup", _ => StartAsync());
     }
 
@@ -46,9 +46,12 @@ public sealed class ApplicationBootstrap : IStartable
         try
         {
             _clientConfig.EnsureInitialized();
+            ClientConfig config = _clientConfig.Config;
+            DisplayManager.HDROutput.SetEnabled(config.Display.HDREnabled);
+            DisplayManager.HDROutput.ConfigureCamera(_gameplayCamera.Camera);
             _loadingScreen.Initialize();
-            await RuntimeAssetPaths.EnsureReadyAsync();
-            await _scope.TransitionAsync("Gateway", scopeToken);
+            await _runtimeAssetPaths.EnsureReadyAsync();
+            await _scope.TransitionAsync(ProjectRuntimeContracts.SceneNames.Gateway, scopeToken);
         }
         catch (OperationCanceledException) when (scopeToken.IsCancellationRequested)
         {

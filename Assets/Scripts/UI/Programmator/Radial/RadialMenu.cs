@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using Fodinae.Core;
 using Fodinae.Core.Localization;
 using MinesServer.Data;
 using UnityEngine;
@@ -11,6 +12,7 @@ namespace Fodinae.UI.Programmator
     public class RadialMenu
     {
         private readonly ILocalizationService _loc;
+        private readonly IProgrammatorTextureCatalog _textures;
         private readonly VisualElement _root;
         private readonly VisualElement _innerContainer;
         private readonly VisualElement _outerContainer;
@@ -43,14 +45,16 @@ namespace Fodinae.UI.Programmator
         private static readonly Color DefaultBorder = new Color(0.5f, 0.5f, 0.5f, 1f);
         private static readonly Color HoverBorder = new Color(1f, 0.84f, 0f, 1f);
 
-        public RadialMenu(ILocalizationService loc)
+        public RadialMenu(ILocalizationService loc, IProgrammatorTextureCatalog textures)
         {
             _loc = loc ?? throw new ArgumentNullException(nameof(loc));
+            _textures = textures ?? throw new ArgumentNullException(nameof(textures));
 
             // Static skeleton (rings, containers, back button) lives in
             // RadialMenu.uxml; items of both rings are positioned dynamically
             // in code, so only the skeleton is cloned here.
-            VisualTreeAsset template = Resources.Load<VisualTreeAsset>("UI/RadialMenu") ??
+            VisualTreeAsset template = Resources.Load<VisualTreeAsset>(
+                ProjectRuntimeContracts.ResourcePaths.RadialMenuUxml) ??
                 throw new InvalidOperationException(
                     "[RadialMenu] Resources/UI/RadialMenu.uxml is required.");
             TemplateContainer tree = template.Instantiate();
@@ -165,7 +169,7 @@ namespace Fodinae.UI.Programmator
 
                 int id = _outerIds[i];
                 var action = (ProgAction)id;
-                var tex = ProgrammatorTextureRegistry.GetTexture(action);
+                var tex = _textures.GetTexture(action);
                 if (tex != null)
                 {
                     item.style.backgroundImage = new StyleBackground(tex);

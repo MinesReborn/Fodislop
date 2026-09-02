@@ -21,6 +21,7 @@ using Fodinae.UI.HUD.Inventory.Model;
 using Fodinae.UI.HUD.Inventory.View;
 using Fodinae.UI.HUD.Player.Model;
 using Fodinae.UI.HUD.Player.View;
+using Fodinae.UI.Programmator;
 using Fodinae.World;
 using Fodinae.World.Lighting;
 using Fodinae.World.Terrain;
@@ -94,12 +95,16 @@ namespace Fodinae.Core
                 // injection lands, so injecting here (after base.Awake built the
                 // container) is safe regardless of Start/Update ordering.
                 SceneSetup? sceneSetup = null;
-                foreach (var candidate in UnityEngine.Object.FindObjectsByType<SceneSetup>(
-                             FindObjectsInactive.Include))
+                foreach (GameObject root in _ownScene.GetRootGameObjects())
                 {
-                    if (candidate.gameObject.scene == _ownScene)
+                    foreach (SceneSetup candidate in root.GetComponentsInChildren<SceneSetup>(true))
                     {
                         sceneSetup = candidate;
+                        break;
+                    }
+
+                    if (sceneSetup != null)
+                    {
                         break;
                     }
                 }
@@ -147,7 +152,12 @@ namespace Fodinae.Core
             }
 
             builder.RegisterInstance(_uiDocument);
-            builder.Register<MapStorage>(Lifetime.Singleton).As<IWorldDataStorage>().AsSelf();
+            builder.Register<MapStorage>(Lifetime.Singleton)
+                .As<IWorldDataStorage>()
+                .As<IWorldPersistence>()
+                .AsSelf();
+            builder.Register<FrameTelemetry>(Lifetime.Singleton).As<IFrameTelemetry>();
+            builder.Register<SharedMaterialCache>(Lifetime.Singleton).As<ISharedMaterialCache>();
             builder.Register<AsyncOperationSupervisor>(Lifetime.Singleton)
                 .AsSelf()
                 .As<IAsyncOperationSupervisor>();
@@ -160,6 +170,9 @@ namespace Fodinae.Core
             builder.Register<WindowCommandStream>(Lifetime.Singleton);
             builder.Register<ServerWindowPresenter>(Lifetime.Singleton);
             builder.Register<InputBlockState>(Lifetime.Singleton).As<IInputBlocker>();
+            builder.Register<ProgrammatorData>(Lifetime.Singleton);
+            builder.Register<ProgrammatorTextureRegistry>(Lifetime.Singleton)
+                .As<IProgrammatorTextureCatalog>();
             builder.Register<NetworkStatusModel>(Lifetime.Singleton);
             builder.Register<WorldInitProcessor>(Lifetime.Singleton);
             builder.Register<AuthTokenProcessor>(Lifetime.Singleton);
@@ -235,6 +248,9 @@ namespace Fodinae.Core
             RegisterManager<WorldMapRenderer>(builder, "UI");
             RegisterManager<DisplayManager>(builder, "UI");
             RegisterManager<InGameDebugOverlay>(builder, "UI");
+            builder.Register<GameInfrastructureStartup>(Lifetime.Singleton);
+            builder.Register<GamePresentationStartup>(Lifetime.Singleton);
+            builder.Register<GameStartupPipeline>(Lifetime.Singleton);
             builder.RegisterEntryPoint<GameBootstrap>();
         }
 
@@ -253,17 +269,50 @@ namespace Fodinae.Core
         public void MarkReady() => _readiness.TrySetResult();
         public void MarkFailed(Exception exception) => _readiness.TrySetException(exception);
 
-        public async UniTask PrepareForUnloadAsync(
-            PacketHandler packetHandler,
-            GameManager gameManager,
-            MapManager mapManager,
-            AsyncOperationSupervisor operations)
+        /// <summary>
+        /// Winds the scene's subsystems down before the scene unloads.
+        /// </summary>
+        /// <remarks>
+        /// Every service is looked up here rather than handed in by the caller:
+        /// the container belongs to this scope, and a scope torn down halfway by
+        /// an aborted previous unload has some registrations already gone. Each
+        /// lookup is independent, so one missing subsystem cannot cancel the
+        /// teardown of the rest. TryResolve reports that absence as a result
+        /// instead of an exception; the null check after it also covers a
+        /// component whose GameObject is already destroyed, which still resolves.
+        /// </remarks>
+        public async UniTask PrepareForUnloadAsync()
         {
-            packetHandler.Shutdown();
-            gameManager.DeauthorizeUI();
-            await operations.StopAsync();
-            await mapManager.FlushForUnloadAsync();
-            mapManager.ResetWorldState();
+            if (Container == null)
+            {
+                return;
+            }
+
+            Container.TryResolve(out PacketHandler? packetHandler);
+            Container.TryResolve(out GameManager? gameManager);
+            Container.TryResolve(out MapManager? mapManager);
+            Container.TryResolve(out AsyncOperationSupervisor? operations);
+
+            if (packetHandler != null)
+            {
+                packetHandler.Shutdown();
+            }
+
+            if (gameManager != null)
+            {
+                gameManager.DeauthorizeUI();
+            }
+
+            if (operations != null)
+            {
+                await operations.StopAsync();
+            }
+
+            if (mapManager != null)
+            {
+                await mapManager.FlushForUnloadAsync();
+                mapManager.ResetWorldState();
+            }
 
             // LocalPlayerState lives on the persistent Bootstrap scope and
             // survives this scene's unload. Without an explicit Clear the current
@@ -271,11 +320,11 @@ namespace Fodinae.Core
             // re-entering MainGame then routes the first PlayerInfoPacket at a
             // destroyed object (MissingReferenceException). Publish a fresh player
             // on re-entry is idempotent only for the same reference, so clear it here.
-            if (Container != null)
+            // ILocalPlayerState is registered on the persistent Bootstrap
+            // container and normally resolvable from the game scope here; the
+            // same half-disposed-container caveat as above applies.
+            if (Container.TryResolve(out ILocalPlayerState? localPlayer) && localPlayer != null)
             {
-                // ILocalPlayerState is registered on the persistent Bootstrap
-                // container and always resolvable from the game scope here.
-                ILocalPlayerState localPlayer = Container.Resolve<ILocalPlayerState>();
                 ILocalPlayer? current = localPlayer.Current;
                 if (current != null)
                 {

@@ -27,6 +27,10 @@ namespace Fodinae
         private readonly ConcurrentDictionary<string, long> _decodedEntrySizes = new(StringComparer.OrdinalIgnoreCase);
         private readonly ConcurrentQueue<string> _decodedAccessOrder = new();
         private readonly Func<string, CancellationToken, int, UniTask<byte[]?>> _bytesLoader;
+
+        // Asked for at call time, not stored at construction: the cache is built
+        // in the loader's Awake, while the supervisor is injected by Start.
+        private readonly Func<IAsyncOperationSupervisor?> _operations;
         private long _totalBytes;
         private long _maxBytes = ProjectRuntimeContracts.AssetStreaming.AssetCacheCapacityBytes;
         private long _maxDecodedBytes = ProjectRuntimeContracts.AssetStreaming.DecodedAssetCacheCapacityBytes;
@@ -41,9 +45,12 @@ namespace Fodinae
         private const double MinimumSecondsBetweenUnusedAssetCollections = 30.0;
         private double _nextUnusedAssetsCollectionSeconds;
 
-        public AssetCache(Func<string, CancellationToken, int, UniTask<byte[]?>> bytesLoader)
+        public AssetCache(
+            Func<string, CancellationToken, int, UniTask<byte[]?>> bytesLoader,
+            Func<IAsyncOperationSupervisor?> operations)
         {
             _bytesLoader = bytesLoader ?? throw new ArgumentNullException(nameof(bytesLoader));
+            _operations = operations ?? throw new ArgumentNullException(nameof(operations));
         }
 
         /// <summary>Retrieve raw bytes. Cached and deduplicated.</summary>
@@ -224,10 +231,42 @@ namespace Fodinae
             _nextUnusedAssetsCollectionSeconds =
                 now + MinimumSecondsBetweenUnusedAssetCollections;
 
-            Resources.UnloadUnusedAssets().completed += _ =>
+            // The explicit UniTask wrap lets GC roots settle and gives the
+            // engine a deterministic frame boundary to drop unused objects,
+            // instead of the implicit completion of AsyncOperation.completed,
+            // which runs on the main thread outside any frame boundary. The
+            // supervisor owns that wait: an unsupervised one would keep calling
+            // into the engine after teardown has begun.
+            IAsyncOperationSupervisor? operations = _operations();
+            if (operations == null)
+            {
+                // Before the supervisor is injected there is nobody to own the
+                // wait. Collection is an optimisation, so the request is dropped
+                // rather than run unattended; the flag is cleared so the next
+                // trim can ask again.
+                Interlocked.Exchange(ref _unloadUnusedAssetsRequested, 0);
+                return;
+            }
+
+            operations.Run("asset_cache_unload_unused", RunUnusedAssetsCollectionAsync);
+        }
+
+        private async UniTask RunUnusedAssetsCollectionAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var op = Resources.UnloadUnusedAssets();
+                await op.ToUniTask(cancellationToken: cancellationToken);
+                await UniTask.Yield(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[AssetCache] UnloadUnusedAssets failed: {ex.Message}");
+            }
+            finally
             {
                 Interlocked.Exchange(ref _unloadUnusedAssetsRequested, 0);
-            };
+            }
         }
 
         internal void RemoveTrackedSize(string filename)

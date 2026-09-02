@@ -1,6 +1,7 @@
 #nullable enable
 
 using Fodinae;
+using Fodinae.Core;
 using System;
 using System.Collections.Generic;
 using MinesServer.Data;
@@ -11,12 +12,8 @@ namespace MinesServer.Networking.Connection.Client;
 
 internal static class DummyMapStreamer
 {
-    private static readonly Dictionary<int, CellType[]> _chunkPayloadCache = new();
-    private static readonly object _cacheLock = new object();
-
     public static void SendMapChunksAround(IWorldLayer<CellType>? worldLayer, HashSet<int> sentMapChunks, ushort serverX, ushort serverY, Action<ServerPacket> sendPacket)
     {
-        const int ChunkSize = 32;
         const int StreamingRadiusChunks = 4;
         if (worldLayer == null)
         {
@@ -24,8 +21,8 @@ internal static class DummyMapStreamer
                 "Cannot stream map chunks before the DummyConnection world layer is initialized.");
         }
 
-        int centerChunkX = serverX / ChunkSize;
-        int centerChunkY = serverY / ChunkSize;
+        int centerChunkX = serverX / ProjectRuntimeContracts.World.ChunkSize;
+        int centerChunkY = serverY / ProjectRuntimeContracts.World.ChunkSize;
         int minimumChunkX = Math.Max(0, centerChunkX - StreamingRadiusChunks);
         int maximumChunkX = Math.Min(
             worldLayer.WidthChunks - 1,
@@ -46,14 +43,14 @@ internal static class DummyMapStreamer
 
                 CellType[] source = worldLayer.GetOrCreateChunk(chunkIndex, touchLru: true);
 
-                CellType[] payload = GetOrCreatePayload(chunkIndex, source);
+                CellType[] payload = CreatePayload(source);
                 sendPacket(new ServerPacket(new HBPacket(new IHBPacket[]
                 {
                     new MapRegionPacket(
-                        (ushort)(chunkX * ChunkSize),
-                        (ushort)(chunkY * ChunkSize),
-                        ChunkSize - 1,
-                        ChunkSize - 1,
+                        (ushort)(chunkX * ProjectRuntimeContracts.World.ChunkSize),
+                        (ushort)(chunkY * ProjectRuntimeContracts.World.ChunkSize),
+                        ProjectRuntimeContracts.World.ChunkSize - 1,
+                        ProjectRuntimeContracts.World.ChunkSize - 1,
                         payload),
                 })));
 
@@ -62,29 +59,16 @@ internal static class DummyMapStreamer
         }
     }
 
-    private static CellType[] GetOrCreatePayload(int chunkIndex, CellType[] source)
+    private static CellType[] CreatePayload(CellType[] source)
     {
-        lock (_cacheLock)
-        {
-            if (_chunkPayloadCache.TryGetValue(chunkIndex, out CellType[]? cached))
-            {
-                return cached;
-            }
-        }
-
-        const int ChunkSize = 32;
         var payload = new CellType[source.Length];
-        for (int lx = 0; lx < ChunkSize; lx++)
+        for (int lx = 0; lx < ProjectRuntimeContracts.World.ChunkSize; lx++)
         {
-            for (int ly = 0; ly < ChunkSize; ly++)
+            for (int ly = 0; ly < ProjectRuntimeContracts.World.ChunkSize; ly++)
             {
-                payload[(ly * ChunkSize) + lx] = source[ly + (lx * ChunkSize)];
+                payload[(ly * ProjectRuntimeContracts.World.ChunkSize) + lx] =
+                    source[ly + (lx * ProjectRuntimeContracts.World.ChunkSize)];
             }
-        }
-
-        lock (_cacheLock)
-        {
-            _chunkPayloadCache[chunkIndex] = payload;
         }
 
         return payload;

@@ -10,6 +10,7 @@ using Fodinae.Core;
 using Fodinae.Core.Interfaces;
 using UnityEngine;
 using VContainer;
+using UnityAudioSettings = UnityEngine.AudioSettings;
 
 namespace Fodinae.Audio.Backend
 {
@@ -33,11 +34,15 @@ namespace Fodinae.Audio.Backend
         private IAssetLoader _assetLoader = null!;
         [Inject]
         private IAsyncOperationSupervisor _operations = null!;
+        [Inject]
+        private IPersistentAssetCache _persistentCache = null!;
         private bool _configApplied;
         private bool _configWaitLogged;
         private bool _pausedInBackground;
 
         public bool IsInitialized => _backend != null;
+
+        public bool IsDegraded => _backend == null || _backend.IsDegraded;
 
         public UniTask WaitUntilBanksReadyAsync(CancellationToken cancellationToken = default)
             => _backend.WaitUntilBanksReadyAsync(cancellationToken);
@@ -49,7 +54,7 @@ namespace Fodinae.Audio.Backend
 
         private void Start()
         {
-            _backend.Initialize(this, _assetLoader, _operations);
+            _backend.Initialize(this, _assetLoader, _persistentCache, _operations);
             TryApplySavedBusVolumes();
         }
 
@@ -85,12 +90,12 @@ namespace Fodinae.Audio.Backend
 
         private void OnEnable()
         {
-            AudioSettings.OnAudioConfigurationChanged += OnAudioConfigurationChanged;
+            UnityAudioSettings.OnAudioConfigurationChanged += OnAudioConfigurationChanged;
         }
 
         private void OnDisable()
         {
-            AudioSettings.OnAudioConfigurationChanged -= OnAudioConfigurationChanged;
+            UnityAudioSettings.OnAudioConfigurationChanged -= OnAudioConfigurationChanged;
         }
 
         private void OnDestroy()
@@ -112,7 +117,7 @@ namespace Fodinae.Audio.Backend
             bool shouldPause = !hasFocus &&
                 _clientConfig != null &&
                 _clientConfig.Config != null &&
-                _clientConfig.Config.MuteAudioInBackground;
+                _clientConfig.Config.Audio.MuteInBackground;
             if (_pausedInBackground == shouldPause)
             {
                 return;
@@ -128,7 +133,7 @@ namespace Fodinae.Audio.Backend
             {
                 _backend?.Shutdown();
                 _backend = new FmodAudioBackend();
-                _backend.Initialize(this, _assetLoader, _operations);
+                _backend.Initialize(this, _assetLoader, _persistentCache, _operations);
                 ApplySavedBusVolumes();
                 _backend.SetPaused(_pausedInBackground);
                 Debug.Log($"{TAG} Audio backend successfully re-initialized after device change.");
@@ -315,9 +320,8 @@ namespace Fodinae.Audio.Backend
         private bool IsKnownMissingFeatureBank(string eventName)
         {
             string? bankName = GetFeatureBankName(eventName);
-            return _assetLoader is ClientAssetLoader loader &&
-                bankName != null &&
-                loader.IsKnownMissing($"banks/{bankName}.bank");
+            return bankName != null &&
+                _assetLoader.IsKnownMissing($"banks/{bankName}.bank");
         }
 
         private bool _autoLoadInFlight;
@@ -419,12 +423,12 @@ namespace Fodinae.Audio.Backend
             }
 
             var config = _clientConfig.Config;
-            SetBusVolume(AudioBusType.Master, config.MasterVolume);
-            SetBusVolume(AudioBusType.SFX, config.SfxVolume);
-            SetBusVolume(AudioBusType.Music, config.MusicVolume);
-            SetBusVolume(AudioBusType.Voice, config.VoiceVolume);
-            SetBusVolume(AudioBusType.Ambience, config.AmbienceVolume);
-            SetBusVolume(AudioBusType.UI, config.UIVolume);
+            SetBusVolume(AudioBusType.Master, config.Audio.MasterVolume);
+            SetBusVolume(AudioBusType.SFX, config.Audio.SfxVolume);
+            SetBusVolume(AudioBusType.Music, config.Audio.MusicVolume);
+            SetBusVolume(AudioBusType.Voice, config.Audio.VoiceVolume);
+            SetBusVolume(AudioBusType.Ambience, config.Audio.AmbienceVolume);
+            SetBusVolume(AudioBusType.UI, config.Audio.UIVolume);
             _configApplied = true;
         }
     }

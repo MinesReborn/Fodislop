@@ -47,9 +47,6 @@ namespace Fodinae.Rendering
         [Range(0.5f, 1f)]
         [Tooltip("URP render scale для данного quality tier.")]
         public float RenderScale;
-        [Range(0, 4)]
-        [Tooltip("Количество вертикальных синхронизаций.")]
-        public int VSyncCount;
         [Range(0, 8)]
         [Tooltip("MSAA sample count для данного quality tier.")]
         public int AntiAliasing;
@@ -66,7 +63,6 @@ namespace Fodinae.Rendering
             float lightingUpdatesPerSecond,
             int lightingCascadeAtlasLimit,
             float renderScale,
-            int vSyncCount,
             int antiAliasing,
             LightingQualityMode lightingQuality = LightingQualityMode.PerBlock,
             PostProcessQualityMode postProcessQuality = PostProcessQualityMode.Full)
@@ -78,7 +74,6 @@ namespace Fodinae.Rendering
             LightingUpdatesPerSecond = lightingUpdatesPerSecond;
             LightingCascadeAtlasLimit = lightingCascadeAtlasLimit;
             RenderScale = renderScale;
-            VSyncCount = vSyncCount;
             AntiAliasing = antiAliasing;
             LightingQuality = lightingQuality;
             PostProcessQuality = postProcessQuality;
@@ -93,7 +88,6 @@ namespace Fodinae.Rendering
                 LightingUpdatesPerSecond.Equals(other.LightingUpdatesPerSecond) &&
                 LightingCascadeAtlasLimit == other.LightingCascadeAtlasLimit &&
                 RenderScale.Equals(other.RenderScale) &&
-                VSyncCount == other.VSyncCount &&
                 AntiAliasing == other.AntiAliasing &&
                 LightingQuality == other.LightingQuality &&
                 PostProcessQuality == other.PostProcessQuality;
@@ -119,7 +113,6 @@ namespace Fodinae.Rendering
             hash.Add(settings.LightingUpdatesPerSecond);
             hash.Add(settings.LightingCascadeAtlasLimit);
             hash.Add(settings.RenderScale);
-            hash.Add(settings.VSyncCount);
             hash.Add(settings.AntiAliasing);
             hash.Add(settings.LightingQuality);
             hash.Add(settings.PostProcessQuality);

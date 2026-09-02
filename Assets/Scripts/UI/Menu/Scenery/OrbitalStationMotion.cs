@@ -13,11 +13,11 @@ namespace Fodinae.UI
         [SerializeField]
         private Transform? _center;
         [SerializeField]
-        private float _radius = 4f;
+        private float _radius = MenuSceneryDefaults.OrbitRadius;
         [SerializeField]
         private float _startAngleDegrees;
         [SerializeField]
-        private Vector3 _orbitPlaneEulerAngles = new(70f, 0f, -22f);
+        private Vector3 _orbitPlaneEulerAngles = MenuSceneryDefaults.OrbitPlaneEulerAngles;
 
         private float _angleDegrees;
 

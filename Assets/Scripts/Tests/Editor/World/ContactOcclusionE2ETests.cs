@@ -2,6 +2,7 @@
 
 using System;
 using System.Linq;
+using Fodinae.Core;
 using Fodinae.World.Lighting;
 using NUnit.Framework;
 using UnityEngine;
@@ -17,9 +18,11 @@ namespace Fodinae.Tests.World
         {
             RequireComputeShaders();
             ComputeShader shader = Resources.Load<ComputeShader>(
-                "Shaders/Lighting/WorldLighting");
+                ProjectRuntimeContracts.ResourcePaths.WorldLightingCompute);
             Assert.That(shader, Is.Not.Null);
-            Assert.That(shader.HasKernel("SolveContactOcclusion"), Is.True);
+            Assert.That(
+                shader.HasKernel(ProjectRuntimeContracts.ComputeKernelNames.SolveContactOcclusion),
+                Is.True);
         }
 
         [Test]
@@ -27,9 +30,10 @@ namespace Fodinae.Tests.World
         {
             RequireComputeShaders();
             ComputeShader shader = Resources.Load<ComputeShader>(
-                "Shaders/Lighting/WorldLighting");
+                ProjectRuntimeContracts.ResourcePaths.WorldLightingCompute);
             Assert.That(shader, Is.Not.Null);
-            int kernel = shader.FindKernel("SolveContactOcclusion");
+            int kernel = shader.FindKernel(
+                ProjectRuntimeContracts.ComputeKernelNames.SolveContactOcclusion);
             shader.GetKernelThreadGroupSizes(kernel, out uint x, out uint y, out uint z);
 
             Assert.That(x, Is.EqualTo(8));
@@ -207,9 +211,10 @@ namespace Fodinae.Tests.World
 
             const int size = 32;
             ComputeShader shader = Resources.Load<ComputeShader>(
-                "Shaders/Lighting/WorldLighting");
+                ProjectRuntimeContracts.ResourcePaths.WorldLightingCompute);
             Assert.That(shader, Is.Not.Null);
-            int kernel = shader.FindKernel("SolveContactOcclusion");
+            int kernel = shader.FindKernel(
+                ProjectRuntimeContracts.ComputeKernelNames.SolveContactOcclusion);
             var source = new Texture2D(size, size, TextureFormat.RGBA32, mipChain: true, linear: true);
             var material = new RenderTexture(size, size, 0, RenderTextureFormat.ARGB32)
             {
@@ -288,9 +293,10 @@ namespace Fodinae.Tests.World
 
             const int size = 8;
             ComputeShader shader = Resources.Load<ComputeShader>(
-                "Shaders/Lighting/WorldLighting");
+                ProjectRuntimeContracts.ResourcePaths.WorldLightingCompute);
             Assert.That(shader, Is.Not.Null);
-            int kernel = shader.FindKernel("CompositeLighting");
+            int kernel = shader.FindKernel(
+                ProjectRuntimeContracts.ComputeKernelNames.CompositeLighting);
             var material = CreateTestTarget(size, RenderTextureFormat.ARGB32);
             var emission = CreateTestTarget(size, RenderTextureFormat.ARGBHalf);
             var direct = CreateTestTarget(size, RenderTextureFormat.ARGBHalf);
