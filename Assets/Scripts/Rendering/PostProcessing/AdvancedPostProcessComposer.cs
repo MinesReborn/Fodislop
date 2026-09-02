@@ -15,12 +15,12 @@ namespace Fodinae.Rendering.PostProcessing;
 /// </remarks>
 internal static class AdvancedPostProcessComposer
 {
-    public static AdvancedPostProcessSettings From(ClientConfig config)
+    public static AdvancedPostProcessSnapshot From(ClientConfig config)
     {
         // Масштабы и пороги берутся из вида всегда: они описывают форму
         // эффекта, а не его силу. Выключенный тумблер обнуляет только
         // интенсивность — так шейдер пропускает ветку целиком.
-        return new AdvancedPostProcessSettings
+        return new AdvancedPostProcessSnapshot
         {
             LocalContrastIntensity = config.LocalContrastEnabled
                 ? PostProcessLook.LocalContrast.Intensity

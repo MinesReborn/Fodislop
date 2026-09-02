@@ -3,7 +3,6 @@
 using System;
 using Fodinae.Core.Interfaces;
 using Fodinae.Rendering;
-using Fodinae.Rendering.PostProcessing;
 using UnityEngine;
 
 namespace Fodinae.Core;

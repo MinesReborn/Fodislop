@@ -2,7 +2,6 @@
 
 using System;
 using Fodinae.Rendering;
-using Fodinae.Rendering.PostProcessing;
 using UnityEngine;
 using UnityEngine.Serialization;
 

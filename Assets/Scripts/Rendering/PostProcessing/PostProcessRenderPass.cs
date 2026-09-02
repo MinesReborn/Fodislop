@@ -116,9 +116,9 @@ namespace Fodinae.Rendering.PostProcessing
             _quality = quality;
         }
 
-        public static void SetAdvancedSettings(AdvancedPostProcessSettings settings)
+        public static void SetAdvancedSettings(AdvancedPostProcessSnapshot settings)
         {
-            _advanced = AdvancedPostProcessSnapshot.From(settings);
+            _advanced = settings;
         }
 
         private void RefreshVolumeComponents(VolumeStack stack)

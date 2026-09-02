@@ -89,7 +89,7 @@
     <Compile Include="Assets/Scripts/Networking/Processors/PlayerStatsProcessor.cs" />
     <Compile Include="Assets/Scripts/Networking/Connection/Client/DummyBuffManager.cs" />
     <Compile Include="Assets/Scripts/Core/Interfaces/Contracts/AudioLayer.cs" />
-    <Compile Include="Assets/Scripts/Core/Interfaces/Contracts/AdvancedPostProcessSettings.cs" />
+    <Compile Include="Assets/Scripts/Core/Interfaces/Contracts/AdvancedPostProcessSnapshot.cs" />
     <Compile Include="Assets\\Scripts\\UI\\Builders\\Core\\PacketUIBuilder.cs" />
     <Compile Include="Assets\\Scripts\\World\\Terrain\\Cache\\TerrainCellCache.cs" />
     <Compile Include="Assets/Scripts/World/Terrain/Cache/TerrainCacheArrayScroller.cs" />
