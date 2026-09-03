@@ -34,12 +34,12 @@ internal static class LightingLookSetup
     /// кривая AgX на таком входе сводит все три канала к верхушке, и ядра руды
     /// теряли цвет — насыщенность на экране 0.10 при 8 против 0.18 при 3.
     ///
-    /// Три, а не два, потому что множитель работает дважды: на собственную
-    /// яркость руды и на её вклад в марш лучей (`WorldLighting.compute:343`).
-    /// Двойка срезала бы свет от руды вчетверо, и мир пришлось бы вытаскивать
-    /// амбиентом, который и так стоит на 0.85 из максимума 1.
+    /// Шесть, а не три: цвет тайла перестал завышаться (см. Terrain.shader,
+    /// перевод sRGB -> linear), и та же руда стала отдавать примерно вдвое
+    /// меньше энергии. Множитель компенсирует ровно это — свечение возвращено
+    /// к прежней относительной силе, но теперь считается от честного цвета.
     /// </remarks>
-    private const float EmissionScale = 3f;
+    private const float EmissionScale = 6f;
 
     /// <summary>
     /// Потолок освещения. Включён.
@@ -74,6 +74,24 @@ internal static class LightingLookSetup
     /// </remarks>
     private const float MaximumLightMultiplier = 2f;
 
+    /// <summary>
+    /// Цвет и сила фонового света.
+    /// </summary>
+    /// <remarks>
+    /// Прежние 0.12/0.14/0.18 давали в сумме около 0.13 — калибровка под
+    /// завышенное альбедо, где тёмный тайл был в пятнадцать раз ярче
+    /// положенного. После перевода в линейное та же величина оставляла землю
+    /// на 21/255: мир проваливался в черноту всюду, куда не дотягивался
+    /// источник. Замер по скриншоту 03.09.2026 совпал с расчётом (18 против
+    /// 21), поэтому величина подобрана по той же модели: 0.89 выводит землю
+    /// с альбедо 0.078 на 84/255 — читаемый тёмный пол шахты.
+    ///
+    /// Оттенок оставлен холодным, но заметно менее насыщенным: прежнее
+    /// отношение 0.12:0.14:0.18 при такой силе окрасило бы весь мир в синий,
+    /// тогда как на прежней яркости оно читалось лишь как лёгкий холод.
+    /// </remarks>
+    private static readonly Color AmbientColor = new(1.0f, 1.05f, 1.2f, 1f);
+
     [MenuItem(MenuPath)]
     public static void Apply()
     {
@@ -100,6 +118,10 @@ internal static class LightingLookSetup
             float previousMaximum = maximum.floatValue;
             maximum.floatValue = MaximumLightMultiplier;
 
+            SerializedProperty ambient = FindProperty(serialized, "_ambientColor");
+            Color previousAmbient = ambient.colorValue;
+            ambient.colorValue = AmbientColor;
+
             serialized.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(defaults);
             AssetDatabase.SaveAssets();
@@ -107,7 +129,8 @@ internal static class LightingLookSetup
             Debug.Log(
                 $"[LightingLookSetup] _emissionScale: {previousEmission} -> {EmissionScale}; " +
                 $"_enableFinalLightingClamp: {previousClamp} -> {EnableFinalLightingClamp}; " +
-                $"_maximumLightMultiplier: {previousMaximum} -> {MaximumLightMultiplier}. " +
+                $"_maximumLightMultiplier: {previousMaximum} -> {MaximumLightMultiplier}; " +
+                $"_ambientColor: {previousAmbient} -> {AmbientColor}. " +
                 "Перезайди в игру, чтобы значения доехали до ClientConfig.");
         }
         catch (Exception exception)
