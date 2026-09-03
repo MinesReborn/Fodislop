@@ -27,15 +27,20 @@ public static class PostProcessLook
     /// <summary>Свечение ярких участков.</summary>
     public static class Bloom
     {
-        public const float Intensity = 0.22f;
+        public const float Intensity = 0.15f;
 
         /// <summary>
-        /// Порог в сцен-линейных единицах: ниже — не светится. Полтора, а не
-        /// единица с небольшим: освещённая земля стоит 0.1..0.3, а порог у
-        /// самой белой точки означал бы, что светится всё сколько-нибудь
-        /// яркое, и блум переставал бы отличать источник от фона.
+        /// Порог в сцен-линейных единицах: ниже — не светится.
         /// </summary>
-        public const float Threshold = 1.5f;
+        /// <remarks>
+        /// Порог ниже единицы намеренно. Потолок мирового света стоит на 1.0,
+        /// то есть яркость пикселя не может превысить его альбедо, и порога
+        /// выше единицы не достигало бы ничто — блум просто не существовал бы.
+        /// 0.75 означает «светятся только светлые поверхности»: земля с
+        /// альбедо около 0.08 остаётся тёмной, а белые части зданий и жилы
+        /// руды дают ореол.
+        /// </remarks>
+        public const float Threshold = 0.75f;
         public const float SoftKnee = 0.5f;
         public const float Radius = 3f;
         public const float Scatter = 0.55f;
@@ -103,25 +108,25 @@ public static class PostProcessLook
     /// <summary>Локальное повышение контраста — резкость без нимбов.</summary>
     public static class LocalContrast
     {
-        public const float Intensity = 0.15f;
+        public const float Intensity = 0.10f;
     }
 
     /// <summary>Оптика: грязь на линзе, анаморфные лучи, дифракция, блики.</summary>
     public static class Lens
     {
-        public const float DirtIntensity = 0.12f;
+        public const float DirtIntensity = 0.04f;
         public const float DirtScale = 3f;
-        public const float AnamorphicIntensity = 0.35f;
+        public const float AnamorphicIntensity = 0.12f;
         public const float AnamorphicLength = 1.5f;
-        public const float DiffractionIntensity = 0.15f;
-        public const float GlintIntensity = 0.12f;
-        public const float GlintThreshold = 1.2f;
+        public const float DiffractionIntensity = 0.05f;
+        public const float GlintIntensity = 0.04f;
+        public const float GlintThreshold = 0.85f;
     }
 
     /// <summary>Среда: объёмная пыль и тепловое искажение.</summary>
     public static class Atmosphere
     {
-        public const float DustIntensity = 0.08f;
+        public const float DustIntensity = 0.03f;
         public const float DustScale = 1f;
         public const float DustSpeed = 0.1f;
         public const float HeatRefractionIntensity = 0.06f;
