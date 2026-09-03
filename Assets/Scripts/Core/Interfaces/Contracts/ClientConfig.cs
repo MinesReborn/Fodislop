@@ -22,6 +22,16 @@ namespace Fodinae.Core
     [Serializable]
     public sealed class DisplaySettings
     {
+        public const float GammaMin = 1.8f;
+        public const float GammaMax = 2.6f;
+        public const float DefaultGamma = 2.2f;
+        public const float PaperWhiteMin = 100f;
+        public const float PaperWhiteMax = 500f;
+        public const float DefaultPaperWhite = 200f;
+        public const float PeakBrightnessMin = 400f;
+        public const float PeakBrightnessMax = 2000f;
+        public const float DefaultPeakBrightness = 1000f;
+
         public int ResolutionWidth;
         public int ResolutionHeight;
         public int RefreshRate;
@@ -30,6 +40,9 @@ namespace Fodinae.Core
         [FormerlySerializedAs("HdrEnabled")]
         public bool HDREnabled = ProjectRuntimeContracts.ClientConfiguration.DefaultHDREnabled;
         public int TargetFrameRate = -1;
+        public float Gamma = DefaultGamma;
+        public float PaperWhiteNits = DefaultPaperWhite;
+        public float PeakBrightnessNits = DefaultPeakBrightness;
     }
 
     [Serializable]
@@ -56,9 +69,31 @@ namespace Fodinae.Core
     }
 
     [Serializable]
+    public sealed class PostProcessSettings
+    {
+        public const float ExposureMin = -2f;
+        public const float ExposureMax = 2f;
+        public const float ContrastMin = -0.5f;
+        public const float ContrastMax = 0.5f;
+        public const float SaturationMin = 0f;
+        public const float SaturationMax = 2f;
+        public const float ToneMappingWhitePointMin = 0.25f;
+        public const float ToneMappingWhitePointMax = 8f;
+        public const float DefaultExposure = 0f;
+        public const float DefaultContrast = 0f;
+        public const float DefaultSaturation = 1f;
+        public const float DefaultToneMappingWhitePoint = 1f;
+
+        public float Exposure = DefaultExposure;
+        public float Contrast = DefaultContrast;
+        public float Saturation = DefaultSaturation;
+        public float ToneMappingWhitePoint = DefaultToneMappingWhitePoint;
+    }
+
+    [Serializable]
     public class ClientConfig
     {
-        public const int CurrentSchemaVersion = 19;
+        public const int CurrentSchemaVersion = 21;
 
         public int SchemaVersion;
         public string ProjectDefaultsHash = string.Empty;
@@ -67,6 +102,7 @@ namespace Fodinae.Core
         public InterfaceSettings Interface = new();
         public AccessibilitySettings Accessibility = new();
         public ConnectionSettings Connection = new();
+        public PostProcessSettings PostProcess = new();
         [FormerlySerializedAs("GraphicsQuality")]
 
         public GraphicsPreset GraphicsPreset;
@@ -103,10 +139,10 @@ namespace Fodinae.Core
         public Color PerspectiveEmissionColor;
         public float PerspectiveEmissionStrength;
         public float SurfaceOccupancy;
-        // Эффекты постпроцесса — тумблеры, а не числа. Величины задаёт
-        // PostProcessLook: вид кадра решает автор, игрок решает, платить ли за
-        // эффект. Промежуточных значений нет намеренно — тридцать пять
-        // ползунков давали не настройку, а разброс.
+        // Дорогие и стилизующие эффекты остаются тумблерами. Базовая
+        // экспозиция и цветовой отклик настраиваются отдельно через
+        // PostProcessSettings: это калибровка вывода, а не возврат старых
+        // десятков независимых художественных параметров.
         public bool BloomEnabled;
         public bool VignetteEnabled;
         public bool ChromaticAberrationEnabled;
@@ -117,6 +153,5 @@ namespace Fodinae.Core
         public bool AtmosphereEnabled;
         public bool DisplayPhysicsEnabled;
         public bool TemporalEnabled;
-
     }
 }

@@ -44,6 +44,9 @@ internal static class ClientConfigDefaults
             Display = new DisplaySettings
             {
                 HDREnabled = ProjectRuntimeContracts.ClientConfiguration.DefaultHDREnabled,
+                Gamma = DisplaySettings.DefaultGamma,
+                PaperWhiteNits = DisplaySettings.DefaultPaperWhite,
+                PeakBrightnessNits = DisplaySettings.DefaultPeakBrightness,
             },
             Interface = new InterfaceSettings
             {
@@ -51,6 +54,7 @@ internal static class ClientConfigDefaults
             },
             Accessibility = new AccessibilitySettings(),
             Connection = new ConnectionSettings(),
+            PostProcess = CreatePostProcessSettings(),
             GraphicsPreset = graphicsPreset,
             GraphicsQualitySettings = graphicsQualityProfile.Get(graphicsPreset),
             AmbientOcclusionEnabled = lighting.AmbientOcclusionEnabled,
@@ -114,6 +118,7 @@ internal static class ClientConfigDefaults
         ClientConfig config,
         ShaderDefaultsSnapshot shaders)
     {
+        config.PostProcess = CreatePostProcessSettings();
         config.TerrainFlowScale = shaders.TerrainFlowScale;
         config.TerrainShimmerSpeedScale = shaders.TerrainShimmerSpeedScale;
         config.TerrainPulseSpeedScale = shaders.TerrainPulseSpeedScale;
@@ -135,6 +140,11 @@ internal static class ClientConfigDefaults
         config.PerspectiveEmissionColor = shaders.PerspectiveEmissionColor;
         config.PerspectiveEmissionStrength = shaders.PerspectiveEmissionStrength;
         config.SurfaceOccupancy = shaders.SurfaceOccupancy;
+    }
+
+    public static PostProcessSettings CreatePostProcessSettings()
+    {
+        return new PostProcessSettings();
     }
 
     public static void ApplyLightingDefaults(

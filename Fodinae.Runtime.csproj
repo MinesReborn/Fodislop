@@ -225,11 +225,10 @@
     <Compile Include="Assets/Scripts/Rendering/PostProcessing/Components/MotionBlurComponent.cs" />
     <Compile Include="Assets\\Scripts\\World\\Terrain\\Mesh\\TerrainVertex.cs" />
     <Compile Include="Assets\\Scripts\\Rendering\\Settings\\DisplayManager.cs" />
-    <Compile Include="Assets\\Scripts\\Rendering\\Settings\\HDROutputReconciler.cs" />
     <Compile Include="Assets/Scripts/VContainer/Runtime/Annotations/IAsyncStartable.cs" />
     <Compile Include="Assets\Scripts\World\Storage\MapStorage.cs" />
     <Compile Include="Assets/Scripts/Core/Bootstrap/GameBootstrap.cs" />
-    <Compile Include="Assets\Scripts\Game\Entities\Robot.cs" />
+    <Compile Include="Assets/Scripts/Game\Entities\Robot.cs" />
     <Compile Include="Assets\\Scripts\\Core\\Configuration\\ClientConfigManager.cs" />
     <Compile Include="Assets/Scripts/Core/Configuration/ClientConfigRepository.cs" />
     <Compile Include="Assets/Scripts/Core/Configuration/ClientConfigMigration.cs" />
@@ -269,7 +268,6 @@
     <Compile Include="Assets/Scripts/VContainer/Runtime/Annotations/IStartable.cs" />
     <Compile Include="Assets/Scripts/Core/Interfaces/Contracts/Models/StatusLineEntry.cs" />
     <Compile Include="Assets\\Scripts\\World\\Lighting\\Geometry\\ILightingGeometryContributor.cs" />
-    <Compile Include="Assets/Scripts/Core/Interfaces/Contracts/PostProcessQualityMode.cs" />
     <Compile Include="Assets\\Scripts\\UI\\Builders\\Widgets\\TextBoxPacketBuilder.cs" />
     <Compile Include="Assets/Scripts/VContainer/Runtime/Unity/ComponentRegistrationBuilder.cs" />
     <Compile Include="Assets/Scripts/Networking/Processors/MissionArrowProcessor.cs" />

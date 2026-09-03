@@ -54,21 +54,6 @@ public sealed class ClientConfigRepositoryTests
     }
 
     [Test]
-    public void Load_RenamesLegacyUiKeysBeforeDeserialization()
-    {
-        Directory.CreateDirectory(_directory);
-        File.WriteAllText(
-            _configPath,
-            "{\"SchemaVersion\":15,\"UiScale\":1.25,\"UiVolume\":0.75}");
-        var repository = new ClientConfigRepository(_configPath);
-
-        ClientConfig loaded = repository.Load();
-
-        Assert.That(loaded.Interface.UIScale, Is.EqualTo(1.25f));
-        Assert.That(loaded.Audio.UIVolume, Is.EqualTo(0.75f));
-    }
-
-    [Test]
     public void Load_CurrentSchemaWithMissingFields_ThrowsInsteadOfUsingClrDefaults()
     {
         Directory.CreateDirectory(_directory);

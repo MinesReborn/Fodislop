@@ -237,28 +237,7 @@ namespace Fodinae.Core
 
             MarkGraphicsAsCustom();
             update(Config);
-            PromotePostProcessQualityForEnabledEffects(Config);
             Save();
-        }
-
-        private static void PromotePostProcessQualityForEnabledEffects(ClientConfig config)
-        {
-            // Пирамида блума нужна не только самому блуму: грязь на линзе,
-            // анаморфные лучи и дифракция берут из неё яркий проход.
-            bool requiresFull = config.BloomEnabled ||
-                config.MotionBlurEnabled ||
-                config.LensEffectsEnabled;
-
-            // Ветки «поднять до Essential» больше нет: тира ниже Essential не
-            // существует, поэтому поднимать неоткуда. Остаётся только подъём до
-            // Full, когда включён эффект, которому нужна пирамида блума.
-            GraphicsQualitySettings quality = config.GraphicsQualitySettings;
-            if (requiresFull)
-            {
-                quality.PostProcessQuality = PostProcessQualityMode.Full;
-            }
-
-            config.GraphicsQualitySettings = quality;
         }
 
         public void Save()

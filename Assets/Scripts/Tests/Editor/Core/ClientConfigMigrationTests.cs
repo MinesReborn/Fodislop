@@ -28,13 +28,11 @@ public sealed class ClientConfigMigrationTests
     }
 
     [Test]
-    public void Migrate_V14CustomConfig_SeedsPostProcessTogglesFromDefaults()
+    public void Migrate_V14CustomConfig_SeedsPostProcessDefaults()
     {
-        // До схемы 19 постпроцесс жил в конфиге числами, и миграция их
-        // подрезала по границам. Теперь величины задаёт PostProcessLook, а в
-        // конфиге остались тумблеры: старые числа не переносятся и не
-        // подрезаются — они просто перестали существовать. Проверяем, что
-        // ступень 19 сеет тумблеры из дефолтов проекта, а не оставляет мусор.
+        // Ступень 19 удаляет старые подробные параметры эффектов и сеет
+        // тумблеры из проекта. Ступень 20 добавляет только компактную
+        // калибровку вывода из текущего PostProcessLook.
         var migration = new ClientConfigMigration(new StubProjectDefaults("defaults-v2"), _profile);
         var config = new ClientConfig
         {
@@ -56,6 +54,34 @@ public sealed class ClientConfigMigrationTests
         Assert.That(config.BloomEnabled, Is.False);
         Assert.That(config.MotionBlurEnabled, Is.False);
         Assert.That(config.LensEffectsEnabled, Is.False);
+        Assert.That(
+            config.PostProcess.ToneMappingWhitePoint,
+            Is.EqualTo(PostProcessLook.ColorGrading.ToneMappingWhitePoint));
+    }
+
+    [Test]
+    public void Migrate_V20Config_SeedsDisplayCalibrationDefaults()
+    {
+        var migration = new ClientConfigMigration(new StubProjectDefaults("defaults-v2"), _profile);
+        var config = new ClientConfig
+        {
+            SchemaVersion = 20,
+            ProjectDefaultsHash = "defaults-v2",
+            Display = new DisplaySettings
+            {
+                Gamma = 0f,
+                PaperWhiteNits = 0f,
+                PeakBrightnessNits = 0f,
+            },
+        };
+
+        bool migrated = migration.Migrate(config);
+
+        Assert.That(migrated, Is.True);
+        Assert.That(config.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
+        Assert.That(config.Display.Gamma, Is.EqualTo(DisplaySettings.DefaultGamma));
+        Assert.That(config.Display.PaperWhiteNits, Is.EqualTo(DisplaySettings.DefaultPaperWhite));
+        Assert.That(config.Display.PeakBrightnessNits, Is.EqualTo(DisplaySettings.DefaultPeakBrightness));
     }
 
     [Test]
@@ -95,6 +121,28 @@ public sealed class ClientConfigMigrationTests
             () => validator.Validate(config))!;
 
         Assert.That(exception.Message, Does.Contain(nameof(config.Interface.UIScale)));
+    }
+
+    [Test]
+    public void Validator_RejectsInvalidToneMappingWhitePoint()
+    {
+        var validator = new ClientConfigValidator(
+            new StubProjectDefaults("defaults-v1"),
+            _profile);
+        var config = new ClientConfig
+        {
+            SchemaVersion = ClientConfig.CurrentSchemaVersion,
+            ProjectDefaultsHash = "defaults-v1",
+            GraphicsPreset = GraphicsPreset.Custom,
+        };
+        config.PostProcess.ToneMappingWhitePoint = 0f;
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(
+            () => validator.Validate(config))!;
+
+        Assert.That(
+            exception.Message,
+            Does.Contain(nameof(config.PostProcess.ToneMappingWhitePoint)));
     }
 
     [Test]

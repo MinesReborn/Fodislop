@@ -39,7 +39,7 @@
     <button type="button" class="dev-btn" data-state="pause" onclick="switchViewState('pause')" data-sfx="click">6. ПАУЗА</button>
     <button type="button" class="dev-btn danger" data-state="reconnect" onclick="switchViewState('reconnect')" data-sfx="alert">7. ОБРЫВ</button>
     <a class="dev-btn dev-btn--link" href="styleguide.html">ДИЗАЙН-СИСТЕМА</a>
-    <div class="sfx-toggle" onclick="toggleAudio()" role="button" tabindex="0" id="sfxToggle" data-sfx="click">
+    <div class="sfx-toggle" onclick="toggleAudio()" role="button" tabindex="0" id="sfxToggle" data-sfx="click" aria-pressed="true">
       <span id="sfxStatus"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-scan"/></svg> ЗВУК</span>
     </div>
     <!-- Нагрузка текстом. Коэффициенты роста посчитаны по словарям игры
@@ -56,7 +56,7 @@
       <option value="p90">ЯЗЫК: p90 (×1.5)</option>
       <option value="worst">ЯЗЫК: ХУДШИЙ (×4.5)</option>
     </select>
-    <div class="sfx-toggle" onclick="toggleOverflowDetector(this)" role="button" tabindex="0" id="overflowToggle" data-sfx="click" title="Подсветить переполнение: красным — нарушение объявленного контракта, жёлтым — узел без объявления">
+    <div class="sfx-toggle" onclick="toggleOverflowDetector(this)" role="button" tabindex="0" id="overflowToggle" data-sfx="click" aria-pressed="false" title="Подсветить переполнение: красным — нарушение объявленного контракта, жёлтым — узел без объявления">
       <span>ПЕРЕПОЛНЕНИЕ</span>
     </div>
   </div>
@@ -173,7 +173,7 @@
 
     <!-- Верхний игровой хедер (64px) -->
     <header class="fa-header">
-      <div class="brand-group" onclick="switchViewState('menu'); playSound('click')" role="button" tabindex="0" data-sfx="click">
+      <div class="brand-group" onclick="switchViewState('menu')" role="button" tabindex="0" data-sfx="click">
         <svg class="brand-icon" aria-hidden="true" focusable="false" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5">
           <path d="M24 4 L43 15 V33 L24 44 L5 33 V15 Z"/>
           <path d="M14 18 L24 12 L34 18 L30 21 L24 18 L18 21 Z" fill="currentColor"/>
@@ -370,19 +370,19 @@
         </div>
 
         <!-- Переключатель Вход / Регистрация -->
-        <div class="onboarding-step-indicator">
-          <div data-i18n="gateway.auth.login_tab" class="onboarding-step-pill active" id="authTabLogin" onclick="switchAuthTab('login')" role="button" tabindex="0" data-sfx="click">ВХОД В АККАУНТ</div>
-          <div data-i18n="gateway.auth.register_tab" class="onboarding-step-pill" id="authTabRegister" onclick="switchAuthTab('register')" role="button" tabindex="0" data-sfx="click">РЕГИСТРАЦИЯ</div>
+        <div class="onboarding-step-indicator" role="tablist" aria-label="Режим авторизации">
+          <div data-i18n="gateway.auth.login_tab" class="onboarding-step-pill active" id="authTabLogin" onclick="switchAuthTab('login')" role="tab" tabindex="0" aria-selected="true" aria-controls="authLoginForm" data-sfx="click">ВХОД В АККАУНТ</div>
+          <div data-i18n="gateway.auth.register_tab" class="onboarding-step-pill" id="authTabRegister" onclick="switchAuthTab('register')" role="tab" tabindex="0" aria-selected="false" aria-controls="authRegisterForm" data-sfx="click">РЕГИСТРАЦИЯ</div>
         </div>
 
         <!-- Форма Входа -->
-        <div id="authLoginForm" class="fdn-stack fdn-stack--gap-16">
+        <form id="authLoginForm" class="fdn-stack fdn-stack--gap-16" onsubmit="event.preventDefault(); submitAuthForm()">
           <!-- Позывной (Логин) -->
           <div class="auth-field-wrap">
             <label data-i18n="gateway.auth.login_field" class="auth-field-label" for="inputMinerName">ПОЗЫВНОЙ ШАХТЁРА (ЛОГИН):</label>
             <div class="auth-input-group">
               <span class="auth-input-icon"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-user"/></svg></span>
-              <input type="text" class="auth-input" id="inputMinerName" value="ШАХТЁР-774 [DVM]" placeholder="Введите позывной">
+              <input type="text" class="auth-input" id="inputMinerName" name="username" autocomplete="username" value="ШАХТЁР-774 [DVM]" placeholder="Введите позывной">
             </div>
           </div>
 
@@ -391,8 +391,8 @@
             <label data-i18n="gateway.auth.password_field" class="auth-field-label" for="inputPassword">ПАРОЛЬ ДОСТУПА:</label>
             <div class="auth-input-group">
               <span class="auth-input-icon"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-lock"/></svg></span>
-              <input type="password" class="auth-input" id="inputPassword" value="MiningPassword#2026" placeholder="Введите пароль">
-              <button type="button" class="auth-eye-btn" onclick="togglePasswordVisibility('inputPassword')" title="Показать/скрыть" data-sfx="click"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-eye"/></svg></button>
+              <input type="password" class="auth-input" id="inputPassword" name="password" autocomplete="current-password" value="MiningPassword#2026" placeholder="Введите пароль">
+              <button type="button" class="auth-eye-btn" onclick="togglePasswordVisibility('inputPassword', this)" title="Показать пароль" aria-label="Показать пароль" aria-pressed="false" data-sfx="click"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-eye"/></svg></button>
             </div>
           </div>
 
@@ -407,15 +407,15 @@
               <span data-i18n="gateway.auth.auto_login">Авто-вход</span>
             </label>
           </div>
-        </div>
+        </form>
 
         <!-- Форма Регистрации (Только учетные данные и EULA) -->
-        <div id="authRegisterForm" class="fdn-stack fdn-stack--gap-14 is-hidden">
+        <form id="authRegisterForm" class="fdn-stack fdn-stack--gap-14 is-hidden" onsubmit="event.preventDefault(); submitAuthForm()">
           <div class="auth-field-wrap">
             <label data-i18n="gateway.auth.new_callsign_field" class="auth-field-label" for="inputRegMinerName">ПОЗЫВНОЙ НОВОГО ШАХТЁРА:</label>
             <div class="auth-input-group">
               <span class="auth-input-icon"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-user"/></svg></span>
-              <input type="text" class="auth-input" id="inputRegMinerName" value="ШАХТЁР-774 [DVM]" placeholder="Введите позывной">
+              <input type="text" class="auth-input" id="inputRegMinerName" name="new-username" autocomplete="username" value="ШАХТЁР-774 [DVM]" placeholder="Введите позывной">
             </div>
           </div>
 
@@ -423,8 +423,8 @@
             <label data-i18n="gateway.auth.password_field" class="auth-field-label" for="inputRegPassword">ПАРОЛЬ ДОСТУПА:</label>
             <div class="auth-input-group">
               <span class="auth-input-icon"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-lock"/></svg></span>
-              <input type="password" class="auth-input" id="inputRegPassword" value="MiningPassword#2026" placeholder="Придумайте пароль">
-              <button type="button" class="auth-eye-btn" onclick="togglePasswordVisibility('inputRegPassword')" data-sfx="click"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-eye"/></svg></button>
+              <input type="password" class="auth-input" id="inputRegPassword" name="new-password" autocomplete="new-password" value="MiningPassword#2026" placeholder="Придумайте пароль">
+              <button type="button" class="auth-eye-btn" onclick="togglePasswordVisibility('inputRegPassword', this)" title="Показать пароль" aria-label="Показать пароль" aria-pressed="false" data-sfx="click"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-eye"/></svg></button>
             </div>
           </div>
 
@@ -432,8 +432,8 @@
             <label data-i18n="gateway.auth.confirm_password_field" class="auth-field-label" for="inputRegConfirmPassword">ПОДТВЕРЖДЕНИЕ ПАРОЛЯ:</label>
             <div class="auth-input-group">
               <span class="auth-input-icon"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-lock"/></svg></span>
-              <input type="password" class="auth-input" id="inputRegConfirmPassword" value="MiningPassword#2026" placeholder="Повторите пароль">
-              <button type="button" class="auth-eye-btn" onclick="togglePasswordVisibility('inputRegConfirmPassword')" data-sfx="click"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-eye"/></svg></button>
+              <input type="password" class="auth-input" id="inputRegConfirmPassword" name="confirm-password" autocomplete="new-password" value="MiningPassword#2026" placeholder="Повторите пароль">
+              <button type="button" class="auth-eye-btn" onclick="togglePasswordVisibility('inputRegConfirmPassword', this)" title="Показать пароль" aria-label="Показать пароль" aria-pressed="false" data-sfx="click"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-eye"/></svg></button>
             </div>
           </div>
 
@@ -450,10 +450,10 @@
               <span data-i18n="gateway.auth.eula_accept" class="fdn-text--xs fdn-text--light">Принимаю Пользовательское соглашение и EULA</span>
             </label>
           </div>
-        </div>
+        </form>
 
         <!-- Главная кнопка входа -->
-        <button type="button" class="auth-btn-enter" id="btnSubmitAuth" data-fit="wrap" onclick="submitAuthForm()" data-sfx="confirm">
+        <button type="submit" form="authLoginForm" class="auth-btn-enter" id="btnSubmitAuth" data-fit="wrap" data-sfx="confirm">
           <span data-i18n="gateway.auth.submit">ВОЙТИ В МИР FODINAE</span>
           <span translate="no"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true" translate="no"><use href="#i-arrow-ne"/></svg></span>
         </button>
@@ -491,10 +491,10 @@
               <span data-i18n="gateway.onb.step1_block_title" class="settings-block-title">ОПТИЧЕСКАЯ АДАПТАЦИЯ И ДОСТУПНОСТЬ</span>
               <div class="settings-row">
                 <div>
-                  <div data-i18n="onboarding.settings_label" class="settings-label">Масштаб интерфейса (UI Scaling)</div>
+                  <div data-i18n="onboarding.settings_label" class="settings-label" id="onboardingUiScaleLabel">Масштаб интерфейса (UI Scaling)</div>
                   <div data-i18n="gateway.onb.ui_scale_hint" class="settings-hint">Калибровка размера панелей UI Toolkit под монитор</div>
                 </div>
-                <select class="styled-select" onchange="applyUiScale(this.value)" data-sfx="click">
+                <select class="styled-select" onchange="applyUiScale(this.value)" aria-labelledby="onboardingUiScaleLabel" data-sfx="click">
                   <option data-i18n="gateway.onb.ui_scale.100" value="1" selected>100% (Штатный)</option>
                   <option data-i18n="gateway.onb.ui_scale.115" value="1.15">115% (Увеличенный)</option>
                   <option data-i18n="gateway.onb.ui_scale.130" value="1.3">130% (Крупный)</option>
@@ -503,10 +503,10 @@
 
               <div class="settings-row">
                 <div>
-                  <div data-i18n="gateway.onb.colorblind_label" class="settings-label">Цветовая адаптация (Colorblind)</div>
+                  <div data-i18n="gateway.onb.colorblind_label" class="settings-label" id="onboardingColorblindLabel">Цветовая адаптация (Colorblind)</div>
                   <div data-i18n="gateway.onb.colorblind_hint" class="settings-hint">Коррекция оттенков лавы, минералов и контуров</div>
                 </div>
-                <select class="styled-select" onchange="applyColorblindTheme(this.value)" data-sfx="click">
+                <select class="styled-select" onchange="applyColorblindTheme(this.value)" aria-labelledby="onboardingColorblindLabel" data-sfx="click">
                   <option data-i18n="gateway.onb.colorblind.none" value="none" selected>Стандартная палитра</option>
                   <option data-i18n="gateway.onb.colorblind.deuteranopia" value="deuteranopia">Дейтеранопия</option>
                   <option data-i18n="gateway.onb.colorblind.protanopia" value="protanopia">Протанопия</option>
@@ -517,10 +517,10 @@
 
               <div class="settings-row">
                 <div>
-                  <div data-i18n="gateway.onb.flicker_label" class="settings-label">Снижение фоточувствительности</div>
+                  <div data-i18n="gateway.onb.flicker_label" class="settings-label" id="onboardingMotionLabel">Снижение фоточувствительности</div>
                   <div data-i18n="gateway.onb.flicker_hint" class="settings-hint">Подавление резких вспышек при контакте с лавой</div>
                 </div>
-                <select id="reduceMotionSelect" class="styled-select" onchange="toggleReduceMotion(this.value === 'yes')" data-sfx="click">
+                <select id="reduceMotionSelect" class="styled-select" onchange="toggleReduceMotion(this.value === 'yes')" aria-labelledby="onboardingMotionLabel" data-sfx="click">
                   <option data-i18n="settings.lighting.off" value="no" selected>Выключено</option>
                   <option data-i18n="gateway.onb.photosens.on" value="yes">Включено (Мягкое освещение)</option>
                 </select>
@@ -534,10 +534,10 @@
               <span data-i18n="gateway.onb.step2_block_title" class="settings-block-title">РЕНДЕРИНГ И ТРАССИРОВКА ОСВЕЩЕНИЯ</span>
               <div class="settings-row">
                 <div>
-                  <div data-i18n="onboarding.settings_label_2" class="settings-label">GPU Radiance Cascades</div>
+                  <div data-i18n="onboarding.settings_label_2" class="settings-label" id="onboardingLightingLabel">GPU Radiance Cascades</div>
                   <div data-i18n="onboarding.settings_hint" class="settings-hint">Качество каскадного расчета диффузного света в породе</div>
                 </div>
-                <select class="styled-select">
+                <select class="styled-select" aria-labelledby="onboardingLightingLabel">
                   <option data-i18n="onboarding.styled_select">6 Каскадов (2 отскока) · Ультра</option>
                   <option data-i18n="onboarding.styled_select_2" selected>4 Каскада (1 отскок) · Высокое</option>
                   <option data-i18n="onboarding.styled_select_3">2 Каскада · Быстрое</option>
@@ -546,10 +546,10 @@
 
               <div class="settings-row">
                 <div>
-                  <div data-i18n="onboarding.settings_label_3" class="settings-label">Частота обновления (FPS Limit)</div>
+                  <div data-i18n="onboarding.settings_label_3" class="settings-label" id="onboardingFpsLabel">Частота обновления (FPS Limit)</div>
                   <div data-i18n="gateway.onb.fps_hint" class="settings-hint">Синхронизация частоты кадров</div>
                 </div>
-                <select class="styled-select">
+                <select class="styled-select" aria-labelledby="onboardingFpsLabel">
                   <option data-i18n="onboarding.styled_select_4">144 FPS</option>
                   <option data-i18n="onboarding.styled_select_5" selected>120 FPS</option>
                   <option data-i18n="onboarding.styled_select_6">60 FPS</option>
@@ -565,10 +565,10 @@
               <span data-i18n="gateway.onb.step3_block_title" class="settings-block-title">ТАКТИЛЬНЫЙ КОНТРОЛЬ И FMOD AUDIO</span>
               <div class="settings-row">
                 <div>
-                  <div data-i18n="gateway.onb.controls_scheme_label" class="settings-label">Схема движения бурового дрона</div>
+                  <div data-i18n="gateway.onb.controls_scheme_label" class="settings-label" id="onboardingControlsLabel">Схема движения бурового дрона</div>
                   <div data-i18n="gateway.onb.controls_scheme_hint" class="settings-hint">Клавиатура или указатель мыши</div>
                 </div>
-                <select class="styled-select">
+                <select class="styled-select" aria-labelledby="onboardingControlsLabel">
                   <option data-i18n="gateway.onb.controls.keyboard" selected>WASD / Стрелки (Рекомендуется)</option>
                   <option data-i18n="gateway.onb.controls.mouse">Указатель мыши</option>
                 </select>
@@ -576,11 +576,11 @@
 
               <div class="settings-row">
                 <div>
-                  <div data-i18n="gateway.onb.master_volume_label" class="settings-label">Громкость звукового ядра FMOD</div>
+                  <div data-i18n="gateway.onb.master_volume_label" class="settings-label" id="onboardingVolumeLabel">Громкость звукового ядра FMOD</div>
                   <div data-i18n="gateway.onb.master_volume_hint" class="settings-hint">Master Bus</div>
                 </div>
                 <div class="slider-container">
-                  <input type="range" class="slider-range" min="0" max="100" value="85" oninput="this.nextElementSibling.innerText = this.value + '%'">
+                  <input type="range" class="slider-range" min="0" max="100" value="85" aria-labelledby="onboardingVolumeLabel" oninput="this.nextElementSibling.innerText = this.value + '%'">
                   <span class="slider-number">85%</span>
                 </div>
               </div>
@@ -949,20 +949,20 @@
       </div>
 
       <div class="fdn-settings-layout">
-        <nav class="fdn-settings-nav">
-          <button data-i18n="menu.settings.graphics" type="button" class="fdn-settings-tab active" onclick="switchSettingsTab('tab-graphics', this)" data-sfx="click" data-fit="wrap">
+        <nav class="fdn-settings-nav" role="tablist" aria-label="Разделы настроек">
+          <button data-i18n="menu.settings.graphics" type="button" class="fdn-settings-tab active" onclick="switchSettingsTab('tab-graphics', this)" role="tab" aria-selected="true" aria-controls="tab-graphics" data-sfx="click" data-fit="wrap">
             <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></g></svg>
             ГРАФИКА
           </button>
-          <button data-i18n="mainmenu.settings_tab_audio" type="button" class="fdn-settings-tab" onclick="switchSettingsTab('tab-audio', this)" data-sfx="click" data-fit="wrap">
+          <button data-i18n="mainmenu.settings_tab_audio" type="button" class="fdn-settings-tab" onclick="switchSettingsTab('tab-audio', this)" role="tab" aria-selected="false" aria-controls="tab-audio" data-sfx="click" data-fit="wrap">
             <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></g></svg>
             ЗВУК (FMOD)
           </button>
-          <button data-i18n="programmator.cat.CAT_CONTROL_FLOW" type="button" class="fdn-settings-tab" onclick="switchSettingsTab('tab-controls', this)" data-sfx="click" data-fit="wrap">
+          <button data-i18n="programmator.cat.CAT_CONTROL_FLOW" type="button" class="fdn-settings-tab" onclick="switchSettingsTab('tab-controls', this)" role="tab" aria-selected="false" aria-controls="tab-controls" data-sfx="click" data-fit="wrap">
             <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h4m-2-2v4"/><circle cx="17" cy="10" r="1"/><circle cx="15" cy="14" r="1"/></g></svg>
             УПРАВЛЕНИЕ
           </button>
-          <button data-i18n="settings.modal_card" type="button" class="fdn-settings-tab" onclick="switchSettingsTab('tab-network', this)" data-sfx="click" data-fit="wrap">
+          <button data-i18n="settings.modal_card" type="button" class="fdn-settings-tab" onclick="switchSettingsTab('tab-network', this)" role="tab" aria-selected="false" aria-controls="tab-network" data-sfx="click" data-fit="wrap">
             <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></g></svg>
             СЕТЬ И CDN
           </button>
@@ -970,16 +970,16 @@
 
         <div class="fdn-settings-pane">
           <!-- Графика -->
-          <div class="tab-panel active" id="tab-graphics">
+          <div class="tab-panel active" id="tab-graphics" role="tabpanel">
             <div class="settings-block">
               <span data-i18n="settings.settings_block_title" class="settings-block-title">ЭКРАН И РЕНДЕРИНГ</span>
               <div class="settings-row">
                 <div>
-                  <div data-i18n="settings.settings_label" class="settings-label">Разрешение экрана</div>
+                  <div data-i18n="settings.settings_label" class="settings-label" id="settingsResolutionLabel">Разрешение экрана</div>
                   <div data-i18n="settings.settings_hint" class="settings-hint">Целевой размер кадра для UI Toolkit и 2D камеры</div>
                 </div>
                 <div class="settings-control">
-                  <select class="styled-select">
+                  <select class="styled-select" aria-labelledby="settingsResolutionLabel">
                     <option data-i18n="settings.styled_select">2560 x 1440 (16:9 QHD) · Родное</option>
                     <option data-i18n="settings.styled_select_2">1920 x 1080 (16:9 FHD)</option>
                     <option data-i18n="settings.styled_select_3">3840 x 2160 (16:9 4K UHD)</option>
@@ -988,11 +988,11 @@
               </div>
               <div class="settings-row">
                 <div>
-                  <div data-i18n="settings.settings_label_2" class="settings-label">Режим отображения</div>
+                  <div data-i18n="settings.settings_label_2" class="settings-label" id="settingsDisplayModeLabel">Режим отображения</div>
                   <div data-i18n="settings.settings_hint_2" class="settings-hint">Полноэкранный без рамок или оконный режим</div>
                 </div>
                 <div class="settings-control">
-                  <select class="styled-select">
+                  <select class="styled-select" aria-labelledby="settingsDisplayModeLabel">
                     <option data-i18n="settings.styled_select_4">Полноэкранный без рамок (Borderless)</option>
                     <option data-i18n="settings.styled_select_5">Эксклюзивный полный экран</option>
                     <option data-i18n="settings.styled_select_6">В окне</option>
@@ -1001,11 +1001,11 @@
               </div>
               <div class="settings-row">
                 <div>
-                  <div data-i18n="gateway.onb.fps_label" class="settings-label">Ограничение частоты кадров</div>
+                  <div data-i18n="gateway.onb.fps_label" class="settings-label" id="settingsFpsLabel">Ограничение частоты кадров</div>
                   <div data-i18n="settings.settings_hint_3" class="settings-hint">Синхронизация FPS для снижения нагрузки</div>
                 </div>
                 <div class="settings-control">
-                  <select class="styled-select">
+                  <select class="styled-select" aria-labelledby="settingsFpsLabel">
                     <option data-i18n="settings.styled_select_7">144 FPS (G-Sync / FreeSync)</option>
                     <option data-i18n="settings.styled_select_8">120 FPS</option>
                     <option data-i18n="settings.styled_select_9">60 FPS</option>
@@ -1019,11 +1019,11 @@
               <span data-i18n="settings.settings_block_title_2" class="settings-block-title">ШЕЙДЕРЫ ОСВЕЩЕНИЯ И ПОСТ-ОБРАБОТКА</span>
               <div class="settings-row">
                 <div>
-                  <div data-i18n="settings.settings_label_3" class="settings-label">GPU Radiance Cascades</div>
+                  <div data-i18n="settings.settings_label_3" class="settings-label" id="settingsLightingLabel">GPU Radiance Cascades</div>
                   <div data-i18n="settings.settings_hint_4" class="settings-hint">Качество расчета рассеянного света и лучей в породе</div>
                 </div>
                 <div class="settings-control">
-                  <select class="styled-select">
+                  <select class="styled-select" aria-labelledby="settingsLightingLabel">
                     <option data-i18n="settings.styled_select_10">Ультра (6 каскадов · 2 отскока света)</option>
                     <option data-i18n="settings.styled_select_11">Высокое (5 каскадов · 1 отскок)</option>
                     <option data-i18n="settings.styled_select_12">Среднее (4 каскада)</option>
@@ -1032,24 +1032,24 @@
               </div>
               <div class="settings-row">
                 <div>
-                  <div data-i18n="settings.settings_label_4" class="settings-label">Contact / Cavity Ambient Occlusion</div>
+                  <div data-i18n="settings.settings_label_4" class="settings-label" id="settingsAoLabel">Contact / Cavity Ambient Occlusion</div>
                   <div data-i18n="settings.settings_hint_5" class="settings-hint">Полноразрешенное затенение углов породы без швов (RHalf)</div>
                 </div>
                 <div class="settings-control">
                   <label class="switch-control">
-                    <input type="checkbox" checked>
+                    <input type="checkbox" checked aria-labelledby="settingsAoLabel">
                     <span class="switch-knob"></span>
                   </label>
                 </div>
               </div>
               <div class="settings-row">
                 <div>
-                  <div data-i18n="settings.settings_label_5" class="settings-label">URP HDR Bloom и свечение руд</div>
+                  <div data-i18n="settings.settings_label_5" class="settings-label" id="settingsBloomLabel">URP HDR Bloom и свечение руд</div>
                   <div data-i18n="settings.settings_hint_6" class="settings-hint">Свечение лавы и минералов через post-process</div>
                 </div>
                 <div class="settings-control">
                   <label class="switch-control">
-                    <input type="checkbox" checked>
+                    <input type="checkbox" checked aria-labelledby="settingsBloomLabel">
                     <span class="switch-knob"></span>
                   </label>
                 </div>
@@ -1058,41 +1058,41 @@
           </div>
 
           <!-- Звук -->
-          <div class="tab-panel" id="tab-audio">
+          <div class="tab-panel" id="tab-audio" role="tabpanel">
             <div class="settings-block">
               <span data-i18n="settings.settings_block_title_3" class="settings-block-title">FMOD STUDIO ШИНЫ МИКШИРОВАНИЯ</span>
               <div class="settings-row">
-                <div data-i18n="settings.settings_label_6" class="settings-label">Общая громкость (Master Bus)</div>
+                <div data-i18n="settings.settings_label_6" class="settings-label" id="settingsMasterVolumeLabel">Общая громкость (Master Bus)</div>
                 <div class="settings-control">
                   <div class="slider-container">
-                    <input type="range" class="slider-range" min="0" max="100" value="85" oninput="this.nextElementSibling.innerText = this.value + '%'">
+                    <input type="range" class="slider-range" min="0" max="100" value="85" aria-labelledby="settingsMasterVolumeLabel" oninput="this.nextElementSibling.innerText = this.value + '%'">
                     <span class="slider-number">85%</span>
                   </div>
                 </div>
               </div>
               <div class="settings-row">
-                <div data-i18n="settings.settings_label_7" class="settings-label">Звуковые эффекты бурения и лазера (SFX)</div>
+                <div data-i18n="settings.settings_label_7" class="settings-label" id="settingsSfxVolumeLabel">Звуковые эффекты бурения и лазера (SFX)</div>
                 <div class="settings-control">
                   <div class="slider-container">
-                    <input type="range" class="slider-range" min="0" max="100" value="90" oninput="this.nextElementSibling.innerText = this.value + '%'">
+                    <input type="range" class="slider-range" min="0" max="100" value="90" aria-labelledby="settingsSfxVolumeLabel" oninput="this.nextElementSibling.innerText = this.value + '%'">
                     <span class="slider-number">90%</span>
                   </div>
                 </div>
               </div>
               <div class="settings-row">
-                <div data-i18n="settings.settings_label_8" class="settings-label">Музыка подземелья (Music Bus)</div>
+                <div data-i18n="settings.settings_label_8" class="settings-label" id="settingsMusicVolumeLabel">Музыка подземелья (Music Bus)</div>
                 <div class="settings-control">
                   <div class="slider-container">
-                    <input type="range" class="slider-range" min="0" max="100" value="65" oninput="this.nextElementSibling.innerText = this.value + '%'">
+                    <input type="range" class="slider-range" min="0" max="100" value="65" aria-labelledby="settingsMusicVolumeLabel" oninput="this.nextElementSibling.innerText = this.value + '%'">
                     <span class="slider-number">65%</span>
                   </div>
                 </div>
               </div>
               <div class="settings-row">
-                <div data-i18n="settings.settings_label_9" class="settings-label">Эмбиент глубин и эхо (Ambience)</div>
+                <div data-i18n="settings.settings_label_9" class="settings-label" id="settingsAmbienceVolumeLabel">Эмбиент глубин и эхо (Ambience)</div>
                 <div class="settings-control">
                   <div class="slider-container">
-                    <input type="range" class="slider-range" min="0" max="100" value="80" oninput="this.nextElementSibling.innerText = this.value + '%'">
+                    <input type="range" class="slider-range" min="0" max="100" value="80" aria-labelledby="settingsAmbienceVolumeLabel" oninput="this.nextElementSibling.innerText = this.value + '%'">
                     <span class="slider-number">80%</span>
                   </div>
                 </div>
@@ -1101,7 +1101,7 @@
           </div>
 
           <!-- Управление -->
-          <div class="tab-panel" id="tab-controls">
+          <div class="tab-panel" id="tab-controls" role="tabpanel">
             <div class="settings-block">
               <span data-i18n="settings.settings_block_title_4" class="settings-block-title">ПРИВЯЗКА КЛАВИШ УПРАВЛЕНИЯ</span>
               <div class="keybindings-grid">
@@ -1120,16 +1120,16 @@
           </div>
 
           <!-- Сеть -->
-          <div class="tab-panel" id="tab-network">
+          <div class="tab-panel" id="tab-network" role="tabpanel">
             <div class="settings-block">
               <span data-i18n="settings.settings_block_title_5" class="settings-block-title">СЕТЕВЫЕ ПРОТОКОЛЫ И КЭШИРОВАНИЕ</span>
               <div class="settings-row">
                 <div>
-                  <div data-i18n="settings.settings_label_10" class="settings-label">CDN Зеркало для тяжелых ассетов</div>
+                  <div data-i18n="settings.settings_label_10" class="settings-label" id="settingsCdnLabel">CDN Зеркало для тяжелых ассетов</div>
                   <div data-i18n="settings.settings_hint_7" class="settings-hint">Источник для текстур атласа и FMOD банков</div>
                 </div>
                 <div class="settings-control">
-                  <select class="styled-select">
+                  <select class="styled-select" aria-labelledby="settingsCdnLabel">
                     <option data-i18n="settings.styled_select_13">Европейский CDN (Основное зеркало)</option>
                     <option data-i18n="settings.styled_select_14">Прямой поток с игрового сервера</option>
                     <option data-i18n="settings.styled_select_15">Резервный Edge CDN</option>
@@ -1138,12 +1138,12 @@
               </div>
               <div class="settings-row">
                 <div>
-                  <div data-i18n="settings.settings_label_11" class="settings-label">Автоматический реконнект</div>
+                  <div data-i18n="settings.settings_label_11" class="settings-label" id="settingsReconnectLabel">Автоматический реконнект</div>
                   <div data-i18n="settings.settings_hint_8" class="settings-hint">Повторное подключение при потере пакетов</div>
                 </div>
                 <div class="settings-control">
                   <label class="switch-control">
-                    <input type="checkbox" checked>
+                    <input type="checkbox" checked aria-labelledby="settingsReconnectLabel">
                     <span class="switch-knob"></span>
                   </label>
                 </div>
@@ -1155,7 +1155,7 @@
 
       <div class="modal-card-footer">
         <button data-i18n="common.cancel" type="button" class="btn-outline-action" onclick="closeModal('settingsModal')" data-sfx="click" data-fit="wrap">ОТМЕНА</button>
-        <button data-i18n="settings.btn_gold_action" type="button" class="btn-gold-action" onclick="closeModal('settingsModal'); playSound('confirm')" data-sfx="confirm" data-fit="wrap">СОХРАНИТЬ НАСТРОЙКИ</button>
+        <button data-i18n="settings.btn_gold_action" type="button" class="btn-gold-action" onclick="closeModal('settingsModal')" data-sfx="confirm" data-fit="wrap">СОХРАНИТЬ НАСТРОЙКИ</button>
       </div>
     </div>
   </div>
@@ -1184,7 +1184,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr class="selected" onclick="selectServerDetail(this, 'Hades-Alpha', 'EU North', '142 / 200', '32 ms', '-2 480 м', '#849201', 'Высокая (Лавовые карманы, Рудные жилы)')" role="row" tabindex="0" data-sfx="click">
+                <tr class="selected" onclick="selectServerDetail(this, 'Hades-Alpha', 'EU North', '142 / 200', '32 ms', '-2 480 м', '#849201', 'Высокая (Лавовые карманы, Рудные жилы)')" role="row" tabindex="0" aria-selected="true" data-sfx="click">
                   <td>
                     <div class="server-name-cell">
                       <strong data-i18n="server.server_name_cell">HADES-ALPHA</strong>
@@ -1196,7 +1196,7 @@
                   <td><span data-i18n="server.ping_indicator" class="ping-indicator good">● 32ms</span></td>
                 </tr>
 
-                <tr onclick="selectServerDetail(this, 'Tartarus-02', 'EU Central', '88 / 150', '44 ms', '-1 920 м', '#104928', 'Экстремальная (Полный лут, Лавопад)')" role="row" tabindex="0" data-sfx="click">
+                <tr onclick="selectServerDetail(this, 'Tartarus-02', 'EU Central', '88 / 150', '44 ms', '-1 920 м', '#104928', 'Экстремальная (Полный лут, Лавопад)')" role="row" tabindex="0" aria-selected="false" data-sfx="click">
                   <td>
                     <div class="server-name-cell">
                       <strong data-i18n="server.server_name_cell_3">TARTARUS-02</strong>
@@ -1208,7 +1208,7 @@
                   <td><span data-i18n="server.ping_indicator_2" class="ping-indicator good">● 44ms</span></td>
                 </tr>
 
-                <tr onclick="selectServerDetail(this, 'Cyber-Prospectors', 'US East', '45 / 100', '118 ms', '-950 м', '#559102', 'Средняя (Экономика дронов)')" role="row" tabindex="0" data-sfx="click">
+                <tr onclick="selectServerDetail(this, 'Cyber-Prospectors', 'US East', '45 / 100', '118 ms', '-950 м', '#559102', 'Средняя (Экономика дронов)')" role="row" tabindex="0" aria-selected="false" data-sfx="click">
                   <td>
                     <div class="server-name-cell">
                       <strong data-i18n="server.server_name_cell_5">CYBER-PROSPECTORS</strong>
@@ -1220,7 +1220,7 @@
                   <td><span data-i18n="server.ping_indicator_3" class="ping-indicator med">● 118ms</span></td>
                 </tr>
 
-                <tr onclick="selectServerDetail(this, 'Dummy Offline', 'Localhost', '1 / 1', '0 ms', '-100 м', '#000000', 'Тестовая (Офлайн песочница)')" role="row" tabindex="0" data-sfx="click">
+                <tr onclick="selectServerDetail(this, 'Dummy Offline', 'Localhost', '1 / 1', '0 ms', '-100 м', '#000000', 'Тестовая (Офлайн песочница)')" role="row" tabindex="0" aria-selected="false" data-sfx="click">
                   <td>
                     <div class="server-name-cell">
                       <strong data-i18n="server.server_name_cell_7">DUMMY OFFLINE</strong>
@@ -1235,8 +1235,8 @@
             </table>
 
             <div class="srv-search-row">
-              <span data-i18n="server.server_browser_layout" class="fdn-font-data fdn-text--xs fdn-text--secondary">IP:</span>
-              <input type="text" value="127.0.0.1:7777" class="srv-search-input">
+              <span data-i18n="server.server_browser_layout" class="fdn-font-data fdn-text--xs fdn-text--secondary" id="serverAddressLabel">IP:</span>
+              <input type="text" value="127.0.0.1:7777" class="srv-search-input" aria-labelledby="serverAddressLabel">
               <button data-i18n="mainmenu.server_direct_connect" type="button" class="btn-outline-action btn-outline-action--sm" onclick="closeModal('serverBrowserModal'); handleDeployClick();" data-sfx="click" data-fit="wrap">ПОДКЛЮЧИТЬСЯ</button>
             </div>
           </div>
@@ -1329,11 +1329,11 @@
           <div class="fdn-stack fdn-stack--gap-8">
             <div class="settings-row">
               <div>
-                <div data-i18n="mainmenu.settings_label" class="settings-label">Ключ доступа (AuthToken)</div>
+                <div data-i18n="mainmenu.settings_label" class="settings-label" id="profileTokenLabel">Ключ доступа (AuthToken)</div>
                 <div data-i18n="mainmenu.settings_hint" class="settings-hint">Сохранён в локальном профиле клиента</div>
               </div>
               <div class="fdn-row fdn-row--flow fdn-row--gap-8">
-                <input type="text" class="auth-input auth-input--token" id="profileTokenInput" value="fdn_tok_9948a204e18" readonly>
+                <input type="text" class="auth-input auth-input--token" id="profileTokenInput" value="fdn_tok_9948a204e18" aria-labelledby="profileTokenLabel" readonly>
                 <button data-i18n="mainmenu.profile_copy_token" type="button" class="btn-outline-action" onclick="copyTokenToClipboard()" title="Скопировать ключ" data-sfx="click" data-fit="wrap"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-copy"/></svg> КОПИЯ</button>
               </div>
             </div>
@@ -1418,7 +1418,7 @@
 
       <div class="modal-card-footer">
         <button data-i18n="mainmenu.update_offline" type="button" class="btn-outline-action" data-fit="atomic" onclick="closeModal('mandatoryUpdateModal'); showToast(t('mainmenu.toast.update_deferred'), 'alert');" data-sfx="click">ОТЛОЖИТЬ (ТОЛЬКО ОФЛАЙН)</button>
-        <button  type="button" class="btn-gold-action" id="btnStartUpdate" data-fit="wrap" onclick="startUpdateDownloadProcess()" data-sfx="confirm"><span data-i18n="modal.btn_start_update">СКАЧАТЬ ОБНОВЛЕНИЕ И ПЕРЕЗАПУСТИТЬ</span><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true" translate="no"><use href="#i-arrow-ne"/></svg></button>
+        <button  type="button" class="btn-gold-action" id="btnStartUpdate" data-fit="wrap" onclick="startUpdateDownloadProcess()" data-sfx="confirm"><span data-i18n="modal.btn_start_update" id="updateActionLabel">СКАЧАТЬ ОБНОВЛЕНИЕ И ПЕРЕЗАПУСТИТЬ</span><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true" translate="no"><use href="#i-arrow-ne"/></svg></button>
       </div>
     </div>
   </div>
@@ -1513,21 +1513,21 @@
 
       <div class="modal-card-body">
         <div class="chat-window-layout">
-          <div class="chat-tabs-bar">
-            <button data-i18n="chat.chat_tab_btn" type="button" class="chat-tab-btn active" onclick="switchChatTab(this, 'all')" data-sfx="click">ВСЕ</button>
-            <button data-i18n="chat.chat_tab_btn_2" type="button" class="chat-tab-btn" onclick="switchChatTab(this, 'local')" data-sfx="click">ЛОКАЛЬНЫЙ (СЕКТОР 09)</button>
-            <button data-i18n="chat.chat_tab_btn_3" type="button" class="chat-tab-btn" onclick="switchChatTab(this, 'clan')" data-sfx="click">КЛАН [VOID]</button>
-            <button data-i18n="chat.chat_tab_btn_4" type="button" class="chat-tab-btn" onclick="switchChatTab(this, 'system')" data-sfx="click">СИСТЕМА</button>
+          <div class="chat-tabs-bar" role="tablist" aria-label="Каналы чата">
+            <button data-i18n="chat.chat_tab_btn" type="button" class="chat-tab-btn active" onclick="switchChatTab(this, 'all')" role="tab" aria-selected="true" aria-controls="chatMessagesBox" data-sfx="click">ВСЕ</button>
+            <button data-i18n="chat.chat_tab_btn_2" type="button" class="chat-tab-btn" onclick="switchChatTab(this, 'local')" role="tab" aria-selected="false" aria-controls="chatMessagesBox" data-sfx="click">ЛОКАЛЬНЫЙ (СЕКТОР 09)</button>
+            <button data-i18n="chat.chat_tab_btn_3" type="button" class="chat-tab-btn" onclick="switchChatTab(this, 'clan')" role="tab" aria-selected="false" aria-controls="chatMessagesBox" data-sfx="click">КЛАН [VOID]</button>
+            <button data-i18n="chat.chat_tab_btn_4" type="button" class="chat-tab-btn" onclick="switchChatTab(this, 'system')" role="tab" aria-selected="false" aria-controls="chatMessagesBox" data-sfx="click">СИСТЕМА</button>
           </div>
 
           <div class="chat-messages-container" id="chatMessagesBox">
-            <div data-i18n="chat.chat_row" class="chat-row"><span data-i18n="chat.chat_author" class="chat-author system">[SYSTEM]:</span> Шлюз связи Стокгольм-01 синхронизирован.</div>
-            <div data-i18n="chat.chat_row_2" class="chat-row"><span data-i18n="chat.chat_author_2" class="chat-author">[ГОРНЯК-102]:</span> На горизонте -1800м обнаружена жила титана.</div>
-            <div data-i18n="chat.chat_row_3" class="chat-row"><span data-i18n="chat.chat_author_3" class="chat-author clan">[DVM_LEADER]:</span> Готовность к клановому бурению 10 минут.</div>
+            <div data-i18n="chat.chat_row" class="chat-row" data-channel="system"><span data-i18n="chat.chat_author" class="chat-author system">[SYSTEM]:</span> Шлюз связи Стокгольм-01 синхронизирован.</div>
+            <div data-i18n="chat.chat_row_2" class="chat-row" data-channel="local"><span data-i18n="chat.chat_author_2" class="chat-author">[ГОРНЯК-102]:</span> На горизонте -1800м обнаружена жила титана.</div>
+            <div data-i18n="chat.chat_row_3" class="chat-row" data-channel="clan"><span data-i18n="chat.chat_author_3" class="chat-author clan">[DVM_LEADER]:</span> Готовность к клановому бурению 10 минут.</div>
           </div>
 
           <div class="fdn-row fdn-row--flow fdn-row--gap-6">
-            <input type="text" class="auth-input" id="chatInputField" placeholder="Сообщение... (Enter для отправки)" onkeydown="handleChatInputKeyDown(event)">
+            <input type="text" class="auth-input" id="chatInputField" aria-label="Сообщение чата" placeholder="Сообщение... (Enter для отправки)" onkeydown="handleChatInputKeyDown(event)">
             <button data-i18n="chat.btn_gold_action" type="button" class="btn-gold-action btn-gold-action--md" onclick="sendChatMessage()" data-sfx="confirm" data-fit="wrap">ОТПРАВИТЬ</button>
           </div>
         </div>

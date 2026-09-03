@@ -62,9 +62,9 @@ ALIAS = {
 # сравнивать их — шуметь. Причина у каждого своя, поэтому список именной.
 SKIP = {
     "display", "position", "cursor", "overflow", "z-index", "gap",
-    # box-shadow и filter больше не пропускаются: с 6000.6 у UI Toolkit есть
-    # filter: drop-shadow(), и тень стала переносимой. expand_box приводит
-    # запись макета к записи игры, деля радиус размытия пополам.
+    # CSS-фильтры не являются переносимыми свойствами USS. Эффект требует
+    # отдельного материала, Painter2D или подготовленной текстуры.
+    "box-shadow", "filter", "backdrop-filter",
     "transform", "transition", "animation",
     "pointer-events", "user-select", "content", "grid-template-columns",
     "grid-template-rows", "place-items", "line-height", "letter-spacing",
@@ -425,6 +425,10 @@ PLACEMENT = {"left", "top", "right", "bottom", "width", "height"}
 
 
 def why_unfixable(prop, game_value, mirror_value, section=""):
+    if (section == SCENE_SECTION and prop == "background-color" and
+            game_value == "transparent" and mirror_value == "rgba(3, 5, 9, 1)"):
+        return ("фон web-макета рисует сам viewport; прозрачный Unity-root "
+                "обязан пропускать изображение камеры")
     if "gradient" in mirror_value:
         return "градиентов в USS нет: заливка только сплошная"
     if prop == "-unity-font-style" and mirror_value not in ("400", "700"):

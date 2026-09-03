@@ -22,6 +22,21 @@ namespace Fodinae.Core
         private Label? _phase;
         private bool _initialized;
 
+        private void OnEnable()
+        {
+            UIDocument document = GetComponent<UIDocument>();
+            VisualElement? root = document.rootVisualElement;
+            if (root != null)
+            {
+                root.pickingMode = PickingMode.Ignore;
+            }
+
+            if (_overlay != null && UIState.IsHidden(_overlay))
+            {
+                _overlay.pickingMode = PickingMode.Ignore;
+            }
+        }
+
         public void Initialize()
         {
             if (_initialized)
@@ -30,13 +45,17 @@ namespace Fodinae.Core
             }
 
             UIDocument document = GetComponent<UIDocument>();
+            document.sortingOrder = 200;
             VisualTreeAsset asset = Resources.Load<VisualTreeAsset>(
                 ProjectRuntimeContracts.ResourcePaths.BootstrapLoadingScreenUxml)
                 ?? throw new System.InvalidOperationException("Required UI resource 'UI/BootstrapLoadingScreen' was not found.");
 
             VisualElement root = document.rootVisualElement;
             root.Clear();
+            root.pickingMode = PickingMode.Ignore;
             VisualElement tree = asset.CloneTree();
+            tree.AddToClassList("ui-fullscreen");
+            tree.pickingMode = PickingMode.Ignore;
             root.Add(tree);
             UILayoutTier.Attach(tree);
             UILocalizer.Apply(tree, _localization);
@@ -92,6 +111,7 @@ namespace Fodinae.Core
                     ProjectRuntimeContracts.SceneNames.MainGame,
                     System.StringComparison.Ordinal))
             {
+                Hide();
                 return;
             }
 
@@ -101,11 +121,41 @@ namespace Fodinae.Core
             }
 
             UIState.Show(_overlay);
+            if (_overlay != null)
+            {
+                _overlay.pickingMode = PickingMode.Position;
+            }
         }
 
         private void Hide()
         {
             UIState.Hide(_overlay);
+            if (_overlay != null)
+            {
+                _overlay.pickingMode = PickingMode.Ignore;
+            }
+        }
+
+        public void ShowDirect(string message)
+        {
+            if (_phase != null)
+            {
+                _phase.text = message;
+            }
+
+            UIState.Show(_overlay);
+            if (_overlay != null)
+            {
+                _overlay.pickingMode = PickingMode.Position;
+            }
+        }
+
+        public void SetPhaseText(string message)
+        {
+            if (_phase != null)
+            {
+                _phase.text = message;
+            }
         }
     }
 }

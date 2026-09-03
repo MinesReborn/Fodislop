@@ -20,7 +20,7 @@
   src: url('../fonts/Unbounded.ttf') format('truetype-variations');
   font-weight: 200 900;
   font-style: normal;
-  font-display: block;
+  font-display: swap;
 }
 
 @font-face {
@@ -28,7 +28,7 @@
   src: url('../fonts/Exo2.ttf') format('truetype-variations');
   font-weight: 100 900;
   font-style: normal;
-  font-display: block;
+  font-display: swap;
 }
 
 @font-face {
@@ -36,7 +36,7 @@
   src: url('../fonts/JetBrainsMono.ttf') format('truetype-variations');
   font-weight: 100 800;
   font-style: normal;
-  font-display: block;
+  font-display: swap;
 }
 
 /* ==========================================================================
@@ -74,7 +74,8 @@ body {
   color: var(--text-primary);
   font: var(--font-body);
   height: 100vh;
-  width: 100vw;
+  height: 100dvh;
+  width: 100%;
   overflow: hidden;
   display: flex;
   flex-direction: column;

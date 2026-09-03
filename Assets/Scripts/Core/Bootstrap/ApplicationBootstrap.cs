@@ -5,6 +5,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Fodinae.Core.Interfaces;
 using Fodinae.Core.Lifecycle;
+using Fodinae.Core.Localization;
 using Fodinae.Rendering;
 using VContainer.Unity;
 
@@ -17,7 +18,9 @@ public sealed class ApplicationBootstrap : IStartable
     private readonly BootstrapLoadingScreen _loadingScreen;
     private readonly AsyncOperationSupervisor _operations;
     private readonly IRuntimeAssetPaths _runtimeAssetPaths;
-    private readonly IGameplayCamera _gameplayCamera;
+    private readonly IShaderWarmupService _shaderWarmup;
+    private readonly ILocalizationService _localization;
+    private readonly IAudioSystem _audioSystem;
 
     public ApplicationBootstrap(
         BootstrapLifetimeScope scope,
@@ -25,14 +28,18 @@ public sealed class ApplicationBootstrap : IStartable
         BootstrapLoadingScreen loadingScreen,
         AsyncOperationSupervisor operations,
         IRuntimeAssetPaths runtimeAssetPaths,
-        IGameplayCamera gameplayCamera)
+        IShaderWarmupService shaderWarmup,
+        ILocalizationService localization,
+        IAudioSystem audioSystem)
     {
         _scope = scope;
         _clientConfig = clientConfig;
         _loadingScreen = loadingScreen;
         _operations = operations;
         _runtimeAssetPaths = runtimeAssetPaths;
-        _gameplayCamera = gameplayCamera;
+        _shaderWarmup = shaderWarmup;
+        _localization = localization;
+        _audioSystem = audioSystem;
     }
 
     public void Start()
@@ -47,10 +54,27 @@ public sealed class ApplicationBootstrap : IStartable
         {
             _clientConfig.EnsureInitialized();
             ClientConfig config = _clientConfig.Config;
-            DisplayManager.HDROutput.SetEnabled(config.Display.HDREnabled);
-            DisplayManager.HDROutput.ConfigureCamera(_gameplayCamera.Camera);
+
+            DisplayManager.ApplyInitialSettings(config.Display);
+
             _loadingScreen.Initialize();
-            await _runtimeAssetPaths.EnsureReadyAsync();
+
+            string shaderPhase = _localization.Get("bootstrap.loading.shaders");
+            _loadingScreen.ShowDirect($"{shaderPhase} (0%)");
+            await UniTask.Yield(PlayerLoopTiming.Update, scopeToken);
+
+            await _shaderWarmup.WarmupAsync(
+                (_, progress) =>
+                {
+                    int percent = UnityEngine.Mathf.RoundToInt(progress * 100f);
+                    _loadingScreen.SetPhaseText($"{shaderPhase} ({percent}%)");
+                },
+                scopeToken);
+
+            _loadingScreen.SetPhaseText(_localization.Get("assetload.resources"));
+            await UniTask.WhenAll(
+                _runtimeAssetPaths.EnsureReadyAsync(),
+                _audioSystem.WaitUntilBanksReadyAsync(scopeToken));
             await _scope.TransitionAsync(ProjectRuntimeContracts.SceneNames.Gateway, scopeToken);
         }
         catch (OperationCanceledException) when (scopeToken.IsCancellationRequested)

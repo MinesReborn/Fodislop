@@ -316,6 +316,7 @@ namespace Fodinae.World.Terrain
 
         private int _diagLogged;
 
+        [System.Diagnostics.Conditional("FODINAE_TERRAIN_DIAG")]
         private void LogDiag(int bit, string message)
         {
             if ((_diagLogged & bit) != 0)

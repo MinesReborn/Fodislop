@@ -283,13 +283,21 @@
 /* Появление снизу — оттуда же, где слой живёт: движение объясняет,
    откуда взялся ответ. */
 .toast {
-  transition: opacity var(--dur-base) var(--ease-standard),
-              translate var(--dur-base) var(--ease-standard);
+  animation: toast-enter var(--dur-base) var(--ease-standard) both;
 }
 
-.toast--enter {
-  opacity: 0;
-  translate: 0 var(--space-4);
+.toast--exit {
+  animation-name: toast-exit;
+}
+
+@keyframes toast-enter {
+  from { opacity: 0; translate: 0 var(--space-4); }
+  to { opacity: 1; translate: 0 0; }
+}
+
+@keyframes toast-exit {
+  from { opacity: 1; translate: 0 0; }
+  to { opacity: 0; translate: 0 var(--space-4); }
 }
 
 .toast--ok     { border-left-color: var(--state-ok); }

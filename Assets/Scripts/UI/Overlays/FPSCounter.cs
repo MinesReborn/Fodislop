@@ -69,7 +69,7 @@ namespace Fodinae.UI
             }
             else if (_rootElement != null)
             {
-                _rootElement.style.display = DisplayStyle.Flex;
+                UIState.Show(_rootElement);
             }
         }
 
@@ -77,7 +77,7 @@ namespace Fodinae.UI
         {
             if (_rootElement != null)
             {
-                _rootElement.style.display = DisplayStyle.None;
+                UIState.Hide(_rootElement);
             }
         }
 

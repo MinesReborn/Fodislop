@@ -63,6 +63,7 @@ public sealed class ServerWindowPresenter : IDisposable
         }
 
         _openWindows.Clear();
+        _commands.SetOpenWindowVisibility(false);
     }
 
     private void Open(OpenWindowPacket packet)
@@ -85,6 +86,7 @@ public sealed class ServerWindowPresenter : IDisposable
         binding.Bind(element);
         RegisterClickableElements(element, element, packet.WindowTag, 0);
         _openWindows.Add((packet.WindowTag, element, binding));
+        _commands.SetOpenWindowVisibility(true);
     }
 
     private void Close(CloseWindowPacket packet)
@@ -99,6 +101,7 @@ public sealed class ServerWindowPresenter : IDisposable
         _uiInputManager.PopModal(root);
         root.RemoveFromHierarchy();
         _openWindows.RemoveAt(_openWindows.Count - 1);
+        _commands.SetOpenWindowVisibility(_openWindows.Count > 0);
     }
 
     private void ShowModal(ModalWindowPacket packet)

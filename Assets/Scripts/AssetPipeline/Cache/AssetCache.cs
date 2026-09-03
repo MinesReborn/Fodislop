@@ -125,7 +125,12 @@ namespace Fodinae
         }
 
         /// <summary>Clear all cached entries.</summary>
-        public void Clear()
+        /// <param name="collectUnusedAssets">
+        /// Whether to schedule Unity's unused-assets collection after releasing
+        /// the cached references. Teardown callers must pass <see langword="false" />
+        /// because the operation supervisor can already be disposed.
+        /// </param>
+        public void Clear(bool collectUnusedAssets = true)
         {
             foreach (var entry in _entries.Values.ToArray())
             {
@@ -146,7 +151,10 @@ namespace Fodinae
             Interlocked.Exchange(ref _totalBytes, 0);
             Interlocked.Exchange(ref _totalDecodedBytes, 0);
 
-            RequestUnusedAssetsCollection(force: true);
+            if (collectUnusedAssets)
+            {
+                RequestUnusedAssetsCollection(force: true);
+            }
         }
 
         /// <summary>Set the maximum cache size in bytes. Default is 256 MB.</summary>
@@ -248,7 +256,17 @@ namespace Fodinae
                 return;
             }
 
-            operations.Run("asset_cache_unload_unused", RunUnusedAssetsCollectionAsync);
+            try
+            {
+                operations.Run("asset_cache_unload_unused", RunUnusedAssetsCollectionAsync);
+            }
+            catch (ObjectDisposedException)
+            {
+                // Disposal can win the race after the supervisor is resolved.
+                // Collection is only a maintenance optimisation, so dropping it
+                // during teardown is safe and lets a later live request retry.
+                Interlocked.Exchange(ref _unloadUnusedAssetsRequested, 0);
+            }
         }
 
         private async UniTask RunUnusedAssetsCollectionAsync(CancellationToken cancellationToken)

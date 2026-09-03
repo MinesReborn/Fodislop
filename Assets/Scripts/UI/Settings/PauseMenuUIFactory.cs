@@ -10,6 +10,47 @@ namespace Fodinae.UI
 {
     internal static class PauseMenuUIFactory
     {
+        public static float SnapValue(float rawValue, float min, float max, float step = 0.01f)
+        {
+            float range = Mathf.Abs(max - min);
+            if (range <= 0.0001f)
+            {
+                return rawValue;
+            }
+
+            // 1. Magnetic threshold for integers: 2.5% of total slider range (minimum 0.025)
+            float snapThreshold = Mathf.Max(0.025f, range * 0.025f);
+
+            // 2. Check snapping to whole integers (..., -1.0, 0.0, 1.0, 2.0, ...)
+            float nearestInt = Mathf.Round(rawValue);
+            if (nearestInt >= min - 0.001f && nearestInt <= max + 0.001f)
+            {
+                if (Mathf.Abs(rawValue - nearestInt) <= snapThreshold)
+                {
+                    return nearestInt;
+                }
+            }
+
+            // 3. Check snapping to half-integers (0.5, 1.5, ...) with a tighter radius
+            float nearestHalf = Mathf.Round(rawValue * 2f) / 2f;
+            if (nearestHalf >= min - 0.001f && nearestHalf <= max + 0.001f)
+            {
+                if (Mathf.Abs(rawValue - nearestHalf) <= snapThreshold * 0.5f)
+                {
+                    return nearestHalf;
+                }
+            }
+
+            // 4. Quantize to clean step to eliminate float noise like 1.00183
+            if (step > 0f)
+            {
+                float snapped = Mathf.Round(rawValue / step) * step;
+                return (float)Math.Round(snapped, 2);
+            }
+
+            return (float)Math.Round(rawValue, 2);
+        }
+
         public static VisualElement CreateSlider(string labelText, float initialValue, Action<float> onChange, float min, float max)
         {
             var container = new VisualElement();
@@ -20,17 +61,24 @@ namespace Fodinae.UI
             container.Add(label);
 
             var slider = new Slider(min, max);
-            slider.SetValueWithoutNotify(initialValue);
+            float snappedInitial = SnapValue(initialValue, min, max);
+            slider.SetValueWithoutNotify(snappedInitial);
             void UpdateLabel(float value)
             {
                 label.text = $"{labelText}: {value:F2}";
             }
 
-            UpdateLabel(initialValue);
+            UpdateLabel(snappedInitial);
             slider.RegisterValueChangedCallback(evt =>
             {
-                UpdateLabel(evt.newValue);
-                onChange(evt.newValue);
+                float snapped = SnapValue(evt.newValue, min, max);
+                if (!Mathf.Approximately(snapped, evt.newValue))
+                {
+                    slider.SetValueWithoutNotify(snapped);
+                }
+
+                UpdateLabel(snapped);
+                onChange(snapped);
             });
             container.Add(slider);
 
@@ -55,15 +103,21 @@ namespace Fodinae.UI
             var slider = new Slider(minimum, maximum);
             void Refresh()
             {
-                float value = readValue();
+                float value = SnapValue(readValue(), minimum, maximum);
                 slider.SetValueWithoutNotify(value);
                 label.text = $"{labelText}: {value:F2}";
             }
 
             slider.RegisterValueChangedCallback(evt =>
             {
-                label.text = $"{labelText}: {evt.newValue:F2}";
-                onChange(evt.newValue);
+                float snapped = SnapValue(evt.newValue, minimum, maximum);
+                if (!Mathf.Approximately(snapped, evt.newValue))
+                {
+                    slider.SetValueWithoutNotify(snapped);
+                }
+
+                label.text = $"{labelText}: {snapped:F2}";
+                onChange(snapped);
             });
             container.Add(slider);
             refreshers.Add(Refresh);

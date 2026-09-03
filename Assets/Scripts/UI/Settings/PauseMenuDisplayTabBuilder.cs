@@ -121,6 +121,43 @@ internal sealed class PauseMenuDisplayTabBuilder
             _refreshers);
         hdrOutputGroup.Add(hdrToggle);
 
+        VisualElement gammaSlider = PauseMenuUIFactory.CreateBoundSlider(
+            _loc.Get("settings.display.gamma"),
+            () => _clientConfig.Config.Display.Gamma,
+            value => _displayManager.SetGamma(value),
+            DisplaySettings.GammaMin,
+            DisplaySettings.GammaMax,
+            _refreshers);
+        hdrOutputGroup.Add(gammaSlider);
+
+        VisualElement paperWhiteSlider = PauseMenuUIFactory.CreateBoundSlider(
+            _loc.Get("settings.display.paper_white"),
+            () => _clientConfig.Config.Display.PaperWhiteNits,
+            value => _displayManager.SetPaperWhiteNits(value),
+            DisplaySettings.PaperWhiteMin,
+            DisplaySettings.PaperWhiteMax,
+            _refreshers);
+        hdrOutputGroup.Add(paperWhiteSlider);
+
+        VisualElement peakBrightnessSlider = PauseMenuUIFactory.CreateBoundSlider(
+            _loc.Get("settings.display.peak_brightness"),
+            () => _clientConfig.Config.Display.PeakBrightnessNits,
+            value => _displayManager.SetPeakBrightnessNits(value),
+            DisplaySettings.PeakBrightnessMin,
+            DisplaySettings.PeakBrightnessMax,
+            _refreshers);
+        hdrOutputGroup.Add(peakBrightnessSlider);
+
+        void UpdateHdrSlidersState()
+        {
+            bool hdrOn = _clientConfig.Config.Display.HDREnabled;
+            paperWhiteSlider.SetEnabled(hdrOn);
+            peakBrightnessSlider.SetEnabled(hdrOn);
+        }
+
+        _refreshers.Add(UpdateHdrSlidersState);
+        UpdateHdrSlidersState();
+
         return displayScroll;
     }
 

@@ -45,6 +45,20 @@ internal static class HdrSdrDualModeSetup
     [MenuItem(MenuPath, true)]
     private static bool ValidateApply() => !Application.isPlaying;
 
+    [InitializeOnLoadMethod]
+    private static void AutoEnforcePlayerSettings()
+    {
+        if (PlayerSettings.useHDRDisplay)
+        {
+            PlayerSettings.useHDRDisplay = false;
+        }
+
+        if (!PlayerSettings.allowHDRDisplaySupport)
+        {
+            PlayerSettings.allowHDRDisplaySupport = true;
+        }
+    }
+
     private static void ApplyPlayerSettings()
     {
         // Include URP's HDR encoding resources even though the application

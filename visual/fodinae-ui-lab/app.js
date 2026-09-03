@@ -43,7 +43,7 @@ function showToast(text, tone = 'info', ms = 3600) {
   const spec = TOAST_TONE[tone] || TOAST_TONE.info;
 
   const el = document.createElement('div');
-  el.className = `toast toast--${tone} toast--enter`;
+  el.className = `toast toast--${tone}`;
   const mark = document.createElement('span');
   mark.className = 'toast-mark';
   mark.textContent = spec.mark;
@@ -59,20 +59,14 @@ function showToast(text, tone = 'info', ms = 3600) {
   el.append(mark, body);
   layer.appendChild(el);
 
-  // Стартовое состояние нужно ЗАФИКСИРОВАТЬ до снятия класса, иначе браузер
-  // увидит только конечные значения и покажет тост рывком. Раньше здесь был
-  // requestAnimationFrame — и тост не появлялся вовсе, если вкладка в фоне:
-  // фоновым вкладкам браузер останавливает кадры, и класс не снимался никогда.
-  // Чтение offsetWidth заставляет пересчитать раскладку немедленно и от кадров
-  // не зависит. В UI Toolkit кадров тоже нет — там это schedule, — так что
-  // отвязка от rAF заодно приближает поведение к переносимому.
-  void el.offsetWidth;
-  el.classList.remove('toast--enter');
   playSound(spec.voice);
 
   setTimeout(() => {
-    el.classList.add('toast--enter');
-    el.addEventListener('transitionend', () => el.remove(), { once: true });
+    el.classList.add('toast--exit');
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+    // Страховка для движка без CSS Animations и для остановленной фоновой
+    // вкладки: тост всё равно не останется в DOM навсегда.
+    setTimeout(() => el.remove(), 500);
   }, ms);
   return el;
 }
@@ -120,6 +114,7 @@ function reseed(seed) {
 let audioContext = null;
 let isSfxOn = true;
 let isGameUpdated = false;
+let lastSoundAt = -Infinity;
 
 // Состояние игрока и экспедиции
 /* ----------------------------------------------------------------------
@@ -151,7 +146,7 @@ function renderDataGeometry() {
   if (mission) mission.style.width = pct(playerState.missionBlocks, playerState.missionTarget);
 
   const retry = document.getElementById('reconnectFill');
-  if (retry) retry.style.width = pct(networkState.attempt, networkState.attemptLimit);
+  if (retry) retry.style.setProperty('width', pct(networkState.attempt, networkState.attemptLimit));
 
   document.querySelectorAll('.radar-dot').forEach((dot, i) => {
     const c = radarContacts[i];
@@ -174,6 +169,7 @@ const playerState = {
   missionBlocks: 142,
   missionTarget: 200,
   isAutoDig: false,
+  autoDigTimer: null,
   isAggression: false,
   activeHotbarIndex: 0,
   activeProgCommand: '⬇ СКАН',
@@ -186,28 +182,50 @@ const playerState = {
 // ----------------------------------------------------
 function initAudio() {
   if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    audioContext = new AudioContextClass();
+  }
+
+  return audioContext;
+}
+
+// Web Audio разрешено запускать только непосредственно из пользовательского
+// жеста. Не пытаемся «разбудить» контекст из таймеров, тостов и анимаций:
+// Chrome справедливо считает такие вызовы autoplay и пишет warning в консоль.
+function unlockAudio() {
+  const context = initAudio();
+  if (context?.state === 'suspended') {
+    context.resume().catch(() => {});
   }
 }
 
 function toggleAudio() {
   isSfxOn = !isSfxOn;
   const el = document.getElementById('sfxStatus');
+  const toggle = document.getElementById('sfxToggle');
   // innerText здесь стирал <svg> из разметки и подставлял эмодзи — то есть
   // код молча отменял решение, ради которого спрайт и заводили.
   if (el) {
     el.innerHTML = '<svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true">'
       + '<use href="#i-scan"/></svg> ' + (isSfxOn ? 'ЗВУК' : 'ВЫКЛ');
   }
-  playSound('click');
+  toggle?.setAttribute('aria-pressed', String(isSfxOn));
 }
 
 function playSound(type) {
   if (!isSfxOn) return;
-  initAudio();
-  if (!audioContext) return;
+  // Контекст создаёт unlockAudio во время pointer/keyboard gesture. Если звук
+  // запросил фоновой таймер раньше первого жеста, корректное поведение — тишина.
+  if (!audioContext || audioContext.state !== 'running') return;
 
   const now = audioContext.currentTime;
+  // Один жест иногда проходит и через inline-обработчик действия, и через
+  // делегированный data-sfx. Два осциллятора в один момент дают щелчок и
+  // перегруз; короткий gate оставляет ровно один причинный отклик.
+  if (now - lastSoundAt < 0.045) return;
+  lastSoundAt = now;
+
   const osc = audioContext.createOscillator();
   const gain = audioContext.createGain();
 
@@ -278,11 +296,35 @@ setInterval(() => {
 // ----------------------------------------------------
 // Машина состояний (State Machine)
 // ----------------------------------------------------
-let currentMode = 'menu';
-let descentInterval = null;
+let currentMode = 'auth';
+let descentFrame = null;
+let descentCompletionTimer = null;
 
 function switchViewState(state) {
   currentMode = state;
+
+  const activeModal = getOpenModal();
+  if (activeModal) closeModal(activeModal.id, false);
+
+  if (state !== 'descent' && state !== 'loading') {
+    if (descentFrame) cancelAnimationFrame(descentFrame);
+    if (descentCompletionTimer) clearTimeout(descentCompletionTimer);
+    descentFrame = null;
+    descentCompletionTimer = null;
+  }
+
+  if (state !== 'reconnect' && recTimer) {
+    clearInterval(recTimer);
+    recTimer = null;
+  }
+
+  if (state !== 'ingame' && (playerState.isAutoDig || playerState.autoDigTimer)) {
+    playerState.isAutoDig = false;
+    if (playerState.autoDigTimer) clearTimeout(playerState.autoDigTimer);
+    playerState.autoDigTimer = null;
+    document.getElementById('btnAutoDig')?.classList.remove('active');
+    document.getElementById('ledAutoDig')?.classList.remove('active');
+  }
 
   // Подсветка dev-кнопок идёт по data-state, а не по разбору русского текста
   // кнопки: подпись — это контент, а не идентификатор.
@@ -348,26 +390,54 @@ function switchAuthTab(tab) {
   const loginForm = document.getElementById('authLoginForm');
   const regForm = document.getElementById('authRegisterForm');
   const btnSubmit = document.getElementById('btnSubmitAuth');
+  const submitLabel = btnSubmit?.querySelector('[data-i18n]');
 
   if (tab === 'login') {
     tabLogin?.classList.add('active');
     tabRegister?.classList.remove('active');
+    tabLogin?.setAttribute('aria-selected', 'true');
+    tabRegister?.setAttribute('aria-selected', 'false');
     loginForm?.classList.remove('is-hidden');
     regForm?.classList.add('is-hidden');
-    if (btnSubmit) btnSubmit.innerHTML = '<span>ВОЙТИ В МИР FODINAE</span><span>↗</span>';
+    if (btnSubmit) {
+      btnSubmit.setAttribute('form', 'authLoginForm');
+      if (submitLabel) {
+        submitLabel.dataset.i18n = 'gateway.auth.submit';
+        const label = t('gateway.auth.submit');
+        submitLabel.textContent = label === 'gateway.auth.submit'
+          ? 'ВОЙТИ В МИР FODINAE' : label;
+      }
+    }
   } else {
     tabLogin?.classList.remove('active');
     tabRegister?.classList.add('active');
+    tabLogin?.setAttribute('aria-selected', 'false');
+    tabRegister?.setAttribute('aria-selected', 'true');
     loginForm?.classList.add('is-hidden');
     regForm?.classList.remove('is-hidden');
-    if (btnSubmit) btnSubmit.innerHTML = '<span>ЗАРЕГИСТРИРОВАТЬСЯ В ЭКСПЕДИЦИИ</span><span>↗</span>';
+    if (btnSubmit) {
+      btnSubmit.setAttribute('form', 'authRegisterForm');
+      if (submitLabel) {
+        submitLabel.dataset.i18n = 'gateway.auth.register_tab';
+        const label = t('gateway.auth.register_tab');
+        submitLabel.textContent = label === 'gateway.auth.register_tab'
+          ? 'ЗАРЕГИСТРИРОВАТЬСЯ В ЭКСПЕДИЦИИ' : label;
+      }
+    }
   }
+
+  // Сохраняем иконку и структуру кнопки; меняется только принадлежащий ей
+  // текстовый узел.
 }
 
-function togglePasswordVisibility(fieldId) {
+function togglePasswordVisibility(fieldId, trigger) {
   const field = document.getElementById(fieldId);
   if (!field) return;
   field.type = field.type === 'password' ? 'text' : 'password';
+  const visible = field.type === 'text';
+  trigger?.setAttribute('aria-pressed', String(visible));
+  trigger?.setAttribute('aria-label', visible ? 'Скрыть пароль' : 'Показать пароль');
+  trigger?.setAttribute('title', visible ? 'Скрыть пароль' : 'Показать пароль');
 }
 
 // Уникальный генератор позывного на основе Seed (Время + Хэш оборудования)
@@ -381,8 +451,6 @@ const CALLSIGN_CLANS = [
 ];
 
 function generateSeededCallsign() {
-  playSound('click');
-
   // Вычисляем сид на основе времени и характеристик окружения (эмуляция MAC/Device UUID)
   const timeSeed = Date.now();
   const perfSeed = Math.floor(performance.now() * 1000);
@@ -426,20 +494,32 @@ function submitAuthForm() {
 
   playerState.nickname = nick;
   // Генерируем сессионный токен из логина и пароля
-  playerState.token = `fdn_tok_${Math.abs(nick.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0)).toString(16)}`;
+  const credential = `${nick}\u0000${pass}`;
+  playerState.token = `fdn_tok_${Math.abs(credential.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0)).toString(16)}`;
 
   // Обновляем плашку в шапке (User Pill)
   const userPillNick = document.querySelector('.user-pill div div:first-child');
-  if (userPillNick) userPillNick.innerText = nick;
+  if (userPillNick) {
+    userPillNick.removeAttribute('data-i18n');
+    userPillNick.innerText = nick;
+  }
+  const userAvatar = document.querySelector('.user-avatar');
+  if (userAvatar) userAvatar.innerText = nick.trim().charAt(0).toUpperCase() || 'Ш';
 
   // Обновляем профиль
   const profileNick = document.querySelector('#profileModal h3');
-  if (profileNick) profileNick.innerText = nick.split(' ')[0];
+  if (profileNick) {
+    profileNick.removeAttribute('data-i18n');
+    profileNick.innerText = nick.split(' ')[0];
+  }
   const profileToken = document.getElementById('profileTokenInput');
   if (profileToken) profileToken.value = playerState.token;
 
   const hudNick = document.getElementById('hudMinerNick');
-  if (hudNick) hudNick.innerText = nick.split(' ')[0];
+  if (hudNick) {
+    hudNick.removeAttribute('data-i18n');
+    hudNick.innerText = nick.split(' ')[0];
+  }
 
   // Переходим на экран Онбординга (Калибровка оборудования)
   switchViewState('onboarding');
@@ -479,18 +559,39 @@ function updateOnboardingStepUI() {
   const prevBtn = document.getElementById('btnObPrev');
   const nextBtn = document.getElementById('btnObNext');
   const title = document.getElementById('onboardingTitle');
+  const steps = {
+    1: {
+      title: 'onboarding.onboarding_title',
+      titleFallback: 'Шаг 1: Доступность и визуальный комфорт',
+      action: 'onboarding.btn_ob_next',
+      actionFallback: 'ДАЛЕЕ (ГРАФИКА) →',
+    },
+    2: {
+      title: 'onboarding.step_2_title',
+      titleFallback: 'Шаг 2: Графика и освещение',
+      action: 'onboarding.next_controls',
+      actionFallback: 'Далее (управление) →',
+    },
+    3: {
+      title: 'onboarding.step_3_title',
+      titleFallback: 'Шаг 3: Тактильный контроль и звук',
+      action: 'onboarding.finish',
+      actionFallback: 'Завершить калибровку (в орбиту) ↗',
+    },
+  };
 
   prevBtn?.classList.toggle('is-hidden', currentObStep <= 1);
 
-  if (currentObStep === 1) {
-    if (title) title.innerText = 'Шаг 1: Доступность и визуальный комфорт';
-    if (nextBtn) nextBtn.innerText = 'ДАЛЕЕ (ГРАФИКА) →';
-  } else if (currentObStep === 2) {
-    if (title) title.innerText = 'Шаг 2: Графика и освещение';
-    if (nextBtn) nextBtn.innerText = 'ДАЛЕЕ (УПРАВЛЕНИЕ) →';
-  } else if (currentObStep === 3) {
-    if (title) title.innerText = 'Шаг 3: Тактильный контроль и звук';
-    if (nextBtn) nextBtn.innerText = 'ЗАВЕРШИТЬ КАЛИБРОВКУ (В ОРБИТУ) ↗';
+  const step = steps[currentObStep];
+  if (title && step) {
+    const value = t(step.title);
+    title.dataset.i18n = step.title;
+    title.innerText = value === step.title ? step.titleFallback : value;
+  }
+  if (nextBtn && step) {
+    const value = t(step.action);
+    nextBtn.dataset.i18n = step.action;
+    nextBtn.innerText = value === step.action ? step.actionFallback : value;
   }
 }
 
@@ -563,44 +664,79 @@ function startDescentSequence() {
   const tag = document.getElementById('descentPhaseNum');
   const label = document.getElementById('descentAssetLabel');
 
-  if (descentInterval) clearInterval(descentInterval);
+  if (descentFrame) cancelAnimationFrame(descentFrame);
+  if (descentCompletionTimer) clearTimeout(descentCompletionTimer);
+  descentFrame = null;
+  descentCompletionTimer = null;
 
   const phases = [
-    { pct: 15, tag: 'ФАЗА СПУСКА 01 / 05', label: 'Авторизация и валидация токена шахтёра...', id: 'dp-1' },
-    { pct: 35, tag: 'ФАЗА СПУСКА 02 / 05', label: 'Потоковая передача World Manifest (Регион 32x32)...', id: 'dp-2' },
-    { pct: 70, tag: 'ФАЗА СПУСКА 03 / 05', label: 'ClientAssetLoader: Скачивание текстур пород и FMOD банков...', id: 'dp-3' },
-    { pct: 90, tag: 'ФАЗА СПУСКА 04 / 05', label: 'SingleMeshTerrainRenderer: Компиляция меша и UV атласа...', id: 'dp-4' },
-    { pct: 100, tag: 'ФАЗА СПУСКА 05 / 05', label: 'Синхронизация позиции шахтёра на горизонте высадки...', id: 'dp-5' }
+    { start: 0, tag: 'ФАЗА СПУСКА 01 / 05', label: 'Авторизация и валидация токена шахтёра...', id: 'dp-1' },
+    { start: 15, tag: 'ФАЗА СПУСКА 02 / 05', label: 'Потоковая передача World Manifest (Регион 32x32)...', id: 'dp-2' },
+    { start: 35, tag: 'ФАЗА СПУСКА 03 / 05', label: 'ClientAssetLoader: Скачивание текстур пород и FMOD банков...', id: 'dp-3' },
+    { start: 70, tag: 'ФАЗА СПУСКА 04 / 05', label: 'SingleMeshTerrainRenderer: Компиляция меша и UV атласа...', id: 'dp-4' },
+    { start: 90, tag: 'ФАЗА СПУСКА 05 / 05', label: 'Синхронизация позиции шахтёра на горизонте высадки...', id: 'dp-5' },
   ];
+  const phaseElements = phases.map(phase => document.getElementById(phase.id));
+  let phaseIndex = -1;
 
-  descentInterval = setInterval(() => {
-    p += 1.8;
-    if (p >= 100) {
-      p = 100;
-      clearInterval(descentInterval);
-      playSound('confirm');
-      label.innerText = 'ГОТОВО! Вход в шахту выполнен.';
-      setTimeout(() => switchViewState('ingame'), 300);
-    }
+  const showPhase = index => {
+    if (index === phaseIndex) return;
+    phaseIndex = index;
+    const phase = phases[index];
+    tag.innerText = phase.tag;
+    label.innerText = phase.label;
+    phaseElements.forEach((element, i) => {
+      if (!element) return;
+      element.className = i < index
+        ? 'phase-step done'
+        : (i === index ? 'phase-step current' : 'phase-step');
+    });
+  };
 
-    fill.style.width = p + '%';
-    const currentMB = Math.round((p / 100) * 421);
-    metric.innerText = `${currentMB} / 421 МБ (26.4 МБ/с)`;
+  fill.style.width = '0%';
+  metric.innerText = '0 / 421 МБ (26.4 МБ/с)';
+  showPhase(0);
 
-    for (let ph of phases) {
-      if (p >= ph.pct) {
-        tag.innerText = ph.tag;
-        label.innerText = ph.label;
-        document.querySelectorAll('.phase-step').forEach(el => el.className = 'phase-step done');
-        const target = document.getElementById(ph.id);
-        if (target) target.className = 'phase-step current';
+  const startedAt = performance.now();
+  const duration = 2500;
+  const renderProgress = now => {
+    const next = Math.min(100, Math.floor(((now - startedAt) / duration) * 100));
+    if (next !== p) {
+      p = next;
+      fill.style.width = p + '%';
+      const currentMB = Math.round((p / 100) * 421);
+      metric.innerText = `${currentMB} / 421 МБ (26.4 МБ/с)`;
+
+      let nextPhaseIndex = 0;
+      for (let i = 1; i < phases.length; i++) {
+        if (p >= phases[i].start) nextPhaseIndex = i;
       }
+      showPhase(nextPhaseIndex);
     }
-  }, 45);
+
+    if (p < 100) {
+      descentFrame = requestAnimationFrame(renderProgress);
+      return;
+    }
+
+    descentFrame = null;
+    playSound('confirm');
+    label.innerText = 'ГОТОВО! Вход в шахту выполнен.';
+    descentCompletionTimer = setTimeout(() => {
+      descentCompletionTimer = null;
+      if (currentMode === 'descent' || currentMode === 'loading') {
+        switchViewState('ingame');
+      }
+    }, 300);
+  };
+  descentFrame = requestAnimationFrame(renderProgress);
 }
 
 function cancelDescentSequence() {
-  if (descentInterval) clearInterval(descentInterval);
+  if (descentFrame) cancelAnimationFrame(descentFrame);
+  if (descentCompletionTimer) clearTimeout(descentCompletionTimer);
+  descentFrame = null;
+  descentCompletionTimer = null;
   switchViewState('menu');
 }
 
@@ -686,10 +822,14 @@ function toggleAutoDig() {
   const led = document.getElementById('ledAutoDig');
   if (btn && led) {
     if (playerState.isAutoDig) {
+      if (playerState.autoDigTimer) clearTimeout(playerState.autoDigTimer);
+      playerState.autoDigTimer = null;
       btn.classList.add('active');
       led.classList.add('active');
       autoDigLoop();
     } else {
+      if (playerState.autoDigTimer) clearTimeout(playerState.autoDigTimer);
+      playerState.autoDigTimer = null;
       btn.classList.remove('active');
       led.classList.remove('active');
     }
@@ -697,13 +837,14 @@ function toggleAutoDig() {
 }
 
 function autoDigLoop() {
+  playerState.autoDigTimer = null;
   if (!playerState.isAutoDig) return;
   const tiles = Array.from(document.querySelectorAll('.mine-tile:not(.mined-empty)'));
   if (tiles.length > 0) {
     const target = tiles[Math.floor(rand() * tiles.length)];
     mineTileBlock(target);
   }
-  if (playerState.isAutoDig) setTimeout(autoDigLoop, 550);
+  if (playerState.isAutoDig) playerState.autoDigTimer = setTimeout(autoDigLoop, 550);
 }
 
 function toggleAggression() {
@@ -770,6 +911,7 @@ const inventoryItems = [
   { name: 'Энергоячейка M1', icon: '#i-cell', count: 4, rarity: 'normal', desc: 'Восстанавливает 100% энергии реактора.' },
   { name: 'Гео-динамит T1', icon: '⚑', count: 8, rarity: 'rare', desc: 'Взрывчатка для направленной расчистки рудных пластов.' }
 ];
+let selectedInventoryItem = null;
 
 /* Значок предмета: геометрический глиф либо ссылка на спрайт (#i-*).
 
@@ -806,7 +948,7 @@ function initFullInventoryGrid() {
       cell.addEventListener('click', () => selectInventoryItem(item, cell));
     } else {
       cell.addEventListener('click', () => {
-        playSound('click');
+        selectedInventoryItem = null;
         document.querySelectorAll('.inv-grid-cell').forEach(c => c.classList.remove('selected'));
         cell.classList.add('selected');
       });
@@ -817,17 +959,45 @@ function initFullInventoryGrid() {
 }
 
 function selectInventoryItem(item, cell) {
-  playSound('click');
+  selectedInventoryItem = item;
   document.querySelectorAll('.inv-grid-cell').forEach(c => c.classList.remove('selected'));
   cell.classList.add('selected');
 
   const inspName = document.getElementById('inspName');
   const inspDesc = document.getElementById('inspDesc');
-  if (inspName) inspName.innerText = item.name;
-  if (inspDesc) inspDesc.innerText = item.desc;
+  if (inspName) {
+    inspName.removeAttribute('data-i18n');
+    inspName.innerText = item.name;
+  }
+  if (inspDesc) {
+    inspDesc.removeAttribute('data-i18n');
+    inspDesc.innerText = item.desc;
+  }
 }
 
 function useCurrentItem() {
+  if (!selectedInventoryItem) {
+    showToast(t('inventory.toast.select_item'), 'alert');
+    return;
+  }
+
+  const slots = document.querySelectorAll('#hotbarSlotsWrap .hotbar-slot');
+  const slot = slots[playerState.activeHotbarIndex];
+  if (!slot) return;
+
+  const icon = slot.querySelector('.hotbar-icon');
+  const count = slot.querySelector('.hotbar-count');
+  if (icon) icon.innerHTML = iconMarkup(selectedInventoryItem.icon);
+  if (count) count.innerText = selectedInventoryItem.count > 1
+    ? `x${selectedInventoryItem.count}` : '';
+  slot.setAttribute('aria-label', `${selectedInventoryItem.name}, слот ${playerState.activeHotbarIndex + 1}`);
+
+  showToast(t(
+    'inventory.toast.equipped',
+    selectedInventoryItem.name,
+    playerState.activeHotbarIndex + 1,
+  ), 'ok');
+  closeModal('inventoryModal');
 }
 
 // ----------------------------------------------------
@@ -846,7 +1016,6 @@ function initProgrammatorGrid() {
     cell.dataset.sfx = 'click';
     cell.innerText = '·';
     cell.addEventListener('click', () => {
-      playSound('click');
       cell.innerText = playerState.activeProgCommand.split(' ')[0];
       cell.classList.add('prog-grid-cell--filled');
     });
@@ -878,7 +1047,7 @@ function runProgrammatorExec() {
   let cur = 0;
 
   playerState.progInterval = setInterval(() => {
-    cells.forEach(c => c.classList.remove('active-step'));
+    if (cur > 0) cells[cur - 1].classList.remove('active-step');
     if (cur < cells.length) {
       cells[cur].classList.add('active-step');
       playSound('hover');
@@ -903,13 +1072,26 @@ function stopProgrammatorExec() {
 // ----------------------------------------------------
 // Чат
 // ----------------------------------------------------
+let currentChatTab = 'all';
+
 function switchChatTab(btn, tab) {
-  document.querySelectorAll('.chat-tab-btn').forEach(b => b.classList.remove('active'));
+  currentChatTab = tab;
+  document.querySelectorAll('.chat-tab-btn').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+  });
   btn.classList.add('active');
+  btn.setAttribute('aria-selected', 'true');
+  document.querySelectorAll('#chatMessagesBox .chat-row').forEach(row => {
+    row.hidden = tab !== 'all' && row.dataset.channel !== tab;
+  });
 }
 
 function handleChatInputKeyDown(e) {
-  if (e.key === 'Enter') sendChatMessage();
+  if (e.key === 'Enter' && !e.isComposing) {
+    e.preventDefault();
+    sendChatMessage();
+  }
 }
 
 function sendChatMessage() {
@@ -923,6 +1105,8 @@ function sendChatMessage() {
   if (box) {
     const row = document.createElement('div');
     row.className = 'chat-row';
+    row.dataset.channel = 'local';
+    row.hidden = currentChatTab !== 'all' && currentChatTab !== 'local';
     row.innerHTML = `<span class="chat-author">[ВЫ]:</span> ${escapeHtml(msg)}`;
     box.appendChild(row);
     box.scrollTop = box.scrollHeight;
@@ -933,10 +1117,12 @@ function sendChatMessage() {
     if (box) {
       const reply = document.createElement('div');
       reply.className = 'chat-row';
+      reply.dataset.channel = 'clan';
+      reply.hidden = currentChatTab !== 'all' && currentChatTab !== 'clan';
       reply.innerHTML = `<span class="chat-author clan">[DVM_BOT]:</span> Принято: "${escapeHtml(msg)}". Координаты зафиксированы.`;
       box.appendChild(reply);
       box.scrollTop = box.scrollHeight;
-      playSound('hover');
+      if (getOpenModal()?.id === 'chatModal') playSound('hover');
     }
   }, 700);
 }
@@ -978,6 +1164,7 @@ function startReconnectCount() {
   let sec = 5;
   const display = document.getElementById('reconnectTimer');
   if (recTimer) clearInterval(recTimer);
+  if (display) display.innerText = '00:05';
   recTimer = setInterval(() => {
     sec--;
     if (display) display.innerText = `00:0${sec}`;
@@ -993,10 +1180,26 @@ function startOfflineDummy() {
   switchViewState('ingame');
 }
 
+let quitArmedUntil = 0;
+let quitResetTimer = null;
+
 function confirmQuit() {
-  if (confirm('Выйти из игры на рабочий стол?')) {
+  const now = performance.now();
+  if (now < quitArmedUntil) {
+    clearTimeout(quitResetTimer);
+    quitResetTimer = null;
+    quitArmedUntil = 0;
     showToast(t('mainmenu.toast.client_closed'), 'info');
+    return;
   }
+
+  quitArmedUntil = now + 4000;
+  clearTimeout(quitResetTimer);
+  quitResetTimer = setTimeout(() => {
+    quitArmedUntil = 0;
+    quitResetTimer = null;
+  }, 4000);
+  showToast(t('mainmenu.toast.quit_confirm'), 'alert');
 }
 
 // ----------------------------------------------------
@@ -1007,6 +1210,7 @@ function confirmQuit() {
 // друга. Плюс сохранение и возврат фокуса — без этого после закрытия окна
 // фокус улетал в начало документа.
 let lastFocusedBeforeModal = null;
+let repairTimers = [];
 
 function getOpenModal() {
   return document.querySelector('.modal-overlay.active');
@@ -1017,9 +1221,16 @@ function openModal(id) {
   if (!el) return;
 
   const current = getOpenModal();
-  if (current && current !== el) current.classList.remove('active');
+  if (current && current !== el) {
+    current.classList.remove('active');
+    current.setAttribute('aria-hidden', 'true');
+    current.removeAttribute('aria-modal');
+    current.inert = true;
+  }
   else if (!current) lastFocusedBeforeModal = document.activeElement;
 
+  el.inert = false;
+  el.removeAttribute('aria-hidden');
   el.classList.add('active');
   el.setAttribute('role', 'dialog');
   el.setAttribute('aria-modal', 'true');
@@ -1030,14 +1241,20 @@ function openModal(id) {
   if (focusable) focusable.focus();
 }
 
-function closeModal(id) {
+function closeModal(id, restoreFocus = true) {
   const el = id ? document.getElementById(id) : getOpenModal();
   if (!el) return;
+  if (!el.classList.contains('active')) return;
 
   el.classList.remove('active');
+  el.setAttribute('aria-hidden', 'true');
   el.removeAttribute('aria-modal');
+  el.inert = true;
 
-  if (lastFocusedBeforeModal && document.contains(lastFocusedBeforeModal)) {
+  if (el.id === 'programmatorModal') stopProgrammatorExec();
+  if (el.id === 'repairModal') stopRepairLog();
+
+  if (restoreFocus && lastFocusedBeforeModal && document.contains(lastFocusedBeforeModal)) {
     lastFocusedBeforeModal.focus();
   }
   lastFocusedBeforeModal = null;
@@ -1055,11 +1272,45 @@ document.addEventListener('keydown', event => {
   if (el.tagName === 'BUTTON' || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') return;
 
   const role = el.getAttribute('role');
-  if (role !== 'button' && role !== 'row') return;
+  if (role !== 'button' && role !== 'row' && role !== 'tab') return;
 
   // Пробел на роли button прокручивает страницу — это надо погасить.
   event.preventDefault();
   el.click();
+});
+
+// Невидимые модалки исключены из фокуса через inert. В открытой модалке Tab
+// остаётся внутри неё, а Escape проходит через единый closeModal и корректно
+// возвращает фокус элементу, который окно открыл.
+document.addEventListener('keydown', event => {
+  const modal = getOpenModal();
+  if (!modal) return;
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    event.stopPropagation();
+    closeModal(modal.id);
+    return;
+  }
+
+  if (event.key !== 'Tab') return;
+  const focusable = [...modal.querySelectorAll(
+    'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
+  )].filter(el => !el.inert && el.getClientRects().length > 0);
+  if (!focusable.length) {
+    event.preventDefault();
+    return;
+  }
+
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
 });
 
 // Клик по затемнённому фону закрывает окно — стандартное поведение, которого
@@ -1077,79 +1328,188 @@ function openMandatoryUpdateModal() {
 function switchSettingsTab(tabId, trigger) {
   const container = trigger.closest('.fdn-settings-layout');
   if (!container) return;
-  container.querySelectorAll('.fdn-settings-tab').forEach(b => b.classList.remove('active'));
+  container.querySelectorAll('.fdn-settings-tab').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+  });
   container.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
 
   trigger.classList.add('active');
+  trigger.setAttribute('aria-selected', 'true');
   const target = document.getElementById(tabId);
   if (target) target.classList.add('active');
 }
 
 function selectServerDetail(row, name, region, online, ping, depth, seed, hazard) {
-  row.parentElement.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+  row.parentElement.querySelectorAll('tr').forEach(r => {
+    r.classList.remove('selected');
+    r.setAttribute('aria-selected', 'false');
+  });
   row.classList.add('selected');
+  row.setAttribute('aria-selected', 'true');
+  row.setAttribute('aria-label', `${name}, ${region}, ${online}, ${ping}`);
 
-  document.getElementById('srvDetailName').innerText = name.toUpperCase();
-  document.getElementById('srvDetailDepth').innerText = depth;
+  const nameElement = document.getElementById('srvDetailName');
+  if (nameElement) {
+    nameElement.removeAttribute('data-i18n');
+    nameElement.innerText = name.toUpperCase();
+  }
+  const descriptionKeys = {
+    'Hades-Alpha': 'server.hades.desc',
+    'Tartarus-02': 'server.tartarus.desc',
+    'Cyber-Prospectors': 'server.cyber.desc',
+    'Dummy Offline': 'server.dummy.desc',
+  };
+  const description = document.getElementById('srvDetailDesc');
+  const descriptionKey = descriptionKeys[name];
+  if (description && descriptionKey) {
+    description.dataset.i18n = descriptionKey;
+    description.innerText = t(descriptionKey);
+  }
+  const depthElement = document.getElementById('srvDetailDepth');
+  if (depthElement) {
+    depthElement.removeAttribute('data-i18n');
+    depthElement.innerText = depth;
+  }
   document.getElementById('srvDetailSeed').innerText = seed;
-  document.getElementById('srvDetailPing').innerText = ping;
-  document.getElementById('srvDetailHazard').innerText = hazard;
+  const pingElement = document.getElementById('srvDetailPing');
+  if (pingElement) {
+    const latency = Number.parseInt(ping, 10);
+    pingElement.removeAttribute('data-i18n');
+    pingElement.innerText = ping;
+    pingElement.classList.remove('fdn-text--ok', 'fdn-text--warn', 'fdn-text--danger');
+    pingElement.classList.add(latency < 80
+      ? 'fdn-text--ok'
+      : (latency < 160 ? 'fdn-text--warn' : 'fdn-text--danger'));
+  }
+
+  const hazardElement = document.getElementById('srvDetailHazard');
+  if (hazardElement) {
+    const hazardKeys = {
+      'Hades-Alpha': 'server.hazard.high',
+      'Tartarus-02': 'server.hazard.extreme',
+      'Cyber-Prospectors': 'server.hazard.medium',
+      'Dummy Offline': 'server.hazard.test',
+    };
+    const hazardKey = hazardKeys[name];
+    if (hazardKey) {
+      hazardElement.dataset.i18n = hazardKey;
+      hazardElement.innerText = t(hazardKey);
+    } else {
+      hazardElement.removeAttribute('data-i18n');
+      hazardElement.innerText = hazard;
+    }
+    hazardElement.classList.toggle('fdn-text--danger', hazardKey === 'server.hazard.extreme');
+    hazardElement.classList.toggle('fdn-text--warn', hazardKey === 'server.hazard.high');
+  }
 }
 
 function runRepairLog() {
   const log = document.getElementById('repairLogBox');
   if (!log) return;
-  log.innerHTML = '<div class="term-row info">[00:00:01] Запуск глубокого сканирования кэша и диска...</div>';
-  setTimeout(() => {
-    log.innerHTML += '<div class="term-row ok">[00:00:02] Проверка CRC32 чанков карты: Без повреждений (4 096 / 4 096).</div>';
-  }, 400);
-  setTimeout(() => {
-    log.innerHTML += '<div class="term-row ok">[00:00:03] FMOD Audio банки проверены: Синхронизированы с сервером.</div>';
-  }, 800);
-  setTimeout(() => {
-    log.innerHTML += '<div class="term-row ok term-row--strong">[00:00:04] КЛИЕНТ ПОЛНОСТЬЮ ГОТОВ К РАБОТЕ.</div>';
-    playSound('confirm');
-  }, 1200);
+  stopRepairLog();
+  log.replaceChildren();
+
+  const append = (className, text) => {
+    const row = document.createElement('div');
+    row.className = className;
+    row.innerText = text;
+    log.appendChild(row);
+    log.scrollTop = log.scrollHeight;
+  };
+
+  append('term-row info', '[00:00:01] Запуск глубокого сканирования кэша и диска...');
+  repairTimers = [
+    setTimeout(() => append(
+      'term-row ok',
+      '[00:00:02] Проверка CRC32 чанков карты: Без повреждений (4 096 / 4 096).',
+    ), 400),
+    setTimeout(() => append(
+      'term-row ok',
+      '[00:00:03] FMOD Audio банки проверены: Синхронизированы с сервером.',
+    ), 800),
+    setTimeout(() => {
+      append('term-row ok term-row--strong', '[00:00:04] КЛИЕНТ ПОЛНОСТЬЮ ГОТОВ К РАБОТЕ.');
+      repairTimers = [];
+      if (getOpenModal()?.id === 'repairModal') playSound('confirm');
+    }, 1200),
+  ];
 }
 
+function stopRepairLog() {
+  repairTimers.forEach(timer => clearTimeout(timer));
+  repairTimers = [];
+}
+
+let updateFrame = null;
+
 function startUpdateDownloadProcess() {
+  if (updateFrame) return;
   const box = document.getElementById('updateDownloadBlock');
   const bar = document.getElementById('updateProgressBar');
   const percent = document.getElementById('updatePercent');
   const btn = document.getElementById('btnStartUpdate');
+  const label = document.getElementById('updateActionLabel');
 
   box?.classList.remove('is-hidden');
+  box?.setAttribute('aria-busy', 'true');
+  playSound('confirm');
   if (btn) {
     btn.disabled = true;
-    btn.innerText = 'СКАЧИВАНИЕ ПАТЧА...';
+    btn.setAttribute('aria-busy', 'true');
+  }
+  if (label) {
+    label.removeAttribute('data-i18n');
+    const downloading = t('update.downloading');
+    label.innerText = downloading === 'update.downloading'
+      ? 'Скачивание патча...' : downloading;
   }
 
-  let p = 0;
-  const interval = setInterval(() => {
-    p += 2;
-    if (bar) bar.style.width = p + '%';
-    if (percent) percent.innerText = p + '%';
-    if (p >= 100) {
-      clearInterval(interval);
-      playSound('confirm');
-      isGameUpdated = true;
-      if (btn) {
-        btn.innerText = 'ПЕРЕЗАПУСТИТЬ КЛИЕНТ';
-        btn.disabled = false;
-        btn.onclick = () => {
-          showToast(t('mainmenu.toast.updated'), 'ok');
-          closeModal('mandatoryUpdateModal');
-          const banner = document.getElementById('updateAlertBanner');
-          banner?.classList.add('is-hidden');
-          const fLink = document.getElementById('footerVersionStatus');
-          if (fLink) {
-            fLink.innerText = 'ВЕРСИЯ КЛИЕНТА 0.9.0 (АКТУАЛЬНА)';
-            fLink.classList.remove('alert');
-          }
-        };
-      }
+  if (bar) bar.style.setProperty('width', '0%');
+  if (percent) percent.innerText = '0%';
+  const startedAt = performance.now();
+  const duration = 1800;
+  let rendered = -1;
+  const renderProgress = now => {
+    const p = Math.min(100, Math.floor(((now - startedAt) / duration) * 100));
+    if (p !== rendered) {
+      rendered = p;
+      if (bar) bar.style.width = p + '%';
+      if (percent) percent.innerText = p + '%';
     }
-  }, 35);
+    if (p < 100) {
+      updateFrame = requestAnimationFrame(renderProgress);
+      return;
+    }
+
+    updateFrame = null;
+    box?.setAttribute('aria-busy', 'false');
+    if (getOpenModal()?.id === 'mandatoryUpdateModal') playSound('confirm');
+    isGameUpdated = true;
+    if (label) {
+      const restart = t('update.restart');
+      label.innerText = restart === 'update.restart' ? 'Перезапустить клиент' : restart;
+    }
+    if (btn) {
+      btn.disabled = false;
+      btn.setAttribute('aria-busy', 'false');
+      btn.onclick = () => {
+        showToast(t('mainmenu.toast.updated'), 'ok');
+        closeModal('mandatoryUpdateModal');
+        const banner = document.getElementById('updateAlertBanner');
+        banner?.classList.add('is-hidden');
+        const fLink = document.getElementById('footerVersionStatus');
+        if (fLink) {
+          fLink.removeAttribute('data-i18n');
+          const currentVersion = t('update.current_version');
+          fLink.innerText = currentVersion === 'update.current_version'
+            ? 'Версия клиента 0.9.0 (актуальна)' : currentVersion;
+          fLink.classList.remove('alert');
+        }
+      };
+    }
+  };
+  updateFrame = requestAnimationFrame(renderProgress);
 }
 
 // ----------------------------------------------------
@@ -1159,18 +1519,16 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     const activeModal = document.querySelector('.modal-overlay.active');
     if (activeModal) {
-      activeModal.classList.remove('active');
+      closeModal(activeModal.id);
     } else if (currentMode === 'ingame') {
       switchViewState('pause');
     } else if (currentMode === 'pause') {
       switchViewState('ingame');
     }
   } else if (e.key === 'Tab') {
-    if (currentMode === 'ingame') {
+    if (currentMode === 'ingame' && !document.querySelector('.modal-overlay.active')) {
       e.preventDefault();
-      const invModal = document.getElementById('inventoryModal');
-      if (invModal && invModal.classList.contains('active')) closeModal('inventoryModal');
-      else openModal('inventoryModal');
+      openModal('inventoryModal');
     }
   } else if (e.key === 'e' || e.key === 'E' || e.key === 'у' || e.key === 'У') {
     if (currentMode === 'ingame' && !document.querySelector('.modal-overlay.active')) toggleAutoDig();
@@ -1233,17 +1591,47 @@ function bindInteractionSound() {
   });
 }
 
+function bindAudioUnlock() {
+  document.addEventListener('pointerdown', unlockAudio, { capture: true, passive: true });
+  document.addEventListener('keydown', unlockAudio, { capture: true });
+}
+
 /** Выключенный элемент не отзывается ни видом, ни звуком. */
 function isInert(el) {
-  return el.disabled === true || el.getAttribute('aria-disabled') === 'true';
+  return el.disabled === true
+    || el.getAttribute('aria-disabled') === 'true'
+    || Boolean(el.closest?.('[inert]'));
 }
 
 // ----------------------------------------------------
 // Инициализация
 // ----------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.modal-overlay').forEach(modal => {
+    modal.inert = true;
+    modal.setAttribute('aria-hidden', 'true');
+
+    const title = modal.querySelector('.modal-card-title');
+    if (title) {
+      title.id ||= `${modal.id}Title`;
+      modal.setAttribute('aria-labelledby', title.id);
+    }
+
+    const close = modal.querySelector('.modal-card-close');
+    if (close) {
+      close.setAttribute('aria-label', 'Закрыть окно');
+      close.setAttribute('title', 'Закрыть');
+    }
+  });
+
+  bindAudioUnlock();
+  const initialLanguage = document.getElementById('langSelect')?.value
+    || document.documentElement.lang
+    || 'ru';
+  window.i18nProbe?.setLanguage(initialLanguage);
   initReduceMotion();
-  generateSeededCallsign();
+  const callsignInput = document.getElementById('inputMinerName');
+  if (callsignInput && !callsignInput.value.trim()) generateSeededCallsign();
   initMineStrataGrid();
   initFullInventoryGrid();
   initProgrammatorGrid();
@@ -1256,5 +1644,6 @@ document.addEventListener('DOMContentLoaded', () => {
    потому что это связь дев-панели с инструментом, а не сам инструмент. */
 function toggleOverflowDetector(el) {
   const on = el.classList.toggle('active');
+  el.setAttribute('aria-pressed', String(on));
   window.i18nProbe.setDetector(on);
 }

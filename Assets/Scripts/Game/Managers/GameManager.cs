@@ -120,6 +120,9 @@ namespace Fodinae.Game.Managers
             OnGameStateChanged?.Invoke(newState);
         }
 
+        private const float ReadinessDiagInterval = 2.5f;
+        private float _readinessDiagNextLog;
+
         public void NotifyWorldLoaded()
         {
             // WorldInit can arrive again after reconnect or an offline-world
@@ -128,7 +131,7 @@ namespace Fodinae.Game.Managers
             IsWorldLoaded = false;
             _worldLoadPublished = false;
             _worldLoadPending = true;
-            _readinessDiagNextLog = -1f;
+            _readinessDiagNextLog = Time.unscaledTime + ReadinessDiagInterval;
             _loadProgress.Report(WorldLoadPhase.WorldManifest);
             TryPublishWorldLoaded();
         }
@@ -140,8 +143,6 @@ namespace Fodinae.Game.Managers
                 TryPublishWorldLoaded();
             }
         }
-
-        private float _readinessDiagNextLog = -1f;
 
         private void TryPublishWorldLoaded()
         {
@@ -163,7 +164,7 @@ namespace Fodinae.Game.Managers
             // cannot show what is actually stuck.
             if (Time.unscaledTime >= _readinessDiagNextLog)
             {
-                _readinessDiagNextLog = Time.unscaledTime + 2f;
+                _readinessDiagNextLog = Time.unscaledTime + ReadinessDiagInterval;
                 UnityEngine.Debug.Log(
                     $"[GameManager] World readiness gate (t={Time.unscaledTime:F1}s): " +
                     $"player={player != null && player.HasServerPosition}," +
@@ -238,8 +239,6 @@ namespace Fodinae.Game.Managers
             {
                 _uiRoot.SetActive(true);
             }
-
-            Debug.Log("[GameManager] UI authorized");
         }
 
         public void DeauthorizeUI()
@@ -249,8 +248,6 @@ namespace Fodinae.Game.Managers
             {
                 _uiRoot.SetActive(false);
             }
-
-            Debug.Log("[GameManager] UI deauthorized");
         }
     }
 }

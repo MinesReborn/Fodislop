@@ -25,6 +25,9 @@
 
 .auth-card {
   width: 440px;
+  max-width: calc(100vw - (2 * var(--space-6)));
+  max-height: calc(100dvh - (2 * var(--space-6)));
+  overflow-y: auto;
   background: var(--surface-slate-dense);
   border: 1px solid var(--accent-cyan-glow);
   border-radius: var(--radius-md);
@@ -125,6 +128,13 @@
   font-size: var(--size-base);
   padding: 10px 0;
   outline: none;
+}
+.auth-input:-webkit-autofill,
+.auth-input:-webkit-autofill:hover,
+.auth-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--light-solid);
+  box-shadow: 0 0 0 1000px var(--surface-abyss-solid) inset;
+  caret-color: var(--light-solid);
 }
 .auth-eye-btn {
   background: transparent;

@@ -68,7 +68,7 @@ namespace Fodinae.UI
 
             // Видимость — рантайм-состояние. Вставляем в индекс 0: метка не должна
             // перекрывать текст UI (раньше добавлялась последней — рисовалась поверх).
-            _arrow.style.display = DisplayStyle.None;
+            UIState.Hide(_arrow);
             // _doc is guarded by the throw above; the compiler cannot narrow it
             // across the conditional 'missing' expression, so null-forgive here.
             _doc!.rootVisualElement.Insert(0, _arrow);
@@ -81,7 +81,7 @@ namespace Fodinae.UI
                 {
                     _targetX = stats.MissionArrowX;
                     _targetY = stats.MissionArrowY;
-                    _arrow.style.display = DisplayStyle.Flex;
+                    UIState.Show(_arrow);
                 }
             }
 
@@ -110,7 +110,7 @@ namespace Fodinae.UI
             if (!stats.MissionArrowX.HasValue || !stats.MissionArrowY.HasValue)
             {
                 if (!_targetX.HasValue && !_targetY.HasValue &&
-                    _arrow.style.display == DisplayStyle.None)
+                    UIState.IsHidden(_arrow))
                 {
                     return;
                 }
@@ -120,14 +120,14 @@ namespace Fodinae.UI
 
                 if (_arrow != null)
                 {
-                    _arrow.style.display = DisplayStyle.None;
+                    UIState.Hide(_arrow);
                 }
 
                 return;
             }
 
             if (_targetX == stats.MissionArrowX && _targetY == stats.MissionArrowY &&
-                _arrow.style.display == DisplayStyle.Flex)
+                !UIState.IsHidden(_arrow))
             {
                 return;
             }
@@ -139,7 +139,7 @@ namespace Fodinae.UI
             _lastAppliedRotate = float.NaN;
             if (_arrow != null)
             {
-                _arrow.style.display = DisplayStyle.Flex;
+                UIState.Show(_arrow);
             }
         }
 
@@ -165,17 +165,17 @@ namespace Fodinae.UI
 
             if (screenPos.z < 0f)
             {
-                if (_arrow.style.display != DisplayStyle.None)
+                if (!UIState.IsHidden(_arrow))
                 {
-                    _arrow!.style.display = DisplayStyle.None;
+                    UIState.Hide(_arrow);
                 }
 
                 return;
             }
 
-            if (_arrow.style.display != DisplayStyle.Flex)
+            if (UIState.IsHidden(_arrow))
             {
-                _arrow.style.display = DisplayStyle.Flex;
+                UIState.Show(_arrow);
             }
 
             var panelPos = RuntimePanelUtils.ScreenToPanel(

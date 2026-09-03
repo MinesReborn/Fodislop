@@ -101,7 +101,7 @@ namespace Fodinae
             _loopCts?.Dispose();
             if (_cache != null)
             {
-                _cache.Clear();
+                _cache.Clear(collectUnusedAssets: false);
                 _cache = null!;
             }
             _missingAssets.Clear();

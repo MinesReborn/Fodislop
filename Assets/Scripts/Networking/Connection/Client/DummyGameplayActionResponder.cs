@@ -183,7 +183,11 @@ internal sealed class DummyGameplayActionResponder
 
     private void HandleGeology()
     {
-        (ushort frontX, ushort frontY) = GetFrontCell();
+        if (!TryGetFrontCell(out ushort frontX, out ushort frontY))
+        {
+            return;
+        }
+
         if (!_worldState.HasLayer)
         {
             return;
@@ -226,7 +230,11 @@ internal sealed class DummyGameplayActionResponder
 
     private void HandleBuild(CellType cellType)
     {
-        (ushort frontX, ushort frontY) = GetFrontCell();
+        if (!TryGetFrontCell(out ushort frontX, out ushort frontY))
+        {
+            return;
+        }
+
         DummyBuildHandler.TryBuild(
             _worldState.Layer,
             _worldState.GetCell,
@@ -239,7 +247,11 @@ internal sealed class DummyGameplayActionResponder
 
     private void HandleRoadBuild()
     {
-        (ushort frontX, ushort frontY) = GetFrontCell();
+        if (!TryGetFrontCell(out ushort frontX, out ushort frontY))
+        {
+            return;
+        }
+
         if (_worldState.HasLayer && _worldState.GetCell(frontX, frontY) == CellType.Road)
         {
             _worldState.SetCell(frontX, frontY, CellType.Empty);
@@ -255,7 +267,11 @@ internal sealed class DummyGameplayActionResponder
 
     private void HandleUpgradeBuild((CellType From, CellType To)[] upgrades)
     {
-        (ushort frontX, ushort frontY) = GetFrontCell();
+        if (!TryGetFrontCell(out ushort frontX, out ushort frontY))
+        {
+            return;
+        }
+
         DummyBuildHandler.TryUpgradeBuild(
             _worldState.Layer,
             _worldState.GetCell,
@@ -266,7 +282,7 @@ internal sealed class DummyGameplayActionResponder
             upgrades);
     }
 
-    private (ushort X, ushort Y) GetFrontCell()
+    private bool TryGetFrontCell(out ushort frontX, out ushort frontY)
     {
         Vector2Int offset = _playerState.Direction switch
         {
@@ -276,9 +292,32 @@ internal sealed class DummyGameplayActionResponder
             Direction.Right => new Vector2Int(1, 0),
             _ => Vector2Int.zero,
         };
-        return (
-            (ushort)(_playerState.X + offset.x),
-            (ushort)(_playerState.Y + offset.y));
+
+        int targetX = (int)_playerState.X + offset.x;
+        int targetY = (int)_playerState.Y + offset.y;
+
+        if (targetX < 0 || targetY < 0)
+        {
+            frontX = 0;
+            frontY = 0;
+            return false;
+        }
+
+        if (_worldState.Layer is { } layer)
+        {
+            int worldWidth = layer.WidthChunks * layer.ChunkSize;
+            int worldHeight = layer.HeightChunks * layer.ChunkSize;
+            if (targetX >= worldWidth || targetY >= worldHeight)
+            {
+                frontX = 0;
+                frontY = 0;
+                return false;
+            }
+        }
+
+        frontX = (ushort)targetX;
+        frontY = (ushort)targetY;
+        return true;
     }
 
     private void SendAudio(SFX effect, ushort x, ushort y)

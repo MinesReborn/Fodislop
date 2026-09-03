@@ -1,5 +1,6 @@
 #nullable enable
 
+using Fodinae.Core;
 using UnityEngine;
 
 namespace Fodinae.Rendering.PostProcessing;
@@ -61,15 +62,16 @@ public static class PostProcessLook
     /// </summary>
     public static class ColorGrading
     {
-        public const float Exposure = 0f;
-        public const float Contrast = 0f;
-        public const float Saturation = 1f;
+        public const float Exposure = PostProcessSettings.DefaultExposure;
+        public const float Contrast = PostProcessSettings.DefaultContrast;
+        public const float Saturation = PostProcessSettings.DefaultSaturation;
 
         /// <summary>
         /// Делитель в ToneMapAgX: сцен-линейная яркость, которая станет белым
         /// на дисплее. Единица — нейтрально.
         /// </summary>
-        public const float ToneMappingWhitePoint = 1f;
+        public const float ToneMappingWhitePoint =
+            PostProcessSettings.DefaultToneMappingWhitePoint;
 
         public static Color Filter => Color.white;
     }

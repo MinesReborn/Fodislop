@@ -523,8 +523,15 @@ namespace Fodinae.Player.Logic
                 _ => Vector2Int.zero,
             };
 
-            ushort serverX = (ushort)(Position.x + digOffset.x);
-            ushort serverY = (ushort)(Position.y + digOffset.y);
+            Vector2Int digTarget = Position + digOffset;
+            if (_mapDataProvider == null ||
+                !IsWithinWorldBounds(digTarget, _mapDataProvider.WorldWidth, _mapDataProvider.WorldHeight))
+            {
+                return;
+            }
+
+            ushort serverX = (ushort)digTarget.x;
+            ushort serverY = (ushort)digTarget.y;
 
             _networkService?.Send(new ActionClientPacket(serverX, serverY, new BzPacket()));
             _lastDigTime = Time.time;

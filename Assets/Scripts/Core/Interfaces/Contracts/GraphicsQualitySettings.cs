@@ -52,8 +52,6 @@ namespace Fodinae.Rendering
         public int AntiAliasing;
         [Tooltip("Off/PerBlock/PerPixel режим освещения. Ultra всегда принудительно PerPixel.")]
         public LightingQualityMode LightingQuality;
-        [Tooltip("Full/Essential/Off объём пост-обработки. Essential выключает bloom и motion blur — самую дорогую часть стека.")]
-        public PostProcessQualityMode PostProcessQuality;
 
         public GraphicsQualitySettings(
             int lightingPixelsPerCell,
@@ -64,8 +62,7 @@ namespace Fodinae.Rendering
             int lightingCascadeAtlasLimit,
             float renderScale,
             int antiAliasing,
-            LightingQualityMode lightingQuality = LightingQualityMode.PerBlock,
-            PostProcessQualityMode postProcessQuality = PostProcessQualityMode.Full)
+            LightingQualityMode lightingQuality = LightingQualityMode.PerBlock)
         {
             LightingMinimumPixelsPerCell = lightingPixelsPerCell;
             LightingMaximumTextureDimension = lightingMaximumTextureDimension;
@@ -76,7 +73,6 @@ namespace Fodinae.Rendering
             RenderScale = renderScale;
             AntiAliasing = antiAliasing;
             LightingQuality = lightingQuality;
-            PostProcessQuality = postProcessQuality;
         }
 
         public readonly bool Equals(GraphicsQualitySettings other)
@@ -89,8 +85,7 @@ namespace Fodinae.Rendering
                 LightingCascadeAtlasLimit == other.LightingCascadeAtlasLimit &&
                 RenderScale.Equals(other.RenderScale) &&
                 AntiAliasing == other.AntiAliasing &&
-                LightingQuality == other.LightingQuality &&
-                PostProcessQuality == other.PostProcessQuality;
+                LightingQuality == other.LightingQuality;
         }
 
         public override readonly bool Equals(object? obj)
@@ -115,7 +110,6 @@ namespace Fodinae.Rendering
             hash.Add(settings.RenderScale);
             hash.Add(settings.AntiAliasing);
             hash.Add(settings.LightingQuality);
-            hash.Add(settings.PostProcessQuality);
             return hash.ToHashCode();
         }
 

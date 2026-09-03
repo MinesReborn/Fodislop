@@ -6,6 +6,7 @@ using Cysharp.Threading.Tasks;
 using Fodinae.Core;
 using Fodinae.Core.Interfaces;
 using Fodinae.Core.Localization;
+using Fodinae.Networking;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
@@ -62,6 +63,7 @@ namespace Fodinae.UI
         private bool _loadingActive;
         private bool _built;
         private bool _subscribed;
+        private bool _windowVisibilitySubscribed;
         private bool _teardownStarted;
         private CancellationTokenSource? _descentCancellation;
 
@@ -75,6 +77,8 @@ namespace Fodinae.UI
         private IClientConfigManager _clientConfig = null!;
         [Inject]
         private IAsyncOperationSupervisor _operations = null!;
+        [Inject]
+        private WindowCommandStream _windowCommands = null!;
 
         private bool _loaderHiddenAtDone;
         private MenuStarfield? _sceneStarfield;
@@ -114,7 +118,9 @@ namespace Fodinae.UI
                 }
 
                 _root = doc.rootVisualElement;
+                _root.pickingMode = PickingMode.Ignore;
                 SubscribeEvents();
+                SubscribeWindowVisibility();
                 _sceneryPresenter.Bind(_tree);
                 _sceneryPresenter.ApplyTextures(ref _shadeTexture, ref _spaceBgTexture);
 
@@ -156,6 +162,10 @@ namespace Fodinae.UI
                     "[MainMenu] UIDocument panel is not available at Start (панель создаётся в OnEnable документа и к Start обязана существовать).");
             }
 
+            PanelSettings panelSettings = _doc.panelSettings ??
+                throw new InvalidOperationException(
+                    "[MainMenu] UIDocument requires an authored PanelSettings asset.");
+
             var mainMenuUXML = Resources.Load<VisualTreeAsset>(ProjectRuntimeContracts.ResourcePaths.MainMenuUxml);
             if (mainMenuUXML == null)
             {
@@ -164,9 +174,15 @@ namespace Fodinae.UI
             }
 
             _root.Clear();
+            _root.pickingMode = PickingMode.Ignore;
             VisualElement tree = mainMenuUXML.CloneTree();
             tree.AddToClassList("ui-fullscreen");
             _root.Add(tree);
+
+            // Keep the authored runtime panel attached after rebuilding the
+            // visual tree. A menu can still render from a detached/stale panel,
+            // but pointer events will no longer be routed to that tree.
+            _doc.panelSettings = panelSettings;
             _tree = tree;
 
             UILayoutTier.Attach(tree);
@@ -177,6 +193,7 @@ namespace Fodinae.UI
 
             _subscribed = false;
             SubscribeEvents();
+            SubscribeWindowVisibility();
             _sceneryPresenter.ApplyTextures(ref _shadeTexture, ref _spaceBgTexture);
 
             if (_loc != null)
@@ -419,7 +436,7 @@ namespace Fodinae.UI
             if (phase == WorldLoadPhase.Done && !_loaderHiddenAtDone)
             {
                 _loaderHiddenAtDone = true;
-                HideLoader();
+                ReleaseInputToGameplay();
             }
         }
 
@@ -583,6 +600,12 @@ namespace Fodinae.UI
         protected void OnDestroy()
         {
             _teardownStarted = true;
+            if (_windowVisibilitySubscribed && _windowCommands != null)
+            {
+                _windowCommands.OpenWindowVisibilityChanged -= OnServerWindowVisibilityChanged;
+                _windowVisibilitySubscribed = false;
+            }
+
             if (_loc != null)
             {
                 _loc.UnregisterLocalizable(this);
@@ -606,6 +629,49 @@ namespace Fodinae.UI
             UIState.Hide(_mainMenuContainer);
         }
 
+        private void ReleaseInputToGameplay()
+        {
+            _loadingActive = false;
+            UIState.Hide(_tree);
+            if (_root != null)
+            {
+                _root.pickingMode = PickingMode.Ignore;
+            }
+        }
+
+        private void SubscribeWindowVisibility()
+        {
+            if (_windowVisibilitySubscribed || _windowCommands == null)
+            {
+                return;
+            }
+
+            _windowCommands.OpenWindowVisibilityChanged += OnServerWindowVisibilityChanged;
+            _windowVisibilitySubscribed = true;
+            OnServerWindowVisibilityChanged(_windowCommands.HasOpenWindows);
+        }
+
+        private void OnServerWindowVisibilityChanged(bool visible)
+        {
+            if (_teardownStarted || !_loadingActive)
+            {
+                return;
+            }
+
+            UIState.SetHidden(_tree, visible);
+            if (_root != null)
+            {
+                _root.pickingMode = PickingMode.Ignore;
+            }
+
+            if (!visible)
+            {
+                UIState.Show(_loaderContainer);
+                UIState.Show(_loaderContent);
+                UpdateLoaderProgress();
+            }
+        }
+
         private void OnPlayButtonClicked()
         {
             if (_loadingActive || _teardownStarted)
@@ -625,6 +691,11 @@ namespace Fodinae.UI
 
             UIState.Show(_loaderContainer);
             UIState.Show(_loaderContent);
+
+            if (_windowCommands != null && _windowCommands.HasOpenWindows)
+            {
+                OnServerWindowVisibilityChanged(visible: true);
+            }
 
             _routeOrbit?.RemoveFromClassList("mm-route-item--active");
             _routeDescent?.AddToClassList("mm-route-item--active");
@@ -656,6 +727,12 @@ namespace Fodinae.UI
                 }
 
                 _loadingActive = false;
+                UIState.Show(_tree);
+                if (_root != null)
+                {
+                    _root.pickingMode = PickingMode.Ignore;
+                }
+
                 _sceneryPresenter.ResumeRenderers();
                 HideLoader();
                 UIState.Show(_mainMenuContainer);

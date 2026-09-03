@@ -176,11 +176,19 @@ public sealed class GamePresentationStartup
         ValidateShader(report, ProjectRuntimeContracts.ShaderNames.DynamicEmission);
         ValidateShader(report, ProjectRuntimeContracts.ShaderNames.WorldSurface);
         ValidateShader(report, ProjectRuntimeContracts.ShaderNames.WorldEntity);
-        if (Resources.Load<ComputeShader>(ProjectRuntimeContracts.ResourcePaths.WorldLightingCompute) == null)
+
+        var lightingCompute = Resources.Load<ComputeShader>(ProjectRuntimeContracts.ResourcePaths.WorldLightingCompute);
+        if (lightingCompute == null)
         {
             report.Critical(
                 "world_lighting_compute",
                 $"Resources/{ProjectRuntimeContracts.ResourcePaths.WorldLightingCompute}.compute is missing.");
+        }
+        else if (!lightingCompute.HasKernel("SolveCascade") || !lightingCompute.HasKernel("CompositeLighting"))
+        {
+            report.Critical(
+                "world_lighting_compute",
+                "WorldLighting.compute has invalid or uncompiled kernels.");
         }
     }
 

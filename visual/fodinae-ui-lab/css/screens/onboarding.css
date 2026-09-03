@@ -24,6 +24,7 @@
 .onboarding-overlay-view.active { display: flex; }
 .onboarding-card {
   width: 780px;
+  max-width: 94vw;
   max-height: 88vh;
   background: var(--surface-panel);
   border: 1px solid var(--border-subtle);
@@ -31,6 +32,22 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+@media (max-width: 899px) {
+  .onboarding-header,
+  .onboarding-footer {
+    flex-wrap: wrap;
+  }
+
+  .onboarding-header > * + *,
+  .onboarding-footer > * + * {
+    margin-top: var(--space-4);
+  }
+
+  .onboarding-footer > * {
+    min-width: 0;
+  }
 }
 .onboarding-header {
   padding: 18px 24px 14px;
@@ -74,4 +91,8 @@
   font-family: var(--face-display);
   font-size: var(--size-lg);
   color: var(--light-solid);
+}
+
+#btnObNext {
+  text-transform: uppercase;
 }

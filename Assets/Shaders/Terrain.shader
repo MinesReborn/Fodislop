@@ -33,6 +33,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
             Cull Off
 
             HLSLPROGRAM
+            #pragma target 4.5
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile _ FODINAE_WORLD_LIGHTING
@@ -71,6 +72,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
             TEXTURE2D(_BaseMap);
             SAMPLER(sampler_BaseMap);
+            float4 _BaseMap_TexelSize;
             TEXTURE2D(_FlowMap);
             SAMPLER(sampler_FlowMap);
 
@@ -246,8 +248,8 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 {
                     float2 anchoredUV = input.packedData.yz;
                     float2 stepUV = float2(0.0, 0.0);
-                    stepUV.x = anchoredUV.x >= 1.0 ? 1.0 : (anchoredUV.x <= 0.0 ? -1.0 : 0.0);
-                    stepUV.y = anchoredUV.y >= 1.0 ? -1.0 : (anchoredUV.y <= 0.0 ? 1.0 : 0.0);
+                    stepUV.x = anchoredUV.x > 1.0 ? 1.0 : (anchoredUV.x < 0.0 ? -1.0 : 0.0);
+                    stepUV.y = anchoredUV.y > 1.0 ? -1.0 : (anchoredUV.y < 0.0 ? 1.0 : 0.0);
                     bool outsideX = stepUV.x != 0.0;
                     bool outsideY = stepUV.y != 0.0;
                     if (isScrollAnimated)
@@ -293,6 +295,17 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                     float speed = input.animData.y;
                     float scrollUV = fmod(_Time.y * speed * tileSizeUV.y * 0.05, subAtlasSizeUV.y);
                     finalUV.y = baseUV.y + fmod(finalUV.y - baseUV.y + scrollUV + subAtlasSizeUV.y, subAtlasSizeUV.y);
+                }
+
+                float2 minTileUV = baseUV + tileOffsetUV + _BaseMap_TexelSize.xy * 0.5;
+                float2 maxTileUV = baseUV + tileOffsetUV + availableTileSize - _BaseMap_TexelSize.xy * 0.5;
+                if (!isScrollAnimated)
+                {
+                    finalUV = clamp(finalUV, minTileUV, maxTileUV);
+                }
+                else
+                {
+                    finalUV.x = clamp(finalUV.x, minTileUV.x, maxTileUV.x);
                 }
 
                 // Terrain atlases are uploaded without mipmaps and are pixel art.

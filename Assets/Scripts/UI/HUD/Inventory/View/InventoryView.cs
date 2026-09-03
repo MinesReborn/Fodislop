@@ -316,9 +316,6 @@ namespace Fodinae.UI.HUD.Inventory.View
                 {
                     _capacityLabel.text = _loc.Get("inventory.capacity", InventoryModel.TOTALSLOTS);
                 }
-
-                Debug.Log($"[InventoryView] UI built: hotbar={(object?)_hotbarContainer ?? "NULL"}, " +
-                    $"button={(object?)_inventoryButton ?? "NULL"}, treeChildren={tree.childCount}");
             }
             else
             {

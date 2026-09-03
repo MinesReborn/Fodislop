@@ -121,7 +121,7 @@ TextField,
     /* Прозрачный: небо теперь рисует MenuDisplayBackdropCamera позади UI-оверлея.
        Непрозрачный фон здесь полностью закрыл бы её. PanelSettings не чистит
        цвет (m_ClearColor: 0), поэтому камера видна везде, где UI прозрачен. */
-    background-color: var(--surface-void);
+    background-color: transparent;
     /* Локальная палитра меню — тоже алиасы семантического слоя.
        mm-dim становится светлее прежнего rgb(90,107,124): тот давал
        контраст 3.2:1 и не проходил порог читаемости для мелкого текста. */
@@ -185,7 +185,6 @@ TextField,
     bottom: 0;
     width: 100%;
     height: 100%;
-    filter: drop-shadow(-32px 24px 60px var(--surface-void-solid));
 }
 
 /* Маркер орбитальной станции. Ровно тот же элемент, что и метка высадки:
@@ -225,7 +224,6 @@ TextField,
     border-color: var(--accent-gold);
     align-items: center;
     justify-content: center;
-    filter: drop-shadow(0 0 11px var(--accent-gold));
 }
 
 .mm-target-cross-v {
@@ -266,7 +264,6 @@ TextField,
     flex-direction: column;
     /* Ось fit=atomic: бейдж висит абсолютом над сценой, расти ему некуда. */
     white-space: nowrap;
-    filter: drop-shadow(0 4px 7px var(--surface-void-veil));
 }
 
 .mm-tb-title {
@@ -311,7 +308,6 @@ TextField,
     border-bottom-width: 1px;
     border-bottom-color: var(--border-subtle);
     background-color: var(--surface-abyss-dense);
-    backdrop-filter: blur(10px);
 }
 
 .mm-wordmark {
@@ -323,7 +319,6 @@ TextField,
     width: 32px;
     height: 32px;
     margin-right: var(--space-6);
-    filter: drop-shadow(0 0 8px var(--accent-gold-glow));
 }
 
 .mm-brand-text {
@@ -445,9 +440,6 @@ TextField,
     justify-content: center;
     margin-bottom: var(--space-5);
     padding: 0;
-    /* Тень вместо box-shadow: третий параметр — сигма, половина радиуса макета (16) */
-    filter: drop-shadow(0 6px 8px var(--surface-void-veil));
-    backdrop-filter: blur(10px);
 }
 
 .mm-side-btn Label {
@@ -486,7 +478,6 @@ TextField,
 .mm-side-btn:hover {
     background-color: var(--surface-shelf-solid);
     border-color: var(--accent-cyan);
-    filter: drop-shadow(0 0 8px var(--accent-cyan-glow));
 }
 
 .mm-side-btn--gold {
@@ -495,12 +486,6 @@ TextField,
 
 .mm-side-btn--danger {
     border-color: var(--border-danger);
-}
-
-/* Свечение при наведении. Правила не было вовсе: единственное, что в нём
-   есть, — тень, а выразить её в USS стало возможно только с 6000.6. */
-.mm-side-btn--gold:hover {
-    filter: drop-shadow(0 0 8px var(--accent-gold-glow));
 }
 
 .mm-side-btn--danger:hover {
@@ -621,7 +606,6 @@ Button#PlayButton {
     margin-right: 0;
     margin-top: 0;
     margin-bottom: var(--space-5);
-    filter: drop-shadow(0 0 10px var(--accent-gold-wash));
 }
 
 Button.mm-btn-primary:hover,
@@ -667,7 +651,6 @@ Button#ServerSelectButton {
     margin-right: 0;
     margin-top: 0;
     margin-bottom: 0;
-    backdrop-filter: blur(6px);
 }
 
 Button.mm-btn-secondary:hover,
@@ -766,7 +749,6 @@ Button#ServerSelectButton Label {
     height: 100%;
     width: 0%;
     background-color: var(--accent-gold);
-    filter: drop-shadow(0 0 6px var(--accent-gold));
 }
 
 .mm-loader-progress-meta {
@@ -960,7 +942,6 @@ Button#ServerSelectButton Label {
     background-color: var(--surface-scrim);
     align-items: center;
     justify-content: center;
-    backdrop-filter: blur(16px);
 }
 
 /* Ширины были перепутаны местами: обычная карточка брала ступень modal-lg, а
@@ -974,7 +955,6 @@ Button#ServerSelectButton Label {
     border-color: var(--border-cyan);
     border-radius: var(--radius-md);
     flex-direction: column;
-    filter: drop-shadow(0 24px 30px var(--surface-void-solid));
 }
 
 .mm-modal-card--wide {
@@ -1303,7 +1283,6 @@ Button.mm-btn-outline:hover {
     bottom: var(--space-8);
     width: 2px;
     background-color: var(--accent-gold);
-    filter: drop-shadow(0 0 5px var(--accent-cyan-glow));
 }
 
 .mm-timeline-section-title {
@@ -1357,7 +1336,6 @@ Button.mm-btn-outline:hover {
     background-color: var(--surface-void);
     border-width: 2px;
     border-color: var(--accent-cyan);
-    filter: drop-shadow(0 0 5px var(--accent-cyan));
 }
 
 /* Ядро бусины: в макете ::after, здесь настоящий узел. Цвет тот же, что
@@ -1374,21 +1352,16 @@ Button.mm-btn-outline:hover {
 .mm-tc--gold .mm-bead-core { background-color: var(--accent-gold); }
 .mm-tc--dim .mm-bead-core { background-color: var(--text-tertiary); }
 
-/* Свечение бусины идёт от варианта, как и цвет обводки. Сигма — половина
-   радиуса макета: 12 -> 6, 14 -> 7. У архивной свечения нет. */
 .mm-tb--purple {
     border-color: var(--state-anomaly);
-    filter: drop-shadow(0 0 6px var(--state-anomaly));
 }
 
 .mm-tb--gold {
     border-color: var(--accent-gold);
-    filter: drop-shadow(0 0 7px var(--accent-gold));
 }
 
 .mm-tb--dim {
     border-color: var(--text-tertiary);
-    filter: none;
 }
 
 .mm-tc-header {

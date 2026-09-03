@@ -131,6 +131,40 @@ internal sealed class ClientConfigMigration(
             migrated = true;
         }
 
+        if (config.SchemaVersion < 20)
+        {
+            // Схема 20 возвращает только калибровку вывода: экспозицию,
+            // контраст, насыщенность и white point. Удалённые legacy-поля
+            // отдельных художественных эффектов не мигрируют и не оживают.
+            config.PostProcess = ClientConfigDefaults.CreatePostProcessSettings();
+            config.SchemaVersion = 20;
+            migrated = true;
+        }
+
+        if (config.SchemaVersion < 21)
+        {
+            if (config.Display.Gamma < DisplaySettings.GammaMin ||
+                config.Display.Gamma > DisplaySettings.GammaMax)
+            {
+                config.Display.Gamma = DisplaySettings.DefaultGamma;
+            }
+
+            if (config.Display.PaperWhiteNits < DisplaySettings.PaperWhiteMin ||
+                config.Display.PaperWhiteNits > DisplaySettings.PaperWhiteMax)
+            {
+                config.Display.PaperWhiteNits = DisplaySettings.DefaultPaperWhite;
+            }
+
+            if (config.Display.PeakBrightnessNits < DisplaySettings.PeakBrightnessMin ||
+                config.Display.PeakBrightnessNits > DisplaySettings.PeakBrightnessMax)
+            {
+                config.Display.PeakBrightnessNits = DisplaySettings.DefaultPeakBrightness;
+            }
+
+            config.SchemaVersion = 21;
+            migrated = true;
+        }
+
         if (GraphicsQualityProfile.IsStandard(config.GraphicsPreset))
         {
             GraphicsQualitySettings standardSettings =

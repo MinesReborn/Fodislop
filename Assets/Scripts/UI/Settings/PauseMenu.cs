@@ -68,6 +68,8 @@ namespace Fodinae.UI
         private IInputBlocker _inputBlocker = null!;
         [Inject]
         private UIInputManager _uiInput = null!;
+        [Inject]
+        private WindowCommandStream _windowCommands = null!;
 
         private PauseMenuSettingsBuilder? _settingsBuilder;
         private VisualElement[] _settingsPages = System.Array.Empty<VisualElement>();
@@ -86,6 +88,11 @@ namespace Fodinae.UI
         {
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
             {
+                if (!_isOpen && _windowCommands.HasOpenWindows)
+                {
+                    return;
+                }
+
                 ToggleMenu();
             }
         }

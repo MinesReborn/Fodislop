@@ -44,27 +44,8 @@ namespace Fodinae.Rendering
                     "Unknown graphics preset."),
             };
 
-            // Тир постпроцесса выводится из пресета, а не читается из ассета.
-            // Сериализованное значение игнорируется намеренно: иначе правка
-            // тира требует редактирования `.asset`, то есть отдельного шага
-            // миграции при каждом изменении перечисления. Стоимость тира —
-            // свойство пресета, и место ему в коде.
-            settings.PostProcessQuality = TierFor(preset);
-
             ValidateSettings(settings, preset.ToString());
             return settings;
-        }
-
-        /// <summary>
-        /// VeryLow и Low не платят за пирамиду блума и мо́ушен-блюр; остальные
-        /// пресеты гонят весь стек. Тира «выключено» нет ни у одного: без
-        /// тонмапа света срезаются в плоский белый.
-        /// </summary>
-        public static PostProcessQualityMode TierFor(GraphicsPreset preset)
-        {
-            return preset is GraphicsPreset.VeryLow or GraphicsPreset.Low
-                ? PostProcessQualityMode.Essential
-                : PostProcessQualityMode.Full;
         }
 
         public void Validate()
@@ -110,17 +91,6 @@ namespace Fodinae.Rendering
                 throw new InvalidOperationException(
                     $"Graphics quality settings '{context}' has an undefined " +
                     $"LightingQuality value ({(int)settings.LightingQuality}).");
-            }
-
-            if (!Enum.IsDefined(typeof(PostProcessQualityMode), settings.PostProcessQuality))
-            {
-                // Same reasoning as the LightingQuality check above: an
-                // out-of-range int satisfies every numeric check and only
-                // surfaces later as an IndexOutOfRangeException in the
-                // PauseMenu tier-name array.
-                throw new InvalidOperationException(
-                    $"Graphics quality settings '{context}' has an undefined " +
-                    $"PostProcessQuality value ({(int)settings.PostProcessQuality}).");
             }
 
             if (context == nameof(GraphicsPreset.Ultra) &&

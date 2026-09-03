@@ -72,8 +72,13 @@ namespace Fodinae.Rendering.PostProcessing
             ref var cameraData = ref renderingData.cameraData;
             if (cameraData.renderType != CameraRenderType.Base ||
                 cameraData.camera.cameraType != CameraType.Game ||
-                cameraData.camera.targetTexture != null ||
-                cameraData.camera != GameplayCamera.Resolve())
+                cameraData.camera.targetTexture != null)
+            {
+                return;
+            }
+
+            Camera? targetCamera = GameplayCamera.Resolve();
+            if (targetCamera != null && cameraData.camera != targetCamera)
             {
                 return;
             }

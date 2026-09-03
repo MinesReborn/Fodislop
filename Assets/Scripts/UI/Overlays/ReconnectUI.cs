@@ -145,7 +145,7 @@ namespace Fodinae.UI
             _reconnectLabel.text = Resolve(status);
 
             _reconnectStatusSet = true;
-            _reconnectOverlay.style.display = DisplayStyle.Flex;
+            UIState.Show(_reconnectOverlay);
             _reconnectOverlay.SetEnabled(true);
             _reconnectOverlay.pickingMode = PickingMode.Position;
         }
@@ -166,7 +166,7 @@ namespace Fodinae.UI
 
             _disconnectLabel.text = Resolve(reason);
 
-            _disconnectOverlay.style.display = DisplayStyle.Flex;
+            UIState.Show(_disconnectOverlay);
             _disconnectOverlay.SetEnabled(true);
             _disconnectOverlay.pickingMode = PickingMode.Position;
         }
@@ -178,7 +178,7 @@ namespace Fodinae.UI
                 return;
             }
 
-            if (_disconnectOverlay?.style.display == DisplayStyle.Flex)
+            if (!UIState.IsHidden(_disconnectOverlay))
             {
                 return;
             }
@@ -190,7 +190,7 @@ namespace Fodinae.UI
 
             if (!_reconnectStatusSet && _doc != null && _reconnectOverlay != null)
             {
-                _reconnectOverlay.style.display = DisplayStyle.Flex;
+                UIState.Show(_reconnectOverlay);
                 _reconnectOverlay.SetEnabled(true);
                 _reconnectOverlay.pickingMode = PickingMode.Position;
             }
@@ -223,7 +223,7 @@ namespace Fodinae.UI
                 return;
             }
 
-            overlay.style.display = DisplayStyle.None;
+            UIState.Hide(overlay);
             overlay.SetEnabled(false);
             overlay.pickingMode = PickingMode.Ignore;
         }

@@ -114,6 +114,7 @@ BASELINE = {
     # drop-shadow и 9 backdrop-filter переносятся, а не обходятся текстурой.
     "долг переноса в USS": 124,
     "ключа нет в игре": 263,
+    "пакет словаря устарел": 0,
 }
 
 # Проверки, у которых ненулевой предел — это ОБЪЯВЛЕННАЯ НОРМА, а не долг.
@@ -811,6 +812,23 @@ def check_baked_case() -> None:
     print(f"  значений ПРОПИСНЫМИ в словарях: {len(seen)}")
 
 
+def check_packaged_dictionaries() -> None:
+    """GitHub Pages публикует только каталог макета, поэтому словари игры
+    входят в него как проверяемые снимки. Любое расхождение снова даст 404 или
+    устаревший текст уже после успешного деплоя — такой дрейф запрещён."""
+    for lang in ("ru", "en"):
+        source = GAME_DICTS / f"{lang}.json"
+        packaged = ROOT / "i18n" / f"game.{lang}.json"
+        if not packaged.exists():
+            report("пакет словаря устарел", f"нет {packaged.relative_to(ROOT)}")
+            continue
+        if source.read_bytes() != packaged.read_bytes():
+            report(
+                "пакет словаря устарел",
+                f"i18n/game.{lang}.json не совпадает с Assets/Resources/Localization/{lang}.json",
+            )
+
+
 
 # --------------------------------------------------------------------------
 # 13. Цветные эмодзи вне набора
@@ -882,6 +900,7 @@ def main() -> int:
     check_uss_debt()
     check_safe_zone()
     check_baked_case()
+    check_packaged_dictionaries()
     check_emoji()
 
     show = [a for a in sys.argv[1:] if not a.startswith("-")]

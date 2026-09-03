@@ -49,6 +49,8 @@ internal sealed class ClientConfigValidator(
             throw new InvalidDataException("Accessibility settings are missing.");
         ConnectionSettings connection = config.Connection ??
             throw new InvalidDataException("Connection settings are missing.");
+        PostProcessSettings postProcess = config.PostProcess ??
+            throw new InvalidDataException("Post-process settings are missing.");
         ValidateFloat(audio.MasterVolume, 0f, 1f, nameof(audio.MasterVolume));
         ValidateFloat(audio.SfxVolume, 0f, 1f, nameof(audio.SfxVolume));
         ValidateFloat(audio.MusicVolume, 0f, 1f, nameof(audio.MusicVolume));
@@ -56,6 +58,9 @@ internal sealed class ClientConfigValidator(
         ValidateFloat(audio.VoiceVolume, 0f, 1f, nameof(audio.VoiceVolume));
         ValidateFloat(audio.UIVolume, 0f, 1f, nameof(audio.UIVolume));
         ValidateFloat(interfaceSettings.UIScale, 0.5f, 2f, nameof(interfaceSettings.UIScale));
+        ValidateFloat(display.Gamma, DisplaySettings.GammaMin, DisplaySettings.GammaMax, nameof(display.Gamma));
+        ValidateFloat(display.PaperWhiteNits, DisplaySettings.PaperWhiteMin, DisplaySettings.PaperWhiteMax, nameof(display.PaperWhiteNits));
+        ValidateFloat(display.PeakBrightnessNits, DisplaySettings.PeakBrightnessMin, DisplaySettings.PeakBrightnessMax, nameof(display.PeakBrightnessNits));
         ValidateGeneralSettings(config);
         if (!Enum.IsDefined(typeof(GraphicsPreset), config.GraphicsPreset))
         {
@@ -119,8 +124,26 @@ internal sealed class ClientConfigValidator(
         ValidateColor(config.PerspectiveEmissionColor, nameof(config.PerspectiveEmissionColor));
         ValidateFloat(config.PerspectiveEmissionStrength, 0f, 8f, nameof(config.PerspectiveEmissionStrength));
         ValidateFloat(config.SurfaceOccupancy, 0f, 1f, nameof(config.SurfaceOccupancy));
-        // Эффекты постпроцесса — тумблеры; проверять у bool нечего.
-        // Величины живут в PostProcessLook и в конфиг не попадают.
+        ValidateFloat(
+            postProcess.Exposure,
+            PostProcessSettings.ExposureMin,
+            PostProcessSettings.ExposureMax,
+            nameof(postProcess.Exposure));
+        ValidateFloat(
+            postProcess.Contrast,
+            PostProcessSettings.ContrastMin,
+            PostProcessSettings.ContrastMax,
+            nameof(postProcess.Contrast));
+        ValidateFloat(
+            postProcess.Saturation,
+            PostProcessSettings.SaturationMin,
+            PostProcessSettings.SaturationMax,
+            nameof(postProcess.Saturation));
+        ValidateFloat(
+            postProcess.ToneMappingWhitePoint,
+            PostProcessSettings.ToneMappingWhitePointMin,
+            PostProcessSettings.ToneMappingWhitePointMax,
+            nameof(postProcess.ToneMappingWhitePoint));
         if (string.IsNullOrWhiteSpace(connection.ServerHost))
         {
             throw new InvalidDataException(
@@ -207,6 +230,11 @@ internal sealed class ClientConfigValidator(
             config.PerspectiveEmissionColor == shaders.PerspectiveEmissionColor &&
             config.PerspectiveEmissionStrength == shaders.PerspectiveEmissionStrength &&
             config.SurfaceOccupancy == shaders.SurfaceOccupancy &&
+            config.PostProcess.Exposure == PostProcessSettings.DefaultExposure &&
+            config.PostProcess.Contrast == PostProcessSettings.DefaultContrast &&
+            config.PostProcess.Saturation == PostProcessSettings.DefaultSaturation &&
+            config.PostProcess.ToneMappingWhitePoint ==
+                PostProcessSettings.DefaultToneMappingWhitePoint &&
             config.BloomEnabled == shaders.BloomEnabled &&
             config.VignetteEnabled == shaders.VignetteEnabled &&
             config.ChromaticAberrationEnabled == shaders.ChromaticAberrationEnabled &&

@@ -71,7 +71,6 @@ internal sealed class DummyWorldStartupResponder
         StartBotSimulation(lifecycleVersion);
 
         _playerState.SetPosition(25, 50);
-        _worldState.SendChunksAround(_playerState.X, _playerState.Y, _sendPacket);
         _sendPacket(new ServerPacket(new AggressionStatePacket(false)));
         _sendPacket(new ServerPacket(new AutoMineStatePacket(false)));
         _sendPacket(new ServerPacket(new DailyBonusStatePacket(false)));
@@ -83,6 +82,7 @@ internal sealed class DummyWorldStartupResponder
         _sendPacket(new ServerPacket(new BasketPacket(50000, basketContents)));
         _sendPacket(new ServerPacket(new GeologyPacket(5, 10, CellType.Lava, "Lava")));
         _sendPacket(new ServerPacket(new LevelPacket(level)));
+        _worldState.SendChunksAround(_playerState.X, _playerState.Y, _sendPacket);
 
         SendSkillProgress();
         _chatSimulator.SendChatMock();

@@ -1546,8 +1546,7 @@ const USS_LONGHAND = new Set([
     "border-bottom-width", "border-left-color", "border-left-width",
     "border-right-color", "border-right-width", "border-top-color",
     "border-top-left-radius", "border-top-right-radius", "border-top-width",
-    "backdrop-filter",
-    "bottom", "color", "cursor", "display", "filter", "flex-basis",
+    "bottom", "color", "cursor", "display", "flex-basis",
     "flex-direction", "flex-grow", "flex-shrink", "flex-wrap", "font-size",
     "height", "justify-content", "left", "letter-spacing", "margin-bottom",
     "margin-left", "margin-right", "margin-top", "max-height", "max-width",
@@ -1581,29 +1580,12 @@ const USS_BAD_FUNCS = {
     "max": "арифметики в значениях нет",
     "clamp": "арифметики в значениях нет",
     "color-mix": "не поддерживается",
-    // FilterFunctionType в 6000.6: Blur, Contrast, Custom, DropShadow,
-    // Grayscale, HueRotate, Invert, Opacity, Sepia, Tint. Всё остальное из
-    // набора CSS-фильтров отсутствует.
-    "brightness": "в наборе filter нет",
-    "saturate": "в наборе filter нет",
 };
 
-// Тени. box-shadow в USS нет и не появилось, но с 6000.6 есть filter и
-// backdrop-filter, а в них — drop-shadow. Это не то же самое, и разница
-// стоит того, чтобы её знали до переноса:
-//
-//   1. Третий параметр — СИГМА гауссианы, а не радиус размытия CSS. По
-//      спецификации CSS сигма равна половине радиуса, поэтому
-//      box-shadow: 0 0 12px  ->  drop-shadow(0 0 6px ...). Перенос числом
-//      в число делает каждую тень вдвое мягче задуманного.
-//   2. Тень идёт по СИЛУЭТУ альфы, а не по прямоугольнику коробки: скруглённые
-//      углы и прозрачные фигуры обводятся правильно, но у прозрачного
-//      элемента тени не будет вовсе.
-//   3. Нет spread и нет inset. В макете не используется ни то ни другое.
-//   4. Это постобработка со своей ценой; вешать её на сотни узлов нельзя.
+// CSS box-shadow/filter/backdrop-filter не входят в поддерживаемый USS.
+// Для таких эффектов нужен материал, Painter2D или подготовленная текстура.
 const USS_SHADOW_NOTE =
-    "box-shadow в USS нет; тень пишется как filter: drop-shadow(x y сигма цвет), " +
-    "где сигма — половина радиуса размытия CSS";
+    "box-shadow/filter/backdrop-filter в USS нет; нужен материал, Painter2D или текстура";
 
 // The 23 named easing curves supported by USS.
 const USS_EASINGS = new Set([
@@ -2073,6 +2055,13 @@ function checkToneMapMatrices() {
     }
 
     let violations = 0;
+    if (!/return\s+pow\(color,\s*2\.2\)\s*;/.test(source)) {
+        recordViolation("Architecture", file,
+            "AgX обязан линеаризовать display-encoded результат через pow(color, 2.2) " +
+            "до записи в линейный camera target; иначе URP кодирует его повторно и выбеливает полутона.");
+        violations++;
+    }
+
     const MATRIX = /const\s+float3x3\s+(\w+)\s*=\s*float3x3\(([^)]*)\)/g;
     for (const match of source.matchAll(MATRIX)) {
         const name = match[1];
@@ -2095,6 +2084,27 @@ function checkToneMapMatrices() {
             }
         }
     }
+
+    const passFile = path.join(
+        "Assets",
+        "Scripts",
+        "Rendering",
+        "PostProcessing",
+        "PostProcessRenderPass.cs");
+    const passSource = readFile(passFile);
+    // Тонмап безусловен в обоих режимах вывода, поэтому досрочного выхода по
+    // «ни одного включённого эффекта» у прохода быть не может: без кривой всё
+    // ярче белой точки срезается в плоский белый. Ловушка не гипотетическая —
+    // сначала гейт убрали не до конца, оставив `bool toneMappingActive = true`
+    // первым слагаемым условия: проверка была мертва, но выглядела живой.
+    if (passSource !== null &&
+        /if\s*\(\s*!\w*[Aa]ctive\s*&&[\s\S]{0,400}?!_advanced\.HasAnyEffects\s*\)/.test(passSource)) {
+        recordViolation("Architecture", passFile,
+            "У прохода постпроцесса не должно быть досрочного выхода по набору эффектов: " +
+            "тонмап работает всегда, и кадр без него неверен, а не дешевле.");
+        violations++;
+    }
+
     return violations;
 }
 
@@ -2659,7 +2669,7 @@ function checkHiddenClassNotOverridden() {
 
 const DEBT_BUDGET = {
     "inline вне main game": 59,
-    "inline в main game": 333,
+    "inline в main game": 305,
     // 210, а не 205: сверка компонентов (compare-components.py) перенесла в
     // игру значения макета, и часть из них там тоже литералы — 22px отступа
     // под подзаголовком, 3px скругления тикера, 19px и -30px в ленте хроники.
@@ -2674,12 +2684,7 @@ const DEBT_BUDGET = {
     // 218: плюс 14x2 золотой чёрточки надзаголовка. В макете эти два числа тоже
     // литералы: чёрточка намеренно не тир-зависимая, иначе на компактном тире
     // она мельчает вместе с отступами и перестаёт читаться как акцент.
-    // 240: перенос теней. С Unity 6000.6 у UI Toolkit есть filter, и тринадцать
-    // свечений меню плюс матовое стекло уехали из макета в игру как
-    // drop-shadow и blur. Смещения и сигмы — числа: шкалы высот нет ни в
-    // игре, ни в макете, там они тоже написаны значениями. Завести рампу
-    // высот токенами можно, но это уже решение о дизайне, а не уборка.
-    "литерал в общем слое": 240,
+    "литерал в общем слое": 218,
     "литерал в main game": 324,
 };
 

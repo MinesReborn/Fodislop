@@ -244,6 +244,7 @@
 .footer-action-link { color: var(--text-secondary); text-decoration: none; cursor: pointer; transition: color var(--dur-base); }
 .footer-action-link:hover { color: var(--accent-cyan); }
 .footer-action-link.alert { color: var(--accent-gold); font-weight: 700; }
+#footerVersionStatus { text-transform: uppercase; }
 
 /* Состояния */
 .viewport[data-state="loading"] .fa-planet-system,

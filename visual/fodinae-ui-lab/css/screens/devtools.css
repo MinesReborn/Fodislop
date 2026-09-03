@@ -18,6 +18,9 @@
   position: fixed;
   bottom: 56px;
   left: 48px;
+  right: 48px;
+  width: max-content;
+  max-width: calc(100vw - 96px);
   z-index: var(--layer-devtools);
   display: flex;
   gap: 5px;
@@ -28,6 +31,8 @@
   box-shadow: 0 10px 30px var(--surface-void-dense), 0 0 20px var(--accent-cyan-wash);
   backdrop-filter: blur(var(--blur-md));
   align-items: center;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
 }
 .dev-drawer span {
   font-family: var(--face-data);
@@ -36,6 +41,9 @@
   color: var(--text-tertiary);
   letter-spacing: 0.08em;
   margin-right: 4px;
+}
+.dev-drawer > * {
+  flex: none;
 }
 .dev-btn {
   background: var(--light-film);
@@ -93,4 +101,13 @@
   font-family: var(--face-data);
   font-size: var(--size-2xs);
   font-weight: 700;
+}
+
+@media (max-width: 899px) {
+  .dev-drawer {
+    left: var(--space-4);
+    right: var(--space-4);
+    bottom: var(--space-4);
+    max-width: calc(100vw - (2 * var(--space-4)));
+  }
 }

@@ -392,6 +392,7 @@ namespace Fodinae.Core
             // Repointing first means late resolves hit the Bootstrap container, where
             // Game-scoped types are not registered, and TryResolve returns null.
             await TransitionAsync(MainMenuSceneName, cancellationToken);
+            await Resources.UnloadUnusedAssets().ToUniTask();
         }
 
         protected override void Configure(IContainerBuilder builder)
@@ -414,6 +415,7 @@ namespace Fodinae.Core
                 Lifetime.Singleton);
             builder.RegisterInstance(ProjectDefaultsLoader.LoadRequired());
             builder.RegisterInstance(GraphicsQualityProfileLoader.LoadRequired());
+            builder.Register<ShaderWarmupService>(Lifetime.Singleton).As<IShaderWarmupService>();
             builder.Register<AsyncOperationSupervisor>(Lifetime.Singleton)
                 .AsSelf()
                 .As<IAsyncOperationSupervisor>();
@@ -435,9 +437,11 @@ namespace Fodinae.Core
             // Game-tier processors both resolve the same local-player state.
             builder.Register<LocalPlayerState>(Lifetime.Singleton).As<ILocalPlayerState>();
 
-            // World-load phases are published by the Game scope but consumed by
-            // the MainMenu loader (sibling scope), so the relay lives here.
+            // World-load phases and server-window visibility are published by
+            // the Game scope but consumed by the MainMenu sibling scope, so
+            // both relays live at the application tier.
             builder.Register<WorldLoadProgress>(Lifetime.Singleton).As<IWorldLoadProgress>();
+            builder.Register<WindowCommandStream>(Lifetime.Singleton);
             builder.Register<ItemRegistry>(Lifetime.Singleton).As<IItemCatalog>();
 
             // The persistent application camera as a typed DI dependency.

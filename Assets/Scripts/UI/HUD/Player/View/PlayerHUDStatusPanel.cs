@@ -35,7 +35,7 @@ public sealed class PlayerHUDStatusPanel
         var currentLines = stats.StatusLines;
         if (currentLines.Count == 0)
         {
-            _statusPanel.style.display = DisplayStyle.None;
+            UIState.Hide(_statusPanel);
             ClearSchedules();
             _statusLineElements.Clear();
             _statusLineTexts.Clear();
@@ -43,7 +43,7 @@ public sealed class PlayerHUDStatusPanel
             return;
         }
 
-        _statusPanel.style.display = DisplayStyle.Flex;
+        UIState.Show(_statusPanel);
         _toRemove.Clear();
         foreach (var kvp in _statusLineElements)
         {

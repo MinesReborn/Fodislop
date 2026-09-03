@@ -802,3 +802,7 @@
 .prog-grid-cell--filled { color: var(--accent-cyan); }
 #progStatus[data-state='running'] { color: var(--accent-gold); }
 #progStatus[data-state='stopped'] { color: var(--state-ok); }
+
+#btnStartUpdate {
+  text-transform: uppercase;
+}

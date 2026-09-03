@@ -292,6 +292,16 @@
   "gateway.toast.recover": "Для восстановления доступа обратитесь в поддержку Hades-Orbit",
   "network.toast.dummy_transport": "Запущен Dummy Offline Transport: локальный мир без подключения к сети",
   "mainmenu.toast.client_closed": "Клиент закрыт",
+  "mainmenu.toast.quit_confirm": "Нажмите выход ещё раз в течение 4 секунд для подтверждения",
+  "update.downloading": "Скачивание патча...",
+  "update.restart": "Перезапустить клиент",
+  "update.current_version": "Версия клиента 0.9.0 (актуальна)",
   "mainmenu.toast.updated": "Клиент обновлён до v0.9.0 — доступ к шахтам открыт",
-  "mainmenu.toast.update_deferred": "Без обновления доступ к сетевым кластерам закрыт — доступен локальный Offline Dummy"
+  "mainmenu.toast.update_deferred": "Без обновления доступ к сетевым кластерам закрыт — доступен локальный Offline Dummy",
+  "inventory.toast.select_item": "Сначала выберите предмет в инвентаре",
+  "inventory.toast.equipped": "{0} помещён в слот хотбара {1}",
+  "onboarding.step_2_title": "Шаг 2: Графика и освещение",
+  "onboarding.next_controls": "Далее (управление) →",
+  "onboarding.step_3_title": "Шаг 3: Тактильный контроль и звук",
+  "onboarding.finish": "Завершить калибровку (в орбиту) ↗"
 }

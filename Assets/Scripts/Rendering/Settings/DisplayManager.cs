@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 using Fodinae.Core;
 using Fodinae.Core.Interfaces;
+using Fodinae.Rendering.PostProcessing;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 using VContainer;
@@ -23,43 +24,42 @@ namespace Fodinae.Rendering
             ApplyDisplaySettings();
         }
 
-        public void ApplyDisplaySettings()
+        public static void ApplyInitialSettings(DisplaySettings display)
         {
-            if (_clientConfig == null || _clientConfig.Config == null)
+            if (display == null)
             {
                 return;
             }
 
-            var config = _clientConfig.Config;
-
-            // PlayerSettings prepares the HDR swapchain at build time. At
-            // runtime, opt into the connected display's HDR mode and
-            // let Unity map scene-linear light to its advertised luminance.
-            DisplaySettings display = config.Display;
+            AutoDetectDisplayCapabilities(display);
             HDROutput.SetEnabled(display.HDREnabled);
-            HDROutput.ConfigureCamera(_gameplayCamera.Camera);
+            PostProcessRenderPass.SetDisplayCalibration(
+                display.Gamma,
+                display.PaperWhiteNits,
+                display.PeakBrightnessNits);
 
-            // Display synchronization is independent from simulation/render throughput.
-            // Honor the frame-rate cap the gateway offers: with VSync off an
-            // uncapped frame rate only burns GPU/CPU and heats the machine, and
-            // the saved TargetFrameRate used to be written but never applied.
-            // -1 (the default) means no cap. Unity ignores targetFrameRate while
-            // vSyncCount is set, so the two settings compose safely.
             QualitySettings.vSyncCount = display.VSync ? 1 : 0;
             Application.targetFrameRate = display.TargetFrameRate;
-
-            // Кап максимальной дельты кадра: долгий кадр на слабой машине не должен
-            // превращаться в «спираль смерти» (гигантский скачок симуляции на
-            // следующем кадре). Время кулдаунов идёт через Time.time — не затронуто.
             Time.maximumDeltaTime = 0.1f;
 
-            // Resolution & Screen Mode
             if (display.ResolutionWidth > 0 && display.ResolutionHeight > 0)
             {
                 var mode = NormalizeFullScreenMode((FullScreenMode)display.FullScreenMode);
                 int refresh = display.RefreshRate > 0 ? display.RefreshRate : (int)Screen.currentResolution.refreshRateRatio.value;
                 Screen.SetResolution(display.ResolutionWidth, display.ResolutionHeight, mode, new RefreshRate { numerator = (uint)Mathf.Max(1, refresh), denominator = 1 });
             }
+        }
+
+        public void ApplyDisplaySettings()
+        {
+            if (_clientConfig?.Config == null)
+            {
+                return;
+            }
+
+            DisplaySettings display = _clientConfig.Config.Display;
+            ApplyInitialSettings(display);
+            HDROutput.ConfigureCamera(_gameplayCamera.Camera);
         }
 
         public void SetResolution(int width, int height, FullScreenMode mode, int refreshRate = 60)
@@ -139,6 +139,65 @@ namespace Fodinae.Rendering
         public IReadOnlyList<Resolution> GetSupportedResolutions()
         {
             return Screen.resolutions;
+        }
+
+        public void SetGamma(float gamma)
+        {
+            if (_clientConfig?.Config == null)
+            {
+                return;
+            }
+
+            _clientConfig.UpdateDisplay(display => display.Gamma = gamma);
+            PostProcessRenderPass.SetDisplayCalibration(
+                gamma,
+                _clientConfig.Config.Display.PaperWhiteNits,
+                _clientConfig.Config.Display.PeakBrightnessNits);
+        }
+
+        public void SetPaperWhiteNits(float paperWhiteNits)
+        {
+            if (_clientConfig?.Config == null)
+            {
+                return;
+            }
+
+            _clientConfig.UpdateDisplay(display => display.PaperWhiteNits = paperWhiteNits);
+            PostProcessRenderPass.SetDisplayCalibration(
+                _clientConfig.Config.Display.Gamma,
+                paperWhiteNits,
+                _clientConfig.Config.Display.PeakBrightnessNits);
+        }
+
+        public void SetPeakBrightnessNits(float peakBrightnessNits)
+        {
+            if (_clientConfig?.Config == null)
+            {
+                return;
+            }
+
+            _clientConfig.UpdateDisplay(display => display.PeakBrightnessNits = peakBrightnessNits);
+            PostProcessRenderPass.SetDisplayCalibration(
+                _clientConfig.Config.Display.Gamma,
+                _clientConfig.Config.Display.PaperWhiteNits,
+                peakBrightnessNits);
+        }
+
+        public static void AutoDetectDisplayCapabilities(DisplaySettings display)
+        {
+            HDROutputSettings output = HDROutputSettings.main;
+            if (output.available)
+            {
+                if (display.PaperWhiteNits <= 10f && output.paperWhiteNits > 10f)
+                {
+                    display.PaperWhiteNits = output.paperWhiteNits;
+                }
+
+                if (display.PeakBrightnessNits <= 100f && output.maxToneMapLuminance > 100)
+                {
+                    display.PeakBrightnessNits = (float)output.maxToneMapLuminance;
+                }
+            }
         }
 
         /// <summary>
@@ -366,11 +425,10 @@ namespace Fodinae.Rendering
                 {
                     HDROutputSettings output = HDROutputSettings.main;
 
-                    // Keep HDR encoding alive while an HDR -> SDR swapchain
-                    // transition is pending. Otherwise one or more SDR frames
-                    // are sent to an HDR surface and appear severely dimmed.
-                    cameraData.allowHDROutput = Enabled ||
-                        (output.available && output.active);
+                    // Only enable HDR on the camera if the user enabled it in settings
+                    // AND the connected display actually supports and runs HDR.
+                    cameraData.allowHDROutput = Enabled &&
+                        output.available && output.active;
 
                     // Fodinae has one post-processing chain: the custom
                     // renderer feature. URP FinalBlit still performs the

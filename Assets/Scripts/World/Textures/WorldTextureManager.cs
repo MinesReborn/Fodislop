@@ -56,11 +56,6 @@ namespace Fodinae.World
 
         public uint TextureRevision { get; private set; }
 
-        protected void Awake()
-        {
-            Debug.Log("[WorldTextureManager] Awake — deferred atlas initialization");
-        }
-
         protected void OnDestroy()
         {
             _textureCache?.Clear();

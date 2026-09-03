@@ -6,7 +6,6 @@ using Fodinae.Core;
 using Fodinae.Core.Interfaces;
 using Fodinae.Core.Localization;
 using Fodinae.Rendering;
-using Fodinae.Rendering.PostProcessing;
 using Fodinae.World.Lighting;
 using Fodinae.World.Lighting.Quality;
 using UnityEngine;
@@ -168,49 +167,6 @@ internal sealed class PauseMenuGraphicsTabBuilder
         _refreshers.Add(UpdateLightingQualityTierButton);
         UpdateLightingQualityTierButton();
         graphicsSection.Add(lightingQualityTierButton);
-
-        // Индексация массива по (int)mode тут не годится: значение 1 из
-        // перечисления изъято, а Essential остался равным 2. Сопоставление
-        // явное, чтобы изъятое значение не читалось как чужая строка.
-        static string PostProcessTierKey(PostProcessQualityMode mode) => mode switch
-        {
-            PostProcessQualityMode.Essential => "settings.post_process.core",
-            _ => "settings.post_process.full",
-        };
-
-        var postProcessTierButton = new Button();
-        void UpdatePostProcessTierButton()
-        {
-            GraphicsPreset preset = _graphicsSettings.SelectedPreset;
-            PostProcessQualityMode mode =
-                _clientConfig.Config.GraphicsQualitySettings.PostProcessQuality;
-            postProcessTierButton.text =
-                _loc.Get("settings.post_process.quality_label") + ": " +
-                _loc.Get(PostProcessTierKey(mode));
-            postProcessTierButton.SetEnabled(preset == GraphicsPreset.Custom);
-        }
-
-        postProcessTierButton.clicked += () =>
-        {
-            if (_graphicsSettings.SelectedPreset != GraphicsPreset.Custom)
-            {
-                return;
-            }
-
-            ApplyCustomTechnicalSettings(settings =>
-            {
-                settings.PostProcessQuality =
-                    settings.PostProcessQuality == PostProcessQualityMode.Full
-                        ? PostProcessQualityMode.Essential
-                        : PostProcessQualityMode.Full;
-                return settings;
-            });
-            UpdatePostProcessTierButton();
-        };
-        postProcessTierButton.AddToClassList("pause-btn");
-        _refreshers.Add(UpdatePostProcessTierButton);
-        UpdatePostProcessTierButton();
-        graphicsSection.Add(postProcessTierButton);
 
         Toggle distortionToggle = PauseMenuUIFactory.CreateBoundToggle(
             _loc.Get("settings.world.block_edge_distortion"),

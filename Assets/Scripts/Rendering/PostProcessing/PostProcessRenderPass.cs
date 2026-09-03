@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using Fodinae.Core;
 using Fodinae.Core.Interfaces;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
@@ -40,6 +41,8 @@ namespace Fodinae.Rendering.PostProcessing
         private static readonly int ColorFilterID = Shader.PropertyToID("_ColorFilter");
         private static readonly int ContrastID = Shader.PropertyToID("_Contrast");
         private static readonly int SaturationID = Shader.PropertyToID("_Saturation");
+        private static readonly int GammaID = Shader.PropertyToID("_Gamma");
+        private static readonly int HdrPaperWhiteScaleID = Shader.PropertyToID("_HdrPaperWhiteScale");
         private static readonly int ToneMappingEnabledID = Shader.PropertyToID("_ToneMappingEnabled");
         private static readonly int ToneMappingWhitePointID = Shader.PropertyToID("_ToneMappingWhitePoint");
 
@@ -84,6 +87,8 @@ namespace Fodinae.Rendering.PostProcessing
         private bool _historyValid;
         private bool _temporalWasActive;
         private uint _observedCameraGeneration;
+        private Matrix4x4 _lastViewProjection;
+        private bool _hasViewProjection;
 
         private static Camera? _mainCamera;
         private static uint _cameraGeneration;
@@ -95,25 +100,28 @@ namespace Fodinae.Rendering.PostProcessing
         //
         // Выключить постпроцесс нельзя ничем: ни настройкой, ни отладочным
         // байпасом, ни ожиданием конфига. Тонмап сжимает HDR каскадного света
-        // в диапазон дисплея, и кадр без него не «проще», а неверен — света
-        // срезаются в плоский белый. Пока конфиг не доехал, проход работает на
-        // значениях профиля Volume; тир только выбирает, платить ли за
-        // пирамиду блума и мо́ушен-блюр.
-        private static PostProcessQualityMode _quality = PostProcessQualityMode.Full;
         private static AdvancedPostProcessSnapshot _advanced;
+
+        private static float _displayGamma = DisplaySettings.DefaultGamma;
+        private static float _displayPaperWhiteNits = DisplaySettings.DefaultPaperWhite;
+        private static float _displayPeakBrightnessNits = DisplaySettings.DefaultPeakBrightness;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetForDomainReload()
         {
             _mainCamera = null;
             _cameraGeneration = 0;
-            _quality = PostProcessQualityMode.Full;
             _advanced = default;
+            _displayGamma = DisplaySettings.DefaultGamma;
+            _displayPaperWhiteNits = DisplaySettings.DefaultPaperWhite;
+            _displayPeakBrightnessNits = DisplaySettings.DefaultPeakBrightness;
         }
 
-        public static void SetQuality(PostProcessQualityMode quality)
+        public static void SetDisplayCalibration(float gamma, float paperWhiteNits, float peakBrightnessNits)
         {
-            _quality = quality;
+            _displayGamma = gamma > 0.1f ? gamma : DisplaySettings.DefaultGamma;
+            _displayPaperWhiteNits = paperWhiteNits > 10f ? paperWhiteNits : DisplaySettings.DefaultPaperWhite;
+            _displayPeakBrightnessNits = peakBrightnessNits > 100f ? peakBrightnessNits : DisplaySettings.DefaultPeakBrightness;
         }
 
         public static void SetAdvancedSettings(AdvancedPostProcessSnapshot settings)
@@ -206,6 +214,8 @@ namespace Fodinae.Rendering.PostProcessing
             public Vector4 ColorFilter;
             public float Contrast;
             public float Saturation;
+            public float Gamma;
+            public float HdrPaperWhiteScale;
             public bool ToneMappingEnabled;
             public float ToneMappingWhitePoint;
 
@@ -242,6 +252,19 @@ namespace Fodinae.Rendering.PostProcessing
                 return;
             }
 
+            Matrix4x4 viewProjection =
+                cameraData.camera.projectionMatrix * cameraData.camera.worldToCameraMatrix;
+            if (!_hasViewProjection || _lastViewProjection != viewProjection)
+            {
+                // History has no motion-vector reprojection. Reusing it after
+                // the camera moves blends unrelated screen pixels and produces
+                // full-frame trails, especially around high-contrast UI and
+                // terrain edges.
+                _lastViewProjection = viewProjection;
+                _hasViewProjection = true;
+                _historyValid = false;
+            }
+
             var stack = VolumeManager.instance.stack;
             RefreshVolumeComponents(stack);
             BloomComponent bloom = RequireComponent(_bloom, nameof(BloomComponent));
@@ -257,32 +280,22 @@ namespace Fodinae.Rendering.PostProcessing
                 nameof(EigengrauComponent));
             MotionBlurComponent mb = RequireComponent(_motionBlur, nameof(MotionBlurComponent));
 
-            // Essential keeps fused one-pass effects. Full additionally enables
-            // ordinary bloom and temporal motion blur. Optical effects that need
-            // a bright-pass explicitly request the compact Kawase chain below.
-            bool expensiveEffectsAllowed = _quality == PostProcessQualityMode.Full;
-
             bool bloomActive =
-                (expensiveEffectsAllowed && bloom.active && bloom.IsActive()) ||
+                (bloom.active && bloom.IsActive()) ||
                 _advanced.RequiresBloomTexture;
             bool vignetteActive = vignette.active && vignette.IsActive();
             bool caActive = ca.active && ca.IsActive();
             bool cgActive = cg.active && cg.IsActive();
             bool eigengrauActive = eigengrau.active && eigengrau.IsActive();
-            bool mbActive = expensiveEffectsAllowed && mb.active && mb.IsActive();
+            bool mbActive = mb.active && mb.IsActive();
 
-            if (!bloomActive &&
-                !vignetteActive &&
-                !caActive &&
-                !cgActive &&
-                !eigengrauActive &&
-                !mbActive &&
-                !_advanced.HasAnyEffects)
-            {
-                _temporalWasActive = false;
-                _historyValid = false;
-                return;
-            }
+            // Досрочного выхода по «ни одного включённого эффекта» здесь нет и
+            // быть не может. Тонмап работает в обоих режимах вывода и не
+            // выключается ничем: он сжимает HDR каскадного света под диапазон
+            // дисплея, и кадр без него не дешевле, а неверен — всё ярче белой
+            // точки срезается в плоский белый. Раньше на этом месте стояла
+            // проверка, первым слагаемым которой было константное `true`:
+            // условие никогда не выполнялось, но читалось как живое.
 
             UniversalResourceData resourceData = frameData.Get<UniversalResourceData>();
             var activeColor = resourceData.activeColorTexture;
@@ -402,12 +415,24 @@ namespace Fodinae.Rendering.PostProcessing
                 passData.ColorFilter = cg.colorFilter.value;
                 passData.Contrast = cg.contrast.value;
                 passData.Saturation = cg.saturation.value;
-                // Единственное условие — режим вывода. Настройки «включить
-                // тонмап» не существует: при SDR-выводе он обязателен, иначе
-                // света срезаются в плоский белый, а при HDR-выводе он вреден,
-                // потому что сжатие делает URP при финальном кодировании.
-                passData.ToneMappingEnabled = !cameraData.isHDROutputActive;
-                passData.ToneMappingWhitePoint = cg.toneMappingWhitePoint.value;
+                passData.Gamma = _displayGamma;
+
+                if (cameraData.isHDROutputActive)
+                {
+                    HDROutputSettings output = HDROutputSettings.main;
+                    float nativePaperWhite = output.available && output.paperWhiteNits > 10f
+                        ? output.paperWhiteNits
+                        : DisplaySettings.DefaultPaperWhite;
+                    passData.HdrPaperWhiteScale = _displayPaperWhiteNits / nativePaperWhite;
+                    passData.ToneMappingWhitePoint = Mathf.Max(0.5f, _displayPeakBrightnessNits / Mathf.Max(10f, _displayPaperWhiteNits));
+                    passData.ToneMappingEnabled = true;
+                }
+                else
+                {
+                    passData.HdrPaperWhiteScale = 1f;
+                    passData.ToneMappingWhitePoint = cg.toneMappingWhitePoint.value;
+                    passData.ToneMappingEnabled = true;
+                }
 
                 passData.EigengrauActive = eigengrauActive;
                 passData.EigengrauIntensity = eigengrau.intensity.value;
@@ -603,6 +628,8 @@ namespace Fodinae.Rendering.PostProcessing
                     cmd.SetComputeVectorParam(data.PostProcessCS, ColorFilterID, data.CgActive ? data.ColorFilter : Color.white);
                     cmd.SetComputeFloatParam(data.PostProcessCS, ContrastID, data.CgActive ? data.Contrast : 0f);
                     cmd.SetComputeFloatParam(data.PostProcessCS, SaturationID, data.CgActive ? data.Saturation : 1f);
+                    cmd.SetComputeFloatParam(data.PostProcessCS, GammaID, data.Gamma);
+                    cmd.SetComputeFloatParam(data.PostProcessCS, HdrPaperWhiteScaleID, data.HdrPaperWhiteScale);
                     cmd.SetComputeIntParam(
                         data.PostProcessCS,
                         ToneMappingEnabledID,
@@ -693,6 +720,7 @@ namespace Fodinae.Rendering.PostProcessing
             _historyTexture = null;
             _historyValid = false;
             _temporalWasActive = false;
+            _hasViewProjection = false;
         }
     }
 }

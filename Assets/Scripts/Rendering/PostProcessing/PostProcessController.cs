@@ -3,6 +3,7 @@
 using System;
 using Fodinae.Core;
 using Fodinae.Core.Interfaces;
+using Fodinae.Core.Lifecycle;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -33,7 +34,6 @@ namespace Fodinae.Rendering.PostProcessing
         private float _lastWorldUIFarClipPlane = float.NaN;
         private Matrix4x4 _lastWorldUIProjection;
         private bool _hasWorldUIProjection;
-        private bool _worldUISeparationRequired = true;
 
         private BloomComponent? _bloom;
         private VignetteComponent? _vignette;
@@ -46,6 +46,8 @@ namespace Fodinae.Rendering.PostProcessing
         private IClientConfigManager _clientConfigManager = null!;
         [Inject]
         private IGameplayCamera _gameplayCamera = null!;
+        [Inject]
+        private ISceneObjectFactory _sceneObjects = null!;
 
         [Inject]
         private void Construct(Volume volume)
@@ -161,9 +163,17 @@ namespace Fodinae.Rendering.PostProcessing
 
         private void OnDisable()
         {
-            // Только отвязка камеры. Выключать постпроцесс тут нечем и незачем:
-            // без него кадр не проще, а неверен.
             PostProcessRenderPass.SetMainCamera(null);
+            if (_configuredMainCameraData != null && _worldUICamera != null)
+            {
+                _configuredMainCameraData.cameraStack.Remove(_worldUICamera);
+                _worldUICamera.enabled = false;
+            }
+
+            if (_configuredMainCamera != null)
+            {
+                _configuredMainCamera.cullingMask |= _worldUILayerMask;
+            }
         }
 
         public void Start()
@@ -248,6 +258,9 @@ namespace Fodinae.Rendering.PostProcessing
                 AdvancedPostProcessComposer.From(config));
 
             bool photosensitive = config.Accessibility.ReducePhotosensitivity;
+            PostProcessSettings postProcess = config.PostProcess ??
+                throw new InvalidOperationException(
+                    "PostProcessController requires post-process settings in ClientConfig.");
 
             BloomComponent bloom = GetRequired(_bloom, nameof(_bloom));
             bloom.threshold.overrideState = true;
@@ -279,10 +292,10 @@ namespace Fodinae.Rendering.PostProcessing
                     : 0f;
 
             ColorGradingComponent colorGrading = GetRequired(_colorGrading, nameof(_colorGrading));
-            Exposure = PostProcessLook.ColorGrading.Exposure;
+            Exposure = postProcess.Exposure;
             Color baseFilter = PostProcessLook.ColorGrading.Filter;
-            float contrast = PostProcessLook.ColorGrading.Contrast;
-            float saturation = PostProcessLook.ColorGrading.Saturation;
+            float contrast = postProcess.Contrast;
+            float saturation = postProcess.Saturation;
 
             // Apply colorblind accessibility matrix adjustment
             switch (config.Accessibility.ColorblindMode)
@@ -305,8 +318,7 @@ namespace Fodinae.Rendering.PostProcessing
             colorGrading.colorFilter.overrideState = true;
             colorGrading.colorFilter.value = baseFilter;
             colorGrading.toneMappingWhitePoint.overrideState = true;
-            colorGrading.toneMappingWhitePoint.value =
-                PostProcessLook.ColorGrading.ToneMappingWhitePoint;
+            colorGrading.toneMappingWhitePoint.value = postProcess.ToneMappingWhitePoint;
 
             Contrast = contrast;
             Saturation = saturation;
@@ -329,12 +341,6 @@ namespace Fodinae.Rendering.PostProcessing
                     ? PostProcessLook.MotionBlur.Intensity
                     : 0f;
 
-            // Enable the renderer pass only after every Volume value and every
-            // fused setting has been applied as one coherent configuration.
-            PostProcessRenderPass.SetQuality(
-                config.GraphicsQualitySettings.PostProcessQuality);
-
-            _worldUISeparationRequired = false;
             if (_configuredMainCamera != null && _configuredMainCameraData != null)
             {
                 ConfigureWorldUIRendering(_configuredMainCamera, _configuredMainCameraData);
@@ -380,21 +386,26 @@ namespace Fodinae.Rendering.PostProcessing
             bool cameraSeparationIsBroken =
                 _configuredMainCamera != mainCamera ||
                 _configuredMainCameraData == null ||
-                (mainCamera.cullingMask & _worldUILayerMask) == 0 ||
-                (_worldUICamera != null && _worldUICamera.enabled) ||
-                (_worldUICamera != null &&
-                    _configuredMainCameraData.cameraStack.Contains(_worldUICamera));
+                _worldUICamera == null ||
+                _worldUICameraData == null ||
+                (mainCamera.cullingMask & _worldUILayerMask) != 0 ||
+                !_worldUICamera.enabled ||
+                _worldUICamera.cullingMask != _worldUILayerMask ||
+                _worldUICameraData.renderType != CameraRenderType.Overlay ||
+                _worldUICameraData.renderPostProcessing ||
+                !_configuredMainCameraData.cameraStack.Contains(_worldUICamera);
 
             if (cameraSeparationIsBroken)
             {
                 EnsureCameraSetup(mainCamera);
             }
 
-            if (!_worldUISeparationRequired || _worldUICamera == null)
+            if (_worldUICamera == null)
             {
                 return;
             }
 
+            _worldUICamera.worldToCameraMatrix = mainCamera.worldToCameraMatrix;
             Matrix4x4 projection = mainCamera.projectionMatrix;
             bool projectionChanged =
                 !_hasWorldUIProjection ||
@@ -459,21 +470,13 @@ namespace Fodinae.Rendering.PostProcessing
             int uiLayer = UnityRenderLayerContracts.RequireWorldUIGameObjectLayer();
             UnityRenderLayerContracts.RequireWorldUISortingLayer();
             _worldUILayerMask = 1 << uiLayer;
-
-            mainCamera.cullingMask |= _worldUILayerMask;
-            if (_worldUICamera == null)
-            {
-                Transform? existingTransform = mainCamera.transform.Find("WorldUICamera");
-                _worldUICamera = existingTransform != null
-                    ? existingTransform.GetComponent<Camera>()
-                    : null;
-            }
-
-            if (_worldUICamera != null)
-            {
-                mainCameraData.cameraStack.Remove(_worldUICamera);
-                _worldUICamera.enabled = false;
-            }
+            (_worldUICamera, _worldUICameraData) =
+                UnityRenderLayerContracts.EnsureWorldUIOverlayCamera(
+                    mainCamera,
+                    mainCameraData,
+                    _sceneObjects,
+                    _worldUILayerMask,
+                    _worldUICamera);
         }
 
         private static T GetRequired<T>(T? component, string fieldName)

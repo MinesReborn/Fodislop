@@ -58,9 +58,9 @@ internal sealed class PauseMenuEffectsTabBuilder
 
         _postProcessController.EnsureVolumeSetup();
 
-        // Тумблер, а не ползунок. Величины эффектов задаёт PostProcessLook:
-        // насколько силён блум — вопрос художественный, и игроку он не
-        // задаётся. Игрок решает только, платить ли за эффект.
+        // Базовая калибровка вывода остаётся компактной и настраиваемой.
+        // Сила отдельных художественных эффектов задаётся PostProcessLook,
+        // а игрок решает, платить ли за эффект, через тумблеры ниже.
         Toggle Switch(string key, Func<bool> read, Action<ClientConfig, bool> write) =>
             PauseMenuUIFactory.CreateBoundToggle(
                 _loc.Get(key),
@@ -70,6 +70,35 @@ internal sealed class PauseMenuEffectsTabBuilder
                 _refreshers);
 
         ClientConfig Cfg() => _clientConfig.Config;
+
+        BindSlider(
+            cameraGroup,
+            "PostProcessExposure",
+            "PostProcessExposureLabel",
+            "settings.effects.exposure",
+            () => Cfg().PostProcess.Exposure,
+            (config, value) => config.PostProcess.Exposure = value);
+        BindSlider(
+            cameraGroup,
+            "PostProcessContrast",
+            "PostProcessContrastLabel",
+            "settings.effects.contrast",
+            () => Cfg().PostProcess.Contrast,
+            (config, value) => config.PostProcess.Contrast = value);
+        BindSlider(
+            cameraGroup,
+            "PostProcessSaturation",
+            "PostProcessSaturationLabel",
+            "settings.effects.saturation",
+            () => Cfg().PostProcess.Saturation,
+            (config, value) => config.PostProcess.Saturation = value);
+        BindSlider(
+            cameraGroup,
+            "PostProcessWhitePoint",
+            "PostProcessWhitePointLabel",
+            "settings.effects.tone_mapping_white_point",
+            () => Cfg().PostProcess.ToneMappingWhitePoint,
+            (config, value) => config.PostProcess.ToneMappingWhitePoint = value);
 
         bloomGroup.Add(Switch(
             "settings.effects.bloom",
@@ -119,5 +148,44 @@ internal sealed class PauseMenuEffectsTabBuilder
             (config, value) => config.TemporalEnabled = value));
 
         return effectsScroll;
+    }
+
+    private void BindSlider(
+        VisualElement root,
+        string sliderName,
+        string labelName,
+        string localizationKey,
+        Func<float> read,
+        Action<ClientConfig, float> write)
+    {
+        Slider slider = root.Q<Slider>(sliderName) ??
+            throw new InvalidOperationException(
+                $"[PauseMenu] {sliderName} is missing from PauseMenu.uxml.");
+        Label label = root.Q<Label>(labelName) ??
+            throw new InvalidOperationException(
+                $"[PauseMenu] {labelName} is missing from PauseMenu.uxml.");
+        string localizedLabel = _loc.Get(localizationKey);
+
+        void Refresh()
+        {
+            float value = PauseMenuUIFactory.SnapValue(read(), slider.lowValue, slider.highValue);
+            slider.SetValueWithoutNotify(value);
+            label.text = $"{localizedLabel}: {value:F2}";
+        }
+
+        slider.RegisterValueChangedCallback(evt =>
+        {
+            float snapped = PauseMenuUIFactory.SnapValue(evt.newValue, slider.lowValue, slider.highValue);
+            if (!Mathf.Approximately(snapped, evt.newValue))
+            {
+                slider.SetValueWithoutNotify(snapped);
+            }
+
+            label.text = $"{localizedLabel}: {snapped:F2}";
+            _graphicsSettings.UpdatePostProcessSettings(
+                config => write(config, snapped));
+        });
+        _refreshers.Add(Refresh);
+        Refresh();
     }
 }

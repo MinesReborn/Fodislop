@@ -77,15 +77,10 @@ namespace Fodinae.World
                 FilterMode.Point,
                 TextureWrapMode.Clamp);
 
-            // The CPU fallback needs an initialized pixel store. On platforms
-            // with GPU texture copies, every occupied rectangle is uploaded
-            // directly and allocating a full-size zero buffer here only adds
-            // a large startup memory spike (64 MiB for a 4096² atlas).
-            if (!RuntimeTextureFactory.SupportsTexture2DGpuCopy)
-            {
-                _atlasTexture.SetPixels32(new Color32[size * size]);
-                _atlasTexture.Apply(false, false);
-            }
+            // Initialize atlas texture with transparent black so padding between
+            // cells and unused atlas regions never sample uninitialized GPU VRAM.
+            _atlasTexture.SetPixels32(new Color32[size * size]);
+            _atlasTexture.Apply(false, false);
 
             _freeRectangles.Add(new Rectangle(0, 0, size, size));
         }

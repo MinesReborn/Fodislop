@@ -42,11 +42,11 @@ public sealed class PlayerHUDMissionPanel
 
         if (stats.IsMissionActive)
         {
-            _missionPanel.style.display = DisplayStyle.Flex;
+            UIState.Show(_missionPanel);
         }
         else
         {
-            _missionPanel.style.display = DisplayStyle.None;
+            UIState.Hide(_missionPanel);
             return;
         }
 

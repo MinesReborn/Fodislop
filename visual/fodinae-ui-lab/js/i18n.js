@@ -390,6 +390,7 @@
      <h1>Планета ждёт <span>под поверхностью.</span></h1> владеет и текстом, и
      детьми; запись textContent снесла бы детей вместе с оформлением. */
   const DICT = { game: {}, mirror: {}, lang: 'ru' };
+  const DICT_CACHE = new Map();
 
   function firstTextNode(el) {
     for (const n of el.childNodes) {
@@ -399,20 +400,25 @@
   }
 
   async function loadDict(lang) {
+    const cached = DICT_CACHE.get(lang);
+    if (cached) return cached;
+
     const grab = async url => {
       try {
-        const r = await fetch(url, { cache: 'no-cache' });
+        const r = await fetch(url);
         return r.ok ? await r.json() : null;
       } catch (e) { return null; }
     };
-    const game = await grab(`../../Assets/Resources/Localization/${lang}.json`);
-    const mirror = await grab(`i18n/mirror.${lang}.json`);
+    const [game, mirror] = await Promise.all([
+      grab(`i18n/game.${lang}.json`),
+      grab(`i18n/mirror.${lang}.json`),
+    ]);
     // Отсутствие словаря — не тихая деградация к ключам, а явная жалоба:
     // сырые ключи на экране должны иметь названную причину.
     if (!game) console.warn(`[i18n] словарь игры '${lang}' не прочитан — текст останется как в разметке`);
-    DICT.game = game || {};
-    DICT.mirror = mirror || {};
-    DICT.lang = lang;
+    const bundle = { game: game || {}, mirror: mirror || {} };
+    DICT_CACHE.set(lang, bundle);
+    return bundle;
   }
 
   function resolve(key) {
@@ -485,8 +491,16 @@
     return { hit, miss };
   }
 
+  let languageRequest = 0;
+
   async function setLanguage(lang) {
-    await loadDict(lang);
+    const request = ++languageRequest;
+    const bundle = await loadDict(lang);
+    if (request !== languageRequest) return null;
+    DICT.game = bundle.game;
+    DICT.mirror = bundle.mirror;
+    DICT.lang = lang;
+    document.documentElement.lang = lang;
     const r = applyDict();
     console.log(`[i18n] ${lang}: подставлено ${r.hit}, без перевода ${r.miss}`);
     if (currentMode !== 'off') setPseudoMode(currentMode);
@@ -519,28 +533,51 @@
      кем бы она ни была сделана. */
   const FIT_CUT = "[data-fit='clip'],[data-fit='clamp']";
 
-  function reexposeTails(root) {
-    const boxes = root.matches && root.matches(FIT_CUT)
-      ? [root] : [...(root.querySelectorAll ? root.querySelectorAll(FIT_CUT) : [])];
-    for (const box of boxes) {
-      if (box.getAttribute('aria-label')) continue;
-      const text = box.textContent.trim();
-      // Титул нужен только когда содержимое ДЕЙСТВИТЕЛЬНО не помещается:
-      // подсказка, повторяющая видимое, — шум.
-      if (box.scrollHeight - box.clientHeight < 1 && box.scrollWidth - box.clientWidth < 1) {
-        if (box.title && box.title === text) box.removeAttribute('title');
-        continue;
-      }
-      if (box.title !== text) box.title = text;
+  function reexposeTail(box) {
+    if (box.getAttribute('aria-label')) return;
+    const text = box.textContent.trim();
+    // Титул нужен только когда содержимое ДЕЙСТВИТЕЛЬНО не помещается:
+    // подсказка, повторяющая видимое, — шум.
+    if (box.scrollHeight - box.clientHeight < 1 && box.scrollWidth - box.clientWidth < 1) {
+      if (box.title && box.title === text) box.removeAttribute('title');
+      return;
     }
+    if (box.title !== text) box.title = text;
+  }
+
+  function fitBoxesIn(root) {
+    if (!root || root.nodeType !== Node.ELEMENT_NODE) return [];
+    const boxes = root.matches(FIT_CUT) ? [root] : [];
+    boxes.push(...root.querySelectorAll(FIT_CUT));
+    return boxes;
+  }
+
+  function reexposeTails(root) {
+    for (const box of fitBoxesIn(root)) reexposeTail(box);
   }
 
   let tailPending = 0;
-  const tailWatch = new MutationObserver(() => {
+  const dirtyTailBoxes = new Set();
+  const tailWatch = new MutationObserver(records => {
+    for (const record of records) {
+      const parent = record.target.nodeType === Node.TEXT_NODE
+        ? record.target.parentElement : record.target;
+      const owner = parent?.closest?.(FIT_CUT);
+      if (owner) dirtyTailBoxes.add(owner);
+
+      for (const node of record.addedNodes) {
+        for (const box of fitBoxesIn(node)) dirtyTailBoxes.add(box);
+      }
+    }
+
+    if (!dirtyTailBoxes.size) return;
     // Не requestAnimationFrame: в фоновой вкладке кадры не идут, и гарантия
     // молча отключалась бы ровно там, где её некому проверить.
     clearTimeout(tailPending);
-    tailPending = setTimeout(() => reexposeTails(document.body), 0);
+    tailPending = setTimeout(() => {
+      for (const box of dirtyTailBoxes) reexposeTail(box);
+      dirtyTailBoxes.clear();
+    }, 0);
   });
 
   function watchTails() {

@@ -198,9 +198,6 @@ public sealed class TerrainMaterialManager
         }
 
         _lightingBindingValidated = true;
-        Debug.Log(
-            $"[TerrainLighting] Bound {globalTexture.name} " +
-            $"({globalTexture.width}x{globalTexture.height}) to {_materials.Length} terrain material(s).");
     }
 
     public void CleanupMaterials()

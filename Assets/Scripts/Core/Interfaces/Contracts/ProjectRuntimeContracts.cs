@@ -109,6 +109,11 @@ public static class ProjectRuntimeContracts
         public const string DynamicEmission = "Hidden/Fodinae/DynamicEmission";
         public const string WorldSurface = "Fodinae/World Surface";
         public const string WorldEntity = "Fodinae/World Entity";
+        public const string PlanetSurface = "Fodinae/UI/PlanetSurface";
+        public const string PlanetAtmosphere = "Fodinae/UI/PlanetAtmosphere";
+        public const string Starfield = "Fodinae/UI/Starfield";
+        public const string MenuLineUnlit = "Fodinae/UI/MenuLineUnlit";
+        public const string UnpremultiplyAlpha = "Fodinae/UI/UnpremultiplyAlpha";
     }
 
     public static class ShaderPassNames

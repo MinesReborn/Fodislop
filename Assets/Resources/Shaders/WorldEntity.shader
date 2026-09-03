@@ -100,8 +100,10 @@ Shader "Fodinae/World Entity"
                 output.uv = input.uv;
                 output.color = input.color;
                 // Batch-mesh vertices are pre-transformed world positions, so
-                // object space equals world space here.
-                output.worldPos = input.positionOS.xy;
+                // object space equals world space when rendering with identity matrix.
+                // Using TransformObjectToWorld ensures correct light sampling if an entity
+                // or preview is rendered with a non-identity GameObject transform.
+                output.worldPos = TransformObjectToWorld(input.positionOS.xyz).xy;
                 return output;
             }
 
