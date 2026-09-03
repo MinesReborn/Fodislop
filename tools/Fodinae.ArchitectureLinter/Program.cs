@@ -18,7 +18,7 @@ public static class Program
             var linter = new ArchitectureLinter(context);
             return await linter.RunAsync();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.Error.WriteLine($"Fatal error: {ex}");
             return 2;
@@ -60,8 +60,11 @@ public static class Program
                     break;
                 case "--help":
                 case "-h":
-                default:
+                    PrintUsage();
                     return null;
+                default:
+                    assemblyPaths.Add(arg);
+                    break;
             }
         }
 

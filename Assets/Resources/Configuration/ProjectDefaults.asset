@@ -26,7 +26,7 @@ MonoBehaviour:
     _ambientOcclusionEnabled: 1
     _diffuseBounceEnabled: 1
     _ambientIntensity: 0.85
-    _emissionScale: 8
+    _emissionScale: 3
     _ambientColor: {r: 0.12, g: 0.14, b: 0.18, a: 1}
     _emptyExtinctionRgb: {r: 0.015, g: 0.012, b: 0.009, a: 1}
     _solidExtinctionRgb: {r: 1.2, g: 1.1, b: 1, a: 1}
@@ -50,30 +50,18 @@ MonoBehaviour:
     _terrainShimmerColor: {r: 1, g: 1, b: 1, a: 1}
     _terrainDebugColor: {r: 1, g: 0, b: 1, a: 1}
     _terrainDebugMode: 0
-    _bloomThreshold: 0.9
-    _bloomScatter: 0.7
-    _bloomTint: {r: 1, g: 1, b: 1, a: 1}
     _transitEmissionColor: {r: 1, g: 0.7, b: 0.35, a: 1}
     _transitEmissionStrength: 0.35
     _perspectiveEmissionColor: {r: 0.45, g: 0.65, b: 1, a: 1}
     _perspectiveEmissionStrength: 0.12
     _surfaceOccupancy: 1
-    _bloomIntensity: 0
-    _vignetteIntensity: 0
-    _vignetteColor: {r: 0, g: 0, b: 0, a: 1}
-    _vignetteSmoothness: 0.2
-    _vignetteCenter: {x: 0.5, y: 0.5}
-    _chromaticAberrationIntensity: 0
-    _colorGradingExposure: 0
-    _colorGradingFilter: {r: 1, g: 1, b: 1, a: 1}
-    _colorGradingContrast: 0
-    _colorGradingSaturation: 1
-    _colorGradingToneMapping: 0
-    _colorGradingToneMappingWhitePoint: 1
-    _eigengrauIntensity: 0
-    _eigengrauColor: {r: 0.018, g: 0.02, b: 0.028, a: 1}
-    _eigengrauDarknessThreshold: 0.18
-    _eigengrauNoiseScale: 1
-    _eigengrauAnimationSpeed: 18
-    _motionBlurIntensity: 0
-    _motionBlurMaxSamples: 8
+    _bloomEnabled: 1
+    _vignetteEnabled: 1
+    _chromaticAberrationEnabled: 0
+    _filmGrainEnabled: 1
+    _motionBlurEnabled: 0
+    _localContrastEnabled: 1
+    _lensEffectsEnabled: 1
+    _atmosphereEnabled: 1
+    _displayPhysicsEnabled: 0
+    _temporalEnabled: 1

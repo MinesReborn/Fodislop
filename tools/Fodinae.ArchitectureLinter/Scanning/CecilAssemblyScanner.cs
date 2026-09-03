@@ -41,7 +41,7 @@ public static class CecilAssemblyScanner
                 var assembly = AssemblyDefinition.ReadAssembly(path, parameters);
                 assemblies.Add(assembly);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 Console.Error.WriteLine($"Warning: failed to load {Path.GetFileName(path)}: {ex.Message}");
             }

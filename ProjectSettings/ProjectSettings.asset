@@ -3,7 +3,7 @@
 --- !u!129 &1
 PlayerSettings:
   m_ObjectHideFlags: 0
-  serializedVersion: 29
+  serializedVersion: 30
   productGUID: f6a3cc85cbed11145a231a849a83843b
   AndroidProfiler: 0
   AndroidFilterTouchesWhenObscured: 0
@@ -54,7 +54,7 @@ PlayerSettings:
   mipStripping: 0
   numberOfMipsStripped: 0
   numberOfMipsStrippedPerMipmapLimitGroup: {}
-  m_StackTraceTypes: 020000000000000000000000000000000200000001000000
+  m_StackTraceTypes: 020000000000000000000000000000000200000001000000i
   iosShowActivityIndicatorOnLoading: -1
   androidShowActivityIndicatorOnLoading: -1
   iosUseCustomAppBackgroundBehavior: 0
@@ -88,6 +88,7 @@ PlayerSettings:
   defaultIsNativeResolution: 1
   macRetinaSupport: 1
   runInBackground: 1
+  callOnDisableOnAssetBundleUnload: 1
   muteOtherAudioSources: 0
   Prepare IOS For Recording: 0
   Force IOS Speakers When Recording: 0
@@ -161,9 +162,9 @@ PlayerSettings:
   enableFrameTimingStats: 0
   enableOpenGLProfilerGPURecorders: 1
   allowHDRDisplaySupport: 1
-  useHDRDisplay: 1
+  useHDRDisplay: 0
   hdrBitDepth: 0
-  m_ColorGamuts: 00000000
+  m_ColorGamuts: 00000000i
   targetPixelDensity: 30
   resolutionScalingMode: 0
   resetResolutionOnWindowResize: 0
@@ -686,6 +687,7 @@ PlayerSettings:
   webGLCloseOnQuit: 0
   webWasm2023: 0
   webEnableSubmoduleStrippingCompatibility: 0
+  webProgressiveAssetLoading: 0
   scriptingDefineSymbols:
     Standalone: EFFEKSEER_ENABLED;FMOD
   additionalCompilerArguments:
@@ -711,6 +713,7 @@ PlayerSettings:
   scriptingRuntimeVersion: 1
   gcIncremental: 1
   gcWBarrierValidation: 0
+  managedCodeVariant: {}
   apiCompatibilityLevelPerPlatform: {}
   editorAssembliesCompatibilityLevel: 1
   m_RenderingPath: 1
@@ -808,4 +811,5 @@ PlayerSettings:
   androidVulkanAllowFilterList: []
   androidVulkanDeviceFilterListAsset: {fileID: 0}
   d3d12DeviceFilterListAsset: {fileID: 0}
+  webGPUDeviceFilterListAsset: {fileID: 0}
   allowedHttpConnections: 3

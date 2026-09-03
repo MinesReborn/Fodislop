@@ -1,7 +1,5 @@
 using Mono.Cecil;
 using Mono.Cecil.Cil;
-using Fodinae.ArchitectureLinter.Core;
-using Fodinae.ArchitectureLinter.Scanning;
 
 namespace Fodinae.ArchitectureLinter.Scanning;
 
@@ -24,7 +22,7 @@ public static class IlAnalyzer
 
         foreach (var instr in method.Body.Instructions)
         {
-            if (instr.OpCode is not (OpCodes.Call or OpCodes.Callvirt))
+            if (instr.OpCode != OpCodes.Call && instr.OpCode != OpCodes.Callvirt)
                 continue;
             if (instr.Operand is not MethodReference mr)
                 continue;
@@ -45,7 +43,7 @@ public static class IlAnalyzer
 
         foreach (var instr in method.Body.Instructions)
         {
-            if (instr.OpCode is not (OpCodes.Call or OpCodes.Callvirt))
+            if (instr.OpCode != OpCodes.Call && instr.OpCode != OpCodes.Callvirt)
                 continue;
             if (instr.Operand is not MethodReference mr)
                 continue;
@@ -65,11 +63,12 @@ public static class IlAnalyzer
         if (!method.IsVirtual && !method.IsHideBySig)
             return false;
 
-        var name = method.Name;
-        return name is "Start" or "Update" or "OnGUI" or "OnDisable" or "OnDestroy"
-            or name.StartsWith("OnCollision") or name.StartsWith("OnTrigger")
-            or name.StartsWith("OnMouse") or name.StartsWith("OnBecame")
-            or name.StartsWith("OnParticle") or name.StartsWith("OnDrawGizmos");
+        var methodName = method.Name;
+        return methodName == "Start" || methodName == "Update" || methodName == "OnGUI"
+            || methodName == "OnDisable" || methodName == "OnDestroy"
+            || methodName.StartsWith("OnCollision") || methodName.StartsWith("OnTrigger")
+            || methodName.StartsWith("OnMouse") || methodName.StartsWith("OnBecame")
+            || methodName.StartsWith("OnParticle") || methodName.StartsWith("OnDrawGizmos");
     }
 
     public static bool NewObjectsType(MethodDefinition method, string typeFullName)
