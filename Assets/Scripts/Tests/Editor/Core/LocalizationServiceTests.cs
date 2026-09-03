@@ -75,6 +75,10 @@ namespace Fodinae.Tests.Editor.Core
             public void UpdateAccessibility(Action<AccessibilitySettings> update) { }
             public void UpdateConnection(Action<ConnectionSettings> update) { }
             public void UpdatePostProcessAndSave(Action<ClientConfig> update) => update(Config);
+            public void ResetLightingToDefaults()
+            {
+            }
+
             public void UpdateAndSave(Action<ClientConfig> update) => update(Config);
             public void Load() { }
             public void Save() { }

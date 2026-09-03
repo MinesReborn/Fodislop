@@ -20,6 +20,18 @@ namespace Fodinae.Core.Interfaces
         void UpdateAccessibility(Action<AccessibilitySettings> update);
         void UpdateConnection(Action<ConnectionSettings> update);
         void UpdatePostProcessAndSave(Action<ClientConfig> update);
+        /// <summary>
+        /// Возвращает величины освещения к значениям из ProjectDefaults.
+        /// </summary>
+        /// <remarks>
+        /// Нужен как путь назад. Вкладка «Расширенные» даёт крутить два
+        /// десятка чисел света вживую, и заблудиться в них легко, а
+        /// восстановить по памяти нечем: авторские значения лежат в ассете,
+        /// игроку недоступном. Смена стандартного пресета делает то же самое
+        /// побочно, но заодно меняет качество, то есть это не сброс вида.
+        /// </remarks>
+        void ResetLightingToDefaults();
+
         void UpdateAndSave(Action<ClientConfig> update);
         void Load();
         void Save();
