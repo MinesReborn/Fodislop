@@ -35,6 +35,9 @@ public sealed class ForbiddenApiRule : IRule
             if (context.ShouldExclude(assembly.Name.Name))
                 continue;
 
+            if (assembly.Name.Name.EndsWith(".Editor", StringComparison.OrdinalIgnoreCase))
+                continue;
+
             foreach (var type in assembly.MainModule.Types)
             {
                 cancellationToken.ThrowIfCancellationRequested();

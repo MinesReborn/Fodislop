@@ -668,8 +668,14 @@ function checkLifecycleSelfCalls() {
 }
 
 function checkMenuSceneryOwnership() {
-    const bootstrapScene = readFile("Assets/Scenes/Bootstrap.unity");
-    const mainMenuScene = readFile("Assets/Scenes/MainMenu.unity");
+    // readRequiredFile, а не readFile: раньше отсутствие любой из двух сцен
+    // молча выключало проверку целиком, и переименование сцены сняло бы её
+    // без единого слова в выводе. Проверка, исчезающая вместе с файлом, даёт
+    // ложную уверенность — то же самое уже случилось с проверкой тонмапа.
+    const bootstrapScene = readRequiredFile(
+        "Assets/Scenes/Bootstrap.unity", "Menu Scenery Ownership");
+    const mainMenuScene = readRequiredFile(
+        "Assets/Scenes/MainMenu.unity", "Menu Scenery Ownership");
     if (bootstrapScene === null || mainMenuScene === null) {
         return;
     }
@@ -2048,17 +2054,41 @@ function checkNamespaceVisibility(sources) {
 // арифметикой: у матрицы, переводящей белое в белое, сумма каждой строки
 // равна единице.
 function checkToneMapMatrices() {
-    const file = path.join("Assets", "Shaders", "PostProcessing", "PostProcess.compute");
+    const file = path.join(
+        "Assets", "Resources", "Shaders", "PostProcessing", "PostProcess.compute");
     const source = readFile(file);
     if (source === null) {
-        return 0;
+        // Молчать здесь нельзя. Раньше отсутствие файла возвращало ноль
+        // нарушений, и когда шейдер переехал, вся проверка тонмапа —
+        // суммы строк матриц, возврат в линейное, место гаммы — просто
+        // перестала выполняться, а линтер продолжал печатать PASSED.
+        // Проверка, которая молча исчезает вместе с файлом, хуже отсутствия
+        // проверки: она создаёт уверенность, которой не обеспечивает.
+        recordViolation("Architecture", file,
+            "Файл тонмапа не найден по ожидаемому пути — проверка матриц AgX, " +
+            "возврата в линейное и места гаммы не может быть выполнена.");
+        return 1;
     }
 
     let violations = 0;
-    if (!/return\s+pow\(color,\s*2\.2\)\s*;/.test(source)) {
+    // AgX обязан вернуться в линейное перед записью в camera target, и
+    // показатель этого возврата — калибровочная гамма дисплея. Оба требования
+    // держатся одной строкой, потому что это одно и то же действие.
+    if (!/return\s+pow\(color,\s*max\(_Gamma,\s*0\.1\)\)\s*;/.test(source)) {
         recordViolation("Architecture", file,
-            "AgX обязан линеаризовать display-encoded результат через pow(color, 2.2) " +
+            "AgX обязан линеаризовать display-encoded результат через pow(color, max(_Gamma, 0.1)) " +
             "до записи в линейный camera target; иначе URP кодирует его повторно и выбеливает полутона.");
+        violations++;
+    }
+
+    // Гамма применима только к display-encoded сигналу. Над сцен-линейными
+    // значениями показатель степени гаммой не является: при 1.8 шейдер возводил
+    // кадр в степень 1.222, тени давились, а всё ярче единицы раздувалось —
+    // 8.0 превращалось в 12.7. Именно это читалось на экране как пересвет.
+    if (/pow\(color,\s*gammaCorrection\)|2\.2\s*\/\s*_Gamma/.test(source)) {
+        recordViolation("Architecture", file,
+            "Гамма дисплея не применяется до тонмапа: над сцен-линейными значениями " +
+            "показатель степени раздувает всё ярче единицы. Её место — показатель возврата в ToneMapAgX.");
         violations++;
     }
 

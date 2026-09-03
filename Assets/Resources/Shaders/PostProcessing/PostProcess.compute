@@ -92,12 +92,20 @@ float3 ToneMapAgX(float3 color, float whitePoint)
     color = 15.5 * x4 * x2 - 40.14 * x4 * color + 31.96 * x4 -
         6.868 * x2 * color + 0.4298 * x2 + 0.1191 * color - 0.00232;
     color = max(mul(outset, color), 0.0);
-    // Кривая AgX выдаёт display-encoded значение (примерно гамма 2.2), а
-    // camera target у URP линеен и кодируется ещё раз при финальном блите.
-    // Без обратной линеаризации кодирование происходит дважды: полутона
-    // всплывают, кадр становится молочным, а контраст падает тем сильнее,
-    // чем темнее участок. Возврат в линейное — часть тонмапа, не опция.
-    return pow(color, 2.2);
+    // Кривая AgX выдаёт display-encoded значение, а camera target у URP линеен
+    // и кодируется ещё раз при финальном блите. Без обратной линеаризации
+    // кодирование происходит дважды: полутона всплывают, кадр становится
+    // молочным. Возврат в линейное — часть тонмапа, не опция.
+    //
+    // Показатель здесь же и есть калибровочная гамма дисплея, и это её
+    // единственное законное место: тут `color` лежит в 0..1, поэтому
+    // изменение показателя двигает полутона и не может вынести света за
+    // пределы диапазона. Раньше гамма стояла ОТДЕЛЬНЫМ блоком ПЕРЕД тонмапом,
+    // над сцен-линейными значениями, где показатель степени не является
+    // гаммой ничего: при 1.8 шейдер возводил кадр в степень 1.222, и всё
+    // ярче единицы РАЗДУВАЛОСЬ — 8.0 превращалось в 12.7, а тени
+    // одновременно давились. Ровно это и читалось как пересвет.
+    return pow(color, max(_Gamma, 0.1));
 }
 
 float Hash31(float3 p)
@@ -309,7 +317,16 @@ void CompositeFinal(uint3 id : SV_DispatchThreadID)
             _InputTex.SampleLevel(sampler_LinearClamp, uv + float2(-contrastOffset.x,  contrastOffset.y), 0).rgb +
             _InputTex.SampleLevel(sampler_LinearClamp, uv + float2( contrastOffset.x, -contrastOffset.y), 0).rgb +
             _InputTex.SampleLevel(sampler_LinearClamp, uv + float2(-contrastOffset.x, -contrastOffset.y), 0).rgb;
-        color += (color - localMean * 0.25) * _Advanced0.x;
+        // Нерезкая маска считается по ОТНОШЕНИЮ в логарифме, а не по разности
+        // в линейном. Разность в сцен-линейном HDR ничем не ограничена: рядом с
+        // источником в 8.0 линейных `color - mean` — это единицы, и добавка
+        // выбивала кромку в белое вместо того, чтобы поднять локальный
+        // контраст. В логарифме та же сила означает «столько-то долей стопа»
+        // независимо от абсолютной яркости, и светлая кромка усиливается
+        // ровно так же, как тёмная.
+        float3 logColor = log2(max(color, 1e-4));
+        float3 logMean = log2(max(localMean * 0.25, 1e-4));
+        color = exp2(logColor + (logColor - logMean) * _Advanced0.x);
     }
 
     if (_Advanced2.x > 0.001)
@@ -350,13 +367,6 @@ void CompositeFinal(uint3 id : SV_DispatchThreadID)
         color = lerp(float3(lum, lum, lum), color, _Saturation);
     }
     color = max(0.0, color);
-
-    // Gamma correction
-    if (abs(_Gamma - 2.2) > 0.01 && _Gamma > 0.1)
-    {
-        float gammaCorrection = 2.2 / _Gamma;
-        color = pow(color, gammaCorrection);
-    }
 
     // HDR Paper White scaling
     if (abs(_HdrPaperWhiteScale - 1.0) > 0.001 && _HdrPaperWhiteScale > 0.01)
@@ -404,28 +414,40 @@ void CompositeFinal(uint3 id : SV_DispatchThreadID)
         color = max(0.0, color + grain * amplitude * grainTint);
     }
 
-    if (_Advanced3.y > 0.001)
+    // Физика дисплея. Оба эффекта описывают то, что происходит С СИГНАЛОМ НА
+    // ПАНЕЛИ, поэтому оба заданы в кодах дисплея и оба обязаны применяться в
+    // display-encoded пространстве. После тонмапа color вернулся в линейное,
+    // так что кодируем один раз, применяем оба, возвращаем обратно.
+    //
+    // Для дизеринга это принципиально: бандинг возникает при квантовании в
+    // 8 бит, квантуется display-encoded сигнал, отсюда деление на 255. У
+    // чёрного наклон sRGB равен 12.92 — прибавка 1/255 прямо к линейному
+    // значению дала бы в тенях шаг примерно в тринадцать раз крупнее и
+    // видимый шум вместо снятия бандинга.
+    //
+    // Для фосфорной маски — вопрос силы: множитель 1.08 задан как доля кода
+    // дисплея, а в линейном та же доля составляет 1.18, то есть маска
+    // применялась вдвое сильнее задуманного.
+    if (_Advanced3.y > 0.001 || _Advanced3.z > 0.001)
     {
-        uint channel = id.x % 3;
-        float3 phosphor = channel == 0
-            ? float3(1.08, 0.96, 0.96)
-            : (channel == 1 ? float3(0.96, 1.08, 0.96) : float3(0.96, 0.96, 1.08));
-        color *= lerp(1.0, phosphor, _Advanced3.y);
-    }
-
-    if (_Advanced3.z > 0.001)
-    {
-        // Дизеринг разбивает бандинг, который возникает при квантовании в 8 бит,
-        // а квантуется display-encoded сигнал — значит и шаг шума задан в кодах
-        // дисплея, отсюда деление на 255. После тонмапа color вернулся в
-        // линейное, и прибавлять 1/255 прямо к нему нельзя: у чёрного наклон
-        // sRGB равен 12.92, то есть в тенях шаг вырос бы примерно в тринадцать
-        // раз и вместо снятия бандинга дал видимый шум. Кодируем, дизерим,
-        // возвращаем обратно — амплитуда остаётся ровно той, что задана.
-        float dither = Hash31(float3(id.xy, 43.17)) - 0.5;
         float3 encoded = pow(max(color, 0.0), 1.0 / 2.2);
-        encoded = max(0.0, encoded + dither * (_Advanced3.z / 255.0));
-        color = pow(encoded, 2.2);
+
+        if (_Advanced3.y > 0.001)
+        {
+            uint channel = id.x % 3;
+            float3 phosphor = channel == 0
+                ? float3(1.08, 0.96, 0.96)
+                : (channel == 1 ? float3(0.96, 1.08, 0.96) : float3(0.96, 0.96, 1.08));
+            encoded *= lerp(1.0, phosphor, _Advanced3.y);
+        }
+
+        if (_Advanced3.z > 0.001)
+        {
+            float dither = Hash31(float3(id.xy, 43.17)) - 0.5;
+            encoded += dither * (_Advanced3.z / 255.0);
+        }
+
+        color = pow(max(encoded, 0.0), 2.2);
     }
 
     if (_Temporal.x > 0.001 || _Temporal.z > 0.001 || _Temporal.w > 0.001)
