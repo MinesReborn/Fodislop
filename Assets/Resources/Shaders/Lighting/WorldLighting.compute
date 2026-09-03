@@ -637,32 +637,17 @@ void ResolveDirect(uint3 dispatchId : SV_DispatchThreadID)
         return;
     }
 
-    // Оценщик обязан сохранять энергию: если сцена светит равномерной яркостью
-    // L, поверхность обязана получить ровно L, как бы она ни была повёрнута.
-    // Деление на ЧИСЛО направлений это нарушало. При normalStrength = 0
-    // SurfaceLambert возвращает единицу, сумма выходит 4.0, и делённая на 4
-    // даёт ровно L — верно. Но при нормали сумма косинусов по четырём
-    // диагоналям лежит между 1.000 и 1.414, в среднем 1.273, и та же
-    // четвёртая часть давала 0.318 L: поверхность с нормалью недополучала
-    // ровно в пи раз, а её яркость ещё и зависела от угла поворота стены
-    // (0.250..0.354) — то есть от геометрии, а не от света.
-    //
-    // Отсюда же и общий пересвет: чтобы стены с нормалями было видно, силу
-    // эмиссии приходилось задирать, и во столько же раз выбивало всё, у чего
-    // нормали нет. Деление на СУММУ ВЕСОВ даёт ровно L в обоих случаях.
-    float weightSum = 0.0;
-
     [unroll]
     for (int direction = 0; direction < 4; direction++)
     {
         int atlasIndex = _CascadeOffset + probeIndex * 4 + direction;
         uint3 packedInterval = _RadianceAtlas[atlasIndex];
-        float weight = SurfaceLambert(normalData, kResolveDirections4[direction]);
-        radiance += UnpackRadiance(packedInterval.xy) * weight;
-        weightSum += weight;
+        radiance += UnpackRadiance(packedInterval.xy) * SurfaceLambert(
+            normalData,
+            kResolveDirections4[direction]);
     }
 
-    float3 directOutput = radiance / max(weightSum, 1e-4);
+    float3 directOutput = radiance * 0.25;
     _DirectTexture[pixel] = float4(directOutput, 1.0);
 }
 
@@ -685,25 +670,6 @@ void SolveDiffuseBounce(uint3 dispatchId : SV_DispatchThreadID)
     float3 bounced = 0.0;
     float4 normalData = SampleAutomaticSurfaceNormal(fieldPosition);
     const float directionWeight = 1.0 / 16.0;
-
-    // Та же нормировка, что и в ResolveDirect, и по той же причине: множитель
-    // Ламберта распределяет вклад по направлениям, но не должен менять полную
-    // отданную энергию. Считаем средний Ламберт по всей полусфере заранее и
-    // делим на него в конце — тогда приёмник с нормалью и плоский приёмник
-    // получают одинаковый отскок при одинаковом падающем свете.
-    float lambertMean = 0.0;
-
-    [unroll]
-    for (int normalization = 0; normalization < 16; normalization++)
-    {
-        float normalizationAngle = (float(normalization) + 0.5) * PI2 / 16.0;
-        float normalizationSine;
-        float normalizationCosine;
-        sincos(normalizationAngle, normalizationSine, normalizationCosine);
-        lambertMean += directionWeight * SurfaceLambert(
-            normalData,
-            -float2(normalizationCosine, normalizationSine));
-    }
 
     [unroll]
     for (int direction = 0; direction < 16; direction++)
@@ -758,9 +724,7 @@ void SolveDiffuseBounce(uint3 dispatchId : SV_DispatchThreadID)
         }
     }
 
-    _BounceTexture[pixel] = float4(
-        bounced * _BounceStrength / max(lambertMean, 1e-4),
-        1.0);
+    _BounceTexture[pixel] = float4(bounced * _BounceStrength, 1.0);
 }
 
 [numthreads(8, 8, 1)]

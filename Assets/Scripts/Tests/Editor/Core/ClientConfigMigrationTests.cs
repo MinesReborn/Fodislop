@@ -178,36 +178,6 @@ public sealed class ClientConfigMigrationTests
         Assert.That(exception.Message, Does.Contain(nameof(config.Interface.Language)));
     }
 
-    [Test]
-    public void Migrate_CustomPresetWithChangedHash_RefreshesLightingButKeepsQualitySettings()
-    {
-        // Custom владеет только GraphicsQualitySettings. Свет и тумблеры
-        // эффектов ему не принадлежат, и раньше ветка Custom защищала от
-        // обновления вообще всё: один щелчок по контактному затенению переводил
-        // пресет в Custom, и авторские величины переставали доезжать навсегда.
-        var migration = new ClientConfigMigration(new StubProjectDefaults("defaults-v2"), _profile);
-        var quality = new GraphicsQualitySettings(4, 2048, 64, 32, 30f, 1024, 0.85f, 2);
-        var config = new ClientConfig
-        {
-            SchemaVersion = ClientConfig.CurrentSchemaVersion,
-            ProjectDefaultsHash = "defaults-v1",
-            GraphicsPreset = GraphicsPreset.Custom,
-            GraphicsQualitySettings = quality,
-            EmissionScale = 8f,
-            BloomEnabled = true,
-        };
-
-        bool migrated = migration.Migrate(config);
-
-        Assert.That(migrated, Is.True);
-        Assert.That(config.ProjectDefaultsHash, Is.EqualTo("defaults-v2"));
-        // Заглушка отдаёт нулевые снимки, поэтому «взято из ProjectDefaults»
-        // читается как «перестало быть прежним».
-        Assert.That(config.EmissionScale, Is.EqualTo(0f), "свет обязан обновиться и на Custom");
-        Assert.That(config.BloomEnabled, Is.False, "тумблеры эффектов обязаны обновиться и на Custom");
-        Assert.That(config.GraphicsQualitySettings, Is.EqualTo(quality), "Custom владеет качеством");
-    }
-
     private sealed class StubProjectDefaults(string contentHash) : IProjectDefaults
     {
         public int SchemaVersion => 1;

@@ -141,16 +141,7 @@ namespace Fodinae.World.Lighting
             MaterialField = CreateTexture(
                 fieldWidth,
                 fieldHeight,
-                // ARGBHalf, а не ARGB32. Здесь лежит АЛЬБЕДО в линейном
-                // пространстве, и восемь бит на канал линейно — это потеря
-                // именно там, где глаз чувствительнее всего: тёмный тайл
-                // (байт 26) занимает 2 уровня из 255, а средний (байт 128) —
-                // 56 вместо 128. Раньше это скрывалось тем, что сюда клали
-                // sRGB-код, взятый за линейное значение: точность выглядела
-                // приличной ценой неверной энергии. После перевода в линейное
-                // (Terrain.shader) неверность ушла, а квантование осталось
-                // видимым. Все остальные семь полей света и так ARGBHalf.
-                RenderTextureFormat.ARGBHalf,
+                RenderTextureFormat.ARGB32,
                 randomWrite: false,
                 FilterMode.Bilinear,
                 "_LightingMaterialField",

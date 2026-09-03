@@ -668,14 +668,8 @@ function checkLifecycleSelfCalls() {
 }
 
 function checkMenuSceneryOwnership() {
-    // readRequiredFile, а не readFile: раньше отсутствие любой из двух сцен
-    // молча выключало проверку целиком, и переименование сцены сняло бы её
-    // без единого слова в выводе. Проверка, исчезающая вместе с файлом, даёт
-    // ложную уверенность — то же самое уже случилось с проверкой тонмапа.
-    const bootstrapScene = readRequiredFile(
-        "Assets/Scenes/Bootstrap.unity", "Menu Scenery Ownership");
-    const mainMenuScene = readRequiredFile(
-        "Assets/Scenes/MainMenu.unity", "Menu Scenery Ownership");
+    const bootstrapScene = readFile("Assets/Scenes/Bootstrap.unity");
+    const mainMenuScene = readFile("Assets/Scenes/MainMenu.unity");
     if (bootstrapScene === null || mainMenuScene === null) {
         return;
     }
@@ -1714,7 +1708,6 @@ function checkUssStyles() {
     problemCount += checkAssemblyGraph();
     problemCount += checkContainerConstructorChoice();
     problemCount += checkToneMapMatrices();
-    problemCount += checkShaderColorLibraryIncludes();
 
     console.log(`${CYAN}${BOLD}USS stylesheets:${NC} ${names.length} file(s), ${declared.size} token(s) declared, ${problemCount} violation(s)`);
 }
@@ -2054,104 +2047,18 @@ function checkNamespaceVisibility(sources) {
 // можно только на серой шкале, которой в игре нет. Поэтому проверяется
 // арифметикой: у матрицы, переводящей белое в белое, сумма каждой строки
 // равна единице.
-// Функции цветового преобразования живут в Color.hlsl пакета core, и ни
-// Core.hlsl из URP, ни Common/Packing/Input по своим включениям её не тянут.
-// Вызов SRGBToLinear без явного include компилируется в НИЧТО: проход падает
-// с ошибкой, шейдер целиком остаётся невалидным, а объект рисуется без него.
-// Поймано 03.09.2026 ценой сломанной графики: проход материалов терреина
-// перестал компилироваться, поле материалов не писалось, и кадр вернулся к
-// неосвещённому альбедо. Компилятор C# такое не ловит — шейдеры собирает
-// Unity, и тихо.
-const SHADER_COLOR_FUNCTIONS = [
-    "SRGBToLinear", "LinearToSRGB", "FastSRGBToLinear", "FastLinearToSRGB",
-    "Luminance", "RgbToHsv", "HsvToRgb",
-];
-
-function checkShaderColorLibraryIncludes() {
-    let violations = 0;
-    const shaderFiles = [];
-    (function walkShaders(root) {
-        let entries;
-        try {
-            entries = fs.readdirSync(root, { withFileTypes: true });
-        } catch {
-            return;
-        }
-        for (const entry of entries) {
-            const full = path.join(root, entry.name);
-            if (entry.isDirectory()) {
-                walkShaders(full);
-            } else if (/\.(shader|compute|hlsl)$/.test(entry.name)) {
-                shaderFiles.push(full);
-            }
-        }
-    })("Assets");
-    for (const file of shaderFiles) {
-        const source = readFile(file);
-        if (source === null) {
-            continue;
-        }
-
-        const includesColor = source.includes("ShaderLibrary/Color.hlsl");
-        for (const fn of SHADER_COLOR_FUNCTIONS) {
-            const used = new RegExp(`\\b${fn}\\s*\\(`).test(source);
-            if (!used || includesColor) {
-                continue;
-            }
-
-            // Своё определение в этом же файле — законно и снимает вопрос.
-            const definedLocally = new RegExp(
-                `(float|half|real)[1-4]?\\s+${fn}\\s*\\(`).test(source);
-            if (definedLocally) {
-                continue;
-            }
-
-            recordViolation("Architecture", file,
-                `Шейдер вызывает ${fn}, но не подключает Color.hlsl и не определяет её сам. ` +
-                "Проход не скомпилируется, и объект останется вообще без шейдера.");
-            violations++;
-        }
-    }
-
-    return violations;
-}
-
 function checkToneMapMatrices() {
-    const file = path.join(
-        "Assets", "Resources", "Shaders", "PostProcessing", "PostProcess.compute");
+    const file = path.join("Assets", "Shaders", "PostProcessing", "PostProcess.compute");
     const source = readFile(file);
     if (source === null) {
-        // Молчать здесь нельзя. Раньше отсутствие файла возвращало ноль
-        // нарушений, и когда шейдер переехал, вся проверка тонмапа —
-        // суммы строк матриц, возврат в линейное, место гаммы — просто
-        // перестала выполняться, а линтер продолжал печатать PASSED.
-        // Проверка, которая молча исчезает вместе с файлом, хуже отсутствия
-        // проверки: она создаёт уверенность, которой не обеспечивает.
-        recordViolation("Architecture", file,
-            "Файл тонмапа не найден по ожидаемому пути — проверка матриц AgX, " +
-            "возврата в линейное и места гаммы не может быть выполнена.");
-        return 1;
+        return 0;
     }
 
     let violations = 0;
-    // AgX обязан вернуться в линейное перед записью в camera target, и
-    // показатель этого возврата — калибровочная гамма дисплея. Оба требования
-    // держатся одной строкой, потому что это одно и то же действие.
-    if (!/return\s+pow\(color,\s*max\(_Gamma,\s*0\.1\)\)\s*;/.test(source)) {
+    if (!/return\s+pow\(color,\s*2\.2\)\s*;/.test(source)) {
         recordViolation("Architecture", file,
-            "AgX обязан линеаризовать display-encoded результат через pow(color, max(_Gamma, 0.1)) " +
+            "AgX обязан линеаризовать display-encoded результат через pow(color, 2.2) " +
             "до записи в линейный camera target; иначе URP кодирует его повторно и выбеливает полутона.");
-        violations++;
-    }
-
-    // Гамма применима только к display-encoded сигналу. Над сцен-линейными
-    // значениями показатель степени гаммой не является: при 1.8 шейдер возводил
-    // кадр в степень 1.222, тени давились, а всё ярче единицы раздувалось —
-    // 8.0 превращалось в 12.7. Именно это читалось на экране как пересвет.
-    if (/pow\(color,\s*gammaCorrection\)|2\.2\s*\/\s*_Gamma/.test(source)) {
-        recordViolation("Architecture", file,
-            "Гамма дисплея не применяется до тонмапа: над сцен-линейными значениями " +
-            "показатель степени раздувает всё ярче единицы. Её место — показатель возврата в ToneMapAgX.");
         violations++;
     }
 

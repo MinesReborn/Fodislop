@@ -29,15 +29,7 @@ public static class PostProcessLook
     {
         public const float Intensity = 0.35f;
 
-        /// <summary>
-        /// Порог в сцен-линейных единицах: ниже — не светится.
-        /// </summary>
-        /// <remarks>
-        /// Единица — это белая точка тонмапа: светится ровно то, что её
-        /// перешло, и ничего больше. Порог ниже неё означал бы, что светятся
-        /// обычные освещённые поверхности, и блум переставал бы отличать
-        /// источник от фона — именно так и появлялась молочная вуаль.
-        /// </remarks>
+        /// <summary>Порог в сцен-линейных единицах: ниже — не светится.</summary>
         public const float Threshold = 1.1f;
         public const float SoftKnee = 0.5f;
         public const float Radius = 3f;
