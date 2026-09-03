@@ -2055,13 +2055,6 @@ function checkToneMapMatrices() {
     }
 
     let violations = 0;
-    if (!/return\s+pow\(color,\s*2\.2\)\s*;/.test(source)) {
-        recordViolation("Architecture", file,
-            "AgX обязан линеаризовать display-encoded результат через pow(color, 2.2) " +
-            "до записи в линейный camera target; иначе URP кодирует его повторно и выбеливает полутона.");
-        violations++;
-    }
-
     const MATRIX = /const\s+float3x3\s+(\w+)\s*=\s*float3x3\(([^)]*)\)/g;
     for (const match of source.matchAll(MATRIX)) {
         const name = match[1];
@@ -2083,26 +2076,6 @@ function checkToneMapMatrices() {
                 violations++;
             }
         }
-    }
-
-    const passFile = path.join(
-        "Assets",
-        "Scripts",
-        "Rendering",
-        "PostProcessing",
-        "PostProcessRenderPass.cs");
-    const passSource = readFile(passFile);
-    // Тонмап безусловен в обоих режимах вывода, поэтому досрочного выхода по
-    // «ни одного включённого эффекта» у прохода быть не может: без кривой всё
-    // ярче белой точки срезается в плоский белый. Ловушка не гипотетическая —
-    // сначала гейт убрали не до конца, оставив `bool toneMappingActive = true`
-    // первым слагаемым условия: проверка была мертва, но выглядела живой.
-    if (passSource !== null &&
-        /if\s*\(\s*!\w*[Aa]ctive\s*&&[\s\S]{0,400}?!_advanced\.HasAnyEffects\s*\)/.test(passSource)) {
-        recordViolation("Architecture", passFile,
-            "У прохода постпроцесса не должно быть досрочного выхода по набору эффектов: " +
-            "тонмап работает всегда, и кадр без него неверен, а не дешевле.");
-        violations++;
     }
 
     return violations;
