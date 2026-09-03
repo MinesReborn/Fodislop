@@ -436,6 +436,20 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
+            // Точный перевод sRGB -> linear. Написан здесь, а не взят из
+            // SRGBToLinear: она живёт в Color.hlsl, а этот проход подключает
+            // только Core.hlsl, и Color.hlsl не приходит ни по одной ветке
+            // его включений. Вызов несуществующей функции роняет компиляцию
+            // всего прохода — терреин остаётся вообще без шейдера, поле
+            // материалов не пишется, и кадр возвращается к неосвещённому
+            // альбедо. Проверять такое надо включениями, а не надеждой.
+            float3 FodinaeSrgbToLinear(float3 c)
+            {
+                float3 low = c / 12.92;
+                float3 high = pow(max(c + 0.055, 0.0) / 1.055, 2.4);
+                return lerp(low, high, step(0.04045, c));
+            }
+
             struct MaterialFieldAttributes
             {
                 float4 positionOS   : POSITION;
@@ -530,7 +544,7 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 // Ровно так же поступает и путь сущностей: WorldEntity
                 // сэмплит sRGB-текстуру, и GPU линеаризует её сам. Здесь
                 // распаковка ручная, поэтому и перевод ручной.
-                float3 surfaceAlbedo = SRGBToLinear(float3(
+                float3 surfaceAlbedo = FodinaeSrgbToLinear(float3(
                     packedColor & 255u,
                     (packedColor >> 8) & 255u,
                     (packedColor >> 16) & 255u) / 255.0);

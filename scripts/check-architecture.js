@@ -1714,6 +1714,7 @@ function checkUssStyles() {
     problemCount += checkAssemblyGraph();
     problemCount += checkContainerConstructorChoice();
     problemCount += checkToneMapMatrices();
+    problemCount += checkShaderColorLibraryIncludes();
 
     console.log(`${CYAN}${BOLD}USS stylesheets:${NC} ${names.length} file(s), ${declared.size} token(s) declared, ${problemCount} violation(s)`);
 }
@@ -2053,6 +2054,68 @@ function checkNamespaceVisibility(sources) {
 // можно только на серой шкале, которой в игре нет. Поэтому проверяется
 // арифметикой: у матрицы, переводящей белое в белое, сумма каждой строки
 // равна единице.
+// Функции цветового преобразования живут в Color.hlsl пакета core, и ни
+// Core.hlsl из URP, ни Common/Packing/Input по своим включениям её не тянут.
+// Вызов SRGBToLinear без явного include компилируется в НИЧТО: проход падает
+// с ошибкой, шейдер целиком остаётся невалидным, а объект рисуется без него.
+// Поймано 03.09.2026 ценой сломанной графики: проход материалов терреина
+// перестал компилироваться, поле материалов не писалось, и кадр вернулся к
+// неосвещённому альбедо. Компилятор C# такое не ловит — шейдеры собирает
+// Unity, и тихо.
+const SHADER_COLOR_FUNCTIONS = [
+    "SRGBToLinear", "LinearToSRGB", "FastSRGBToLinear", "FastLinearToSRGB",
+    "Luminance", "RgbToHsv", "HsvToRgb",
+];
+
+function checkShaderColorLibraryIncludes() {
+    let violations = 0;
+    const shaderFiles = [];
+    (function walkShaders(root) {
+        let entries;
+        try {
+            entries = fs.readdirSync(root, { withFileTypes: true });
+        } catch {
+            return;
+        }
+        for (const entry of entries) {
+            const full = path.join(root, entry.name);
+            if (entry.isDirectory()) {
+                walkShaders(full);
+            } else if (/\.(shader|compute|hlsl)$/.test(entry.name)) {
+                shaderFiles.push(full);
+            }
+        }
+    })("Assets");
+    for (const file of shaderFiles) {
+        const source = readFile(file);
+        if (source === null) {
+            continue;
+        }
+
+        const includesColor = source.includes("ShaderLibrary/Color.hlsl");
+        for (const fn of SHADER_COLOR_FUNCTIONS) {
+            const used = new RegExp(`\\b${fn}\\s*\\(`).test(source);
+            if (!used || includesColor) {
+                continue;
+            }
+
+            // Своё определение в этом же файле — законно и снимает вопрос.
+            const definedLocally = new RegExp(
+                `(float|half|real)[1-4]?\\s+${fn}\\s*\\(`).test(source);
+            if (definedLocally) {
+                continue;
+            }
+
+            recordViolation("Architecture", file,
+                `Шейдер вызывает ${fn}, но не подключает Color.hlsl и не определяет её сам. ` +
+                "Проход не скомпилируется, и объект останется вообще без шейдера.");
+            violations++;
+        }
+    }
+
+    return violations;
+}
+
 function checkToneMapMatrices() {
     const file = path.join(
         "Assets", "Resources", "Shaders", "PostProcessing", "PostProcess.compute");
