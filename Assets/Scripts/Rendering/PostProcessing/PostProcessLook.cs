@@ -27,7 +27,7 @@ public static class PostProcessLook
     /// <summary>Свечение ярких участков.</summary>
     public static class Bloom
     {
-        public const float Intensity = 0.15f;
+        public const float Intensity = 0.35f;
 
         /// <summary>
         /// Порог в сцен-линейных единицах: ниже — не светится.
@@ -38,7 +38,7 @@ public static class PostProcessLook
         /// обычные освещённые поверхности, и блум переставал бы отличать
         /// источник от фона — именно так и появлялась молочная вуаль.
         /// </remarks>
-        public const float Threshold = 1.0f;
+        public const float Threshold = 1.1f;
         public const float SoftKnee = 0.5f;
         public const float Radius = 3f;
         public const float Scatter = 0.55f;
@@ -106,25 +106,25 @@ public static class PostProcessLook
     /// <summary>Локальное повышение контраста — резкость без нимбов.</summary>
     public static class LocalContrast
     {
-        public const float Intensity = 0.10f;
+        public const float Intensity = 0.15f;
     }
 
     /// <summary>Оптика: грязь на линзе, анаморфные лучи, дифракция, блики.</summary>
     public static class Lens
     {
-        public const float DirtIntensity = 0.04f;
+        public const float DirtIntensity = 0.12f;
         public const float DirtScale = 3f;
-        public const float AnamorphicIntensity = 0.12f;
+        public const float AnamorphicIntensity = 0.35f;
         public const float AnamorphicLength = 1.5f;
-        public const float DiffractionIntensity = 0.05f;
-        public const float GlintIntensity = 0.04f;
-        public const float GlintThreshold = 0.85f;
+        public const float DiffractionIntensity = 0.15f;
+        public const float GlintIntensity = 0.12f;
+        public const float GlintThreshold = 1.2f;
     }
 
     /// <summary>Среда: объёмная пыль и тепловое искажение.</summary>
     public static class Atmosphere
     {
-        public const float DustIntensity = 0.03f;
+        public const float DustIntensity = 0.08f;
         public const float DustScale = 1f;
         public const float DustSpeed = 0.1f;
         public const float HeatRefractionIntensity = 0.06f;

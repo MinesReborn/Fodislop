@@ -26,8 +26,8 @@ MonoBehaviour:
     _ambientOcclusionEnabled: 1
     _diffuseBounceEnabled: 1
     _ambientIntensity: 0.85
-    _emissionScale: 6
-    _ambientColor: {r: 1, g: 1.05, b: 1.2, a: 1}
+    _emissionScale: 8
+    _ambientColor: {r: 0.12, g: 0.14, b: 0.18, a: 1}
     _emptyExtinctionRgb: {r: 0.015, g: 0.012, b: 0.009, a: 1}
     _solidExtinctionRgb: {r: 1.2, g: 1.1, b: 1, a: 1}
     _emptyExtinctionMultiplier: 1
@@ -35,8 +35,8 @@ MonoBehaviour:
     _bounceStrength: 1
     _ambientOcclusionRadiusCells: 2
     _ambientOcclusionStrength: 5
-    _maximumLightMultiplier: 2
-    _enableFinalLightingClamp: 1
+    _maximumLightMultiplier: 1
+    _enableFinalLightingClamp: 0
     _transmittanceDebugDistanceCells: 10
     _minimumTransmission: 0.008
     _lightSafeBorder: 2
