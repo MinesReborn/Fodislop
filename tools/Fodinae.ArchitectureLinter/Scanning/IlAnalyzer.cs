@@ -1,6 +1,7 @@
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Fodinae.ArchitectureLinter.Core;
+using Fodinae.ArchitectureLinter.Scanning;
 
 namespace Fodinae.ArchitectureLinter.Scanning;
 

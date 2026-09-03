@@ -147,6 +147,22 @@ void BloomPrefilter(uint3 id : SV_DispatchThreadID)
     float contribution = max(lum - _BloomThreshold, soft) / max(lum, 0.0001);
     float3 brightColor = color.rgb * contribution;
 
+    // Потолок яркостного отбора. Без него вклад в пирамиду растёт линейно с
+    // HDR и ничем не ограничен: эмиссия руды идёт до 8.0 линейных, при пороге
+    // 1.5 в пирамиду уходит 6.5, тогда как освещённая земля стоит 0.1..0.3.
+    // Один источник оказывается на порядок ярче фона, и после размытия
+    // красит молочной вуалью весь кадр — при этом сам он всё равно уже упёрся
+    // в верхушку кривой AgX, то есть от лишней яркости не становится ярче.
+    // Четыре — примерно два стопа над порогом: света остаются светами, но
+    // перестают быть источником общей засветки. Ограничение инженерное, как
+    // и clamp размера зерна ниже, поэтому живёт здесь, а не в PostProcessLook.
+    const float maxBloomSource = 4.0;
+    float brightLuminance = Luminance(brightColor);
+    if (brightLuminance > maxBloomSource)
+    {
+        brightColor *= maxBloomSource / brightLuminance;
+    }
+
     _DestTex[id.xy] = float4(brightColor * _BloomTint.rgb, color.a);
 }
 

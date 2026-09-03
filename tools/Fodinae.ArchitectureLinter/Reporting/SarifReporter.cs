@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Fodinae.ArchitectureLinter.Core;
 
 namespace Fodinae.ArchitectureLinter.Reporting;
@@ -16,41 +17,31 @@ public sealed class SarifReporter : IReporter
 
     public async Task ReportAsync(IReadOnlyList<RuleViolation> violations, CancellationToken ct = default)
     {
-        var sarif = new
+        var sarif = new SarifDocument
         {
-            version = "2.1.0",
-            $schema = "https://json.schemastore.org/sarif-2.1.0.json",
-            runs = new[]
+            Version = "2.1.0",
+            Schema = "https://json.schemastore.org/sarif-2.1.0.json",
+            Runs = new[]
             {
-                new
+                new SarifRun
                 {
-                    tool = new
+                    Tool = new SarifTool { Name = "Fodinae Architecture Linter", Version = "1.0.0" },
+                    Results = violations.Select(v => new SarifResult
                     {
-                        name = "Fodinae Architecture Linter",
-                        version = "1.0.0"
-                    },
-                    results = violations.Select(v => new
-                    {
-                        ruleId = v.RuleId,
-                        level = v.Severity.ToString().ToLowerInvariant(),
-                        message = new
+                        RuleId = v.RuleId,
+                        Level = v.Severity.ToString().ToLowerInvariant(),
+                        Message = new SarifMessage { Text = v.Message },
+                        Locations = new[]
                         {
-                            text = v.Message
-                        },
-                        locations = new[]
-                        {
-                            new
+                            new SarifLocation
                             {
-                                physicalLocation = new
+                                PhysicalLocation = new SarifPhysicalLocation
                                 {
-                                    artifactLocation = new
+                                    ArtifactLocation = new SarifArtifactLocation
                                     {
-                                        uri = v.TypeName ?? v.AssemblyName ?? "unknown"
+                                        Uri = v.TypeName ?? v.AssemblyName ?? "unknown"
                                     },
-                                    region = new
-                                    {
-                                        startLine = v.Line ?? 1
-                                    }
+                                    Region = new SarifRegion { StartLine = v.Line ?? 1 }
                                 }
                             }
                         }
@@ -63,4 +54,57 @@ public sealed class SarifReporter : IReporter
         await File.WriteAllTextAsync(_outputPath, json, ct);
         _writer.WriteLine($"SARIF report written to: {_outputPath}");
     }
+}
+
+internal sealed record SarifDocument
+{
+    [JsonPropertyName("$schema")] public string Schema { get; init; } = string.Empty;
+    [JsonPropertyName("version")] public string Version { get; init; } = string.Empty;
+    [JsonPropertyName("runs")] public SarifRun[] Runs { get; init; } = Array.Empty<SarifRun>();
+}
+
+internal sealed record SarifRun
+{
+    [JsonPropertyName("tool")] public SarifTool Tool { get; init; } = new();
+    [JsonPropertyName("results")] public SarifResult[] Results { get; init; } = Array.Empty<SarifResult>();
+}
+
+internal sealed record SarifTool
+{
+    [JsonPropertyName("name")] public string Name { get; init; } = string.Empty;
+    [JsonPropertyName("version")] public string Version { get; init; } = string.Empty;
+}
+
+internal sealed record SarifResult
+{
+    [JsonPropertyName("ruleId")] public string RuleId { get; init; } = string.Empty;
+    [JsonPropertyName("level")] public string Level { get; init; } = string.Empty;
+    [JsonPropertyName("message")] public SarifMessage Message { get; init; } = new();
+    [JsonPropertyName("locations")] public SarifLocation[] Locations { get; init; } = Array.Empty<SarifLocation>();
+}
+
+internal sealed record SarifMessage
+{
+    [JsonPropertyName("text")] public string Text { get; init; } = string.Empty;
+}
+
+internal sealed record SarifLocation
+{
+    [JsonPropertyName("physicalLocation")] public SarifPhysicalLocation PhysicalLocation { get; init; } = new();
+}
+
+internal sealed record SarifPhysicalLocation
+{
+    [JsonPropertyName("artifactLocation")] public SarifArtifactLocation ArtifactLocation { get; init; } = new();
+    [JsonPropertyName("region")] public SarifRegion Region { get; init; } = new();
+}
+
+internal sealed record SarifArtifactLocation
+{
+    [JsonPropertyName("uri")] public string Uri { get; init; } = string.Empty;
+}
+
+internal sealed record SarifRegion
+{
+    [JsonPropertyName("startLine")] public int StartLine { get; init; }
 }

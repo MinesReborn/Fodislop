@@ -51,9 +51,9 @@ public sealed class AsyncVoidRule : IRule
         {
             if (!method.HasBody)
                 continue;
-            if (!method.IsAsync)
-                continue;
             if (method.ReturnType.FullName != "System.Void")
+                continue;
+            if (!IsAsyncMethod(method))
                 continue;
             if (IsAllowedEventHandler(method))
                 continue;
@@ -61,7 +61,7 @@ public sealed class AsyncVoidRule : IRule
             violations.Add(new RuleViolation
             {
                 RuleId = Id,
-                Message = $"Method '{method.Name}' is async void outside of an event handler context. " +
+                Message = $"Method '{method.Name}' in '{type.FullName}' returns void and is async. " +
                           "Use async Task or move to an event handler (e.g. *Click, On*).",
                 Severity = Severity,
                 AssemblyName = type.Module.Assembly.Name.Name,
@@ -72,6 +72,18 @@ public sealed class AsyncVoidRule : IRule
 
         foreach (var nested in type.NestedTypes)
             ScanType(nested, violations);
+    }
+
+    private static bool IsAsyncMethod(MethodDefinition method)
+    {
+        if (!method.HasBody)
+            return false;
+
+        return method.Body.Instructions.Any(i =>
+            i.OpCode == OpCodes.Call &&
+            i.Operand is MethodReference mr &&
+            mr.DeclaringType.FullName == "System.Runtime.CompilerServices.AsyncTaskMethodBuilder" &&
+            mr.Name == "Create");
     }
 
     private static bool IsAllowedEventHandler(MethodDefinition method)

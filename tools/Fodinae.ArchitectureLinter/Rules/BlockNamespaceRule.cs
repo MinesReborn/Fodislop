@@ -24,8 +24,8 @@ public sealed class BlockNamespaceRule : IRule
         LinterContext context,
         CancellationToken cancellationToken = default)
     {
+        var allCandidates = new List<TypeDefinition>();
         var namespaceTypes = new Dictionary<string, List<TypeDefinition>>(StringComparer.Ordinal);
-        var candidates = new List<TypeDefinition>();
 
         foreach (var assembly in assemblies)
         {
@@ -35,24 +35,19 @@ public sealed class BlockNamespaceRule : IRule
             foreach (var type in assembly.MainModule.Types)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-
-                CollectCandidates(type, candidates);
-
-                foreach (var candidate in candidates)
-                {
-                    var ns = candidate.Namespace ?? string.Empty;
-                    if (!namespaceTypes.TryGetValue(ns, out var list))
-                    {
-                        list = new List<TypeDefinition>();
-                        namespaceTypes[ns] = list;
-                    }
-                    if (!list.Contains(candidate))
-                    {
-                        list.Add(candidate);
-                    }
-                }
-                candidates.Clear();
+                CollectCandidates(type, allCandidates);
             }
+        }
+
+        foreach (var candidate in allCandidates)
+        {
+            var ns = candidate.Namespace ?? string.Empty;
+            if (!namespaceTypes.TryGetValue(ns, out var list))
+            {
+                list = new List<TypeDefinition>();
+                namespaceTypes[ns] = list;
+            }
+            list.Add(candidate);
         }
 
         var violations = new List<RuleViolation>();
@@ -78,7 +73,7 @@ public sealed class BlockNamespaceRule : IRule
         return Task.FromResult<IReadOnlyList<RuleViolation>>(violations);
     }
 
-    private void CollectCandidates(TypeDefinition type, List<TypeDefinition> candidates)
+    private static void CollectCandidates(TypeDefinition type, List<TypeDefinition> candidates)
     {
         if (IsUnityInheritingType(type))
         {
@@ -91,7 +86,7 @@ public sealed class BlockNamespaceRule : IRule
         }
     }
 
-    private bool IsUnityInheritingType(TypeDefinition type)
+    private static bool IsUnityInheritingType(TypeDefinition type)
     {
         foreach (var unityBase in UnityBaseTypes)
         {

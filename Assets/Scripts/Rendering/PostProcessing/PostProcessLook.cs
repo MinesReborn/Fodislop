@@ -27,10 +27,15 @@ public static class PostProcessLook
     /// <summary>Свечение ярких участков.</summary>
     public static class Bloom
     {
-        public const float Intensity = 0.35f;
+        public const float Intensity = 0.22f;
 
-        /// <summary>Порог в сцен-линейных единицах: ниже — не светится.</summary>
-        public const float Threshold = 1.1f;
+        /// <summary>
+        /// Порог в сцен-линейных единицах: ниже — не светится. Полтора, а не
+        /// единица с небольшим: освещённая земля стоит 0.1..0.3, а порог у
+        /// самой белой точки означал бы, что светится всё сколько-нибудь
+        /// яркое, и блум переставал бы отличать источник от фона.
+        /// </summary>
+        public const float Threshold = 1.5f;
         public const float SoftKnee = 0.5f;
         public const float Radius = 3f;
         public const float Scatter = 0.55f;

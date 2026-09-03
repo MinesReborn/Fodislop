@@ -19,8 +19,6 @@ public sealed class ForbiddenApiRule : IRule
         ("UnityEngine.Object", "DestroyImmediate", "DestroyImmediate is forbidden in runtime — use Destroy"),
     };
 
-    private static readonly string[] AllowedAsyncVoidContainers = { "UnityEngine.MonoBehaviour", "UnityEditor.EditorWindow", "UnityEditor.Editor" };
-
     public string Id => "FOD-FORBIDDEN-API";
     public string Description => "Forbidden API usage detection";
     public RuleSeverity Severity => RuleSeverity.Error;
@@ -40,14 +38,14 @@ public sealed class ForbiddenApiRule : IRule
             foreach (var type in assembly.MainModule.Types)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                ScanType(type, violations, context);
+                ScanType(type, violations);
             }
         }
 
         return Task.FromResult<IReadOnlyList<RuleViolation>>(violations);
     }
 
-    private void ScanType(TypeDefinition type, List<RuleViolation> violations, LinterContext context)
+    private void ScanType(TypeDefinition type, List<RuleViolation> violations)
     {
         foreach (var method in type.Methods)
         {
@@ -72,6 +70,6 @@ public sealed class ForbiddenApiRule : IRule
         }
 
         foreach (var nested in type.NestedTypes)
-            ScanType(nested, violations, context);
+            ScanType(nested, violations);
     }
 }

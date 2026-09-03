@@ -17,6 +17,10 @@ public sealed class ArchitectureLinter
 
     public async Task<int> RunAsync(CancellationToken ct = default)
     {
+        using var reporter = _context.EnableSarif && !string.IsNullOrEmpty(_context.SarifOutputPath)
+            ? (IReporter)new Reporting.SarifReporter(_context.SarifOutputPath)
+            : new Reporting.ConsoleReporter();
+
         Console.WriteLine("Fodinae Architecture Linter v1.0.0");
         Console.WriteLine($"Project root: {_context.ProjectRoot}");
         Console.WriteLine($"Assemblies: {_context.AssemblyPaths.Count}");
@@ -58,10 +62,6 @@ public sealed class ArchitectureLinter
 
         Console.WriteLine();
         Console.WriteLine($"Total violations: {allViolations.Count}");
-
-        var reporter = _context.EnableSarif && !string.IsNullOrEmpty(_context.SarifOutputPath)
-            ? (IReporter)new SarifReporter(_context.SarifOutputPath)
-            : new ConsoleReporter();
 
         await reporter.ReportAsync(allViolations);
 
