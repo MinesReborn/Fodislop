@@ -94,26 +94,6 @@ internal sealed class PauseMenuAdvancedTabBuilder
             apply(_lightingEngine, value);
         }
 
-        // Путь назад. Ниже два десятка чисел света, которые крутятся вживую,
-        // и заблудиться в них легко; авторские значения лежат в ассете, до
-        // которого игроку не добраться. Ключ settings.lighting.reset был
-        // заведён в локализации давно, но кнопки под ним не существовало.
-        var resetLighting = new Button
-        {
-            text = _loc.Get("settings.lighting.reset"),
-        };
-        resetLighting.AddToClassList("pause-btn");
-        resetLighting.clicked += () =>
-        {
-            _clientConfig.ResetLightingToDefaults();
-            _lightingEngine.ApplyClientConfig();
-            foreach (Action refresh in _refreshers)
-            {
-                refresh();
-            }
-        };
-        advancedGraphicsSection.Add(resetLighting);
-
         ambientGroup.Add(PauseMenuUIFactory.CreateBoundSlider(
             _loc.Get("settings.advanced.ambient_intensity"),
             () => GetLightingValue(static engine => engine.AmbientIntensity),

@@ -180,13 +180,6 @@ namespace Fodinae.Core
             Config.GraphicsQualitySettings = settings;
         }
 
-        public void ResetLightingToDefaults()
-        {
-            EnsureInitialized();
-            ClientConfigDefaults.ApplyLightingDefaults(Config, _projectDefaults.Lighting);
-            Save();
-        }
-
         public void UpdateAndSave(Action<ClientConfig> update)
         {
             if (update == null)
