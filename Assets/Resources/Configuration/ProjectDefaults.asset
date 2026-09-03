@@ -23,8 +23,8 @@ MonoBehaviour:
     _uiScale: 1
     _graphicsQuality: 2
   _lighting:
-    _ambientOcclusionEnabled: 1
-    _diffuseBounceEnabled: 1
+    _ambientOcclusionEnabled: 0
+    _diffuseBounceEnabled: 0
     _ambientIntensity: 0.85
     _emissionScale: 2
     _ambientColor: {r: 0.12, g: 0.14, b: 0.18, a: 1}
@@ -55,13 +55,13 @@ MonoBehaviour:
     _perspectiveEmissionColor: {r: 0.45, g: 0.65, b: 1, a: 1}
     _perspectiveEmissionStrength: 0.12
     _surfaceOccupancy: 1
-    _bloomEnabled: 1
-    _vignetteEnabled: 1
+    _bloomEnabled: 0
+    _vignetteEnabled: 0
     _chromaticAberrationEnabled: 0
-    _filmGrainEnabled: 1
+    _filmGrainEnabled: 0
     _motionBlurEnabled: 0
-    _localContrastEnabled: 1
-    _lensEffectsEnabled: 1
-    _atmosphereEnabled: 1
+    _localContrastEnabled: 0
+    _lensEffectsEnabled: 0
+    _atmosphereEnabled: 0
     _displayPhysicsEnabled: 0
-    _temporalEnabled: 1
+    _temporalEnabled: 0

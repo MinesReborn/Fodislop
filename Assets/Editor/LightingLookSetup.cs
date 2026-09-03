@@ -79,6 +79,44 @@ internal static class LightingLookSetup
     /// <summary>Цвет и сила фонового света. Авторское значение.</summary>
     private static readonly Color AmbientColor = new(0.12f, 0.14f, 0.18f, 1f);
 
+    /// <summary>
+    /// ДИАГНОСТИКА. Выключить все необязательные стадии конвейера.
+    /// </summary>
+    /// <remarks>
+    /// Грубая бисекция: свести кадр к минимуму, в котором он обязан быть
+    /// верным, и добавлять обратно по одному. Минимум такой:
+    ///
+    ///   альбедо x (амбиент + прямой свет от эмиссии) -> AgX -> экран
+    ///
+    /// Снимается всё, что складывается поверх: блум, оптика, атмосфера,
+    /// локальный контраст, временное накопление, зерно, виньетка, хроматика,
+    /// смаз, физика дисплея. Из света — отскок и контактное затенение.
+    /// Тонмап не снимается: без него всё ярче белой точки срезается в плоский
+    /// белый, то есть кадр становится не проще, а неверен.
+    ///
+    /// Останется пересвет — причина в минимальной цепочке: альбедо, эмиссия,
+    /// амбиент, оценщик. Исчезнет — причина в снятом, возвращать по одному.
+    ///
+    /// ВЕРНУТЬ: поставить false и запустить пункт меню ещё раз.
+    /// </remarks>
+    private const bool DisableOptionalStages = true;
+
+    private static readonly (string Field, bool Authored)[] OptionalStages =
+    [
+        ("_bloomEnabled", true),
+        ("_vignetteEnabled", true),
+        ("_chromaticAberrationEnabled", false),
+        ("_filmGrainEnabled", true),
+        ("_motionBlurEnabled", false),
+        ("_localContrastEnabled", true),
+        ("_lensEffectsEnabled", true),
+        ("_atmosphereEnabled", true),
+        ("_displayPhysicsEnabled", false),
+        ("_temporalEnabled", true),
+        ("_ambientOcclusionEnabled", true),
+        ("_diffuseBounceEnabled", true),
+    ];
+
     [MenuItem(MenuPath)]
     public static void Apply()
     {
@@ -109,6 +147,12 @@ internal static class LightingLookSetup
             Color previousAmbient = ambient.colorValue;
             ambient.colorValue = AmbientColor;
 
+            foreach ((string field, bool authored) in OptionalStages)
+            {
+                FindProperty(serialized, field).boolValue =
+                    !DisableOptionalStages && authored;
+            }
+
             serialized.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(defaults);
             AssetDatabase.SaveAssets();
@@ -118,6 +162,9 @@ internal static class LightingLookSetup
                 $"_enableFinalLightingClamp: {previousClamp} -> {EnableFinalLightingClamp}; " +
                 $"_maximumLightMultiplier: {previousMaximum} -> {MaximumLightMultiplier}; " +
                 $"_ambientColor: {previousAmbient} -> {AmbientColor}. " +
+                (DisableOptionalStages
+                    ? "Необязательные стадии ВЫКЛЮЧЕНЫ (диагностика). "
+                    : "Необязательные стадии по авторским значениям. ") +
                 "Перезайди в игру, чтобы значения доехали до ClientConfig.");
         }
         catch (Exception exception)
