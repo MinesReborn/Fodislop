@@ -41,6 +41,34 @@ internal static class LightingLookSetup
     /// </remarks>
     private const float EmissionScale = 3f;
 
+    /// <summary>
+    /// Потолок освещения. Включён.
+    /// </summary>
+    /// <remarks>
+    /// Это единственный коэффициент, который делает все остальные
+    /// ограниченными. Выключенным он оставлял мировому свету неограниченный
+    /// верх: замер по скриншоту 03.09.2026 дал на здании множитель около 8.7
+    /// при альбедо 0.92, то есть 8.0 линейных — вчетверо выше белой точки.
+    /// Ни тонмап, ни блум, ни экспозиция такого не чинят: кадр, где свет
+    /// уходит в восьмёрку, выбит по построению.
+    ///
+    /// Кламп сохраняет цветность (масштабирует RGB вместе, а не режет каналы
+    /// поодиночке), поэтому потолок не красит света в белое, а держит их.
+    /// </remarks>
+    private const bool EnableFinalLightingClamp = true;
+
+    /// <summary>
+    /// Верх освещения. Двойка, а не единица.
+    /// </summary>
+    /// <remarks>
+    /// Единица прижала бы весь кадр под белую точку, и тогда исчез бы смысл
+    /// HDR: ничто не поднялось бы выше порога блума, а тонмапу нечего было бы
+    /// сжимать. Двойка оставляет ровно один стоп запаса — освещённые
+    /// поверхности ложатся ниже единицы, а источники могут её перейти и
+    /// зацвести, но не в четыре раза.
+    /// </remarks>
+    private const float MaximumLightMultiplier = 2f;
+
     [MenuItem(MenuPath)]
     public static void Apply()
     {
@@ -54,16 +82,28 @@ internal static class LightingLookSetup
             }
 
             var serialized = new SerializedObject(defaults);
+
             SerializedProperty emission = FindProperty(serialized, "_emissionScale");
-            float previous = emission.floatValue;
+            float previousEmission = emission.floatValue;
             emission.floatValue = EmissionScale;
+
+            SerializedProperty clamp = FindProperty(serialized, "_enableFinalLightingClamp");
+            bool previousClamp = clamp.boolValue;
+            clamp.boolValue = EnableFinalLightingClamp;
+
+            SerializedProperty maximum = FindProperty(serialized, "_maximumLightMultiplier");
+            float previousMaximum = maximum.floatValue;
+            maximum.floatValue = MaximumLightMultiplier;
+
             serialized.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(defaults);
             AssetDatabase.SaveAssets();
 
             Debug.Log(
-                $"[LightingLookSetup] _emissionScale: {previous} -> {EmissionScale}. " +
-                "Перезайди в игру, чтобы значение доехало до ClientConfig.");
+                $"[LightingLookSetup] _emissionScale: {previousEmission} -> {EmissionScale}; " +
+                $"_enableFinalLightingClamp: {previousClamp} -> {EnableFinalLightingClamp}; " +
+                $"_maximumLightMultiplier: {previousMaximum} -> {MaximumLightMultiplier}. " +
+                "Перезайди в игру, чтобы значения доехали до ClientConfig.");
         }
         catch (Exception exception)
         {
