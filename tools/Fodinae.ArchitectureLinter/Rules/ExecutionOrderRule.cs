@@ -8,9 +8,9 @@ public sealed class ExecutionOrderRule : IRule
 {
     private static readonly Dictionary<string, int> RequiredExecutionOrders = new(StringComparer.Ordinal)
     {
-        ["Fodinae.Core.Bootstrap.BootstrapLifetimeScope"] = -30000,
-        ["Fodinae.Core.Bootstrap.GameLifetimeScope"] = -20000,
-        ["Fodinae.World.Storage.MapManager"] = -10000,
+        ["Fodinae.Core.BootstrapLifetimeScope"] = -30000,
+        ["Fodinae.Core.GameLifetimeScope"] = -20000,
+        ["Fodinae.World.MapManager"] = -10000,
     };
 
     public string Id => "FOD-EXECUTION-ORDER";

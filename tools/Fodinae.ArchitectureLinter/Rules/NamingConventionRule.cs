@@ -48,7 +48,7 @@ public sealed class NamingConventionRule : IRule
 
         foreach (var field in type.Fields)
         {
-            if (field.IsPrivate && !field.Name.StartsWith("_"))
+            if (field.IsPrivate && !field.Name.StartsWith("_") && !IsCompilerGenerated(field))
             {
                 violations.Add(new RuleViolation
                 {
@@ -64,5 +64,17 @@ public sealed class NamingConventionRule : IRule
 
         foreach (var nested in type.NestedTypes)
             ScanType(nested, violations);
+    }
+
+    private static bool IsCompilerGenerated(FieldDefinition field)
+    {
+        if (field.Name.StartsWith("<"))
+            return true;
+
+        if (field.CustomAttributes.Any(a =>
+            a.AttributeType.FullName == "System.Runtime.CompilerServices.CompilerGeneratedAttribute"))
+            return true;
+
+        return false;
     }
 }

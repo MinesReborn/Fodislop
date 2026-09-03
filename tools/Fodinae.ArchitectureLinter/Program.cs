@@ -130,9 +130,13 @@ public static class Program
 
         if (!string.IsNullOrEmpty(unityApp))
         {
-            var managed = Path.Combine(unityApp, "Unity.app", "Contents", "Managed");
+            var managed = Path.Combine(unityApp, "Unity.app", "Contents", "Resources", "Scripting", "Managed", "UnityEngine");
             if (Directory.Exists(managed))
                 paths.Add(managed);
+
+            var managedLegacy = Path.Combine(unityApp, "Unity.app", "Contents", "Managed");
+            if (Directory.Exists(managedLegacy))
+                paths.Add(managedLegacy);
 
             var mono = Path.Combine(unityApp, "Unity.app", "Contents", "MonoBleedingEdge", "lib", "mono", "4.7.1-api");
             if (Directory.Exists(mono))

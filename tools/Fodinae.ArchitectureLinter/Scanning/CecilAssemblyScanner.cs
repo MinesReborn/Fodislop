@@ -63,7 +63,15 @@ public static class CecilAssemblyScanner
         {
             if (baseType.FullName == fullBaseName)
                 return true;
-            baseType = baseType.Resolve()?.BaseType;
+            try
+            {
+                var resolved = baseType.Resolve();
+                baseType = resolved?.BaseType;
+            }
+            catch
+            {
+                break;
+            }
         }
         return false;
     }

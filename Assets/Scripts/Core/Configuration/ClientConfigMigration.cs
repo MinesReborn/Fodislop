@@ -206,18 +206,38 @@ internal sealed class ClientConfigMigration(
 
     private void RefreshChangedProjectDefaults(ClientConfig config)
     {
+        // Custom владеет ровно одним — структурой GraphicsQualitySettings:
+        // плотностью света, размером атласа, render scale, MSAA. Ни свет
+        // (`ApplyLightingDefaults`), ни тумблеры эффектов
+        // (`ApplyShaderDefaults`) в неё не входят и Custom не принадлежат.
+        //
+        // Раньше эта ветка защищала от обновления вообще всё, и это было
+        // ловушкой: `MarkCustom` вызывается при щелчке по любому переключателю
+        // на вкладках «Графика» и «Дополнительно» — контактное затенение,
+        // диффузный отскок, искажение кромки. Один щелчок переводил пресет в
+        // Custom, и после этого авторские величины освещения переставали
+        // доезжать до игрока НАВСЕГДА: правка `ProjectDefaults.asset` меняла
+        // хэш, хэш переписывался, а значения оставались старыми.
+        //
+        // Поймано 03.09.2026: сила эмиссии в ассете стояла 3, в сохранённом
+        // конфиге — 8, и десять тумблеров эффектов из двенадцати висели
+        // выключенными при авторском умолчании «включено». Каждая правка вида
+        // выглядела как «ничего не поменялось», потому что до экрана она
+        // и не доходила.
+        ClientConfigDefaults.ApplyLightingDefaults(config, _projectDefaults.Lighting);
+        ClientConfigDefaults.ApplyShaderDefaults(config, _projectDefaults.Shaders);
+
         if (GraphicsQualityProfile.IsStandard(config.GraphicsPreset))
         {
-            ClientConfigDefaults.ApplyLightingDefaults(config, _projectDefaults.Lighting);
-            ClientConfigDefaults.ApplyShaderDefaults(config, _projectDefaults.Shaders);
             Debug.Log(
-                "[ClientConfigMigration] ProjectDefaults changed; refreshed the selected " +
-                "immutable standard graphics preset.");
+                "[ClientConfigMigration] ProjectDefaults changed; refreshed lighting, effect " +
+                "toggles and the selected immutable standard graphics preset.");
         }
         else
         {
             Debug.Log(
-                "[ClientConfigMigration] ProjectDefaults changed; preserved Custom graphics settings.");
+                "[ClientConfigMigration] ProjectDefaults changed; refreshed lighting and effect " +
+                "toggles, preserved Custom GraphicsQualitySettings.");
         }
 
         config.ProjectDefaultsHash = _projectDefaults.ContentHash;
