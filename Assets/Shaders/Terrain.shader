@@ -518,10 +518,22 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 MaterialFieldOutput output;
                 float isForeground = input.isForeground;
                 uint packedColor = (uint)round(input.glowData.x);
-                float3 surfaceAlbedo = float3(
+                // Цвет упакован БАЙТАМИ и приходит из minimapColor, то есть это
+                // display-encoded sRGB. Делением на 255 получается код дисплея,
+                // а не энергия, и раньше он уходил в решатель света как
+                // линейное значение. Ошибка неравномерная и потому особенно
+                // злая: байт 26 завышался в 15 раз, 64 — в 5.2, 128 — в 2.3,
+                // а 230 — всего в 1.13. Тёмные тайлы подтягивались к светлым,
+                // мир терял тени и светился ровным ярким полем, а эмиссия
+                // раздавала в разы больше энергии, чем ей задано.
+                //
+                // Ровно так же поступает и путь сущностей: WorldEntity
+                // сэмплит sRGB-текстуру, и GPU линеаризует её сам. Здесь
+                // распаковка ручная, поэтому и перевод ручной.
+                float3 surfaceAlbedo = SRGBToLinear(float3(
                     packedColor & 255u,
                     (packedColor >> 8) & 255u,
-                    (packedColor >> 16) & 255u) / 255.0;
+                    (packedColor >> 16) & 255u) / 255.0);
                 uint lightingFlags = (uint)floor(input.glowData.y + 0.0001);
                 int solidBoundaryMask = int(lightingFlags & 15u);
                 int solidDiagonalMask = (int(round(input.glowData.z)) >> 2) & 15;

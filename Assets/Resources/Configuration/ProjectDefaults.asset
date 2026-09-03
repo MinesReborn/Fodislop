@@ -35,7 +35,7 @@ MonoBehaviour:
     _bounceStrength: 1
     _ambientOcclusionRadiusCells: 2
     _ambientOcclusionStrength: 5
-    _maximumLightMultiplier: 1
+    _maximumLightMultiplier: 2
     _enableFinalLightingClamp: 1
     _transmittanceDebugDistanceCells: 10
     _minimumTransmission: 0.008
