@@ -94,7 +94,7 @@ namespace Fodinae.Rendering
         {
             Shader.SetGlobalFloat(
                 PixelArtFilteringProperty,
-                mode == PixelSamplingMode.SmoothFiltered ? 1f : 0f);
+                PixelSamplingRules.FiltersTexelEdges(mode) ? 1f : 0f);
         }
 
         private static readonly int PixelArtFilteringProperty = Shader.PropertyToID("_PixelArtFiltering");

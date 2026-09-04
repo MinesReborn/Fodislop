@@ -54,3 +54,34 @@ public enum PixelSamplingMode
     /// </remarks>
     Raw = 2,
 }
+
+/// <summary>
+/// Что именно делает каждый режим.
+/// </summary>
+/// <remarks>
+/// Правила вынесены из камеры и менеджера экрана отдельным типом, чтобы их
+/// можно было исполнить вне Unity и проверить таблицей. Повод конкретный: в
+/// режиме сглаживания камера округляла позицию к пиксельной сетке, и это
+/// давало мелкую тряску всей картины — слежение идёт через SmoothDamp, его
+/// выход ползёт непрерывно, и около границы округления округлённая позиция
+/// скачет между соседними узлами по обеим осям.
+///
+/// Отсюда же инвариант: округлять позицию имеет право только тот режим,
+/// который округляет и зум. Порознь эти две меры не дополняют друг друга, а
+/// ссорятся — сетка, к которой округляется позиция, при дробном зуме сама
+/// не совпадает с сеткой текселей.
+/// </remarks>
+public static class PixelSamplingRules
+{
+    /// <summary>Округляет ли режим позицию камеры к пиксельной сетке.</summary>
+    public static bool SnapsCameraPosition(PixelSamplingMode mode) =>
+        mode == PixelSamplingMode.PixelPerfect;
+
+    /// <summary>Округляет ли режим размер камеры до целых пикселей на тексель.</summary>
+    public static bool QuantizesZoom(PixelSamplingMode mode) =>
+        mode == PixelSamplingMode.PixelPerfect;
+
+    /// <summary>Сглаживает ли режим границы текселей в шейдере.</summary>
+    public static bool FiltersTexelEdges(PixelSamplingMode mode) =>
+        mode == PixelSamplingMode.SmoothFiltered;
+}

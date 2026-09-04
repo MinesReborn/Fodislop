@@ -957,6 +957,51 @@ internal static class Program
             }
         }
 
+        // Округлять позицию камеры имеет право только режим, который
+        // округляет и зум. Порознь эти меры ссорятся: сетка, к которой
+        // округляется позиция, при дробном зуме не совпадает с сеткой
+        // текселей, и плавно ползущая позиция начинает скакать между
+        // соседними узлами по обеим осям — на экране это мелкая тряска
+        // всей картины. Ровно так и было в режиме сглаживания.
+        foreach (PixelSamplingMode mode in Enum.GetValues(typeof(PixelSamplingMode)))
+        {
+            _checks++;
+            if (PixelSamplingRules.SnapsCameraPosition(mode) && !PixelSamplingRules.QuantizesZoom(mode))
+            {
+                Failures.Add(
+                    $"режим {mode} округляет позицию камеры, но не зум — это даёт дрожание картины");
+            }
+        }
+
+        // Сглаживание границ в шейдере и округление зума решают одну задачу
+        // разными способами. Включённые вместе они не складываются: у
+        // округлённого зума границы текселей и так попадают в пиксели
+        // ровно, а размытие только съело бы резкость, ради которой режим и
+        // существует.
+        foreach (PixelSamplingMode mode in Enum.GetValues(typeof(PixelSamplingMode)))
+        {
+            _checks++;
+            if (PixelSamplingRules.FiltersTexelEdges(mode) && PixelSamplingRules.QuantizesZoom(mode))
+            {
+                Failures.Add(
+                    $"режим {mode} и округляет зум, и сглаживает границы — второе обесценивает первое");
+            }
+        }
+
+        // Ровно один режим обязан не делать ничего: без него не с чем
+        // сравнивать, стоит ли лечение болезни.
+        _checks++;
+        int untreated = Enum.GetValues(typeof(PixelSamplingMode))
+            .Cast<PixelSamplingMode>()
+            .Count(mode =>
+                !PixelSamplingRules.SnapsCameraPosition(mode) &&
+                !PixelSamplingRules.QuantizesZoom(mode) &&
+                !PixelSamplingRules.FiltersTexelEdges(mode));
+        if (untreated != 1)
+        {
+            Failures.Add($"режимов без всякого лечения должно быть ровно один, а их {untreated}");
+        }
+
         // Каждый режим выборки должен быть опознан: неизвестное значение в
         // конфиге не имеет права молча притвориться сглаживанием.
         foreach (PixelSamplingMode mode in Enum.GetValues(typeof(PixelSamplingMode)))
