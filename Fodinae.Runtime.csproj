@@ -70,7 +70,6 @@
     <Compile Include="Assets/Scripts/Rendering/PostProcessing/Components/ChromaticAberrationComponent.cs" />
     <Compile Include="Assets/Scripts/Core/Interfaces/Contracts/ILocalizationService.cs" />
     <Compile Include="Assets\Scripts\World\Rendering\WorldBackgroundSetup.cs" />
-    <Compile Include="Assets/Scripts/Audio/Spatial/WorldAudioController.cs" />
     <Compile Include="Assets/Scripts/Rendering/PostProcessing/Components/BloomComponent.cs" />
     <Compile Include="Assets\\Scripts\\AssetPipeline\\Cache\\AssetCache.cs" />
     <Compile Include="Assets/Scripts/Networking/Processors/MapRegionProcessor.cs" />
@@ -132,7 +131,6 @@
     <Compile Include="Assets/Scripts/Player/Input/PlayerInputHandler.cs" />
     <Compile Include="Assets/Scripts/Core/Interfaces/Contracts/ITextureStorageService.cs" />
     <Compile Include="Assets/Scripts/Game/Managers/RobotManager.cs" />
-    <Compile Include="Assets/Scripts/Audio/Spatial/AudioSpatial.cs" />
     <Compile Include="Assets\\Scripts\\UI\\Builders\\Core\\PacketUIBuilderBase.cs" />
     <Compile Include="Assets\Scripts\World\Terrain\Mesh\TerrainMeshBuilder.cs" />
     <Compile Include="Assets\Scripts\World\Terrain\Mesh\TerrainQuadBuilder.cs" />
@@ -213,7 +211,6 @@
     <Compile Include="Assets/Scripts/VContainer/Runtime/Internal/TypeKeyHashTable2.cs" />
     <Compile Include="Assets/Scripts/Audio/Backend/AudioSystem.cs" />
     <Compile Include="Assets/Scripts/Audio/Backend/FmodAudioBackend.cs" />
-    <Compile Include="Assets/Scripts/Audio/Backend/FmodBankLibrary.cs" />
     <Compile Include="Assets/Scripts/Networking/Processors/PlayerInfoProcessor.cs" />
     <Compile Include="Assets/Scripts/Core/Interfaces/Contracts/RenderingConstants.cs" />
     <Compile Include="Assets/Scripts/VContainer/Runtime/Internal/RuntimeTypeCache.cs" />
@@ -241,7 +238,6 @@
     <Compile Include="Assets/Scripts/Core/Interfaces/Contracts/IRobotService.cs" />
     <Compile Include="Assets\\Scripts\\UI\\Programmator\\Radial\\ProgrammatorRadialController.cs" />
     <Compile Include="Assets/Scripts/VContainer/Runtime/Unity/InstanceProviders/PrefabComponentProvider.cs" />
-    <Compile Include="Assets/Scripts/Audio/Spatial/AudioZone.cs" />
     <Compile Include="Assets/Scripts/VContainer/Runtime/Diagnostics/DiagnosticsCollector.cs" />
     <Compile Include="Assets/Scripts/VContainer/Runtime/ContainerBuilder.cs" />
     <Compile Include="Assets\Scripts\World\Rendering\BackgroundFloodFill.cs" />
