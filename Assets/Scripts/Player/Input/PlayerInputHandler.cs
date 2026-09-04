@@ -34,6 +34,10 @@ namespace Fodinae.Player.Input
             (Keyboard.current != null && Keyboard.current.vKey.wasPressedThisFrame) ||
             (Gamepad.current != null && Gamepad.current.dpad.right.wasPressedThisFrame);
 
+        public bool IsHealHeld =>
+            (Keyboard.current != null && Keyboard.current.vKey.isPressed) ||
+            (Gamepad.current != null && Gamepad.current.dpad.right.isPressed);
+
         public bool WantsToBuildCyan =>
             (Keyboard.current != null && Keyboard.current.yKey.wasPressedThisFrame) ||
             (Gamepad.current != null && Gamepad.current.dpad.up.wasPressedThisFrame);

@@ -44,7 +44,6 @@ namespace Fodinae.Player.Logic
         private bool _aggression = false;
         private bool _ignoreCollision = false;
         private float _lastMoveTime;
-        private float _lastDigTime;
         private Direction? _lastSentDirection;
         private bool _movementValidationFailed;
         [Inject]
@@ -139,6 +138,15 @@ namespace Fodinae.Player.Logic
 
         protected void Update()
         {
+            // Аура считается до всех досрочных выходов ниже и гасится сама.
+            // Иначе она осталась бы гореть на роботе, застывшем в кадре, где
+            // открыли меню или потеряли позицию с сервера: выход из Update
+            // не снимает того, что уже нарисовано.
+            _actionDispatcher?.UpdateAura(
+                _robot,
+                HasServerPosition && (!Application.isPlaying || IsGameplayVisible),
+                _inputBlocker != null && _inputBlocker.IsInputBlocked);
+
             if (!HasServerPosition || (Application.isPlaying && !IsGameplayVisible))
             {
                 return;
@@ -175,7 +183,7 @@ namespace Fodinae.Player.Logic
                 return;
             }
 
-            HandleDigInput();
+            _actionDispatcher?.HandleDig(Position, _lastSentDirection ?? Direction.Down, _mapDataProvider);
             _actionDispatcher?.DispatchHotkeys();
         }
 
@@ -186,7 +194,7 @@ namespace Fodinae.Player.Logic
             IsGameplayVisible = false;
             _lastSentDirection = null;
             _lastMoveTime = 0f;
-            _lastDigTime = 0f;
+            _actionDispatcher?.ResetDigCooldown();
             foreach (SpriteRenderer renderer in _playerRenderers)
             {
                 renderer.enabled = false;
@@ -419,7 +427,7 @@ namespace Fodinae.Player.Logic
             {
                 _networkService?.Send(new ActionClientPacket(targetServerX, targetServerY, new BzPacket()));
                 _lastMoveTime = Time.time;
-                _lastDigTime = Time.time;
+                _actionDispatcher?.NotifyDug();
             }
         }
 
@@ -434,33 +442,6 @@ namespace Fodinae.Player.Logic
             {
                 _input.SetMovementInput(input);
             }
-        }
-
-        private void HandleDigInput()
-        {
-            if (_input == null || !_input.WantsToDig || IsDigCooldownActive())
-            {
-                return;
-            }
-
-            Vector2Int digOffset = PlayerMovementMath.DirectionToDigOffset(_lastSentDirection ?? Direction.Down);
-            Vector2Int digTarget = Position + digOffset;
-            if (_mapDataProvider == null ||
-                !IsWithinWorldBounds(digTarget, _mapDataProvider.WorldWidth, _mapDataProvider.WorldHeight))
-            {
-                return;
-            }
-
-            ushort serverX = (ushort)digTarget.x;
-            ushort serverY = (ushort)digTarget.y;
-
-            _networkService?.Send(new ActionClientPacket(serverX, serverY, new BzPacket()));
-            _lastDigTime = Time.time;
-        }
-
-        private bool IsDigCooldownActive()
-        {
-            return IsDigCooldownActive(Time.time, _lastDigTime, ProjectRuntimeContracts.Gameplay.DefaultDigCooldown);
         }
 
         public static bool IsDigCooldownActive(

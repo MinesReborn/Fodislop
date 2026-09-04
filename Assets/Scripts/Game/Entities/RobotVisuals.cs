@@ -21,6 +21,7 @@ public sealed class RobotVisuals
     private Transform? _clanTransform;
     private Sprite? _skinSprite;
     private Sprite? _clanSprite;
+    private RobotAura? _aura;
     private Tentacle[]? _tentacles;
     private bool _tentaclesSettled;
     private Vector3 _lastTentacleRootPosition;
@@ -236,6 +237,27 @@ public sealed class RobotVisuals
         }
     }
 
+    /// <summary>
+    /// Показывает или прячет кольцо вращающихся стрелок вокруг робота.
+    /// </summary>
+    /// <remarks>
+    /// Кольцо создаётся при первом показе, а не вместе с роботом: у
+    /// большинства роботов оно не загорится ни разу, а это шесть объектов
+    /// сцены и столько же записей в батче на каждого.
+    /// </remarks>
+    public void SetAuraVisible(bool visible, ISceneObjectFactory? sceneObjects)
+    {
+        if (!visible && _aura == null)
+        {
+            return;
+        }
+
+        _aura ??= new RobotAura(_transform);
+        _aura.SetVisible(visible, _entityBatchRenderer, sceneObjects);
+    }
+
+    public void TickAura(float deltaTime) => _aura?.Tick(deltaTime);
+
     public Transform EnsureClanIcon(ISceneObjectFactory sceneObjects, uint botId)
     {
         if (_clanTransform == null)
@@ -257,6 +279,8 @@ public sealed class RobotVisuals
 
     public void Destroy()
     {
+        _aura?.Destroy();
+        _aura = null;
         _entityBatchRenderer?.UnregisterSprite(_bodyBatchHandle);
         _entityBatchRenderer?.UnregisterSprite(_clanBatchHandle);
         _bodyBatchHandle = null;

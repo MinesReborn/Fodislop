@@ -234,6 +234,8 @@ namespace Fodinae.Game
 
         public void SetBatchedBodyVisible(bool visible) => _visuals.SetBodyVisible(visible);
 
+        public void SetAuraVisible(bool visible) => _visuals?.SetAuraVisible(visible, _sceneObjects);
+
         private void ApplyWorldUILayer() => _nameplate.ApplyLayer();
 
         protected void Start()
@@ -283,6 +285,7 @@ namespace Fodinae.Game
 
             TryInitializeDynamicLightSettings();
             ApplyPendingServerPosition();
+            _visuals.TickAura(Time.deltaTime);
 
             if (!IsLocalPlayer && _culler.CheckAndApply(
                 transform,
