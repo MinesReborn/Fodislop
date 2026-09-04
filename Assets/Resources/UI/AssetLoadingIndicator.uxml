@@ -1,5 +1,5 @@
-<ui:UXML xmlns:ui="UnityEngine.UIElements">
-    <ui:VisualElement name="LoadingRoot" class="loadind-root">
+﻿<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="LoadingRoot" class="loadind-root" picking-mode="Ignore">
         <ui:VisualElement name="LoadingOverlay" class="loadind-overlay" style="display: none;">
             <ui:Label name="TitleLabel" class="loadind-title" text="assetload.title" />
             <ui:Label name="SpinnerLabel" class="loadind-spinner" text="&#9680;" />

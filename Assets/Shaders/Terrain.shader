@@ -200,11 +200,6 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 }
                 if (input.color.a < 0.05) return half4(0.0, 0.0, 0.0, 0.0);
 
-                if (_DebugMode > 0.5)
-                {
-                    return half4(_DebugColor.rgb, 1.0);
-                }
-
                 float2 baseUV = input.subAtlasRect.xy;
                 float2 subAtlasSizeUV = input.subAtlasRect.zw;
                 float2 tileSizeUV = input.tileSizeUV.xy;

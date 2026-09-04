@@ -26,6 +26,14 @@ namespace Fodinae.UI.HUD.Inventory.Model
 
         private int _selectedSlot = -1;
         public int SelectedSlot => _selectedSlot;
+
+        /// <summary>
+        /// True, когда выбран непустой слот — то есть Enter должен применить
+        /// предмет, а не открыть чат.
+        /// </summary>
+        public bool HasSelectedItem =>
+            _selectedSlot >= 0 && _selectedSlot < _slots.Length && _slots[_selectedSlot] != null;
+
         public event Action<int>? OnSlotSelected;
 
         public ItemData? GetSlot(int index) => (index >= 0 && index < _slots.Length) ? _slots[index] : null;

@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -204,6 +204,16 @@ namespace Fodinae.Core
                 // this, the authored fallback skin path triggers Start-time
                 // loading against a null loader.
                 builder.RegisterComponent(playerRobot);
+            }
+
+            if (_playerMovement.TryGetComponent<PlayerInteractionController>(out PlayerInteractionController? playerInteraction))
+            {
+                // The PlayerInteractionController on the authored Player prefab
+                // must be registered exactly like the movement controller:
+                // without a registration VContainer never injects its [Inject]
+                // fields, so the component silently dropped every ClickCellPacket
+                // and mouse clicks on world cells never reached the server.
+                builder.RegisterComponent(playerInteraction);
             }
 
             RegisterManager<ServerConfig>(builder, "Gameplay").AsImplementedInterfaces().AsSelf();

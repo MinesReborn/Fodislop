@@ -35,6 +35,7 @@ internal sealed class MinimapView : IDisposable
             throw new InvalidOperationException("[Minimap] Resources/UI/Minimap.uxml is required.");
         TemplateContainer tree = template.Instantiate();
         tree.AddToClassList("ui-fullscreen");
+        tree.pickingMode = PickingMode.Ignore;
         VisualElement root = tree.Q<VisualElement>("MinimapPanel") ??
             throw new InvalidOperationException("[Minimap] MinimapPanel is missing from Minimap.uxml.");
         Label coordinates = tree.Q<Label>("MinimapCoordinates") ??

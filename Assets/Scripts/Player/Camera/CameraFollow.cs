@@ -26,7 +26,7 @@ namespace Fodinae.Player
 
         [Header("Zoom Settings")]
         [SerializeField]
-        private float _zoomSpeed = 10f;
+        private float _zoomSpeed = 300f;
         [SerializeField]
         private float _minZoom = 5f;
         [SerializeField]

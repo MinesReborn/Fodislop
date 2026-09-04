@@ -135,8 +135,14 @@ namespace Fodinae.UI.HUD.Inventory.View
             {
                 _model!.SelectSlot(8);
             }
-            else if (Keyboard.current.enterKey.wasPressedThisFrame)
+            else if (Keyboard.current.enterKey.wasPressedThisFrame || Keyboard.current.numpadEnterKey.wasPressedThisFrame)
             {
+                // Enter применяет выбранный предмет и имеет приоритет над открытием
+                // чата: чат не должен перехватывать Enter и красть предмет у узла.
+                // Если слот не выбран — Enter ведёт себя обычным образом
+                // (в том числе открывает чат в GlobalChatUI).
+                // Пустой Enter (нет выбранного предмета) передаёт управление чату,
+                // чтобы открытие чата не конфликтовало с применением предмета.
                 _model!.UseSelectedItem();
             }
         }

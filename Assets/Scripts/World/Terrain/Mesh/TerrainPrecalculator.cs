@@ -254,7 +254,7 @@ namespace Fodinae.World.Terrain
 
             if (IsCause(tl) && IsCause(tr) && IsCause(bl) && IsCause(br))
             {
-                GridVertexOffsets[x, y] = new Vector3(rx - (3f / 16f), ry - (3f / 16f), 0);
+                GridVertexOffsets[x, y] = Vector3.zero;
             }
             else if (IsBlock(tl) || IsBlock(tr) || IsBlock(bl) || IsBlock(br))
             {

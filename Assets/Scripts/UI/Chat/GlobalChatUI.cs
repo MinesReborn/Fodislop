@@ -9,6 +9,7 @@ using Fodinae.Core.Interfaces;
 using Fodinae.Core.Localization;
 using Fodinae.Game.Managers;
 using Fodinae.Networking;
+using Fodinae.UI.HUD.Inventory.Model;
 using MinesServer.Networking.Client.Packets.Chat;
 using MinesServer.Networking.Server.Packets.Chat;
 using MinesServer.Networking.Server.Packets.World;
@@ -70,6 +71,9 @@ namespace Fodinae.UI
 
         [Inject]
         private IInputBlocker _inputBlocker = null!;
+
+        [Inject]
+        private InventoryModel _inventory = null!;
 
         [Inject]
         private ILocalizationService _loc = null!;
@@ -210,8 +214,13 @@ namespace Fodinae.UI
                     return;
                 }
 
+                // Enter открывает чат только если ввод не заблокирован системно
+                // И не выбран предмет инвентаря: когда слот выбран, Enter применяет
+                // предмет (InventoryView.Update), и чат не должен перехватывать
+                // клавишу и красть фокус.
                 if ((Keyboard.current.enterKey.wasPressedThisFrame ||
-                     Keyboard.current.numpadEnterKey.wasPressedThisFrame) && !inputBlocked)
+                     Keyboard.current.numpadEnterKey.wasPressedThisFrame) && !inputBlocked &&
+                    (_inventory == null || !_inventory.HasSelectedItem))
                 {
                     SelectChannel(ChatChannel.Global);
                     Show();

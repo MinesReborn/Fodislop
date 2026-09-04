@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using Fodinae.Core;
@@ -238,6 +238,15 @@ namespace Fodinae.UI
             if (_loadingOverlay != null)
             {
                 _loadingOverlay.pickingMode = PickingMode.Ignore;
+            }
+
+            VisualElement? loadingRoot = tree.Q<VisualElement>("LoadingRoot");
+            if (loadingRoot != null)
+            {
+                // The layout-only fullscreen container sits between the ignored
+                // template root and the toggled overlay; left pickable it becomes
+                // a permanent invisible fullscreen input shield over the HUD.
+                loadingRoot.pickingMode = PickingMode.Ignore;
             }
 
             StartSpinner();

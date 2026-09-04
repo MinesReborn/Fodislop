@@ -483,12 +483,12 @@ namespace Fodinae.World.Terrain
             float lx = x * _cellSize;
             float ly = y * _cellSize;
 
-            Vector3 off00 = isBackground ? Vector3.zero : precalc.GridVertexOffsets[x, y];
-            Vector3 off10 = isBackground ? Vector3.zero : precalc.GridVertexOffsets[x + 1, y];
-            Vector3 off01 = isBackground ? Vector3.zero : precalc.GridVertexOffsets[x, y + 1];
-            Vector3 off11 = isBackground ? Vector3.zero : precalc.GridVertexOffsets[x + 1, y + 1];
+            Vector3 off00 = precalc.GridVertexOffsets[x, y];
+            Vector3 off10 = precalc.GridVertexOffsets[x + 1, y];
+            Vector3 off01 = precalc.GridVertexOffsets[x, y + 1];
+            Vector3 off11 = precalc.GridVertexOffsets[x + 1, y + 1];
 
-            bool isAnchored = !isBackground && (off00 != Vector3.zero || off10 != Vector3.zero || off01 != Vector3.zero || off11 != Vector3.zero);
+            bool isAnchored = off00 != Vector3.zero || off10 != Vector3.zero || off01 != Vector3.zero || off11 != Vector3.zero;
             float anchorFlag = isAnchored ? 1f : 0f;
             Vector2 anchor0 = isAnchored ? new Vector2(off00.x, off00.y) : new Vector2(0f, 0f);
             Vector2 anchor1 = isAnchored ? new Vector2(1f + off10.x, off10.y) : new Vector2(1f, 0f);
