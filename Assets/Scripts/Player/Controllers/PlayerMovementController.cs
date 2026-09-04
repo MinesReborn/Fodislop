@@ -338,7 +338,7 @@ namespace Fodinae.Player.Logic
             // repeated digging. Without this check auto-dig used the
             // current terrain cell's movement delay and could send a
             // BzPacket every movement tick, ignoring ServerConfig.
-            if (IsDigCooldownActive())
+            if (_actionDispatcher is { IsDigOnCooldown: true })
             {
                 return;
             }

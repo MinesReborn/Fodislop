@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -80,7 +81,15 @@ public static class PostProcessDefaults
         PostProcessLimits.MotionBlurIntensityMin,
         PostProcessLimits.MotionBlurIntensityMax);
 
-    public static void RequireVolumeComponent<T>(ref T? target, VolumeProfile profile)
+    /// <remarks>
+    /// <c>[NotNull]</c> объявляет то, что метод и так делает: вернуться с
+    /// пустым target он не может — не нашёл, создаёт, не создал, бросает.
+    /// Без атрибута компилятор этого не знает, и каждое обращение к полю
+    /// сразу после вызова считалось разыменованием возможного null.
+    /// </remarks>
+    public static void RequireVolumeComponent<T>(
+        [NotNull] ref T? target,
+        VolumeProfile profile)
         where T : VolumeComponent
     {
         if (!profile.TryGet(out target) || target == null)

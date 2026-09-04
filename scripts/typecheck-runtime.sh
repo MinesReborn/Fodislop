@@ -26,6 +26,8 @@ if [ -z "$CSC" ]; then
     exit 1
 fi
 
+export UNITY_ROOT
+
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -45,9 +47,15 @@ for ref in refs:
     if os.path.exists(ref):
         fixed.append(ref)
 
+# Вендорный VContainer исключён. Unity собирает его отдельной сборкой со
+# своими define-ами, а здесь всё сваливается в одну: его PlayerLoopHelper
+# обращается к UnityEngine.Experimental.LowLevel, которого в Unity 6 уже
+# нет, и давал бы две вечные "ошибки", на фоне которых не видно настоящих.
 sources = sorted(
     path for path in glob.glob("Assets/Scripts/**/*.cs", recursive=True)
-    if "/Editor/" not in path and "/Tests/" not in path
+    if "/Editor/" not in path
+    and "/Tests/" not in path
+    and "/VContainer/" not in path
 )
 
 with open(os.path.join(work, "args.rsp"), "w") as out:
@@ -68,9 +76,30 @@ with open(os.path.join(work, "args.rsp"), "w") as out:
 print(f"Файлов: {len(sources)}, ссылок: {len(fixed)}")
 PY
 
-export UNITY_ROOT
-if dotnet "$CSC" "@$WORK/args.rsp" 2>&1 | grep "error CS" | sort -u > "$WORK/errors.txt"; then
-    echo "ОШИБКИ КОМПИЛЯЦИИ: $(wc -l < "$WORK/errors.txt")"
+# Статус конвейера здесь бесполезен: под pipefail его определяет сам csc,
+# который при найденных ошибках выходит с ненулевым кодом — то есть
+# «ошибки нашлись» и «ошибок нет» давали один и тот же результат, и
+# проверка молча сообщала об успехе именно тогда, когда падала. Решает
+# наличие строк в файле, а не код возврата.
+dotnet "$CSC" "@$WORK/args.rsp" 2>&1 | sort -u > "$WORK/output.txt" || true
+grep "error CS" "$WORK/output.txt" > "$WORK/errors.txt" || true
+
+# Из предупреждений показываются только нулевые ссылки (CS86xx): это
+# будущие NullReferenceException, и без этого их видит лишь тот, кто
+# смотрит в консоль Unity. Остальное здесь — шум стенда: две с половиной
+# тысячи CS0436 порождает он сам, складывая в одну сборку исходники и
+# уже собранные DLL с теми же типами. Считать их значило бы приучить не
+# читать эту строку вовсе.
+grep -E "warning CS86[0-9]+" "$WORK/output.txt" > "$WORK/warnings.txt" || true
+if [ -s "$WORK/warnings.txt" ]; then
+    echo "Предупреждений о нулевых ссылках: $(wc -l < "$WORK/warnings.txt" | tr -d ' ') (см. --warnings)"
+    if [ "${1:-}" = "--warnings" ]; then
+        cat "$WORK/warnings.txt"
+    fi
+fi
+
+if [ -s "$WORK/errors.txt" ]; then
+    echo "ОШИБКИ КОМПИЛЯЦИИ: $(wc -l < "$WORK/errors.txt" | tr -d ' ')"
     cat "$WORK/errors.txt"
     exit 1
 fi

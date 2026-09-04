@@ -6,7 +6,6 @@ using Fodinae.Core.Interfaces;
 using Fodinae.Game;
 using Fodinae.Networking;
 using Fodinae.Player.Interfaces;
-using Fodinae.Player.Controllers;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.Actions;
@@ -50,6 +49,19 @@ internal sealed class PlayerActionDispatcher
         robot?.SetAuraVisible(playable && !inputBlocked && _input.IsHealHeld);
     }
 
+    /// <summary>
+    /// Откат копки ещё не истёк.
+    /// </summary>
+    /// <remarks>
+    /// Спрашивает не только копка: тем же откатом ограничен шаг, иначе
+    /// автокопка отправляла бы BzPacket на каждом тике движения, опираясь
+    /// на задержку клетки вместо серверного отката.
+    /// </remarks>
+    public bool IsDigOnCooldown => PlayerMovementController.IsDigCooldownActive(
+        Time.time,
+        _lastDigTime,
+        ProjectRuntimeContracts.Gameplay.DefaultDigCooldown);
+
     /// <summary>Сбрасывает откат копки при входе в мир.</summary>
     public void ResetDigCooldown() => _lastDigTime = 0f;
 
@@ -70,11 +82,7 @@ internal sealed class PlayerActionDispatcher
     /// </summary>
     public void HandleDig(Vector2Int position, Direction direction, IMapDataProvider? mapDataProvider)
     {
-        if (!_input.WantsToDig ||
-            PlayerMovementController.IsDigCooldownActive(
-                Time.time,
-                _lastDigTime,
-                ProjectRuntimeContracts.Gameplay.DefaultDigCooldown))
+        if (!_input.WantsToDig || IsDigOnCooldown)
         {
             return;
         }
