@@ -29,7 +29,7 @@ namespace Fodinae.Audio.Backend
             IAsyncOperationSupervisor operations)
         {
             _system = system;
-            _banks = new FmodBankLibrary(assetLoader, persistentCache);
+            _banks = new FmodBankLibrary(assetLoader, persistentCache, MapBuses);
             operations.Run("load_required_audio_banks", _banks.LoadRequiredBanksAsync);
         }
 

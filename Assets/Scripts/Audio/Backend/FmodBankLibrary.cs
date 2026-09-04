@@ -26,12 +26,24 @@ namespace Fodinae.Audio.Backend
     {
         private readonly IAssetLoader _assetLoader;
         private readonly IPersistentAssetCache _persistentCache;
+        private readonly Action _onRequiredBanksLoaded;
 
-        public FmodBankLibrary(IAssetLoader assetLoader, IPersistentAssetCache persistentCache)
+        /// <param name="onRequiredBanksLoaded">
+        /// Вызывается после прохода по обязательным банкам и строго до того,
+        /// как обещание готовности будет выполнено. Через него бэкенд
+        /// раскладывает шины: искать их можно только по загруженным банкам,
+        /// а ждущие готовности вправе считать шины разложенными.
+        /// </param>
+        public FmodBankLibrary(
+            IAssetLoader assetLoader,
+            IPersistentAssetCache persistentCache,
+            Action onRequiredBanksLoaded)
         {
             _assetLoader = assetLoader ?? throw new ArgumentNullException(nameof(assetLoader));
             _persistentCache = persistentCache ??
                 throw new ArgumentNullException(nameof(persistentCache));
+            _onRequiredBanksLoaded = onRequiredBanksLoaded ??
+                throw new ArgumentNullException(nameof(onRequiredBanksLoaded));
         }
 
         private readonly ConcurrentDictionary<string, FMOD.Studio.Bank> _loadedBanks =
@@ -91,7 +103,7 @@ namespace Fodinae.Audio.Backend
                     }
                 }
 
-                MapBuses();
+                _onRequiredBanksLoaded();
 
                 // Missing FMOD content is a supported no-audio state. Do not
                 // surface it as a gameplay warning or make callers wait for it.

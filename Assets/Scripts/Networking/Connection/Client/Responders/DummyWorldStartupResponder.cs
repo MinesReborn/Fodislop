@@ -15,6 +15,7 @@ using MinesServer.Networking.Server.Packets.Inventory;
 using MinesServer.Networking.Server.Packets.Movement;
 using MinesServer.Networking.Server.Packets.Utilities;
 using MinesServer.Networking.Server.Packets.World;
+using MinesServer.Networking.Shared.Packets;
 
 namespace MinesServer.Networking.Connection.Client;
 
