@@ -34,7 +34,7 @@ internal sealed class PlayerActionDispatcher
     }
 
     /// <summary>
-    /// Зажатая клавиша лечения зажигает вокруг игрока кольцо стрелок.
+    /// Зажатая клавиша лечения зажигает вокруг игрока магическую ауру.
     /// </summary>
     /// <param name="robot">Робот игрока; до его появления делать нечего.</param>
     /// <param name="playable">Позиция с сервера получена и робот в кадре.</param>
@@ -46,7 +46,7 @@ internal sealed class PlayerActionDispatcher
     /// </remarks>
     public void UpdateAura(Robot? robot, bool playable, bool inputBlocked)
     {
-        robot?.SetAuraVisible(playable && !inputBlocked && _input.IsHealHeld);
+        robot?.SetAuraWanted(playable && !inputBlocked && _input.IsHealHeld);
     }
 
     /// <summary>

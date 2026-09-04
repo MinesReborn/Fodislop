@@ -234,7 +234,7 @@ namespace Fodinae.Game
 
         public void SetBatchedBodyVisible(bool visible) => _visuals.SetBodyVisible(visible);
 
-        public void SetAuraVisible(bool visible) => _visuals?.SetAuraVisible(visible, _sceneObjects);
+        public void SetAuraWanted(bool wanted) => _visuals?.SetAuraWanted(wanted, _sceneObjects);
 
         private void ApplyWorldUILayer() => _nameplate.ApplyLayer();
 

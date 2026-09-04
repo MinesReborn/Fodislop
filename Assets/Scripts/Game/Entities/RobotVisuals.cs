@@ -238,22 +238,25 @@ public sealed class RobotVisuals
     }
 
     /// <summary>
-    /// Показывает или прячет кольцо вращающихся стрелок вокруг робота.
+    /// Зажигает или гасит магическую ауру вокруг робота.
     /// </summary>
     /// <remarks>
-    /// Кольцо создаётся при первом показе, а не вместе с роботом: у
-    /// большинства роботов оно не загорится ни разу, а это шесть объектов
-    /// сцены и столько же записей в батче на каждого.
+    /// Облако создаётся при первом показе, а не вместе с роботом: у
+    /// большинства роботов оно не загорится ни разу, а это два десятка
+    /// объектов сцены и столько же записей в батче на каждого.
+    ///
+    /// Гашение не мгновенное — у ауры есть релиз, — поэтому за снятием
+    /// флага должны продолжать идти вызовы <see cref="TickAura"/>.
     /// </remarks>
-    public void SetAuraVisible(bool visible, ISceneObjectFactory? sceneObjects)
+    public void SetAuraWanted(bool wanted, ISceneObjectFactory? sceneObjects)
     {
-        if (!visible && _aura == null)
+        if (!wanted && _aura == null)
         {
             return;
         }
 
         _aura ??= new RobotAura(_transform);
-        _aura.SetVisible(visible, _entityBatchRenderer, sceneObjects);
+        _aura.SetWanted(wanted, _entityBatchRenderer, sceneObjects);
     }
 
     public void TickAura(float deltaTime) => _aura?.Tick(deltaTime);
