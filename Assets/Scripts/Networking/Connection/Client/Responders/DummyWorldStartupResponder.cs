@@ -109,6 +109,36 @@ internal sealed class DummyWorldStartupResponder
         _sendPacket(new ServerPacket(new ChatListPacket(
             new[] { ("global", "Global", placeholder) })));
         SendTestPacks();
+        SendWorldMusic();
+    }
+
+    /// <summary>
+    /// Заказывает клиенту музыку при входе в мир.
+    /// </summary>
+    /// <remarks>
+    /// В протоколе музыка — это обычный <c>AudioPacket</c> со значением
+    /// <see cref="SFX.Music"/>, оно так и подписано в перечислении. Клиент
+    /// разбирал его и раньше: <c>ServerAudioEventManager.PlayEffect</c>
+    /// уводит эту ветку в <c>Play2D</c> на шину музыки, минуя пул VFX —
+    /// у трека нет ни позиции, ни визуального представления. Не хватало
+    /// только отправителя: заглушка не слала пакет, поэтому шина музыки
+    /// молчала всю игру, хотя громкость для неё была и в конфиге, и в меню.
+    ///
+    /// Координаты для музыки роли не играют, но пакет обязан быть
+    /// осмысленным, поэтому берётся позиция игрока. Целевой бот нулевой:
+    /// трек ни к кому не привязан.
+    /// </remarks>
+    private void SendWorldMusic()
+    {
+        _sendPacket(new ServerPacket(new HBPacket(new IHBPacket[]
+        {
+            new AudioPacket(
+                SFX.Music,
+                0,
+                _playerState.X,
+                _playerState.Y,
+                Array.Empty<StringPairPacket>()),
+        })));
     }
 
     internal static Dictionary<ItemType, long> CreateInitialInventory(IItemCatalog itemCatalog)
