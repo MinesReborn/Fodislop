@@ -1878,7 +1878,7 @@ function checkSettingConsumerTargetMembers() {
             }
             for (const match of matches) {
                 const [className, memberName] = match.split(".");
-                if (/^(?:Screen|QualitySettings|Application|HDROutput|Math|Mathf)$/.test(className)) {
+                if (/^(?:Screen|QualitySettings|Application|HDROutput|Math|Mathf|Shader)$/.test(className)) {
                     continue;
                 }
                 const targetFilePath = classFiles.get(className);

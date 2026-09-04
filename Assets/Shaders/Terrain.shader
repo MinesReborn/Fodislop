@@ -152,6 +152,44 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 return HsvToRgb(float3(hue, saturation, value));
             }
 
+            // Тумблер режима выборки. Ноль — ближайшая без сглаживания,
+            // единица — со сглаженной границей текселя. Раздаётся глобально
+            // из DisplayManager: террейн и сущности рисуются разными
+            // материалами, часть из них создаётся в рантайме.
+            float _PixelArtFiltering;
+
+            // Сглаженная ближайшая выборка.
+            //
+            // ОТКУДА МУАР. Тайл занимает 32 текселя, а на экране тексель
+            // занимает дробное число пикселей — при высоте 1080 и обычном
+            // зуме около 4.8. Ближайшая выборка обязана в этом случае
+            // какие-то строки текселей вывести дважды, а какие-то потерять:
+            // на регулярной кладке это муар, и он ползёт вместе с камерой.
+            //
+            // ЧТО ДЕЛАЕТ ЭТА ФУНКЦИЯ. Оставляет ближайшую выборку внутри
+            // текселя и размывает только его границу — ровно на ширину
+            // одного экранного пикселя, которую даёт fwidth. Тексель
+            // остаётся плоским квадратом, а переход между соседями
+            // перестаёт быть скачком, поэтому лишняя или потерянная строка
+            // больше не возникает.
+            //
+            // Сглаживание идёт по ширине пикселя, а не по фиксированной
+            // доле текселя: иначе на приближении картинка размывалась бы
+            // тем сильнее, чем крупнее тексель, — а нужно ровно обратное.
+            float2 PixelArtSampleUV(float2 uv, float2 textureSize)
+            {
+                if (_PixelArtFiltering < 0.5)
+                {
+                    return uv;
+                }
+
+                float2 uvTexels = uv * textureSize;
+                float2 seam = floor(uvTexels + 0.5);
+                float2 pixelWidth = max(fwidth(uvTexels), 1e-5);
+                uvTexels = seam + clamp((uvTexels - seam) / pixelWidth, -0.5, 0.5);
+                return uvTexels / textureSize;
+            }
+
             float3 SampleFlowMap(float2 worldPos)
             {
                 return SAMPLE_TEXTURE2D(
@@ -299,6 +337,10 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
                 float2 minTileUV = baseUV + tileOffsetUV + _BaseMap_TexelSize.xy * 0.5;
                 float2 maxTileUV = baseUV + tileOffsetUV + availableTileSize - _BaseMap_TexelSize.xy * 0.5;
+
+                // Сглаживание границ текселя выполняется до зажима в тайл.
+                finalUV = PixelArtSampleUV(finalUV, _BaseMap_TexelSize.zw);
+
                 if (!isScrollAnimated)
                 {
                     finalUV = clamp(finalUV, minTileUV, maxTileUV);
@@ -308,14 +350,20 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                     finalUV.x = clamp(finalUV.x, minTileUV.x, maxTileUV.x);
                 }
 
-                // Terrain atlases are uploaded without mipmaps and are pixel art.
-                // Do not let the platform-selected material sampler introduce
-                // bilinear filtering between neighbouring atlas cells.
-                half4 texColor = SAMPLE_TEXTURE2D_LOD(
-                    _BaseMap,
-                    sampler_BaseMap,
-                    finalUV,
-                    0);
+                // Выборка линейная, и это не возврат к размытию: координата
+                // уже загнана так, что внутри текселя линейная выборка даёт
+                // ровно его цвет, а смешивание остаётся только в полосе
+                // шириной в пиксель на самой границе.
+                //
+                // Зажим по тайлу стоит после сглаживания и попадает в центры
+                // крайних текселей: там веса соседей нулевые, поэтому
+                // соседняя клетка атласа не подтекает даже линейной выборкой.
+                // Сэмплер выбирается режимом: без сглаживания выборка
+                // обязана остаться точечной, иначе выключенный режим всё
+                // равно размывал бы картинку линейным фильтром.
+                half4 texColor = _PixelArtFiltering < 0.5
+                    ? SAMPLE_TEXTURE2D_LOD(_BaseMap, sampler_PointClamp, finalUV, 0)
+                    : SAMPLE_TEXTURE2D_LOD(_BaseMap, sampler_LinearClamp, finalUV, 0);
 
                 if (texColor.a < 0.05)
                 {

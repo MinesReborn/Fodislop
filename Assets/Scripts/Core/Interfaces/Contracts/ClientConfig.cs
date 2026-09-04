@@ -30,7 +30,7 @@ namespace Fodinae.Core
     [Serializable]
     public class ClientConfig
     {
-        public const int CurrentSchemaVersion = 25;
+        public const int CurrentSchemaVersion = 26;
 
         public int SchemaVersion;
         public AudioSettings Audio = new();

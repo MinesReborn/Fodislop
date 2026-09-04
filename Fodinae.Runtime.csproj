@@ -338,6 +338,7 @@
     <Compile Include="Assets/Scripts/VContainer/Runtime/Internal/CompositeDisposable.cs" />
     <Compile Include="Assets/Scripts/Effekseer/RuntimeEffekseerLoader.cs" />
     <Compile Include="Assets\Scripts\Player\Camera\CameraFollow.cs" />
+    <Compile Include="Assets\Scripts\Player\Camera\CameraPixelGridAligner.cs" />
     <Compile Include="Assets/Scripts/Networking/Connection/Client/Systems/DummyTeleportManager.cs" />
     <Compile Include="Assets\\Scripts\\AssetPipeline\\Loading\\TextureStorageManager.cs" />
     <Compile Include="Assets/Scripts/UI/Binding/LogiCalcFormatter.cs" />

@@ -107,6 +107,26 @@ internal sealed class PauseMenuDisplayTabBuilder
         UpdateResolutionButton();
         displaySection.Add(resolutionButton);
 
+        // Режим укладки на пиксельную сетку. Кнопкой-циклом, а не
+        // выпадающим списком: вариантов три и сравнивать их надо на глаз,
+        // переключая туда-сюда, — список требовал бы двух кликов на каждое
+        // переключение.
+        Button samplingButton = PauseMenuUIFactory.CreateBoundCycleButton(
+            () => $"Pixel sampling: {_clientConfig.Config.Display.PixelSampling}",
+            () =>
+            {
+                PixelSamplingMode next = _clientConfig.Config.Display.PixelSampling switch
+                {
+                    PixelSamplingMode.SmoothFiltered => PixelSamplingMode.PixelPerfect,
+                    PixelSamplingMode.PixelPerfect => PixelSamplingMode.Raw,
+                    _ => PixelSamplingMode.SmoothFiltered,
+                };
+                _displayManager.SetPixelSamplingMode(next);
+            },
+            _refreshers);
+        samplingButton.AddToClassList("pause-btn");
+        displaySection.Add(samplingButton);
+
         Toggle vSyncToggle = PauseMenuUIFactory.CreateBoundToggle(
             _loc.Get("menu.settings.vsync"),
             () => _clientConfig.Config.Display.VSync,

@@ -55,6 +55,10 @@ public sealed class DisplaySettings
     [SettingConsumer(SettingConsumerTarget.DisplayManager, "DisplayManager.SetVSync / Application.targetFrameRate")]
     public int TargetFrameRate = -1;
 
+    [SettingUnbounded("Режим выборки — перечисление; проверяется на определённость.")]
+    [SettingConsumer(SettingConsumerTarget.DisplayManager, "DisplayManager.SetPixelSamplingMode -> CameraFollow + Shader.SetGlobalFloat(_PixelArtFiltering)")]
+    public PixelSamplingMode PixelSampling = PixelSamplingMode.SmoothFiltered;
+
     [SettingRange(GammaMin, GammaMax)]
     [SettingLabel("settings.display.gamma")]
     [SettingConsumer(SettingConsumerTarget.DisplayManager, "DisplayManager.SetGamma / PostProcessRenderPass.SetDisplayCalibration")]

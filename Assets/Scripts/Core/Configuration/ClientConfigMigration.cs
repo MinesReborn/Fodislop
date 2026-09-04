@@ -122,6 +122,21 @@ internal sealed class ClientConfigMigration(GraphicsQualityProfile graphicsQuali
             migrated = true;
         }
 
+        if (config.SchemaVersion < 26)
+        {
+            // Схема 26: добавлен режим выборки пиксельной сетки. Старые
+            // конфиги получают сглаживание границ: оно сохраняет привычный
+            // плавный зум, а ступенчатый вариант навязывать нельзя — это
+            // заметная смена ощущений.
+            if (config.Display != null)
+            {
+                config.Display.PixelSampling = PixelSamplingMode.SmoothFiltered;
+            }
+
+            config.SchemaVersion = 26;
+            migrated = true;
+        }
+
         if (GraphicsQualityProfile.IsStandard(config.GraphicsPreset))
         {
             GraphicsQualitySettings standardSettings =

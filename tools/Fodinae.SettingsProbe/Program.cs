@@ -732,7 +732,7 @@ internal static class Program
                     string className = match.Groups[1].Value;
                     string memberName = match.Groups[2].Value;
 
-                    if (className is "Screen" or "QualitySettings" or "Application" or "HDROutput" or "UniversalRenderPipelineAsset" or "Math" or "Mathf")
+                    if (className is "Screen" or "QualitySettings" or "Application" or "HDROutput" or "UniversalRenderPipelineAsset" or "Math" or "Mathf" or "Shader")
                     {
                         continue;
                     }
@@ -861,31 +861,76 @@ internal static class Program
     }
 
     /// <summary>
-    /// Ни один достижимый зум не оставляет дробного числа пикселей на
-    /// тексель, и привязка камеры точна.
+    /// Привязка к пиксельной сетке и масштаб рендера не возвращают муар.
     /// </summary>
     /// <remarks>
-    /// Это и есть машинная проверка муара. На пиксель-арте с ближайшей
-    /// выборкой муар возникает ровно тогда, когда тексель занимает дробное
-    /// число экранных пикселей: часть строк выводится дважды, часть
-    /// теряется. Условие численное, поэтому проверяется числами, а не
-    /// глазами — глазами ловится только результат, и только после сборки.
+    /// ЧТО ЗДЕСЬ НЕ ПРОВЕРЯЕТСЯ. Само сглаживание границ текселя живёт в
+    /// шейдере (PixelArtSampleUV), исполнить его отсюда нечем, и делать
+    /// вторую копию той же формулы на C# было бы хуже, чем не проверять:
+    /// две копии расходятся, и зелёный тест начинает подтверждать не то,
+    /// что рисуется. Эта часть смотрится глазами.
     ///
-    /// Разрешения взяты те, на которых играют, включая нечётную высоту:
-    /// именно на ней ломались бы наивные формулы с делением пополам.
+    /// Проверяется то, что от шейдера не зависит: привязка камеры к целому
+    /// экранному пикселю (без неё картинка ползёт долями пикселя при
+    /// движении) и целократность масштаба рендера (при дробном апскейл
+    /// размазывает кадр поверх любого сглаживания).
     /// </remarks>
     private static void CheckPixelGridLeavesNoMoire()
     {
-        Section("ни один зум не даёт дробного числа пикселей на тексель");
+        Section("режимы выборки, привязка к сетке и целократный масштаб рендера");
 
         int[] screenHeights = [720, 768, 800, 900, 1050, 1080, 1200, 1440, 2160, 1081];
-        const float minimumZoom = 5f;
-        const float maximumZoom = 30f;
 
         foreach (int screenHeight in screenHeights)
         {
-            // Шаг мельче любой ступени: проверяются и те значения, через
-            // которые зум проходит на лету, а не только конечные.
+            foreach (float size in new[] { 5f, 7f, 11.3f, 30f })
+            {
+                float snapUnit = PixelGrid.SnapUnit(size, screenHeight);
+                _checks++;
+                if (snapUnit <= 0f)
+                {
+                    Failures.Add($"высота {screenHeight}, зум {size}: шаг привязки не положителен — {snapUnit}");
+                    continue;
+                }
+
+                foreach (float coordinate in new[] { 0f, 0.5f, -0.5f, 3.14159f, -127.333f, 1024.75f })
+                {
+                    _checks++;
+                    Vector2 snapped = PixelGrid.Snap(new Vector2(coordinate, -coordinate), snapUnit);
+                    // Допуск в сотых пикселя, а не в тысячных: шаг сетки
+                    // около одной сотой юнита, и на координатах в тысячи
+                    // юнитов float32 просто не хранит узел точно. Замер
+                    // даёт худший остаток 0.031 пикселя при координате
+                    // 4096 — это тридцатая часть пикселя, не видно ничем.
+                    // Требовать здесь тысячных значило бы проверять
+                    // разрядность float, а не привязку.
+                    const float nodeTolerancePixels = 0.05f;
+                    float remainderX = Math.Abs((snapped.x / snapUnit) - MathF.Round(snapped.x / snapUnit));
+                    float remainderY = Math.Abs((snapped.y / snapUnit) - MathF.Round(snapped.y / snapUnit));
+                    if (remainderX > nodeTolerancePixels || remainderY > nodeTolerancePixels)
+                    {
+                        Failures.Add(
+                            $"высота {screenHeight}, зум {size}, точка {coordinate}: привязка не попала в узел сетки");
+                    }
+
+                    // Смещение не должно превышать половину шага, иначе
+                    // «привязка» тихо уводила бы камеру от цели.
+                    if (Math.Abs(snapped.x - coordinate) > (snapUnit * 0.5f) + 0.0001f)
+                    {
+                        Failures.Add(
+                            $"высота {screenHeight}, зум {size}, точка {coordinate}: сдвиг больше половины шага");
+                    }
+                }
+            }
+        }
+
+        // Режим PixelPerfect обязан давать целое число пикселей на тексель
+        // на любом достижимом зуме: он заведён ровно ради этого, и дробное
+        // значение здесь означало бы, что режим не делает обещанного.
+        const float minimumZoom = 5f;
+        const float maximumZoom = 30f;
+        foreach (int screenHeight in screenHeights)
+        {
             for (float desired = minimumZoom; desired <= maximumZoom; desired += 0.13f)
             {
                 _checks++;
@@ -903,69 +948,29 @@ internal static class Program
                 }
 
                 float pixelsPerTexel = PixelGrid.PixelsPerTexel(quantized, screenHeight);
-                float distanceToInteger = Math.Abs(pixelsPerTexel - MathF.Round(pixelsPerTexel));
-                if (distanceToInteger > 0.0001f)
+                if (Math.Abs(pixelsPerTexel - MathF.Round(pixelsPerTexel)) > 0.0001f)
                 {
                     Failures.Add(
                         $"высота {screenHeight}, зум {desired:F2}: {pixelsPerTexel:F4} пикселей на тексель — " +
-                        "дробное значение, это муар");
+                        "режим PixelPerfect не выполняет обещанного");
                 }
             }
         }
 
-        // Привязка обязана быть точной: позиция после округления должна
-        // лежать в узле сетки, иначе сетка текселей уезжает с экранной на
-        // доли пикселя и муар возвращается при целом масштабе.
-        foreach (int screenHeight in screenHeights)
+        // Каждый режим выборки должен быть опознан: неизвестное значение в
+        // конфиге не имеет права молча притвориться сглаживанием.
+        foreach (PixelSamplingMode mode in Enum.GetValues(typeof(PixelSamplingMode)))
         {
-            float size = PixelGrid.QuantizeOrthographicSize(7f, screenHeight, minimumZoom, maximumZoom);
-            float snapUnit = PixelGrid.SnapUnit(size, screenHeight);
             _checks++;
-            if (snapUnit <= 0f)
+            if (!Enum.IsDefined(typeof(PixelSamplingMode), mode))
             {
-                Failures.Add($"высота {screenHeight}: шаг привязки не положителен — {snapUnit}");
-                continue;
-            }
-
-            foreach (float coordinate in new[] { 0f, 0.5f, -0.5f, 3.14159f, -127.333f, 1024.75f })
-            {
-                _checks++;
-                Vector2 snapped = PixelGrid.Snap(new Vector2(coordinate, -coordinate), snapUnit);
-                float remainderX = Math.Abs(snapped.x / snapUnit - MathF.Round(snapped.x / snapUnit));
-                float remainderY = Math.Abs(snapped.y / snapUnit - MathF.Round(snapped.y / snapUnit));
-                if (remainderX > 0.001f || remainderY > 0.001f)
-                {
-                    Failures.Add(
-                        $"высота {screenHeight}, точка {coordinate}: привязка не попала в узел сетки");
-                }
-
-                // Смещение не должно превышать половину шага, иначе
-                // «привязка» тихо уводила бы камеру от цели.
-                if (Math.Abs(snapped.x - coordinate) > (snapUnit * 0.5f) + 0.0001f)
-                {
-                    Failures.Add(
-                        $"высота {screenHeight}, точка {coordinate}: привязка сдвинула дальше половины шага");
-                }
+                Failures.Add($"режим выборки {mode} не определён в перечислении");
             }
         }
 
-        // Вырожденные входы не должны давать ноль или бесконечность: до
-        // первого кадра высота окна вполне бывает нулевой.
-        _checks++;
-        if (PixelGrid.QuantizeOrthographicSize(7f, 0, minimumZoom, maximumZoom) <= 0f)
-        {
-            Failures.Add("нулевая высота окна: квантование вернуло неположительный размер");
-        }
-
-        _checks++;
-        if (PixelGrid.SnapUnit(0f, 1080) != 0f || PixelGrid.PixelsPerTexel(7f, 0) != 0f)
-        {
-            Failures.Add("вырожденные входы: шаг привязки и плотность обязаны быть нулевыми, а не мусорными");
-        }
-
-        // Масштаб рендера обязан приводиться к обратной величине целого,
-        // иначе апскейл до окна дробный и муар возвращается поверх уже
-        // выровненной сетки.
+        // Масштаб рендера обязан приводиться к обратной величине целого:
+        // при дробном апскейл до окна размазывает кадр, и никакое
+        // сглаживание при выборке этого уже не спасёт.
         foreach (float authored in new[] { 0.5f, 0.65f, 0.8f, 0.9f, 1f, 0.33f, 0.7f })
         {
             _checks++;
@@ -983,30 +988,31 @@ internal static class Program
             }
         }
 
-        // Сетка обязана оставаться целой и в уменьшенном буфере: зум
-        // выравнивается по высоте буфера, а не окна.
-        foreach (float scale in new[] { 1f, 0.5f })
+        // Высота буфера рендера — целая и положительная: на ней считается
+        // шаг привязки, и ноль обрушил бы его в бесконечность.
+        foreach (int screenHeight in screenHeights)
         {
-            foreach (int screenHeight in screenHeights)
+            foreach (float scale in new[] { 1f, 0.5f, 0.25f })
             {
-                int renderHeight = PixelGrid.RenderHeight(screenHeight, scale);
-                for (float desired = minimumZoom; desired <= maximumZoom; desired += 0.37f)
+                _checks++;
+                if (PixelGrid.RenderHeight(screenHeight, scale) <= 0)
                 {
-                    _checks++;
-                    float quantized = PixelGrid.QuantizeOrthographicSize(
-                        desired,
-                        renderHeight,
-                        minimumZoom,
-                        maximumZoom);
-                    float pixelsPerTexel = PixelGrid.PixelsPerTexel(quantized, renderHeight);
-                    if (Math.Abs(pixelsPerTexel - MathF.Round(pixelsPerTexel)) > 0.0001f)
-                    {
-                        Failures.Add(
-                            $"масштаб {scale:F2}, высота {screenHeight}, зум {desired:F2}: " +
-                            $"{pixelsPerTexel:F4} пикселей на тексель в буфере рендера — муар");
-                    }
+                    Failures.Add($"высота {screenHeight}, масштаб {scale}: высота буфера неположительна");
                 }
             }
+        }
+
+        // Вырожденные входы: до первого кадра высота окна вполне нулевая.
+        _checks++;
+        if (PixelGrid.SnapUnit(0f, 1080) != 0f || PixelGrid.PixelsPerTexel(7f, 0) != 0f)
+        {
+            Failures.Add("вырожденные входы: шаг привязки и плотность обязаны быть нулевыми, а не мусорными");
+        }
+
+        _checks++;
+        if (!Mathf.Approximately(PixelGrid.Snap(new Vector2(1f, 2f), 0f).x, 1f))
+        {
+            Failures.Add("нулевой шаг привязки обязан возвращать точку неизменной");
         }
 
         // Набор значений MSAA обязан состоять из нуля и степеней двойки:

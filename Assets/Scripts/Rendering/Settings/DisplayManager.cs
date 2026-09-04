@@ -59,8 +59,45 @@ namespace Fodinae.Rendering
 
             DisplaySettings display = _clientConfig.Config.Display;
             ApplyInitialSettings(display);
+            ApplyPixelSampling(display.PixelSampling);
             HDROutput.ConfigureCamera(_gameplayCamera.Camera);
         }
+
+        /// <summary>
+        /// Переключает режим укладки мира на пиксельную сетку.
+        /// </summary>
+        public void SetPixelSamplingMode(PixelSamplingMode mode)
+        {
+            if (_clientConfig?.Config == null)
+            {
+                return;
+            }
+
+            _clientConfig.UpdateSection(config => config.Display, display => display.PixelSampling = mode);
+            ApplyPixelSampling(mode);
+            Debug.Log($"[DisplayManager] SetPixelSamplingMode: {mode}");
+        }
+
+        /// <summary>
+        /// Раздаёт режим шейдерам.
+        /// </summary>
+        /// <remarks>
+        /// Через глобальную переменную шейдера, а не через материалы:
+        /// террейн и сущности мира рисуются разными материалами, часть из
+        /// которых создаётся в рантайме, и обойти их все означало бы
+        /// завести реестр материалов ради одного тумблера.
+        ///
+        /// Камера читает режим сама: ей нужен не флаг, а решение, округлять
+        /// ли размер, и это её собственная работа.
+        /// </remarks>
+        private static void ApplyPixelSampling(PixelSamplingMode mode)
+        {
+            Shader.SetGlobalFloat(
+                PixelArtFilteringProperty,
+                mode == PixelSamplingMode.SmoothFiltered ? 1f : 0f);
+        }
+
+        private static readonly int PixelArtFilteringProperty = Shader.PropertyToID("_PixelArtFiltering");
 
         public void SetResolution(int width, int height, FullScreenMode mode, int refreshRate = 60)
         {

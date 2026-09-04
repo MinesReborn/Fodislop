@@ -5,11 +5,8 @@ using Fodinae.Core;
 using Fodinae.Core.Interfaces;
 using Fodinae.Networking;
 using Fodinae.Player.Logic;
-using Fodinae.World;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.Rendering;
-using UnityEngine.Rendering.Universal;
 using VContainer;
 
 namespace Fodinae.Player
@@ -60,6 +57,11 @@ namespace Fodinae.Player
         private IInputBlocker _inputBlocker = null!;
         [Inject]
         private ILocalPlayerState _localPlayer = null!;
+
+        [Inject]
+        private IClientConfigManager? _clientConfig;
+
+        private CameraPixelGridAligner? _aligner;
 
         protected void Start()
         {
@@ -326,65 +328,22 @@ namespace Fodinae.Player
             cameraTransform.position = SnapToPixelGrid(smoothed);
         }
 
-        /// <summary>
-        /// Ставит камеру в узел пиксельной сетки.
-        /// </summary>
-        /// <remarks>
-        /// Сглаживание выдаёт произвольную дробную позицию. Без привязки
-        /// сетка текселей разъезжается с сеткой экрана на доли пикселя, и
-        /// на регулярной кладке тайлов это ползущий муар. Округляется
-        /// только то, что уходит в трансформ: цель слежения остаётся
-        /// точной, иначе камера дёргалась бы на границе округления.
-        /// </remarks>
-        private Vector3 SnapToPixelGrid(Vector3 position)
-        {
-            float snapUnit = PixelGrid.SnapUnit(_camera.orthographicSize, EffectiveRenderHeight());
-            if (snapUnit <= 0f)
-            {
-                return position;
-            }
-
-            Vector2 snapped = PixelGrid.Snap(new Vector2(position.x, position.y), snapUnit);
-            return new Vector3(snapped.x, snapped.y, position.z);
-        }
-
-        /// <summary>
-        /// Высота буфера, в котором рисуется кадр.
-        /// </summary>
-        /// <remarks>
-        /// Не высота окна: при масштабе рендера меньше единицы сетка
-        /// текселей живёт в буфере, и выравнивать зум надо по нему.
-        /// </remarks>
-        private static int EffectiveRenderHeight()
-        {
-            float renderScale = GraphicsSettings.currentRenderPipeline is UniversalRenderPipelineAsset urp
-                ? urp.renderScale
-                : 1f;
-            return PixelGrid.RenderHeight(Screen.height, renderScale);
-        }
-
-        /// <summary>
-        /// Отдаёт камере ближайший размер с целым числом пикселей на
-        /// тексель.
-        /// </summary>
-        /// <remarks>
-        /// Квантуется то, что уходит в камеру, а не цель зума: пока
-        /// колесо докручивается, сглаживание проходит через промежуточные
-        /// значения, и на них муар был бы виден ровно так же. Зум
-        /// становится ступенчатым — это и есть приём, а не его издержка.
-        /// </remarks>
+        /// <summary>Отдаёт камере размер согласно режиму выборки.</summary>
         private void ApplyZoom(float desiredSize)
         {
-            float quantized = PixelGrid.QuantizeOrthographicSize(
-                desiredSize,
-                EffectiveRenderHeight(),
-                _minZoom,
-                _maxZoom);
-            if (!Mathf.Approximately(_camera.orthographicSize, quantized))
+            float size = Aligner.ResolveOrthographicSize(desiredSize, _minZoom, _maxZoom);
+            if (!Mathf.Approximately(_camera.orthographicSize, size))
             {
-                _camera.orthographicSize = quantized;
+                _camera.orthographicSize = size;
             }
         }
+
+        private Vector3 SnapToPixelGrid(Vector3 position) =>
+            Aligner.SnapPosition(position, _camera.orthographicSize);
+
+        private CameraPixelGridAligner Aligner =>
+            _aligner ??= new CameraPixelGridAligner(_clientConfig);
+
 
         public void SnapToTarget()
         {
