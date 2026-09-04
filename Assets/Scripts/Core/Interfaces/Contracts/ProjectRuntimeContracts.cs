@@ -64,9 +64,6 @@ public static class ProjectRuntimeContracts
 
     public static class ResourcePaths
     {
-        public const string ProjectDefaultsResourceName = "ProjectDefaults";
-        public const string Configuration = "Configuration";
-        public const string ProjectDefaultsAsset = Configuration + "/" + ProjectDefaultsResourceName;
         public const string GraphicsQualityProfile = "GraphicsQualityProfile";
         public const string WorldLightingCompute = "Shaders/Lighting/WorldLighting";
         public const string PostProcessCompute = "Shaders/PostProcessing/PostProcess";
@@ -86,8 +83,6 @@ public static class ProjectRuntimeContracts
         public const string RadialMenuUxml = "UI/RadialMenu";
         public const string PauseMenuUxml = "UI/PauseMenu";
         public const string MinimapUxml = "UI/Minimap";
-        public const string RobotPreviewTexture = "Textures/bot";
-        public const string LegacyRobotPreviewTexture = "bot";
     }
 
     public static class SceneNames
@@ -125,11 +120,9 @@ public static class ProjectRuntimeContracts
     {
         public const string SolveCascade = "SolveCascade";
         public const string SolveAutomaticNormals = "SolveAutomaticNormals";
-        public const string SolveContactOcclusion = "SolveContactOcclusion";
         public const string ResolveDirect = "ResolveDirect";
         public const string SolveDiffuseBounce = "SolveDiffuseBounce";
         public const string CompositeLighting = "CompositeLighting";
-        public const string ResolveAndComposite = "ResolveAndComposite";
     }
 
     public static class RequiredLayers

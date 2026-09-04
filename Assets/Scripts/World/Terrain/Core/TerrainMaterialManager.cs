@@ -66,12 +66,12 @@ public sealed class TerrainMaterialManager
 
         foreach (Material material in _materials)
         {
-            material.SetVector(FlowScalePropertyId, config.TerrainFlowScale);
-            material.SetFloat(ShimmerSpeedScalePropertyId, config.TerrainShimmerSpeedScale);
-            material.SetFloat(PulseSpeedScalePropertyId, config.TerrainPulseSpeedScale);
-            material.SetColor(ShimmerColorPropertyId, config.TerrainShimmerColor);
-            material.SetColor(DebugColorPropertyId, config.TerrainDebugColor);
-            material.SetFloat(DebugModePropertyId, config.TerrainDebugMode ? 1f : 0f);
+            material.SetVector(FlowScalePropertyId, config.Terrain.FlowScale);
+            material.SetFloat(ShimmerSpeedScalePropertyId, config.Terrain.ShimmerSpeedScale);
+            material.SetFloat(PulseSpeedScalePropertyId, config.Terrain.PulseSpeedScale);
+            material.SetColor(ShimmerColorPropertyId, config.Terrain.ShimmerColor);
+            material.SetColor(DebugColorPropertyId, config.Terrain.DebugColor);
+            material.SetFloat(DebugModePropertyId, config.Terrain.DebugMode ? 1f : 0f);
         }
     }
 
@@ -112,12 +112,12 @@ public sealed class TerrainMaterialManager
                     hideFlags = HideFlags.HideAndDontSave,
                 };
                 RequireShaderProperties(_materials[i]);
-                _materials[i].SetVector(FlowScalePropertyId, clientConfig.TerrainFlowScale);
-                _materials[i].SetFloat(ShimmerSpeedScalePropertyId, clientConfig.TerrainShimmerSpeedScale);
-                _materials[i].SetFloat(PulseSpeedScalePropertyId, clientConfig.TerrainPulseSpeedScale);
-                _materials[i].SetColor(ShimmerColorPropertyId, clientConfig.TerrainShimmerColor);
-                _materials[i].SetColor(DebugColorPropertyId, clientConfig.TerrainDebugColor);
-                _materials[i].SetFloat(DebugModePropertyId, clientConfig.TerrainDebugMode ? 1f : 0f);
+                _materials[i].SetVector(FlowScalePropertyId, clientConfig.Terrain.FlowScale);
+                _materials[i].SetFloat(ShimmerSpeedScalePropertyId, clientConfig.Terrain.ShimmerSpeedScale);
+                _materials[i].SetFloat(PulseSpeedScalePropertyId, clientConfig.Terrain.PulseSpeedScale);
+                _materials[i].SetColor(ShimmerColorPropertyId, clientConfig.Terrain.ShimmerColor);
+                _materials[i].SetColor(DebugColorPropertyId, clientConfig.Terrain.DebugColor);
+                _materials[i].SetFloat(DebugModePropertyId, clientConfig.Terrain.DebugMode ? 1f : 0f);
 
                 if (_materials[i].FindPass("Universal2D") < 0 ||
                     _materials[i].FindPass(

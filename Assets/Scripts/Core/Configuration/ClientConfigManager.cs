@@ -4,16 +4,15 @@ using System;
 using System.IO;
 using Fodinae.Core.Interfaces;
 using Fodinae.Rendering;
-using Fodinae.Rendering.PostProcessing;
 using UnityEngine;
 using VContainer;
 
 namespace Fodinae.Core
 {
     /// <summary>
-    /// Клиентский локальный конфиг: survives перезапусков, живёт в Application.persistentDataPath.
-    /// Initial values приходят только из injected ProjectDefaults. Повреждённый
-    /// persisted config не исправляется тихо и останавливает startup.
+    /// Клиентский локальный конфиг: переживает перезапуск, живёт в
+    /// Application.persistentDataPath. Повреждённый файл не исправляется тихо и
+    /// останавливает startup.
     /// </summary>
     [DefaultExecutionOrder(-9000)]
     public class ClientConfigManager : MonoBehaviour, IClientConfigManager
@@ -24,13 +23,13 @@ namespace Fodinae.Core
         public ClientConfig Config { get; private set; } = null!;
         public string ConfigFilePath => Repository.ConfigPath;
         public GraphicsPreset SelectedGraphicsPreset => Config.GraphicsPreset;
+
         private bool _initialized;
+        private ConfigSaveScheduler? _saveScheduler;
         private ClientConfigRepository? _repository;
         private ClientConfigMigration? _migration;
         private ClientConfigValidator? _validator;
 
-        [Inject]
-        private IProjectDefaults _projectDefaults = null!;
         [Inject]
         private GraphicsQualityProfile _graphicsQualityProfile = null!;
 
@@ -43,61 +42,30 @@ namespace Fodinae.Core
             _repository ??= new ClientConfigRepository(GetConfigPath());
 
         private ClientConfigMigration Migration =>
-            _migration ??= new ClientConfigMigration(_projectDefaults, _graphicsQualityProfile);
+            _migration ??= new ClientConfigMigration(_graphicsQualityProfile);
 
         private ClientConfigValidator Validator =>
-            _validator ??= new ClientConfigValidator(_projectDefaults, _graphicsQualityProfile);
+            _validator ??= new ClientConfigValidator(_graphicsQualityProfile);
 
-        private void Awake()
-        {
-        }
-
-        private void Start()
-        {
-            if (DependenciesReady)
-            {
-                TryInitialize();
-            }
-        }
-
-        private void Update()
-        {
-            if (!_initialized && DependenciesReady)
-            {
-                TryInitialize();
-            }
-        }
-
-        private bool DependenciesReady =>
-            _projectDefaults != null &&
-            _graphicsQualityProfile != null;
-
-        private void TryInitialize()
-        {
-            if (_initialized)
-            {
-                return;
-            }
-
-            if (_projectDefaults == null)
-            {
-                throw new InvalidOperationException(
-                    "[ClientConfigManager] ProjectDefaults must be injected before loading client config.");
-            }
-
-            Load();
-            _initialized = true;
-        }
+        private ConfigSaveScheduler SaveScheduler =>
+            _saveScheduler ??= new ConfigSaveScheduler(this);
 
         /// <summary>
-        /// Forces config load synchronously, without waiting for the next
-        /// Start/Update cycle. This manager is an authored Bootstrap-tier
-        /// singleton authored under BootstrapLifetimeScope:
-        /// its Start() runs a frame later — too late for GameStartupPipeline,
-        /// which reads Config in the same frame the manager is created.
-        /// EnsureInitialized is called at Bootstrap startup (BootstrapLifetimeScope.Awake)
-        /// before any game scope is built.
+        /// Загружает конфиг синхронно, не дожидаясь Start.
         /// </summary>
+        /// <remarks>
+        /// Вызывается из <c>BootstrapLifetimeScope.Awake</c> до сборки игровых
+        /// скоупов: <c>GameStartupPipeline</c> читает Config в том же кадре, в
+        /// котором менеджер создан, а Start у него наступит только на
+        /// следующем.
+        ///
+        /// Раньше вдобавок к этому в <c>Update</c> висел опрос «зависимости уже
+        /// приехали?» — костыль поверх уже существующего явного вызова, из-за
+        /// которого момент загрузки конфига зависел от порядка кадров. Опроса
+        /// нет: если зависимость не внедрена к моменту вызова, это ошибка
+        /// сборки контейнера, и она обязана быть видна, а не разойтись через
+        /// кадр.
+        /// </remarks>
         public void EnsureInitialized()
         {
             if (_initialized)
@@ -105,7 +73,37 @@ namespace Fodinae.Core
                 return;
             }
 
-            TryInitialize();
+            if (_graphicsQualityProfile == null)
+            {
+                throw new InvalidOperationException(
+                    "[ClientConfigManager] GraphicsQualityProfile must be injected before loading client config.");
+            }
+
+            Load();
+            _initialized = true;
+        }
+
+        private void Start()
+        {
+            EnsureInitialized();
+        }
+
+        private void Update()
+        {
+            SaveScheduler.TryFlush(Time.unscaledTime);
+        }
+
+        private void OnApplicationQuit()
+        {
+            SaveScheduler.Flush();
+        }
+
+        private void OnDisable()
+        {
+            // Выход из Play Mode в редакторе OnApplicationQuit не вызывает.
+            // Без этого правка, сделанная в последнюю четверть секунды, не
+            // доехала бы до диска.
+            SaveScheduler.Flush();
         }
 
         public void Load()
@@ -118,11 +116,11 @@ namespace Fodinae.Core
                 return;
             }
 
-            ClientConfig loaded = repository.Load();
-            int sourceSchemaVersion = loaded.SchemaVersion;
-            bool migrated = Migration.Migrate(loaded);
-            Validator.Validate(loaded);
-            Config = loaded;
+            ClientConfigRepository.LoadedConfig loaded = repository.Load();
+            int sourceSchemaVersion = loaded.Config.SchemaVersion;
+            bool migrated = Migration.Migrate(loaded.Config, loaded.Json);
+            Validator.Validate(loaded.Config);
+            Config = loaded.Config;
             if (migrated)
             {
                 repository.Save(
@@ -132,13 +130,13 @@ namespace Fodinae.Core
 
             Debug.Log(
                 $"[ClientConfigManager] Config loaded and validated from {repository.ConfigPath}; " +
-                $"GraphicsPreset={Config.GraphicsPreset}; rendering pipeline is always enabled");
+                $"GraphicsPreset={Config.GraphicsPreset}");
         }
 
         public void ApplyDefaults()
         {
-            Config = ClientConfigDefaults.Create(_projectDefaults, _graphicsQualityProfile);
-            Debug.Log("[ClientConfigManager] Applied explicit ProjectDefaults config values.");
+            Config = ClientConfigDefaults.Create(_graphicsQualityProfile);
+            Debug.Log("[ClientConfigManager] Applied authored default config values.");
         }
 
         public void MarkGraphicsAsCustom()
@@ -156,6 +154,7 @@ namespace Fodinae.Core
 
             Config.GraphicsQualitySettings = _graphicsQualityProfile.Get(Config.GraphicsPreset);
             Config.GraphicsPreset = GraphicsPreset.Custom;
+            Debug.Log("[ClientConfigManager] Marked graphics preset as Custom");
         }
 
         public void SelectGraphicsPreset(GraphicsPreset preset)
@@ -169,8 +168,16 @@ namespace Fodinae.Core
 
             Config.GraphicsPreset = preset;
             Config.GraphicsQualitySettings = _graphicsQualityProfile.Get(preset);
-            ClientConfigDefaults.ApplyLightingDefaults(Config, _projectDefaults.Lighting);
-            ClientConfigDefaults.ApplyShaderDefaults(Config, _projectDefaults.Shaders);
+
+            // Стандартный пресет обязан совпадать с авторскими значениями во
+            // всех секциях вида — этого требует инвариант валидатора. Раньше
+            // здесь было два вызова, копировавших сорок полей из снимка;
+            // теперь авторское значение и есть новый экземпляр секции.
+            Config.Lighting = new WorldLightingSettings();
+            Config.Terrain = new TerrainSettings();
+            Config.Effects = new EffectSettings();
+            Config.PostProcess = new PostProcessSettings();
+            Debug.Log($"[ClientConfigManager] Selected graphics preset: {preset}");
         }
 
         public void SetCustomGraphicsSettings(GraphicsQualitySettings settings)
@@ -178,6 +185,37 @@ namespace Fodinae.Core
             MarkGraphicsAsCustom();
             GraphicsQualityProfile.ValidateSettings(settings, "Custom");
             Config.GraphicsQualitySettings = settings;
+            Debug.Log($"[ClientConfigManager] Set custom graphics settings (Lighting={settings.LightingQuality}, AA={settings.AntiAliasing}, RenderScale={settings.RenderScale})");
+        }
+
+        /// <summary>
+        /// Правит одну секцию и сохраняет.
+        /// </summary>
+        /// <remarks>
+        /// Раньше на каждую секцию была своя обёртка — <c>UpdateAudio</c>,
+        /// <c>UpdateDisplay</c>, <c>UpdateInterface</c>,
+        /// <c>UpdateAccessibility</c>, <c>UpdateConnection</c>, — пять
+        /// одинаковых методов, отличавшихся только именем поля, и каждая новая
+        /// секция требовала шестой.
+        /// </remarks>
+        public void UpdateSection<TSection>(
+            Func<ClientConfig, TSection> select,
+            Action<TSection> update)
+            where TSection : class, new()
+        {
+            if (select == null)
+            {
+                throw new ArgumentNullException(nameof(select));
+            }
+
+            if (update == null)
+            {
+                throw new ArgumentNullException(nameof(update));
+            }
+
+            update(select(Config));
+            Debug.Log($"[ClientConfigManager] Updated section {typeof(TSection).Name}");
+            SaveDeferred();
         }
 
         public void UpdateAndSave(Action<ClientConfig> update)
@@ -188,44 +226,8 @@ namespace Fodinae.Core
             }
 
             update(Config);
-            Save();
-        }
-
-        public void UpdateAudio(Action<AudioSettings> update)
-        {
-            UpdateSection(Config.Audio, update);
-        }
-
-        public void UpdateDisplay(Action<DisplaySettings> update)
-        {
-            UpdateSection(Config.Display, update);
-        }
-
-        public void UpdateInterface(Action<InterfaceSettings> update)
-        {
-            UpdateSection(Config.Interface, update);
-        }
-
-        public void UpdateAccessibility(Action<AccessibilitySettings> update)
-        {
-            UpdateSection(Config.Accessibility, update);
-        }
-
-        public void UpdateConnection(Action<ConnectionSettings> update)
-        {
-            UpdateSection(Config.Connection, update);
-        }
-
-        private void UpdateSection<TSettings>(TSettings settings, Action<TSettings> update)
-            where TSettings : class
-        {
-            if (update == null)
-            {
-                throw new ArgumentNullException(nameof(update));
-            }
-
-            update(settings);
-            Save();
+            Debug.Log("[ClientConfigManager] Updated config");
+            SaveDeferred();
         }
 
         public void UpdatePostProcessAndSave(Action<ClientConfig> update)
@@ -237,19 +239,50 @@ namespace Fodinae.Core
 
             MarkGraphicsAsCustom();
             update(Config);
-            Save();
+            Debug.Log("[ClientConfigManager] Updated post-process settings");
+            SaveDeferred();
         }
 
+        /// <summary>
+        /// Пишет конфиг немедленно: валидация плюс запись файла.
+        /// </summary>
         public void Save()
         {
             Validator.Validate(Config);
             Repository.Save(Config);
+            Debug.Log($"[ClientConfigManager] Saved config directly to {Repository.ConfigPath}");
+        }
+
+        /// <summary>
+        /// Откладывает запись на окно дебаунса.
+        /// </summary>
+        /// <remarks>
+        /// ЗАЧЕМ. <see cref="Save"/> валидирует конфиг целиком и пишет файл с
+        /// fsync и подменой через временный. Раньше каждое движение ползунка
+        /// вызывало его напрямую — то есть на 120-герцовом экране до ста
+        /// двадцати полных записей в секунду за одно перетаскивание.
+        ///
+        /// Дебаунс был, но только у света и жил внутри его холдера, а тик к
+        /// нему приходилось пробрасывать через LightingEngine.Update. Теперь он
+        /// один на весь конфиг и крутится там, где и должен — у владельца
+        /// файла. Запись гарантирована выходом из игры и из Play Mode.
+        ///
+        /// Откладывается именно запись: валидация выполняется сразу, чтобы
+        /// ошибка называлась в момент правки, а не при выходе.
+        /// </remarks>
+        public void SaveDeferred()
+        {
+            // Проверка немедленная, откладывается только диск. Иначе неверное
+            // значение всплывало бы исключением на выходе из игры — позже
+            // правки, которая его внесла, и без всякой связи с ней.
+            Validator.Validate(Config);
+            SaveScheduler.Queue();
+            Debug.Log("[ClientConfigManager] Queued deferred config save");
         }
 
         private static string GetMigrationBackupPath(string configPath, int sourceSchemaVersion)
         {
             return $"{configPath}.v{sourceSchemaVersion}.backup";
         }
-
     }
 }

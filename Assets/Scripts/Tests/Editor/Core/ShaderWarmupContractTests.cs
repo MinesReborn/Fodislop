@@ -27,11 +27,9 @@ public sealed class ShaderWarmupContractTests
     [
         "SolveCascade",
         "SolveAutomaticNormals",
-        "SolveContactOcclusion",
         "ResolveDirect",
         "SolveDiffuseBounce",
         "CompositeLighting",
-        "ResolveAndComposite",
     ];
 
     [Test]

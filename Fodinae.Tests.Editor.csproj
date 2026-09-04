@@ -1,4 +1,4 @@
-﻿<Project>
+<Project>
   <!-- Generated file, do not modify, your changes will be overwritten (use AssetPostprocessor.OnGeneratedCSProject) -->
   <PropertyGroup>
     <BaseIntermediateOutputPath>Temp/obj/$(MSBuildProjectName)</BaseIntermediateOutputPath>
@@ -59,7 +59,6 @@
     <Compile Include="Assets/Scripts/Tests/Editor/World/TileBitmaskConverterTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/Player/PlayerDigCooldownTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/Networking/PlayerStatsProcessorTests.cs" />
-    <Compile Include="Assets/Scripts/Tests/Editor/World/ContactOcclusionE2ETests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/World/CoordinateUtilsTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/World/SurfaceRendererDecompositionContractTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/Networking/StatusProcessorTests.cs" />
@@ -78,7 +77,6 @@
     <Compile Include="Assets/Scripts/Tests/Editor/Player/PlayerMovementBoundaryTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/World/WorldLayerRleTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/AssetPipeline/PersistentAssetCacheFormatTests.cs" />
-    <Compile Include="Assets/Scripts/Tests/ProjectDefaultsTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/Core/ClientConfigRepositoryTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/Core/ClientConfigMigrationTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/Core/RuntimeDiagnosticsStateTests.cs" />

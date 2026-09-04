@@ -413,7 +413,6 @@ namespace Fodinae.Core
             builder.Register<ISceneNavigator>(
                 resolver => resolver.Resolve<BootstrapLifetimeScope>(),
                 Lifetime.Singleton);
-            builder.RegisterInstance(ProjectDefaultsLoader.LoadRequired());
             builder.RegisterInstance(GraphicsQualityProfileLoader.LoadRequired());
             builder.Register<ShaderWarmupService>(Lifetime.Singleton).As<IShaderWarmupService>();
             builder.Register<AsyncOperationSupervisor>(Lifetime.Singleton)

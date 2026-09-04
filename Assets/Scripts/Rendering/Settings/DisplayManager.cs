@@ -70,7 +70,7 @@ namespace Fodinae.Rendering
             }
 
             mode = NormalizeFullScreenMode(mode);
-            _clientConfig.UpdateDisplay(display =>
+            _clientConfig.UpdateSection(config => config.Display, display =>
             {
                 display.ResolutionWidth = width;
                 display.ResolutionHeight = height;
@@ -79,6 +79,7 @@ namespace Fodinae.Rendering
             });
 
             Screen.SetResolution(width, height, mode, new RefreshRate { numerator = (uint)Mathf.Max(1, refreshRate), denominator = 1 });
+            Debug.Log($"[DisplayManager] SetResolution: {width}x{height} @ {refreshRate}Hz (Mode={mode})");
         }
 
         public void SetVSync(bool enabled)
@@ -88,10 +89,11 @@ namespace Fodinae.Rendering
                 return;
             }
 
-            _clientConfig.UpdateDisplay(display => display.VSync = enabled);
+            _clientConfig.UpdateSection(config => config.Display, display => display.VSync = enabled);
 
             QualitySettings.vSyncCount = enabled ? 1 : 0;
             Application.targetFrameRate = _clientConfig.Config.Display.TargetFrameRate;
+            Debug.Log($"[DisplayManager] SetVSync: {enabled} (TargetFPS={_clientConfig.Config.Display.TargetFrameRate})");
         }
 
         /// <summary>
@@ -113,12 +115,12 @@ namespace Fodinae.Rendering
             }
 
             bool previous = _clientConfig.Config.Display.HDREnabled;
-            _clientConfig.UpdateDisplay(display => display.HDREnabled = enabled);
+            _clientConfig.UpdateSection(config => config.Display, display => display.HDREnabled = enabled);
 
             HDROutput.ApplyRequestResult result = HDROutput.SetEnabled(enabled);
             if (result == HDROutput.ApplyRequestResult.RejectedNotSwitchable)
             {
-                _clientConfig.UpdateDisplay(display => display.HDREnabled = previous);
+                _clientConfig.UpdateSection(config => config.Display, display => display.HDREnabled = previous);
                 Debug.LogWarning(
                     "[HDR] Display is HDR-capable but not runtime-switchable; " +
                     $"the preference stays at {previous}. Switch HDR in the OS display settings.");
@@ -133,6 +135,7 @@ namespace Fodinae.Rendering
             }
 
             HDROutput.ConfigureCamera(_gameplayCamera.Camera);
+            Debug.Log($"[DisplayManager] SetHDREnabled: {enabled} (Result={result})");
             return result;
         }
 
@@ -148,11 +151,12 @@ namespace Fodinae.Rendering
                 return;
             }
 
-            _clientConfig.UpdateDisplay(display => display.Gamma = gamma);
+            _clientConfig.UpdateSection(config => config.Display, display => display.Gamma = gamma);
             PostProcessRenderPass.SetDisplayCalibration(
                 gamma,
                 _clientConfig.Config.Display.PaperWhiteNits,
                 _clientConfig.Config.Display.PeakBrightnessNits);
+            Debug.Log($"[DisplayManager] SetGamma: {gamma}");
         }
 
         public void SetPaperWhiteNits(float paperWhiteNits)
@@ -162,11 +166,12 @@ namespace Fodinae.Rendering
                 return;
             }
 
-            _clientConfig.UpdateDisplay(display => display.PaperWhiteNits = paperWhiteNits);
+            _clientConfig.UpdateSection(config => config.Display, display => display.PaperWhiteNits = paperWhiteNits);
             PostProcessRenderPass.SetDisplayCalibration(
                 _clientConfig.Config.Display.Gamma,
                 paperWhiteNits,
                 _clientConfig.Config.Display.PeakBrightnessNits);
+            Debug.Log($"[DisplayManager] SetPaperWhiteNits: {paperWhiteNits}");
         }
 
         public void SetPeakBrightnessNits(float peakBrightnessNits)
@@ -176,11 +181,12 @@ namespace Fodinae.Rendering
                 return;
             }
 
-            _clientConfig.UpdateDisplay(display => display.PeakBrightnessNits = peakBrightnessNits);
+            _clientConfig.UpdateSection(config => config.Display, display => display.PeakBrightnessNits = peakBrightnessNits);
             PostProcessRenderPass.SetDisplayCalibration(
                 _clientConfig.Config.Display.Gamma,
                 _clientConfig.Config.Display.PaperWhiteNits,
                 peakBrightnessNits);
+            Debug.Log($"[DisplayManager] SetPeakBrightnessNits: {peakBrightnessNits}");
         }
 
         public static void AutoDetectDisplayCapabilities(DisplaySettings display)

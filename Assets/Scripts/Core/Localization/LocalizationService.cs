@@ -63,7 +63,7 @@ namespace Fodinae.Core.Localization
 
             if (_clientConfig.Config.Interface.Language != CurrentLanguage)
             {
-                _clientConfig.UpdateInterface(settings => settings.Language = CurrentLanguage);
+                _clientConfig.UpdateSection(config => config.Interface, settings => settings.Language = CurrentLanguage);
             }
 
             OnLanguageChanged?.Invoke();

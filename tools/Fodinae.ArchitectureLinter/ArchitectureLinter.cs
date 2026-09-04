@@ -61,6 +61,24 @@ public sealed class ArchitectureLinter
             Console.WriteLine();
             Console.WriteLine($"Total violations: {allViolations.Count}");
 
+            if (allViolations.Count > 0)
+            {
+                var grouped = allViolations.GroupBy(v => v.Severity).OrderBy(g => g.Key);
+                foreach (var group in grouped)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine($"{group.Count()} {group.Key}(s):");
+                    foreach (var v in group.OrderBy(v => v.AssemblyName).ThenBy(v => v.TypeName))
+                    {
+                        var location = string.IsNullOrEmpty(v.TypeName)
+                            ? v.AssemblyName ?? "<unknown>"
+                            : $"{v.AssemblyName ?? "<unknown>"}!{v.TypeName}{(string.IsNullOrEmpty(v.MemberName) ? "" : "." + v.MemberName)}";
+                        Console.WriteLine($"  {v.RuleId}: {v.Message} [{location}]");
+                    }
+                }
+                Console.WriteLine();
+            }
+
             if (_context.EnableSarif && !string.IsNullOrEmpty(_context.SarifOutputPath))
             {
                 await WriteSarifAsync(allViolations, _context.SarifOutputPath, ct);

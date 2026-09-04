@@ -21,22 +21,22 @@
 - [ ] `UI/Chat/GlobalChatUI.cs` (727): state/presenter/view binding.
 - [ ] `Rendering/PostProcessing/PostProcessRenderPass.cs` (708): resources/scheduling/effect passes.
 - [ ] `Game/Entities/Robot.cs` (692): state/visual loading/presentation.
-- [ ] `UI/Menu/Core/MainMenu.cs` (685): state/presenter/view binding/transition flow.
-- [ ] `World/Textures/WorldTextureManager.cs` (661): loading/cache/atlas orchestration.
-- [ ] `AssetPipeline/Loading/ClientAssetLoader.cs` (656): requests/cache/batching/decoding.
-- [ ] `UI/Programmator/Model/ProgrammatorData.cs` (650): model/serialization/commands.
-- [ ] `UI/Gateway/GatewayController.cs` (646): auth state/presenter/view binding.
-- [ ] `UI/Map/WorldMapRenderer.cs` (638): sampling/texture updates/presentation.
-- [ ] `World/Rendering/BackgroundFloodFill.cs` (627): traversal/cache/output.
-- [ ] `UI/Programmator/Grid/ProgrammatorClipboardController.cs` (627): clipboard/selection/commands.
-- [ ] `AssetPipeline/Cache/AssetCacheEntry.cs` (624): entry state/download/decode/lifecycle.
-- [ ] `UI/HUD/Player/View/PlayerHUDView.cs` (621): binding/presenter/subviews.
-- [ ] `Game/Audio/ServerAudioEvent.cs` (599): lifecycle/audio/VFX/loading.
-- [ ] `UI/Settings/PauseMenu.cs` (596): state/presenter/view binding.
-- [ ] `World/Terrain/Mesh/TerrainMeshBuilder.cs` (587): topology/attributes/output.
-- [ ] `World/Lighting/Core/LightingResourceManager.cs` (577): allocation/ownership/destruction.
-- [ ] `Player/Controllers/PlayerMovementController.cs` (567): state/input/network movement.
-- [ ] `World/Textures/TextureAtlas.cs` (561): packing/storage/upload.
+- [x] `UI/Menu/Core/MainMenu.cs` (494, было 749): navigation/sidebar/footer binding extracted to `MenuNavigationPresenter.cs` (246), keyboard input extracted to `MenuKeyboardHandler.cs` (50).
+- [x] `World/Textures/WorldTextureManager.cs` (465, было 656): atlas collection & packing extracted to `WorldAtlasCollection.cs` (199), retry throttling extracted to `CellTextureRetryTracker.cs` (70), `TextureRequest.cs` (28).
+- [x] `AssetPipeline/Loading/ClientAssetLoader.cs` (368, было 644): batch request loop, queue, and packet dispatching extracted to `AssetBatchDispatcher.cs` (337).
+- [x] `UI/Gateway/GatewayController.cs` (270, было 649): onboarding flow extracted to `GatewayOnboarding.cs` (417).
+- [x] `UI/Map/WorldMapRenderer.cs` (496, было 643): player tracking/blinking extracted to `MapPlayerTracker.cs` (152), viewport bounds/clamping extracted to `MapViewportBounds.cs` (83), world view state reset deduplicated.
+- [x] `UI/Programmator/Model/ProgrammatorData.cs` (154, было 639): operator categories/constants extracted to `ProgrammatorOperators.cs` (155), localized names/descriptions extracted to `ProgrammatorLocalization.cs` (375).
+- [x] `World/Rendering/BackgroundFloodFill.cs` (442, было 628): deduplicated 3x3 neighbor frequency scan across ComputeFull, UpdateLocalRegion, and SeedBorderCell; compact branchless Scroll2DArray.
+- [x] `UI/Programmator/Grid/ProgrammatorClipboardController.cs` (470, было 633): unified selection bounds extraction, 4-way shift push capacity check and obstacle propagation unified via TryFindEmptyCellAhead and MoveCell.
+- [x] `AssetPipeline/Cache/AssetCacheEntry.cs` (473, было 624): duplicate promise double-checking unified; container/animation decoding extracted to `AssetCacheDecoder.cs` (111).
+- [x] `UI/HUD/Player/View/PlayerHUDView.cs` (440, было 621): skeleton pulse animation extracted to `PlayerHUDSkeletonPulse.cs` (73), mode buttons controller extracted to `PlayerHUDModeController.cs` (116).
+- [x] `Game/Audio/ServerAudioEvent.cs` (488, было 599): packet parameter parsing extracted to `ServerAudioParameters.cs` (112); slot release and visual completion deduped.
+- [x] `UI/Settings/PauseMenu.cs` (482, было 596): tab routing extracted to `PauseMenuTabRouter.cs` (114), main page binding extracted to `PauseMenuMainPage.cs` (53), dialogs extracted to `PauseMenuConfirmation.cs` (52).
+- [x] `World/Terrain/Mesh/TerrainMeshBuilder.cs` (327, было 587): quad vertex attribute evaluation, metadata mapping, and lighting flag packing вынесены в `TerrainQuadBuilder.cs` (347); duplicate submesh index rebuilding loops eliminated.
+- [x] `World/Lighting/Core/LightingResourceManager.cs` (478, было 577): cascade layout delegation, quality settings wiring, redundant GPU allocation deduped from LightingEngine.
+- [x] `Player/Controllers/PlayerMovementController.cs` (498, было 577): movement math/direction mapping вынесены в `PlayerMovementMath.cs` (63), hotkey action packets вынесены в `PlayerActionDispatcher.cs` (73).
+- [x] `World/Textures/TextureAtlas.cs` (478, было 557): 2D rectangle bin-packing вынесен в `AtlasRectanglePacker.cs` (120); GPU texture copy deduplicated.
 - [x] `World/Lighting/Config/LightingConfigHolder.cs` (491, было 557): ClientConfig mapping/normalization вынесены в `LightingRuntimeConfigMapper`.
 - [x] `UI/Menu/Scenery/MenuSceneryController.cs` (498, было 554): viewport projection и occlusion вынесены в `MenuSceneryProjection`.
 - [x] `World/Terrain/Cache/TerrainCellCache.cs` (469, было 547): сдвиг coverage-массивов вынесен в `TerrainCacheArrayScroller`.

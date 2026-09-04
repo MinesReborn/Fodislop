@@ -61,9 +61,9 @@ internal sealed class PauseMenuEffectsTabBuilder
         // Базовая калибровка вывода остаётся компактной и настраиваемой.
         // Сила отдельных художественных эффектов задаётся PostProcessLook,
         // а игрок решает, платить ли за эффект, через тумблеры ниже.
-        Toggle Switch(string key, Func<bool> read, Action<ClientConfig, bool> write) =>
+        Toggle Switch(string fieldName, Func<bool> read, Action<ClientConfig, bool> write) =>
             PauseMenuUIFactory.CreateBoundToggle(
-                _loc.Get(key),
+                _loc.Get(SettingSchema.LabelOf<EffectSettings>(fieldName)),
                 read,
                 value => _graphicsSettings.UpdatePostProcessSettings(
                     config => write(config, value)),
@@ -71,121 +71,85 @@ internal sealed class PauseMenuEffectsTabBuilder
 
         ClientConfig Cfg() => _clientConfig.Config;
 
-        BindSlider(
-            cameraGroup,
-            "PostProcessExposure",
-            "PostProcessExposureLabel",
-            "settings.effects.exposure",
+        VisualElement BoundCameraSlider(
+            string propertyName,
+            Func<float> read,
+            Action<ClientConfig, float> write) =>
+            PauseMenuUIFactory.CreateBoundSlider<PostProcessSettings>(
+                propertyName,
+                _loc,
+                read,
+                value => _graphicsSettings.UpdatePostProcessSettings(config => write(config, value)),
+                _refreshers);
+
+        cameraGroup.Add(BoundCameraSlider(
+            nameof(PostProcessSettings.Exposure),
             () => Cfg().PostProcess.Exposure,
-            (config, value) => config.PostProcess.Exposure = value);
-        BindSlider(
-            cameraGroup,
-            "PostProcessContrast",
-            "PostProcessContrastLabel",
-            "settings.effects.contrast",
+            (config, value) => config.PostProcess.Exposure = value));
+        cameraGroup.Add(BoundCameraSlider(
+            nameof(PostProcessSettings.Contrast),
             () => Cfg().PostProcess.Contrast,
-            (config, value) => config.PostProcess.Contrast = value);
-        BindSlider(
-            cameraGroup,
-            "PostProcessSaturation",
-            "PostProcessSaturationLabel",
-            "settings.effects.saturation",
+            (config, value) => config.PostProcess.Contrast = value));
+        cameraGroup.Add(BoundCameraSlider(
+            nameof(PostProcessSettings.Saturation),
             () => Cfg().PostProcess.Saturation,
-            (config, value) => config.PostProcess.Saturation = value);
-        BindSlider(
-            cameraGroup,
-            "PostProcessWhitePoint",
-            "PostProcessWhitePointLabel",
-            "settings.effects.tone_mapping_white_point",
+            (config, value) => config.PostProcess.Saturation = value));
+        cameraGroup.Add(Switch(
+            nameof(EffectSettings.ToneMappingEnabled),
+            () => Cfg().Effects.ToneMappingEnabled,
+            (config, value) => config.Effects.ToneMappingEnabled = value));
+        cameraGroup.Add(BoundCameraSlider(
+            nameof(PostProcessSettings.ToneMappingWhitePoint),
             () => Cfg().PostProcess.ToneMappingWhitePoint,
-            (config, value) => config.PostProcess.ToneMappingWhitePoint = value);
+            (config, value) => config.PostProcess.ToneMappingWhitePoint = value));
 
         bloomGroup.Add(Switch(
-            "settings.effects.bloom",
-            () => Cfg().BloomEnabled,
-            (config, value) => config.BloomEnabled = value));
+            nameof(EffectSettings.BloomEnabled),
+            () => Cfg().Effects.BloomEnabled,
+            (config, value) => config.Effects.BloomEnabled = value));
 
         cameraGroup.Add(Switch(
-            "settings.effects.vignette",
-            () => Cfg().VignetteEnabled,
-            (config, value) => config.VignetteEnabled = value));
+            nameof(EffectSettings.VignetteEnabled),
+            () => Cfg().Effects.VignetteEnabled,
+            (config, value) => config.Effects.VignetteEnabled = value));
         cameraGroup.Add(Switch(
-            "settings.effects.chromatic_aberration",
-            () => Cfg().ChromaticAberrationEnabled,
-            (config, value) => config.ChromaticAberrationEnabled = value));
+            nameof(EffectSettings.ChromaticAberrationEnabled),
+            () => Cfg().Effects.ChromaticAberrationEnabled,
+            (config, value) => config.Effects.ChromaticAberrationEnabled = value));
         cameraGroup.Add(Switch(
-            "settings.effects.grain",
-            () => Cfg().FilmGrainEnabled,
-            (config, value) => config.FilmGrainEnabled = value));
+            nameof(EffectSettings.FilmGrainEnabled),
+            () => Cfg().Effects.FilmGrainEnabled,
+            (config, value) => config.Effects.FilmGrainEnabled = value));
         cameraGroup.Add(Switch(
-            "settings.effects.motion_blur",
-            () => Cfg().MotionBlurEnabled,
-            (config, value) => config.MotionBlurEnabled = value));
+            nameof(EffectSettings.MotionBlurEnabled),
+            () => Cfg().Effects.MotionBlurEnabled,
+            (config, value) => config.Effects.MotionBlurEnabled = value));
 
         detailGroup.Add(Switch(
-            "settings.effects.local_sharpness",
-            () => Cfg().LocalContrastEnabled,
-            (config, value) => config.LocalContrastEnabled = value));
+            nameof(EffectSettings.LocalContrastEnabled),
+            () => Cfg().Effects.LocalContrastEnabled,
+            (config, value) => config.Effects.LocalContrastEnabled = value));
 
         opticsGroup.Add(Switch(
-            "settings.effects.anamorphic_beams",
-            () => Cfg().LensEffectsEnabled,
-            (config, value) => config.LensEffectsEnabled = value));
+            nameof(EffectSettings.LensEffectsEnabled),
+            () => Cfg().Effects.LensEffectsEnabled,
+            (config, value) => config.Effects.LensEffectsEnabled = value));
 
         atmosphereGroup.Add(Switch(
-            "settings.effects.glow_dust",
-            () => Cfg().AtmosphereEnabled,
-            (config, value) => config.AtmosphereEnabled = value));
+            nameof(EffectSettings.AtmosphereEnabled),
+            () => Cfg().Effects.AtmosphereEnabled,
+            (config, value) => config.Effects.AtmosphereEnabled = value));
 
         displayGroup.Add(Switch(
-            "settings.effects.phosphor_pattern",
-            () => Cfg().DisplayPhysicsEnabled,
-            (config, value) => config.DisplayPhysicsEnabled = value));
+            nameof(EffectSettings.DisplayPhysicsEnabled),
+            () => Cfg().Effects.DisplayPhysicsEnabled,
+            (config, value) => config.Effects.DisplayPhysicsEnabled = value));
 
         temporalGroup.Add(Switch(
-            "settings.effects.phosphor_afterglow",
-            () => Cfg().TemporalEnabled,
-            (config, value) => config.TemporalEnabled = value));
+            nameof(EffectSettings.TemporalEnabled),
+            () => Cfg().Effects.TemporalEnabled,
+            (config, value) => config.Effects.TemporalEnabled = value));
 
         return effectsScroll;
-    }
-
-    private void BindSlider(
-        VisualElement root,
-        string sliderName,
-        string labelName,
-        string localizationKey,
-        Func<float> read,
-        Action<ClientConfig, float> write)
-    {
-        Slider slider = root.Q<Slider>(sliderName) ??
-            throw new InvalidOperationException(
-                $"[PauseMenu] {sliderName} is missing from PauseMenu.uxml.");
-        Label label = root.Q<Label>(labelName) ??
-            throw new InvalidOperationException(
-                $"[PauseMenu] {labelName} is missing from PauseMenu.uxml.");
-        string localizedLabel = _loc.Get(localizationKey);
-
-        void Refresh()
-        {
-            float value = PauseMenuUIFactory.SnapValue(read(), slider.lowValue, slider.highValue);
-            slider.SetValueWithoutNotify(value);
-            label.text = $"{localizedLabel}: {value:F2}";
-        }
-
-        slider.RegisterValueChangedCallback(evt =>
-        {
-            float snapped = PauseMenuUIFactory.SnapValue(evt.newValue, slider.lowValue, slider.highValue);
-            if (!Mathf.Approximately(snapped, evt.newValue))
-            {
-                slider.SetValueWithoutNotify(snapped);
-            }
-
-            label.text = $"{localizedLabel}: {snapped:F2}";
-            _graphicsSettings.UpdatePostProcessSettings(
-                config => write(config, snapped));
-        });
-        _refreshers.Add(Refresh);
-        Refresh();
     }
 }

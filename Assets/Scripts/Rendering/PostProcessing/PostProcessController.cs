@@ -15,8 +15,7 @@ namespace Fodinae.Rendering.PostProcessing
     [DisallowMultipleComponent]
     public class PostProcessController : MonoBehaviour
     {
-        private static readonly ProfilerMarker PostProcessLateUpdateMarker =
-            new("Fodinae.PostProcess.LateUpdate");
+        private static readonly ProfilerMarker PostProcessLateUpdateMarker = new("Fodinae.PostProcess.LateUpdate");
 
         [SerializeField]
         private Volume? _volume;
@@ -84,11 +83,22 @@ namespace Fodinae.Rendering.PostProcessing
             get => GetRequired(_chromaticAberration, nameof(_chromaticAberration)).intensity.value;
             set
             {
-                ChromaticAberrationComponent chromaticAberration =
-                    GetRequired(_chromaticAberration, nameof(_chromaticAberration));
+                ChromaticAberrationComponent chromaticAberration = GetRequired(_chromaticAberration, nameof(_chromaticAberration));
                 chromaticAberration.intensity.overrideState = true;
                 chromaticAberration.intensity.value = Mathf.Clamp01(value);
                 chromaticAberration.active = chromaticAberration.intensity.value > 0f;
+            }
+        }
+
+        public float Exposure
+        {
+            get => GetRequired(_colorGrading, nameof(_colorGrading)).exposure.value;
+            set
+            {
+                ColorGradingComponent colorGrading = GetRequired(_colorGrading, nameof(_colorGrading));
+                colorGrading.exposure.overrideState = true;
+                colorGrading.exposure.value = Mathf.Clamp(value, -4f, 4f);
+                UpdateColorGradingActiveState();
             }
         }
 
@@ -113,6 +123,31 @@ namespace Fodinae.Rendering.PostProcessing
                 colorGrading.saturation.overrideState = true;
                 colorGrading.saturation.value = Mathf.Clamp(value, 0f, 2f);
                 UpdateColorGradingActiveState();
+            }
+        }
+
+        public bool ToneMappingEnabled
+        {
+            get => GetRequired(_colorGrading, nameof(_colorGrading)).toneMapping.value;
+            set
+            {
+                ColorGradingComponent colorGrading = GetRequired(_colorGrading, nameof(_colorGrading));
+                colorGrading.active = true;
+                colorGrading.toneMapping.overrideState = true;
+                colorGrading.toneMapping.value = value;
+            }
+        }
+
+        public float ToneMappingWhitePoint
+        {
+            get => GetRequired(_colorGrading, nameof(_colorGrading)).toneMappingWhitePoint.value;
+            set
+            {
+                ColorGradingComponent colorGrading = GetRequired(_colorGrading, nameof(_colorGrading));
+                colorGrading.active = true;
+                colorGrading.toneMappingWhitePoint.overrideState = true;
+                colorGrading.toneMappingWhitePoint.value = Mathf.Clamp(
+                    value, PostProcessSettings.ToneMappingWhitePointMin, PostProcessSettings.ToneMappingWhitePointMax);
             }
         }
 
@@ -143,7 +178,7 @@ namespace Fodinae.Rendering.PostProcessing
         private void UpdateColorGradingActiveState()
         {
             ColorGradingComponent colorGrading = GetRequired(_colorGrading, nameof(_colorGrading));
-            colorGrading.active = colorGrading.IsActive();
+            colorGrading.active = true;
         }
 
         private void Awake()
@@ -178,9 +213,7 @@ namespace Fodinae.Rendering.PostProcessing
 
         public void Start()
         {
-            if (!Application.isPlaying ||
-                _clientConfigManager == null ||
-                _clientConfigManager.Config == null)
+            if (!Application.isPlaying || _clientConfigManager?.Config == null)
             {
                 return;
             }
@@ -208,15 +241,13 @@ namespace Fodinae.Rendering.PostProcessing
 
             if (_volume == null)
             {
-                throw new InvalidOperationException(
-                    "PostProcessController requires a serialized Volume component.");
+                throw new InvalidOperationException("PostProcessController requires a serialized Volume component.");
             }
 
             VolumeProfile? profile = _volume.profile;
             if (profile == null)
             {
-                throw new InvalidOperationException(
-                    "PostProcessController requires a runtime VolumeProfile on its serialized Volume.");
+                throw new InvalidOperationException("PostProcessController requires a runtime VolumeProfile on its serialized Volume.");
             }
 
             PostProcessDefaults.ValidateVolumeProfile(profile);
@@ -225,6 +256,7 @@ namespace Fodinae.Rendering.PostProcessing
             PostProcessDefaults.RequireVolumeComponent(ref _vignette, profile);
             PostProcessDefaults.RequireVolumeComponent(ref _chromaticAberration, profile);
             PostProcessDefaults.RequireVolumeComponent(ref _colorGrading, profile);
+            _colorGrading.active = true;
             PostProcessDefaults.RequireVolumeComponent(ref _eigengrau, profile);
             PostProcessDefaults.RequireVolumeComponent(ref _motionBlur, profile);
             ApplyClientConfig();
@@ -240,11 +272,9 @@ namespace Fodinae.Rendering.PostProcessing
             }
 
             IClientConfigManager clientConfigManager = _clientConfigManager ??
-                throw new InvalidOperationException(
-                    "PostProcessController requires IClientConfigManager injection.");
+                throw new InvalidOperationException("PostProcessController requires IClientConfigManager injection.");
             ClientConfig config = clientConfigManager.Config ??
-                throw new InvalidOperationException(
-                    "PostProcessController requires an initialized ClientConfig.");
+                throw new InvalidOperationException("PostProcessController requires an initialized ClientConfig.");
             // The graphics preset used to stop at this class's doorstep: every
             // value below is an artistic one from ClientConfig, and nothing
             // here ever read GraphicsQualitySettings. That made the whole
@@ -259,8 +289,9 @@ namespace Fodinae.Rendering.PostProcessing
 
             bool photosensitive = config.Accessibility.ReducePhotosensitivity;
             PostProcessSettings postProcess = config.PostProcess ??
-                throw new InvalidOperationException(
-                    "PostProcessController requires post-process settings in ClientConfig.");
+                throw new InvalidOperationException("PostProcessController requires post-process settings in ClientConfig.");
+
+            Debug.Log($"[PostProcessController] ApplyClientConfig: Bloom={config.Effects.BloomEnabled}, Vignette={config.Effects.VignetteEnabled}, MotionBlur={config.Effects.MotionBlurEnabled}");
 
             BloomComponent bloom = GetRequired(_bloom, nameof(_bloom));
             bloom.threshold.overrideState = true;
@@ -273,7 +304,7 @@ namespace Fodinae.Rendering.PostProcessing
             bloom.scatter.value = PostProcessLook.Bloom.Scatter;
             bloom.tint.overrideState = true;
             bloom.tint.value = PostProcessLook.Bloom.Tint;
-            BloomIntensity = config.BloomEnabled ? PostProcessLook.Bloom.Intensity : 0f;
+            BloomIntensity = config.Effects.BloomEnabled ? PostProcessLook.Bloom.Intensity : 0f;
 
             VignetteComponent vignette = GetRequired(_vignette, nameof(_vignette));
             vignette.color.overrideState = true;
@@ -282,14 +313,13 @@ namespace Fodinae.Rendering.PostProcessing
             vignette.smoothness.value = PostProcessLook.Vignette.Smoothness;
             vignette.center.overrideState = true;
             vignette.center.value = PostProcessLook.Vignette.Center;
-            VignetteIntensity = config.VignetteEnabled ? PostProcessLook.Vignette.Intensity : 0f;
+            VignetteIntensity = config.Effects.VignetteEnabled ? PostProcessLook.Vignette.Intensity : 0f;
 
             // Хроматика — мерцающий по краям эффект, и при светочувствительности
             // она снимается целиком, а не приглушается.
-            ChromaticAberrationIntensity =
-                config.ChromaticAberrationEnabled && !photosensitive
-                    ? PostProcessLook.ChromaticAberration.Intensity
-                    : 0f;
+            ChromaticAberrationIntensity = config.Effects.ChromaticAberrationEnabled && !photosensitive
+                ? PostProcessLook.ChromaticAberration.Intensity
+                : 0f;
 
             ColorGradingComponent colorGrading = GetRequired(_colorGrading, nameof(_colorGrading));
             Exposure = postProcess.Exposure;
@@ -297,29 +327,32 @@ namespace Fodinae.Rendering.PostProcessing
             float contrast = postProcess.Contrast;
             float saturation = postProcess.Saturation;
 
-            // Apply colorblind accessibility matrix adjustment
             switch (config.Accessibility.ColorblindMode)
             {
-                case 1: // Deuteranopia (green-weak)
+                case 1:
                     baseFilter = new Color(baseFilter.r * 0.8f + baseFilter.g * 0.2f, baseFilter.g * 0.7f + baseFilter.b * 0.3f, baseFilter.b);
                     break;
-                case 2: // Protanopia (red-weak)
+                case 2:
                     baseFilter = new Color(baseFilter.r * 0.6f + baseFilter.g * 0.4f, baseFilter.g * 0.9f, baseFilter.b * 1.1f);
                     break;
-                case 3: // Tritanopia (blue-weak)
+                case 3:
                     baseFilter = new Color(baseFilter.r * 0.95f, baseFilter.g * 0.85f + baseFilter.b * 0.15f, baseFilter.b * 0.5f + baseFilter.r * 0.5f);
                     break;
-                case 4: // High-Contrast
+                case 4:
                     contrast = Mathf.Min(contrast + 0.35f, 1f);
                     saturation = Mathf.Min(saturation + 0.2f, 2f);
+                    break;
+                case 0:
+                    break;
+                default:
+                    Debug.LogError($"[PostProcessController] Неизвестный режим цветокоррекции {config.Accessibility.ColorblindMode}; коррекция не применена.");
                     break;
             }
 
             colorGrading.colorFilter.overrideState = true;
             colorGrading.colorFilter.value = baseFilter;
-            colorGrading.toneMappingWhitePoint.overrideState = true;
-            colorGrading.toneMappingWhitePoint.value = postProcess.ToneMappingWhitePoint;
-
+            ToneMappingEnabled = config.Effects.ToneMappingEnabled;
+            ToneMappingWhitePoint = postProcess.ToneMappingWhitePoint;
             Contrast = contrast;
             Saturation = saturation;
 
@@ -332,30 +365,18 @@ namespace Fodinae.Rendering.PostProcessing
             eigengrau.noiseScale.value = PostProcessLook.FilmGrain.NoiseScale;
             eigengrau.animationSpeed.overrideState = true;
             eigengrau.animationSpeed.value = PostProcessLook.FilmGrain.AnimationSpeed;
-            EigengrauIntensity = config.FilmGrainEnabled ? PostProcessLook.FilmGrain.Intensity : 0f;
+            EigengrauIntensity = config.Effects.FilmGrainEnabled ? PostProcessLook.FilmGrain.Intensity : 0f;
 
             MotionBlurComponent motionBlur = GetRequired(_motionBlur, nameof(_motionBlur));
             motionBlur.intensity.overrideState = true;
             MotionBlurIntensity =
-                config.MotionBlurEnabled && !photosensitive
+                config.Effects.MotionBlurEnabled && !photosensitive
                     ? PostProcessLook.MotionBlur.Intensity
                     : 0f;
 
             if (_configuredMainCamera != null && _configuredMainCameraData != null)
             {
                 ConfigureWorldUIRendering(_configuredMainCamera, _configuredMainCameraData);
-            }
-        }
-
-        public float Exposure
-        {
-            get => GetRequired(_colorGrading, nameof(_colorGrading)).exposure.value;
-            set
-            {
-                ColorGradingComponent colorGrading = GetRequired(_colorGrading, nameof(_colorGrading));
-                colorGrading.exposure.overrideState = true;
-                colorGrading.exposure.value = Mathf.Clamp(value, -4f, 4f);
-                UpdateColorGradingActiveState();
             }
         }
 
@@ -443,18 +464,13 @@ namespace Fodinae.Rendering.PostProcessing
             }
             else
             {
-                cameraData = mainCamera.GetComponent<UniversalAdditionalCameraData>();
-                if (cameraData == null)
-                {
-                    cameraData = mainCamera.gameObject.AddComponent<UniversalAdditionalCameraData>();
-                }
-
+                cameraData = mainCamera.GetComponent<UniversalAdditionalCameraData>()
+                    ?? mainCamera.gameObject.AddComponent<UniversalAdditionalCameraData>();
                 _cachedMainCameraData = cameraData;
             }
 
             DisplayManager.HDROutput.ConfigureCamera(mainCamera);
-            Volume volume = _volume ?? throw new InvalidOperationException(
-                "PostProcessController requires its authored Volume component.");
+            Volume volume = _volume ?? throw new InvalidOperationException("PostProcessController requires its authored Volume component.");
             cameraData.volumeLayerMask = 1 << volume.gameObject.layer;
             cameraData.volumeTrigger = mainCamera.transform;
 
@@ -463,27 +479,17 @@ namespace Fodinae.Rendering.PostProcessing
             ConfigureWorldUIRendering(mainCamera, cameraData);
         }
 
-        private void ConfigureWorldUIRendering(
-            Camera mainCamera,
-            UniversalAdditionalCameraData mainCameraData)
+        private void ConfigureWorldUIRendering(Camera mainCamera, UniversalAdditionalCameraData mainCameraData)
         {
             int uiLayer = UnityRenderLayerContracts.RequireWorldUIGameObjectLayer();
             UnityRenderLayerContracts.RequireWorldUISortingLayer();
             _worldUILayerMask = 1 << uiLayer;
-            (_worldUICamera, _worldUICameraData) =
-                UnityRenderLayerContracts.EnsureWorldUIOverlayCamera(
-                    mainCamera,
-                    mainCameraData,
-                    _sceneObjects,
-                    _worldUILayerMask,
-                    _worldUICamera);
+            (_worldUICamera, _worldUICameraData) = UnityRenderLayerContracts.EnsureWorldUIOverlayCamera(
+                mainCamera, mainCameraData, _sceneObjects, _worldUILayerMask, _worldUICamera);
         }
 
         private static T GetRequired<T>(T? component, string fieldName)
-            where T : UnityEngine.Object
-        {
-            return component ?? throw new InvalidOperationException(
-                $"PostProcessController component '{fieldName}' is not initialized.");
-        }
+            where T : UnityEngine.Object =>
+            component ?? throw new InvalidOperationException($"PostProcessController component '{fieldName}' is not initialized.");
     }
 }

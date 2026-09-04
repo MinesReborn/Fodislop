@@ -2,9 +2,7 @@
 
 using System.IO;
 using Fodinae.Core;
-using Fodinae.Core.Interfaces;
 using Fodinae.Rendering;
-using Fodinae.Rendering.PostProcessing;
 using NUnit.Framework;
 using UnityEngine;
 using AudioSettings = Fodinae.Core.AudioSettings;
@@ -27,75 +25,131 @@ public sealed class ClientConfigMigrationTests
         Object.DestroyImmediate(_profile);
     }
 
+    /// <summary>
+    /// Файл схемы 21 хранит поля вида плоско в корне. После миграции они
+    /// обязаны оказаться в секциях с теми же значениями: настроенный игроком
+    /// свет — это его работа, и терять её при смене формы файла нельзя.
+    /// </summary>
     [Test]
-    public void Migrate_V14CustomConfig_SeedsPostProcessDefaults()
+    public void Migrate_FlatV21Config_MovesPlayerValuesIntoSections()
     {
-        // Ступень 19 удаляет старые подробные параметры эффектов и сеет
-        // тумблеры из проекта. Ступень 20 добавляет только компактную
-        // калибровку вывода из текущего PostProcessLook.
-        var migration = new ClientConfigMigration(new StubProjectDefaults("defaults-v2"), _profile);
-        var config = new ClientConfig
-        {
-            SchemaVersion = 14,
-            ProjectDefaultsHash = "defaults-v1",
-            GraphicsPreset = GraphicsPreset.Custom,
-            BloomEnabled = true,
-            MotionBlurEnabled = true,
-            LensEffectsEnabled = true,
-        };
+        var migration = new ClientConfigMigration(_profile);
+        string json = @"{
+            ""SchemaVersion"": 21,
+            ""GraphicsPreset"": 6,
+            ""AmbientIntensity"": 0.42,
+            ""EmissionScale"": 3.5,
+            ""TerrainShimmerSpeedScale"": 0.25,
+            ""BloomEnabled"": false,
+            ""MotionBlurEnabled"": true
+        }";
+        ClientConfig config = JsonUtility.FromJson<ClientConfig>(json);
 
-        bool migrated = migration.Migrate(config);
+        bool migrated = migration.Migrate(config, json);
 
         Assert.That(migrated, Is.True);
         Assert.That(config.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
-        Assert.That(config.ProjectDefaultsHash, Is.EqualTo("defaults-v2"));
+        Assert.That(config.Lighting.AmbientIntensity, Is.EqualTo(0.42f).Within(1e-5f));
+        Assert.That(config.Lighting.EmissionScale, Is.EqualTo(3.5f).Within(1e-5f));
+        Assert.That(config.Terrain.ShimmerSpeedScale, Is.EqualTo(0.25f).Within(1e-5f));
+        Assert.That(config.Effects.BloomEnabled, Is.False);
+        Assert.That(config.Effects.MotionBlurEnabled, Is.True);
+    }
 
-        // Стаб отдаёт default-снимок, то есть все тумблеры выключены.
-        Assert.That(config.BloomEnabled, Is.False);
-        Assert.That(config.MotionBlurEnabled, Is.False);
-        Assert.That(config.LensEffectsEnabled, Is.False);
+    /// <summary>
+    /// Файл старее девятнадцатой схемы плоского хвоста с осмысленными
+    /// величинами уже не содержит: их удалили вместе с тридцатью пятью
+    /// ползунками постпроцесса. Секции получают авторские значения.
+    /// </summary>
+    [Test]
+    public void Migrate_PreV19Config_RestoresAuthoredSections()
+    {
+        var migration = new ClientConfigMigration(_profile);
+        string json = @"{ ""SchemaVersion"": 14, ""GraphicsPreset"": 6 }";
+        ClientConfig config = JsonUtility.FromJson<ClientConfig>(json);
+
+        bool migrated = migration.Migrate(config, json);
+
+        Assert.That(migrated, Is.True);
+        Assert.That(config.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
+        Assert.That(SettingSchema.MatchesDefaults(config.Lighting), Is.True);
+        Assert.That(SettingSchema.MatchesDefaults(config.Terrain), Is.True);
+        Assert.That(SettingSchema.MatchesDefaults(config.Effects), Is.True);
+        Assert.That(SettingSchema.MatchesDefaults(config.PostProcess), Is.True);
+    }
+
+    /// <summary>
+    /// Значение вне нынешних границ загоняется в диапазон при переносе, а не
+    /// роняет валидатор сразу после миграции.
+    /// </summary>
+    [Test]
+    public void Migrate_FlatValueOutsideRange_IsClampedOnTransfer()
+    {
+        var migration = new ClientConfigMigration(_profile);
+        string json = @"{
+            ""SchemaVersion"": 21,
+            ""GraphicsPreset"": 6,
+            ""AmbientIntensity"": 9.0
+        }";
+        ClientConfig config = JsonUtility.FromJson<ClientConfig>(json);
+
+        migration.Migrate(config, json);
+
+        Assert.That(config.Lighting.AmbientIntensity, Is.EqualTo(1f).Within(1e-5f));
+    }
+
+    [Test]
+    public void Migrate_V22DegradedGammaAndWhitePoint_ResetsToDefaults()
+    {
+        var migration = new ClientConfigMigration(_profile);
+        string json = @"{
+            ""SchemaVersion"": 22,
+            ""GraphicsPreset"": 6,
+            ""Display"": { ""Gamma"": 1.8 },
+            ""PostProcess"": { ""ToneMappingWhitePoint"": 2.0 }
+        }";
+        ClientConfig config = JsonUtility.FromJson<ClientConfig>(json);
+
+        bool migrated = migration.Migrate(config, json);
+
+        Assert.That(migrated, Is.True);
+        Assert.That(config.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
+        Assert.That(config.Display.Gamma, Is.EqualTo(DisplaySettings.DefaultGamma).Within(1e-5f));
         Assert.That(
             config.PostProcess.ToneMappingWhitePoint,
-            Is.EqualTo(PostProcessLook.ColorGrading.ToneMappingWhitePoint));
+            Is.EqualTo(PostProcessSettings.DefaultToneMappingWhitePoint).Within(1e-5f));
     }
 
     [Test]
-    public void Migrate_V20Config_SeedsDisplayCalibrationDefaults()
+    public void Migrate_V24Config_AddsToneMappingEnabled()
     {
-        var migration = new ClientConfigMigration(new StubProjectDefaults("defaults-v2"), _profile);
-        var config = new ClientConfig
-        {
-            SchemaVersion = 20,
-            ProjectDefaultsHash = "defaults-v2",
-            Display = new DisplaySettings
-            {
-                Gamma = 0f,
-                PaperWhiteNits = 0f,
-                PeakBrightnessNits = 0f,
-            },
-        };
+        var migration = new ClientConfigMigration(_profile);
+        string json = @"{
+            ""SchemaVersion"": 24,
+            ""GraphicsPreset"": 6,
+            ""Effects"": { ""BloomEnabled"": false }
+        }";
+        ClientConfig config = JsonUtility.FromJson<ClientConfig>(json);
 
-        bool migrated = migration.Migrate(config);
+        bool migrated = migration.Migrate(config, json);
 
         Assert.That(migrated, Is.True);
         Assert.That(config.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
-        Assert.That(config.Display.Gamma, Is.EqualTo(DisplaySettings.DefaultGamma));
-        Assert.That(config.Display.PaperWhiteNits, Is.EqualTo(DisplaySettings.DefaultPaperWhite));
-        Assert.That(config.Display.PeakBrightnessNits, Is.EqualTo(DisplaySettings.DefaultPeakBrightness));
+        Assert.That(config.Effects.ToneMappingEnabled, Is.True);
+        Assert.That(config.Effects.BloomEnabled, Is.False);
     }
 
     [Test]
-    public void Migrate_CurrentCustomConfigWithMatchingHash_IsIdempotent()
+    public void Migrate_CurrentCustomConfig_IsIdempotent()
     {
-        var migration = new ClientConfigMigration(new StubProjectDefaults("defaults-v1"), _profile);
+        var migration = new ClientConfigMigration(_profile);
         var config = new ClientConfig
         {
             SchemaVersion = ClientConfig.CurrentSchemaVersion,
-            ProjectDefaultsHash = "defaults-v1",
             GraphicsPreset = GraphicsPreset.Custom,
         };
 
-        bool migrated = migration.Migrate(config);
+        bool migrated = migration.Migrate(config, "{}");
 
         Assert.That(migrated, Is.False);
     }
@@ -103,13 +157,10 @@ public sealed class ClientConfigMigrationTests
     [Test]
     public void Validator_RejectsNonFiniteRuntimeSetting()
     {
-        var validator = new ClientConfigValidator(
-            new StubProjectDefaults("defaults-v1"),
-            _profile);
+        var validator = new ClientConfigValidator(_profile);
         var config = new ClientConfig
         {
             SchemaVersion = ClientConfig.CurrentSchemaVersion,
-            ProjectDefaultsHash = "defaults-v1",
             GraphicsPreset = GraphicsPreset.Custom,
             Interface = new InterfaceSettings
             {
@@ -126,13 +177,10 @@ public sealed class ClientConfigMigrationTests
     [Test]
     public void Validator_RejectsInvalidToneMappingWhitePoint()
     {
-        var validator = new ClientConfigValidator(
-            new StubProjectDefaults("defaults-v1"),
-            _profile);
+        var validator = new ClientConfigValidator(_profile);
         var config = new ClientConfig
         {
             SchemaVersion = ClientConfig.CurrentSchemaVersion,
-            ProjectDefaultsHash = "defaults-v1",
             GraphicsPreset = GraphicsPreset.Custom,
         };
         config.PostProcess.ToneMappingWhitePoint = 0f;
@@ -146,30 +194,18 @@ public sealed class ClientConfigMigrationTests
     }
 
     [Test]
-    public void Validator_RejectsUnsupportedGeneralSettings()
+    public void Validator_RejectsUnsupportedLanguage()
     {
-        var validator = new ClientConfigValidator(
-            new StubProjectDefaults("defaults-v1"),
-            _profile);
+        var validator = new ClientConfigValidator(_profile);
         var config = new ClientConfig
         {
             SchemaVersion = ClientConfig.CurrentSchemaVersion,
-            ProjectDefaultsHash = "defaults-v1",
-            Audio = new AudioSettings
-            {
-                MasterVolume = 1f,
-                SfxVolume = 1f,
-                MusicVolume = 1f,
-                AmbienceVolume = 1f,
-                VoiceVolume = 1f,
-                UIVolume = 1f,
-            },
+            GraphicsPreset = GraphicsPreset.Custom,
+            Audio = new AudioSettings(),
             Interface = new InterfaceSettings
             {
-                UIScale = 1f,
                 Language = "unsupported",
             },
-            GraphicsPreset = GraphicsPreset.Custom,
         };
 
         InvalidDataException exception = Assert.Throws<InvalidDataException>(
@@ -178,16 +214,22 @@ public sealed class ClientConfigMigrationTests
         Assert.That(exception.Message, Does.Contain(nameof(config.Interface.Language)));
     }
 
-    private sealed class StubProjectDefaults(string contentHash) : IProjectDefaults
+    /// <summary>
+    /// Инвариант «стандартный пресет не тронут» раньше был цепочкой из сорока
+    /// сравнений, которую забывали дополнять. Проверка, что он действует и
+    /// теперь, когда список полей берётся из объявления секции.
+    /// </summary>
+    [Test]
+    public void Validator_RejectsCustomizedVisualsUnderStandardPreset()
     {
-        public int SchemaVersion => 1;
+        var validator = new ClientConfigValidator(_profile);
+        var config = new ClientConfig
+        {
+            SchemaVersion = ClientConfig.CurrentSchemaVersion,
+            GraphicsPreset = GraphicsPreset.High,
+        };
+        config.Lighting.AmbientIntensity = 0.5f;
 
-        public string ContentHash => contentHash;
-
-        public ClientDefaultsSnapshot Client => default;
-
-        public LightingDefaultsSnapshot Lighting => default;
-
-        public ShaderDefaultsSnapshot Shaders => default;
+        Assert.Throws<InvalidDataException>(() => validator.Validate(config));
     }
 }

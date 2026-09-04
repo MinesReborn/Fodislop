@@ -1,5 +1,7 @@
 #nullable enable
 
+using System;
+
 using Fodinae.Core.Localization;
 using Fodinae.Core.Interfaces;
 using Fodinae.UI;
@@ -97,6 +99,30 @@ namespace Fodinae.Core
                 case SceneTransitionPhase.CompletedWithWarnings:
                 case SceneTransitionPhase.Failed:
                     Hide();
+                    break;
+                case SceneTransitionPhase.Loading:
+                case SceneTransitionPhase.Attached:
+                case SceneTransitionPhase.ActivationRequested:
+                case SceneTransitionPhase.StartupReady:
+                case SceneTransitionPhase.PresentationReady:
+                case SceneTransitionPhase.CleaningPrevious:
+                    // Промежуточные фазы экран не трогают: он уже показан и
+                    // ждёт терминальной. Ветки перечислены поимённо, а не
+                    // отброшены через default, чтобы новая фаза перечисления
+                    // ломала компиляцию здесь, а не оставляла экран висеть
+                    // навсегда, если окажется терминальной.
+                    break;
+                default:
+                    // Только сообщение. Исключение оборвало бы сам переход
+                    // сцен, а слепой Hide убрал бы экран посреди загрузки,
+                    // показав недостроенную сцену. Обе терминальные фазы
+                    // перечислены выше, значит новая почти наверняка
+                    // промежуточная — для неё «ничего не делать» и есть
+                    // правильное поведение.
+                    Debug.LogError(
+                        $"[BootstrapLoadingScreen] Фаза перехода {status.Phase} не разобрана; " +
+                        "если она терминальная, экран загрузки останется висеть. " +
+                        "Добавьте её в switch явно.");
                     break;
             }
         }

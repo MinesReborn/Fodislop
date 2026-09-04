@@ -11,21 +11,27 @@ namespace Fodinae.Audio.Core
     public enum AudioBusType
     {
         /// <summary>Мастер-шина — все шины в конечном счёте идут сюда.</summary>
+        [Fodinae.Core.AudioBusPath("bus:/")]
         Master = 0,
 
         /// <summary>Игровые звуки: копка, взрывы, шаги, выстрелы, механизмы.</summary>
+        [Fodinae.Core.AudioBusPath("bus:/sfx")]
         SFX = 10,
 
         /// <summary>Музыка / саундтрек. Длинные треки, стерео, без пространственного позиционирования.</summary>
+        [Fodinae.Core.AudioBusPath("bus:/music")]
         Music = 20,
 
         /// <summary>Голос персонажа / нарратив / диалоговая система.</summary>
+        [Fodinae.Core.AudioBusPath("bus:/voice")]
         Voice = 30,
 
         /// <summary>Эмбиент окружения: ветер, гул, лава. Обычно зациклено.</summary>
+        [Fodinae.Core.AudioBusPath("bus:/ambience")]
         Ambience = 40,
 
         /// <summary>Звуки интерфейса и системных уведомлений: клики, открытие инвентаря, достижения.</summary>
+        [Fodinae.Core.AudioBusPath("bus:/ui")]
         UI = 50,
     }
 

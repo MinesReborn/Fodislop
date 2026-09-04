@@ -60,6 +60,8 @@ public static class PostProcessDefaults
     // любой путь без применения конфига даёт вчетверо пересвеченную картинку.
     public static ClampedFloatParameter ColorGradingWhitePoint() => new(1f, 0.25f, 8f);
 
+    public static BoolParameter ColorGradingToneMapping() => new(true);
+
     public static ClampedFloatParameter EigengrauIntensity() => new(
         PostProcessLimits.EigengrauIntensityMin,
         PostProcessLimits.EigengrauIntensityMin,

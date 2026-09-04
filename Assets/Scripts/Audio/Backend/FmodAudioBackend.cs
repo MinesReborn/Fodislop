@@ -7,6 +7,7 @@ using System.IO;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Fodinae.Audio.Core;
+using Fodinae.Core;
 using Fodinae.Core.Interfaces;
 using UnityEngine;
 using VContainer;
@@ -298,21 +299,19 @@ namespace Fodinae.Audio.Backend
 
         private void MapBuses()
         {
-            var busPaths = new Dictionary<AudioBusType, string>
+            // Пути живут на значениях AudioBusType, а не списком здесь: раньше
+            // забытая строка в этом словаре означала шину без звука без единой
+            // жалобы.
+            foreach (AudioBusRegistry.BusBinding binding in AudioBusRegistry.Buses)
             {
-                { AudioBusType.Master,   "bus:/" },
-                { AudioBusType.SFX,      "bus:/sfx" },
-                { AudioBusType.Music,    "bus:/music" },
-                { AudioBusType.Voice,    "bus:/voice" },
-                { AudioBusType.Ambience, "bus:/ambience" },
-                { AudioBusType.UI,       "bus:/ui" },
-            };
-
-            foreach (var kvp in busPaths)
-            {
-                if (FMODUnity.RuntimeManager.StudioSystem.getBus(kvp.Value, out var bus) == FMOD.RESULT.OK)
+                if (FMODUnity.RuntimeManager.StudioSystem.getBus(binding.Path, out var bus) == FMOD.RESULT.OK)
                 {
-                    _fmodBuses[kvp.Key] = bus;
+                    _fmodBuses[binding.Bus] = bus;
+                }
+                else
+                {
+                    Debug.LogWarning(
+                        $"[FmodAudioBackend] Шина '{binding.Path}' ({binding.Bus}) не найдена в банках FMOD.");
                 }
             }
 

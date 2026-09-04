@@ -66,8 +66,6 @@ internal sealed class PauseMenuAdvancedTabBuilder
             throw new InvalidOperationException("[PauseMenu] AdvancedGroupExtinction is missing from PauseMenu.uxml.");
         VisualElement bounceGroup = advancedGraphicsSection.Q<VisualElement>("AdvancedGroupBounce") ??
             throw new InvalidOperationException("[PauseMenu] AdvancedGroupBounce is missing from PauseMenu.uxml.");
-        VisualElement aoGroup = advancedGraphicsSection.Q<VisualElement>("AdvancedGroupAO") ??
-            throw new InvalidOperationException("[PauseMenu] AdvancedGroupAO is missing from PauseMenu.uxml.");
         VisualElement boundsGroup = advancedGraphicsSection.Q<VisualElement>("AdvancedGroupBounds") ??
             throw new InvalidOperationException("[PauseMenu] AdvancedGroupBounds is missing from PauseMenu.uxml.");
         VisualElement worldMaterialsSection = advancedScroll.Q<VisualElement>("WorldMaterialsSection") ??
@@ -94,14 +92,13 @@ internal sealed class PauseMenuAdvancedTabBuilder
             apply(_lightingEngine, value);
         }
 
-        ambientGroup.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.advanced.ambient_intensity"),
+        ambientGroup.Add(PauseMenuUIFactory.CreateBoundSlider<WorldLightingSettings>(
+            nameof(WorldLightingSettings.AmbientIntensity),
+            _loc,
             () => GetLightingValue(static engine => engine.AmbientIntensity),
             value => ApplyLightingSetting(
                 value,
                 static (engine, setting) => engine.SetAmbientIntensity(setting)),
-            0f,
-            1f,
             _refreshers));
         ambientGroup.Add(PauseMenuUIFactory.CreateBoundColorControls(
             _loc.Get("settings.advanced.ambient_color"),
@@ -112,89 +109,75 @@ internal sealed class PauseMenuAdvancedTabBuilder
             0f,
             4f,
             _refreshers));
-        ambientGroup.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.advanced.emission_power"),
+        ambientGroup.Add(PauseMenuUIFactory.CreateBoundSlider<WorldLightingSettings>(
+            nameof(WorldLightingSettings.EmissionScale),
+            _loc,
             () => GetLightingValue(static engine => engine.EmissionScale),
             value => ApplyLightingSetting(
                 value,
                 static (engine, setting) => engine.SetEmissionScale(setting)),
-            0.1f,
-            8f,
             _refreshers));
 
-        dynamicGroup.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.advanced.player_emission_power"),
-            () => ResolveLocalRobot()?.DynamicLightIntensity ?? 0f,
+        dynamicGroup.Add(PauseMenuUIFactory.CreateBoundSlider<WorldLightingSettings>(
+            nameof(WorldLightingSettings.DynamicLightIntensity),
+            _loc,
+            () => _lightingEngine.DynamicLightIntensity,
             value =>
             {
                 _markGraphicsCustom();
+                _lightingEngine.SetDynamicLightSettings(value, _lightingEngine.DynamicLightColor);
                 ResolveLocalRobot()?.SetDynamicLightIntensity(value);
             },
-            0f,
-            4f,
             _refreshers));
-        dynamicGroup.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.advanced.dynamic_emission_rate"),
+        dynamicGroup.Add(PauseMenuUIFactory.CreateBoundSlider<WorldLightingSettings>(
+            nameof(WorldLightingSettings.DynamicLightUpdatesPerSecond),
+            _loc,
             () => _lightingEngine.DynamicLightUpdatesPerSecond,
             value =>
             {
                 _markGraphicsCustom();
                 _lightingEngine.SetDynamicLightUpdatesPerSecond(value);
             },
-            1f,
-            LightingConfigLimits.DynamicLightUpdatesPerSecond,
             _refreshers));
 
         dynamicGroup.Add(PauseMenuUIFactory.CreateBoundSlider(
             _loc.Get("settings.advanced.light_red"),
-            () => ResolveLocalRobot()?.DynamicLightColor.r ?? 0f,
+            () => _lightingEngine.DynamicLightColor.r,
             value =>
             {
                 _markGraphicsCustom();
-                Robot? localRobot = ResolveLocalRobot();
-                if (localRobot == null)
-                {
-                    return;
-                }
-
-                Color color = localRobot.DynamicLightColor;
-                localRobot.SetDynamicLightColor(new Color(value, color.g, color.b, 1f));
+                Color c = _lightingEngine.DynamicLightColor;
+                Color newColor = new Color(value, c.g, c.b, 1f);
+                _lightingEngine.SetDynamicLightSettings(_lightingEngine.DynamicLightIntensity, newColor);
+                ResolveLocalRobot()?.SetDynamicLightColor(newColor);
             },
             0f,
             1f,
             _refreshers));
         dynamicGroup.Add(PauseMenuUIFactory.CreateBoundSlider(
             _loc.Get("settings.advanced.light_green"),
-            () => ResolveLocalRobot()?.DynamicLightColor.g ?? 0f,
+            () => _lightingEngine.DynamicLightColor.g,
             value =>
             {
                 _markGraphicsCustom();
-                Robot? localRobot = ResolveLocalRobot();
-                if (localRobot == null)
-                {
-                    return;
-                }
-
-                Color color = localRobot.DynamicLightColor;
-                localRobot.SetDynamicLightColor(new Color(color.r, value, color.b, 1f));
+                Color c = _lightingEngine.DynamicLightColor;
+                Color newColor = new Color(c.r, value, c.b, 1f);
+                _lightingEngine.SetDynamicLightSettings(_lightingEngine.DynamicLightIntensity, newColor);
+                ResolveLocalRobot()?.SetDynamicLightColor(newColor);
             },
             0f,
             1f,
             _refreshers));
         dynamicGroup.Add(PauseMenuUIFactory.CreateBoundSlider(
             _loc.Get("settings.advanced.light_blue"),
-            () => ResolveLocalRobot()?.DynamicLightColor.b ?? 0f,
+            () => _lightingEngine.DynamicLightColor.b,
             value =>
             {
                 _markGraphicsCustom();
-                Robot? localRobot = ResolveLocalRobot();
-                if (localRobot == null)
-                {
-                    return;
-                }
-
-                Color color = localRobot.DynamicLightColor;
-                localRobot.SetDynamicLightColor(new Color(color.r, color.g, value, 1f));
+                Color c = _lightingEngine.DynamicLightColor;
+                Color newColor = new Color(c.r, c.g, value, 1f);
+                _lightingEngine.SetDynamicLightSettings(_lightingEngine.DynamicLightIntensity, newColor);
+                ResolveLocalRobot()?.SetDynamicLightColor(newColor);
             },
             0f,
             1f,
@@ -218,64 +201,40 @@ internal sealed class PauseMenuAdvancedTabBuilder
             0f,
             4f,
             _refreshers));
-        extinctionGroup.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.advanced.empty_extinction_falloff"),
+        extinctionGroup.Add(PauseMenuUIFactory.CreateBoundSlider<WorldLightingSettings>(
+            nameof(WorldLightingSettings.EmptyExtinctionMultiplier),
+            _loc,
             () => GetLightingValue(static engine => engine.EmptyExtinctionMultiplier),
             value => ApplyLightingSetting(
                 value,
                 static (engine, setting) =>
                     engine.SetEmptyExtinctionMultiplier(setting)),
-            0f,
-            2f,
             _refreshers));
-        extinctionGroup.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.advanced.solid_extinction_falloff"),
+        extinctionGroup.Add(PauseMenuUIFactory.CreateBoundSlider<WorldLightingSettings>(
+            nameof(WorldLightingSettings.SolidExtinctionMultiplier),
+            _loc,
             () => GetLightingValue(static engine => engine.SolidExtinctionMultiplier),
             value => ApplyLightingSetting(
                 value,
                 static (engine, setting) =>
                     engine.SetSolidExtinctionMultiplier(setting)),
-            0.25f,
-            2f,
             _refreshers));
-        bounceGroup.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.advanced.bounce_strength"),
+        bounceGroup.Add(PauseMenuUIFactory.CreateBoundSlider<WorldLightingSettings>(
+            nameof(WorldLightingSettings.BounceStrength),
+            _loc,
             () => GetLightingValue(static engine => engine.BounceStrength),
             value => ApplyLightingSetting(
                 value,
                 static (engine, setting) => engine.SetBounceStrength(setting)),
-            0f,
-            1f,
             _refreshers));
-        aoGroup.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.advanced.ao_radius"),
-            () => GetLightingValue(static engine => engine.AmbientOcclusionRadiusCells),
-            value => ApplyLightingSetting(
-                value,
-                static (engine, setting) =>
-                    engine.SetAmbientOcclusionRadius(setting)),
-            0.5f,
-            8f,
-            _refreshers));
-        aoGroup.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.advanced.ao_strength"),
-            () => GetLightingValue(static engine => engine.AmbientOcclusionStrength),
-            value => ApplyLightingSetting(
-                value,
-                static (engine, setting) =>
-                    engine.SetAmbientOcclusionStrength(setting)),
-            0.1f,
-            8f,
-            _refreshers));
-        VisualElement maximumLightMultiplierSlider = PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.advanced.max_light_multiplier"),
+        VisualElement maximumLightMultiplierSlider = PauseMenuUIFactory.CreateBoundSlider<WorldLightingSettings>(
+            nameof(WorldLightingSettings.MaximumLightMultiplier),
+            _loc,
             () => GetLightingValue(static engine => engine.MaximumLightMultiplier),
             value => ApplyLightingSetting(
                 value,
                 static (engine, setting) =>
                     engine.SetMaximumLightMultiplier(setting)),
-            0.25f,
-            LightingConfigLimits.MaximumLightMultiplier,
             _refreshers);
         void RefreshMaximumLightMultiplierState()
         {
@@ -286,34 +245,31 @@ internal sealed class PauseMenuAdvancedTabBuilder
         RefreshMaximumLightMultiplierState();
         boundsGroup.Add(maximumLightMultiplierSlider);
 #if UNITY_EDITOR || UNITY_ENABLE_CHECKS
-        boundsGroup.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.advanced.transmittance_debug"),
+        boundsGroup.Add(PauseMenuUIFactory.CreateBoundSlider<WorldLightingSettings>(
+            nameof(WorldLightingSettings.TransmittanceDebugDistanceCells),
+            _loc,
             () => GetLightingValue(static engine => engine.TransmittanceDebugDistanceCells),
             value => ApplyLightingSetting(
                 value,
                 static (engine, setting) =>
                     engine.SetTransmittanceDebugDistance(setting)),
-            2f,
-            32f,
             _refreshers));
 #endif
-        boundsGroup.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.advanced.min_transmission"),
+        boundsGroup.Add(PauseMenuUIFactory.CreateBoundSlider<WorldLightingSettings>(
+            nameof(WorldLightingSettings.MinimumTransmission),
+            _loc,
             () => GetLightingValue(static engine => engine.MinimumTransmission),
             value => ApplyLightingSetting(
                 value,
                 static (engine, setting) => engine.SetMinimumTransmission(setting)),
-            0.0001f,
-            0.1f,
             _refreshers));
-        boundsGroup.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.advanced.light_safe_border"),
+        boundsGroup.Add(PauseMenuUIFactory.CreateBoundSlider<WorldLightingSettings>(
+            nameof(WorldLightingSettings.LightSafeBorder),
+            _loc,
             () => _lightingEngine.LightSafeBorder,
             value => ApplyLightingSetting(
                 value,
                 static (engine, setting) => engine.SetLightSafeBorder(setting)),
-            0f,
-            8f,
             _refreshers));
         Toggle finalLightingClampToggle = PauseMenuUIFactory.CreateBoundToggle(
             _loc.Get("settings.advanced.clamp_final_light"),
@@ -329,58 +285,55 @@ internal sealed class PauseMenuAdvancedTabBuilder
 
         void SaveShaderSetting(Action<ClientConfig> update)
         {
+            _markGraphicsCustom();
             _graphicsSettings.UpdateCustomWorldMaterialSettings(update);
         }
 
-        worldMaterialsSection.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.world.shimmer_speed"),
-            () => _clientConfig.Config.TerrainShimmerSpeedScale,
+        worldMaterialsSection.Add(PauseMenuUIFactory.CreateBoundSlider<TerrainSettings>(
+            nameof(TerrainSettings.ShimmerSpeedScale),
+            _loc,
+            () => _clientConfig.Config.Terrain.ShimmerSpeedScale,
             value => SaveShaderSetting(
-                config => config.TerrainShimmerSpeedScale = value),
-            0f,
-            10f,
+                config => config.Terrain.ShimmerSpeedScale = value),
             _refreshers));
         worldMaterialsSection.Add(PauseMenuUIFactory.CreateBoundColorControls(
             _loc.Get("settings.world.shimmer_color"),
-            () => _clientConfig.Config.TerrainShimmerColor,
-            value => SaveShaderSetting(config => config.TerrainShimmerColor = value),
+            () => _clientConfig.Config.Terrain.ShimmerColor,
+            value => SaveShaderSetting(config => config.Terrain.ShimmerColor = value),
             0f,
             8f,
             _refreshers));
-        worldMaterialsSection.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.world.pulse_speed"),
-            () => _clientConfig.Config.TerrainPulseSpeedScale,
-            value => SaveShaderSetting(config => config.TerrainPulseSpeedScale = value),
-            0f,
-            10f,
+        worldMaterialsSection.Add(PauseMenuUIFactory.CreateBoundSlider<TerrainSettings>(
+            nameof(TerrainSettings.PulseSpeedScale),
+            _loc,
+            () => _clientConfig.Config.Terrain.PulseSpeedScale,
+            value => SaveShaderSetting(config => config.Terrain.PulseSpeedScale = value),
             _refreshers));
-        worldMaterialsSection.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.world.surface_emission"),
-            () => _clientConfig.Config.TransitEmissionStrength,
-            value => SaveShaderSetting(config => config.TransitEmissionStrength = value),
-            0f,
-            8f,
+        worldMaterialsSection.Add(PauseMenuUIFactory.CreateBoundSlider<TerrainSettings>(
+            nameof(TerrainSettings.TransitEmissionStrength),
+            _loc,
+            () => _clientConfig.Config.Terrain.TransitEmissionStrength,
+            value => SaveShaderSetting(config => config.Terrain.TransitEmissionStrength = value),
             _refreshers));
         worldMaterialsSection.Add(PauseMenuUIFactory.CreateBoundColorControls(
             _loc.Get("settings.world.surface_emission_color"),
-            () => _clientConfig.Config.TransitEmissionColor,
-            value => SaveShaderSetting(config => config.TransitEmissionColor = value),
+            () => _clientConfig.Config.Terrain.TransitEmissionColor,
+            value => SaveShaderSetting(config => config.Terrain.TransitEmissionColor = value),
             0f,
             8f,
             _refreshers));
-        worldMaterialsSection.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.world.far_surface_emission"),
-            () => _clientConfig.Config.PerspectiveEmissionStrength,
+        worldMaterialsSection.Add(PauseMenuUIFactory.CreateBoundSlider<TerrainSettings>(
+            nameof(TerrainSettings.PerspectiveEmissionStrength),
+            _loc,
+            () => _clientConfig.Config.Terrain.PerspectiveEmissionStrength,
             value => SaveShaderSetting(
-                config => config.PerspectiveEmissionStrength = value),
-            0f,
-            8f,
+                config => config.Terrain.PerspectiveEmissionStrength = value),
             _refreshers));
         worldMaterialsSection.Add(PauseMenuUIFactory.CreateBoundColorControls(
             _loc.Get("settings.world.far_surface_color"),
-            () => _clientConfig.Config.PerspectiveEmissionColor,
+            () => _clientConfig.Config.Terrain.PerspectiveEmissionColor,
             value => SaveShaderSetting(
-                config => config.PerspectiveEmissionColor = value),
+                config => config.Terrain.PerspectiveEmissionColor = value),
             0f,
             8f,
             _refreshers));

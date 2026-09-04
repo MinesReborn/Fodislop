@@ -35,141 +35,106 @@ internal sealed class ProgrammatorClipboardController
 
     public bool HasClipboard => _hasClipboard;
 
-        public void CopySelection()
+    public void CopySelection()
+    {
+        if (!_selection.HasAnySelection())
         {
-            if (!_selection.HasAnySelection())
-            {
-                return;
-            }
-
-            int minRow, maxRow, minCol, maxCol;
-            if (_selection.SelectedCells.Count > 0)
-            {
-                var b = _selection.GetSetBounds();
-                minRow = b.minRow;
-                maxRow = b.maxRow;
-                minCol = b.minCol;
-                maxCol = b.maxCol;
-            }
-            else
-            {
-                minRow = Mathf.Min(_selection.SelStartRow, _selection.SelEndRow);
-                maxRow = Mathf.Max(_selection.SelStartRow, _selection.SelEndRow);
-                minCol = Mathf.Min(_selection.SelStartCol, _selection.SelEndCol);
-                maxCol = Mathf.Max(_selection.SelStartCol, _selection.SelEndCol);
-            }
-
-            _clipboardWidth = (maxCol - minCol) + 1;
-            _clipboardHeight = (maxRow - minRow) + 1;
-            _clipboardCodes = new int[_clipboardWidth * _clipboardHeight];
-            _clipboardLabels = new string?[_clipboardWidth * _clipboardHeight];
-            _clipboardValues = new string?[_clipboardWidth * _clipboardHeight];
-            for (int r = minRow; r <= maxRow; r++)
-            {
-                for (int c = minCol; c <= maxCol; c++)
-                {
-                    int srcIdx = (_data.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
-                                 + (r * ProgrammatorData.COLS) + c;
-                    int dstIdx = ((r - minRow) * _clipboardWidth) + (c - minCol);
-                    _clipboardCodes[dstIdx] = _data.Codes[srcIdx];
-                    _clipboardLabels[dstIdx] = _data.Labels[srcIdx];
-                    _clipboardValues[dstIdx] = _data.Values[srcIdx];
-                }
-            }
-
-            _hasClipboard = true;
+            return;
         }
 
-        public void CutSelection()
+        var (minRow, maxRow, minCol, maxCol) = GetEffectiveBounds();
+
+        _clipboardWidth = (maxCol - minCol) + 1;
+        _clipboardHeight = (maxRow - minRow) + 1;
+        _clipboardCodes = new int[_clipboardWidth * _clipboardHeight];
+        _clipboardLabels = new string?[_clipboardWidth * _clipboardHeight];
+        _clipboardValues = new string?[_clipboardWidth * _clipboardHeight];
+        for (int r = minRow; r <= maxRow; r++)
         {
-            if (!_selection.HasAnySelection())
+            for (int c = minCol; c <= maxCol; c++)
             {
-                return;
-            }
-
-            CopySelection();
-            _data.PushUndo();
-            int minRow, maxRow, minCol, maxCol;
-            if (_selection.SelectedCells.Count > 0)
-            {
-                var b = _selection.GetSetBounds();
-                minRow = b.minRow;
-                maxRow = b.maxRow;
-                minCol = b.minCol;
-                maxCol = b.maxCol;
-            }
-            else
-            {
-                minRow = Mathf.Min(_selection.SelStartRow, _selection.SelEndRow);
-                maxRow = Mathf.Max(_selection.SelStartRow, _selection.SelEndRow);
-                minCol = Mathf.Min(_selection.SelStartCol, _selection.SelEndCol);
-                maxCol = Mathf.Max(_selection.SelStartCol, _selection.SelEndCol);
-            }
-
-            for (int r = minRow; r <= maxRow; r++)
-            {
-                for (int c = minCol; c <= maxCol; c++)
-                {
-                    if (_selection.SelectedCells.Count > 0 && !_selection.SelectedCells.Contains(((long)r * ProgrammatorData.COLS) + c))
-                    {
-                        continue;
-                    }
-
-                    int idx = (_data.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
-                              + (r * ProgrammatorData.COLS) + c;
-                    _data.Codes[idx] = 0;
-                    _updateCell(r, c);
-                }
+                int srcIdx = (_data.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
+                             + (r * ProgrammatorData.COLS) + c;
+                int dstIdx = ((r - minRow) * _clipboardWidth) + (c - minCol);
+                _clipboardCodes[dstIdx] = _data.Codes[srcIdx];
+                _clipboardLabels[dstIdx] = _data.Labels[srcIdx];
+                _clipboardValues[dstIdx] = _data.Values[srcIdx];
             }
         }
 
-        public void PasteClipboard()
+        _hasClipboard = true;
+    }
+
+    public void CutSelection()
+    {
+        if (!_selection.HasAnySelection())
         {
-            if (!_hasClipboard)
-            {
-                return;
-            }
-
-            _data.PushUndo();
-            int anchorRow = 0, anchorCol = 0;
-            if (_selection.SelectedCells.Count > 0)
-            {
-                var b = _selection.GetSetBounds();
-                anchorRow = b.minRow;
-                anchorCol = b.minCol;
-            }
-            else if (_selection.HasSelection)
-            {
-                anchorRow = Mathf.Min(_selection.SelStartRow, _selection.SelEndRow);
-                anchorCol = Mathf.Min(_selection.SelStartCol, _selection.SelEndCol);
-            }
-
-            for (int r = 0; r < _clipboardHeight; r++)
-            {
-                for (int c = 0; c < _clipboardWidth; c++)
-                {
-                    int targetRow = anchorRow + r;
-                    int targetCol = anchorCol + c;
-                    if (targetRow >= ProgrammatorData.ROWS || targetCol >= ProgrammatorData.COLS)
-                    {
-                        continue;
-                    }
-
-                    int dstIdx = (_data.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
-                                 + (targetRow * ProgrammatorData.COLS) + targetCol;
-                    int srcIdx = (r * _clipboardWidth) + c;
-                    _data.Codes[dstIdx] = _clipboardCodes![srcIdx];
-                    _data.Labels[dstIdx] = _clipboardLabels![srcIdx];
-                    _data.Values[dstIdx] = _clipboardValues![srcIdx];
-                    _updateCell(targetRow, targetCol);
-                }
-            }
-
-            _selection.SelectCell(anchorRow, anchorCol);
-            _selection.SelEndRow = Mathf.Min(anchorRow + _clipboardHeight - 1, ProgrammatorData.ROWS - 1);
-            _selection.SelEndCol = Mathf.Min(anchorCol + _clipboardWidth - 1, ProgrammatorData.COLS - 1);
-            _selection.RefreshSelectionBorders();
+            return;
         }
+
+        CopySelection();
+        _data.PushUndo();
+        var (minRow, maxRow, minCol, maxCol) = GetEffectiveBounds();
+
+        for (int r = minRow; r <= maxRow; r++)
+        {
+            for (int c = minCol; c <= maxCol; c++)
+            {
+                if (_selection.SelectedCells.Count > 0 && !_selection.SelectedCells.Contains(((long)r * ProgrammatorData.COLS) + c))
+                {
+                    continue;
+                }
+
+                int idx = (_data.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
+                          + (r * ProgrammatorData.COLS) + c;
+                _data.Codes[idx] = 0;
+                _updateCell(r, c);
+            }
+        }
+    }
+
+    public void PasteClipboard()
+    {
+        if (!_hasClipboard)
+        {
+            return;
+        }
+
+        _data.PushUndo();
+        int anchorRow = 0, anchorCol = 0;
+        if (_selection.HasAnySelection())
+        {
+            var bounds = GetEffectiveBounds();
+            anchorRow = bounds.minRow;
+            anchorCol = bounds.minCol;
+        }
+
+        for (int r = 0; r < _clipboardHeight; r++)
+        {
+            for (int c = 0; c < _clipboardWidth; c++)
+            {
+                int targetRow = anchorRow + r;
+                int targetCol = anchorCol + c;
+                if (targetRow >= ProgrammatorData.ROWS || targetCol >= ProgrammatorData.COLS)
+                {
+                    continue;
+                }
+
+                int dstIdx = (_data.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
+                             + (targetRow * ProgrammatorData.COLS) + targetCol;
+                int srcIdx = (r * _clipboardWidth) + c;
+                _data.Codes[dstIdx] = _clipboardCodes![srcIdx];
+                _data.Labels[dstIdx] = _clipboardLabels![srcIdx];
+                _data.Values[dstIdx] = _clipboardValues![srcIdx];
+                _updateCell(targetRow, targetCol);
+            }
+        }
+
+        _selection.SelectCell(anchorRow, anchorCol);
+        _selection.SelEndRow = Mathf.Min(anchorRow + _clipboardHeight - 1, ProgrammatorData.ROWS - 1);
+        _selection.SelEndCol = Mathf.Min(anchorCol + _clipboardWidth - 1, ProgrammatorData.COLS - 1);
+        _selection.RefreshSelectionBorders();
+    }
 
         public void ShiftSelection(int dx, int dy)
         {
@@ -252,31 +217,11 @@ internal sealed class ProgrammatorClipboardController
                     int destIdx = (page * cellsPerPage) + (newR * cols) + newC;
                     if (_data.Codes[destIdx] != 0)
                     {
-                        int pushR = newR + dy;
-                        int pushC = newC + dx;
-                        bool pushed = false;
-                        while (pushR >= 0 && pushR < rows && pushC >= 0 && pushC < cols)
+                        if (TryFindEmptyCellAhead(page, newR + dy, newC + dx, dy, dx, out int pushR, out int pushC))
                         {
-                            int pushIdx = (page * cellsPerPage) + (pushR * cols) + pushC;
-                            if (_data.Codes[pushIdx] == 0)
-                            {
-                                _data.Codes[pushIdx] = _data.Codes[destIdx];
-                                _data.Labels[pushIdx] = _data.Labels[destIdx];
-                                _data.Values[pushIdx] = _data.Values[destIdx];
-                                _data.Codes[destIdx] = 0;
-                                _data.Labels[destIdx] = null;
-                                _data.Values[destIdx] = null;
-                                _updateCell(newR, newC);
-                                _updateCell(pushR, pushC);
-                                pushed = true;
-                                break;
-                            }
-
-                            pushR += dy;
-                            pushC += dx;
+                            MoveCell(page, newR, newC, pushR, pushC);
                         }
-
-                        if (!pushed)
+                        else
                         {
                             int origIdx = (page * cellsPerPage) + (int)key;
                             _data.Codes[origIdx] = temp[key].code;
@@ -307,10 +252,7 @@ internal sealed class ProgrammatorClipboardController
                 return;
             }
 
-            int minRow = Mathf.Min(_selection.SelStartRow, _selection.SelEndRow);
-            int maxRow = Mathf.Max(_selection.SelStartRow, _selection.SelEndRow);
-            int minCol = Mathf.Min(_selection.SelStartCol, _selection.SelEndCol);
-            int maxCol = Mathf.Max(_selection.SelStartCol, _selection.SelEndCol);
+            var (minRow, maxRow, minCol, maxCol) = GetEffectiveBounds();
             int newMinRow = minRow + dy;
             int newMaxRow = maxRow + dy;
             int newMinCol = minCol + dx;
@@ -321,111 +263,9 @@ internal sealed class ProgrammatorClipboardController
                 return;
             }
 
-            if (dx > 0)
+            if (!CanPushBlockObstacles(page, minRow, maxRow, minCol, maxCol, dx, dy))
             {
-                for (int r = minRow; r <= maxRow; r++)
-                {
-                    for (int c = maxCol + 1; c <= maxCol + dx; c++)
-                    {
-                        if (_data.Codes[(page * cellsPerPage) + (r * cols) + c] != 0)
-                        {
-                            bool found = false;
-                            for (int e = c + dx; e < cols; e++)
-                            {
-                                if (_data.Codes[(page * cellsPerPage) + (r * cols) + e] == 0)
-                                {
-                                    found = true;
-                                    break;
-                                }
-                            }
-
-                            if (!found)
-                            {
-                                return;
-                            }
-                        }
-                    }
-                }
-            }
-            else if (dx < 0)
-            {
-                int absDx = -dx;
-                for (int r = minRow; r <= maxRow; r++)
-                {
-                    for (int c = minCol + dx; c <= minCol - 1; c++)
-                    {
-                        if (_data.Codes[(page * cellsPerPage) + (r * cols) + c] != 0)
-                        {
-                            bool found = false;
-                            for (int e = c - absDx; e >= 0; e--)
-                            {
-                                if (_data.Codes[(page * cellsPerPage) + (r * cols) + e] == 0)
-                                {
-                                    found = true;
-                                    break;
-                                }
-                            }
-
-                            if (!found)
-                            {
-                                return;
-                            }
-                        }
-                    }
-                }
-            }
-            else if (dy > 0)
-            {
-                for (int c = minCol; c <= maxCol; c++)
-                {
-                    for (int r = maxRow + 1; r <= maxRow + dy; r++)
-                    {
-                        if (_data.Codes[(page * cellsPerPage) + (r * cols) + c] != 0)
-                        {
-                            bool found = false;
-                            for (int e = r + dy; e < rows; e++)
-                            {
-                                if (_data.Codes[(page * cellsPerPage) + (e * cols) + c] == 0)
-                                {
-                                    found = true;
-                                    break;
-                                }
-                            }
-
-                            if (!found)
-                            {
-                                return;
-                            }
-                        }
-                    }
-                }
-            }
-            else if (dy < 0)
-            {
-                int absDy = -dy;
-                for (int c = minCol; c <= maxCol; c++)
-                {
-                    for (int r = minRow + dy; r <= minRow - 1; r++)
-                    {
-                        if (_data.Codes[(page * cellsPerPage) + (r * cols) + c] != 0)
-                        {
-                            bool found = false;
-                            for (int e = r - absDy; e >= 0; e--)
-                            {
-                                if (_data.Codes[(page * cellsPerPage) + (e * cols) + c] == 0)
-                                {
-                                    found = true;
-                                    break;
-                                }
-                            }
-
-                            if (!found)
-                            {
-                                return;
-                            }
-                        }
-                    }
-                }
+                return;
             }
 
             _data.PushUndo();
@@ -451,164 +291,7 @@ internal sealed class ProgrammatorClipboardController
                 }
             }
 
-            if (dx > 0)
-            {
-                for (int r = minRow; r <= maxRow; r++)
-                {
-                    for (int c = maxCol + dx; c >= maxCol + 1; c--)
-                    {
-                        int idx = (page * cellsPerPage) + (r * cols) + c;
-                        if (_data.Codes[idx] == 0)
-                        {
-                            continue;
-                        }
-
-                        int emptyCol = -1;
-                        for (int e = c + dx; e < cols; e++)
-                        {
-                            if (_data.Codes[(page * cellsPerPage) + (r * cols) + e] == 0)
-                            {
-                                emptyCol = e;
-                                break;
-                            }
-                        }
-
-                        if (emptyCol < 0)
-                        {
-                            continue;
-                        }
-
-                        int dst = (page * cellsPerPage) + (r * cols) + emptyCol;
-                        _data.Codes[dst] = _data.Codes[idx];
-                        _data.Labels[dst] = _data.Labels[idx];
-                        _data.Values[dst] = _data.Values[idx];
-                        _data.Codes[idx] = 0;
-                        _data.Labels[idx] = null;
-                        _data.Values[idx] = null;
-                        _updateCell(r, c);
-                        _updateCell(r, emptyCol);
-                    }
-                }
-            }
-            else if (dx < 0)
-            {
-                int absDx = -dx;
-                for (int r = minRow; r <= maxRow; r++)
-                {
-                    for (int c = minCol + dx; c <= minCol - 1; c++)
-                    {
-                        int idx = (page * cellsPerPage) + (r * cols) + c;
-                        if (_data.Codes[idx] == 0)
-                        {
-                            continue;
-                        }
-
-                        int emptyCol = -1;
-                        for (int e = c - absDx; e >= 0; e--)
-                        {
-                            if (_data.Codes[(page * cellsPerPage) + (r * cols) + e] == 0)
-                            {
-                                emptyCol = e;
-                                break;
-                            }
-                        }
-
-                        if (emptyCol < 0)
-                        {
-                            continue;
-                        }
-
-                        int dst = (page * cellsPerPage) + (r * cols) + emptyCol;
-                        _data.Codes[dst] = _data.Codes[idx];
-                        _data.Labels[dst] = _data.Labels[idx];
-                        _data.Values[dst] = _data.Values[idx];
-                        _data.Codes[idx] = 0;
-                        _data.Labels[idx] = null;
-                        _data.Values[idx] = null;
-                        _updateCell(r, c);
-                        _updateCell(r, emptyCol);
-                    }
-                }
-            }
-            else if (dy > 0)
-            {
-                for (int c = minCol; c <= maxCol; c++)
-                {
-                    for (int r = maxRow + dy; r >= maxRow + 1; r--)
-                    {
-                        int idx = (page * cellsPerPage) + (r * cols) + c;
-                        if (_data.Codes[idx] == 0)
-                        {
-                            continue;
-                        }
-
-                        int emptyRow = -1;
-                        for (int e = r + dy; e < rows; e++)
-                        {
-                            if (_data.Codes[(page * cellsPerPage) + (e * cols) + c] == 0)
-                            {
-                                emptyRow = e;
-                                break;
-                            }
-                        }
-
-                        if (emptyRow < 0)
-                        {
-                            continue;
-                        }
-
-                        int dst = (page * cellsPerPage) + (emptyRow * cols) + c;
-                        _data.Codes[dst] = _data.Codes[idx];
-                        _data.Labels[dst] = _data.Labels[idx];
-                        _data.Values[dst] = _data.Values[idx];
-                        _data.Codes[idx] = 0;
-                        _data.Labels[idx] = null;
-                        _data.Values[idx] = null;
-                        _updateCell(r, c);
-                        _updateCell(emptyRow, c);
-                    }
-                }
-            }
-            else if (dy < 0)
-            {
-                int absDy = -dy;
-                for (int c = minCol; c <= maxCol; c++)
-                {
-                    for (int r = minRow + dy; r <= minRow - 1; r++)
-                    {
-                        int idx = (page * cellsPerPage) + (r * cols) + c;
-                        if (_data.Codes[idx] == 0)
-                        {
-                            continue;
-                        }
-
-                        int emptyRow = -1;
-                        for (int e = r - absDy; e >= 0; e--)
-                        {
-                            if (_data.Codes[(page * cellsPerPage) + (e * cols) + c] == 0)
-                            {
-                                emptyRow = e;
-                                break;
-                            }
-                        }
-
-                        if (emptyRow < 0)
-                        {
-                            continue;
-                        }
-
-                        int dst = (page * cellsPerPage) + (emptyRow * cols) + c;
-                        _data.Codes[dst] = _data.Codes[idx];
-                        _data.Labels[dst] = _data.Labels[idx];
-                        _data.Values[dst] = _data.Values[idx];
-                        _data.Codes[idx] = 0;
-                        _data.Labels[idx] = null;
-                        _data.Values[idx] = null;
-                        _updateCell(r, c);
-                        _updateCell(emptyRow, c);
-                    }
-                }
-            }
+            PushBlockObstacles(page, minRow, maxRow, minCol, maxCol, dx, dy);
 
             for (int r = newMinRow; r <= newMaxRow; r++)
             {
@@ -629,4 +312,158 @@ internal sealed class ProgrammatorClipboardController
             _selection.SelEndRow = newMaxRow;
             _selection.SelEndCol = newMaxCol;
         }
+
+    private (int minRow, int maxRow, int minCol, int maxCol) GetEffectiveBounds()
+    {
+        if (_selection.SelectedCells.Count > 0)
+        {
+            var b = _selection.GetSetBounds();
+            return (b.minRow, b.maxRow, b.minCol, b.maxCol);
+        }
+
+        return (
+            Mathf.Min(_selection.SelStartRow, _selection.SelEndRow),
+            Mathf.Max(_selection.SelStartRow, _selection.SelEndRow),
+            Mathf.Min(_selection.SelStartCol, _selection.SelEndCol),
+            Mathf.Max(_selection.SelStartCol, _selection.SelEndCol));
+    }
+
+    private bool CanPushBlockObstacles(int page, int minRow, int maxRow, int minCol, int maxCol, int dx, int dy)
+    {
+        const int cols = ProgrammatorData.COLS;
+        const int cellsPerPage = ProgrammatorData.CELLS_PER_PAGE;
+        int stepR = Math.Sign(dy);
+        int stepC = Math.Sign(dx);
+
+        if (dx != 0)
+        {
+            int colStart = dx > 0 ? maxCol + 1 : minCol + dx;
+            int colEnd = dx > 0 ? maxCol + dx : minCol - 1;
+            for (int r = minRow; r <= maxRow; r++)
+            {
+                for (int c = colStart; c <= colEnd; c++)
+                {
+                    if (_data.Codes[(page * cellsPerPage) + (r * cols) + c] != 0 &&
+                        !TryFindEmptyCellAhead(page, r + dy, c + dx, stepR, stepC, out _, out _))
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+        else if (dy != 0)
+        {
+            int rowStart = dy > 0 ? maxRow + 1 : minRow + dy;
+            int rowEnd = dy > 0 ? maxRow + dy : minRow - 1;
+            for (int c = minCol; c <= maxCol; c++)
+            {
+                for (int r = rowStart; r <= rowEnd; r++)
+                {
+                    if (_data.Codes[(page * cellsPerPage) + (r * cols) + c] != 0 &&
+                        !TryFindEmptyCellAhead(page, r + dy, c + dx, stepR, stepC, out _, out _))
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private void PushBlockObstacles(int page, int minRow, int maxRow, int minCol, int maxCol, int dx, int dy)
+    {
+        int stepR = Math.Sign(dy);
+        int stepC = Math.Sign(dx);
+
+        if (dx > 0)
+        {
+            for (int r = minRow; r <= maxRow; r++)
+            {
+                for (int c = maxCol + dx; c >= maxCol + 1; c--)
+                {
+                    TryPushObstacleAt(page, r, c, dx, dy, stepR, stepC);
+                }
+            }
+        }
+        else if (dx < 0)
+        {
+            for (int r = minRow; r <= maxRow; r++)
+            {
+                for (int c = minCol + dx; c <= minCol - 1; c++)
+                {
+                    TryPushObstacleAt(page, r, c, dx, dy, stepR, stepC);
+                }
+            }
+        }
+        else if (dy > 0)
+        {
+            for (int c = minCol; c <= maxCol; c++)
+            {
+                for (int r = maxRow + dy; r >= maxRow + 1; r--)
+                {
+                    TryPushObstacleAt(page, r, c, dx, dy, stepR, stepC);
+                }
+            }
+        }
+        else if (dy < 0)
+        {
+            for (int c = minCol; c <= maxCol; c++)
+            {
+                for (int r = minRow + dy; r <= minRow - 1; r++)
+                {
+                    TryPushObstacleAt(page, r, c, dx, dy, stepR, stepC);
+                }
+            }
+        }
+    }
+
+    private void TryPushObstacleAt(int page, int r, int c, int dx, int dy, int stepR, int stepC)
+    {
+        int idx = (page * ProgrammatorData.CELLS_PER_PAGE) + (r * ProgrammatorData.COLS) + c;
+        if (_data.Codes[idx] != 0 &&
+            TryFindEmptyCellAhead(page, r + dy, c + dx, stepR, stepC, out int emptyR, out int emptyC))
+        {
+            MoveCell(page, r, c, emptyR, emptyC);
+        }
+    }
+
+    private bool TryFindEmptyCellAhead(int page, int startR, int startC, int stepR, int stepC, out int emptyR, out int emptyC)
+    {
+        int r = startR;
+        int c = startC;
+        while (r >= 0 && r < ProgrammatorData.ROWS && c >= 0 && c < ProgrammatorData.COLS)
+        {
+            int idx = (page * ProgrammatorData.CELLS_PER_PAGE) + (r * ProgrammatorData.COLS) + c;
+            if (_data.Codes[idx] == 0)
+            {
+                emptyR = r;
+                emptyC = c;
+                return true;
+            }
+
+            r += stepR;
+            c += stepC;
+        }
+
+        emptyR = -1;
+        emptyC = -1;
+        return false;
+    }
+
+    private void MoveCell(int page, int srcR, int srcC, int dstR, int dstC)
+    {
+        const int cols = ProgrammatorData.COLS;
+        const int cellsPerPage = ProgrammatorData.CELLS_PER_PAGE;
+        int srcIdx = (page * cellsPerPage) + (srcR * cols) + srcC;
+        int dstIdx = (page * cellsPerPage) + (dstR * cols) + dstC;
+        _data.Codes[dstIdx] = _data.Codes[srcIdx];
+        _data.Labels[dstIdx] = _data.Labels[srcIdx];
+        _data.Values[dstIdx] = _data.Values[srcIdx];
+        _data.Codes[srcIdx] = 0;
+        _data.Labels[srcIdx] = null;
+        _data.Values[srcIdx] = null;
+        _updateCell(srcR, srcC);
+        _updateCell(dstR, dstC);
+    }
 }

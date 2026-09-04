@@ -175,6 +175,7 @@ namespace Fodinae.Audio.Backend
             }
 
             _backend.SetBusVolume(type, volume);
+            Debug.Log($"{TAG} SetBusVolume: {type} = {volume:F2}");
         }
 
         /// <summary>
@@ -413,7 +414,7 @@ namespace Fodinae.Audio.Backend
         // ═══════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Применяет сохранённые локальные значения громкости для всех 6 шин FMOD Studio.
+        /// Применяет сохранённые громкости всех шин, объявленных в AudioBusRegistry.
         /// </summary>
         public void ApplySavedBusVolumes()
         {
@@ -422,13 +423,13 @@ namespace Fodinae.Audio.Backend
                 return;
             }
 
+            Debug.Log($"{TAG} Applying saved bus volumes from config");
             var config = _clientConfig.Config;
-            SetBusVolume(AudioBusType.Master, config.Audio.MasterVolume);
-            SetBusVolume(AudioBusType.SFX, config.Audio.SfxVolume);
-            SetBusVolume(AudioBusType.Music, config.Audio.MusicVolume);
-            SetBusVolume(AudioBusType.Voice, config.Audio.VoiceVolume);
-            SetBusVolume(AudioBusType.Ambience, config.Audio.AmbienceVolume);
-            SetBusVolume(AudioBusType.UI, config.Audio.UIVolume);
+            foreach (AudioBusRegistry.BusBinding binding in AudioBusRegistry.Buses)
+            {
+                SetBusVolume(binding.Bus, binding.Read(config.Audio));
+            }
+
             _configApplied = true;
         }
     }

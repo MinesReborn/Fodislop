@@ -270,7 +270,7 @@ namespace Fodinae.UI
 
         private void StartOffline()
         {
-            _clientConfig.UpdateConnection(settings => settings.UseDummyConnection = true);
+            _clientConfig.UpdateSection(config => config.Connection, settings => settings.UseDummyConnection = true);
             ShowHint(L("gateway.auth.offline_hint", "Офлайн-режим"), warn: false);
             Pass();
         }

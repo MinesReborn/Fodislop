@@ -3,6 +3,7 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Fodinae.Core.Interfaces;
+using Fodinae.Core.Lifecycle;
 using UnityEngine;
 
 namespace Fodinae.Game;
@@ -233,6 +234,25 @@ public sealed class RobotVisuals
             _lastTentacleRootPosition = position;
             _lastTentacleRotation = rotationAngle;
         }
+    }
+
+    public Transform EnsureClanIcon(ISceneObjectFactory sceneObjects, uint botId)
+    {
+        if (_clanTransform == null)
+        {
+            Transform? existingClan = _transform.Find("ClanIcon");
+            GameObject clanGo = existingClan != null
+                ? existingClan.gameObject
+                : (sceneObjects != null
+                    ? sceneObjects.Create("ClanIcon", RuntimeOwner.Robots)
+                    : throw new System.InvalidOperationException(
+                        $"[Robot] ISceneObjectFactory was not injected before creating ClanIcon for bot {botId}."));
+            clanGo.transform.SetParent(_transform, worldPositionStays: false);
+            _clanTransform = clanGo.transform;
+            _clanTransform.localScale = Vector3.one * 0.8f;
+        }
+
+        return _clanTransform;
     }
 
     public void Destroy()

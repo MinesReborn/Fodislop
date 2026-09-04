@@ -12,9 +12,6 @@ namespace Fodinae.World;
 /// </summary>
 public static class GifAnimationDecoder
 {
-    private static readonly int[] InterlaceRowStarts = [0, 4, 2, 1];
-    private static readonly int[] InterlaceRowSteps = [8, 8, 4, 2];
-
     public static AnimationContainerDecoder.DecodedAnimation Decode(byte[] data)
     {
         try
@@ -28,104 +25,10 @@ public static class GifAnimationDecoder
         }
     }
 
-    private static void CopyFramesToAtlas(
-        List<Texture2D> frameTextures,
-        Texture2D atlas,
-        int width,
-        int height)
-    {
-        bool useGpuCopy = RuntimeTextureFactory.SupportsTexture2DGpuCopy;
-        for (int i = 0; i < frameTextures.Count; i++)
-        {
-            Texture2D frame = frameTextures[i];
-            if (frame.width != width || frame.height != height)
-            {
-                throw new InvalidDataException(
-                    $"Animation frame {i} is {frame.width}x{frame.height}; " +
-                    $"expected {width}x{height}.");
-            }
-
-            if (useGpuCopy)
-            {
-                if (frame.graphicsFormat != atlas.graphicsFormat)
-                {
-                    throw new InvalidDataException(
-                        $"Animation frame {i} uses GPU format " +
-                        $"{frame.graphicsFormat}, but atlas uses " +
-                        $"{atlas.graphicsFormat}.");
-                }
-
-                Graphics.CopyTexture(
-                    frame,
-                    0,
-                    0,
-                    0,
-                    0,
-                    width,
-                    height,
-                    atlas,
-                    0,
-                    0,
-                    0,
-                    i * height);
-            }
-            else
-            {
-                atlas.SetPixels32(
-                    x: 0,
-                    y: i * height,
-                    blockWidth: width,
-                    blockHeight: height,
-                    colors: frame.GetPixels32());
-            }
-        }
-
-        if (!useGpuCopy)
-        {
-            atlas.Apply(updateMipmaps: false, makeNoLongerReadable: false);
-        }
-
-        DestroyTextures(frameTextures);
-    }
-
-    private static void DestroyTextures(List<Texture2D> textures)
-    {
-        for (int i = 0; i < textures.Count; i++)
-        {
-            if (textures[i] != null)
-            {
-                UnityEngine.Object.Destroy(textures[i]);
-            }
-        }
-
-        textures.Clear();
-    }
-
-    private static float GetAnimationFps(
-        float averageDelay,
-        int frameCount,
-        string containerName)
-    {
-        if (frameCount <= 1)
-        {
-            return 0f;
-        }
-
-        if (averageDelay <= 0f || float.IsNaN(averageDelay) || float.IsInfinity(averageDelay))
-        {
-            throw new InvalidDataException(
-                $"{containerName} animation has {frameCount} frames but no positive frame delay.");
-        }
-
-        return containerName == "GIF"
-            ? 100f / averageDelay
-            : 1000f / averageDelay;
-    }
-
     private class GifInternalDecoder
     {
-        private byte[] _data;
-        private int _pos;
+        private readonly byte[] _data;
+        private readonly GifStreamReader _reader;
         private int _sw;
         private int _sh;
         private Color32[] _gt = Array.Empty<Color32>();
@@ -134,54 +37,54 @@ public static class GifAnimationDecoder
 
         public GifInternalDecoder(byte[] d)
         {
-            this._data = d;
+            _data = d;
+            _reader = new GifStreamReader(d);
         }
 
         public AnimationContainerDecoder.DecodedAnimation Decode()
         {
-            if (this._data.Length < 13 ||
-                this._data[0] != 'G' ||
-                this._data[1] != 'I' ||
-                this._data[2] != 'F')
+            if (_data.Length < 13 ||
+                _data[0] != 'G' ||
+                _data[1] != 'I' ||
+                _data[2] != 'F')
             {
                 throw new InvalidDataException(
                     "GIF data is missing a complete header and logical screen descriptor.");
             }
 
-            this._pos = 6;
-            this._sw = this.ReadUInt16();
-            this._sh = this.ReadUInt16();
-            if (this._sw <= 0 || this._sh <= 0)
+            _reader.Position = 6;
+            _sw = _reader.ReadUInt16();
+            _sh = _reader.ReadUInt16();
+            if (_sw <= 0 || _sh <= 0)
             {
                 throw new InvalidDataException(
-                    $"GIF logical screen has invalid dimensions {this._sw}x{this._sh}.");
+                    $"GIF logical screen has invalid dimensions {_sw}x{_sh}.");
             }
 
-            int pixelCount = checked(this._sw * this._sh);
-            if (this._sw > SystemInfo.maxTextureSize ||
-                this._sh > SystemInfo.maxTextureSize)
+            int pixelCount = checked(_sw * _sh);
+            if (_sw > SystemInfo.maxTextureSize ||
+                _sh > SystemInfo.maxTextureSize)
             {
                 throw new InvalidDataException(
-                    $"GIF logical screen {this._sw}x{this._sh} exceeds the GPU " +
+                    $"GIF logical screen {_sw}x{_sh} exceeds the GPU " +
                     $"texture limit {SystemInfo.maxTextureSize}.");
             }
 
-            byte packedFields = this.ReadByte();
-            int backgroundColorIndex = this.ReadByte();
-            this.ReadByte(); // Pixel aspect ratio.
+            byte packedFields = _reader.ReadByte();
+            int backgroundColorIndex = _reader.ReadByte();
+            _reader.ReadByte(); // Pixel aspect ratio.
 
             if ((packedFields & 0x80) != 0)
             {
-                this._gt = this.ReadColorTable(
-                    1 << ((packedFields & 0x07) + 1));
+                _gt = _reader.ReadColorTable(1 << ((packedFields & 0x07) + 1));
             }
 
             Color32 backgroundColor =
-                backgroundColorIndex >= 0 && backgroundColorIndex < this._gt.Length
-                    ? this._gt[backgroundColorIndex]
+                backgroundColorIndex >= 0 && backgroundColorIndex < _gt.Length
+                    ? _gt[backgroundColorIndex]
                     : new Color32(0, 0, 0, 0);
-            this._cv = new Color32[pixelCount];
-            this._pv = new Color32[pixelCount];
+            _cv = new Color32[pixelCount];
+            _pv = new Color32[pixelCount];
             var frameTextures = new List<Texture2D>();
             var frameDelays = new List<int>();
             Texture2D? atlas = null;
@@ -192,31 +95,31 @@ public static class GifAnimationDecoder
 
             try
             {
-                while (this._pos < this._data.Length)
+                while (_reader.Position < _reader.Length)
                 {
-                    byte blockType = this.ReadByte();
+                    byte blockType = _reader.ReadByte();
                     if (blockType == 0x21)
                     {
-                        byte extensionType = this.ReadByte();
+                        byte extensionType = _reader.ReadByte();
                         if (extensionType == 0xF9)
                         {
-                            int blockSize = this.ReadByte();
+                            int blockSize = _reader.ReadByte();
                             if (blockSize != 4)
                             {
                                 throw new InvalidDataException(
                                     $"GIF graphic control extension has size {blockSize}; expected 4.");
                             }
 
-                            byte graphicControl = this.ReadByte();
+                            byte graphicControl = _reader.ReadByte();
                             disposalMethod = (graphicControl & 0x1C) >> 2;
-                            delay = this.ReadUInt16();
-                            transparentIndex = this.ReadByte();
+                            delay = _reader.ReadUInt16();
+                            transparentIndex = _reader.ReadByte();
                             if ((graphicControl & 0x01) == 0)
                             {
                                 transparentIndex = -1;
                             }
 
-                            if (this.ReadByte() != 0)
+                            if (_reader.ReadByte() != 0)
                             {
                                 throw new InvalidDataException(
                                     "GIF graphic control extension has no zero terminator.");
@@ -224,71 +127,73 @@ public static class GifAnimationDecoder
                         }
                         else
                         {
-                            this.SkipDataSubBlocks();
+                            _reader.SkipDataSubBlocks();
                         }
                     }
                     else if (blockType == 0x2C)
                     {
-                        int left = this.ReadUInt16();
-                        int top = this.ReadUInt16();
-                        int width = this.ReadUInt16();
-                        int height = this.ReadUInt16();
+                        int left = _reader.ReadUInt16();
+                        int top = _reader.ReadUInt16();
+                        int width = _reader.ReadUInt16();
+                        int height = _reader.ReadUInt16();
                         if (width <= 0 || height <= 0 ||
-                            left > this._sw - width || top > this._sh - height)
+                            left > _sw - width || top > _sh - height)
                         {
                             throw new InvalidDataException(
                                 $"GIF frame rectangle {width}x{height} at {left},{top} " +
-                                $"does not fit the {this._sw}x{this._sh} canvas.");
+                                $"does not fit the {_sw}x{_sh} canvas.");
                         }
 
-                        byte imageFields = this.ReadByte();
+                        byte imageFields = _reader.ReadByte();
                         Color32[] colorTable = (imageFields & 0x80) != 0
-                            ? this.ReadColorTable(1 << ((imageFields & 0x07) + 1))
-                            : this._gt;
+                            ? _reader.ReadColorTable(1 << ((imageFields & 0x07) + 1))
+                            : _gt;
                         if (colorTable.Length == 0)
                         {
                             throw new InvalidDataException(
                                 $"GIF frame {frameTextures.Count} has no color table.");
                         }
 
-                        int minimumCodeSize = this.ReadByte();
-                        byte[] colorIndices = Lzw(
-                            this.ReadDataSubBlocks(),
+                        int minimumCodeSize = _reader.ReadByte();
+                        byte[] colorIndices = GifLzwDecoder.Decompress(
+                            _reader.ReadDataSubBlocks(),
                             minimumCodeSize,
                             checked(width * height));
 
                         if (disposalMethod == 3)
                         {
-                            Array.Copy(this._cv, this._pv, this._cv.Length);
+                            Array.Copy(_cv, _pv, _cv.Length);
                         }
 
                         bool interlaced = (imageFields & 0x40) != 0;
-                        this.CompositeFrame(
+                        GifFrameCompositor.CompositeFrame(
+                            _cv,
                             colorIndices,
                             colorTable,
                             left,
                             top,
                             width,
                             height,
+                            _sw,
                             transparentIndex,
                             interlaced);
 
                         Texture2D frameTexture = RuntimeTextureFactory.CreateRgba32NoMip(
-                            this._sw,
-                            this._sh,
+                            _sw,
+                            _sh,
                             "DecodedGifFrame",
                             RuntimeTextureColorSpace.Srgb,
                             FilterMode.Point,
                             TextureWrapMode.Clamp);
                         var flippedPixels = new Color32[pixelCount];
-                        for (int y = 0; y < this._sh; y++)
+                        for (int y = 0; y < _sh; y++)
                         {
                             Array.Copy(
-                                this._cv,
-                                y * this._sw,
+                                _cv,
+                                y * _sw,
                                 flippedPixels,
-                                (this._sh - 1 - y) * this._sw,
-                                this._sw);
+                                (_sh - 1 - y) * _sw,
+                                _sw);
                         }
 
                         frameTexture.SetPixels32(flippedPixels);
@@ -305,16 +210,18 @@ public static class GifAnimationDecoder
                             Color32 restoreColor = transparentIndex >= 0
                                 ? new Color32(0, 0, 0, 0)
                                 : backgroundColor;
-                            this.ClearFrameRectangle(
+                            GifFrameCompositor.ClearFrameRectangle(
+                                _cv,
                                 left,
                                 top,
                                 width,
                                 height,
+                                _sw,
                                 restoreColor);
                         }
                         else if (disposalMethod == 3)
                         {
-                            Array.Copy(this._pv, this._cv, this._cv.Length);
+                            Array.Copy(_pv, _cv, _cv.Length);
                         }
 
                         delay = 0;
@@ -330,7 +237,7 @@ public static class GifAnimationDecoder
                     {
                         throw new InvalidDataException(
                             $"GIF contains unknown block type 0x{blockType:X2} " +
-                            $"at byte {this._pos - 1}.");
+                            $"at byte {_reader.Position - 1}.");
                     }
                 }
 
@@ -359,16 +266,16 @@ public static class GifAnimationDecoder
                     }
                 }
 
-                int atlasHeight = checked(this._sh * frameCount);
+                int atlasHeight = checked(_sh * frameCount);
                 if (atlasHeight > SystemInfo.maxTextureSize)
                 {
                     throw new InvalidDataException(
-                        $"GIF animation atlas {this._sw}x{atlasHeight} exceeds the GPU " +
+                        $"GIF animation atlas {_sw}x{atlasHeight} exceeds the GPU " +
                         $"texture limit {SystemInfo.maxTextureSize}.");
                 }
 
                 atlas = RuntimeTextureFactory.CreateRgba32NoMip(
-                    this._sw,
+                    _sw,
                     atlasHeight,
                     "DecodedGifAtlas",
                     RuntimeTextureColorSpace.Srgb,
@@ -380,12 +287,12 @@ public static class GifAnimationDecoder
                     totalDelay += frameDelays[i];
                 }
 
-                CopyFramesToAtlas(
+                AnimationContainerDecoder.CopyFramesToAtlas(
                     frameTextures,
                     atlas,
-                    this._sw,
-                    this._sh);
-                float fps = GetAnimationFps(
+                    _sw,
+                    _sh);
+                float fps = AnimationContainerDecoder.GetAnimationFps(
                     totalDelay / frameCount,
                     frameCount,
                     "GIF");
@@ -394,7 +301,7 @@ public static class GifAnimationDecoder
                 {
                     Atlas = atlas,
                     FrameCount = frameCount,
-                    FrameHeight = this._sh,
+                    FrameHeight = _sh,
                     FPS = fps,
                 };
                 atlas = null;
@@ -402,372 +309,13 @@ public static class GifAnimationDecoder
             }
             catch
             {
-                DestroyTextures(frameTextures);
+                AnimationContainerDecoder.DestroyTextures(frameTextures);
                 if (atlas != null)
                 {
                     UnityEngine.Object.Destroy(atlas);
                 }
 
                 throw;
-            }
-        }
-
-        private static byte[] Lzw(byte[] d, int m, int pc)
-        {
-            if (m < 2 || m > 8)
-            {
-                throw new InvalidDataException(
-                    $"GIF LZW minimum code size {m} is outside the supported range 2..8.");
-            }
-
-            if (pc <= 0)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(pc),
-                    pc,
-                    "GIF frame pixel count must be positive.");
-            }
-
-            int cc = 1 << m;
-            int eoi = cc + 1;
-            int nc = cc + 2;
-            int cs = m + 1;
-            int cm = (1 << cs) - 1;
-            int[] pref = new int[4096];
-            byte[] suff = new byte[4096];
-            byte[] ps = new byte[4097];
-
-            for (int i = 0; i < cc; i++)
-            {
-                suff[i] = (byte)i;
-            }
-
-            byte[] o = new byte[pc];
-            int op = 0;
-            int bb = 0;
-            int bc = 0;
-            int dp = 0;
-            int t = 0;
-            int oc = -1;
-
-            while (op < pc)
-            {
-                while (bc < cs && dp < d.Length)
-                {
-                    bb |= d[dp++] << bc;
-                    bc += 8;
-                }
-
-                if (bc < cs)
-                {
-                    break;
-                }
-
-                int c = bb & cm;
-                bb >>= cs;
-                bc -= cs;
-
-                if (c == cc)
-                {
-                    cs = m + 1;
-                    cm = (1 << cs) - 1;
-                    nc = cc + 2;
-                    oc = -1;
-                    continue;
-                }
-
-                if (c == eoi)
-                {
-                    break;
-                }
-
-                if (oc == -1)
-                {
-                    if (c >= cc)
-                    {
-                        throw new InvalidDataException(
-                            $"GIF LZW stream starts with invalid code {c}.");
-                    }
-
-                    o[op++] = suff[c];
-                    oc = c;
-                    continue;
-                }
-
-                int cur = c;
-                if (c > nc)
-                {
-                    throw new InvalidDataException(
-                        $"GIF LZW code {c} exceeds the next dictionary index {nc}.");
-                }
-
-                if (c == nc)
-                {
-                    if (t >= ps.Length)
-                    {
-                        throw new InvalidDataException(
-                            "GIF LZW expansion stack overflowed.");
-                    }
-
-                    ps[t++] = (byte)LzwFirst(oc, cc, pref, suff);
-                    cur = oc;
-                }
-
-                while (cur >= cc)
-                {
-                    if (cur >= nc || t >= ps.Length)
-                    {
-                        throw new InvalidDataException(
-                            "GIF LZW dictionary chain is corrupt.");
-                    }
-
-                    ps[t++] = suff[cur];
-                    cur = pref[cur];
-                }
-
-                if (cur < 0 || cur >= cc || t >= ps.Length)
-                {
-                    throw new InvalidDataException(
-                        "GIF LZW dictionary resolved to an invalid root code.");
-                }
-
-                ps[t++] = suff[cur];
-                byte f = ps[t - 1];
-                while (t > 0)
-                {
-                    if (op >= o.Length)
-                    {
-                        throw new InvalidDataException(
-                            "GIF LZW stream expands past the declared frame size.");
-                    }
-
-                    o[op++] = ps[--t];
-                }
-
-                if (nc < 4096)
-                {
-                    pref[nc] = oc;
-                    suff[nc] = f;
-                    nc++;
-                    if (nc == (1 << cs) && cs < 12)
-                    {
-                        cs++;
-                        cm = (1 << cs) - 1;
-                    }
-                }
-
-                oc = c;
-            }
-
-            if (op != pc)
-            {
-                throw new InvalidDataException(
-                    $"GIF LZW stream produced {op} pixels; expected {pc}.");
-            }
-
-            return o;
-        }
-
-        private static int LzwFirst(int c, int cc, int[] pref, byte[] suff)
-        {
-            int steps = 0;
-            while (c >= cc)
-            {
-                if (c < 0 || c >= pref.Length || steps++ >= pref.Length)
-                {
-                    throw new InvalidDataException(
-                        "GIF LZW dictionary contains a cyclic or invalid prefix chain.");
-                }
-
-                c = pref[c];
-            }
-
-            if (c < 0 || c >= suff.Length)
-            {
-                throw new InvalidDataException(
-                    "GIF LZW dictionary resolved outside the suffix table.");
-            }
-
-            return suff[c];
-        }
-
-        private void CompositeFrame(
-            byte[] colorIndices,
-            Color32[] colorTable,
-            int left,
-            int top,
-            int width,
-            int height,
-            int transparentIndex,
-            bool interlaced)
-        {
-            int sourceRow = 0;
-            if (interlaced)
-            {
-                for (int pass = 0; pass < InterlaceRowStarts.Length; pass++)
-                {
-                    for (int targetRow = InterlaceRowStarts[pass];
-                         targetRow < height;
-                         targetRow += InterlaceRowSteps[pass])
-                    {
-                        this.CompositeFrameRow(
-                            colorIndices,
-                            colorTable,
-                            left,
-                            top,
-                            width,
-                            sourceRow++,
-                            targetRow,
-                            transparentIndex);
-                    }
-                }
-            }
-            else
-            {
-                for (int row = 0; row < height; row++)
-                {
-                    this.CompositeFrameRow(
-                        colorIndices,
-                        colorTable,
-                        left,
-                        top,
-                        width,
-                        row,
-                        row,
-                        transparentIndex);
-                    sourceRow++;
-                }
-            }
-
-            if (sourceRow != height)
-            {
-                throw new InvalidDataException(
-                    $"GIF interlace mapping consumed {sourceRow} rows; expected {height}.");
-            }
-        }
-
-        private void CompositeFrameRow(
-            byte[] colorIndices,
-            Color32[] colorTable,
-            int left,
-            int top,
-            int width,
-            int sourceRow,
-            int targetRow,
-            int transparentIndex)
-        {
-            int sourceOffset = sourceRow * width;
-            int destinationOffset = ((top + targetRow) * this._sw) + left;
-            for (int x = 0; x < width; x++)
-            {
-                int colorIndex = colorIndices[sourceOffset + x];
-                if (colorIndex == transparentIndex)
-                {
-                    continue;
-                }
-
-                if (colorIndex >= colorTable.Length)
-                {
-                    throw new InvalidDataException(
-                        $"GIF frame references color {colorIndex}, but its table has " +
-                        $"only {colorTable.Length} entries.");
-                }
-
-                this._cv[destinationOffset + x] = colorTable[colorIndex];
-            }
-        }
-
-        private void ClearFrameRectangle(
-            int left,
-            int top,
-            int width,
-            int height,
-            Color32 color)
-        {
-            for (int y = 0; y < height; y++)
-            {
-                int rowOffset = ((top + y) * this._sw) + left;
-                for (int x = 0; x < width; x++)
-                {
-                    this._cv[rowOffset + x] = color;
-                }
-            }
-        }
-
-        private Color32[] ReadColorTable(int size)
-        {
-            if (size < 2 || size > 256)
-            {
-                throw new InvalidDataException(
-                    $"GIF color table has invalid size {size}.");
-            }
-
-            this.EnsureAvailable(checked(size * 3));
-            var table = new Color32[size];
-            for (int i = 0; i < size; i++)
-            {
-                table[i] = new Color32(
-                    this.ReadByte(),
-                    this.ReadByte(),
-                    this.ReadByte(),
-                    255);
-            }
-
-            return table;
-        }
-
-        private void SkipDataSubBlocks()
-        {
-            while (true)
-            {
-                int size = this.ReadByte();
-                if (size == 0)
-                {
-                    return;
-                }
-
-                this.EnsureAvailable(size);
-                this._pos += size;
-            }
-        }
-
-        private byte[] ReadDataSubBlocks()
-        {
-            using var stream = new MemoryStream();
-            while (true)
-            {
-                int size = this.ReadByte();
-                if (size == 0)
-                {
-                    return stream.ToArray();
-                }
-
-                this.EnsureAvailable(size);
-                stream.Write(this._data, this._pos, size);
-                this._pos += size;
-            }
-        }
-
-        private int ReadUInt16()
-        {
-            int low = this.ReadByte();
-            int high = this.ReadByte();
-            return low | (high << 8);
-        }
-
-        private byte ReadByte()
-        {
-            this.EnsureAvailable(1);
-            return this._data[this._pos++];
-        }
-
-        private void EnsureAvailable(int byteCount)
-        {
-            if (byteCount < 0 || this._pos < 0 || this._pos > this._data.Length - byteCount)
-            {
-                throw new InvalidDataException(
-                    $"GIF stream is truncated at byte {this._pos}; " +
-                    $"{byteCount} more byte(s) were required.");
             }
         }
     }

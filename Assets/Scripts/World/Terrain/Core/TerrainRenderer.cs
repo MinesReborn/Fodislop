@@ -133,7 +133,7 @@ namespace Fodinae.World.Terrain
                 throw new InvalidOperationException(
                     "TerrainRenderer requires an initialized ClientConfig.");
 
-            bool enableDistortion = config.EnableTerrainDistortion;
+            bool enableDistortion = config.Terrain.EnableDistortion;
             if (_precalc.EnableDistortion != enableDistortion)
             {
                 _precalc.EnableDistortion = enableDistortion;
@@ -141,6 +141,7 @@ namespace Fodinae.World.Terrain
             }
 
             _materialManager.ApplyClientConfig(config);
+            Debug.Log($"[TerrainRenderer] ApplyClientConfig: distortion={enableDistortion}");
         }
 
         private void HandleCellChanged(int serverX, int serverY)

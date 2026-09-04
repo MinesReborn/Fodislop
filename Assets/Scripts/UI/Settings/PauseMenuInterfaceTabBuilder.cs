@@ -41,12 +41,13 @@ internal sealed class PauseMenuInterfaceTabBuilder
         VisualElement interfaceSection = interfaceScroll.Q<VisualElement>("InterfaceSection") ??
             throw new InvalidOperationException("[PauseMenu] InterfaceSection is missing from PauseMenu.uxml.");
 
-        interfaceSection.Add(PauseMenuUIFactory.CreateSlider(
-            _loc.Get("menu.settings.ui_scale"),
-            _clientConfig.Config.Interface.UIScale,
+        interfaceSection.Add(PauseMenuUIFactory.CreateBoundSlider<InterfaceSettings>(
+            nameof(InterfaceSettings.UIScale),
+            _loc,
+            () => _clientConfig.Config.Interface.UIScale,
             v =>
             {
-                _clientConfig.UpdateInterface(settings => settings.UIScale = v);
+                _clientConfig.UpdateSection(config => config.Interface, settings => settings.UIScale = v);
 
                 // The panel scale is what actually resizes the live UI;
                 // saving alone would only take effect on the next launch.
@@ -55,8 +56,7 @@ internal sealed class PauseMenuInterfaceTabBuilder
                     _doc.panelSettings.scale = v;
                 }
             },
-            0.5f,
-            2f));
+            _refreshers));
 
         // Язык интерфейса. Применяется сразу: SetLanguage сохраняет выбор
         // в конфиг и стреляет OnLanguageChanged, на который подписаны все
@@ -135,7 +135,7 @@ internal sealed class PauseMenuInterfaceTabBuilder
         controlSchemeDropdown.index = Mathf.Clamp(_clientConfig.Config.Interface.ControlScheme, 0, 1);
         controlSchemeDropdown.RegisterValueChangedCallback(_ =>
         {
-            _clientConfig.UpdateInterface(settings => settings.ControlScheme = controlSchemeDropdown.index);
+            _clientConfig.UpdateSection(config => config.Interface, settings => settings.ControlScheme = controlSchemeDropdown.index);
         });
         _refreshers.Add(() =>
         {

@@ -124,7 +124,6 @@ public sealed class GameInfrastructureStartup
 
 public sealed class GamePresentationStartup
 {
-    private readonly IProjectDefaults _projectDefaults;
     private readonly IAudioSystem _audioSystem;
     private readonly TerrainRenderer _terrain;
     private readonly PostProcessController _postProcess;
@@ -135,7 +134,6 @@ public sealed class GamePresentationStartup
     private readonly InventoryView _inventory;
 
     public GamePresentationStartup(
-        IProjectDefaults projectDefaults,
         IAudioSystem audioSystem,
         TerrainRenderer terrain,
         PostProcessController postProcess,
@@ -145,7 +143,6 @@ public sealed class GamePresentationStartup
         PlayerHUDView playerHud,
         InventoryView inventory)
     {
-        _projectDefaults = projectDefaults;
         _audioSystem = audioSystem;
         _terrain = terrain;
         _postProcess = postProcess;
@@ -165,12 +162,6 @@ public sealed class GamePresentationStartup
         report.RunCritical("game_ui", _gameManager.EnsureUISetup);
         report.RunCritical("player_hud", _playerHud.EnsureInitialized);
         report.RunCritical("inventory", _inventory.EnsureInitialized);
-
-        if (_projectDefaults.SchemaVersion != ProjectDefaults.CurrentSchemaVersion ||
-            string.IsNullOrWhiteSpace(_projectDefaults.ContentHash))
-        {
-            report.Critical("project_defaults", "ProjectDefaults snapshot is missing or invalid.");
-        }
 
         ValidateShader(report, ProjectRuntimeContracts.ShaderNames.Terrain);
         ValidateShader(report, ProjectRuntimeContracts.ShaderNames.DynamicEmission);

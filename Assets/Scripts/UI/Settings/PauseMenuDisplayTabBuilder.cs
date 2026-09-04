@@ -114,6 +114,14 @@ internal sealed class PauseMenuDisplayTabBuilder
             _refreshers);
         displaySection.Add(vSyncToggle);
 
+        VisualElement gammaSlider = PauseMenuUIFactory.CreateBoundSlider<DisplaySettings>(
+            nameof(DisplaySettings.Gamma),
+            _loc,
+            () => _clientConfig.Config.Display.Gamma,
+            value => _displayManager.SetGamma(value),
+            _refreshers);
+        displaySection.Add(gammaSlider);
+
         Toggle hdrToggle = PauseMenuUIFactory.CreateBoundToggle(
             _loc.Get("menu.settings.hdr"),
             () => _clientConfig.Config.Display.HDREnabled,
@@ -121,36 +129,26 @@ internal sealed class PauseMenuDisplayTabBuilder
             _refreshers);
         hdrOutputGroup.Add(hdrToggle);
 
-        VisualElement gammaSlider = PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.display.gamma"),
-            () => _clientConfig.Config.Display.Gamma,
-            value => _displayManager.SetGamma(value),
-            DisplaySettings.GammaMin,
-            DisplaySettings.GammaMax,
-            _refreshers);
-        hdrOutputGroup.Add(gammaSlider);
-
-        VisualElement paperWhiteSlider = PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.display.paper_white"),
+        VisualElement paperWhiteSlider = PauseMenuUIFactory.CreateBoundSlider<DisplaySettings>(
+            nameof(DisplaySettings.PaperWhiteNits),
+            _loc,
             () => _clientConfig.Config.Display.PaperWhiteNits,
             value => _displayManager.SetPaperWhiteNits(value),
-            DisplaySettings.PaperWhiteMin,
-            DisplaySettings.PaperWhiteMax,
             _refreshers);
         hdrOutputGroup.Add(paperWhiteSlider);
 
-        VisualElement peakBrightnessSlider = PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.display.peak_brightness"),
+        VisualElement peakBrightnessSlider = PauseMenuUIFactory.CreateBoundSlider<DisplaySettings>(
+            nameof(DisplaySettings.PeakBrightnessNits),
+            _loc,
             () => _clientConfig.Config.Display.PeakBrightnessNits,
             value => _displayManager.SetPeakBrightnessNits(value),
-            DisplaySettings.PeakBrightnessMin,
-            DisplaySettings.PeakBrightnessMax,
             _refreshers);
         hdrOutputGroup.Add(peakBrightnessSlider);
 
         void UpdateHdrSlidersState()
         {
             bool hdrOn = _clientConfig.Config.Display.HDREnabled;
+            gammaSlider.SetEnabled(!hdrOn);
             paperWhiteSlider.SetEnabled(hdrOn);
             peakBrightnessSlider.SetEnabled(hdrOn);
         }

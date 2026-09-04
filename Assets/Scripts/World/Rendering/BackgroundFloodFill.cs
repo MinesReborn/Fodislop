@@ -75,81 +75,11 @@ namespace Fodinae.World
             // order would be a different background map.
             for (int x = 0; x < w; x++)
             {
-                Span<TypeCount> typeCounts = stackalloc TypeCount[8];
                 List<(int X, int Y)> columnFrontier = _columnFrontiers[x];
                 columnFrontier.Clear();
-                int cx = x + 1;
                 for (int y = 0; y < h; y++)
                 {
-                    int cy = y + 1;
-                    var cell = cellCache.GetCell(cx, cy);
-
-                    if ((cell.Properties & CellConfigProperties.Passable) != 0 && cell.Type != CellType.Unloaded)
-                    {
-                        _bgMapBuffer[x, y] = cell.Type;
-                        columnFrontier.Add((x, y));
-                    }
-                    else
-                    {
-                        int distinctCount = 0;
-                        for (int dy = -1; dy <= 1; dy++)
-                        {
-                            for (int dx = -1; dx <= 1; dx++)
-                            {
-                                if (dx == 0 && dy == 0)
-                                {
-                                    continue;
-                                }
-
-                                int nx = x + dx, ny = y + dy;
-                                if (nx < 0 || nx >= w || ny < 0 || ny >= h)
-                                {
-                                    continue;
-                                }
-
-                                var n = cellCache.GetCell(nx + 1, ny + 1);
-                                if ((n.Properties & CellConfigProperties.Passable) != 0 && n.Type != CellType.Unloaded)
-                                {
-                                    bool found = false;
-                                    for (int i = 0; i < distinctCount; i++)
-                                    {
-                                        if (typeCounts[i].Type == n.Type)
-                                        {
-                                            typeCounts[i].Count++;
-                                            found = true;
-                                            break;
-                                        }
-                                    }
-
-                                    if (!found && distinctCount < 8)
-                                    {
-                                        typeCounts[distinctCount++] = new TypeCount { Type = n.Type, Count = 1 };
-                                    }
-                                }
-                            }
-                        }
-
-                        if (distinctCount > 0)
-                        {
-                            CellType mostFrequent = typeCounts[0].Type;
-                            int maxC = typeCounts[0].Count;
-                            for (int i = 1; i < distinctCount; i++)
-                            {
-                                if (typeCounts[i].Count > maxC)
-                                {
-                                    maxC = typeCounts[i].Count;
-                                    mostFrequent = typeCounts[i].Type;
-                                }
-                            }
-
-                            _bgMapBuffer[x, y] = mostFrequent;
-                            columnFrontier.Add((x, y));
-                        }
-                        else
-                        {
-                            _bgMapBuffer[x, y] = CellType.Unloaded;
-                        }
-                    }
+                    SeedCell(x, y, cellCache, columnFrontier);
                 }
             }
 
@@ -159,17 +89,7 @@ namespace Fodinae.World
             }
 
             FBPWPropagate(frontier);
-
-            for (int x = 0; x < w; x++)
-            {
-                for (int y = 0; y < h; y++)
-                {
-                    if (_bgMapBuffer[x, y] == CellType.Unloaded)
-                    {
-                        _bgMapBuffer[x, y] = CellType.Empty;
-                    }
-                }
-            }
+            ReplaceUnloadedWithEmpty(0, w, 0, h);
         }
 
         public void UpdateLocalRegion(int startX, int startY, int countX, int countY, ICachedCellDataProvider cellCache)
@@ -181,15 +101,11 @@ namespace Fodinae.World
             int clampedStartX = Math.Max(0, startX);
             int clampedStartY = Math.Max(0, startY);
 
-            Span<TypeCount> typeCounts = stackalloc TypeCount[8];
-
             for (int x = clampedStartX; x < endX; x++)
             {
-                int cx = x + 1;
                 for (int y = clampedStartY; y < endY; y++)
                 {
-                    int cy = y + 1;
-                    var cell = cellCache.GetCell(cx, cy);
+                    var cell = cellCache.GetCell(x + 1, y + 1);
 
                     if ((cell.Properties & CellConfigProperties.Passable) != 0 && cell.Type != CellType.Unloaded)
                     {
@@ -197,57 +113,8 @@ namespace Fodinae.World
                     }
                     else
                     {
-                        int distinctCount = 0;
-                        for (int dx = -1; dx <= 1; dx++)
-                        {
-                            for (int dy = -1; dy <= 1; dy++)
-                            {
-                                if (dx == 0 && dy == 0)
-                                {
-                                    continue;
-                                }
-
-                                var n = cellCache.GetCell(cx + dx, cy + dy);
-                                if (n.Type != CellType.Unloaded && (n.Properties & CellConfigProperties.Passable) != 0)
-                                {
-                                    bool found = false;
-                                    for (int i = 0; i < distinctCount; i++)
-                                    {
-                                        if (typeCounts[i].Type == n.Type)
-                                        {
-                                            typeCounts[i].Count++;
-                                            found = true;
-                                            break;
-                                        }
-                                    }
-
-                                    if (!found && distinctCount < 8)
-                                    {
-                                        typeCounts[distinctCount++] = new TypeCount { Type = n.Type, Count = 1 };
-                                    }
-                                }
-                            }
-                        }
-
-                        if (distinctCount > 0)
-                        {
-                            CellType mostFrequent = typeCounts[0].Type;
-                            int maxC = typeCounts[0].Count;
-                            for (int i = 1; i < distinctCount; i++)
-                            {
-                                if (typeCounts[i].Count > maxC)
-                                {
-                                    maxC = typeCounts[i].Count;
-                                    mostFrequent = typeCounts[i].Type;
-                                }
-                            }
-
-                            _bgMapBuffer[x, y] = mostFrequent;
-                        }
-                        else
-                        {
-                            _bgMapBuffer[x, y] = CellType.Empty;
-                        }
+                        CellType neighbor = FindMostFrequentPassableNeighbor(cellCache, x, y, w, h);
+                        _bgMapBuffer[x, y] = neighbor != CellType.Unloaded ? neighbor : CellType.Empty;
                     }
                 }
             }
@@ -323,60 +190,55 @@ namespace Fodinae.World
 
             if (hasXBorder)
             {
-                for (int x = xStart; x < xStart + xLen; x++)
-                {
-                    for (int y = 0; y < h; y++)
-                    {
-                        SeedBorderCell(x, y, cellCache, frontier);
-                    }
-                }
+                SeedBorderRegion(xStart, xLen, 0, h, cellCache, frontier);
             }
 
             if (hasYBorder)
             {
                 int x2Start = hasXBorder ? xStart + xLen : 0;
-                for (int y = yStart; y < yStart + yLen; y++)
-                {
-                    for (int x = x2Start; x < w; x++)
-                    {
-                        SeedBorderCell(x, y, cellCache, frontier);
-                    }
-                }
+                SeedBorderRegion(x2Start, w - x2Start, yStart, yLen, cellCache, frontier);
             }
 
             FBPWPropagate(frontier);
 
             if (hasXBorder)
             {
-                for (int x = xStart; x < xStart + xLen; x++)
-                {
-                    for (int y = 0; y < h; y++)
-                    {
-                        if (_bgMapBuffer[x, y] == CellType.Unloaded)
-                        {
-                            _bgMapBuffer[x, y] = CellType.Empty;
-                        }
-                    }
-                }
+                ReplaceUnloadedWithEmpty(xStart, xLen, 0, h);
             }
 
             if (hasYBorder)
             {
                 int xSweepStart = hasXBorder ? xStart + xLen : 0;
-                for (int y = yStart; y < yStart + yLen; y++)
+                ReplaceUnloadedWithEmpty(xSweepStart, w - xSweepStart, yStart, yLen);
+            }
+        }
+
+        private void SeedBorderRegion(int startX, int countX, int startY, int countY, ICachedCellDataProvider cellCache, List<(int, int)> frontier)
+        {
+            for (int x = startX; x < startX + countX; x++)
+            {
+                for (int y = startY; y < startY + countY; y++)
                 {
-                    for (int x = xSweepStart; x < w; x++)
+                    SeedCell(x, y, cellCache, frontier);
+                }
+            }
+        }
+
+        private void ReplaceUnloadedWithEmpty(int startX, int countX, int startY, int countY)
+        {
+            for (int x = startX; x < startX + countX; x++)
+            {
+                for (int y = startY; y < startY + countY; y++)
+                {
+                    if (_bgMapBuffer[x, y] == CellType.Unloaded)
                     {
-                        if (_bgMapBuffer[x, y] == CellType.Unloaded)
-                        {
-                            _bgMapBuffer[x, y] = CellType.Empty;
-                        }
+                        _bgMapBuffer[x, y] = CellType.Empty;
                     }
                 }
             }
         }
 
-        private void SeedBorderCell(int x, int y, ICachedCellDataProvider cellCache, List<(int, int)> frontier)
+        private void SeedCell(int x, int y, ICachedCellDataProvider cellCache, List<(int, int)> frontier)
         {
             var cell = cellCache.GetCell(x + 1, y + 1);
             if ((cell.Properties & CellConfigProperties.Passable) != 0 && cell.Type != CellType.Unloaded)
@@ -386,68 +248,82 @@ namespace Fodinae.World
             }
             else
             {
-                Span<TypeCount> typeCounts = stackalloc TypeCount[8];
-                int distinctCount = 0;
-                int w = _width, h = _height;
-
-                for (int dy = -1; dy <= 1; dy++)
+                CellType neighbor = FindMostFrequentPassableNeighbor(cellCache, x, y, _width, _height);
+                _bgMapBuffer[x, y] = neighbor;
+                if (neighbor != CellType.Unloaded)
                 {
-                    for (int dx = -1; dx <= 1; dx++)
-                    {
-                        if (dx == 0 && dy == 0)
-                        {
-                            continue;
-                        }
-
-                        int nx = x + dx, ny = y + dy;
-                        if (nx < 0 || nx >= w || ny < 0 || ny >= h)
-                        {
-                            continue;
-                        }
-
-                        var n = cellCache.GetCell(nx + 1, ny + 1);
-                        if ((n.Properties & CellConfigProperties.Passable) != 0 && n.Type != CellType.Unloaded)
-                        {
-                            bool found = false;
-                            for (int i = 0; i < distinctCount; i++)
-                            {
-                                if (typeCounts[i].Type == n.Type)
-                                {
-                                    typeCounts[i].Count++;
-                                    found = true;
-                                    break;
-                                }
-                            }
-
-                            if (!found && distinctCount < 8)
-                            {
-                                typeCounts[distinctCount++] = new TypeCount { Type = n.Type, Count = 1 };
-                            }
-                        }
-                    }
-                }
-
-                if (distinctCount > 0)
-                {
-                    CellType mostFrequent = typeCounts[0].Type;
-                    int maxC = typeCounts[0].Count;
-                    for (int i = 1; i < distinctCount; i++)
-                    {
-                        if (typeCounts[i].Count > maxC)
-                        {
-                            maxC = typeCounts[i].Count;
-                            mostFrequent = typeCounts[i].Type;
-                        }
-                    }
-
-                    _bgMapBuffer[x, y] = mostFrequent;
                     frontier.Add((x, y));
                 }
-                else
+            }
+        }
+
+        private static CellType FindMostFrequentPassableNeighbor(
+            ICachedCellDataProvider cellCache,
+            int x,
+            int y,
+            int w,
+            int h)
+        {
+            Span<TypeCount> typeCounts = stackalloc TypeCount[8];
+            int distinctCount = 0;
+
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                for (int dx = -1; dx <= 1; dx++)
                 {
-                    _bgMapBuffer[x, y] = CellType.Unloaded;
+                    if (dx == 0 && dy == 0)
+                    {
+                        continue;
+                    }
+
+                    int nx = x + dx;
+                    int ny = y + dy;
+                    if (nx < 0 || nx >= w || ny < 0 || ny >= h)
+                    {
+                        continue;
+                    }
+
+                    var n = cellCache.GetCell(nx + 1, ny + 1);
+                    if ((n.Properties & CellConfigProperties.Passable) == 0 || n.Type == CellType.Unloaded)
+                    {
+                        continue;
+                    }
+
+                    bool found = false;
+                    for (int i = 0; i < distinctCount; i++)
+                    {
+                        if (typeCounts[i].Type == n.Type)
+                        {
+                            typeCounts[i].Count++;
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found && distinctCount < 8)
+                    {
+                        typeCounts[distinctCount++] = new TypeCount { Type = n.Type, Count = 1 };
+                    }
                 }
             }
+
+            if (distinctCount == 0)
+            {
+                return CellType.Unloaded;
+            }
+
+            CellType mostFrequent = typeCounts[0].Type;
+            int maxC = typeCounts[0].Count;
+            for (int i = 1; i < distinctCount; i++)
+            {
+                if (typeCounts[i].Count > maxC)
+                {
+                    maxC = typeCounts[i].Count;
+                    mostFrequent = typeCounts[i].Type;
+                }
+            }
+
+            return mostFrequent;
         }
 
         private void FBPWPropagate(List<(int, int)> frontier)
@@ -524,81 +400,19 @@ namespace Fodinae.World
                 return;
             }
 
-            if (dx > 0)
+            int xStart = dx >= 0 ? 0 : w - 1;
+            int xEnd = dx >= 0 ? w - dx : -dx - 1;
+            int xStep = dx >= 0 ? 1 : -1;
+
+            int yStart = dy >= 0 ? 0 : h - 1;
+            int yEnd = dy >= 0 ? h - dy : -dy - 1;
+            int yStep = dy >= 0 ? 1 : -1;
+
+            for (int x = xStart; x != xEnd; x += xStep)
             {
-                for (int x = 0; x < w - dx; x++)
+                for (int y = yStart; y != yEnd; y += yStep)
                 {
-                    if (dy > 0)
-                    {
-                        for (int y = 0; y < h - dy; y++)
-                        {
-                            array[x, y] = array[x + dx, y + dy];
-                        }
-                    }
-                    else if (dy < 0)
-                    {
-                        for (int y = h - 1; y >= -dy; y--)
-                        {
-                            array[x, y] = array[x + dx, y + dy];
-                        }
-                    }
-                    else
-                    {
-                        for (int y = 0; y < h; y++)
-                        {
-                            array[x, y] = array[x + dx, y];
-                        }
-                    }
-                }
-            }
-            else if (dx < 0)
-            {
-                for (int x = w - 1; x >= -dx; x--)
-                {
-                    if (dy > 0)
-                    {
-                        for (int y = 0; y < h - dy; y++)
-                        {
-                            array[x, y] = array[x + dx, y + dy];
-                        }
-                    }
-                    else if (dy < 0)
-                    {
-                        for (int y = h - 1; y >= -dy; y--)
-                        {
-                            array[x, y] = array[x + dx, y + dy];
-                        }
-                    }
-                    else
-                    {
-                        for (int y = 0; y < h; y++)
-                        {
-                            array[x, y] = array[x + dx, y];
-                        }
-                    }
-                }
-            }
-            else
-            {
-                if (dy > 0)
-                {
-                    for (int y = 0; y < h - dy; y++)
-                    {
-                        for (int x = 0; x < w; x++)
-                        {
-                            array[x, y] = array[x, y + dy];
-                        }
-                    }
-                }
-                else if (dy < 0)
-                {
-                    for (int y = h - 1; y >= -dy; y--)
-                    {
-                        for (int x = 0; x < w; x++)
-                        {
-                            array[x, y] = array[x, y + dy];
-                        }
-                    }
+                    array[x, y] = array[x + dx, y + dy];
                 }
             }
         }

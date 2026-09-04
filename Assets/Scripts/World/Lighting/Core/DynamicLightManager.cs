@@ -52,6 +52,8 @@ namespace Fodinae.World.Lighting
 
         public void ClearDirty() => _externalLightsDirty = false;
 
+        public void MarkDirty() => _externalLightsDirty = true;
+
         public void IncrementGeneration() => _dynamicLightGeneration++;
 
         public void SetDynamicLight(

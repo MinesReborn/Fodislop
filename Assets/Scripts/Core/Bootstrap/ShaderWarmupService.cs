@@ -34,11 +34,9 @@ public sealed class ShaderWarmupService : IShaderWarmupService
     [
         "SolveCascade",
         "SolveAutomaticNormals",
-        "SolveContactOcclusion",
         "ResolveDirect",
         "SolveDiffuseBounce",
         "CompositeLighting",
-        "ResolveAndComposite",
     ];
 
     private static readonly string[] PostProcessKernels =

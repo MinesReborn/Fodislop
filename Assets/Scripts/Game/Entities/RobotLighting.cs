@@ -41,29 +41,37 @@ public sealed class RobotLighting
     public float DynamicLightIntensity => _dynamicLightIntensity;
     public Color DynamicLightColor => _dynamicLightColor;
 
-    public void InitializeSettings(IProjectDefaults projectDefaults, LightingEngine? lightingEngine)
+    /// <remarks>
+    /// Запасное значение — авторский дефолт секции освещения. Раньше он
+    /// приходил снимком `ProjectDefaults.asset`; теперь авторское значение и
+    /// есть новый экземпляр секции, поэтому источник тот же, а параметра
+    /// больше не нужно.
+    /// </remarks>
+    public void InitializeSettings(LightingEngine? lightingEngine)
     {
-        if (_dynamicLightSettingsLoaded || projectDefaults == null)
+        if (_dynamicLightSettingsLoaded)
         {
             return;
         }
 
-        LightingDefaultsSnapshot defaults = projectDefaults.Lighting;
-        _dynamicLightIntensity = lightingEngine?.IsRuntimeConfigReady == true
-            ? lightingEngine.DynamicLightIntensity
+        bool engineReady = lightingEngine?.IsRuntimeConfigReady == true;
+        var defaults = new WorldLightingSettings();
+        _dynamicLightIntensity = engineReady
+            ? lightingEngine!.DynamicLightIntensity
             : defaults.DynamicLightIntensity;
-        _dynamicLightColor = lightingEngine?.IsRuntimeConfigReady == true
-            ? lightingEngine.DynamicLightColor
+        _dynamicLightColor = engineReady
+            ? lightingEngine!.DynamicLightColor
             : defaults.DynamicLightColor;
-        _dynamicLightSettingsLoaded = lightingEngine?.IsRuntimeConfigReady == true;
+        _dynamicLightSettingsLoaded = engineReady;
     }
 
-    public void ResetPreferences(IProjectDefaults projectDefaults, LightingEngine? lightingEngine)
+    public void ResetPreferences(LightingEngine? lightingEngine)
     {
+        var defaults = new WorldLightingSettings();
         _dynamicLightIntensity = lightingEngine?.DynamicLightIntensity ??
-            projectDefaults.Lighting.DynamicLightIntensity;
+            defaults.DynamicLightIntensity;
         _dynamicLightColor = lightingEngine?.DynamicLightColor ??
-            projectDefaults.Lighting.DynamicLightColor;
+            defaults.DynamicLightColor;
         _dynamicLightSettingsLoaded = true;
     }
 

@@ -48,22 +48,6 @@
                             </ui:VisualElement>
                             <ui:VisualElement name="EffectsGroupCamera" class="pause-subsection">
                                 <ui:Label class="pause-subsection-title" text="settings.post_process.camera_color" />
-                                <ui:VisualElement class="pause-slider-container">
-                                    <ui:Label name="PostProcessExposureLabel" class="pause-slider-label" text="settings.effects.exposure" />
-                                    <ui:Slider name="PostProcessExposure" low-value="-2" high-value="2" />
-                                </ui:VisualElement>
-                                <ui:VisualElement class="pause-slider-container">
-                                    <ui:Label name="PostProcessContrastLabel" class="pause-slider-label" text="settings.effects.contrast" />
-                                    <ui:Slider name="PostProcessContrast" low-value="-0.5" high-value="0.5" />
-                                </ui:VisualElement>
-                                <ui:VisualElement class="pause-slider-container">
-                                    <ui:Label name="PostProcessSaturationLabel" class="pause-slider-label" text="settings.effects.saturation" />
-                                    <ui:Slider name="PostProcessSaturation" low-value="0" high-value="2" />
-                                </ui:VisualElement>
-                                <ui:VisualElement class="pause-slider-container">
-                                    <ui:Label name="PostProcessWhitePointLabel" class="pause-slider-label" text="settings.effects.tone_mapping_white_point" />
-                                    <ui:Slider name="PostProcessWhitePoint" low-value="0.25" high-value="8" />
-                                </ui:VisualElement>
                             </ui:VisualElement>
                             <ui:VisualElement name="EffectsGroupDetail" class="pause-subsection">
                                 <ui:Label class="pause-subsection-title" text="settings.post_process.detail" />
@@ -107,9 +91,6 @@
                             </ui:VisualElement>
                             <ui:VisualElement name="AdvancedGroupBounce" class="pause-subsection">
                                 <ui:Label class="pause-subsection-title" text="settings.lighting.bounce" />
-                            </ui:VisualElement>
-                            <ui:VisualElement name="AdvancedGroupAO" class="pause-subsection">
-                                <ui:Label class="pause-subsection-title" text="settings.lighting.ao" />
                             </ui:VisualElement>
                             <ui:VisualElement name="AdvancedGroupBounds" class="pause-subsection">
                                 <ui:Label class="pause-subsection-title" text="settings.lighting.bounds" />

@@ -54,7 +54,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets/Editor/MapbConverter.cs" />
-    <Compile Include="Assets/Editor/ProjectDefaultsBuildValidator.cs" />
     <Compile Include="Assets/Editor/BuildTextureStager.cs" />
     <Compile Include="Assets/Editor/UnityRenderLayerValidator.cs" />
     <Compile Include="Assets/Editor/PixelArtTextureImportPolicy.cs" />

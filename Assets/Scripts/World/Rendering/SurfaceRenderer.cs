@@ -93,13 +93,13 @@ namespace Fodinae.World
 
             _materialManager.ApplyMaterialConfig(
                 transitMaterial,
-                config.TransitEmissionColor,
-                config.TransitEmissionStrength,
-                config.SurfaceOccupancy);
+                config.Terrain.TransitEmissionColor,
+                config.Terrain.TransitEmissionStrength,
+                config.Terrain.SurfaceOccupancy);
             _materialManager.ApplyMaterialConfig(
                 perspectiveMaterial,
-                config.PerspectiveEmissionColor,
-                config.PerspectiveEmissionStrength,
+                config.Terrain.PerspectiveEmissionColor,
+                config.Terrain.PerspectiveEmissionStrength,
                 occupancy: 0f);
             _materialManager.ApplyMaterialConfig(
                 redRockMaterial,
@@ -107,6 +107,7 @@ namespace Fodinae.World
                 emissionStrength: 0f,
                 occupancy: 1f);
             _lightingGeometryRevision++;
+            Debug.Log($"[SurfaceRenderer] ApplyClientConfig: revision={_lightingGeometryRevision}");
         }
 
         public void SetLocalAssets(
@@ -308,9 +309,9 @@ namespace Fodinae.World
 
             _transitMaterial = _materialManager.CreateSurfaceMaterial(
                 transitTexture,
-                clientConfig.TransitEmissionColor,
-                clientConfig.TransitEmissionStrength,
-                clientConfig.SurfaceOccupancy,
+                clientConfig.Terrain.TransitEmissionColor,
+                clientConfig.Terrain.TransitEmissionStrength,
+                clientConfig.Terrain.SurfaceOccupancy,
                 Vector2.one,
                 new Vector2(_mapManager.WorldWidth, _mapManager.WorldHeight),
                 SurfaceMaterialManager.SurfaceKind.Transit,
@@ -318,8 +319,8 @@ namespace Fodinae.World
 
             _perspectiveMaterial = _materialManager.CreateSurfaceMaterial(
                 perspectiveTexture,
-                clientConfig.PerspectiveEmissionColor,
-                clientConfig.PerspectiveEmissionStrength,
+                clientConfig.Terrain.PerspectiveEmissionColor,
+                clientConfig.Terrain.PerspectiveEmissionStrength,
                 occupancy: 0f,
                 baseMapTileCount: Vector2.one,
                 worldSize: new Vector2(_mapManager.WorldWidth, _mapManager.WorldHeight),

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using Fodinae.Core;
 using Fodinae.Core.Localization;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -83,6 +84,37 @@ namespace Fodinae.UI
             container.Add(slider);
 
             return container;
+        }
+
+        /// <summary>
+        /// Ползунок, берущий границы и подпись из объявления поля секции.
+        /// </summary>
+        /// <remarks>
+        /// ЗАЧЕМ. Диапазон настройки объявлен над её полем
+        /// (<c>[SettingRange]</c>). Перегрузка с явными <c>minimum</c> и
+        /// <c>maximum</c> делала билдер четвёртым местом, где записан тот же
+        /// отрезок, и эти четыре записи расходились: ползунок мог показывать
+        /// диапазон, который валидатор не принимает.
+        ///
+        /// Имя поля проверяется в <see cref="SettingSchema.RangeOf{TSection}"/>
+        /// и падает при опечатке, а не показывает игроку неверные границы.
+        /// </remarks>
+        public static VisualElement CreateBoundSlider<TSection>(
+            string fieldName,
+            ILocalizationService loc,
+            Func<float> readValue,
+            Action<float> onChange,
+            ICollection<Action> refreshers)
+            where TSection : class, new()
+        {
+            SettingRangeAttribute range = SettingSchema.RangeOf<TSection>(fieldName);
+            return CreateBoundSlider(
+                loc.Get(SettingSchema.LabelOf<TSection>(fieldName)),
+                readValue,
+                onChange,
+                range.Minimum,
+                range.Maximum,
+                refreshers);
         }
 
         public static VisualElement CreateBoundSlider(
@@ -191,6 +223,28 @@ namespace Fodinae.UI
             refreshers.Add(Refresh);
             Refresh();
             return toggle;
+        }
+
+        public static Button CreateBoundCycleButton(
+            Func<string> readLabel,
+            Action onCycle,
+            ICollection<Action> refreshers)
+        {
+            var btn = new Button();
+            void Refresh()
+            {
+                btn.text = readLabel();
+            }
+
+            btn.clicked += () =>
+            {
+                onCycle();
+                Refresh();
+            };
+            btn.AddToClassList("pause-btn");
+            refreshers.Add(Refresh);
+            Refresh();
+            return btn;
         }
 
         public static Button CreateButton(string text, Action action)

@@ -9,6 +9,7 @@ using Fodinae.Rendering.PostProcessing;
 using Fodinae.World;
 using Fodinae.World.Lighting;
 using Fodinae.World.Terrain;
+using UnityEngine;
 
 namespace Fodinae.Rendering;
 
@@ -48,6 +49,7 @@ public sealed class GraphicsSettingsController
 
     public void SelectStandardPreset(GraphicsPreset preset)
     {
+        Debug.Log($"[GraphicsSettingsController] Selecting standard preset: {preset}");
         _clientConfig.SelectGraphicsPreset(preset);
         ApplyAll();
         _clientConfig.Save();
@@ -55,6 +57,7 @@ public sealed class GraphicsSettingsController
 
     public void SelectCustomPreset()
     {
+        Debug.Log("[GraphicsSettingsController] Selecting custom preset");
         _clientConfig.MarkGraphicsAsCustom();
         ApplyAll();
         _clientConfig.Save();
@@ -62,6 +65,7 @@ public sealed class GraphicsSettingsController
 
     public void SetCustomSettings(GraphicsQualitySettings settings)
     {
+        Debug.Log($"[GraphicsSettingsController] Setting custom quality settings: Lighting={settings.LightingQuality}, RenderScale={settings.RenderScale}");
         _clientConfig.SetCustomGraphicsSettings(settings);
         ApplyAll();
         _clientConfig.Save();
@@ -69,18 +73,21 @@ public sealed class GraphicsSettingsController
 
     public void UpdatePostProcessSettings(Action<ClientConfig> update)
     {
+        Debug.Log("[GraphicsSettingsController] Updating post-process settings");
         _clientConfig.UpdatePostProcessAndSave(update);
         _postProcessController.ApplyClientConfig();
     }
 
     public void UpdateAccessibilitySettings(Action<AccessibilitySettings> update)
     {
-        _clientConfig.UpdateAccessibility(update);
+        Debug.Log("[GraphicsSettingsController] Updating accessibility settings");
+        _clientConfig.UpdateSection(config => config.Accessibility, update);
         _postProcessController.ApplyClientConfig();
     }
 
     public void UpdateCustomWorldMaterialSettings(Action<ClientConfig> update)
     {
+        Debug.Log("[GraphicsSettingsController] Updating custom world material settings");
         MarkCustom();
         _clientConfig.UpdateAndSave(update);
         _terrainRenderer.ApplyClientConfig();
@@ -89,6 +96,7 @@ public sealed class GraphicsSettingsController
 
     private void ApplyAll()
     {
+        Debug.Log("[GraphicsSettingsController] ApplyAll: applying config across Lighting, PostProcess, Terrain, Surface");
         _lightingEngine.ApplyClientConfig();
         _postProcessController.ApplyClientConfig();
         _terrainRenderer.ApplyClientConfig();

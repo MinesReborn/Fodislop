@@ -101,5 +101,43 @@ namespace Fodinae.World.Lighting
                 intervalEnd *= 4f;
             }
         }
+
+        public static int SelectStablePixelsPerCell(
+            int gridWidth,
+            int gridHeight,
+            int requestedScale,
+            int maximumTextureDimension,
+            long atlasDimension)
+        {
+            long maximumEntryCount = atlasDimension * atlasDimension * 4;
+
+            for (int scale = requestedScale; scale >= 1; scale--)
+            {
+                int width = checked(gridWidth * scale);
+                int height = checked(gridHeight * scale);
+
+                if (width > maximumTextureDimension ||
+                    height > maximumTextureDimension)
+                {
+                    continue;
+                }
+
+                int maximumCascadeCount = GetMaximumCascadeCount(atlasDimension);
+                long requiredEntryCount = CalculateCascadeEntryCount(
+                    width,
+                    height,
+                    maximumCascadeCount);
+
+                if (requiredEntryCount <= maximumEntryCount)
+                {
+                    return scale;
+                }
+            }
+
+            throw new InvalidOperationException(
+                $"Radiance cascade region {gridWidth}x{gridHeight} cannot fit at " +
+                $"one texel per cell within texture limit {maximumTextureDimension} " +
+                $"and atlas limit {atlasDimension}.");
+        }
     }
 }

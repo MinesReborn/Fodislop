@@ -110,6 +110,13 @@ namespace Fodinae.UI.Binding
             return text.Contains('{') && text.Contains('}');
         }
 
+        /// <remarks>
+        /// Здесь switch намеренно открыт: он перечисляет элементы, у которых
+        /// вообще есть событие смены значения. Метка, контейнер и картинка
+        /// такого события не имеют, и ветка default с ошибкой ругалась бы на
+        /// каждый второй элемент разметки. Цена — новый интерактивный контрол
+        /// не будет обновлять привязки, пока его сюда не добавят.
+        /// </remarks>
         private void RegisterValueChangeHandler(VisualElement element)
         {
             switch (element)

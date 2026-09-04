@@ -45,7 +45,7 @@ public sealed class ClientConfigRepositoryTests
         };
 
         repository.Save(config);
-        ClientConfig loaded = repository.Load();
+        ClientConfig loaded = repository.Load().Config;
 
         Assert.That(loaded.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
         Assert.That(loaded.Connection.ServerHost, Is.EqualTo("example.test"));
@@ -88,8 +88,8 @@ public sealed class ClientConfigRepositoryTests
 
         repository.Save(second, backupPath);
 
-        Assert.That(repository.Load().Connection.ServerPort, Is.EqualTo(1002));
+        Assert.That(repository.Load().Config.Connection.ServerPort, Is.EqualTo(1002));
         var backupRepository = new ClientConfigRepository(backupPath);
-        Assert.That(backupRepository.Load().Connection.ServerPort, Is.EqualTo(1001));
+        Assert.That(backupRepository.Load().Config.Connection.ServerPort, Is.EqualTo(1001));
     }
 }

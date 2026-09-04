@@ -142,27 +142,6 @@ const OVERSIZED_PRODUCTION_FILE_DEBT = new Set([
     "Assets/Scripts/World/Lighting/Core/LightingEngine.cs",
     "Assets/Scripts/World/Persistence/WorldLayer.cs",
     "Assets/Scripts/World/Terrain/Core/TerrainRenderer.cs",
-    "Assets/Scripts/UI/Overlays/InGameDebugOverlay.cs",
-    "Assets/Scripts/AssetPipeline/Animation/GifAnimationDecoder.cs",
-    "Assets/Scripts/UI/Chat/GlobalChatUI.cs",
-    "Assets/Scripts/Rendering/PostProcessing/PostProcessRenderPass.cs",
-    "Assets/Scripts/Game/Entities/Robot.cs",
-    "Assets/Scripts/UI/Menu/Core/MainMenu.cs",
-    "Assets/Scripts/World/Textures/WorldTextureManager.cs",
-    "Assets/Scripts/AssetPipeline/Loading/ClientAssetLoader.cs",
-    "Assets/Scripts/UI/Programmator/Model/ProgrammatorData.cs",
-    "Assets/Scripts/UI/Gateway/GatewayController.cs",
-    "Assets/Scripts/UI/Map/WorldMapRenderer.cs",
-    "Assets/Scripts/World/Rendering/BackgroundFloodFill.cs",
-    "Assets/Scripts/UI/Programmator/Grid/ProgrammatorClipboardController.cs",
-    "Assets/Scripts/AssetPipeline/Cache/AssetCacheEntry.cs",
-    "Assets/Scripts/UI/HUD/Player/View/PlayerHUDView.cs",
-    "Assets/Scripts/Game/Audio/ServerAudioEvent.cs",
-    "Assets/Scripts/UI/Settings/PauseMenu.cs",
-    "Assets/Scripts/World/Terrain/Mesh/TerrainMeshBuilder.cs",
-    "Assets/Scripts/World/Lighting/Core/LightingResourceManager.cs",
-    "Assets/Scripts/Player/Controllers/PlayerMovementController.cs",
-    "Assets/Scripts/World/Textures/TextureAtlas.cs",
 ]);
 
 function checkOversizedProductionFiles() {
@@ -231,9 +210,10 @@ const RULES = [
     { pattern: /\.renderScale\s*=/, name: "URP render-scale ownership outside LightingEngine", allow: /^Assets\/Scripts\/World\/Lighting\/(?:Core\/)?LightingEngine\.cs$/, allowContent: null },
     { pattern: /PlayerPrefs\.(Set|Delete|Save)/, name: "settings persistence in PlayerPrefs", allow: /^(Assets\/Editor\/.*|Assets\/Scripts\/Networking\/Auth\/(AuthTokenManager|VkAuthService)\.cs|Assets\/Scripts\/UI\/(AuthGate\.cs|GatewayController\.cs|Gateway\/AuthGate\.cs|Gateway\/GatewayController\.cs))$/, allowContent: null },
     { pattern: /(slider|toggle|dropdown|quality|preset)\.value\s*=/, name: "notifying UI settings refresh", allow: null, allowContent: null },
+    { pattern: /PauseMenuUIFactory\.CreateSlider\s*\(/, name: "unbound settings slider (use PauseMenuUIFactory.CreateBoundSlider)", allow: /^Assets\/Scripts\/UI\/Settings\/PauseMenuUIFactory\.cs$/, allowContent: null },
     { pattern: /ServerConfig[^;]*(Master|Sfx|Music|Ambience|Voice|Ui)Volume/, name: "audio volume in ServerConfig", allow: null, allowContent: null },
     { pattern: /_clientConfig\.Config\.[A-Za-z0-9_]+\s*=/, name: "direct ClientConfig field mutation", allow: null, allowContent: null },
-    { pattern: /_clientConfig\.Save\s*\(/, name: "unowned ClientConfig persistence", allow: /^(Assets\/Scripts\/Rendering\/(?:Settings\/)?GraphicsSettingsController\.cs|Assets\/Scripts\/Rendering\/(?:Settings\/)?DisplayManager\.cs|Assets\/Scripts\/World\/Lighting\/(?:(?:Config|Core)\/)?Lighting(ConfigHolder|Engine)\.cs)$/, allowContent: null },
+    { pattern: /_clientConfig\.Save\s*\(/, name: "unowned ClientConfig persistence", allow: /^(Assets\/Scripts\/Rendering\/(?:Settings\/)?GraphicsSettingsController\.cs|Assets\/Scripts\/Rendering\/(?:Settings\/)?DisplayManager\.cs|Assets\/Scripts\/World\/Lighting\/(?:(?:Config|Core)\/)?Lighting(ConfigHolder|Engine)\.cs|Assets\/Scripts\/Core\/Interfaces\/Contracts\/ConfigSaveScheduler\.cs)$/, allowContent: null },
     { pattern: /(FindAnyObjectByType|FindFirstObjectByType|FindObjectsByType)<Canvas>/, name: "screen-space uGUI Canvas lookup", allow: null, allowContent: null },
     { pattern: /using\s+UnityEngine\.UI;/, name: "screen-space uGUI namespace", allow: null, allowContent: null },
     { pattern: /new\s+GameObject\(/, name: "runtime GameObject construction outside SceneObjectFactory", allow: /^(Assets\/Editor\/.*|Assets\/Scripts\/Editor\/.*|Assets\/Scripts\/Tests\/.*|Assets\/Scripts\/Core\/Lifecycle\/SceneObjectFactory\.cs|Assets\/Scripts\/Game\/.*)$/, allowContent: null },
@@ -668,8 +648,8 @@ function checkLifecycleSelfCalls() {
 }
 
 function checkMenuSceneryOwnership() {
-    const bootstrapScene = readFile("Assets/Scenes/Bootstrap.unity");
-    const mainMenuScene = readFile("Assets/Scenes/MainMenu.unity");
+    const bootstrapScene = readRequiredFile("Assets/Scenes/Bootstrap.unity", "Menu Scenery Ownership");
+    const mainMenuScene = readRequiredFile("Assets/Scenes/MainMenu.unity", "Menu Scenery Ownership");
     if (bootstrapScene === null || mainMenuScene === null) {
         return;
     }
@@ -1284,6 +1264,11 @@ function checkAsyncVoid() {
 // ---------------------------------------------------------------------------
 
 const CONFIG_PATH = "Assets/Scripts/Core/Interfaces/Contracts/ClientConfig.cs";
+// Настройки живут по файлу на секцию. Раньше здесь стоял один путь и разбор
+// читал только его; после разбиения ClientConfig на секции такой разбор
+// перестал бы видеть тридцать полей и начал бы молча пропускать мёртвую
+// проводку вместо того, чтобы о ней сообщать.
+const SETTINGS_DIR = "Assets/Scripts/Core/Interfaces/Contracts/Settings";
 const BOOTSTRAP_PATH = "Assets/Scripts/Core/Bootstrap/GameStartupPipeline.cs";
 const CONFIG_METADATA_FIELDS = new Set(["SchemaVersion", "ProjectDefaultsHash"]);
 
@@ -1352,9 +1337,65 @@ function parseConfigFields(content) {
 // Collect every production file that references each ClientConfig field
 // (ClientConfig.cs itself excluded). Shared by the dead-field and UI-only
 // wiring checks so the tree is scanned once.
+// GraphicsQualitySettings — тоже секция настроек, но структура: она сравнивается
+// по значению во всём коде и живёт в ассете профиля, поэтому лежит не в
+// Settings/. Под правило обязательного диапазона она попадать должна.
+const EXTRA_SETTING_FILES = [
+    "Assets/Scripts/Core/Interfaces/Contracts/GraphicsQualitySettings.cs",
+];
+
+function settingsSectionFiles() {
+    if (!fs.existsSync(SETTINGS_DIR)) {
+        return [];
+    }
+    return fs.readdirSync(SETTINGS_DIR)
+        .filter((name) => name.endsWith(".cs"))
+        .map((name) => path.join(SETTINGS_DIR, name));
+}
+
+function settingMetadataFiles() {
+    return settingsSectionFiles().concat(EXTRA_SETTING_FILES.filter((f) => fs.existsSync(f)));
+}
+
+// Поля, чья проводка объявлена атрибутом, а не текстовой ссылкой.
+// [AudioBus] связывает поле громкости с шиной FMOD, и AudioBusRegistry
+// перечисляет их рефлексией: в исходниках `.SfxVolume` больше не встречается,
+// хотя настройка применяется. Причём проверено это сильнее, чем поиском по
+// тексту — реестр бросает исключение, если у шины нет поля или у поля нет
+// пути. Без этого исключения проверка мёртвых полей ругалась бы на пять из
+// шести громкостей.
+function fieldsWiredByAttribute() {
+    const wired = new Set();
+    for (const file of settingsSectionFiles()) {
+        const content = readFile(file);
+        if (content === null) {
+            continue;
+        }
+        const lines = content.split("\n");
+        for (let i = 0; i < lines.length; i++) {
+            const m = lines[i].match(/^\s*public\s+\S+\s+(?!operator\b)([A-Za-z0-9_]+)\s*(?:=(?!=)|;)/);
+            if (m === null) {
+                continue;
+            }
+            for (let back = i - 1; back >= 0 && lines[back].trim().startsWith("["); back--) {
+                if (/\[AudioBus\(/.test(lines[back])) {
+                    wired.add(m[1]);
+                }
+            }
+        }
+    }
+    return wired;
+}
+
 function collectConfigFieldReads() {
     const configSrc = readFile(CONFIG_PATH);
-    const fields = configSrc === null ? [] : parseConfigFields(configSrc);
+    const fields = [];
+    for (const file of settingsSectionFiles()) {
+        const content = readFile(file);
+        if (content !== null) {
+            fields.push(...parseConfigFields(content));
+        }
+    }
     const reads = new Map(fields.map((field) => [field, []]));
     const configAbs = path.resolve(CONFIG_PATH);
     for (const file of collectWiringFiles()) {
@@ -1384,12 +1425,13 @@ function checkDeadConfigFields() {
         return;
     }
     if (fields.length === 0) {
-        recordViolation("Settings Wiring (dead field)", CONFIG_PATH, "Could not parse ClientConfig fields.");
+        recordViolation("Settings Wiring (dead field)", CONFIG_PATH, "Could not parse any setting fields from Contracts/Settings/.");
         return;
     }
 
+    const attributeWired = fieldsWiredByAttribute();
     for (const field of fields) {
-        if (CONFIG_METADATA_FIELDS.has(field)) {
+        if (CONFIG_METADATA_FIELDS.has(field) || attributeWired.has(field)) {
             continue;
         }
 
@@ -1426,12 +1468,13 @@ function checkUiOnlyWiring() {
     if (configSrc === null || fields.length === 0) {
         return; // parse failure is reported by the dead-field check
     }
+    const attributeWired = fieldsWiredByAttribute();
     for (const field of fields) {
         if (CONFIG_METADATA_FIELDS.has(field)) {
             continue;
         }
 
-        if (UI_WIRING_ALLOWED_FIELDS.has(field)) {
+        if (UI_WIRING_ALLOWED_FIELDS.has(field) || attributeWired.has(field)) {
             continue;
         }
         // ClientConfigManager validates/migrates fields — that is not a
@@ -1445,6 +1488,334 @@ function checkUiOnlyWiring() {
                 "Settings Wiring (UI-only)",
                 CONFIG_PATH,
                 `ClientConfig.${field} is read only from UI controllers (${readers.join(", ")}) — Settings can show and save it, but no game system ever applies it (the TargetFrameRate bug before DisplayManager wired it). Connect the field to a consumer or remove the setting.`,
+            );
+        }
+    }
+}
+
+// Каждое публичное поле секции обязано объявить свой диапазон рядом с собой,
+// либо честно сказать, что диапазона нет и почему. Мотиватор: до разбиения
+// один и тот же отрезок 0..1 для AmbientIntensity был записан литералом в
+// четырёх независимых проверках, они расходились молча, и конфиг мог пройти
+// валидацию значением, которое ползунок показать не в состоянии.
+function checkSettingRangeCoverage() {
+    for (const file of settingMetadataFiles()) {
+        const content = readFile(file);
+        if (content === null) {
+            continue;
+        }
+        const lines = content.split("\n");
+        for (let index = 0; index < lines.length; index++) {
+            const match = lines[index].match(
+                /^\s*public\s+(?!const\b)[A-Za-z0-9_<>\[\],.\s?]+?\s+(?!operator\b)([A-Za-z0-9_]+)\s*(?:=(?!=)|;)/,
+            );
+            if (match === null) {
+                continue;
+            }
+            // Атрибуты стоят непосредственно над полем; пустая строка или
+            // другое поле обрывают их блок.
+            let attributes = "";
+            for (let back = index - 1; back >= 0; back--) {
+                const line = lines[back].trim();
+                if (line.startsWith("[")) {
+                    attributes += line;
+                    continue;
+                }
+                if (line.startsWith("//") || line.startsWith("///") || line === "") {
+                    continue;
+                }
+                break;
+            }
+            // [Range] от Unity — полноценное объявление: инспектор им
+            // ограничивает правку ассета, SettingSchema по нему проверяет,
+            // ползунок из него берёт края. [Min] не считается: без потолка
+            // ползунок построить не из чего.
+            if (!/\[Setting(Range|Unbounded)|\[Range\(/.test(attributes)) {
+                recordViolation(
+                    "Settings Metadata",
+                    file,
+                    `${match[1]} has neither [SettingRange], [Range] nor [SettingUnbounded]. Declare its bounds next to the field, or state why it has none — otherwise the range comes back as a literal in the validator and the slider builder, and the two drift apart.`,
+                );
+            }
+
+            if (!/\[SettingConsumer\(/.test(attributes)) {
+                recordViolation(
+                    "Settings Consumer",
+                    file,
+                    `${match[1]} has no [SettingConsumer] attribute. Every setting must declare its target subsystem and application mechanism (e.g. [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine.SetAmbientIntensity -> _compositeDirty")]) to prevent dead settings.`,
+                );
+            }
+        }
+    }
+}
+
+// Render pass in Assets/Scripts/Rendering/ must not hardcode effect bypasses,
+// unconditional overrides of .active, or hardcoded gamma/exposure outside
+// debug bypass flags (BypassPostProcessEffects).
+function checkRenderPassInvariants() {
+    const renderPassPath = "Assets/Scripts/Rendering/PostProcessing/PostProcessRenderPass.cs";
+    const content = readRequiredFile(renderPassPath, "Render Pass Invariant");
+    if (content === null) {
+        return;
+    }
+    const lines = content.split("\n");
+    let inBypassBlock = false;
+    let bypassBraceDepth = 0;
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.includes("if (BypassPostProcessEffects)")) {
+            inBypassBlock = true;
+            bypassBraceDepth = 0;
+        }
+        if (inBypassBlock) {
+            bypassBraceDepth += (line.match(/\{/g) || []).length;
+            bypassBraceDepth -= (line.match(/\}/g) || []).length;
+            if (bypassBraceDepth <= 0 && line.includes("}")) {
+                inBypassBlock = false;
+            }
+            continue;
+        }
+        // Outside BypassPostProcessEffects block:
+        // No unconditional disabling of effect flags
+        if (/^\s*(?:bloomActive|vignetteActive|caActive|cgActive|eigengrauActive|mbActive)\s*=\s*false\s*;/.test(line)) {
+            recordViolation(
+                "Render Pass Invariant",
+                `${renderPassPath}:${i + 1}`,
+                `Unconditional disabling of effect flag (${line.trim()}) outside BypassPostProcessEffects. Effects must be driven by volume components and settings.`,
+            );
+        }
+        // No hardcoded display gamma or exposure assignments outside Configure() or BypassPostProcessEffects
+        if (/^\s*_displayGamma\s*=\s*[0-9.]+f?\s*;/.test(line)) {
+            recordViolation(
+                "Render Pass Invariant",
+                `${renderPassPath}:${i + 1}`,
+                `Hardcoded _displayGamma assignment (${line.trim()}) outside BypassPostProcessEffects. Gamma must be driven by DisplaySettings.DisplayGamma.`,
+            );
+        }
+    }
+}
+
+// Every public setter in LightingEngine that mutates lighting parameters
+// must call _configHolder.Set* and invalidate at least one lighting dirty flag
+// (_compositeDirty, _fieldDirty, _bounceDirty, _ambientOcclusionDirty, etc.).
+function checkLightingEngineSetterInvalidations() {
+    const lightingPath = "Assets/Scripts/World/Lighting/Core/LightingEngine.cs";
+    const content = readRequiredFile(lightingPath, "Lighting Engine Invariant");
+    if (content === null) {
+        return;
+    }
+    const lines = content.split("\n");
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const match = line.match(/^\s*public\s+void\s+(Set[A-Za-z0-9_]+)\s*\(/);
+        if (!match) {
+            continue;
+        }
+        const methodName = match[1];
+        if (methodName === "SetRenderScale" || methodName === "SetMsaaLevel" || methodName === "SetQualityLevel" || methodName === "SetDynamicLight") {
+            continue; // Unity-level quality setters or per-entity light registration
+        }
+        // Find method body
+        let depth = 0;
+        let started = false;
+        const bodyLines = [];
+        for (let j = i; j < Math.min(i + 40, lines.length); j++) {
+            depth += (lines[j].match(/\{/g) || []).length;
+            depth -= (lines[j].match(/\}/g) || []).length;
+            if (lines[j].includes("{")) {
+                started = true;
+            }
+            bodyLines.push(lines[j]);
+            if (started && depth <= 0) {
+                break;
+            }
+        }
+        const body = bodyLines.join("\n");
+        const hasDirtyFlag = /(?:_ambientOcclusionDirty|_bounceDirty|_compositeDirty|_fieldDirty|MarkDirty|_nextDynamicLightingUpdateTime|_hasStaticRadianceState)\s*=/i.test(body);
+        if (!hasDirtyFlag) {
+            recordViolation(
+                "LightingEngine Setter Invalidation",
+                `${lightingPath}:${i + 1}`,
+                `${methodName} does not invalidate any lighting dirty flag (_compositeDirty, _fieldDirty, _bounceDirty, _ambientOcclusionDirty, etc.). A setter without invalidation produces a dead setting.`,
+            );
+        }
+    }
+}
+
+// Scan UI Settings tab builders to ensure all sliders and settings controls
+// use bound factory methods (CreateBoundSlider, CreateBoundCycleButton, CreateBoundToggle) and register refreshers.
+function checkUiBoundSettings() {
+    const settingsUiDir = "Assets/Scripts/UI/Settings";
+    if (!fs.existsSync(settingsUiDir)) {
+        return;
+    }
+    for (const name of fs.readdirSync(settingsUiDir)) {
+        if (!name.endsWith(".cs") || name === "PauseMenuUIFactory.cs") {
+            continue;
+        }
+        const fullPath = path.join(settingsUiDir, name);
+        const content = readFile(fullPath);
+        if (content === null) {
+            continue;
+        }
+        const lines = content.split("\n");
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].includes("PauseMenuUIFactory.CreateSlider(")) {
+                recordViolation(
+                    "UI Settings Bound Control",
+                    `${fullPath}:${i + 1}`,
+                    `PauseMenuUIFactory.CreateSlider() is unbound and does not register refreshers. Use PauseMenuUIFactory.CreateBoundSlider<TSection>() so setting values update and refresh when defaults are restored.`,
+                );
+            }
+            if (lines[i].includes(".clicked +=") && !fullPath.includes("PauseMenu.cs")) {
+                let depth = 0;
+                let started = false;
+                const handlerLines = [];
+                for (let j = i; j < Math.min(i + 60, lines.length); j++) {
+                    depth += (lines[j].match(/\{/g) || []).length;
+                    depth -= (lines[j].match(/\}/g) || []).length;
+                    if (lines[j].includes("{")) {
+                        started = true;
+                    }
+                    handlerLines.push(lines[j]);
+                    if (started && depth <= 0) {
+                        break;
+                    }
+                }
+                const handlerText = handlerLines.join("\n");
+                const mutatesSettings = /ApplyCustomTechnicalSettings|_graphicsSettings|_clientConfig|_lightingEngine|_displayManager/.test(handlerText);
+                const hasRefresh = /Refresh|Update|_refreshAll/.test(handlerText);
+                if (mutatesSettings && !hasRefresh) {
+                    recordViolation(
+                        "UI Settings Bound Control",
+                        `${fullPath}:${i + 1}`,
+                        `Button click handler mutates settings but does not call any refresh or update delegate. The button label will not update when clicked. Use PauseMenuUIFactory.CreateBoundCycleButton or call the refresh delegate in the click handler.`,
+                    );
+                }
+            }
+        }
+    }
+}
+
+// Каждый путь в ResourcePaths обязан указывать на существующий ассет.
+// Мотиватор: ResourcePaths.PostProcessCompute указывал на файл, лежавший вне
+// любой папки Resources, поэтому Resources.Load возвращал null, а
+// ShaderWarmupService молча пропускал прогрев всех ядер постпроцесса — не
+// логируя ничего, потому что проверка была написана как `if (compute != null)`.
+// Сломанный путь не даёт ни ошибки компиляции, ни ошибки рантайма: он даёт
+// тишину.
+function checkResourcePaths() {
+    const contractsPath = "Assets/Scripts/Core/Interfaces/Contracts/ProjectRuntimeContracts.cs";
+    const src = readFile(contractsPath);
+    if (src === null) {
+        recordViolation("Resource Paths", contractsPath, "Could not read ProjectRuntimeContracts.cs.");
+        return;
+    }
+    const block = src.match(/class ResourcePaths\s*\{([\s\S]*?)\n    \}/);
+    if (block === null) {
+        recordViolation("Resource Paths", contractsPath, "Could not locate the ResourcePaths class.");
+        return;
+    }
+
+    const paths = new Map();
+    for (const m of block[1].matchAll(/public const string (\w+)\s*=\s*"([^"]*)"/g)) {
+        paths.set(m[1], m[2]);
+    }
+    // Составные пути вида A + "/" + B.
+    for (const m of block[1].matchAll(/public const string (\w+)\s*=\s*(\w+)\s*\+\s*"([^"]*)"\s*\+\s*(\w+)/g)) {
+        if (paths.has(m[2]) && paths.has(m[4])) {
+            paths.set(m[1], paths.get(m[2]) + m[3] + paths.get(m[4]));
+        }
+    }
+
+    const roots = [];
+    const findRoots = (dir) => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+            if (!entry.isDirectory()) {
+                continue;
+            }
+            const full = path.join(dir, entry.name);
+            if (entry.name === "Resources") {
+                roots.push(full);
+            } else {
+                findRoots(full);
+            }
+        }
+    };
+    findRoots("Assets");
+
+    // Расширение в пути к ресурсу не пишется — Resources.Load выводит его сам.
+    const extensions = ["", ".asset", ".prefab", ".uxml", ".uss", ".compute", ".shader",
+        ".png", ".jpg", ".mat", ".ttf", ".otf", ".json", ".txt", ".anim", ".controller"];
+    for (const [name, value] of paths) {
+        if (value === "") {
+            continue;
+        }
+        const found = roots.some((root) => extensions.some((ext) => {
+            const candidate = path.join(root, value + ext);
+            return fs.existsSync(candidate);
+        }));
+        if (!found) {
+            recordViolation(
+                "Resource Paths",
+                contractsPath,
+                `ResourcePaths.${name} = "${value}" resolves to nothing under any Resources folder. Resources.Load returns null silently — add the asset, move it under Resources, or delete the constant.`,
+            );
+        }
+    }
+}
+
+// switch с тремя и более ветвями обязан иметь default. Мотиватор:
+// PauseMenuAudioTabBuilder.SetBusVolumeInConfig перечислял шесть шин и не имел
+// default — новая шина давала ползунок, который двигается, ничего не
+// сохраняет и ни на что не жалуется. Отсутствие ветки в switch не ловится ни
+// компилятором, ни тестом: оно выглядит как «ничего не произошло».
+// Освобождение выдаётся поимённо и требует объяснения в коде рядом.
+const SWITCH_DEFAULT_EXEMPT = new Map([
+    // Перечисляет элементы, у которых вообще есть событие смены значения.
+    // У метки и контейнера его нет, поэтому default ругался бы на половину
+    // разметки. Обоснование записано в <remarks> над методом.
+    ["Assets/Scripts/UI/Binding/WindowBinding.cs", "RegisterValueChangeHandler"],
+]);
+
+function checkSwitchDefaultCoverage() {
+    for (const file of collectWiringFiles()) {
+        const normalized = file.replace(/\\/g, "/");
+        const content = readFile(file);
+        if (content === null) {
+            continue;
+        }
+        const lines = content.split("\n");
+        for (let i = 0; i < lines.length; i++) {
+            if (!/^\s*switch\s*\(\s*[\w.]+\s*\)\s*$/.test(lines[i])) {
+                continue;
+            }
+            let depth = 0;
+            let started = false;
+            const body = [];
+            for (let j = i + 1; j < Math.min(i + 140, lines.length); j++) {
+                depth += (lines[j].match(/\{/g) || []).length;
+                depth -= (lines[j].match(/\}/g) || []).length;
+                body.push(lines[j]);
+                if (lines[j].trim() === "{") {
+                    started = true;
+                }
+                if (started && depth <= 0) {
+                    break;
+                }
+            }
+            const text = body.join("\n");
+            const cases = (text.match(/^\s*case\s/gm) || []).length;
+            if (cases < 3 || /^\s*default\s*:/m.test(text)) {
+                continue;
+            }
+            if (SWITCH_DEFAULT_EXEMPT.has(normalized)) {
+                continue;
+            }
+            recordViolation(
+                "Switch Default",
+                `${file}:${i + 1}`,
+                `switch with ${cases} cases has no default — an unhandled value falls through silently, with no error and no log. Add a default that throws or logs, or exempt it in SWITCH_DEFAULT_EXEMPT with the reason.`,
             );
         }
     }
@@ -1469,6 +1840,62 @@ function checkUncoveredConsumers() {
                     file,
                     `${cls} exposes ApplyClientConfig() but is missing from STARTUP_APPLY_CONTRACTS in scripts/check-architecture.js. Either wire it into GameStartupPipeline and add it to the contract, or it will apply saved config only from the pause menu.`,
                 );
+            }
+        }
+    }
+}
+
+function checkSettingConsumerTargetMembers() {
+    const classFiles = new Map();
+    for (const file of collectWiringFiles()) {
+        const basename = path.basename(file, ".cs");
+        if (!classFiles.has(basename)) {
+            classFiles.set(basename, file);
+        }
+    }
+
+    for (const file of settingsSectionFiles()) {
+        const content = readFile(file);
+        if (content === null) {
+            continue;
+        }
+        const lines = content.split("\n");
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const consumerMatch = line.match(/\[SettingConsumer\s*\(\s*SettingConsumerTarget\.([A-Za-z0-9_]+)\s*,\s*"([^"]+)"\s*\)\]/);
+            if (!consumerMatch) {
+                continue;
+            }
+            const [, targetEnum, mechanism] = consumerMatch;
+            const matches = mechanism.match(/\b([A-Z][A-Za-z0-9_]+)\.([A-Za-z0-9_]+)\b/g);
+            if (!matches) {
+                continue;
+            }
+            for (const match of matches) {
+                const [className, memberName] = match.split(".");
+                if (/^(?:Screen|QualitySettings|Application|HDROutput|Math|Mathf)$/.test(className)) {
+                    continue;
+                }
+                const targetFilePath = classFiles.get(className);
+                if (!targetFilePath) {
+                    recordViolation(
+                        "Setting Consumer Target",
+                        `${file}:${i + 1}`,
+                        `[SettingConsumer] references class '${className}' in mechanism '${mechanism}', but ${className}.cs was not found in Assets/Scripts.`,
+                    );
+                    continue;
+                }
+                const targetContent = readFile(targetFilePath);
+                if (targetContent === null) {
+                    continue;
+                }
+                if (!new RegExp(`\\b${memberName}\\b`).test(targetContent)) {
+                    recordViolation(
+                        "Setting Consumer Target",
+                        `${file}:${i + 1}`,
+                        `[SettingConsumer] references '${className}.${memberName}', but member '${memberName}' is not defined in ${targetFilePath}.`,
+                    );
+                }
             }
         }
     }
@@ -1708,6 +2135,7 @@ function checkUssStyles() {
     problemCount += checkAssemblyGraph();
     problemCount += checkContainerConstructorChoice();
     problemCount += checkToneMapMatrices();
+    problemCount += checkShaderColorLibraryIncludes();
 
     console.log(`${CYAN}${BOLD}USS stylesheets:${NC} ${names.length} file(s), ${declared.size} token(s) declared, ${problemCount} violation(s)`);
 }
@@ -1871,7 +2299,8 @@ function stripForTypeScan(source) {
         .replace(/\/\/[^\n]*/g, " ")
         .replace(/@"(?:[^"]|"")*"/g, '""')
         .replace(/"(?:\\.|[^"\\])*"/g, '""')
-        .replace(/\[[^\[\]\n]*\]/g, " ");
+        .replace(/\benum\s+[A-Za-z0-9_]+\s*\{[\s\S]*?\}/g, " ")
+        .replace(/\[[\s\S]*?\]/g, " ");
 }
 
 function collectAssemblies() {
@@ -2048,13 +2477,38 @@ function checkNamespaceVisibility(sources) {
 // арифметикой: у матрицы, переводящей белое в белое, сумма каждой строки
 // равна единице.
 function checkToneMapMatrices() {
-    const file = path.join("Assets", "Shaders", "PostProcessing", "PostProcess.compute");
+    const file = path.join(
+        "Assets", "Resources", "Shaders", "PostProcessing", "PostProcess.compute");
     const source = readFile(file);
     if (source === null) {
-        return 0;
+        recordViolation("Architecture", file,
+            "Файл тонмапа не найден по ожидаемому пути — проверка матриц AgX, " +
+            "возврата в линейное и места гаммы не может быть выполнена.");
+        return 1;
     }
 
     let violations = 0;
+    if (!/return\s+pow\(color,\s*max\(_Gamma,\s*0\.1\)\)\s*;/.test(source)) {
+        recordViolation("Architecture", file,
+            "AgX обязан линеаризовать display-encoded результат через pow(color, max(_Gamma, 0.1)) " +
+            "до записи в линейный camera target; иначе URP кодирует его повторно и выбеливает полутона.");
+        violations++;
+    }
+
+    if (/pow\(color,\s*gammaCorrection\)|2\.2\s*\/\s*_Gamma/.test(source)) {
+        recordViolation("Architecture", file,
+            "Гамма дисплея не применяется до тонмапа: над сцен-линейными значениями " +
+            "показатель степени раздувает всё ярче единицы. Её место — показатель возврата в ToneMapAgX.");
+        violations++;
+    }
+
+    if (!/15\.5\s*\*\s*x4\s*\*\s*x2/.test(source) || !/31\.96\s*\*\s*x4/.test(source)) {
+        recordViolation("Architecture", file,
+            "ToneMapAgX обязан вычислять 6-мерный полином AgX S-кривой; без него " +
+            "тонмаппинг вырождается в логарифмический масштаб без плеча и сжимает тени в пересвет.");
+        violations++;
+    }
+
     const MATRIX = /const\s+float3x3\s+(\w+)\s*=\s*float3x3\(([^)]*)\)/g;
     for (const match of source.matchAll(MATRIX)) {
         const name = match[1];
@@ -2075,6 +2529,63 @@ function checkToneMapMatrices() {
                     "то есть матрица стоит транспонированной, и нейтрали красятся.");
                 violations++;
             }
+        }
+    }
+
+    return violations;
+}
+
+const SHADER_COLOR_FUNCTIONS = [
+    "SRGBToLinear", "LinearToSRGB", "FastSRGBToLinear", "FastLinearToSRGB",
+    "Luminance", "RgbToHsv", "HsvToRgb",
+];
+
+function checkShaderColorLibraryIncludes() {
+    let violations = 0;
+    const shaderFiles = [];
+    (function walkShaders(root) {
+        let entries;
+        try {
+            entries = fs.readdirSync(root, { withFileTypes: true });
+        } catch {
+            return;
+        }
+        for (const entry of entries) {
+            const full = path.join(root, entry.name);
+            if (entry.isDirectory()) {
+                if (entry.name === "TextMesh Pro") {
+                    continue;
+                }
+                walkShaders(full);
+            } else if (/\.(shader|compute|hlsl)$/.test(entry.name)) {
+                shaderFiles.push(full);
+            }
+        }
+    })("Assets");
+    for (const file of shaderFiles) {
+        const source = readFile(file);
+        if (source === null) {
+            continue;
+        }
+
+        const includesColor = source.includes("ShaderLibrary/Color.hlsl");
+        for (const fn of SHADER_COLOR_FUNCTIONS) {
+            const used = new RegExp(`\\b${fn}\\s*\\(`).test(source);
+            if (!used || includesColor) {
+                continue;
+            }
+
+            // Своё определение в этом же файле — законно и снимает вопрос.
+            const definedLocally = new RegExp(
+                `(float|half|real)[1-4]?\\s+${fn}\\s*\\(`).test(source);
+            if (definedLocally) {
+                continue;
+            }
+
+            recordViolation("Architecture", file,
+                `Шейдер вызывает ${fn}, но не подключает Color.hlsl и не определяет её сам. ` +
+                "Проход не скомпилируется, и объект останется вообще без шейдера.");
+            violations++;
         }
     }
 
@@ -2642,7 +3153,7 @@ function checkHiddenClassNotOverridden() {
 
 const DEBT_BUDGET = {
     "inline вне main game": 59,
-    "inline в main game": 305,
+    "inline в main game": 286,
     // 210, а не 205: сверка компонентов (compare-components.py) перенесла в
     // игру значения макета, и часть из них там тоже литералы — 22px отступа
     // под подзаголовком, 3px скругления тикера, 19px и -30px в ленте хроники.
@@ -3395,9 +3906,16 @@ function main() {
     checkUnityNamespaces();
     checkEarlyLifecycleDiAndCallgraph();
     checkAsyncVoid();
+    checkRenderPassInvariants();
+    checkLightingEngineSetterInvalidations();
+    checkUiBoundSettings();
+    checkResourcePaths();
+    checkSwitchDefaultCoverage();
+    checkSettingRangeCoverage();
     checkDeadConfigFields();
     checkUiOnlyWiring();
     checkUncoveredConsumers();
+    checkSettingConsumerTargetMembers();
     checkStartupApplicationContract();
     checkUssStyles();
     checkLocalization();
@@ -3428,7 +3946,13 @@ function main() {
         console.log("  - safe DI resolution in early lifecycle (TryResolve, not Resolve)");
         console.log("  - no async void in MonoBehaviours (use UniTask)");
         console.log("  - no new production C# files above 500 lines; finite debt list only");
+        console.log("  - every ResourcePaths constant resolves to a real asset");
+        console.log("  - switch with 3+ cases has a default (no silent fallthrough)");
         console.log("  - every ClientConfig field referenced in production code");
+        console.log("  - every setting declares [SettingConsumer] and valid [SettingRange] or [SettingUnbounded]");
+        console.log("  - no hardcoded effect bypasses or gamma overrides in render passes");
+        console.log("  - every LightingEngine setter invalidates lighting dirty flags");
+        console.log("  - settings UI controls use bound factory methods with registered refreshers");
         console.log("  - no ClientConfig field read only from UI controllers (dead wiring)");
         console.log("  - every config consumer applied at startup from GameStartupPipeline");
         console.log("  - USS stylesheets: only UI Toolkit properties, functions and easings");

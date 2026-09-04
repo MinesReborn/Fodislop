@@ -21,7 +21,6 @@ namespace Fodinae.World.Lighting.Pipeline
         int FieldHeight,
         int BounceWidth,
         int BounceHeight,
-        RenderTexture ContactOcclusionTexture,
         RenderTexture DirectTexture,
         RenderTexture StaticDirectTexture,
         RenderTexture BounceTexture,

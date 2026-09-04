@@ -136,7 +136,6 @@ namespace Fodinae
                 $"runtimeEffects={RuntimeEffekseerLoader.ActiveRuntimeEffectCount} " +
                 $"chunks={ms.CellLayer?.GetLoadedCount() ?? 0} " +
                 $"lightingSolves={lighting.SolveCount} " +
-                $"lightingContactAOSolves={lighting.ContactOcclusionSolveCount} " +
                 $"dynamicLights={lighting.DynamicLightCount} " +
                 $"dynamicUploaded={lighting.UploadedDynamicLightCount} " +
                 $"dynamicDropped={lighting.DroppedDynamicLightCount} " +

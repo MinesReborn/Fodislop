@@ -22,48 +22,48 @@ internal static class AdvancedPostProcessComposer
         // интенсивность — так шейдер пропускает ветку целиком.
         return new AdvancedPostProcessSnapshot
         {
-            LocalContrastIntensity = config.LocalContrastEnabled
+            LocalContrastIntensity = config.Effects.LocalContrastEnabled
                 ? PostProcessLook.LocalContrast.Intensity
                 : 0f,
 
-            LensDirtIntensity = config.LensEffectsEnabled
+            LensDirtIntensity = config.Effects.LensEffectsEnabled
                 ? PostProcessLook.Lens.DirtIntensity
                 : 0f,
             LensDirtScale = PostProcessLook.Lens.DirtScale,
-            AnamorphicIntensity = config.LensEffectsEnabled
+            AnamorphicIntensity = config.Effects.LensEffectsEnabled
                 ? PostProcessLook.Lens.AnamorphicIntensity
                 : 0f,
             AnamorphicLength = PostProcessLook.Lens.AnamorphicLength,
-            ChromaticDiffractionIntensity = config.LensEffectsEnabled
+            ChromaticDiffractionIntensity = config.Effects.LensEffectsEnabled
                 ? PostProcessLook.Lens.DiffractionIntensity
                 : 0f,
-            GlintIntensity = config.LensEffectsEnabled
+            GlintIntensity = config.Effects.LensEffectsEnabled
                 ? PostProcessLook.Lens.GlintIntensity
                 : 0f,
             GlintThreshold = PostProcessLook.Lens.GlintThreshold,
 
-            VolumetricDustIntensity = config.AtmosphereEnabled
+            VolumetricDustIntensity = config.Effects.AtmosphereEnabled
                 ? PostProcessLook.Atmosphere.DustIntensity
                 : 0f,
             VolumetricDustScale = PostProcessLook.Atmosphere.DustScale,
             VolumetricDustSpeed = PostProcessLook.Atmosphere.DustSpeed,
-            HeatRefractionIntensity = config.AtmosphereEnabled
+            HeatRefractionIntensity = config.Effects.AtmosphereEnabled
                 ? PostProcessLook.Atmosphere.HeatRefractionIntensity
                 : 0f,
             HeatRefractionScale = PostProcessLook.Atmosphere.HeatRefractionScale,
 
-            PhosphorMaskIntensity = config.DisplayPhysicsEnabled
+            PhosphorMaskIntensity = config.Effects.DisplayPhysicsEnabled
                 ? PostProcessLook.Display.PhosphorMaskIntensity
                 : 0f,
-            DitheringIntensity = config.DisplayPhysicsEnabled
+            DitheringIntensity = config.Effects.DisplayPhysicsEnabled
                 ? PostProcessLook.Display.DitheringIntensity
                 : 0f,
 
-            TemporalPersistenceIntensity = config.TemporalEnabled
+            TemporalPersistenceIntensity = config.Effects.TemporalEnabled
                 ? PostProcessLook.Temporal.PersistenceIntensity
                 : 0f,
             TemporalPersistenceDecay = PostProcessLook.Temporal.PersistenceDecay,
-            LightStability = config.TemporalEnabled
+            LightStability = config.Effects.TemporalEnabled
                 ? PostProcessLook.Temporal.LightStability
                 : 0f,
         };

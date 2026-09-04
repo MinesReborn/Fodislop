@@ -2,6 +2,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -98,30 +99,70 @@ internal static class HdrSdrDualModeSetup
         Debug.Log("[HdrSdrDualModeSetup] Enabled URP HDR render targets.");
     }
 
+    private static readonly string[] CleanProfilePaths =
+    [
+        "Assets/Settings/PostProcessVolumeProfile.asset",
+        "Assets/Settings/DefaultVolumeProfile.asset",
+    ];
+
+    private static readonly Type[] BuiltInDuplicateTypes =
+    [
+        typeof(Tonemapping),
+        typeof(LiftGammaGain),
+        typeof(ColorAdjustments),
+        typeof(ColorCurves),
+        typeof(Bloom),
+        typeof(Vignette),
+        typeof(ChromaticAberration),
+        typeof(MotionBlur),
+        typeof(FilmGrain),
+        typeof(ChannelMixer),
+        typeof(SplitToning),
+        typeof(WhiteBalance),
+        typeof(LensDistortion),
+        typeof(PaniniProjection),
+        typeof(DepthOfField),
+    ];
+
     private static void RemoveBuiltInTonemapping()
     {
-        VolumeProfile profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(VolumeProfilePath) ??
-            throw new InvalidOperationException(
-                $"Required VolumeProfile was not found at '{VolumeProfilePath}'.");
-
-        bool changed = profile.components.RemoveAll(component => component == null) > 0;
-        if (profile.TryGet(out UnityEngine.Rendering.Universal.Tonemapping? tonemapping) &&
-            tonemapping != null)
+        var builtInTypesSet = new HashSet<Type>(BuiltInDuplicateTypes);
+        foreach (string profilePath in CleanProfilePaths)
         {
-            profile.Remove<UnityEngine.Rendering.Universal.Tonemapping>();
-            UnityEngine.Object.DestroyImmediate(tonemapping, allowDestroyingAssets: true);
-            changed = true;
-        }
+            VolumeProfile? profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(profilePath);
+            if (profile == null)
+            {
+                continue;
+            }
 
-        if (!changed)
-        {
-            return;
-        }
+            bool changed = profile.components.RemoveAll(component => component == null) > 0;
+            var seenTypes = new HashSet<Type>();
+            for (int i = profile.components.Count - 1; i >= 0; i--)
+            {
+                VolumeComponent component = profile.components[i];
+                if (component == null)
+                {
+                    profile.components.RemoveAt(i);
+                    changed = true;
+                    continue;
+                }
 
-        EditorUtility.SetDirty(profile);
-        Debug.Log(
-            $"[HdrSdrDualModeSetup] Removed Unity Tonemapping and stale entries from " +
-            $"'{VolumeProfilePath}'.");
+                Type type = component.GetType();
+                if (builtInTypesSet.Contains(type) || !seenTypes.Add(type))
+                {
+                    profile.components.RemoveAt(i);
+                    UnityEngine.Object.DestroyImmediate(component, allowDestroyingAssets: true);
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                EditorUtility.SetDirty(profile);
+                Debug.Log(
+                    $"[HdrSdrDualModeSetup] Cleaned duplicate and built-in components from '{profilePath}'.");
+            }
+        }
     }
 }
 #endif

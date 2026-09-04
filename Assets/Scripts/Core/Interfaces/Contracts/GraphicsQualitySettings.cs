@@ -1,7 +1,7 @@
 #nullable enable
 
 using System;
-using Fodinae.Rendering.PostProcessing;
+using Fodinae.Core;
 using Fodinae.World.Lighting.Quality;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -11,12 +11,19 @@ namespace Fodinae.Rendering
 
     public enum GraphicsPreset
     {
+        [Fodinae.Core.SettingLabel("settings.preset.very_low")]
         VeryLow,
+        [Fodinae.Core.SettingLabel("settings.preset.low")]
         Low,
+        [Fodinae.Core.SettingLabel("settings.preset.medium")]
         Medium,
+        [Fodinae.Core.SettingLabel("settings.preset.high")]
         High,
+        [Fodinae.Core.SettingLabel("settings.preset.very_high")]
         VeryHigh,
+        [Fodinae.Core.SettingLabel("settings.preset.ultra")]
         Ultra,
+        [Fodinae.Core.SettingLabel("settings.preset.custom")]
         Custom,
     }
 
@@ -26,31 +33,57 @@ namespace Fodinae.Rendering
         public const int MinimumLightingTextureDimension = 256;
 
         [FormerlySerializedAs("LightingPixelsPerCell")]
-        [Min(1)]
+        [Range(1, 8)]
+        [SettingLabel("settings.lighting.density")]
         [Tooltip("Нижняя граница lighting-пикселей на клетку. Фактическое разрешение считается от render target базовой камеры.")]
+        [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine field allocation")]
         public int LightingMinimumPixelsPerCell;
-        [Min(MinimumLightingTextureDimension)]
+
+        [Range(MinimumLightingTextureDimension, 4096)]
+        [SettingLabel("settings.lighting.max_size")]
         [Tooltip("Максимальный размер lighting field в пикселях.")]
+        [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine field allocation")]
         public int LightingMaximumTextureDimension;
-        [Min(1)]
+
+        [Range(1, 2048)]
+        [SettingLabel("settings.lighting.max_dynamic_lights")]
         [Tooltip("Максимальное число dynamic light sources, загружаемых в GPU buffer.")]
+        [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine GPU buffer capacity")]
         public int LightingMaximumLightCount;
-        [Min(1)]
+
+        [Range(1, 128)]
+        [SettingLabel("settings.lighting.cascade_steps")]
         [Tooltip("Максимальное число шагов одного cascade interval.")]
+        [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine compute shader interval step limit")]
         public int LightingMaximumRaySteps;
-        [Min(1f)]
+
+        [Range(1f, ProjectRuntimeContracts.RuntimeLimits.MaximumLightingUpdatesPerSecond)]
+        [SettingLabel("settings.lighting.solve_rate")]
         [Tooltip("Максимальная частота lighting solve. Изменение геометрии всё равно обрабатывается сразу.")]
+        [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine compute update rate")]
         public float LightingUpdatesPerSecond;
-        [Min(128)]
+
+        [Range(128, 4096)]
+        [SettingLabel("settings.lighting.atlas_size")]
         [Tooltip("Бюджет radiance cascade atlas.")]
+        [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine cascade atlas limit")]
         public int LightingCascadeAtlasLimit;
+
         [Range(0.5f, 1f)]
+        [SettingLabel("settings.graphics.render_scale")]
         [Tooltip("URP render scale для данного quality tier.")]
+        [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine.ApplyUnityRenderingSettings -> UniversalRenderPipelineAsset.renderScale")]
         public float RenderScale;
+
         [Range(0, 8)]
+        [SettingLabel("settings.graphics.anti_aliasing")]
         [Tooltip("MSAA sample count для данного quality tier.")]
+        [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine.ApplyUnityRenderingSettings -> UniversalRenderPipelineAsset.msaaSampleCount")]
         public int AntiAliasing;
+
+        [SettingUnbounded("Режим освещения — перечисление; проверяется на определённость.")]
         [Tooltip("Off/PerBlock/PerPixel режим освещения. Ultra всегда принудительно PerPixel.")]
+        [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingQualityResolver -> LightingEngine._lightingQualityMode")]
         public LightingQualityMode LightingQuality;
 
         public GraphicsQualitySettings(

@@ -29,7 +29,17 @@ internal sealed class ClientConfigRepository
 
     public bool Exists => File.Exists(_configPath);
 
-    public ClientConfig Load()
+    /// <summary>
+    /// Загруженный конфиг вместе с исходным текстом файла.
+    /// </summary>
+    /// <remarks>
+    /// Текст нужен миграции: до схемы 22 поля вида лежали плоско в корне и в
+    /// типизированный <see cref="ClientConfig"/> не разбираются. Возвращать их
+    /// иначе нечем — <c>JsonUtility</c> не отдаёт неизвестные ключи.
+    /// </remarks>
+    public readonly record struct LoadedConfig(ClientConfig Config, string Json);
+
+    public LoadedConfig Load()
     {
         string json;
         try
@@ -47,7 +57,7 @@ internal sealed class ClientConfigRepository
             throw new InvalidDataException($"Client config '{_configPath}' is empty or invalid.");
 
         ValidateCurrentSchemaPresence(json, config);
-        return config;
+        return new LoadedConfig(config, json);
     }
 
     public void Save(ClientConfig config, string? backupPath = null)
@@ -115,6 +125,9 @@ internal sealed class ClientConfigRepository
             typeof(AccessibilitySettings),
             typeof(ConnectionSettings),
             typeof(PostProcessSettings),
+            typeof(WorldLightingSettings),
+            typeof(TerrainSettings),
+            typeof(EffectSettings),
         ];
         string[] missingFields = persistedTypes
             .SelectMany(type => type.GetFields(BindingFlags.Instance | BindingFlags.Public))

@@ -1,104 +1,41 @@
 #nullable enable
 
+using System;
 using System.IO;
-using Fodinae.Core.Interfaces;
 using Fodinae.Rendering;
 
 namespace Fodinae.Core;
 
+/// <summary>
+/// Свежий конфиг из авторских значений.
+/// </summary>
+/// <remarks>
+/// ЗАЧЕМ ТАК КОРОТКО. Раньше здесь было сто строк присваиваний вида
+/// <c>AmbientIntensity = lighting.AmbientIntensity</c>, переписывающих поле за
+/// полем снимок `ProjectDefaults.asset` в конфиг, плюс ещё два таких же блока
+/// для частичного сброса. Значение по умолчанию было отдельной сущностью,
+/// которую надо было доставить до поля вручную.
+///
+/// Теперь значение по умолчанию — это инициализатор поля секции, так что
+/// «конфиг по умолчанию» и есть <c>new ClientConfig()</c>. Остаётся ровно то,
+/// что из инициализатора не выводится: технические параметры пресета графики
+/// живут в отдельном ассете шести пресетов и зависят от выбранного пресета.
+/// </remarks>
 internal static class ClientConfigDefaults
 {
-    public static ClientConfig Create(
-        IProjectDefaults projectDefaults,
-        GraphicsQualityProfile graphicsQualityProfile)
+    public static ClientConfig Create(GraphicsQualityProfile graphicsQualityProfile)
     {
-        if (projectDefaults == null)
-        {
-            throw new System.ArgumentNullException(nameof(projectDefaults));
-        }
-
         if (graphicsQualityProfile == null)
         {
-            throw new System.ArgumentNullException(nameof(graphicsQualityProfile));
+            throw new ArgumentNullException(nameof(graphicsQualityProfile));
         }
 
-        ClientDefaultsSnapshot defaults = projectDefaults.Client;
-        LightingDefaultsSnapshot lighting = projectDefaults.Lighting;
-        ShaderDefaultsSnapshot shaders = projectDefaults.Shaders;
-        GraphicsPreset graphicsPreset = ConvertLegacyGraphicsQuality(
-            defaults.GraphicsQuality);
-        return new ClientConfig
+        var config = new ClientConfig
         {
             SchemaVersion = ClientConfig.CurrentSchemaVersion,
-            ProjectDefaultsHash = projectDefaults.ContentHash,
-            Audio = new AudioSettings
-            {
-                MasterVolume = defaults.MasterVolume,
-                SfxVolume = defaults.SfxVolume,
-                MusicVolume = defaults.MusicVolume,
-                AmbienceVolume = defaults.AmbienceVolume,
-                VoiceVolume = defaults.VoiceVolume,
-                UIVolume = defaults.UIVolume,
-                MuteInBackground = true,
-            },
-            Display = new DisplaySettings
-            {
-                HDREnabled = ProjectRuntimeContracts.ClientConfiguration.DefaultHDREnabled,
-                Gamma = DisplaySettings.DefaultGamma,
-                PaperWhiteNits = DisplaySettings.DefaultPaperWhite,
-                PeakBrightnessNits = DisplaySettings.DefaultPeakBrightness,
-            },
-            Interface = new InterfaceSettings
-            {
-                UIScale = defaults.UIScale,
-            },
-            Accessibility = new AccessibilitySettings(),
-            Connection = new ConnectionSettings(),
-            PostProcess = CreatePostProcessSettings(),
-            GraphicsPreset = graphicsPreset,
-            GraphicsQualitySettings = graphicsQualityProfile.Get(graphicsPreset),
-            AmbientOcclusionEnabled = lighting.AmbientOcclusionEnabled,
-            DiffuseBounceEnabled = lighting.DiffuseBounceEnabled,
-            AmbientIntensity = lighting.AmbientIntensity,
-            EmissionScale = lighting.EmissionScale,
-            AmbientColor = lighting.AmbientColor,
-            EmptyExtinctionRgb = lighting.EmptyExtinctionRgb,
-            SolidExtinctionRgb = lighting.SolidExtinctionRgb,
-            EmptyExtinctionMultiplier = lighting.EmptyExtinctionMultiplier,
-            SolidExtinctionMultiplier = lighting.SolidExtinctionMultiplier,
-            BounceStrength = lighting.BounceStrength,
-            AmbientOcclusionRadiusCells = lighting.AmbientOcclusionRadiusCells,
-            AmbientOcclusionStrength = lighting.AmbientOcclusionStrength,
-            MaximumLightMultiplier = lighting.MaximumLightMultiplier,
-            EnableFinalLightingClamp = lighting.EnableFinalLightingClamp,
-            TransmittanceDebugDistanceCells = lighting.TransmittanceDebugDistanceCells,
-            MinimumTransmission = lighting.MinimumTransmission,
-            LightSafeBorder = lighting.LightSafeBorder,
-            DynamicLightIntensity = lighting.DynamicLightIntensity,
-            DynamicLightColor = lighting.DynamicLightColor,
-            DynamicLightUpdatesPerSecond = lighting.DynamicLightUpdatesPerSecond,
-            TerrainFlowScale = shaders.TerrainFlowScale,
-            TerrainShimmerSpeedScale = shaders.TerrainShimmerSpeedScale,
-            TerrainPulseSpeedScale = shaders.TerrainPulseSpeedScale,
-            TerrainShimmerColor = shaders.TerrainShimmerColor,
-            TerrainDebugColor = shaders.TerrainDebugColor,
-            TerrainDebugMode = shaders.TerrainDebugMode,
-            BloomEnabled = shaders.BloomEnabled,
-            VignetteEnabled = shaders.VignetteEnabled,
-            ChromaticAberrationEnabled = shaders.ChromaticAberrationEnabled,
-            FilmGrainEnabled = shaders.FilmGrainEnabled,
-            MotionBlurEnabled = shaders.MotionBlurEnabled,
-            LocalContrastEnabled = shaders.LocalContrastEnabled,
-            LensEffectsEnabled = shaders.LensEffectsEnabled,
-            AtmosphereEnabled = shaders.AtmosphereEnabled,
-            DisplayPhysicsEnabled = shaders.DisplayPhysicsEnabled,
-            TemporalEnabled = shaders.TemporalEnabled,
-            TransitEmissionColor = shaders.TransitEmissionColor,
-            TransitEmissionStrength = shaders.TransitEmissionStrength,
-            PerspectiveEmissionColor = shaders.PerspectiveEmissionColor,
-            PerspectiveEmissionStrength = shaders.PerspectiveEmissionStrength,
-            SurfaceOccupancy = shaders.SurfaceOccupancy,
         };
+        config.GraphicsQualitySettings = graphicsQualityProfile.Get(config.GraphicsPreset);
+        return config;
     }
 
     public static GraphicsPreset ConvertLegacyGraphicsQuality(int legacyQuality)
@@ -112,64 +49,5 @@ internal static class ClientConfigDefaults
             _ => throw new InvalidDataException(
                 $"Legacy graphics quality '{legacyQuality}' is outside the supported range 0..3."),
         };
-    }
-
-    public static void ApplyShaderDefaults(
-        ClientConfig config,
-        ShaderDefaultsSnapshot shaders)
-    {
-        config.PostProcess = CreatePostProcessSettings();
-        config.TerrainFlowScale = shaders.TerrainFlowScale;
-        config.TerrainShimmerSpeedScale = shaders.TerrainShimmerSpeedScale;
-        config.TerrainPulseSpeedScale = shaders.TerrainPulseSpeedScale;
-        config.TerrainShimmerColor = shaders.TerrainShimmerColor;
-        config.TerrainDebugColor = shaders.TerrainDebugColor;
-        config.TerrainDebugMode = shaders.TerrainDebugMode;
-        config.BloomEnabled = shaders.BloomEnabled;
-        config.VignetteEnabled = shaders.VignetteEnabled;
-        config.ChromaticAberrationEnabled = shaders.ChromaticAberrationEnabled;
-        config.FilmGrainEnabled = shaders.FilmGrainEnabled;
-        config.MotionBlurEnabled = shaders.MotionBlurEnabled;
-        config.LocalContrastEnabled = shaders.LocalContrastEnabled;
-        config.LensEffectsEnabled = shaders.LensEffectsEnabled;
-        config.AtmosphereEnabled = shaders.AtmosphereEnabled;
-        config.DisplayPhysicsEnabled = shaders.DisplayPhysicsEnabled;
-        config.TemporalEnabled = shaders.TemporalEnabled;
-        config.TransitEmissionColor = shaders.TransitEmissionColor;
-        config.TransitEmissionStrength = shaders.TransitEmissionStrength;
-        config.PerspectiveEmissionColor = shaders.PerspectiveEmissionColor;
-        config.PerspectiveEmissionStrength = shaders.PerspectiveEmissionStrength;
-        config.SurfaceOccupancy = shaders.SurfaceOccupancy;
-    }
-
-    public static PostProcessSettings CreatePostProcessSettings()
-    {
-        return new PostProcessSettings();
-    }
-
-    public static void ApplyLightingDefaults(
-        ClientConfig config,
-        LightingDefaultsSnapshot lighting)
-    {
-        config.AmbientOcclusionEnabled = lighting.AmbientOcclusionEnabled;
-        config.DiffuseBounceEnabled = lighting.DiffuseBounceEnabled;
-        config.AmbientIntensity = lighting.AmbientIntensity;
-        config.EmissionScale = lighting.EmissionScale;
-        config.AmbientColor = lighting.AmbientColor;
-        config.EmptyExtinctionRgb = lighting.EmptyExtinctionRgb;
-        config.SolidExtinctionRgb = lighting.SolidExtinctionRgb;
-        config.EmptyExtinctionMultiplier = lighting.EmptyExtinctionMultiplier;
-        config.SolidExtinctionMultiplier = lighting.SolidExtinctionMultiplier;
-        config.BounceStrength = lighting.BounceStrength;
-        config.AmbientOcclusionRadiusCells = lighting.AmbientOcclusionRadiusCells;
-        config.AmbientOcclusionStrength = lighting.AmbientOcclusionStrength;
-        config.MaximumLightMultiplier = lighting.MaximumLightMultiplier;
-        config.EnableFinalLightingClamp = lighting.EnableFinalLightingClamp;
-        config.TransmittanceDebugDistanceCells = lighting.TransmittanceDebugDistanceCells;
-        config.MinimumTransmission = lighting.MinimumTransmission;
-        config.LightSafeBorder = lighting.LightSafeBorder;
-        config.DynamicLightIntensity = lighting.DynamicLightIntensity;
-        config.DynamicLightColor = lighting.DynamicLightColor;
-        config.DynamicLightUpdatesPerSecond = lighting.DynamicLightUpdatesPerSecond;
     }
 }
