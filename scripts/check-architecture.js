@@ -1709,6 +1709,45 @@ function checkUiBoundSettings() {
 // логируя ничего, потому что проверка была написана как `if (compute != null)`.
 // Сломанный путь не даёт ни ошибки компиляции, ни ошибки рантайма: он даёт
 // тишину.
+// Каждому скрипту нужна мета с настоящим GUID.
+//
+// Проверяется не наличие файла, а его содержимое. Пустая мета —
+// не теоретический случай: оборвавшаяся запись оставляет ноль байт,
+// проверка «файл есть» такую пропускает, а Unity молча игнорирует сам
+// скрипт. Наружу это выходит ошибкой «type or namespace not found» в
+// файлах, которые к пропавшему классу отношения не имеют, и искать
+// причину приходится в сообщении, где её нет.
+function checkScriptMetaIntegrity() {
+    const seenGuids = new Map();
+    for (const filePath of walkCs("Assets/Scripts")) {
+        const metaPath = filePath + ".meta";
+        const meta = readFile(metaPath);
+        if (meta === null) {
+            recordViolation("Script Meta", metaPath, "Скрипт без .meta: Unity назначит GUID сам, и ссылки на него разойдутся между машинами.");
+            continue;
+        }
+
+        if (meta.trim() === "") {
+            recordViolation("Script Meta", metaPath, "Мета пустая: Unity проигнорирует скрипт целиком, а ошибка вылезет как ненайденный тип в чужом файле.");
+            continue;
+        }
+
+        const guid = meta.match(/^guid:\s*([0-9a-f]{32})\s*$/m)?.[1];
+        if (!guid) {
+            recordViolation("Script Meta", metaPath, "В мете нет корректного GUID из 32 шестнадцатеричных цифр.");
+            continue;
+        }
+
+        const previous = seenGuids.get(guid);
+        if (previous !== undefined) {
+            recordViolation("Script Meta", metaPath, `GUID ${guid} уже занят файлом ${previous}: копия меты ломает ссылки в сценах и префабах.`);
+            continue;
+        }
+
+        seenGuids.set(guid, filePath);
+    }
+}
+
 function checkResourcePaths() {
     const contractsPath = "Assets/Scripts/Core/Interfaces/Contracts/ProjectRuntimeContracts.cs";
     const src = readFile(contractsPath);
@@ -3914,6 +3953,7 @@ function main() {
     checkRenderPassInvariants();
     checkLightingEngineSetterInvalidations();
     checkUiBoundSettings();
+    checkScriptMetaIntegrity();
     checkResourcePaths();
     checkSwitchDefaultCoverage();
     checkSettingRangeCoverage();
