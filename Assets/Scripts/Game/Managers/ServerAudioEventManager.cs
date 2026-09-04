@@ -2,6 +2,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using Fodinae.Audio.Core;
 using Fodinae.Core;
 using Fodinae.Core.Interfaces;
@@ -17,6 +19,9 @@ namespace Fodinae.Game.Managers
     public class ServerAudioEventManager : MonoBehaviour, IServerAudioService
     {
         private const string TAG = "[ServerAudioEventManager]";
+
+        /// <summary>Единственное музыкальное событие в банке.</summary>
+        private const string MusicEventName = "music/evil_huge";
         private readonly List<ServerAudioEvent> _activeEffects = new();
 
         [Inject]
@@ -43,7 +48,7 @@ namespace Fodinae.Game.Managers
         {
             if (packet.EffectType == global::MinesServer.Data.SFX.Music)
             {
-                _audioSystem.Play2D("music/evil_huge", AudioLayer.MusicDefault());
+                _operations.Run("play_server_music", PlayMusicWhenAudioReadyAsync);
                 return;
             }
 
@@ -60,6 +65,25 @@ namespace Fodinae.Game.Managers
                 _vfxPool,
                 _operations);
             _activeEffects.Add(effect);
+        }
+
+        /// <summary>
+        /// Заказывает музыку, дождавшись готовности банков.
+        /// </summary>
+        /// <remarks>
+        /// Музыку сервер заказывает один раз за вход в мир, и заказ приходит
+        /// в том же потоке пакетов, что и инициализация мира — то есть
+        /// раньше, чем FMOD успевает догрузить сэмплы. Немедленный вызов
+        /// отбрасывался в бэкенде по состоянию сэмплов и не повторялся
+        /// никогда: одноразовый SFX закажут снова, а трек — нет.
+        /// </remarks>
+        private async UniTask PlayMusicWhenAudioReadyAsync(CancellationToken cancellationToken)
+        {
+            await _audioSystem.WaitUntilBanksReadyAsync(cancellationToken);
+            if (_audioSystem.Play2D(MusicEventName, AudioLayer.MusicDefault()) == null)
+            {
+                Debug.LogWarning($"{TAG} Музыка '{MusicEventName}' не запустилась.");
+            }
         }
 
         private static VFXType MapAudioToVFX(global::MinesServer.Data.SFX audioType)

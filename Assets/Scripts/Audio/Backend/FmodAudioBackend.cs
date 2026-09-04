@@ -1,9 +1,7 @@
 #nullable enable
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Fodinae.Audio.Core;
@@ -15,18 +13,14 @@ using VContainer;
 namespace Fodinae.Audio.Backend
 {
     /// <summary>
-    /// FMOD Studio аудио-бэкенд с диск-стримингом банков и селективной загрузкой сэмплов в ОЗУ.
-    ///
-    /// Оптимизация памяти:
-    /// 1. Банки загружаются через loadBankFile с диска (persistentDataPath кэш или StreamingAssets).
-    /// 2. Метаданные весят единицы КБ.
-    /// 3. Сэмплы используются только если уже были заранее загружены FMOD.
+    /// Воспроизведение через FMOD Studio: голоса, шины, снэпшоты, глобальные
+    /// параметры. Добыча и загрузка банков живёт в <see cref="FmodBankLibrary"/>,
+    /// сюда она приходит уже готовой.
     /// </summary>
     public sealed class FmodAudioBackend
     {
         private AudioSystem _system = null!;
-        private IAssetLoader _assetLoader = null!;
-        private IPersistentAssetCache _persistentCache = null!;
+        private FmodBankLibrary _banks = null!;
 
         public void Initialize(
             AudioSystem system,
@@ -35,267 +29,28 @@ namespace Fodinae.Audio.Backend
             IAsyncOperationSupervisor operations)
         {
             _system = system;
-            _assetLoader = assetLoader;
-            _persistentCache = persistentCache;
-            operations.Run("load_required_audio_banks", LoadRequiredBanksAsync);
+            _banks = new FmodBankLibrary(assetLoader, persistentCache);
+            operations.Run("load_required_audio_banks", _banks.LoadRequiredBanksAsync);
         }
 
         private readonly Dictionary<AudioBusType, FMOD.Studio.Bus> _fmodBuses = new();
-        private readonly ConcurrentDictionary<string, FMOD.Studio.Bank> _loadedBanks = new(StringComparer.OrdinalIgnoreCase);
-        private readonly HashSet<string> _unavailableBanks = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _reportedMissingEvents = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _reportedInstanceFailures = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _reportedUnloadedSamples = new(StringComparer.OrdinalIgnoreCase);
         private bool _paused;
-        private bool _requiredBanksDegraded;
-        private bool _requiredBanksSettled;
-
-        // Completed when the required-bank pass settles (loaded or the
-        // supported no-audio fallback). Scene transitions await this before
-        // reporting presentation readiness, so the first sounds of a scene
-        // are never dropped because their bank is still loading.
-        private readonly UniTaskCompletionSource _banksReady = new();
-
-        private const string BANK_PATH = "banks";
-
-        private static readonly string[] _requiredBanks =
-        {
-            "Master.strings",
-            "Master",
-        };
 
         private static readonly FMOD.VECTOR ForwardVector = new() { x = 0f, y = 0f, z = 1f };
         private static readonly FMOD.VECTOR UpVector = new() { x = 0f, y = 1f, z = 0f };
 
-        public bool IsDegraded => _requiredBanksSettled && _requiredBanksDegraded;
+        public bool IsDegraded => _banks.IsDegraded;
 
         public UniTask WaitUntilBanksReadyAsync(CancellationToken cancellationToken = default)
-            => _banksReady.Task.AttachExternalCancellation(cancellationToken);
+            => _banks.WaitUntilBanksReadyAsync(cancellationToken);
 
-        public async UniTask LoadRequiredBanksAsync(CancellationToken cancellationToken)
-        {
-            try
-            {
-                foreach (var bankName in _requiredBanks)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
+        public UniTask<bool> EnsureBankLoadedAsync(string bankName)
+            => _banks.EnsureBankLoadedAsync(bankName);
 
-                    try
-                    {
-                        if (await EnsureBankLoadedAsync(bankName))
-                        {
-                            if (!await RequestSampleDataAsync(bankName))
-                            {
-                                _requiredBanksDegraded = true;
-                            }
-                        }
-                        else
-                        {
-                            _requiredBanksDegraded = true;
-                        }
-                    }
-                    catch (Exception exception)
-                    {
-                        _requiredBanksDegraded = true;
-                        Debug.LogWarning(
-                            $"[FmodAudioBackend] FMOD bank '{bankName}' could not be loaded; " +
-                            $"continuing with the remaining banks: {exception.Message}");
-                    }
-                }
-
-                MapBuses();
-
-                // Missing FMOD content is a supported no-audio state. Do not
-                // surface it as a gameplay warning or make callers wait for it.
-            }
-            catch (OperationCanceledException)
-            {
-                // Audio initialization may be interrupted during domain reload
-                // or teardown; no audio service needs to be kept alive then.
-            }
-            catch (Exception exception)
-            {
-                _requiredBanksDegraded = true;
-                // FMOD is optional presentation. A failed bank must not become
-                // an unobserved UniTaskVoid exception or block gameplay startup.
-                Debug.LogWarning(
-                    $"[FmodAudioBackend] Audio initialization skipped: {exception.Message}");
-            }
-            finally
-            {
-                _requiredBanksSettled = true;
-                _banksReady.TrySetResult();
-            }
-        }
-
-        private async UniTask<bool> RequestSampleDataAsync(string bankName)
-        {
-            var cleanBankName = bankName.Replace(".bank", string.Empty);
-            if (cleanBankName.Equals("Master.strings", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            if (!_loadedBanks.TryGetValue(cleanBankName, out var bank))
-            {
-                return false;
-            }
-
-            const int maxBankWaitFrames = 300;
-            bool bankLoaded = false;
-            for (int frame = 0; frame < maxBankWaitFrames; frame++)
-            {
-                bank.getLoadingState(out FMOD.Studio.LOADING_STATE bankState);
-                if (bankState == FMOD.Studio.LOADING_STATE.LOADED)
-                {
-                    bankLoaded = true;
-                    break;
-                }
-
-                if (bankState == FMOD.Studio.LOADING_STATE.ERROR)
-                {
-                    Debug.LogWarning(
-                        $"[FmodAudioBackend] FMOD bank '{cleanBankName}' entered an error state before sample loading.");
-                    return false;
-                }
-
-                await UniTask.Yield();
-            }
-
-            if (!bankLoaded)
-            {
-                Debug.LogWarning(
-                    $"[FmodAudioBackend] Timed out waiting for bank '{cleanBankName}' to finish loading.");
-                return false;
-            }
-
-            FMOD.RESULT result = bank.loadSampleData();
-            if (result != FMOD.RESULT.OK && result != FMOD.RESULT.ERR_EVENT_ALREADY_LOADED)
-            {
-                Debug.LogWarning(
-                    $"[FmodAudioBackend] FMOD sample data request failed for '{cleanBankName}': {result}.");
-                return false;
-            }
-
-            return true;
-        }
-
-        /// <summary>
-        /// Гарантирует наличие и загрузку .bank файла с диска (CDN cache -> StreamingAssets fallback).
-        /// </summary>
-        public async UniTask<bool> EnsureBankLoadedAsync(string bankName)
-        {
-            var cleanBankName = bankName.Replace(".bank", string.Empty);
-            if (_loadedBanks.ContainsKey(cleanBankName))
-            {
-                return true;
-            }
-
-            if (_unavailableBanks.Contains(cleanBankName))
-            {
-                return false;
-            }
-
-            string? bankFilePath = null;
-            var localPath = System.IO.Path.Combine(Application.streamingAssetsPath, "Audio", $"{cleanBankName}.bank");
-
-            if (System.IO.File.Exists(localPath))
-            {
-                bankFilePath = localPath;
-            }
-            else
-            {
-                var relativeRemotePath = $"{BANK_PATH}/{cleanBankName}.bank";
-                if (_assetLoader.IsKnownMissing(relativeRemotePath))
-                {
-                    _unavailableBanks.Add(cleanBankName);
-                    return false;
-                }
-
-                try
-                {
-                    bankFilePath = await _assetLoader.GetAssetPathAsync(relativeRemotePath);
-                }
-                catch (Exception)
-                {
-                    return false;
-                }
-            }
-
-            if (string.IsNullOrEmpty(bankFilePath) || !System.IO.File.Exists(bankFilePath))
-            {
-                _unavailableBanks.Add(cleanBankName);
-                return false;
-            }
-
-            if (!IsFmodBank(bankFilePath))
-            {
-                Debug.LogWarning(
-                    $"[FmodAudioBackend] Ignoring invalid audio bank '{bankFilePath}'.");
-                if (bankFilePath.Equals(
-                    _persistentCache.GetAssetPath($"banks/{cleanBankName}.bank"),
-                    StringComparison.OrdinalIgnoreCase))
-                {
-                    _persistentCache.RemoveAsset($"banks/{cleanBankName}.bank");
-                }
-
-                _unavailableBanks.Add(cleanBankName);
-                return false;
-            }
-
-            // Load bank metadata synchronously. Sample data is requested separately
-            // below, so event playback still rejects samples that are not resident.
-            FMOD.RESULT result = FMODUnity.RuntimeManager.StudioSystem.loadBankFile(
-                bankFilePath,
-                FMOD.Studio.LOAD_BANK_FLAGS.NORMAL,
-                out var bank);
-
-            if (result == FMOD.RESULT.OK)
-            {
-                _loadedBanks[cleanBankName] = bank;
-                Debug.Log($"[FmodAudioBackend] Успешно загружен банк '{cleanBankName}' из: {bankFilePath}");
-                return true;
-            }
-            else if (result == FMOD.RESULT.ERR_EVENT_ALREADY_LOADED)
-            {
-                if (FMODUnity.RuntimeManager.StudioSystem.getBank(
-                    $"bank:/{cleanBankName}",
-                    out var existingBank) == FMOD.RESULT.OK)
-                {
-                    _loadedBanks[cleanBankName] = existingBank;
-                    return true;
-                }
-
-                Debug.LogWarning(
-                    $"[FmodAudioBackend] FMOD bank '{cleanBankName}' is already loaded, but its handle could not be resolved.");
-                return false;
-            }
-
-            Debug.LogWarning(
-                $"[FmodAudioBackend] FMOD loadBankFile failed for '{cleanBankName}': {result}.");
-            _unavailableBanks.Add(cleanBankName);
-            return false;
-        }
-
-        private static bool IsFmodBank(string path)
-        {
-            Span<byte> header = stackalloc byte[12];
-            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-            int read = stream.Read(header);
-            return read == header.Length &&
-                header[..4].SequenceEqual("RIFF"u8) &&
-                header[8..12].SequenceEqual("FEV "u8);
-        }
-
-        public void UnloadBank(string bankName)
-        {
-            var cleanBankName = bankName.Replace(".bank", string.Empty);
-            if (_loadedBanks.TryGetValue(cleanBankName, out var bank))
-            {
-                bank.unload();
-                _loadedBanks.TryRemove(cleanBankName, out _);
-                Debug.Log($"[FmodAudioBackend] Банк '{cleanBankName}' выгружен из памяти.");
-            }
-        }
+        public void UnloadBank(string bankName) => _banks.UnloadBank(bankName);
 
         private void MapBuses()
         {
@@ -375,6 +130,18 @@ namespace Fodinae.Audio.Backend
             eventDescription.isStream(out bool isStream);
             if (!isStream && sampleState != FMOD.Studio.LOADING_STATE.LOADED)
             {
+                // Отказ по незагруженным сэмплам обязан называть себя. Событие
+                // есть в банке, путь верный, вызывающий получает null и
+                // считает, что звук отыграл — а звука нет и не будет: банк
+                // грузит сэмплы асинхронно, и повторной попытки здесь никто
+                // не делает.
+                if (_reportedUnloadedSamples.Add(fmodPath))
+                {
+                    Debug.LogWarning(
+                        $"[FmodAudioBackend] Событие '{fmodPath}' найдено, но его сэмплы " +
+                        $"в состоянии {sampleState}, а не LOADED. Звук не прозвучал.");
+                }
+
                 return null;
             }
 
@@ -461,12 +228,7 @@ namespace Fodinae.Audio.Backend
 
         public void Shutdown()
         {
-            foreach (var bank in _loadedBanks.Values)
-            {
-                bank.unload();
-            }
-
-            _loadedBanks.Clear();
+            _banks.UnloadAll();
         }
     }
 }

@@ -274,6 +274,7 @@
     <Compile Include="Assets/Scripts/VContainer/Runtime/Internal/TypeKeyHashTable2.cs" />
     <Compile Include="Assets/Scripts/Audio/Backend/AudioSystem.cs" />
     <Compile Include="Assets/Scripts/Audio/Backend/FmodAudioBackend.cs" />
+    <Compile Include="Assets/Scripts/Audio/Backend/FmodBankLibrary.cs" />
     <Compile Include="Assets/Scripts/Networking/Processors/PlayerInfoProcessor.cs" />
     <Compile Include="Assets/Scripts/Core/Interfaces/Contracts/RenderingConstants.cs" />
     <Compile Include="Assets/Scripts/VContainer/Runtime/Internal/RuntimeTypeCache.cs" />
