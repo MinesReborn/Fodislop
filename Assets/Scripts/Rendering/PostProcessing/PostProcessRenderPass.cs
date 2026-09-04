@@ -173,9 +173,20 @@ namespace Fodinae.Rendering.PostProcessing
                 nameof(EigengrauComponent));
             MotionBlurComponent mb = RequireComponent(_motionBlur, nameof(MotionBlurComponent));
 
+            // Обход не трогает статики: правится только то, что уходит в кадр.
+            // Раньше здесь стояло `_advanced = default` и сброс гаммы, то есть
+            // включение тумблера стирало снимок продвинутых эффектов и
+            // калибровку дисплея навсегда — выключение обратно возвращало не
+            // настройки игрока, а значения по умолчанию, и разница списывалась
+            // на «постпроцесс что-то сломал».
+            AdvancedPostProcessSnapshot advanced =
+                BypassPostProcessEffects ? default : _advanced;
+            float displayGamma =
+                BypassPostProcessEffects ? DisplaySettings.DefaultGamma : _displayGamma;
+
             bool bloomActive =
                 (bloom.active && bloom.IsActive()) ||
-                _advanced.RequiresBloomTexture;
+                advanced.RequiresBloomTexture;
             bool vignetteActive = vignette.active && vignette.IsActive();
             bool caActive = ca.active && ca.IsActive();
             bool cgActive = cg.active && cg.IsActive();
@@ -190,8 +201,6 @@ namespace Fodinae.Rendering.PostProcessing
                 cgActive = false;
                 eigengrauActive = false;
                 mbActive = false;
-                _advanced = default;
-                _displayGamma = DisplaySettings.DefaultGamma;
             }
 
             // Досрочного выхода по «ни одного включённого эффекта» здесь нет и
@@ -218,8 +227,8 @@ namespace Fodinae.Rendering.PostProcessing
             desc.enableRandomWrite = true;
 
             bool temporalActive =
-                _advanced.TemporalPersistenceIntensity > 0f ||
-                _advanced.LightStability > 0f ||
+                advanced.TemporalPersistenceIntensity > 0f ||
+                advanced.LightStability > 0f ||
                 mbActive;
             if (temporalActive && !_temporalWasActive)
             {
@@ -320,7 +329,7 @@ namespace Fodinae.Rendering.PostProcessing
                 passData.ColorFilter = cg.colorFilter.value;
                 passData.Contrast = cg.contrast.value;
                 passData.Saturation = cg.saturation.value;
-                passData.Gamma = _displayGamma;
+                passData.Gamma = displayGamma;
 
                 if (cameraData.isHDROutputActive)
                 {
@@ -349,31 +358,31 @@ namespace Fodinae.Rendering.PostProcessing
                 passData.EigengrauAnimationSpeed = eigengrau.animationSpeed.value;
 
                 passData.Advanced0 = new Vector4(
-                    _advanced.LocalContrastIntensity,
-                    _advanced.LensDirtIntensity,
-                    _advanced.LensDirtScale,
-                    _advanced.AnamorphicIntensity);
+                    advanced.LocalContrastIntensity,
+                    advanced.LensDirtIntensity,
+                    advanced.LensDirtScale,
+                    advanced.AnamorphicIntensity);
                 passData.Advanced1 = new Vector4(
-                    _advanced.AnamorphicLength,
-                    _advanced.ChromaticDiffractionIntensity,
-                    _advanced.HeatRefractionIntensity,
-                    _advanced.HeatRefractionScale);
+                    advanced.AnamorphicLength,
+                    advanced.ChromaticDiffractionIntensity,
+                    advanced.HeatRefractionIntensity,
+                    advanced.HeatRefractionScale);
                 passData.Advanced2 = new Vector4(
-                    _advanced.GlintIntensity,
-                    _advanced.GlintThreshold,
-                    _advanced.VolumetricDustIntensity,
-                    _advanced.VolumetricDustScale);
+                    advanced.GlintIntensity,
+                    advanced.GlintThreshold,
+                    advanced.VolumetricDustIntensity,
+                    advanced.VolumetricDustScale);
                 passData.Advanced3 = new Vector4(
-                    _advanced.VolumetricDustSpeed,
-                    _advanced.PhosphorMaskIntensity,
-                    _advanced.DitheringIntensity,
+                    advanced.VolumetricDustSpeed,
+                    advanced.PhosphorMaskIntensity,
+                    advanced.DitheringIntensity,
                     0f);
                 passData.HistoryValid = _historyValid;
                 passData.Temporal = passData.HistoryValid
                     ? new Vector4(
-                        _advanced.TemporalPersistenceIntensity,
-                        _advanced.TemporalPersistenceDecay,
-                        _advanced.LightStability,
+                        advanced.TemporalPersistenceIntensity,
+                        advanced.TemporalPersistenceDecay,
+                        advanced.LightStability,
                         mbActive ? mb.intensity.value : 0f)
                     : Vector4.zero;
                 passData.TemporalActive = temporalActive;
