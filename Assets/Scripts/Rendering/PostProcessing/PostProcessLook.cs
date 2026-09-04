@@ -66,13 +66,6 @@ public static class PostProcessLook
         public const float Contrast = PostProcessSettings.DefaultContrast;
         public const float Saturation = PostProcessSettings.DefaultSaturation;
 
-        /// <summary>
-        /// Делитель в ToneMapAgX: сцен-линейная яркость, которая станет белым
-        /// на дисплее. Единица — нейтрально.
-        /// </summary>
-        public const float ToneMappingWhitePoint =
-            PostProcessSettings.DefaultToneMappingWhitePoint;
-
         public static Color Filter => Color.white;
     }
 

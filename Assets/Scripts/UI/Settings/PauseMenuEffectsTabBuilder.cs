@@ -94,14 +94,6 @@ internal sealed class PauseMenuEffectsTabBuilder
             nameof(PostProcessSettings.Saturation),
             () => Cfg().PostProcess.Saturation,
             (config, value) => config.PostProcess.Saturation = value));
-        cameraGroup.Add(Switch(
-            nameof(EffectSettings.ToneMappingEnabled),
-            () => Cfg().Effects.ToneMappingEnabled,
-            (config, value) => config.Effects.ToneMappingEnabled = value));
-        cameraGroup.Add(BoundCameraSlider(
-            nameof(PostProcessSettings.ToneMappingWhitePoint),
-            () => Cfg().PostProcess.ToneMappingWhitePoint,
-            (config, value) => config.PostProcess.ToneMappingWhitePoint = value));
 
         bloomGroup.Add(Switch(
             nameof(EffectSettings.BloomEnabled),

@@ -37,8 +37,6 @@ float _Contrast;
 float _Saturation;
 float _Gamma;
 float _HdrPaperWhiteScale;
-int _ToneMappingEnabled;
-float _ToneMappingWhitePoint;
 
 float _EigengrauIntensity;
 float4 _EigengrauColor;
@@ -64,41 +62,6 @@ float LinearToPerceptual(float linearValue)
     return linearValue <= 0.0031308
         ? linearValue * 12.92
         : 1.055 * pow(linearValue, 1.0 / 2.4) - 0.055;
-}
-
-// ВНИМАНИЕ при сверке с референсом AgX: он написан на GLSL, а там mat3(...)
-// заполняется ПО СТОЛБЦАМ, тогда как в HLSL float3x3(...) — ПО СТРОКАМ.
-// Литералы, перенесённые из GLSL один в один, дают транспонированную матрицу.
-// Так тут и было: суммы строк выходили [0.927, 1.035, 1.038] вместо единиц,
-// то есть матрица переставала сохранять белое, и каждый нейтрально-серый
-// уезжал в красноту тем сильнее, чем ярче — до 13/255 на входе 2.0.
-// Проверка при любой правке: суммы строк обеих матриц обязаны быть 1.0.
-float3 ToneMapAgX(float3 color, float whitePoint)
-{
-    color = max(color / max(whitePoint, 0.001), 0.0);
-    const float3x3 inset = float3x3(
-        0.842479, 0.078434, 0.079224,
-        0.042328, 0.878469, 0.079166,
-        0.042376, 0.078434, 0.879143);
-    const float3x3 outset = float3x3(
-         1.196879, -0.098021, -0.099030,
-        -0.052897,  1.151903, -0.098961,
-        -0.052972, -0.098043,  1.151074);
-    color = mul(inset, color);
-    color = clamp(log2(max(color, 1e-6)), -12.47393, 4.026069);
-    color = (color + 12.47393) / 16.5;
-    float3 x2 = color * color;
-    float3 x4 = x2 * x2;
-    color = 15.5 * x4 * x2 - 40.14 * x4 * color + 31.96 * x4 -
-        6.868 * x2 * color + 0.4298 * x2 + 0.1191 * color - 0.00232;
-    color = max(mul(outset, color), 0.0);
-    // Кривая AgX выдаёт display-encoded значение (примерно гамма 2.2), а
-    // camera target у URP линеен и кодируется ещё раз при финальном блите.
-    // Без обратной линеаризации кодирование происходит дважды: полутона
-    // всплывают, кадр становится молочным, а контраст падает тем сильнее,
-    // чем темнее участок. Возврат в линейное — часть тонмапа, не опция.
-    // Показатель возврата — калибровочная гамма дисплея.
-    return pow(color, max(_Gamma, 0.1));
 }
 
 float Hash31(float3 p)
@@ -353,13 +316,9 @@ void CompositeFinal(uint3 id : SV_DispatchThreadID)
         color = lerp(color, _VignetteColor.rgb, saturate(edgeMask * _VignetteIntensity));
     }
 
-    // SDR needs range reduction before display encoding. When HDR output is
-    // active, C# disables this curve so scene-linear highlights survive for
-    // URP's final HDR gamut/transfer encoding.
-    if (_ToneMappingEnabled != 0)
-    {
-        color = ToneMapAgX(max(color, 0.0), _ToneMappingWhitePoint);
-    }
+    // Сжатия динамического диапазона здесь больше нет: кривая AgX удалена
+    // целиком по требованию. Кадр уходит на вывод в линейном виде, и всё,
+    // что ярче белой точки, срезается при финальном кодировании.
 
     // 6. Eigengrau: fine, zero-mean film grain in dark areas. This is not a
     // bright overlay and contains no low-frequency or scrolling texture.

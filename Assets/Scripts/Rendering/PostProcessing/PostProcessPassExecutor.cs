@@ -170,15 +170,6 @@ internal static class PostProcessPassExecutor
         cmd.SetComputeFloatParam(data.PostProcessCS, SaturationID, data.CgActive ? data.Saturation : 1f);
         cmd.SetComputeFloatParam(data.PostProcessCS, GammaID, data.Gamma);
         cmd.SetComputeFloatParam(data.PostProcessCS, HdrPaperWhiteScaleID, data.HdrPaperWhiteScale);
-        cmd.SetComputeIntParam(
-            data.PostProcessCS,
-            ToneMappingEnabledID,
-            data.ToneMappingEnabled ? 1 : 0);
-        cmd.SetComputeFloatParam(
-            data.PostProcessCS,
-            ToneMappingWhitePointID,
-            data.ToneMappingWhitePoint);
-
         cmd.SetComputeFloatParam(data.PostProcessCS, EigengrauIntensityID, data.EigengrauActive ? data.EigengrauIntensity : 0f);
         if (data.EigengrauActive)
         {

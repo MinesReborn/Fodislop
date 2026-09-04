@@ -116,8 +116,6 @@
   "settings.effects.exposure": "曝光",
   "settings.effects.contrast": "對比度",
   "settings.effects.saturation": "飽和度",
-  "settings.effects.tone_mapping": "色調映射",
-  "settings.effects.tone_mapping_white_point": "色調映射白點",
   "settings.effects.grain": "顆粒",
   "settings.effects.motion_blur": "動態模糊",
   "settings.effects.local_sharpness": "局部銳化",

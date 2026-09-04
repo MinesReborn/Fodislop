@@ -45,7 +45,6 @@ internal static class Program
         CheckLightingConfigHolderDirtyTracking();
         CheckSettingMutationDetection();
         CheckGraphicsQualitySettingsMutationAndMsaaCycle();
-        CheckToneMappingWhitePointAndDisplayCalibration();
         CheckPostProcessLookAllConstantsValidViaReflection();
         CheckConsumerTargetsAndMechanismsReflection(root);
         CheckPixelGridLeavesNoMoire();
@@ -573,103 +572,6 @@ internal static class Program
         if (baseSettings == changedSettings || baseSettings.GetHashCode() == changedSettings.GetHashCode())
         {
             Failures.Add("Смена AntiAliasing в GraphicsQualitySettings не изменила равенство структуры или GetHashCode");
-        }
-    }
-
-    private static void CheckToneMappingWhitePointAndDisplayCalibration()
-    {
-        Section("калибровка белой точки тонмаппинга и HDR вывода");
-
-        // 1. Константы и диапазоны белой точки тонмаппинга в PostProcessSettings
-        _checks++;
-        float wpMin = (float)typeof(PostProcessSettings).GetField(nameof(PostProcessSettings.ToneMappingWhitePointMin))!.GetValue(null)!;
-        float wpMax = (float)typeof(PostProcessSettings).GetField(nameof(PostProcessSettings.ToneMappingWhitePointMax))!.GetValue(null)!;
-        float wpDef = (float)typeof(PostProcessSettings).GetField(nameof(PostProcessSettings.DefaultToneMappingWhitePoint))!.GetValue(null)!;
-
-        if (wpMin <= 0f)
-        {
-            Failures.Add("PostProcessSettings.ToneMappingWhitePointMin должен быть строго больше 0");
-        }
-
-        _checks++;
-        if (wpMin >= wpMax)
-        {
-            Failures.Add("PostProcessSettings.ToneMappingWhitePointMin >= ToneMappingWhitePointMax");
-        }
-
-        _checks++;
-        if (wpDef < wpMin || wpDef > wpMax)
-        {
-            Failures.Add("PostProcessSettings.DefaultToneMappingWhitePoint вне допустимого диапазона");
-        }
-
-        // 2. Сверка с PostProcessLook и PostProcessLimits через рефлексию
-        _checks++;
-        FieldInfo? lookWhitePoint = typeof(Fodinae.Rendering.PostProcessing.PostProcessLook.ColorGrading)
-            .GetField("ToneMappingWhitePoint", BindingFlags.Public | BindingFlags.Static);
-        if (lookWhitePoint == null)
-        {
-            Failures.Add("PostProcessLook.ColorGrading.ToneMappingWhitePoint не найден через рефлексию");
-        }
-        else
-        {
-            float lookVal = (float)lookWhitePoint.GetValue(null)!;
-            if (lookVal != PostProcessSettings.DefaultToneMappingWhitePoint)
-            {
-                Failures.Add($"PostProcessLook.ColorGrading.ToneMappingWhitePoint ({lookVal}) не совпадает с DefaultToneMappingWhitePoint ({PostProcessSettings.DefaultToneMappingWhitePoint})");
-            }
-        }
-
-        _checks++;
-        FieldInfo? limitMin = typeof(Fodinae.Rendering.PostProcessing.PostProcessLimits)
-            .GetField("ToneMappingWhitePointMin", BindingFlags.Public | BindingFlags.Static);
-        FieldInfo? limitMax = typeof(Fodinae.Rendering.PostProcessing.PostProcessLimits)
-            .GetField("ToneMappingWhitePointMax", BindingFlags.Public | BindingFlags.Static);
-        if (limitMin == null || limitMax == null)
-        {
-            Failures.Add("PostProcessLimits для ToneMappingWhitePoint не найдены через рефлексию");
-        }
-        else
-        {
-            float minVal = (float)limitMin.GetValue(null)!;
-            float maxVal = (float)limitMax.GetValue(null)!;
-            if (minVal != PostProcessSettings.ToneMappingWhitePointMin || maxVal != PostProcessSettings.ToneMappingWhitePointMax)
-            {
-                Failures.Add($"Границы PostProcessLimits [{minVal}, {maxVal}] не совпадают с PostProcessSettings");
-            }
-        }
-
-        // 3. Проверка клампинга и валидации через SettingSchema
-        _checks++;
-        var pp = new PostProcessSettings { ToneMappingWhitePoint = -5f };
-        SettingSchema.Clamp(pp);
-        if (pp.ToneMappingWhitePoint != PostProcessSettings.ToneMappingWhitePointMin)
-        {
-            Failures.Add($"SettingSchema.Clamp не ограничил белую точку снизу: {pp.ToneMappingWhitePoint}");
-        }
-
-        _checks++;
-        pp.ToneMappingWhitePoint = 100f;
-        SettingSchema.Clamp(pp);
-        if (pp.ToneMappingWhitePoint != PostProcessSettings.ToneMappingWhitePointMax)
-        {
-            Failures.Add($"SettingSchema.Clamp не ограничил белую точку сверху: {pp.ToneMappingWhitePoint}");
-        }
-
-        // 4. Проверка математики HDR белой точки из DisplaySettings
-        _checks++;
-        float[] testPeaks = [DisplaySettings.PeakBrightnessMin, DisplaySettings.DefaultPeakBrightness, DisplaySettings.PeakBrightnessMax];
-        float[] testPapers = [DisplaySettings.PaperWhiteMin, DisplaySettings.DefaultPaperWhite, DisplaySettings.PaperWhiteMax];
-        foreach (float peak in testPeaks)
-        {
-            foreach (float paper in testPapers)
-            {
-                float hdrWhitePoint = Mathf.Max(0.5f, peak / Mathf.Max(10f, paper));
-                if (float.IsNaN(hdrWhitePoint) || float.IsInfinity(hdrWhitePoint) || hdrWhitePoint < 0.5f)
-                {
-                    Failures.Add($"Недопустимое значение HDR белой точки ({hdrWhitePoint}) для peak={peak}, paper={paper}");
-                }
-            }
         }
     }
 

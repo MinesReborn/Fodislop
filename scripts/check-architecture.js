@@ -2178,7 +2178,6 @@ function checkUssStyles() {
     problemCount += checkDesignSystemLint();
     problemCount += checkAssemblyGraph();
     problemCount += checkContainerConstructorChoice();
-    problemCount += checkToneMapMatrices();
     problemCount += checkShaderColorLibraryIncludes();
 
     console.log(`${CYAN}${BOLD}USS stylesheets:${NC} ${names.length} file(s), ${declared.size} token(s) declared, ${problemCount} violation(s)`);
@@ -2507,77 +2506,16 @@ function checkNamespaceVisibility(sources) {
 // Форма Register<T>(resolver => ...) не при чём: там конструктор зовёт
 // фабрика, а не анализатор типов.
 // ---------------------------------------------------------------------------
-// Part 4d: матрицы тонмапа обязаны сохранять белое
+// Part 4d: здесь жили проверки тонмапа AgX
 // ---------------------------------------------------------------------------
 //
-// Референс AgX написан на GLSL, где mat3(...) заполняется по СТОЛБЦАМ, а в
-// HLSL float3x3(...) — по СТРОКАМ. Литералы, перенесённые один в один, дают
-// транспонированную матрицу. Так и было: суммы строк выходили
-// [0.927, 1.035, 1.038] вместо единиц, матрица переставала сохранять белое, и
-// каждый нейтрально-серый уезжал в красноту — до 13/255 на входе 2.0.
-//
-// Ошибка не ловится ни компиляцией, ни глазами на цветном кадре: увидеть её
-// можно только на серой шкале, которой в игре нет. Поэтому проверяется
-// арифметикой: у матрицы, переводящей белое в белое, сумма каждой строки
-// равна единице.
-function checkToneMapMatrices() {
-    const file = path.join(
-        "Assets", "Resources", "Shaders", "PostProcessing", "PostProcess.compute");
-    const source = readFile(file);
-    if (source === null) {
-        recordViolation("Architecture", file,
-            "Файл тонмапа не найден по ожидаемому пути — проверка матриц AgX, " +
-            "возврата в линейное и места гаммы не может быть выполнена.");
-        return 1;
-    }
-
-    let violations = 0;
-    if (!/return\s+pow\(color,\s*max\(_Gamma,\s*0\.1\)\)\s*;/.test(source)) {
-        recordViolation("Architecture", file,
-            "AgX обязан линеаризовать display-encoded результат через pow(color, max(_Gamma, 0.1)) " +
-            "до записи в линейный camera target; иначе URP кодирует его повторно и выбеливает полутона.");
-        violations++;
-    }
-
-    if (/pow\(color,\s*gammaCorrection\)|2\.2\s*\/\s*_Gamma/.test(source)) {
-        recordViolation("Architecture", file,
-            "Гамма дисплея не применяется до тонмапа: над сцен-линейными значениями " +
-            "показатель степени раздувает всё ярче единицы. Её место — показатель возврата в ToneMapAgX.");
-        violations++;
-    }
-
-    if (!/15\.5\s*\*\s*x4\s*\*\s*x2/.test(source) || !/31\.96\s*\*\s*x4/.test(source)) {
-        recordViolation("Architecture", file,
-            "ToneMapAgX обязан вычислять 6-мерный полином AgX S-кривой; без него " +
-            "тонмаппинг вырождается в логарифмический масштаб без плеча и сжимает тени в пересвет.");
-        violations++;
-    }
-
-    const MATRIX = /const\s+float3x3\s+(\w+)\s*=\s*float3x3\(([^)]*)\)/g;
-    for (const match of source.matchAll(MATRIX)) {
-        const name = match[1];
-        const numbers = (match[2].match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
-        if (numbers.length !== 9) {
-            recordViolation("Architecture", file,
-                `матрица ${name}: ожидалось 9 чисел, найдено ${numbers.length}`);
-            violations++;
-            continue;
-        }
-        for (let row = 0; row < 3; row++) {
-            const sum = numbers[row * 3] + numbers[row * 3 + 1] + numbers[row * 3 + 2];
-            if (Math.abs(sum - 1) > 0.002) {
-                recordViolation("Architecture", file,
-                    `матрица ${name}, строка ${row}: сумма ${sum.toFixed(6)} вместо 1.0. ` +
-                    "Матрица тонмапа обязана переводить белое в белое; чаще всего " +
-                    "причина — литералы GLSL (столбцы) в конструкторе HLSL (строки), " +
-                    "то есть матрица стоит транспонированной, и нейтрали красятся.");
-                violations++;
-            }
-        }
-    }
-
-    return violations;
-}
+// Проверялись сумма строк матриц (транспонированная матрица красит нейтрали),
+// возврат в линейное после кривой и наличие полинома S-кривой. Всё это
+// удалено вместе с самим тонмаппингом: правило, сторожащее несуществующий
+// код, либо падает вечно, либо его отключают — и тогда оно не сторожит
+// ничего. Если сжатие динамического диапазона вернётся, проверки надо
+// восстановить из истории: они ловили ошибку, невидимую ни компиляцией, ни
+// глазами на цветном кадре.
 
 const SHADER_COLOR_FUNCTIONS = [
     "SRGBToLinear", "LinearToSRGB", "FastSRGBToLinear", "FastLinearToSRGB",

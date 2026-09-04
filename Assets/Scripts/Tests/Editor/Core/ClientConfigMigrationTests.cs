@@ -99,14 +99,13 @@ public sealed class ClientConfigMigrationTests
     }
 
     [Test]
-    public void Migrate_V22DegradedGammaAndWhitePoint_ResetsToDefaults()
+    public void Migrate_V22DegradedGamma_ResetsToDefault()
     {
         var migration = new ClientConfigMigration(_profile);
         string json = @"{
             ""SchemaVersion"": 22,
             ""GraphicsPreset"": 6,
-            ""Display"": { ""Gamma"": 1.8 },
-            ""PostProcess"": { ""ToneMappingWhitePoint"": 2.0 }
+            ""Display"": { ""Gamma"": 1.8 }
         }";
         ClientConfig config = JsonUtility.FromJson<ClientConfig>(json);
 
@@ -115,13 +114,10 @@ public sealed class ClientConfigMigrationTests
         Assert.That(migrated, Is.True);
         Assert.That(config.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
         Assert.That(config.Display.Gamma, Is.EqualTo(DisplaySettings.DefaultGamma).Within(1e-5f));
-        Assert.That(
-            config.PostProcess.ToneMappingWhitePoint,
-            Is.EqualTo(PostProcessSettings.DefaultToneMappingWhitePoint).Within(1e-5f));
     }
 
     [Test]
-    public void Migrate_V24Config_AddsToneMappingEnabled()
+    public void Migrate_V24Config_ReachesCurrentSchema()
     {
         var migration = new ClientConfigMigration(_profile);
         string json = @"{
@@ -135,7 +131,6 @@ public sealed class ClientConfigMigrationTests
 
         Assert.That(migrated, Is.True);
         Assert.That(config.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
-        Assert.That(config.Effects.ToneMappingEnabled, Is.True);
         Assert.That(config.Effects.BloomEnabled, Is.False);
     }
 
@@ -172,25 +167,6 @@ public sealed class ClientConfigMigrationTests
             () => validator.Validate(config))!;
 
         Assert.That(exception.Message, Does.Contain(nameof(config.Interface.UIScale)));
-    }
-
-    [Test]
-    public void Validator_RejectsInvalidToneMappingWhitePoint()
-    {
-        var validator = new ClientConfigValidator(_profile);
-        var config = new ClientConfig
-        {
-            SchemaVersion = ClientConfig.CurrentSchemaVersion,
-            GraphicsPreset = GraphicsPreset.Custom,
-        };
-        config.PostProcess.ToneMappingWhitePoint = 0f;
-
-        InvalidDataException exception = Assert.Throws<InvalidDataException>(
-            () => validator.Validate(config))!;
-
-        Assert.That(
-            exception.Message,
-            Does.Contain(nameof(config.PostProcess.ToneMappingWhitePoint)));
     }
 
     [Test]

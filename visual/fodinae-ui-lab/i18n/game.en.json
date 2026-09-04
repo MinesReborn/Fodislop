@@ -116,8 +116,6 @@
   "settings.effects.exposure": "Exposure",
   "settings.effects.contrast": "Contrast",
   "settings.effects.saturation": "Saturation",
-  "settings.effects.tone_mapping": "Tone Mapping",
-  "settings.effects.tone_mapping_white_point": "Tone Mapping White Point",
   "settings.effects.grain": "Grain",
   "settings.effects.motion_blur": "Motion Blur",
   "settings.effects.local_sharpness": "Local Sharpness",

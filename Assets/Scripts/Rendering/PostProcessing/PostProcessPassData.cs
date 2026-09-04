@@ -46,8 +46,6 @@ internal sealed class PostProcessPassData
     public float Saturation;
     public float Gamma;
     public float HdrPaperWhiteScale;
-    public bool ToneMappingEnabled;
-    public float ToneMappingWhitePoint;
 
     public bool EigengrauActive;
     public float EigengrauIntensity;

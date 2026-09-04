@@ -55,14 +55,6 @@ public static class PostProcessDefaults
 
     public static ClampedFloatParameter ColorGradingSaturation() => new(1f, 0f, 2f);
 
-    // 1.0, а не минимум диапазона: в ToneMapAgX белая точка — делитель, и
-    // значение 0.25 умножало кадр на четыре ещё до кривой. Конфиг это
-    // перекрывает, но параметр обязан быть нейтральным сам по себе — иначе
-    // любой путь без применения конфига даёт вчетверо пересвеченную картинку.
-    public static ClampedFloatParameter ColorGradingWhitePoint() => new(1f, 0.25f, 8f);
-
-    public static BoolParameter ColorGradingToneMapping() => new(true);
-
     public static ClampedFloatParameter EigengrauIntensity() => new(
         PostProcessLimits.EigengrauIntensityMin,
         PostProcessLimits.EigengrauIntensityMin,

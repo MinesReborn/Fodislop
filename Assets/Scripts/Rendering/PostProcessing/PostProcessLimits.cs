@@ -14,8 +14,6 @@ public static class PostProcessLimits
     public const float ExposureMax = PostProcessSettings.ExposureMax;
     public const float ContrastMin = PostProcessSettings.ContrastMin;
     public const float ContrastMax = PostProcessSettings.ContrastMax;
-    public const float ToneMappingWhitePointMin = PostProcessSettings.ToneMappingWhitePointMin;
-    public const float ToneMappingWhitePointMax = PostProcessSettings.ToneMappingWhitePointMax;
     public const float EigengrauIntensityMin = 0f;
     public const float EigengrauIntensityMax = 0.25f;
     public const float MotionBlurIntensityMin = 0f;

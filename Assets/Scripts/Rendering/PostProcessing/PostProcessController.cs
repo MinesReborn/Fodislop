@@ -117,31 +117,6 @@ namespace Fodinae.Rendering.PostProcessing
             }
         }
 
-        public bool ToneMappingEnabled
-        {
-            get => GetRequired(_colorGrading, nameof(_colorGrading)).toneMapping.value;
-            set
-            {
-                ColorGradingComponent colorGrading = GetRequired(_colorGrading, nameof(_colorGrading));
-                colorGrading.active = true;
-                colorGrading.toneMapping.overrideState = true;
-                colorGrading.toneMapping.value = value;
-            }
-        }
-
-        public float ToneMappingWhitePoint
-        {
-            get => GetRequired(_colorGrading, nameof(_colorGrading)).toneMappingWhitePoint.value;
-            set
-            {
-                ColorGradingComponent colorGrading = GetRequired(_colorGrading, nameof(_colorGrading));
-                colorGrading.active = true;
-                colorGrading.toneMappingWhitePoint.overrideState = true;
-                colorGrading.toneMappingWhitePoint.value = Mathf.Clamp(
-                    value, PostProcessSettings.ToneMappingWhitePointMin, PostProcessSettings.ToneMappingWhitePointMax);
-            }
-        }
-
         public float EigengrauIntensity
         {
             get => GetRequired(_eigengrau, nameof(_eigengrau)).intensity.value;
@@ -366,8 +341,6 @@ namespace Fodinae.Rendering.PostProcessing
 
             colorGrading.colorFilter.overrideState = true;
             colorGrading.colorFilter.value = baseFilter;
-            ToneMappingEnabled = config.Effects.ToneMappingEnabled;
-            ToneMappingWhitePoint = postProcess.ToneMappingWhitePoint;
             Contrast = contrast;
             Saturation = saturation;
 

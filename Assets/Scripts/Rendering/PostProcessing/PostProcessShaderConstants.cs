@@ -37,8 +37,6 @@ internal static class PostProcessShaderConstants
     public static readonly int SaturationID = Shader.PropertyToID("_Saturation");
     public static readonly int GammaID = Shader.PropertyToID("_Gamma");
     public static readonly int HdrPaperWhiteScaleID = Shader.PropertyToID("_HdrPaperWhiteScale");
-    public static readonly int ToneMappingEnabledID = Shader.PropertyToID("_ToneMappingEnabled");
-    public static readonly int ToneMappingWhitePointID = Shader.PropertyToID("_ToneMappingWhitePoint");
 
     public static readonly int EigengrauIntensityID = Shader.PropertyToID("_EigengrauIntensity");
     public static readonly int EigengrauColorID = Shader.PropertyToID("_EigengrauColor");

@@ -116,8 +116,6 @@
   "settings.effects.exposure": "Экспозиция",
   "settings.effects.contrast": "Контраст",
   "settings.effects.saturation": "Насыщенность",
-  "settings.effects.tone_mapping": "Тонмаппинг",
-  "settings.effects.tone_mapping_white_point": "Белая точка тонмаппинга",
   "settings.effects.grain": "Зернистость",
   "settings.effects.motion_blur": "Размытие движения",
   "settings.effects.local_sharpness": "Локальная чёткость",

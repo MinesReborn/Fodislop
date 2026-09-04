@@ -71,18 +71,15 @@ internal sealed class ClientConfigMigration(GraphicsQualityProfile graphicsQuali
 
         if (config.SchemaVersion < 23)
         {
-            // Схема 23: сброс калибровки SDR-гаммы и белой точки тонмаппинга к
-            // каноническим авторским значениям (2.2 и 1.0) при деградации до минимума.
+            // Схема 23: сброс калибровки SDR-гаммы к авторскому значению
+            // при деградации до минимума. Здесь же сбрасывалась белая точка
+            // тонмаппинга, но самого тонмаппинга больше нет (схема 27), и
+            // поля тоже: шаг сохранён ради гаммы, ступень схемы удалять
+            // нельзя — по ней считаются все последующие.
             if (config.Display != null &&
                 Mathf.Approximately(config.Display.Gamma, DisplaySettings.GammaMin))
             {
                 config.Display.Gamma = DisplaySettings.DefaultGamma;
-            }
-
-            if (config.PostProcess != null && config.PostProcess.ToneMappingWhitePoint > 1.5f)
-            {
-                config.PostProcess.ToneMappingWhitePoint =
-                    PostProcessSettings.DefaultToneMappingWhitePoint;
             }
 
             config.SchemaVersion = 23;
@@ -112,12 +109,11 @@ internal sealed class ClientConfigMigration(GraphicsQualityProfile graphicsQuali
 
         if (config.SchemaVersion < 25)
         {
-            // Схема 25: добавлен тумблер сжатия динамического диапазона (ToneMappingEnabled).
-            if (config.Effects != null)
-            {
-                config.Effects.ToneMappingEnabled = true;
-            }
-
+            // Схема 25 добавляла тумблер сжатия динамического диапазона.
+            // В схеме 27 он удалён вместе с самим сжатием, поэтому делать
+            // здесь нечего — но ступень обязана остаться: версии идут
+            // подряд, и пропуск двадцать пятой оставил бы старые конфиги
+            // навсегда позади.
             config.SchemaVersion = 25;
             migrated = true;
         }
@@ -134,6 +130,18 @@ internal sealed class ClientConfigMigration(GraphicsQualityProfile graphicsQuali
             }
 
             config.SchemaVersion = 26;
+            migrated = true;
+        }
+
+        if (config.SchemaVersion < 27)
+        {
+            // Схема 27: сжатие динамического диапазона удалено целиком.
+            // Поля ToneMappingEnabled и ToneMappingWhitePoint исчезли из
+            // секций; JsonUtility просто не читает то, чего в типе нет,
+            // поэтому старым конфигам достаточно поднять версию — иначе
+            // они бесконечно считались бы устаревшими и переписывались с
+            // резервной копией при каждом запуске.
+            config.SchemaVersion = 27;
             migrated = true;
         }
 

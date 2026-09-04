@@ -33,11 +33,6 @@ public sealed class EffectSettings
     [SettingConsumer(SettingConsumerTarget.PostProcessController, "PostProcessController.ChromaticAberrationIntensity")]
     public bool ChromaticAberrationEnabled;
 
-    [SettingUnbounded("Тумблер сжатия динамического диапазона (AgX).")]
-    [SettingLabel("settings.effects.tone_mapping")]
-    [SettingConsumer(SettingConsumerTarget.PostProcessController, "PostProcessController.ToneMappingEnabled")]
-    public bool ToneMappingEnabled = true;
-
     [SettingUnbounded("Тумблер плёночного зерна.")]
     [SettingLabel("settings.effects.grain")]
     [SettingConsumer(SettingConsumerTarget.PostProcessController, "AdvancedPostProcessComposer -> FilmGrain")]

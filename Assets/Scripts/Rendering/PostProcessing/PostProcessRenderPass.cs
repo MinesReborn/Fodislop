@@ -338,16 +338,10 @@ namespace Fodinae.Rendering.PostProcessing
                         ? output.paperWhiteNits
                         : DisplaySettings.DefaultPaperWhite;
                     passData.HdrPaperWhiteScale = _displayPaperWhiteNits / nativePaperWhite;
-                    passData.ToneMappingWhitePoint = Mathf.Max(0.5f, _displayPeakBrightnessNits / Mathf.Max(10f, _displayPaperWhiteNits));
-                    passData.ToneMappingEnabled = !BypassPostProcessEffects && cg.toneMapping.value;
                 }
                 else
                 {
                     passData.HdrPaperWhiteScale = 1f;
-                    passData.ToneMappingWhitePoint = BypassPostProcessEffects
-                        ? PostProcessSettings.DefaultToneMappingWhitePoint
-                        : cg.toneMappingWhitePoint.value;
-                    passData.ToneMappingEnabled = !BypassPostProcessEffects && cg.toneMapping.value;
                 }
 
                 passData.EigengrauActive = eigengrauActive;
