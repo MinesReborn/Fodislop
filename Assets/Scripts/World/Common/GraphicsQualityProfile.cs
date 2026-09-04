@@ -73,6 +73,13 @@ namespace Fodinae.Rendering
             // чисел литералами, причём в одном условии через ||, поэтому
             // сообщение об ошибке не называло провинившееся поле — «contain
             // invalid technical values» и ищи сам, какое из восьми.
+            if (Array.IndexOf(GraphicsQualitySettings.AntiAliasingSampleCounts, settings.AntiAliasing) < 0)
+            {
+                throw new InvalidOperationException(
+                    $"Graphics quality settings '{context}' request MSAA x{settings.AntiAliasing}; " +
+                    $"hardware accepts only {string.Join(", ", GraphicsQualitySettings.AntiAliasingSampleCounts)}.");
+            }
+
             try
             {
                 SettingSchema.Validate(settings, typeof(GraphicsQualitySettings));

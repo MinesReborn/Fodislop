@@ -1528,7 +1528,21 @@ namespace Fodinae.World.Lighting
             UnityEngine.QualitySettings.antiAliasing = Mathf.Clamp(settings.AntiAliasing, 0, 8);
             if (GraphicsSettings.currentRenderPipeline is UniversalRenderPipelineAsset urp)
             {
-                urp.renderScale = Mathf.Clamp(settings.RenderScale, 0.5f, 1f);
+                // Масштаб приводится к обратной величине целого: только на
+                // них апскейл до окна остаётся целократным и не размазывает
+                // выровненную сетку текселей. Авторские 0.65, 0.8 и 0.9 ей
+                // не являются, поэтому подмена называется вслух — иначе
+                // расхождение профиля и картинки пришлось бы искать глазами.
+                float requested = Mathf.Clamp(settings.RenderScale, 0.5f, 1f);
+                float quantized = PixelGrid.QuantizeRenderScale(requested, 0.5f, 1f);
+                if (!Mathf.Approximately(requested, quantized))
+                {
+                    Debug.Log(
+                        $"[LightingEngine] Масштаб рендера {requested:F2} приведён к {quantized:F2}: " +
+                        "промежуточные значения дают дробный апскейл и муар на пиксель-арте.");
+                }
+
+                urp.renderScale = quantized;
                 urp.msaaSampleCount = Mathf.Max(1, settings.AntiAliasing);
             }
 

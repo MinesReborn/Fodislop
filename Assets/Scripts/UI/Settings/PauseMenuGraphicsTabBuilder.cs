@@ -265,13 +265,12 @@ internal sealed class PauseMenuGraphicsTabBuilder
             },
             () => ApplyCustomTechnicalSettings(settings =>
             {
-                settings.AntiAliasing = settings.AntiAliasing switch
-                {
-                    0 => 2,
-                    2 => 4,
-                    4 => 8,
-                    _ => 0,
-                };
+                // Список допустимых значений один и живёт над самой
+                // настройкой: своя лесенка здесь разошлась бы с проверкой
+                // при первом же изменении набора.
+                int[] steps = GraphicsQualitySettings.AntiAliasingSampleCounts;
+                int current = System.Array.IndexOf(steps, settings.AntiAliasing);
+                settings.AntiAliasing = steps[(current + 1) % steps.Length];
                 return settings;
             }),
             _refreshers);

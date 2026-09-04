@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 using Fodinae.Audio.Core;
 using Fodinae.Core;
 using Fodinae.Rendering;
+using Fodinae.World;
 using Fodinae.World.Lighting.Quality;
 using UnityEngine;
 
@@ -47,6 +48,7 @@ internal static class Program
         CheckToneMappingWhitePointAndDisplayCalibration();
         CheckPostProcessLookAllConstantsValidViaReflection();
         CheckConsumerTargetsAndMechanismsReflection(root);
+        CheckPixelGridLeavesNoMoire();
 
         Console.WriteLine();
         if (Failures.Count == 0)
@@ -856,6 +858,167 @@ internal static class Program
         public void UpdateSection<TSection>(Func<ClientConfig, TSection> select, Action<TSection> update) where TSection : class, new() => update(select(Config));
         public void UpdateAndSave(Action<ClientConfig> update) => update(Config);
         public void UpdatePostProcessAndSave(Action<ClientConfig> update) => update(Config);
+    }
+
+    /// <summary>
+    /// Ни один достижимый зум не оставляет дробного числа пикселей на
+    /// тексель, и привязка камеры точна.
+    /// </summary>
+    /// <remarks>
+    /// Это и есть машинная проверка муара. На пиксель-арте с ближайшей
+    /// выборкой муар возникает ровно тогда, когда тексель занимает дробное
+    /// число экранных пикселей: часть строк выводится дважды, часть
+    /// теряется. Условие численное, поэтому проверяется числами, а не
+    /// глазами — глазами ловится только результат, и только после сборки.
+    ///
+    /// Разрешения взяты те, на которых играют, включая нечётную высоту:
+    /// именно на ней ломались бы наивные формулы с делением пополам.
+    /// </remarks>
+    private static void CheckPixelGridLeavesNoMoire()
+    {
+        Section("ни один зум не даёт дробного числа пикселей на тексель");
+
+        int[] screenHeights = [720, 768, 800, 900, 1050, 1080, 1200, 1440, 2160, 1081];
+        const float minimumZoom = 5f;
+        const float maximumZoom = 30f;
+
+        foreach (int screenHeight in screenHeights)
+        {
+            // Шаг мельче любой ступени: проверяются и те значения, через
+            // которые зум проходит на лету, а не только конечные.
+            for (float desired = minimumZoom; desired <= maximumZoom; desired += 0.13f)
+            {
+                _checks++;
+                float quantized = PixelGrid.QuantizeOrthographicSize(
+                    desired,
+                    screenHeight,
+                    minimumZoom,
+                    maximumZoom);
+
+                if (quantized < minimumZoom - 0.0001f || quantized > maximumZoom + 0.0001f)
+                {
+                    Failures.Add(
+                        $"высота {screenHeight}, зум {desired:F2}: квантование вышло за пределы — {quantized:F4}");
+                    continue;
+                }
+
+                float pixelsPerTexel = PixelGrid.PixelsPerTexel(quantized, screenHeight);
+                float distanceToInteger = Math.Abs(pixelsPerTexel - MathF.Round(pixelsPerTexel));
+                if (distanceToInteger > 0.0001f)
+                {
+                    Failures.Add(
+                        $"высота {screenHeight}, зум {desired:F2}: {pixelsPerTexel:F4} пикселей на тексель — " +
+                        "дробное значение, это муар");
+                }
+            }
+        }
+
+        // Привязка обязана быть точной: позиция после округления должна
+        // лежать в узле сетки, иначе сетка текселей уезжает с экранной на
+        // доли пикселя и муар возвращается при целом масштабе.
+        foreach (int screenHeight in screenHeights)
+        {
+            float size = PixelGrid.QuantizeOrthographicSize(7f, screenHeight, minimumZoom, maximumZoom);
+            float snapUnit = PixelGrid.SnapUnit(size, screenHeight);
+            _checks++;
+            if (snapUnit <= 0f)
+            {
+                Failures.Add($"высота {screenHeight}: шаг привязки не положителен — {snapUnit}");
+                continue;
+            }
+
+            foreach (float coordinate in new[] { 0f, 0.5f, -0.5f, 3.14159f, -127.333f, 1024.75f })
+            {
+                _checks++;
+                Vector2 snapped = PixelGrid.Snap(new Vector2(coordinate, -coordinate), snapUnit);
+                float remainderX = Math.Abs(snapped.x / snapUnit - MathF.Round(snapped.x / snapUnit));
+                float remainderY = Math.Abs(snapped.y / snapUnit - MathF.Round(snapped.y / snapUnit));
+                if (remainderX > 0.001f || remainderY > 0.001f)
+                {
+                    Failures.Add(
+                        $"высота {screenHeight}, точка {coordinate}: привязка не попала в узел сетки");
+                }
+
+                // Смещение не должно превышать половину шага, иначе
+                // «привязка» тихо уводила бы камеру от цели.
+                if (Math.Abs(snapped.x - coordinate) > (snapUnit * 0.5f) + 0.0001f)
+                {
+                    Failures.Add(
+                        $"высота {screenHeight}, точка {coordinate}: привязка сдвинула дальше половины шага");
+                }
+            }
+        }
+
+        // Вырожденные входы не должны давать ноль или бесконечность: до
+        // первого кадра высота окна вполне бывает нулевой.
+        _checks++;
+        if (PixelGrid.QuantizeOrthographicSize(7f, 0, minimumZoom, maximumZoom) <= 0f)
+        {
+            Failures.Add("нулевая высота окна: квантование вернуло неположительный размер");
+        }
+
+        _checks++;
+        if (PixelGrid.SnapUnit(0f, 1080) != 0f || PixelGrid.PixelsPerTexel(7f, 0) != 0f)
+        {
+            Failures.Add("вырожденные входы: шаг привязки и плотность обязаны быть нулевыми, а не мусорными");
+        }
+
+        // Масштаб рендера обязан приводиться к обратной величине целого,
+        // иначе апскейл до окна дробный и муар возвращается поверх уже
+        // выровненной сетки.
+        foreach (float authored in new[] { 0.5f, 0.65f, 0.8f, 0.9f, 1f, 0.33f, 0.7f })
+        {
+            _checks++;
+            float quantized = PixelGrid.QuantizeRenderScale(authored, 0.5f, 1f);
+            float divisor = 1f / quantized;
+            if (Math.Abs(divisor - MathF.Round(divisor)) > 0.0001f)
+            {
+                Failures.Add(
+                    $"масштаб рендера {authored:F2} приведён к {quantized:F4} — это не обратная величина целого");
+            }
+
+            if (quantized < 0.5f - 0.0001f || quantized > 1f + 0.0001f)
+            {
+                Failures.Add($"масштаб рендера {authored:F2} вышел за пределы — {quantized:F4}");
+            }
+        }
+
+        // Сетка обязана оставаться целой и в уменьшенном буфере: зум
+        // выравнивается по высоте буфера, а не окна.
+        foreach (float scale in new[] { 1f, 0.5f })
+        {
+            foreach (int screenHeight in screenHeights)
+            {
+                int renderHeight = PixelGrid.RenderHeight(screenHeight, scale);
+                for (float desired = minimumZoom; desired <= maximumZoom; desired += 0.37f)
+                {
+                    _checks++;
+                    float quantized = PixelGrid.QuantizeOrthographicSize(
+                        desired,
+                        renderHeight,
+                        minimumZoom,
+                        maximumZoom);
+                    float pixelsPerTexel = PixelGrid.PixelsPerTexel(quantized, renderHeight);
+                    if (Math.Abs(pixelsPerTexel - MathF.Round(pixelsPerTexel)) > 0.0001f)
+                    {
+                        Failures.Add(
+                            $"масштаб {scale:F2}, высота {screenHeight}, зум {desired:F2}: " +
+                            $"{pixelsPerTexel:F4} пикселей на тексель в буфере рендера — муар");
+                    }
+                }
+            }
+        }
+
+        // Набор значений MSAA обязан состоять из нуля и степеней двойки:
+        // аппаратура другого не принимает.
+        foreach (int samples in GraphicsQualitySettings.AntiAliasingSampleCounts)
+        {
+            _checks++;
+            if (samples != 0 && (samples & (samples - 1)) != 0)
+            {
+                Failures.Add($"MSAA x{samples} не является степенью двойки");
+            }
+        }
     }
 
     private static void Section(string title)

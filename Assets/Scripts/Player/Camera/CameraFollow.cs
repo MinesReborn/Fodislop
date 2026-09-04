@@ -5,8 +5,11 @@ using Fodinae.Core;
 using Fodinae.Core.Interfaces;
 using Fodinae.Networking;
 using Fodinae.Player.Logic;
+using Fodinae.World;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using VContainer;
 
 namespace Fodinae.Player
@@ -77,10 +80,7 @@ namespace Fodinae.Player
             _targetZoom = initialZoom;
             _currentZoom = _targetZoom;
             _lastZoom = _currentZoom;
-            if (!Mathf.Approximately(_camera.orthographicSize, _currentZoom))
-            {
-                _camera.orthographicSize = _currentZoom;
-            }
+            ApplyZoom(_currentZoom);
             if (_target == null || _target == _camera.transform)
             {
                 var player = _localPlayer?.Current;
@@ -208,12 +208,15 @@ namespace Fodinae.Player
         {
             if (!Application.isPlaying)
             {
-                _camera.orthographicSize = DefaultOrthographicSize;
+                ApplyZoom(DefaultOrthographicSize);
 
                 var player = _localPlayer?.Current;
                 if (player != null)
                 {
-                    _camera.transform.position = new Vector3(player.transform.position.x, player.transform.position.y, DefaultCameraDepthZ);
+                    _camera.transform.position = SnapToPixelGrid(new Vector3(
+                        player.transform.position.x,
+                        player.transform.position.y,
+                        DefaultCameraDepthZ));
                 }
 
                 return;
@@ -264,10 +267,7 @@ namespace Fodinae.Player
             }
 
             _currentZoom = nextZoom;
-            if (!Mathf.Approximately(_camera.orthographicSize, _currentZoom))
-            {
-                _camera.orthographicSize = _currentZoom;
-            }
+            ApplyZoom(_currentZoom);
 
             if (Mathf.Abs(_currentZoom - _lastZoom) > 0.01f)
             {
@@ -316,13 +316,74 @@ namespace Fodinae.Player
                 return;
             }
 
-            cameraTransform.position = Vector3.SmoothDamp(
+            Vector3 smoothed = Vector3.SmoothDamp(
                 cameraTransform.position,
                 desiredPosition,
                 ref _followVelocity,
                 smoothTime,
                 float.PositiveInfinity,
                 Time.deltaTime);
+            cameraTransform.position = SnapToPixelGrid(smoothed);
+        }
+
+        /// <summary>
+        /// Ставит камеру в узел пиксельной сетки.
+        /// </summary>
+        /// <remarks>
+        /// Сглаживание выдаёт произвольную дробную позицию. Без привязки
+        /// сетка текселей разъезжается с сеткой экрана на доли пикселя, и
+        /// на регулярной кладке тайлов это ползущий муар. Округляется
+        /// только то, что уходит в трансформ: цель слежения остаётся
+        /// точной, иначе камера дёргалась бы на границе округления.
+        /// </remarks>
+        private Vector3 SnapToPixelGrid(Vector3 position)
+        {
+            float snapUnit = PixelGrid.SnapUnit(_camera.orthographicSize, EffectiveRenderHeight());
+            if (snapUnit <= 0f)
+            {
+                return position;
+            }
+
+            Vector2 snapped = PixelGrid.Snap(new Vector2(position.x, position.y), snapUnit);
+            return new Vector3(snapped.x, snapped.y, position.z);
+        }
+
+        /// <summary>
+        /// Высота буфера, в котором рисуется кадр.
+        /// </summary>
+        /// <remarks>
+        /// Не высота окна: при масштабе рендера меньше единицы сетка
+        /// текселей живёт в буфере, и выравнивать зум надо по нему.
+        /// </remarks>
+        private static int EffectiveRenderHeight()
+        {
+            float renderScale = GraphicsSettings.currentRenderPipeline is UniversalRenderPipelineAsset urp
+                ? urp.renderScale
+                : 1f;
+            return PixelGrid.RenderHeight(Screen.height, renderScale);
+        }
+
+        /// <summary>
+        /// Отдаёт камере ближайший размер с целым числом пикселей на
+        /// тексель.
+        /// </summary>
+        /// <remarks>
+        /// Квантуется то, что уходит в камеру, а не цель зума: пока
+        /// колесо докручивается, сглаживание проходит через промежуточные
+        /// значения, и на них муар был бы виден ровно так же. Зум
+        /// становится ступенчатым — это и есть приём, а не его издержка.
+        /// </remarks>
+        private void ApplyZoom(float desiredSize)
+        {
+            float quantized = PixelGrid.QuantizeOrthographicSize(
+                desiredSize,
+                EffectiveRenderHeight(),
+                _minZoom,
+                _maxZoom);
+            if (!Mathf.Approximately(_camera.orthographicSize, quantized))
+            {
+                _camera.orthographicSize = quantized;
+            }
         }
 
         public void SnapToTarget()
@@ -344,7 +405,8 @@ namespace Fodinae.Player
             if (_target != null && _target != cameraTransform)
             {
                 Vector3 targetPosition = _target.position + new Vector3(_offset.x, _offset.y, 0f);
-                cameraTransform.position = new Vector3(targetPosition.x, targetPosition.y, _originalZ);
+                cameraTransform.position = SnapToPixelGrid(
+                    new Vector3(targetPosition.x, targetPosition.y, _originalZ));
                 _followVelocity = Vector3.zero;
             }
         }

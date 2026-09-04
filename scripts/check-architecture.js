@@ -1506,8 +1506,13 @@ function checkSettingRangeCoverage() {
         }
         const lines = content.split("\n");
         for (let index = 0; index < lines.length; index++) {
+            // `const` и `static readonly` исключены: JsonUtility сериализует
+            // только обычные поля экземпляра, поэтому настройкой такое поле
+            // быть не может. Мимо этого фильтра проходил, например, набор
+            // допустимых значений MSAA, объявленный рядом с самой настройкой,
+            // — и линтер требовал у списка констант диапазон и потребителя.
             const match = lines[index].match(
-                /^\s*public\s+(?!const\b)[A-Za-z0-9_<>\[\],.\s?]+?\s+(?!operator\b)([A-Za-z0-9_]+)\s*(?:=(?!=)|;)/,
+                /^\s*public\s+(?!const\b)(?!static\s+readonly\b)[A-Za-z0-9_<>\[\],.\s?]+?\s+(?!operator\b)([A-Za-z0-9_]+)\s*(?:=(?!=)|;)/,
             );
             if (match === null) {
                 continue;
