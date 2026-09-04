@@ -41,13 +41,10 @@ namespace Fodinae.Editor
             EditorGUILayout.FloatField("_EmissionScale", engine.EmissionScale);
             EditorGUILayout.FloatField("_MaximumLightMultiplier", engine.MaximumLightMultiplier);
             EditorGUILayout.FloatField("_CellSize", engine.CellSize);
-            EditorGUILayout.FloatField("_AmbientOcclusionRadiusCells", engine.AmbientOcclusionRadiusCells);
-            EditorGUILayout.FloatField("_AmbientOcclusionStrength", engine.AmbientOcclusionStrength);
             EditorGUILayout.FloatField("_TransmittanceDebugDistanceCells", engine.TransmittanceDebugDistanceCells);
             EditorGUILayout.EnumPopup("_DebugView", engine.ActiveDebugView);
             EditorGUILayout.IntField("_MaterialYFlip", engine.MaterialYFlip);
             EditorGUILayout.IntField("_MaximumIntervalSteps", engine.MaximumIntervalSteps);
-            EditorGUILayout.IntField("_EnableContactOcclusion", engine.AmbientOcclusionEnabled ? 1 : 0);
             EditorGUILayout.IntField("_EnableDiffuseBounce", engine.DiffuseBounceEnabled ? 1 : 0);
             EditorGUILayout.IntField("Cascade count", engine.CascadeCount);
             foreach (string summary in engine.GetCascadeUniformSummaries())

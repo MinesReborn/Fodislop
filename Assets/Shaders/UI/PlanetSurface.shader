@@ -34,13 +34,13 @@ Shader "Fodinae/UI/PlanetSurface"
         // Верхняя граница намеренно не доходит до зеркала. Именно низкая
         // шероховатость превращает планету в миску с маслом, и оставлять
         // ползунок, которым это можно сделать одним движением, незачем.
-        _RoughnessMin ("Roughness Min", Range(0.4, 1.0)) = 0.62
-        _RoughnessMax ("Roughness Max", Range(0.4, 1.0)) = 0.94
+        _RoughnessMin ("Roughness Min", Range(0.65, 0.9)) = 0.68
+        _RoughnessMax ("Roughness Max", Range(0.65, 0.9)) = 0.88
         _NormalStrength ("Normal Strength", Range(0, 0.6)) = 0.22
 
         [Header(Rifts)]
         _MagmaColor ("Magma Color", Color) = (1.0, 0.35, 0.08, 1)
-        _MagmaIntensity ("Magma Intensity", Range(0, 12)) = 3.2
+        _MagmaIntensity ("Magma Intensity", Range(0, 2)) = 2.0
 
         [Header(Clouds)]
         _CloudColor ("Cloud Color", Color) = (0.86, 0.80, 0.66, 1)
@@ -242,8 +242,9 @@ Shader "Fodinae/UI/PlanetSurface"
 
                 float3 linearColor = (direct + scatter + emission + ambient) * _Exposure;
 
-                // ACES-подобная кривая: сводит пересветы дневной стороны, не
-                // заваливая при этом рифты на ночной в белый.
+                // UI Toolkit composites this texture through its SDR UI target.
+                // Keep a local shoulder so highlights cannot clip into solid
+                // blocks before Unity maps the UI plane to HDR paper white.
                 float3 mapped = (linearColor * ((2.51 * linearColor) + 0.03))
                     / ((linearColor * ((2.43 * linearColor) + 0.59)) + 0.14);
                 return half4(saturate(mapped), 1.0);

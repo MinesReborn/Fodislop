@@ -1,0 +1,98 @@
+/* ==========================================================================
+   ОНБОРДИНГ
+   ==========================================================================
+
+   Экран #onboardingView.
+
+   Выделено из styles.css. Границы не выдуманы: их задаёт машина
+   состояний #appViewport[data-state] в index.html. Порядок @import в
+   styles.css = порядок каскада = порядок, который воспроизведётся в
+   FodinaeTheme.tss.
+   ========================================================================== */
+
+/* 3. Онбординг */
+.onboarding-overlay-view {
+  position: absolute;
+  inset: 0;
+  z-index: var(--layer-gate);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-scrim);
+  backdrop-filter: blur(var(--blur-lg));
+}
+.onboarding-overlay-view.active { display: flex; }
+.onboarding-card {
+  width: 780px;
+  max-width: 94vw;
+  max-height: 88vh;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 25px 60px var(--surface-void-dense);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@media (max-width: 899px) {
+  .onboarding-header,
+  .onboarding-footer {
+    flex-wrap: wrap;
+  }
+
+  .onboarding-header > * + *,
+  .onboarding-footer > * + * {
+    margin-top: var(--space-4);
+  }
+
+  .onboarding-footer > * {
+    min-width: 0;
+  }
+}
+.onboarding-header {
+  padding: 18px 24px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.onboarding-step-indicator { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.onboarding-step-pill {
+  font-family: var(--face-data);
+  font-size: var(--size-2xs);
+  letter-spacing: 0.08em;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sharp);
+  background: var(--light-film);
+  color: var(--text-tertiary);
+}
+.onboarding-step-pill.active { background: var(--accent-gold); color: var(--shadow-solid); font-weight: 700; }
+.onboarding-step-pill.completed { color: var(--accent-cyan); border: 1px solid var(--accent-cyan); }
+.onboarding-body {
+  padding: var(--space-9) var(--space-10);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+  flex: 1;
+}
+.onboarding-step-content { display: none; flex-direction: column; gap: var(--space-7); }
+.onboarding-step-content.active { display: flex; }
+.onboarding-footer {
+  padding: var(--space-6) var(--space-10);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface-abyss-veil);
+}
+
+.onboarding-step-title {
+  font-family: var(--face-display);
+  font-size: var(--size-lg);
+  color: var(--light-solid);
+}
+
+#btnObNext {
+  text-transform: uppercase;
+}

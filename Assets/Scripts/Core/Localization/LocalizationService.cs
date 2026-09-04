@@ -47,7 +47,7 @@ namespace Fodinae.Core.Localization
         {
             _clientConfig = clientConfig ?? throw new ArgumentNullException(nameof(clientConfig));
             _clientConfig.EnsureInitialized();
-            string initialLang = _clientConfig.Config.Language;
+            string initialLang = _clientConfig.Config.Interface.Language;
             SetLanguage(initialLang);
         }
 
@@ -61,9 +61,9 @@ namespace Fodinae.Core.Localization
             CurrentLanguage = languageCode.ToLowerInvariant();
             LoadTranslations();
 
-            if (_clientConfig.Config.Language != CurrentLanguage)
+            if (_clientConfig.Config.Interface.Language != CurrentLanguage)
             {
-                _clientConfig.UpdateAndSave(config => config.Language = CurrentLanguage);
+                _clientConfig.UpdateSection(config => config.Interface, settings => settings.Language = CurrentLanguage);
             }
 
             OnLanguageChanged?.Invoke();

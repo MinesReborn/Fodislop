@@ -1,6 +1,8 @@
 #nullable enable
 
 using System;
+using System.IO;
+using Fodinae.Core;
 using Fodinae.Rendering.PostProcessing;
 using Fodinae.World.Lighting.Quality;
 using UnityEngine;
@@ -65,19 +67,28 @@ namespace Fodinae.Rendering
             GraphicsQualitySettings settings,
             string context)
         {
-            if (settings.LightingMinimumPixelsPerCell < 1 ||
-                settings.LightingMaximumTextureDimension <
-                    GraphicsQualitySettings.MinimumLightingTextureDimension ||
-                settings.LightingMaximumLightCount < 1 ||
-                settings.LightingMaximumRaySteps < 1 ||
-                settings.LightingUpdatesPerSecond <= 0f ||
-                settings.LightingCascadeAtlasLimit < 128 ||
-                settings.RenderScale is < 0.5f or > 1f ||
-                settings.VSyncCount is < 0 or > 4 ||
-                settings.AntiAliasing is < 0 or > 8)
+            // Границы объявлены атрибутами [Range] над самими полями: инспектор
+            // ими ограничивает правку профиля, схема по ним проверяет, ползунок
+            // из них берёт края. Раньше здесь стояла девятая копия тех же
+            // чисел литералами, причём в одном условии через ||, поэтому
+            // сообщение об ошибке не называло провинившееся поле — «contain
+            // invalid technical values» и ищи сам, какое из восьми.
+            if (Array.IndexOf(GraphicsQualitySettings.AntiAliasingSampleCounts, settings.AntiAliasing) < 0)
             {
                 throw new InvalidOperationException(
-                    $"Graphics quality settings '{context}' contain invalid technical values.");
+                    $"Graphics quality settings '{context}' request MSAA x{settings.AntiAliasing}; " +
+                    $"hardware accepts only {string.Join(", ", GraphicsQualitySettings.AntiAliasingSampleCounts)}.");
+            }
+
+            try
+            {
+                SettingSchema.Validate(settings, typeof(GraphicsQualitySettings));
+            }
+            catch (InvalidDataException ex)
+            {
+                throw new InvalidOperationException(
+                    $"Graphics quality settings '{context}' are invalid: {ex.Message}",
+                    ex);
             }
 
             if (!Enum.IsDefined(typeof(LightingQualityMode), settings.LightingQuality))
@@ -92,17 +103,6 @@ namespace Fodinae.Rendering
                 throw new InvalidOperationException(
                     $"Graphics quality settings '{context}' has an undefined " +
                     $"LightingQuality value ({(int)settings.LightingQuality}).");
-            }
-
-            if (!Enum.IsDefined(typeof(PostProcessQualityMode), settings.PostProcessQuality))
-            {
-                // Same reasoning as the LightingQuality check above: an
-                // out-of-range int satisfies every numeric check and only
-                // surfaces later as an IndexOutOfRangeException in the
-                // PauseMenu tier-name array.
-                throw new InvalidOperationException(
-                    $"Graphics quality settings '{context}' has an undefined " +
-                    $"PostProcessQuality value ({(int)settings.PostProcessQuality}).");
             }
 
             if (context == nameof(GraphicsPreset.Ultra) &&

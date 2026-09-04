@@ -6,11 +6,16 @@ using UnityEngine;
 
 namespace Fodinae.UI.Programmator
 {
-    public static class ProgrammatorTextureRegistry
+    public interface IProgrammatorTextureCatalog
     {
-        private static readonly Dictionary<ProgAction, Texture2D> _cache = new Dictionary<ProgAction, Texture2D>();
+        Texture2D? GetTexture(ProgAction action);
+    }
 
-        public static Texture2D? GetTexture(ProgAction action)
+    public sealed class ProgrammatorTextureRegistry : IProgrammatorTextureCatalog
+    {
+        private readonly Dictionary<ProgAction, Texture2D> _cache = new();
+
+        public Texture2D? GetTexture(ProgAction action)
         {
             if (_cache.TryGetValue(action, out var tex))
             {
@@ -28,11 +33,6 @@ namespace Fodinae.UI.Programmator
             }
 
             return tex;
-        }
-
-        public static void ClearCache()
-        {
-            _cache.Clear();
         }
     }
 }

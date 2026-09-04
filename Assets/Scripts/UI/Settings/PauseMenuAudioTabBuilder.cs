@@ -3,8 +3,8 @@
 using System;
 using System.Collections.Generic;
 using Fodinae.Audio;
-using Fodinae.Audio.Backend;
 using Fodinae.Audio.Core;
+using Fodinae.Core;
 using Fodinae.Core.Interfaces;
 using Fodinae.Core.Localization;
 using UnityEngine.UIElements;
@@ -38,86 +38,56 @@ internal sealed class PauseMenuAudioTabBuilder
         VisualElement audioSection = audioScroll.Q<VisualElement>("AudioSection") ??
             throw new InvalidOperationException("[PauseMenu] AudioSection is missing from PauseMenu.uxml.");
 
-        audioSection.Add(CreateAudioSlider(_loc.Get("menu.settings.master_volume"), AudioBusType.Master));
-        audioSection.Add(CreateAudioSlider(_loc.Get("menu.settings.sfx_volume"), AudioBusType.SFX));
-        audioSection.Add(CreateAudioSlider(_loc.Get("menu.settings.music_volume"), AudioBusType.Music));
-        audioSection.Add(CreateAudioSlider(_loc.Get("menu.settings.ambience_volume"), AudioBusType.Ambience));
-        audioSection.Add(CreateAudioSlider(_loc.Get("settings.audio.voice"), AudioBusType.Voice));
-        audioSection.Add(CreateAudioSlider(_loc.Get("menu.settings.ui_volume"), AudioBusType.UI));
+        // Список ползунков — это список шин, а не его копия: подпись берётся из
+        // [SettingLabel] над полем громкости, шина — из [AudioBus] там же.
+        foreach (AudioBusRegistry.BusBinding binding in AudioBusRegistry.Buses)
+        {
+            audioSection.Add(CreateAudioSlider(binding));
+        }
+
         Toggle muteInBackgroundToggle = PauseMenuUIFactory.CreateBoundToggle(
             _loc.Get("menu.settings.mute_background"),
-            () => _clientConfig.Config.MuteAudioInBackground,
-            value => _clientConfig.UpdateAndSave(
-                config => config.MuteAudioInBackground = value),
+            () => _clientConfig.Config.Audio.MuteInBackground,
+            value => _clientConfig.UpdateSection(config => config.Audio,
+                settings => settings.MuteInBackground = value),
             _refreshers);
         audioSection.Add(muteInBackgroundToggle);
 
         return audioScroll;
     }
 
-    private VisualElement CreateAudioSlider(string title, AudioBusType busType)
+    private VisualElement CreateAudioSlider(AudioBusRegistry.BusBinding binding)
     {
-        float currentVol = GetConfiguredBusVolume(busType);
-        return PauseMenuUIFactory.CreateSlider(
+        string title = _loc.Get(
+            SettingSchema.LabelOf<AudioSettings>(binding.VolumeField.Name));
+        SettingRangeAttribute range =
+            SettingSchema.RangeOf<AudioSettings>(binding.VolumeField.Name);
+        return PauseMenuUIFactory.CreateBoundSlider(
             title,
-            currentVol,
-            v =>
+            () => GetConfiguredBusVolume(binding),
+            volume =>
             {
-                if (_audioSystem is AudioSystem audioSystem && audioSystem.IsInitialized)
+                if (_audioSystem.IsInitialized)
                 {
-                    audioSystem.SetBusVolume(busType, v);
+                    _audioSystem.SetBusVolume(binding.Bus, volume);
                 }
 
-                SetBusVolumeInConfig(busType, v);
+                _clientConfig.UpdateSection(
+                    config => config.Audio,
+                    settings => binding.Write(settings, volume));
             },
-            0f,
-            1f);
+            range.Minimum,
+            range.Maximum,
+            _refreshers);
     }
 
-    private float GetConfiguredBusVolume(AudioBusType busType)
+    private float GetConfiguredBusVolume(AudioBusRegistry.BusBinding binding)
     {
-        if (_clientConfig == null || _clientConfig.Config == null)
+        if (_clientConfig?.Config == null)
         {
             return 1f;
         }
 
-        return busType switch
-        {
-            AudioBusType.Master => _clientConfig.Config.MasterVolume,
-            AudioBusType.SFX => _clientConfig.Config.SfxVolume,
-            AudioBusType.Music => _clientConfig.Config.MusicVolume,
-            AudioBusType.Voice => _clientConfig.Config.VoiceVolume,
-            AudioBusType.Ambience => _clientConfig.Config.AmbienceVolume,
-            AudioBusType.UI => _clientConfig.Config.UIVolume,
-            _ => throw new ArgumentOutOfRangeException(nameof(busType), busType, "Unsupported audio bus."),
-        };
-    }
-
-    private void SetBusVolumeInConfig(AudioBusType busType, float volume)
-    {
-        _clientConfig.UpdateAndSave(config =>
-        {
-            switch (busType)
-            {
-                case AudioBusType.Master:
-                    config.MasterVolume = volume;
-                    break;
-                case AudioBusType.SFX:
-                    config.SfxVolume = volume;
-                    break;
-                case AudioBusType.Music:
-                    config.MusicVolume = volume;
-                    break;
-                case AudioBusType.Voice:
-                    config.VoiceVolume = volume;
-                    break;
-                case AudioBusType.Ambience:
-                    config.AmbienceVolume = volume;
-                    break;
-                case AudioBusType.UI:
-                    config.UIVolume = volume;
-                    break;
-            }
-        });
+        return binding.Read(_clientConfig.Config.Audio);
     }
 }

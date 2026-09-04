@@ -6,7 +6,7 @@
     background-color: var(--surface-raised);
     border-color: var(--border-subtle);
     border-width: 1px;
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     padding: var(--space-4) var(--space-8);
     min-width: 96px;
     font-size: var(--size-base);
@@ -24,7 +24,7 @@
 
 .btn-accent {
     background-color: var(--accent-gold);
-    color: black;
+    color: var(--shadow-solid);
 }
 
 .btn-accent:hover {
@@ -33,11 +33,11 @@
 
 .btn-danger {
     background-color: var(--state-danger);
-    color: white;
+    color: var(--light-solid);
 }
 
 .btn-small {
     min-width: 0;
-    padding: 4px 10px;
+    padding: var(--space-2) var(--space-5);
     font-size: var(--size-sm);
 }

@@ -14,8 +14,8 @@
     background-color: var(--surface-panel);
     border-width: 1px;
     border-color: var(--border-subtle);
-    border-radius: 4px;
-    padding: 12px;
+    border-radius: var(--radius-md);
+    padding: var(--space-6);
 }
 
 .sci-fi-panel--tech {
@@ -31,8 +31,8 @@
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    padding-bottom: 8px;
-    margin-bottom: 10px;
+    padding-bottom: var(--space-4);
+    margin-bottom: var(--space-5);
     border-bottom-width: 1px;
     border-bottom-color: var(--border-subtle);
 }
@@ -40,7 +40,7 @@
 .sci-fi-header-title {
     -unity-font-definition: var(--face-display);
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--size-base);
     -unity-font-style: bold;
     letter-spacing: 1px;
 }
@@ -50,14 +50,14 @@
     align-items: center;
     justify-content: center;
     height: 38px;
-    padding: 0 16px;
+    padding: 0 var(--space-8);
     background-color: var(--accent-gold);
     border-width: 1px;
     border-color: var(--accent-gold);
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     color: var(--surface-void-solid);
     -unity-font-definition: var(--face-display);
-    font-size: 12px;
+    font-size: var(--size-sm);
     -unity-font-style: bold;
 }
 
@@ -71,19 +71,19 @@
     align-items: center;
     justify-content: center;
     height: 36px;
-    padding: 0 14px;
+    padding: 0 var(--space-7);
     background-color: var(--accent-cyan-wash);
     border-width: 1px;
     border-color: var(--border-cyan);
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     color: var(--accent-cyan);
     -unity-font-definition: var(--face-display);
-    font-size: 12px;
+    font-size: var(--size-sm);
     -unity-font-style: bold;
 }
 
 .sci-fi-btn-cyan:hover {
-    background-color: rgba(38, 198, 218, 0.35);
+    background-color: var(--accent-cyan-wash);
     border-color: var(--accent-cyan-hover);
     color: var(--accent-cyan-hover);
 }
@@ -93,18 +93,18 @@
     align-items: center;
     justify-content: center;
     height: 34px;
-    padding: 0 12px;
-    background-color: rgba(14, 22, 32, 0.85);
+    padding: 0 var(--space-6);
+    background-color: var(--surface-slate-dense);
     border-width: 1px;
     border-color: var(--border-subtle);
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     color: var(--text-secondary);
     -unity-font-definition: var(--face-body);
-    font-size: 12px;
+    font-size: var(--size-sm);
 }
 
 .sci-fi-btn-dark:hover {
-    background-color: rgba(26, 40, 58, 0.95);
+    background-color: var(--surface-shelf-dense);
     border-color: var(--border-cyan);
     color: var(--text-primary);
 }
@@ -115,9 +115,9 @@
     color: var(--accent-cyan);
     border-width: 1px;
     border-color: var(--border-cyan);
-    padding: 2px 6px;
-    border-radius: 2px;
-    font-size: 10px;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-sharp);
+    font-size: var(--size-2xs);
     -unity-font-style: bold;
 }
 
@@ -127,18 +127,18 @@
     color: var(--accent-gold);
     border-width: 1px;
     border-color: var(--border-gold);
-    padding: 2px 6px;
-    border-radius: 2px;
-    font-size: 10px;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-sharp);
+    font-size: var(--size-2xs);
     -unity-font-style: bold;
 }
 
 .sci-fi-bar-track {
     height: 8px;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: var(--surface-inset);
     border-width: 1px;
     border-color: var(--border-subtle);
-    border-radius: 2px;
+    border-radius: var(--radius-sharp);
     overflow: hidden;
 }
 
@@ -146,36 +146,36 @@
     height: 100%;
     width: 100%;
     background-color: var(--state-ok);
-    border-radius: 1px;
+    border-radius: var(--radius-sharp);
 }
 
 .sci-fi-bar-fill-cyan {
     height: 100%;
     background-color: var(--accent-cyan);
-    border-radius: 1px;
+    border-radius: var(--radius-sharp);
 }
 
 .sci-fi-bar-fill-gold {
     height: 100%;
     background-color: var(--accent-gold);
-    border-radius: 1px;
+    border-radius: var(--radius-sharp);
 }
 
 .sci-fi-input {
-    background-color: rgba(5, 8, 11, 0.85);
+    background-color: var(--surface-scrim);
     border-width: 1px;
     border-color: var(--border-subtle);
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     color: var(--text-primary);
     -unity-font-definition: var(--face-body);
-    font-size: 13px;
-    padding: 6px 10px;
-    margin: 4px 0;
+    font-size: var(--size-base);
+    padding: var(--space-3) var(--space-5);
+    margin: var(--space-2) 0;
 }
 
 .sci-fi-input:focus {
     border-color: var(--accent-cyan-hover);
-    background-color: rgba(7, 14, 20, 0.95);
+    background-color: var(--surface-abyss-dense);
 }
 
 .sci-fi-btn-red {
@@ -183,19 +183,19 @@
     align-items: center;
     justify-content: center;
     height: 36px;
-    padding: 0 14px;
+    padding: 0 var(--space-7);
     background-color: var(--state-danger-glow);
     border-width: 1px;
-    border-color: rgba(231, 76, 60, 0.5);
-    border-radius: 3px;
+    border-color: var(--border-danger);
+    border-radius: var(--radius-sm);
     color: #ff7675;
     -unity-font-definition: var(--face-display);
-    font-size: 12px;
+    font-size: var(--size-sm);
     -unity-font-style: bold;
 }
 
 .sci-fi-btn-red:hover {
-    background-color: rgba(231, 76, 60, 0.45);
+    background-color: var(--state-danger-wash);
     border-color: #ff7675;
     color: #ffffff;
 }
@@ -203,30 +203,30 @@
 .sci-fi-text-title {
     -unity-font-definition: var(--face-display);
     color: var(--text-primary);
-    font-size: 16px;
+    font-size: var(--size-md);
     -unity-font-style: bold;
     letter-spacing: 1px;
-    margin-bottom: 6px;
+    margin-bottom: var(--space-3);
 }
 
 .sci-fi-text-body {
     -unity-font-definition: var(--face-body);
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: var(--size-base);
     white-space: normal;
 }
 
 .sci-fi-text-muted {
     -unity-font-definition: var(--face-body);
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--size-sm);
     white-space: normal;
 }
 
 .sci-fi-text-gold {
     -unity-font-definition: var(--face-display);
     color: var(--accent-gold-hover);
-    font-size: 13px;
+    font-size: var(--size-base);
     -unity-font-style: bold;
 }
 
@@ -236,7 +236,7 @@
     top: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(5, 8, 11, 0.75);
+    background-color: var(--surface-scrim);
     align-items: center;
     justify-content: center;
 }
@@ -245,8 +245,53 @@
     background-color: var(--surface-panel);
     border-width: 1px;
     border-color: var(--border-cyan);
-    border-radius: 4px;
-    padding: 16px;
+    border-radius: var(--radius-md);
+    padding: var(--space-8);
     min-width: 320px;
     max-width: 800px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Виджеты серверных окон
+
+   Протокол описывает, ЧТО показать: тип компонента, его данные, а через
+   GUIStylePacket — цвет и отступы, если сервер их назначил. О том, как
+   выглядит сам виджет, когда сервер молчит, протокол не говорит ничего,
+   и решает это клиент. Значит место такому виду здесь, а не инлайном в
+   сборщиках: инлайн бьёт любое правило и запирает вид навсегда.
+
+   Селекторы намеренно начинаются с .packet-: правила должны действовать
+   только на то, что построено из пакета, и не задевать одноимённые
+   контролы Unity в остальной игре. */
+
+/* Слайдер приходит со своим ползунком-картинкой из пакета (SliderPacket.Knob),
+   поэтому стандартная отрисовка Unity под ним гасится: иначе сквозь неё
+   видно вторую, чужую ручку и дорожку. */
+.packet-slider .unity-base-slider__tracker {
+    background-image: none;
+    border-color: transparent;
+}
+
+.packet-slider .unity-base-slider__drag-container {
+    background-color: transparent;
+}
+
+.packet-slider .unity-base-slider__dragger {
+    background-image: none;
+    background-color: transparent;
+    border-color: transparent;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Линия тянется во всю длину контейнера; толщина приходит из пакета и
+   потому остаётся единственным, что сборщик пишет инлайном. */
+.packet-line--h { width: 100%; }
+.packet-line--v { height: 100%; }
+.packet-line--both { width: 100%; height: 100%; }
+
+/* Компонент, которого клиент не умеет строить. Заметность здесь — смысл
+   правила: неподдержанный пакет обязан бросаться в глаза, а не исчезать. */
+.packet-unimplemented {
+    background-color: magenta;
 }

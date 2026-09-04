@@ -21,22 +21,22 @@
 - [ ] `UI/Chat/GlobalChatUI.cs` (727): state/presenter/view binding.
 - [ ] `Rendering/PostProcessing/PostProcessRenderPass.cs` (708): resources/scheduling/effect passes.
 - [ ] `Game/Entities/Robot.cs` (692): state/visual loading/presentation.
-- [ ] `UI/Menu/Core/MainMenu.cs` (685): state/presenter/view binding/transition flow.
-- [ ] `World/Textures/WorldTextureManager.cs` (661): loading/cache/atlas orchestration.
-- [ ] `AssetPipeline/Loading/ClientAssetLoader.cs` (656): requests/cache/batching/decoding.
-- [ ] `UI/Programmator/Model/ProgrammatorData.cs` (650): model/serialization/commands.
-- [ ] `UI/Gateway/GatewayController.cs` (646): auth state/presenter/view binding.
-- [ ] `UI/Map/WorldMapRenderer.cs` (638): sampling/texture updates/presentation.
-- [ ] `World/Rendering/BackgroundFloodFill.cs` (627): traversal/cache/output.
-- [ ] `UI/Programmator/Grid/ProgrammatorClipboardController.cs` (627): clipboard/selection/commands.
-- [ ] `AssetPipeline/Cache/AssetCacheEntry.cs` (624): entry state/download/decode/lifecycle.
-- [ ] `UI/HUD/Player/View/PlayerHUDView.cs` (621): binding/presenter/subviews.
-- [ ] `Game/Audio/ServerAudioEvent.cs` (599): lifecycle/audio/VFX/loading.
-- [ ] `UI/Settings/PauseMenu.cs` (596): state/presenter/view binding.
-- [ ] `World/Terrain/Mesh/TerrainMeshBuilder.cs` (587): topology/attributes/output.
-- [ ] `World/Lighting/Core/LightingResourceManager.cs` (577): allocation/ownership/destruction.
-- [ ] `Player/Controllers/PlayerMovementController.cs` (567): state/input/network movement.
-- [ ] `World/Textures/TextureAtlas.cs` (561): packing/storage/upload.
+- [x] `UI/Menu/Core/MainMenu.cs` (494, было 749): navigation/sidebar/footer binding extracted to `MenuNavigationPresenter.cs` (246), keyboard input extracted to `MenuKeyboardHandler.cs` (50).
+- [x] `World/Textures/WorldTextureManager.cs` (465, было 656): atlas collection & packing extracted to `WorldAtlasCollection.cs` (199), retry throttling extracted to `CellTextureRetryTracker.cs` (70), `TextureRequest.cs` (28).
+- [x] `AssetPipeline/Loading/ClientAssetLoader.cs` (368, было 644): batch request loop, queue, and packet dispatching extracted to `AssetBatchDispatcher.cs` (337).
+- [x] `UI/Gateway/GatewayController.cs` (270, было 649): onboarding flow extracted to `GatewayOnboarding.cs` (417).
+- [x] `UI/Map/WorldMapRenderer.cs` (496, было 643): player tracking/blinking extracted to `MapPlayerTracker.cs` (152), viewport bounds/clamping extracted to `MapViewportBounds.cs` (83), world view state reset deduplicated.
+- [x] `UI/Programmator/Model/ProgrammatorData.cs` (154, было 639): operator categories/constants extracted to `ProgrammatorOperators.cs` (155), localized names/descriptions extracted to `ProgrammatorLocalization.cs` (375).
+- [x] `World/Rendering/BackgroundFloodFill.cs` (442, было 628): deduplicated 3x3 neighbor frequency scan across ComputeFull, UpdateLocalRegion, and SeedBorderCell; compact branchless Scroll2DArray.
+- [x] `UI/Programmator/Grid/ProgrammatorClipboardController.cs` (470, было 633): unified selection bounds extraction, 4-way shift push capacity check and obstacle propagation unified via TryFindEmptyCellAhead and MoveCell.
+- [x] `AssetPipeline/Cache/AssetCacheEntry.cs` (473, было 624): duplicate promise double-checking unified; container/animation decoding extracted to `AssetCacheDecoder.cs` (111).
+- [x] `UI/HUD/Player/View/PlayerHUDView.cs` (440, было 621): skeleton pulse animation extracted to `PlayerHUDSkeletonPulse.cs` (73), mode buttons controller extracted to `PlayerHUDModeController.cs` (116).
+- [x] `Game/Audio/ServerAudioEvent.cs` (488, было 599): packet parameter parsing extracted to `ServerAudioParameters.cs` (112); slot release and visual completion deduped.
+- [x] `UI/Settings/PauseMenu.cs` (482, было 596): tab routing extracted to `PauseMenuTabRouter.cs` (114), main page binding extracted to `PauseMenuMainPage.cs` (53), dialogs extracted to `PauseMenuConfirmation.cs` (52).
+- [x] `World/Terrain/Mesh/TerrainMeshBuilder.cs` (327, было 587): quad vertex attribute evaluation, metadata mapping, and lighting flag packing вынесены в `TerrainQuadBuilder.cs` (347); duplicate submesh index rebuilding loops eliminated.
+- [x] `World/Lighting/Core/LightingResourceManager.cs` (478, было 577): cascade layout delegation, quality settings wiring, redundant GPU allocation deduped from LightingEngine.
+- [x] `Player/Controllers/PlayerMovementController.cs` (498, было 577): movement math/direction mapping вынесены в `PlayerMovementMath.cs` (63), hotkey action packets вынесены в `PlayerActionDispatcher.cs` (73).
+- [x] `World/Textures/TextureAtlas.cs` (478, было 557): 2D rectangle bin-packing вынесен в `AtlasRectanglePacker.cs` (120); GPU texture copy deduplicated.
 - [x] `World/Lighting/Config/LightingConfigHolder.cs` (491, было 557): ClientConfig mapping/normalization вынесены в `LightingRuntimeConfigMapper`.
 - [x] `UI/Menu/Scenery/MenuSceneryController.cs` (498, было 554): viewport projection и occlusion вынесены в `MenuSceneryProjection`.
 - [x] `World/Terrain/Cache/TerrainCellCache.cs` (469, было 547): сдвиг coverage-массивов вынесен в `TerrainCacheArrayScroller`.
@@ -84,7 +84,84 @@
 - [x] Оставить в `Fodinae.Contracts` только интерфейсы, DTO и value types.
 - [x] Перенести `WorldLayer<T>` и файловый формат в `Fodinae.Persistence` assembly.
 - [ ] Разбить `Fodinae.Runtime` на Core/Application/Infrastructure/Presentation.
-- [ ] Закрыть implementation types через `internal` и тестировать граф asmdef.
+- [ ] Закрыть implementation types через `internal`. Граф asmdef проверяется:
+      `checkAssemblyGraph` в `scripts/check-architecture.js` ловит и кольца, и
+      обращение к типу из сборки, на которую нет ссылки. Нашла две настоящие
+      поломки сразу: `AnimatedSpriteData` и `IRuntimeAssetPaths` стояли в
+      сигнатурах Contracts/AssetPipeline, а объявлены были в сборках, которые
+      сами ссылаются на них. Рядом `checkNamespaceVisibility` — тип виден по
+      ссылкам, но не по `using`: нашла ещё три файла (`AssetLoadingIndicator`,
+      `PostProcessRenderPass`, `DisplayManager`). Перенос типа между сборками
+      почти всегда меняет и пространство имён — потребителей проверять.
+- [ ] Экрана загрузки бутстрапа (`BootstrapLoadingScreen.uxml/.uss`) **в макете нет**.
+      Его вид не из чего выводить: сейчас он собран из общих токенов по аналогии
+      с оверлеями, но источника истины у него не существует. Либо экран рисуется
+      в `visual/fodinae-ui-lab`, либо признаётся служебным и не участвует в
+      сверке с макетом. До решения любые правки его вида — догадка.
+- [ ] Контракт `data-fit` не покрывает main game: заголовок предмета в инспекторе
+      (`clip`), описание предмета (`clamp`) и слоты корзины (`atomic`) объявлены
+      в макете, но в USS игры не перенесены — правки туда не разрешены. Перенос
+      делается вместе с разбором main game; проверку это не роняет, потому что
+      `check-fit.py` сверяет только пары из `component-map.json`.
+- [ ] Переполнение текста проверяется вручную. Детектор макета — кнопка в
+      дев-панели, замер геометрии (`docs/design-text-overflow.md`) — прогон в
+      браузере. Ни то ни другое не встроено в сборку: для этого нужен
+      headless-драйвер, а он тянет первую node-зависимость в репозитории.
+      Решение отложено сознательно — сначала стало видно, сколько там дефектов.
+- [ ] Главное меню расходится с макетом **структурно**, а не значениями. Окно
+      настроек в игре — две подписи в строке (`mm-item-title` + `mm-item-val`),
+      тогда как в макете это живые органы управления: `styled-select`,
+      слайдеры, переключатели и подсказка под каждой строкой (`settings-hint`).
+      Браузер серверов в игре — список карточек (`mm-server-card`), в макете —
+      таблица из четырёх колонок с индикатором пинга и строкой ввода IP
+      (`servers-table`, `srv-search-row`). Это не правка числа в USS: нужна
+      новая разметка и код. Решение — за человеком: макет либо переносится,
+      либо признаётся опережающим, и тогда об этом надо сказать вслух.
+- [ ] Три псевдоэлемента макета остаются невыразимыми: сетка звёзд
+      (`.space-backdrop::after` — маска плюс фоновая сетка), слой поверхности
+      планеты (`.fa-surface::after`) и ползунок переключателя настроек
+      (`.switch-knob:before`, а самого переключателя в игре нет). Остальные шесть
+      расшиты: бусина хроники, перекрестье прицела, ромб шага и чёрточка
+      надзаголовка стали настоящими узлами в обеих сторонах. Заодно текст
+      надзаголовка и шага маршрута уехал в дочерний узел — на самом элементе
+      висел `data-i18n`, и система перезаписала бы содержимое вместе с
+      добавленным узлом.
+- [ ] Карта пар покрывает 126 классов игры из 159 в `MainMenu.uxml`. Непокрытое
+      сверять не с чем: свойства там никем не проверяются. Отдельно опасны
+      модификаторы — до этого захода они не сверялись вовсе, и первый же
+      заведённый показал золотую активную вкладку настроек против бирюзовой
+      в макете. `compare-components.py` теперь понимает составные значения
+      (`mm-nav-tab--active` ↔ `fdn-settings-tab.active`) и раскрывает сокращения
+      рамок, так что остальные модификаторы заводятся строкой в карте.
+- [ ] Отказ дисплея в HDR не доходит до игрока. `DisplayManager.SetHDREnabled`
+      теперь возвращает исход и откатывает настройку, когда дисплей HDR-способен,
+      но не переключается на лету, — однако галка в настройках
+      (`UI/Settings/PauseMenuDisplayTabBuilder.cs`) исход по-прежнему выбрасывает.
+      Правильное поведение: при `RejectedUnsupported` галку гасить как
+      неприменимую, при `RejectedNotSwitchable` показывать причину («переключите
+      HDR в настройках ОС»). Файл в main game — правки туда не разрешены.
+- [ ] Оверлей отладки не показывает, состоялось ли кодирование HDR. URP включает
+      его в `FinalBlitPass` только при `outputsToHDR && overlayUITexture.IsValid()`,
+      то есть когда собрана отдельная текстура оверлейного UI. Если её нет, сцена
+      уходит в HDR-swapchain без преобразования и paper white — картинка
+      неправильная, но не чёрная, и заметить трудно. Лечится одной строкой:
+      печатать `cameraData.rendersOverlayUI` рядом с `available/active/gamut`.
+      `UI/Overlays/InGameDebugOverlay.cs` — main game.
+- [x] Неподдерживаемые CSS-фильтры удалены из USS. `filter`,
+      `backdrop-filter` и `box-shadow` не входят в используемый UI Toolkit USS;
+      из-за них правила меню импортировались с ошибками и интерфейс получал
+      непредсказуемые стили. Сверка макета теперь явно считает эти эффекты
+      непереносимыми; свечение при необходимости делается материалом,
+      Painter2D или подготовленной текстурой.
+- [ ] Рампа высот понадобится только после выбора поддерживаемого механизма
+      теней. CSS-смещения и сигмы из web-макета нельзя печатать в USS как есть.
+- [ ] Стрелка миссии (`MissionArrowUI.cs`) невидима: элемент создаётся кодом с классом
+      `mission-arrow`, под которым **нет ни одного правила** ни в одном листе, а инлайном
+      задаются только позиция и поворот. Без размера и фона элемент нулевой — указатель
+      на цель миссии не рисуется вообще. Файл в `UI/Overlays`, то есть main game.
+- [ ] `PlayerHUDView.cs:233` вешает `UILayoutTier.Attach` на `rootVisualElement`, а не на
+      клонированное поддерево, как MainMenu/Gateway/Bootstrap/серверные окна. Тир там
+      считается по всей панели, а не по экрану; правится вместе с разбором main game.
 
 ### 4. Декомпозиция god-object'ов
 
@@ -119,3 +196,121 @@
 Критерии завершения: обе production-сборки запускаются из чистого checkout;
 50 циклов Menu/Game не оставляют задач, подписок и объектов; fault-injection не
 теряет dirty chunks; p95 frame time и память не ухудшаются более чем на 5%.
+
+## Графика: приведение арта к системе
+
+Разбор показал, что рендер не является узким местом: каскадный свет
+(`WorldLighting.compute`, 885 строк), AgX, dual-Kawase блум, MRT-поле материалов
+и HDR уже дают больше, чем в них подаётся. Весь разрыв — в слое ассетов:
+326 PNG без единого общего правила. Направление выбрано: сначала арт-библия,
+затем перерисовка руками, затем линтер как храповик. Ничего из раздела не
+начато — ждёт обсуждения с командой.
+
+### Измерение и закрепление
+
+- [ ] `visual/main-menu-mirror/tools/inventory-art.py`: карта всех 326 PNG
+      (семейство, размер, кратность метрике, занятость холста, поля, мягкость
+      края, оттенок/насыщенность/светлота, неиспользуемость). Печатает
+      `docs/design-art-inventory.md` машинным файлом. Сейчас единственный способ
+      узнать состояние арта — руками через sips, и потому никто его не знает.
+- [ ] `scripts/check-art.js`: метрика семейства (Cells кратны 32, Items 42x42,
+      Skills 73x73, Crystals единый размер), совпадение размеров внутри набора
+      состояний одного контрола, существование ассетов, на которые ссылается
+      код, поимённый список мёртвых PNG. Правила, требующие решения человека
+      (палитра, контур, поля), не пишутся до арт-библии.
+- [ ] Потолок долга по арту в духе `DEBT_BUDGET`: число ассетов вне метрики
+      фиксируется числом; рост — нарушение, падение — тоже, иначе отвоёванное
+      можно молча вернуть.
+- [ ] Расширить `Assets/Editor/PixelArtTextureImportPolicy.cs` на
+      `Assets/Textures` (сейчас покрыты только `Resources/Programmator` и
+      `Resources/Skills`). В комментарии честно оговорить, что для этой ветки
+      настройки импорта на экран не влияют: `BuildTextureStager` копирует файлы
+      в StreamingAssets, а `TextureStorageManager.DecodeTexture` принудительно
+      ставит sRGB/Point/Clamp. Политика нужна для единообразия редактора,
+      а не для вида в игре.
+
+### Арт-библия
+
+- [ ] `docs/art-bible.md`: палитра, направление света, контур, метрика
+      семейства, обработка края, уровень износа, подача (чёткий пиксель или
+      живопись). Решение по каждой оси — за человеком; без библии перерисовка
+      разъедется снова, что уже и произошло. Каждая решённая ось становится
+      правилом в `check-art.js`.
+
+### Расхождения с решением «тайл 32px — константа»
+
+- [ ] Тайлы фильтруются `Point` (`TextureStorageManager.cs:81,118`,
+      `TextureAtlas.cs:77`), но при `CameraFollow.DefaultOrthographicSize = 7`
+      растягиваются в дробное число раз: 900p x2.01 (ровно), 1080p x2.41,
+      1440p x3.21, 4K x4.82. Один исходный пиксель занимает на экране 2 или 3
+      экранных в зависимости от места — ровная в текстуре линия идёт ступеньками
+      неравной высоты. Побочно: на 900p картинка чище, чем на 1080p. Лечится
+      подгонкой ortho под целый масштаб либо рендером мира в RT фиксированного
+      размера; и то и другое — правка камеры/конвейера, не арта, поэтому едет
+      отдельно. Решение отложено сознательно.
+- [ ] Здания не привязываются к сетке: `Building.cs:141-145` создаёт спрайт с
+      `pixelsPerUnit = CELL_SIZE = 32`, а ни одна из 7 текстур `Textures/Pack`
+      не кратна 32 — Market 114x114 это 3.562 x 3.562 клетки, Resp 50x87 это
+      1.562 x 2.719, Craft 50x47 это 1.562 x 1.469. Дополнение холста
+      прозрачным до кратного 32 сместило бы рисунок относительно клетки, то есть
+      правка не механическая: нужна перерисовка художником. До неё линтер по
+      `Pack/` не ругается.
+
+### Разнобой внутри семейств
+
+- [ ] Четыре состояния одного чекбокса имеют четыре разных размера:
+      `unchecked` 256x255, `checked` 259x253, `deselected` 259x260,
+      `selected` 260x260. При переключении контрол дёргается на пиксель-два.
+      Человек, рисующий набор состояний, такого не делает — это подпись
+      поштучной генерации.
+- [ ] `Resources/Programmator`: 166 иконок, **31 различный размер** — 15x15,
+      30x30, 13x13, 27x28, 29x28, 16x22, 19x19, 11x11 и около двадцати
+      одиночных вплоть до 27x7. Иконки показываются в интерфейсе рядом друг с
+      другом. Приведение к сетке — перерисовка, а не масштабирование.
+- [ ] `Textures/Items`: холст у всех 51 одинаковый (42x42), но занятость кадра
+      от 0.05 до 0.61 — предмет может быть в двенадцать раз мельче соседнего.
+      Мягкость края от 0.00 до 1.79: часть иконок с жёстким контуром, часть с
+      широким ореолом. Цвет занимает 9 секторов оттенка из 12, разброс
+      насыщенности 0.35 — общей палитры нет.
+- [ ] `Textures/Crystals/green.png` 25x24 при 24x24 у остальных пяти.
+
+### Мёртвое и ложное
+
+- [ ] `Robot.cs:572` грузит `ProjectRuntimeContracts.ResourcePaths.RobotPreviewTexture`
+      = `"Textures/bot"` с запасным путём `"bot"`. **Ни того, ни другого ассета
+      в проекте нет**, папки `Assets/Resources/Textures` не существует — превью
+      робота всегда сваливается в `Texture2D.whiteTexture`, то есть белый
+      прямоугольник. Либо ассет добавляется, либо путь удаляется вместе с
+      запасным.
+- [ ] `Assets/Textures/skills.png` (746x447) и `Assets/Textures/programmator.png`
+      (512x512) — легаси-листы, на которые не ссылается ни один файл кода. Оба
+      к тому же единственные в проекте с `isReadable: 1`, то есть держат копию
+      в памяти CPU без причины.
+- [ ] Все 65 файлов `Textures/Cells` объявлены `spriteMode: 2` (Multiple), но в
+      каждом ровно одна запись спрайта: нарезка объявлена и не существует.
+      Настройка мертва вдвойне — рантайм метаданные этой ветки игнорирует.
+- [ ] `RuntimeTextureFactory.CreateRgba32ArrayNoMip`
+      (`AssetPipeline/Loading/RuntimeTextureFactory.cs:84`) не вызывается
+      ниоткуда: `Texture2DArray` в проекте не создаётся никогда. Либо мёртвый
+      код, либо незаконченный заход на массив тайлов вместо атласа.
+- [ ] `Textures/Cells/117.png` — единственный из 65 с `filterMode: 0` и
+      `wrapU/V/W: 0`. **На экран не влияет**: метаданные `Assets/Textures` в
+      рантайме не читаются. Записано, чтобы линтер не выдавал это за дефект вида
+      и чтобы расхождение не «чинили» повторно.
+
+## Постпроцесс: что осталось за человеком
+
+- [ ] Подписи тумблеров на вкладке эффектов переиспользуют старые ключи и теперь
+      обещают меньше, чем включают. `settings.effects.anamorphic_beams` подписывает
+      тумблер, который включает ещё грязь на линзе, дифракцию и блики;
+      `settings.effects.glow_dust` — вместе с тепловым искажением;
+      `settings.effects.phosphor_pattern` — вместе с дизерингом;
+      `settings.effects.phosphor_afterglow` — вместе со стабилизацией света.
+      Ключи не переименованы и новые не заведены намеренно: тексты пишет человек.
+      Нужны четыре подписи по смыслу групп, дальше механическая замена ключей.
+- [ ] Числа в `PostProcessLook` — отправная точка, а не решение. Подобраны
+      консервативно, чтобы стек стало видно; ни одно не проверено на экране.
+      Крутить только этот файл: он единственный источник вида.
+- [ ] Тонмап впервые заработает на ярких местах мира. До сих пор всё выше
+      единицы срезалось в белый, и как выглядит каскадный свет после кривой AgX
+      никто не видел — ни одна из правок этого захода в Unity не проверялась.

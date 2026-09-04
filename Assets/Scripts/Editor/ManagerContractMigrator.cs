@@ -36,7 +36,7 @@ public static class ManagerContractMigrator
         @"RegisterManager<(?<type>[A-Za-z0-9_.]+)>\(\s*builder\s*,\s*\""(?<group>[A-Za-z0-9_]+)\""",
         RegexOptions.Compiled);
 
-    private static readonly Dictionary<string, Type> TypeCache = new();
+    private static readonly Dictionary<string, Type> ResolvedTypes = new();
 
     [MenuItem("Fodinae/Architecture/Populate Manager Contract")]
     public static void Populate()
@@ -314,41 +314,37 @@ public static class ManagerContractMigrator
 
     private static Type? ResolveType(string name)
     {
-        if (!TypeCache.TryGetValue(name, out Type? type))
+        if (!ResolvedTypes.TryGetValue(name, out Type? type))
         {
             type = null;
             string fullName = $"Fodinae.{name}";
-            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+
+            // UnityEditor.TypeCache вместо AppDomain.GetAssemblies (UAC0005):
+            // домен отдаёт в том числе уже выгруженные сборки, и обход их типов
+            // роняет редактор или течёт. Ищем только среди наследников
+            // MonoBehaviour — мигратор ничего другого и не подставляет.
+            Type? byShortName = null;
+            foreach (Type candidate in UnityEditor.TypeCache.GetTypesDerivedFrom<MonoBehaviour>())
             {
-                if (assembly.FullName?.StartsWith("Fodinae") != true &&
-                    assembly.FullName?.StartsWith("Assembly-CSharp") != true)
+                string? assemblyName = candidate.Assembly.GetName().Name;
+                if (assemblyName?.StartsWith("Fodinae", StringComparison.Ordinal) != true &&
+                    assemblyName?.StartsWith("Assembly-CSharp", StringComparison.Ordinal) != true)
                 {
                     continue;
                 }
 
-                Type? byFull = assembly.GetType(fullName);
-                if (byFull != null)
+                // Полное имя выигрывает у короткого, как и раньше.
+                if (candidate.FullName == fullName)
                 {
-                    type = byFull;
+                    type = candidate;
                     break;
                 }
 
-                foreach (Type candidate in assembly.GetTypes())
-                {
-                    if (candidate.Name == name)
-                    {
-                        type = candidate;
-                        break;
-                    }
-                }
-
-                if (type != null)
-                {
-                    break;
-                }
+                byShortName ??= candidate.Name == name ? candidate : null;
             }
 
-            TypeCache[name] = type ?? typeof(MonoBehaviour);
+            type ??= byShortName;
+            ResolvedTypes[name] = type ?? typeof(MonoBehaviour);
         }
 
         return type == typeof(MonoBehaviour) ? null : type;

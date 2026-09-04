@@ -36,6 +36,11 @@ namespace Fodinae.UI
 
         private readonly List<(VisualElement Item, Label Icon)> _phaseItems = new();
 
+        private WorldLoadPhase _lastAppliedPhase = (WorldLoadPhase)(-1);
+        private bool _lastAppliedDone;
+        private int _lastAppliedPhaseIndex = -1;
+        private float _lastAppliedProgress = -1f;
+
         public MenuLoaderProgress(
             VisualElement? loaderProgressFill,
             Label? loaderPhaseLabel,
@@ -92,10 +97,20 @@ namespace Fodinae.UI
             bool done = phase >= WorldLoadPhase.Done;
             int phaseIndex = Mathf.Clamp((int)phase, 0, totalPhases);
 
+            if (phase == _lastAppliedPhase)
+            {
+                return;
+            }
+
+            _lastAppliedPhase = phase;
+            _lastAppliedDone = done;
+            _lastAppliedPhaseIndex = phaseIndex;
+
             float progress = done ? 1f : Mathf.Clamp01(phaseIndex / (float)totalPhases);
 
-            if (_loaderProgressFill != null)
+            if (_loaderProgressFill != null && !Mathf.Approximately(progress, _lastAppliedProgress))
             {
+                _lastAppliedProgress = progress;
                 _loaderProgressFill.style.width = new Length(progress * 100f, LengthUnit.Percent);
             }
 

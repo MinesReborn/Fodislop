@@ -13,16 +13,17 @@ namespace Fodinae.Core;
 // starts - it stays alive only for the menu scene, so the whole
 // descent runs with both scenes present. For as long as any camera in the menu
 // scene is also tagged MainCamera, Camera.main is a coin flip, and it is queried
-// at exactly the wrong moment: GameBootstrap.PostStart resolves every manager
+// at exactly the wrong moment: GameStartupPipeline initializes every manager
 // while the menu is still up, and those managers cache the result.
 //
 // The consequences were not subtle. PostProcessRendererFeature gates its entire
 // pass on `cameraData.camera == Camera.main`, so a miss sends the game's
 // post-processing to the menu camera and leaves the game with none.
-// PostProcessController parents its WorldUICamera to Camera.main and edits that
-// camera's culling mask, so a miss strips the UI layer from the game camera and
-// bolts an overlay camera onto the menu instead. TerrainRenderer.Start already
-// carried a hand-written workaround for the same problem.
+// PostProcessController pairs its game-scoped WorldUICamera overlay with this
+// persistent camera and edits the base camera's culling mask, so a miss strips
+// the UI layer from the game camera and configures the overlay for the wrong
+// view. TerrainRenderer.Start already carried a hand-written workaround for
+// the same problem.
 //
 // Untagging the menu camera fixes the immediate ambiguity. This helper exists so
 // the fix does not depend on a serialized tag staying correct: it prefers a
@@ -66,6 +67,13 @@ public static class GameplayCamera
         if (_cachedCamera != null && _cachedCamera.isActiveAndEnabled)
         {
             return _cachedCamera;
+        }
+
+        Camera? main = Camera.main;
+        if (main != null && main.isActiveAndEnabled)
+        {
+            _cachedCamera = main;
+            return main;
         }
 
         return null;

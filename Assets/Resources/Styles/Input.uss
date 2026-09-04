@@ -3,11 +3,11 @@
    ═══════════════════════════════════════════════════════════ */
 
 .text-field {
-    background-color: rgba(30, 30, 30, 1);
+    background-color: var(--surface-shelf-solid);
     border-color: var(--border-subtle);
     border-width: 1px;
-    border-radius: 3px;
-    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    padding: var(--space-3) var(--space-5);
     color: var(--text-primary);
     font-size: var(--size-md);
 }
@@ -19,5 +19,20 @@
 .text-field-label {
     color: var(--text-secondary);
     font-size: var(--size-sm);
-    margin-bottom: 4px;
+    margin-bottom: var(--space-2);
+}
+
+/* Поле не приняло ввод: RegexTextField навешивает класс invalid при
+   несовпадении с шаблоном и снимает при совпадении. Правила под классом не
+   было вовсе — отказ ввода происходил молча, значение откатывалось без
+   единого признака. Приём взят из макета (components.css, модификатор
+   danger): рамка и текст красятся в цвет опасности, заливка не трогается. */
+
+.text-field.invalid {
+    border-color: var(--state-danger-glow);
+    color: var(--state-danger);
+}
+
+.text-field.invalid:focus {
+    border-color: var(--state-danger);
 }

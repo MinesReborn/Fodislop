@@ -7,6 +7,7 @@ using Fodinae.Core.Interfaces;
 using Fodinae.Core.Localization;
 using Fodinae.Rendering;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.UIElements;
 
 namespace Fodinae.UI;
@@ -39,6 +40,10 @@ internal sealed class PauseMenuDisplayTabBuilder
     {
         VisualElement displaySection = displayScroll.Q<VisualElement>("DisplaySection") ??
             throw new InvalidOperationException("[PauseMenu] DisplaySection is missing from PauseMenu.uxml.");
+        VisualElement hdrOutputGroup =
+            displayScroll.Q<VisualElement>("HDROutputGroup") ??
+            throw new InvalidOperationException(
+                "[PauseMenu] HDROutputGroup is missing from PauseMenu.uxml.");
 
         _fullscreenButton = new Button(ToggleFullscreen);
         _fullscreenButton.text = Screen.fullScreen ? _loc.Get("menu.settings.fullscreen") : _loc.Get("settings.display.windowed");
@@ -102,12 +107,74 @@ internal sealed class PauseMenuDisplayTabBuilder
         UpdateResolutionButton();
         displaySection.Add(resolutionButton);
 
+        // Режим укладки на пиксельную сетку. Кнопкой-циклом, а не
+        // выпадающим списком: вариантов три и сравнивать их надо на глаз,
+        // переключая туда-сюда, — список требовал бы двух кликов на каждое
+        // переключение.
+        Button samplingButton = PauseMenuUIFactory.CreateBoundCycleButton(
+            () => $"Pixel sampling: {_clientConfig.Config.Display.PixelSampling}",
+            () =>
+            {
+                PixelSamplingMode next = _clientConfig.Config.Display.PixelSampling switch
+                {
+                    PixelSamplingMode.SmoothFiltered => PixelSamplingMode.PixelPerfect,
+                    PixelSamplingMode.PixelPerfect => PixelSamplingMode.Raw,
+                    _ => PixelSamplingMode.SmoothFiltered,
+                };
+                _displayManager.SetPixelSamplingMode(next);
+            },
+            _refreshers);
+        samplingButton.AddToClassList("pause-btn");
+        displaySection.Add(samplingButton);
+
         Toggle vSyncToggle = PauseMenuUIFactory.CreateBoundToggle(
             _loc.Get("menu.settings.vsync"),
-            () => _clientConfig.Config.VSync,
+            () => _clientConfig.Config.Display.VSync,
             value => _displayManager.SetVSync(value),
             _refreshers);
         displaySection.Add(vSyncToggle);
+
+        VisualElement gammaSlider = PauseMenuUIFactory.CreateBoundSlider<DisplaySettings>(
+            nameof(DisplaySettings.Gamma),
+            _loc,
+            () => _clientConfig.Config.Display.Gamma,
+            value => _displayManager.SetGamma(value),
+            _refreshers);
+        displaySection.Add(gammaSlider);
+
+        Toggle hdrToggle = PauseMenuUIFactory.CreateBoundToggle(
+            _loc.Get("menu.settings.hdr"),
+            () => _clientConfig.Config.Display.HDREnabled,
+            value => _displayManager.SetHDREnabled(value),
+            _refreshers);
+        hdrOutputGroup.Add(hdrToggle);
+
+        VisualElement paperWhiteSlider = PauseMenuUIFactory.CreateBoundSlider<DisplaySettings>(
+            nameof(DisplaySettings.PaperWhiteNits),
+            _loc,
+            () => _clientConfig.Config.Display.PaperWhiteNits,
+            value => _displayManager.SetPaperWhiteNits(value),
+            _refreshers);
+        hdrOutputGroup.Add(paperWhiteSlider);
+
+        VisualElement peakBrightnessSlider = PauseMenuUIFactory.CreateBoundSlider<DisplaySettings>(
+            nameof(DisplaySettings.PeakBrightnessNits),
+            _loc,
+            () => _clientConfig.Config.Display.PeakBrightnessNits,
+            value => _displayManager.SetPeakBrightnessNits(value),
+            _refreshers);
+        hdrOutputGroup.Add(peakBrightnessSlider);
+
+        void UpdateHdrSlidersState()
+        {
+            bool hdrOn = _clientConfig.Config.Display.HDREnabled;
+            gammaSlider.SetEnabled(!hdrOn);
+            paperWhiteSlider.SetEnabled(hdrOn);
+            peakBrightnessSlider.SetEnabled(hdrOn);
+        }
+
+        _refreshers.Add(UpdateHdrSlidersState);
+        UpdateHdrSlidersState();
 
         return displayScroll;
     }

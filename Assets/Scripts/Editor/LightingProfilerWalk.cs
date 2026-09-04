@@ -49,6 +49,7 @@ namespace Fodinae.Editor
         private static long _lastAlloc;
         private static Transform? _mover;
         private static bool _moverIsCamera;
+        private static LightingEngine? _lighting;
 
         [MenuItem("Tools/Fodinae/Profile Lighting Walk (MUTE vs ON)")]
         public static void Run()
@@ -62,6 +63,13 @@ namespace Fodinae.Editor
             if (_tick != null)
             {
                 Debug.LogWarning("[LightingProfiler] Already running.");
+                return;
+            }
+
+            _lighting = UnityEngine.Object.FindAnyObjectByType<LightingEngine>();
+            if (_lighting == null)
+            {
+                Debug.LogWarning("[LightingProfiler] No active LightingEngine was found.");
                 return;
             }
 
@@ -91,7 +99,7 @@ namespace Fodinae.Editor
             }
 
             Profiler.enabled = true;
-            LightingEngine.BypassLightingCompute = false;
+            _lighting.BypassLightingCompute = false;
             _lastAlloc = Profiler.GetTotalAllocatedMemoryLong();
             Rows.Clear();
             _phaseTime = 0f;
@@ -134,14 +142,17 @@ namespace Fodinae.Editor
                 {
                     _phaseTime = 0f;
                     _state++;
-                    if (_state == 1)
+                    if (_lighting != null)
                     {
-                        LightingEngine.BypassLightingCompute = true;
-                        Debug.Log("[LightingProfiler] Radiance solve MUTED — measuring second phase.");
-                    }
-                    else
-                    {
-                        LightingEngine.BypassLightingCompute = false;
+                        if (_state == 1)
+                        {
+                            _lighting.BypassLightingCompute = true;
+                            Debug.Log("[LightingProfiler] Radiance solve MUTED — measuring second phase.");
+                        }
+                        else
+                        {
+                            _lighting.BypassLightingCompute = false;
+                        }
                     }
                 }
             }
@@ -160,7 +171,11 @@ namespace Fodinae.Editor
                 _tick = null;
             }
 
-            LightingEngine.BypassLightingCompute = false;
+            if (_lighting != null)
+            {
+                _lighting.BypassLightingCompute = false;
+                _lighting = null;
+            }
             WriteRows();
         }
 

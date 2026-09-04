@@ -26,6 +26,15 @@ internal sealed class WorldEntityTextureAtlas : IDisposable
             RuntimeTextureColorSpace.Srgb,
             FilterMode.Point,
             TextureWrapMode.Clamp);
+
+        // Свежая текстура содержит то, что лежало в этой памяти GPU.
+        // Между записями атласа есть пиксель отступа, и он оставался
+        // незаполненным: сосед по атласу подтекал каймой по краю спрайта.
+        // У скина 32x32 полоска в пиксель теряется, у частицы в несколько
+        // пикселей это заметная часть картинки.
+        var transparent = new Color32[atlasSize * atlasSize];
+        Texture.SetPixels32(transparent);
+        Texture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
     }
 
     public Texture2D Texture { get; private set; }

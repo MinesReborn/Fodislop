@@ -60,7 +60,7 @@ public sealed class PlayerHUDBonusController
         }
 
         _isBonusOpen = !_isBonusOpen;
-        _bonusPanel.style.display = _isBonusOpen ? DisplayStyle.Flex : DisplayStyle.None;
+        UIState.SetHidden(_bonusPanel, !_isBonusOpen);
     }
 
     public void CloseBonusPanel()
@@ -68,7 +68,7 @@ public sealed class PlayerHUDBonusController
         _isBonusOpen = false;
         if (_bonusPanel != null)
         {
-            _bonusPanel.style.display = DisplayStyle.None;
+            UIState.Hide(_bonusPanel);
         }
     }
 
@@ -81,23 +81,23 @@ public sealed class PlayerHUDBonusController
 
         if (stats.DailyBonusAvailable)
         {
-            _bonusButton.style.display = DisplayStyle.Flex;
+            UIState.Show(_bonusButton);
             _bonusStatusLabel.text = _loc.Get("hud.bonus.available");
             _bonusStatusLabel.style.color = Color.green;
             if (_bonusClaimButton != null)
             {
-                _bonusClaimButton.style.display = DisplayStyle.Flex;
+                UIState.Show(_bonusClaimButton);
             }
         }
         else
         {
-            _bonusButton.style.display = DisplayStyle.None;
+            UIState.Hide(_bonusButton);
             CloseBonusPanel();
             _bonusStatusLabel.text = _loc.Get("hud.bonus.none");
             _bonusStatusLabel.style.color = Color.gray;
             if (_bonusClaimButton != null)
             {
-                _bonusClaimButton.style.display = DisplayStyle.None;
+                UIState.Hide(_bonusClaimButton);
             }
         }
     }

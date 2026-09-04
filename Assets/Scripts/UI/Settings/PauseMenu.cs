@@ -26,8 +26,6 @@ namespace Fodinae.UI
 {
     public class PauseMenu : MonoBehaviour, ILocalizableUI
     {
-        public static bool IsMenuOpen { get; private set; }
-
         [Inject]
         private UIDocument _doc = null!;
         [Inject]
@@ -68,11 +66,13 @@ namespace Fodinae.UI
         private IConnectionService _connectionService = null!;
         [Inject]
         private IInputBlocker _inputBlocker = null!;
+        [Inject]
+        private UIInputManager _uiInput = null!;
+        [Inject]
+        private WindowCommandStream _windowCommands = null!;
 
         private PauseMenuSettingsBuilder? _settingsBuilder;
-        private VisualElement[] _settingsPages = System.Array.Empty<VisualElement>();
-        private Button[] _settingsTabs = System.Array.Empty<Button>();
-        private int _activeSettingsTab;
+        private PauseMenuTabRouter? _tabRouter;
 
         protected void Start()
         {
@@ -86,6 +86,11 @@ namespace Fodinae.UI
         {
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
             {
+                if (!_isOpen && _windowCommands.HasOpenWindows)
+                {
+                    return;
+                }
+
                 ToggleMenu();
             }
         }
@@ -172,7 +177,7 @@ namespace Fodinae.UI
 
             HideMenu();
 
-            var savedScale = _clientConfig.Config.UIScale;
+            var savedScale = _clientConfig.Config.Interface.UIScale;
             if (Mathf.Abs(_doc.panelSettings.scale - savedScale) > 0.0001f)
             {
                 _doc.panelSettings.scale = savedScale;
@@ -197,7 +202,7 @@ namespace Fodinae.UI
                 _lightingEngine.OnInitialized -= OnLightingReady;
             }
 
-            IsMenuOpen = false;
+            _uiInput.IsPauseMenuOpen = false;
 
             if (_menuTree != null && _menuTree.parent != null)
             {
@@ -230,7 +235,8 @@ namespace Fodinae.UI
                 }
             }
 
-            VisualTreeAsset menuTemplate = Resources.Load<VisualTreeAsset>("UI/PauseMenu") ??
+            VisualTreeAsset menuTemplate = Resources.Load<VisualTreeAsset>(
+                ProjectRuntimeContracts.ResourcePaths.PauseMenuUxml) ??
                 throw new InvalidOperationException(
                     "[PauseMenu] Resources/UI/PauseMenu.uxml is required.");
             TemplateContainer menuTree = menuTemplate.Instantiate();
@@ -246,109 +252,20 @@ namespace Fodinae.UI
                 throw new InvalidOperationException("[PauseMenu] PauseOverlay is missing from PauseMenu.uxml.");
             _mainPage = menuTree.Q<VisualElement>("MainPage") ??
                 throw new InvalidOperationException("[PauseMenu] MainPage is missing from PauseMenu.uxml.");
-            // Static main-page buttons live in PauseMenu.uxml; the scroll container
-            // itself is validated for the UXML contract even though it is not
-            // modified from code anymore.
-            _ = menuTree.Q<ScrollView>("MainPageScroll") ??
-                throw new InvalidOperationException("[PauseMenu] MainPageScroll is missing from PauseMenu.uxml.");
-            Button resumeButton = menuTree.Q<Button>("ResumeButton") ??
-                throw new InvalidOperationException("[PauseMenu] ResumeButton is missing from PauseMenu.uxml.");
-            resumeButton.clicked += CloseMenu;
-            resumeButton.text = _loc.Get("pause.resume");
-            Button settingsButton = menuTree.Q<Button>("SettingsButton") ??
-                throw new InvalidOperationException("[PauseMenu] SettingsButton is missing from PauseMenu.uxml.");
-            settingsButton.clicked += OpenSettings;
-            settingsButton.text = _loc.Get("pause.settings");
-            Button mainMenuButton = menuTree.Q<Button>("MainMenuButton") ??
-                throw new InvalidOperationException("[PauseMenu] MainMenuButton is missing from PauseMenu.uxml.");
-            mainMenuButton.clicked += ExitToMainMenu;
-            mainMenuButton.text = _loc.Get("pause.quit");
-            Button quitButton = menuTree.Q<Button>("QuitButton") ??
-                throw new InvalidOperationException("[PauseMenu] QuitButton is missing from PauseMenu.uxml.");
-            quitButton.clicked += QuitGame;
-            quitButton.text = _loc.Get("pause.quit_game");
-            Label pauseTitle = menuTree.Q<Label>("PauseTitle") ??
-                throw new InvalidOperationException("[PauseMenu] PauseTitle is missing from PauseMenu.uxml.");
-            pauseTitle.text = _loc.Get("pause.title");
-            Label settingsTitle = menuTree.Q<Label>("SettingsTitle") ??
-                throw new InvalidOperationException("[PauseMenu] SettingsTitle is missing from PauseMenu.uxml.");
-            settingsTitle.text = _loc.Get("pause.settings");
             _settingsPage = menuTree.Q<VisualElement>("SettingsPage") ??
                 throw new InvalidOperationException("[PauseMenu] SettingsPage is missing from PauseMenu.uxml.");
-            ScrollView graphicsScroll = menuTree.Q<ScrollView>("GraphicsScroll") ??
-                throw new InvalidOperationException("[PauseMenu] GraphicsScroll is missing from PauseMenu.uxml.");
-            ScrollView displayScroll = menuTree.Q<ScrollView>("DisplayScroll") ??
-                throw new InvalidOperationException("[PauseMenu] DisplayScroll is missing from PauseMenu.uxml.");
-            ScrollView effectsScroll = menuTree.Q<ScrollView>("EffectsScroll") ??
-                throw new InvalidOperationException("[PauseMenu] EffectsScroll is missing from PauseMenu.uxml.");
-            ScrollView audioScroll = menuTree.Q<ScrollView>("AudioScroll") ??
-                throw new InvalidOperationException("[PauseMenu] AudioScroll is missing from PauseMenu.uxml.");
-            ScrollView interfaceScroll = menuTree.Q<ScrollView>("InterfaceScroll") ??
-                throw new InvalidOperationException("[PauseMenu] InterfaceScroll is missing from PauseMenu.uxml.");
-            ScrollView advancedScroll = menuTree.Q<ScrollView>("AdvancedScroll") ??
-                throw new InvalidOperationException("[PauseMenu] AdvancedScroll is missing from PauseMenu.uxml.");
-            Button settingsBack = menuTree.Q<Button>("SettingsBack") ??
-                throw new InvalidOperationException("[PauseMenu] SettingsBack is missing from PauseMenu.uxml.");
-            settingsBack.clicked += CloseSettings;
-            settingsBack.text = _loc.Get("common.back");
 
-            Button graphicsTab = menuTree.Q<Button>("GraphicsTab") ??
-                throw new InvalidOperationException("[PauseMenu] GraphicsTab is missing from PauseMenu.uxml.");
-            graphicsTab.text = _loc.Get("menu.settings.graphics");
-            Button displayTab = menuTree.Q<Button>("DisplayTab") ??
-                throw new InvalidOperationException("[PauseMenu] DisplayTab is missing from PauseMenu.uxml.");
-            displayTab.text = _loc.Get("menu.settings.display");
-            Button effectsTab = menuTree.Q<Button>("EffectsTab") ??
-                throw new InvalidOperationException("[PauseMenu] EffectsTab is missing from PauseMenu.uxml.");
-            effectsTab.text = _loc.Get("pause.tab.effects");
-            Button audioTab = menuTree.Q<Button>("AudioTab") ??
-                throw new InvalidOperationException("[PauseMenu] AudioTab is missing from PauseMenu.uxml.");
-            audioTab.text = _loc.Get("menu.settings.audio");
-            Button interfaceTab = menuTree.Q<Button>("InterfaceTab") ??
-                throw new InvalidOperationException("[PauseMenu] InterfaceTab is missing from PauseMenu.uxml.");
-            interfaceTab.text = _loc.Get("pause.tab.interface");
-            Button advancedTab = menuTree.Q<Button>("AdvancedTab") ??
-                throw new InvalidOperationException("[PauseMenu] AdvancedTab is missing from PauseMenu.uxml.");
-            advancedTab.text = _loc.Get("pause.tab.advanced");
+            PauseMenuMainPage.Bind(
+                menuTree,
+                _loc,
+                CloseMenu,
+                OpenSettings,
+                ExitToMainMenu,
+                QuitGame);
 
-            VisualElement[] settingsPages =
-            [
-                graphicsScroll,
-                displayScroll,
-                effectsScroll,
-                audioScroll,
-                interfaceScroll,
-                advancedScroll,
-            ];
-            Button[] settingsTabs =
-            [
-                graphicsTab,
-                displayTab,
-                effectsTab,
-                audioTab,
-                interfaceTab,
-                advancedTab,
-            ];
-            _settingsPages = settingsPages;
-            _settingsTabs = settingsTabs;
-            void ShowSettingsPage(int index)
-            {
-                _activeSettingsTab = index;
-                for (int i = 0; i < settingsPages.Length; i++)
-                {
-                    settingsPages[i].style.display = i == index
-                        ? DisplayStyle.Flex
-                        : DisplayStyle.None;
-                    settingsTabs[i].EnableInClassList("settings-tab--active", i == index);
-                }
-            }
+            var tabRouter = new PauseMenuTabRouter(menuTree, _loc, CloseSettings);
+            _tabRouter = tabRouter;
 
-            graphicsTab.clicked += () => ShowSettingsPage(0);
-            displayTab.clicked += () => ShowSettingsPage(1);
-            effectsTab.clicked += () => ShowSettingsPage(2);
-            audioTab.clicked += () => ShowSettingsPage(3);
-            interfaceTab.clicked += () => ShowSettingsPage(4);
-            advancedTab.clicked += () => ShowSettingsPage(5);
             root.Add(menuTree);
 
             _settingsRefreshers.Clear();
@@ -367,27 +284,25 @@ namespace Fodinae.UI
                 CloseMenu,
                 _loc);
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_ENABLE_CHECKS
             // Built first: BuildAdvancedPage appends the lighting debug view
             // and the diagnostics readout to this section.
             VisualElement debugSection = _settingsBuilder.BuildDebugSection();
 #endif
 
-            _settingsBuilder.BuildAudioPage(audioScroll);
-            _settingsBuilder.BuildDisplayPage(displayScroll);
-            _settingsBuilder.BuildGraphicsPage(graphicsScroll);
-            _settingsBuilder.BuildEffectsPage(effectsScroll);
-            _settingsBuilder.BuildInterfacePage(interfaceScroll);
-            _settingsBuilder.BuildAdvancedPage(advancedScroll);
+            _settingsBuilder.BuildAudioPage(tabRouter.AudioScroll);
+            _settingsBuilder.BuildDisplayPage(tabRouter.DisplayScroll);
+            _settingsBuilder.BuildGraphicsPage(tabRouter.GraphicsScroll);
+            _settingsBuilder.BuildEffectsPage(tabRouter.EffectsScroll);
+            _settingsBuilder.BuildInterfacePage(tabRouter.InterfaceScroll);
+            _settingsBuilder.BuildAdvancedPage(tabRouter.AdvancedScroll);
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            advancedScroll.contentContainer.Add(debugSection);
+#if UNITY_EDITOR || UNITY_ENABLE_CHECKS
+            tabRouter.AdvancedScroll.contentContainer.Add(debugSection);
 #endif
 
             // Apply the initial page after all dynamic content has been attached.
-            // ScrollView owns its content container; adding sections directly to it
-            // can leave the viewport empty after a domain reload.
-            ShowSettingsPage(0);
+            tabRouter.ShowTab(0);
 
             _settingsPage.style.display = DisplayStyle.None;
         }
@@ -399,7 +314,7 @@ namespace Fodinae.UI
                 return;
             }
 
-            if (ProgrammatorGrid.IsOpen)
+            if (_uiInput.IsProgrammatorOpen)
             {
                 return;
             }
@@ -433,7 +348,7 @@ namespace Fodinae.UI
         private void OpenMenu()
         {
             _isOpen = true;
-            IsMenuOpen = true;
+            _uiInput.IsPauseMenuOpen = true;
             if (_menuTree != null)
             {
                 _menuTree.BringToFront();
@@ -465,7 +380,7 @@ namespace Fodinae.UI
         private void HideMenu()
         {
             _isOpen = false;
-            IsMenuOpen = false;
+            _uiInput.IsPauseMenuOpen = false;
             if (_menuPanel != null)
             {
                 _menuPanel.style.display = DisplayStyle.None;
@@ -511,7 +426,7 @@ namespace Fodinae.UI
 
             bool wasOpen = _isOpen;
             bool wasSettings = _settingsPage != null && _settingsPage.style.display == DisplayStyle.Flex;
-            int activeTab = _activeSettingsTab;
+            int activeTab = _tabRouter?.ActiveTab ?? 0;
 
             CreateMenu(_doc.rootVisualElement);
 
@@ -527,13 +442,7 @@ namespace Fodinae.UI
                 if (wasSettings)
                 {
                     OpenSettings();
-                    for (int i = 0; i < _settingsPages.Length; i++)
-                    {
-                        _settingsPages[i].style.display = i == activeTab
-                            ? DisplayStyle.Flex
-                            : DisplayStyle.None;
-                        _settingsTabs[i].EnableInClassList("settings-tab--active", i == activeTab);
-                    }
+                    _tabRouter?.ShowTab(activeTab);
                 }
                 else if (_mainPage != null)
                 {
@@ -562,35 +471,12 @@ namespace Fodinae.UI
 
         private void QuitGame()
         {
-            PauseMenuUIFactory.ShowConfirmation(
-                _doc,
-                _loc.Get("pause.quit_confirm_title"),
-                _loc.Get("pause.quit_confirm_msg"),
-                _loc.Get("pause.quit_confirm_btn"),
-                () =>
-                {
-#if UNITY_EDITOR
-                    Debug.Log("[PauseMenu] Выход из игры");
-#else
-                    Application.Quit();
-#endif
-                },
-                _loc);
+            PauseMenuConfirmation.ConfirmQuitGame(_doc, _loc);
         }
 
         private void ExitToMainMenu()
         {
-            PauseMenuUIFactory.ShowConfirmation(
-                _doc,
-                _loc.Get("pause.quit"),
-                _loc.Get("pause.exit_menu_confirm_msg"),
-                _loc.Get("pause.exit_menu_btn"),
-                () =>
-                {
-                    CloseMenu();
-                    _mainMenuNavigation.ReturnToMainMenu();
-                },
-                _loc);
+            PauseMenuConfirmation.ConfirmExitToMainMenu(_doc, _mainMenuNavigation, CloseMenu, _loc);
         }
     }
 }

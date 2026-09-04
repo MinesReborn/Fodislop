@@ -17,6 +17,9 @@ public sealed class ProgrammatorGrid : IDisposable
     {
         private readonly UIDocument _doc;
         private readonly ILocalizationService _loc;
+        private readonly ProgrammatorData _data;
+        private readonly UIInputManager _uiInput;
+        private readonly IProgrammatorTextureCatalog _textures;
 
         private ProgrammatorGridUIFactory? _view;
         private ProgrammatorSelectionModel? _selection;
@@ -26,14 +29,20 @@ public sealed class ProgrammatorGrid : IDisposable
 
         private bool _isOpen;
 
-        public static bool IsOpen { get; private set; }
-
         private bool _uiBuilt;
 
-        public ProgrammatorGrid(UIDocument doc, ILocalizationService loc)
+        public ProgrammatorGrid(
+            UIDocument doc,
+            ILocalizationService loc,
+            ProgrammatorData data,
+            UIInputManager uiInput,
+            IProgrammatorTextureCatalog textures)
         {
             _doc = doc ?? throw new ArgumentNullException(nameof(doc));
             _loc = loc ?? throw new ArgumentNullException(nameof(loc));
+            _data = data ?? throw new ArgumentNullException(nameof(data));
+            _uiInput = uiInput ?? throw new ArgumentNullException(nameof(uiInput));
+            _textures = textures ?? throw new ArgumentNullException(nameof(textures));
         }
 
         public void Initialize()
@@ -67,12 +76,12 @@ public sealed class ProgrammatorGrid : IDisposable
                 return;
             }
 
-            var view = new ProgrammatorGridUIFactory(_doc, _loc);
-            var selection = new ProgrammatorSelectionModel(view.SetSelectionBorder);
-            var radial = new ProgrammatorRadialController(_doc, view.UpdateCell, _loc);
-            var programs = new ProgrammatorProgramStore(view, selection, radial, _loc);
+            var view = new ProgrammatorGridUIFactory(_doc, _loc, _data, _textures);
+            var selection = new ProgrammatorSelectionModel(view.SetSelectionBorder, _data);
+            var radial = new ProgrammatorRadialController(_doc, view.UpdateCell, _loc, _data, _textures);
+            var programs = new ProgrammatorProgramStore(view, selection, radial, _loc, _data);
             radial.OnLastCellPlaced = programs.AdvancePageIfAtEnd;
-            var clipboard = new ProgrammatorClipboardController(selection, view.UpdateCell);
+            var clipboard = new ProgrammatorClipboardController(selection, view.UpdateCell, _data);
 
             view.Build(selection, radial, programs, clipboard, Hide);
 
@@ -110,8 +119,8 @@ public sealed class ProgrammatorGrid : IDisposable
             if (!_isOpen)
             {
                 if ((Keyboard.current.pKey.wasPressedThisFrame || Keyboard.current.rKey.wasPressedThisFrame) &&
-                    !ChatInput.IsFocused &&
-                    !PauseMenu.IsMenuOpen)
+                    !_uiInput.IsChatFocused &&
+                    !_uiInput.IsPauseMenuOpen)
                 {
                     Show();
                 }
@@ -168,14 +177,14 @@ public sealed class ProgrammatorGrid : IDisposable
             {
                 if (Keyboard.current.zKey.wasPressedThisFrame)
                 {
-                    if (ProgrammatorData.Undo())
+                    if (_data.Undo())
                     {
                         _programs!.RefreshAllCells();
                     }
                 }
                 else if (Keyboard.current.yKey.wasPressedThisFrame)
                 {
-                    if (ProgrammatorData.Redo())
+                    if (_data.Redo())
                     {
                         _programs!.RefreshAllCells();
                     }
@@ -204,14 +213,14 @@ public sealed class ProgrammatorGrid : IDisposable
                 }
                 else if (_selection.SelectedCells.Count > 0)
                 {
-                    ProgrammatorData.PushUndo();
+                    _data.PushUndo();
                     foreach (long key in _selection.SelectedCells)
                     {
                         int r = (int)(key / ProgrammatorData.COLS);
                         int c = (int)(key % ProgrammatorData.COLS);
-                        int idx = (ProgrammatorData.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
+                        int idx = (_data.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
                                   + (r * ProgrammatorData.COLS) + c;
-                        ProgrammatorData.Codes[idx] = 0;
+                        _data.Codes[idx] = 0;
                         _view!.UpdateCell(r, c);
                     }
 
@@ -221,7 +230,7 @@ public sealed class ProgrammatorGrid : IDisposable
                 }
                 else if (_selection.HasSelection)
                 {
-                    ProgrammatorData.PushUndo();
+                    _data.PushUndo();
                     int minRow = Mathf.Min(_selection.SelStartRow, _selection.SelEndRow);
                     int maxRow = Mathf.Max(_selection.SelStartRow, _selection.SelEndRow);
                     int minCol = Mathf.Min(_selection.SelStartCol, _selection.SelEndCol);
@@ -230,9 +239,9 @@ public sealed class ProgrammatorGrid : IDisposable
                     {
                         for (int c = minCol; c <= maxCol; c++)
                         {
-                            int idx = (ProgrammatorData.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
+                            int idx = (_data.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
                                       + (r * ProgrammatorData.COLS) + c;
-                            ProgrammatorData.Codes[idx] = 0;
+                            _data.Codes[idx] = 0;
                             _view!.UpdateCell(r, c);
                         }
                     }
@@ -267,7 +276,7 @@ public sealed class ProgrammatorGrid : IDisposable
             }
 
             _isOpen = true;
-            IsOpen = true;
+            _uiInput.IsProgrammatorOpen = true;
             _view.Popup.style.display = DisplayStyle.Flex;
             _programs!.ShowProgramList();
         }
@@ -282,7 +291,7 @@ public sealed class ProgrammatorGrid : IDisposable
             _selection!.ClearSelection();
             _radial!.HideAll();
             _isOpen = false;
-            IsOpen = false;
+            _uiInput.IsProgrammatorOpen = false;
             _programs.HideCreateInput();
             _view!.ProgramListPanel.style.display = DisplayStyle.None;
             _view.Panel.style.display = DisplayStyle.None;
@@ -296,7 +305,7 @@ public sealed class ProgrammatorGrid : IDisposable
                 Hide();
             }
 
-            IsOpen = false;
+            _uiInput.IsProgrammatorOpen = false;
 
             // Фабрика зарегистрирована в реестре локализации — снимаем её,
             // чтобы смена языка не долетала до мёртвого попапа.

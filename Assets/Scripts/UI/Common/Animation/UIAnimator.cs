@@ -7,6 +7,13 @@ using UnityEngine.UIElements;
 
 namespace Fodinae.UI
 {
+    /// <summary>
+    /// Твины показа и скрытия. Видимость переключается классом
+    /// <c>is-hidden</c> через <see cref="UIState"/>, а не инлайновым
+    /// <c>display</c>: инлайн бьёт любое правило, поэтому элемент, скрытый
+    /// здесь инлайном, потом не открывался бы снятием класса. Инлайном
+    /// остаются только сами анимируемые величины — прозрачность и сдвиг.
+    /// </summary>
     public static class UIAnimator
     {
         public static async UniTask FadeIn(VisualElement el, float duration = 0.2f, CancellationToken ct = default)
@@ -16,7 +23,7 @@ namespace Fodinae.UI
                 return;
             }
 
-            el.style.display = DisplayStyle.Flex;
+            UIState.Show(el);
             el.pickingMode = PickingMode.Position;
 
             float elapsed = 0f;
@@ -52,7 +59,7 @@ namespace Fodinae.UI
             }
 
             el.style.opacity = 0;
-            el.style.display = DisplayStyle.None;
+            UIState.Hide(el);
         }
 
         public static async UniTask SlideIn(VisualElement el, Vector2 from, float duration = 0.25f, CancellationToken ct = default)
@@ -62,7 +69,7 @@ namespace Fodinae.UI
                 return;
             }
 
-            el.style.display = DisplayStyle.Flex;
+            UIState.Show(el);
             el.pickingMode = PickingMode.Position;
 
             float elapsed = 0f;
@@ -111,7 +118,7 @@ namespace Fodinae.UI
                 await UniTask.Yield(PlayerLoopTiming.Update, ct);
             }
 
-            el.style.display = DisplayStyle.None;
+            UIState.Hide(el);
             el.style.opacity = 0;
         }
     }

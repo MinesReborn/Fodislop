@@ -1,6 +1,6 @@
 /* ФАЙЛ МАШИННЫЙ. Правки будут затёрты.
-   Источник истины: visual/main-menu-mirror/css/tokens.css
-   Генератор:       visual/main-menu-mirror/tools/emit-uss-tokens.py
+   Источник истины: visual/fodinae-ui-lab/css/tokens.css
+   Генератор:       visual/fodinae-ui-lab/tools/emit-uss-tokens.py
    Расхождение ловит CI (scripts/check-architecture.js). */
 
 :root {

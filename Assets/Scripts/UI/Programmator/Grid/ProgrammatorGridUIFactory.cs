@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using Fodinae.Core;
 using Fodinae.Core.Localization;
 using MinesServer.Data;
 using UnityEngine;
@@ -20,6 +21,8 @@ internal sealed class ProgrammatorGridUIFactory : ILocalizableUI
 {
     private readonly UIDocument _doc;
     private readonly ILocalizationService _loc;
+    private readonly ProgrammatorData _data;
+    private readonly IProgrammatorTextureCatalog _textures;
 
     private VisualElement? _popup;
     private VisualElement? _gridContainer;
@@ -40,10 +43,16 @@ internal sealed class ProgrammatorGridUIFactory : ILocalizableUI
     private const float CELLSIZE = 32f;
     private const float CELL_GAP = 2f;
 
-    public ProgrammatorGridUIFactory(UIDocument doc, ILocalizationService loc)
+    public ProgrammatorGridUIFactory(
+        UIDocument doc,
+        ILocalizationService loc,
+        ProgrammatorData data,
+        IProgrammatorTextureCatalog textures)
     {
         _doc = doc ?? throw new ArgumentNullException(nameof(doc));
         _loc = loc ?? throw new ArgumentNullException(nameof(loc));
+        _data = data ?? throw new ArgumentNullException(nameof(data));
+        _textures = textures ?? throw new ArgumentNullException(nameof(textures));
     }
 
     public VisualElement Popup => _popup!;
@@ -63,7 +72,8 @@ internal sealed class ProgrammatorGridUIFactory : ILocalizableUI
         ProgrammatorClipboardController clipboard,
         Action onHide)
     {
-        VisualTreeAsset template = Resources.Load<VisualTreeAsset>("UI/Programmator") ??
+        VisualTreeAsset template = Resources.Load<VisualTreeAsset>(
+            ProjectRuntimeContracts.ResourcePaths.ProgrammatorUxml) ??
             throw new InvalidOperationException(
                 "[Programmator] Resources/UI/Programmator.uxml is required.");
         TemplateContainer tree = template.Instantiate();
@@ -94,20 +104,20 @@ internal sealed class ProgrammatorGridUIFactory : ILocalizableUI
 
         IntegerField pageInput = tree.Q<IntegerField>("PageInput") ??
             throw new InvalidOperationException("[Programmator] PageInput is missing from Programmator.uxml.");
-        pageInput.value = ProgrammatorData.CurrentPage + 1;
+        pageInput.value = _data.CurrentPage + 1;
         pageInput.RegisterValueChangedCallback(evt =>
         {
             int page = evt.newValue - 1;
-            if (page >= 0 && page < ProgrammatorData.PageCount && page != ProgrammatorData.CurrentPage)
+            if (page >= 0 && page < _data.PageCount && page != _data.CurrentPage)
             {
                 selection.ClearSelection();
                 radial.HideMenus();
-                ProgrammatorData.CurrentPage = page;
+                _data.CurrentPage = page;
                 programs.RefreshAllCells();
             }
             else
             {
-                pageInput.SetValueWithoutNotify(ProgrammatorData.CurrentPage + 1);
+                pageInput.SetValueWithoutNotify(_data.CurrentPage + 1);
             }
         });
 
@@ -163,7 +173,7 @@ internal sealed class ProgrammatorGridUIFactory : ILocalizableUI
 
                 cell.RegisterCallback<PointerEnterEvent>(_ =>
                 {
-                    ProgrammatorData.HoveredCell = (row * ProgrammatorData.COLS) + col;
+                    _data.HoveredCell = (row * ProgrammatorData.COLS) + col;
                     if (!selection.IsSelected(row, col))
                     {
                         HighlightCell(row, col, true);
@@ -173,14 +183,14 @@ internal sealed class ProgrammatorGridUIFactory : ILocalizableUI
                 });
                 cell.RegisterCallback<PointerLeaveEvent>(_ =>
                 {
-                    if (ProgrammatorData.HoveredCell == (row * ProgrammatorData.COLS) + col)
+                    if (_data.HoveredCell == (row * ProgrammatorData.COLS) + col)
                     {
                         if (!selection.IsSelected(row, col))
                         {
                             HighlightCell(row, col, false);
                         }
 
-                        ProgrammatorData.HoveredCell = -1;
+                        _data.HoveredCell = -1;
                     }
 
                     _tooltip?.Hide();
@@ -338,14 +348,14 @@ internal sealed class ProgrammatorGridUIFactory : ILocalizableUI
 
     public void UpdateCell(int row, int col)
     {
-        int idx = (ProgrammatorData.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
+        int idx = (_data.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
                   + (row * ProgrammatorData.COLS) + col;
-        int id = ProgrammatorData.Codes[idx];
+        int id = _data.Codes[idx];
         var action = (ProgAction)id;
         var cell = _cells![row, col]!;
         var label = _cellLabels![row, col]!;
 
-        var tex = ProgrammatorTextureRegistry.GetTexture(action);
+        var tex = _textures.GetTexture(action);
         if (tex != null)
         {
             cell.style.backgroundImage = new StyleBackground(tex);
@@ -380,16 +390,16 @@ internal sealed class ProgrammatorGridUIFactory : ILocalizableUI
 
     public void UpdatePageLabel()
     {
-        _pageLabel!.text = _loc.Get("programmator.page", ProgrammatorData.CurrentPage + 1, ProgrammatorData.PageCount);
-        _prevBtn!.SetEnabled(ProgrammatorData.CurrentPage > 0);
-        _nextBtn!.SetEnabled(ProgrammatorData.CurrentPage < ProgrammatorData.PageCount - 1);
+        _pageLabel!.text = _loc.Get("programmator.page", _data.CurrentPage + 1, _data.PageCount);
+        _prevBtn!.SetEnabled(_data.CurrentPage > 0);
+        _nextBtn!.SetEnabled(_data.CurrentPage < _data.PageCount - 1);
     }
 
     private void ShowCellTooltip(int row, int col)
     {
-        int idx = (ProgrammatorData.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
+        int idx = (_data.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
                   + (row * ProgrammatorData.COLS) + col;
-        int opId = ProgrammatorData.Codes[idx];
+        int opId = _data.Codes[idx];
         var action = (ProgAction)opId;
         string name = ProgrammatorData.OPERATOR_NAMES.TryGetValue(action, out var n) ? _loc.Get(n) : _loc.Get("programmator.code", opId);
         string desc = ProgrammatorData.OPERATOR_DESCRIPTIONS.TryGetValue(action, out var d) ? _loc.Get(d) : string.Empty;

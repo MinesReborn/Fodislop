@@ -14,9 +14,12 @@ namespace Fodinae.UI
     {
         private readonly Stack<VisualElement> _modalStack = new();
         public bool IsChatFocused { get; set; }
+        public bool IsPauseMenuOpen { get; set; }
+        public bool IsProgrammatorOpen { get; set; }
 
         public bool IsModalOpen => _modalStack.Count > 0;
-        public bool IsInputBlocked => IsModalOpen || IsChatFocused || PauseMenu.IsMenuOpen;
+        public bool IsInputBlocked =>
+            IsModalOpen || IsChatFocused || IsPauseMenuOpen || IsProgrammatorOpen;
 
         public void PushModal(VisualElement modalElement)
         {

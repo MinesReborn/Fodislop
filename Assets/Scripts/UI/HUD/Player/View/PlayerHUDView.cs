@@ -41,7 +41,8 @@ namespace Fodinae.UI.HUD.Player.View
         private Fodinae.Core.Interfaces.IInputBlocker _inputBlocker = null!;
         [Inject]
         private Fodinae.Core.Interfaces.ILocalPlayerState _localPlayer = null!;
-        private IVisualElementScheduledItem? _skeletonPulse;
+        private readonly PlayerHUDSkeletonPulse _skeletonPulse = new();
+        private PlayerHUDModeController? _modeController;
         private TemplateContainer? _hudRoot;
 
         private Label? _nicknameLabel;
@@ -55,14 +56,10 @@ namespace Fodinae.UI.HUD.Player.View
         private Label? _basketPercentLabel;
         private VisualElement? _basketContainer;
         private VisualElement? _skillContainer;
-        private Button? _autoDigButton;
-        private VisualElement? _autoDigIndicator;
-        private Label? _autoDigLabel;
-        private Button? _aggressionButton;
-        private VisualElement? _aggressionIndicator;
-        private Label? _aggressionLabel;
 
         private ProgrammatorGrid? _programmatorGrid;
+        [Inject]
+        private ProgrammatorData? _programmatorData;
         private bool _initializationStarted;
 
         [Inject]
@@ -77,6 +74,10 @@ namespace Fodinae.UI.HUD.Player.View
         private ILocalizationService _loc = null!;
         [Inject]
         private IAsyncOperationSupervisor _operations = null!;
+        [Inject]
+        private UIInputManager _uiInput = null!;
+        [Inject]
+        private IProgrammatorTextureCatalog _programmatorTextures = null!;
 
         protected void Start()
         {
@@ -175,9 +176,11 @@ namespace Fodinae.UI.HUD.Player.View
                 _loc.UnregisterLocalizable(this);
             }
 
+            _modeController?.Dispose();
+            _modeController = null;
             _programmatorGrid?.Dispose();
             _programmatorGrid = null;
-            StopSkeletonPulse();
+            _skeletonPulse.Stop();
             _skillGrid.ClearSchedules();
             _statusPanel.ClearSchedules();
 
@@ -188,13 +191,6 @@ namespace Fodinae.UI.HUD.Player.View
                 _model.OnDailyBonusChanged -= OnDailyBonusChanged;
                 _model.OnStatusLinesChanged -= OnStatusLinesChanged;
                 _model.OnMissionChanged -= OnMissionChanged;
-            }
-
-            var player = _localPlayer.Current;
-            if (player != null)
-            {
-                player.OnAutoDigChanged -= UpdateAutoDigButton;
-                player.OnAggressionChanged -= UpdateAggressionButton;
             }
 
             if (_globalChatUI != null)
@@ -216,7 +212,14 @@ namespace Fodinae.UI.HUD.Player.View
 
         private void InitializeHUD()
         {
-            _programmatorGrid ??= new ProgrammatorGrid(_doc, _loc);
+            _programmatorData ??= new ProgrammatorData();
+            _programmatorTextures ??= new ProgrammatorTextureRegistry();
+            _programmatorGrid ??= new ProgrammatorGrid(
+                _doc,
+                _loc,
+                _programmatorData,
+                _uiInput,
+                _programmatorTextures);
             _programmatorGrid?.Initialize();
             _tooltip = new Tooltip();
             _tooltip.Initialize(_doc);
@@ -230,16 +233,6 @@ namespace Fodinae.UI.HUD.Player.View
                 _model.OnSkillProgress += OnSkillProgress;
                 _model.OnStatusLinesChanged += OnStatusLinesChanged;
                 _model.OnMissionChanged += OnMissionChanged;
-            }
-
-            var player = _localPlayer.Current;
-            if (player != null)
-            {
-                player.OnAutoDigChanged += UpdateAutoDigButton;
-                player.OnAggressionChanged += UpdateAggressionButton;
-
-                UpdateAutoDigButton(player.AutoDig);
-                UpdateAggressionButton(player.Aggression);
             }
 
             if (_model != null)
@@ -256,9 +249,9 @@ namespace Fodinae.UI.HUD.Player.View
                 _isLoaded = _model.Health > 0 || _model.Level > 0;
             }
 
-            if (!_isLoaded)
+            if (!_isLoaded && _hudRoot != null)
             {
-                StartSkeletonPulse();
+                _skeletonPulse.Start(_hudRoot);
             }
 
             RefreshAll();
@@ -283,7 +276,8 @@ namespace Fodinae.UI.HUD.Player.View
 
         private void LoadTemplate(VisualElement root)
         {
-            VisualTreeAsset template = Resources.Load<VisualTreeAsset>("UI/PlayerHUD") ??
+            VisualTreeAsset template = Resources.Load<VisualTreeAsset>(
+                ProjectRuntimeContracts.ResourcePaths.PlayerHudUxml) ??
                 throw new InvalidOperationException(
                     "[PlayerHUD] Resources/UI/PlayerHUD.uxml is required.");
             TemplateContainer tree = template.Instantiate();
@@ -318,6 +312,16 @@ namespace Fodinae.UI.HUD.Player.View
             _geologyLabel = tree.Q<Label>("GeologyLabel") ??
                 throw new InvalidOperationException("[PlayerHUD] GeologyLabel is missing from PlayerHUD.uxml.");
 
+            _skeletonPulse.Register(_nicknameLabel);
+            _skeletonPulse.Register(_levelLabel);
+            _skeletonPulse.Register(_hpLabel);
+            _skeletonPulse.Register(_hpPercentLabel);
+            _skeletonPulse.Register(_hpBarFill);
+            _skeletonPulse.Register(_moneyLabel);
+            _skeletonPulse.Register(_credsLabel);
+            _skeletonPulse.Register(_geologyLabel);
+            _skeletonPulse.Register(_basketPercentLabel);
+
             _basketContainer = tree.Q<VisualElement>("BasketContainer") ??
                 throw new InvalidOperationException("[PlayerHUD] BasketContainer is missing from PlayerHUD.uxml.");
             _basketView.Initialize(_basketContainer);
@@ -326,23 +330,8 @@ namespace Fodinae.UI.HUD.Player.View
                 throw new InvalidOperationException("[PlayerHUD] SkillContainer is missing from PlayerHUD.uxml.");
             _skillGrid.Initialize(_skillContainer);
 
-            _autoDigButton = tree.Q<Button>("AutoDigButton") ??
-                throw new InvalidOperationException("[PlayerHUD] AutoDigButton is missing from PlayerHUD.uxml.");
-            _autoDigButton.clicked += ToggleAutoDig;
-            _autoDigIndicator = tree.Q<VisualElement>("AutoDigIndicator") ??
-                throw new InvalidOperationException("[PlayerHUD] AutoDigIndicator is missing from PlayerHUD.uxml.");
-            _autoDigLabel = tree.Q<Label>("AutoDigLabel") ??
-                throw new InvalidOperationException("[PlayerHUD] AutoDigLabel is missing from PlayerHUD.uxml.");
-            Tooltip.AttachTo(_autoDigButton, () => _loc.Get("hud.tooltip.autodig"), _tooltip!);
-
-            _aggressionButton = tree.Q<Button>("AggressionButton") ??
-                throw new InvalidOperationException("[PlayerHUD] AggressionButton is missing from PlayerHUD.uxml.");
-            _aggressionButton.clicked += ToggleAggression;
-            _aggressionIndicator = tree.Q<VisualElement>("AggressionIndicator") ??
-                throw new InvalidOperationException("[PlayerHUD] AggressionIndicator is missing from PlayerHUD.uxml.");
-            _aggressionLabel = tree.Q<Label>("AggressionLabel") ??
-                throw new InvalidOperationException("[PlayerHUD] AggressionLabel is missing from PlayerHUD.uxml.");
-            Tooltip.AttachTo(_aggressionButton, () => _loc.Get("hud.tooltip.aggression"), _tooltip!);
+            _modeController = new PlayerHUDModeController(_localPlayer, _loc);
+            _modeController.Initialize(tree, _tooltip!);
 
             Button chatButton = tree.Q<Button>("ChatButton") ??
                 throw new InvalidOperationException("[PlayerHUD] ChatButton is missing from PlayerHUD.uxml.");
@@ -370,176 +359,6 @@ namespace Fodinae.UI.HUD.Player.View
             programmatorButton.clicked += () => _programmatorGrid?.Show();
         }
 
-        private void ToggleAutoDig()
-        {
-            var player = _localPlayer.Current;
-            if (player != null)
-            {
-                player.AutoDig = !player.AutoDig;
-            }
-        }
-
-        private void UpdateAutoDigButton(bool enabled)
-        {
-            _autoDigButton?.EnableInClassList("enabled", enabled);
-            if (_autoDigLabel != null)
-            {
-                _autoDigLabel.text = enabled ? _loc.Get("hud.autodig.on") : _loc.Get("hud.autodig.off");
-            }
-
-            _autoDigIndicator?.EnableInClassList("hud-mode-led--active", enabled);
-        }
-
-        private void ToggleAggression()
-        {
-            var player = _localPlayer.Current;
-            if (player != null)
-            {
-                player.ToggleAggression();
-            }
-        }
-
-        private void UpdateAggressionButton(bool enabled)
-        {
-            _aggressionButton?.EnableInClassList("enabled", enabled);
-            if (_aggressionLabel != null)
-            {
-                _aggressionLabel.text = enabled ? _loc.Get("hud.aggression.on") : _loc.Get("hud.aggression.off");
-            }
-
-            _aggressionIndicator?.EnableInClassList("hud-mode-led--active", enabled);
-        }
-
-        private void StartSkeletonPulse()
-        {
-            const float pulseMin = 0.3f;
-            const float pulseMax = 0.7f;
-            const float pulseDuration = 0.8f;
-            float t = 0f;
-            bool rising = true;
-
-            _skeletonPulse = _hudRoot!.schedule.Execute(() =>
-            {
-                if (_hudRoot == null)
-                {
-                    return;
-                }
-
-                float dt = Time.unscaledDeltaTime;
-                t += rising ? dt : -dt;
-                if (t >= pulseDuration)
-                {
-                    t = pulseDuration;
-                    rising = false;
-                }
-                else if (t <= 0f)
-                {
-                    t = 0f;
-                    rising = true;
-                }
-
-                float alpha = Mathf.Lerp(pulseMin, pulseMax, t / pulseDuration);
-                if (_nicknameLabel != null)
-                {
-                    _nicknameLabel.style.opacity = alpha;
-                }
-
-                if (_levelLabel != null)
-                {
-                    _levelLabel.style.opacity = alpha;
-                }
-
-                if (_hpLabel != null)
-                {
-                    _hpLabel.style.opacity = alpha;
-                }
-
-                if (_hpPercentLabel != null)
-                {
-                    _hpPercentLabel.style.opacity = alpha;
-                }
-
-                if (_hpBarFill != null)
-                {
-                    _hpBarFill.style.opacity = alpha;
-                }
-
-                if (_moneyLabel != null)
-                {
-                    _moneyLabel.style.opacity = alpha;
-                }
-
-                if (_credsLabel != null)
-                {
-                    _credsLabel.style.opacity = alpha;
-                }
-
-                if (_geologyLabel != null)
-                {
-                    _geologyLabel.style.opacity = alpha;
-                }
-
-                if (_basketPercentLabel != null)
-                {
-                    _basketPercentLabel.style.opacity = alpha;
-                }
-            }).Every(33);
-        }
-
-        private void StopSkeletonPulse()
-        {
-            if (_skeletonPulse != null)
-            {
-                _skeletonPulse.Pause();
-                _skeletonPulse = null;
-            }
-
-            if (_nicknameLabel != null)
-            {
-                _nicknameLabel.style.opacity = 1;
-            }
-
-            if (_levelLabel != null)
-            {
-                _levelLabel.style.opacity = 1;
-            }
-
-            if (_hpLabel != null)
-            {
-                _hpLabel.style.opacity = 1;
-            }
-
-            if (_hpPercentLabel != null)
-            {
-                _hpPercentLabel.style.opacity = 1;
-            }
-
-            if (_hpBarFill != null)
-            {
-                _hpBarFill.style.opacity = 1;
-            }
-
-            if (_moneyLabel != null)
-            {
-                _moneyLabel.style.opacity = 1;
-            }
-
-            if (_credsLabel != null)
-            {
-                _credsLabel.style.opacity = 1;
-            }
-
-            if (_geologyLabel != null)
-            {
-                _geologyLabel.style.opacity = 1;
-            }
-
-            if (_basketPercentLabel != null)
-            {
-                _basketPercentLabel.style.opacity = 1;
-            }
-        }
-
         private void RefreshAll()
         {
             if (this == null)
@@ -556,7 +375,7 @@ namespace Fodinae.UI.HUD.Player.View
             if (!_isLoaded && (stats.Health > 0 || stats.Level > 0 || stats.Money > 0 || !string.IsNullOrEmpty(stats.Nickname)))
             {
                 _isLoaded = true;
-                StopSkeletonPulse();
+                _skeletonPulse.Stop();
             }
 
             if (_nicknameLabel != null)

@@ -69,10 +69,18 @@ namespace Fodinae.Tests.Editor.Core
             public void MarkGraphicsAsCustom() { }
             public void SelectGraphicsPreset(GraphicsPreset preset) { }
             public void SetCustomGraphicsSettings(GraphicsQualitySettings settings) { }
+            public void UpdateSection<TSection>(
+                Func<ClientConfig, TSection> select,
+                Action<TSection> update)
+                where TSection : class, new()
+            {
+            }
+
             public void UpdatePostProcessAndSave(Action<ClientConfig> update) => update(Config);
             public void UpdateAndSave(Action<ClientConfig> update) => update(Config);
             public void Load() { }
             public void Save() { }
+            public void SaveDeferred() { }
         }
     }
 }

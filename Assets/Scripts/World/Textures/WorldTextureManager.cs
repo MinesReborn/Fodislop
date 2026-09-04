@@ -29,8 +29,9 @@ namespace Fodinae.World
         [SerializeField]
         private int _cellTextureSize = RenderingConstants.CELL_SIZE;
 
-        [System.NonSerialized]
-        public TextureAtlas _currentAtlas = null!;
+        private WorldAtlasCollection _atlasCollection = null!;
+
+        public TextureAtlas _currentAtlas => _atlasCollection.CurrentAtlas;
 
         [Inject]
         private MapManager _mapManager = null!;
@@ -42,37 +43,18 @@ namespace Fodinae.World
         private Texture2D? _flowMapTexture;
         public Texture2D? FlowMapTexture => _flowMapTexture;
         private ConcurrentDictionary<CellType, TextureRequest> _pendingRequests = null!;
-        private List<TextureAtlas> _atlases = null!;
+        private readonly CellTextureRetryTracker _retryTracker = new();
 
-        private readonly ConcurrentDictionary<CellType, byte> _inFlightCellTypeRequests = new();
-        public int PendingCellTextureRequests => _inFlightCellTypeRequests.Count;
-
-        private readonly ConcurrentDictionary<CellType, double> _cellTextureRetryTimes = new();
-        private static readonly System.Diagnostics.Stopwatch RetryClock =
-            System.Diagnostics.Stopwatch.StartNew();
-        private const double FailedCellTextureRetrySeconds = 30.0;
+        public int PendingCellTextureRequests => _retryTracker.PendingRequestsCount;
 
         private Texture2D? _cachedEmptyTexture;
 
         public uint TextureRevision { get; private set; }
 
-        protected void Awake()
-        {
-            Debug.Log("[WorldTextureManager] Awake — deferred atlas initialization");
-        }
-
         protected void OnDestroy()
         {
             _textureCache?.Clear();
-            if (_atlases != null)
-            {
-                foreach (var atlas in _atlases)
-                {
-                    atlas?.Dispose();
-                }
-
-                _atlases.Clear();
-            }
+            _atlasCollection?.Dispose();
 
             if (_flowMapTexture != null)
             {
@@ -91,20 +73,18 @@ namespace Fodinae.World
 
         private void Initialize()
         {
-            if (_textureCache != null && _atlases != null && _pendingRequests != null)
+            if (_textureCache != null && _atlasCollection != null && _pendingRequests != null)
             {
                 return;
             }
 
             _textureCache = new CellTextureCache();
-            _currentAtlas = new TextureAtlas(
+            _atlasCollection = new WorldAtlasCollection(
                 _initialAtlasSize,
+                _maxAtlasSize,
                 _cellTextureSize,
                 _texturePadding,
                 GetCachedTexture);
-
-            _atlases = new List<TextureAtlas>();
-            _atlases.Add(_currentAtlas);
 
             _pendingRequests = new ConcurrentDictionary<CellType, TextureRequest>();
 
@@ -113,7 +93,7 @@ namespace Fodinae.World
 
         private void EnsureInitialized()
         {
-            if (_textureCache == null || _atlases == null || _pendingRequests == null)
+            if (_textureCache == null || _atlasCollection == null || _pendingRequests == null)
             {
                 Initialize();
             }
@@ -142,59 +122,18 @@ namespace Fodinae.World
         {
             EnsureInitialized();
             if (_textureCache.TryGetTexture(cellType, out _) ||
-                _pendingRequests.ContainsKey(cellType))
-            {
-                return;
-            }
-
-            if (_cellTextureRetryTimes.TryGetValue(cellType, out double retryAfterSeconds) &&
-                RetryClock.Elapsed.TotalSeconds < retryAfterSeconds)
-            {
-                return;
-            }
-
-            if (!_inFlightCellTypeRequests.TryAdd(cellType, 0))
+                _pendingRequests.ContainsKey(cellType) ||
+                _retryTracker.ShouldThrottle(cellType))
             {
                 return;
             }
 
             _operations.Run(
                 $"load_world_texture_{cellType}",
-                cancellationToken => TrackedRequestTextureAsync(cellType, cancellationToken));
-        }
-
-        private async UniTask TrackedRequestTextureAsync(
-            CellType cellType,
-            CancellationToken cancellationToken)
-        {
-            try
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                await GetCellTextureCoordinate(cellType, 0, 0);
-                cancellationToken.ThrowIfCancellationRequested();
-                _cellTextureRetryTimes.TryRemove(cellType, out _);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-            }
-            catch (Exception exception)
-            {
-                bool firstFailure = !_cellTextureRetryTimes.ContainsKey(cellType);
-                _cellTextureRetryTimes[cellType] =
-                    RetryClock.Elapsed.TotalSeconds + FailedCellTextureRetrySeconds;
-
-                if (firstFailure)
-                {
-                    Debug.LogWarning(
-                        $"[WorldTextureManager] Texture for cell type {cellType} could not be " +
-                        $"loaded: {exception.Message}. Retrying at most every " +
-                        $"{FailedCellTextureRetrySeconds:F0}s.");
-                }
-            }
-            finally
-            {
-                _inFlightCellTypeRequests.TryRemove(cellType, out _);
-            }
+                cancellationToken => _retryTracker.RunTrackedRequestAsync(
+                    cellType,
+                    async (type, ct) => await GetCellTextureCoordinate(type, 0, 0),
+                    cancellationToken));
         }
 
         public AtlasCoordinate GetCellTextureCoordinate(CellType cellType)
@@ -238,13 +177,13 @@ namespace Fodinae.World
                     frameHeight = _mapManager.GetAnimationFrameHeight(cellType);
                 }
 
-                foreach (var atlas in _atlases)
-                {
-                    if (atlas.ContainsCell(cellType))
-                    {
-                        return atlas.GetWrappedCoordinate(cellType, globalX, globalY, variation, frameHeight, frameIndex);
-                    }
-                }
+                return _atlasCollection.GetWrappedCoordinate(
+                    cellType,
+                    globalX,
+                    globalY,
+                    variation,
+                    frameHeight,
+                    frameIndex);
             }
 
             return AtlasCoordinate.Empty;
@@ -380,17 +319,7 @@ namespace Fodinae.World
             if (_textureCache.TryGetTexture(cellType, out CellTextureInfo cachedTextureInfo))
             {
                 Texture2D cachedTexture = cachedTextureInfo.BaseTexture;
-                bool alreadyInAtlas = false;
-                foreach (var atlas in _atlases)
-                {
-                    if (atlas.ContainsCell(cellType))
-                    {
-                        alreadyInAtlas = true;
-                        break;
-                    }
-                }
-
-                if (!alreadyInAtlas)
+                if (!_atlasCollection.ContainsCell(cellType))
                 {
                     AddTextureToAtlas(
                         cellType,
@@ -435,22 +364,14 @@ namespace Fodinae.World
             Texture2D texture,
             bool ownsTexture)
         {
-            foreach (var atlas in _atlases)
-            {
-                if (atlas.ContainsCell(cellType))
-                {
-                    return;
-                }
-            }
-
-            if (!_mapManager.IsWorldInitialized)
+            if (_atlasCollection.ContainsCell(cellType) || !_mapManager.IsWorldInitialized)
             {
                 return;
             }
 
             int frameHeight = _mapManager.GetAnimationFrameHeight(cellType);
 
-            ValidateTerrainTextureDimensions(
+            _atlasCollection.ValidateDimensions(
                 cellType,
                 texture,
                 frameHeight);
@@ -473,71 +394,10 @@ namespace Fodinae.World
                 FrameSize = effectiveFrameHeight,
             };
 
-            if (_currentAtlas == null)
-            {
-                throw new InvalidOperationException(
-                    "WorldTextureManager atlas is not initialized before adding a terrain texture.");
-            }
-
-            if (!_currentAtlas.TryAddTexture(cellType, texture, out var coordinate))
-            {
-                var newSize = Mathf.Min(_currentAtlas.Size * 2, _maxAtlasSize);
-                if (newSize > _currentAtlas.Size)
-                {
-                    var newAtlas = new TextureAtlas(
-                        newSize,
-                        _cellTextureSize,
-                        _texturePadding,
-                        GetCachedTexture);
-                    _atlases.Add(newAtlas);
-                    _currentAtlas = newAtlas;
-
-                    if (!_currentAtlas.TryAddTexture(cellType, texture, out coordinate))
-                    {
-                        throw new InvalidOperationException(
-                            $"Failed to add terrain texture for cell type {cellType} to new atlas of size {newSize}.");
-                    }
-                }
-                else
-                {
-                    throw new InvalidOperationException(
-                        $"Terrain texture atlas size limit reached ({_maxAtlasSize}) while adding cell type {cellType}.");
-                }
-            }
-
-            _currentAtlas.CopyTextureToAtlas(cellType, texture);
+            _atlasCollection.AddTexture(cellType, texture);
             _textureCache.AddTexture(cellType, textureInfo);
             TextureRevision++;
             OnTextureLoaded?.Invoke($"Cells/{(int)cellType}.png", texture);
-        }
-
-        private void ValidateTerrainTextureDimensions(
-            CellType cellType,
-            Texture2D texture,
-            int frameHeight)
-        {
-            if (texture.width <= 0 || texture.height <= 0 ||
-                texture.width % _cellTextureSize != 0 ||
-                texture.height % _cellTextureSize != 0)
-            {
-                throw new InvalidDataException(
-                    $"Terrain texture for {cellType} has invalid dimensions " +
-                    $"{texture.width}x{texture.height}; both dimensions must be positive " +
-                    $"multiples of {_cellTextureSize} pixels.");
-            }
-
-            if (frameHeight == 0)
-            {
-                return;
-            }
-
-            if (frameHeight % _cellTextureSize != 0 || texture.height % frameHeight != 0)
-            {
-                throw new InvalidDataException(
-                    $"Terrain texture for {cellType} has height {texture.height} and " +
-                    $"frame height {frameHeight}; both must align to " +
-                    $"{_cellTextureSize}-pixel cells and frames must divide the atlas exactly.");
-            }
         }
 
         private static CellVariation CalculateVariation(CellTextureInfo textureInfo, int globalX, int globalY)
@@ -557,64 +417,28 @@ namespace Fodinae.World
             };
         }
 
-        private readonly List<IAtlasDescriptor> _atlasDescriptorsCache = new();
-
         public IReadOnlyList<IAtlasDescriptor> GetAllAtlases()
         {
             EnsureInitialized();
-            if (_atlasDescriptorsCache.Count != _atlases.Count)
-            {
-                _atlasDescriptorsCache.Clear();
-                for (int i = 0; i < _atlases.Count; i++)
-                {
-                    _atlasDescriptorsCache.Add(_atlases[i]);
-                }
-            }
-
-            return _atlasDescriptorsCache;
+            return _atlasCollection.GetAllAtlases();
         }
 
         public void FlushDirtyAtlases()
         {
-            for (int i = 0; i < _atlases.Count; i++)
-            {
-                if (_atlases[i].IsDirty)
-                {
-                    _atlases[i].SyncApply();
-                }
-            }
+            _atlasCollection?.FlushDirtyAtlases();
         }
 
         public TextureAtlas? GetAtlasForCell(CellType cellType)
         {
             EnsureInitialized();
-            foreach (var atlas in _atlases)
-            {
-                if (atlas.ContainsCell(cellType))
-                {
-                    return atlas;
-                }
-            }
-
-            return null;
+            return _atlasCollection.GetAtlasForCell(cellType);
         }
 
         public void Clear()
         {
             EnsureInitialized();
             _textureCache.Clear();
-            foreach (var atlas in _atlases)
-            {
-                atlas.Dispose();
-            }
-
-            _atlases.Clear();
-            _currentAtlas = new TextureAtlas(
-                _initialAtlasSize,
-                _cellTextureSize,
-                _texturePadding,
-                GetCachedTexture);
-            _atlases.Add(_currentAtlas);
+            _atlasCollection.Reset();
             GenerateFlowMap();
             _cachedEmptyTexture = null;
             TextureRevision++;
@@ -636,26 +460,6 @@ namespace Fodinae.World
         {
             EnsureInitialized();
             return _cachedEmptyTexture;
-        }
-
-        public class TextureRequest
-        {
-            private readonly UniTaskCompletionSource<bool> _taskSource;
-
-            public TextureRequest(CellType cellType)
-            {
-                CellType = cellType;
-                _taskSource = new UniTaskCompletionSource<bool>();
-            }
-
-            public CellType CellType { get; }
-
-            public UniTask<bool> Task => _taskSource.Task;
-
-            public void SetResult(bool success)
-            {
-                _taskSource.TrySetResult(success);
-            }
         }
     }
 }

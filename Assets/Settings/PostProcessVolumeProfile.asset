@@ -47,6 +47,7 @@ MonoBehaviour:
   - {fileID: 3524879773850928676}
   - {fileID: -6271604533652656483}
   - {fileID: 3512870612399361332}
+  - {fileID: 0}
 --- !u!114 &3306464153541522589
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -79,9 +80,6 @@ MonoBehaviour:
   intensity:
     m_OverrideState: 1
     m_Value: 1
-  maxSamples:
-    m_OverrideState: 1
-    m_Value: 8
 --- !u!114 &3524879773850928676
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -132,6 +130,12 @@ MonoBehaviour:
   threshold:
     m_OverrideState: 1
     m_Value: 1.842
+  softKnee:
+    m_OverrideState: 0
+    m_Value: 0.5
+  radius:
+    m_OverrideState: 0
+    m_Value: 3
   scatter:
     m_OverrideState: 1
     m_Value: 0.529

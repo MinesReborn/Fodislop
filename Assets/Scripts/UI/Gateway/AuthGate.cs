@@ -19,10 +19,10 @@ namespace Fodinae.UI
     /// <c>AuthTokenPacket</c>, после чего клиент вызывает AuthorizeUI.
     ///
     /// Поэтому поля пароля, вкладка регистрации и EULA — заглушки по макету
-    /// visual/main-menu-mirror: они отрисованы, но ни во что не отправляются,
+    /// visual/fodinae-ui-lab: они отрисованы, но ни во что не отправляются,
     /// и экран честно сообщает об этом подсказкой. Реально работают три пути:
     /// «Войти» (обычное подключение с существующим или пустым токеном),
-    /// «Войти через VK» (VK ID device-flow, см. VkAuthService) и
+    /// «Войти через VK» (VK ID device-flow, см. VkIdentityProvider) и
     /// «Офлайн режим (Dummy)» (локальная песочница без сервера).
     ///
     /// Разметка живёт в Resources/UI/MainMenu.uxml, стили — в
@@ -51,6 +51,7 @@ namespace Fodinae.UI
         private readonly Toggle _autoLogin;
         private readonly Label _hint;
         private readonly IClientConfigManager _clientConfig;
+        private readonly IAuthenticationService _authentication;
         private readonly ILocalizationService? _loc;
 
         private Button? _vkButton;
@@ -69,6 +70,7 @@ namespace Fodinae.UI
             Toggle autoLogin,
             Label hint,
             IClientConfigManager clientConfig,
+            IAuthenticationService authentication,
             ILocalizationService? loc)
         {
             _loginForm = loginForm;
@@ -79,6 +81,7 @@ namespace Fodinae.UI
             _autoLogin = autoLogin;
             _hint = hint;
             _clientConfig = clientConfig;
+            _authentication = authentication;
             _loc = loc;
         }
 
@@ -104,6 +107,7 @@ namespace Fodinae.UI
         public static AuthGate? TryCreate(
             VisualElement tree,
             IClientConfigManager clientConfig,
+            IAuthenticationService authentication,
             ILocalizationService? loc)
         {
             var loginForm = tree.Q<VisualElement>("AuthLoginForm");
@@ -131,6 +135,7 @@ namespace Fodinae.UI
                 autoLogin,
                 hint,
                 clientConfig,
+                authentication,
                 loc);
             gate.Bind(tree);
             return gate;
@@ -162,9 +167,9 @@ namespace Fodinae.UI
             if (_vkButton != null)
             {
                 _vkButton.clicked += StartVkLogin;
-                if (_vkLabel != null && VkAuthService.HasValidSession)
+                if (_vkLabel != null && _authentication.HasVkSession)
                 {
-                    _vkLabel.text = L("gateway.auth.vk_continue", "Продолжить как {0} (VK)", VkAuthService.LoadSession().DisplayName);
+                    _vkLabel.text = L("gateway.auth.vk_continue", "Продолжить как {0} (VK)", _authentication.VkDisplayName);
                 }
             }
 
@@ -190,10 +195,10 @@ namespace Fodinae.UI
                 L("gateway.auth.vk_started", "VK: откройте ссылку подтверждения в браузере…"),
                 warn: false);
 
-            VkAuthResult result;
+            AuthenticationResult result;
             try
             {
-                result = await VkAuthService.LoginAsync(_clientConfig);
+                result = await _authentication.LoginWithVkAsync();
             }
             catch (Exception e)
             {
@@ -209,16 +214,9 @@ namespace Fodinae.UI
             if (result.Success)
             {
                 ShowHint(
-                    L("gateway.auth.vk_success", "Вход через VK: {0}", result.Session.DisplayName),
+                    L("gateway.auth.vk_success", "Вход через VK: {0}", result.DisplayName),
                     warn: false);
-                _login.SetValueWithoutNotify(result.Session.DisplayName);
-
-                // Production-токен выпускает только доверенный backend. В
-                // Dummy-режиме пустой токен штатно выдаст DummyConnection.
-                if (!string.IsNullOrWhiteSpace(result.GameToken))
-                {
-                    AuthTokenManager.SaveToken(result.GameToken);
-                }
+                _login.SetValueWithoutNotify(result.DisplayName);
 
                 Pass();
                 return;
@@ -241,7 +239,7 @@ namespace Fodinae.UI
         /// </summary>
         public void Show()
         {
-            if (!GatewayDevFlags.ForceGates && AuthTokenManager.HasToken && _autoLogin.value)
+            if (!GatewayDevFlags.ForceGates && _authentication.HasStoredCredentials && _autoLogin.value)
             {
                 Pass();
                 return;
@@ -272,7 +270,7 @@ namespace Fodinae.UI
 
         private void StartOffline()
         {
-            _clientConfig.UpdateAndSave(config => config.UseDummyConnection = true);
+            _clientConfig.UpdateSection(config => config.Connection, settings => settings.UseDummyConnection = true);
             ShowHint(L("gateway.auth.offline_hint", "Офлайн-режим"), warn: false);
             Pass();
         }

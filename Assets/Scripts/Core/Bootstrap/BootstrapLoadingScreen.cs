@@ -1,6 +1,9 @@
 #nullable enable
 
+using System;
+
 using Fodinae.Core.Localization;
+using Fodinae.Core.Interfaces;
 using Fodinae.UI;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -21,6 +24,21 @@ namespace Fodinae.Core
         private Label? _phase;
         private bool _initialized;
 
+        private void OnEnable()
+        {
+            UIDocument document = GetComponent<UIDocument>();
+            VisualElement? root = document.rootVisualElement;
+            if (root != null)
+            {
+                root.pickingMode = PickingMode.Ignore;
+            }
+
+            if (_overlay != null && UIState.IsHidden(_overlay))
+            {
+                _overlay.pickingMode = PickingMode.Ignore;
+            }
+        }
+
         public void Initialize()
         {
             if (_initialized)
@@ -29,23 +47,27 @@ namespace Fodinae.Core
             }
 
             UIDocument document = GetComponent<UIDocument>();
-            VisualTreeAsset asset = Resources.Load<VisualTreeAsset>("UI/BootstrapLoadingScreen")
+            document.sortingOrder = 200;
+            VisualTreeAsset asset = Resources.Load<VisualTreeAsset>(
+                ProjectRuntimeContracts.ResourcePaths.BootstrapLoadingScreenUxml)
                 ?? throw new System.InvalidOperationException("Required UI resource 'UI/BootstrapLoadingScreen' was not found.");
 
             VisualElement root = document.rootVisualElement;
             root.Clear();
+            root.pickingMode = PickingMode.Ignore;
             VisualElement tree = asset.CloneTree();
+            tree.AddToClassList("ui-fullscreen");
+            tree.pickingMode = PickingMode.Ignore;
             root.Add(tree);
+            UILayoutTier.Attach(tree);
             UILocalizer.Apply(tree, _localization);
             _overlay = tree.Q<VisualElement>("BootstrapLoadingOverlay");
             _phase = tree.Q<Label>("BootstrapLoadingPhase");
 
-            _bootstrap.TransitionStarted += Show;
-            _bootstrap.TransitionCompleted += Hide;
-            _bootstrap.TransitionFailed += OnTransitionFailed;
+            _bootstrap.TransitionChanged += OnTransitionChanged;
             _localization.RegisterLocalizable(this);
             _initialized = true;
-            Hide(string.Empty);
+            Hide();
         }
 
         public void ApplyLocalizedText()
@@ -60,12 +82,49 @@ namespace Fodinae.Core
         {
             if (_bootstrap != null)
             {
-                _bootstrap.TransitionStarted -= Show;
-                _bootstrap.TransitionCompleted -= Hide;
-                _bootstrap.TransitionFailed -= OnTransitionFailed;
+                _bootstrap.TransitionChanged -= OnTransitionChanged;
             }
 
             _localization?.UnregisterLocalizable(this);
+        }
+
+        private void OnTransitionChanged(SceneTransitionStatus status)
+        {
+            switch (status.Phase)
+            {
+                case SceneTransitionPhase.Created:
+                    Show(status.TargetSceneName);
+                    break;
+                case SceneTransitionPhase.Completed:
+                case SceneTransitionPhase.CompletedWithWarnings:
+                case SceneTransitionPhase.Failed:
+                    Hide();
+                    break;
+                case SceneTransitionPhase.Loading:
+                case SceneTransitionPhase.Attached:
+                case SceneTransitionPhase.ActivationRequested:
+                case SceneTransitionPhase.StartupReady:
+                case SceneTransitionPhase.PresentationReady:
+                case SceneTransitionPhase.CleaningPrevious:
+                    // Промежуточные фазы экран не трогают: он уже показан и
+                    // ждёт терминальной. Ветки перечислены поимённо, а не
+                    // отброшены через default, чтобы новая фаза перечисления
+                    // ломала компиляцию здесь, а не оставляла экран висеть
+                    // навсегда, если окажется терминальной.
+                    break;
+                default:
+                    // Только сообщение. Исключение оборвало бы сам переход
+                    // сцен, а слепой Hide убрал бы экран посреди загрузки,
+                    // показав недостроенную сцену. Обе терминальные фазы
+                    // перечислены выше, значит новая почти наверняка
+                    // промежуточная — для неё «ничего не делать» и есть
+                    // правильное поведение.
+                    Debug.LogError(
+                        $"[BootstrapLoadingScreen] Фаза перехода {status.Phase} не разобрана; " +
+                        "если она терминальная, экран загрузки останется висеть. " +
+                        "Добавьте её в switch явно.");
+                    break;
+            }
         }
 
         private void Show(string sceneName)
@@ -73,8 +132,12 @@ namespace Fodinae.Core
             // The MainMenu -> MainGame transition is owned entirely by the MainMenu
             // descent screen and loader (LoaderContainer with planet animation & phase steps).
             // Do not show the generic bootstrap overlay over it.
-            if (string.Equals(sceneName, "MainGame", System.StringComparison.Ordinal))
+            if (string.Equals(
+                    sceneName,
+                    ProjectRuntimeContracts.SceneNames.MainGame,
+                    System.StringComparison.Ordinal))
             {
+                Hide();
                 return;
             }
 
@@ -83,17 +146,42 @@ namespace Fodinae.Core
                 _phase.text = $"{_localization.Get("network.connecting")} {sceneName}";
             }
 
-            _overlay?.EnableInClassList("bootstrap-loading-overlay--visible", true);
+            UIState.Show(_overlay);
+            if (_overlay != null)
+            {
+                _overlay.pickingMode = PickingMode.Position;
+            }
         }
 
-        private void Hide(string _)
+        private void Hide()
         {
-            _overlay?.EnableInClassList("bootstrap-loading-overlay--visible", false);
+            UIState.Hide(_overlay);
+            if (_overlay != null)
+            {
+                _overlay.pickingMode = PickingMode.Ignore;
+            }
         }
 
-        private void OnTransitionFailed(string _, System.Exception __)
+        public void ShowDirect(string message)
         {
-            Hide(string.Empty);
+            if (_phase != null)
+            {
+                _phase.text = message;
+            }
+
+            UIState.Show(_overlay);
+            if (_overlay != null)
+            {
+                _overlay.pickingMode = PickingMode.Position;
+            }
+        }
+
+        public void SetPhaseText(string message)
+        {
+            if (_phase != null)
+            {
+                _phase.text = message;
+            }
         }
     }
 }

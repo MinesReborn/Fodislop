@@ -44,7 +44,7 @@ namespace Fodinae.UI
         private Foldout? _customGraphicsSection;
         private Action? _updateLightingQualityButton;
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_ENABLE_CHECKS
         // Created before the graphics/advanced pages so the lighting debug
         // controls built alongside the advanced page can be appended to it.
         private Foldout? _debugSection;
@@ -122,6 +122,7 @@ namespace Fodinae.UI
             var builder = new PauseMenuInterfaceTabBuilder(
                 _doc,
                 _clientConfig,
+                _graphicsSettings,
                 _refreshers,
                 _loc);
             return builder.Build(interfaceScroll);
@@ -137,14 +138,14 @@ namespace Fodinae.UI
                 _refreshers,
                 _loc,
                 MarkGraphicsCustom
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_ENABLE_CHECKS
                 , AddLightingDebugControls
 #endif
             );
             return builder.Build(advancedScroll);
         }
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_ENABLE_CHECKS
         /// <summary>
         /// Creates the developer tools foldout. Must be called before
         /// <see cref="BuildAdvancedPage"/>, which appends the lighting debug
@@ -174,7 +175,6 @@ namespace Fodinae.UI
                 "settings.debug.transmission",
                 "settings.debug.direct_radiance",
                 "settings.debug.diffuse_bounce",
-                "settings.debug.contact_occlusion",
                 "settings.debug.exposure",
             ];
             int activeDebugView = (int)_lightingEngine.ActiveDebugView;
@@ -198,6 +198,17 @@ namespace Fodinae.UI
             UpdateLightingDebugButton();
             debugSection.Add(lightingDebugView);
 
+            Toggle bypassPostProcessToggle = PauseMenuUIFactory.CreateBoundToggle(
+                "Bypass Post-Process (Bisect)",
+                () => PostProcessRenderPass.BypassPostProcessEffects,
+                value =>
+                {
+                    PostProcessRenderPass.BypassPostProcessEffects = value;
+                    Debug.Log($"[PostProcess] BypassPostProcessEffects = {value}");
+                },
+                _refreshers);
+            debugSection.Add(bypassPostProcessToggle);
+
             debugSection.Add(PauseMenuUIFactory.CreateLabel(_loc.Get("settings.lighting.actual_params")));
             var lightingDiagnostics = new Label();
             lightingDiagnostics.AddToClassList("pause-slider-label");
@@ -207,9 +218,6 @@ namespace Fodinae.UI
                     $"Quality={_lightingEngine.ActiveGraphicsPreset}\n" +
                     $"Config={_lightingEngine.RuntimeConfigFilePath}\n" +
                     $"Debug={_lightingEngine.ActiveDebugView}\n" +
-                    $"AO={(_lightingEngine.AmbientOcclusionEnabled ? 1 : 0)} " +
-                    $"radius={_lightingEngine.AmbientOcclusionRadiusCells:F2} " +
-                    $"strength={_lightingEngine.AmbientOcclusionStrength:F2}\n" +
                     $"DiffuseBounce={(_lightingEngine.DiffuseBounceEnabled ? 1 : 0)} " +
                     $"strength={_lightingEngine.BounceStrength:F3}\n" +
                     $"Ambient={_lightingEngine.AmbientIntensity:F3} " +
@@ -231,8 +239,7 @@ namespace Fodinae.UI
                     $"ComputeEmptyExtinction={_lightingEngine.ComputeEmptyExtinction} " +
                     $"ComputeSolidExtinction={_lightingEngine.ComputeSolidExtinction}\n" +
                     $"RequiredPadding={_lightingEngine.RequiredTerrainPadding} " +
-                    $"SolveCount={_lightingEngine.SolveCount} " +
-                    $"ContactAOSolveCount={_lightingEngine.ContactOcclusionSolveCount}";
+                    $"SolveCount={_lightingEngine.SolveCount}";
             }
 
             UpdateLightingDiagnostics();

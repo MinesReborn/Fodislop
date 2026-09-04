@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Интерактивная лаборатория интерфейса Fodinae: полный путь игрока, HUD, окна и состояния клиента.">
+  <meta name="theme-color" content="#05080d">
+  <meta name="color-scheme" content="dark">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Fodinae Interface Lab">
+  <meta property="og:description" content="Интерактивный прототип интерфейса 2D MMORPG-песочницы Fodinae.">
+  <meta property="og:url" content="https://murasamadsp.github.io/Fodislop/">
+  <link rel="canonical" href="https://murasamadsp.github.io/Fodislop/">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="manifest" href="site.webmanifest">
+  <title>Fodinae Interface Lab — интерактивный UI-прототип</title>
+  <!-- Шрифты локальные (css/base.css). Google Fonts убран: собранный клиент
+       играет оффлайн и терял бы типографику целиком. -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Нижняя Dev-панель: Строгий хронологический порядок экранов -->
+  <!-- Дев-панель не переводится: это инструмент разработки, а не интерфейс
+       игры. Решение стоит здесь, в разметке, а не внутри tools/extract-i18n.py,
+       где его никто не найдёт. translate="no" наследуется на всё поддерево. -->
+  <div class="dev-drawer" translate="no">
+    <span>ЭКРАНЫ:</span>
+    <button type="button" class="dev-btn active" data-state="auth" onclick="switchViewState('auth')" data-sfx="click">1. ВХОД / РЕГИСТРАЦИЯ</button>
+    <button type="button" class="dev-btn" data-state="onboarding" onclick="switchViewState('onboarding')" data-sfx="click">2. ОНБОРДИНГ</button>
+    <button type="button" class="dev-btn" data-state="menu" onclick="switchViewState('menu')" data-sfx="click">3. ОРБИТАЛЬНЫЙ ХАБ</button>
+    <button type="button" class="dev-btn" data-state="descent" onclick="startDescentSequence()" data-sfx="drill">4. СПУСК В ШАХТУ</button>
+    <button type="button" class="dev-btn dev-btn--accent" data-state="ingame" onclick="switchViewState('ingame')" data-sfx="alert">5. ИГРА / HUD</button>
+    <button type="button" class="dev-btn" onclick="openModal('inventoryModal')" data-sfx="click">ИНВЕНТАРЬ</button>
+    <button type="button" class="dev-btn" onclick="openModal('programmatorModal')" data-sfx="click">ПРОГРАММАТОР</button>
+    <button type="button" class="dev-btn" onclick="openModal('profileModal')" data-sfx="click">ПРОФИЛЬ ШАХТЁРА</button>
+    <button type="button" class="dev-btn" onclick="openMandatoryUpdateModal()" data-sfx="click">ОБНОВЛЕНИЕ КЛИЕНТА</button>
+    <button type="button" class="dev-btn" onclick="openModal('chatModal')" data-sfx="click">ЧАТ</button>
+    <button type="button" class="dev-btn" data-state="pause" onclick="switchViewState('pause')" data-sfx="click">6. ПАУЗА</button>
+    <button type="button" class="dev-btn danger" data-state="reconnect" onclick="switchViewState('reconnect')" data-sfx="alert">7. ОБРЫВ</button>
+    <a class="dev-btn dev-btn--link" href="styleguide.html">ДИЗАЙН-СИСТЕМА</a>
+    <div class="sfx-toggle" onclick="toggleAudio()" role="button" tabindex="0" id="sfxToggle" data-sfx="click" aria-pressed="true">
+      <span id="sfxStatus"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-scan"/></svg> ЗВУК</span>
+    </div>
+    <!-- Нагрузка текстом. Коэффициенты роста посчитаны по словарям игры
+         (см. js/i18n.js и tools/measure-i18n.py), а не подобраны. -->
+    <!-- Язык берётся из словаря игры (Assets/Resources/Localization),
+         а не из копии: макет присоединяется к источнику истины. -->
+    <select class="dev-select" id="langSelect" onchange="i18nProbe.setLanguage(this.value)" data-sfx="click" title="Подставить текст из словаря игры">
+      <option value="ru">RU</option>
+      <option value="en">EN</option>
+    </select>
+    <select class="dev-select" id="pseudoSelect" onchange="i18nProbe.setPseudoMode(this.value)" data-sfx="click" title="Псевдоязык: растягивает текст во столько раз, во сколько он реально вырос при переводе">
+      <option value="off">ЯЗЫК: КАК ЕСТЬ</option>
+      <option value="accents">ЯЗЫК: ДИАКРИТИКА</option>
+      <option value="p90">ЯЗЫК: p90 (×1.5)</option>
+      <option value="worst">ЯЗЫК: ХУДШИЙ (×4.5)</option>
+    </select>
+    <div class="sfx-toggle" onclick="toggleOverflowDetector(this)" role="button" tabindex="0" id="overflowToggle" data-sfx="click" aria-pressed="false" title="Подсветить переполнение: красным — нарушение объявленного контракта, жёлтым — узел без объявления">
+      <span>ПЕРЕПОЛНЕНИЕ</span>
+    </div>
+  </div>
+
+  <!-- ═══ Иконочный спрайт ═══
+     Заменяет цветные эмодзи, которые рендерились по-разному на разных
+     платформах и не сочетались с остальным набором. Моноширинные
+     геометрические глифы (точка, ромб, звезда, треугольник) намеренно
+     оставлены: они наследуют currentColor и работают на терминальную
+     эстетику. -->
+<svg class="fdn-sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <g id="i-arrow-ne" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 19.5 19.5 4.5"/><path d="M8.5 4.5h11v11"/>
+    </g>
+    <g id="i-pick" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2.8 10.6C6.2 5.8 9.2 4 12 4s5.8 1.8 9.2 6.6"/>
+      <path d="M10.4 8.2h3.2l-1 12.8h-1.2z"/>
+    </g>
+    <g id="i-bolt" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(1.000 -0.000)">
+      <path d="M13 2 4 14h6l-1 8 9-12h-6z"/>
+    </g></g>
+    <g id="i-flag" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(1.000 -0.500)">
+      <path d="M5 22V3"/><path d="M5 4h12l-2 4 2 4H5"/>
+    </g></g>
+    <g id="i-cell" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(0.249 0.000)">
+      <rect x="2.5" y="6.5" width="16" height="11" rx="1.5"/><path d="M21 10v4"/><path d="M6 9.5v5M9.5 9.5v5M13 9.5v5"/>
+    </g></g>
+    <g id="i-gear" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="6.6"/>
+      <circle cx="12" cy="12" r="2.5"/>
+      <path d="M12 5.4V2.4M12 21.6v-3M5.4 12H2.4M21.6 12h-3M7.35 7.35 5.25 5.25M18.75 18.75l-2.1-2.1M16.65 7.35l2.1-2.1M5.25 18.75l2.1-2.1"/>
+    </g>
+    <g id="i-scan" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(-0.000 -0.250)">
+      <path d="M12 20v-6"/><path d="M8 20h8"/><path d="M4.5 12a7.5 7.5 0 0 1 15 0"/><path d="M8 12a4 4 0 0 1 8 0"/>
+    </g></g>
+    <g id="i-core" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2.5 20.5 7v10L12 21.5 3.5 17V7z"/><circle cx="12" cy="12" r="3"/>
+    </g>
+    <g id="i-shield" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2.5 20 6v6c0 5-3.6 8.4-8 9.5C7.6 20.4 4 17 4 12V6z"/>
+    </g>
+    <g id="i-target" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><g>
+      <circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/>
+    </g></g>
+    <g id="i-lock" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><g>
+      <rect x="4.5" y="10" width="15" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+    </g></g>
+    <g id="i-eye" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><g>
+      <path d="M1.5 12S5 5.5 12 5.5 22.5 12 22.5 12 19 18.5 12 18.5 1.5 12 1.5 12"/><circle cx="12" cy="12" r="3"/>
+    </g></g>
+    <g id="i-user" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(-0.001 -0.501)">
+      <circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/>
+    </g></g>
+    <g id="i-copy" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(0.500 0.500)">
+      <rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+    </g></g>
+    <g id="i-refresh" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(0.000 0.072)">
+      <path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/>
+    </g></g>
+    <g id="i-home" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V21h13V9.5"/><path d="M9.5 21v-6h5v6"/>
+    </g>
+    <!-- Журнал экспедиции: корешок слева, две строки записи. Ключевая форма
+         портретная, как у i-cell, поэтому габарит по высоте, а не по ширине. -->
+    <g id="i-chronicle" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M7 4h10a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/>
+      <path d="M9 4v16"/><path d="M11.8 8.8h3.6"/><path d="M11.8 12h3.6"/>
+    </g>
+    <!-- Загрузка обновления: стрелка вниз в приёмник. Пара к i-arrow-ne —
+         та же длина древка, тот же угол оперения. -->
+    <g id="i-update" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3.5v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/>
+      <path d="M4.5 15.5v3a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-3"/>
+    </g>
+  </defs>
+</svg>
+
+<div class="viewport" id="appViewport" data-state="auth">
+    <div class="space-backdrop"></div>
+    <div class="left-shade"></div>
+
+    <!-- Монументальная планетарная система -->
+    <div class="fa-planet-system" id="planetSystem">
+      <div class="fa-corona-glow"></div>
+      <div class="fa-orbit-ring-outer"></div>
+      <div class="fa-orbit-ring-inner"></div>
+
+      <div class="fa-orbital-beacon">
+        <div class="planet-beacon">
+          <div class="beacon-dot"></div>
+          <div class="beacon-ping"></div>
+        </div>
+        <span data-i18n="common.beacon_label" class="beacon-label">МАЯК [HADES-ORBIT-1]</span>
+      </div>
+
+      <div class="fa-planet-body">
+        <span class="fa-atmosphere"></span>
+        <span class="fa-surface"></span>
+        <span class="fa-magma-layer"></span>
+        <span class="fa-geo-grid"></span>
+        <span class="fa-night"></span>
+
+        <div class="fa-target">
+          <span class="target-cross-v"></span>
+          <span class="target-cross-h"></span>
+          <div class="fa-target-badge">
+            <span data-i18n="mainmenu.sector" class="fa-tb-title">СЕКТОР-09 [ВЫСАДКА]</span>
+            <span data-i18n="mainmenu.coords" class="fa-tb-coords">42.18°N // 108.44°E // 0 М</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Верхний игровой хедер (64px) -->
+    <header class="fa-header">
+      <div class="brand-group" onclick="switchViewState('menu')" role="button" tabindex="0" data-sfx="click">
+        <svg class="brand-icon" aria-hidden="true" focusable="false" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M24 4 L43 15 V33 L24 44 L5 33 V15 Z"/>
+          <path d="M14 18 L24 12 L34 18 L30 21 L24 18 L18 21 Z" fill="currentColor"/>
+          <path d="M18 25 L24 28 L30 25 V33 L24 37 L18 33 Z" fill="currentColor"/>
+        </svg>
+        <div class="brand-text">
+          <span class="brand-title" translate="no">FODINAE</span>
+          <span data-i18n="mainmenu.brand_sub" class="brand-subtitle">ЭКСПЕДИЦИЯ В НЕДРА ПЛАНЕТЫ</span>
+        </div>
+      </div>
+
+      <div class="header-info-group">
+        <div class="user-pill" onclick="openModal('profileModal')" role="button" tabindex="0" data-sfx="click">
+          <div class="user-avatar" translate="no">Ш</div>
+          <div class="user-meta">
+            <div data-i18n="mainmenu.user_name" class="hud-user-name">ШАХТЁР-774 [DVM]</div>
+            <div data-i18n="mainmenu.user_rank" class="hud-user-rank">РАНГ 4 · БУР TIER-2</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ПРАВАЯ БОКОВАЯ ПАНЕЛЬ ИКОНОК (ИКОНОЧНЫЙ РЕЙЛ) -->
+    <aside class="fdn-rail">
+      <!-- Журнал экспедиции -->
+      <button type="button" class="side-icon-btn" onclick="openModal('chronicleModal')" data-sfx="click">
+        <svg class="side-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#i-chronicle"/></svg>
+        <span data-i18n="mainmenu.tooltip.chronicle" class="side-tooltip">ХРОНИКА</span>
+      </button>
+
+      <!-- Настройки экспедиции (Шестерёнка) -->
+      <button type="button" class="side-icon-btn" onclick="openModal('settingsModal')" data-sfx="click">
+        <svg class="side-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></g></svg>
+        <span data-i18n="common.side_tooltip" class="side-tooltip">НАСТРОЙКИ ИГРЫ</span>
+      </button>
+
+      <!-- Восстановление файлов (Гаечный ключ) -->
+      <button type="button" class="side-icon-btn" onclick="openModal('repairModal')" data-sfx="click">
+        <svg class="side-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g transform="translate(-0.502 0.502)"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></g></svg>
+        <span data-i18n="common.side_tooltip_2" class="side-tooltip">ПРОВЕРКА И ВОССТАНОВЛЕНИЕ ФАЙЛОВ</span>
+      </button>
+
+      <!-- Обновление клиента -->
+      <button type="button" class="side-icon-btn gold" onclick="openMandatoryUpdateModal()" data-sfx="click">
+        <svg class="side-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#i-update"/></svg>
+        <span data-i18n="mainmenu.tooltip.update" class="side-tooltip">ОБНОВЛЕНИЕ</span>
+      </button>
+
+      <div class="sidebar-separator"></div>
+
+      <!-- Соцсети -->
+      <button type="button" class="side-icon-btn" onclick="window.open('https://discord.com', '_blank')" data-sfx="click">
+        <svg class="side-icon fdn-icon--solid" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="currentColor"><g><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></g></svg>
+        <span data-i18n="common.side_tooltip_3" class="side-tooltip">DISCORD СЕРВЕР</span>
+      </button>
+
+      <button type="button" class="side-icon-btn" onclick="window.open('https://telegram.org', '_blank')" data-sfx="click">
+        <svg class="side-icon fdn-icon--solid" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="currentColor"><g><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 0 0-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></g></svg>
+        <span data-i18n="mainmenu.tooltip.telegram" class="side-tooltip">TELEGRAM КАНАЛ</span>
+      </button>
+
+      <button type="button" class="side-icon-btn" onclick="window.open('https://vk.com', '_blank')" data-sfx="click">
+        <svg class="side-icon fdn-icon--solid" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="currentColor"><g><path d="M15.07 2H8.93C3.33 2 2 3.33 2 8.93v6.14C2 20.67 3.33 22 8.93 22h6.14c5.6 0 6.93-1.33 6.93-6.93V8.93C22 3.33 20.67 2 15.07 2zm3.17 14.15h-1.63c-.62 0-.81-.49-1.92-1.6-.97-.94-1.4-1.06-1.64-1.06-.34 0-.44.1-.44.57v1.44c0 .4-.13.65-1.19.65-1.75 0-3.69-1.06-5.06-3.04-2.06-2.93-2.63-5.13-2.63-5.58 0-.25.1-.48.58-.48h1.63c.43 0 .6.2.77.67.84 2.45 2.25 4.6 2.83 4.6.22 0 .32-.1.32-.65V9.45c-.07-1.17-.68-1.27-.68-1.69 0-.2.17-.4.44-.4h2.56c.36 0 .49.19.49.61v3.29c0 .36.16.48.26.48.22 0 .4-.12.81-.53 1.26-1.42 2.16-3.62 2.16-3.62.12-.25.33-.48.76-.48h1.63c.49 0 .6.25.49.61-.2 1-2.22 3.8-2.22 3.8-.19.3-.26.44 0 .79.19.26.81.79 1.23 1.28.77.88 1.36 1.62 1.52 2.13.16.51-.08.76-.58.76z"/></g></svg>
+        <span data-i18n="common.side_tooltip_4" class="side-tooltip">VK СООБЩЕСТВО</span>
+      </button>
+
+      <div class="sidebar-separator"></div>
+
+      <!-- Выход -->
+      <button type="button" class="side-icon-btn side-icon-btn--danger" onclick="confirmQuit()" data-sfx="click">
+        <svg aria-hidden="true" focusable="false" class="side-icon fdn-text--danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></g></svg>
+        <span data-i18n="pause.quit_confirm_title" class="side-tooltip side-tooltip--danger">ВЫХОД ИЗ ИГРЫ</span>
+      </button>
+    </aside>
+
+    <!-- Главное меню -->
+    <div class="fa-content-area" id="menuArea">
+      <div class="menu-column">
+        <span class="eyebrow-tag"><span class="eyebrow-dash"></span><span data-i18n="mainmenu.rig_ready" class="eyebrow-text">БУРОВАЯ УСТАНОВКА // ГОТОВА К СПУСКУ</span></span>
+        <h1 data-i18n="mainmenu.headline" data-i18n-accent="headline-accent" class="menu-main-title" data-fit="wrap">
+          Планета ждёт<br>
+          <span class="headline-accent">под поверхностью.</span>
+        </h1>
+        <p data-i18n="mainmenu.tagline" class="menu-description" data-fit="wrap">
+          Спускайся на неизведанные глубины. Бури породу, автоматизируй дронов, создавай кластеры и выживай в бесконечной шахте.
+        </p>
+
+        <!-- Баннер обязательного обновления -->
+        <div class="update-alert-banner" id="updateAlertBanner" onclick="openMandatoryUpdateModal()" role="button" tabindex="0" data-sfx="click">
+          <div class="uab-text">
+            <strong class="uab-title" data-i18n="mainmenu.update_banner_title">⚠ ТРЕБУЕТСЯ ОБНОВЛЕНИЕ v0.9.0</strong>
+            <span class="uab-sub" data-i18n="mainmenu.update_banner_sub">Без обновления игра недоступна</span>
+          </div>
+          <div class="uab-btn"><span data-i18n="mainmenu.update_banner_cta">ОБНОВИТЬ</span><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true" translate="no"><use href="#i-arrow-ne"/></svg></div>
+        </div>
+
+        <div class="menu-button-list">
+          <button type="button" class="btn-primary-action" onclick="handleDeployClick()" data-sfx="confirm" data-fit="wrap">
+            <span class="btn-primary-text" data-i18n="mainmenu.start_descent">НАЧАТЬ СПУСК В ШАХТУ</span>
+            <div class="action-arrow" translate="no"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true" translate="no"><use href="#i-arrow-ne"/></svg></div>
+          </button>
+        </div>
+
+        <div class="hotkey-hint">
+          <kbd class="hotkey-key" data-i18n="mainmenu.hotkey_hint">ENTER</kbd><span data-i18n="mainmenu.kbd_landing" class="hotkey-label">ВЫСАДКА</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Экран спуска и скачивания ассетов -->
+    <div class="descent-overlay-view" id="descentView">
+      <div class="descent-panel">
+        <span class="eyebrow-tag" id="descentPhaseNum"><span class="eyebrow-dash"></span><span data-i18n="descent.descent_phase_num" class="eyebrow-text">ФАЗА СПУСКА 03 / 05</span></span>
+        <h2 data-i18n="descent.headline" data-fit="wrap" data-i18n-accent="fdn-text--cyan" class="screen-headline">
+          Подготовка точки<br>
+          <span class="fdn-text--cyan">высадки в шахту.</span>
+        </h2>
+        <p data-i18n="descent.descent_panel_3" class="fdn-font-body fdn-text--base fdn-text--secondary">
+          Загрузка клиентских чанков, FMOD аудио-банков и компиляция шейдеров освещения Radiance Cascades.
+        </p>
+
+        <div class="progress-track">
+          <div class="progress-fill" id="descentProgressFill"></div>
+        </div>
+
+        <div class="progress-meta-row">
+          <span class="progress-meta-label" data-i18n="descent.descent_asset_label" id="descentAssetLabel">Загрузка Terrain Atlas и текстур поверхности...</span>
+          <strong class="progress-meta-value" data-i18n="descent.descent_speed_metric" id="descentSpeedMetric">286 / 421 МБ (26.4 МБ/с)</strong>
+        </div>
+
+        <ul class="phases-list">
+          <li class="phase-step done" id="dp-1"><span class="phase-ico" translate="no">✓</span> <span data-i18n="descent.dp_1">1. Авторизация и рукопожатие с сервером (MinesProtocol v7)</span></li>
+          <li class="phase-step done" id="dp-2"><span class="phase-ico" translate="no">✓</span> <span data-i18n="descent.dp_2">2. World Manifest и потоковая передача карты (Чанки 32x32)</span></li>
+          <li class="phase-step current" id="dp-3"><span class="phase-ico" translate="no">⚙</span> <span data-i18n="descent.dp_3">3. ClientAssetLoader: Загрузка текстур атласа и FMOD банков</span></li>
+          <li class="phase-step" id="dp-4"><span class="phase-ico" translate="no">○</span> <span data-i18n="descent.dp_4">4. SingleMeshTerrainRenderer: Инициализация меша и UV атласа</span></li>
+          <li class="phase-step" id="dp-5"><span class="phase-ico" translate="no">○</span> <span data-i18n="descent.dp_5">5. Синхронизация позиции шахтёра и спавн в недрах</span></li>
+        </ul>
+
+        <div class="fdn-row fdn-row--flow fdn-row--gap-12 fdn-row--top-8">
+          <button data-i18n="menu.cancel_descent" type="button" class="btn-outline-action" onclick="cancelDescentSequence()" data-sfx="click" data-fit="wrap">ОТМЕНИТЬ СПУСК</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Экран потери связи -->
+    <div class="reconnect-overlay-view" id="reconnectView">
+      <div class="descent-panel">
+        <span class="eyebrow-tag fdn-text--danger"><span class="eyebrow-dash"></span><span data-i18n="network.eyebrow_tag" class="eyebrow-text">СИГНАЛ ПРЕРВАН // АВАРИЙНАЯ ТЕЛЕМЕТРИЯ</span></span>
+        <h2 data-i18n="network.headline" data-fit="wrap" data-i18n-accent="fdn-text--danger" class="screen-headline">
+          Связь с экспедицией<br>
+          <span class="fdn-text--danger">потеряна.</span>
+        </h2>
+        <p data-i18n="network.descent_panel_3" class="fdn-font-body fdn-text--base fdn-text--secondary">
+          Игровой мир локально заморожен. Восстанавливаем защищённое сетевое соединение с кластером.
+        </p>
+
+        <div class="reconnect-timer-row">
+          <span data-i18n="network.descent_panel_4" class="reconnect-timer-label">ПОПЫТКА 04 / 10</span>
+          <strong class="reconnect-timer-value" id="reconnectTimer">00:04</strong>
+        </div>
+
+        <div class="progress-track">
+          <div class="progress-fill progress-fill--danger" id="reconnectFill"></div>
+        </div>
+
+        <div class="fdn-row fdn-row--flow fdn-row--gap-12 fdn-row--top-20">
+          <button data-i18n="network.btn_gold_action" type="button" class="btn-gold-action" onclick="switchViewState('menu')" data-sfx="confirm" data-fit="wrap">ВЕРНУТЬСЯ В ОРБИТУ</button>
+          <button data-i18n="gateway.auth.offline" type="button" class="btn-outline-action" onclick="startOfflineDummy()" data-sfx="click" data-fit="wrap">ОФЛАЙН РЕЖИМ (DUMMY)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1. Объединенный Шлюз Входа и Заставка (Splash + Auth Gateway) -->
+    <div class="auth-overlay-view active" id="authView">
+      <div class="auth-card">
+        <!-- Шапка окна с логотипом -->
+        <div class="auth-brand-header">
+          <svg aria-hidden="true" focusable="false" class="auth-brand-logo" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M24 4 L43 15 V33 L24 44 L5 33 V15 Z"/>
+            <path d="M14 18 L24 12 L34 18 L30 21 L24 18 L18 21 Z" fill="currentColor"/>
+            <path d="M18 25 L24 28 L30 25 V33 L24 37 L18 33 Z" fill="currentColor"/>
+          </svg>
+          <h1 class="auth-brand-title" translate="no">FODINAE</h1>
+          <span data-i18n="gateway.auth_brand_subtitle" class="auth-brand-subtitle">DEEP SUBSURFACE EXPEDITION // MINES PROTOCOL v7</span>
+
+          <!-- Компактный статус готовности игровых систем -->
+          <div class="auth-status-row">
+            <span data-i18n="gateway.auth_brand_header" class="fdn-text--cyan">[GPU] <strong translate="no" class="fdn-text--ok">OK</strong></span>
+            <span class="fdn-text--disabled">·</span>
+            <span data-i18n="gateway.auth_brand_header_2" class="fdn-text--cyan">[FMOD] <strong data-i18n="gateway.auth_brand_header_3" class="fdn-text--ok">SYNCED</strong></span>
+            <span class="fdn-text--disabled">·</span>
+            <span data-i18n="gateway.auth_brand_header_4" class="fdn-text--cyan">[WORLD] <strong data-i18n="gateway.auth_brand_header_5" class="fdn-text--ok">MOUNTED</strong></span>
+          </div>
+        </div>
+
+        <!-- Переключатель Вход / Регистрация -->
+        <div class="onboarding-step-indicator" role="tablist" aria-label="Режим авторизации">
+          <div data-i18n="gateway.auth.login_tab" class="onboarding-step-pill active" id="authTabLogin" onclick="switchAuthTab('login')" role="tab" tabindex="0" aria-selected="true" aria-controls="authLoginForm" data-sfx="click">ВХОД В АККАУНТ</div>
+          <div data-i18n="gateway.auth.register_tab" class="onboarding-step-pill" id="authTabRegister" onclick="switchAuthTab('register')" role="tab" tabindex="0" aria-selected="false" aria-controls="authRegisterForm" data-sfx="click">РЕГИСТРАЦИЯ</div>
+        </div>
+
+        <!-- Форма Входа -->
+        <form id="authLoginForm" class="fdn-stack fdn-stack--gap-16" onsubmit="event.preventDefault(); submitAuthForm()">
+          <!-- Позывной (Логин) -->
+          <div class="auth-field-wrap">
+            <label data-i18n="gateway.auth.login_field" class="auth-field-label" for="inputMinerName">ПОЗЫВНОЙ ШАХТЁРА (ЛОГИН):</label>
+            <div class="auth-input-group">
+              <span class="auth-input-icon"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-user"/></svg></span>
+              <input type="text" class="auth-input" id="inputMinerName" name="username" autocomplete="username" value="ШАХТЁР-774 [DVM]" placeholder="Введите позывной">
+            </div>
+          </div>
+
+          <!-- Пароль -->
+          <div class="auth-field-wrap">
+            <label data-i18n="gateway.auth.password_field" class="auth-field-label" for="inputPassword">ПАРОЛЬ ДОСТУПА:</label>
+            <div class="auth-input-group">
+              <span class="auth-input-icon"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-lock"/></svg></span>
+              <input type="password" class="auth-input" id="inputPassword" name="password" autocomplete="current-password" value="MiningPassword#2026" placeholder="Введите пароль">
+              <button type="button" class="auth-eye-btn" onclick="togglePasswordVisibility('inputPassword', this)" title="Показать пароль" aria-label="Показать пароль" aria-pressed="false" data-sfx="click"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-eye"/></svg></button>
+            </div>
+          </div>
+
+          <!-- Опции: Запомнить / Авто-вход -->
+          <div class="auth-options-row">
+            <label class="auth-checkbox-label">
+              <input type="checkbox" checked id="authRememberMe">
+              <span data-i18n="gateway.auth.remember">Запомнить данные</span>
+            </label>
+            <label class="auth-checkbox-label">
+              <input type="checkbox" checked id="authAutoLogin">
+              <span data-i18n="gateway.auth.auto_login">Авто-вход</span>
+            </label>
+          </div>
+        </form>
+
+        <!-- Форма Регистрации (Только учетные данные и EULA) -->
+        <form id="authRegisterForm" class="fdn-stack fdn-stack--gap-14 is-hidden" onsubmit="event.preventDefault(); submitAuthForm()">
+          <div class="auth-field-wrap">
+            <label data-i18n="gateway.auth.new_callsign_field" class="auth-field-label" for="inputRegMinerName">ПОЗЫВНОЙ НОВОГО ШАХТЁРА:</label>
+            <div class="auth-input-group">
+              <span class="auth-input-icon"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-user"/></svg></span>
+              <input type="text" class="auth-input" id="inputRegMinerName" name="new-username" autocomplete="username" value="ШАХТЁР-774 [DVM]" placeholder="Введите позывной">
+            </div>
+          </div>
+
+          <div class="auth-field-wrap">
+            <label data-i18n="gateway.auth.password_field" class="auth-field-label" for="inputRegPassword">ПАРОЛЬ ДОСТУПА:</label>
+            <div class="auth-input-group">
+              <span class="auth-input-icon"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-lock"/></svg></span>
+              <input type="password" class="auth-input" id="inputRegPassword" name="new-password" autocomplete="new-password" value="MiningPassword#2026" placeholder="Придумайте пароль">
+              <button type="button" class="auth-eye-btn" onclick="togglePasswordVisibility('inputRegPassword', this)" title="Показать пароль" aria-label="Показать пароль" aria-pressed="false" data-sfx="click"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-eye"/></svg></button>
+            </div>
+          </div>
+
+          <div class="auth-field-wrap">
+            <label data-i18n="gateway.auth.confirm_password_field" class="auth-field-label" for="inputRegConfirmPassword">ПОДТВЕРЖДЕНИЕ ПАРОЛЯ:</label>
+            <div class="auth-input-group">
+              <span class="auth-input-icon"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-lock"/></svg></span>
+              <input type="password" class="auth-input" id="inputRegConfirmPassword" name="confirm-password" autocomplete="new-password" value="MiningPassword#2026" placeholder="Повторите пароль">
+              <button type="button" class="auth-eye-btn" onclick="togglePasswordVisibility('inputRegConfirmPassword', this)" title="Показать пароль" aria-label="Показать пароль" aria-pressed="false" data-sfx="click"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-eye"/></svg></button>
+            </div>
+          </div>
+
+          <!-- Пользовательское соглашение и Кодекс шахтёра -->
+          <div class="auth-field-wrap">
+            <label data-i18n="gateway.auth.eula_title" class="auth-field-label">КОДЕКС ЭКСПЕДИЦИИ И EULA:</label>
+            <div data-i18n="gateway.auth_eula_box_2" class="auth-eula-box auth-eula-box--tall">
+              <strong data-i18n="gateway.auth_eula_box">1. РЕГЛАМЕНТ ШАХТЫ:</strong> Игрок обязуется соблюдать правила кластера Hades-Orbit.<br>
+              <strong data-i18n="gateway.auth_eula_box_3">2. АВТОРИТЕТ СЕРВЕРА:</strong> Координаты и добыча рассчитываются сервером авторитарно.<br>
+              <strong data-i18n="gateway.auth_eula_box_5">3. ПРОГРЕСС:</strong> Все данные синхронизируются по протоколу MinesProtocol v7.
+            </div>
+            <label class="auth-checkbox-label auth-checkbox-label--offset">
+              <input type="checkbox" checked id="authAcceptEula">
+              <span data-i18n="gateway.auth.eula_accept" class="fdn-text--xs fdn-text--light">Принимаю Пользовательское соглашение и EULA</span>
+            </label>
+          </div>
+        </form>
+
+        <!-- Главная кнопка входа -->
+        <button type="submit" form="authLoginForm" class="auth-btn-enter" id="btnSubmitAuth" data-fit="wrap" data-sfx="confirm">
+          <span data-i18n="gateway.auth.submit">ВОЙТИ В МИР FODINAE</span>
+          <span translate="no"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true" translate="no"><use href="#i-arrow-ne"/></svg></span>
+        </button>
+
+        <!-- Вспомогательные ссылки -->
+        <div class="auth-footer-links">
+          <span data-i18n="gateway.auth.offline" class="auth-footer-link" data-fit="wrap" onclick="startOfflineDummy()" role="button" tabindex="0" data-sfx="click">Офлайн режим (Dummy)</span>
+          <span class="fdn-text--disabled">|</span>
+          <span data-i18n="gateway.auth.recover" class="auth-footer-link" data-fit="wrap" onclick="showToast(t('gateway.toast.recover'), 'info')" role="button" tabindex="0" data-sfx="click">Забыли пароль?</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Онбординг (Калибровка оборудования: 3 шага) -->
+    <div class="onboarding-overlay-view" id="onboardingView">
+      <div class="onboarding-card">
+        <div class="onboarding-header">
+          <div>
+            <span class="eyebrow-tag"><span class="eyebrow-dash"></span><span data-i18n="gateway.onb.eyebrow" class="eyebrow-text">КАЛИБРОВКА ОБОРУДОВАНИЯ ШАХТЁРА</span></span>
+            <h2 data-i18n="onboarding.onboarding_title" class="onboarding-step-title" id="onboardingTitle">
+              Шаг 1: Доступность и визуальный комфорт
+            </h2>
+          </div>
+          <div class="onboarding-step-indicator">
+            <div data-i18n="gateway.onb.pill1" class="onboarding-step-pill active" id="obStepPill1">1. ДОСТУПНОСТЬ</div>
+            <div data-i18n="gateway.onb.pill2" class="onboarding-step-pill" id="obStepPill2">2. ГРАФИКА</div>
+            <div data-i18n="gateway.onb.pill3" class="onboarding-step-pill" id="obStepPill3">3. УПРАВЛЕНИЕ</div>
+          </div>
+        </div>
+
+        <div class="onboarding-body">
+          <!-- Шаг 1 -->
+          <div class="onboarding-step-content active" id="obStep1">
+            <div class="settings-block">
+              <span data-i18n="gateway.onb.step1_block_title" class="settings-block-title">ОПТИЧЕСКАЯ АДАПТАЦИЯ И ДОСТУПНОСТЬ</span>
+              <div class="settings-row">
+                <div>
+                  <div data-i18n="onboarding.settings_label" class="settings-label" id="onboardingUiScaleLabel">Масштаб интерфейса (UI Scaling)</div>
+                  <div data-i18n="gateway.onb.ui_scale_hint" class="settings-hint">Калибровка размера панелей UI Toolkit под монитор</div>
+                </div>
+                <select class="styled-select" onchange="applyUiScale(this.value)" aria-labelledby="onboardingUiScaleLabel" data-sfx="click">
+                  <option data-i18n="gateway.onb.ui_scale.100" value="1" selected>100% (Штатный)</option>
+                  <option data-i18n="gateway.onb.ui_scale.115" value="1.15">115% (Увеличенный)</option>
+                  <option data-i18n="gateway.onb.ui_scale.130" value="1.3">130% (Крупный)</option>
+                </select>
+              </div>
+
+              <div class="settings-row">
+                <div>
+                  <div data-i18n="gateway.onb.colorblind_label" class="settings-label" id="onboardingColorblindLabel">Цветовая адаптация (Colorblind)</div>
+                  <div data-i18n="gateway.onb.colorblind_hint" class="settings-hint">Коррекция оттенков лавы, минералов и контуров</div>
+                </div>
+                <select class="styled-select" onchange="applyColorblindTheme(this.value)" aria-labelledby="onboardingColorblindLabel" data-sfx="click">
+                  <option data-i18n="gateway.onb.colorblind.none" value="none" selected>Стандартная палитра</option>
+                  <option data-i18n="gateway.onb.colorblind.deuteranopia" value="deuteranopia">Дейтеранопия</option>
+                  <option data-i18n="gateway.onb.colorblind.protanopia" value="protanopia">Протанопия</option>
+                  <option data-i18n="gateway.onb.colorblind.tritanopia" value="tritanopia">Тританопия</option>
+                  <option data-i18n="gateway.onb.colorblind.high_contrast" value="high-contrast">Высокий контраст</option>
+                </select>
+              </div>
+
+              <div class="settings-row">
+                <div>
+                  <div data-i18n="gateway.onb.flicker_label" class="settings-label" id="onboardingMotionLabel">Снижение фоточувствительности</div>
+                  <div data-i18n="gateway.onb.flicker_hint" class="settings-hint">Подавление резких вспышек при контакте с лавой</div>
+                </div>
+                <select id="reduceMotionSelect" class="styled-select" onchange="toggleReduceMotion(this.value === 'yes')" aria-labelledby="onboardingMotionLabel" data-sfx="click">
+                  <option data-i18n="settings.lighting.off" value="no" selected>Выключено</option>
+                  <option data-i18n="gateway.onb.photosens.on" value="yes">Включено (Мягкое освещение)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Шаг 2 -->
+          <div class="onboarding-step-content" id="obStep2">
+            <div class="settings-block">
+              <span data-i18n="gateway.onb.step2_block_title" class="settings-block-title">РЕНДЕРИНГ И ТРАССИРОВКА ОСВЕЩЕНИЯ</span>
+              <div class="settings-row">
+                <div>
+                  <div data-i18n="onboarding.settings_label_2" class="settings-label" id="onboardingLightingLabel">GPU Radiance Cascades</div>
+                  <div data-i18n="onboarding.settings_hint" class="settings-hint">Качество каскадного расчета диффузного света в породе</div>
+                </div>
+                <select class="styled-select" aria-labelledby="onboardingLightingLabel">
+                  <option data-i18n="onboarding.styled_select">6 Каскадов (2 отскока) · Ультра</option>
+                  <option data-i18n="onboarding.styled_select_2" selected>4 Каскада (1 отскок) · Высокое</option>
+                  <option data-i18n="onboarding.styled_select_3">2 Каскада · Быстрое</option>
+                </select>
+              </div>
+
+              <div class="settings-row">
+                <div>
+                  <div data-i18n="onboarding.settings_label_3" class="settings-label" id="onboardingFpsLabel">Частота обновления (FPS Limit)</div>
+                  <div data-i18n="gateway.onb.fps_hint" class="settings-hint">Синхронизация частоты кадров</div>
+                </div>
+                <select class="styled-select" aria-labelledby="onboardingFpsLabel">
+                  <option data-i18n="onboarding.styled_select_4">144 FPS</option>
+                  <option data-i18n="onboarding.styled_select_5" selected>120 FPS</option>
+                  <option data-i18n="onboarding.styled_select_6">60 FPS</option>
+                  <option data-i18n="gateway.onb.fps.unlimited">Без ограничений</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Шаг 3 -->
+          <div class="onboarding-step-content" id="obStep3">
+            <div class="settings-block">
+              <span data-i18n="gateway.onb.step3_block_title" class="settings-block-title">ТАКТИЛЬНЫЙ КОНТРОЛЬ И FMOD AUDIO</span>
+              <div class="settings-row">
+                <div>
+                  <div data-i18n="gateway.onb.controls_scheme_label" class="settings-label" id="onboardingControlsLabel">Схема движения бурового дрона</div>
+                  <div data-i18n="gateway.onb.controls_scheme_hint" class="settings-hint">Клавиатура или указатель мыши</div>
+                </div>
+                <select class="styled-select" aria-labelledby="onboardingControlsLabel">
+                  <option data-i18n="gateway.onb.controls.keyboard" selected>WASD / Стрелки (Рекомендуется)</option>
+                  <option data-i18n="gateway.onb.controls.mouse">Указатель мыши</option>
+                </select>
+              </div>
+
+              <div class="settings-row">
+                <div>
+                  <div data-i18n="gateway.onb.master_volume_label" class="settings-label" id="onboardingVolumeLabel">Громкость звукового ядра FMOD</div>
+                  <div data-i18n="gateway.onb.master_volume_hint" class="settings-hint">Master Bus</div>
+                </div>
+                <div class="slider-container">
+                  <input type="range" class="slider-range" min="0" max="100" value="85" aria-labelledby="onboardingVolumeLabel" oninput="this.nextElementSibling.innerText = this.value + '%'">
+                  <span class="slider-number">85%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="onboarding-footer">
+          <button data-i18n="common.back" type="button" class="btn-outline-action is-hidden" id="btnObPrev" onclick="prevOnboardingStep()" data-sfx="click" data-fit="wrap">← НАЗАД</button>
+          <div class="fdn-row fdn-row--flow fdn-row--gap-8 fdn-row--push">
+            <button data-i18n="gateway.onb.skip" type="button" class="btn-outline-action" onclick="switchViewState('menu')" data-sfx="click" data-fit="wrap">ПРОПУСТИТЬ</button>
+            <button data-i18n="onboarding.btn_ob_next" type="button" class="btn-gold-action" id="btnObNext" onclick="nextOnboardingStep()" data-sfx="confirm" data-fit="wrap">ДАЛЕЕ (ГРАФИКА) →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Игровой экран и ГУИ (In-Game 2D Mine + HUD) -->
+    <div class="ingame-viewport" id="ingameView">
+      <div class="mine-scene-canvas" id="mineCanvas">
+        <div class="mine-strata-container" id="mineStrataGrid"></div>
+        <div class="mining-robot-entity">
+          <div class="robot-hull">
+            <div class="robot-eye"></div>
+            <div class="robot-drill-bit"></div>
+            <div class="robot-headlight"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="game-hud-layer">
+        <!-- Статус игрока -->
+        <div class="sci-fi-panel sci-fi-panel--rail">
+          <div class="hud-title-row">
+            <span data-i18n="hud.hud_miner_nick" class="hud-nickname" id="hudMinerNick">ШАХТЁР-774</span>
+            <span data-i18n="hud.sci_fi_badge_mono" class="sci-fi-badge-mono">УР. 4</span>
+            <button data-i18n="hud.hud_clan_btn" type="button" class="hud-clan-btn" onclick="openModal('clanModal')" data-sfx="click">КЛАН [VOID]</button>
+          </div>
+
+          <div class="hud-bar-group">
+            <div class="hud-bar-header">
+              <span data-i18n="hud.hud_bar_header">ПРОЧНОСТЬ (HP)</span>
+              <span id="hpText">840 / 1000</span>
+            </div>
+            <div class="sci-fi-bar-track sci-fi-bar-track--clickable" onclick="simulateDamageOrHeal()" role="button" tabindex="0" title="Клик для симуляции урона/лечения" data-sfx="click">
+              <div class="sci-fi-bar-fill-hp" id="hpFill"></div>
+            </div>
+          </div>
+
+          <div class="hud-bar-group">
+            <div class="hud-bar-header">
+              <span data-i18n="hud.hud_bar_header_2">РЕАКТОР</span>
+              <span data-i18n="hud.hud_bar_header_3">92 / 100 EN</span>
+            </div>
+            <div class="sci-fi-bar-track">
+              <div class="sci-fi-bar-fill-cyan"></div>
+            </div>
+          </div>
+
+          <div class="hud-currencies-row">
+            <div>⛃ <span id="hudMoney" class="hud-stat-strong">14 850</span> <span translate="no" class="fdn-text--tertiary">CR</span></div>
+            <div>★ <span id="hudCrystals" class="hud-stat-strong--gold">340</span> <span translate="no" class="fdn-text--tertiary">ОР</span></div>
+          </div>
+        </div>
+
+        <!-- Корзина руды -->
+        <div class="sci-fi-panel hud-basket-panel sci-fi-panel--rail">
+          <div class="hud-title-row">
+            <span data-i18n="hud.hud_title_row" class="fdn-font-data fdn-text--2xs fdn-text--bold fdn-text--secondary">КОРЗИНА РУДЫ</span>
+            <span class="sci-fi-badge-mono sci-fi-badge-mono--gold" id="basketCapBadge">12 / 25</span>
+          </div>
+
+          <div class="basket-grid-mini" id="basketMiniGrid">
+            <div data-i18n="hud.basket_slot_mini" class="basket-slot-mini filled" data-fit="atomic">T-4</div>
+            <div data-i18n="hud.basket_slot_mini_2" class="basket-slot-mini filled" data-fit="atomic">T-4</div>
+            <div data-i18n="hud.basket_slot_mini_3" class="basket-slot-mini filled" data-fit="atomic">G-2</div>
+            <div data-i18n="hud.basket_slot_mini_4" class="basket-slot-mini filled" data-fit="atomic">R-8</div>
+            <div data-i18n="hud.basket_slot_mini_5" class="basket-slot-mini filled" data-fit="atomic">R-8</div>
+            <div data-i18n="hud.basket_slot_mini_6" class="basket-slot-mini filled" data-fit="atomic">R-8</div>
+            <div data-i18n="hud.basket_slot_mini_7" class="basket-slot-mini filled" data-fit="atomic">Q-1</div>
+            <div data-i18n="hud.basket_slot_mini_8" class="basket-slot-mini filled" data-fit="atomic">Q-1</div>
+            <div class="basket-slot-mini" data-fit="atomic"></div>
+            <div class="basket-slot-mini" data-fit="atomic"></div>
+            <div class="basket-slot-mini" data-fit="atomic"></div>
+            <div class="basket-slot-mini" data-fit="atomic"></div>
+          </div>
+        </div>
+
+        <!-- Миссия -->
+        <div class="sci-fi-panel hud-mission-panel">
+          <div class="hud-title-row">
+            <span class="eyebrow-tag eyebrow-tag--flush"><span class="eyebrow-dash"></span><span data-i18n="hud.eyebrow_tag" class="eyebrow-text">КОНТРАКТ НА РАСКОПКУ · 03</span></span>
+            <span data-i18n="hud.hud_title_row_2" class="fdn-font-data fdn-text--2xs fdn-text--gold">+2 400 CR</span>
+          </div>
+          <div data-i18n="hud.sci_fi_panel" class="hud-contract-title">Пробить пласт Красноскала на глубине -1 800 м</div>
+          <div class="sci-fi-bar-track">
+            <div class="sci-fi-bar-fill-cyan sci-fi-bar-fill--gold" id="missionFill"></div>
+          </div>
+          <div class="fdn-row fdn-row--between fdn-font-data fdn-text--2xs fdn-text--secondary">
+            <span data-i18n="hud.sci_fi_panel_2">Прогресс:</span>
+            <strong data-i18n="hud.mission_metric" class="fdn-text--gold" id="missionMetric">142 / 200 блоков (71%)</strong>
+          </div>
+        </div>
+
+        <!-- Радар -->
+        <div class="sci-fi-panel hud-radar-panel">
+          <div class="hud-title-row">
+            <span data-i18n="hud.hud_title_row_3" class="fdn-font-data fdn-text--2xs fdn-text--bold fdn-text--secondary">РАДАР СЕКТОРА</span>
+            <span data-i18n="hud.hud_title_row_4" class="fdn-font-data fdn-text--2xs fdn-text--gold">-840 М</span>
+          </div>
+          <div class="radar-screen">
+            <div class="radar-sweep-line"></div>
+            <div class="radar-dot"></div>
+            <div class="radar-dot radar-dot--danger"></div>
+            <div class="radar-dot radar-dot--neutral"></div>
+          </div>
+        </div>
+
+        <!-- Действия -->
+        <div class="hud-actions-column">
+          <button type="button" class="hud-action-btn" id="btnAutoDig" onclick="toggleAutoDig()" data-sfx="click">
+            <span class="led-indicator" id="ledAutoDig"></span>
+            <span data-i18n="hud.hud_action_label" class="hud-action-label">АВТО-КОПКА</span>
+            <kbd translate="no" class="hud-action-key">E</kbd>
+          </button>
+
+          <button type="button" class="hud-action-btn" id="btnAggression" onclick="toggleAggression()" data-sfx="click">
+            <span class="led-indicator" id="ledAggression"></span>
+            <span data-i18n="hud.hud_action_label_2" class="hud-action-label">РЕЖИМ БОЯ</span>
+            <kbd translate="no" class="hud-action-key">L</kbd>
+          </button>
+
+          <div class="hud-action-sep"></div>
+
+          <button type="button" class="hud-action-btn" onclick="openModal('inventoryModal')" data-sfx="click">
+            <span class="led-indicator led-indicator--slot"></span>
+            <span data-i18n="hud.hud_action_label_3" class="hud-action-label">ГРУЗОВОЙ ОТСЕК</span>
+            <kbd data-i18n="hud.hud_action_key" class="hud-action-key">TAB</kbd>
+          </button>
+
+          <button type="button" class="hud-action-btn" onclick="openModal('programmatorModal')" data-sfx="click">
+            <span class="led-indicator led-indicator--slot"></span>
+            <span data-i18n="hud.programmator" class="hud-action-label">ПРОГРАММАТОР</span>
+            <kbd translate="no" class="hud-action-key">P</kbd>
+          </button>
+
+          <button type="button" class="hud-action-btn" onclick="openModal('chatModal')" data-sfx="click">
+            <span class="led-indicator led-indicator--slot"></span>
+            <span data-i18n="hud.chat" class="hud-action-label">ЧАТ</span>
+            <kbd data-i18n="hud.hud_action_key_2" class="hud-action-key">ENTER</kbd>
+          </button>
+
+          <button type="button" class="hud-action-btn" onclick="openModal('traderModal')" data-sfx="click">
+            <span class="led-indicator led-indicator--slot"></span>
+            <span data-i18n="hud.hud_action_label_4" class="hud-action-label">ТОРГОВЕЦ</span>
+            <kbd translate="no" class="hud-action-key">K</kbd>
+          </button>
+
+          <div class="hud-action-sep"></div>
+
+          <button type="button" class="hud-action-btn hud-action-btn--gold" onclick="claimBonus()" data-sfx="confirm">
+            <span class="led-indicator led-indicator--slot"></span>
+            <span data-i18n="hud.hud_action_label_5" class="hud-action-label">БОНУС ШАХТЫ</span>
+          </button>
+        </div>
+
+        <!-- Хотбар -->
+        <div class="hud-hotbar-container" id="hotbarSlotsWrap">
+          <div class="hotbar-slot active" onclick="selectHotbarSlot(0)" role="button" tabindex="0" data-sfx="click">
+            <span class="hotbar-num">1</span>
+            <span class="hotbar-icon"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-pick"/></svg></span>
+            <span translate="no" class="hotbar-count">T2</span>
+          </div>
+          <div class="hotbar-slot" onclick="selectHotbarSlot(1)" role="button" tabindex="0" data-sfx="click">
+            <span class="hotbar-num">2</span>
+            <span class="hotbar-icon"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-bolt"/></svg></span>
+            <span translate="no" class="hotbar-count">x18</span>
+          </div>
+          <div class="hotbar-slot" onclick="selectHotbarSlot(2)" role="button" tabindex="0" data-sfx="click">
+            <span class="hotbar-num">3</span>
+            <span class="hotbar-icon"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-flag"/></svg></span>
+            <span translate="no" class="hotbar-count">x6</span>
+          </div>
+          <div class="hotbar-slot" onclick="selectHotbarSlot(3)" role="button" tabindex="0" data-sfx="click">
+            <span class="hotbar-num">4</span>
+            <span class="hotbar-icon"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-cell"/></svg></span>
+            <span translate="no" class="hotbar-count">x4</span>
+          </div>
+          <div class="hotbar-slot" onclick="selectHotbarSlot(4)" role="button" tabindex="0" data-sfx="click">
+            <span class="hotbar-num">5</span>
+            <span class="hotbar-icon"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-gear"/></svg></span>
+            <span translate="no" class="hotbar-count">x12</span>
+          </div>
+          <div class="hotbar-slot" onclick="selectHotbarSlot(5)" role="button" tabindex="0" data-sfx="click">
+            <span class="hotbar-num">6</span>
+            <span class="hotbar-icon"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-scan"/></svg></span>
+            <span translate="no" class="hotbar-count">x1</span>
+          </div>
+          <div class="hotbar-slot" onclick="selectHotbarSlot(6)" role="button" tabindex="0" data-sfx="click">
+            <span class="hotbar-num">7</span>
+            <span class="hotbar-icon"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-core"/></svg></span>
+            <span translate="no" class="hotbar-count">x3</span>
+          </div>
+          <div class="hotbar-slot" onclick="selectHotbarSlot(7)" role="button" tabindex="0" data-sfx="click">
+            <span class="hotbar-num">8</span>
+            <span class="hotbar-icon"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-shield"/></svg></span>
+            <span translate="no" class="hotbar-count">x2</span>
+          </div>
+          <div class="hotbar-slot" onclick="selectHotbarSlot(8)" role="button" tabindex="0" data-sfx="click">
+            <span class="hotbar-num">9</span>
+            <span class="hotbar-icon"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-target"/></svg></span>
+            <span translate="no" class="hotbar-count">x1</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. Меню паузы (Pause Overlay) -->
+    <div class="pause-overlay-view" id="pauseView">
+      <div class="pause-menu-card">
+        <span class="eyebrow-tag eyebrow-tag--center"><span class="eyebrow-dash"></span><span data-i18n="pause.eyebrow_tag" class="eyebrow-text">ЭКСПЕДИЦИЯ НА ПАУЗЕ</span></span>
+        <h2 data-i18n="pause.pause_menu_card" class="pause-title">МЕНЮ ПАУЗЫ</h2>
+        <div data-i18n="pause.pause_menu_card_2" class="fdn-font-data fdn-text--xs fdn-text--secondary">
+          ПОЗИЦИЯ: СЕКТОР 09 // ГОРИЗОНТ -840 М
+        </div>
+
+        <div class="pause-btn-list">
+          <button data-i18n="pause.btn_gold_action" type="button" class="btn-gold-action" onclick="resumeGameFromPause()" data-sfx="confirm" data-fit="wrap">ПРОДОЛЖИТЬ ИГРУ ▶</button>
+          <button data-i18n="menu.settings" type="button" class="btn-outline-action" onclick="openModal('settingsModal')" data-sfx="click" data-fit="wrap">НАСТРОЙКИ</button>
+          <button data-i18n="pause.btn_outline_action" type="button" class="btn-outline-action" onclick="switchViewState('onboarding')" data-sfx="click" data-fit="wrap">КАЛИБРОВКА</button>
+          <button data-i18n="pause.btn_outline_action_2" type="button" class="btn-outline-action" onclick="switchViewState('menu')" data-sfx="click" data-fit="wrap">ОРБИТАЛЬНЫЙ ХАБ</button>
+          <button data-i18n="pause.btn_outline_action_3" type="button" class="btn-outline-action btn-outline-action--danger" onclick="confirmQuit()" data-sfx="click" data-fit="wrap">ВЫХОД НА РАБОЧИЙ СТОЛ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Нижний футер (48px) -->
+    <footer class="fa-footer">
+      <div class="route-node-list">
+        <div class="route-item active" id="routeOrbit"><span class="route-diamond"></span><span data-i18n="mainmenu.route_orbit" class="route-text">ОРБИТА</span></div>
+        <div class="route-sep"></div>
+        <div class="route-item" id="routeDescent"><span class="route-diamond"></span><span data-i18n="mainmenu.route_descent" class="route-text">СПУСК</span></div>
+        <div class="route-sep"></div>
+        <div class="route-item" id="routeSurface"><span class="route-diamond"></span><span data-i18n="mainmenu.route_surface" class="route-text">ПОВЕРХНОСТЬ</span></div>
+      </div>
+
+      <!-- Хроника экспедиции (Кликабельна) -->
+      <div class="news-ticker-wrap" onclick="openModal('chronicleModal')" role="button" tabindex="0" data-sfx="click">
+        <span class="ticker-tag"><span data-i18n="menu.chronicle">ХРОНИКА</span><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true" translate="no"><use href="#i-arrow-ne"/></svg></span>
+        <span data-i18n="common.ticker_text" class="ticker-content" id="tickerText" data-fit="clip" title="Лента новостей кластера">В секторе Hades-Alpha активирован глубинный бур -2 480 м // Кластер стабилен</span>
+      </div>
+
+      <div class="footer-link-group">
+        <span data-i18n="common.footer_version_status" class="footer-action-link alert" id="footerVersionStatus" onclick="openMandatoryUpdateModal()" role="button" tabindex="0" data-sfx="click">ВЕРСИЯ 0.8.14 (ТРЕБУЕТСЯ 0.9.0)</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: ХРОНИКА И ТАЙМЛАЙН СОБЫТИЙ (БУСИНКИ / ОСЬ ВРЕМЕНИ) -->
+  <div class="modal-overlay" id="chronicleModal">
+    <div class="modal-card modal-card--lg">
+      <div class="modal-card-header">
+        <div data-i18n="mainmenu.modal_card_title" class="modal-card-title">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></g></svg>
+          ХРОНИКА ЭКСПЕДИЦИИ // ТАЙМЛАЙН ИВЕНТОВ И СОБЫТИЙ
+        </div>
+        <button type="button" class="modal-card-close" translate="no" onclick="closeModal('chronicleModal')" data-sfx="click">×</button>
+      </div>
+
+      <div class="modal-card-body modal-card-body--roomy">
+        <div class="chronicle-meta-row">
+          <span data-i18n="mainmenu.modal_card_body">Вверх: предстоящие ивенты и прорывы. Вниз: хроника прошлых раскопок.</span>
+          <span data-i18n="mainmenu.modal_card_body_2" class="chronicle-meta-value">● АКТИВНЫЙ СЕЗОН: ГЛУБИНЫ-1</span>
+        </div>
+
+        <div class="chronicle-container">
+          <!-- Вертикальная полоса с градиентом -->
+          <div class="chronicle-spine"></div>
+
+          <!-- ПРЕДСТОЯЩИЕ ИВЕНТЫ (ВВЕРХ / БУДУЩЕЕ) -->
+          <div data-i18n="mainmenu.chronicle_section_header" class="chronicle-section-header future">▲ ПРЕДСТОЯЩИЕ ИВЕНТЫ И РАСКОПКИ</div>
+
+          <div class="chronicle-item future">
+            <div class="chronicle-bead"><span class="chronicle-bead-core"></span></div>
+            <div class="chronicle-top-row">
+              <span data-i18n="mainmenu.chronicle_tag" class="chronicle-tag event">ТУРНИР КЛАНОВ</span>
+              <span data-i18n="mainmenu.chronicle_time" class="chronicle-time">ЧЕРЕЗ 4 ДНЯ · 22 АВГ</span>
+            </div>
+            <div data-i18n="mainmenu.chronicle_title" class="chronicle-title">Гонка буровых установок: Прорыв Красноскала</div>
+            <div data-i18n="mainmenu.chronicle_desc" class="chronicle-desc">
+              Клановое соревнование по синхронному бурению слоя Красноскала на глубине -3 000 м. Награда: чертеж дрона-транспортера Hexapod Tier-3.
+            </div>
+          </div>
+
+          <div class="chronicle-item future">
+            <div class="chronicle-bead"><span class="chronicle-bead-core"></span></div>
+            <div class="chronicle-top-row">
+              <span data-i18n="mainmenu.chronicle_tag_2" class="chronicle-tag mining">ГЕОЛОГИЧЕСКИЙ ВЫБРОС</span>
+              <span data-i18n="mainmenu.chronicle_time_2" class="chronicle-time">ЧЕРЕЗ 8 ДНЕЙ · 26 АВГ</span>
+            </div>
+            <div data-i18n="mainmenu.chronicle_title_2" class="chronicle-title">Лавовый разлом в секторе Tartarus-02</div>
+            <div data-i18n="mainmenu.chronicle_desc_2" class="chronicle-desc">
+              Повышенная концентрация редкого обсидиана и титана. Время экспедиции ограничено температурным датчиком.
+            </div>
+          </div>
+
+          <!-- ТЕКУЩИЕ СОБЫТИЯ (ЦЕНТР / СЕЙЧАС) -->
+          <div data-i18n="mainmenu.chronicle_section_header_2" class="chronicle-section-header current">◆ ТЕКУЩЕЕ СОСТОЯНИЕ МИРА</div>
+
+          <div class="chronicle-item current">
+            <div class="chronicle-bead"><span class="chronicle-bead-core"></span></div>
+            <div class="chronicle-top-row">
+              <span data-i18n="mainmenu.chronicle_update_tag" class="chronicle-tag patch">ОБНОВЛЕНИЕ v0.9.0</span>
+              <span data-i18n="mainmenu.chronicle_time_3" class="chronicle-time chronicle-time--gold">СЕЙЧАС В СЕТИ</span>
+            </div>
+            <div data-i18n="mainmenu.chronicle_title_3" class="chronicle-title fdn-text--gold">Развертывание протокола MinesProtocol v7</div>
+            <div data-i18n="mainmenu.chronicle_desc_3" class="chronicle-desc chronicle-desc--primary">
+              Внедрен полноразрешенный Contact/Cavity AO, новый Программатор 16x12 для роботов и закартовые поверхности Transit/Perspective.
+            </div>
+          </div>
+
+          <!-- ПРОШЛЫЕ СОБЫТИЯ (ВНИЗ / ПРОШЛОЕ) -->
+          <div data-i18n="mainmenu.chronicle_section_header_3" class="chronicle-section-header past">▼ АРХИВ ПРОШЛЫХ ХРОНИК</div>
+
+          <div class="chronicle-item past">
+            <div class="chronicle-bead"><span class="chronicle-bead-core"></span></div>
+            <div class="chronicle-top-row">
+              <span data-i18n="mainmenu.chronicle_tag_3" class="chronicle-tag archive">ИСТОРИЯ РАСКОПОК</span>
+              <span data-i18n="mainmenu.chronicle_time_4" class="chronicle-time">14 АВГ 2026</span>
+            </div>
+            <div data-i18n="mainmenu.chronicle_title_4" class="chronicle-title">Открытие рудника Hades-Alpha</div>
+            <div data-i18n="mainmenu.chronicle_desc_4" class="chronicle-desc">
+              Первая высадка шахтёров гильдии Deep Void Miners. Заложено основание центрального экспедиционного хаба.
+            </div>
+          </div>
+
+          <div class="chronicle-item past">
+            <div class="chronicle-bead"><span class="chronicle-bead-core"></span></div>
+            <div class="chronicle-top-row">
+              <span data-i18n="mainmenu.chronicle_tag_4" class="chronicle-tag archive">ПАТЧ v0.8.14</span>
+              <span data-i18n="mainmenu.chronicle_time_5" class="chronicle-time">08 АВГ 2026</span>
+            </div>
+            <div data-i18n="mainmenu.chronicle_title_5" class="chronicle-title">Интеграция FMOD Studio C++ Engine</div>
+            <div data-i18n="mainmenu.chronicle_desc_5" class="chronicle-desc">
+              Переход на нативный 3D-звук бурения, шины микширования и динамические снапшоты глубины.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-card-footer">
+        <button data-i18n="mainmenu.btn_gold_action" type="button" class="btn-gold-action" onclick="closeModal('chronicleModal')" data-sfx="confirm" data-fit="wrap">ЗАКРЫТЬ ХРОНИКУ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: НАСТРОЙКИ -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal-card">
+      <div class="modal-card-header">
+        <div data-i18n="settings.modal_card_title" class="modal-card-title">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></g></svg>
+          НАСТРОЙКИ ЭКСПЕДИЦИИ (СИСТЕМНАЯ КОНФИГУРАЦИЯ)
+        </div>
+        <button type="button" class="modal-card-close" translate="no" onclick="closeModal('settingsModal')" data-sfx="click">×</button>
+      </div>
+
+      <div class="fdn-settings-layout">
+        <nav class="fdn-settings-nav" role="tablist" aria-label="Разделы настроек">
+          <button data-i18n="menu.settings.graphics" type="button" class="fdn-settings-tab active" onclick="switchSettingsTab('tab-graphics', this)" role="tab" aria-selected="true" aria-controls="tab-graphics" data-sfx="click" data-fit="wrap">
+            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></g></svg>
+            ГРАФИКА
+          </button>
+          <button data-i18n="mainmenu.settings_tab_audio" type="button" class="fdn-settings-tab" onclick="switchSettingsTab('tab-audio', this)" role="tab" aria-selected="false" aria-controls="tab-audio" data-sfx="click" data-fit="wrap">
+            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></g></svg>
+            ЗВУК (FMOD)
+          </button>
+          <button data-i18n="programmator.cat.CAT_CONTROL_FLOW" type="button" class="fdn-settings-tab" onclick="switchSettingsTab('tab-controls', this)" role="tab" aria-selected="false" aria-controls="tab-controls" data-sfx="click" data-fit="wrap">
+            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h4m-2-2v4"/><circle cx="17" cy="10" r="1"/><circle cx="15" cy="14" r="1"/></g></svg>
+            УПРАВЛЕНИЕ
+          </button>
+          <button data-i18n="settings.modal_card" type="button" class="fdn-settings-tab" onclick="switchSettingsTab('tab-network', this)" role="tab" aria-selected="false" aria-controls="tab-network" data-sfx="click" data-fit="wrap">
+            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></g></svg>
+            СЕТЬ И CDN
+          </button>
+        </nav>
+
+        <div class="fdn-settings-pane">
+          <!-- Графика -->
+          <div class="tab-panel active" id="tab-graphics" role="tabpanel">
+            <div class="settings-block">
+              <span data-i18n="settings.settings_block_title" class="settings-block-title">ЭКРАН И РЕНДЕРИНГ</span>
+              <div class="settings-row">
+                <div>
+                  <div data-i18n="settings.settings_label" class="settings-label" id="settingsResolutionLabel">Разрешение экрана</div>
+                  <div data-i18n="settings.settings_hint" class="settings-hint">Целевой размер кадра для UI Toolkit и 2D камеры</div>
+                </div>
+                <div class="settings-control">
+                  <select class="styled-select" aria-labelledby="settingsResolutionLabel">
+                    <option data-i18n="settings.styled_select">2560 x 1440 (16:9 QHD) · Родное</option>
+                    <option data-i18n="settings.styled_select_2">1920 x 1080 (16:9 FHD)</option>
+                    <option data-i18n="settings.styled_select_3">3840 x 2160 (16:9 4K UHD)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div>
+                  <div data-i18n="settings.settings_label_2" class="settings-label" id="settingsDisplayModeLabel">Режим отображения</div>
+                  <div data-i18n="settings.settings_hint_2" class="settings-hint">Полноэкранный без рамок или оконный режим</div>
+                </div>
+                <div class="settings-control">
+                  <select class="styled-select" aria-labelledby="settingsDisplayModeLabel">
+                    <option data-i18n="settings.styled_select_4">Полноэкранный без рамок (Borderless)</option>
+                    <option data-i18n="settings.styled_select_5">Эксклюзивный полный экран</option>
+                    <option data-i18n="settings.styled_select_6">В окне</option>
+                  </select>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div>
+                  <div data-i18n="gateway.onb.fps_label" class="settings-label" id="settingsFpsLabel">Ограничение частоты кадров</div>
+                  <div data-i18n="settings.settings_hint_3" class="settings-hint">Синхронизация FPS для снижения нагрузки</div>
+                </div>
+                <div class="settings-control">
+                  <select class="styled-select" aria-labelledby="settingsFpsLabel">
+                    <option data-i18n="settings.styled_select_7">144 FPS (G-Sync / FreeSync)</option>
+                    <option data-i18n="settings.styled_select_8">120 FPS</option>
+                    <option data-i18n="settings.styled_select_9">60 FPS</option>
+                    <option data-i18n="gateway.onb.fps.unlimited">Без ограничений</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-block">
+              <span data-i18n="settings.settings_block_title_2" class="settings-block-title">ШЕЙДЕРЫ ОСВЕЩЕНИЯ И ПОСТ-ОБРАБОТКА</span>
+              <div class="settings-row">
+                <div>
+                  <div data-i18n="settings.settings_label_3" class="settings-label" id="settingsLightingLabel">GPU Radiance Cascades</div>
+                  <div data-i18n="settings.settings_hint_4" class="settings-hint">Качество расчета рассеянного света и лучей в породе</div>
+                </div>
+                <div class="settings-control">
+                  <select class="styled-select" aria-labelledby="settingsLightingLabel">
+                    <option data-i18n="settings.styled_select_10">Ультра (6 каскадов · 2 отскока света)</option>
+                    <option data-i18n="settings.styled_select_11">Высокое (5 каскадов · 1 отскок)</option>
+                    <option data-i18n="settings.styled_select_12">Среднее (4 каскада)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div>
+                  <div data-i18n="settings.settings_label_4" class="settings-label" id="settingsAoLabel">Contact / Cavity Ambient Occlusion</div>
+                  <div data-i18n="settings.settings_hint_5" class="settings-hint">Полноразрешенное затенение углов породы без швов (RHalf)</div>
+                </div>
+                <div class="settings-control">
+                  <label class="switch-control">
+                    <input type="checkbox" checked aria-labelledby="settingsAoLabel">
+                    <span class="switch-knob"></span>
+                  </label>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div>
+                  <div data-i18n="settings.settings_label_5" class="settings-label" id="settingsBloomLabel">URP HDR Bloom и свечение руд</div>
+                  <div data-i18n="settings.settings_hint_6" class="settings-hint">Свечение лавы и минералов через post-process</div>
+                </div>
+                <div class="settings-control">
+                  <label class="switch-control">
+                    <input type="checkbox" checked aria-labelledby="settingsBloomLabel">
+                    <span class="switch-knob"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Звук -->
+          <div class="tab-panel" id="tab-audio" role="tabpanel">
+            <div class="settings-block">
+              <span data-i18n="settings.settings_block_title_3" class="settings-block-title">FMOD STUDIO ШИНЫ МИКШИРОВАНИЯ</span>
+              <div class="settings-row">
+                <div data-i18n="settings.settings_label_6" class="settings-label" id="settingsMasterVolumeLabel">Общая громкость (Master Bus)</div>
+                <div class="settings-control">
+                  <div class="slider-container">
+                    <input type="range" class="slider-range" min="0" max="100" value="85" aria-labelledby="settingsMasterVolumeLabel" oninput="this.nextElementSibling.innerText = this.value + '%'">
+                    <span class="slider-number">85%</span>
+                  </div>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div data-i18n="settings.settings_label_7" class="settings-label" id="settingsSfxVolumeLabel">Звуковые эффекты бурения и лазера (SFX)</div>
+                <div class="settings-control">
+                  <div class="slider-container">
+                    <input type="range" class="slider-range" min="0" max="100" value="90" aria-labelledby="settingsSfxVolumeLabel" oninput="this.nextElementSibling.innerText = this.value + '%'">
+                    <span class="slider-number">90%</span>
+                  </div>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div data-i18n="settings.settings_label_8" class="settings-label" id="settingsMusicVolumeLabel">Музыка подземелья (Music Bus)</div>
+                <div class="settings-control">
+                  <div class="slider-container">
+                    <input type="range" class="slider-range" min="0" max="100" value="65" aria-labelledby="settingsMusicVolumeLabel" oninput="this.nextElementSibling.innerText = this.value + '%'">
+                    <span class="slider-number">65%</span>
+                  </div>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div data-i18n="settings.settings_label_9" class="settings-label" id="settingsAmbienceVolumeLabel">Эмбиент глубин и эхо (Ambience)</div>
+                <div class="settings-control">
+                  <div class="slider-container">
+                    <input type="range" class="slider-range" min="0" max="100" value="80" aria-labelledby="settingsAmbienceVolumeLabel" oninput="this.nextElementSibling.innerText = this.value + '%'">
+                    <span class="slider-number">80%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Управление -->
+          <div class="tab-panel" id="tab-controls" role="tabpanel">
+            <div class="settings-block">
+              <span data-i18n="settings.settings_block_title_4" class="settings-block-title">ПРИВЯЗКА КЛАВИШ УПРАВЛЕНИЯ</span>
+              <div class="keybindings-grid">
+                <div class="keybinding-item"><span data-i18n="settings.keybinding_label" class="keybinding-label">Движение Вверх</span><span data-i18n="settings.keybinding_key" class="keybinding-key">W / Вверх</span></div>
+                <div class="keybinding-item"><span data-i18n="settings.keybinding_label_2" class="keybinding-label">Движение Вниз</span><span data-i18n="settings.keybinding_key_2" class="keybinding-key">S / Вниз</span></div>
+                <div class="keybinding-item"><span data-i18n="settings.keybinding_label_3" class="keybinding-label">Движение Влево</span><span data-i18n="settings.keybinding_key_3" class="keybinding-key">A / Влево</span></div>
+                <div class="keybinding-item"><span data-i18n="settings.keybinding_label_4" class="keybinding-label">Движение Вправо</span><span data-i18n="settings.keybinding_key_4" class="keybinding-key">D / Вправо</span></div>
+                <div class="keybinding-item"><span data-i18n="settings.keybinding_label_5" class="keybinding-label">Копка породы буром</span><span data-i18n="settings.keybinding_key_5" class="keybinding-key">ПРОБЕЛ</span></div>
+                <div class="keybinding-item"><span data-i18n="settings.keybinding_label_6" class="keybinding-label">Автоматическая копка</span><span translate="no" class="keybinding-key">E</span></div>
+                <div class="keybinding-item"><span data-i18n="settings.keybinding_label_7" class="keybinding-label">Режим агрессии / Лазер</span><span translate="no" class="keybinding-key">L</span></div>
+                <div class="keybinding-item"><span data-i18n="settings.keybinding_label_8" class="keybinding-label">Ускорение / Бег</span><span data-i18n="settings.keybinding_key_6" class="keybinding-key">ЛЕВЫЙ SHIFT</span></div>
+                <div class="keybinding-item"><span data-i18n="settings.keybinding_label_9" class="keybinding-label">Программатор роботов</span><span data-i18n="settings.keybinding_key_7" class="keybinding-key">TAB / G</span></div>
+                <div class="keybinding-item"><span data-i18n="settings.keybinding_label_10" class="keybinding-label">Инвентарь шахтёра</span><span translate="no" class="keybinding-key">I</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Сеть -->
+          <div class="tab-panel" id="tab-network" role="tabpanel">
+            <div class="settings-block">
+              <span data-i18n="settings.settings_block_title_5" class="settings-block-title">СЕТЕВЫЕ ПРОТОКОЛЫ И КЭШИРОВАНИЕ</span>
+              <div class="settings-row">
+                <div>
+                  <div data-i18n="settings.settings_label_10" class="settings-label" id="settingsCdnLabel">CDN Зеркало для тяжелых ассетов</div>
+                  <div data-i18n="settings.settings_hint_7" class="settings-hint">Источник для текстур атласа и FMOD банков</div>
+                </div>
+                <div class="settings-control">
+                  <select class="styled-select" aria-labelledby="settingsCdnLabel">
+                    <option data-i18n="settings.styled_select_13">Европейский CDN (Основное зеркало)</option>
+                    <option data-i18n="settings.styled_select_14">Прямой поток с игрового сервера</option>
+                    <option data-i18n="settings.styled_select_15">Резервный Edge CDN</option>
+                  </select>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div>
+                  <div data-i18n="settings.settings_label_11" class="settings-label" id="settingsReconnectLabel">Автоматический реконнект</div>
+                  <div data-i18n="settings.settings_hint_8" class="settings-hint">Повторное подключение при потере пакетов</div>
+                </div>
+                <div class="settings-control">
+                  <label class="switch-control">
+                    <input type="checkbox" checked aria-labelledby="settingsReconnectLabel">
+                    <span class="switch-knob"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-card-footer">
+        <button data-i18n="common.cancel" type="button" class="btn-outline-action" onclick="closeModal('settingsModal')" data-sfx="click" data-fit="wrap">ОТМЕНА</button>
+        <button data-i18n="settings.btn_gold_action" type="button" class="btn-gold-action" onclick="closeModal('settingsModal')" data-sfx="confirm" data-fit="wrap">СОХРАНИТЬ НАСТРОЙКИ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: Список серверов -->
+  <div class="modal-overlay" id="serverBrowserModal">
+    <div class="modal-card modal-card--lg">
+      <div class="modal-card-header">
+        <div data-i18n="server.modal_card_title" class="modal-card-title">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></g></svg>
+          ВЫБОР ЭКСПЕДИЦИОННОГО СЕРВЕРА
+        </div>
+        <button type="button" class="modal-card-close" translate="no" onclick="closeModal('serverBrowserModal')" data-sfx="click">×</button>
+      </div>
+
+      <div class="modal-card-body">
+        <div class="server-browser-layout">
+          <div class="servers-table-scroll">
+            <table class="servers-table">
+              <thead>
+                <tr>
+                  <th data-i18n="menu.server_select">СЕРВЕР</th>
+                  <th data-i18n="server.servers_table">РЕГИОН</th>
+                  <th data-i18n="server.servers_table_2">ОНЛАЙН</th>
+                  <th data-i18n="server.servers_table_3">ПИНГ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="selected" onclick="selectServerDetail(this, 'Hades-Alpha', 'EU North', '142 / 200', '32 ms', '-2 480 м', '#849201', 'Высокая (Лавовые карманы, Рудные жилы)')" role="row" tabindex="0" aria-selected="true" data-sfx="click">
+                  <td>
+                    <div class="server-name-cell">
+                      <strong data-i18n="server.server_name_cell">HADES-ALPHA</strong>
+                      <span data-i18n="server.server_name_cell_2">Основной раскоп · PvPvE</span>
+                    </div>
+                  </td>
+                  <td><span data-i18n="server.selected" class="fdn-font-data fdn-text--xs fdn-text--cyan">EU NORTH</span></td>
+                  <td><span class="fdn-font-data fdn-text--bold">142/200</span></td>
+                  <td><span data-i18n="server.ping_indicator" class="ping-indicator good">● 32ms</span></td>
+                </tr>
+
+                <tr onclick="selectServerDetail(this, 'Tartarus-02', 'EU Central', '88 / 150', '44 ms', '-1 920 м', '#104928', 'Экстремальная (Полный лут, Лавопад)')" role="row" tabindex="0" aria-selected="false" data-sfx="click">
+                  <td>
+                    <div class="server-name-cell">
+                      <strong data-i18n="server.server_name_cell_3">TARTARUS-02</strong>
+                      <span data-i18n="server.server_name_cell_4">Хардкорная экспедиция</span>
+                    </div>
+                  </td>
+                  <td><span data-i18n="server.servers_table_4" class="fdn-font-data fdn-text--xs fdn-text--cyan">EU CENTRAL</span></td>
+                  <td><span class="fdn-font-data fdn-text--bold">88/150</span></td>
+                  <td><span data-i18n="server.ping_indicator_2" class="ping-indicator good">● 44ms</span></td>
+                </tr>
+
+                <tr onclick="selectServerDetail(this, 'Cyber-Prospectors', 'US East', '45 / 100', '118 ms', '-950 м', '#559102', 'Средняя (Экономика дронов)')" role="row" tabindex="0" aria-selected="false" data-sfx="click">
+                  <td>
+                    <div class="server-name-cell">
+                      <strong data-i18n="server.server_name_cell_5">CYBER-PROSPECTORS</strong>
+                      <span data-i18n="server.server_name_cell_6">Гильдия дронов</span>
+                    </div>
+                  </td>
+                  <td><span data-i18n="server.servers_table_5" class="fdn-font-data fdn-text--xs fdn-text--cyan">US EAST</span></td>
+                  <td><span class="fdn-font-data fdn-text--bold">45/100</span></td>
+                  <td><span data-i18n="server.ping_indicator_3" class="ping-indicator med">● 118ms</span></td>
+                </tr>
+
+                <tr onclick="selectServerDetail(this, 'Dummy Offline', 'Localhost', '1 / 1', '0 ms', '-100 м', '#000000', 'Тестовая (Офлайн песочница)')" role="row" tabindex="0" aria-selected="false" data-sfx="click">
+                  <td>
+                    <div class="server-name-cell">
+                      <strong data-i18n="server.server_name_cell_7">DUMMY OFFLINE</strong>
+                      <span data-i18n="server.server_name_cell_8">Локальная песочница</span>
+                    </div>
+                  </td>
+                  <td><span data-i18n="server.servers_table_6" class="fdn-font-data fdn-text--xs fdn-text--secondary">LOCAL</span></td>
+                  <td><span class="fdn-font-data fdn-text--bold">1/1</span></td>
+                  <td><span data-i18n="server.ping_indicator_4" class="ping-indicator good">● 0ms</span></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="srv-search-row">
+              <span data-i18n="server.server_browser_layout" class="fdn-font-data fdn-text--xs fdn-text--secondary" id="serverAddressLabel">IP:</span>
+              <input type="text" value="127.0.0.1:7777" class="srv-search-input" aria-labelledby="serverAddressLabel">
+              <button data-i18n="mainmenu.server_direct_connect" type="button" class="btn-outline-action btn-outline-action--sm" onclick="closeModal('serverBrowserModal'); handleDeployClick();" data-sfx="click" data-fit="wrap">ПОДКЛЮЧИТЬСЯ</button>
+            </div>
+          </div>
+
+          <div class="server-detail-card">
+            <h3 class="srv-detail-title" data-i18n="server.srv_detail_name" id="srvDetailName">HADES-ALPHA</h3>
+            <p data-i18n="server.srv_detail_desc" class="srv-detail-text" id="srvDetailDesc">Главный кластер раскопок. Доступны все ярусы пород до слоя Красноскала и лавовых бассейнов.</p>
+            <hr class="fdn-rule">
+            <dl class="detail-dl">
+              <dt data-i18n="mainmenu.server_depth_label">Глубина раскопа:</dt><dd data-i18n="mainmenu.server_default_depth" class="fdn-text--gold" id="srvDetailDepth">-2 480 м</dd>
+              <dt data-i18n="mainmenu.server_seed_label">Сид мира:</dt><dd id="srvDetailSeed">#849201</dd>
+              <dt data-i18n="mainmenu.server_ping_label">Пинг / Задержка:</dt><dd data-i18n="server.srv_detail_ping" class="fdn-text--ok" id="srvDetailPing">32 мс</dd>
+              <dt data-i18n="mainmenu.server_hazard_label">Опасность:</dt><dd data-i18n="server.srv_detail_hazard" id="srvDetailHazard">Уровень 3</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-card-footer">
+        <button data-i18n="mainmenu.repair_close" type="button" class="btn-outline-action" onclick="closeModal('serverBrowserModal')" data-sfx="click" data-fit="wrap">ЗАКРЫТЬ</button>
+        <button  type="button" class="btn-gold-action" onclick="closeModal('serverBrowserModal'); handleDeployClick();" data-sfx="confirm" data-fit="wrap"><span data-i18n="server.btn_gold_action">ВЫБРАТЬ И НАЧАТЬ СПУСК</span><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true" translate="no"><use href="#i-arrow-ne"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: Диагностика файлов (Гаечный ключ) -->
+  <div class="modal-overlay" id="repairModal">
+    <div class="modal-card modal-card--md">
+      <div class="modal-card-header">
+        <div data-i18n="mainmenu.modal_card_title_2" class="modal-card-title">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g transform="translate(-0.502 0.502)"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></g></svg>
+          ДИАГНОСТИКА И ВОССТАНОВЛЕНИЕ КЛИЕНТА
+        </div>
+        <button type="button" class="modal-card-close" translate="no" onclick="closeModal('repairModal')" data-sfx="click">×</button>
+      </div>
+
+      <div class="modal-card-body">
+        <p data-i18n="mainmenu.modal_card_body_3" class="repair-intro">
+          Проверка целостности бинарных кэшей мира (*.mapb), FMOD Studio аудио-банков, шейдеров Radiance Cascades и сигнатур ETag.
+        </p>
+
+        <div class="terminal-box-view" id="repairLogBox">
+          <div data-i18n="mainmenu.term_row" class="term-row info">[00:00:01] Инициализация сканера PersistentAssetCache...</div>
+          <div data-i18n="mainmenu.term_row_2" class="term-row ok">[00:00:02] Чанки карты /persistentDataPath/world_01.mapb: 4 096 чанков проверено (В норме)</div>
+          <div data-i18n="mainmenu.term_row_3" class="term-row ok">[00:00:02] FMOD Master.bank: MD5 = 7a8f9c1e0294 (Целостность подтверждена)</div>
+          <div data-i18n="mainmenu.term_row_4" class="term-row ok">[00:00:03] FMOD SFX.bank: 142 3D эвента загружено (В норме)</div>
+          <div data-i18n="mainmenu.term_row_5" class="term-row ok">[00:00:03] Terrain Atlas (1024x1024 RGBA32): 64 тайла валидны (В норме)</div>
+          <div data-i18n="mainmenu.term_row_6" class="term-row info">[00:00:04] Radiance Cascades Compute Kernel: Валидация шейдера пройдена.</div>
+          <div data-i18n="mainmenu.term_row_7" class="term-row ok term-row--strong">[00:00:04] ВСЕ 1 280 ФАЙЛОВ КЛИЕНТА В ПОЛНОМ ПОРЯДКЕ. ОШИБОК НЕТ.</div>
+        </div>
+
+        <div class="progress-track">
+          <div class="progress-fill progress-fill--ok progress-fill--full"></div>
+        </div>
+      </div>
+
+      <div class="modal-card-footer">
+        <button data-i18n="mainmenu.repair_rerun" type="button" class="btn-outline-action" onclick="runRepairLog()" data-sfx="click" data-fit="wrap">ПЕРЕПРОВЕРИТЬ КЭШ</button>
+        <button data-i18n="mainmenu.btn_gold_action_2" type="button" class="btn-gold-action" onclick="closeModal('repairModal')" data-sfx="confirm" data-fit="wrap">ГОТОВО</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: Профиль шахтёра -->
+  <div class="modal-overlay" id="profileModal">
+    <div class="modal-card modal-card--md">
+      <div class="modal-card-header">
+        <div data-i18n="mainmenu.modal_card_title_3" class="modal-card-title">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></g></svg>
+          КАРТОЧКА ШАХТЁРА // ДОСЬЕ
+        </div>
+        <button type="button" class="modal-card-close" translate="no" onclick="closeModal('profileModal')" data-sfx="click">×</button>
+      </div>
+      <div class="modal-card-body">
+        <div class="profile-head">
+          <div data-i18n="mainmenu.avatar_letter" translate="no" class="profile-avatar">Ш</div>
+          <div class="fdn-grow">
+            <h3 data-i18n="mainmenu.modal_card_body_4" class="profile-name">ШАХТЁР-774</h3>
+            <div data-i18n="mainmenu.modal_card_body_5" class="profile-clan">КЛАН: [DVM] DEEP VOID MINERS</div>
+            <div data-i18n="mainmenu.profile_expedition_id" class="profile-expedition">EXPEDITION ID: #8849-0192 · РАНГ 4</div>
+          </div>
+          <div class="fdn-text--right">
+            <div data-i18n="mainmenu.modal_card_body_6" class="fdn-font-data fdn-text--xs fdn-text--secondary">БАЛАНС:</div>
+            <div data-i18n="mainmenu.modal_card_body_7" class="fdn-heading fdn-text--gold">14 850 CR</div>
+          </div>
+        </div>
+
+        <div class="settings-block">
+          <span data-i18n="mainmenu.profile_token_title" class="settings-block-title">ИДЕНТИФИКАЦИЯ И КЛЮЧ ДОСТУПА</span>
+          <div class="fdn-stack fdn-stack--gap-8">
+            <div class="settings-row">
+              <div>
+                <div data-i18n="mainmenu.settings_label" class="settings-label" id="profileTokenLabel">Ключ доступа (AuthToken)</div>
+                <div data-i18n="mainmenu.settings_hint" class="settings-hint">Сохранён в локальном профиле клиента</div>
+              </div>
+              <div class="fdn-row fdn-row--flow fdn-row--gap-8">
+                <input type="text" class="auth-input auth-input--token" id="profileTokenInput" value="fdn_tok_9948a204e18" aria-labelledby="profileTokenLabel" readonly>
+                <button data-i18n="mainmenu.profile_copy_token" type="button" class="btn-outline-action" onclick="copyTokenToClipboard()" title="Скопировать ключ" data-sfx="click" data-fit="wrap"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-copy"/></svg> КОПИЯ</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-block">
+          <span data-i18n="mainmenu.profile_equipment" class="settings-block-title">ЭКИПИРОВКА И ОБОРУДОВАНИЕ</span>
+          <div class="profile-stat-grid">
+            <div class="fdn-box">
+              <span data-i18n="mainmenu.profile_drill" class="fdn-text--secondary fdn-text--block fdn-text--2xs">ОСНОВНОЙ БУР:</span>
+              <strong data-i18n="mainmenu.settings_block" class="fdn-text--gold">Титан-M2 (Скорость 0.3s)</strong>
+            </div>
+            <div class="fdn-box">
+              <span data-i18n="mainmenu.profile_drone" class="fdn-text--secondary fdn-text--block fdn-text--2xs">ДРОН ПРОГРАММАТОРА:</span>
+              <strong data-i18n="mainmenu.settings_block_2" class="fdn-text--cyan">Hexapod Scout v1</strong>
+            </div>
+            <div class="fdn-box">
+              <span data-i18n="mainmenu.settings_block_3" class="fdn-text--secondary fdn-text--block fdn-text--2xs">ЭНЕРГОЯЧЕЙКА:</span>
+              <strong data-i18n="mainmenu.settings_block_4" class="fdn-text--light">100 / 100 EN (Tier 2)</strong>
+            </div>
+            <div class="fdn-box">
+              <span data-i18n="mainmenu.profile_inventory_slots" class="fdn-text--secondary fdn-text--block fdn-text--2xs">ИНВЕНТАРЬ:</span>
+              <strong data-i18n="mainmenu.settings_block_5" class="fdn-text--light">54 слота (9x6 Сетка)</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-card-footer modal-card-footer--split">
+        <button data-i18n="mainmenu.profile_switch_account" type="button" class="btn-outline-action btn-outline-action--cyan" onclick="switchAccountFromProfile()" data-sfx="click" data-fit="wrap"><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-refresh"/></svg> СМЕНИТЬ АККАУНТ</button>
+        <button data-i18n="mainmenu.repair_close" type="button" class="btn-gold-action" onclick="closeModal('profileModal')" data-sfx="confirm" data-fit="wrap">ЗАКРЫТЬ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: ОБЯЗАТЕЛЬНОЕ ОБНОВЛЕНИЕ КЛИЕНТА -->
+  <div class="modal-overlay" id="mandatoryUpdateModal">
+    <div class="modal-card modal-card--md modal-card--gold">
+      <div class="modal-card-header modal-card-header--ember">
+        <div data-i18n="modal.modal_card_title" class="modal-card-title fdn-text--gold">
+          <svg aria-hidden="true" focusable="false" class="fdn-text--gold" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g transform="translate(0.001 0.052)"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></g></svg>
+          ОБЯЗАТЕЛЬНОЕ ОБНОВЛЕНИЕ КЛИЕНТА // КРИТИЧЕСКИЙ ПАТЧ
+        </div>
+      </div>
+
+      <div class="modal-card-body">
+        <div class="update-callout">
+          <div>
+            <div data-i18n="modal.modal_card_body" class="fdn-font-data fdn-text--xs fdn-text--secondary">ТРЕБУЕМАЯ ВЕРСИЯ СЕРВЕРНОГО ПРОТОКОЛА:</div>
+            <div data-i18n="modal.modal_card_body_2" class="update-version">v0.9.0 — DEEP SUBSURFACE EXPANSION</div>
+            <div data-i18n="modal.modal_card_body_3" class="update-warning">
+              Текущая версия клиента: v0.8.14 (Доступ к серверам заблокирован)
+            </div>
+          </div>
+          <span data-i18n="modal.ping_indicator" class="ping-indicator med update-size-badge" data-fit="atomic">+ 148 МБ</span>
+        </div>
+
+        <div class="update-body">
+          <strong data-i18n="modal.modal_card_body_4" class="update-section-cyan">ПОЧЕМУ ОБНОВЛЕНИЕ ОБЯЗАТЕЛЬНО:</strong>
+          <p data-i18n="modal.modal_card_body_5" class="update-section-text">
+            Серверный кластер переведён на протокол MinesProtocol v7 с новым форматом сжатия чанков RLE и обновлённой таблицей конфигураций клеток (CellConfiguration). Запуск старой версии клиента приведёт к рассинхронизации.
+          </p>
+          <strong data-i18n="modal.modal_card_body_6" class="update-section-gold">СПИСОК ИЗМЕНЕНИЙ В v0.9.0:</strong>
+          <ul class="update-change-list">
+            <li data-i18n="modal.modal_card_body_8"><strong data-i18n="modal.modal_card_body_7">GPU Radiance Cascades v2:</strong> Двусторонние диффузные отскоки света и Cavity AO без артефактов швов.</li>
+            <li data-i18n="modal.modal_card_body_10"><strong data-i18n="modal.modal_card_body_9">Программатор 16x12:</strong> Новые блоки логики и команд для автономных шахтёрских дронов.</li>
+            <li data-i18n="modal.modal_card_body_12"><strong data-i18n="modal.modal_card_body_11">Новые горизонты пород:</strong> Слои Transit и Perspective с серверным clamp по Y.</li>
+            <li data-i18n="modal.modal_card_body_14"><strong data-i18n="modal.modal_card_body_13">Оптимизация рендера:</strong> TentacleBatchRenderer и ускорение загрузки ассетов через CDN.</li>
+          </ul>
+        </div>
+
+        <div id="updateDownloadBlock" class="fdn-stack fdn-stack--gap-8 is-hidden">
+          <div class="progress-track">
+            <div class="progress-fill" id="updateProgressBar"></div>
+          </div>
+          <div class="update-progress-meta">
+            <span data-i18n="mainmenu.update_downloading" id="updateStatusText">Загрузка бинарных пакетов и FMOD банков...</span>
+            <strong class="fdn-text--gold" id="updatePercent">0%</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-card-footer">
+        <button data-i18n="mainmenu.update_offline" type="button" class="btn-outline-action" data-fit="atomic" onclick="closeModal('mandatoryUpdateModal'); showToast(t('mainmenu.toast.update_deferred'), 'alert');" data-sfx="click">ОТЛОЖИТЬ (ТОЛЬКО ОФЛАЙН)</button>
+        <button  type="button" class="btn-gold-action" id="btnStartUpdate" data-fit="wrap" onclick="startUpdateDownloadProcess()" data-sfx="confirm"><span data-i18n="modal.btn_start_update" id="updateActionLabel">СКАЧАТЬ ОБНОВЛЕНИЕ И ПЕРЕЗАПУСТИТЬ</span><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true" translate="no"><use href="#i-arrow-ne"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: ИНВЕНТАРЬ ШАХТЁРА (54 СЛОТА) -->
+  <div class="modal-overlay" id="inventoryModal">
+    <div class="modal-card modal-card--lg">
+      <div class="modal-card-header">
+        <div data-i18n="inventory.modal_card_title" class="modal-card-title">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></g></svg>
+          ГРУЗОВОЙ ОТСЕК // 54 СЛОТА
+        </div>
+        <button type="button" class="modal-card-close" translate="no" onclick="closeModal('inventoryModal')" data-sfx="click">×</button>
+      </div>
+
+      <div class="modal-card-body modal-card-body--split">
+        <div class="inv-grid-column">
+          <div class="inventory-modal-grid-wrap" id="fullInventoryGrid"></div>
+        </div>
+
+        <div class="item-inspector-card" id="itemInspector">
+          <span data-i18n="inventory.material" class="sci-fi-badge-mono sci-fi-badge-mono--fit">МАТЕРИАЛ</span>
+          <div data-i18n="inventory.insp_name" class="insp-title" id="inspName" data-fit="clip" title="Титановый самородок">Титановый самородок</div>
+          <div data-i18n="inventory.insp_desc" class="insp-text" id="inspDesc" data-fit="clamp">
+            Тяжёлый высокопрочный металл с глубин -2 400 м. Используется для буров Tier-3.
+          </div>
+          <dl class="insp-stat-grid">
+            <div class="fdn-box fdn-box--tight fdn-box--flat"><dt data-i18n="inventory.item_inspector" class="fdn-text--micro fdn-text--tertiary">МАССА</dt><dd data-i18n="inventory.item_inspector_2" class="fdn-text--xs fdn-text--light">1.2 KG</dd></div>
+            <div class="fdn-box fdn-box--tight fdn-box--flat"><dt data-i18n="inventory.item_inspector_3" class="fdn-text--micro fdn-text--tertiary">ЦЕНА</dt><dd data-i18n="inventory.item_inspector_4" class="fdn-text--xs fdn-text--gold">45 CR</dd></div>
+          </dl>
+          <button  type="button" class="btn-gold-action btn-gold-action--md btn-gold-action--top-8" onclick="useCurrentItem()" data-sfx="confirm" data-fit="wrap"><span data-i18n="inventory.btn_gold_action">В ХОТБАР</span><svg class="fdn-icon" viewBox="0 0 24 24" aria-hidden="true" translate="no"><use href="#i-arrow-ne"/></svg></button>
+        </div>
+      </div>
+
+      <div class="modal-card-footer">
+        <button data-i18n="inventory.btn_outline_action" type="button" class="btn-outline-action" onclick="closeModal('inventoryModal')" data-sfx="click" data-fit="wrap">ЗАКРЫТЬ [TAB]</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: ПРОГРАММАТОР РОБОТА (16x12) -->
+  <div class="modal-overlay" id="programmatorModal">
+    <div class="modal-card modal-card--lg">
+      <div class="modal-card-header">
+        <div data-i18n="programmator.modal_card_title" class="modal-card-title">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></g></svg>
+          ПРОГРАММАТОР АВТОНОМНОГО ДРОНА // 16x12
+        </div>
+        <button type="button" class="modal-card-close" translate="no" onclick="closeModal('programmatorModal')" data-sfx="click">×</button>
+      </div>
+
+      <div class="modal-card-body">
+        <div class="programmator-layout">
+          <div class="programmator-palette">
+            <span data-i18n="programmator.programmator_palette" class="prog-palette-title">КОМАНДЫ:</span>
+            <button data-i18n="programmator.cmd_block_btn" type="button" class="cmd-block-btn" onclick="selectProgCommand('⬇ СКАН')" data-sfx="click" data-fit="wrap">⬇ СКАН_ВНИЗ</button>
+            <button data-i18n="programmator.cmd_block_btn_2" type="button" class="cmd-block-btn" onclick="selectProgCommand('➡ БУР')" data-sfx="click" data-fit="wrap">➡ БУР_ВПЕРЕД</button>
+            <button data-i18n="programmator.cmd_block_btn_3" type="button" class="cmd-block-btn" onclick="selectProgCommand('⛏ СБОР')" data-sfx="click" data-fit="wrap">⛏ СБОР_РУДЫ</button>
+            <button data-i18n="programmator.cmd_block_btn_4" type="button" class="cmd-block-btn" onclick="selectProgCommand('♨ ОБХОД')" data-sfx="click" data-fit="wrap">♨ ИЗБЕГАТЬ_ЛАВЫ</button>
+            <button data-i18n="programmator.cmd_block_btn_5" type="button" class="cmd-block-btn" onclick="selectProgCommand('ЗАРЯД')" data-sfx="click" data-fit="wrap">ПОДЗАРЯДКА</button>
+            <button data-i18n="programmator.op.Return" type="button" class="cmd-block-btn" onclick="selectProgCommand('БАЗА')" data-sfx="click" data-fit="wrap">ВОЗВРАТ</button>
+          </div>
+
+          <div class="fdn-stack fdn-stack--gap-6">
+            <div class="programmator-grid-16x12" id="progGrid16x12"></div>
+            <div class="fdn-row fdn-row--between fdn-font-data fdn-text--2xs fdn-text--secondary">
+              <span data-i18n="programmator.programmator_layout">192 ячейки памяти · Статус: <strong data-i18n="programmator.prog_status" class="fdn-text--ok" id="progStatus">ГОТОВ</strong></span>
+              <span data-i18n="programmator.programmator_layout_2">Частота: <strong data-i18n="programmator.programmator_layout_3">10 HZ</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-card-footer">
+        <button data-i18n="programmator.btn_outline_action" type="button" class="btn-outline-action" onclick="clearProgrammatorGrid()" data-sfx="click" data-fit="wrap">ОЧИСТИТЬ</button>
+        <button data-i18n="programmator.btn_outline_action_2" type="button" class="btn-outline-action btn-outline-action--danger" onclick="stopProgrammatorExec()" data-sfx="click" data-fit="wrap">СТОП</button>
+        <button data-i18n="programmator.btn_gold_action" type="button" class="btn-gold-action" onclick="runProgrammatorExec()" data-sfx="confirm" data-fit="wrap">ЗАПУСК ▶</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: ЧАТ ЭКСПЕДИЦИИ -->
+  <div class="modal-overlay" id="chatModal">
+    <div class="modal-card modal-card--sm">
+      <div class="modal-card-header">
+        <div data-i18n="chat.modal_card_title" class="modal-card-title">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></g></svg>
+          КАНАЛЫ СВЯЗИ ЭКСПЕДИЦИИ // CHAT
+        </div>
+        <button type="button" class="modal-card-close" translate="no" onclick="closeModal('chatModal')" data-sfx="click">×</button>
+      </div>
+
+      <div class="modal-card-body">
+        <div class="chat-window-layout">
+          <div class="chat-tabs-bar" role="tablist" aria-label="Каналы чата">
+            <button data-i18n="chat.chat_tab_btn" type="button" class="chat-tab-btn active" onclick="switchChatTab(this, 'all')" role="tab" aria-selected="true" aria-controls="chatMessagesBox" data-sfx="click">ВСЕ</button>
+            <button data-i18n="chat.chat_tab_btn_2" type="button" class="chat-tab-btn" onclick="switchChatTab(this, 'local')" role="tab" aria-selected="false" aria-controls="chatMessagesBox" data-sfx="click">ЛОКАЛЬНЫЙ (СЕКТОР 09)</button>
+            <button data-i18n="chat.chat_tab_btn_3" type="button" class="chat-tab-btn" onclick="switchChatTab(this, 'clan')" role="tab" aria-selected="false" aria-controls="chatMessagesBox" data-sfx="click">КЛАН [VOID]</button>
+            <button data-i18n="chat.chat_tab_btn_4" type="button" class="chat-tab-btn" onclick="switchChatTab(this, 'system')" role="tab" aria-selected="false" aria-controls="chatMessagesBox" data-sfx="click">СИСТЕМА</button>
+          </div>
+
+          <div class="chat-messages-container" id="chatMessagesBox">
+            <div data-i18n="chat.chat_row" class="chat-row" data-channel="system"><span data-i18n="chat.chat_author" class="chat-author system">[SYSTEM]:</span> Шлюз связи Стокгольм-01 синхронизирован.</div>
+            <div data-i18n="chat.chat_row_2" class="chat-row" data-channel="local"><span data-i18n="chat.chat_author_2" class="chat-author">[ГОРНЯК-102]:</span> На горизонте -1800м обнаружена жила титана.</div>
+            <div data-i18n="chat.chat_row_3" class="chat-row" data-channel="clan"><span data-i18n="chat.chat_author_3" class="chat-author clan">[DVM_LEADER]:</span> Готовность к клановому бурению 10 минут.</div>
+          </div>
+
+          <div class="fdn-row fdn-row--flow fdn-row--gap-6">
+            <input type="text" class="auth-input" id="chatInputField" aria-label="Сообщение чата" placeholder="Сообщение... (Enter для отправки)" onkeydown="handleChatInputKeyDown(event)">
+            <button data-i18n="chat.btn_gold_action" type="button" class="btn-gold-action btn-gold-action--md" onclick="sendChatMessage()" data-sfx="confirm" data-fit="wrap">ОТПРАВИТЬ</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: КЛАН ШАХТЁРОВ -->
+  <div class="modal-overlay" id="clanModal">
+    <div class="modal-card modal-card--md">
+      <div class="modal-card-header">
+        <div data-i18n="mainmenu.modal_card_title_4" class="modal-card-title">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></g></svg>
+          ГИЛЬДИЯ ШАХТЁРОВ // [VOID] DEEP MINERS
+        </div>
+        <button type="button" class="modal-card-close" translate="no" onclick="closeModal('clanModal')" data-sfx="click">×</button>
+      </div>
+
+      <div class="modal-card-body">
+        <div class="clan-stat-row">
+          <div>
+            <h3 data-i18n="mainmenu.modal_card_body_8" class="clan-stat-name">[VOID] DEEP VOID MINERS</h3>
+            <div data-i18n="mainmenu.modal_card_body_9" class="fdn-font-data fdn-text--xs fdn-text--cyan">Ранг 8 · 42 шахтёра в сети</div>
+          </div>
+          <div class="fdn-text--right">
+            <div data-i18n="mainmenu.modal_card_body_10" class="clan-stat-meta">КАЗНА:</div>
+            <div data-i18n="mainmenu.modal_card_body_11" class="fdn-heading fdn-text--gold">480 000 CR</div>
+          </div>
+        </div>
+
+        <div class="settings-block">
+          <span data-i18n="mainmenu.settings_block_title" class="settings-block-title">КЛАНОВЫЕ МОДУЛИ</span>
+          <div class="fdn-cols-2">
+            <div class="fdn-box">
+              <strong data-i18n="mainmenu.settings_block_6" class="clan-perk-gold">Ускоритель буров +15%</strong>
+              <span data-i18n="mainmenu.settings_block_7" class="fdn-text--xs fdn-text--secondary">Действует для всех членов в шахте.</span>
+            </div>
+            <div class="fdn-box">
+              <strong data-i18n="mainmenu.settings_block_8" class="clan-perk-cyan">Тепловой щит Tier-2</strong>
+              <span data-i18n="mainmenu.settings_block_9" class="fdn-text--xs fdn-text--secondary">-30% урона при контакте с лавой.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-card-footer">
+        <button data-i18n="mainmenu.repair_close" type="button" class="btn-gold-action" onclick="closeModal('clanModal')" data-sfx="confirm" data-fit="wrap">ЗАКРЫТЬ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: ТОРГОВЕЦ / СТАНЦИЯ СНАБЖЕНИЯ -->
+  <div class="modal-overlay" id="traderModal">
+    <div class="modal-card modal-card--md">
+      <div class="modal-card-header">
+        <div data-i18n="mainmenu.modal_card_title_5" class="modal-card-title">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g transform="translate(-0.001 0.499)"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></g></svg>
+          СТАНЦИЯ СНАБЖЕНИЯ // ТОРГОВЕЦ
+        </div>
+        <button type="button" class="modal-card-close" translate="no" onclick="closeModal('traderModal')" data-sfx="click">×</button>
+      </div>
+
+      <div class="modal-card-body">
+        <div class="fdn-cols-2">
+          <div class="fdn-box fdn-box--loose fdn-box--row">
+            <div>
+              <strong data-i18n="mainmenu.modal_card_body_12" class="fdn-text--light fdn-text--base fdn-text--block">Алмазный бур Tier-3</strong>
+              <span data-i18n="mainmenu.modal_card_body_13" class="fdn-text--xs fdn-text--secondary">Скорость копки 0.2s</span>
+            </div>
+            <button data-i18n="mainmenu.btn_outline_action" type="button" class="btn-outline-action btn-outline-action--sm" onclick="buyItem('Алмазный бур Tier-3', 8500)" data-sfx="click" data-fit="wrap">8 500 CR</button>
+          </div>
+
+          <div class="fdn-box fdn-box--loose fdn-box--row">
+            <div>
+              <strong data-i18n="mainmenu.modal_card_body_14" class="fdn-text--light fdn-text--base fdn-text--block">Сдать всю руду</strong>
+              <span data-i18n="mainmenu.modal_card_body_15" class="fdn-text--xs fdn-text--gold">Стоимость: +1 680 CR</span>
+            </div>
+            <button data-i18n="mainmenu.btn_gold_action_3" type="button" class="btn-gold-action btn-gold-action--sm" onclick="sellAllOre()" data-sfx="confirm" data-fit="wrap">ПРОДАТЬ</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-card-footer">
+        <button data-i18n="mainmenu.repair_close" type="button" class="btn-gold-action" onclick="closeModal('traderModal')" data-sfx="confirm" data-fit="wrap">ЗАКРЫТЬ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Линейка переезда инлайн-стилей. Только для разработки. -->
+  <!-- Слой коротких ответов системы. Живёт на --layer-toast, который был
+       объявлен в токенах с самого начала и до сих пор не использовался. -->
+  <div class="toast-layer" id="toastLayer" role="status" aria-live="polite"></div>
+
+  <script src="tools/computed-snapshot.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

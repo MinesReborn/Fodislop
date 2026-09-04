@@ -1,4 +1,4 @@
-﻿<Project>
+<Project>
   <!-- Generated file, do not modify, your changes will be overwritten (use AssetPostprocessor.OnGeneratedCSProject) -->
   <PropertyGroup>
     <BaseIntermediateOutputPath>Temp/obj/$(MSBuildProjectName)</BaseIntermediateOutputPath>
@@ -54,11 +54,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets/Editor/MapbConverter.cs" />
-    <Compile Include="Assets/Editor/ProjectDefaultsBuildValidator.cs" />
     <Compile Include="Assets/Editor/BuildTextureStager.cs" />
     <Compile Include="Assets/Editor/UnityRenderLayerValidator.cs" />
     <Compile Include="Assets/Editor/PixelArtTextureImportPolicy.cs" />
-    <Compile Include="Assets/Editor/PSOCollectionTool.cs" />
     <Compile Include="Assets/Editor/FmodBankBuilder.cs" />
   </ItemGroup>
   <ItemGroup>

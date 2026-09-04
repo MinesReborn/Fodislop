@@ -1,17 +1,13 @@
 #pragma kernel SolveCascade
 #pragma kernel SolveAutomaticNormals
-#pragma kernel SolveContactOcclusion
 #pragma kernel ResolveDirect
 #pragma kernel SolveDiffuseBounce
 #pragma kernel CompositeLighting
-#pragma kernel ResolveAndComposite
 
 #pragma target 5.0
 
 #define PI2 6.28318530718
 #define MAX_INTERVAL_STEPS 64
-#define CONTACT_DIRECTION_COUNT 8
-#define CONTACT_SAMPLE_COUNT 3
 
 Texture2D<float4> _MaterialField;
 Texture2D<float4> _EmissionField;
@@ -19,7 +15,6 @@ RWStructuredBuffer<uint3> _RadianceAtlas;
 RWTexture2D<float4> _DirectTexture;
 RWTexture2D<float4> _AutomaticNormalField;
 Texture2D<float4> _AutomaticNormalInput;
-RWTexture2D<float> _ContactOcclusionTexture;
 Texture2D<float4> _DirectInput;
 
 // Resolved radiance from the terrain's own emitters, solved separately and kept
@@ -47,18 +42,15 @@ float _BounceStrength;
 float _EmissionScale;
 float _MaximumLightMultiplier;
 float _CellSize;
-float _AmbientOcclusionRadiusCells;
-float _AmbientOcclusionStrength;
 float _TransmittanceDebugDistanceCells;
 int _DebugView;
 int _MaterialYFlip;
 int _MaximumIntervalSteps;
-int _EnableContactOcclusion;
 int _EnableDiffuseBounce;
 int _EnableFinalLightingClamp;
 
-// PerBlock quality tier: when nonzero, ResolveDirect/ResolveAndComposite
-// sample the radiance atlas at the field pixel nearest each world cell's
+// PerBlock quality tier: when nonzero, ResolveDirect
+// samples the radiance atlas at the field pixel nearest each world cell's
 // center instead of the dispatch thread's own pixel, so every pixel inside
 // one cell reads the identical resolved value - flat per-block shading
 // instead of PerPixel's smooth per-texel gradient. Reuses the same cascade
@@ -135,9 +127,8 @@ float Max3(float3 value)
     return max(value.x, max(value.y, value.z));
 }
 
-// Общая константа для ResolveDirect и ResolveAndComposite: на Metal static const
-// внутри одной функции не виден из другой, а объявление «до использования»
-// обязательно — иначе kernel падает с "undeclared identifier".
+// Константа направлений для ResolveDirect: на Metal static const внутри
+// функции может конфликтовать, объявление до использования обязательно.
 static const float2 kResolveDirections4[4] =
 {
     float2(0.70710678118, 0.70710678118),
@@ -498,79 +489,6 @@ void SolveAutomaticNormals(uint3 dispatchId : SV_DispatchThreadID)
 }
 
 [numthreads(8, 8, 1)]
-void SolveContactOcclusion(uint3 dispatchId : SV_DispatchThreadID)
-{
-    if (any(dispatchId.xy >= (uint2)_FieldSize))
-    {
-        return;
-    }
-
-    int2 receiverPixel = int2(dispatchId.xy);
-    int2 materialPixel = receiverPixel;
-    if (_MaterialYFlip != 0)
-    {
-        materialPixel.y = _FieldSize.y - 1 - materialPixel.y;
-    }
-
-    // AO belongs to cavities in empty space next to physical mass. Keeping
-    // solid receivers white prevents seams inside one connected solid array.
-    float receiverOccupancy = _MaterialField.Load(
-        int3(materialPixel.x, materialPixel.y, 0)).a;
-    if (receiverOccupancy >= 0.5 || _EnableContactOcclusion == 0)
-    {
-        _ContactOcclusionTexture[receiverPixel] = 1.0;
-        return;
-    }
-
-    float radius = clamp(_AmbientOcclusionRadiusCells, 0.5, 8.0);
-    float2 fieldPixelsPerCell = float2(_FieldSize) /
-        max(_WorldRect.zw / max(_CellSize, 0.0001), float2(0.0001, 0.0001));
-    float radiusPixels = max(radius * min(fieldPixelsPerCell.x, fieldPixelsPerCell.y), 1.0);
-    float occupiedWeight = 0.0;
-    float totalWeight = 0.0;
-
-    // Fixed compile-time bounds keep this portable across Metal, Vulkan and
-    // D3D while the runtime radius decides which samples participate.
-    [loop]
-    for (int offsetY = -8; offsetY <= 8; offsetY++)
-    {
-        [loop]
-        for (int offsetX = -8; offsetX <= 8; offsetX++)
-        {
-            int2 offset = int2(offsetX, offsetY);
-            float distancePixels = length(float2(offset));
-            if (distancePixels < 0.5 || distancePixels > radiusPixels)
-            {
-                continue;
-            }
-
-            int2 samplePixel = receiverPixel + offset;
-            if (any(samplePixel < 0) || any(samplePixel >= _FieldSize))
-            {
-                continue;
-            }
-
-            int2 sampleMaterialPixel = samplePixel;
-            if (_MaterialYFlip != 0)
-            {
-                sampleMaterialPixel.y = _FieldSize.y - 1 - sampleMaterialPixel.y;
-            }
-
-            float weight = 1.0 / max(distancePixels * distancePixels, 1.0);
-            float occupancy = step(
-                0.5,
-                _MaterialField.Load(int3(sampleMaterialPixel.x, sampleMaterialPixel.y, 0)).a);
-            occupiedWeight += occupancy * weight;
-            totalWeight += weight;
-        }
-    }
-
-    float cavity = totalWeight > 0.0 ? occupiedWeight / totalWeight : 0.0;
-    float occlusion = saturate(cavity * _AmbientOcclusionStrength);
-    _ContactOcclusionTexture[receiverPixel] = 1.0 - occlusion;
-}
-
-[numthreads(8, 8, 1)]
 void ResolveDirect(uint3 dispatchId : SV_DispatchThreadID)
 {
     if (any(dispatchId.xy >= (uint2)_FieldSize))
@@ -770,18 +688,11 @@ void CompositeLighting(uint3 dispatchId : SV_DispatchThreadID)
     float3 bounce = _EnableDiffuseBounce != 0
         ? _BounceInput.SampleLevel(sampler_LinearClamp, uv, 0).rgb
         : 0.0;
-    float contactOcclusion = _EnableContactOcclusion != 0
-        ? _ContactOcclusionTexture[pixel]
-        : 1.0;
-    float3 result = (_AmbientColor.rgb + bounce) * contactOcclusion + direct.rgb;
+    float3 result = _AmbientColor.rgb + bounce + direct.rgb;
 
     if (_DebugView == 4 || _DebugView == 5 || _DebugView == 6)
     {
         result = direct.rgb;
-    }
-    else if (_DebugView == 7)
-    {
-        result = contactOcclusion.xxx;
     }
 
     float3 output = max(result, 0.0);
@@ -796,90 +707,5 @@ void CompositeLighting(uint3 dispatchId : SV_DispatchThreadID)
             output *= maximumLight / outputPeak;
         }
     }
-    _Result[pixel] = float4(output, contactOcclusion);
-}
-
-[numthreads(8, 8, 1)]
-void ResolveAndComposite(uint3 dispatchId : SV_DispatchThreadID)
-{
-    if (any(dispatchId.xy >= (uint2)_FieldSize))
-    {
-        return;
-    }
-
-    int2 pixel = int2(dispatchId.xy);
-    float2 uv = (float2(pixel) + 0.5) / float2(_FieldSize);
-    int2 samplePixel = pixel;
-    GetBlockSnappedPixel(pixel, samplePixel);
-    int probeIndex = samplePixel.y * _FieldSize.x + samplePixel.x;
-
-    if (_DebugView >= 1 && _DebugView <= 3)
-    {
-        int2 materialPixel = pixel;
-        if (_MaterialYFlip != 0)
-        {
-            materialPixel.y = _FieldSize.y - 1 - materialPixel.y;
-        }
-
-        if (_DebugView == 1)
-        {
-            float4 material = _MaterialField.Load(int3(materialPixel.x, materialPixel.y, 0)).rgba;
-            _Result[pixel] = float4(material.aaa, 1.0);
-            return;
-        }
-        if (_DebugView == 2)
-        {
-            float4 material = _MaterialField.Load(int3(materialPixel.x, materialPixel.y, 0)).rgba;
-            _Result[pixel] = float4(material.rgb, 1.0);
-            return;
-        }
-        if (_DebugView == 3)
-        {
-            float4 emission = _EmissionField.Load(int3(materialPixel.x, materialPixel.y, 0)).rgba;
-            _Result[pixel] = float4(emission.rgb, 1.0);
-            return;
-        }
-    }
-
-    float4 normalData = SampleAutomaticSurfaceNormal(float2(samplePixel) + 0.5);
-    float3 radiance = 0.0;
-    [unroll]
-    for (int direction = 0; direction < 4; direction++)
-    {
-        int atlasIndex = _CascadeOffset + probeIndex * 4 + direction;
-        uint3 packedInterval = _RadianceAtlas[atlasIndex];
-        radiance += UnpackRadiance(packedInterval.xy) * SurfaceLambert(
-            normalData,
-            kResolveDirections4[direction]);
-    }
-    float3 directOutput = radiance * 0.25;
-    float3 bounce = _EnableDiffuseBounce != 0
-        ? _BounceInput.SampleLevel(sampler_LinearClamp, uv, 0).rgb
-        : 0.0;
-    float contactOcclusion = _EnableContactOcclusion != 0
-        ? _ContactOcclusionTexture[pixel]
-        : 1.0;
-    float3 result = (_AmbientColor.rgb + bounce) * contactOcclusion + directOutput;
-
-    if (_DebugView == 4 || _DebugView == 5 || _DebugView == 6)
-    {
-        result = directOutput;
-    }
-    else if (_DebugView == 7)
-    {
-        result = contactOcclusion.xxx;
-    }
-
-    float3 output = max(result, 0.0);
-    if (_DebugView == 0 && _EnableFinalLightingClamp != 0)
-    {
-        float maximumLight = max(_MaximumLightMultiplier, 0.0001);
-        float outputPeak = Max3(output);
-        if (outputPeak > maximumLight)
-        {
-            output *= maximumLight / outputPeak;
-        }
-    }
-
-    _Result[pixel] = float4(output, contactOcclusion);
+    _Result[pixel] = float4(output, 1.0);
 }

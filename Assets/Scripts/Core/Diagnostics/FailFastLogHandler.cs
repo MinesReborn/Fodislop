@@ -127,7 +127,7 @@ namespace Fodinae.Core
             }
 
             // Do not intercept or re-emit the error. Startup code reports
-            // failures through SceneTransitionTicket and TransitionFailed.
+            // failures through SceneTransitionTicket and TransitionChanged.
         }
     }
 }

@@ -18,7 +18,7 @@
     bottom: 0;
     justify-content: center;
     align-items: center;
-    background-color: rgba(0, 0, 0, 0.82);
+    background-color: var(--surface-scrim);
 }
 
 .world-map-image {
@@ -62,42 +62,42 @@
     min-width: 38px;
     width: auto;
     height: 28px;
-    padding: 0 8px;
-    background-color: rgba(25, 25, 25, 0.92);
-    border-color: rgba(130, 130, 130, 0.9);
+    padding: 0 var(--space-4);
+    background-color: var(--surface-slate-dense);
+    border-color: var(--text-tertiary);
     border-width: 1px;
-    border-radius: 14px;
-    color: white;
+    border-radius: var(--radius-md);
+    color: var(--light-solid);
     -unity-text-align: middle-center;
 }
 
 .asset-status-button:hover,
 .asset-status-button.asset-status-loading {
-    background-color: rgba(70, 70, 70, 0.96);
+    background-color: var(--surface-shelf-solid);
     border-color: var(--accent-gold);
 }
 
 .asset-status-button-label {
-    color: white;
-    font-size: 12px;
+    color: var(--light-solid);
+    font-size: var(--size-sm);
     -unity-text-align: middle-center;
 }
 
 .asset-status-panel {
     width: 300px;
-    margin-bottom: 6px;
-    padding: 8px;
-    background-color: rgba(20, 20, 20, 0.96);
-    border-color: rgba(120, 120, 120, 0.9);
+    margin-bottom: var(--space-3);
+    padding: var(--space-4);
+    background-color: var(--surface-solid);
+    border-color: var(--accent-cyan-fill);
     border-width: 1px;
-    border-radius: 4px;
+    border-radius: var(--radius-md);
 }
 
 .asset-status-summary,
 .asset-status-metrics,
 .asset-status-details {
-    color: white;
-    font-size: 12px;
+    color: var(--light-solid);
+    font-size: var(--size-sm);
     white-space: normal;
 }
 
@@ -115,7 +115,7 @@
     background-color: var(--surface-raised);
     border-color: var(--border-subtle);
     border-width: 2px;
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     padding: 0;
     min-width: 100px;
     height: 28px;
@@ -130,13 +130,13 @@
 
 .hud-button.active {
     background-color: var(--accent-gold);
-    color: black;
+    color: var(--shadow-solid);
 }
 
 .hud-stat {
     color: var(--text-primary);
     font-size: var(--size-md);
-    margin: 2px 0;
+    margin: var(--space-1) 0;
 }
 
 .hud-stat-label {
@@ -145,17 +145,17 @@
 }
 
 .hud-bar {
-    background-color: rgba(40, 40, 40, 1);
+    background-color: var(--surface-shelf-solid);
     border-color: var(--border-subtle);
     border-width: 1px;
-    border-radius: 2px;
+    border-radius: var(--radius-sharp);
     height: 12px;
     width: 150px;
 }
 
 .hud-bar-fill {
     background-color: var(--accent-gold);
-    border-radius: 2px;
+    border-radius: var(--radius-sharp);
 }
 
 .hud-panel {
@@ -163,7 +163,7 @@
     top: 10px;
     left: 10px;
     width: 240px;
-    padding: 12px;
+    padding: var(--space-6);
     background-color: var(--surface-panel);
     border-color: var(--border-subtle);
     border-width: 2px;
@@ -172,7 +172,7 @@
 
 .hud-title-row {
     flex-direction: row;
-    margin-bottom: 10px;
+    margin-bottom: var(--space-5);
     align-items: center;
 }
 
@@ -181,15 +181,15 @@
     height: 15px;
     flex-shrink: 0;
     padding: 0;
-    margin-left: 4px;
-    background-color: rgb(77, 77, 77);
+    margin-left: var(--space-2);
+    background-color: var(--accent-gold-glow);
     border-width: 1px;
-    border-color: rgb(102, 102, 102);
+    border-color: var(--text-disabled);
 }
 
 .hud-panel .hud-title-row {
     flex-direction: row;
-    margin-bottom: 4px;
+    margin-bottom: var(--space-2);
 }
 
 .hud-panel .hud-nickname {
@@ -202,32 +202,32 @@
 .hud-panel .hud-level {
     font-size: var(--size-lg);
     color: var(--text-primary);
-    margin-right: 2px;
+    margin-right: var(--space-1);
 }
 
 .hud-panel .hud-separator {
     height: 1px;
     background-color: var(--text-secondary);
-    margin-bottom: 4px;
+    margin-bottom: var(--space-2);
 }
 
 .hud-panel .hud-stat {
     font-size: var(--size-md);
     color: var(--text-primary);
-    margin: 0 0 2px;
+    margin: 0 0 var(--space-1);
 }
 
 .hud-panel .hud-money {
     -unity-font-style: bold;
     font-size: var(--size-md);
-    color: rgb(0, 200, 0);
+    color: var(--text-secondary);
     margin: 0;
 }
 
 .hud-panel .hud-creds {
     -unity-font-style: bold;
     font-size: var(--size-md);
-    color: rgb(200, 200, 0);
+    color: var(--accent-gold);
     margin: 0;
 }
 
@@ -235,7 +235,7 @@
     -unity-font-style: bold;
     font-size: var(--size-md);
     color: var(--accent-gold);
-    margin-bottom: 2px;
+    margin-bottom: var(--space-1);
 }
 
 .hud-basket-container {
@@ -254,23 +254,23 @@
 
 .hud-hp-bar {
     height: 14px;
-    background-color: rgba(40, 40, 40, 1);
-    border-radius: 3px;
+    background-color: var(--surface-shelf-solid);
+    border-radius: var(--radius-sm);
     flex-direction: row;
-    margin-bottom: 4px;
+    margin-bottom: var(--space-2);
 }
 
 .hud-hp-fill {
     height: 14px;
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
 }
 
 .hud-button-accent {
     background-color: var(--accent-gold);
     border-color: var(--border-subtle);
     border-width: 2px;
-    border-radius: 3px;
-    color: rgba(38, 38, 38, 1);
+    border-radius: var(--radius-sm);
+    color: var(--surface-shelf-solid);
     font-size: var(--size-md);
     -unity-font-style: bold;
     -unity-text-align: middle-center;
@@ -285,7 +285,7 @@
     width: 24px;
     height: 24px;
     background-color: transparent;
-    color: rgba(180, 180, 180, 1);
+    color: var(--text-secondary);
     font-size: 18px;
     padding: 0;
     border-width: 0;
@@ -293,21 +293,21 @@
 
 .hud-button-claim {
     align-self: center;
-    background-color: rgba(25, 100, 25, 1);
-    color: white;
-    border-color: rgba(40, 130, 40, 1);
+    background-color: var(--accent-cyan-glow);
+    color: var(--light-solid);
+    border-color: var(--light-edge);
     border-width: 2px;
-    border-radius: 3px;
-    padding: 4px 16px;
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-8);
     font-size: var(--size-md);
 }
 
 .hud-button-claim:hover {
-    background-color: rgba(50, 130, 50, 1);
+    background-color: var(--light-edge);
 }
 
 .hud-button-label {
-    font-size: 12px;
+    font-size: var(--size-sm);
     -unity-font-style: bold;
     -unity-text-align: middle-center;
     flex-grow: 1;
@@ -318,7 +318,7 @@
     top: 10px;
     left: 256px;
     width: 260px;
-    padding: 10px;
+    padding: var(--space-5);
     background-color: var(--surface-panel);
     border-color: var(--border-subtle);
     border-width: 2px;
@@ -326,12 +326,12 @@
 }
 
 .hud-bonus-panel .hud-stat {
-    margin: 2px 0;
+    margin: var(--space-1) 0;
 }
 
 .hud-bonus-panel .hud-title-row {
     flex-direction: row;
-    margin-bottom: 10px;
+    margin-bottom: var(--space-5);
 }
 
 .hud-bonus-panel .hud-title-row .hud-stat {
@@ -345,7 +345,7 @@
     top: 66px;
     left: 256px;
     width: 220px;
-    padding: 12px;
+    padding: var(--space-6);
     background-color: var(--surface-panel);
     border-color: var(--border-subtle);
     border-width: 2px;
@@ -354,7 +354,7 @@
 
 .hud-status-line {
     font-size: var(--size-md);
-    margin-bottom: 2px;
+    margin-bottom: var(--space-1);
     white-space: normal;
 }
 
@@ -362,7 +362,7 @@
     position: absolute;
     bottom: 10px;
     right: 10px;
-    padding: 8px;
+    padding: var(--space-4);
     flex-direction: column-reverse;
     align-items: flex-end;
 }
@@ -370,14 +370,14 @@
 .hud-skill-row {
     flex-direction: row;
     align-items: flex-start;
-    margin-bottom: 2px;
+    margin-bottom: var(--space-1);
 }
 
 .hud-skill-icon {
     flex-direction: row;
     align-items: flex-end;
-    margin-right: 4px;
-    margin-bottom: 2px;
+    margin-right: var(--space-2);
+    margin-bottom: var(--space-1);
 }
 
 .hud-skill-icon-column {
@@ -392,7 +392,7 @@
     top: -13px;
     left: 0;
     width: 24px;
-    font-size: 11px;
+    font-size: var(--size-xs);
     -unity-font-style: bold;
     color: var(--accent-gold);
     -unity-text-align: middle-center;
@@ -401,15 +401,15 @@
 .hud-skill-bar-bg {
     width: 20px;
     height: 3px;
-    background-color: rgba(60, 60, 60, 1);
-    border-radius: 1px;
+    background-color: var(--surface-shelf-solid);
+    border-radius: var(--radius-sharp);
     margin-top: 1px;
 }
 
 .hud-skill-bar-fill {
     height: 3px;
-    border-radius: 1px;
-    background-color: rgb(0, 180, 0);
+    border-radius: var(--radius-sharp);
+    background-color: var(--light-edge);
 }
 
 .hud-crystal-row {
@@ -419,18 +419,18 @@
 }
 
 .hud-crystal-row .hud-stat {
-    margin: 0 4px;
+    margin: 0 var(--space-2);
 }
 
 .hud-crystal-dot {
     width: 14px;
     height: 14px;
-    margin-right: 6px;
+    margin-right: var(--space-3);
     align-self: center;
 }
 
 .hud-crystal-label {
-    font-size: 11px;
+    font-size: var(--size-xs);
     color: var(--text-primary);
 }
 
@@ -442,7 +442,7 @@
 .hud-skill-bar-container {
     width: 6px;
     height: 24px;
-    margin-left: 2px;
+    margin-left: var(--space-1);
     flex-direction: column;
     justify-content: flex-end;
 }
@@ -458,7 +458,7 @@
     left: 50%;
     translate: -50% 0;
     min-width: 300px;
-    padding: 8px;
+    padding: var(--space-4);
     background-color: var(--surface-panel);
     border-color: var(--border-subtle);
     border-width: 1px;
@@ -467,43 +467,43 @@
 
 .hud-mission-title {
     color: var(--accent-gold);
-    margin-bottom: 4px;
+    margin-bottom: var(--space-2);
 }
 
 .hud-mission-desc {
-    margin-bottom: 8px;
+    margin-bottom: var(--space-4);
 }
 
 .hud-mission-progress-row {
     flex-direction: row;
     align-items: center;
-    margin-bottom: 4px;
+    margin-bottom: var(--space-2);
 }
 
 .hud-mission-progress-label {
-    margin-right: 8px;
+    margin-right: var(--space-4);
     min-width: 50px;
 }
 
 .hud-mission-progress-bar {
     flex-grow: 1;
     height: 16px;
-    background-color: rgba(38, 38, 38, 1);
-    border-radius: 3px;
+    background-color: var(--surface-shelf-solid);
+    border-radius: var(--radius-sm);
 }
 
 .hud-mission-progress-fill {
     height: 16px;
-    border-radius: 3px;
-    background-color: rgb(179, 179, 51);
+    border-radius: var(--radius-sm);
+    background-color: var(--accent-gold);
 }
 
 .hud-btn-action {
     position: absolute;
-    background-color: rgba(25, 25, 38, 0.85);
-    border-color: rgba(90, 90, 90, 1);
+    background-color: var(--surface-shelf-dense);
+    border-color: var(--accent-cyan-deep);
     border-width: 2px;
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     font-size: var(--size-sm);
     -unity-font-style: bold;
     color: var(--text-primary);
@@ -513,37 +513,37 @@
 }
 
 .hud-btn-action:hover {
-    background-color: rgba(50, 50, 75, 0.85);
+    background-color: var(--light-sheen);
 }
 
 .hud-toggle-btn {
     position: absolute;
     left: 10px;
-    background-color: rgba(38, 13, 13, 0.85);
+    background-color: var(--surface-crisis-dense);
 }
 
 .hud-toggle-btn:hover {
-    background-color: rgba(64, 13, 13, 0.85);
+    background-color: var(--light-film);
 }
 
 .hud-toggle-btn-label {
-    font-size: 12px;
+    font-size: var(--size-sm);
     -unity-font-style: bold;
     -unity-text-align: middle-center;
     flex-grow: 1;
-    color: rgba(230, 77, 77, 1);
+    color: var(--state-danger);
 }
 
 .hud-toggle-btn.enabled {
-    background-color: rgba(13, 38, 13, 0.85);
+    background-color: var(--surface-slate-dense);
 }
 
 .hud-toggle-btn.enabled:hover {
-    background-color: rgba(13, 64, 13, 0.85);
+    background-color: var(--light-sheen);
 }
 
 .hud-toggle-btn-label.enabled {
-    color: rgba(77, 230, 77, 1);
+    color: var(--state-ok);
 }
 
 .hud-toggle-auto-dig { bottom: 281px; }
@@ -599,61 +599,61 @@
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-4);
 }
 
 .hud-nickname {
     -unity-font-definition: var(--face-display);
     color: var(--text-primary);
-    font-size: 14px;
+    font-size: var(--size-base);
     -unity-font-style: bold;
     letter-spacing: 0.5px;
 }
 
 .hud-clan-btn {
     height: 24px;
-    padding: 0 8px;
-    font-size: 10px;
+    padding: 0 var(--space-4);
+    font-size: var(--size-2xs);
 }
 
 .hud-separator {
     height: 1px;
     background-color: var(--border-subtle);
-    margin-bottom: 8px;
+    margin-bottom: var(--space-4);
 }
 
 .hud-stat-group {
-    margin-bottom: 8px;
+    margin-bottom: var(--space-4);
 }
 
 .hud-stat-header {
     flex-direction: row;
     justify-content: space-between;
-    margin-bottom: 4px;
+    margin-bottom: var(--space-2);
 }
 
 .hud-stat-title {
     -unity-font-definition: var(--face-body);
     color: var(--text-secondary);
-    font-size: 11px;
+    font-size: var(--size-xs);
 }
 
 .hud-stat-percent {
     -unity-font-definition: var(--face-data);
     color: var(--state-ok);
-    font-size: 11px;
+    font-size: var(--size-xs);
     -unity-font-style: bold;
 }
 
 .hud-bar-track {
     height: 6px;
-    margin-bottom: 6px;
+    margin-bottom: var(--space-3);
 }
 
 .hud-currency-row {
     flex-direction: row;
     justify-content: space-between;
-    margin-top: 4px;
+    margin-top: var(--space-2);
 }
 
 .hud-currency-item {
@@ -662,9 +662,9 @@
 }
 
 .hud-currency-icon {
-    font-size: 14px;
+    font-size: var(--size-base);
     color: var(--accent-cyan);
-    margin-right: 4px;
+    margin-right: var(--space-2);
 }
 
 .hud-currency-icon--gold {
@@ -674,7 +674,7 @@
 .hud-currency-value {
     -unity-font-definition: var(--face-data);
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--size-sm);
     -unity-font-style: bold;
 }
 
@@ -688,20 +688,20 @@
     top: 170px;
     left: 16px;
     width: 140px;
-    padding: 8px;
+    padding: var(--space-4);
 }
 
 .hud-basket-grid {
     flex-direction: row;
     flex-wrap: wrap;
-    margin-top: 4px;
-    margin-bottom: 4px;
+    margin-top: var(--space-2);
+    margin-bottom: var(--space-2);
 }
 
 .hud-geology-text {
     -unity-font-definition: var(--face-body);
     color: var(--text-secondary);
-    font-size: 10px;
+    font-size: var(--size-2xs);
 }
 
 /* Миссия */
@@ -711,34 +711,34 @@
     left: 50%;
     translate: -50% 0;
     width: 380px;
-    padding: 10px 14px;
+    padding: var(--space-5) var(--space-7);
 }
 
 .hud-mission-header {
     flex-direction: row;
     align-items: center;
-    margin-bottom: 4px;
+    margin-bottom: var(--space-2);
 }
 
 .hud-mission-title {
     -unity-font-definition: var(--face-display);
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--size-sm);
     -unity-font-style: bold;
-    margin-left: 8px;
+    margin-left: var(--space-4);
 }
 
 .hud-mission-desc {
     -unity-font-definition: var(--face-body);
     color: var(--text-secondary);
-    font-size: 11px;
+    font-size: var(--size-xs);
     white-space: normal;
-    margin-bottom: 6px;
+    margin-bottom: var(--space-3);
 }
 
 .hud-mission-track {
     height: 4px;
-    margin-bottom: 4px;
+    margin-bottom: var(--space-2);
 }
 
 #MissionProgressFill {
@@ -748,7 +748,7 @@
 .hud-mission-progress-text {
     -unity-font-definition: var(--face-data);
     color: var(--accent-cyan);
-    font-size: 10px;
+    font-size: var(--size-2xs);
     align-self: flex-end;
 }
 
@@ -761,16 +761,16 @@
 }
 
 .hud-action-btn {
-    margin-bottom: 8px;
+    margin-bottom: var(--space-4);
     width: 100%;
 }
 
 .hud-mode-led {
     width: 6px;
     height: 6px;
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     background-color: var(--text-disabled);
-    margin-right: 8px;
+    margin-right: var(--space-4);
 }
 
 .hud-mode-led--active {
@@ -784,11 +784,11 @@
     position: absolute;
     bottom: 16px;
     left: 16px;
-    padding: 6px;
-    background-color: rgba(14, 18, 26, 0.9);
+    padding: var(--space-3);
+    background-color: var(--surface-slate-dense);
     border-width: 1px;
-    border-color: rgba(80, 140, 200, 0.5);
-    border-radius: 6px;
+    border-color: var(--accent-cyan-fill);
+    border-radius: var(--radius-md);
     flex-direction: column;
     align-items: center;
 }
@@ -797,10 +797,10 @@
     width: 160px;
     height: 160px;
     border-width: 1px;
-    border-color: rgba(60, 100, 150, 0.6);
-    border-radius: 4px;
+    border-color: var(--light-sheen);
+    border-radius: var(--radius-md);
     overflow: hidden;
-    background-color: rgb(0, 0, 0);
+    background-color: var(--shadow-solid);
 }
 
 .hud-minimap-image {
@@ -809,9 +809,9 @@
 }
 
 .hud-minimap-coords {
-    font-size: 11px;
+    font-size: var(--size-xs);
     color: var(--accent-cyan-hover);
     -unity-font-style: bold;
-    margin-bottom: 4px;
+    margin-bottom: var(--space-2);
     -unity-text-align: middle-center;
 }

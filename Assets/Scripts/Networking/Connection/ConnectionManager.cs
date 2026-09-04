@@ -56,6 +56,8 @@ namespace Fodinae.Networking.Connection
         private ILocalizationService _loc = null!;
         [Inject]
         private IAsyncOperationSupervisor _operations = null!;
+        [Inject]
+        private IGameTokenStore _tokens = null!;
 
         [Inject]
         private DummyConnection _dummyConnection = null!;
@@ -195,7 +197,8 @@ namespace Fodinae.Networking.Connection
                 return _dummyConnection;
             }
 
-            if (ConnectionTransportConfig.SelectTransport(config.UseDummyConnection) == ConnectionTransportKind.Dummy)
+            ConnectionSettings connection = config.Connection;
+            if (ConnectionTransportConfig.SelectTransport(connection.UseDummyConnection) == ConnectionTransportKind.Dummy)
             {
                 Debug.Log(
                     "[Connection] Transport: DummyConnection (offline stub). Set UseDummyConnection=false in client config for the real server.");
@@ -203,13 +206,13 @@ namespace Fodinae.Networking.Connection
             }
 
             if (!ConnectionTransportConfig.TryResolveEndpoint(
-                    config.ServerHost,
-                    config.ServerPort,
+                    connection.ServerHost,
+                    connection.ServerPort,
                     out IPAddress address,
                     out int port))
             {
                 throw new InvalidOperationException(
-                    $"[Connection] Invalid server endpoint '{config.ServerHost}:{config.ServerPort}' in client config. " +
+                    $"[Connection] Invalid server endpoint '{connection.ServerHost}:{connection.ServerPort}' in client config. " +
                     "Expected a valid host/IP and a port in [1, 65535].");
             }
 
@@ -309,25 +312,37 @@ namespace Fodinae.Networking.Connection
                 destroyCancellationToken);
             CancellationToken cancellationToken = linkedCancellation.Token;
 
-            if (_restartWorldOnConnect &&
-                string.Equals(
-                    _sceneNavigator.CurrentSceneName,
-                    "MainGame",
-                    StringComparison.Ordinal))
+            if (_restartWorldOnConnect)
             {
-                await _sceneNavigator.TransitionAsync("MainGame", cancellationToken);
+                bool alreadyInTargetScene = string.Equals(
+                    _sceneNavigator.CurrentSceneName,
+                    ProjectRuntimeContracts.SceneNames.MainGame,
+                    StringComparison.Ordinal);
+                // Always clear the flag here so a missing reload (e.g. re-entry)
+                // doesn't keep us pinned in restart mode for the next connect.
+                _restartWorldOnConnect = false;
+                if (!alreadyInTargetScene)
+                {
+                    await _sceneNavigator.TransitionAsync(
+                        ProjectRuntimeContracts.SceneNames.MainGame,
+                        cancellationToken);
+                }
+                else
+                {
+                    Debug.Log(
+                        "[Connection] Restart-on-connect suppressed: already inside MainGame; skipping redundant transition.");
+                }
             }
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            _restartWorldOnConnect = false;
             _shouldAutoReconnect = false;
             _reconnectBackoff.Reset();
             _reconnectStatus = string.Empty;
             OnReconnectHidden?.Invoke();
 
             int version = _useOldClient ? 0 : 1;
-            string token = AuthTokenManager.LoadToken();
+            string token = _tokens.Load();
             Debug.Log($"[Auth] Sending ClientHello with token: {(string.IsNullOrEmpty(token) ? "EMPTY" : "PRESENT")}");
             Connection?.SendAsync(new ClientPacket(
                 (uint)DateTimeOffset.UtcNow.Ticks,

@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Networking.Auth;
 using UnityEngine;
 
 namespace MinesServer.Networking.Connection.Client;
@@ -23,25 +22,13 @@ internal sealed class DummyAuthSession
         _validTokens = _tokenStore.Load();
     }
 
-    public string PlayerName => SimulateVkLogin().Session.FirstName;
-
-    public VkAuthResult SimulateVkLogin()
+    public string PlayerName
     {
-        long userId = StableUserId(SystemInfo.deviceUniqueIdentifier);
-        return new VkAuthResult
+        get
         {
-            Success = true,
-            GameToken = string.Empty,
-            Session = new VkSession
-            {
-                AccessToken = "dummy-vk-session",
-                UserId = userId,
-                FirstName = $"ШАХТЁР-{100 + (int)(userId % 900)}",
-                LastName = string.Empty,
-                AvatarUrl = string.Empty,
-                ExpiresAtUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 315_360_000L,
-            },
-        };
+            long userId = StableUserId(SystemInfo.deviceUniqueIdentifier);
+            return $"ШАХТЁР-{100 + (int)(userId % 900)}";
+        }
     }
 
     public string ResolveToken(string? receivedToken)

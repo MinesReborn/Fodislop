@@ -15,8 +15,11 @@ namespace Fodinae.World.Lighting.Quality
     /// </remarks>
     public enum LightingQualityMode
     {
+        [Fodinae.Core.SettingLabel("settings.lighting.per_block")]
         PerBlock = 0,
+        [Fodinae.Core.SettingLabel("settings.lighting.off")]
         Off = 1,
+        [Fodinae.Core.SettingLabel("settings.lighting.per_pixel")]
         PerPixel = 2,
 
         /// <summary>
@@ -24,6 +27,7 @@ namespace Fodinae.World.Lighting.Quality
         /// each spatial/angular child sample receives its own near interval,
         /// intervals are merged independently, then bilinearly accumulated.
         /// </summary>
+        [Fodinae.Core.SettingLabel("settings.lighting.per_pixel_bilinear")]
         PerPixelBilinearFix = 3,
     }
 }

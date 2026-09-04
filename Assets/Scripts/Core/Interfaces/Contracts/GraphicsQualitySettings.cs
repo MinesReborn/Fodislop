@@ -1,7 +1,7 @@
 #nullable enable
 
 using System;
-using Fodinae.Rendering.PostProcessing;
+using Fodinae.Core;
 using Fodinae.World.Lighting.Quality;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -11,12 +11,19 @@ namespace Fodinae.Rendering
 
     public enum GraphicsPreset
     {
+        [Fodinae.Core.SettingLabel("settings.preset.very_low")]
         VeryLow,
+        [Fodinae.Core.SettingLabel("settings.preset.low")]
         Low,
+        [Fodinae.Core.SettingLabel("settings.preset.medium")]
         Medium,
+        [Fodinae.Core.SettingLabel("settings.preset.high")]
         High,
+        [Fodinae.Core.SettingLabel("settings.preset.very_high")]
         VeryHigh,
+        [Fodinae.Core.SettingLabel("settings.preset.ultra")]
         Ultra,
+        [Fodinae.Core.SettingLabel("settings.preset.custom")]
         Custom,
     }
 
@@ -25,38 +32,80 @@ namespace Fodinae.Rendering
     {
         public const int MinimumLightingTextureDimension = 256;
 
+        /// <summary>
+        /// Допустимые значения MSAA. Ноль — выключено.
+        /// </summary>
+        /// <remarks>
+        /// Аппаратный MSAA принимает только степени двойки, и [Range(0, 8)]
+        /// над полем этого не выражает: тройка проходила проверку и уезжала
+        /// в <c>UniversalRenderPipelineAsset.msaaSampleCount</c>, где смысла
+        /// не имеет. Диапазон отвечает за края, набор — за то, что внутри.
+        ///
+        /// Отсюда же берёт значения кнопка в меню: два списка допустимых
+        /// значений разошлись бы при первом же изменении.
+        ///
+        /// ЧЕГО ЭТА НАСТРОЙКА НЕ ДЕЛАЕТ. MSAA сглаживает края геометрии.
+        /// Здесь весь мир — спрайты на полностью покрытых квадратах, край
+        /// задаётся альфой текстуры, и сглаживать нечего. Ступенчатость и
+        /// муар в этой игре идут от несовпадения сетки текселей с сеткой
+        /// экрана и лечатся привязкой камеры (см. PixelGrid), а не здесь.
+        /// Во всех шести авторских пресетах значение — ноль.
+        /// </remarks>
+        public static readonly int[] AntiAliasingSampleCounts = [0, 2, 4, 8];
+
         [FormerlySerializedAs("LightingPixelsPerCell")]
-        [Min(1)]
+        [Range(1, 8)]
+        [SettingLabel("settings.lighting.density")]
         [Tooltip("Нижняя граница lighting-пикселей на клетку. Фактическое разрешение считается от render target базовой камеры.")]
+        [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine field allocation")]
         public int LightingMinimumPixelsPerCell;
-        [Min(MinimumLightingTextureDimension)]
+
+        [Range(MinimumLightingTextureDimension, 4096)]
+        [SettingLabel("settings.lighting.max_size")]
         [Tooltip("Максимальный размер lighting field в пикселях.")]
+        [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine field allocation")]
         public int LightingMaximumTextureDimension;
-        [Min(1)]
+
+        [Range(1, 2048)]
+        [SettingLabel("settings.lighting.max_dynamic_lights")]
         [Tooltip("Максимальное число dynamic light sources, загружаемых в GPU buffer.")]
+        [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine GPU buffer capacity")]
         public int LightingMaximumLightCount;
-        [Min(1)]
+
+        [Range(1, 128)]
+        [SettingLabel("settings.lighting.cascade_steps")]
         [Tooltip("Максимальное число шагов одного cascade interval.")]
+        [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine compute shader interval step limit")]
         public int LightingMaximumRaySteps;
-        [Min(1f)]
+
+        [Range(1f, ProjectRuntimeContracts.RuntimeLimits.MaximumLightingUpdatesPerSecond)]
+        [SettingLabel("settings.lighting.solve_rate")]
         [Tooltip("Максимальная частота lighting solve. Изменение геометрии всё равно обрабатывается сразу.")]
+        [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine compute update rate")]
         public float LightingUpdatesPerSecond;
-        [Min(128)]
+
+        [Range(128, 4096)]
+        [SettingLabel("settings.lighting.atlas_size")]
         [Tooltip("Бюджет radiance cascade atlas.")]
+        [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine cascade atlas limit")]
         public int LightingCascadeAtlasLimit;
+
         [Range(0.5f, 1f)]
+        [SettingLabel("settings.graphics.render_scale")]
         [Tooltip("URP render scale для данного quality tier.")]
+        [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine.ApplyUnityRenderingSettings -> UniversalRenderPipelineAsset.renderScale")]
         public float RenderScale;
-        [Range(0, 4)]
-        [Tooltip("Количество вертикальных синхронизаций.")]
-        public int VSyncCount;
+
         [Range(0, 8)]
+        [SettingLabel("settings.graphics.anti_aliasing")]
         [Tooltip("MSAA sample count для данного quality tier.")]
+        [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine.ApplyUnityRenderingSettings -> UniversalRenderPipelineAsset.msaaSampleCount")]
         public int AntiAliasing;
+
+        [SettingUnbounded("Режим освещения — перечисление; проверяется на определённость.")]
         [Tooltip("Off/PerBlock/PerPixel режим освещения. Ultra всегда принудительно PerPixel.")]
+        [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingQualityResolver -> LightingEngine._lightingQualityMode")]
         public LightingQualityMode LightingQuality;
-        [Tooltip("Full/Essential/Off объём пост-обработки. Essential выключает bloom и motion blur — самую дорогую часть стека.")]
-        public PostProcessQualityMode PostProcessQuality;
 
         public GraphicsQualitySettings(
             int lightingPixelsPerCell,
@@ -66,10 +115,8 @@ namespace Fodinae.Rendering
             float lightingUpdatesPerSecond,
             int lightingCascadeAtlasLimit,
             float renderScale,
-            int vSyncCount,
             int antiAliasing,
-            LightingQualityMode lightingQuality = LightingQualityMode.PerBlock,
-            PostProcessQualityMode postProcessQuality = PostProcessQualityMode.Full)
+            LightingQualityMode lightingQuality = LightingQualityMode.PerBlock)
         {
             LightingMinimumPixelsPerCell = lightingPixelsPerCell;
             LightingMaximumTextureDimension = lightingMaximumTextureDimension;
@@ -78,10 +125,8 @@ namespace Fodinae.Rendering
             LightingUpdatesPerSecond = lightingUpdatesPerSecond;
             LightingCascadeAtlasLimit = lightingCascadeAtlasLimit;
             RenderScale = renderScale;
-            VSyncCount = vSyncCount;
             AntiAliasing = antiAliasing;
             LightingQuality = lightingQuality;
-            PostProcessQuality = postProcessQuality;
         }
 
         public readonly bool Equals(GraphicsQualitySettings other)
@@ -93,10 +138,8 @@ namespace Fodinae.Rendering
                 LightingUpdatesPerSecond.Equals(other.LightingUpdatesPerSecond) &&
                 LightingCascadeAtlasLimit == other.LightingCascadeAtlasLimit &&
                 RenderScale.Equals(other.RenderScale) &&
-                VSyncCount == other.VSyncCount &&
                 AntiAliasing == other.AntiAliasing &&
-                LightingQuality == other.LightingQuality &&
-                PostProcessQuality == other.PostProcessQuality;
+                LightingQuality == other.LightingQuality;
         }
 
         public override readonly bool Equals(object? obj)
@@ -119,10 +162,8 @@ namespace Fodinae.Rendering
             hash.Add(settings.LightingUpdatesPerSecond);
             hash.Add(settings.LightingCascadeAtlasLimit);
             hash.Add(settings.RenderScale);
-            hash.Add(settings.VSyncCount);
             hash.Add(settings.AntiAliasing);
             hash.Add(settings.LightingQuality);
-            hash.Add(settings.PostProcessQuality);
             return hash.ToHashCode();
         }
 

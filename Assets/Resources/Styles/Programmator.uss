@@ -10,26 +10,26 @@
     background-color: var(--surface-panel);
     border-color: var(--border-subtle);
     border-width: 1px;
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     padding: var(--space-6);
 }
 
 .programmator-grid {
     flex-wrap: wrap;
-    background-color: rgba(30, 30, 30, 1);
+    background-color: var(--surface-shelf-solid);
     border-color: var(--border-subtle);
     border-width: 1px;
-    border-radius: 3px;
-    padding: 4px;
+    border-radius: var(--radius-sm);
+    padding: var(--space-2);
 }
 
 .programmator-cell {
     width: 40px;
     height: 40px;
-    background-color: rgba(38, 38, 38, 1);
+    background-color: var(--surface-shelf-solid);
     border-color: var(--border-subtle);
     border-width: 1px;
-    border-radius: 2px;
+    border-radius: var(--radius-sharp);
     margin: 1px;
     -unity-text-align: middle-center;
     font-size: var(--size-sm);
@@ -41,13 +41,13 @@
 }
 
 .programmator-cell.has-operator {
-    background-color: rgba(178, 166, 128, 0.3);
+    background-color: var(--accent-gold-glow);
     color: var(--accent-gold);
 }
 
 .programmator-toolbar {
     flex-direction: row;
-    margin-top: 8px;
+    margin-top: var(--space-4);
 }
 
 /* ─── Радиальное меню ─── */
@@ -70,15 +70,15 @@
     position: absolute;
     width: 36px;
     height: 36px;
-    border-radius: 18px;
-    background-color: rgba(51, 51, 51, 0.95);
+    border-radius: var(--radius-md);
+    background-color: var(--surface-shelf-solid);
     border-width: 2px;
-    border-color: rgb(128, 128, 128);
+    border-color: var(--light-edge);
 }
 
 .prog-radial-item-label {
-    color: white;
-    font-size: 8px;
+    color: var(--light-solid);
+    font-size: var(--size-micro);
     -unity-text-align: middle-center;
     white-space: normal;
 }
@@ -94,8 +94,8 @@
     height: 236px;
     left: 12px;
     top: 12px;
-    border-radius: 118px;
-    border-color: rgba(20, 20, 20, 0.45);
+    border-radius: var(--radius-pill);
+    border-color: var(--border-hairline);
     display: none;
 }
 
@@ -104,8 +104,8 @@
     height: 146px;
     left: 57px;
     top: 57px;
-    border-radius: 73px;
-    border-color: rgba(31, 31, 31, 0.5);
+    border-radius: var(--radius-pill);
+    border-color: var(--surface-raised);
 }
 
 .prog-radial-back {
@@ -114,19 +114,19 @@
     top: 112px;
     width: 36px;
     height: 36px;
-    border-radius: 18px;
-    background-color: rgba(38, 38, 38, 0.95);
+    border-radius: var(--radius-md);
+    background-color: var(--surface-shelf-dense);
     border-width: 2px;
-    border-color: rgb(128, 128, 128);
+    border-color: var(--light-edge);
     display: none;
 }
 
 .prog-radial-back:hover {
-    border-color: rgb(255, 214, 0);
+    border-color: var(--accent-gold);
 }
 
 .prog-radial-back-label {
-    color: white;
+    color: var(--light-solid);
     font-size: 18px;
     -unity-text-align: middle-center;
 }
@@ -149,27 +149,27 @@
     top: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(0, 0, 0, 0.4);
+    background-color: var(--surface-inset);
 }
 
 .prog-panel {
-    background-color: rgba(20, 20, 20, 0.95);
+    background-color: var(--surface-slate-dense);
     border-width: 2px;
-    border-color: rgb(89, 89, 89);
-    padding: 10px;
+    border-color: var(--accent-cyan-deep);
+    padding: var(--space-5);
     flex-direction: column;
     width: 618px;
     min-height: 520px;
 }
 
 .prog-panel--running {
-    border-color: rgb(51, 204, 51);
+    border-color: var(--state-ok);
 }
 
 .prog-top {
     flex-direction: column;
     flex-grow: 1;
-    margin-bottom: 10px;
+    margin-bottom: var(--space-5);
 }
 
 .prog-header-row {
@@ -185,13 +185,13 @@
 .prog-action-row {
     flex-direction: row;
     align-items: center;
-    margin-top: 4px;
+    margin-top: var(--space-2);
 }
 
 .prog-title {
     font-size: 18px;
     -unity-font-style: bold;
-    color: rgb(178, 166, 128);
+    color: var(--accent-gold);
 }
 
 .prog-grid-row {
@@ -204,23 +204,23 @@
 .prog-ctrl-btn {
     width: 22px;
     height: 22px;
-    background-color: rgba(0, 0, 0, 0);
-    color: rgb(178, 178, 178);
-    font-size: 14px;
+    background-color: transparent;
+    color: var(--text-secondary);
+    font-size: var(--size-base);
     -unity-text-align: middle-center;
     border-width: 0;
-    padding: 0 2px;
+    padding: 0 var(--space-1);
 }
 
 .prog-ctrl-btn--gap {
-    margin-right: 8px;
+    margin-right: var(--space-4);
 }
 
 .prog-close-btn {
     width: 24px;
     height: 24px;
-    background-color: rgba(0, 0, 0, 0);
-    color: rgb(178, 178, 178);
+    background-color: transparent;
+    color: var(--text-secondary);
     font-size: 18px;
     -unity-text-align: middle-center;
     border-width: 0;
@@ -228,15 +228,15 @@
 }
 
 .prog-close-btn:hover {
-    color: white;
+    color: var(--light-solid);
 }
 
 .prog-save-btn {
     width: 24px;
     height: 24px;
-    background-color: rgba(0, 0, 0, 0);
-    color: rgb(178, 178, 178);
-    font-size: 14px;
+    background-color: transparent;
+    color: var(--text-secondary);
+    font-size: var(--size-base);
     -unity-text-align: middle-center;
     border-width: 0;
     padding: 0;
@@ -245,21 +245,21 @@
 .prog-run-btn {
     width: 22px;
     height: 22px;
-    background-color: rgba(0, 89, 0, 0.3);
-    color: rgb(102, 229, 102);
-    font-size: 12px;
+    background-color: var(--state-ok-tint);
+    color: var(--state-ok);
+    font-size: var(--size-sm);
     -unity-text-align: middle-center;
     border-width: 0;
     padding: 0;
-    margin-left: 4px;
+    margin-left: var(--space-2);
 }
 
 .prog-stop-btn {
     width: 22px;
     height: 22px;
-    background-color: rgba(89, 0, 0, 0.3);
-    color: rgb(229, 77, 77);
-    font-size: 12px;
+    background-color: var(--surface-crisis-dense);
+    color: var(--state-danger);
+    font-size: var(--size-sm);
     -unity-text-align: middle-center;
     border-width: 0;
     padding: 0;
@@ -268,43 +268,43 @@
 .prog-del-btn {
     width: 22px;
     height: 22px;
-    background-color: rgba(77, 0, 0, 0.3);
-    color: rgb(229, 77, 77);
-    font-size: 14px;
+    background-color: var(--surface-crisis-dense);
+    color: var(--state-danger);
+    font-size: var(--size-base);
     -unity-text-align: middle-center;
     border-width: 1px;
-    border-color: rgba(0, 0, 0, 0);
+    border-color: transparent;
     padding: 0;
-    margin-left: 8px;
+    margin-left: var(--space-4);
 }
 
 /* ─── Пейджер ─── */
 
 .prog-pager-label {
-    font-size: 12px;
-    color: rgb(178, 166, 128);
+    font-size: var(--size-sm);
+    color: var(--accent-gold);
     min-width: 60px;
     -unity-text-align: middle-center;
-    margin-left: 4px;
-    margin-right: 4px;
+    margin-left: var(--space-2);
+    margin-right: var(--space-2);
 }
 
 .prog-page-input {
     width: 52px;
     height: 22px;
-    background-color: rgb(31, 31, 31);
-    color: rgb(178, 166, 128);
-    font-size: 12px;
+    background-color: var(--surface-shelf-solid);
+    color: var(--accent-gold);
+    font-size: var(--size-sm);
     -unity-text-align: middle-center;
     border-width: 0;
-    margin: 0 4px;
+    margin: 0 var(--space-2);
     padding: 0;
 }
 
 .prog-page-input .unity-text-input {
-    background-color: rgb(31, 31, 31);
-    color: rgb(178, 166, 128);
-    font-size: 12px;
+    background-color: var(--surface-shelf-solid);
+    color: var(--accent-gold);
+    font-size: var(--size-sm);
     -unity-text-align: middle-center;
     border-width: 0;
     padding: 0;
@@ -328,23 +328,23 @@
 .prog-cell {
     width: 32px;
     height: 32px;
-    background-color: rgb(38, 38, 38);
+    background-color: var(--surface-shelf-solid);
     border-width: 1px;
-    border-color: rgb(64, 64, 64);
-    margin: 2px;
+    border-color: var(--border-line);
+    margin: var(--space-1);
 }
 
 .prog-cell--hover {
-    border-color: rgb(255, 214, 0);
+    border-color: var(--accent-gold);
 }
 
 .prog-cell--selected {
-    border-color: rgb(51, 128, 255);
+    border-color: var(--light-edge);
 }
 
 .prog-cell-label {
-    font-size: 8px;
-    color: white;
+    font-size: var(--size-micro);
+    color: var(--light-solid);
     -unity-text-align: middle-center;
     position: absolute;
     left: 0;
@@ -357,10 +357,10 @@
 /* ─── Список программ ─── */
 
 .prog-list-panel {
-    background-color: rgba(20, 20, 20, 0.95);
+    background-color: var(--surface-slate-dense);
     border-width: 2px;
-    border-color: rgb(89, 89, 89);
-    padding: 10px 20px;
+    border-color: var(--accent-cyan-deep);
+    padding: var(--space-5) var(--space-9);
     flex-direction: column;
     width: 400px;
     min-height: 300px;
@@ -368,13 +368,13 @@
 
 .prog-list-header-row {
     flex-direction: row;
-    margin-bottom: 10px;
+    margin-bottom: var(--space-5);
 }
 
 .prog-list-title {
     font-size: 18px;
     -unity-font-style: bold;
-    color: rgb(178, 166, 128);
+    color: var(--accent-gold);
     flex-grow: 1;
 }
 
@@ -386,40 +386,40 @@
 .prog-list-row {
     flex-direction: row;
     align-items: center;
-    padding: 6px 8px;
+    padding: var(--space-3) var(--space-4);
     border-bottom-width: 1px;
-    border-bottom-color: rgb(51, 51, 51);
+    border-bottom-color: var(--border-line);
 }
 
 .prog-list-row:hover {
-    background-color: rgb(38, 38, 38);
+    background-color: var(--surface-shelf-solid);
 }
 
 .prog-list-name {
     flex-grow: 1;
-    color: rgb(204, 204, 204);
-    font-size: 14px;
+    color: var(--accent-gold-hover);
+    font-size: var(--size-base);
     -unity-text-align: middle-left;
 }
 
 .prog-create-container {
     flex-direction: column;
-    margin-top: 10px;
+    margin-top: var(--space-5);
 }
 
 .prog-create-btn {
     width: 100%;
     height: 30px;
-    background-color: rgb(38, 38, 38);
-    color: rgb(178, 166, 128);
-    font-size: 14px;
+    background-color: var(--surface-shelf-solid);
+    color: var(--accent-gold);
+    font-size: var(--size-base);
     -unity-text-align: middle-center;
     border-width: 1px;
-    border-color: rgb(89, 89, 89);
+    border-color: var(--accent-cyan-deep);
 }
 
 .prog-create-btn:hover {
-    background-color: rgb(51, 51, 51);
+    background-color: var(--surface-shelf-solid);
 }
 
 /* ─── Диалог создания программы ─── */
@@ -435,37 +435,37 @@
 }
 
 .prog-dialog-panel {
-    background-color: rgba(20, 20, 20, 0.95);
+    background-color: var(--surface-slate-dense);
     border-width: 2px;
-    border-color: rgb(89, 89, 89);
-    padding: 16px 20px;
+    border-color: var(--accent-cyan-deep);
+    padding: var(--space-8) var(--space-9);
     flex-direction: column;
     align-items: stretch;
     width: 350px;
 }
 
 .prog-dialog-title {
-    font-size: 16px;
+    font-size: var(--size-md);
     -unity-font-style: bold;
-    color: rgb(178, 166, 128);
-    margin-bottom: 12px;
+    color: var(--accent-gold);
+    margin-bottom: var(--space-6);
 }
 
 .prog-dialog-input {
     height: 32px;
-    background-color: rgb(31, 31, 31);
-    color: rgb(204, 204, 204);
-    font-size: 14px;
+    background-color: var(--surface-shelf-solid);
+    color: var(--accent-gold-hover);
+    font-size: var(--size-base);
     border-width: 1px;
-    border-color: rgb(77, 77, 77);
-    padding-left: 8px;
-    margin-bottom: 16px;
+    border-color: var(--border-line);
+    padding-left: var(--space-4);
+    margin-bottom: var(--space-8);
 }
 
 .prog-dialog-input .unity-text-input {
-    background-color: rgb(31, 31, 31);
-    color: rgb(204, 204, 204);
-    font-size: 14px;
+    background-color: var(--surface-shelf-solid);
+    color: var(--accent-gold-hover);
+    font-size: var(--size-base);
     border-width: 0;
 }
 
@@ -477,24 +477,24 @@
 .prog-dialog-cancel {
     height: 30px;
     min-width: 80px;
-    background-color: rgb(38, 38, 38);
-    color: rgb(178, 178, 178);
-    font-size: 14px;
+    background-color: var(--surface-shelf-solid);
+    color: var(--text-secondary);
+    font-size: var(--size-base);
     -unity-text-align: middle-center;
     border-width: 1px;
-    border-color: rgb(77, 77, 77);
-    margin-right: 8px;
+    border-color: var(--border-line);
+    margin-right: var(--space-4);
 }
 
 .prog-dialog-confirm {
     height: 30px;
     min-width: 80px;
-    background-color: rgba(0, 77, 0, 0.3);
-    color: rgb(102, 229, 102);
-    font-size: 14px;
+    background-color: var(--state-ok-tint);
+    color: var(--state-ok);
+    font-size: var(--size-base);
     -unity-text-align: middle-center;
     border-width: 1px;
-    border-color: rgb(51, 128, 51);
+    border-color: var(--light-edge);
 }
 
 /* ─── Джойстик Observer ─── */
@@ -509,15 +509,15 @@
     position: absolute;
     width: 36px;
     height: 36px;
-    background-color: rgba(51, 51, 51, 0.95);
+    background-color: var(--surface-shelf-solid);
     border-width: 2px;
-    border-color: rgb(128, 128, 128);
-    border-radius: 18px;
+    border-color: var(--light-edge);
+    border-radius: var(--radius-md);
 }
 
 .prog-joy-item:hover {
-    background-color: rgba(89, 89, 89, 0.95);
-    border-color: rgb(255, 214, 0);
+    background-color: var(--accent-cyan-deep);
+    border-color: var(--accent-gold);
 }
 
 /* Позиции 8 кнопок направлений — кольцо радиусом 70px вокруг центра 100px
@@ -532,8 +532,8 @@
 .prog-joy-item--7 { left: 32.5px;  top: 32.5px; }
 
 .prog-joy-item-label {
-    color: white;
-    font-size: 14px;
+    color: var(--light-solid);
+    font-size: var(--size-base);
     -unity-text-align: middle-center;
 }
 
@@ -549,5 +549,5 @@
 }
 
 .prog-joy-center .prog-joy-item-label {
-    font-size: 16px;
+    font-size: var(--size-md);
 }

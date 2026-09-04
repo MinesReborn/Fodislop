@@ -38,6 +38,8 @@ namespace Fodinae.UI
         private MapModeState _mapModeState = null!;
         [Inject]
         private ILocalPlayerState _localPlayer = null!;
+        [Inject]
+        private UIInputManager _uiInput = null!;
 
         protected void Start()
         {
@@ -60,7 +62,7 @@ namespace Fodinae.UI
 
             // Map toggle as a direct keyboard check (mirrors MinimapController's N key);
             // Ignore when typing in chat.
-            if (Keyboard.current != null && Keyboard.current.mKey.wasPressedThisFrame && !ChatInput.IsFocused)
+            if (Keyboard.current != null && Keyboard.current.mKey.wasPressedThisFrame && !_uiInput.IsChatFocused)
             {
                 ToggleMapMode();
             }

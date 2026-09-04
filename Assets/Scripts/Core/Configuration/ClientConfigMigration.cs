@@ -1,101 +1,54 @@
 #nullable enable
 
 using System;
-using Fodinae.Core.Interfaces;
 using Fodinae.Rendering;
-using Fodinae.Rendering.PostProcessing;
 using UnityEngine;
 
 namespace Fodinae.Core;
 
-internal sealed class ClientConfigMigration(
-    IProjectDefaults projectDefaults,
-    GraphicsQualityProfile graphicsQualityProfile)
+/// <summary>
+/// Приводит сохранённый конфиг к текущей схеме.
+/// </summary>
+/// <remarks>
+/// ЧТО ВЫЧИЩЕНО И ПОЧЕМУ. В ладдере было пятнадцать шагов, из которых четыре
+/// (5, 11, 17, 18) не делали ничего, кроме инкремента счётчика, а ещё четыре
+/// (2, 4, 6, 8) переписывали поля вида, которые шаги 19-21 всё равно
+/// перезаписывали целиком. То есть весь хвост ниже 19 был мёртвым: любой файл
+/// старее доезжал до 21 с теми же значениями, что и файл схемы 19.
+///
+/// Ладдер как механизм остался: он и есть то место, где смена авторского
+/// значения по умолчанию выражается явно. Раньше эту роль дублировал
+/// <c>ProjectDefaultsHash</c> — сверка хэша ассета, которая делала то же самое
+/// молча и на каждой загрузке. Ассета больше нет, значения живут в коде, и
+/// единственным способом сказать «сбросить вид» стал новый шаг схемы.
+/// </remarks>
+internal sealed class ClientConfigMigration(GraphicsQualityProfile graphicsQualityProfile)
 {
-    private readonly IProjectDefaults _projectDefaults = projectDefaults ??
-        throw new ArgumentNullException(nameof(projectDefaults));
     private readonly GraphicsQualityProfile _graphicsQualityProfile = graphicsQualityProfile ??
         throw new ArgumentNullException(nameof(graphicsQualityProfile));
 
-    public bool Migrate(ClientConfig config)
+    /// <param name="rawJson">
+    /// Исходный текст файла. Нужен потому, что до схемы 22 поля вида лежали
+    /// плоско в корне и в типизированный <see cref="ClientConfig"/> не
+    /// попадают: их читает <see cref="ClientConfigLegacySchema21"/>.
+    /// </param>
+    public bool Migrate(ClientConfig config, string rawJson)
     {
         if (config == null)
         {
             throw new ArgumentNullException(nameof(config));
         }
 
-        ShaderDefaultsSnapshot shaders = _projectDefaults.Shaders;
         bool migrated = false;
-        if (config.SchemaVersion < 2)
-        {
-            ApplySchema2(config, shaders);
-            migrated = true;
-        }
-
-        if (config.SchemaVersion < 3)
-        {
-            ApplySchema3(config, shaders);
-            migrated = true;
-        }
-
-        if (config.SchemaVersion < 4)
-        {
-            config.TerrainDebugColor = shaders.TerrainDebugColor;
-            config.TerrainDebugMode = shaders.TerrainDebugMode;
-            config.SchemaVersion = 4;
-            migrated = true;
-        }
-
-        if (config.SchemaVersion < 5)
-        {
-            config.SchemaVersion = 5;
-            migrated = true;
-        }
-
-        if (config.SchemaVersion < 6)
-        {
-            ClientConfigDefaults.ApplyShaderDefaults(config, shaders);
-            config.ProjectDefaultsHash = _projectDefaults.ContentHash;
-            config.SchemaVersion = 6;
-            migrated = true;
-        }
-
-        if (config.SchemaVersion < 7)
-        {
-            config.ProjectDefaultsHash = _projectDefaults.ContentHash;
-            config.SchemaVersion = 7;
-            migrated = true;
-        }
-
-        if (config.SchemaVersion < 8)
-        {
-            ClientConfigDefaults.ApplyLightingDefaults(config, _projectDefaults.Lighting);
-            config.SchemaVersion = 8;
-            migrated = true;
-        }
-
         if (config.SchemaVersion < 9)
         {
+            // Всё, что старее девятой схемы, не имело осмысленного пресета
+            // графики: там лежал legacy-индекс качества 0..3.
             GraphicsPreset previousPreset = ClientConfigDefaults.ConvertLegacyGraphicsQuality(
-                (int)config.GraphicsPreset);
+                Mathf.Clamp((int)config.GraphicsPreset, 0, 3));
             config.GraphicsQualitySettings = _graphicsQualityProfile.Get(previousPreset);
             config.GraphicsPreset = GraphicsPreset.Custom;
             config.SchemaVersion = 9;
-            migrated = true;
-        }
-
-        if (config.SchemaVersion < 10)
-        {
-            config.UseDummyConnection = true;
-            config.ServerHost = "127.0.0.1";
-            config.ServerPort = 7777;
-            config.SchemaVersion = 10;
-            migrated = true;
-        }
-
-        if (config.SchemaVersion < 11)
-        {
-            config.SchemaVersion = 11;
             migrated = true;
         }
 
@@ -109,24 +62,86 @@ internal sealed class ClientConfigMigration(
             migrated = true;
         }
 
-        if (config.SchemaVersion < 13)
+        if (config.SchemaVersion < 22)
         {
-            config.BloomSoftKnee = shaders.BloomSoftKnee;
-            config.BloomRadius = shaders.BloomRadius;
-            config.SchemaVersion = 13;
+            MigrateFlatVisualsToSections(config, rawJson);
+            config.SchemaVersion = 22;
             migrated = true;
         }
 
-        if (config.SchemaVersion < 14)
+        if (config.SchemaVersion < 23)
         {
-            config.AdvancedPostProcess = new AdvancedPostProcessSettings();
-            config.SchemaVersion = 14;
+            // Схема 23: сброс калибровки SDR-гаммы к авторскому значению
+            // при деградации до минимума. Здесь же сбрасывалась белая точка
+            // тонмаппинга, но самого тонмаппинга больше нет (схема 27), и
+            // поля тоже: шаг сохранён ради гаммы, ступень схемы удалять
+            // нельзя — по ней считаются все последующие.
+            if (config.Display != null &&
+                Mathf.Approximately(config.Display.Gamma, DisplaySettings.GammaMin))
+            {
+                config.Display.Gamma = DisplaySettings.DefaultGamma;
+            }
+
+            config.SchemaVersion = 23;
             migrated = true;
         }
 
-        if (config.SchemaVersion < 15)
+        if (config.SchemaVersion < 24)
         {
-            ApplySchema15(config);
+            // Схема 24: сброс унаследованной эмиссии (8x компенсация старого оценщика)
+            // и завышенного фонового света к авторским физически обоснованным значениям (2.0 и 0.08).
+            if (config.Lighting != null)
+            {
+                if (config.Lighting.EmissionScale > 4f)
+                {
+                    config.Lighting.EmissionScale = WorldLightingSettings.DefaultEmissionScale;
+                }
+
+                if (config.Lighting.AmbientIntensity > 0.5f)
+                {
+                    config.Lighting.AmbientIntensity = WorldLightingSettings.DefaultAmbientIntensity;
+                }
+            }
+
+            config.SchemaVersion = 24;
+            migrated = true;
+        }
+
+        if (config.SchemaVersion < 25)
+        {
+            // Схема 25 добавляла тумблер сжатия динамического диапазона.
+            // В схеме 27 он удалён вместе с самим сжатием, поэтому делать
+            // здесь нечего — но ступень обязана остаться: версии идут
+            // подряд, и пропуск двадцать пятой оставил бы старые конфиги
+            // навсегда позади.
+            config.SchemaVersion = 25;
+            migrated = true;
+        }
+
+        if (config.SchemaVersion < 26)
+        {
+            // Схема 26: добавлен режим выборки пиксельной сетки. Старые
+            // конфиги получают сглаживание границ: оно сохраняет привычный
+            // плавный зум, а ступенчатый вариант навязывать нельзя — это
+            // заметная смена ощущений.
+            if (config.Display != null)
+            {
+                config.Display.PixelSampling = PixelSamplingMode.SmoothFiltered;
+            }
+
+            config.SchemaVersion = 26;
+            migrated = true;
+        }
+
+        if (config.SchemaVersion < 27)
+        {
+            // Схема 27: сжатие динамического диапазона удалено целиком.
+            // Поля ToneMappingEnabled и ToneMappingWhitePoint исчезли из
+            // секций; JsonUtility просто не читает то, чего в типе нет,
+            // поэтому старым конфигам достаточно поднять версию — иначе
+            // они бесконечно считались бы устаревшими и переписывались с
+            // резервной копией при каждом запуске.
+            config.SchemaVersion = 27;
             migrated = true;
         }
 
@@ -141,106 +156,47 @@ internal sealed class ClientConfigMigration(
             }
         }
 
-        if (!string.Equals(
-                config.ProjectDefaultsHash,
-                _projectDefaults.ContentHash,
-                StringComparison.Ordinal))
-        {
-            RefreshChangedProjectDefaults(config);
-            migrated = true;
-        }
-
         return migrated;
     }
 
-    private static void ApplySchema2(ClientConfig config, ShaderDefaultsSnapshot shaders)
+    /// <summary>
+    /// Схема 22: поля вида уезжают из корня в секции Lighting/Terrain/Effects.
+    /// </summary>
+    /// <remarks>
+    /// Значения игрока переносятся, а не сбрасываются: настроенный свет — это
+    /// его работа, и терять её при смене формы файла нельзя. Файл старее 19-й
+    /// схемы плоского хвоста уже не содержит осмысленных величин постпроцесса
+    /// (их удалили вместе с тридцатью пятью ползунками), поэтому там секции
+    /// остаются авторскими — ровно то, что делал прежний шаг 19.
+    /// </remarks>
+    private static void MigrateFlatVisualsToSections(ClientConfig config, string rawJson)
     {
-        config.TerrainFlowScale = shaders.TerrainFlowScale;
-        config.TerrainShimmerSpeedScale = shaders.TerrainShimmerSpeedScale;
-        config.TerrainPulseSpeedScale = shaders.TerrainPulseSpeedScale;
-        config.TerrainShimmerColor = shaders.TerrainShimmerColor;
-        config.TerrainDebugColor = shaders.TerrainDebugColor;
-        config.TerrainDebugMode = shaders.TerrainDebugMode;
-        config.TransitEmissionColor = shaders.TransitEmissionColor;
-        config.TransitEmissionStrength = shaders.TransitEmissionStrength;
-        config.PerspectiveEmissionColor = shaders.PerspectiveEmissionColor;
-        config.PerspectiveEmissionStrength = shaders.PerspectiveEmissionStrength;
-        config.SurfaceOccupancy = shaders.SurfaceOccupancy;
-        config.BloomIntensity = shaders.BloomIntensity;
-        config.VignetteIntensity = shaders.VignetteIntensity;
-        config.ChromaticAberrationIntensity = shaders.ChromaticAberrationIntensity;
-        config.ColorGradingExposure = shaders.ColorGradingExposure;
-        config.ColorGradingContrast = shaders.ColorGradingContrast;
-        config.ColorGradingSaturation = shaders.ColorGradingSaturation;
-        config.ColorGradingToneMapping = shaders.ColorGradingToneMapping;
-        config.EigengrauIntensity = shaders.EigengrauIntensity;
-        config.MotionBlurIntensity = shaders.MotionBlurIntensity;
-        config.SchemaVersion = 2;
-    }
-
-    private static void ApplySchema3(ClientConfig config, ShaderDefaultsSnapshot shaders)
-    {
-        config.BloomThreshold = shaders.BloomThreshold;
-        config.BloomScatter = shaders.BloomScatter;
-        config.BloomTint = shaders.BloomTint;
-        config.VignetteColor = shaders.VignetteColor;
-        config.VignetteSmoothness = shaders.VignetteSmoothness;
-        config.VignetteCenter = shaders.VignetteCenter;
-        config.ColorGradingFilter = shaders.ColorGradingFilter;
-        config.ColorGradingToneMappingWhitePoint = shaders.ColorGradingToneMappingWhitePoint;
-        config.EigengrauColor = shaders.EigengrauColor;
-        config.EigengrauDarknessThreshold = shaders.EigengrauDarknessThreshold;
-        config.EigengrauNoiseScale = shaders.EigengrauNoiseScale;
-        config.EigengrauAnimationSpeed = shaders.EigengrauAnimationSpeed;
-        config.SchemaVersion = 3;
-    }
-
-    private static void ApplySchema15(ClientConfig config)
-    {
-        AdvancedPostProcessSettings advanced = config.AdvancedPostProcess;
-        config.BloomIntensity = Mathf.Clamp(config.BloomIntensity, 0f, 2f);
-        config.BloomTint = new Color(
-            Mathf.Clamp(config.BloomTint.r, 0f, 2f),
-            Mathf.Clamp(config.BloomTint.g, 0f, 2f),
-            Mathf.Clamp(config.BloomTint.b, 0f, 2f),
-            Mathf.Clamp01(config.BloomTint.a));
-        config.ChromaticAberrationIntensity = Mathf.Clamp(config.ChromaticAberrationIntensity, 0f, 0.25f);
-        config.ColorGradingExposure = Mathf.Clamp(config.ColorGradingExposure, -2f, 2f);
-        config.ColorGradingContrast = Mathf.Clamp(config.ColorGradingContrast, -0.5f, 0.5f);
-        config.EigengrauIntensity = Mathf.Clamp(config.EigengrauIntensity, 0f, 0.25f);
-        config.MotionBlurIntensity = Mathf.Clamp(config.MotionBlurIntensity, 0f, 0.5f);
-        advanced.LocalContrastIntensity = Mathf.Clamp(advanced.LocalContrastIntensity, 0f, 0.5f);
-        advanced.LensDirtIntensity = Mathf.Clamp(advanced.LensDirtIntensity, 0f, 0.35f);
-        advanced.AnamorphicIntensity = Mathf.Clamp01(advanced.AnamorphicIntensity);
-        advanced.ChromaticDiffractionIntensity = Mathf.Clamp(advanced.ChromaticDiffractionIntensity, 0f, 0.5f);
-        advanced.HeatRefractionIntensity = Mathf.Clamp(advanced.HeatRefractionIntensity, 0f, 0.25f);
-        advanced.GlintIntensity = Mathf.Clamp(advanced.GlintIntensity, 0f, 0.5f);
-        advanced.VolumetricDustIntensity = Mathf.Clamp(advanced.VolumetricDustIntensity, 0f, 0.25f);
-        advanced.PhosphorMaskIntensity = Mathf.Clamp(advanced.PhosphorMaskIntensity, 0f, 0.35f);
-        advanced.TemporalPersistenceIntensity = Mathf.Clamp(advanced.TemporalPersistenceIntensity, 0f, 0.8f);
-        advanced.TemporalPersistenceDecay = Mathf.Clamp(advanced.TemporalPersistenceDecay, 0f, 0.98f);
-        advanced.LightStability = Mathf.Clamp(advanced.LightStability, 0f, 0.9f);
-        config.SchemaVersion = 15;
-    }
-
-    private void RefreshChangedProjectDefaults(ClientConfig config)
-    {
-        if (GraphicsQualityProfile.IsStandard(config.GraphicsPreset))
+        if (config.SchemaVersion < 19)
         {
-            ClientConfigDefaults.ApplyLightingDefaults(config, _projectDefaults.Lighting);
-            ClientConfigDefaults.ApplyShaderDefaults(config, _projectDefaults.Shaders);
-            config.AdvancedPostProcess = new AdvancedPostProcessSettings();
-            Debug.Log(
-                "[ClientConfigMigration] ProjectDefaults changed; refreshed the selected " +
-                "immutable standard graphics preset.");
-        }
-        else
-        {
-            Debug.Log(
-                "[ClientConfigMigration] ProjectDefaults changed; preserved Custom graphics settings.");
+            config.Lighting = new WorldLightingSettings();
+            config.Terrain = new TerrainSettings();
+            config.Effects = new EffectSettings();
+            config.PostProcess = new PostProcessSettings();
+            return;
         }
 
-        config.ProjectDefaultsHash = _projectDefaults.ContentHash;
-    }
+        ClientConfigLegacySchema21? legacy =
+            JsonUtility.FromJson<ClientConfigLegacySchema21>(rawJson);
+        if (legacy == null)
+        {
+            return;
+        }
 
+        config.Lighting = legacy.ToLighting();
+        config.Terrain = legacy.ToTerrain();
+        config.Effects = legacy.ToEffects();
+
+        // Плоский файл мог хранить значения вне нынешних границ: раньше
+        // диапазон проверялся не везде, где записывался. Валидатор после
+        // миграции падает на таком значении, поэтому границы применяются здесь,
+        // при переносе, — это перенос, а не тихая правка живого конфига.
+        SettingSchema.Clamp(config.Lighting);
+        SettingSchema.Clamp(config.Terrain);
+        SettingSchema.Clamp(config.PostProcess);
+    }
 }

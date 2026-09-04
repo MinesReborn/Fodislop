@@ -106,19 +106,6 @@ internal sealed class AssetCacheEntry
 
     public UniTask<byte[]?> GetBytesAsync(Func<UniTask<byte[]?>> loader)
     {
-        lock (_lock)
-        {
-            if (_bytes != null)
-            {
-                return UniTask.FromResult<byte[]?>(_bytes);
-            }
-
-            if (_bytesPromise != null)
-            {
-                return AwaitTask(_bytesPromise.Task);
-            }
-        }
-
         TaskCompletionSource<byte[]?> promise;
         lock (_lock)
         {
@@ -151,19 +138,6 @@ internal sealed class AssetCacheEntry
             {
                 return AwaitTask(_texturePromise.Task);
             }
-        }
-
-        lock (_lock)
-        {
-            if (_texture != null)
-            {
-                return UniTask.FromResult<Texture2D?>(_texture);
-            }
-
-            if (_texturePromise != null)
-            {
-                return AwaitTask(_texturePromise.Task);
-            }
 
             _texturePromise = new TaskCompletionSource<Texture2D?>();
         }
@@ -173,19 +147,6 @@ internal sealed class AssetCacheEntry
 
     public UniTask<AudioClip?> GetAudioAsync(Func<UniTask<byte[]?>> loader)
     {
-        lock (_lock)
-        {
-            if (_audio != null)
-            {
-                return UniTask.FromResult<AudioClip?>(_audio);
-            }
-
-            if (_audioPromise != null)
-            {
-                return AwaitTask(_audioPromise.Task);
-            }
-        }
-
         lock (_lock)
         {
             if (_audio != null)
@@ -217,19 +178,6 @@ internal sealed class AssetCacheEntry
             {
                 return AwaitTask(_spritePromise.Task);
             }
-        }
-
-        lock (_lock)
-        {
-            if (_sprites != null)
-            {
-                return UniTask.FromResult<Sprite[]?>(_sprites);
-            }
-
-            if (_spritePromise != null)
-            {
-                return AwaitTask(_spritePromise.Task);
-            }
 
             _spritePromise = new TaskCompletionSource<Sprite[]?>();
         }
@@ -239,19 +187,6 @@ internal sealed class AssetCacheEntry
 
     public UniTask<AnimatedSpriteData> GetAnimatedSpritesAsync(Func<UniTask<byte[]?>> loader)
     {
-        lock (_lock)
-        {
-            if (_sprites != null)
-            {
-                return UniTask.FromResult(new AnimatedSpriteData(_sprites, _spriteFps, _spriteFrameHeight));
-            }
-
-            if (_spritePromise != null)
-            {
-                return AwaitAnimatedSprites(_spritePromise.Task);
-            }
-        }
-
         lock (_lock)
         {
             if (_sprites != null)
@@ -337,72 +272,23 @@ internal sealed class AssetCacheEntry
 
             await UniTask.SwitchToMainThread();
 
-            var containerType = AnimationContainerDecoder.DetectType(bytes);
-            Texture2D? result;
-            float animationFps = 0f;
-            int animationFrameHeight = 0;
-            int animationFrameCount = 0;
-
-            if (containerType == AnimationContainerDecoder.ContainerType.GIF)
-            {
-                var decoded = AnimationContainerDecoder.DecodeGif(bytes);
-                result = decoded.Atlas;
-                animationFps = decoded.FPS;
-                animationFrameHeight = decoded.FrameHeight;
-                animationFrameCount = decoded.FrameCount;
-                if (result != null)
-                {
-                    result.name = $"Cache_GIF_{DateTime.Now.Ticks}";
-                    RuntimeTextureFactory.ApplySampling(
-                        result,
-                        FilterMode.Point,
-                        TextureWrapMode.Clamp);
-                }
-            }
-            else if (containerType == AnimationContainerDecoder.ContainerType.WebP)
-            {
-                var decoded = AnimationContainerDecoder.DecodeWebP(bytes);
-                result = decoded.Atlas;
-                animationFps = decoded.FPS;
-                animationFrameHeight = decoded.FrameHeight;
-                animationFrameCount = decoded.FrameCount;
-                if (result != null)
-                {
-                    result.name = $"Cache_WebP_{DateTime.Now.Ticks}";
-                    RuntimeTextureFactory.ApplySampling(
-                        result,
-                        FilterMode.Point,
-                        TextureWrapMode.Clamp);
-                }
-            }
-            else
-            {
-                bool makeNoLongerReadable =
-                    RuntimeTextureFactory.SupportsTexture2DGpuCopy;
-                result = RuntimeTextureFactory.DecodeEncodedImageToRgba32NoMip(
-                    bytes,
-                    $"Cache_Tex_{DateTime.Now.Ticks}",
-                    RuntimeTextureColorSpace.Srgb,
-                    FilterMode.Point,
-                    TextureWrapMode.Clamp,
-                    makeNoLongerReadable: makeNoLongerReadable);
-            }
+            var decoded = AssetCacheDecoder.DecodeTexture(bytes, _filename);
 
             TaskCompletionSource<Texture2D?>? texPromise;
             lock (_lock)
             {
-                _texture = result;
-                _spriteFps = animationFps;
-                _spriteFrameHeight = animationFrameHeight;
-                _spriteFrameCount = animationFrameCount;
+                _texture = decoded.Texture;
+                _spriteFps = decoded.Fps;
+                _spriteFrameHeight = decoded.FrameHeight;
+                _spriteFrameCount = decoded.FrameCount;
                 texPromise = _texturePromise;
                 _texturePromise = null;
             }
 
             _cache.TrackDecoded(_filename, EstimateDecodedBytes());
-            texPromise?.TrySetResult(result);
+            texPromise?.TrySetResult(decoded.Texture);
             ReleaseRawBytes();
-            return result;
+            return decoded.Texture;
         }
         catch (Exception ex)
         {
@@ -505,19 +391,17 @@ internal sealed class AssetCacheEntry
 
             if (cachedAnimationTexture != null && cachedFrameHeight > 0)
             {
-                int frameCount = cachedFrameCount > 0
-                    ? cachedFrameCount
-                    : Mathf.Max(1, cachedAnimationTexture.height / cachedFrameHeight);
-                Sprite[] cachedSprites = AnimationContainerDecoder.Decode(
+                Sprite[] cachedSprites = AssetCacheDecoder.SliceAnimationFromTexture(
                     cachedAnimationTexture,
-                    cachedAnimationTexture.width,
                     cachedFrameHeight,
-                    frameCount);
+                    cachedFrameCount);
                 lock (_lock)
                 {
                     _sprites = cachedSprites;
                     _spriteFps = cachedFps;
-                    _spriteFrameCount = frameCount;
+                    _spriteFrameCount = cachedFrameCount > 0
+                        ? cachedFrameCount
+                        : Mathf.Max(1, cachedAnimationTexture.height / cachedFrameHeight);
                     _spritePromise = null;
                 }
 
@@ -536,49 +420,14 @@ internal sealed class AssetCacheEntry
 
             await UniTask.SwitchToMainThread();
 
-            var containerType = AnimationContainerDecoder.DetectType(bytes);
-            AnimationContainerDecoder.DecodedAnimation anim;
-
-            if (containerType == AnimationContainerDecoder.ContainerType.GIF)
-            {
-                anim = AnimationContainerDecoder.DecodeGif(bytes);
-            }
-            else if (containerType == AnimationContainerDecoder.ContainerType.WebP)
-            {
-                anim = AnimationContainerDecoder.DecodeWebP(bytes);
-            }
-            else
-            {
-                anim = default;
-            }
-
-            Sprite[] result;
-            float fps;
-            int frameHeight = 0;
-
-            if (anim.Atlas != null && anim.FrameCount > 0)
-            {
-                fps = anim.FPS;
-                frameHeight = anim.FrameHeight;
-                anim.Atlas.name = $"Cache_Animation_{DateTime.Now.Ticks}";
-                RuntimeTextureFactory.ApplySampling(
-                    anim.Atlas,
-                    FilterMode.Point,
-                    TextureWrapMode.Clamp);
-                result = AnimationContainerDecoder.Decode(
-                    anim.Atlas, anim.Atlas.width, anim.FrameHeight, anim.FrameCount);
-            }
-            else
-            {
-                throw new InvalidOperationException($"Unknown or empty animation container for '{_filename}'.");
-            }
+            var anim = AssetCacheDecoder.DecodeAnimationSprites(bytes, _filename);
 
             TaskCompletionSource<Sprite[]?>? spritePromise;
             lock (_lock)
             {
-                _sprites = result;
-                _spriteFps = fps;
-                _spriteFrameHeight = frameHeight;
+                _sprites = anim.Sprites;
+                _spriteFps = anim.Fps;
+                _spriteFrameHeight = anim.FrameHeight;
                 _spriteFrameCount = anim.FrameCount;
                 _texture = anim.Atlas;
                 spritePromise = _spritePromise;
@@ -586,9 +435,9 @@ internal sealed class AssetCacheEntry
             }
 
             _cache.TrackDecoded(_filename, EstimateDecodedBytes());
-            spritePromise?.TrySetResult(result);
+            spritePromise?.TrySetResult(anim.Sprites);
             ReleaseRawBytes();
-            return result;
+            return anim.Sprites;
         }
         catch (Exception ex)
         {

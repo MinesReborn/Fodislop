@@ -19,6 +19,7 @@ internal sealed class ProgrammatorRadialController
     private readonly Action<int, int> _updateCell;
     private readonly RadialMenu _radial;
     private readonly ObserverJoystick _joystick;
+    private readonly ProgrammatorData _data;
 
     private bool _radialShown;
     private int _radialCellIndex = -1;
@@ -28,17 +29,23 @@ internal sealed class ProgrammatorRadialController
     // page, so the owner can add a new page and refresh the page label.
     public Action? OnLastCellPlaced { get; set; }
 
-    public ProgrammatorRadialController(UIDocument doc, Action<int, int> updateCell, ILocalizationService loc)
+    public ProgrammatorRadialController(
+        UIDocument doc,
+        Action<int, int> updateCell,
+        ILocalizationService loc,
+        ProgrammatorData data,
+        IProgrammatorTextureCatalog textures)
     {
         _doc = doc ?? throw new ArgumentNullException(nameof(doc));
         _updateCell = updateCell ?? throw new ArgumentNullException(nameof(updateCell));
+        _data = data ?? throw new ArgumentNullException(nameof(data));
 
-        _radial = new RadialMenu(loc);
+        _radial = new RadialMenu(loc, textures);
         _radial.OnCategoryClicked += OnRadialCategoryClicked;
         _radial.OnItemClicked += OnRadialItemClicked;
         _radial.OnBackClicked += OnRadialBackClicked;
 
-        _joystick = new ObserverJoystick();
+        _joystick = new ObserverJoystick(textures);
         _joystick.OnOperatorSelected += OnJoystickOperatorSelected;
     }
 
@@ -78,10 +85,10 @@ internal sealed class ProgrammatorRadialController
         {
             int row = _radialCellIndex / ProgrammatorData.COLS;
             int col = _radialCellIndex % ProgrammatorData.COLS;
-            int idx = (ProgrammatorData.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
+            int idx = (_data.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
                       + (row * ProgrammatorData.COLS) + col;
-            ProgrammatorData.PushUndo();
-            ProgrammatorData.Codes[idx] = 0;
+            _data.PushUndo();
+            _data.Codes[idx] = 0;
             _updateCell(row, col);
         }
 
@@ -168,14 +175,14 @@ internal sealed class ProgrammatorRadialController
 
         int row = _radialCellIndex / ProgrammatorData.COLS;
         int col = _radialCellIndex % ProgrammatorData.COLS;
-        int idx = (ProgrammatorData.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
+        int idx = (_data.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
                   + (row * ProgrammatorData.COLS) + col;
-        ProgrammatorData.PushUndo();
-        ProgrammatorData.Codes[idx] = (int)action;
+        _data.PushUndo();
+        _data.Codes[idx] = (int)action;
         _updateCell(row, col);
 
         if ((row * ProgrammatorData.COLS) + col == ProgrammatorData.CELLS_PER_PAGE - 1
-            && ProgrammatorData.CurrentPage == ProgrammatorData.PageCount - 1)
+            && _data.CurrentPage == _data.PageCount - 1)
         {
             OnLastCellPlaced?.Invoke();
         }
@@ -196,14 +203,14 @@ internal sealed class ProgrammatorRadialController
 
         int row = _radialCellIndex / ProgrammatorData.COLS;
         int col = _radialCellIndex % ProgrammatorData.COLS;
-        int idx = (ProgrammatorData.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
+        int idx = (_data.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
                   + (row * ProgrammatorData.COLS) + col;
-        ProgrammatorData.PushUndo();
-        ProgrammatorData.Codes[idx] = selectedId;
+        _data.PushUndo();
+        _data.Codes[idx] = selectedId;
         _updateCell(row, col);
 
         if ((row * ProgrammatorData.COLS) + col == ProgrammatorData.CELLS_PER_PAGE - 1
-            && ProgrammatorData.CurrentPage == ProgrammatorData.PageCount - 1)
+            && _data.CurrentPage == _data.PageCount - 1)
         {
             OnLastCellPlaced?.Invoke();
         }

@@ -2,6 +2,7 @@
 
 using System;
 using System.Text;
+using Fodinae.Core;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -31,12 +32,15 @@ internal sealed class MinimapView : IDisposable
         Texture2D texture,
         Action openMap)
     {
-        VisualTreeAsset template = Resources.Load<VisualTreeAsset>("UI/Minimap") ??
+        VisualTreeAsset template = Resources.Load<VisualTreeAsset>(
+            ProjectRuntimeContracts.ResourcePaths.MinimapUxml) ??
             throw new InvalidOperationException("[Minimap] Resources/UI/Minimap.uxml is required.");
         TemplateContainer tree = template.Instantiate();
         tree.AddToClassList("ui-fullscreen");
+        tree.pickingMode = PickingMode.Ignore;
         VisualElement root = tree.Q<VisualElement>("MinimapPanel") ??
             throw new InvalidOperationException("[Minimap] MinimapPanel is missing from Minimap.uxml.");
+        root.pickingMode = PickingMode.Position;
         Label coordinates = tree.Q<Label>("MinimapCoordinates") ??
             throw new InvalidOperationException("[Minimap] MinimapCoordinates is missing from Minimap.uxml.");
         Image image = tree.Q<Image>("MinimapImage") ??
@@ -69,7 +73,9 @@ internal sealed class MinimapView : IDisposable
 
     public void SetVisible(bool visible)
     {
-        _root.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+        _tree.pickingMode = PickingMode.Ignore;
+        _root.pickingMode = PickingMode.Position;
+        UIState.SetHidden(_root, !visible);
     }
 
     public void Dispose()

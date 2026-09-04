@@ -47,7 +47,7 @@ namespace Fodinae.Effekseer
         /// from the server. Example: <c>path => "VFX/" + path</c>.
         /// Return null from the mapper to skip a texture.
         /// </param>
-        /// <param name="clientAssetLoader">The injected asset loader used for texture downloads.</param>
+        /// <param name="assetLoader">The injected asset loader used for texture downloads.</param>
         /// <param name="textureTimeoutSeconds">
         /// Per-texture download timeout. Defaults to 10 seconds.
         /// </param>
@@ -59,7 +59,7 @@ namespace Fodinae.Effekseer
         public static async UniTask<EffekseerEffectAsset> LoadEffectAsync(
             byte[] efkBytes,
             string effectName,
-            ClientAssetLoader clientAssetLoader,
+            IAssetLoader assetLoader,
             Func<string, string>? texturePathMapper = null,
             int textureTimeoutSeconds = 10)
         {
@@ -76,9 +76,9 @@ namespace Fodinae.Effekseer
                     "EffekseerSystem must be initialized before loading a runtime effect.");
             }
 
-            if (clientAssetLoader == null)
+            if (assetLoader == null)
             {
-                throw new ArgumentNullException(nameof(clientAssetLoader));
+                throw new ArgumentNullException(nameof(assetLoader));
             }
 
             // ----- 1. Parse resource paths from the .efk binary -----
@@ -108,7 +108,7 @@ namespace Fodinae.Effekseer
                         continue;
                     }
 
-                    var tex = await DownloadTextureAsync(clientAssetLoader, serverPath, textureTimeoutSeconds);
+                    var tex = await DownloadTextureAsync(assetLoader, serverPath, textureTimeoutSeconds);
                     textureResources.Add(new EffekseerTextureResource
                     {
                         path = rawPath,
@@ -206,7 +206,7 @@ namespace Fodinae.Effekseer
         /// Download a single texture from the server and decode it into a Texture2D.
         /// </summary>
         private static async UniTask<Texture2D> DownloadTextureAsync(
-            ClientAssetLoader loader,
+            IAssetLoader loader,
             string serverPath,
             int timeoutSeconds)
         {

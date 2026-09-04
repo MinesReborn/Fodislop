@@ -44,6 +44,11 @@ namespace Fodinae.Core
             ValidateReference(_scenery, nameof(_scenery));
             ValidateReferenceScene(_starfield, nameof(_starfield));
             ValidateReferenceScene(_scenery, nameof(_scenery));
+            if (_document.panelSettings == null)
+            {
+                throw new SceneContractException(
+                    "MainMenu scene scope is missing serialized _document PanelSettings.");
+            }
 
             // This scope is already registered by LifetimeScope.InstallTo as
             // RegisterInstance<LifetimeScope>(this).AsSelf() — an explicit

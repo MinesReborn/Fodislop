@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════
    Auth.uss — ворота входа
 
-   Портировано из visual/main-menu-mirror (.auth-*). Замены выполнены по
+   Портировано из visual/fodinae-ui-lab (.auth-*). Замены выполнены по
    контракту переносимости из стайлгайда:
 
      radial-gradient  → плотная заливка (в USS радиальных градиентов нет)
@@ -35,7 +35,7 @@
 
 .auth-card {
     width: 440px;
-    padding: 32px 30px;
+    padding: var(--space-12) 30px;
     background-color: var(--surface-raised);
     border-width: 1px;
     border-color: var(--border-cyan);
@@ -179,7 +179,7 @@
 }
 
 .auth-input > .unity-base-field__input {
-    background-color: rgb(7, 13, 20);
+    background-color: var(--surface-abyss-solid);
     border-width: 1px;
     border-color: var(--border-subtle);
     border-radius: var(--radius-sm);
@@ -232,7 +232,7 @@
 .auth-eula {
     height: 96px;
     margin-bottom: var(--space-4);
-    background-color: rgb(7, 13, 20);
+    background-color: var(--surface-abyss-solid);
     border-width: 1px;
     border-color: var(--border-subtle);
     border-radius: var(--radius-sm);
@@ -279,7 +279,7 @@
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    background-color: rgb(7, 13, 20);
+    background-color: var(--surface-abyss-solid);
     border-width: 1px;
     border-color: rgb(0, 119, 255);
     border-radius: var(--radius-sm);
@@ -289,7 +289,7 @@
 }
 
 .auth-vk:hover {
-    background-color: rgb(10, 20, 32);
+    background-color: var(--surface-slate-solid);
     border-color: var(--accent-cyan);
 }
 
@@ -360,7 +360,7 @@
 }
 
 .auth-footer-link {
-    background-color: rgba(0, 0, 0, 0);
+    background-color: transparent;
     border-width: 0;
     -unity-font-definition: var(--face-body);
     font-size: var(--size-sm);
@@ -425,7 +425,7 @@
 /* ═══════════════════════════════════════════════════════════
    ОНБОРДИНГ
 
-   Портировано из visual/main-menu-mirror (.onboarding-*).
+   Портировано из visual/fodinae-ui-lab (.onboarding-*).
    Показывается один раз после первого прохода ворот.
    ═══════════════════════════════════════════════════════════ */
 
@@ -569,7 +569,7 @@
     justify-content: space-between;
     padding: var(--space-5) var(--space-6);
     margin-bottom: var(--space-4);
-    background-color: rgb(7, 13, 20);
+    background-color: var(--surface-abyss-solid);
     border-width: 1px;
     border-color: var(--border-subtle);
     border-radius: var(--radius-sm);
@@ -615,6 +615,52 @@
     border-color: var(--border-cyan);
 }
 
+/* Ползунок громкости в онбординге. Классы стояли в разметке без единого
+   правила — контрол рисовался стандартной темой Unity. Раскладка взята из
+   макета (css/screens/modals.css, .slider-container): дорожка тянется,
+   число фиксированной ширины прижато вправо. Ширина группы равна .onb-select,
+   чтобы контролы в соседних строках стояли по одной вертикали. */
+
+.onb-slider-group {
+    flex-direction: row;
+    align-items: center;
+    width: 260px;
+}
+
+.onb-slider {
+    flex-grow: 1;
+    margin: 0;
+    margin-right: var(--space-5);
+}
+
+.onb-slider .unity-base-slider__tracker {
+    height: 4px;
+    background-color: var(--surface-inset);
+    border-width: 1px;
+    border-color: var(--border-subtle);
+    border-radius: var(--radius-sharp);
+}
+
+.onb-slider .unity-base-slider__dragger {
+    width: 14px;
+    height: 14px;
+    background-color: var(--accent-gold);
+    border-width: 0;
+    border-radius: var(--radius-sm);
+}
+
+.onb-slider:hover .unity-base-slider__tracker {
+    border-color: var(--border-cyan);
+}
+
+.onb-slider-val {
+    -unity-font-definition: var(--face-data);
+    font-size: var(--size-sm);
+    color: var(--accent-gold);
+    width: 36px;
+    -unity-text-align: middle-right;
+}
+
 .onb-toggle {
     margin: 0;
 }
@@ -656,7 +702,7 @@
 }
 
 .onb-btn--ghost {
-    background-color: rgba(0, 0, 0, 0);
+    background-color: transparent;
     border-width: 1px;
     border-color: var(--border-subtle);
     color: var(--text-secondary);

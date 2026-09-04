@@ -1,491 +1,259 @@
 #nullable enable
 
 using System;
+using System.Runtime.CompilerServices;
 using Fodinae.Core;
 using Fodinae.Core.Interfaces;
-using Fodinae.Rendering;
-using Fodinae.World.Lighting.Quality;
 using UnityEngine;
 
 namespace Fodinae.World.Lighting
 {
     /// <summary>
-    /// Owns every runtime-configurable lighting knob and the persistence
-    /// logic around it. LightingEngine delegates all Set* calls here
-    /// and forwards the dirty flags back.
+    /// Владеет секцией освещения в конфиге и отложенной записью на диск.
+    /// LightingEngine делегирует сюда все Set* и получает обратно признак
+    /// «значение действительно изменилось».
     /// </summary>
+    /// <remarks>
+    /// ЧТО ОТСЮДА УШЛО. Класс держал восемнадцать свойств-зеркал секции,
+    /// семнадцать почти одинаковых <c>SetXxx</c> с диапазонами-литералами, три
+    /// блока копирования полей между снимком, конфигом и рантайм-копией, и
+    /// собственный дебаунс. Рантайм-копии (<c>LightingRuntimeConfig</c> и
+    /// маппера к ней) больше нет: живое состояние света — это
+    /// <c>ClientConfig.Lighting</c>, и второй экземпляр тех же двадцати полей
+    /// был не кэшем, а вторым источником истины, который приходилось
+    /// синхронизировать вручную.
+    ///
+    /// Диапазоны теперь объявлены над полями секции, поэтому клампинг делает
+    /// один общий <c>Set</c> вместо семнадцати.
+    /// </remarks>
     internal sealed class LightingConfigHolder
     {
         private readonly IClientConfigManager _clientConfig;
-        private LightingRuntimeConfig _runtimeConfig = null!;
-
-        public bool AmbientOcclusionEnabled { get; private set; }
-        public bool DiffuseBounceEnabled { get; private set; }
-        public float AmbientIntensity { get; private set; }
-        public float EmissionScale { get; private set; }
-        public Color AmbientColor { get; private set; }
-        public Color EmptyExtinctionRgb { get; private set; }
-        public Color SolidExtinctionRgb { get; private set; }
-        public float EmptyExtinctionMultiplier { get; private set; }
-        public float SolidExtinctionMultiplier { get; private set; }
-        public float BounceStrength { get; private set; }
-        public float AmbientOcclusionRadiusCells { get; private set; }
-        public float AmbientOcclusionStrength { get; private set; }
-        public float MaximumLightMultiplier { get; private set; }
-        public bool EnableFinalLightingClamp { get; private set; }
-        public float TransmittanceDebugDistanceCells { get; private set; }
-        public float MinimumTransmission { get; private set; }
-        public int LightSafeBorder { get; private set; }
-        public float DynamicLightUpdatesPerSecond { get; private set; }
-
-        public void QueueSave()
-        {
-            _savePending = true;
-            _saveTime = Time.unscaledTime + 0.25f;
-        }
-
-        public bool TrySave(float currentTime)
-        {
-            if (_savePending && currentTime >= _saveTime)
-            {
-                _savePending = false;
-                return true;
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Writes a pending change out immediately instead of waiting for the
-        /// debounce window. Shutdown paths need this: a change made in the last
-        /// quarter second before quit would otherwise never reach disk.
-        /// </summary>
-        public void ForceSave()
-        {
-            if (!_savePending)
-            {
-                return;
-            }
-
-            _savePending = false;
-            _clientConfig.Save();
-        }
-
-        public void ApplyToClientConfig()
-        {
-            ClientConfig config = _clientConfig.Config ??
-                throw new InvalidOperationException(
-                    "LightingEngine requires an initialized ClientConfig.");
-            LightingRuntimeConfigMapper.ApplyToClientConfig(_runtimeConfig, config);
-        }
-
-        public string ConfigFilePath => _clientConfig.ConfigFilePath;
-        public LightingRuntimeConfig RuntimeConfig => _runtimeConfig;
-        public float DynamicLightIntensity => _runtimeConfig.DynamicLightIntensity;
-        public Color DynamicLightColor => _runtimeConfig.DynamicLightColor;
-
-        private bool _savePending;
-        private float _saveTime;
 
         public LightingConfigHolder(IClientConfigManager clientConfig)
         {
-            _clientConfig = clientConfig;
+            _clientConfig = clientConfig ?? throw new ArgumentNullException(nameof(clientConfig));
         }
 
-        public void Load()
+        /// <summary>Живая секция освещения. Другого состояния света нет.</summary>
+        public WorldLightingSettings Lighting =>
+            (_clientConfig.Config ?? throw new InvalidOperationException(
+                "LightingEngine requires an initialized ClientConfig.")).Lighting;
+
+        public string ConfigFilePath => _clientConfig.ConfigFilePath;
+
+        public bool DiffuseBounceEnabled => Lighting.DiffuseBounceEnabled;
+        public float EmissionScale => Lighting.EmissionScale;
+        public Color EmptyExtinctionRgb => Lighting.EmptyExtinctionRgb;
+        public Color SolidExtinctionRgb => Lighting.SolidExtinctionRgb;
+        public float EmptyExtinctionMultiplier => Lighting.EmptyExtinctionMultiplier;
+        public float SolidExtinctionMultiplier => Lighting.SolidExtinctionMultiplier;
+        public float BounceStrength => Lighting.BounceStrength;
+        public float MaximumLightMultiplier => Lighting.MaximumLightMultiplier;
+        public bool EnableFinalLightingClamp => Lighting.EnableFinalLightingClamp;
+        public float TransmittanceDebugDistanceCells => Lighting.TransmittanceDebugDistanceCells;
+        public float MinimumTransmission => Lighting.MinimumTransmission;
+        public int LightSafeBorder => Lighting.LightSafeBorder;
+        public float DynamicLightIntensity => Lighting.DynamicLightIntensity;
+        public Color DynamicLightColor => Lighting.DynamicLightColor;
+        public float DynamicLightUpdatesPerSecond => Lighting.DynamicLightUpdatesPerSecond;
+
+        /// <summary>
+        /// Вне режима игры тёмная сцена подменяется различимой.
+        /// </summary>
+        /// <remarks>
+        /// Авторский ambient — 0.85 при почти чёрном цвете, и в окне Scene это
+        /// даёт чёрный прямоугольник: там нет ни игрока, ни динамических
+        /// источников. Подмена касается только того, что уходит в шейдер, и
+        /// никогда не попадает в конфиг.
+        /// </remarks>
+        public float AmbientIntensity =>
+            !Application.isPlaying && Lighting.AmbientIntensity < 0.4f
+                ? 0.4f
+                : Lighting.AmbientIntensity;
+
+        public Color AmbientColor
         {
-            _runtimeConfig = CreateConfigFromClientConfig();
-            ApplyRuntimeConfig(_runtimeConfig);
+            get
+            {
+                Color authored = Lighting.AmbientColor;
+                bool nearlyBlack = authored.r + authored.g + authored.b < 0.2f;
+                return !Application.isPlaying && nearlyBlack
+                    ? new Color(0.8f, 0.85f, 0.95f, 1f)
+                    : authored;
+            }
         }
 
-        public void ApplyProjectDefaults(LightingDefaultsSnapshot defaults)
-        {
-            AmbientOcclusionEnabled = defaults.AmbientOcclusionEnabled;
-            DiffuseBounceEnabled = defaults.DiffuseBounceEnabled;
-            AmbientIntensity = defaults.AmbientIntensity;
-            EmissionScale = defaults.EmissionScale;
-            AmbientColor = defaults.AmbientColor;
-            EmptyExtinctionRgb = defaults.EmptyExtinctionRgb;
-            SolidExtinctionRgb = defaults.SolidExtinctionRgb;
-            EmptyExtinctionMultiplier = defaults.EmptyExtinctionMultiplier;
-            SolidExtinctionMultiplier = defaults.SolidExtinctionMultiplier;
-            BounceStrength = defaults.BounceStrength;
-            AmbientOcclusionRadiusCells = defaults.AmbientOcclusionRadiusCells;
-            AmbientOcclusionStrength = defaults.AmbientOcclusionStrength;
-            MaximumLightMultiplier = defaults.MaximumLightMultiplier;
-            EnableFinalLightingClamp = defaults.EnableFinalLightingClamp;
-            TransmittanceDebugDistanceCells = defaults.TransmittanceDebugDistanceCells;
-            MinimumTransmission = defaults.MinimumTransmission;
-            LightSafeBorder = defaults.LightSafeBorder;
-            DynamicLightUpdatesPerSecond = defaults.DynamicLightUpdatesPerSecond;
-        }
+        /// <summary>
+        /// Откладывает запись конфига.
+        /// </summary>
+        /// <remarks>
+        /// Собственного планировщика здесь больше нет. Он обслуживал только
+        /// свет, а тик к нему приходилось пробрасывать через
+        /// <c>LightingEngine.Update</c> — освещение крутило чужую
+        /// ответственность. Дебаунс теперь один на весь конфиг и живёт у
+        /// владельца файла.
+        /// </remarks>
+        public void QueueSave() => _clientConfig.SaveDeferred();
 
-        public void ApplyLightingDefaultsToClientConfig(LightingDefaultsSnapshot defaults)
+        /// <summary>Возвращает секцию к авторским значениям.</summary>
+        public void ResetToDefaults()
         {
             ClientConfig config = _clientConfig.Config ??
                 throw new InvalidOperationException(
                     "LightingEngine requires an initialized ClientConfig.");
-            config.AmbientOcclusionEnabled = defaults.AmbientOcclusionEnabled;
-            config.DiffuseBounceEnabled = defaults.DiffuseBounceEnabled;
-            config.AmbientIntensity = defaults.AmbientIntensity;
-            config.EmissionScale = defaults.EmissionScale;
-            config.AmbientColor = defaults.AmbientColor;
-            config.EmptyExtinctionRgb = defaults.EmptyExtinctionRgb;
-            config.SolidExtinctionRgb = defaults.SolidExtinctionRgb;
-            config.EmptyExtinctionMultiplier = defaults.EmptyExtinctionMultiplier;
-            config.SolidExtinctionMultiplier = defaults.SolidExtinctionMultiplier;
-            config.BounceStrength = defaults.BounceStrength;
-            config.AmbientOcclusionRadiusCells = defaults.AmbientOcclusionRadiusCells;
-            config.AmbientOcclusionStrength = defaults.AmbientOcclusionStrength;
-            config.MaximumLightMultiplier = defaults.MaximumLightMultiplier;
-            config.EnableFinalLightingClamp = defaults.EnableFinalLightingClamp;
-            config.TransmittanceDebugDistanceCells = defaults.TransmittanceDebugDistanceCells;
-            config.MinimumTransmission = defaults.MinimumTransmission;
-            config.LightSafeBorder = defaults.LightSafeBorder;
-            config.DynamicLightIntensity = defaults.DynamicLightIntensity;
-            config.DynamicLightColor = defaults.DynamicLightColor;
-            config.DynamicLightUpdatesPerSecond = defaults.DynamicLightUpdatesPerSecond;
+            config.Lighting = new WorldLightingSettings();
         }
 
-        public bool SetAmbientOcclusionEnabled(bool enabled)
-        {
-            if (AmbientOcclusionEnabled == enabled)
-            {
-                return false;
-            }
+        public bool SetDiffuseBounceEnabled(bool enabled) =>
+            Set(ref Lighting.DiffuseBounceEnabled, enabled);
 
-            AmbientOcclusionEnabled = enabled;
-            _runtimeConfig.AmbientOcclusionEnabled = enabled;
-            QueueSave();
-            return true;
-        }
+        public bool SetFinalLightingClampEnabled(bool enabled) =>
+            Set(ref Lighting.EnableFinalLightingClamp, enabled);
 
-        public bool SetDiffuseBounceEnabled(bool enabled)
-        {
-            if (DiffuseBounceEnabled == enabled)
-            {
-                return false;
-            }
+        public bool SetAmbientIntensity(float value) =>
+            Set(ref Lighting.AmbientIntensity, value);
 
-            DiffuseBounceEnabled = enabled;
-            _runtimeConfig.DiffuseBounceEnabled = enabled;
-            QueueSave();
-            return true;
-        }
+        public bool SetEmissionScale(float value) =>
+            Set(ref Lighting.EmissionScale, value);
 
-        public bool SetAmbientIntensity(float value)
-        {
-            if (!TryClamp(AmbientIntensity, value, 0f, 1f, out float clamped))
-            {
-                return false;
-            }
+        public bool SetEmptyExtinctionMultiplier(float value) =>
+            Set(ref Lighting.EmptyExtinctionMultiplier, value);
 
-            AmbientIntensity = clamped;
-            _runtimeConfig.AmbientIntensity = clamped;
-            QueueSave();
-            return true;
-        }
+        public bool SetSolidExtinctionMultiplier(float value) =>
+            Set(ref Lighting.SolidExtinctionMultiplier, value);
 
-        public bool SetAmbientColor(Color value)
-        {
-            if (!TrySanitize(AmbientColor, value, out Color sanitized))
-            {
-                return false;
-            }
+        public bool SetBounceStrength(float value) =>
+            Set(ref Lighting.BounceStrength, value);
 
-            AmbientColor = sanitized;
-            _runtimeConfig.AmbientColor = sanitized;
-            QueueSave();
-            return true;
-        }
+        public bool SetMaximumLightMultiplier(float value) =>
+            Set(ref Lighting.MaximumLightMultiplier, value);
 
-        public bool SetEmissionScale(float value)
-        {
-            if (!TryClamp(EmissionScale, value, 0.1f, 8f, out float clamped))
-            {
-                return false;
-            }
-
-            EmissionScale = clamped;
-            _runtimeConfig.EmissionScale = clamped;
-            QueueSave();
-            return true;
-        }
-
-        public bool SetEmptyExtinctionColor(Color value)
-        {
-            if (!TrySanitize(EmptyExtinctionRgb, value, out Color sanitized))
-            {
-                return false;
-            }
-
-            EmptyExtinctionRgb = sanitized;
-            _runtimeConfig.EmptyExtinctionRgb = sanitized;
-            QueueSave();
-            return true;
-        }
-
-        public bool SetSolidExtinctionColor(Color value)
-        {
-            if (!TrySanitize(SolidExtinctionRgb, value, out Color sanitized))
-            {
-                return false;
-            }
-
-            SolidExtinctionRgb = sanitized;
-            _runtimeConfig.SolidExtinctionRgb = sanitized;
-            QueueSave();
-            return true;
-        }
-
-        public bool SetFinalLightingClampEnabled(bool enabled)
-        {
-            if (EnableFinalLightingClamp == enabled)
-            {
-                return false;
-            }
-
-            EnableFinalLightingClamp = enabled;
-            _runtimeConfig.EnableFinalLightingClamp = enabled;
-            QueueSave();
-            return true;
-        }
-
-        public bool SetEmptyExtinctionMultiplier(float value)
-        {
-            if (!TryClamp(EmptyExtinctionMultiplier, value, 0f, 2f, out float clamped))
-            {
-                return false;
-            }
-
-            EmptyExtinctionMultiplier = clamped;
-            _runtimeConfig.EmptyExtinctionMultiplier = clamped;
-            QueueSave();
-            return true;
-        }
-
-        public bool SetSolidExtinctionMultiplier(float value)
-        {
-            if (!TryClamp(SolidExtinctionMultiplier, value, 0.25f, 2f, out float clamped))
-            {
-                return false;
-            }
-
-            SolidExtinctionMultiplier = clamped;
-            _runtimeConfig.SolidExtinctionMultiplier = clamped;
-            QueueSave();
-            return true;
-        }
-
-        public bool SetBounceStrength(float value)
-        {
-            if (!TryClamp(BounceStrength, value, 0f, 1f, out float clamped))
-            {
-                return false;
-            }
-
-            BounceStrength = clamped;
-            _runtimeConfig.BounceStrength = clamped;
-            QueueSave();
-            return true;
-        }
-
-        public bool SetAmbientOcclusionRadius(float value)
-        {
-            if (!TryClamp(AmbientOcclusionRadiusCells, value, 0.5f, 8f, out float clamped))
-            {
-                return false;
-            }
-
-            AmbientOcclusionRadiusCells = clamped;
-            _runtimeConfig.AmbientOcclusionRadiusCells = clamped;
-            QueueSave();
-            return true;
-        }
-
-        public bool SetAmbientOcclusionStrength(float value)
-        {
-            if (!TryClamp(AmbientOcclusionStrength, value, 0.1f, 8f, out float clamped))
-            {
-                return false;
-            }
-
-            AmbientOcclusionStrength = clamped;
-            _runtimeConfig.AmbientOcclusionStrength = clamped;
-            QueueSave();
-            return true;
-        }
-
-        public bool SetMaximumLightMultiplier(float value)
-        {
-            if (!TryClamp(
-                MaximumLightMultiplier,
+        public bool SetTransmittanceDebugDistance(float value) =>
+            Set(
+                ref Lighting.TransmittanceDebugDistanceCells,
                 value,
-                0.25f,
-                LightingConfigLimits.MaximumLightMultiplier,
-                out float clamped))
-            {
-                return false;
-            }
+                nameof(WorldLightingSettings.TransmittanceDebugDistanceCells));
 
-            MaximumLightMultiplier = clamped;
-            _runtimeConfig.MaximumLightMultiplier = clamped;
-            QueueSave();
-            return true;
-        }
+        public bool SetMinimumTransmission(float value) =>
+            Set(ref Lighting.MinimumTransmission, value);
 
-        public bool SetTransmittanceDebugDistance(float value)
-        {
-            if (!TryClamp(TransmittanceDebugDistanceCells, value, 2f, 32f, out float clamped))
-            {
-                return false;
-            }
+        public bool SetDynamicLightUpdatesPerSecond(float value) =>
+            Set(ref Lighting.DynamicLightUpdatesPerSecond, value);
 
-            TransmittanceDebugDistanceCells = clamped;
-            _runtimeConfig.TransmittanceDebugDistanceCells = clamped;
-            QueueSave();
-            return true;
-        }
+        public bool SetAmbientColor(Color value) =>
+            SetColor(ref Lighting.AmbientColor, value);
 
-        public bool SetMinimumTransmission(float value)
-        {
-            if (!TryClamp(MinimumTransmission, value, 0.0001f, 0.1f, out float clamped))
-            {
-                return false;
-            }
+        public bool SetEmptyExtinctionColor(Color value) =>
+            SetColor(ref Lighting.EmptyExtinctionRgb, value);
 
-            MinimumTransmission = clamped;
-            _runtimeConfig.MinimumTransmission = clamped;
-            QueueSave();
-            return true;
-        }
+        public bool SetSolidExtinctionColor(Color value) =>
+            SetColor(ref Lighting.SolidExtinctionRgb, value);
 
         public bool SetLightSafeBorder(float value)
         {
-            int border = Mathf.RoundToInt(Mathf.Clamp(value, 0f, 8f));
-            if (LightSafeBorder == border)
+            SettingRangeAttribute range =
+                SettingSchema.RangeOf<WorldLightingSettings>(nameof(WorldLightingSettings.LightSafeBorder));
+            int border = Mathf.RoundToInt(Mathf.Clamp(value, range.Minimum, range.Maximum));
+            if (Lighting.LightSafeBorder == border)
             {
                 return false;
             }
 
-            LightSafeBorder = border;
-            _runtimeConfig.LightSafeBorder = border;
+            Lighting.LightSafeBorder = border;
             QueueSave();
             return true;
         }
 
         public bool SetDynamicLightSettings(float intensity, Color color)
         {
-            float clampedIntensity = Mathf.Clamp(intensity, 0f, 4f);
+            bool changed = Set(
+                ref Lighting.DynamicLightIntensity,
+                intensity,
+                nameof(WorldLightingSettings.DynamicLightIntensity));
+
+            // Альфа динамического света всегда единица: это яркость источника,
+            // а не полупрозрачный цвет. Общий SetColor сохранил бы присланную
+            // альфу, поэтому здесь отдельная ветка, а не вызов.
             Color sanitized = new(
                 Mathf.Max(0f, color.r),
                 Mathf.Max(0f, color.g),
                 Mathf.Max(0f, color.b),
                 1f);
-            if (Mathf.Approximately(_runtimeConfig.DynamicLightIntensity, clampedIntensity) &&
-                _runtimeConfig.DynamicLightColor == sanitized)
+            if (Lighting.DynamicLightColor != sanitized)
             {
-                return false;
+                Lighting.DynamicLightColor = sanitized;
+                QueueSave();
+                changed = true;
             }
 
-            _runtimeConfig.DynamicLightIntensity = clampedIntensity;
-            _runtimeConfig.DynamicLightColor = sanitized;
-            QueueSave();
-            return true;
-        }
-
-        public bool SetDynamicLightUpdatesPerSecond(float value)
-        {
-            if (!TryClamp(
-                DynamicLightUpdatesPerSecond,
-                value,
-                1f,
-                LightingConfigLimits.DynamicLightUpdatesPerSecond,
-                out float clamped))
-            {
-                return false;
-            }
-
-            DynamicLightUpdatesPerSecond = clamped;
-            _runtimeConfig.DynamicLightUpdatesPerSecond = clamped;
-            QueueSave();
-            return true;
-        }
-
-        public void ApplyClientConfig()
-        {
-            _runtimeConfig = CreateConfigFromClientConfig();
-            ApplyRuntimeConfig(_runtimeConfig);
-        }
-
-        public void ApplyQualitySettings(
-            GraphicsPreset preset,
-            GraphicsQualitySettings settings)
-        {
-            GraphicsQualityProfile.ValidateSettings(settings, preset.ToString());
-            ClientConfig config = _clientConfig.Config ??
-                throw new InvalidOperationException(
-                    "LightingEngine requires an initialized ClientConfig.");
-            LightingRuntimeConfigMapper.ApplyToClientConfig(_runtimeConfig, config);
-        }
-
-        private LightingRuntimeConfig CreateConfigFromClientConfig()
-        {
-            ClientConfig config = _clientConfig.Config ??
-                throw new InvalidOperationException(
-                    "Cannot create lighting runtime config: ClientConfig is not initialized.");
-
-            return LightingRuntimeConfigMapper.FromClientConfig(config);
-        }
-
-        private void ApplyRuntimeConfig(LightingRuntimeConfig config)
-        {
-            AmbientOcclusionEnabled = config.AmbientOcclusionEnabled;
-            DiffuseBounceEnabled = config.DiffuseBounceEnabled;
-            AmbientIntensity = !Application.isPlaying && config.AmbientIntensity < 0.4f ? 0.4f : config.AmbientIntensity;
-            EmissionScale = config.EmissionScale;
-            AmbientColor = !Application.isPlaying && (config.AmbientColor.r + config.AmbientColor.g + config.AmbientColor.b < 0.2f)
-                ? new Color(0.8f, 0.85f, 0.95f, 1f)
-                : config.AmbientColor;
-            EmptyExtinctionRgb = config.EmptyExtinctionRgb;
-            SolidExtinctionRgb = config.SolidExtinctionRgb;
-            EmptyExtinctionMultiplier = config.EmptyExtinctionMultiplier;
-            SolidExtinctionMultiplier = config.SolidExtinctionMultiplier;
-            BounceStrength = config.BounceStrength;
-            AmbientOcclusionRadiusCells = config.AmbientOcclusionRadiusCells;
-            AmbientOcclusionStrength = config.AmbientOcclusionStrength;
-            MaximumLightMultiplier = config.MaximumLightMultiplier;
-            EnableFinalLightingClamp = config.EnableFinalLightingClamp;
-            TransmittanceDebugDistanceCells = config.TransmittanceDebugDistanceCells;
-            MinimumTransmission = config.MinimumTransmission;
-            LightSafeBorder = config.LightSafeBorder;
-            DynamicLightUpdatesPerSecond = config.DynamicLightUpdatesPerSecond;
+            return changed;
         }
 
         /// <summary>
-        /// True when <paramref name="value"/>, once clamped, actually differs
-        /// from the live value - the caller then owns assigning both the
-        /// property and the serialized field.
+        /// Записывает значение, загнав его в объявленный над полем диапазон.
+        /// Возвращает <c>true</c>, только если после клампа оно отличается от
+        /// текущего — иначе движение ползунка внутри одного шага порождало бы
+        /// перерасчёт освещения и запись на диск.
         /// </summary>
-        private static bool TryClamp(
-            float current,
-            float value,
-            float minimum,
-            float maximum,
-            out float clamped)
+        private bool Set(ref float field, float value, [CallerMemberName] string setter = "")
         {
-            clamped = Mathf.Clamp(value, minimum, maximum);
-            return !Mathf.Approximately(current, clamped);
+            string fieldName = FieldNameOf(setter);
+            SettingRangeAttribute range = SettingSchema.RangeOf<WorldLightingSettings>(fieldName);
+            float clamped = Mathf.Clamp(value, range.Minimum, range.Maximum);
+            if (Mathf.Approximately(field, clamped))
+            {
+                return false;
+            }
+
+            field = clamped;
+            QueueSave();
+            return true;
         }
 
-        private static bool TrySanitize(Color current, Color value, out Color sanitized)
+        private bool Set(ref bool field, bool value)
         {
-            sanitized = new Color(
+            if (field == value)
+            {
+                return false;
+            }
+
+            field = value;
+            QueueSave();
+            return true;
+        }
+
+        private bool SetColor(ref Color field, Color value)
+        {
+            // Отрицательная компонента — это отрицательная энергия: решатель
+            // каскадов на ней расходится, а не просто темнеет.
+            Color sanitized = new(
                 Mathf.Max(0f, value.r),
                 Mathf.Max(0f, value.g),
                 Mathf.Max(0f, value.b),
                 Mathf.Max(0f, value.a));
-            return current != sanitized;
+            if (field == sanitized)
+            {
+                return false;
+            }
+
+            field = sanitized;
+            QueueSave();
+            return true;
+        }
+
+        /// <summary>
+        /// Имя поля секции по имени сеттера: <c>SetAmbientIntensity</c> →
+        /// <c>AmbientIntensity</c>. Несовпадение падает в
+        /// <see cref="SettingSchema.RangeOf{TSection}"/> при первом же вызове,
+        /// а не показывает игроку неверный диапазон.
+        /// </summary>
+        private static string FieldNameOf(string setter)
+        {
+            const string prefix = "Set";
+            return setter.StartsWith(prefix, StringComparison.Ordinal)
+                ? setter[prefix.Length..]
+                : setter;
         }
     }
 }

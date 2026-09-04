@@ -113,7 +113,6 @@ namespace Fodinae.World
                     redRockTexture);
                 _surfaceSetupFailureLogged = false;
                 _surfaceRendererSetupSucceeded = true;
-                Debug.Log("[SceneSetup] SurfaceRenderer setup completed successfully.");
             }
             catch (OperationCanceledException)
             {

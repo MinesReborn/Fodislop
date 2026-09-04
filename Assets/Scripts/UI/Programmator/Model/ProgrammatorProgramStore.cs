@@ -29,6 +29,7 @@ internal sealed class ProgrammatorProgramStore
     private readonly ProgrammatorSelectionModel _selection;
     private readonly ProgrammatorRadialController _radial;
     private readonly ILocalizationService _loc;
+    private readonly ProgrammatorData _data;
 
     private readonly List<ProgramItem> _programItems = new();
     private int _activeIndex = -1;
@@ -38,12 +39,14 @@ internal sealed class ProgrammatorProgramStore
         ProgrammatorGridUIFactory view,
         ProgrammatorSelectionModel selection,
         ProgrammatorRadialController radial,
-        ILocalizationService loc)
+        ILocalizationService loc,
+        ProgrammatorData data)
     {
         _view = view ?? throw new ArgumentNullException(nameof(view));
         _selection = selection ?? throw new ArgumentNullException(nameof(selection));
         _radial = radial ?? throw new ArgumentNullException(nameof(radial));
         _loc = loc ?? throw new ArgumentNullException(nameof(loc));
+        _data = data ?? throw new ArgumentNullException(nameof(data));
     }
 
     public bool IsRunning => _isRunning;
@@ -54,7 +57,7 @@ internal sealed class ProgrammatorProgramStore
     // operator is placed in the very last cell of the last page.
     public void AdvancePageIfAtEnd()
     {
-        ProgrammatorData.AddPage();
+        _data.AddPage();
         _view.UpdatePageLabel();
     }
 
@@ -72,9 +75,9 @@ internal sealed class ProgrammatorProgramStore
         {
             var data = new ProgrammatorSave
             {
-                Codes = ProgrammatorData.Codes.ToArray(),
-                Labels = ProgrammatorData.Labels.ToArray(),
-                Values = ProgrammatorData.Values.ToArray(),
+                Codes = _data.Codes.ToArray(),
+                Labels = _data.Labels.ToArray(),
+                Values = _data.Values.ToArray(),
             };
             File.WriteAllText(SavePath, JsonUtility.ToJson(data));
             Debug.Log("[Programmator] Program saved");
@@ -82,40 +85,40 @@ internal sealed class ProgrammatorProgramStore
 
         public void PrevPage()
         {
-            if (ProgrammatorData.CurrentPage > 0)
+            if (_data.CurrentPage > 0)
             {
                 _selection.ClearSelection();
                 _radial.HideMenus();
-                ProgrammatorData.CurrentPage--;
+                _data.CurrentPage--;
                 RefreshAllCells();
             }
         }
 
         public void NextPage()
         {
-            if (ProgrammatorData.CurrentPage < ProgrammatorData.PageCount - 1)
+            if (_data.CurrentPage < _data.PageCount - 1)
             {
                 _selection.ClearSelection();
                 _radial.HideMenus();
-                ProgrammatorData.CurrentPage++;
+                _data.CurrentPage++;
                 RefreshAllCells();
             }
         }
 
         public void AddPageClick()
         {
-            if (ProgrammatorData.PageCount >= 100)
+            if (_data.PageCount >= 100)
             {
                 return;
             }
 
-            ProgrammatorData.AddPage();
+            _data.AddPage();
             _view.UpdatePageLabel();
         }
 
         public void RemovePageClick()
         {
-            if (ProgrammatorData.RemoveLastPage())
+            if (_data.RemoveLastPage())
             {
                 RefreshAllCells();
             }
@@ -145,11 +148,11 @@ internal sealed class ProgrammatorProgramStore
             }
 
             var item = _programItems[index];
-            ProgrammatorData.Codes = new List<int>(item.Codes);
-            ProgrammatorData.Labels = new List<string?>(item.Labels);
-            ProgrammatorData.Values = new List<string?>(item.Values);
+            _data.Codes = new List<int>(item.Codes);
+            _data.Labels = new List<string?>(item.Labels);
+            _data.Values = new List<string?>(item.Values);
             _activeIndex = index;
-            ProgrammatorData.CurrentPage = 0;
+            _data.CurrentPage = 0;
             _view.ProgramTitle.text = item.Name;
             _view.ProgramListPanel.style.display = DisplayStyle.None;
             _view.Panel.style.display = DisplayStyle.Flex;
@@ -166,9 +169,9 @@ internal sealed class ProgrammatorProgramStore
             if (_activeIndex >= 0 && _activeIndex < _programItems.Count)
             {
                 var item = _programItems[_activeIndex];
-                item.Codes = new List<int>(ProgrammatorData.Codes);
-                item.Labels = new List<string?>(ProgrammatorData.Labels);
-                item.Values = new List<string?>(ProgrammatorData.Values);
+                item.Codes = new List<int>(_data.Codes);
+                item.Labels = new List<string?>(_data.Labels);
+                item.Values = new List<string?>(_data.Values);
             }
 
             ShowProgramList();

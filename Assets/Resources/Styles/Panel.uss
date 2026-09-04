@@ -6,7 +6,7 @@
     background-color: var(--surface-panel);
     border-color: var(--border-subtle);
     border-width: 1px;
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     padding: var(--space-6);
     color: var(--text-primary);
 }
@@ -14,7 +14,7 @@
 .panel-header {
     font-size: var(--size-xl);
     color: var(--accent-gold);
-    margin-bottom: 8px;
+    margin-bottom: var(--space-4);
 }
 
 .panel-body {

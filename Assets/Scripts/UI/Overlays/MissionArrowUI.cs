@@ -22,6 +22,11 @@ namespace Fodinae.UI
         private bool _initialized;
         [Inject]
         private PlayerStatsModel _playerStats = null!;
+
+        private const float PositionWriteEpsilon = 0.5f;
+        private float _lastAppliedLeft = float.NaN;
+        private float _lastAppliedTop = float.NaN;
+        private float _lastAppliedRotate = float.NaN;
         [Inject]
         private MapManager _mapManager = null!;
         [Inject]
@@ -63,7 +68,7 @@ namespace Fodinae.UI
 
             // Видимость — рантайм-состояние. Вставляем в индекс 0: метка не должна
             // перекрывать текст UI (раньше добавлялась последней — рисовалась поверх).
-            _arrow.style.display = DisplayStyle.None;
+            UIState.Hide(_arrow);
             // _doc is guarded by the throw above; the compiler cannot narrow it
             // across the conditional 'missing' expression, so null-forgive here.
             _doc!.rootVisualElement.Insert(0, _arrow);
@@ -76,7 +81,7 @@ namespace Fodinae.UI
                 {
                     _targetX = stats.MissionArrowX;
                     _targetY = stats.MissionArrowY;
-                    _arrow.style.display = DisplayStyle.Flex;
+                    UIState.Show(_arrow);
                 }
             }
 
@@ -105,7 +110,7 @@ namespace Fodinae.UI
             if (!stats.MissionArrowX.HasValue || !stats.MissionArrowY.HasValue)
             {
                 if (!_targetX.HasValue && !_targetY.HasValue &&
-                    _arrow.style.display == DisplayStyle.None)
+                    UIState.IsHidden(_arrow))
                 {
                     return;
                 }
@@ -115,23 +120,26 @@ namespace Fodinae.UI
 
                 if (_arrow != null)
                 {
-                    _arrow.style.display = DisplayStyle.None;
+                    UIState.Hide(_arrow);
                 }
 
                 return;
             }
 
             if (_targetX == stats.MissionArrowX && _targetY == stats.MissionArrowY &&
-                _arrow.style.display == DisplayStyle.Flex)
+                !UIState.IsHidden(_arrow))
             {
                 return;
             }
 
             _targetX = stats.MissionArrowX;
             _targetY = stats.MissionArrowY;
+            _lastAppliedLeft = float.NaN;
+            _lastAppliedTop = float.NaN;
+            _lastAppliedRotate = float.NaN;
             if (_arrow != null)
             {
-                _arrow.style.display = DisplayStyle.Flex;
+                UIState.Show(_arrow);
             }
         }
 
@@ -157,17 +165,17 @@ namespace Fodinae.UI
 
             if (screenPos.z < 0f)
             {
-                if (_arrow.style.display != DisplayStyle.None)
+                if (!UIState.IsHidden(_arrow))
                 {
-                    _arrow!.style.display = DisplayStyle.None;
+                    UIState.Hide(_arrow);
                 }
 
                 return;
             }
 
-            if (_arrow.style.display != DisplayStyle.Flex)
+            if (UIState.IsHidden(_arrow))
             {
-                _arrow.style.display = DisplayStyle.Flex;
+                UIState.Show(_arrow);
             }
 
             var panelPos = RuntimePanelUtils.ScreenToPanel(
@@ -185,6 +193,9 @@ namespace Fodinae.UI
 
             bool offScreen = posX < 0 || posX > maxX || posY < 0 || posY > maxY;
 
+            float targetLeft;
+            float targetTop;
+            float targetRotate;
             if (offScreen)
             {
                 var dir = new Vector2(panelPos.x - halfW, panelPos.y - halfH);
@@ -196,20 +207,35 @@ namespace Fodinae.UI
                 dir.Normalize();
 
                 const float margin = 40f;
-                float clampedX = Mathf.Clamp(panelPos.x, margin, _doc.rootVisualElement.resolvedStyle.width - margin) - (_arrow.resolvedStyle.width / 2f);
-                float clampedY = Mathf.Clamp(panelPos.y, margin, _doc.rootVisualElement.resolvedStyle.height - margin) - (_arrow.resolvedStyle.height / 2f);
-
-                _arrow.style.left = clampedX;
-                _arrow.style.top = clampedY;
+                targetLeft = Mathf.Clamp(panelPos.x, margin, _doc.rootVisualElement.resolvedStyle.width - margin) - (_arrow.resolvedStyle.width / 2f);
+                targetTop = Mathf.Clamp(panelPos.y, margin, _doc.rootVisualElement.resolvedStyle.height - margin) - (_arrow.resolvedStyle.height / 2f);
 
                 float targetAngle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-                _arrow.style.rotate = new Rotate(Angle.Degrees(targetAngle - 45f));
+                targetRotate = targetAngle - 45f;
             }
             else
             {
-                _arrow.style.left = posX;
-                _arrow.style.top = posY;
-                _arrow.style.rotate = new Rotate(Angle.Degrees(45f));
+                targetLeft = posX;
+                targetTop = posY;
+                targetRotate = 45f;
+            }
+
+            if (Mathf.Abs(targetLeft - _lastAppliedLeft) > PositionWriteEpsilon)
+            {
+                _arrow.style.left = targetLeft;
+                _lastAppliedLeft = targetLeft;
+            }
+
+            if (Mathf.Abs(targetTop - _lastAppliedTop) > PositionWriteEpsilon)
+            {
+                _arrow.style.top = targetTop;
+                _lastAppliedTop = targetTop;
+            }
+
+            if (Mathf.Abs(targetRotate - _lastAppliedRotate) > 0.5f)
+            {
+                _arrow.style.rotate = new Rotate(Angle.Degrees(targetRotate));
+                _lastAppliedRotate = targetRotate;
             }
         }
     }

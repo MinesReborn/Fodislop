@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using Fodinae.Core;
 using Fodinae.Core.Interfaces;
 using Fodinae.Core.Localization;
+using Fodinae.Rendering;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -17,17 +18,20 @@ internal sealed class PauseMenuInterfaceTabBuilder
 {
     private readonly UIDocument _doc;
     private readonly IClientConfigManager _clientConfig;
+    private readonly GraphicsSettingsController _graphicsSettings;
     private readonly ICollection<Action> _refreshers;
     private readonly ILocalizationService _loc;
 
     public PauseMenuInterfaceTabBuilder(
         UIDocument doc,
         IClientConfigManager clientConfig,
+        GraphicsSettingsController graphicsSettings,
         ICollection<Action> refreshers,
         ILocalizationService loc)
     {
         _doc = doc;
         _clientConfig = clientConfig;
+        _graphicsSettings = graphicsSettings;
         _refreshers = refreshers;
         _loc = loc;
     }
@@ -37,12 +41,13 @@ internal sealed class PauseMenuInterfaceTabBuilder
         VisualElement interfaceSection = interfaceScroll.Q<VisualElement>("InterfaceSection") ??
             throw new InvalidOperationException("[PauseMenu] InterfaceSection is missing from PauseMenu.uxml.");
 
-        interfaceSection.Add(PauseMenuUIFactory.CreateSlider(
-            _loc.Get("menu.settings.ui_scale"),
-            _clientConfig.Config.UIScale,
+        interfaceSection.Add(PauseMenuUIFactory.CreateBoundSlider<InterfaceSettings>(
+            nameof(InterfaceSettings.UIScale),
+            _loc,
+            () => _clientConfig.Config.Interface.UIScale,
             v =>
             {
-                _clientConfig.UpdateAndSave(config => config.UIScale = v);
+                _clientConfig.UpdateSection(config => config.Interface, settings => settings.UIScale = v);
 
                 // The panel scale is what actually resizes the live UI;
                 // saving alone would only take effect on the next launch.
@@ -51,8 +56,7 @@ internal sealed class PauseMenuInterfaceTabBuilder
                     _doc.panelSettings.scale = v;
                 }
             },
-            0.5f,
-            2f));
+            _refreshers));
 
         // Язык интерфейса. Применяется сразу: SetLanguage сохраняет выбор
         // в конфиг и стреляет OnLanguageChanged, на который подписаны все
@@ -102,14 +106,15 @@ internal sealed class PauseMenuInterfaceTabBuilder
             _loc.Get("gateway.onb.colorblind.tritanopia"),
             _loc.Get("gateway.onb.colorblind.high_contrast"),
         };
-        colorblindDropdown.index = Mathf.Clamp(_clientConfig.Config.ColorblindMode, 0, 4);
+        colorblindDropdown.index = Mathf.Clamp(_clientConfig.Config.Accessibility.ColorblindMode, 0, 4);
         colorblindDropdown.RegisterValueChangedCallback(_ =>
         {
-            _clientConfig.UpdateAndSave(cfg => cfg.ColorblindMode = colorblindDropdown.index);
+            _graphicsSettings.UpdateAccessibilitySettings(
+                settings => settings.ColorblindMode = colorblindDropdown.index);
         });
         _refreshers.Add(() =>
         {
-            colorblindDropdown.index = Mathf.Clamp(_clientConfig.Config.ColorblindMode, 0, 4);
+            colorblindDropdown.index = Mathf.Clamp(_clientConfig.Config.Accessibility.ColorblindMode, 0, 4);
         });
         colorblindRow.Add(colorblindDropdown);
         interfaceSection.Add(colorblindRow);
@@ -127,14 +132,14 @@ internal sealed class PauseMenuInterfaceTabBuilder
             _loc.Get("gateway.onb.controls.keyboard"),
             _loc.Get("gateway.onb.controls.mouse"),
         };
-        controlSchemeDropdown.index = Mathf.Clamp(_clientConfig.Config.ControlScheme, 0, 1);
+        controlSchemeDropdown.index = Mathf.Clamp(_clientConfig.Config.Interface.ControlScheme, 0, 1);
         controlSchemeDropdown.RegisterValueChangedCallback(_ =>
         {
-            _clientConfig.UpdateAndSave(cfg => cfg.ControlScheme = controlSchemeDropdown.index);
+            _clientConfig.UpdateSection(config => config.Interface, settings => settings.ControlScheme = controlSchemeDropdown.index);
         });
         _refreshers.Add(() =>
         {
-            controlSchemeDropdown.index = Mathf.Clamp(_clientConfig.Config.ControlScheme, 0, 1);
+            controlSchemeDropdown.index = Mathf.Clamp(_clientConfig.Config.Interface.ControlScheme, 0, 1);
         });
         controlSchemeRow.Add(controlSchemeDropdown);            interfaceSection.Add(controlSchemeRow);
 

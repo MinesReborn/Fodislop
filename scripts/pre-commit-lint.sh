@@ -14,6 +14,20 @@ echo "Environment: CI=${CI:-false}, OS=$(uname -s), DOTNET_CLI_HOME=$DOTNET_CLI_
 echo "--- Step 0: Auditing project architecture and settings invariants ---"
 node "$(dirname "$0")/check-architecture.js"
 
+# Настройки описываются атрибутами и читаются рефлексией: ни компилятор, ни
+# линтер не могут сказать, что диапазон над полем осмыслен, что значение по
+# умолчанию в него попадает и что ветка разбора для этого типа существует.
+# Проба исполняет эту логику вне Unity на настоящих файлах проекта. Мотиватор:
+# `case int number when field.Range != null` компилировался безупречно и ронял
+# запуск игры на штатном разрешении экрана.
+echo "--- Step 0.1: Executing settings schema probe ---"
+if command -v dotnet >/dev/null 2>&1; then
+    DOTNET_NOLOGO=1 dotnet run --project "$(dirname "$0")/../tools/Fodinae.SettingsProbe" \
+        --verbosity quiet -- "$(dirname "$0")/.."
+else
+    echo "Notice: dotnet not found; settings probe skipped."
+fi
+
 if [ "$CI" != "true" ]; then
     echo "Notice: local hooks run fast static checks only."
     echo "Unity compile, EditMode, PlayMode, and IL2CPP validation are mandatory CI jobs."

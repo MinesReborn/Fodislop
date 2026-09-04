@@ -1,6 +1,6 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
     <!-- Видимость — рантайм-состояние: скрыт по умолчанию, показывается по требованию -->
-    <ui:VisualElement name="Tooltip" class="tooltip-panel" picking-mode="Ignore" style="display: none;">
+    <ui:VisualElement name="Tooltip" class="tooltip-panel is-hidden" picking-mode="Ignore">
         <ui:Label name="TooltipLabel" class="tooltip-label" />
     </ui:VisualElement>
 </ui:UXML>

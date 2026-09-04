@@ -32,7 +32,6 @@ namespace Fodinae.Game
         private readonly ushort _sourceX;
         private readonly ushort _sourceY;
         private readonly ushort _targetBotId;
-        private readonly IReadOnlyList<StringPairPacket> _parameters;
         private readonly IRobotService _robotService;
         private readonly IAudioSystem _audioSystem;
         private readonly IAssetLoader _assetLoader;
@@ -44,17 +43,7 @@ namespace Fodinae.Game
 
         private Color _primaryColor = Color.white;
         private float _speed = 1f;
-
-        private uint _sourceBotId;
-        private bool _hasSourceBot;
-
-        private ushort _attractorX;
-        private ushort _attractorY;
-        private bool _hasAttractorPosition;
-
-        private Dictionary<string, string>? _textureOverrideMap;
-
-        private float[]? _effekseerDynamicInputs;
+        private readonly ServerAudioParameters _parsedParams;
 
         private Sprite[]? _animationFrames;
         private Sprite? _ownedStaticSprite;
@@ -91,7 +80,6 @@ namespace Fodinae.Game
             _sourceX = packet.X;
             _sourceY = packet.Y;
             _targetBotId = packet.TargetBotId;
-            _parameters = packet.Parameters;
             _slot = slot;
             _robotService = robotService;
             _audioSystem = audioSystem;
@@ -104,7 +92,7 @@ namespace Fodinae.Game
                 _gameObject = slot.GameObject;
             }
 
-            ParseParameters();
+            _parsedParams = ServerAudioParameters.Parse(packet.Parameters);
             SetupSlotPosition();
             PlayAudio();
 
@@ -157,9 +145,9 @@ namespace Fodinae.Game
 
             if (_hasEffekseerEffect)
             {
-                if (_hasSourceBot)
+                if (_parsedParams.HasSourceBot)
                 {
-                    var sourceBot = _robotService.GetOrCreateRobot(_sourceBotId);
+                    var sourceBot = _robotService.GetOrCreateRobot(_parsedParams.SourceBotId);
                     if (sourceBot != null)
                     {
                         _effekseerHandle.SetLocation(sourceBot.transform.position);
@@ -168,7 +156,7 @@ namespace Fodinae.Game
 
                 if (_targetBotId != 0)
                 {
-                    var targetBot = (_robotService as RobotManager)?.GetOrCreateRobot(_targetBotId);
+                    var targetBot = _robotService.GetOrCreateRobot(_targetBotId);
                     if (targetBot != null)
                     {
                         _effekseerHandle.SetTargetLocation(targetBot.transform.position);
@@ -247,97 +235,13 @@ namespace Fodinae.Game
             return result;
         }
 
-        private void ParseParameters()
-        {
-            if (_parameters == null)
-            {
-                return;
-            }
-
-            foreach (var param in _parameters)
-            {
-                switch (param.Key.ToLowerInvariant())
-                {
-                    case "sourcebotid":
-                        if (uint.TryParse(param.Value, out var srcBotId))
-                        {
-                            _sourceBotId = srcBotId;
-                            _hasSourceBot = true;
-                        }
-
-                        break;
-                    case "x":
-                        if (ushort.TryParse(param.Value, out var attractorX))
-                        {
-                            _attractorX = attractorX;
-                            _hasAttractorPosition = true;
-                        }
-
-                        break;
-                    case "y":
-                        if (ushort.TryParse(param.Value, out var attractorY))
-                        {
-                            _attractorY = attractorY;
-                            _hasAttractorPosition = true;
-                        }
-
-                        break;
-                    case "map":
-                        if (!string.IsNullOrEmpty(param.Value))
-                        {
-                            _textureOverrideMap = new Dictionary<string, string>();
-                            var entries = param.Value.Split(';');
-                            foreach (var entry in entries)
-                            {
-                                if (string.IsNullOrEmpty(entry))
-                                {
-                                    continue;
-                                }
-
-                                var eqIdx = entry.IndexOf('=');
-                                if (eqIdx > 0 && eqIdx < entry.Length - 1)
-                                {
-                                    var key = entry.Substring(0, eqIdx).Trim();
-                                    var val = entry.Substring(eqIdx + 1).Trim();
-                                    if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(val))
-                                    {
-                                        _textureOverrideMap[key] = val;
-                                    }
-                                }
-                            }
-                        }
-
-                        break;
-                    case "props":
-                        if (!string.IsNullOrEmpty(param.Value))
-                        {
-                            var parts = param.Value.Split(',');
-                            _effekseerDynamicInputs = new float[parts.Length];
-                            for (int i = 0; i < parts.Length; i++)
-                            {
-                                if (float.TryParse(
-                                        parts[i],
-                                        System.Globalization.NumberStyles.Float,
-                                        System.Globalization.CultureInfo.InvariantCulture,
-                                        out var propVal))
-                                {
-                                    _effekseerDynamicInputs[i] = propVal;
-                                }
-                            }
-                        }
-
-                        break;
-                }
-            }
-        }
-
         private void SetupSlotPosition()
         {
             Vector3 pos;
 
-            if (_hasSourceBot)
+            if (_parsedParams.HasSourceBot)
             {
-                var sourceBot = (_robotService as RobotManager)?.GetOrCreateRobot(_sourceBotId);
+                var sourceBot = _robotService.GetOrCreateRobot(_parsedParams.SourceBotId);
                 pos = sourceBot != null
                     ? sourceBot.transform.position
                     : CoordinateUtils.ServerToUnityPos(_sourceX, _sourceY, GetWorldHeight());
@@ -356,7 +260,7 @@ namespace Fodinae.Game
 
             if (_targetBotId != 0 && _gameObject != null)
             {
-                var targetBot = (_robotService as RobotManager)?.GetOrCreateRobot(_targetBotId);
+                var targetBot = _robotService.GetOrCreateRobot(_targetBotId);
                 if (targetBot != null)
                 {
                     // The dig effect must point the way the bot faces, toward
@@ -391,13 +295,7 @@ namespace Fodinae.Game
             try
             {
                 var filename = $"VFX/{_effectType.ToString().ToLowerInvariant()}";
-                if (_assetLoader is not ClientAssetLoader loader)
-                {
-                    MarkVisualCompleted();
-                    return;
-                }
-
-                var animData = await loader.GetAnimatedSpritesAsync(filename, token);
+                var animData = await _assetLoader.GetAnimatedSpritesAsync(filename, token);
                 if (token.IsCancellationRequested)
                 {
                     return;
@@ -416,7 +314,7 @@ namespace Fodinae.Game
                     return;
                 }
 
-                var texture = await loader.GetTextureAsync(filename);
+                var texture = await _assetLoader.GetTextureAsync(filename, token);
                 if (token.IsCancellationRequested)
                 {
                     return;
@@ -436,7 +334,7 @@ namespace Fodinae.Game
                     return;
                 }
 
-                var bytes = await loader.GetAssetBytesAsync(filename, timeoutSeconds: 10);
+                var bytes = await _assetLoader.GetAssetBytesAsync(filename, token, timeoutSeconds: 10);
                 if (token.IsCancellationRequested)
                 {
                     return;
@@ -471,12 +369,10 @@ namespace Fodinae.Game
                 var effectAsset = await RuntimeEffekseerLoader.LoadEffectAsync(
                     bytes,
                     _effectType.ToString(),
-                    _assetLoader as ClientAssetLoader ??
-                        throw new InvalidOperationException(
-                            "ClientAssetLoader is unavailable for runtime Effekseer textures."),
+                    _assetLoader,
                     texturePathMapper: path =>
                     {
-                        if (_textureOverrideMap != null && _textureOverrideMap.TryGetValue(path, out var mapped))
+                        if (_parsedParams.TextureOverrideMap != null && _parsedParams.TextureOverrideMap.TryGetValue(path, out var mapped))
                         {
                             return mapped;
                         }
@@ -500,25 +396,25 @@ namespace Fodinae.Game
                 _effekseerHandle = EffekseerSystem.PlayEffect(effectAsset, _intendedWorldPosition);
                 _effekseerAsset = effectAsset;
 
-                if (_effekseerDynamicInputs != null)
+                if (_parsedParams.EffekseerDynamicInputs != null)
                 {
-                    for (int i = 0; i < _effekseerDynamicInputs.Length; i++)
+                    for (int i = 0; i < _parsedParams.EffekseerDynamicInputs.Length; i++)
                     {
-                        _effekseerHandle.SetDynamicInput(i, _effekseerDynamicInputs[i]);
+                        _effekseerHandle.SetDynamicInput(i, _parsedParams.EffekseerDynamicInputs[i]);
                     }
                 }
 
                 if (_targetBotId != 0)
                 {
-                    var targetBot = (_robotService as RobotManager)?.GetOrCreateRobot(_targetBotId);
+                    var targetBot = _robotService.GetOrCreateRobot(_targetBotId);
                     if (targetBot != null)
                     {
                         _effekseerHandle.SetTargetLocation(targetBot.transform.position);
                     }
                 }
-                else if (_hasAttractorPosition)
+                else if (_parsedParams.HasAttractorPosition)
                 {
-                    var attractorPos = CoordinateUtils.ServerToUnityPos(_attractorX, _attractorY, GetWorldHeight());
+                    var attractorPos = CoordinateUtils.ServerToUnityPos(_parsedParams.AttractorX, _parsedParams.AttractorY, GetWorldHeight());
                     _effekseerHandle.SetTargetLocation(attractorPos);
                 }
 
@@ -572,14 +468,7 @@ namespace Fodinae.Game
             }
 
             _slotReleased = true;
-
-            if (_hasEffekseerEffect)
-            {
-                _effekseerHandle.Stop();
-                RuntimeEffekseerLoader.DestroyEffect(_effekseerAsset);
-                _effekseerAsset = null;
-                _hasEffekseerEffect = false;
-            }
+            MarkVisualCompleted();
 
             if (_slot != null)
             {

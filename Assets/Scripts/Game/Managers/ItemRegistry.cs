@@ -9,52 +9,28 @@ using UnityEngine;
 
 namespace Fodinae.Game.Managers
 {
-    public static class ItemRegistry
+    public sealed class ItemRegistry : IItemCatalog
     {
         private const string TAG = "[ItemRegistry]";
-        private static readonly Dictionary<ItemType, Texture2D> _iconCache = new();
-        private static readonly HashSet<ItemType> _missingIconWarned = new();
+        private readonly Dictionary<ItemType, Texture2D> _iconCache = new();
+        private readonly HashSet<ItemType> _missingIconWarned = new();
+        private readonly IRuntimeAssetPaths _runtimeAssetPaths;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetForDomainReload()
+        public ItemRegistry(IRuntimeAssetPaths runtimeAssetPaths)
         {
-            Clear();
+            _runtimeAssetPaths = runtimeAssetPaths;
         }
 
-        public static string GetName(ItemType type) => type.ToString();
+        public string GetName(ItemType type) => type.ToString();
 
-        public static string GetDescription(ItemType type) => string.Empty;
+        public string GetDescription(ItemType type) => string.Empty;
 
-        public static IEnumerable<ItemType> AllTypes => (ItemType[])System.Enum.GetValues(typeof(ItemType));
+        public IEnumerable<ItemType> AllTypes => (ItemType[])System.Enum.GetValues(typeof(ItemType));
 
         /// <summary>
-        /// Выполняет фоновый прогрев кэша иконок предметов, исключая синхронный I/O лаг во время игры.
+        /// Loads a local icon on first use and retains it for the application lifetime.
         /// </summary>
-        public static async Cysharp.Threading.Tasks.UniTask PreloadAllAsync(System.Threading.CancellationToken cancellationToken = default)
-        {
-            string? itemsDir = Fodinae.Core.RuntimeAssetPaths.TexturesSubfolder("Items");
-            if (itemsDir == null || !Directory.Exists(itemsDir))
-            {
-                return;
-            }
-
-            foreach (ItemType type in AllTypes)
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    return;
-                }
-
-                if (!_iconCache.ContainsKey(type))
-                {
-                    GetIcon(type);
-                }
-
-                await Cysharp.Threading.Tasks.UniTask.Yield();
-            }
-        }
-
-        public static Texture2D? GetIcon(ItemType type)
+        public Texture2D? GetIcon(ItemType type)
         {
             if (_iconCache.TryGetValue(type, out var t))
             {
@@ -66,19 +42,10 @@ namespace Fodinae.Game.Managers
             // Раньше здесь стоял Application.dataPath напрямую — в редакторе это
             // Assets/, а в плеере каталог данных, куда сборка каталог Textures
             // не кладёт. Иконки предметов молча пропадали именно в билде.
-            string? itemsDir = Fodinae.Core.RuntimeAssetPaths.TexturesSubfolder("Items");
-            if (itemsDir == null)
-            {
-                return null;
-            }
+            string? path = _runtimeAssetPaths.FindBundledTextureFile($"Items/{camelName}.png") ??
+                _runtimeAssetPaths.FindBundledTextureFile($"Items/{typeName.ToLowerInvariant()}.png");
 
-            var path = Path.Combine(itemsDir, camelName + ".png");
-            if (!File.Exists(path))
-            {
-                path = Path.Combine(itemsDir, typeName.ToLowerInvariant() + ".png");
-            }
-
-            if (!File.Exists(path))
+            if (path == null)
             {
                 if (_missingIconWarned.Add(type))
                 {
@@ -111,12 +78,5 @@ namespace Fodinae.Game.Managers
             return tex;
         }
 
-        public static void Clear()
-        {
-            // Inventory views can retain these runtime textures across a domain
-            // reload. Reset lookup state without destroying live UI resources.
-            _iconCache.Clear();
-            _missingIconWarned.Clear();
-        }
     }
 }

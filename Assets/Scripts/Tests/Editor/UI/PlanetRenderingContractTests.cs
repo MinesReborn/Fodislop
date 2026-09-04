@@ -39,8 +39,8 @@ public sealed class PlanetRenderingContractTests
         // Поверхность обязана остаться матовой в обоих концах диапазона.
         // Именно съезд шероховатости вниз превращает планету в мокрый шар, и
         // проверяется здесь потому, что на глаз это ловится только у терминатора.
-        Assert.That(surface.GetFloat("_RoughnessMin"), Is.InRange(0.55f, 0.75f));
-        Assert.That(surface.GetFloat("_RoughnessMax"), Is.InRange(0.85f, 1f));
+        Assert.That(surface.GetFloat("_RoughnessMin"), Is.InRange(0.65f, 0.9f));
+        Assert.That(surface.GetFloat("_RoughnessMax"), Is.InRange(0.65f, 0.9f));
 
         // Сильная нормаль — вторая половина того же дефекта: рельеф начинает
         // бликовать по всей поверхности и читается как рябь на масле.

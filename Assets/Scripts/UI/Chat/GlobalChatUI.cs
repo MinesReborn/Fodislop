@@ -1,7 +1,6 @@
 #nullable enable
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Fodinae.Core;
@@ -21,62 +20,28 @@ namespace Fodinae.UI
 {
     public class GlobalChatUI : MonoBehaviour, ILocalizableUI
     {
-        private enum ChatChannel
-        {
-            Global,
-            Local,
-        }
-
         [Inject]
         private UIDocument _doc = null!;
-        private VisualElement? _tree;
-        private VisualElement? _panel;
-        private ScrollView? _scrollView;
-        private Label? _muteStatus;
-        private TextField? _inputField;
-        private VisualElement? _internalInput;
-        private Button? _sendButton;
-        private Button? _colorButton;
-        private Button? _globalChannelButton;
-        private Button? _localChannelButton;
-        private Label? _chatHeader;
-        private VisualElement? _colorGrid;
-        private System.Drawing.Color _currentColor = System.Drawing.Color.FromArgb(255, 200, 180, 100);
-        private bool _isOpen = false;
-        private static bool _invalidMuteExpiryLogged;
-        private long _mutedUntilUnixMilliseconds = -1;
-        private const int MAX_MESSAGES = 20;
-        private Controls.ChatInputBlinker? _blinker;
-        private CancellationTokenSource? _idleCts;
-        private bool _initialized;
-        private ChatChannel _activeChannel;
-        private readonly List<string> _globalMessages = new();
-        private readonly List<string> _localMessages = new();
-
-        private static readonly System.Drawing.Color[] PresetColors =
-        {
-            System.Drawing.Color.White,
-            System.Drawing.Color.FromArgb(255, 60, 60),
-            System.Drawing.Color.FromArgb(60, 255, 60),
-            System.Drawing.Color.FromArgb(60, 130, 255),
-            System.Drawing.Color.FromArgb(255, 220, 60),
-            System.Drawing.Color.FromArgb(60, 255, 255),
-            System.Drawing.Color.FromArgb(255, 60, 255),
-            System.Drawing.Color.FromArgb(255, 160, 60),
-        };
-
         [Inject]
         private INetworkService _networkService = null!;
-
         [Inject]
         private IInputBlocker _inputBlocker = null!;
-
+        [Inject]
+        private UIInputManager _uiInput = null!;
         [Inject]
         private ILocalizationService _loc = null!;
         [Inject]
-        private ChatEventGateway _chatEvents = null!;
-        [Inject]
         private IAsyncOperationSupervisor _operations = null!;
+
+        private ChatEventGateway _chatEvents = null!;
+        private ChatViewElements? _view;
+        private ChatColorController? _colorController;
+        private bool _isOpen;
+        private CancellationTokenSource? _idleCts;
+        private bool _initialized;
+        private ChatChannel _activeChannel;
+        private readonly ChatMessageHistory _history = new();
+        private readonly ChatMuteTracker _muteTracker = new();
 
         protected void Start()
         {
@@ -118,13 +83,14 @@ namespace Fodinae.UI
 
             _initialized = true;
             ILocalizationService loc = _loc!;
+
             // Реестр применяет текст сразу и на каждой смене языка — подписка
             // вручную не нужна и запрещена линтером.
             loc.RegisterLocalizable(this);
             CreateUI();
-            if (_panel != null)
+            if (_view?.Panel != null)
             {
-                _panel.style.display = DisplayStyle.None;
+                _view.Panel.style.display = DisplayStyle.None;
             }
 
             ApplyChatConfig();
@@ -146,18 +112,23 @@ namespace Fodinae.UI
         public void ApplyLocalizedText()
         {
             UILocalizer.AssertLocalizationServiceAvailable(_loc, nameof(GlobalChatUI));
-            if (_tree == null || _loc == null)
+            if (_view?.Tree == null || _loc == null)
             {
                 return;
             }
 
-            UILocalizer.Apply(_tree, _loc);
-            UILocalizer.AssertLocalized(_tree, _loc);
+            UILocalizer.Apply(_view.Tree, _loc);
+            UILocalizer.AssertLocalized(_view.Tree, _loc);
             UpdateChannelPresentation();
         }
 
         protected void OnDestroy()
         {
+            if (_uiInput != null)
+            {
+                _uiInput.IsChatFocused = false;
+            }
+
             if (_loc != null)
             {
                 _loc.UnregisterLocalizable(this);
@@ -172,16 +143,17 @@ namespace Fodinae.UI
 
             _idleCts?.Cancel();
             _idleCts?.Dispose();
-            _blinker?.StopBlink();
-            _tree?.RemoveFromHierarchy();
-            _tree = null;
+            _view?.Blinker?.StopBlink();
+            _view?.Tree.RemoveFromHierarchy();
+            _view = null;
+            _colorController = null;
         }
 
         private void ApplyChatConfig()
         {
-            if (_inputField != null)
+            if (_view?.InputField != null)
             {
-                _inputField.maxLength = ProjectRuntimeContracts.Chat.MaximumGlobalChatLength;
+                _view.InputField.maxLength = ProjectRuntimeContracts.Chat.MaximumGlobalChatLength;
             }
         }
 
@@ -223,9 +195,9 @@ namespace Fodinae.UI
             if (Keyboard.current.enterKey.wasPressedThisFrame ||
                 Keyboard.current.numpadEnterKey.wasPressedThisFrame)
             {
-                // IsInputBlocked теперь включает ChatInput.IsFocused, поэтому «не
-                // заблокировано» или «печатаем в чате» — разрешаем отправку.
-                if (!inputBlocked || ChatInput.IsFocused)
+                // Input blocking includes chat focus, but Enter must remain
+                // available to the chat that currently owns keyboard focus.
+                if (!inputBlocked || _uiInput.IsChatFocused)
                 {
                     OnSendClicked();
                 }
@@ -241,114 +213,56 @@ namespace Fodinae.UI
 
         private void CreateUI()
         {
-            var uiUxml = Resources.Load<VisualTreeAsset>("UI/GlobalChat");
-            if (uiUxml != null)
-            {
-            VisualElement tree = uiUxml.CloneTree();
-            tree.AddToClassList("ui-fullscreen");
-            tree.pickingMode = PickingMode.Ignore;
-            _tree = tree;
-
-            // Статические ключи UXML резолвятся сразу при сборке (у чата их
-            // почти нет, но контракт един для всех экранов).
-            UILocalizer.Apply(tree, _loc);
-
-            _panel = tree.Q<VisualElement>("ChatPanel");
-                if (_panel != null)
-                {
-                    _panel.style.display = DisplayStyle.None;
-                }
-
-                _muteStatus = tree.Q<Label>("ChatMuteStatus");
-                _scrollView = tree.Q<ScrollView>("ChatScroll");
-                _inputField = tree.Q<TextField>("ChatInput");
-                _chatHeader = tree.Q<Label>("ChatHeader");
-                _globalChannelButton = tree.Q<Button>("GlobalChannelButton");
-                _localChannelButton = tree.Q<Button>("LocalChannelButton");
-
-                _sendButton = tree.Q<Button>("SendButton");
-                _colorButton = tree.Q<Button>("ColorButton");
-                _colorGrid = tree.Q<VisualElement>("ColorGrid");
-
-                if (_doc != null && _panel != null)
-                {
-                    _doc.rootVisualElement.Add(tree);
-                }
-
-                if (_inputField != null)
-                {
-                    _inputField.selectAllOnFocus = false;
-                    _inputField.selectAllOnMouseUp = false;
-                    _inputField.RegisterCallback<FocusEvent>(_ =>
-                    {
-                        StartBlink();
-                        ChatInput.OnFocus();
-                    });
-                    _inputField.RegisterCallback<BlurEvent>(_ =>
-                    {
-                        StopBlink();
-                        ChatInput.OnBlur();
-                    });
-                    _inputField.RegisterValueChangedCallback(_ => OnInputChanged());
-                }
-
-                if (_sendButton != null)
-                {
-                    _sendButton.clicked += OnSendClicked;
-                }
-
-                if (_globalChannelButton != null)
-                {
-                    _globalChannelButton.clicked += () => SelectChannel(ChatChannel.Global);
-                }
-
-                if (_localChannelButton != null)
-                {
-                    _localChannelButton.clicked += () => SelectChannel(ChatChannel.Local);
-                }
-
-                if (_colorButton != null)
-                {
-                    _colorButton.clicked += ToggleColorGrid;
-                    _colorButton.style.backgroundColor = new Color(_currentColor.R / 255f, _currentColor.G / 255f, _currentColor.B / 255f);
-                }
-
-                if (_colorGrid != null)
-                {
-                    foreach (var c in PresetColors)
-                    {
-                        var swatch = new Button(() => SelectColor(c));
-                        swatch.AddToClassList("gchat-swatch");
-                        swatch.style.backgroundColor = new Color(c.R / 255f, c.G / 255f, c.B / 255f);
-                        _colorGrid.Add(swatch);
-                    }
-                }
-
-                _internalInput = _inputField != null
-                    ? _inputField.Q<VisualElement>(className: "unity-text-field__input")
-                    : null;
-                if (_internalInput != null)
-                {
-                    _internalInput.AddToClassList("gchat-internal-input");
-                }
-
-                if (_inputField != null && _internalInput != null)
-                {
-                    _blinker = new Controls.ChatInputBlinker(_inputField, _internalInput);
-                }
-
-                SelectChannel(ChatChannel.Global);
-            }
-        }
-
-        private void OnSendClicked()
-        {
-            if (_inputField == null || IsMuted())
+            var uiUxml = Resources.Load<VisualTreeAsset>(
+                ProjectRuntimeContracts.ResourcePaths.GlobalChatUxml);
+            if (uiUxml == null)
             {
                 return;
             }
 
-            string text = _inputField.value.Trim();
+            VisualElement tree = uiUxml.CloneTree();
+            UILocalizer.Apply(tree, _loc);
+            _view = new ChatViewElements(tree, _loc);
+
+            if (_doc != null && _view.Panel != null)
+            {
+                _doc.rootVisualElement.Add(tree);
+            }
+
+            if (_view.InputField != null)
+            {
+                _view.InputField.selectAllOnFocus = false;
+                _view.InputField.selectAllOnMouseUp = false;
+                _view.InputField.RegisterCallback<FocusEvent>(_ =>
+                {
+                    StartBlink();
+                    _uiInput.IsChatFocused = true;
+                });
+                _view.InputField.RegisterCallback<BlurEvent>(_ =>
+                {
+                    StopBlink();
+                    _uiInput.IsChatFocused = false;
+                });
+                _view.InputField.RegisterValueChangedCallback(_ => OnInputChanged());
+            }
+
+            _view.BindActions(
+                OnSendClicked,
+                () => SelectChannel(ChatChannel.Global),
+                () => SelectChannel(ChatChannel.Local));
+
+            _colorController = new ChatColorController(_networkService, _view.ColorButton, _view.ColorGrid);
+            SelectChannel(ChatChannel.Global);
+        }
+
+        private void OnSendClicked()
+        {
+            if (_view?.InputField == null || _muteTracker.IsMuted)
+            {
+                return;
+            }
+
+            string text = _view.InputField.value.Trim();
             if (string.IsNullOrEmpty(text))
             {
                 return;
@@ -378,8 +292,8 @@ namespace Fodinae.UI
                 Debug.LogWarning($"[GlobalChatUI] Не удалось отправить сообщение в чат: {ex}");
             }
 
-            _inputField.value = string.Empty;
-            _inputField.Focus();
+            _view.InputField.value = string.Empty;
+            _view.InputField.Focus();
         }
 
         public void Toggle()
@@ -397,43 +311,43 @@ namespace Fodinae.UI
         public void Show()
         {
             _isOpen = true;
-            if (_panel != null)
+            if (_view?.Panel != null)
             {
-                _panel.style.display = DisplayStyle.Flex;
+                _view.Panel.style.display = DisplayStyle.Flex;
             }
 
-            _inputField?.Focus();
+            _view?.InputField?.Focus();
         }
 
         public void Hide()
         {
             _isOpen = false;
-            if (_panel != null)
+            if (_view?.Panel != null)
             {
-                _panel.style.display = DisplayStyle.None;
+                _view.Panel.style.display = DisplayStyle.None;
             }
 
-            if (_inputField != null)
+            if (_view?.InputField != null)
             {
-                _inputField.value = string.Empty;
-                _inputField.Blur();
+                _view.InputField.value = string.Empty;
+                _view.InputField.Blur();
             }
         }
 
         private void StartBlink()
         {
-            _blinker?.StartBlink();
+            _view?.Blinker?.StartBlink();
         }
 
         private void StopBlink()
         {
-            _blinker?.StopBlink();
+            _view?.Blinker?.StopBlink();
             _idleCts?.Cancel();
         }
 
         private void OnInputChanged()
         {
-            _blinker?.StopBlink();
+            _view?.Blinker?.StopBlink();
             _idleCts?.Cancel();
             _idleCts?.Dispose();
             _idleCts = new CancellationTokenSource();
@@ -461,64 +375,24 @@ namespace Fodinae.UI
             }
         }
 
-        private readonly System.Text.StringBuilder _msgBuilder = new(128);
-
         public void AddMessage(ChatMessagePacket msg)
         {
-            if (_scrollView == null)
+            if (_view?.ScrollView == null)
             {
                 return;
             }
 
-            DateTime now = DateTime.Now;
-            _msgBuilder.Clear();
-            _msgBuilder.Append("<color=#888888>[");
-            _msgBuilder.Append(now.Hour.ToString("D2"));
-            _msgBuilder.Append(':');
-            _msgBuilder.Append(now.Minute.ToString("D2"));
-            _msgBuilder.Append("]</color> <color=#");
-            _msgBuilder.Append(msg.NicknameColor.R.ToString("X2"));
-            _msgBuilder.Append(msg.NicknameColor.G.ToString("X2"));
-            _msgBuilder.Append(msg.NicknameColor.B.ToString("X2"));
-            _msgBuilder.Append('>');
-            _msgBuilder.Append(msg.PlayerName);
-            _msgBuilder.Append("</color>: <color=#");
-            _msgBuilder.Append(msg.MessageColor.R.ToString("X2"));
-            _msgBuilder.Append(msg.MessageColor.G.ToString("X2"));
-            _msgBuilder.Append(msg.MessageColor.B.ToString("X2"));
-            _msgBuilder.Append('>');
-            _msgBuilder.Append(msg.Message);
-            _msgBuilder.Append("</color>");
-
-            AppendMessage(ChatChannel.Global, _msgBuilder.ToString());
+            AppendMessage(ChatChannel.Global, ChatMessageFormatter.FormatGlobal(msg, DateTime.Now));
         }
 
         private void AddLocalMessage(LocalChatMessagePacket packet)
         {
-            DateTime now = DateTime.Now;
-            _msgBuilder.Clear();
-            _msgBuilder.Append("<color=#888888>[");
-            _msgBuilder.Append(now.Hour.ToString("D2"));
-            _msgBuilder.Append(':');
-            _msgBuilder.Append(now.Minute.ToString("D2"));
-            _msgBuilder.Append("]</color> <color=#B2A680>");
-            _msgBuilder.Append(_loc.Get("chat.local.sender", packet.BotId));
-            _msgBuilder.Append("</color>: ");
-            _msgBuilder.Append(packet.Text);
-            AppendMessage(ChatChannel.Local, _msgBuilder.ToString());
+            AppendMessage(ChatChannel.Local, ChatMessageFormatter.FormatLocal(packet, DateTime.Now, _loc));
         }
 
         private void AppendMessage(ChatChannel channel, string formattedMessage)
         {
-            List<string> messages = channel == ChatChannel.Local
-                ? _localMessages
-                : _globalMessages;
-            messages.Add(formattedMessage);
-            while (messages.Count > MAX_MESSAGES)
-            {
-                messages.RemoveAt(0);
-            }
-
+            _history.Add(channel, formattedMessage);
             if (_activeChannel == channel)
             {
                 AppendVisibleMessage(formattedMessage);
@@ -527,28 +401,28 @@ namespace Fodinae.UI
 
         private void AppendVisibleMessage(string formattedMessage)
         {
-            if (_scrollView == null)
+            if (_view?.ScrollView == null)
             {
                 return;
             }
 
             var label = new Label(formattedMessage);
             label.AddToClassList("gchat-message");
-            _scrollView.Add(label);
-            while (_scrollView.childCount > MAX_MESSAGES)
+            _view.ScrollView.Add(label);
+            while (_view.ScrollView.childCount > ChatMessageHistory.MaxMessages)
             {
-                _scrollView.RemoveAt(0);
+                _view.ScrollView.RemoveAt(0);
             }
 
-            _scrollView.scrollOffset = new Vector2(0, float.MaxValue);
+            _view.ScrollView.scrollOffset = new Vector2(0, float.MaxValue);
         }
 
         private void SelectChannel(ChatChannel channel)
         {
             _activeChannel = channel;
-            if (_inputField != null)
+            if (_view?.InputField != null)
             {
-                _inputField.maxLength = channel == ChatChannel.Local
+                _view.InputField.maxLength = channel == ChatChannel.Local
                     ? ProjectRuntimeContracts.Chat.MaximumLocalChatLength
                     : ProjectRuntimeContracts.Chat.MaximumGlobalChatLength;
             }
@@ -559,169 +433,59 @@ namespace Fodinae.UI
 
         private void UpdateChannelPresentation()
         {
-            bool local = _activeChannel == ChatChannel.Local;
-            if (_chatHeader != null && _loc != null)
-            {
-                _chatHeader.text = _loc.Get(
-                    local ? "chat.channel.local" : "chat.channel.global");
-            }
+            ChatChannelPresenter.UpdatePresentation(
+                _activeChannel,
+                _view?.ChatHeader,
+                _view?.GlobalChannelButton,
+                _view?.LocalChannelButton,
+                _view?.ColorButton,
+                _loc);
 
-            _globalChannelButton?.EnableInClassList(
-                "gchat-channel-button--active",
-                !local);
-            _localChannelButton?.EnableInClassList(
-                "gchat-channel-button--active",
-                local);
-            if (_colorButton != null)
+            if (_activeChannel == ChatChannel.Local)
             {
-                _colorButton.style.display = local
-                    ? DisplayStyle.None
-                    : DisplayStyle.Flex;
-            }
-
-            if (local && _colorGrid != null)
-            {
-                _colorGrid.style.display = DisplayStyle.None;
+                _colorController?.CloseColorGrid();
             }
         }
 
         private void RenderActiveMessages()
         {
-            if (_scrollView == null)
+            if (_view?.ScrollView == null)
             {
                 return;
             }
 
-            _scrollView.Clear();
-            List<string> messages = _activeChannel == ChatChannel.Local
-                ? _localMessages
-                : _globalMessages;
-            foreach (string message in messages)
+            _view.ScrollView.Clear();
+            var messages = _history.GetMessages(_activeChannel);
+            for (int i = 0; i < messages.Count; i++)
             {
-                AppendVisibleMessage(message);
+                AppendVisibleMessage(messages[i]);
             }
         }
 
         public void ApplyMute(ChatMutePacket packet)
         {
-            _mutedUntilUnixMilliseconds = packet.EndsAt;
-            string reason = string.IsNullOrWhiteSpace(packet.Reason)
-                ? _loc.Get("chat.mute.no_reason")
-                : packet.Reason.Trim();
-            string moderator = string.IsNullOrWhiteSpace(packet.ModeratorName)
-                ? _loc.Get("chat.mute.by_server")
-                : packet.ModeratorName.Trim();
-            string duration = packet.EndsAt <= 0
-                ? _loc.Get("chat.mute.forever")
-                : _loc.Get("chat.mute.until", FormatMuteEnd(packet.EndsAt));
-            SetMuteStatus(_loc.Get("chat.mute.blocked", moderator, reason, duration));
+            _muteTracker.ApplyMute(packet, _loc, out string statusMessage, out string notificationMessage);
+            _view?.SetMuteStatus(statusMessage);
             RefreshMuteState();
-            AddSystemMessage(_loc.Get("chat.mute.received"));
-        }
-
-        private bool IsMuted()
-        {
-            if (_mutedUntilUnixMilliseconds == -1)
-            {
-                return false;
-            }
-
-            return _mutedUntilUnixMilliseconds == 0 ||
-                _mutedUntilUnixMilliseconds > DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            AddSystemMessage(notificationMessage);
         }
 
         private void RefreshMuteState()
         {
-            if (_mutedUntilUnixMilliseconds == -1)
+            if (_muteTracker.CheckExpiration())
             {
-                return;
+                _view?.SetMuteStatus(string.Empty);
             }
 
-            bool muted = IsMuted();
-            if (!muted && _mutedUntilUnixMilliseconds > 0)
-            {
-                _mutedUntilUnixMilliseconds = -1;
-                SetMuteStatus(string.Empty);
-            }
-
-            _inputField?.SetEnabled(!muted);
-            _sendButton?.SetEnabled(!muted);
-            _colorButton?.SetEnabled(!muted);
-        }
-
-        private void SetMuteStatus(string message)
-        {
-            if (_muteStatus == null)
-            {
-                return;
-            }
-
-            _muteStatus.text = message;
-            _muteStatus.style.display = string.IsNullOrEmpty(message)
-                ? DisplayStyle.None
-                : DisplayStyle.Flex;
+            bool muted = _muteTracker.IsMuted;
+            _view?.InputField?.SetEnabled(!muted);
+            _view?.SendButton?.SetEnabled(!muted);
+            _view?.ColorButton?.SetEnabled(!muted);
         }
 
         private void AddSystemMessage(string message)
         {
             AppendMessage(ChatChannel.Global, message);
-        }
-
-        private static string FormatMuteEnd(long unixMilliseconds)
-        {
-            try
-            {
-                return DateTimeOffset.FromUnixTimeMilliseconds(unixMilliseconds)
-                    .ToLocalTime()
-                    .ToString("g");
-            }
-            catch (ArgumentOutOfRangeException)
-            {
-                // Серверный ввод не должен ронять клиент: битый timestamp в пакете
-                // мута — это данные, а не контрактная ошибка. Отображаем как есть.
-                if (_invalidMuteExpiryLogged)
-                {
-                    return unixMilliseconds.ToString();
-                }
-
-                _invalidMuteExpiryLogged = true;
-                Debug.LogWarning(
-                    $"[GlobalChat] Mute packet contains invalid expiry timestamp: {unixMilliseconds}");
-                return unixMilliseconds.ToString();
-            }
-        }
-
-        private void ToggleColorGrid()
-        {
-            if (_colorGrid != null)
-            {
-                _colorGrid.style.display = _colorGrid.style.display == DisplayStyle.None
-                    ? DisplayStyle.Flex
-                    : DisplayStyle.None;
-            }
-        }
-
-        private void SelectColor(System.Drawing.Color color)
-        {
-            _currentColor = color;
-            if (_colorButton != null)
-            {
-                _colorButton.style.backgroundColor = new Color(color.R / 255f, color.G / 255f, color.B / 255f);
-            }
-
-            if (_colorGrid != null)
-            {
-                _colorGrid.style.display = DisplayStyle.None;
-            }
-
-            try
-            {
-                _networkService.Send(new ChangeChatColorPacket(color));
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"[GlobalChatUI] Не удалось отправить изменение цвета чата: {ex}");
-            }
         }
     }
 }

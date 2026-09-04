@@ -66,5 +66,31 @@ namespace Fodinae.Tests.Networking
 
             Assert.AreEqual(0, calls);
         }
+
+        [Test]
+        public void SetOpenWindowVisibility_PublishesOnlyStateChanges()
+        {
+            var stream = new WindowCommandStream();
+            int calls = 0;
+            bool observed = false;
+            stream.OpenWindowVisibilityChanged += visible =>
+            {
+                calls++;
+                observed = visible;
+            };
+
+            stream.SetOpenWindowVisibility(true);
+            stream.SetOpenWindowVisibility(true);
+
+            Assert.That(stream.HasOpenWindows, Is.True);
+            Assert.That(observed, Is.True);
+            Assert.That(calls, Is.EqualTo(1));
+
+            stream.SetOpenWindowVisibility(false);
+
+            Assert.That(stream.HasOpenWindows, Is.False);
+            Assert.That(observed, Is.False);
+            Assert.That(calls, Is.EqualTo(2));
+        }
     }
 }

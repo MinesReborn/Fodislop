@@ -1,32 +1,25 @@
 #nullable enable
 
-using Fodinae;
-using Fodinae.UI.Controls; // Add this using directive
-using MinesServer.Networking.Server.Packets.GUI.Components;
+using Fodinae.UI.Controls;
 using MinesServer.Networking.Server.Packets.GUI.Components.Input;
 using UnityEngine.UIElements;
 
 namespace Fodinae.UI.Builders
 {
-    public class TextBoxPacketBuilder : PacketUIBuilderBase
+    public class TextBoxPacketBuilder : PacketUIBuilderBase<TextBoxPacket>
     {
-        public override VisualElement? Build(IGUIComponentPacket packet, PacketUIBuilder builder)
+        protected override VisualElement BuildTyped(TextBoxPacket packet, PacketUIBuilder builder)
         {
-            if (packet is not TextBoxPacket textInputPkt)
+            var textField = new RegexTextField
             {
-                return null;
-            }
-
-            var textField = new RegexTextField // Change to RegexTextField
-            {
-                value = textInputPkt.DefaultValue,
-                isReadOnly = !textInputPkt.IsEnabled,
-                Regex = textInputPkt.Regex, // Assign the Regex property
+                value = packet.DefaultValue,
+                isReadOnly = !packet.IsEnabled,
+                Regex = packet.Regex,
             };
             textField.AddToClassList("sci-fi-input");
-            if (!string.IsNullOrEmpty(textInputPkt.Name))
+            if (!string.IsNullOrEmpty(packet.Name))
             {
-                textField.name = textInputPkt.Name;
+                textField.name = packet.Name;
             }
 
             return textField;

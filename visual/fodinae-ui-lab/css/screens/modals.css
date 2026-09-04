@@ -1,0 +1,808 @@
+/* ==========================================================================
+   МОДАЛЬНЫЕ ОКНА
+   ==========================================================================
+
+   Оболочка .modal-overlay и содержимое: хроника, настройки, серверы,
+   инвентарь, программатор, чат.
+
+   Выделено из styles.css. Границы не выдуманы: их задаёт машина
+   состояний #appViewport[data-state] в index.html. Порядок @import в
+   styles.css = порядок каскада = порядок, который воспроизведётся в
+   FodinaeTheme.tss.
+   ========================================================================== */
+
+/* ----------------------------------------------------
+   МОДАЛЬНЫЕ ОКНА
+   ---------------------------------------------------- */
+.modal-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: var(--layer-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-scrim);
+  backdrop-filter: blur(var(--blur-lg));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-slow) ease;
+}
+.modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-card {
+  width: var(--modal-xl);
+  max-width: 94vw;
+  max-height: 88vh;
+  background: var(--surface-solid);
+  border: 1px solid var(--border-cyan);
+  box-shadow: 0 24px 60px var(--surface-void-solid);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-card-header {
+  height: 52px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-slate-solid);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 var(--safe-panel);
+}
+.modal-card-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  font-family: var(--face-display);
+  font-size: var(--size-md);
+  letter-spacing: 0.16em;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+.modal-card-title svg {
+  width: 18px;
+  height: 18px;
+  color: var(--accent-cyan);
+}
+.modal-card-close {
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  font-size: 20px; /* lint-ignore: кегль задаёт габарит глифа ×, а не типографику — тир его менять не должен */
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all var(--dur-base);
+}
+.modal-card-close:hover {
+  border-color: var(--state-danger);
+  color: var(--state-danger);
+  background: var(--state-danger-wash);
+}
+
+.modal-card-body {
+  padding: var(--space-9) var(--safe-panel);
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+/* Ряд действий переносится целиком, а не ломает подписи кнопок: подпись —
+   неделимое значение (data-fit="atomic"), а ряд — раскладка, и уступать
+   должна раскладка. @uss ok */
+.modal-card-footer {
+  flex-wrap: wrap;
+  /* Футер, перенёсший кнопки на вторую строку, не имеет права быть сжатым
+     обратно: он флекс-дитя колонки карточки, а у неё сжатие по умолчанию.
+     Без этого перенос отрабатывал, а кнопки всё равно выходили за нижнюю
+     грань — раскладка уступила, а её тут же и отняли. */
+  flex-shrink: 0;
+  /* min-height, а не height: 56px — это удобный минимум для ряда кнопок, а не
+     потолок. С потолком подпись, выросшая при переводе, ломалась посреди
+     фразы, потому что расти было некуда. Ничто над футером не зависит от
+     того, что он ровно 56. */
+  min-height: 56px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-abyss-solid);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-5);
+  padding: 0 var(--safe-panel);
+}
+
+/* ----------------------------------------------------
+   ТАЙМЛАЙН ХРОНИКИ И НОВОСТЕЙ (БУСИНКИ / ПОЛОСА)
+   ---------------------------------------------------- */
+.chronicle-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-9);
+  position: relative;
+  padding: var(--space-5) var(--space-5) var(--space-5) var(--space-13);
+}
+
+/* Вертикальная ось / полоса времени */
+.chronicle-spine {
+  position: absolute;
+  left: 19px;
+  top: 16px;
+  bottom: 16px;
+  width: 2px;
+  background: linear-gradient(180deg, var(--state-anomaly) 0%, var(--accent-gold) 35%, var(--accent-cyan) 60%, var(--border-line) 100%);
+  box-shadow: 0 0 10px var(--accent-cyan-glow);
+}
+
+.chronicle-section-header {
+  font-family: var(--face-data);
+  font-size: var(--size-xs);
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin: 8px 0 4px -20px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.chronicle-section-header.future { color: var(--state-anomaly); }
+.chronicle-section-header.current { color: var(--accent-gold); }
+.chronicle-section-header.past { color: var(--text-tertiary); }
+
+.chronicle-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--surface-slate-veil);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  transition: all var(--dur-slow) ease;
+  cursor: pointer;
+}
+.chronicle-item:hover {
+  background: var(--surface-shelf-dense);
+  border-color: var(--border-cyan);
+  transform: translateX(4px);
+}
+
+/* Бусинка (Node) на левой полосе */
+.chronicle-bead {
+  position: absolute;
+  left: -30px;
+  top: 18px;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-void-solid);
+  border: 2px solid var(--accent-cyan);
+  box-shadow: 0 0 10px var(--accent-cyan);
+  display: grid;
+  place-items: center;
+  z-index: var(--order-bead);
+  transition: all var(--dur-slow);
+}
+.chronicle-bead-core {
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-cyan);
+}
+
+/* Цвета бусинок */
+.chronicle-item.future .chronicle-bead {
+  border-color: var(--state-anomaly);
+  box-shadow: 0 0 12px var(--state-anomaly);
+}
+.chronicle-item.future .chronicle-bead-core {
+  background: var(--state-anomaly);
+}
+
+.chronicle-item.current {
+  border-color: var(--accent-gold);
+  background: var(--accent-gold-tint);
+}
+.chronicle-item.current .chronicle-bead {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 14px var(--accent-gold);
+  animation: beadGlow 1.8s infinite alternate;
+}
+.chronicle-item.current .chronicle-bead-core {
+  background: var(--accent-gold);
+}
+
+.chronicle-item.past {
+  opacity: 0.75;
+  border-color: var(--border-line);
+}
+.chronicle-item.past .chronicle-bead {
+  border-color: var(--text-tertiary);
+  box-shadow: none;
+}
+.chronicle-item.past .chronicle-bead-core {
+  background: var(--text-tertiary);
+}
+
+.chronicle-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-5);
+}
+.chronicle-tag {
+  font-family: var(--face-data);
+  font-size: var(--size-2xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  border-radius: var(--radius-sharp);
+}
+.chronicle-tag.event { background: var(--state-anomaly-wash); color: var(--state-anomaly); border: 1px solid var(--state-anomaly-glow); }
+.chronicle-tag.patch { background: var(--accent-gold-wash); color: var(--accent-gold); border: 1px solid var(--accent-gold-glow); }
+.chronicle-tag.mining { background: var(--accent-cyan-wash); color: var(--accent-cyan); border: 1px solid var(--accent-cyan-glow); }
+.chronicle-tag.archive { background: var(--border-line); color: var(--text-secondary); border: 1px solid var(--border-subtle); }
+
+.chronicle-time {
+  font-family: var(--face-data);
+  font-size: var(--size-xs);
+  color: var(--text-secondary);
+}
+.chronicle-title {
+  font-family: var(--face-display);
+  font-size: var(--size-md);
+  font-weight: 700;
+  color: var(--light-solid);
+}
+.chronicle-desc {
+  font-family: var(--face-body);
+  font-size: var(--size-base);
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+/* Настройки: вертикальный рейл вкладок + панель содержимого */
+.fdn-settings-layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  flex: 1;
+  overflow: hidden;
+  min-height: 480px;
+}
+.fdn-settings-nav {
+  background: var(--surface-abyss-dense);
+  border-right: 1px solid var(--border-subtle);
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.fdn-settings-tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-6) var(--space-9);
+  font-family: var(--face-body);
+  font-size: var(--size-md);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: all var(--dur-base);
+  text-align: left;
+}
+.fdn-settings-tab svg { width: 16px; height: 16px; }
+.fdn-settings-tab:hover { color: var(--light-solid); background: var(--accent-cyan-tint); }
+.fdn-settings-tab.active {
+  color: var(--accent-cyan);
+  background: var(--accent-cyan-wash);
+  border-left-color: var(--accent-cyan);
+  font-weight: 700;
+}
+.fdn-settings-pane {
+  padding: var(--space-10) var(--safe-panel);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+.tab-panel { display: none; flex-direction: column; gap: var(--space-7); }
+.tab-panel.active { display: flex; }
+
+.settings-block {
+  background: var(--surface-slate-veil);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-7);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+.settings-block-title {
+  font-family: var(--face-data);
+  font-size: var(--size-xs);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--accent-gold);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-9);
+}
+.settings-label { font-size: var(--size-md); font-weight: 600; color: var(--text-primary); }
+.settings-hint { font-family: var(--face-body); font-size: var(--size-sm); color: var(--text-secondary); }
+.settings-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  min-width: 240px;
+  justify-content: flex-end;
+}
+.styled-select {
+  background: var(--surface-abyss-solid);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-family: var(--face-data);
+  font-size: var(--size-sm);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-sm);
+  outline: none;
+  width: 100%;
+  cursor: pointer;
+}
+.slider-container { display: flex; align-items: center; gap: var(--space-5); width: 100%; }
+.slider-range { flex: 1; accent-color: var(--accent-gold); height: 4px; cursor: pointer; }
+.slider-number { font-family: var(--face-data); font-size: var(--size-sm); color: var(--accent-gold); width: 36px; text-align: right; }
+.switch-control { position: relative; width: 40px; height: 20px; cursor: pointer; }
+.switch-control input { opacity: 0; width: 0; height: 0; }
+.switch-knob {
+  position: absolute;
+  inset: 0;
+  background-color: var(--surface-slate-solid);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sharp);
+  transition: var(--dur-slow);
+}
+.switch-knob:before {
+  position: absolute;
+  content: "";
+  height: 12px;
+  width: 12px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--text-secondary);
+  border-radius: var(--radius-pill);
+  transition: var(--dur-slow);
+}
+.switch-control input:checked + .switch-knob {
+  background-color: var(--accent-cyan-deep);
+  border-color: var(--accent-cyan);
+}
+.switch-control input:checked + .switch-knob:before {
+  transform: translateX(20px);
+  background-color: var(--accent-cyan);
+}
+.keybindings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-4); }
+.keybinding-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 10px;
+  background: var(--surface-abyss-veil);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+.keybinding-label { font-size: var(--size-base); font-weight: 500; color: var(--text-primary); }
+.keybinding-key {
+  font-family: var(--face-data);
+  font-size: var(--size-xs);
+  background: var(--surface-shelf-solid);
+  border: 1px solid var(--border-cyan);
+  color: var(--accent-cyan);
+  padding: 2px 7px;
+  border-radius: var(--radius-sharp);
+  cursor: pointer;
+}
+
+/* Серверы */
+/* minmax(0, 1fr), а не 1fr: у 1fr нижняя граница трека — min-content, поэтому
+   ячейка с выросшим содержимым РАСПИРАЕТ сетку изнутри, и сетка вылезает за
+   свою коробку. Это не перенос и не обрезка — контракт data-fit тут бессилен,
+   потому что виновата раскладка, а не текст. */
+/* Таблица шире своей колонки прокручивается внутри себя, а не выпирает наружу:
+   ширина таблицы задаётся содержимым ячеек, а заголовки столбцов неделимы по
+   контракту (см. умолчание управляющих элементов в css/text.css). Уступает
+   раскладка — здесь в виде прокрутки. Пары в игре у таблицы нет: там серверы
+   показаны карточками, и это осознанный ответ, а не расхождение. */
+.servers-table-scroll { overflow-x: auto; min-width: 0; }
+
+.server-browser-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--space-7); }
+.servers-table { width: 100%; border-collapse: collapse; font-size: var(--size-base); }
+.servers-table th {
+  text-align: left;
+  font-family: var(--face-data);
+  font-size: var(--size-xs);
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-slate-veil);
+}
+.servers-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border-line);
+  cursor: pointer;
+  transition: background var(--dur-fast);
+}
+.servers-table tr:hover td { background: var(--accent-cyan-tint); }
+.servers-table tr.selected td {
+  background: var(--accent-gold-wash);
+  border-color: var(--accent-gold-glow);
+}
+.server-name-cell strong { color: var(--text-primary); font-size: var(--size-md); display: block; }
+.server-name-cell span { font-family: var(--face-data); font-size: var(--size-xs); color: var(--text-tertiary); }
+.ping-indicator {
+  font-family: var(--face-data);
+  font-size: var(--size-xs);
+  color: var(--accent-cyan);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.ping-indicator.good { color: var(--state-ok); }
+.ping-indicator.med { color: var(--accent-gold); }
+
+.server-detail-card {
+  background: var(--surface-abyss-dense);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-7);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.server-detail-card h3,
+.srv-detail-title { font-family: var(--face-display); font-size: var(--size-md); color: var(--accent-gold); }
+.detail-dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  font-family: var(--face-data);
+  font-size: var(--size-xs);
+}
+.detail-dl dt { color: var(--text-secondary); }
+.detail-dl dd { color: var(--text-primary); text-align: right; }
+
+/* 5. Инвентарь, Программатор, Чат */
+.inventory-modal-grid-wrap {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  gap: var(--space-2);
+  background: var(--surface-void-dense);
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sharp);
+}
+.inv-grid-cell {
+  width: 48px;
+  height: 48px;
+  background: var(--surface-abyss-dense);
+  border: 1px solid var(--light-film);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  font-family: var(--face-data);
+  border-radius: var(--radius-sharp);
+}
+.inv-grid-cell:hover { border-color: var(--accent-cyan); }
+.inv-grid-cell.selected { border-color: var(--accent-gold); background: var(--accent-gold-wash); }
+.inv-grid-cell.rare { border-color: var(--accent-cyan); }
+.inv-grid-cell.legendary { border-color: var(--accent-gold); }
+.inv-cell-icon { font-size: 14px; font-weight: 700; color: var(--text-primary); } /* lint-ignore: габарит глифа, не типографика */
+.inv-cell-count { position: absolute; bottom: 2px; right: 3px; font-size: var(--size-micro); color: var(--text-secondary); }
+
+.item-inspector-card {
+  width: 230px;
+  background: var(--surface-abyss-solid);
+  border: 1px solid var(--border-subtle);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  font-family: var(--face-data);
+  font-size: var(--size-xs);
+  border-radius: var(--radius-sharp);
+}
+
+.programmator-layout { display: grid; grid-template-columns: 190px 1fr; gap: var(--space-7); }
+.programmator-palette {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--surface-abyss-veil);
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sharp);
+}
+.cmd-block-btn {
+  background: var(--surface-slate-dense);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-family: var(--face-data);
+  font-size: var(--size-2xs);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  text-align: left;
+  border-radius: var(--radius-sharp);
+}
+.cmd-block-btn:hover { border-color: var(--accent-cyan); background: var(--accent-cyan-wash); }
+.programmator-grid-16x12 {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  grid-template-rows: repeat(12, 1fr);
+  gap: var(--space-1);
+  background: var(--surface-void-solid);
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  height: 340px;
+  border-radius: var(--radius-sharp);
+}
+.prog-grid-cell {
+  background: var(--surface-slate-veil);
+  border: 1px solid var(--light-film);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--size-micro);
+  font-family: var(--face-data);
+  color: var(--text-tertiary);
+  border-radius: var(--radius-sharp);
+  /* Ячейка схемы — клетка сетки, а не строка текста: её размер задаёт сетка.
+     Содержимое, выросшее при переводе, обрезается по клетке, иначе оно
+     распирает всю схему изнутри и ломает её геометрию. */
+  overflow: hidden;
+}
+.prog-grid-cell:hover { border-color: var(--accent-cyan); }
+.prog-grid-cell.active-step { border-color: var(--accent-gold); background: var(--accent-gold-wash); color: var(--accent-gold); }
+
+.chat-window-layout { display: flex; flex-direction: column; gap: var(--space-5); height: 380px; }
+.chat-tabs-bar { display: flex; flex-wrap: wrap; gap: var(--space-2); border-bottom: 1px solid var(--border-subtle); padding-bottom: 6px; }
+.chat-tab-btn {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-family: var(--face-data);
+  font-size: var(--size-2xs);
+  padding: 3px 8px;
+  cursor: pointer;
+  border-radius: var(--radius-sharp);
+}
+.chat-tab-btn.active { border-color: var(--accent-cyan); color: var(--accent-cyan); background: var(--accent-cyan-wash); }
+.chat-messages-container {
+  flex: 1;
+  background: var(--surface-void-dense);
+  border: 1px solid var(--border-subtle);
+  padding: var(--space-5);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  font-family: var(--face-data);
+  font-size: var(--size-xs);
+  border-radius: var(--radius-sharp);
+}
+.chat-author { font-weight: 700; color: var(--accent-cyan); margin-right: 6px; }
+.chat-author.clan { color: var(--accent-gold); }
+.chat-author.system { color: var(--state-danger); }
+
+/* ============================================================================
+   ВАРИАНТЫ КАРТОЧКИ И ЕЁ СОДЕРЖИМОГО                                @uss ok
+   Ширина карточки — ступень шкалы, а не число в разметке (см. tokens.css §1.3b).
+   ============================================================================ */
+
+.modal-card--sm { width: var(--modal-sm); }
+.modal-card--md { width: var(--modal-md); }
+.modal-card--lg { width: var(--modal-lg); }
+.modal-card--gold { border-color: var(--accent-gold); }
+.modal-card-header--ember {
+  background: var(--surface-ember-solid);
+  border-bottom-color: var(--accent-gold-glow);
+}
+.modal-card-body--roomy { padding: var(--space-8) var(--space-11); }
+.modal-card-body--split { flex-direction: row; gap: var(--space-8); }
+.modal-card-footer--split { display: flex; justify-content: space-between; }
+
+
+/* --- Роли внутри модалок --------------------------------------------------- */
+
+.chronicle-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-5);
+  font-family: var(--face-body);
+  font-size: var(--size-base);
+  color: var(--text-secondary);
+}
+.chronicle-meta-value { font-family: var(--face-data); font-size: var(--size-xs); color: var(--accent-gold); }
+.chronicle-time--gold { color: var(--accent-gold); font-weight: 700; }
+.chronicle-desc--primary { color: var(--text-primary); }
+
+.srv-search-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+  padding: var(--space-5);
+  background: var(--surface-slate-veil);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+.srv-search-input {
+  flex: 1;
+  padding: var(--space-2) var(--space-5);
+  background: var(--surface-abyss-solid);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--light-solid);
+  font-family: var(--face-data);
+  font-size: var(--size-sm);
+}
+.srv-detail-text { font-size: var(--size-base); color: var(--text-secondary); }
+
+.repair-intro { font-family: var(--face-body); font-size: var(--size-md); color: var(--text-secondary); }
+.term-row--strong { font-weight: 700; }
+
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-9);
+  padding: var(--space-8);
+  background: var(--surface-slate-veil);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+.profile-avatar {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  background: var(--accent-gold);
+  color: var(--shadow-solid);
+  border-radius: var(--radius-sm);
+  font-family: var(--face-display);
+  font-size: 30px; /* lint-ignore: габарит монограммы в боксе 60px, не типографика */
+  font-weight: 900;
+}
+.profile-name { font-family: var(--face-display); font-size: var(--size-lg); color: var(--light-solid); }
+.profile-clan { font-family: var(--face-data); font-size: var(--size-sm); color: var(--accent-cyan); }
+.profile-expedition {
+  margin-top: var(--space-1);
+  font-family: var(--face-data);
+  font-size: var(--size-xs);
+  color: var(--text-secondary);
+}
+.profile-stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5);
+  font-family: var(--face-data);
+  font-size: var(--size-sm);
+}
+
+.update-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-8);
+  background: var(--accent-gold-tint);
+  border: 1px solid var(--accent-gold-glow);
+  border-radius: var(--radius-sm);
+}
+.update-version {
+  font-family: var(--face-display);
+  font-size: var(--size-lg);
+  font-weight: 800;
+  color: var(--accent-gold);
+}
+.update-warning {
+  margin-top: var(--space-2);
+  font-family: var(--face-data);
+  font-size: var(--size-xs);
+  color: var(--state-danger);
+}
+.update-size-badge {
+  padding: var(--space-3) var(--space-5);
+  background: var(--accent-gold-wash);
+  border-radius: var(--radius-sm);
+  font-size: var(--size-base);
+  font-weight: 700;
+}
+.update-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  font-family: var(--face-body);
+  font-size: var(--size-md);
+  color: var(--text-primary);
+}
+.update-section-cyan,
+.update-section-gold {
+  font-family: var(--face-data);
+  font-size: var(--size-sm);
+  letter-spacing: 0.08em;
+}
+.update-section-cyan { color: var(--accent-cyan); }
+.update-section-gold { margin-top: var(--space-2); color: var(--accent-gold); }
+.update-section-text { font-size: var(--size-base); line-height: 1.5; color: var(--text-secondary); }
+.update-change-list {
+  padding-left: var(--space-9);
+  font-size: var(--size-base);
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.update-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--face-data);
+  font-size: var(--size-xs);
+  color: var(--text-secondary);
+}
+
+.inv-grid-column { flex: 1; display: flex; flex-direction: column; gap: var(--space-4); }
+.sci-fi-badge-mono--fit { width: fit-content; }
+.insp-title { font-family: var(--face-body); font-size: var(--size-md); font-weight: 700; color: var(--light-solid); }
+.insp-text { font-size: var(--size-sm); line-height: 1.4; color: var(--text-secondary); }
+.insp-stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  margin-top: auto;
+  background: var(--border-subtle);
+}
+.prog-palette-title {
+  font-family: var(--face-data);
+  font-size: var(--size-2xs);
+  font-weight: 700;
+  color: var(--accent-cyan);
+}
+.clan-stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-7);
+  background: var(--surface-abyss-solid);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+.clan-stat-name { font-family: var(--face-display); font-size: var(--size-md); color: var(--light-solid); }
+.clan-stat-meta { font-family: var(--face-data); font-size: var(--size-2xs); color: var(--text-tertiary); }
+.clan-perk-gold { display: block; font-size: var(--size-sm); color: var(--accent-gold); }
+.clan-perk-cyan { display: block; font-size: var(--size-sm); color: var(--accent-cyan); }
+
+/* Занятая клетка программатора и тон статуса — состояния, а не цвета,
+   написанные из JS. Одно объявление читается и глазом, и кодом.  @uss ok */
+.prog-grid-cell--filled { color: var(--accent-cyan); }
+#progStatus[data-state='running'] { color: var(--accent-gold); }
+#progStatus[data-state='stopped'] { color: var(--state-ok); }
+
+#btnStartUpdate {
+  text-transform: uppercase;
+}

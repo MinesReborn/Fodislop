@@ -2,11 +2,16 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Fodinae.Core;
+using Fodinae.Core.Interfaces;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.SceneManagement;
+using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 
@@ -100,6 +105,30 @@ namespace Fodinae.Tests.Core
             Assert.IsTrue(ticket.IsStartupReady);
             Assert.DoesNotThrow(() => ticket.MarkPresentationReady());
             Assert.IsTrue(ticket.IsPresentationReady);
+            Assert.That(ticket.Phase, Is.EqualTo(SceneTransitionPhase.PresentationReady));
+        }
+
+        [Test]
+        public void StateChanges_PublishTypedPhasesInOrder()
+        {
+            var ticket = new SceneTransitionTicket(_scene.name);
+            var phases = new List<SceneTransitionPhase>();
+            ticket.Changed += status => phases.Add(status.Phase);
+
+            ticket.Attach(_scene);
+            ticket.RequestActivation();
+            ticket.MarkStartupReady();
+            ticket.MarkPresentationReady();
+
+            Assert.That(
+                phases,
+                Is.EqualTo(new[]
+                {
+                    SceneTransitionPhase.Attached,
+                    SceneTransitionPhase.ActivationRequested,
+                    SceneTransitionPhase.StartupReady,
+                    SceneTransitionPhase.PresentationReady,
+                }));
         }
 
         [Test]
@@ -110,6 +139,7 @@ namespace Fodinae.Tests.Core
 
             ticket.Fail(failure);
 
+            Assert.That(ticket.Phase, Is.EqualTo(SceneTransitionPhase.Failed));
             Assert.Throws<InvalidOperationException>(
                 () => ticket.WaitForStartupAsync().GetAwaiter().GetResult());
             Assert.Throws<InvalidOperationException>(
@@ -125,6 +155,96 @@ namespace Fodinae.Tests.Core
 
             Assert.DoesNotThrow(
                 () => ticket.WaitForFailureAsync().GetAwaiter().GetResult());
+        }
+
+        [Test]
+        public void Fail_RepeatedFailurePublishesOneTerminalState()
+        {
+            var ticket = CreateAttachedTicket();
+            int failureCount = 0;
+            ticket.Changed += status =>
+            {
+                if (status.Phase == SceneTransitionPhase.Failed)
+                {
+                    failureCount++;
+                }
+            };
+
+            ticket.Fail(new InvalidOperationException("first"));
+            ticket.Fail(new InvalidOperationException("second"));
+
+            Assert.That(failureCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void Fail_RepeatedFailurePreservesOriginalException()
+        {
+            var ticket = CreateAttachedTicket();
+            var original = new InvalidOperationException("original");
+            ticket.Fail(original);
+
+            ticket.Fail(new InvalidOperationException("replacement"));
+
+            InvalidOperationException observed = Assert.Throws<InvalidOperationException>(
+                () => ticket.WaitForPresentationAsync().GetAwaiter().GetResult())!;
+            Assert.That(observed, Is.SameAs(original));
+        }
+
+        [Test]
+        public async Task CleanupFailure_RetriesOnceAndReturnsLastFailure()
+        {
+            int attempts = 0;
+            async UniTask FailCleanup(Scene _)
+            {
+                attempts++;
+                await UniTask.Yield();
+                throw new InvalidOperationException($"attempt-{attempts}");
+            }
+
+            Exception? failure = await SceneTransitionRuntime.TryCleanupPreviousSceneAsync(
+                default,
+                FailCleanup);
+
+            Assert.That(attempts, Is.EqualTo(2));
+            Assert.That(failure, Is.TypeOf<InvalidOperationException>());
+            Assert.That(failure!.Message, Is.EqualTo("attempt-2"));
+        }
+
+        [Test]
+        public async Task CleanupTimeout_ReturnsTimeoutWithoutStartingOverlappingRetry()
+        {
+            int attempts = 0;
+            var neverCompletes = new UniTaskCompletionSource();
+            UniTask StallCleanup(Scene _)
+            {
+                attempts++;
+                return neverCompletes.Task;
+            }
+
+            Exception? failure = await SceneTransitionRuntime.TryCleanupPreviousSceneAsync(
+                default,
+                StallCleanup,
+                TimeSpan.FromMilliseconds(20));
+
+            Assert.That(attempts, Is.EqualTo(1));
+            Assert.That(failure, Is.TypeOf<TimeoutException>());
+        }
+
+        [Test]
+        public void PublishSafely_ObserverFailureDoesNotBlockRemainingObservers()
+        {
+            int observed = 0;
+            Action<SceneTransitionStatus> observers = _ => throw new InvalidOperationException("observer");
+            observers += _ => observed++;
+            LogAssert.Expect(
+                LogType.Error,
+                new Regex("\\[Bootstrap\\] Transition observer failed"));
+
+            SceneTransitionRuntime.PublishSafely(
+                observers,
+                new SceneTransitionStatus("MainGame", SceneTransitionPhase.Created));
+
+            Assert.That(observed, Is.EqualTo(1));
         }
 
         [Test]

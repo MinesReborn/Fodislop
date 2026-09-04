@@ -2,7 +2,10 @@
 
 using System;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using Fodinae.Core.Interfaces;
 using UnityEngine;
 
@@ -26,7 +29,17 @@ internal sealed class ClientConfigRepository
 
     public bool Exists => File.Exists(_configPath);
 
-    public ClientConfig Load()
+    /// <summary>
+    /// Загруженный конфиг вместе с исходным текстом файла.
+    /// </summary>
+    /// <remarks>
+    /// Текст нужен миграции: до схемы 22 поля вида лежали плоско в корне и в
+    /// типизированный <see cref="ClientConfig"/> не разбираются. Возвращать их
+    /// иначе нечем — <c>JsonUtility</c> не отдаёт неизвестные ключи.
+    /// </remarks>
+    public readonly record struct LoadedConfig(ClientConfig Config, string Json);
+
+    public LoadedConfig Load()
     {
         string json;
         try
@@ -40,9 +53,11 @@ internal sealed class ClientConfigRepository
                 ex);
         }
 
-        json = RenameLegacyKeys(json);
-        return JsonUtility.FromJson<ClientConfig>(json) ??
+        ClientConfig config = JsonUtility.FromJson<ClientConfig>(json) ??
             throw new InvalidDataException($"Client config '{_configPath}' is empty or invalid.");
+
+        ValidateCurrentSchemaPresence(json, config);
+        return new LoadedConfig(config, json);
     }
 
     public void Save(ClientConfig config, string? backupPath = null)
@@ -92,10 +107,41 @@ internal sealed class ClientConfigRepository
         }
     }
 
-    private static string RenameLegacyKeys(string json)
+    private static void ValidateCurrentSchemaPresence(string json, ClientConfig config)
     {
-        return json
-            .Replace("\"UiScale\"", "\"UIScale\"")
-            .Replace("\"UiVolume\"", "\"UIVolume\"");
+        if (config.SchemaVersion != ClientConfig.CurrentSchemaVersion)
+        {
+            // Historical schemas intentionally contain fewer fields. Their
+            // completeness is established by the ordered migration pipeline.
+            return;
+        }
+
+        Type[] persistedTypes =
+        [
+            typeof(ClientConfig),
+            typeof(AudioSettings),
+            typeof(DisplaySettings),
+            typeof(InterfaceSettings),
+            typeof(AccessibilitySettings),
+            typeof(ConnectionSettings),
+            typeof(PostProcessSettings),
+            typeof(WorldLightingSettings),
+            typeof(TerrainSettings),
+            typeof(EffectSettings),
+        ];
+        string[] missingFields = persistedTypes
+            .SelectMany(type => type.GetFields(BindingFlags.Instance | BindingFlags.Public))
+            .Select(field => field.Name)
+            .Where(fieldName => !Regex.IsMatch(
+                json,
+                $"\\\"{Regex.Escape(fieldName)}\\\"\\s*:",
+                RegexOptions.CultureInvariant))
+            .ToArray();
+        if (missingFields.Length > 0)
+        {
+            throw new InvalidDataException(
+                $"Current client config '{config.SchemaVersion}' is incomplete; missing field(s): " +
+                string.Join(", ", missingFields) + ".");
+        }
     }
 }

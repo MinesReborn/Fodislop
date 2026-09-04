@@ -28,7 +28,7 @@ namespace Fodinae.World.Terrain
         [SerializeField]
         private string _sortingLayerName = "Default";
         [SerializeField]
-        private int _sortingOrder = -1000;
+        private int _sortingOrder = ProjectRuntimeContracts.RequiredLayers.TerrainSortingOrder;
         [SerializeField]
         private int _doorOverlaySortingOrder = 500;
         [SerializeField]
@@ -48,6 +48,10 @@ namespace Fodinae.World.Terrain
 
         [Inject]
         private IClientConfigManager _clientConfigManager = null!;
+        [Inject]
+        private IFrameTelemetry _telemetry = null!;
+        [Inject]
+        private IRuntimeDebugSettings _debugSettings = null!;
         [Inject]
         private LightingEngine _lightingEngine = null!;
         [Inject]
@@ -80,7 +84,7 @@ namespace Fodinae.World.Terrain
         private bool _useColorLod = false;
         private bool _fatalBuildError;
         private IWorldLayer<CellType>? _subscribedCellLayer;
-        private WorldTextureManager? _subscribedTextureManager;
+        private ITextureService? _subscribedTextureService;
         private MapManager? _subscribedMapManager;
         private IWorldDataStorage? _subscribedStorage;
 
@@ -99,8 +103,17 @@ namespace Fodinae.World.Terrain
             return new CachedCellInfo { Type = c.Type, Properties = c.Properties };
         }
 
-        public static bool BypassCpuMeshRebuild { get; set; }
-        public static bool BypassTerrainDraw { get; set; }
+        public bool BypassCpuMeshRebuild
+        {
+            get => _debugSettings.BypassCpuMeshRebuild;
+            set => _debugSettings.BypassCpuMeshRebuild = value;
+        }
+
+        public bool BypassTerrainDraw
+        {
+            get => _debugSettings.BypassTerrainDraw;
+            set => _debugSettings.BypassTerrainDraw = value;
+        }
 
         public ulong LightingGeometryRevision => _lightingGeometryRevision;
 
@@ -120,7 +133,7 @@ namespace Fodinae.World.Terrain
                 throw new InvalidOperationException(
                     "TerrainRenderer requires an initialized ClientConfig.");
 
-            bool enableDistortion = config.EnableTerrainDistortion;
+            bool enableDistortion = config.Terrain.EnableDistortion;
             if (_precalc.EnableDistortion != enableDistortion)
             {
                 _precalc.EnableDistortion = enableDistortion;
@@ -128,6 +141,7 @@ namespace Fodinae.World.Terrain
             }
 
             _materialManager.ApplyClientConfig(config);
+            Debug.Log($"[TerrainRenderer] ApplyClientConfig: distortion={enableDistortion}");
         }
 
         private void HandleCellChanged(int serverX, int serverY)
@@ -246,15 +260,15 @@ namespace Fodinae.World.Terrain
                 _subscribedStorage.RegionChanged += HandleRegionChanged;
             }
 
-            if (_subscribedTextureManager != null)
+            if (_subscribedTextureService != null)
             {
-                _subscribedTextureManager.OnTextureLoaded -= OnTextureLoaded;
+                _subscribedTextureService.OnTextureLoaded -= OnTextureLoaded;
             }
 
-            _subscribedTextureManager = _textureService as WorldTextureManager;
-            if (_subscribedTextureManager != null)
+            _subscribedTextureService = _textureService;
+            if (_subscribedTextureService != null)
             {
-                _subscribedTextureManager.OnTextureLoaded += OnTextureLoaded;
+                _subscribedTextureService.OnTextureLoaded += OnTextureLoaded;
             }
 
             if (_subscribedMapManager != null)
@@ -278,10 +292,10 @@ namespace Fodinae.World.Terrain
                 _subscribedStorage = null;
             }
 
-            if (_subscribedTextureManager != null)
+            if (_subscribedTextureService != null)
             {
-                _subscribedTextureManager.OnTextureLoaded -= OnTextureLoaded;
-                _subscribedTextureManager = null;
+                _subscribedTextureService.OnTextureLoaded -= OnTextureLoaded;
+                _subscribedTextureService = null;
             }
 
             if (_subscribedMapManager != null)
@@ -303,6 +317,7 @@ namespace Fodinae.World.Terrain
 
         private int _diagLogged;
 
+        [System.Diagnostics.Conditional("FODINAE_TERRAIN_DIAG")]
         private void LogDiag(int bit, string message)
         {
             if ((_diagLogged & bit) != 0)
@@ -433,7 +448,7 @@ namespace Fodinae.World.Terrain
                 _pendingTextureCellTypes.Clear();
             }
 
-            FrameProfiler.ResetFrameTimers();
+            _telemetry.ResetFrameTimers();
             CoalesceOversizedDirtyRects();
 
             RebuildOrPatchTerrain(currentGridPos, dimensionsChanged);
@@ -665,7 +680,7 @@ namespace Fodinae.World.Terrain
                     _cellCache.CacheMinX != int.MinValue &&
                     Mathf.Abs(cacheDeltaX) < _cellCache.CacheWidth &&
                     Mathf.Abs(cacheDeltaY) < _cellCache.CacheHeight;
-                FrameProfiler.TerrainRebuildCount++;
+                _telemetry.TerrainRebuildCount++;
                 long swCache = System.Diagnostics.Stopwatch.GetTimestamp();
                 using (CacheMarker.Auto())
                 {
@@ -675,12 +690,12 @@ namespace Fodinae.World.Terrain
                     }
                     else
                     {
-                        FrameProfiler.TerrainFullPopulateCount++;
+                        _telemetry.TerrainFullPopulateCount++;
                         _cellCache.PopulateFull(minX, minY, _storage, _mapManager, textureService, atlases);
                     }
                 }
 
-                FrameProfiler.TerrainCacheTimeMs = (float)((System.Diagnostics.Stopwatch.GetTimestamp() - swCache) * 1000.0 / System.Diagnostics.Stopwatch.Frequency);
+                _telemetry.TerrainCacheTimeMs = (float)((System.Diagnostics.Stopwatch.GetTimestamp() - swCache) * 1000.0 / System.Diagnostics.Stopwatch.Frequency);
 
                 using (PrecalculateMarker.Auto())
                 {
@@ -700,7 +715,7 @@ namespace Fodinae.World.Terrain
                     _backgroundFloodFill.ComputeFull(this);
                 }
 
-                FrameProfiler.TerrainFloodFillTimeMs = (float)((System.Diagnostics.Stopwatch.GetTimestamp() - swFlood) * 1000.0 / System.Diagnostics.Stopwatch.Frequency);
+                _telemetry.TerrainFloodFillTimeMs = (float)((System.Diagnostics.Stopwatch.GetTimestamp() - swFlood) * 1000.0 / System.Diagnostics.Stopwatch.Frequency);
 
                 long swMesh = System.Diagnostics.Stopwatch.GetTimestamp();
                 using (MeshBuildMarker.Auto())
@@ -713,7 +728,7 @@ namespace Fodinae.World.Terrain
                         _doorOverlaySubMeshIndices);
                 }
 
-                FrameProfiler.TerrainMeshTimeMs = (float)((System.Diagnostics.Stopwatch.GetTimestamp() - swMesh) * 1000.0 / System.Diagnostics.Stopwatch.Frequency);
+                _telemetry.TerrainMeshTimeMs = (float)((System.Diagnostics.Stopwatch.GetTimestamp() - swMesh) * 1000.0 / System.Diagnostics.Stopwatch.Frequency);
 
                 Mesh? mesh = _meshManager.Mesh;
                 if (mesh != null)
@@ -721,10 +736,10 @@ namespace Fodinae.World.Terrain
                     long swUpload = System.Diagnostics.Stopwatch.GetTimestamp();
                     using (MeshUploadMarker.Auto())
                     {
-                        _meshManager.UploadVertexBuffer(_meshBuilder, atlases.Count);
+                        _meshManager.UploadVertexBuffer(_meshBuilder, atlases.Count, _telemetry);
                     }
 
-                    FrameProfiler.TerrainGpuUploadTimeMs = (float)((System.Diagnostics.Stopwatch.GetTimestamp() - swUpload) * 1000.0 / System.Diagnostics.Stopwatch.Frequency);
+                    _telemetry.TerrainGpuUploadTimeMs = (float)((System.Diagnostics.Stopwatch.GetTimestamp() - swUpload) * 1000.0 / System.Diagnostics.Stopwatch.Frequency);
 
                     _meshManager.UpdateMeshBounds(_meshWidth, _meshHeight, _cellSize);
 
@@ -777,7 +792,7 @@ namespace Fodinae.World.Terrain
                 return;
             }
 
-            ITextureService? textureService = _textureService ?? _subscribedTextureManager;
+            ITextureService? textureService = _textureService ?? _subscribedTextureService;
             if (textureService == null)
             {
                 return;
@@ -789,7 +804,7 @@ namespace Fodinae.World.Terrain
                 return;
             }
 
-            FrameProfiler.TerrainDirtyPatchCount++;
+            _telemetry.TerrainDirtyPatchCount++;
 
             bool anyIndicesChanged = false;
             bool anyOverlayIndicesChanged = false;

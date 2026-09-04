@@ -37,47 +37,59 @@ public sealed class ClientConfigRepositoryTests
         var config = new ClientConfig
         {
             SchemaVersion = ClientConfig.CurrentSchemaVersion,
-            ServerHost = "example.test",
-            ServerPort = 4242,
+            Connection = new ConnectionSettings
+            {
+                ServerHost = "example.test",
+                ServerPort = 4242,
+            },
         };
 
         repository.Save(config);
-        ClientConfig loaded = repository.Load();
+        ClientConfig loaded = repository.Load().Config;
 
         Assert.That(loaded.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
-        Assert.That(loaded.ServerHost, Is.EqualTo("example.test"));
-        Assert.That(loaded.ServerPort, Is.EqualTo(4242));
+        Assert.That(loaded.Connection.ServerHost, Is.EqualTo("example.test"));
+        Assert.That(loaded.Connection.ServerPort, Is.EqualTo(4242));
         Assert.That(File.Exists(_configPath + ".tmp"), Is.False);
     }
 
     [Test]
-    public void Load_RenamesLegacyUiKeysBeforeDeserialization()
+    public void Load_CurrentSchemaWithMissingFields_ThrowsInsteadOfUsingClrDefaults()
     {
         Directory.CreateDirectory(_directory);
         File.WriteAllText(
             _configPath,
-            "{\"SchemaVersion\":15,\"UiScale\":1.25,\"UiVolume\":0.75}");
+            $"{{\"SchemaVersion\":{ClientConfig.CurrentSchemaVersion},\"MasterVolume\":1}}");
         var repository = new ClientConfigRepository(_configPath);
 
-        ClientConfig loaded = repository.Load();
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(
+            () => repository.Load())!;
 
-        Assert.That(loaded.UIScale, Is.EqualTo(1.25f));
-        Assert.That(loaded.UIVolume, Is.EqualTo(0.75f));
+        Assert.That(exception.Message, Does.Contain("missing field(s)"));
+        Assert.That(exception.Message, Does.Contain(nameof(AudioSettings.SfxVolume)));
     }
 
     [Test]
     public void Save_WithBackup_ReplacesExistingFileAndPreservesPreviousPayload()
     {
         var repository = new ClientConfigRepository(_configPath);
-        var first = new ClientConfig { ServerPort = 1001 };
-        var second = new ClientConfig { ServerPort = 1002 };
+        var first = new ClientConfig
+        {
+            SchemaVersion = ClientConfig.CurrentSchemaVersion,
+            Connection = new ConnectionSettings { ServerPort = 1001 },
+        };
+        var second = new ClientConfig
+        {
+            SchemaVersion = ClientConfig.CurrentSchemaVersion,
+            Connection = new ConnectionSettings { ServerPort = 1002 },
+        };
         string backupPath = _configPath + ".v14.backup";
         repository.Save(first);
 
         repository.Save(second, backupPath);
 
-        Assert.That(repository.Load().ServerPort, Is.EqualTo(1002));
+        Assert.That(repository.Load().Config.Connection.ServerPort, Is.EqualTo(1002));
         var backupRepository = new ClientConfigRepository(backupPath);
-        Assert.That(backupRepository.Load().ServerPort, Is.EqualTo(1001));
+        Assert.That(backupRepository.Load().Config.Connection.ServerPort, Is.EqualTo(1001));
     }
 }

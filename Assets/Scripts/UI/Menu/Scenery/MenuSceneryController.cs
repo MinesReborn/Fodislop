@@ -7,6 +7,8 @@ namespace Fodinae.UI
     [ExecuteAlways]
     public class MenuSceneryController : MonoBehaviour
     {
+        private const string ResolveShaderName = "Fodinae/UI/UnpremultiplyAlpha";
+
         private Camera? _sceneryCamera;
         private OrbitalStationMotion? _station;
         private Transform? _planet;
@@ -16,8 +18,6 @@ namespace Fodinae.UI
         /// На сколько пикселей должен измениться размер, чтобы имело смысл
         /// пересоздавать текстуры.
         /// </summary>
-        private const int ResizeThresholdPixels = 24;
-
         // Потолок стороны offscreen-кадра.
         //
         // 1024 давало мыло: вызывающий передаёт сюда уже физические пиксели
@@ -64,12 +64,12 @@ namespace Fodinae.UI
 
         public void SetDisplaySize(int width, int height)
         {
-            int w = Mathf.Max(width, 64);
-            int h = Mathf.Max(height, 64);
+            int w = Mathf.Max(width, MenuSceneryDefaults.MinimumRenderTextureSide);
+            int h = Mathf.Max(height, MenuSceneryDefaults.MinimumRenderTextureSide);
 
             float scale = Mathf.Min(1f, MaxTargetSize / (float)Mathf.Max(w, h));
-            w = Mathf.Max(64, Mathf.RoundToInt(w * scale));
-            h = Mathf.Max(64, Mathf.RoundToInt(h * scale));
+            w = Mathf.Max(MenuSceneryDefaults.MinimumRenderTextureSide, Mathf.RoundToInt(w * scale));
+            h = Mathf.Max(MenuSceneryDefaults.MinimumRenderTextureSide, Mathf.RoundToInt(h * scale));
 
             // Пересоздание пары RenderTexture — не бесплатная операция, а
             // размер приходит сюда из Update каждый кадр и дрожит на пиксель
@@ -78,8 +78,8 @@ namespace Fodinae.UI
             // планета до ближайшей отрисовки. Порог убирает это, оставаясь
             // много меньше видимой разницы в чёткости.
             if (_cameraTarget != null &&
-                Mathf.Abs(_cameraTarget.width - w) <= ResizeThresholdPixels &&
-                Mathf.Abs(_cameraTarget.height - h) <= ResizeThresholdPixels)
+                Mathf.Abs(_cameraTarget.width - w) <= MenuSceneryDefaults.RenderTextureResizeThresholdPixels &&
+                Mathf.Abs(_cameraTarget.height - h) <= MenuSceneryDefaults.RenderTextureResizeThresholdPixels)
             {
                 return;
             }
@@ -245,10 +245,12 @@ namespace Fodinae.UI
                 return;
             }
 
-            Shader? resolve = Shader.Find("Fodinae/UI/UnpremultiplyAlpha");
+            Shader? resolve = Shader.Find(ResolveShaderName);
             if (resolve == null)
             {
-                Debug.LogWarning("[MenuSceneryController] Resolve shader 'Fodinae/UI/UnpremultiplyAlpha' is unavailable; scenery compositing is disabled.");
+                Debug.LogWarning(
+                    $"[MenuSceneryController] Resolve shader '{ResolveShaderName}' is unavailable; " +
+                    "scenery compositing is disabled.");
                 return;
             }
 

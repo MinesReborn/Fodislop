@@ -3,10 +3,7 @@
 using System;
 using Fodinae.Core.Interfaces;
 using Fodinae.UI.Builders;
-using MinesServer.Networking.Server.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI.Components;
-using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
-using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Fodinae.UI
@@ -28,10 +25,14 @@ namespace Fodinae.UI
         internal IAssetLoader AssetLoader => _assetLoader;
         internal IAsyncOperationSupervisor Operations => _operations;
 
-        public VisualElement? Build(IGUIComponentPacket packet)
+        /// <summary>
+        /// Собирает элемент по пакету. Возвращает элемент всегда: пакет
+        /// неизвестного вида превращается в видимую заглушку, а не в null.
+        /// </summary>
+        public VisualElement Build(IGUIComponentPacket packet)
         {
-            var builder = _builderFactory.CreateBuilder(packet);
-            VisualElement? element;
+            PacketUIBuilderBase? builder = _builderFactory.CreateBuilder(packet);
+            VisualElement element;
 
             if (builder != null)
             {
@@ -40,68 +41,66 @@ namespace Fodinae.UI
             else
             {
                 element = new Label($"[Unimplemented: {packet.GetType().Name}]");
-                element.style.backgroundColor = Color.magenta;
+                element.AddToClassList("packet-unimplemented");
             }
 
-            StyleApplicator.ApplyStyles(element!, packet);
-            ApplyAttachedProperties(element!, packet);
-
-            element!.userData = packet;
+            StyleApplicator.ApplyStyles(element, packet);
+            ApplyCanvasGeometry(element, packet);
+            element.userData = packet;
 
             return element;
         }
 
-        private static void ApplyAttachedProperties(VisualElement element, IGUIComponentPacket packet)
+        /// <summary>Собирает детей контейнера и складывает их в указанный узел.</summary>
+        public void AddChildren(VisualElement parent, IContainerComponentPacket packet)
+        {
+            foreach (IGUIComponentPacket childPacket in packet.Children)
+            {
+                parent.Add(Build(childPacket));
+            }
+        }
+
+        /// <summary>
+        /// Координаты холста, если пакет их прислал. Любая из четырёх делает
+        /// элемент абсолютным.
+        /// </summary>
+        private static void ApplyCanvasGeometry(VisualElement element, IGUIComponentPacket packet)
         {
             if (packet.AttachedProperties == null || packet.AttachedProperties.Length == 0)
             {
                 return;
             }
 
-            foreach (var prop in packet.AttachedProperties)
+            IStyle style = element.style;
+            bool absolute = false;
+
+            if (AttachedProperties.TryGetFloat(packet, "Canvas.X", out float left))
             {
-                // Протокольные числа всегда в инвариантной культуре (точка как
-                // десятичный разделитель) — на Windows с региональными RU/DE/TR
-                // float.TryParse по текущей культуре молча теряет геометрию окон.
-                if (prop.Key == "Canvas.X" && float.TryParse(
-                        prop.Value,
-                        System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out float left))
-                {
-                    element.style.position = Position.Absolute;
-                    element.style.left = left;
-                }
+                style.left = left;
+                absolute = true;
+            }
 
-                if (prop.Key == "Canvas.Y" && float.TryParse(
-                        prop.Value,
-                        System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out float top))
-                {
-                    element.style.position = Position.Absolute;
-                    element.style.top = top;
-                }
+            if (AttachedProperties.TryGetFloat(packet, "Canvas.Y", out float top))
+            {
+                style.top = top;
+                absolute = true;
+            }
 
-                if (prop.Key == "Canvas.Width" && float.TryParse(
-                        prop.Value,
-                        System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out float width))
-                {
-                    element.style.position = Position.Absolute;
-                    element.style.width = width;
-                }
+            if (AttachedProperties.TryGetFloat(packet, "Canvas.Width", out float width))
+            {
+                style.width = width;
+                absolute = true;
+            }
 
-                if (prop.Key == "Canvas.Height" && float.TryParse(
-                        prop.Value,
-                        System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out float height))
-                {
-                    element.style.position = Position.Absolute;
-                    element.style.height = height;
-                }
+            if (AttachedProperties.TryGetFloat(packet, "Canvas.Height", out float height))
+            {
+                style.height = height;
+                absolute = true;
+            }
+
+            if (absolute)
+            {
+                element.AddToClassList("abs");
             }
         }
     }

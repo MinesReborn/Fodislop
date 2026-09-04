@@ -93,6 +93,15 @@ function readFile(filePath) {
     }
 }
 
+function readRequiredFile(filePath, category) {
+    const source = readFile(filePath);
+    if (source === null) {
+        recordViolation(category, filePath, "Required architecture source file is missing or unreadable.");
+    }
+
+    return source;
+}
+
 const SCRIPT_CLASS_BY_GUID = new Map();
 let scriptClassIndexBuilt = false;
 
@@ -133,27 +142,6 @@ const OVERSIZED_PRODUCTION_FILE_DEBT = new Set([
     "Assets/Scripts/World/Lighting/Core/LightingEngine.cs",
     "Assets/Scripts/World/Persistence/WorldLayer.cs",
     "Assets/Scripts/World/Terrain/Core/TerrainRenderer.cs",
-    "Assets/Scripts/UI/Overlays/InGameDebugOverlay.cs",
-    "Assets/Scripts/AssetPipeline/Animation/GifAnimationDecoder.cs",
-    "Assets/Scripts/UI/Chat/GlobalChatUI.cs",
-    "Assets/Scripts/Rendering/PostProcessing/PostProcessRenderPass.cs",
-    "Assets/Scripts/Game/Entities/Robot.cs",
-    "Assets/Scripts/UI/Menu/Core/MainMenu.cs",
-    "Assets/Scripts/World/Textures/WorldTextureManager.cs",
-    "Assets/Scripts/AssetPipeline/Loading/ClientAssetLoader.cs",
-    "Assets/Scripts/UI/Programmator/Model/ProgrammatorData.cs",
-    "Assets/Scripts/UI/Gateway/GatewayController.cs",
-    "Assets/Scripts/UI/Map/WorldMapRenderer.cs",
-    "Assets/Scripts/World/Rendering/BackgroundFloodFill.cs",
-    "Assets/Scripts/UI/Programmator/Grid/ProgrammatorClipboardController.cs",
-    "Assets/Scripts/AssetPipeline/Cache/AssetCacheEntry.cs",
-    "Assets/Scripts/UI/HUD/Player/View/PlayerHUDView.cs",
-    "Assets/Scripts/Game/Audio/ServerAudioEvent.cs",
-    "Assets/Scripts/UI/Settings/PauseMenu.cs",
-    "Assets/Scripts/World/Terrain/Mesh/TerrainMeshBuilder.cs",
-    "Assets/Scripts/World/Lighting/Core/LightingResourceManager.cs",
-    "Assets/Scripts/Player/Controllers/PlayerMovementController.cs",
-    "Assets/Scripts/World/Textures/TextureAtlas.cs",
 ]);
 
 function checkOversizedProductionFiles() {
@@ -187,7 +175,12 @@ const RULES = [
     { pattern: /\b(?:StageAsync|CommitStagedAsync|DiscardStagedAsync|RestartCurrentAsync)\b/, name: "branching/staged scene lifecycle", allow: null, allowContent: null },
     { pattern: /\b(?:ContentSceneRoot|SceneInjectionBridge|LifecycleGraph|LifecycleParticipant|WorldSessionLifecycle)\b/, name: "removed lifecycle infrastructure", allow: null, allowContent: null },
     { pattern: /Transform\?\s+managerObject|_servicesRoot\.Find\(|transform\.Find\(/, name: "runtime composition-root name lookup (use serialized typed references)", allow: /^(Assets\/Scripts\/VContainer\/|Assets\/Scripts\/Tests\/|Assets\/Scripts\/Editor\/ManagerContractMigrator\.cs|Assets\/Scripts\/(Game|Rendering|UI|World)\/)/, allowContent: null },
-    { pattern: /TryResolve<|TryResolve\s*\(/, name: "DI fallback resolution (use required constructor/explicit dependency)", allow: /^(Assets\/Scripts\/Tests\/|Assets\/Scripts\/VContainer\/)/, allowContent: null },
+    // Запрет адресован ПОТРЕБИТЕЛЮ: класс не вправе прикрывать недостающую
+    // проводку запасным разрешением вместо явной зависимости. У корня композиции
+    // конструктора нет — разрешение и есть его работа, и правило ниже
+    // (Resolve в раннем жизненном цикле) само требует там TryResolve с проверкой
+    // на null. Без этого исключения два правила противоречат друг другу.
+    { pattern: /TryResolve<|TryResolve\s*\(/, name: "DI fallback resolution (use required constructor/explicit dependency)", allow: /^(Assets\/Scripts\/Tests\/|Assets\/Scripts\/VContainer\/|Assets\/Scripts\/Core\/Bootstrap\/\w+LifetimeScope\.cs$)/, allowContent: null },
     { pattern: /using\s+Fodinae\.UI(?:\.|;)|using\s+Fodinae\.Game\.Managers;/, name: "networking layer references presentation/game manager namespaces", allow: /^(?!Assets\/Scripts\/Networking\/)/, allowContent: null },
     { pattern: /\b(?:SceneCoordinator|ISceneCoordinator|SceneStartup|ISceneEntryPoint)\b/, name: "removed scene DI proxy", allow: null, allowContent: null },
     { pattern: /\bRegisterComponentOnNewGameObject\b/, name: "runtime fallback manager construction", allow: /^Assets\/Scripts\/VContainer\//, allowContent: null },
@@ -217,9 +210,10 @@ const RULES = [
     { pattern: /\.renderScale\s*=/, name: "URP render-scale ownership outside LightingEngine", allow: /^Assets\/Scripts\/World\/Lighting\/(?:Core\/)?LightingEngine\.cs$/, allowContent: null },
     { pattern: /PlayerPrefs\.(Set|Delete|Save)/, name: "settings persistence in PlayerPrefs", allow: /^(Assets\/Editor\/.*|Assets\/Scripts\/Networking\/Auth\/(AuthTokenManager|VkAuthService)\.cs|Assets\/Scripts\/UI\/(AuthGate\.cs|GatewayController\.cs|Gateway\/AuthGate\.cs|Gateway\/GatewayController\.cs))$/, allowContent: null },
     { pattern: /(slider|toggle|dropdown|quality|preset)\.value\s*=/, name: "notifying UI settings refresh", allow: null, allowContent: null },
+    { pattern: /PauseMenuUIFactory\.CreateSlider\s*\(/, name: "unbound settings slider (use PauseMenuUIFactory.CreateBoundSlider)", allow: /^Assets\/Scripts\/UI\/Settings\/PauseMenuUIFactory\.cs$/, allowContent: null },
     { pattern: /ServerConfig[^;]*(Master|Sfx|Music|Ambience|Voice|Ui)Volume/, name: "audio volume in ServerConfig", allow: null, allowContent: null },
     { pattern: /_clientConfig\.Config\.[A-Za-z0-9_]+\s*=/, name: "direct ClientConfig field mutation", allow: null, allowContent: null },
-    { pattern: /_clientConfig\.Save\s*\(/, name: "unowned ClientConfig persistence", allow: /^(Assets\/Scripts\/Rendering\/(?:Settings\/)?GraphicsSettingsController\.cs|Assets\/Scripts\/Rendering\/(?:Settings\/)?DisplayManager\.cs|Assets\/Scripts\/World\/Lighting\/(?:(?:Config|Core)\/)?Lighting(ConfigHolder|Engine)\.cs)$/, allowContent: null },
+    { pattern: /_clientConfig\.Save\s*\(/, name: "unowned ClientConfig persistence", allow: /^(Assets\/Scripts\/Rendering\/(?:Settings\/)?GraphicsSettingsController\.cs|Assets\/Scripts\/Rendering\/(?:Settings\/)?DisplayManager\.cs|Assets\/Scripts\/World\/Lighting\/(?:(?:Config|Core)\/)?Lighting(ConfigHolder|Engine)\.cs|Assets\/Scripts\/Core\/Interfaces\/Contracts\/ConfigSaveScheduler\.cs)$/, allowContent: null },
     { pattern: /(FindAnyObjectByType|FindFirstObjectByType|FindObjectsByType)<Canvas>/, name: "screen-space uGUI Canvas lookup", allow: null, allowContent: null },
     { pattern: /using\s+UnityEngine\.UI;/, name: "screen-space uGUI namespace", allow: null, allowContent: null },
     { pattern: /new\s+GameObject\(/, name: "runtime GameObject construction outside SceneObjectFactory", allow: /^(Assets\/Editor\/.*|Assets\/Scripts\/Editor\/.*|Assets\/Scripts\/Tests\/.*|Assets\/Scripts\/Core\/Lifecycle\/SceneObjectFactory\.cs|Assets\/Scripts\/Game\/.*)$/, allowContent: null },
@@ -238,6 +232,16 @@ const RULES = [
     { pattern: /\b(?:FileStream|BinaryReader|BinaryWriter)\b/, name: "file persistence implementation inside Contracts", allow: /^(?!Assets\/Scripts\/Core\/Interfaces\/Contracts\/)/, allowContent: null },
     { pattern: /\bclass\s+LocalChatPopup\b/, name: "disconnected legacy local-chat controller (use GlobalChatUI local channel)", allow: null, allowContent: null },
     { pattern: /\.GetChunk\s*\(/, name: "ambiguous world-layer chunk access (use ReadChunk or GetOrCreateChunk)", allow: null, allowContent: null },
+    // UAC0009: Unity 6 объявила DEVELOPMENT_BUILD устаревшей в пользу директив
+    // варианта управляемого кода. Здесь это #if UNITY_EDITOR || UNITY_ENABLE_CHECKS.
+    //
+    // Не Debug.isDebugBuild: блоки закрывают поля и параметры конструкторов,
+    // а рантайм-проверка объявление не вырезает.
+    // Не DEBUG: по документации редактора это САМЫЙ УЗКИЙ вариант —
+    // неоптимизированная сборка под отладчик. UNITY_ENABLE_CHECKS определён и в
+    // Checked, и в Debug (Debug наследует все определения Checked), а закрывают
+    // эти блоки именно проверки и отладочные органы управления.
+    { pattern: /\bDEVELOPMENT_BUILD\b/, name: "устаревшая директива DEVELOPMENT_BUILD (UAC0009) — используйте UNITY_ENABLE_CHECKS", allow: null, allowContent: null },
     { pattern: /\bGC\.Collect\s*\(/, name: "manual GC.Collect in runtime gameplay", allow: /^(Assets\/Editor\/|Assets\/Scripts\/Tests\/)/, allowContent: null },
     { pattern: /\bCamera\.(allCameras|current)\b/, name: "unmanaged camera lookup (use explicit gameplay camera contract)", allow: null, allowContent: null },
     { pattern: /\bTime\.timeScale\s*=/, name: "unowned Time.timeScale mutation", allow: /^(Assets\/Scripts\/UI\/(PauseMenu\.cs|Settings\/PauseMenu\.cs)|Assets\/Scripts\/Game\/Managers\/GameManager\.cs|Assets\/Scripts\/Tests\/)/, allowContent: null },
@@ -325,8 +329,8 @@ function checkPatterns(files) {
 // ---------------------------------------------------------------------------
 
 const EXECUTION_ORDER_CONTRACTS = {
-    "Assets/Scripts/Core/BootstrapLifetimeScope.cs": -30000,
-    "Assets/Scripts/Core/GameLifetimeScope.cs": -20000,
+    "Assets/Scripts/Core/Bootstrap/BootstrapLifetimeScope.cs": -30000,
+    "Assets/Scripts/Core/Bootstrap/GameLifetimeScope.cs": -20000,
     "Assets/Scripts/Game/Managers/MapManager.cs": -10000,
 };
 
@@ -404,9 +408,9 @@ function checkProjectCompileIncludes() {
 }
 
 function checkSceneReadinessContracts() {
-    const scope = readFile("Assets/Scripts/Core/GameLifetimeScope.cs");
-    const bootstrap = readFile("Assets/Scripts/Core/BootstrapLifetimeScope.cs");
-    const gameBootstrap = readFile("Assets/Scripts/Core/GameBootstrap.cs");
+    const scope = readRequiredFile("Assets/Scripts/Core/Bootstrap/GameLifetimeScope.cs", "Scene Readiness");
+    const bootstrap = readRequiredFile("Assets/Scripts/Core/Bootstrap/BootstrapLifetimeScope.cs", "Scene Readiness");
+    const gameBootstrap = readRequiredFile("Assets/Scripts/Core/Bootstrap/GameBootstrap.cs", "Scene Readiness");
     const gameManager = readFile("Assets/Scripts/Game/Managers/GameManager.cs");
 
     if (scope !== null &&
@@ -415,7 +419,7 @@ function checkSceneReadinessContracts() {
             !scope.includes("MarkFailed"))) {
         recordViolation(
             "Scene Readiness",
-            "Assets/Scripts/Core/GameLifetimeScope.cs",
+            "Assets/Scripts/Core/Bootstrap/GameLifetimeScope.cs",
             "GameLifetimeScope must expose a deterministic ready/failed signal for Bootstrap scene transitions.",
         );
     }
@@ -425,7 +429,7 @@ function checkSceneReadinessContracts() {
             !bootstrap.includes("SceneTransitionTicket"))) {
         recordViolation(
             "Scene Readiness",
-            "Assets/Scripts/Core/BootstrapLifetimeScope.cs",
+            "Assets/Scripts/Core/Bootstrap/BootstrapLifetimeScope.cs",
             "Bootstrap must await the SceneTransitionTicket presentation readiness before unloading the previous scene.",
         );
     }
@@ -435,7 +439,7 @@ function checkSceneReadinessContracts() {
             !gameBootstrap.includes("_scope.MarkFailed(exception)"))) {
         recordViolation(
             "Scene Readiness",
-            "Assets/Scripts/Core/GameBootstrap.cs",
+            "Assets/Scripts/Core/Bootstrap/GameBootstrap.cs",
             "GameBootstrap must publish both successful and failed startup outcomes.",
         );
     }
@@ -455,8 +459,16 @@ function checkSceneReadinessContracts() {
 }
 
 function checkTransitionStateContracts() {
-    const bootstrapPath = "Assets/Scripts/Core/BootstrapLifetimeScope.cs";
-    const source = readFile(bootstrapPath);
+    const bootstrapPath = "Assets/Scripts/Core/Bootstrap/BootstrapLifetimeScope.cs";
+    const source = readRequiredFile(bootstrapPath, "Scene Transition Contract");
+    const navigatorPath = "Assets/Scripts/Core/Interfaces/Contracts/ISceneNavigator.cs";
+    const navigator = readRequiredFile(navigatorPath, "Scene Transition Contract");
+    const ticketPath = "Assets/Scripts/Core/Bootstrap/SceneTransitionTicket.cs";
+    const ticket = readRequiredFile(ticketPath, "Scene Transition Contract");
+    const runtimePath = "Assets/Scripts/Core/Bootstrap/SceneTransitionRuntime.cs";
+    const runtime = readRequiredFile(runtimePath, "Scene Transition Contract");
+    const statusPath = "Assets/Scripts/Core/Interfaces/Contracts/SceneTransitionStatus.cs";
+    const status = readRequiredFile(statusPath, "Scene Transition Contract");
     if (source === null) {
         return;
     }
@@ -469,12 +481,103 @@ function checkTransitionStateContracts() {
         );
     }
 
-    if (!source.includes("TransitionStarted?.Invoke(sceneName)") ||
-        !source.includes("TransitionCompleted?.Invoke(sceneName)")) {
+    if (!source.includes("TransitionChanged") ||
+        !source.includes("SceneTransitionPhase.Completed") ||
+        !source.includes("ticket.Fail(ex)")) {
         recordViolation(
             "Scene Transition Contract",
             bootstrapPath,
-            "Bootstrap scene transitions must publish both start and completion events for the loading screen.",
+            "Bootstrap scene transitions must publish typed completion and failure states.",
+        );
+    }
+
+    if (/Transition(?:Started|Completed|Failed)/.test(source)) {
+        recordViolation(
+            "Scene Transition Contract",
+            bootstrapPath,
+            "Legacy split transition events are forbidden; publish SceneTransitionStatus through TransitionChanged.",
+        );
+    }
+
+    if (navigator !== null && !navigator.includes("event Action<SceneTransitionStatus>? TransitionChanged")) {
+        recordViolation(
+            "Scene Transition Contract",
+            navigatorPath,
+            "ISceneNavigator must expose the single typed TransitionChanged event.",
+        );
+    }
+
+    if (ticket !== null &&
+        (!ticket.includes("SetPhase(SceneTransitionPhase.Failed, exception)") ||
+            !ticket.includes("Phase is SceneTransitionPhase.Failed or SceneTransitionPhase.PresentationReady"))) {
+        recordViolation(
+            "Scene Transition Contract",
+            ticketPath,
+            "SceneTransitionTicket must publish Failed exactly once and keep PresentationReady terminal.",
+        );
+    }
+
+    if (runtime !== null &&
+        (!runtime.includes("GetInvocationList()") ||
+            !runtime.includes("catch (Exception exception)"))) {
+        recordViolation(
+            "Scene Transition Contract",
+            runtimePath,
+            "Transition observers must be invoked independently so one subscriber cannot abort the transaction.",
+        );
+    }
+
+    if (status !== null &&
+        (!status.includes("CompletedWithWarnings") ||
+            !status.includes("Failed") ||
+            !status.includes("Exception? Failure"))) {
+        recordViolation(
+            "Scene Transition Contract",
+            statusPath,
+            "SceneTransitionStatus must represent successful, degraded and failed terminal outcomes.",
+        );
+    }
+}
+
+function checkPersistentAssetCacheContract() {
+    const cachePath = "Assets/Scripts/AssetPipeline/Cache/PersistentAssetCache.cs";
+    const cache = readRequiredFile(cachePath, "Persistent Cache Contract");
+    const manifestPath = "Assets/Scripts/AssetPipeline/Cache/PersistentAssetCacheEntryManifest.cs";
+    const manifest = readRequiredFile(manifestPath, "Persistent Cache Contract");
+    const formatPath = "Assets/Scripts/AssetPipeline/Cache/PersistentAssetCacheFormat.cs";
+    const format = readRequiredFile(formatPath, "Persistent Cache Contract");
+
+    if (cache !== null &&
+        (!cache.includes("ConcurrentDictionary<string, SemaphoreSlim>") ||
+            !cache.includes("ReadVerifiedAsset") ||
+            !cache.includes("WriteAtomically") ||
+            !cache.includes('assetPath + ".entry"'))) {
+        recordViolation(
+            "Persistent Cache Contract",
+            cachePath,
+            "PersistentAssetCache must serialize per-entry access and atomically persist verified payload/manifest pairs.",
+        );
+    }
+
+    if (manifest !== null &&
+        (!manifest.includes("SHA256.Create()") ||
+            !manifest.includes("payload.LongLength == Length") ||
+            !manifest.includes("EntryFormatVersion = 2"))) {
+        recordViolation(
+            "Persistent Cache Contract",
+            manifestPath,
+            "Persistent cache entries must validate schema v2 length and SHA-256 before use.",
+        );
+    }
+
+    if (format !== null &&
+        (!format.includes("CurrentSchemaVersion = 2") ||
+            !format.includes("VersionOneBackupFileName") ||
+            !format.includes("CommitVersionMarker"))) {
+        recordViolation(
+            "Persistent Cache Contract",
+            formatPath,
+            "Persistent cache format must migrate v1 to schema v2 through a durable marker commit.",
         );
     }
 }
@@ -502,8 +605,8 @@ function checkUiTransitionGuards() {
 
 function checkSceneScopeInjection() {
     const contracts = [
-        ["Assets/Scripts/Core/GatewayLifetimeScope.cs", "GatewayController"],
-        ["Assets/Scripts/Core/MainMenuLifetimeScope.cs", "MainMenu"],
+        ["Assets/Scripts/Core/Bootstrap/GatewayLifetimeScope.cs", "GatewayController"],
+        ["Assets/Scripts/Core/Bootstrap/MainMenuLifetimeScope.cs", "MainMenu"],
     ];
     for (const [filePath, component] of contracts) {
         const source = readFile(filePath);
@@ -545,8 +648,8 @@ function checkLifecycleSelfCalls() {
 }
 
 function checkMenuSceneryOwnership() {
-    const bootstrapScene = readFile("Assets/Scenes/Bootstrap.unity");
-    const mainMenuScene = readFile("Assets/Scenes/MainMenu.unity");
+    const bootstrapScene = readRequiredFile("Assets/Scenes/Bootstrap.unity", "Menu Scenery Ownership");
+    const mainMenuScene = readRequiredFile("Assets/Scenes/MainMenu.unity", "Menu Scenery Ownership");
     if (bootstrapScene === null || mainMenuScene === null) {
         return;
     }
@@ -566,7 +669,7 @@ function checkEditorSceneAuthoringContract() {
     const authoring = readFile("Assets/Scripts/Editor/SceneScopeAuthoring.cs");
     const migration = readFile("Assets/Scripts/Editor/SceneContractMigration.cs");
     const validator = readFile("Assets/Scripts/Editor/ProductionSceneContractValidator.cs");
-    const runtimeScope = readFile("Assets/Scripts/Core/GameLifetimeScope.cs");
+    const runtimeScope = readRequiredFile("Assets/Scripts/Core/Bootstrap/GameLifetimeScope.cs", "Scene Authoring Contract");
 
     if (authoring !== null || migration !== null) {
         recordViolation(
@@ -582,22 +685,41 @@ function checkEditorSceneAuthoringContract() {
             "Assets/Scripts/Editor/ProductionSceneContractValidator.cs",
             "The read-only ProductionSceneContractValidator must exist and guard scene contracts.",
         );
-    }
-
-    if (runtimeScope !== null && !runtimeScope.includes('RegisterManager<WorldTextureManager>(builder, "World")')) {
+    } else if (!validator.includes("bindingCount == 0") ||
+        !validator.includes("boundTypes") ||
+        !validator.includes("target.transform.IsChildOf(groupRoot)")) {
         recordViolation(
             "Scene Authoring Contract",
-            "Assets/Scripts/Core/GameLifetimeScope.cs",
-            "MainGame World manager contract must include WorldTextureManager.",
+            "Assets/Scripts/Editor/ProductionSceneContractValidator.cs",
+            "The production validator must reject empty, duplicate, stale and wrongly-grouped ManagerBindings.",
         );
+    }
+
+    if (runtimeScope !== null) {
+        if (!runtimeScope.includes('RegisterManager<WorldTextureManager>(builder, "World")')) {
+            recordViolation(
+                "Scene Authoring Contract",
+                "Assets/Scripts/Core/Bootstrap/GameLifetimeScope.cs",
+                "MainGame World manager contract must include WorldTextureManager.",
+            );
+        }
+
+        if (!runtimeScope.includes("ResolveTypedBinding<T>(group)") ||
+            /FindManagerInOwnScene|GetComponentsInChildren<T>\(true\).*RegisterManager/s.test(runtimeScope)) {
+            recordViolation(
+                "Scene Authoring Contract",
+                "Assets/Scripts/Core/Bootstrap/GameLifetimeScope.cs",
+                "RegisterManager must require typed ManagerBindings without a hierarchy-search fallback.",
+            );
+        }
     }
 }
 
 function checkGameBootstrapResolvesRegisteredManagers() {
-    const scopePath = "Assets/Scripts/Core/GameLifetimeScope.cs";
-    const bootstrapPath = "Assets/Scripts/Core/GameBootstrap.cs";
-    const scope = readFile(scopePath);
-    const bootstrap = readFile(bootstrapPath);
+    const scopePath = "Assets/Scripts/Core/Bootstrap/GameLifetimeScope.cs";
+    const bootstrapPath = "Assets/Scripts/Core/Bootstrap/GameBootstrap.cs";
+    const scope = readRequiredFile(scopePath, "Startup Dependency Contract");
+    const bootstrap = readRequiredFile(bootstrapPath, "Startup Dependency Contract");
     if (scope === null || bootstrap === null) {
         return;
     }
@@ -618,6 +740,26 @@ function checkGameBootstrapResolvesRegisteredManagers() {
         );
     }
 
+
+    for (const requiredType of ["GameInfrastructureStartup", "GamePresentationStartup", "GameStartupPipeline"]) {
+        if (!scope.includes(`Register<${requiredType}>`)) {
+            recordViolation(
+                "Startup Dependency Contract",
+                scopePath,
+                `GameLifetimeScope must register ${requiredType}.`,
+            );
+        }
+    }
+
+    if (!bootstrap.includes("GameStartupPipeline") ||
+        /TerrainRenderer|PostProcessController|LightingEngine|PlayerHUDView|InventoryView/.test(bootstrap)) {
+        recordViolation(
+            "Startup Dependency Contract",
+            bootstrapPath,
+            "GameBootstrap must only coordinate the typed GameStartupPipeline and scene ticket.",
+        );
+    }
+
     if (/\b(?:_resolver|resolver)\.Resolve\s*</.test(bootstrap) ||
         /\bResolve\s*<[^>]+>\s*\(/.test(bootstrap)) {
         recordViolation(
@@ -630,10 +772,10 @@ function checkGameBootstrapResolvesRegisteredManagers() {
 
 function checkCompositionRootContracts() {
     const roots = [
-        "Assets/Scripts/Core/BootstrapLifetimeScope.cs",
-        "Assets/Scripts/Core/GameLifetimeScope.cs",
-        "Assets/Scripts/Core/GatewayLifetimeScope.cs",
-        "Assets/Scripts/Core/MainMenuLifetimeScope.cs",
+        "Assets/Scripts/Core/Bootstrap/BootstrapLifetimeScope.cs",
+        "Assets/Scripts/Core/Bootstrap/GameLifetimeScope.cs",
+        "Assets/Scripts/Core/Bootstrap/GatewayLifetimeScope.cs",
+        "Assets/Scripts/Core/Bootstrap/MainMenuLifetimeScope.cs",
     ];
     for (const filePath of roots) {
         const source = readFile(filePath);
@@ -1122,12 +1264,24 @@ function checkAsyncVoid() {
 // ---------------------------------------------------------------------------
 
 const CONFIG_PATH = "Assets/Scripts/Core/Interfaces/Contracts/ClientConfig.cs";
-const BOOTSTRAP_PATH = "Assets/Scripts/Core/Bootstrap/GameBootstrap.cs";
+// Настройки живут по файлу на секцию. Раньше здесь стоял один путь и разбор
+// читал только его; после разбиения ClientConfig на секции такой разбор
+// перестал бы видеть тридцать полей и начал бы молча пропускать мёртвую
+// проводку вместо того, чтобы о ней сообщать.
+const SETTINGS_DIR = "Assets/Scripts/Core/Interfaces/Contracts/Settings";
+const BOOTSTRAP_PATH = "Assets/Scripts/Core/Bootstrap/GameStartupPipeline.cs";
+const CONFIG_METADATA_FIELDS = new Set(["SchemaVersion", "ProjectDefaultsHash"]);
 
 const WIRING_EXCLUDE_DIRS = new Set(["Tests", "Plugins", "VContainer"]);
 
+function isConfigInfrastructureFile(file) {
+    const normalized = file.replace(/\\/g, "/");
+    return normalized.includes("/Core/Configuration/") ||
+        normalized.includes("/Core/Interfaces/Contracts/");
+}
+
 // Config-consuming MonoBehaviours that must apply their ClientConfig at
-// startup. "Applied at startup" means GameBootstrap.cs invokes one of the
+// startup. "Applied at startup" means GameStartupPipeline.cs invokes one of the
 // listed methods on a typed receiver. Keep this list current: a MonoBehaviour
 // exposing ApplyClientConfig that is missing from it fails the build, and a
 // listed consumer whose method is no longer invoked fails too.
@@ -1183,13 +1337,72 @@ function parseConfigFields(content) {
 // Collect every production file that references each ClientConfig field
 // (ClientConfig.cs itself excluded). Shared by the dead-field and UI-only
 // wiring checks so the tree is scanned once.
+// GraphicsQualitySettings — тоже секция настроек, но структура: она сравнивается
+// по значению во всём коде и живёт в ассете профиля, поэтому лежит не в
+// Settings/. Под правило обязательного диапазона она попадать должна.
+const EXTRA_SETTING_FILES = [
+    "Assets/Scripts/Core/Interfaces/Contracts/GraphicsQualitySettings.cs",
+];
+
+function settingsSectionFiles() {
+    if (!fs.existsSync(SETTINGS_DIR)) {
+        return [];
+    }
+    return fs.readdirSync(SETTINGS_DIR)
+        .filter((name) => name.endsWith(".cs"))
+        .map((name) => path.join(SETTINGS_DIR, name));
+}
+
+function settingMetadataFiles() {
+    return settingsSectionFiles().concat(EXTRA_SETTING_FILES.filter((f) => fs.existsSync(f)));
+}
+
+// Поля, чья проводка объявлена атрибутом, а не текстовой ссылкой.
+// [AudioBus] связывает поле громкости с шиной FMOD, и AudioBusRegistry
+// перечисляет их рефлексией: в исходниках `.SfxVolume` больше не встречается,
+// хотя настройка применяется. Причём проверено это сильнее, чем поиском по
+// тексту — реестр бросает исключение, если у шины нет поля или у поля нет
+// пути. Без этого исключения проверка мёртвых полей ругалась бы на пять из
+// шести громкостей.
+function fieldsWiredByAttribute() {
+    const wired = new Set();
+    for (const file of settingsSectionFiles()) {
+        const content = readFile(file);
+        if (content === null) {
+            continue;
+        }
+        const lines = content.split("\n");
+        for (let i = 0; i < lines.length; i++) {
+            const m = lines[i].match(/^\s*public\s+\S+\s+(?!operator\b)([A-Za-z0-9_]+)\s*(?:=(?!=)|;)/);
+            if (m === null) {
+                continue;
+            }
+            for (let back = i - 1; back >= 0 && lines[back].trim().startsWith("["); back--) {
+                if (/\[AudioBus\(/.test(lines[back])) {
+                    wired.add(m[1]);
+                }
+            }
+        }
+    }
+    return wired;
+}
+
 function collectConfigFieldReads() {
     const configSrc = readFile(CONFIG_PATH);
-    const fields = configSrc === null ? [] : parseConfigFields(configSrc);
+    const fields = [];
+    for (const file of settingsSectionFiles()) {
+        const content = readFile(file);
+        if (content !== null) {
+            fields.push(...parseConfigFields(content));
+        }
+    }
     const reads = new Map(fields.map((field) => [field, []]));
     const configAbs = path.resolve(CONFIG_PATH);
     for (const file of collectWiringFiles()) {
         if (path.resolve(file) === configAbs) {
+            continue;
+        }
+        if (isConfigInfrastructureFile(file)) {
             continue;
         }
         const content = readFile(file);
@@ -1212,11 +1425,16 @@ function checkDeadConfigFields() {
         return;
     }
     if (fields.length === 0) {
-        recordViolation("Settings Wiring (dead field)", CONFIG_PATH, "Could not parse ClientConfig fields.");
+        recordViolation("Settings Wiring (dead field)", CONFIG_PATH, "Could not parse any setting fields from Contracts/Settings/.");
         return;
     }
 
+    const attributeWired = fieldsWiredByAttribute();
     for (const field of fields) {
+        if (CONFIG_METADATA_FIELDS.has(field) || attributeWired.has(field)) {
+            continue;
+        }
+
         if (reads.get(field).length === 0) {
             recordViolation(
                 "Settings Wiring (dead field)",
@@ -1226,8 +1444,6 @@ function checkDeadConfigFields() {
         }
     }
 }
-
-const CONFIG_MANAGER_PATH = "Assets/Scripts/Core/ClientConfigManager.cs";
 
 // ClientConfig fields whose consumer legitimately lives in the UI layer: they
 // are read AND applied there (e.g. via panelSettings.scale), so UI-only reads
@@ -1252,14 +1468,18 @@ function checkUiOnlyWiring() {
     if (configSrc === null || fields.length === 0) {
         return; // parse failure is reported by the dead-field check
     }
-    const managerAbs = path.resolve(CONFIG_MANAGER_PATH);
+    const attributeWired = fieldsWiredByAttribute();
     for (const field of fields) {
-        if (UI_WIRING_ALLOWED_FIELDS.has(field)) {
+        if (CONFIG_METADATA_FIELDS.has(field)) {
+            continue;
+        }
+
+        if (UI_WIRING_ALLOWED_FIELDS.has(field) || attributeWired.has(field)) {
             continue;
         }
         // ClientConfigManager validates/migrates fields — that is not a
         // consumer applying the setting, so it does not count as wiring.
-        const readers = reads.get(field).filter((file) => path.resolve(file) !== managerAbs);
+        const readers = reads.get(field);
         if (readers.length === 0) {
             continue; // never referenced -> the dead-field check owns it
         }
@@ -1268,6 +1488,378 @@ function checkUiOnlyWiring() {
                 "Settings Wiring (UI-only)",
                 CONFIG_PATH,
                 `ClientConfig.${field} is read only from UI controllers (${readers.join(", ")}) — Settings can show and save it, but no game system ever applies it (the TargetFrameRate bug before DisplayManager wired it). Connect the field to a consumer or remove the setting.`,
+            );
+        }
+    }
+}
+
+// Каждое публичное поле секции обязано объявить свой диапазон рядом с собой,
+// либо честно сказать, что диапазона нет и почему. Мотиватор: до разбиения
+// один и тот же отрезок 0..1 для AmbientIntensity был записан литералом в
+// четырёх независимых проверках, они расходились молча, и конфиг мог пройти
+// валидацию значением, которое ползунок показать не в состоянии.
+function checkSettingRangeCoverage() {
+    for (const file of settingMetadataFiles()) {
+        const content = readFile(file);
+        if (content === null) {
+            continue;
+        }
+        const lines = content.split("\n");
+        for (let index = 0; index < lines.length; index++) {
+            // `const` и `static readonly` исключены: JsonUtility сериализует
+            // только обычные поля экземпляра, поэтому настройкой такое поле
+            // быть не может. Мимо этого фильтра проходил, например, набор
+            // допустимых значений MSAA, объявленный рядом с самой настройкой,
+            // — и линтер требовал у списка констант диапазон и потребителя.
+            const match = lines[index].match(
+                /^\s*public\s+(?!const\b)(?!static\s+readonly\b)[A-Za-z0-9_<>\[\],.\s?]+?\s+(?!operator\b)([A-Za-z0-9_]+)\s*(?:=(?!=)|;)/,
+            );
+            if (match === null) {
+                continue;
+            }
+            // Атрибуты стоят непосредственно над полем; пустая строка или
+            // другое поле обрывают их блок.
+            let attributes = "";
+            for (let back = index - 1; back >= 0; back--) {
+                const line = lines[back].trim();
+                if (line.startsWith("[")) {
+                    attributes += line;
+                    continue;
+                }
+                if (line.startsWith("//") || line.startsWith("///") || line === "") {
+                    continue;
+                }
+                break;
+            }
+            // [Range] от Unity — полноценное объявление: инспектор им
+            // ограничивает правку ассета, SettingSchema по нему проверяет,
+            // ползунок из него берёт края. [Min] не считается: без потолка
+            // ползунок построить не из чего.
+            if (!/\[Setting(Range|Unbounded)|\[Range\(/.test(attributes)) {
+                recordViolation(
+                    "Settings Metadata",
+                    file,
+                    `${match[1]} has neither [SettingRange], [Range] nor [SettingUnbounded]. Declare its bounds next to the field, or state why it has none — otherwise the range comes back as a literal in the validator and the slider builder, and the two drift apart.`,
+                );
+            }
+
+            if (!/\[SettingConsumer\(/.test(attributes)) {
+                recordViolation(
+                    "Settings Consumer",
+                    file,
+                    `${match[1]} has no [SettingConsumer] attribute. Every setting must declare its target subsystem and application mechanism (e.g. [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine.SetAmbientIntensity -> _compositeDirty")]) to prevent dead settings.`,
+                );
+            }
+        }
+    }
+}
+
+// Render pass in Assets/Scripts/Rendering/ must not hardcode effect bypasses,
+// unconditional overrides of .active, or hardcoded gamma/exposure outside
+// debug bypass flags (BypassPostProcessEffects).
+function checkRenderPassInvariants() {
+    const renderPassPath = "Assets/Scripts/Rendering/PostProcessing/PostProcessRenderPass.cs";
+    const content = readRequiredFile(renderPassPath, "Render Pass Invariant");
+    if (content === null) {
+        return;
+    }
+    const lines = content.split("\n");
+    let inBypassBlock = false;
+    let bypassBraceDepth = 0;
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.includes("if (BypassPostProcessEffects)")) {
+            inBypassBlock = true;
+            bypassBraceDepth = 0;
+        }
+        if (inBypassBlock) {
+            bypassBraceDepth += (line.match(/\{/g) || []).length;
+            bypassBraceDepth -= (line.match(/\}/g) || []).length;
+            if (bypassBraceDepth <= 0 && line.includes("}")) {
+                inBypassBlock = false;
+            }
+            continue;
+        }
+        // Outside BypassPostProcessEffects block:
+        // No unconditional disabling of effect flags
+        if (/^\s*(?:bloomActive|vignetteActive|caActive|cgActive|eigengrauActive|mbActive)\s*=\s*false\s*;/.test(line)) {
+            recordViolation(
+                "Render Pass Invariant",
+                `${renderPassPath}:${i + 1}`,
+                `Unconditional disabling of effect flag (${line.trim()}) outside BypassPostProcessEffects. Effects must be driven by volume components and settings.`,
+            );
+        }
+        // No hardcoded display gamma or exposure assignments outside Configure() or BypassPostProcessEffects
+        if (/^\s*_displayGamma\s*=\s*[0-9.]+f?\s*;/.test(line)) {
+            recordViolation(
+                "Render Pass Invariant",
+                `${renderPassPath}:${i + 1}`,
+                `Hardcoded _displayGamma assignment (${line.trim()}) outside BypassPostProcessEffects. Gamma must be driven by DisplaySettings.DisplayGamma.`,
+            );
+        }
+    }
+}
+
+// Every public setter in LightingEngine that mutates lighting parameters
+// must call _configHolder.Set* and invalidate at least one lighting dirty flag
+// (_compositeDirty, _fieldDirty, _bounceDirty, _ambientOcclusionDirty, etc.).
+function checkLightingEngineSetterInvalidations() {
+    const lightingPath = "Assets/Scripts/World/Lighting/Core/LightingEngine.cs";
+    const content = readRequiredFile(lightingPath, "Lighting Engine Invariant");
+    if (content === null) {
+        return;
+    }
+    const lines = content.split("\n");
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const match = line.match(/^\s*public\s+void\s+(Set[A-Za-z0-9_]+)\s*\(/);
+        if (!match) {
+            continue;
+        }
+        const methodName = match[1];
+        if (methodName === "SetRenderScale" || methodName === "SetMsaaLevel" || methodName === "SetQualityLevel" || methodName === "SetDynamicLight") {
+            continue; // Unity-level quality setters or per-entity light registration
+        }
+        // Find method body
+        let depth = 0;
+        let started = false;
+        const bodyLines = [];
+        for (let j = i; j < Math.min(i + 40, lines.length); j++) {
+            depth += (lines[j].match(/\{/g) || []).length;
+            depth -= (lines[j].match(/\}/g) || []).length;
+            if (lines[j].includes("{")) {
+                started = true;
+            }
+            bodyLines.push(lines[j]);
+            if (started && depth <= 0) {
+                break;
+            }
+        }
+        const body = bodyLines.join("\n");
+        const hasDirtyFlag = /(?:_ambientOcclusionDirty|_bounceDirty|_compositeDirty|_fieldDirty|MarkDirty|_nextDynamicLightingUpdateTime|_hasStaticRadianceState)\s*=/i.test(body);
+        if (!hasDirtyFlag) {
+            recordViolation(
+                "LightingEngine Setter Invalidation",
+                `${lightingPath}:${i + 1}`,
+                `${methodName} does not invalidate any lighting dirty flag (_compositeDirty, _fieldDirty, _bounceDirty, _ambientOcclusionDirty, etc.). A setter without invalidation produces a dead setting.`,
+            );
+        }
+    }
+}
+
+// Scan UI Settings tab builders to ensure all sliders and settings controls
+// use bound factory methods (CreateBoundSlider, CreateBoundCycleButton, CreateBoundToggle) and register refreshers.
+function checkUiBoundSettings() {
+    const settingsUiDir = "Assets/Scripts/UI/Settings";
+    if (!fs.existsSync(settingsUiDir)) {
+        return;
+    }
+    for (const name of fs.readdirSync(settingsUiDir)) {
+        if (!name.endsWith(".cs") || name === "PauseMenuUIFactory.cs") {
+            continue;
+        }
+        const fullPath = path.join(settingsUiDir, name);
+        const content = readFile(fullPath);
+        if (content === null) {
+            continue;
+        }
+        const lines = content.split("\n");
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].includes("PauseMenuUIFactory.CreateSlider(")) {
+                recordViolation(
+                    "UI Settings Bound Control",
+                    `${fullPath}:${i + 1}`,
+                    `PauseMenuUIFactory.CreateSlider() is unbound and does not register refreshers. Use PauseMenuUIFactory.CreateBoundSlider<TSection>() so setting values update and refresh when defaults are restored.`,
+                );
+            }
+            if (lines[i].includes(".clicked +=") && !fullPath.includes("PauseMenu.cs")) {
+                let depth = 0;
+                let started = false;
+                const handlerLines = [];
+                for (let j = i; j < Math.min(i + 60, lines.length); j++) {
+                    depth += (lines[j].match(/\{/g) || []).length;
+                    depth -= (lines[j].match(/\}/g) || []).length;
+                    if (lines[j].includes("{")) {
+                        started = true;
+                    }
+                    handlerLines.push(lines[j]);
+                    if (started && depth <= 0) {
+                        break;
+                    }
+                }
+                const handlerText = handlerLines.join("\n");
+                const mutatesSettings = /ApplyCustomTechnicalSettings|_graphicsSettings|_clientConfig|_lightingEngine|_displayManager/.test(handlerText);
+                const hasRefresh = /Refresh|Update|_refreshAll/.test(handlerText);
+                if (mutatesSettings && !hasRefresh) {
+                    recordViolation(
+                        "UI Settings Bound Control",
+                        `${fullPath}:${i + 1}`,
+                        `Button click handler mutates settings but does not call any refresh or update delegate. The button label will not update when clicked. Use PauseMenuUIFactory.CreateBoundCycleButton or call the refresh delegate in the click handler.`,
+                    );
+                }
+            }
+        }
+    }
+}
+
+// Каждый путь в ResourcePaths обязан указывать на существующий ассет.
+// Мотиватор: ResourcePaths.PostProcessCompute указывал на файл, лежавший вне
+// любой папки Resources, поэтому Resources.Load возвращал null, а
+// ShaderWarmupService молча пропускал прогрев всех ядер постпроцесса — не
+// логируя ничего, потому что проверка была написана как `if (compute != null)`.
+// Сломанный путь не даёт ни ошибки компиляции, ни ошибки рантайма: он даёт
+// тишину.
+// Каждому скрипту нужна мета с настоящим GUID.
+//
+// Проверяется не наличие файла, а его содержимое. Пустая мета —
+// не теоретический случай: оборвавшаяся запись оставляет ноль байт,
+// проверка «файл есть» такую пропускает, а Unity молча игнорирует сам
+// скрипт. Наружу это выходит ошибкой «type or namespace not found» в
+// файлах, которые к пропавшему классу отношения не имеют, и искать
+// причину приходится в сообщении, где её нет.
+function checkScriptMetaIntegrity() {
+    const seenGuids = new Map();
+    for (const filePath of walkCs("Assets/Scripts")) {
+        const metaPath = filePath + ".meta";
+        const meta = readFile(metaPath);
+        if (meta === null) {
+            recordViolation("Script Meta", metaPath, "Скрипт без .meta: Unity назначит GUID сам, и ссылки на него разойдутся между машинами.");
+            continue;
+        }
+
+        if (meta.trim() === "") {
+            recordViolation("Script Meta", metaPath, "Мета пустая: Unity проигнорирует скрипт целиком, а ошибка вылезет как ненайденный тип в чужом файле.");
+            continue;
+        }
+
+        const guid = meta.match(/^guid:\s*([0-9a-f]{32})\s*$/m)?.[1];
+        if (!guid) {
+            recordViolation("Script Meta", metaPath, "В мете нет корректного GUID из 32 шестнадцатеричных цифр.");
+            continue;
+        }
+
+        const previous = seenGuids.get(guid);
+        if (previous !== undefined) {
+            recordViolation("Script Meta", metaPath, `GUID ${guid} уже занят файлом ${previous}: копия меты ломает ссылки в сценах и префабах.`);
+            continue;
+        }
+
+        seenGuids.set(guid, filePath);
+    }
+}
+
+function checkResourcePaths() {
+    const contractsPath = "Assets/Scripts/Core/Interfaces/Contracts/ProjectRuntimeContracts.cs";
+    const src = readFile(contractsPath);
+    if (src === null) {
+        recordViolation("Resource Paths", contractsPath, "Could not read ProjectRuntimeContracts.cs.");
+        return;
+    }
+    const block = src.match(/class ResourcePaths\s*\{([\s\S]*?)\n    \}/);
+    if (block === null) {
+        recordViolation("Resource Paths", contractsPath, "Could not locate the ResourcePaths class.");
+        return;
+    }
+
+    const paths = new Map();
+    for (const m of block[1].matchAll(/public const string (\w+)\s*=\s*"([^"]*)"/g)) {
+        paths.set(m[1], m[2]);
+    }
+    // Составные пути вида A + "/" + B.
+    for (const m of block[1].matchAll(/public const string (\w+)\s*=\s*(\w+)\s*\+\s*"([^"]*)"\s*\+\s*(\w+)/g)) {
+        if (paths.has(m[2]) && paths.has(m[4])) {
+            paths.set(m[1], paths.get(m[2]) + m[3] + paths.get(m[4]));
+        }
+    }
+
+    const roots = [];
+    const findRoots = (dir) => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+            if (!entry.isDirectory()) {
+                continue;
+            }
+            const full = path.join(dir, entry.name);
+            if (entry.name === "Resources") {
+                roots.push(full);
+            } else {
+                findRoots(full);
+            }
+        }
+    };
+    findRoots("Assets");
+
+    // Расширение в пути к ресурсу не пишется — Resources.Load выводит его сам.
+    const extensions = ["", ".asset", ".prefab", ".uxml", ".uss", ".compute", ".shader",
+        ".png", ".jpg", ".mat", ".ttf", ".otf", ".json", ".txt", ".anim", ".controller"];
+    for (const [name, value] of paths) {
+        if (value === "") {
+            continue;
+        }
+        const found = roots.some((root) => extensions.some((ext) => {
+            const candidate = path.join(root, value + ext);
+            return fs.existsSync(candidate);
+        }));
+        if (!found) {
+            recordViolation(
+                "Resource Paths",
+                contractsPath,
+                `ResourcePaths.${name} = "${value}" resolves to nothing under any Resources folder. Resources.Load returns null silently — add the asset, move it under Resources, or delete the constant.`,
+            );
+        }
+    }
+}
+
+// switch с тремя и более ветвями обязан иметь default. Мотиватор:
+// PauseMenuAudioTabBuilder.SetBusVolumeInConfig перечислял шесть шин и не имел
+// default — новая шина давала ползунок, который двигается, ничего не
+// сохраняет и ни на что не жалуется. Отсутствие ветки в switch не ловится ни
+// компилятором, ни тестом: оно выглядит как «ничего не произошло».
+// Освобождение выдаётся поимённо и требует объяснения в коде рядом.
+const SWITCH_DEFAULT_EXEMPT = new Map([
+    // Перечисляет элементы, у которых вообще есть событие смены значения.
+    // У метки и контейнера его нет, поэтому default ругался бы на половину
+    // разметки. Обоснование записано в <remarks> над методом.
+    ["Assets/Scripts/UI/Binding/WindowBinding.cs", "RegisterValueChangeHandler"],
+]);
+
+function checkSwitchDefaultCoverage() {
+    for (const file of collectWiringFiles()) {
+        const normalized = file.replace(/\\/g, "/");
+        const content = readFile(file);
+        if (content === null) {
+            continue;
+        }
+        const lines = content.split("\n");
+        for (let i = 0; i < lines.length; i++) {
+            if (!/^\s*switch\s*\(\s*[\w.]+\s*\)\s*$/.test(lines[i])) {
+                continue;
+            }
+            let depth = 0;
+            let started = false;
+            const body = [];
+            for (let j = i + 1; j < Math.min(i + 140, lines.length); j++) {
+                depth += (lines[j].match(/\{/g) || []).length;
+                depth -= (lines[j].match(/\}/g) || []).length;
+                body.push(lines[j]);
+                if (lines[j].trim() === "{") {
+                    started = true;
+                }
+                if (started && depth <= 0) {
+                    break;
+                }
+            }
+            const text = body.join("\n");
+            const cases = (text.match(/^\s*case\s/gm) || []).length;
+            if (cases < 3 || /^\s*default\s*:/m.test(text)) {
+                continue;
+            }
+            if (SWITCH_DEFAULT_EXEMPT.has(normalized)) {
+                continue;
+            }
+            recordViolation(
+                "Switch Default",
+                `${file}:${i + 1}`,
+                `switch with ${cases} cases has no default — an unhandled value falls through silently, with no error and no log. Add a default that throws or logs, or exempt it in SWITCH_DEFAULT_EXEMPT with the reason.`,
             );
         }
     }
@@ -1290,8 +1882,64 @@ function checkUncoveredConsumers() {
                 recordViolation(
                     "Settings Wiring (uncovered consumer)",
                     file,
-                    `${cls} exposes ApplyClientConfig() but is missing from STARTUP_APPLY_CONTRACTS in scripts/check-architecture.js. Either wire it into GameBootstrap.PostStart and add it to the contract, or it will apply saved config only from the pause menu.`,
+                    `${cls} exposes ApplyClientConfig() but is missing from STARTUP_APPLY_CONTRACTS in scripts/check-architecture.js. Either wire it into GameStartupPipeline and add it to the contract, or it will apply saved config only from the pause menu.`,
                 );
+            }
+        }
+    }
+}
+
+function checkSettingConsumerTargetMembers() {
+    const classFiles = new Map();
+    for (const file of collectWiringFiles()) {
+        const basename = path.basename(file, ".cs");
+        if (!classFiles.has(basename)) {
+            classFiles.set(basename, file);
+        }
+    }
+
+    for (const file of settingsSectionFiles()) {
+        const content = readFile(file);
+        if (content === null) {
+            continue;
+        }
+        const lines = content.split("\n");
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const consumerMatch = line.match(/\[SettingConsumer\s*\(\s*SettingConsumerTarget\.([A-Za-z0-9_]+)\s*,\s*"([^"]+)"\s*\)\]/);
+            if (!consumerMatch) {
+                continue;
+            }
+            const [, targetEnum, mechanism] = consumerMatch;
+            const matches = mechanism.match(/\b([A-Z][A-Za-z0-9_]+)\.([A-Za-z0-9_]+)\b/g);
+            if (!matches) {
+                continue;
+            }
+            for (const match of matches) {
+                const [className, memberName] = match.split(".");
+                if (/^(?:Screen|QualitySettings|Application|HDROutput|Math|Mathf|Shader)$/.test(className)) {
+                    continue;
+                }
+                const targetFilePath = classFiles.get(className);
+                if (!targetFilePath) {
+                    recordViolation(
+                        "Setting Consumer Target",
+                        `${file}:${i + 1}`,
+                        `[SettingConsumer] references class '${className}' in mechanism '${mechanism}', but ${className}.cs was not found in Assets/Scripts.`,
+                    );
+                    continue;
+                }
+                const targetContent = readFile(targetFilePath);
+                if (targetContent === null) {
+                    continue;
+                }
+                if (!new RegExp(`\\b${memberName}\\b`).test(targetContent)) {
+                    recordViolation(
+                        "Setting Consumer Target",
+                        `${file}:${i + 1}`,
+                        `[SettingConsumer] references '${className}.${memberName}', but member '${memberName}' is not defined in ${targetFilePath}.`,
+                    );
+                }
             }
         }
     }
@@ -1369,7 +2017,7 @@ const USS_LONGHAND = new Set([
     "border-bottom-width", "border-left-color", "border-left-width",
     "border-right-color", "border-right-width", "border-top-color",
     "border-top-left-radius", "border-top-right-radius", "border-top-width",
-    "bottom", "color", "cursor", "display", "filter", "flex-basis",
+    "bottom", "color", "cursor", "display", "flex-basis",
     "flex-direction", "flex-grow", "flex-shrink", "flex-wrap", "font-size",
     "height", "justify-content", "left", "letter-spacing", "margin-bottom",
     "margin-left", "margin-right", "margin-top", "max-height", "max-width",
@@ -1403,10 +2051,12 @@ const USS_BAD_FUNCS = {
     "max": "арифметики в значениях нет",
     "clamp": "арифметики в значениях нет",
     "color-mix": "не поддерживается",
-    "drop-shadow": "в наборе filter нет; свечение делается подложкой с blur()",
-    "brightness": "в наборе filter нет",
-    "saturate": "в наборе filter нет",
 };
+
+// CSS box-shadow/filter/backdrop-filter не входят в поддерживаемый USS.
+// Для таких эффектов нужен материал, Painter2D или подготовленная текстура.
+const USS_SHADOW_NOTE =
+    "box-shadow/filter/backdrop-filter в USS нет; нужен материал, Painter2D или текстура";
 
 // The 23 named easing curves supported by USS.
 const USS_EASINGS = new Set([
@@ -1477,7 +2127,8 @@ function checkUssStyles() {
             if (decl) {
                 const prop = decl[1];
                 if (!prop.startsWith("--") && !USS_ALLOWED.has(prop)) {
-                    recordViolation("USS Stylesheet", full, `${name}:${lineNo} свойство '${prop}' отсутствует в UI Toolkit`);
+                    const hint = prop === "box-shadow" ? ` — ${USS_SHADOW_NOTE}` : "";
+                    recordViolation("USS Stylesheet", full, `${name}:${lineNo} свойство '${prop}' отсутствует в UI Toolkit${hint}`);
                     problemCount++;
                 }
             }
@@ -1510,9 +2161,24 @@ function checkUssStyles() {
         problemCount++;
     }
 
+    problemCount += checkUtilityClassesResolve();
+    problemCount += checkDesignSystemRatchet();
+    problemCount += checkNeutralGrays();
+    problemCount += checkHiddenClassNotOverridden();
+    problemCount += checkNoInlineDisplayOutsideMainGame();
+    problemCount += checkNoStrayStylesheets();
+    problemCount += checkCodeClassesHaveRules();
+    problemCount += checkEveryStylesheetImported();
     problemCount += checkNoTokenNamesInComments(names);
     problemCount += checkNoRelativeUnits(names);
     problemCount += checkTokensMatchMirror();
+    problemCount += checkIconsMatchMirror();
+    problemCount += checkComponentsMatchMirror();
+    problemCount += checkTextFitMatchesMirror();
+    problemCount += checkDesignSystemLint();
+    problemCount += checkAssemblyGraph();
+    problemCount += checkContainerConstructorChoice();
+    problemCount += checkShaderColorLibraryIncludes();
 
     console.log(`${CYAN}${BOLD}USS stylesheets:${NC} ${names.length} file(s), ${declared.size} token(s) declared, ${problemCount} violation(s)`);
 }
@@ -1584,7 +2250,7 @@ function checkNoRelativeUnits(names) {
 // Договор, который нельзя проверить, договором не является.
 
 function checkTokensMatchMirror() {
-    const generator = path.join(__dirname, "..", "visual", "main-menu-mirror", "tools", "emit-uss-tokens.py");
+    const generator = path.join(__dirname, "..", "visual", "fodinae-ui-lab", "tools", "emit-uss-tokens.py");
     if (!fs.existsSync(generator)) {
         recordViolation("USS Stylesheet", generator,
             "нет генератора токенов: макет перестал быть источником истины");
@@ -1604,6 +2270,962 @@ function checkTokensMatchMirror() {
         return 1;
     }
     return 0;
+}
+
+// Токены сверяются словарём, иконки — растром, а это — уже сказанным: для
+// каждой пары из component-map.json свойства правил игры и макета
+// сравниваются напрямую. Именно этой проверки не хватило, чтобы кнопка рейла
+// два месяца жила 44 пикселя против 48, а ширины модалок стояли наоборот.
+// Сверяется и покой, и реакция: селекторы игры переписываются именами макета,
+// поэтому .mm-nav-tab:hover и .fdn-settings-tab:hover ложатся в один ключ.
+// Реакция, названная только макетом, роняет проверку так же, как расхождение
+// значения: там интерфейс молчит на действие, и это не мельче.
+function checkComponentsMatchMirror() {
+    const generator = path.join(__dirname, "..", "visual", "fodinae-ui-lab", "tools", "compare-components.py");
+    if (!fs.existsSync(generator)) {
+        recordViolation("USS Stylesheet", generator,
+            "нет сверки компонентов: вид игры перестал быть выводим из макета");
+        return 1;
+    }
+    const result = spawnSync("python3", [generator, "--check"], { encoding: "utf8" });
+    if (result.error) return 0;
+    if (result.status !== 0) {
+        const detail = `${result.stdout || ""}${result.stderr || ""}`.trim().replace(/\n/g, " | ");
+        recordViolation("USS Stylesheet", path.join(STYLES_DIR, "Theme.uss"),
+            `компоненты игры разошлись с макетом. ${detail}`);
+        return 1;
+    }
+    return 0;
+}
+
+// ---------------------------------------------------------------------------
+// Граф сборок: тип из чужой сборки, на которую нет ссылки
+// ---------------------------------------------------------------------------
+//
+// Поймано на живом примере дважды за один день. AnimatedSpriteData лежал рядом
+// с декодерами в Fodinae.AssetPipeline, а стоял в сигнатуре IAssetLoader из
+// Fodinae.Contracts — но AssetPipeline сам ссылается на Contracts, и обратная
+// ссылка замкнула бы кольцо. Тем же оказался IRuntimeAssetPaths: объявлен в
+// Fodinae.Runtime, используется в AssetPipeline, ссылки нет.
+//
+// Компилятор это ловит, но по одной ошибке за прогон и только после того, как
+// Unity дойдёт до пересборки. Здесь — весь граф сразу и до редактора.
+//
+// ЧТО СЧИТАЕТСЯ ССЫЛКОЙ НА ТИП. Имя, совпадающее с именем типа, — ещё не
+// обращение к типу: `packet.AttachedProperties` это член, `[Tooltip("…")]` это
+// атрибут Unity, а `const string MainMenu = "…"` это имя константы. Поэтому из
+// текста снимаются комментарии, строки и блоки атрибутов, а имя не считается
+// ссылкой, если перед ним точка или имя примитива, либо сразу за ним стоит
+// присваивание. Без этих четырёх правил проверка давала 31 срабатывание, из
+// которых настоящими были два.
+//
+// VContainer исключён целиком: сторонний код, его границы не наши.
+
+const ASSEMBLY_PRIMITIVES = new Set([
+    "string", "int", "float", "double", "bool", "byte", "long", "short", "char",
+    "decimal", "uint", "ulong", "ushort", "sbyte", "object", "var", "const",
+    "enum", "namespace",
+]);
+
+const TYPE_DECLARATION = new RegExp(
+    "\\b(?:public|internal)\\s+" +
+    "(?:readonly\\s+|sealed\\s+|abstract\\s+|static\\s+|partial\\s+|unsafe\\s+)*" +
+    "(?:class|struct|interface|enum|record(?:\\s+struct)?)\\s+([A-Z]\\w*)", "g");
+
+// Имя типа с тем, что стоит перед ним (слово или точка) и присваиванием после.
+// Всё три части нужны, чтобы отличить обращение к типу от одноимённого члена.
+const TYPE_REFERENCE = /(\w+|\.)?\s*\b([A-Z]\w*)\b(\s*=(?!=))?/g;
+
+function stripForTypeScan(source) {
+    return source
+        .replace(/\/\*[\s\S]*?\*\//g, " ")
+        .replace(/\/\/[^\n]*/g, " ")
+        .replace(/@"(?:[^"]|"")*"/g, '""')
+        .replace(/"(?:\\.|[^"\\])*"/g, '""')
+        .replace(/\benum\s+[A-Za-z0-9_]+\s*\{[\s\S]*?\}/g, " ")
+        .replace(/\[[\s\S]*?\]/g, " ");
+}
+
+function collectAssemblies() {
+    const found = [];
+    const walk = dir => {
+        let entries;
+        try {
+            entries = fs.readdirSync(dir, { withFileTypes: true });
+        } catch {
+            return;
+        }
+        for (const entry of entries) {
+            const full = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+                walk(full);
+            } else if (entry.name.endsWith(".asmdef")) {
+                try {
+                    const json = JSON.parse(fs.readFileSync(full, "utf8"));
+                    found.push({
+                        name: json.name,
+                        dir: path.dirname(full),
+                        refs: json.references || [],
+                    });
+                } catch {
+                    recordViolation("Project References", full,
+                        "asmdef не читается как JSON: граница сборки перестала быть проверяемой");
+                }
+            }
+        }
+    };
+    walk("Assets/Scripts");
+    return found.sort((a, b) => b.dir.length - a.dir.length);
+}
+
+// Имена, которые есть и у Unity: совпадение имени не значит, что имеется в
+// виду наш тип, а различить их без разбора кода нельзя. Список именной, каждая
+// запись с причиной — молчаливое «пропускать похожее» здесь недопустимо.
+const TYPE_NAME_COLLISIONS = new Map([
+    ["SceneSetup", "UnityEditor.SceneManagement.SceneSetup — возвращается из " +
+        "EditorSceneManager.GetSceneManagerSetup(), одноимённый с Fodinae.World.SceneSetup"],
+]);
+
+// Тип считается объявленным на уровне пространства имён, только если он не
+// вложен в другой тип: ProjectRuntimeContracts.Debug — это не UnityEngine.Debug,
+// и без учёта вложенности проверка давала 29 ложных срабатываний на одном
+// только этом имени.
+function topLevelTypesOf(source) {
+    const clean = stripForTypeScan(source);
+    const found = [];
+    let depth = 0;
+    let typeDepth = null;
+    let namespaceName = "";
+    for (const line of clean.split("\n")) {
+        const ns = line.match(/\bnamespace\s+([\w.]+)/);
+        if (ns) {
+            namespaceName = ns[1];
+        }
+        const kind = line.match(
+            /\b(?:public|internal|private|protected)\s+(?:readonly\s+|sealed\s+|abstract\s+|static\s+|partial\s+|unsafe\s+|new\s+)*(?:class|struct|interface|enum|record)(?:\s+struct)?\s+([A-Z]\w*)/);
+        if (kind && typeDepth === null) {
+            found.push({ name: kind[1], namespace: namespaceName });
+            typeDepth = depth;
+        }
+        for (const ch of line) {
+            if (ch === "{") {
+                depth++;
+            } else if (ch === "}") {
+                depth--;
+                if (typeDepth !== null && depth <= typeDepth) {
+                    typeDepth = null;
+                }
+            }
+        }
+    }
+    return found;
+}
+
+function namespaceAncestors(name) {
+    const parts = name.split(".");
+    const out = [""];
+    for (let i = parts.length; i > 0; i--) {
+        out.push(parts.slice(0, i).join("."));
+    }
+    return out;
+}
+
+// Сборка видна, а имя — нет: перенос типа между сборками почти всегда меняет и
+// пространство имён, и потребители остаются без using. Компилятор скажет это
+// точнее, но только после того, как Unity дойдёт до пересборки; за один прогон
+// проверка нашла три таких файла, каждый из которых стоил бы отдельного круга.
+function checkNamespaceVisibility(sources) {
+    const declaredIn = new Map();
+    const cache = new Map();
+    for (const file of sources) {
+        const source = readFile(file);
+        if (source === null) {
+            continue;
+        }
+        const types = topLevelTypesOf(source);
+        cache.set(file, { source, types });
+        for (const type of types) {
+            if (!declaredIn.has(type.name)) {
+                declaredIn.set(type.name, new Set());
+            }
+            declaredIn.get(type.name).add(type.namespace);
+        }
+    }
+
+    let violations = 0;
+    for (const file of sources) {
+        const entry = cache.get(file);
+        if (!entry) {
+            continue;
+        }
+        const visible = new Set(
+            [...entry.source.matchAll(/^\s*using\s+(?:static\s+)?([\w.]+)\s*;/gm)].map(m => m[1]));
+        for (const match of entry.source.matchAll(/^\s*namespace\s+([\w.]+)/gm)) {
+            for (const ancestor of namespaceAncestors(match[1])) {
+                visible.add(ancestor);
+            }
+        }
+        const own = new Set(entry.types.map(t => t.name));
+        const scanned = stripForTypeScan(entry.source).replace(/\[[^\[\]\n]*\]/g, " ");
+        const reported = new Set();
+        for (const hit of scanned.matchAll(TYPE_REFERENCE)) {
+            const before = hit[1] || "";
+            const type = hit[2];
+            if (before === "." || ASSEMBLY_PRIMITIVES.has(before) || hit[3]) {
+                continue;
+            }
+            if (own.has(type) || reported.has(type) || TYPE_NAME_COLLISIONS.has(type)) {
+                continue;
+            }
+            const where = declaredIn.get(type);
+            if (!where || [...where].some(ns => visible.has(ns))) {
+                continue;
+            }
+            reported.add(type);
+            recordViolation("Project References", file,
+                `тип ${type} объявлен в ${[...where].join(", ")}, а этого ` +
+                "пространства имён файл не видит: добавьте using. Сборка тут ни при чём — " +
+                "имя не разрешается, и это отдельная от графа ссылок ошибка.");
+            violations++;
+        }
+    }
+    return violations;
+}
+
+// ---------------------------------------------------------------------------
+// Part 4c: неоднозначный конструктор у типа, который собирает контейнер
+// ---------------------------------------------------------------------------
+//
+// VContainer без атрибута [Inject] берёт конструктор с НАИБОЛЬШИМ числом
+// параметров и смотрит в том числе непубличные (TypeAnalyzer.cs:237-245).
+// Живой случай: у PersistentAssetCache рядом с public ctor() лежал
+// internal ctor(string) для тестов — контейнер выбрал его, не нашёл
+// регистрации System.String и уронил сборку целиком в Awake бутстрапа.
+// Ошибка молчит до запуска, поэтому ловится тут.
+//
+// Форма Register<T>(resolver => ...) не при чём: там конструктор зовёт
+// фабрика, а не анализатор типов.
+// ---------------------------------------------------------------------------
+// Part 4d: здесь жили проверки тонмапа AgX
+// ---------------------------------------------------------------------------
+//
+// Проверялись сумма строк матриц (транспонированная матрица красит нейтрали),
+// возврат в линейное после кривой и наличие полинома S-кривой. Всё это
+// удалено вместе с самим тонмаппингом: правило, сторожащее несуществующий
+// код, либо падает вечно, либо его отключают — и тогда оно не сторожит
+// ничего. Если сжатие динамического диапазона вернётся, проверки надо
+// восстановить из истории: они ловили ошибку, невидимую ни компиляцией, ни
+// глазами на цветном кадре.
+
+const SHADER_COLOR_FUNCTIONS = [
+    "SRGBToLinear", "LinearToSRGB", "FastSRGBToLinear", "FastLinearToSRGB",
+    "Luminance", "RgbToHsv", "HsvToRgb",
+];
+
+function checkShaderColorLibraryIncludes() {
+    let violations = 0;
+    const shaderFiles = [];
+    (function walkShaders(root) {
+        let entries;
+        try {
+            entries = fs.readdirSync(root, { withFileTypes: true });
+        } catch {
+            return;
+        }
+        for (const entry of entries) {
+            const full = path.join(root, entry.name);
+            if (entry.isDirectory()) {
+                if (entry.name === "TextMesh Pro") {
+                    continue;
+                }
+                walkShaders(full);
+            } else if (/\.(shader|compute|hlsl)$/.test(entry.name)) {
+                shaderFiles.push(full);
+            }
+        }
+    })("Assets");
+    for (const file of shaderFiles) {
+        const source = readFile(file);
+        if (source === null) {
+            continue;
+        }
+
+        const includesColor = source.includes("ShaderLibrary/Color.hlsl");
+        for (const fn of SHADER_COLOR_FUNCTIONS) {
+            const used = new RegExp(`\\b${fn}\\s*\\(`).test(source);
+            if (!used || includesColor) {
+                continue;
+            }
+
+            // Своё определение в этом же файле — законно и снимает вопрос.
+            const definedLocally = new RegExp(
+                `(float|half|real)[1-4]?\\s+${fn}\\s*\\(`).test(source);
+            if (definedLocally) {
+                continue;
+            }
+
+            recordViolation("Architecture", file,
+                `Шейдер вызывает ${fn}, но не подключает Color.hlsl и не определяет её сам. ` +
+                "Проход не скомпилируется, и объект останется вообще без шейдера.");
+            violations++;
+        }
+    }
+
+    return violations;
+}
+
+function checkContainerConstructorChoice() {
+    const registered = new Map();
+    const REGISTER = /builder\s*\.\s*Register<\s*([A-Za-z_][\w]*)\s*>\s*\(\s*Lifetime\./g;
+    for (const file of walkCs("Assets/Scripts")) {
+        const rel = file.split(path.sep).join("/");
+        if (EXCLUDE_REGEX.test(rel)) {
+            continue;
+        }
+        const source = readFile(file);
+        if (source === null) {
+            continue;
+        }
+        for (const match of source.matchAll(REGISTER)) {
+            if (!registered.has(match[1])) {
+                registered.set(match[1], rel);
+            }
+        }
+    }
+    if (registered.size === 0) {
+        return 0;
+    }
+
+    let violations = 0;
+    for (const file of walkCs("Assets/Scripts")) {
+        const rel = file.split(path.sep).join("/");
+        if (EXCLUDE_REGEX.test(rel)) {
+            continue;
+        }
+        const raw = readFile(file);
+        if (raw === null) {
+            continue;
+        }
+        for (const [type, scope] of registered) {
+            if (!new RegExp(`\\b(?:class|record)\\s+${type}\\b`).test(raw)) {
+                continue;
+            }
+            const ctor = new RegExp(
+                `(?:\\[Inject\\][^\\n]*\\s*)?(?:public|internal|private|protected)(?:\\s+(?:sealed|static|unsafe|extern))*\\s+${type}\\s*\\(`,
+                "g");
+            const ctors = [...raw.matchAll(ctor)].filter(m => !/\bstatic\b/.test(m[0]));
+            if (ctors.length < 2) {
+                continue;
+            }
+            // Проверка читает код, а не комментарии: в этом самом файле
+            // объяснение к атрибуту содержит слово [Inject], и наивный поиск
+            // по сырому тексту принял бы объяснение за атрибут.
+            const code = raw
+                .replace(/\/\*[\s\S]*?\*\//g, " ")
+                .replace(/\/\/[^\n]*/g, " ");
+            if (/\[Inject\]/.test(code)) {
+                continue;
+            }
+            recordViolation("Project References", rel,
+                `${type} регистрируется в ${scope} как Register<${type}>(Lifetime...), ` +
+                `но имеет ${ctors.length} конструктора и ни одного [Inject]: VContainer возьмёт ` +
+                "самый длинный, заглядывая и в непубличные, и уронит сборку контейнера " +
+                "в рантайме. Пометьте нужный конструктор атрибутом [Inject].");
+            violations++;
+        }
+    }
+    return violations;
+}
+
+function checkAssemblyGraph() {
+    const assemblies = collectAssemblies();
+    if (assemblies.length === 0) {
+        return 0;
+    }
+
+    const byName = new Map(assemblies.map(a => [a.name, a]));
+    const ownerOf = filePath => {
+        const found = assemblies.find(a => filePath.startsWith(a.dir + path.sep));
+        return found ? found.name : null;
+    };
+
+    // Кольцо в графе Unity не соберёт вовсе, поэтому сказать об этом надо
+    // раньше и понятнее, чем это сделает редактор.
+    const visiting = new Set();
+    const done = new Map();
+    let violations = 0;
+    const reachable = name => {
+        if (done.has(name)) {
+            return done.get(name);
+        }
+        if (visiting.has(name)) {
+            recordViolation("Project References", path.join("Assets", "Scripts"),
+                `кольцевая ссылка сборок через ${name}: граф обязан быть без циклов`);
+            violations++;
+            return new Set();
+        }
+        visiting.add(name);
+        const seen = new Set();
+        for (const ref of (byName.get(name) || { refs: [] }).refs) {
+            seen.add(ref);
+            for (const deep of reachable(ref)) {
+                seen.add(deep);
+            }
+        }
+        visiting.delete(name);
+        done.set(name, seen);
+        return seen;
+    };
+
+    const sources = walkCs("Assets/Scripts")
+        .filter(file => !EXCLUDE_REGEX.test(file.split(path.sep).join("/")))
+        .filter(file => ownerOf(file) !== null);
+
+    const declaredIn = new Map();
+    for (const file of sources) {
+        const source = readFile(file);
+        if (source === null) {
+            continue;
+        }
+        const owner = ownerOf(file);
+        for (const match of source.matchAll(TYPE_DECLARATION)) {
+            if (!declaredIn.has(match[1])) {
+                declaredIn.set(match[1], new Set());
+            }
+            declaredIn.get(match[1]).add(owner);
+        }
+    }
+
+    for (const file of sources) {
+        const owner = ownerOf(file);
+        const raw = readFile(file);
+        if (raw === null) {
+            continue;
+        }
+        const source = stripForTypeScan(raw);
+        const visible = reachable(owner);
+
+        // Один проход по файлу, а не поиск каждого из полутысячи имён по
+        // очереди: перебор именем стоил двадцати секунд на прогон и превращал
+        // проверку в то, что хочется отключить.
+        const referenced = new Set();
+        for (const hit of source.matchAll(TYPE_REFERENCE)) {
+            const before = hit[1] || "";
+            if (before === "." || ASSEMBLY_PRIMITIVES.has(before)) {
+                continue;
+            }
+            if (hit[3]) {
+                continue;  // имя члена в инициализаторе, а не тип
+            }
+            referenced.add(hit[2]);
+        }
+
+        for (const type of referenced) {
+            const owners = declaredIn.get(type);
+            if (!owners || owners.has(owner)) {
+                continue;
+            }
+            const unreachable = [...owners].filter(o => o !== owner && !visible.has(o));
+            if (unreachable.length !== owners.size) {
+                continue;
+            }
+            recordViolation("Project References", file,
+                `${owner} обращается к типу ${type} из ${unreachable.join(", ")}, ` +
+                "а ссылки на эту сборку нет. Либо перенесите тип туда, где он виден " +
+                "обеим сторонам (договор — в Fodinae.Contracts), либо добавьте ссылку, " +
+                "если направление зависимости это допускает.");
+            violations++;
+        }
+    }
+
+    return violations + checkNamespaceVisibility(sources);
+}
+
+// Инварианты самой дизайн-системы: неразрешённые токены, значения вне шкал,
+// протечка слоя примитивов, контраст. Держит долг по потолку, а не по нулю —
+// правило, красное в день появления, перестаёт быть сигналом.
+//
+// Запускался руками и потому работал через раз: знать, какой из инструментов
+// макета зовут, а какой нет, — само по себе знание, которое теряется первым.
+// Одна команда на все проверки вида.
+function checkDesignSystemLint() {
+    const linter = path.join(__dirname, "..", "visual", "fodinae-ui-lab", "tools", "lint-design-system.py");
+    if (!fs.existsSync(linter)) {
+        recordViolation("USS Stylesheet", linter,
+            "нет линтера дизайн-системы: инварианты макета перестали проверяться");
+        return 1;
+    }
+    const result = spawnSync("python3", [linter], { encoding: "utf8" });
+    if (result.error) return 0;
+    if (result.status !== 0) {
+        const detail = `${result.stdout || ""}${result.stderr || ""}`.trim().split("\n")
+            .filter(line => line.trim()).slice(-6).join(" | ");
+        recordViolation("USS Stylesheet", path.join(STYLES_DIR, "ThemeTokens.uss"),
+            `дизайн-система макета: ${detail}`);
+        return 1;
+    }
+    return 0;
+}
+
+// Поведение текста при нехватке места. Отдельно от сверки компонентов, потому
+// что контракт макета записан селекторами по атрибуту ([data-fit='clip']), а в
+// USS селекторов по атрибуту нет вовсе: сверка правил такие строки исключает и
+// не увидит эту ось, сколько её ни расширяй. Здесь читается сам атрибут узла.
+//
+// Молчание игры тут — не «не сказано», а «текст вылезет»: умолчание USS никогда
+// не обрежет строку и не подгонит кегль.
+function checkTextFitMatchesMirror() {
+    const checker = path.join(__dirname, "..", "visual", "fodinae-ui-lab", "tools", "check-fit.py");
+    if (!fs.existsSync(checker)) {
+        recordViolation("USS Stylesheet", checker,
+            "нет проверки контракта data-fit: поведение текста перестало быть выводимым из макета");
+        return 1;
+    }
+    const result = spawnSync("python3", [checker], { encoding: "utf8" });
+    if (result.error) return 0;
+    if (result.status !== 0) {
+        const detail = `${result.stdout || ""}${result.stderr || ""}`.trim().replace(/\n/g, " | ");
+        recordViolation("USS Stylesheet", path.join(STYLES_DIR, "TokenUtilities.uss"),
+            `контракт data-fit не перенесён в игру. ${detail}`);
+        return 1;
+    }
+    return 0;
+}
+
+// Иконки рейла — такой же печатный артефакт, как токены. Unity векторов не
+// принимает, поэтому SVG макета растеризуются в PNG; без проверки растр молча
+// отстаёт от вектора, что уже случилось: три глифа разошлись после того, как
+// набор в макете нормализовали по массе.
+function checkIconsMatchMirror() {
+    const generator = path.join(__dirname, "..", "visual", "fodinae-ui-lab", "tools", "emit-icon-textures.py");
+    if (!fs.existsSync(generator)) {
+        recordViolation("USS Stylesheet", generator,
+            "нет генератора иконок: растр в игре перестал быть выводим из макета");
+        return 1;
+    }
+    const result = spawnSync("python3", [generator, "--check"], { encoding: "utf8" });
+    if (result.error) {
+        // cairosvg ставится не везде; отсутствие библиотеки не есть расхождение.
+        return 0;
+    }
+    if (result.status !== 0) {
+        const detail = `${result.stdout || ""}${result.stderr || ""}`.trim().replace(/\n/g, " | ");
+        recordViolation("USS Stylesheet", generator, `иконки игры разошлись с макетом. ${detail}`);
+        return 1;
+    }
+    return 0;
+}
+
+// ---------------------------------------------------------------------------
+// Part 4c: класс, выданный из кода, обязан существовать в USS
+// ---------------------------------------------------------------------------
+//
+// TokenUtilities.uss печатается генератором и подключается к теме. Если лист
+// выпадет из темы или класс из него исчезнет, код продолжит выдавать имя,
+// которое не резолвится ни во что: элемент молча потеряет вид. Инлайн, на
+// который эти классы пришли на смену, хотя бы работал.
+//
+// Молчаливая потеря вида — худший вид поломки: её не видно ни в консоли, ни
+// в тестах, ни в компиляции. Поэтому проверяется обе половины: лист в теме,
+// и каждое имя, которое C# передаёт в AddToClassList, имеет правило.
+
+const THEME_TSS = path.join(__dirname, "..", "Assets", "UI Toolkit", "FodinaeTheme.tss");
+const UTILITIES_USS = path.join(STYLES_DIR, "TokenUtilities.uss");
+const UI_SCRIPTS_DIR = path.join(__dirname, "..", "Assets", "Scripts", "UI");
+
+function checkUtilityClassesResolve() {
+    let count = 0;
+
+    for (const required of [THEME_TSS, UTILITIES_USS]) {
+        if (!fs.existsSync(required)) {
+            recordViolation("USS Stylesheet", required, "файл утилитарного слоя отсутствует");
+            return 1;
+        }
+    }
+
+    // 1. Лист обязан быть подключён к теме, иначе правила не доедут до панели.
+    const theme = stripUssComments(fs.readFileSync(THEME_TSS, "utf8"));
+    if (!/TokenUtilities\.uss/.test(theme)) {
+        recordViolation("USS Stylesheet", THEME_TSS,
+            "TokenUtilities.uss не подключён к теме: классы из C# не резолвятся");
+        count++;
+    }
+
+    // 2. Каждый утилитарный класс, названный в C#, обязан иметь правило.
+    //    Сверяются только имена из этого листа: остальные классы живут в
+    //    компонентных таблицах и проверяются другими правилами.
+    const uss = stripUssComments(fs.readFileSync(UTILITIES_USS, "utf8"));
+    const selectors = new Set([...uss.matchAll(/^\s*\.([A-Za-z0-9_-]+)/gm)].map((m) => m[1]));
+
+    const known = new Set([...selectors]);
+    for (const file of walkFiles(UI_SCRIPTS_DIR, ".cs")) {
+        const code = stripCsComments(fs.readFileSync(file, "utf8"));
+        for (const m of code.matchAll(/AddToClassList\("([a-z][a-z0-9-]*)"\)/g)) {
+            const cls = m[1];
+            // Утилитарными считаем имена без компонентного префикса: именно
+            // они приходят из этого листа.
+            if (/^(is|row|col|ai|jc|as|abs|rel|grow|no|text|centered)(-|$)/.test(cls) && !known.has(cls)) {
+                recordViolation("USS Stylesheet", file,
+                    `${path.basename(file)}: класс .${cls} выдаётся из кода, но правила в TokenUtilities.uss нет`);
+                count++;
+            }
+        }
+    }
+
+    return count;
+}
+
+// ---------------------------------------------------------------------------
+// Part 4e: нейтрально-серого в дизайн-системе нет
+// ---------------------------------------------------------------------------
+//
+// Палитра макета целиком холодная: поверхности синеватые (11,20,30), рамки —
+// полупрозрачный светлый (140,185,205) с альфой 0.08..0.15, текст уходит в
+// синеву. Нейтрального серого — где R, G и B почти равны — в ней нет ни
+// одного.
+//
+// В main game такой шкалы 49 значений: сплошные серые рамки rgb(77,77,77),
+// фоны rgb(51,51,51), текст rgb(204,204,204). Механически привести их к
+// палитре нельзя: сплошная серая рамка, заменённая на --border-subtle, не
+// станет «той же рамкой в цвете темы» — она почти исчезнет, потому что у
+// токена альфа 0.08. Это решение дизайнера, а не подстановка.
+//
+// Поэтому число зафиксировано: закрыть долг нельзя, а вот не дать ему расти —
+// можно. Новый серый в USS означает, что в игру приехала вторая палитра.
+
+const NEUTRAL_GRAY_BUDGET = 0;
+
+function checkNeutralGrays() {
+    const rgb = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*[\d.]+\s*)?\)/g;
+    let count = 0;
+
+    for (const file of walkFiles(STYLES_DIR, ".uss")) {
+        if (GENERATED_USS.has(path.basename(file))) continue;
+        const code = stripUssComments(fs.readFileSync(file, "utf8"));
+        for (const m of code.matchAll(rgb)) {
+            const [r, g, b] = [+m[1], +m[2], +m[3]];
+            // Чистый чёрный и белый — не «серая шкала», а служебные крайности.
+            if ((r === 0 && g === 0 && b === 0) || (r === 255 && g === 255 && b === 255)) continue;
+            if (Math.abs(r - g) <= 6 && Math.abs(g - b) <= 6 && Math.abs(r - b) <= 6) count++;
+        }
+    }
+
+    if (count > NEUTRAL_GRAY_BUDGET) {
+        recordViolation("USS Stylesheet", STYLES_DIR,
+            `нейтрально-серый: ${count} при потолке ${NEUTRAL_GRAY_BUDGET}. В палитре макета серого нет — это вторая палитра, растить её нельзя`);
+        return 1;
+    }
+    if (count < NEUTRAL_GRAY_BUDGET) {
+        recordViolation("USS Stylesheet", path.join(__dirname, "check-architecture.js"),
+            `нейтрально-серый: стало ${count} вместо ${NEUTRAL_GRAY_BUDGET} — впишите новое число в NEUTRAL_GRAY_BUDGET`);
+        return 1;
+    }
+    return 0;
+}
+
+// ---------------------------------------------------------------------------
+// Part 4c-bis: .is-hidden обязан выигрывать
+// ---------------------------------------------------------------------------
+//
+// TokenUtilities.uss подключён к теме РАНЬШЕ компонентных листов — так и надо,
+// иначе утилита перебивала бы компонент. Но у этого порядка есть обратная
+// сторона: при равной специфичности выигрывает правило, объявленное позже.
+// Значит компонентное правило, задающее display тому же элементу, молча
+// отменит .is-hidden — кнопка «закрыть» перестанет закрывать, и ни консоль,
+// ни тесты об этом не скажут.
+//
+// Проверка: ни один лист после утилит не задаёт display классу, который в
+// разметке стоит рядом с is-hidden.
+
+const UXML_DIR = path.join(__dirname, "..", "Assets", "Resources", "UI");
+
+// ---------------------------------------------------------------------------
+// Инлайновый display рядом с классом is-hidden
+// ---------------------------------------------------------------------------
+//
+// Инлайн бьёт любое правило: если элемент скрыт через style="display: none",
+// снятие класса is-hidden его уже не покажет, и наоборот — выставленный кодом
+// инлайновый display навсегда выводит элемент из-под управления классом.
+// Смешивать два механизма на одном элементе нельзя, поэтому в разметке вне
+// main game инлайновый display запрещён целиком: там видимость — это класс.
+// В main game оба механизма пока живут по-старому, инлайном, и это её долг.
+
+const MAIN_GAME_UXML = new Set(["PlayerHUD.uxml", "Inventory.uxml", "Minimap.uxml",
+    "GlobalChat.uxml", "LocalChat.uxml", "Programmator.uxml", "RadialMenu.uxml",
+    "ObserverJoystick.uxml", "PauseMenu.uxml", "Reconnect.uxml",
+    "AssetLoadingIndicator.uxml"]);
+
+// Лист USS вне папки Styles не виден ни теме, ни проверкам. Один такой есть
+// законно — бутстрап подключает свой лист через <ui:Style>, потому что
+// поднимается вместе со сценой. Остальные должны лежать в Styles, иначе они
+// молча выпадают из каскада и из счётчиков долга.
+const OUT_OF_TREE_USS = new Set(["BootstrapLoadingScreen.uss"]);
+
+// Лист, лежащий в Styles, но не импортированный темой, не действует ни на что.
+// Ровно так молча пропал TokenUtilities.uss: классы выдавались, правил не было.
+function checkEveryStylesheetImported() {
+    const theme = path.join(__dirname, "..", "Assets", "UI Toolkit", "FodinaeTheme.tss");
+    let src;
+    try { src = fs.readFileSync(theme, "utf8"); }
+    catch { recordViolation("USS Stylesheet", theme, "Тема FodinaeTheme.tss не найдена."); return 1; }
+    let count = 0;
+    for (const file of walkFiles(STYLES_DIR, ".uss")) {
+        const name = path.basename(file);
+        if (src.includes(name)) continue;
+        recordViolation("USS Stylesheet", file,
+            `${name} лежит в Styles, но не импортирован в FodinaeTheme.tss — ` +
+            "лист не участвует в каскаде, и его правила не действуют ни на один экран.");
+        count++;
+    }
+    return count;
+}
+
+// Класс, который код навешивает, но правил под ним нет ни в одном листе.
+// Такой класс — молчаливая пустышка: код думает, что переключает состояние,
+// на экране не меняется ничего. Так жил `.invalid` у RegexTextField (отказ
+// ввода не показывался никак) и так живёт `.mission-arrow` в main game.
+// Классы из разметки этой проверкой не берём: там пустой класс безвреден,
+// он ничего не обещает.
+const CLASS_CALL = /(?:AddToClassList|EnableInClassList|ToggleInClassList)\(\s*"([\w-]+)"/g;
+
+function checkCodeClassesHaveRules() {
+    const selectors = new Set();
+    for (const file of [...walkFiles(STYLES_DIR, ".uss"), ...walkFiles(UXML_DIR, ".uss")]) {
+        const code = stripUssComments(fs.readFileSync(file, "utf8"));
+        for (const rule of code.matchAll(/([^{}]+)\{/g)) {
+            for (const m of rule[1].matchAll(/\.([\w-]+)/g)) selectors.add(m[1]);
+        }
+    }
+
+    let count = 0;
+    const scriptsRoot = path.join(__dirname, "..", "Assets", "Scripts");
+    for (const file of walkFiles(scriptsRoot, ".cs")) {
+        const src = stripCsComments(fs.readFileSync(file, "utf8"));
+        for (const m of src.matchAll(CLASS_CALL)) {
+            if (selectors.has(m[1])) continue;
+            if (KNOWN_RULELESS_CLASSES.has(m[1])) continue;
+            const line = src.slice(0, m.index).split("\n").length;
+            recordViolation("USS Stylesheet", file,
+                `${path.basename(file)}:${line} класс '${m[1]}' навешивается кодом, ` +
+                "но правил под ним нет ни в одном листе: переключение состояния " +
+                "ничего не меняет на экране.");
+            count++;
+        }
+    }
+    return count;
+}
+
+// Известные пустышки, которые этот заход не вправе чинить: вид элемента
+// неизвестен, а файл принадлежит main game. Заведены в TODO.md.
+const KNOWN_RULELESS_CLASSES = new Set(["mission-arrow"]);
+
+function checkNoStrayStylesheets() {
+    let count = 0;
+    for (const file of walkFiles(UXML_DIR, ".uss")) {
+        const name = path.basename(file);
+        if (OUT_OF_TREE_USS.has(name)) continue;
+        recordViolation("USS Stylesheet", file,
+            `${name} лежит вне Assets/Resources/Styles: такой лист не входит в ` +
+            "тему и не попадает в счётчики долга. Перенесите его в Styles или " +
+            "внесите в OUT_OF_TREE_USS с объяснением, почему иначе нельзя.");
+        count++;
+    }
+    return count;
+}
+
+function checkNoInlineDisplayOutsideMainGame() {
+    let count = 0;
+    for (const file of walkFiles(UXML_DIR, ".uxml")) {
+        const name = path.basename(file);
+        if (MAIN_GAME_UXML.has(name)) continue;
+        const markup = fs.readFileSync(file, "utf8");
+        for (const m of markup.matchAll(/style="[^"]*\bdisplay\s*:/g)) {
+            const line = markup.slice(0, m.index).split("\n").length;
+            recordViolation("USS Stylesheet", file,
+                `${name}:${line} инлайновый display в разметке вне main game: ` +
+                "инлайн бьёт класс, и элемент перестаёт слушаться is-hidden. " +
+                "Скрывайте классом is-hidden, показывайте через UIState.");
+            count++;
+        }
+    }
+    return count;
+}
+
+function checkHiddenClassNotOverridden() {
+    const guarded = new Set();
+    for (const file of walkFiles(UXML_DIR, ".uxml")) {
+        const markup = fs.readFileSync(file, "utf8");
+        for (const m of markup.matchAll(/class="([^"]*\bis-hidden\b[^"]*)"/g)) {
+            for (const cls of m[1].split(/\s+/)) {
+                if (cls && cls !== "is-hidden") guarded.add(cls);
+            }
+        }
+    }
+    if (guarded.size === 0) return 0;
+
+    let count = 0;
+    for (const file of walkFiles(STYLES_DIR, ".uss")) {
+        const name = path.basename(file);
+        if (name === "TokenUtilities.uss" || name === "ThemeTokens.uss") continue;
+        const code = stripUssComments(fs.readFileSync(file, "utf8"));
+        for (const rule of code.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+            if (!/(?<![\w-])display\s*:/.test(rule[2])) continue;
+            const selector = rule[1].trim();
+            for (const cls of guarded) {
+                if (new RegExp(`\\.${cls.replace(/[-]/g, "\\-")}(?![\\w-])`).test(selector)) {
+                    recordViolation("USS Stylesheet", file,
+                        `${name}: правило '${selector.replace(/\s+/g, " ")}' задаёт display классу .${cls}, который в разметке скрывается через is-hidden — утилита объявлена раньше и проиграет`);
+                    count++;
+                }
+            }
+        }
+    }
+    return count;
+}
+
+// ---------------------------------------------------------------------------
+// Part 4d: потолки долга дизайн-системы
+// ---------------------------------------------------------------------------
+//
+// Долг тут не запрещён — он зафиксирован. Число, записанное в BUDGET, это не
+// цель и не норма: это «столько было, когда мы посмотрели». Расти нельзя,
+// падать можно, и упавшее число полагается вписать сюда же — иначе проверка
+// перестаёт держать.
+//
+// Две оси, каждая в двух слоях:
+//
+//   inline  — запись element.style.* из C#. Инлайн в UI Toolkit бьёт любое
+//             правило USS, поэтому каждая такая запись выводит элемент
+//             из-под темы, тира и состояний. Часть из них законна: геометрия,
+//             посчитанная в рантайме (координаты маркера из проекции 3D-точки,
+//             размер окна из пакета), и твины в UIAnimator. Их не отделяем
+//             признаком, а держим числом: законные не растут сами по себе.
+//
+//   literal — цвет или пиксель, записанный значением вместо var(--токен).
+//             Пока значение литерал, тема и тир на него не действуют.
+//
+// Слой main game считается отдельно и сознательно не трогается: у него свои
+// нюансы, и заход, который вычистил меню, не вправе молча переехать игру.
+// Его число стоит здесь, чтобы долг был виден, а не забыт.
+
+// Из чего состоит остаток «inline вне main game» = 59 на 01.09.2026. Записано,
+// чтобы число не читалось как «недоделка»: всё, что здесь осталось, законно,
+// и попытка довести его до нуля сломает работающее.
+//
+//   17  Common/Animation/UIAnimator.cs        твины: opacity и translate в кадре
+//   17  Common/Interaction/StyleApplicator.cs исполнение GUIStylePacket — это
+//                                             и есть соблюдение протокола
+//    9  Menu/Scenery/MenuSceneryMarkers.cs    проекция 3D-точки на кадр планеты
+//    4  Builders/Core/PacketUIBuilder.cs      Canvas.X/Y/Width/Height из пакета
+//    3  Builders/Widgets/ImagePacketBuilder.cs размер и картинка из пакета
+//    2  Common/Windows/ServerWindowPresenter.cs размер окна из пакета
+//    2  Builders/Widgets/LinePacketBuilder.cs  толщина линии из пакета
+//    4  Common/Interaction/Tooltip.cs         координаты курсора
+//    1  Menu/Scenery/MenuSceneryPresenter.cs  runtime texture binding
+//    3  MenuModalManager, MenuLoaderProgress, GridPacketBuilder — доли и
+//       размеры, вычисляемые в рантайме
+//
+// Видимости в этом списке больше нет. Она была настоящим долгом (10 записей в
+// Tooltip и ModalWindowHandler) и оказалась ещё и дефектом: инлайновый display
+// бьёт класс, поэтому элемент, скрытый твином, не открывался бы снятием
+// is-hidden. Переведено на UIState, стартовое «скрыто» в Tooltip.uxml и
+// ModalWindow.uxml переехало с инлайна на класс, и это единственные два места
+// разметки main game, которых заход коснулся. Держит проверка
+// checkNoInlineDisplayOutsideMainGame.
+
+const DEBT_BUDGET = {
+    "inline вне main game": 59,
+    "inline в main game": 286,
+    // 210, а не 205: сверка компонентов (compare-components.py) перенесла в
+    // игру значения макета, и часть из них там тоже литералы — 22px отступа
+    // под подзаголовком, 3px скругления тикера, 19px и -30px в ленте хроники.
+    // Приводить их к ближайшей ступени значило бы разойтись с макетом ради
+    // красоты числа. Разбор остатка — docs/design-debt-uss.md.
+    // 215: волоски в 1px у четырёх коробок, которые в игре были невидимыми —
+    // карточка деталей сервера, шапка профиля и две плашки хроники, — плюс 7px
+    // внутреннего отступа плашки. Шкалы ширин нет ни в игре, ни в макете, а
+    // 7px — шаг самого макета: он там и у тега хроники, и у бейджа клавиши.
+    // 216: плюс высота журнала ремонта (170px) — без неё коробка сжималась по
+    // содержимому и модалка прыгала по мере поступления строк.
+    // 218: плюс 14x2 золотой чёрточки надзаголовка. В макете эти два числа тоже
+    // литералы: чёрточка намеренно не тир-зависимая, иначе на компактном тире
+    // она мельчает вместе с отступами и перестаёт читаться как акцент.
+    "литерал в общем слое": 218,
+    "литерал в main game": 324,
+};
+
+// Папки Assets/Scripts/UI, принадлежащие main game.
+const MAIN_GAME_DIRS = new Set(["HUD", "Map", "Chat", "Programmator", "Settings", "Overlays"]);
+
+// Листы main game. Машинные листы не считаются: у них нет автора-человека.
+const MAIN_GAME_USS = new Set(["HUD.uss", "Inventory.uss", "Chat.uss", "chat-input.uss",
+    "Programmator.uss", "PauseMenu.uss", "Modal.uss"]);
+const GENERATED_USS = new Set(["ThemeTokens.uss", "TokenUtilities.uss"]);
+
+// Комментарий — не код. Счётчик, который считает собственное объяснение,
+// заставляет молчать про дефект, чтобы пройти проверку.
+function stripCsComments(text) {
+    return text.replace(/\/\*[\s\S]*?\*\//g, " ")
+        .split("\n").map((l) => l.replace(/\/\/.*$/, "")).join("\n");
+}
+
+function walkFiles(dir, ext, out = []) {
+    if (!fs.existsSync(dir)) return out;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walkFiles(full, ext, out);
+        else if (entry.name.endsWith(ext)) out.push(full);
+    }
+    return out;
+}
+
+function checkDesignSystemRatchet() {
+    const counts = {
+        "inline вне main game": 0,
+        "inline в main game": 0,
+        "литерал в общем слое": 0,
+        "литерал в main game": 0,
+    };
+
+    const uiRoot = path.join(__dirname, "..", "Assets", "Scripts", "UI");
+    for (const file of walkFiles(uiRoot, ".cs")) {
+        const top = path.relative(uiRoot, file).split(path.sep)[0];
+        const key = MAIN_GAME_DIRS.has(top) ? "inline в main game" : "inline вне main game";
+        const code = stripCsComments(fs.readFileSync(file, "utf8"));
+        counts[key] += (code.match(/\.style\b/g) || []).length;
+    }
+
+    // Листы считаются и вне папки Styles: BootstrapLoadingScreen.uss живёт
+    // рядом со своей разметкой и до этой правки не попадал ни в один счётчик —
+    // четыре сырых цвета жили там мимо долга.
+    for (const file of [...walkFiles(STYLES_DIR, ".uss"), ...walkFiles(UXML_DIR, ".uss")]) {
+        const name = path.basename(file);
+        if (GENERATED_USS.has(name)) continue;
+        const key = MAIN_GAME_USS.has(name) ? "литерал в main game" : "литерал в общем слое";
+        const code = stripUssComments(fs.readFileSync(file, "utf8"));
+        counts[key] += (code.match(/#[0-9a-fA-F]{3,8}\b/g) || []).length;
+        counts[key] += (code.match(/\brgba?\(/g) || []).length;
+        // Именованный цвет — такой же литерал, как #rrggbb: тема на него не
+        // действует. Счётчик их не видел, и 31 «white» спокойно жил мимо долга.
+        // transparent — не цвет палитры, а отсутствие заливки, и не считается.
+        counts[key] += (code.match(/:\s*(?:white|black|red|green|blue|yellow|magenta|cyan|gray|grey|silver|maroon|olive|lime|teal|navy|fuchsia|purple|aqua)\s*[;}]/g) || []).length;
+        counts[key] += (code.match(/(?<![\w-])\d+(?:\.\d+)?px/g) || []).length;
+    }
+
+    let violations = 0;
+    for (const [name, budget] of Object.entries(DEBT_BUDGET)) {
+        const actual = counts[name];
+        if (actual > budget) {
+            recordViolation("USS Stylesheet", STYLES_DIR,
+                `долг «${name}»: ${actual} при потолке ${budget} — долг вырос на ${actual - budget}`);
+            violations++;
+        } else if (actual < budget) {
+            recordViolation("USS Stylesheet", path.join(__dirname, "check-architecture.js"),
+                `долг «${name}»: стало ${actual} вместо ${budget}. Долг упал — впишите новое число в DEBT_BUDGET, иначе потолок останется на старом месте и отвоёванное можно молча вернуть`);
+            violations++;
+        }
+    }
+    return violations;
 }
 
 // ---------------------------------------------------------------------------
@@ -2252,6 +3874,7 @@ function main() {
     checkProjectCompileIncludes();
     checkSceneReadinessContracts();
     checkTransitionStateContracts();
+    checkPersistentAssetCacheContract();
     checkUiTransitionGuards();
     checkSceneScopeInjection();
     checkLifecycleSelfCalls();
@@ -2265,9 +3888,17 @@ function main() {
     checkUnityNamespaces();
     checkEarlyLifecycleDiAndCallgraph();
     checkAsyncVoid();
+    checkRenderPassInvariants();
+    checkLightingEngineSetterInvalidations();
+    checkUiBoundSettings();
+    checkScriptMetaIntegrity();
+    checkResourcePaths();
+    checkSwitchDefaultCoverage();
+    checkSettingRangeCoverage();
     checkDeadConfigFields();
     checkUiOnlyWiring();
     checkUncoveredConsumers();
+    checkSettingConsumerTargetMembers();
     checkStartupApplicationContract();
     checkUssStyles();
     checkLocalization();
@@ -2298,9 +3929,15 @@ function main() {
         console.log("  - safe DI resolution in early lifecycle (TryResolve, not Resolve)");
         console.log("  - no async void in MonoBehaviours (use UniTask)");
         console.log("  - no new production C# files above 500 lines; finite debt list only");
+        console.log("  - every ResourcePaths constant resolves to a real asset");
+        console.log("  - switch with 3+ cases has a default (no silent fallthrough)");
         console.log("  - every ClientConfig field referenced in production code");
+        console.log("  - every setting declares [SettingConsumer] and valid [SettingRange] or [SettingUnbounded]");
+        console.log("  - no hardcoded effect bypasses or gamma overrides in render passes");
+        console.log("  - every LightingEngine setter invalidates lighting dirty flags");
+        console.log("  - settings UI controls use bound factory methods with registered refreshers");
         console.log("  - no ClientConfig field read only from UI controllers (dead wiring)");
-        console.log("  - every config consumer applied at startup from GameBootstrap.PostStart");
+        console.log("  - every config consumer applied at startup from GameStartupPipeline");
         console.log("  - USS stylesheets: only UI Toolkit properties, functions and easings");
         console.log("  - localization: language parity, used-key existence, placeholders, dead keys");
         console.log("  - localization wiring: no manual OnLanguageChanged, CloneTree+UILocalizer.Apply, ILocalizableUI registered");

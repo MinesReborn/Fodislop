@@ -6,7 +6,6 @@ using Cysharp.Threading.Tasks;
 using Fodinae;
 using Fodinae.Audio;
 using Fodinae.Core.Interfaces;
-using Fodinae.Networking.Auth;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.Actions;
@@ -36,20 +35,25 @@ using UnityEngine;
 
 namespace MinesServer.Networking.Connection.Client
 {
-    public class DummyConnection : IServerConnection, IOfflineConnection, IVkOfflineProvider,
-        IOfflineIdentityProvider, IOfflineStatsProvider
+    public class DummyConnection : IServerConnection, IOfflineConnection
     {
         private readonly ITextureStorageService _textureStorage;
         private readonly IAsyncOperationSupervisor _operations;
+        private readonly IRuntimeDebugSettings _debugSettings;
         private readonly DummyConnectionSession _session = new();
+        private readonly DummyScenarioController _scenario;
 
         public DummyConnection(
             ITextureStorageService textureStorage,
             IItemCatalog itemCatalog,
-            IAsyncOperationSupervisor operations)
+            IAsyncOperationSupervisor operations,
+            IRuntimeDebugSettings debugSettings,
+            IOfflineScenarioSettings scenarioSettings)
         {
             _textureStorage = textureStorage;
             _operations = operations;
+            _debugSettings = debugSettings;
+            _scenario = new DummyScenarioController(scenarioSettings);
             _worldState = new DummyWorldSimulationState(operations);
             _authSession = new DummyAuthSession();
             _missionRunner = new DummyMissionRunner(SendPacket);
@@ -82,7 +86,7 @@ namespace MinesServer.Networking.Connection.Client
                 _teleportManager,
                 _pathFinder,
                 SendPacket,
-                () => IgnoreCollision,
+                () => _debugSettings.IgnoreCollision,
                 _mockBotId);
             _actionResponder = new DummyGameplayActionResponder(
                 _playerState,
@@ -114,26 +118,14 @@ namespace MinesServer.Networking.Connection.Client
         }
 
         /// <summary>
-        /// Симуляция VK-входа для офлайн-режима: возвращает стабильную сессию,
-        /// привязанную к устройству. Идентичность детерминирована, чтобы
-        /// имя и профиль оставались одинаковыми между запусками.
+        /// Stable local identity used by the emulated game server.
         /// </summary>
-        public VkAuthResult SimulateVkLogin()
-        {
-            return _authSession.SimulateVkLogin();
-        }
-
-        /// <summary>
-        /// Офлайн-идентичность из симулированной VK-сессии: имя из
-        /// SimulateVkLogin подставляется в PlayerInfoPacket, чтобы мир в
-        /// офлайн-режиме ощущался как настоящий (тот же VK = то же имя).
-        /// </summary>
-        public string PlayerName => _authSession.PlayerName;
+        private string PlayerName => _authSession.PlayerName;
 
         /// <summary>Офлайн-статистика (уровень/валюта) для мира.</summary>
-        public long Level => 12345;
+        private long Level => 12345;
 
-        public long Currency => 123456;
+        private long Currency => 123456;
 
         public ConnectionStatus ConnectionStatus => _session.Status;
 
@@ -142,8 +134,6 @@ namespace MinesServer.Networking.Connection.Client
         public event Action? OnDisconnected;
         public event Action? OnDisconnecting;
         public event Action? OnConnecting;
-
-        public static bool IgnoreCollision = false;
 
         private readonly DummyAuthSession _authSession;
         private readonly DummyMissionRunner _missionRunner;
@@ -182,6 +172,7 @@ namespace MinesServer.Networking.Connection.Client
                 return;
             }
 
+            _scenario.BeginLifecycle(lifecycleVersion);
             OnConnecting?.Invoke();
 
             // Run asynchronously, but stay on the Unity Main Thread
@@ -193,6 +184,19 @@ namespace MinesServer.Networking.Connection.Client
         private async UniTask ConnectAsync(int lifecycleVersion)
         {
             await UniTask.Yield();
+
+            if (_scenario.StallsConnection)
+            {
+                return;
+            }
+
+            if (_scenario.DisconnectsDuringHandshake)
+            {
+                _session.Stop();
+                OnDisconnecting?.Invoke();
+                OnDisconnected?.Invoke();
+                return;
+            }
 
             if (!_session.TryCompleteConnect(lifecycleVersion))
             {
@@ -299,6 +303,17 @@ namespace MinesServer.Networking.Connection.Client
             switch (packet.Data)
             {
                 case ClientHelloPacket clientHello:
+                    if (!_scenario.TryBeginHello(_session.LifecycleVersion))
+                    {
+                        return;
+                    }
+
+                    if (_scenario.RejectsAuthentication)
+                    {
+                        OnReceived?.Invoke(DummyWindowBuilder.BuildAuthWindow());
+                        return;
+                    }
+
                     string receivedToken = clientHello.AuthToken;
                     // Офлайн-сервер пермиссивный и окна авторизации не вызывает:
                     // Знакомые токены принимаются как есть, для пустого или
@@ -318,6 +333,11 @@ namespace MinesServer.Networking.Connection.Client
                     }
 
                     OnReceived?.Invoke(new ServerPacket(new AuthTokenPacket(resolvedToken)));
+
+                    if (_scenario.StallsWorldInitialization)
+                    {
+                        return;
+                    }
 
                     _operations.Run("dummy_world_init", _ => InitWorldAsync());
                     break;

@@ -58,6 +58,11 @@ namespace Fodinae.Player
         [Inject]
         private ILocalPlayerState _localPlayer = null!;
 
+        [Inject]
+        private IClientConfigManager? _clientConfig;
+
+        private CameraPixelGridAligner? _aligner;
+
         protected void Start()
         {
             if (!Application.isPlaying)
@@ -73,9 +78,11 @@ namespace Fodinae.Player
             _camera = _injectedCamera;
 
             _originalZ = _camera.transform.position.z;
-            _targetZoom = _camera.orthographicSize;
+            float initialZoom = (_minZoom + _maxZoom) * 0.5f;
+            _targetZoom = initialZoom;
             _currentZoom = _targetZoom;
             _lastZoom = _currentZoom;
+            ApplyZoom(_currentZoom);
             if (_target == null || _target == _camera.transform)
             {
                 var player = _localPlayer?.Current;
@@ -203,12 +210,15 @@ namespace Fodinae.Player
         {
             if (!Application.isPlaying)
             {
-                _camera.orthographicSize = DefaultOrthographicSize;
+                ApplyZoom(DefaultOrthographicSize);
 
                 var player = _localPlayer?.Current;
                 if (player != null)
                 {
-                    _camera.transform.position = new Vector3(player.transform.position.x, player.transform.position.y, DefaultCameraDepthZ);
+                    _camera.transform.position = SnapToPixelGrid(new Vector3(
+                        player.transform.position.x,
+                        player.transform.position.y,
+                        DefaultCameraDepthZ));
                 }
 
                 return;
@@ -259,10 +269,7 @@ namespace Fodinae.Player
             }
 
             _currentZoom = nextZoom;
-            if (!Mathf.Approximately(_camera.orthographicSize, _currentZoom))
-            {
-                _camera.orthographicSize = _currentZoom;
-            }
+            ApplyZoom(_currentZoom);
 
             if (Mathf.Abs(_currentZoom - _lastZoom) > 0.01f)
             {
@@ -311,14 +318,32 @@ namespace Fodinae.Player
                 return;
             }
 
-            cameraTransform.position = Vector3.SmoothDamp(
+            Vector3 smoothed = Vector3.SmoothDamp(
                 cameraTransform.position,
                 desiredPosition,
                 ref _followVelocity,
                 smoothTime,
                 float.PositiveInfinity,
                 Time.deltaTime);
+            cameraTransform.position = SnapToPixelGrid(smoothed);
         }
+
+        /// <summary>Отдаёт камере размер согласно режиму выборки.</summary>
+        private void ApplyZoom(float desiredSize)
+        {
+            float size = Aligner.ResolveOrthographicSize(desiredSize, _minZoom, _maxZoom);
+            if (!Mathf.Approximately(_camera.orthographicSize, size))
+            {
+                _camera.orthographicSize = size;
+            }
+        }
+
+        private Vector3 SnapToPixelGrid(Vector3 position) =>
+            Aligner.SnapPosition(position, _camera.orthographicSize);
+
+        private CameraPixelGridAligner Aligner =>
+            _aligner ??= new CameraPixelGridAligner(_clientConfig);
+
 
         public void SnapToTarget()
         {
@@ -339,7 +364,8 @@ namespace Fodinae.Player
             if (_target != null && _target != cameraTransform)
             {
                 Vector3 targetPosition = _target.position + new Vector3(_offset.x, _offset.y, 0f);
-                cameraTransform.position = new Vector3(targetPosition.x, targetPosition.y, _originalZ);
+                cameraTransform.position = SnapToPixelGrid(
+                    new Vector3(targetPosition.x, targetPosition.y, _originalZ));
                 _followVelocity = Vector3.zero;
             }
         }

@@ -11,9 +11,7 @@ namespace Fodinae.World.Lighting.Pipeline.Stages
     /// Extracted verbatim from the diffuse-bounce block inside the engine's
     /// former inline <c>UpdateLighting</c>. The enable/strength gate that
     /// decides whether to call this stage at all stays in
-    /// <c>LightingEngine.UpdateLighting</c>, same as
-    /// <see cref="ContactOcclusionStage"/>'s dispatch condition stays in
-    /// <c>ShouldDispatchContactOcclusion</c> - a stage only knows how to
+    /// <c>LightingEngine.UpdateLighting</c> - a stage only knows how to
     /// record its own dispatch, not when it should run.
     /// </summary>
     public sealed class DiffuseBounceStage : ILightingStage

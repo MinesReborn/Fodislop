@@ -49,7 +49,7 @@ public sealed class MenuSceneryMarkers
             scenery == null ||
             !scenery.TryGetStationViewportPosition(out Vector2 viewport))
         {
-            beacon.style.display = DisplayStyle.None;
+            UIState.Hide(beacon);
             return;
         }
 
@@ -57,8 +57,6 @@ public sealed class MenuSceneryMarkers
         float panelX = image.x + (viewport.x * image.width);
         float panelY = image.y + ((1f - viewport.y) * image.height);
 
-        const float badgeWidth = 260f;
-        const float badgeHeight = 46f;
         const float footerSafe = 56f;
 
         if (stationBadge != null)
@@ -67,45 +65,48 @@ public sealed class MenuSceneryMarkers
             const float markerGap = 28f;
             const float headerSafe = 84f;
 
-            float safeRight = panel.width - edgeGap;
-            if (sidebar != null)
+            float badgeWidth = stationBadge.resolvedStyle.width;
+            float badgeHeight = stationBadge.resolvedStyle.height;
+            bool hasBadgeLayout = float.IsFinite(badgeWidth) && float.IsFinite(badgeHeight) &&
+                badgeWidth > 0f && badgeHeight > 0f;
+            if (hasBadgeLayout)
             {
-                Rect rail = sidebar.worldBound;
-                if (rail.width > 0f && panelY + badgeHeight > rail.yMin && panelY < rail.yMax)
+                float safeRight = panel.width - edgeGap;
+                if (sidebar != null)
                 {
-                    safeRight = Mathf.Min(safeRight, rail.xMin - edgeGap);
+                    Rect rail = sidebar.worldBound;
+                    if (rail.width > 0f && panelY + badgeHeight > rail.yMin && panelY < rail.yMax)
+                    {
+                        safeRight = Mathf.Min(safeRight, rail.xMin - edgeGap);
+                    }
                 }
+
+                float preferred = panelX + markerGap + badgeWidth <= safeRight
+                    ? panelX + markerGap
+                    : panelX - markerGap - badgeWidth;
+
+                float left = Mathf.Clamp(preferred, edgeGap, Mathf.Max(edgeGap, safeRight - badgeWidth));
+                float top = Mathf.Clamp(
+                    panelY - (badgeHeight * 0.5f),
+                    headerSafe,
+                    Mathf.Max(headerSafe, panel.height - footerSafe - badgeHeight));
+
+                stationBadge.style.left = left - panelX;
+                stationBadge.style.top = top - panelY;
+                stationBadge.style.right = StyleKeyword.Auto;
+                stationBadge.style.bottom = StyleKeyword.Auto;
             }
-
-            float preferred = panelX + markerGap + badgeWidth <= safeRight
-                ? panelX + markerGap
-                : panelX - markerGap - badgeWidth;
-
-            float left = Mathf.Clamp(preferred, edgeGap, Mathf.Max(edgeGap, safeRight - badgeWidth));
-            float top = Mathf.Clamp(
-                panelY - (badgeHeight * 0.5f),
-                headerSafe,
-                Mathf.Max(headerSafe, panel.height - footerSafe - badgeHeight));
-
-            stationBadge.style.left = left - panelX;
-            stationBadge.style.top = top - panelY;
-            stationBadge.style.right = StyleKeyword.Auto;
-            stationBadge.style.bottom = StyleKeyword.Auto;
         }
 
-        beacon.style.display = DisplayStyle.Flex;
-
-        if (beaconPing != null)
-        {
-            beaconPing.style.display = DisplayStyle.None;
-        }
+        UIState.Show(beacon);
+        UIState.Hide(beaconPing);
 
         float x = rect.x + (viewport.x * rect.width);
         float y = rect.y + ((1f - viewport.y) * rect.height);
 
-        const float markerHalfSize = 11f;
-        beacon.style.left = x - markerHalfSize;
-        beacon.style.top = y - markerHalfSize;
+        Vector2 markerHalfSize = ResolveHalfSize(beacon);
+        beacon.style.left = x - markerHalfSize.x;
+        beacon.style.top = y - markerHalfSize.y;
     }
 
     private static void UpdateLandingSectorMarker(
@@ -122,17 +123,26 @@ public sealed class MenuSceneryMarkers
             scenery == null ||
             !scenery.TryGetPlanetSurfaceViewportPosition(MenuSceneryPresenter.LandingSiteDirection, out Vector2 viewport))
         {
-            targetReticle.style.display = DisplayStyle.None;
+            UIState.Hide(targetReticle);
             return;
         }
 
         float x = rect.x + (viewport.x * rect.width);
         float y = rect.y + ((1f - viewport.y) * rect.height);
 
-        const float markerHalfSize = 11f;
-        targetReticle.style.left = x - markerHalfSize;
-        targetReticle.style.top = y - markerHalfSize;
-        targetReticle.style.display = DisplayStyle.Flex;
+        Vector2 markerHalfSize = ResolveHalfSize(targetReticle);
+        targetReticle.style.left = x - markerHalfSize.x;
+        targetReticle.style.top = y - markerHalfSize.y;
+        UIState.Show(targetReticle);
+    }
+
+    private static Vector2 ResolveHalfSize(VisualElement element)
+    {
+        float width = element.resolvedStyle.width;
+        float height = element.resolvedStyle.height;
+        return new Vector2(
+            float.IsFinite(width) && width > 0f ? width * 0.5f : 0f,
+            float.IsFinite(height) && height > 0f ? height * 0.5f : 0f);
     }
 
     public static bool TryGetPlanetFrame(

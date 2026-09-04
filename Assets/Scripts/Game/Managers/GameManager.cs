@@ -69,9 +69,6 @@ namespace Fodinae.Game.Managers
 
         private void OnDestroy()
         {
-            SharedMaterialCache.Clear();
-            ItemRegistry.Clear();
-
             if (_uiRoot != null)
             {
                 Destroy(_uiRoot);
@@ -123,6 +120,9 @@ namespace Fodinae.Game.Managers
             OnGameStateChanged?.Invoke(newState);
         }
 
+        private const float ReadinessDiagInterval = 2.5f;
+        private float _readinessDiagNextLog;
+
         public void NotifyWorldLoaded()
         {
             // WorldInit can arrive again after reconnect or an offline-world
@@ -131,7 +131,7 @@ namespace Fodinae.Game.Managers
             IsWorldLoaded = false;
             _worldLoadPublished = false;
             _worldLoadPending = true;
-            _readinessDiagNextLog = -1f;
+            _readinessDiagNextLog = Time.unscaledTime + ReadinessDiagInterval;
             _loadProgress.Report(WorldLoadPhase.WorldManifest);
             TryPublishWorldLoaded();
         }
@@ -144,8 +144,6 @@ namespace Fodinae.Game.Managers
             }
         }
 
-        private float _readinessDiagNextLog = -1f;
-
         private void TryPublishWorldLoaded()
         {
             if (_worldLoadPublished)
@@ -156,8 +154,8 @@ namespace Fodinae.Game.Managers
             ILocalPlayer? player = _localPlayer.Current;
             Robot? robot = player != null ? player.GetComponent<Robot>() : null;
             TerrainRenderer? terrain = _terrainRenderer;
-            int pendingAssets = _assetLoader is ClientAssetLoader ca ? ca.PendingAssetCount : -1;
-            int queuedAssets = _assetLoader is ClientAssetLoader cb ? cb.QueuedAssetCount : -1;
+            int pendingAssets = _assetLoader.PendingAssetCount;
+            int queuedAssets = _assetLoader.QueuedAssetCount;
 
             // Re-log the readiness gate roughly every two seconds while the
             // world is pending. The conditions converge at different times
@@ -166,7 +164,7 @@ namespace Fodinae.Game.Managers
             // cannot show what is actually stuck.
             if (Time.unscaledTime >= _readinessDiagNextLog)
             {
-                _readinessDiagNextLog = Time.unscaledTime + 2f;
+                _readinessDiagNextLog = Time.unscaledTime + ReadinessDiagInterval;
                 UnityEngine.Debug.Log(
                     $"[GameManager] World readiness gate (t={Time.unscaledTime:F1}s): " +
                     $"player={player != null && player.HasServerPosition}," +
@@ -228,8 +226,8 @@ namespace Fodinae.Game.Managers
             int robotCount = _robotService?.RobotCount ?? -1;
             Debug.Log(
                 $"[GameManager] World load completed: server position, terrain, shaders and textures are ready. " +
-                $"robots={robotCount}, pendingAssets={(_assetLoader is ClientAssetLoader c ? c.PendingAssetCount : -1)}, " +
-                $"queuedAssets={(_assetLoader is ClientAssetLoader c2 ? c2.QueuedAssetCount : -1)}, " +
+                $"robots={robotCount}, pendingAssets={_assetLoader.PendingAssetCount}, " +
+                $"queuedAssets={_assetLoader.QueuedAssetCount}, " +
                 $"pendingCellTextures={_textureService.PendingCellTextureRequests}");
             OnWorldLoaded?.Invoke();
         }
@@ -241,8 +239,6 @@ namespace Fodinae.Game.Managers
             {
                 _uiRoot.SetActive(true);
             }
-
-            Debug.Log("[GameManager] UI authorized");
         }
 
         public void DeauthorizeUI()
@@ -252,8 +248,6 @@ namespace Fodinae.Game.Managers
             {
                 _uiRoot.SetActive(false);
             }
-
-            Debug.Log("[GameManager] UI deauthorized");
         }
     }
 }

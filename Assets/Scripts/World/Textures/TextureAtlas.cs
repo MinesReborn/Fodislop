@@ -30,8 +30,7 @@ namespace Fodinae.World
 
         private Color32[]? _atlasPixels;
         private readonly ConcurrentDictionary<CellType, AtlasCell> _cells = new();
-        private readonly List<Rectangle> _freeRectangles = new();
-        private readonly List<Rectangle> _usedRectangles = new();
+        private readonly AtlasRectanglePacker _packer;
         private readonly HashSet<CellType> _dirtyCells = new();
         private readonly Func<CellType, Texture2D?> _textureResolver;
 
@@ -68,6 +67,7 @@ namespace Fodinae.World
             CELL_SIZE = cellSize;
             Padding = padding;
             _textureResolver = textureResolver ?? throw new ArgumentNullException(nameof(textureResolver));
+            _packer = new AtlasRectanglePacker(size, padding);
 
             _atlasTexture = RuntimeTextureFactory.CreateRgba32NoMip(
                 size,
@@ -77,17 +77,10 @@ namespace Fodinae.World
                 FilterMode.Point,
                 TextureWrapMode.Clamp);
 
-            // The CPU fallback needs an initialized pixel store. On platforms
-            // with GPU texture copies, every occupied rectangle is uploaded
-            // directly and allocating a full-size zero buffer here only adds
-            // a large startup memory spike (64 MiB for a 4096² atlas).
-            if (!RuntimeTextureFactory.SupportsTexture2DGpuCopy)
-            {
-                _atlasTexture.SetPixels32(new Color32[size * size]);
-                _atlasTexture.Apply(false, false);
-            }
-
-            _freeRectangles.Add(new Rectangle(0, 0, size, size));
+            // Initialize atlas texture with transparent black so padding between
+            // cells and unused atlas regions never sample uninitialized GPU VRAM.
+            _atlasTexture.SetPixels32(new Color32[size * size]);
+            _atlasTexture.Apply(false, false);
         }
 
         public void Dispose()
@@ -116,9 +109,7 @@ namespace Fodinae.World
             {
                 _cells.Clear();
                 _dirtyCells.Clear();
-                _usedRectangles.Clear();
-                _freeRectangles.Clear();
-                _freeRectangles.Add(new Rectangle(0, 0, Size, Size));
+                _packer.Clear();
                 _isDirty = false;
             }
         }
@@ -204,8 +195,7 @@ namespace Fodinae.World
                     return true;
                 }
 
-                var bestFit = FindBestFit(texture.width, texture.height);
-                if (bestFit == null)
+                if (!_packer.TryAllocate(texture.width, texture.height, out var bestFit))
                 {
                     return false;
                 }
@@ -213,24 +203,15 @@ namespace Fodinae.World
                 var atlasCell = new AtlasCell
                 {
                     CellType = cellType,
-                    Rectangle = bestFit.Value,
+                    Rectangle = bestFit,
                     BaseCoordinate = new AtlasCoordinate(
-                        bestFit.Value.X,
-                        bestFit.Value.Y,
+                        bestFit.X,
+                        bestFit.Y,
                         texture.width,
                         texture.height,
                         Size,
                         Size),
                 };
-
-                var rectWithPadding = new Rectangle(
-                    bestFit.Value.X,
-                    bestFit.Value.Y,
-                    bestFit.Value.Width + Padding,
-                    bestFit.Value.Height + Padding);
-
-                _usedRectangles.Add(rectWithPadding);
-                SplitFreeRectangles(rectWithPadding);
 
                 _cells.TryAdd(cellType, atlasCell);
                 _dirtyCells.Add(cellType);
@@ -284,10 +265,7 @@ namespace Fodinae.World
             {
                 foreach (var (_, texture, rect) in dirtyTextures)
                 {
-                    ValidateGpuCopySource(texture, rect);
-                    Graphics.CopyTexture(
-                        texture, 0, 0, 0, 0, texture.width, texture.height,
-                        _atlasTexture, 0, 0, rect.X, rect.Y);
+                    UploadGpuTexture(texture, rect);
                 }
             }
             else if (dirtyTextures.Count > 0)
@@ -370,10 +348,7 @@ namespace Fodinae.World
                 {
                     foreach (var (texture, rect) in textures)
                     {
-                        ValidateGpuCopySource(texture, rect);
-                        Graphics.CopyTexture(
-                            texture, 0, 0, 0, 0, texture.width, texture.height,
-                            _atlasTexture, 0, 0, rect.X, rect.Y);
+                        UploadGpuTexture(texture, rect);
                     }
                 }
 
@@ -453,6 +428,14 @@ namespace Fodinae.World
             }
         }
 
+        private void UploadGpuTexture(Texture2D source, Rectangle destination)
+        {
+            ValidateGpuCopySource(source, destination);
+            Graphics.CopyTexture(
+                source, 0, 0, 0, 0, source.width, source.height,
+                _atlasTexture, 0, 0, destination.X, destination.Y);
+        }
+
         private void ValidateGpuCopySource(Texture2D source, Rectangle destination)
         {
             Texture2D atlasTexture = _atlasTexture ??
@@ -489,73 +472,6 @@ namespace Fodinae.World
             throw new InvalidOperationException(
                 $"No texture has been loaded for cell type '{cellType}'. " +
                 "Refusing to render a placeholder texture.");
-        }
-
-        private Rectangle? FindBestFit(int width, int height)
-        {
-            Rectangle? bestFit = null;
-            int bestScore = int.MaxValue;
-            foreach (var freeRect in _freeRectangles)
-            {
-                if (freeRect.Width >= width + Padding && freeRect.Height >= height + Padding)
-                {
-                    int score = (freeRect.Width - width) * (freeRect.Height - height);
-                    if (score < bestScore)
-                    {
-                        bestScore = score;
-                        bestFit = new Rectangle(freeRect.X, freeRect.Y, width, height);
-                    }
-                }
-            }
-
-            return bestFit;
-        }
-
-        private void SplitFreeRectangles(Rectangle usedRect)
-        {
-            var newFree = new List<Rectangle>();
-            foreach (var free in _freeRectangles)
-            {
-                if (Intersects(free, usedRect))
-                {
-                    SplitRectangle(free, usedRect, newFree);
-                }
-                else
-                {
-                    newFree.Add(free);
-                }
-            }
-
-            _freeRectangles.Clear();
-            _freeRectangles.AddRange(newFree);
-        }
-
-        private static void SplitRectangle(Rectangle free, Rectangle used, List<Rectangle> newFree)
-        {
-            if (used.Y > free.Y)
-            {
-                newFree.Add(new Rectangle(free.X, free.Y, free.Width, used.Y - free.Y));
-            }
-
-            if (used.Y + used.Height < free.Y + free.Height)
-            {
-                newFree.Add(new Rectangle(free.X, used.Y + used.Height, free.Width, (free.Y + free.Height) - (used.Y + used.Height)));
-            }
-
-            if (used.X > free.X)
-            {
-                newFree.Add(new Rectangle(free.X, free.Y, used.X - free.X, free.Height));
-            }
-
-            if (used.X + used.Width < free.X + free.Width)
-            {
-                newFree.Add(new Rectangle(used.X + used.Width, free.Y, (free.X + free.Width) - (used.X + used.Width), free.Height));
-            }
-        }
-
-        private static bool Intersects(Rectangle a, Rectangle b)
-        {
-            return a.X < b.X + b.Width && a.X + a.Width > b.X && a.Y < b.Y + b.Height && a.Y + a.Height > b.Y;
         }
     }
 }

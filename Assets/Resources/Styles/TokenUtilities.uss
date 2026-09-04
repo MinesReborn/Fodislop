@@ -1,294 +1,106 @@
 /* ФАЙЛ МАШИННЫЙ. Правки будут затёрты.
-   Источник истины: visual/main-menu-mirror/css/tokens.css
-   Генератор:       visual/main-menu-mirror/tools/emit-uss-tokens.py
+   Источник истины: visual/fodinae-ui-lab/css/tokens.css
+   Генератор:       visual/fodinae-ui-lab/tools/emit-uss-tokens.py
    Расхождение ловит CI (scripts/check-architecture.js). */
 
-/* Утилиты для кода: класс вместо инлайна. См. StyleApplicator.cs. */
+/* Состояние: показать/скрыть без инлайна. */
+.is-hidden { display: none; }
 
-/* background-color */
-.bg-accent-cyan-dense { background-color: var(--accent-cyan-dense); }
-.bg-accent-cyan-fill { background-color: var(--accent-cyan-fill); }
-.bg-accent-cyan-glow { background-color: var(--accent-cyan-glow); }
-.bg-accent-cyan-solid { background-color: var(--accent-cyan-solid); }
-.bg-accent-cyan-tint { background-color: var(--accent-cyan-tint); }
-.bg-accent-cyan-wash { background-color: var(--accent-cyan-wash); }
-.bg-accent-gold-fill { background-color: var(--accent-gold-fill); }
-.bg-accent-gold-glow { background-color: var(--accent-gold-glow); }
-.bg-accent-gold-tint { background-color: var(--accent-gold-tint); }
-.bg-accent-gold-wash { background-color: var(--accent-gold-wash); }
-.bg-state-anomaly-glow { background-color: var(--state-anomaly-glow); }
-.bg-state-anomaly-wash { background-color: var(--state-anomaly-wash); }
-.bg-state-danger-glow { background-color: var(--state-danger-glow); }
-.bg-state-danger-wash { background-color: var(--state-danger-wash); }
-.bg-state-magma-tint { background-color: var(--state-magma-tint); }
-.bg-state-magma-glow { background-color: var(--state-magma-glow); }
-.bg-state-ok-tint { background-color: var(--state-ok-tint); }
-.bg-surface-abyss-dense { background-color: var(--surface-abyss-dense); }
-.bg-surface-abyss-solid { background-color: var(--surface-abyss-solid); }
-.bg-surface-abyss-veil { background-color: var(--surface-abyss-veil); }
-.bg-surface-crisis-dense { background-color: var(--surface-crisis-dense); }
-.bg-surface-crisis-solid { background-color: var(--surface-crisis-solid); }
-.bg-surface-ember-solid { background-color: var(--surface-ember-solid); }
-.bg-surface-shelf-dense { background-color: var(--surface-shelf-dense); }
-.bg-surface-shelf-solid { background-color: var(--surface-shelf-solid); }
-.bg-surface-slate-dense { background-color: var(--surface-slate-dense); }
-.bg-surface-slate-solid { background-color: var(--surface-slate-solid); }
-.bg-surface-slate-veil { background-color: var(--surface-slate-veil); }
-.bg-surface-void-dense { background-color: var(--surface-void-dense); }
-.bg-surface-void-haze { background-color: var(--surface-void-haze); }
-.bg-surface-void-shade { background-color: var(--surface-void-shade); }
-.bg-surface-void-solid { background-color: var(--surface-void-solid); }
-.bg-surface-void-veil { background-color: var(--surface-void-veil); }
-.bg-light-edge { background-color: var(--light-edge); }
-.bg-light-film { background-color: var(--light-film); }
-.bg-light-gleam { background-color: var(--light-gleam); }
-.bg-light-sheen { background-color: var(--light-sheen); }
-.bg-light-solid { background-color: var(--light-solid); }
-.bg-surface-void { background-color: var(--surface-void); }
-.bg-surface-solid { background-color: var(--surface-solid); }
-.bg-surface-panel { background-color: var(--surface-panel); }
-.bg-surface-raised { background-color: var(--surface-raised); }
-.bg-surface-sunken { background-color: var(--surface-sunken); }
-.bg-surface-inset { background-color: var(--surface-inset); }
-.bg-surface-scrim { background-color: var(--surface-scrim); }
-.bg-surface-on-accent { background-color: var(--surface-on-accent); }
-.bg-accent-gold { background-color: var(--accent-gold); }
-.bg-accent-gold-hover { background-color: var(--accent-gold-hover); }
-.bg-accent-cyan { background-color: var(--accent-cyan); }
-.bg-accent-cyan-hover { background-color: var(--accent-cyan-hover); }
-.bg-accent-cyan-deep { background-color: var(--accent-cyan-deep); }
-.bg-state-ok { background-color: var(--state-ok); }
-.bg-state-warn { background-color: var(--state-warn); }
-.bg-state-danger { background-color: var(--state-danger); }
-.bg-state-danger-hover { background-color: var(--state-danger-hover); }
-.bg-state-anomaly { background-color: var(--state-anomaly); }
-.bg-state-ok-wash { background-color: var(--state-ok-wash); }
-.bg-state-warn-wash { background-color: var(--state-warn-wash); }
+/* Раскладка: направление и выравнивание для серверных контейнеров. */
+.row { flex-direction: row; }
+.row-reverse { flex-direction: row-reverse; }
+.col { flex-direction: column; }
+.col-reverse { flex-direction: column-reverse; }
 
-/* border-color */
-.bd-accent-cyan-dense { border-color: var(--accent-cyan-dense); }
-.bd-accent-cyan-fill { border-color: var(--accent-cyan-fill); }
-.bd-accent-cyan-glow { border-color: var(--accent-cyan-glow); }
-.bd-accent-cyan-solid { border-color: var(--accent-cyan-solid); }
-.bd-accent-cyan-tint { border-color: var(--accent-cyan-tint); }
-.bd-accent-cyan-wash { border-color: var(--accent-cyan-wash); }
-.bd-accent-gold-fill { border-color: var(--accent-gold-fill); }
-.bd-accent-gold-glow { border-color: var(--accent-gold-glow); }
-.bd-accent-gold-tint { border-color: var(--accent-gold-tint); }
-.bd-accent-gold-wash { border-color: var(--accent-gold-wash); }
-.bd-state-anomaly-glow { border-color: var(--state-anomaly-glow); }
-.bd-state-anomaly-wash { border-color: var(--state-anomaly-wash); }
-.bd-state-danger-glow { border-color: var(--state-danger-glow); }
-.bd-state-danger-wash { border-color: var(--state-danger-wash); }
-.bd-state-magma-tint { border-color: var(--state-magma-tint); }
-.bd-state-magma-glow { border-color: var(--state-magma-glow); }
-.bd-state-ok-tint { border-color: var(--state-ok-tint); }
-.bd-border-hairline { border-color: var(--border-hairline); }
-.bd-border-line { border-color: var(--border-line); }
-.bd-border-subtle { border-color: var(--border-subtle); }
-.bd-border-strong { border-color: var(--border-strong); }
-.bd-border-cyan { border-color: var(--border-cyan); }
-.bd-border-gold { border-color: var(--border-gold); }
-.bd-border-danger { border-color: var(--border-danger); }
-.bd-accent-gold { border-color: var(--accent-gold); }
-.bd-accent-gold-hover { border-color: var(--accent-gold-hover); }
-.bd-accent-cyan { border-color: var(--accent-cyan); }
-.bd-accent-cyan-hover { border-color: var(--accent-cyan-hover); }
-.bd-accent-cyan-deep { border-color: var(--accent-cyan-deep); }
-.bd-state-ok { border-color: var(--state-ok); }
-.bd-state-warn { border-color: var(--state-warn); }
-.bd-state-danger { border-color: var(--state-danger); }
-.bd-state-danger-hover { border-color: var(--state-danger-hover); }
-.bd-state-anomaly { border-color: var(--state-anomaly); }
-.bd-state-ok-wash { border-color: var(--state-ok-wash); }
-.bd-state-warn-wash { border-color: var(--state-warn-wash); }
+.ai-start { align-items: flex-start; }
+.ai-center { align-items: center; }
+.ai-end { align-items: flex-end; }
+.ai-stretch { align-items: stretch; }
 
-/* color */
-.fg-accent-cyan-dense { color: var(--accent-cyan-dense); }
-.fg-accent-cyan-fill { color: var(--accent-cyan-fill); }
-.fg-accent-cyan-glow { color: var(--accent-cyan-glow); }
-.fg-accent-cyan-solid { color: var(--accent-cyan-solid); }
-.fg-accent-cyan-tint { color: var(--accent-cyan-tint); }
-.fg-accent-cyan-wash { color: var(--accent-cyan-wash); }
-.fg-accent-gold-fill { color: var(--accent-gold-fill); }
-.fg-accent-gold-glow { color: var(--accent-gold-glow); }
-.fg-accent-gold-tint { color: var(--accent-gold-tint); }
-.fg-accent-gold-wash { color: var(--accent-gold-wash); }
-.fg-state-anomaly-glow { color: var(--state-anomaly-glow); }
-.fg-state-anomaly-wash { color: var(--state-anomaly-wash); }
-.fg-state-danger-glow { color: var(--state-danger-glow); }
-.fg-state-danger-wash { color: var(--state-danger-wash); }
-.fg-state-magma-tint { color: var(--state-magma-tint); }
-.fg-state-magma-glow { color: var(--state-magma-glow); }
-.fg-state-ok-tint { color: var(--state-ok-tint); }
-.fg-light-edge { color: var(--light-edge); }
-.fg-light-film { color: var(--light-film); }
-.fg-light-gleam { color: var(--light-gleam); }
-.fg-light-sheen { color: var(--light-sheen); }
-.fg-light-solid { color: var(--light-solid); }
-.fg-text-primary { color: var(--text-primary); }
-.fg-text-secondary { color: var(--text-secondary); }
-.fg-text-tertiary { color: var(--text-tertiary); }
-.fg-text-disabled { color: var(--text-disabled); }
-.fg-text-on-gold { color: var(--text-on-gold); }
-.fg-accent-gold { color: var(--accent-gold); }
-.fg-accent-gold-hover { color: var(--accent-gold-hover); }
-.fg-accent-cyan { color: var(--accent-cyan); }
-.fg-accent-cyan-hover { color: var(--accent-cyan-hover); }
-.fg-accent-cyan-deep { color: var(--accent-cyan-deep); }
-.fg-state-ok { color: var(--state-ok); }
-.fg-state-warn { color: var(--state-warn); }
-.fg-state-danger { color: var(--state-danger); }
-.fg-state-danger-hover { color: var(--state-danger-hover); }
-.fg-state-anomaly { color: var(--state-anomaly); }
-.fg-state-ok-wash { color: var(--state-ok-wash); }
-.fg-state-warn-wash { color: var(--state-warn-wash); }
-.fg-rarity-common { color: var(--rarity-common); }
-.fg-rarity-uncommon { color: var(--rarity-uncommon); }
-.fg-rarity-rare { color: var(--rarity-rare); }
-.fg-rarity-epic { color: var(--rarity-epic); }
-.fg-rarity-legendary { color: var(--rarity-legendary); }
+.jc-start { justify-content: flex-start; }
+.jc-center { justify-content: center; }
+.jc-end { justify-content: flex-end; }
+.jc-between { justify-content: space-between; }
+.jc-around { justify-content: space-around; }
 
-/* padding — по сторонам и целиком */
-.pad-space-1 { padding: var(--space-1); }
-.pad-space-2 { padding: var(--space-2); }
-.pad-space-3 { padding: var(--space-3); }
-.pad-space-4 { padding: var(--space-4); }
-.pad-space-5 { padding: var(--space-5); }
-.pad-space-6 { padding: var(--space-6); }
-.pad-space-7 { padding: var(--space-7); }
-.pad-space-8 { padding: var(--space-8); }
-.pad-space-9 { padding: var(--space-9); }
-.pad-space-10 { padding: var(--space-10); }
-.pad-space-11 { padding: var(--space-11); }
-.pad-space-12 { padding: var(--space-12); }
-.pad-space-13 { padding: var(--space-13); }
-.pad-space-14 { padding: var(--space-14); }
-.pad-t-space-1 { padding-top: var(--space-1); }
-.pad-t-space-2 { padding-top: var(--space-2); }
-.pad-t-space-3 { padding-top: var(--space-3); }
-.pad-t-space-4 { padding-top: var(--space-4); }
-.pad-t-space-5 { padding-top: var(--space-5); }
-.pad-t-space-6 { padding-top: var(--space-6); }
-.pad-t-space-7 { padding-top: var(--space-7); }
-.pad-t-space-8 { padding-top: var(--space-8); }
-.pad-t-space-9 { padding-top: var(--space-9); }
-.pad-t-space-10 { padding-top: var(--space-10); }
-.pad-t-space-11 { padding-top: var(--space-11); }
-.pad-t-space-12 { padding-top: var(--space-12); }
-.pad-t-space-13 { padding-top: var(--space-13); }
-.pad-t-space-14 { padding-top: var(--space-14); }
-.pad-r-space-1 { padding-right: var(--space-1); }
-.pad-r-space-2 { padding-right: var(--space-2); }
-.pad-r-space-3 { padding-right: var(--space-3); }
-.pad-r-space-4 { padding-right: var(--space-4); }
-.pad-r-space-5 { padding-right: var(--space-5); }
-.pad-r-space-6 { padding-right: var(--space-6); }
-.pad-r-space-7 { padding-right: var(--space-7); }
-.pad-r-space-8 { padding-right: var(--space-8); }
-.pad-r-space-9 { padding-right: var(--space-9); }
-.pad-r-space-10 { padding-right: var(--space-10); }
-.pad-r-space-11 { padding-right: var(--space-11); }
-.pad-r-space-12 { padding-right: var(--space-12); }
-.pad-r-space-13 { padding-right: var(--space-13); }
-.pad-r-space-14 { padding-right: var(--space-14); }
-.pad-b-space-1 { padding-bottom: var(--space-1); }
-.pad-b-space-2 { padding-bottom: var(--space-2); }
-.pad-b-space-3 { padding-bottom: var(--space-3); }
-.pad-b-space-4 { padding-bottom: var(--space-4); }
-.pad-b-space-5 { padding-bottom: var(--space-5); }
-.pad-b-space-6 { padding-bottom: var(--space-6); }
-.pad-b-space-7 { padding-bottom: var(--space-7); }
-.pad-b-space-8 { padding-bottom: var(--space-8); }
-.pad-b-space-9 { padding-bottom: var(--space-9); }
-.pad-b-space-10 { padding-bottom: var(--space-10); }
-.pad-b-space-11 { padding-bottom: var(--space-11); }
-.pad-b-space-12 { padding-bottom: var(--space-12); }
-.pad-b-space-13 { padding-bottom: var(--space-13); }
-.pad-b-space-14 { padding-bottom: var(--space-14); }
-.pad-l-space-1 { padding-left: var(--space-1); }
-.pad-l-space-2 { padding-left: var(--space-2); }
-.pad-l-space-3 { padding-left: var(--space-3); }
-.pad-l-space-4 { padding-left: var(--space-4); }
-.pad-l-space-5 { padding-left: var(--space-5); }
-.pad-l-space-6 { padding-left: var(--space-6); }
-.pad-l-space-7 { padding-left: var(--space-7); }
-.pad-l-space-8 { padding-left: var(--space-8); }
-.pad-l-space-9 { padding-left: var(--space-9); }
-.pad-l-space-10 { padding-left: var(--space-10); }
-.pad-l-space-11 { padding-left: var(--space-11); }
-.pad-l-space-12 { padding-left: var(--space-12); }
-.pad-l-space-13 { padding-left: var(--space-13); }
-.pad-l-space-14 { padding-left: var(--space-14); }
+.as-start { align-self: flex-start; }
+.as-center { align-self: center; }
+.as-end { align-self: flex-end; }
+.as-stretch { align-self: stretch; }
 
-/* margin — по сторонам и целиком */
-.mar-space-1 { margin: var(--space-1); }
-.mar-space-2 { margin: var(--space-2); }
-.mar-space-3 { margin: var(--space-3); }
-.mar-space-4 { margin: var(--space-4); }
-.mar-space-5 { margin: var(--space-5); }
-.mar-space-6 { margin: var(--space-6); }
-.mar-space-7 { margin: var(--space-7); }
-.mar-space-8 { margin: var(--space-8); }
-.mar-space-9 { margin: var(--space-9); }
-.mar-space-10 { margin: var(--space-10); }
-.mar-space-11 { margin: var(--space-11); }
-.mar-space-12 { margin: var(--space-12); }
-.mar-space-13 { margin: var(--space-13); }
-.mar-space-14 { margin: var(--space-14); }
-.mar-t-space-1 { margin-top: var(--space-1); }
-.mar-t-space-2 { margin-top: var(--space-2); }
-.mar-t-space-3 { margin-top: var(--space-3); }
-.mar-t-space-4 { margin-top: var(--space-4); }
-.mar-t-space-5 { margin-top: var(--space-5); }
-.mar-t-space-6 { margin-top: var(--space-6); }
-.mar-t-space-7 { margin-top: var(--space-7); }
-.mar-t-space-8 { margin-top: var(--space-8); }
-.mar-t-space-9 { margin-top: var(--space-9); }
-.mar-t-space-10 { margin-top: var(--space-10); }
-.mar-t-space-11 { margin-top: var(--space-11); }
-.mar-t-space-12 { margin-top: var(--space-12); }
-.mar-t-space-13 { margin-top: var(--space-13); }
-.mar-t-space-14 { margin-top: var(--space-14); }
-.mar-r-space-1 { margin-right: var(--space-1); }
-.mar-r-space-2 { margin-right: var(--space-2); }
-.mar-r-space-3 { margin-right: var(--space-3); }
-.mar-r-space-4 { margin-right: var(--space-4); }
-.mar-r-space-5 { margin-right: var(--space-5); }
-.mar-r-space-6 { margin-right: var(--space-6); }
-.mar-r-space-7 { margin-right: var(--space-7); }
-.mar-r-space-8 { margin-right: var(--space-8); }
-.mar-r-space-9 { margin-right: var(--space-9); }
-.mar-r-space-10 { margin-right: var(--space-10); }
-.mar-r-space-11 { margin-right: var(--space-11); }
-.mar-r-space-12 { margin-right: var(--space-12); }
-.mar-r-space-13 { margin-right: var(--space-13); }
-.mar-r-space-14 { margin-right: var(--space-14); }
-.mar-b-space-1 { margin-bottom: var(--space-1); }
-.mar-b-space-2 { margin-bottom: var(--space-2); }
-.mar-b-space-3 { margin-bottom: var(--space-3); }
-.mar-b-space-4 { margin-bottom: var(--space-4); }
-.mar-b-space-5 { margin-bottom: var(--space-5); }
-.mar-b-space-6 { margin-bottom: var(--space-6); }
-.mar-b-space-7 { margin-bottom: var(--space-7); }
-.mar-b-space-8 { margin-bottom: var(--space-8); }
-.mar-b-space-9 { margin-bottom: var(--space-9); }
-.mar-b-space-10 { margin-bottom: var(--space-10); }
-.mar-b-space-11 { margin-bottom: var(--space-11); }
-.mar-b-space-12 { margin-bottom: var(--space-12); }
-.mar-b-space-13 { margin-bottom: var(--space-13); }
-.mar-b-space-14 { margin-bottom: var(--space-14); }
-.mar-l-space-1 { margin-left: var(--space-1); }
-.mar-l-space-2 { margin-left: var(--space-2); }
-.mar-l-space-3 { margin-left: var(--space-3); }
-.mar-l-space-4 { margin-left: var(--space-4); }
-.mar-l-space-5 { margin-left: var(--space-5); }
-.mar-l-space-6 { margin-left: var(--space-6); }
-.mar-l-space-7 { margin-left: var(--space-7); }
-.mar-l-space-8 { margin-left: var(--space-8); }
-.mar-l-space-9 { margin-left: var(--space-9); }
-.mar-l-space-10 { margin-left: var(--space-10); }
-.mar-l-space-11 { margin-left: var(--space-11); }
-.mar-l-space-12 { margin-left: var(--space-12); }
-.mar-l-space-13 { margin-left: var(--space-13); }
-.mar-l-space-14 { margin-left: var(--space-14); }
+/* Положение: абсолютное окно/маркер, координаты остаются вычисляемыми. */
+.abs { position: absolute; }
+.rel { position: relative; }
+
+/* Центр экрана: константа, а не вычисление. Серверные окна ставились так
+   инлайном, из-за чего окно нельзя было сдвинуть ни темой, ни тиром. */
+.centered {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+}
+
+/* === ось fit: что делает текст, когда места не хватает ====================
+   Перенос контракта data-fit из макета (css/text.css) в USS. Там поведение
+   выбирается атрибутом, здесь — классом: селекторов по атрибуту в USS нет.
+
+   Каждый вариант собран НАТИВНЫМИ средствами UI Toolkit, без замеров из C#.
+   Свойства внутри варианта не разделяются: text-overflow без nowrap и
+   overflow: hidden не срабатывает вовсе, а min-width: 0 обязателен, иначе
+   флекс-ребёнок не сжимается ниже содержимого и многоточие не наступает
+   никогда — правило есть, эффекта нет.
+
+   overflow-wrap из макета не переносится: в USS его нет, перенос внутри
+   слова недоступен. Слово длиннее коробки остаётся за max-width родителя. */
+
+/* Растёт вниз. Умолчание для прозы. */
+.fit-wrap {
+    white-space: normal;
+    min-width: 0;
+}
+
+/* Неделимо по смыслу: измерение, код, подпись действия. Не переносится и не
+   обрезается — уступать должна раскладка, а не значение. */
+.fit-atomic {
+    white-space: nowrap;
+    flex-shrink: 0;
+    flex-grow: 0;
+}
+
+/* Одна строка, хвост в многоточие. */
+.fit-clip {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -unity-text-overflow-position: end;
+    min-width: 0;
+}
+
+/* Растёт вниз, но не бесконечно. Числа строк в USS нет (line-clamp там
+   отсутствует), потолок задаётся высотой: max-height на самом компоненте,
+   как размер шрифта × межстрочный × число строк. Утилита даёт обрезку и
+   многоточие, потолок остаётся за компонентом — иначе класс диктовал бы
+   кегль, которого не знает. */
+.fit-clamp {
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+/* Кегль подгоняется под коробку. Единственный случай, когда текст обязан
+   читаться целиком, а коробка не может ни вырасти, ни спрятать хвост.
+   Нижняя граница обязательна: ужатое ниже size-micro нечитаемо, и дальше
+   уменьшать — менять один тихий дефект на другой. Не влезло на дне — это
+   случай для детектора, а не для меньшего числа. */
+.fit-shrink {
+    white-space: nowrap;
+    overflow: hidden;
+    min-width: 0;
+    -unity-text-auto-size: best-fit var(--size-micro) var(--size-lg);
+}
+
+.grow { flex-grow: 1; }
+.no-grow { flex-grow: 0; }
+.no-shrink { flex-shrink: 0; }

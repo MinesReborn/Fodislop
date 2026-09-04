@@ -133,62 +133,6 @@ namespace Fodinae.Tests.World.Lighting
         }
 
         [Test]
-        public void PresetsCarryTheIntendedPostProcessTier()
-        {
-            GraphicsQualityProfile profile = Resources.Load<GraphicsQualityProfile>(
-                "GraphicsQualityProfile");
-            Assert.That(profile, Is.Not.Null, "Resources/GraphicsQualityProfile.asset is missing.");
-
-            // The whole point of the field is that the preset reaches the
-            // post-processing stack at all - before it existed, VeryLow ran the
-            // same bloom pyramid and motion blur as Ultra. If these ever all
-            // collapse back to one value the tier is decorative again, so pin
-            // the ones that differ.
-            Assert.That(
-                profile!.Get(GraphicsPreset.VeryLow).PostProcessQuality,
-                Is.EqualTo(PostProcessQualityMode.Off),
-                "VeryLow is the tier that buys out of post-processing entirely.");
-            Assert.That(
-                profile.Get(GraphicsPreset.Low).PostProcessQuality,
-                Is.EqualTo(PostProcessQualityMode.Essential),
-                "Low keeps the one-pass effects and drops bloom and motion blur.");
-
-            foreach (GraphicsPreset preset in new[]
-                     {
-                         GraphicsPreset.Medium,
-                         GraphicsPreset.High,
-                         GraphicsPreset.VeryHigh,
-                         GraphicsPreset.Ultra,
-                     })
-            {
-                Assert.That(
-                    profile.Get(preset).PostProcessQuality,
-                    Is.EqualTo(PostProcessQualityMode.Full),
-                    $"{preset} is expected to run the full post-processing stack.");
-            }
-        }
-
-        [Test]
-        public void ValidateSettingsRejectsAnUndefinedPostProcessQualityValue()
-        {
-            var settings = new GraphicsQualitySettings(
-                lightingPixelsPerCell: 1,
-                lightingMaximumTextureDimension: 512,
-                lightingMaximumLightCount: 64,
-                lightingMaximumRaySteps: 8,
-                lightingUpdatesPerSecond: 15f,
-                lightingCascadeAtlasLimit: 512,
-                renderScale: 0.8f,
-                vSyncCount: 0,
-                antiAliasing: 0,
-                lightingQuality: LightingQualityMode.PerBlock,
-                postProcessQuality: (PostProcessQualityMode)99);
-
-            Assert.Throws<InvalidOperationException>(
-                () => GraphicsQualityProfile.ValidateSettings(settings, "Custom"));
-        }
-
-        [Test]
         public void ValidateSettingsRejectsAnUndefinedLightingQualityValue()
         {
             // A corrupted save, a hand-edited config JSON, or a future enum
@@ -206,7 +150,6 @@ namespace Fodinae.Tests.World.Lighting
                 lightingUpdatesPerSecond: 15f,
                 lightingCascadeAtlasLimit: 512,
                 renderScale: 0.8f,
-                vSyncCount: 0,
                 antiAliasing: 0,
                 lightingQuality: (LightingQualityMode)99);
 
@@ -225,7 +168,6 @@ namespace Fodinae.Tests.World.Lighting
                 lightingUpdatesPerSecond: 15f,
                 lightingCascadeAtlasLimit: 512,
                 renderScale: 0.8f,
-                vSyncCount: 0,
                 antiAliasing: 0,
                 lightingQuality: LightingQualityMode.PerPixel);
 

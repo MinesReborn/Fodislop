@@ -6,7 +6,6 @@ using Fodinae.Core;
 using Fodinae.Core.Interfaces;
 using Fodinae.Core.Localization;
 using Fodinae.Rendering;
-using Fodinae.Rendering.PostProcessing;
 using Fodinae.World.Lighting;
 using Fodinae.World.Lighting.Quality;
 using UnityEngine;
@@ -53,23 +52,13 @@ internal sealed class PauseMenuGraphicsTabBuilder
         VisualElement graphicsSection = graphicsScroll.Q<VisualElement>("GraphicsSection") ??
             throw new InvalidOperationException("[PauseMenu] GraphicsSection is missing from PauseMenu.uxml.");
 
-        string[] graphicsPresetNames =
-        [
-            "settings.preset.very_low",
-            "settings.preset.low",
-            "settings.preset.medium",
-            "settings.preset.high",
-            "settings.preset.very_high",
-            "settings.preset.ultra",
-            "settings.preset.custom",
-        ];
         var lightingQuality = new Button();
         void UpdateLightingQualityButton()
         {
             GraphicsPreset selectedPreset = _graphicsSettings.SelectedPreset;
             lightingQuality.text =
                 _loc.Get("settings.graphics.overall_quality") + ": " +
-                _loc.Get(graphicsPresetNames[(int)selectedPreset]);
+                _loc.Get(SettingSchema.LabelOf(selectedPreset));
         }
 
         _registerUpdateQualityButton(UpdateLightingQualityButton);
@@ -111,13 +100,6 @@ internal sealed class PauseMenuGraphicsTabBuilder
         UpdateLightingQualityButton();
         graphicsSection.Add(lightingQuality);
 
-        string[] lightingQualityTierNames =
-        [
-            "settings.lighting.per_block",
-            "settings.lighting.off",
-            "settings.lighting.per_pixel",
-            "settings.lighting.per_pixel_bilinear",
-        ];
         var lightingQualityTierButton = new Button();
         void UpdateLightingQualityTierButton()
         {
@@ -127,7 +109,7 @@ internal sealed class PauseMenuGraphicsTabBuilder
                 : _lightingEngine.ActiveLightingQuality;
             lightingQualityTierButton.text =
                 _loc.Get("settings.lighting.quality_label") + ": " +
-                _loc.Get(lightingQualityTierNames[(int)mode]);
+                _loc.Get(SettingSchema.LabelOf(mode));
             lightingQualityTierButton.SetEnabled(preset == GraphicsPreset.Custom);
         }
 
@@ -142,6 +124,7 @@ internal sealed class PauseMenuGraphicsTabBuilder
             }
 
             UpdateLightingQualityButton();
+            UpdateLightingQualityTierButton();
         }
 
         lightingQualityTierButton.clicked += () =>
@@ -169,53 +152,11 @@ internal sealed class PauseMenuGraphicsTabBuilder
         UpdateLightingQualityTierButton();
         graphicsSection.Add(lightingQualityTierButton);
 
-        string[] postProcessTierNames =
-        [
-            "settings.post_process.full",
-            "settings.post_process.off",
-            "settings.post_process.core",
-        ];
-        var postProcessTierButton = new Button();
-        void UpdatePostProcessTierButton()
-        {
-            GraphicsPreset preset = _graphicsSettings.SelectedPreset;
-            PostProcessQualityMode mode =
-                _clientConfig.Config.GraphicsQualitySettings.PostProcessQuality;
-            postProcessTierButton.text =
-                _loc.Get("settings.post_process.quality_label") + ": " +
-                _loc.Get(postProcessTierNames[(int)mode]);
-            postProcessTierButton.SetEnabled(preset == GraphicsPreset.Custom);
-        }
-
-        postProcessTierButton.clicked += () =>
-        {
-            if (_graphicsSettings.SelectedPreset != GraphicsPreset.Custom)
-            {
-                return;
-            }
-
-            ApplyCustomTechnicalSettings(settings =>
-            {
-                settings.PostProcessQuality = settings.PostProcessQuality switch
-                {
-                    PostProcessQualityMode.Off => PostProcessQualityMode.Essential,
-                    PostProcessQualityMode.Essential => PostProcessQualityMode.Full,
-                    _ => PostProcessQualityMode.Off,
-                };
-                return settings;
-            });
-            UpdatePostProcessTierButton();
-        };
-        postProcessTierButton.AddToClassList("pause-btn");
-        _refreshers.Add(UpdatePostProcessTierButton);
-        UpdatePostProcessTierButton();
-        graphicsSection.Add(postProcessTierButton);
-
         Toggle distortionToggle = PauseMenuUIFactory.CreateBoundToggle(
             _loc.Get("settings.world.block_edge_distortion"),
-            () => _clientConfig.Config.EnableTerrainDistortion,
+            () => _clientConfig.Config.Terrain.EnableDistortion,
             value => _graphicsSettings.UpdateCustomWorldMaterialSettings(
-                config => config.EnableTerrainDistortion = value),
+                config => config.Terrain.EnableDistortion = value),
             _refreshers);
         graphicsSection.Add(distortionToggle);
 
@@ -241,105 +182,98 @@ internal sealed class PauseMenuGraphicsTabBuilder
         };
         graphicsSection.Add(customGraphicsButton);
 
-        customGraphicsSection.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.lighting.density"),
+        VisualElement CreateTechnicalSlider(
+            string fieldName,
+            Func<float> read,
+            Func<GraphicsQualitySettings, float, GraphicsQualitySettings> apply)
+        {
+            SettingRangeAttribute range = SettingSchema.RangeOf(typeof(GraphicsQualitySettings), fieldName);
+            string label = _loc.Get(SettingSchema.LabelOf(typeof(GraphicsQualitySettings), fieldName));
+            return PauseMenuUIFactory.CreateBoundSlider(
+                label,
+                read,
+                value => ApplyCustomTechnicalSettings(settings => apply(settings, value)),
+                range.Minimum,
+                range.Maximum,
+                _refreshers);
+        }
+
+        customGraphicsSection.Add(CreateTechnicalSlider(
+            nameof(GraphicsQualitySettings.LightingMinimumPixelsPerCell),
             () => _graphicsSettings.CustomSettings.LightingMinimumPixelsPerCell,
-            value => ApplyCustomTechnicalSettings(settings =>
+            (settings, value) =>
             {
                 settings.LightingMinimumPixelsPerCell = Mathf.RoundToInt(value);
                 return settings;
-            }),
-            1f,
-            8f,
-            _refreshers));
-        customGraphicsSection.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.lighting.max_size"),
+            }));
+        customGraphicsSection.Add(CreateTechnicalSlider(
+            nameof(GraphicsQualitySettings.LightingMaximumTextureDimension),
             () => _graphicsSettings.CustomSettings.LightingMaximumTextureDimension,
-            value => ApplyCustomTechnicalSettings(settings =>
+            (settings, value) =>
             {
                 settings.LightingMaximumTextureDimension = Mathf.RoundToInt(value);
                 return settings;
-            }),
-            GraphicsQualitySettings.MinimumLightingTextureDimension,
-            4096f,
-            _refreshers));
-        customGraphicsSection.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.lighting.max_dynamic_lights"),
+            }));
+        customGraphicsSection.Add(CreateTechnicalSlider(
+            nameof(GraphicsQualitySettings.LightingMaximumLightCount),
             () => _graphicsSettings.CustomSettings.LightingMaximumLightCount,
-            value => ApplyCustomTechnicalSettings(settings =>
+            (settings, value) =>
             {
                 settings.LightingMaximumLightCount = Mathf.RoundToInt(value);
                 return settings;
-            }),
-            1f,
-            2048f,
-            _refreshers));
-        customGraphicsSection.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.lighting.cascade_steps"),
+            }));
+        customGraphicsSection.Add(CreateTechnicalSlider(
+            nameof(GraphicsQualitySettings.LightingMaximumRaySteps),
             () => _graphicsSettings.CustomSettings.LightingMaximumRaySteps,
-            value => ApplyCustomTechnicalSettings(settings =>
+            (settings, value) =>
             {
                 settings.LightingMaximumRaySteps = Mathf.RoundToInt(value);
                 return settings;
-            }),
-            1f,
-            128f,
-            _refreshers));
-        customGraphicsSection.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.lighting.solve_rate"),
+            }));
+
+        customGraphicsSection.Add(CreateTechnicalSlider(
+            nameof(GraphicsQualitySettings.LightingUpdatesPerSecond),
             () => _graphicsSettings.CustomSettings.LightingUpdatesPerSecond,
-            value => ApplyCustomTechnicalSettings(settings =>
+            (settings, value) =>
             {
                 settings.LightingUpdatesPerSecond = Mathf.Round(value);
                 return settings;
-            }),
-            1f,
-            60f,
-            _refreshers));
-        customGraphicsSection.Add(PauseMenuUIFactory.CreateBoundSlider(
-            _loc.Get("settings.lighting.atlas_size"),
+            }));
+        customGraphicsSection.Add(CreateTechnicalSlider(
+            nameof(GraphicsQualitySettings.LightingCascadeAtlasLimit),
             () => _graphicsSettings.CustomSettings.LightingCascadeAtlasLimit,
-            value => ApplyCustomTechnicalSettings(settings =>
+            (settings, value) =>
             {
                 settings.LightingCascadeAtlasLimit = Mathf.RoundToInt(value);
                 return settings;
-            }),
-            128f,
-            4096f,
-            _refreshers));
-        customGraphicsSection.Add(PauseMenuUIFactory.CreateBoundSlider(
-            "Render scale",
+            }));
+        customGraphicsSection.Add(CreateTechnicalSlider(
+            nameof(GraphicsQualitySettings.RenderScale),
             () => _graphicsSettings.CustomSettings.RenderScale,
-            value => ApplyCustomTechnicalSettings(settings =>
+            (settings, value) =>
             {
                 settings.RenderScale = value;
                 return settings;
-            }),
-            0.5f,
-            1f,
-            _refreshers));
+            }));
 
-        var customAntiAliasingButton = new Button();
-        void RefreshCustomAntiAliasing()
-        {
-            customAntiAliasingButton.text =
-                $"MSAA: {_graphicsSettings.CustomSettings.AntiAliasing}";
-        }
-
-        customAntiAliasingButton.clicked += () => ApplyCustomTechnicalSettings(settings =>
-        {
-            settings.AntiAliasing = settings.AntiAliasing switch
+        Button customAntiAliasingButton = PauseMenuUIFactory.CreateBoundCycleButton(
+            () =>
             {
-                0 => 2,
-                2 => 4,
-                4 => 8,
-                _ => 0,
-            };
-            return settings;
-        });
-        customAntiAliasingButton.AddToClassList("pause-btn");
-        _refreshers.Add(RefreshCustomAntiAliasing);
-        RefreshCustomAntiAliasing();
+                int aa = _graphicsSettings.CustomSettings.AntiAliasing;
+                string valueText = aa <= 0 ? "Off" : $"{aa}x";
+                return $"MSAA: {valueText}";
+            },
+            () => ApplyCustomTechnicalSettings(settings =>
+            {
+                // Список допустимых значений один и живёт над самой
+                // настройкой: своя лесенка здесь разошлась бы с проверкой
+                // при первом же изменении набора.
+                int[] steps = GraphicsQualitySettings.AntiAliasingSampleCounts;
+                int current = System.Array.IndexOf(steps, settings.AntiAliasing);
+                settings.AntiAliasing = steps[(current + 1) % steps.Length];
+                return settings;
+            }),
+            _refreshers);
         customGraphicsSection.Add(customAntiAliasingButton);
 
         graphicsSection.Add(customGraphicsSection);
@@ -349,17 +283,6 @@ internal sealed class PauseMenuGraphicsTabBuilder
             _graphicsSettings.MarkCustom();
             UpdateLightingQualityButton();
         }
-
-        Toggle ambientOcclusionToggle = PauseMenuUIFactory.CreateBoundToggle(
-            _loc.Get("settings.advanced.contact_ao"),
-            () => _lightingEngine.AmbientOcclusionEnabled,
-            value =>
-            {
-                MarkGraphicsCustom();
-                _lightingEngine.SetAmbientOcclusionEnabled(value);
-            },
-            _refreshers);
-        graphicsSection.Add(ambientOcclusionToggle);
 
         Toggle globalIlluminationToggle = PauseMenuUIFactory.CreateBoundToggle(
             _loc.Get("settings.advanced.diffuse_bounce"),

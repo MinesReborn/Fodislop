@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using Fodinae.Core;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -16,7 +17,8 @@ namespace Fodinae.UI
         {
             // Статическая структура (панель + лейбл) живёт в Tooltip.uxml;
             // здесь только клон и биндинг. Позиция и видимость — рантайм-состояние.
-            VisualTreeAsset template = Resources.Load<VisualTreeAsset>("UI/Tooltip") ??
+            VisualTreeAsset template = Resources.Load<VisualTreeAsset>(
+                ProjectRuntimeContracts.ResourcePaths.TooltipUxml) ??
                 throw new InvalidOperationException(
                     "[Tooltip] Resources/UI/Tooltip.uxml is required.");
             TemplateContainer tree = template.Instantiate();
@@ -37,7 +39,7 @@ namespace Fodinae.UI
             }
 
             _tooltipLabel.text = text;
-            _tooltipElement.style.display = DisplayStyle.Flex;
+            UIState.Show(_tooltipElement);
             _tooltipElement.style.left = screenPos.x + 12;
             _tooltipElement.style.top = screenPos.y + 12;
             _isVisible = true;
@@ -50,7 +52,7 @@ namespace Fodinae.UI
                 return;
             }
 
-            _tooltipElement.style.display = DisplayStyle.None;
+            UIState.Hide(_tooltipElement);
             _isVisible = false;
         }
 

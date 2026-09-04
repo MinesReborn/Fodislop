@@ -77,7 +77,7 @@ namespace Fodinae.UI
         /// </summary>
         public static void AssertLocalizationServiceAvailable(ILocalizationService? loc, string viewName)
         {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_ENABLE_CHECKS
             if (loc == null)
             {
                 Debug.LogError($"[UILocalizer] Вьюха '{viewName}' применяет локализацию без ILocalizationService — инжекция мертва (мост/скоуп не сработал), текст останется сырыми ключами.");
@@ -99,7 +99,7 @@ namespace Fodinae.UI
         /// </summary>
         public static void AssertLocalized(VisualElement root, ILocalizationService loc)
         {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || UNITY_ENABLE_CHECKS
             if (root == null || loc == null)
             {
                 return;

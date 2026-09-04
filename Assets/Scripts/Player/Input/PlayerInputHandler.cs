@@ -34,6 +34,10 @@ namespace Fodinae.Player.Input
             (Keyboard.current != null && Keyboard.current.vKey.wasPressedThisFrame) ||
             (Gamepad.current != null && Gamepad.current.dpad.right.wasPressedThisFrame);
 
+        public bool IsHealHeld =>
+            (Keyboard.current != null && Keyboard.current.vKey.isPressed) ||
+            (Gamepad.current != null && Gamepad.current.dpad.right.isPressed);
+
         public bool WantsToBuildCyan =>
             (Keyboard.current != null && Keyboard.current.yKey.wasPressedThisFrame) ||
             (Gamepad.current != null && Gamepad.current.dpad.up.wasPressedThisFrame);
@@ -130,7 +134,7 @@ namespace Fodinae.Player.Input
 
                 // Mouse pointer scheme: if enabled or right button held, move toward screen center offset
                 var cfg = _clientConfig != null ? _clientConfig.Config : null;
-                bool isMouseScheme = cfg != null && cfg.ControlScheme == 1;
+                bool isMouseScheme = cfg != null && cfg.Interface.ControlScheme == 1;
                 bool useMousePointer = isMouseScheme || (Mouse.current != null && Mouse.current.rightButton.isPressed);
                 if (useMousePointer && Mouse.current != null)
                 {

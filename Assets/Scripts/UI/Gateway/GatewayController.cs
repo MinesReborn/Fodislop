@@ -6,6 +6,7 @@ using Cysharp.Threading.Tasks;
 using Fodinae.Core;
 using Fodinae.Core.Interfaces;
 using Fodinae.Core.Localization;
+using Fodinae.Networking.Auth;
 using UnityEngine;
 using UnityEngine.UIElements;
 using VContainer;
@@ -27,7 +28,7 @@ namespace Fodinae.UI
     [RequireComponent(typeof(UIDocument))]
     public sealed class GatewayController : MonoBehaviour, ILocalizableUI
     {
-        private const string MainMenuSceneName = "MainMenu";
+        private const string MainMenuSceneName = ProjectRuntimeContracts.SceneNames.MainMenu;
         private const string OnboardingDonePrefsKey = "OnboardingCompleted1";
 
         // Состояние ворот. Ровно один класс на корне за раз: раньше видимость
@@ -35,52 +36,12 @@ namespace Fodinae.UI
         // одновременно — онбординг просто ложился поверх формы.
         private const string StateAuthClass = "gateway--auth";
         private const string StateOnboardingClass = "gateway--onboarding";
-        private const string StepActiveClass = "onb-step--active";
-        private const string PillActiveClass = "onb-pill--active";
-        private const string PillDoneClass = "onb-pill--done";
-        private const string ButtonHiddenClass = "onb-btn--hidden";
-
-        // Без префикса «Шаг N»: номер и тему шага уже несёт полоса пилюль
-        // справа, и повтор только съедал ширину, из-за которой заголовок
-        // наезжал на эту самую полосу.
-        // Значения — ключи словаря локализации.
-        private static readonly string[] StepTitles =
-        {
-            "gateway.onb.step1_title",
-            "gateway.onb.step2_title",
-            "gateway.onb.step3_title",
-        };
-
-        private static readonly (string Label, int Value)[] FrameRates =
-        {
-            ("gateway.onb.fps.unlimited", -1),
-            ("144 FPS", 144),
-            ("120 FPS", 120),
-            ("60 FPS", 60),
-        };
-
-        /// <summary>
-        /// Пользовательский зум интерфейса — прямой аналог зума в браузере.
-        ///
-        /// PanelSettings работает в режиме ConstantPhysicalSize: размер элемента
-        /// привязан к физическому размеру экрана, как CSS-пиксель. Это верно
-        /// почти везде, но ломается там, где система врёт про DPI, — прежде
-        /// всего на телевизорах и консолях, где Screen.dpi обычно 0 и в дело
-        /// идёт fallbackDpi. Зум здесь и есть ручная поправка на такой случай.
-        /// </summary>
-        private static readonly (string Label, float Value)[] UIScales =
-        {
-            ("gateway.onb.ui_scale.100", 1.00f),
-            ("gateway.onb.ui_scale.115", 1.15f),
-            ("gateway.onb.ui_scale.130", 1.30f),
-        };
 
         private UIDocument _document = null!;
         private VisualElement _root = null!;
         private VisualElement? _gatewayRoot;
-        private VisualElement? _onboardingOverlay;
         private AuthGate? _authGate;
-        private int _step;
+        private GatewayOnboarding? _onboarding;
         private bool _leaving;
         private bool _initialized;
 
@@ -92,6 +53,8 @@ namespace Fodinae.UI
         private ILocalizationService _loc = null!;
         [Inject]
         private IAsyncOperationSupervisor _operations = null!;
+        [Inject]
+        private IAuthenticationService _authentication = null!;
 
         private void OnEnable()
         {
@@ -159,7 +122,7 @@ namespace Fodinae.UI
             // некому и форма входа осталась бы видимой поверх онбординга.
             _gatewayRoot = _root.Q<VisualElement>("GatewayRoot") ?? _root;
 
-            _authGate = AuthGate.TryCreate(_root, _clientConfig, _loc);
+            _authGate = AuthGate.TryCreate(_root, _clientConfig, _authentication, _loc);
             if (_authGate == null)
             {
                 Debug.LogWarning("[Gateway] Ворота входа не собрались — сразу уходим в меню.");
@@ -169,8 +132,14 @@ namespace Fodinae.UI
 
             _authGate.Passed += OnAuthPassed;
 
+            _onboarding = GatewayOnboarding.TryCreate(
+                _root,
+                _clientConfig,
+                _loc,
+                OnOnboardingFinished,
+                ApplyUIScale);
+
             ApplySavedUIScale();
-            BindOnboarding();
 
             SetState(StateAuthClass);
             _authGate.Show();
@@ -195,61 +164,7 @@ namespace Fodinae.UI
             }
 
             UILocalizer.Apply(_root, _loc);
-            ApplyStep(_step);
-
-            var uiScale = _root.Q<DropdownField>("OnbUIScale");
-            if (uiScale != null)
-            {
-                uiScale.choices = new System.Collections.Generic.List<string>();
-                foreach ((string label, float _) in UIScales)
-                {
-                    uiScale.choices.Add(_loc.Get(label));
-                }
-            }
-
-            var frameRate = _root.Q<DropdownField>("OnbFrameRate");
-            if (frameRate != null)
-            {
-                frameRate.choices = new System.Collections.Generic.List<string>();
-                foreach ((string label, int _) in FrameRates)
-                {
-                    frameRate.choices.Add(label.StartsWith("gateway.") ? _loc.Get(label) : label);
-                }
-            }
-
-            var colorblind = _root.Q<DropdownField>("OnbColorblind");
-            if (colorblind != null)
-            {
-                colorblind.choices = new System.Collections.Generic.List<string>
-                {
-                    _loc.Get("gateway.onb.colorblind.none"),
-                    _loc.Get("gateway.onb.colorblind.deuteranopia"),
-                    _loc.Get("gateway.onb.colorblind.protanopia"),
-                    _loc.Get("gateway.onb.colorblind.tritanopia"),
-                    _loc.Get("gateway.onb.colorblind.high_contrast"),
-                };
-            }
-
-            var photoSens = _root.Q<DropdownField>("OnbPhotosensitivity");
-            if (photoSens != null)
-            {
-                photoSens.choices = new System.Collections.Generic.List<string>
-                {
-                    _loc.Get("gateway.onb.photosens.off"),
-                    _loc.Get("gateway.onb.photosens.on"),
-                };
-            }
-
-            var controlScheme = _root.Q<DropdownField>("OnbControlScheme");
-            if (controlScheme != null)
-            {
-                controlScheme.choices = new System.Collections.Generic.List<string>
-                {
-                    _loc.Get("gateway.onb.controls.keyboard"),
-                    _loc.Get("gateway.onb.controls.mouse"),
-                };
-            }
-
+            _onboarding?.ApplyLocalizedText();
             UILocalizer.AssertLocalized(_root, _loc);
         }
 
@@ -266,14 +181,21 @@ namespace Fodinae.UI
             bool alreadyDone = !GatewayDevFlags.ForceGates
                 && PlayerPrefs.GetInt(OnboardingDonePrefsKey, 0) == 1;
 
-            if (alreadyDone || _onboardingOverlay == null)
+            if (alreadyDone || _onboarding == null)
             {
                 GoToMainMenu();
                 return;
             }
 
             SetState(StateOnboardingClass);
-            ApplyStep(0);
+            _onboarding.Show();
+        }
+
+        private void OnOnboardingFinished()
+        {
+            PlayerPrefs.SetInt(OnboardingDonePrefsKey, 1);
+            PlayerPrefs.Save();
+            GoToMainMenu();
         }
 
         /// <summary>Включает ровно одно состояние ворот и гасит остальные.</summary>
@@ -286,273 +208,6 @@ namespace Fodinae.UI
 
             _gatewayRoot.EnableInClassList(StateAuthClass, state == StateAuthClass);
             _gatewayRoot.EnableInClassList(StateOnboardingClass, state == StateOnboardingClass);
-        }
-
-        // ─────────────────────────────────────────────────────────────
-        // Онбординг
-        // ─────────────────────────────────────────────────────────────
-
-        private void BindOnboarding()
-        {
-            if (_clientConfig == null || _loc == null)
-            {
-                return;
-            }
-
-            _onboardingOverlay = _root.Q<VisualElement>("OnboardingOverlay");
-            if (_onboardingOverlay == null)
-            {
-                return;
-            }
-
-            ClientConfig config = _clientConfig.Config;
-
-            var uiScale = _root.Q<DropdownField>("OnbUIScale");
-            if (uiScale != null)
-            {
-                var labels = new System.Collections.Generic.List<string>();
-                foreach ((string label, float _) in UIScales)
-                {
-                    labels.Add(_loc.Get(label));
-                }
-
-                uiScale.choices = labels;
-                uiScale.index = IndexOfUIScale(config.UIScale);
-
-                // Применяем сразу при выборе, а не по кнопке «Далее»: смысл
-                // этой настройки в том, чтобы увидеть результат на себе.
-                uiScale.RegisterValueChangedCallback(_ => ApplyUIScale(ValueOfUIScale(uiScale.index)));
-            }
-
-            var colorblind = _root.Q<DropdownField>("OnbColorblind");
-            if (colorblind != null)
-            {
-                colorblind.choices = new System.Collections.Generic.List<string>
-                {
-                    _loc.Get("gateway.onb.colorblind.none"),
-                    _loc.Get("gateway.onb.colorblind.deuteranopia"),
-                    _loc.Get("gateway.onb.colorblind.protanopia"),
-                    _loc.Get("gateway.onb.colorblind.tritanopia"),
-                    _loc.Get("gateway.onb.colorblind.high_contrast"),
-                };
-                colorblind.index = Mathf.Clamp(config.ColorblindMode, 0, 4);
-            }
-
-            var photoSens = _root.Q<DropdownField>("OnbPhotosensitivity");
-            if (photoSens != null)
-            {
-                photoSens.choices = new System.Collections.Generic.List<string>
-                {
-                    _loc.Get("gateway.onb.photosens.off"),
-                    _loc.Get("gateway.onb.photosens.on"),
-                };
-                photoSens.index = config.ReducePhotosensitivity ? 1 : 0;
-            }
-
-            var frameRate = _root.Q<DropdownField>("OnbFrameRate");
-            if (frameRate != null)
-            {
-                var labels = new System.Collections.Generic.List<string>();
-                foreach ((string label, int _) in FrameRates)
-                {
-                    labels.Add(label.StartsWith("gateway.") ? _loc.Get(label) : label);
-                }
-
-                frameRate.choices = labels;
-                frameRate.index = IndexOfFrameRate(config.TargetFrameRate);
-            }
-
-            var preset = _root.Q<DropdownField>("OnbGraphicsPreset");
-            if (preset != null)
-            {
-                preset.choices = new System.Collections.Generic.List<string>
-                {
-                    _loc.Get("gateway.onb.preset.ultra"),
-                    _loc.Get("gateway.onb.preset.high"),
-                    _loc.Get("gateway.onb.preset.medium"),
-                    _loc.Get("gateway.onb.preset.fast"),
-                };
-                preset.index = 0;
-            }
-
-            var vsync = _root.Q<Toggle>("OnbVSync");
-            if (vsync != null)
-            {
-                vsync.SetValueWithoutNotify(config.VSync);
-            }
-
-            var controlScheme = _root.Q<DropdownField>("OnbControlScheme");
-            if (controlScheme != null)
-            {
-                controlScheme.choices = new System.Collections.Generic.List<string>
-                {
-                    _loc.Get("gateway.onb.controls.keyboard"),
-                    _loc.Get("gateway.onb.controls.mouse"),
-                };
-                controlScheme.index = Mathf.Clamp(config.ControlScheme, 0, 1);
-            }
-
-            var masterVol = _root.Q<Slider>("OnbMasterVolume");
-            var masterVolLbl = _root.Q<Label>("OnbMasterVolumeLabel");
-            if (masterVol != null)
-            {
-                masterVol.value = Mathf.RoundToInt(config.MasterVolume * 100f);
-                if (masterVolLbl != null)
-                {
-                    masterVolLbl.text = $"{Mathf.RoundToInt(masterVol.value)}%";
-                }
-
-                masterVol.RegisterValueChangedCallback(evt =>
-                {
-                    if (masterVolLbl != null)
-                    {
-                        masterVolLbl.text = $"{Mathf.RoundToInt(evt.newValue)}%";
-                    }
-                });
-            }
-
-            var mute = _root.Q<Toggle>("OnbMuteInBackground");
-            if (mute != null)
-            {
-                mute.SetValueWithoutNotify(config.MuteAudioInBackground);
-            }
-
-            var prev = _root.Q<Button>("OnbPrevButton");
-            if (prev != null)
-            {
-                prev.clicked += () => ApplyStep(_step - 1);
-            }
-
-            var next = _root.Q<Button>("OnbNextButton");
-            if (next != null)
-            {
-                next.clicked += OnNext;
-            }
-
-            var skip = _root.Q<Button>("OnbSkipButton");
-            if (skip != null)
-            {
-                skip.clicked += FinishOnboarding;
-            }
-        }
-
-        private void OnNext()
-        {
-            if (_step >= StepTitles.Length - 1)
-            {
-                FinishOnboarding();
-                return;
-            }
-
-            ApplyStep(_step + 1);
-        }
-
-        private void ApplyStep(int step)
-        {
-            if (_loc == null)
-            {
-                // Защитный гард: ApplyStep вызывается из ApplyLocalizedText (после
-                // проверки _loc) и из колбэков UI, построенных с гарантированным
-                // _loc — пропуск здесь означает дефект проводки, а не гонку.
-                return;
-            }
-
-            _step = Mathf.Clamp(step, 0, StepTitles.Length - 1);
-
-            for (int i = 0; i < StepTitles.Length; i++)
-            {
-                var content = _root.Q<VisualElement>($"OnbStep{i + 1}");
-                content?.EnableInClassList(StepActiveClass, i == _step);
-
-                var pill = _root.Q<Label>($"OnbPill{i + 1}");
-                if (pill == null)
-                {
-                    continue;
-                }
-
-                pill.EnableInClassList(PillActiveClass, i == _step);
-                pill.EnableInClassList(PillDoneClass, i < _step);
-            }
-
-            var title = _root.Q<Label>("OnboardingTitle");
-            if (title != null)
-            {
-                title.text = _loc.Get(StepTitles[_step]);
-            }
-
-            // На первом шаге назад некуда — кнопка прячется, но место сохраняет,
-            // иначе футер дёргается при переходе между шагами.
-            _root.Q<Button>("OnbPrevButton")?.EnableInClassList(ButtonHiddenClass, _step == 0);
-
-            var next = _root.Q<Button>("OnbNextButton");
-            if (next != null)
-            {
-                next.text = _step >= StepTitles.Length - 1
-                    ? _loc.Get("gateway.onb.start")
-                    : _loc.Get("gateway.onb.next");
-            }
-        }
-
-        private void FinishOnboarding()
-        {
-            SaveSettings();
-            PlayerPrefs.SetInt(OnboardingDonePrefsKey, 1);
-            PlayerPrefs.Save();
-            GoToMainMenu();
-        }
-
-        private void SaveSettings()
-        {
-            _clientConfig.UpdateAndSave(config =>
-            {
-                var uiScale = _root.Q<DropdownField>("OnbUIScale");
-                if (uiScale != null)
-                {
-                    config.UIScale = ValueOfUIScale(uiScale.index);
-                }
-
-                var colorblind = _root.Q<DropdownField>("OnbColorblind");
-                if (colorblind != null && colorblind.index >= 0)
-                {
-                    config.ColorblindMode = colorblind.index;
-                }
-
-                var photoSens = _root.Q<DropdownField>("OnbPhotosensitivity");
-                if (photoSens != null && photoSens.index >= 0)
-                {
-                    config.ReducePhotosensitivity = photoSens.index == 1;
-                }
-
-                var frameRate = _root.Q<DropdownField>("OnbFrameRate");
-                if (frameRate != null && frameRate.index >= 0 && frameRate.index < FrameRates.Length)
-                {
-                    config.TargetFrameRate = FrameRates[frameRate.index].Value;
-                }
-
-                var vsync = _root.Q<Toggle>("OnbVSync");
-                if (vsync != null)
-                {
-                    config.VSync = vsync.value;
-                }
-
-                var controlScheme = _root.Q<DropdownField>("OnbControlScheme");
-                if (controlScheme != null && controlScheme.index >= 0)
-                {
-                    config.ControlScheme = controlScheme.index;
-                }
-
-                var masterVol = _root.Q<Slider>("OnbMasterVolume");
-                if (masterVol != null)
-                {
-                    config.MasterVolume = masterVol.value / 100f;
-                }
-
-                var mute = _root.Q<Toggle>("OnbMuteInBackground");
-                if (mute != null)
-                {
-                    config.MuteAudioInBackground = mute.value;
-                }
-            });
         }
 
         /// <summary>
@@ -568,7 +223,7 @@ namespace Fodinae.UI
                 return;
             }
 
-            float saved = _clientConfig.Config.UIScale;
+            float saved = _clientConfig.Config.Interface.UIScale;
 
             // Ноль означает «в конфиге ничего нет» — множитель ноль погасил бы
             // весь интерфейс, поэтому такое значение трактуем как штатное.
@@ -585,37 +240,6 @@ namespace Fodinae.UI
 
             // Диапазон тот же, что проверяет ClientConfigManager.
             panel.scale = Mathf.Clamp(scale, 0.5f, 2f);
-        }
-
-        private static float ValueOfUIScale(int index)
-        {
-            return index >= 0 && index < UIScales.Length ? UIScales[index].Value : 1f;
-        }
-
-        private static int IndexOfUIScale(float value)
-        {
-            for (int i = 0; i < UIScales.Length; i++)
-            {
-                if (Mathf.Abs(UIScales[i].Value - value) < 0.001f)
-                {
-                    return i;
-                }
-            }
-
-            return 0;
-        }
-
-        private static int IndexOfFrameRate(int value)
-        {
-            for (int i = 0; i < FrameRates.Length; i++)
-            {
-                if (FrameRates[i].Value == value)
-                {
-                    return i;
-                }
-            }
-
-            return 0;
         }
 
         // ─────────────────────────────────────────────────────────────

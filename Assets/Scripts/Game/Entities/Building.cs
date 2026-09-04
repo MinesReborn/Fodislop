@@ -124,13 +124,8 @@ namespace Fodinae.Game
             string buildingPath = $"Pack/{buildingName}/{_variant}";
 
             // 1. Try loading as a texture (existing behavior — static or animated sprite)
-            if (_assetLoader is not ClientAssetLoader loader)
-            {
-                return;
-            }
-
             Texture2D? buildingTexture = await TryLoadOptionalTextureAsync(
-                loader,
+                _assetLoader,
                 buildingPath,
                 token);
             if (token.IsCancellationRequested)
@@ -160,7 +155,7 @@ namespace Fodinae.Game
             }
 
             // 2. Texture not found — try loading as Effekseer effect (.efk data)
-            var efkBytes = await loader.GetAssetBytesAsync(buildingPath, timeoutSeconds: 10);
+            var efkBytes = await _assetLoader.GetAssetBytesAsync(buildingPath, timeoutSeconds: 10);
             if (token.IsCancellationRequested || efkBytes == null || efkBytes.Length < 4)
             {
                 return;
@@ -176,7 +171,7 @@ namespace Fodinae.Game
             var effectAsset = await RuntimeEffekseerLoader.LoadEffectAsync(
                 efkBytes,
                 $"Pack_{buildingName}_{_variant}",
-                loader,
+                _assetLoader,
                 texturePathMapper: path => $"{buildingPath}/{path}",
                 textureTimeoutSeconds: 10);
 
@@ -206,13 +201,8 @@ namespace Fodinae.Game
                 return;
             }
 
-            if (_assetLoader is not ClientAssetLoader loader)
-            {
-                return;
-            }
-
             Texture2D? clanTexture = await TryLoadOptionalTextureAsync(
-                loader,
+                _assetLoader,
                 $"Clan/{_linkedClan}",
                 token);
             if (token.IsCancellationRequested || clanTexture == null || _clanTransform == null)
@@ -235,7 +225,7 @@ namespace Fodinae.Game
         }
 
         private static async UniTask<Texture2D?> TryLoadOptionalTextureAsync(
-            ClientAssetLoader loader,
+            IAssetLoader loader,
             string filename,
             CancellationToken cancellationToken)
         {

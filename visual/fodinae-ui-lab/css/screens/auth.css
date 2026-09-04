@@ -1,0 +1,224 @@
+/* ==========================================================================
+   ВХОД И РЕГИСТРАЦИЯ
+   ==========================================================================
+
+   Экран #authView: заставка, авторизация, EULA.
+
+   Выделено из styles.css. Границы не выдуманы: их задаёт машина
+   состояний #appViewport[data-state] в index.html. Порядок @import в
+   styles.css = порядок каскада = порядок, который воспроизведётся в
+   FodinaeTheme.tss.
+   ========================================================================== */
+
+/* 2. Авторизация (MMORPG Gateway Style) */
+.auth-overlay-view {
+  position: absolute;
+  inset: 0;
+  z-index: var(--layer-gate);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, var(--surface-slate-dense) 0%, var(--surface-void-solid) 80%);
+  backdrop-filter: blur(var(--blur-lg));
+}
+.auth-overlay-view.active { display: flex; }
+
+.auth-card {
+  width: 440px;
+  max-width: calc(100vw - (2 * var(--space-6)));
+  max-height: calc(100dvh - (2 * var(--space-6)));
+  overflow-y: auto;
+  background: var(--surface-slate-dense);
+  border: 1px solid var(--accent-cyan-glow);
+  border-radius: var(--radius-md);
+  box-shadow: 0 25px 60px var(--surface-void-dense), 0 0 30px var(--accent-cyan-tint);
+  padding: var(--space-12) var(--safe-panel);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  position: relative;
+}
+
+/* Угловые технологичные скобы MMORPG */
+.auth-card::before {
+  content: '';
+  position: absolute;
+  top: -2px; left: -2px;
+  width: 14px; height: 14px;
+  border-top: 2px solid var(--accent-gold);
+  border-left: 2px solid var(--accent-gold);
+}
+.auth-card::after {
+  content: '';
+  position: absolute;
+  bottom: -2px; right: -2px;
+  width: 14px; height: 14px;
+  border-bottom: 2px solid var(--accent-gold);
+  border-right: 2px solid var(--accent-gold);
+}
+
+.auth-brand-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-3);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.auth-brand-logo {
+  width: 38px;
+  height: 38px;
+  color: var(--accent-gold);
+  filter: drop-shadow(0 0 10px var(--accent-gold-glow));
+}
+.auth-brand-title {
+  font-family: var(--face-display);
+  font-size: var(--size-xl);
+  font-weight: 900;
+  letter-spacing: 4px;
+  color: var(--light-solid);
+  margin: 0;
+}
+.auth-brand-subtitle {
+  font-family: var(--face-data);
+  font-size: var(--size-2xs);
+  color: var(--accent-cyan);
+  letter-spacing: 1.5px;
+}
+
+.auth-field-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.auth-field-label {
+  font-family: var(--face-data);
+  font-size: var(--size-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+}
+
+.auth-input-group {
+  display: flex;
+  align-items: center;
+  background: var(--surface-abyss-solid);
+  border: 1px solid var(--light-sheen);
+  border-radius: var(--radius-sm);
+  padding: 0 10px;
+  transition: all var(--dur-base) ease;
+}
+.auth-input-group:focus-within {
+  border-color: var(--accent-cyan);
+  background: var(--surface-solid);
+  box-shadow: 0 0 12px var(--accent-cyan-wash);
+}
+.auth-input-icon {
+  color: var(--text-secondary);
+  font-size: 14px; /* lint-ignore: габарит глифа-значка, не типографика */
+  margin-right: 8px;
+}
+.auth-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--light-solid);
+  font-family: var(--face-data);
+  font-size: var(--size-base);
+  padding: 10px 0;
+  outline: none;
+}
+.auth-input:-webkit-autofill,
+.auth-input:-webkit-autofill:hover,
+.auth-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--light-solid);
+  box-shadow: 0 0 0 1000px var(--surface-abyss-solid) inset;
+  caret-color: var(--light-solid);
+}
+.auth-eye-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px; /* lint-ignore: габарит глифа-значка, не типографика */
+  padding: var(--space-2);
+}
+.auth-eye-btn:hover { color: var(--accent-cyan); }
+
+.auth-options-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--face-data);
+  font-size: var(--size-xs);
+  color: var(--text-secondary);
+  margin-top: -4px;
+}
+.auth-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  cursor: pointer;
+  user-select: none;
+}
+.auth-checkbox-label input { cursor: pointer; }
+
+.auth-btn-enter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  width: 100%;
+  /* Кнопка занимает всю колонку — уступать раскладке уже некуда, поэтому здесь
+     подпись объявлена переносимой (data-fit="wrap" в разметке), а высота стала
+     минимумом. С потолком 48px вторая строка уезжала под нижнюю грань. */
+  flex-wrap: wrap;
+  min-height: 48px;
+  background: var(--accent-gold);
+  border: 1px solid var(--accent-gold);
+  border-radius: var(--radius-sm);
+  color: var(--text-on-gold);
+  font-family: var(--face-body);
+  font-size: var(--size-lg);
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px var(--accent-gold-glow);
+  transition: all var(--dur-base) ease;
+}
+.auth-btn-enter:hover {
+  background: var(--accent-gold-hover);
+  box-shadow: 0 6px 22px var(--accent-gold-fill);
+  transform: translateY(-1px);
+}
+.auth-btn-enter:active {
+  transform: translateY(1px);
+}
+
+/* Пользовательское соглашение (EULA Box) */
+.auth-eula-box {
+  background: var(--surface-abyss-solid);
+  border: 1px solid var(--light-film);
+  border-radius: var(--radius-sm);
+  padding: var(--space-5) var(--space-6);
+  height: 96px;
+  overflow-y: auto;
+  font-family: var(--face-body);
+  font-size: var(--size-xs);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.auth-eula-box strong { color: var(--accent-cyan); }
+
+.auth-status-row {
+  display: flex;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+  font-family: var(--face-data);
+  font-size: var(--size-2xs);
+}
+.auth-eula-box--tall { height: 70px; }
+.auth-checkbox-label--offset { margin-top: var(--space-1); }
+
+.auth-input--token { width: 220px; font-family: var(--face-data); font-size: var(--size-xs); }

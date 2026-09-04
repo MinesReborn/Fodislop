@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using Fodinae.Core;
 using MinesServer.Networking.Server.Packets.GUI;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -27,23 +28,24 @@ namespace Fodinae.UI
 
             // Контент биндится, а не строится: по пакету меняются только
             // текст и видимость иконки.
-            _icon!.style.display = string.IsNullOrEmpty(packet.IconURI) ? DisplayStyle.None : DisplayStyle.Flex;
+            UIState.SetHidden(_icon, string.IsNullOrEmpty(packet.IconURI));
             _title!.text = packet.Title;
             _desc!.text = packet.Description;
             _okButton!.text = packet.ButtonText;
 
-            _overlay!.style.display = DisplayStyle.Flex;
-            _overlay.SetEnabled(true);
-            _overlay.pickingMode = PickingMode.Position;
+            UIState.Show(_overlay!);
+            var overlay = _overlay!;
+            overlay.SetEnabled(true);
+            overlay.pickingMode = PickingMode.Position;
         }
 
-        public bool IsShowing => _overlay?.style.display == DisplayStyle.Flex;
+        public bool IsShowing => _overlay != null && !UIState.IsHidden(_overlay);
 
         public void Hide()
         {
             if (_overlay != null)
             {
-                _overlay.style.display = DisplayStyle.None;
+                UIState.Hide(_overlay);
                 _overlay.SetEnabled(false);
                 _overlay.pickingMode = PickingMode.Ignore;
             }
@@ -59,7 +61,8 @@ namespace Fodinae.UI
             // Статическая структура (оверлей, панель, иконка, заголовок,
             // описание, кнопка OK) живёт в ModalWindow.uxml; здесь только клон
             // и биндинги. Начальная скрытость — в разметке (style="display: none").
-            VisualTreeAsset template = Resources.Load<VisualTreeAsset>("UI/ModalWindow") ??
+            VisualTreeAsset template = Resources.Load<VisualTreeAsset>(
+                ProjectRuntimeContracts.ResourcePaths.ModalWindowUxml) ??
                 throw new InvalidOperationException(
                     "[ModalWindowHandler] Resources/UI/ModalWindow.uxml is required.");
             TemplateContainer tree = template.Instantiate();

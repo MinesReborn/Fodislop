@@ -67,25 +67,18 @@ namespace Fodinae.Rendering.PostProcessing
             PostProcessRenderPass.SetMainCamera(_mainCamera);
         }
 
-        public static bool BypassPostProcessPass { get; set; }
-
         public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
         {
-            // Do not enqueue a pass which requests the camera color when the
-            // active preset has disabled post-processing. Returning later from
-            // RecordRenderGraph is too late: URP has already inspected the
-            // pass inputs and may select an intermediate-color render path.
-            if (!PostProcessRenderPass.IsEnabled)
+            ref var cameraData = ref renderingData.cameraData;
+            if (cameraData.renderType != CameraRenderType.Base ||
+                cameraData.camera.cameraType != CameraType.Game ||
+                cameraData.camera.targetTexture != null)
             {
-                _pass?.Dispose();
-                _pass = null;
-                _mainCamera = null;
                 return;
             }
 
-            ref var cameraData = ref renderingData.cameraData;
-            if (cameraData.renderType != CameraRenderType.Base ||
-                cameraData.camera.cameraType != CameraType.Game)
+            Camera? targetCamera = GameplayCamera.Resolve();
+            if (targetCamera != null && cameraData.camera != targetCamera)
             {
                 return;
             }

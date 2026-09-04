@@ -1,35 +1,17 @@
 #nullable enable
 
-using Fodinae;
-using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
 using UnityEngine.UIElements;
 
 namespace Fodinae.UI.Builders
 {
-    public class CanvasPacketBuilder : PacketUIBuilderBase
+    public class CanvasPacketBuilder : PacketUIBuilderBase<CanvasPacket>
     {
-        public override VisualElement? Build(IGUIComponentPacket packet, PacketUIBuilder builder)
+        protected override VisualElement BuildTyped(CanvasPacket packet, PacketUIBuilder builder)
         {
-            if (packet is not CanvasPacket canvasPacket)
-            {
-                return null;
-            }
-
-            var element = new VisualElement
-            {
-                style =
-                {
-                    position = Position.Relative,
-                },
-            };
-
-            foreach (var childPacket in canvasPacket.Children)
-            {
-                var childElement = builder.Build(childPacket)!;
-                element.Add(childElement);
-            }
-
+            var element = new VisualElement();
+            element.AddToClassList("rel");
+            builder.AddChildren(element, packet);
             return element;
         }
     }

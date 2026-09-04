@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://murasamadsp.github.io/Fodislop/sitemap.xml

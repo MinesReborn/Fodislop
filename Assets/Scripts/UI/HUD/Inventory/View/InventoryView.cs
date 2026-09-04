@@ -33,6 +33,8 @@ namespace Fodinae.UI.HUD.Inventory.View
         private Fodinae.Core.Interfaces.IInputBlocker _inputBlocker = null!;
         [Inject]
         private ILocalizationService _loc = null!;
+        [Inject]
+        private UIInputManager _uiInput = null!;
 
         private readonly Dictionary<int, List<VisualElement>> _slotElements = new();
         private readonly InventoryDragAndContextMenu _dragAndContext = new();
@@ -89,7 +91,7 @@ namespace Fodinae.UI.HUD.Inventory.View
             }
 
             if (Keyboard.current.tabKey.wasPressedThisFrame ||
-                (Keyboard.current.iKey.wasPressedThisFrame && !ChatInput.IsFocused))
+                (Keyboard.current.iKey.wasPressedThisFrame && !_uiInput.IsChatFocused))
             {
                 ToggleInventory();
             }
@@ -252,7 +254,8 @@ namespace Fodinae.UI.HUD.Inventory.View
         {
             var root = _doc.rootVisualElement;
 
-            var uxml = Resources.Load<VisualTreeAsset>("UI/Inventory");
+            var uxml = Resources.Load<VisualTreeAsset>(
+                ProjectRuntimeContracts.ResourcePaths.InventoryUxml);
             if (uxml != null)
             {
                 TemplateContainer tree = uxml.Instantiate();
@@ -313,9 +316,6 @@ namespace Fodinae.UI.HUD.Inventory.View
                 {
                     _capacityLabel.text = _loc.Get("inventory.capacity", InventoryModel.TOTALSLOTS);
                 }
-
-                Debug.Log($"[InventoryView] UI built: hotbar={(object?)_hotbarContainer ?? "NULL"}, " +
-                    $"button={(object?)_inventoryButton ?? "NULL"}, treeChildren={tree.childCount}");
             }
             else
             {

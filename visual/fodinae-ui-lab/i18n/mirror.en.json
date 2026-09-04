@@ -1,0 +1,16 @@
+{
+  "mainmenu.headline": "The planet is waiting|below the surface.",
+  "mainmenu.toast.client_closed": "Client closed",
+  "mainmenu.toast.quit_confirm": "Press exit again within 4 seconds to confirm",
+  "update.downloading": "Downloading patch...",
+  "update.restart": "Restart client",
+  "update.current_version": "Client version 0.9.0 (up to date)",
+  "inventory.toast.select_item": "Select an inventory item first",
+  "inventory.toast.equipped": "{0} equipped in hotbar slot {1}",
+  "onboarding.onboarding_title": "Step 1: Accessibility and visual comfort",
+  "onboarding.btn_ob_next": "NEXT (GRAPHICS) →",
+  "onboarding.step_2_title": "Step 2: Graphics and lighting",
+  "onboarding.next_controls": "Next (controls) →",
+  "onboarding.step_3_title": "Step 3: Tactile controls and sound",
+  "onboarding.finish": "Finish calibration (to orbit) ↗"
+}

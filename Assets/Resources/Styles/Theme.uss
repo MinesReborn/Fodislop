@@ -39,24 +39,24 @@ TextField,
 .ui-overlay--modal {
     align-items: center;
     justify-content: center;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: var(--surface-inset);
 }
 
 .ui-overlay--blocking {
     align-items: center;
     justify-content: center;
-    background-color: rgba(0, 0, 0, 0.9);
+    background-color: var(--surface-scrim);
 }
 
 .ui-overlay-message {
-    padding: 40px;
+    padding: var(--space-13);
     color: var(--text-primary);
 }
 
 .ui-overlay-label {
     max-width: 900px;
     color: var(--text-primary);
-    font-size: 16px;
+    font-size: var(--size-md);
     white-space: normal;
     -unity-text-align: middle-center;
 }
@@ -70,7 +70,7 @@ TextField,
     background-color: var(--surface-panel);
     border-color: var(--border-subtle);
     border-width: 1px;
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     padding: var(--space-6);
 }
 
@@ -114,11 +114,14 @@ TextField,
     position: relative;
     display: flex;
     flex-direction: column;
+    /* Как .viewport в макете: планета и тени уходят за край, а не растягивают
+       корень. Без этого крупные абсолютные элементы вылезают наружу панели. */
+    overflow: hidden;
 
     /* Прозрачный: небо теперь рисует MenuDisplayBackdropCamera позади UI-оверлея.
        Непрозрачный фон здесь полностью закрыл бы её. PanelSettings не чистит
        цвет (m_ClearColor: 0), поэтому камера видна везде, где UI прозрачен. */
-    background-color: rgba(0, 0, 0, 0);
+    background-color: transparent;
     /* Локальная палитра меню — тоже алиасы семантического слоя.
        mm-dim становится светлее прежнего rgb(90,107,124): тот давал
        контраст 3.2:1 и не проходил порог читаемости для мелкого текста. */
@@ -155,7 +158,7 @@ TextField,
    центрирование.
 
    Числа выведены, а не подобраны. Источник истины — planet-disc: 860px из
-   visual/main-menu-mirror/css/tokens.css. Здесь планета не CSS-фигура, а
+   visual/fodinae-ui-lab/css/tokens.css. Здесь планета не CSS-фигура, а
    рендер 3D-сферы в RenderTexture, и сфера занимает ~70% ширины кадра
    (замерено: контейнер 820 → диск 568). Отсюда контейнер = 860 / 0.7 ≈ 1229,
    а поля вокруг диска = (1229 − 860) / 2 ≈ 184. Чтобы диск уходил за правый
@@ -197,9 +200,9 @@ TextField,
 
 .mm-beacon-ping {
     position: absolute;
-    width: 22px;
-    height: 22px;
-    border-radius: 11px;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--radius-pill);
     border-width: 1px;
     border-color: var(--accent-gold);
     opacity: 0;
@@ -211,13 +214,12 @@ TextField,
    видимостью по умолчанию первые кадры показывали «СЕКТОР-09» в углу экрана
    рядом с пустым местом — гонка, видимая глазом на каждом входе в меню. */
 .mm-target-reticle {
-    display: none;
     position: absolute;
     left: 235px;
     top: 48%;
     width: 22px;
     height: 22px;
-    border-radius: 11px;
+    border-radius: var(--radius-pill);
     border-width: 1.5px;
     border-color: var(--accent-gold);
     align-items: center;
@@ -244,7 +246,7 @@ TextField,
     position: absolute;
     width: 5px;
     height: 5px;
-    border-radius: 2.5px;
+    border-radius: var(--radius-sharp);
     background-color: var(--accent-gold);
 }
 
@@ -254,26 +256,28 @@ TextField,
     position: absolute;
     right: 28px;
     top: -10px;
-    background-color: rgba(10, 16, 28, 0.95);
+    background-color: var(--surface-void-dense);
     border-width: 1px;
-    border-color: rgba(245, 197, 66, 0.4);
-    border-radius: 3px;
-    padding: 4px 10px;
+    border-color: var(--accent-gold-glow);
+    border-radius: var(--radius-sm);
+    padding: 3px 9px;
     flex-direction: column;
+    /* Ось fit=atomic: бейдж висит абсолютом над сценой, расти ему некуда. */
+    white-space: nowrap;
 }
 
 .mm-tb-title {
-    -unity-font-definition: url("project://database/Assets/Resources/Fonts/Unbounded_SDF.asset");
+    -unity-font-definition: var(--face-data);
     color: var(--accent-gold);
-    font-size: 10px;
+    font-size: var(--size-xs);
     -unity-font-style: bold;
 }
 
 .mm-tb-coords {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/JetBrainsMono_SDF.asset");
     color: var(--accent-cyan);
-    font-size: 9px;
-    margin-top: 2px;
+    font-size: var(--size-micro);
+    margin-top: var(--space-1);
 }
 
 /* Плашка справа от маркера - для станции, которая живёт у правого лимба:
@@ -300,10 +304,10 @@ TextField,
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    padding: 0 48px;
+    padding: 0 var(--space-14);
     border-bottom-width: 1px;
-    border-bottom-color: var(--accent-cyan-glow);
-    background-color: rgba(6, 10, 18, 0.92);
+    border-bottom-color: var(--border-subtle);
+    background-color: var(--surface-abyss-dense);
 }
 
 .mm-wordmark {
@@ -312,9 +316,9 @@ TextField,
 }
 
 .mm-wordmark-icon {
-    width: 30px;
-    height: 30px;
-    margin-right: 12px;
+    width: 32px;
+    height: 32px;
+    margin-right: var(--space-6);
 }
 
 .mm-brand-text {
@@ -323,16 +327,16 @@ TextField,
 
 .mm-brand-title {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/Unbounded_SDF.asset");
-    color: white;
-    font-size: 19px;
+    color: var(--light-solid);
+    font-size: var(--size-xl);
     -unity-font-style: bold;
 }
 
 .mm-brand-sub {
-    -unity-font-definition: var(--face-body);
+    -unity-font-definition: var(--face-data);
     color: var(--accent-cyan);
-    font-size: 9px;
-    margin-top: 2px;
+    font-size: var(--size-micro);
+    margin-top: var(--space-2);
     -unity-font-style: bold;
 }
 
@@ -344,57 +348,58 @@ TextField,
 .mm-network {
     flex-direction: row;
     align-items: center;
-    background-color: rgba(14, 22, 38, 0.8);
+    background-color: var(--surface-raised);
     border-width: 1px;
-    border-color: var(--accent-cyan-glow);
-    border-radius: 14px;
-    padding: 5px 14px;
-    margin-right: 14px;
+    border-color: var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 5px var(--space-7);
+    margin-right: var(--space-7);
 }
 
 .mm-network-dot {
     width: 7px;
     height: 7px;
-    margin-right: 8px;
-    border-radius: 4px;
+    margin-right: var(--space-4);
+    border-radius: var(--radius-md);
     background-color: var(--accent-cyan);
 }
 
 .mm-network Label {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/JetBrainsMono_SDF.asset");
     color: var(--text-secondary);
-    font-size: 11px;
+    font-size: var(--size-xs);
 }
 
 .mm-user-pill {
     flex-direction: row;
     align-items: center;
-    background-color: rgba(14, 22, 38, 0.9);
-    border-width: 1.5px;
-    border-color: var(--accent-gold);
-    border-radius: 4px;
-    padding: 4px 14px;
+    background-color: var(--border-hairline);
+    border-width: 1px;
+    border-color: var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-6);
 }
 
 .mm-user-pill:hover {
-    background-color: rgba(26, 40, 68, 0.95);
-    border-color: white;
+    background-color: var(--accent-cyan-wash);
+    border-color: var(--border-cyan);
 }
 
 .mm-user-avatar {
     width: 24px;
     height: 24px;
-    border-radius: 12px;
+    border-radius: var(--radius-sharp);
     background-color: var(--accent-gold);
     align-items: center;
     justify-content: center;
-    margin-right: 10px;
+    margin-right: var(--space-5);
+    color: var(--shadow-solid);
 }
 
 .mm-user-avatar Label {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/Unbounded_SDF.asset");
-    color: rgb(18, 12, 4);
-    font-size: 12px;
+    color: var(--surface-crisis-solid);
+    font-size: var(--size-sm);
     -unity-font-style: bold;
 }
 
@@ -404,41 +409,41 @@ TextField,
 
 .mm-user-name {
     -unity-font-definition: var(--face-body);
-    color: white;
-    font-size: 12px;
+    color: var(--light-solid);
+    font-size: var(--size-base);
     -unity-font-style: bold;
 }
 
 .mm-user-rank {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/JetBrainsMono_SDF.asset");
     color: var(--accent-gold);
-    font-size: 9px;
+    font-size: var(--size-2xs);
 }
 
 /* ── Правая боковая панель (8 кнопок) ── */
 .mm-sidebar {
     position: absolute;
-    right: 28px;
-    top: 84px;
+    right: 12px;
+    top: 90px;
     flex-direction: column;
     align-items: center;
 }
 
 .mm-side-btn {
-    width: 44px;
-    height: 44px;
-    border-radius: 22px;
-    background-color: rgba(14, 22, 38, 0.92);
-    border-width: 1.5px;
-    border-color: rgba(86, 221, 212, 0.4);
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-pill);
+    background-color: var(--surface-slate-dense);
+    border-width: 1px;
+    border-color: var(--border-cyan);
     align-items: center;
     justify-content: center;
-    margin-bottom: 10px;
+    margin-bottom: var(--space-5);
     padding: 0;
 }
 
 .mm-side-btn Label {
-    font-size: 16px;
+    font-size: var(--size-md);
     color: var(--text-primary);
 }
 
@@ -455,8 +460,11 @@ TextField,
     transition-timing-function: var(--ease-standard);
 }
 
+/* При наведении глиф белеет, а не подсвечивается тем же бирюзовым: так в
+   макете (css/screens/chrome.css, .side-icon-btn:hover svg). Раньше здесь был
+   accent-cyan-hover — наведение почти не читалось. */
 .mm-side-btn:hover .mm-side-icon {
-    -unity-background-image-tint-color: var(--accent-cyan-hover);
+    -unity-background-image-tint-color: var(--light-solid);
 }
 
 .mm-side-btn--gold .mm-side-icon {
@@ -468,8 +476,8 @@ TextField,
 }
 
 .mm-side-btn:hover {
-    background-color: rgba(28, 44, 72, 1);
-    border-color: var(--accent-gold);
+    background-color: var(--surface-shelf-solid);
+    border-color: var(--accent-cyan);
 }
 
 .mm-side-btn--gold {
@@ -477,12 +485,12 @@ TextField,
 }
 
 .mm-side-btn--danger {
-    border-color: rgba(230, 57, 70, 0.7);
+    border-color: var(--border-danger);
 }
 
 .mm-side-btn--danger:hover {
-    border-color: rgb(230, 57, 70);
-    background-color: rgba(60, 20, 25, 0.95);
+    border-color: var(--state-danger);
+    background-color: var(--surface-crisis-dense);
 }
 
 .mm-side-badge {
@@ -491,17 +499,18 @@ TextField,
     right: -2px;
     width: 10px;
     height: 10px;
-    border-radius: 5px;
-    background-color: rgb(230, 57, 70);
+    border-radius: var(--radius-md);
+    background-color: var(--state-danger);
     border-width: 1px;
-    border-color: white;
+    border-color: var(--light-solid);
 }
 
 .mm-sidebar-sep {
-    width: 22px;
-    height: 1.5px;
-    background-color: rgba(245, 197, 66, 0.3);
-    margin-bottom: 10px;
+    width: 24px;
+    height: 1px;
+    background-color: var(--border-subtle);
+    margin-top: var(--space-2);
+    margin-bottom: var(--space-2);
 }
 
 /* ── Левая колонка меню ── */
@@ -512,33 +521,47 @@ TextField,
     bottom: 48px;
     justify-content: center;
     align-items: flex-start;
-    width: 480px;
+    width: 500px;
 }
 
 .mm-eyebrow {
-    -unity-font-definition: var(--face-body);
+    -unity-font-definition: var(--face-data);
     color: var(--accent-gold);
-    font-size: 12px;
+    font-size: var(--size-xs);
     -unity-font-style: bold;
-    margin-bottom: 12px;
+    margin-bottom: var(--space-6);
+    flex-direction: row;
+    align-items: center;
+}
+
+/* Золотая чёрточка перед надзаголовком. В макете это ::before, а
+   псевдоэлементов в USS нет — здесь настоящий узел. Отступ вместо gap. */
+.mm-eyebrow-dash {
+    width: 14px;
+    height: 2px;
+    background-color: var(--accent-gold);
+    margin-right: var(--space-4);
 }
 
 .mm-heading-group {
     flex-direction: column;
-    margin-bottom: 14px;
+    /* Ось fit=wrap: заголовок переносится, а не режется и не растёт вбок. */
+    white-space: normal;
+    min-width: 0;
+    margin-bottom: var(--space-6);
 }
 
 .mm-heading-white {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/Unbounded_SDF.asset");
-    color: white;
-    font-size: 40px;
+    color: var(--light-solid);
+    font-size: var(--size-3xl);
     -unity-font-style: bold;
 }
 
 .mm-heading-gold {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/Unbounded_SDF.asset");
     color: var(--accent-gold);
-    font-size: 40px;
+    font-size: var(--size-3xl);
     -unity-font-style: bold;
 }
 
@@ -547,17 +570,17 @@ TextField,
 .mm-subtitle {
     -unity-font-definition: var(--face-body);
     color: var(--text-secondary);
-    font-size: 14px;
+    font-size: var(--size-md);
     white-space: normal;
     max-width: var(--menu-action-width);
-    margin-bottom: 24px;
+    margin-bottom: 22px;
 }
 
 /* ── Кнопки меню ── */
 .mm-button-group {
     flex-direction: column;
     width: var(--menu-action-width);
-    margin-bottom: 14px;
+    margin-bottom: var(--space-7);
 }
 
 /* margin-left/right: 0 обязательны. В дефолтной теме UI Toolkit у .unity-button
@@ -569,35 +592,39 @@ Button#PlayButton {
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    height: 54px;
-    padding: 0 14px 0 22px;
-    background-color: rgb(245, 197, 66);
+    /* Ось fit=wrap: подписи разрешено переноситься, значит коробке разрешено
+       расти. Жёсткая высота превратила бы перенос в обрезку по нижней грани —
+       уступать должна раскладка, а не значение. */
+    min-height: 54px;
+    white-space: normal;
+    padding: 0 var(--space-8) 0 22px;
+    background-color: var(--accent-gold);
     border-width: 1px;
-    border-color: rgb(245, 197, 66);
-    border-radius: 4px;
+    border-color: var(--accent-gold);
+    border-radius: var(--radius-md);
     margin-left: 0;
     margin-right: 0;
     margin-top: 0;
-    margin-bottom: 10px;
+    margin-bottom: var(--space-5);
 }
 
 Button.mm-btn-primary:hover,
 Button#PlayButton:hover {
-    background-color: rgb(255, 215, 95);
+    background-color: var(--accent-gold-hover);
 }
 
 .mm-btn-primary-text {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/Unbounded_SDF.asset");
-    color: rgb(8, 10, 12);
-    font-size: 16px;
+    color: var(--surface-on-accent);
+    font-size: var(--size-md);
     -unity-font-style: bold;
 }
 
 .mm-btn-primary-arrow-box {
     width: 28px;
     height: 28px;
-    background-color: rgb(8, 10, 12);
-    border-radius: 3px;
+    background-color: var(--surface-on-accent);
+    border-radius: var(--radius-sm);
     align-items: center;
     justify-content: center;
 }
@@ -605,7 +632,7 @@ Button#PlayButton:hover {
 .mm-btn-primary-arrow {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/Unbounded_SDF.asset");
     color: var(--accent-gold);
-    font-size: 15px;
+    font-size: var(--size-md);
     -unity-font-style: bold;
 }
 
@@ -614,12 +641,12 @@ Button#ServerSelectButton {
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    height: 46px;
-    padding: 0 16px 0 20px;
-    background-color: rgba(14, 22, 38, 0.9);
+    min-height: 46px;
+    padding: 0 var(--space-8) 0 var(--space-9);
+    background-color: var(--surface-raised);
     border-width: 1px;
-    border-color: rgba(86, 221, 212, 0.38);
-    border-radius: 4px;
+    border-color: var(--border-subtle);
+    border-radius: var(--radius-md);
     margin-left: 0;
     margin-right: 0;
     margin-top: 0;
@@ -628,27 +655,27 @@ Button#ServerSelectButton {
 
 Button.mm-btn-secondary:hover,
 Button#ServerSelectButton:hover {
-    background-color: rgba(26, 40, 68, 0.95);
-    border-color: var(--accent-cyan);
+    background-color: var(--surface-shelf-dense);
+    border-color: var(--border-cyan);
 }
 
 Button.mm-btn-secondary Label,
 Button#ServerSelectButton Label {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/Unbounded_SDF.asset");
-    color: white;
-    font-size: 13px;
+    color: var(--light-solid);
+    font-size: var(--size-base);
     -unity-font-style: bold;
 }
 
 .mm-server-badge {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/JetBrainsMono_SDF.asset");
-    background-color: rgba(86, 221, 212, 0.15);
+    background-color: var(--accent-cyan-wash);
     color: var(--accent-cyan);
     border-width: 1px;
-    border-color: rgba(86, 221, 212, 0.4);
-    padding: 2px 8px;
-    border-radius: 3px;
-    font-size: 10px;
+    border-color: var(--border-cyan);
+    padding: var(--space-1) var(--space-4);
+    border-radius: var(--radius-sm);
+    font-size: var(--size-2xs);
     -unity-font-style: bold;
 }
 
@@ -656,33 +683,33 @@ Button#ServerSelectButton Label {
 .mm-hotkey-row {
     flex-direction: row;
     align-items: center;
-    margin-top: 4px;
+    margin-top: var(--space-7);
 }
 
 .mm-kbd-box {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/JetBrainsMono_SDF.asset");
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: var(--light-film);
     border-width: 1px;
-    border-color: rgba(255, 255, 255, 0.18);
-    border-radius: 3px;
-    padding: 2px 6px;
+    border-color: var(--light-sheen);
+    border-radius: var(--radius-sharp);
+    padding: var(--space-1) var(--space-2);
     color: var(--text-secondary);
-    font-size: 10px;
+    font-size: var(--size-2xs);
     -unity-font-style: bold;
-    margin-right: 6px;
+    margin-right: var(--space-3);
 }
 
 .mm-kbd-label {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/JetBrainsMono_SDF.asset");
     color: var(--text-tertiary);
-    font-size: 11px;
-    margin-right: 10px;
+    font-size: var(--size-xs);
+    margin-right: var(--space-5);
 }
 
 .mm-kbd-dot {
     color: var(--text-tertiary);
-    font-size: 10px;
-    margin-right: 10px;
+    font-size: var(--size-2xs);
+    margin-right: var(--space-5);
 }
 
 /* ── Лоадер и Спуск ── */
@@ -697,8 +724,7 @@ Button#ServerSelectButton Label {
     top: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(3, 5, 9, 0.55);
-    display: none;
+    background-color: var(--surface-sunken);
 }
 
 .mm-loader-content {
@@ -707,16 +733,16 @@ Button#ServerSelectButton Label {
     top: 64px;
     bottom: 48px;
     justify-content: center;
-    width: 480px;
+    width: 520px;
 }
 
 .mm-loader-progress-track {
-    width: 420px;
+    width: 100%;
     height: 5px;
-    background-color: rgba(146, 167, 176, 0.2);
-    border-radius: 3px;
+    background-color: var(--border-line);
+    border-radius: var(--radius-sharp);
     overflow: hidden;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-4);
 }
 
 .mm-loader-progress-fill {
@@ -729,30 +755,31 @@ Button#ServerSelectButton Label {
     flex-direction: row;
     justify-content: space-between;
     width: 420px;
-    margin-bottom: 20px;
+    margin-bottom: var(--space-9);
 }
 
 .mm-loader-phase-label {
     -unity-font-definition: var(--face-body);
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: var(--size-sm);
 }
 
 .mm-loader-phase-count {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/JetBrainsMono_SDF.asset");
-    color: var(--text-secondary);
-    font-size: 12px;
+    color: var(--text-primary);
+    font-size: var(--size-sm);
 }
 
 .mm-loader-phases {
     flex-direction: column;
+    margin-top: var(--space-3);
 }
 
 .mm-loader-phase-item {
     flex-direction: row;
     color: var(--text-tertiary);
-    font-size: 13px;
-    margin-bottom: 6px;
+    font-size: var(--size-base);
+    margin-bottom: var(--space-3);
 }
 
 .mm-loader-phase-icon {
@@ -767,7 +794,7 @@ Button#ServerSelectButton Label {
     color: var(--accent-cyan);
 }
 .mm-loader-phase-item--active {
-    color: white;
+    color: var(--light-solid);
 }
 .mm-loader-phase-item--active .mm-loader-phase-icon {
     color: var(--accent-gold);
@@ -783,10 +810,10 @@ Button#ServerSelectButton Label {
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    padding: 0 48px;
+    padding: 0 var(--space-14);
     border-top-width: 1px;
-    border-top-color: var(--accent-cyan-glow);
-    background-color: rgba(6, 10, 18, 0.92);
+    border-top-color: var(--border-subtle);
+    background-color: var(--surface-abyss-dense);
 }
 
 .mm-route {
@@ -802,7 +829,7 @@ Button#ServerSelectButton Label {
 .mm-route-text {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/JetBrainsMono_SDF.asset");
     color: var(--text-tertiary);
-    font-size: 11px;
+    font-size: var(--size-xs);
 }
 
 .mm-route-item--active .mm-route-text {
@@ -817,7 +844,7 @@ Button#ServerSelectButton Label {
     display: none;
     width: 5px;
     height: 5px;
-    margin-right: 6px;
+    margin-right: var(--space-3);
     rotate: 45deg;
     background-color: var(--accent-gold);
 }
@@ -827,42 +854,49 @@ Button#ServerSelectButton Label {
 }
 
 .mm-route-sep {
-    width: 24px;
+    width: 20px;
     height: 1px;
-    margin: 0 8px;
-    background-color: var(--accent-cyan-glow);
+    margin: 0 var(--space-4);
+    background-color: var(--border-subtle);
 }
 
 .mm-news-ticker {
     flex-direction: row;
     align-items: center;
-    background-color: rgba(14, 22, 38, 0.8);
+    background-color: var(--border-hairline);
     border-width: 1px;
-    border-color: var(--accent-cyan-glow);
-    border-radius: 4px;
-    padding: 3px 14px;
-    max-width: 480px;
+    border-color: var(--border-subtle);
+    border-radius: 3px;
+    padding: 3px var(--space-6);
+    max-width: 440px;
 }
 
 .mm-news-ticker:hover {
-    border-color: var(--accent-gold);
-    background-color: rgba(26, 40, 68, 0.95);
+    border-color: var(--accent-cyan);
+    background-color: var(--accent-cyan-wash);
 }
 
 .mm-ticker-tag {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/Unbounded_SDF.asset");
-    color: var(--accent-gold);
-    font-size: 11px;
+    color: var(--accent-cyan);
+    font-size: var(--size-xs);
     -unity-font-style: bold;
-    margin-right: 8px;
+    margin-right: var(--space-4);
+    /* Ось fit=atomic: ярлык канала не переносится и не сжимается. */
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .mm-ticker-text {
     -unity-font-definition: var(--face-body);
     color: var(--text-primary);
-    font-size: 11px;
+    font-size: var(--size-xs);
     overflow: hidden;
     white-space: nowrap;
+    /* Обрезка без многоточия обрывает строку на полубукве и молчит об этом. */
+    text-overflow: ellipsis;
+    -unity-text-overflow-position: end;
+    min-width: 0;
 }
 
 .mm-footer-meta {
@@ -875,24 +909,24 @@ Button#ServerSelectButton Label {
     background-color: transparent;
     border-width: 0;
     color: var(--text-secondary);
-    font-size: 11px;
+    font-size: var(--size-xs);
     padding: 0;
 }
 
 .mm-footer-link:hover {
-    color: var(--accent-gold);
+    color: var(--accent-cyan);
 }
 
 .mm-footer-dot {
     color: var(--text-tertiary);
-    margin: 0 8px;
-    font-size: 10px;
+    margin: 0 var(--space-4);
+    font-size: var(--size-2xs);
 }
 
 .mm-footer-engine {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/JetBrainsMono_SDF.asset");
     color: var(--text-tertiary);
-    font-size: 11px;
+    font-size: var(--size-xs);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -905,25 +939,26 @@ Button#ServerSelectButton Label {
     top: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(2, 4, 8, 0.86);
+    background-color: var(--surface-scrim);
     align-items: center;
     justify-content: center;
-    display: none;
 }
 
+/* Ширины были перепутаны местами: обычная карточка брала ступень modal-lg, а
+   модификатор «широкая» — modal-xl, при том что в макете обычная карточка как
+   раз шире (920), а ступень lg отдана узкому варианту. */
 .mm-modal-card {
-    width: 760px;
+    width: var(--modal-xl);
     max-height: 84%;
-    background-color: rgba(10, 16, 28, 0.98);
-    border-width: 1.5px;
-    border-color: var(--accent-gold);
-    border-radius: 6px;
+    background-color: var(--surface-solid);
+    border-width: 1px;
+    border-color: var(--border-cyan);
+    border-radius: var(--radius-md);
     flex-direction: column;
-    display: none;
 }
 
 .mm-modal-card--wide {
-    width: 880px;
+    width: var(--modal-lg);
 }
 
 .mm-modal-header {
@@ -931,99 +966,114 @@ Button#ServerSelectButton Label {
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    padding: 0 20px;
-    background-color: rgba(14, 22, 38, 0.95);
-    border-bottom-width: 1.5px;
-    border-bottom-color: rgba(245, 197, 66, 0.3);
+    padding: 0 var(--space-10);
+    background-color: var(--surface-slate-solid);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--border-subtle);
 }
 
 .mm-modal-title {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/Unbounded_SDF.asset");
-    color: var(--accent-gold);
-    font-size: 14px;
+    color: var(--text-primary);
+    font-size: var(--size-md);
     -unity-font-style: bold;
 }
 
 .mm-modal-close {
-    width: 28px;
-    height: 28px;
-    border-radius: 14px;
+    width: 30px;
+    height: 30px;
+    border-radius: var(--radius-md);
     background-color: transparent;
-    border-width: 0;
+    /* Рамка есть всегда, но прозрачная: :hover ниже красит её в опасный цвет,
+       а при нулевой ширине красить нечего — обводки при наведении просто не
+       было. Ширина заодно держит габарит, чтобы глиф не прыгал. */
+    border-width: 1px;
+    border-color: transparent;
     color: var(--text-secondary);
     font-size: 20px;
     -unity-text-align: middle-center;
 }
 
 .mm-modal-close:hover {
-    color: white;
-    background-color: rgba(245, 197, 66, 0.2);
+    color: var(--state-danger);
+    border-color: var(--state-danger);
+    background-color: var(--state-danger-wash);
 }
 
 .mm-modal-body {
-    padding: 20px;
+    padding: var(--space-9) var(--space-10);
     flex-grow: 1;
 }
 
 .mm-modal-desc {
     -unity-font-definition: var(--face-body);
     color: var(--text-secondary);
-    font-size: 13px;
-    margin-bottom: 14px;
+    font-size: var(--size-base);
+    margin-bottom: var(--space-7);
     white-space: normal;
 }
 
 .mm-modal-footer {
-    height: 56px;
+    /* min-height, а не height: 56 — это удобный минимум для ряда кнопок, а не
+       потолок. С потолком подпись, выросшая при переводе, ломалась посреди
+       фразы, потому что расти было некуда.
+       flex-wrap: ряд управляющих элементов уступает раскладкой, а не значением.
+       flex-shrink: 0 — футер, перенёсший кнопки на вторую строку, не имеет
+       права быть сжатым обратно колонкой карточки: иначе перенос отработал, а
+       его тут же и отняли. */
+    min-height: 56px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
     flex-direction: row;
     justify-content: flex-end;
     align-items: center;
-    padding: 0 20px;
-    background-color: rgba(8, 14, 24, 0.95);
+    padding: 0 var(--space-10);
+    background-color: var(--surface-abyss-solid);
     border-top-width: 1px;
-    border-top-color: rgba(245, 197, 66, 0.2);
+    border-top-color: var(--border-subtle);
 }
 
 Button.mm-btn-gold {
-    -unity-font-definition: url("project://database/Assets/Resources/Fonts/Unbounded_SDF.asset");
+    -unity-font-definition: var(--face-body);
     background-color: var(--accent-gold);
-    color: rgb(8, 10, 12);
+    color: var(--shadow-solid);
     border-width: 1px;
     border-color: var(--accent-gold);
-    border-radius: 4px;
-    padding: 8px 22px;
-    font-size: 13px;
+    border-radius: var(--radius-sharp);
+    padding: var(--space-4) 18px;
+    font-size: var(--size-md);
     -unity-font-style: bold;
 }
 
 Button.mm-btn-gold:hover {
-    background-color: rgb(255, 215, 95);
+    background-color: var(--accent-gold-hover);
 }
 
 Button.mm-btn-outline {
-    -unity-font-definition: url("project://database/Assets/Resources/Fonts/Unbounded_SDF.asset");
-    background-color: rgba(14, 22, 38, 0.6);
+    -unity-font-definition: var(--face-body);
+    background-color: transparent;
     color: var(--text-primary);
     border-width: 1px;
-    border-color: var(--accent-gold);
-    border-radius: 4px;
-    padding: 8px 20px;
-    font-size: 13px;
+    border-color: var(--border-subtle);
+    border-radius: var(--radius-sharp);
+    padding: var(--space-4) 18px;
+    font-size: var(--size-md);
     -unity-font-style: bold;
 }
 
 Button.mm-btn-outline:hover {
-    background-color: rgba(26, 40, 68, 0.85);
-    color: white;
+    background-color: var(--light-film);
+    border-color: var(--light-solid);
+    color: var(--light-solid);
 }
 
 #CancelDescentButton {
-    margin-top: 16px;
+    margin-top: var(--space-8);
     width: 180px;
 }
 
 #RunFullRepairButton {
-    margin-right: 12px;
+    margin-right: var(--space-6);
 }
 
 /* ── Список серверов ── */
@@ -1035,23 +1085,23 @@ Button.mm-btn-outline:hover {
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    background-color: rgba(14, 22, 38, 0.8);
+    background-color: var(--surface-raised);
     border-width: 1px;
-    border-color: rgba(86, 221, 212, 0.25);
-    border-radius: 4px;
-    padding: 12px 16px;
-    margin-bottom: 10px;
+    border-color: var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: var(--space-6) var(--space-8);
+    margin-bottom: var(--space-5);
 }
 
 .mm-server-card:hover {
-    background-color: rgba(26, 40, 68, 0.95);
+    background-color: var(--surface-shelf-dense);
     border-color: var(--accent-gold);
 }
 
 .mm-server-card--active {
     border-color: var(--accent-gold);
     border-width: 1.5px;
-    background-color: rgba(30, 48, 80, 0.95);
+    background-color: var(--surface-shelf-solid);
 }
 
 .mm-sc-left {
@@ -1061,15 +1111,15 @@ Button.mm-btn-outline:hover {
 .mm-sc-title {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/Unbounded_SDF.asset");
     color: var(--accent-gold);
-    font-size: 14px;
+    font-size: var(--size-base);
     -unity-font-style: bold;
 }
 
 .mm-sc-desc {
     -unity-font-definition: var(--face-body);
     color: var(--text-secondary);
-    font-size: 11px;
-    margin-top: 2px;
+    font-size: var(--size-xs);
+    margin-top: var(--space-1);
 }
 
 .mm-sc-right {
@@ -1079,9 +1129,12 @@ Button.mm-btn-outline:hover {
 
 .mm-sc-ping {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/JetBrainsMono_SDF.asset");
-    color: rgb(82, 183, 136);
-    font-size: 12px;
+    color: var(--accent-cyan);
+    font-size: var(--size-xs);
     -unity-font-style: bold;
+    /* Ось fit=atomic: пинг — измерение, «12» и «ms» неразделимы. */
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .mm-sc-ping--yellow {
@@ -1091,52 +1144,57 @@ Button.mm-btn-outline:hover {
 .mm-sc-online {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/JetBrainsMono_SDF.asset");
     color: var(--text-tertiary);
-    font-size: 11px;
-    margin-top: 2px;
+    font-size: var(--size-xs);
+    margin-top: var(--space-1);
 }
 
 /* ── Настройки (2 колонки) ── */
 .mm-settings-layout {
     flex-direction: row;
-    height: 380px;
+    /* Нижний предел, а не жёсткая высота: в макете колонка растёт под
+       содержимое, а фиксированные 380px обрезали длинные разделы. */
+    min-height: 480px;
+    overflow: hidden;
 }
 
 .mm-settings-nav {
-    width: 180px;
-    background-color: rgba(8, 14, 24, 0.95);
-    border-right-width: 1.5px;
-    border-right-color: rgba(245, 197, 66, 0.2);
-    padding: 12px 0;
+    width: 200px;
+    background-color: var(--surface-abyss-dense);
+    border-right-width: 1px;
+    border-right-color: var(--border-subtle);
+    padding: var(--space-8) 0;
     flex-direction: column;
 }
 
 .mm-nav-tab {
-    -unity-font-definition: url("project://database/Assets/Resources/Fonts/Unbounded_SDF.asset");
+    -unity-font-definition: var(--face-body);
     background-color: transparent;
     border-width: 0;
     border-left-width: 3px;
     border-left-color: transparent;
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--size-md);
     -unity-font-style: bold;
-    padding: 10px 16px;
+    padding: var(--space-6) var(--space-9);
     -unity-text-align: middle-left;
+    /* Ось fit=wrap: имя раздела длиннее колонки переносится, а не режется. */
+    white-space: normal;
 }
 
 .mm-nav-tab:hover {
-    color: white;
-    background-color: rgba(245, 197, 66, 0.08);
+    color: var(--light-solid);
+    background-color: var(--accent-cyan-tint);
 }
 
 .mm-nav-tab--active {
-    color: var(--accent-gold);
-    border-left-color: var(--accent-gold);
-    background-color: rgba(245, 197, 66, 0.15);
+    color: var(--accent-cyan);
+    border-left-color: var(--accent-cyan);
+    background-color: var(--accent-cyan-wash);
 }
 
 .mm-settings-content {
     flex-grow: 1;
-    padding: 16px 20px;
+    padding: var(--space-10) var(--space-10);
 }
 
 .mm-tab-pane {
@@ -1149,213 +1207,269 @@ Button.mm-btn-outline:hover {
 }
 
 .mm-card-box {
-    background-color: rgba(14, 22, 38, 0.7);
+    background-color: var(--surface-slate-veil);
     border-width: 1px;
-    border-color: rgba(86, 221, 212, 0.25);
-    border-radius: 4px;
-    padding: 14px;
-    margin-bottom: 12px;
+    border-color: var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: var(--space-7);
+    margin-bottom: var(--space-6);
 }
 
 .mm-card-box--gap-top {
-    margin-top: 16px;
+    margin-top: var(--space-8);
 }
 
 .mm-card-tag {
-    -unity-font-definition: url("project://database/Assets/Resources/Fonts/Unbounded_SDF.asset");
+    -unity-font-definition: var(--face-data);
     color: var(--accent-gold);
-    font-size: 10px;
+    font-size: var(--size-xs);
     -unity-font-style: bold;
-    margin-bottom: 10px;
-    padding-bottom: 4px;
+    margin-bottom: var(--space-1);
+    padding-bottom: var(--space-2);
     border-bottom-width: 1px;
-    border-bottom-color: rgba(245, 197, 66, 0.2);
+    border-bottom-color: var(--accent-gold-wash);
 }
 
 .mm-row-item {
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: var(--space-5);
 }
 
 .mm-item-title {
     -unity-font-definition: var(--face-body);
-    color: white;
-    font-size: 13px;
+    color: var(--text-primary);
+    font-size: var(--size-md);
     -unity-font-style: bold;
 }
 
 .mm-item-desc {
     -unity-font-definition: var(--face-body);
     color: var(--text-secondary);
-    font-size: 11px;
+    font-size: var(--size-xs);
 }
 
 .mm-item-val {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/JetBrainsMono_SDF.asset");
     color: var(--accent-gold);
-    font-size: 12px;
+    font-size: var(--size-sm);
     -unity-font-style: bold;
 }
 
 .mm-key-badge {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/JetBrainsMono_SDF.asset");
-    background-color: rgba(8, 14, 24, 0.9);
+    background-color: var(--surface-shelf-solid);
     border-width: 1px;
-    border-color: rgba(86, 221, 212, 0.3);
-    border-radius: 3px;
-    padding: 3px 8px;
-    color: var(--accent-gold);
-    font-size: 11px;
+    border-color: var(--border-cyan);
+    border-radius: var(--radius-sharp);
+    padding: 2px 7px;
+    color: var(--accent-cyan);
+    font-size: var(--size-xs);
     -unity-font-style: bold;
 }
 
 /* ── Таймлайн Хроники ── */
 .mm-timeline {
     position: relative;
-    padding-left: 28px;
+    padding: var(--space-5) var(--space-5) var(--space-5) var(--space-13);
     flex-direction: column;
 }
 
 .mm-timeline-spine {
     position: absolute;
-    left: 10px;
-    top: 8px;
-    bottom: 8px;
+    left: 19px;
+    top: var(--space-8);
+    bottom: var(--space-8);
     width: 2px;
     background-color: var(--accent-gold);
 }
 
 .mm-timeline-section-title {
-    -unity-font-definition: url("project://database/Assets/Resources/Fonts/Unbounded_SDF.asset");
-    font-size: 10px;
+    -unity-font-definition: var(--face-data);
+    font-size: var(--size-xs);
     -unity-font-style: bold;
-    margin-bottom: 8px;
-    margin-top: 6px;
+    margin-top: var(--space-4);
+    margin-bottom: var(--space-2);
+    margin-left: -20px;
 }
 
-.mm-timeline-section--purple { color: rgb(192, 132, 252); }
+.mm-timeline-section--purple { color: var(--state-anomaly); }
 .mm-timeline-section--gold { color: var(--accent-gold); }
 .mm-timeline-section--dim { color: var(--text-tertiary); }
 
 .mm-timeline-card {
     position: relative;
-    background-color: rgba(14, 22, 38, 0.8);
+    background-color: var(--surface-slate-veil);
     border-width: 1px;
-    border-color: rgba(86, 221, 212, 0.25);
-    border-radius: 4px;
-    padding: 12px 16px;
-    margin-bottom: 14px;
+    border-color: var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: var(--space-7) 18px;
+    margin-bottom: var(--space-7);
 }
 
-.mm-tc--purple { border-color: rgba(192, 132, 252, 0.4); }
-.mm-tc--gold { border-color: var(--accent-gold); }
-.mm-tc--dim { opacity: 0.75; }
+.mm-timeline-card:hover {
+    background-color: var(--surface-shelf-dense);
+    border-color: var(--border-cyan);
+}
+
+.mm-tc--purple { border-color: var(--state-anomaly); }
+.mm-tc--gold {
+    border-color: var(--accent-gold);
+    background-color: var(--accent-gold-tint);
+}
+
+.mm-tc--dim {
+    opacity: 0.75;
+    border-color: var(--border-line);
+}
 
 .mm-timeline-bead {
     position: absolute;
-    left: -24px;
-    top: 14px;
-    width: 12px;
-    height: 12px;
-    border-radius: 6px;
-    background-color: rgb(8, 14, 24);
+    align-items: center;
+    justify-content: center;
+    left: -30px;
+    top: 18px;
+    width: var(--space-7);
+    height: var(--space-7);
+    border-radius: var(--radius-pill);
+    background-color: var(--surface-void);
     border-width: 2px;
+    border-color: var(--accent-cyan);
+}
+
+/* Ядро бусины: в макете ::after, здесь настоящий узел. Цвет тот же, что
+   у обводки варианта, поэтому задаётся рядом с ним. */
+.mm-bead-core {
+    width: var(--space-2);
+    height: var(--space-2);
+    border-radius: var(--radius-pill);
+    background-color: var(--accent-cyan);
+}
+
+/* Цвет ядра идёт от варианта карточки, как и цвет обводки. */
+.mm-tc--purple .mm-bead-core { background-color: var(--state-anomaly); }
+.mm-tc--gold .mm-bead-core { background-color: var(--accent-gold); }
+.mm-tc--dim .mm-bead-core { background-color: var(--text-tertiary); }
+
+.mm-tb--purple {
+    border-color: var(--state-anomaly);
+}
+
+.mm-tb--gold {
     border-color: var(--accent-gold);
 }
 
-.mm-tb--purple { border-color: rgb(192, 132, 252); }
-.mm-tb--gold { border-color: var(--accent-gold); }
-.mm-tb--dim { border-color: var(--text-tertiary); }
+.mm-tb--dim {
+    border-color: var(--text-tertiary);
+}
 
 .mm-tc-header {
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 4px;
+    margin-bottom: var(--space-2);
 }
 
 .mm-tc-tag {
-    -unity-font-definition: url("project://database/Assets/Resources/Fonts/Unbounded_SDF.asset");
-    font-size: 10px;
+    -unity-font-definition: var(--face-data);
+    font-size: var(--size-2xs);
     -unity-font-style: bold;
     color: var(--text-secondary);
+    /* Плашка, а не подпись: заливку и рамку даёт вариант ниже, габарит —
+       здесь. Без них тег хроники был просто цветным текстом. */
+    padding: var(--space-1) 7px;
+    border-radius: var(--radius-sharp);
 }
 
-.mm-tag--purple { color: rgb(192, 132, 252); }
-.mm-tag--gold { color: var(--accent-gold); }
+.mm-tag--purple {
+    color: var(--state-anomaly);
+    background-color: var(--state-anomaly-wash);
+    border-width: 1px;
+    border-color: var(--state-anomaly-glow);
+}
+
+.mm-tag--gold {
+    color: var(--accent-gold);
+    background-color: var(--accent-gold-wash);
+    border-width: 1px;
+    border-color: var(--accent-gold-glow);
+}
 
 .mm-tc-date {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/JetBrainsMono_SDF.asset");
     color: var(--text-secondary);
-    font-size: 10px;
+    font-size: var(--size-xs);
 }
 
 .mm-tc-title {
-    -unity-font-definition: var(--face-body);
-    -unity-font-definition: resource("Fonts/Exo2");
-    color: white;
-    font-size: 13px;
+    -unity-font-definition: var(--face-display);
+    color: var(--light-solid);
+    font-size: var(--size-md);
     -unity-font-style: bold;
-    margin-bottom: 4px;
+    margin-bottom: var(--space-2);
 }
 
 .mm-text--gold { color: var(--accent-gold); }
 
 .mm-tc-body {
     -unity-font-definition: var(--face-body);
-    -unity-font-definition: resource("Fonts/Exo2");
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--size-base);
     white-space: normal;
 }
 
 /* ── Лог Ремонта ── */
 .mm-repair-log {
-    background-color: rgb(8, 14, 24);
+    background-color: var(--surface-void);
     border-width: 1px;
-    border-color: rgba(86, 221, 212, 0.25);
-    border-radius: 4px;
-    padding: 12px;
+    border-color: var(--border-subtle);
+    border-radius: 3px;
+    padding: var(--space-6);
     flex-direction: column;
+    height: 170px;
+    overflow: hidden;
 }
 
 .mm-log-line {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/JetBrainsMono_SDF.asset");
-    color: var(--text-primary);
-    font-size: 12px;
-    margin-bottom: 4px;
+    color: var(--text-secondary);
+    font-size: var(--size-sm);
+    margin-bottom: var(--space-2);
 }
 
 .mm-log-line--success {
-    color: rgb(82, 183, 136);
+    color: var(--state-ok);
     -unity-font-style: bold;
-    margin-top: 6px;
+    margin-top: var(--space-3);
 }
 
 /* ── Профиль ── */
 .mm-profile-hero {
     flex-direction: row;
     align-items: center;
-    padding: 10px;
+    padding: var(--space-8);
+    background-color: var(--surface-slate-veil);
+    border-width: 1px;
+    border-color: var(--border-subtle);
+    border-radius: var(--radius-sm);
 }
 
 .mm-profile-avatar {
-    width: 56px;
-    height: 56px;
-    border-radius: 28px;
+    width: 60px;
+    height: 60px;
+    border-radius: var(--radius-sm);
     background-color: var(--accent-gold);
     align-items: center;
     justify-content: center;
     margin-right: 18px;
+    color: var(--shadow-solid);
 }
 
 .mm-profile-avatar Label {
     -unity-font-definition: var(--face-display);
-    -unity-font-definition: resource("Fonts/Unbounded");
-    color: rgb(18, 12, 4);
-    font-size: 24px;
+    color: var(--surface-crisis-solid);
+    font-size: var(--size-xl);
     -unity-font-style: bold;
 }
 
@@ -1365,43 +1479,43 @@ Button.mm-btn-outline:hover {
 
 .mm-profile-name {
     -unity-font-definition: var(--face-display);
-    -unity-font-definition: resource("Fonts/Unbounded");
-    color: white;
-    font-size: 16px;
+    color: var(--light-solid);
+    font-size: var(--size-lg);
     -unity-font-style: bold;
 }
 
 .mm-profile-clan {
-    -unity-font-definition: var(--face-body);
-    -unity-font-definition: resource("Fonts/Exo2");
-    color: var(--accent-gold);
-    font-size: 12px;
-    margin-top: 2px;
+    -unity-font-definition: var(--face-data);
+    color: var(--accent-cyan);
+    font-size: var(--size-sm);
+    margin-top: var(--space-1);
 }
 
 .mm-profile-uid {
     -unity-font-definition: var(--face-data);
-    -unity-font-definition: resource("Fonts/JetBrainsMono");
     color: var(--text-secondary);
-    font-size: 10px;
-    margin-top: 4px;
+    font-size: var(--size-2xs);
+    margin-top: var(--space-2);
 }
 
 /* ═══════════════════════════════════════════════════════════
    Баннер обязательного обновления (#UpdateAlertBanner)
-   Соответствует .update-alert-banner из visual/main-menu-mirror.
+   Соответствует .update-alert-banner из visual/fodinae-ui-lab.
    ═══════════════════════════════════════════════════════════ */
 
 .mm-update-banner {
     flex-direction: row;
+    /* Ряд управляющих элементов переносит строку: подпись команды неделима,
+       значит при нехватке места уступает раскладка. */
+    flex-wrap: wrap;
     align-items: center;
     width: var(--menu-action-width);
     justify-content: space-between;
-    margin-bottom: var(--space-8);
-    padding: var(--space-5) var(--space-6);
-    background-color: var(--surface-ember-solid);
+    margin-bottom: 18px;
+    padding: 9px var(--space-6);
+    background-color: var(--accent-gold-tint);
     border-width: 1px;
-    border-color: var(--border-gold);
+    border-color: var(--accent-gold-glow);
     border-radius: var(--radius-sm);
     /* Левая грань — акцентная полоса состояния. */
     border-left-width: 3px;
@@ -1409,7 +1523,7 @@ Button.mm-btn-outline:hover {
 }
 
 .mm-update-banner:hover {
-    border-color: var(--accent-gold);
+    background-color: var(--accent-gold-wash);
 }
 
 .mm-update-banner-text {
@@ -1428,7 +1542,7 @@ Button.mm-btn-outline:hover {
 
 .mm-update-banner-sub {
     -unity-font-definition: var(--face-body);
-    font-size: var(--size-sm);
+    font-size: var(--size-xs);
     color: var(--text-secondary);
     white-space: normal;
 }
@@ -1438,25 +1552,44 @@ Button.mm-btn-outline:hover {
     font-size: var(--size-2xs);
     -unity-font-style: bold;
     letter-spacing: 1px;
-    color: var(--text-on-gold);
+    color: var(--shadow-solid);
     background-color: var(--accent-gold);
-    padding: var(--space-2) var(--space-5);
+    padding: var(--space-2) var(--space-4);
     border-radius: var(--radius-sharp);
     margin-left: var(--space-6);
+    /* Ось fit=atomic: подпись действия — имя команды, разрывать её нельзя. */
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .mm-settings-content--servers { flex: 1.3; }
-.mm-ip-connect-box { flex-direction: row; align-items: center; margin-top: 8px; }
+.mm-ip-connect-box { flex-direction: row; align-items: center; margin-top: var(--space-4); }
 .mm-flex-1 { flex-grow: 1; }
-.mm-server-detail-card { flex: 0.9; margin-left: 12px; }
-.mm-detail-title { font-size: 16px; -unity-font-style: bold; }
-.mm-detail-desc { white-space: normal; margin-bottom: 12px; }
+.mm-server-detail-card {
+    flex: 0.9;
+    margin-left: var(--space-6);
+    background-color: var(--surface-abyss-dense);
+    border-width: 1px;
+    border-color: var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: var(--space-7);
+}
+.mm-detail-title { font-size: var(--size-md); -unity-font-style: bold; }
+.mm-detail-desc { white-space: normal; margin-bottom: var(--space-6); }
 .mm-select--controls { min-width: 180px; }
-.mm-row-item--gap { margin-top: 4px; }
-.mm-feedback-tag { margin-top: 4px; display: none; }
+.mm-row-item--gap { margin-top: var(--space-2); }
+.mm-feedback-tag { margin-top: var(--space-2); }
 .mm-footer--between { justify-content: space-between; }
-.mm-update-hero-box { background-color: var(--accent-gold-wash); border-color: var(--accent-gold-glow); margin-bottom: 12px; }
-.mm-update-title { font-size: 16px; -unity-font-style: bold; }
-.mm-progress-block { display: none; }
+.mm-update-hero-box {
+    background-color: var(--accent-gold-tint);
+    border-color: var(--accent-gold-glow);
+    margin-bottom: var(--space-6);
+    padding: var(--space-8);
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+.mm-update-title { font-size: var(--size-lg); -unity-font-style: bold; }
+
 .mm-progress-fill--init { width: 0%; }
-.mm-row-item--meta { margin-top: 4px; }
+.mm-row-item--meta { margin-top: var(--space-2); }
