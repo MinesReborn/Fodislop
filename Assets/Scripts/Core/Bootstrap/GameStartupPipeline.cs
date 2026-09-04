@@ -156,7 +156,14 @@ public sealed class GamePresentationStartup
     internal void Initialize(GameStartupReport report)
     {
         report.RunCritical("terrain_settings", () => _terrain.ApplyClientConfig());
-        report.RunCritical("post_process", () => _postProcess.EnsureVolumeSetup());
+        report.RunCritical("post_process", () =>
+        {
+            // Подготовка и применение разделены: первая идемпотентна и
+            // молчит, если всё уже готово, второе стартовому конвейеру
+            // нужно всегда — он обязан довести конфиг до подсистем.
+            _postProcess.EnsureVolumeSetup();
+            _postProcess.ApplyClientConfig();
+        });
         report.RunCritical("lighting", () => _lighting.EnsureInitialized());
         report.RunCritical("surface_settings", () => _surface.ApplyClientConfig());
         report.RunCritical("game_ui", _gameManager.EnsureUISetup);

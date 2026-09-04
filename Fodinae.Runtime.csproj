@@ -417,6 +417,7 @@
     <Compile Include="Assets\Scripts\UI\Overlays\ReconnectUI.cs" />
     <Compile Include="Assets/Scripts/VContainer/Runtime/Unity/PlayerLoopRunner.cs" />
     <Compile Include="Assets/Scripts/Rendering/PostProcessing/PostProcessController.cs" />
+    <Compile Include="Assets/Scripts/Rendering/PostProcessing/WorldUiOverlayCameraRig.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets/Scripts/Fodinae.Runtime.asmdef" />

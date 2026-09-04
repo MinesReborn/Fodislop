@@ -20,18 +20,9 @@ namespace Fodinae.Rendering.PostProcessing
         [SerializeField]
         private Volume? _volume;
 
-        private Camera? _configuredMainCamera;
-        private UniversalAdditionalCameraData? _configuredMainCameraData;
-        private Camera? _worldUICamera;
-        private UniversalAdditionalCameraData? _worldUICameraData;
         private Camera? _mainCamera;
-        private UniversalAdditionalCameraData? _cachedMainCameraData;
-        private int _worldUILayerMask;
-        private float _lastWorldUIOrthographicSize = float.NaN;
-        private float _lastWorldUIFieldOfView = float.NaN;
-        private float _lastWorldUINearClipPlane = float.NaN;
-        private float _lastWorldUIFarClipPlane = float.NaN;
-        private Matrix4x4 _lastWorldUIProjection;
+        private bool _volumeSetupCompleted;
+        private WorldUiOverlayCameraRig _cameraRig = null!;
         private bool _hasWorldUIProjection;
 
         private BloomComponent? _bloom;
@@ -184,6 +175,7 @@ namespace Fodinae.Rendering.PostProcessing
         private void Awake()
         {
             _mainCamera = _gameplayCamera?.Camera;
+            _cameraRig = new WorldUiOverlayCameraRig(_sceneObjects);
         }
 
         private void OnEnable()
@@ -199,16 +191,8 @@ namespace Fodinae.Rendering.PostProcessing
         private void OnDisable()
         {
             PostProcessRenderPass.SetMainCamera(null);
-            if (_configuredMainCameraData != null && _worldUICamera != null)
-            {
-                _configuredMainCameraData.cameraStack.Remove(_worldUICamera);
-                _worldUICamera.enabled = false;
-            }
-
-            if (_configuredMainCamera != null)
-            {
-                _configuredMainCamera.cullingMask |= _worldUILayerMask;
-            }
+            _cameraRig?.DisableOverlay();
+            _cameraRig?.ReleaseWorldUILayer();
         }
 
         public void Start()
@@ -221,9 +205,34 @@ namespace Fodinae.Rendering.PostProcessing
             EnsureVolumeSetup();
         }
 
+        /// <summary>
+        /// Готовит том постпроцесса: камеру, профиль, компоненты эффектов.
+        /// </summary>
+        /// <remarks>
+        /// Метод обязан быть идемпотентным, потому что зовут его четверо:
+        /// OnEnable, Start, стартовый конвейер и вкладка эффектов в меню
+        /// паузы. Раньше он в конце безусловно применял весь конфиг, и на
+        /// запуске тот применялся столько раз, сколько было вызовов — в
+        /// логе это видно как пять подряд одинаковых строк ApplyClientConfig.
+        ///
+        /// Дело не только в шуме: каждое применение проходит по всем
+        /// эффектам, а два вызова подряд из OnEnable и Start случаются в
+        /// разных кадрах, и повторная запись прячет расхождения — если
+        /// что-то между ними сбросило значение, второй проход это молча
+        /// затрёт, и причина потеряется.
+        ///
+        /// Конфиг теперь применяется только тогда, когда подготовка
+        /// действительно что-то сделала. Тем, кому нужно именно применение,
+        /// а не подготовка, следует звать <see cref="ApplyClientConfig"/>.
+        /// </remarks>
         public void EnsureVolumeSetup()
         {
             if (!Application.isPlaying)
+            {
+                return;
+            }
+
+            if (_volumeSetupCompleted)
             {
                 return;
             }
@@ -259,6 +268,7 @@ namespace Fodinae.Rendering.PostProcessing
             _colorGrading.active = true;
             PostProcessDefaults.RequireVolumeComponent(ref _eigengrau, profile);
             PostProcessDefaults.RequireVolumeComponent(ref _motionBlur, profile);
+            _volumeSetupCompleted = true;
             ApplyClientConfig();
         }
 
@@ -268,7 +278,12 @@ namespace Fodinae.Rendering.PostProcessing
                 _chromaticAberration == null || _colorGrading == null ||
                 _eigengrau == null || _motionBlur == null)
             {
+                // Подготовка сама вызовет применение в конце, поэтому
+                // здесь возврат: иначе конфиг применился бы дважды за один
+                // вызов — ровно та кратность, ради которой всё и правится.
+                _volumeSetupCompleted = false;
                 EnsureVolumeSetup();
+                return;
             }
 
             IClientConfigManager clientConfigManager = _clientConfigManager ??
@@ -374,9 +389,13 @@ namespace Fodinae.Rendering.PostProcessing
                     ? PostProcessLook.MotionBlur.Intensity
                     : 0f;
 
-            if (_configuredMainCamera != null && _configuredMainCameraData != null)
+            // Слой и стек камеры интерфейса пересобираются после применения
+            // конфига: смена эффектов может переключить постпроцесс на
+            // основной камере, а наложенная обязана остаться вне его.
+            Camera? configured = _cameraRig?.ConfiguredMainCamera;
+            if (configured != null)
             {
-                ConfigureWorldUIRendering(_configuredMainCamera, _configuredMainCameraData);
+                _cameraRig!.EnsureCameraSetup(configured, RequireVolume());
             }
         }
 
@@ -393,100 +412,22 @@ namespace Fodinae.Rendering.PostProcessing
                 _mainCamera = _gameplayCamera?.Camera;
             }
 
-            Camera? mainCamera = _configuredMainCamera;
-            if (mainCamera == null)
-            {
-                mainCamera = _mainCamera;
-            }
-
+            Camera? mainCamera = _cameraRig.ConfiguredMainCamera ?? _mainCamera;
             if (mainCamera == null)
             {
                 return;
             }
 
-            bool cameraSeparationIsBroken =
-                _configuredMainCamera != mainCamera ||
-                _configuredMainCameraData == null ||
-                _worldUICamera == null ||
-                _worldUICameraData == null ||
-                (mainCamera.cullingMask & _worldUILayerMask) != 0 ||
-                !_worldUICamera.enabled ||
-                _worldUICamera.cullingMask != _worldUILayerMask ||
-                _worldUICameraData.renderType != CameraRenderType.Overlay ||
-                _worldUICameraData.renderPostProcessing ||
-                !_configuredMainCameraData.cameraStack.Contains(_worldUICamera);
-
-            if (cameraSeparationIsBroken)
-            {
-                EnsureCameraSetup(mainCamera);
-            }
-
-            if (_worldUICamera == null)
-            {
-                return;
-            }
-
-            _worldUICamera.worldToCameraMatrix = mainCamera.worldToCameraMatrix;
-            Matrix4x4 projection = mainCamera.projectionMatrix;
-            bool projectionChanged =
-                !_hasWorldUIProjection ||
-                _worldUICamera.orthographic != mainCamera.orthographic ||
-                !Mathf.Approximately(_lastWorldUIOrthographicSize, mainCamera.orthographicSize) ||
-                !Mathf.Approximately(_lastWorldUIFieldOfView, mainCamera.fieldOfView) ||
-                !Mathf.Approximately(_lastWorldUINearClipPlane, mainCamera.nearClipPlane) ||
-                !Mathf.Approximately(_lastWorldUIFarClipPlane, mainCamera.farClipPlane) ||
-                _lastWorldUIProjection != projection;
-            if (!projectionChanged)
-            {
-                return;
-            }
-
-            _worldUICamera.orthographic = mainCamera.orthographic;
-            _worldUICamera.orthographicSize = mainCamera.orthographicSize;
-            _worldUICamera.fieldOfView = mainCamera.fieldOfView;
-            _worldUICamera.nearClipPlane = mainCamera.nearClipPlane;
-            _worldUICamera.farClipPlane = mainCamera.farClipPlane;
-            _worldUICamera.projectionMatrix = projection;
-            _lastWorldUIOrthographicSize = mainCamera.orthographicSize;
-            _lastWorldUIFieldOfView = mainCamera.fieldOfView;
-            _lastWorldUINearClipPlane = mainCamera.nearClipPlane;
-            _lastWorldUIFarClipPlane = mainCamera.farClipPlane;
-            _lastWorldUIProjection = projection;
-            _hasWorldUIProjection = true;
+            _cameraRig.Sync(mainCamera, RequireVolume());
         }
 
-        private void EnsureCameraSetup(Camera mainCamera)
-        {
-            UniversalAdditionalCameraData? cameraData = null;
-            if (mainCamera == _configuredMainCamera && _cachedMainCameraData != null)
-            {
-                cameraData = _cachedMainCameraData;
-            }
-            else
-            {
-                cameraData = mainCamera.GetComponent<UniversalAdditionalCameraData>()
-                    ?? mainCamera.gameObject.AddComponent<UniversalAdditionalCameraData>();
-                _cachedMainCameraData = cameraData;
-            }
+        private void EnsureCameraSetup(Camera mainCamera) =>
+            _cameraRig.EnsureCameraSetup(mainCamera, RequireVolume());
 
-            DisplayManager.HDROutput.ConfigureCamera(mainCamera);
-            Volume volume = _volume ?? throw new InvalidOperationException("PostProcessController requires its authored Volume component.");
-            cameraData.volumeLayerMask = 1 << volume.gameObject.layer;
-            cameraData.volumeTrigger = mainCamera.transform;
+        private Volume RequireVolume() =>
+            _volume ?? throw new InvalidOperationException(
+                "PostProcessController requires its authored Volume component.");
 
-            _configuredMainCamera = mainCamera;
-            _configuredMainCameraData = cameraData;
-            ConfigureWorldUIRendering(mainCamera, cameraData);
-        }
-
-        private void ConfigureWorldUIRendering(Camera mainCamera, UniversalAdditionalCameraData mainCameraData)
-        {
-            int uiLayer = UnityRenderLayerContracts.RequireWorldUIGameObjectLayer();
-            UnityRenderLayerContracts.RequireWorldUISortingLayer();
-            _worldUILayerMask = 1 << uiLayer;
-            (_worldUICamera, _worldUICameraData) = UnityRenderLayerContracts.EnsureWorldUIOverlayCamera(
-                mainCamera, mainCameraData, _sceneObjects, _worldUILayerMask, _worldUICamera);
-        }
 
         private static T GetRequired<T>(T? component, string fieldName)
             where T : UnityEngine.Object =>
