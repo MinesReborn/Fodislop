@@ -4,7 +4,7 @@ using MinesServer.Data;
 using MinesServer.Networking.Connection.Client;
 using NUnit.Framework;
 
-namespace Fodinae.Tests.Networking;
+namespace Kern.Tests.Networking;
 
 public sealed class DummyPlayerSimulationStateTests
 {

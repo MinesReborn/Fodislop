@@ -3,7 +3,7 @@
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Controls;
+namespace Kern.UI.Controls;
 public class ChatInputBlinker
 {
     private IVisualElementScheduledItem? _blinkItem;

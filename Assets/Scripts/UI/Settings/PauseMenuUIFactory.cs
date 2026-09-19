@@ -2,12 +2,12 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Core;
-using Fodinae.Core.Localization;
+using Kern.Core;
+using Kern.Core.Localization;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 internal static class PauseMenuUIFactory
 {
     public static float SnapValue(float rawValue, float min, float max, float step = 0.01f)

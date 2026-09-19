@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 public sealed class MinimapRefreshPolicy
 {
@@ -20,7 +20,7 @@ public sealed class MinimapRefreshPolicy
 
     public bool CanRefresh(float currentTime)
     {
-        return _lastUpdateTime < 0f || currentTime - _lastUpdateTime >= UpdateDelaySeconds;
+        return _lastUpdateTime < 0f || currentTime - _lastUpdateTime >= UpdateDelaySeconds - 0.0001f;
     }
 
     public void NotifyPlayerMoved(Vector2Int newPos, float currentTime, out bool shouldRefreshNow)
@@ -85,6 +85,10 @@ public sealed class MinimapRefreshPolicy
         _lastUpdateTime = currentTime;
         _lastRenderedStorageRevision = storageRevision;
         _lastRefreshHadLoadedCells = hadLoadedCells;
+        if (hadLoadedCells)
+        {
+            _initialRefreshDone = true;
+        }
     }
 
     public void RecordChunkLoadRefresh(float currentTime, long storageRevision, bool hadLoadedCells)
@@ -124,6 +128,5 @@ public sealed class MinimapRefreshPolicy
     {
         _lastRenderedStorageRevision = -1;
         _chunkLoadRefreshRequested = true;
-        _initialRefreshDone = false;
     }
 }

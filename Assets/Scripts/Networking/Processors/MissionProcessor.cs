@@ -1,9 +1,9 @@
 #nullable enable
 
-using Fodinae.Core.Interfaces;
+using Kern.Core.Interfaces;
 using MinesServer.Networking.Server.Packets.Mission;
 
-namespace Fodinae.Networking.Processors;
+namespace Kern.Networking.Processors;
 
 public sealed class MissionProcessor(IPlayerStats playerStats) :
     IPacketProcessor<MissionInitPacket>,

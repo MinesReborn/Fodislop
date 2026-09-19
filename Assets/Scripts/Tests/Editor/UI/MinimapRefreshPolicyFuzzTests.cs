@@ -1,10 +1,10 @@
 #nullable enable
 
-using Fodinae.UI;
+using Kern.UI;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Fodinae.Tests.UI;
+namespace Kern.Tests.UI;
 
 [TestFixture]
 public class MinimapRefreshPolicyFuzzTests

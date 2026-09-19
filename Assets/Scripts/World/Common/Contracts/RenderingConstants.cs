@@ -1,6 +1,6 @@
 #nullable enable
 
-namespace Fodinae.World;
+namespace Kern.World;
 
 public static class RenderingConstants
 {

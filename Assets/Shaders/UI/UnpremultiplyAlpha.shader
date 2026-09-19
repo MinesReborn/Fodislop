@@ -1,4 +1,4 @@
-Shader "Fodinae/UI/UnpremultiplyAlpha"
+Shader "Kern/UI/UnpremultiplyAlpha"
 {
     // Converts a premultiplied-alpha render target into straight (unassociated)
     // alpha.

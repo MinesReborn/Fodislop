@@ -7,7 +7,7 @@ using MinesServer.Networking.Server.Packets.Information;
 using MinesServer.Networking.Server.Packets.World;
 using UnityEngine;
 
-namespace Fodinae.Core.Interfaces;
+namespace Kern.Core.Interfaces;
 public interface IMapDataProvider
 {
     ushort WorldWidth { get; }
@@ -16,7 +16,7 @@ public interface IMapDataProvider
     bool IsStandaloneMode { get; }
     CellConfigurationPacket GetCellConfig(CellType type);
     float GetMoveCooldown(CellType cellType);
-    bool TryGetTileGroup(CellType type, out int groupId);
+    bool TryGetTileGroup(CellType type, out int groupID);
     Color GetCellMinimapColor(CellType type);
     void UpdateMovementSpeeds(MovementSpeedPacket packet);
     void LoadWorldInit(WorldInitPacket packet);

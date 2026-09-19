@@ -1,6 +1,6 @@
 #nullable enable
 
-namespace Fodinae.Rendering.PostProcessing;
+namespace Kern.Rendering.PostProcessing;
 
 public enum CompareMode
 {

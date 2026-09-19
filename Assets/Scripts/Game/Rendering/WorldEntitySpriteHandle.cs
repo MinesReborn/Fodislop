@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace Fodinae.Game;
+namespace Kern.Game;
 
 public class WorldEntitySpriteHandle
 {
@@ -21,12 +21,20 @@ public class WorldEntitySpriteHandle
     private Matrix4x4 _frameLocalToWorld = Matrix4x4.identity;
     private bool _frameAlive;
 
-    internal WorldEntitySpriteHandle(Transform transform, int sortingOrder, bool isStatic = false)
+    internal WorldEntitySpriteHandle(
+        Transform transform,
+        int sortingOrder,
+        bool isStatic = false,
+        bool emitsLight = false)
     {
         Transform = transform;
         SortingOrder = sortingOrder;
         IsStatic = isStatic;
+        EmitsLight = emitsLight;
     }
+
+    // The sprite is also a light source in the world lighting fields.
+    internal bool EmitsLight { get; }
 
     internal Transform Transform { get; }
 

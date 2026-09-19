@@ -1,10 +1,11 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using MinesServer.Networking.Shared.Packets;
 
-namespace Fodinae.Game;
+namespace Kern.Game;
 
 internal sealed class ServerAudioParameters
 {
@@ -29,9 +30,9 @@ internal sealed class ServerAudioParameters
             switch (param.Key.ToLowerInvariant())
             {
                 case "sourcebotid":
-                    if (uint.TryParse(param.Value, out var srcBotId))
+                    if (uint.TryParse(param.Value, out var srcBotID))
                     {
-                        result.SourceBotID = srcBotId;
+                        result.SourceBotID = srcBotID;
                         result.HasSourceBot = true;
                     }
 
@@ -58,21 +59,21 @@ internal sealed class ServerAudioParameters
                 case "map":
                     if (!string.IsNullOrEmpty(param.Value))
                     {
-                        result.TextureOverrideMap = new Dictionary<string, string>();
-                        var entries = param.Value.Split(';');
-                        foreach (var entry in entries)
+                        result.TextureOverrideMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (string entry in param.Value.Split(';', StringSplitOptions.RemoveEmptyEntries))
                         {
-                            if (string.IsNullOrEmpty(entry))
+                            string trimmed = entry.Trim();
+                            if (trimmed.Length == 0)
                             {
                                 continue;
                             }
 
-                            var eqIdx = entry.IndexOf('=');
-                            if (eqIdx > 0 && eqIdx < entry.Length - 1)
+                            int eqIdx = trimmed.IndexOf('=', StringComparison.Ordinal);
+                            if (eqIdx > 0 && eqIdx < trimmed.Length - 1)
                             {
-                                var key = entry.Substring(0, eqIdx).Trim();
-                                var val = entry.Substring(eqIdx + 1).Trim();
-                                if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(val))
+                                string key = trimmed[..eqIdx].Trim();
+                                string val = trimmed[(eqIdx + 1)..].Trim();
+                                if (key.Length > 0 && val.Length > 0)
                                 {
                                     result.TextureOverrideMap[key] = val;
                                 }
@@ -85,18 +86,28 @@ internal sealed class ServerAudioParameters
                 case "props":
                     if (!string.IsNullOrEmpty(param.Value))
                     {
-                        var parts = param.Value.Split(',');
-                        result.EffekseerDynamicInputs = new float[parts.Length];
-                        for (int i = 0; i < parts.Length; i++)
+                        var parsed = new List<float>();
+                        foreach (string part in param.Value.Split(',', StringSplitOptions.RemoveEmptyEntries))
                         {
+                            string trimmed = part.Trim();
+                            if (trimmed.Length == 0)
+                            {
+                                continue;
+                            }
+
                             if (float.TryParse(
-                                    parts[i],
+                                    trimmed,
                                     NumberStyles.Float,
                                     CultureInfo.InvariantCulture,
                                     out var propVal))
                             {
-                                result.EffekseerDynamicInputs[i] = propVal;
+                                parsed.Add(propVal);
                             }
+                        }
+
+                        if (parsed.Count > 0)
+                        {
+                            result.EffekseerDynamicInputs = parsed.ToArray();
                         }
                     }
 

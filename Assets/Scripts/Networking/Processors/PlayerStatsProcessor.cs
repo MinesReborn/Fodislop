@@ -1,10 +1,10 @@
 #nullable enable
 
-using Fodinae.Core.Interfaces;
+using Kern.Core.Interfaces;
 using MinesServer.Networking.Server.Packets;
 using MinesServer.Networking.Server.Packets.Information;
 
-namespace Fodinae.Networking.Processors;
+namespace Kern.Networking.Processors;
 
 public sealed class PlayerStatsProcessor(IPlayerStats stats) :
     IPacketProcessor<LevelPacket>,

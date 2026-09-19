@@ -1,0 +1,288 @@
+/* ============================================================================
+   KERN — оформление страницы стайлгайда.
+   Только хром галереи. Сами компоненты берутся из боевых таблиц стилей,
+   поэтому расхождение между витриной и игрой невозможно по построению.
+   ============================================================================ */
+
+body.sg {
+  display: block;
+  overflow: auto;
+  height: auto;
+  min-height: 100vh;
+  padding: 0;
+}
+
+.sg-shell {
+  display: flex;
+  align-items: flex-start;
+  min-height: 100vh;
+}
+
+/* --- Навигация ----------------------------------------------------------- */
+
+.sg-nav {
+  position: sticky;
+  top: 0;
+  flex: 0 0 232px;
+  height: 100vh;
+  overflow-y: auto;
+  padding: var(--space-9) var(--space-6);
+  background: rgb(var(--rgb-abyss));
+  border-right: 1px solid var(--border-subtle);
+}
+
+.sg-nav-brand {
+  font-family: var(--face-display);
+  font-weight: var(--weight-black);
+  font-size: var(--size-lg);
+  letter-spacing: var(--tracking-wide);
+  color: var(--accent-gold);
+  margin-bottom: var(--space-2);
+}
+
+.sg-nav-sub {
+  font-family: var(--face-data);
+  font-size: var(--size-2xs);
+  letter-spacing: var(--tracking-base);
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-9);
+}
+
+.sg-nav a {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-1);
+  font-family: var(--face-data);
+  font-size: var(--size-xs);
+  letter-spacing: var(--tracking-base);
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  border-radius: var(--radius-sharp);
+  transition: color var(--dur-base) var(--ease-standard),
+              border-color var(--dur-base) var(--ease-standard),
+              background-color var(--dur-base) var(--ease-standard);
+}
+
+.sg-nav a:hover {
+  color: var(--accent-cyan);
+  border-left-color: var(--accent-cyan);
+  background: var(--accent-cyan-wash);
+}
+
+/* --- Полотно ------------------------------------------------------------- */
+
+.sg-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--space-12) var(--space-13) var(--space-14);
+  max-width: 1180px;
+}
+
+.sg-lede {
+  max-width: 68ch;
+  margin-bottom: var(--space-13);
+}
+
+.sg-section {
+  margin-bottom: var(--space-14);
+  scroll-margin-top: var(--space-6);
+}
+
+.sg-section > h2 {
+  font-family: var(--face-display);
+  font-weight: var(--weight-black);
+  font-size: var(--size-xl);
+  color: var(--text-primary);
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.sg-section > p {
+  max-width: 68ch;
+  margin-bottom: var(--space-8);
+  color: var(--text-secondary);
+  font-size: var(--size-base);
+  line-height: var(--leading-loose);
+}
+
+.sg-sub {
+  font-family: var(--face-data);
+  font-size: var(--size-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  margin: var(--space-10) 0 var(--space-5);
+}
+
+/* --- Сетки образцов ------------------------------------------------------ */
+
+.sg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  gap: var(--space-4);
+}
+
+.sg-swatch {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: rgb(var(--rgb-abyss));
+}
+
+.sg-swatch-chip {
+  height: 62px;
+  border-bottom: 1px solid var(--border-subtle);
+  /* Шахматка, чтобы прозрачность токена была видна, а не угадывалась. */
+  background-image:
+    linear-gradient(45deg, rgb(var(--rgb-light) / 6%) 25%, transparent 25%),
+    linear-gradient(-45deg, rgb(var(--rgb-light) / 6%) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgb(var(--rgb-light) / 6%) 75%),
+    linear-gradient(-45deg, transparent 75%, rgb(var(--rgb-light) / 6%) 75%);
+  background-size: 12px 12px;
+  background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+}
+
+.sg-swatch-fill {
+  height: 100%;
+}
+
+.sg-swatch-meta {
+  padding: var(--space-3) var(--space-4);
+}
+
+.sg-swatch-name {
+  font-family: var(--face-data);
+  font-size: var(--size-2xs);
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.sg-swatch-value {
+  font-family: var(--face-data);
+  font-size: var(--size-micro);
+  color: var(--text-tertiary);
+  margin-top: var(--space-1);
+  word-break: break-all;
+}
+
+/* --- Таблицы ------------------------------------------------------------- */
+
+.sg-table {
+  width: 100%;
+  font-size: var(--size-sm);
+}
+
+.sg-table th {
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--face-data);
+  font-size: var(--size-2xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.sg-table td {
+  padding: var(--space-4);
+  border-bottom: 1px solid rgb(var(--rgb-steel) / 10%);
+  vertical-align: middle;
+  color: var(--text-secondary);
+}
+
+.sg-table code {
+  font-family: var(--face-data);
+  font-size: var(--size-xs);
+  color: var(--accent-cyan);
+}
+
+/* --- Метки переносимости в USS ------------------------------------------- */
+
+.sg-uss {
+  display: inline-block;
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-sharp);
+  font-family: var(--face-data);
+  font-size: var(--size-micro);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-base);
+  white-space: nowrap;
+}
+
+.sg-uss--ok {
+  color: var(--state-ok);
+  background: var(--state-ok-wash);
+  border: 1px solid rgb(var(--rgb-ok) / 35%);
+}
+
+.sg-uss--via {
+  color: var(--state-warn);
+  background: var(--state-warn-wash);
+  border: 1px solid rgb(var(--rgb-magma) / 35%);
+}
+
+.sg-uss--no {
+  color: var(--state-danger);
+  background: var(--state-danger-wash);
+  border: 1px solid rgb(var(--rgb-danger) / 35%);
+}
+
+/* --- Демонстрационные площадки ------------------------------------------- */
+
+.sg-demo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-6);
+  padding: var(--space-8);
+  background: rgb(var(--rgb-void) / 60%);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.sg-demo--stack {
+  flex-direction: column;
+}
+
+.sg-note {
+  margin-top: var(--space-4);
+  padding-left: var(--space-5);
+  border-left: 2px solid var(--border-gold);
+  font-size: var(--size-sm);
+  line-height: var(--leading-loose);
+  color: var(--text-secondary);
+}
+
+.sg-ruler {
+  background: var(--accent-cyan);
+  height: 10px;
+  border-radius: var(--radius-sharp);
+}
+
+@media (max-width: 899px) {
+  .sg-shell { flex-direction: column; }
+  .sg-nav {
+    position: static;
+    flex: none;
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .sg-main { padding: var(--space-9) var(--space-6) var(--space-13); }
+}
+
+/* Самопроверка витрины: она обязана называть то, чего не знает, а не прятать. */
+.sg-note--warn {
+  border-color: var(--state-warn);
+  color: var(--state-warn);
+}
+
+/* Витрина показывает компоненты в их полную ширину — это условие показа,
+   а не свойство компонента, поэтому класс витрины, а не инлайн. */
+.sg-title { margin-bottom: var(--space-6); }
+.sg-full  { width: 100%; }

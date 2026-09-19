@@ -2,12 +2,12 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Core.Models;
-using Fodinae.UI.HUD.Player.Model;
+using Kern.Core.Models;
+using Kern.UI.HUD.Player.Model;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.HUD.Player.View;
+namespace Kern.UI.HUD.Player.View;
 
 public sealed class PlayerHUDStatusPanel
 {

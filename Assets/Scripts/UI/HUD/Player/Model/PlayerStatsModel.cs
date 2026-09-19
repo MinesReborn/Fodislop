@@ -2,12 +2,12 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Models;
+using Kern.Core.Interfaces;
+using Kern.Core.Models;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.UI.HUD.Player.Model;
+namespace Kern.UI.HUD.Player.Model;
 public sealed class PlayerStatsModel : IPlayerStats
 {
     private readonly Dictionary<string, StatusLineEntry> _statusLines = new();

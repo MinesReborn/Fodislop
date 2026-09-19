@@ -1,17 +1,17 @@
 #nullable enable
 
 using System.Collections.Generic;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Lifecycle;
-using Fodinae.World;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Core.Lifecycle;
+using Kern.World;
 using UnityEngine;
 // Протокол по-прежнему называет это Pack: PackType живёт во внешней сборке
 // MinesServer.Data, исходников которой в проекте нет. Алиас держит границу —
 // наш домен говорит Building, провод остаётся Pack.
 using BuildingType = MinesServer.Data.PackType;
 
-namespace Fodinae.Game.Managers;
+namespace Kern.Game.Managers;
 
 // Чистый сервис контейнера (SCENE_STANDARD.md §1): здания создаются фабрикой
 // под Runtime/Buildings, сам сервис объекта на сцене не имеет.

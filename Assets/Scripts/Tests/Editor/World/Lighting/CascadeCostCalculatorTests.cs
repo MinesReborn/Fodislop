@@ -2,10 +2,10 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.World.Lighting;
+using Kern.World.Lighting;
 using NUnit.Framework;
 
-namespace Fodinae.Tests.World.Lighting;
+namespace Kern.Tests.World.Lighting;
 
 [TestFixture]
 public class CascadeCostCalculatorTests
@@ -21,26 +21,23 @@ public class CascadeCostCalculatorTests
     }
 
     [Test]
-    public void StepCountIsIntervalLengthRoundedUpAndClampedToOne()
+    public void StepCountBoundsDdaTraversalAndConnectedMergePaths()
     {
         var destination = new List<CascadeCostSample>();
         CascadeCostCalculator.CollectCascadeCosts(ThreeCascades(), maximumSteps: 64, destination);
 
-        // Interval [0,1]: length 1 -> one ray step.
-        Assert.That(destination[0].StepCount, Is.EqualTo(1));
+        // Bounds include all 16 child connections in each merging cascade.
+        Assert.That(destination[0].StepCount, Is.EqualTo(128));
 
-        // Interval [1,4]: length 3 -> three steps.
-        Assert.That(destination[1].StepCount, Is.EqualTo(3));
+        Assert.That(destination[1].StepCount, Is.EqualTo(288));
 
-        // Interval [4,16]: length 12 -> twelve steps.
-        Assert.That(destination[2].StepCount, Is.EqualTo(12));
+        Assert.That(destination[2].StepCount, Is.EqualTo(19));
     }
 
     [Test]
-    public void NegativeOrZeroIntervalLengthCoercesToOneStep()
+    public void ZeroIntervalRetainsBoundaryVisitAllowance()
     {
-        // A cascade whose start == end (or inverted) still has to march at
-        // least one interval; length = max(end-start, 1).
+        // Two boundary visits are reserved in the conservative estimate.
         var degenerate = new List<CascadeLayout>
         {
             new(0, 50, 5, 5, 1, 4, 10f, 10f),
@@ -49,20 +46,19 @@ public class CascadeCostCalculatorTests
         var destination = new List<CascadeCostSample>();
         CascadeCostCalculator.CollectCascadeCosts(degenerate, maximumSteps: 64, destination);
 
-        Assert.That(destination[0].StepCount, Is.EqualTo(1));
+        Assert.That(destination[0].StepCount, Is.EqualTo(2));
     }
 
     [Test]
-    public void StepCountIsClampedToTheMaximumBudget()
+    public void LegacyStepBudgetCannotReduceGeometryTraversal()
     {
         var destination = new List<CascadeCostSample>();
         CascadeCostCalculator.CollectCascadeCosts(ThreeCascades(), maximumSteps: 2, destination);
 
-        // Every interval longer than 2 must clamp to 2; the first (length 1)
-        // stays at 1.
-        Assert.That(destination[0].StepCount, Is.EqualTo(1));
-        Assert.That(destination[1].StepCount, Is.EqualTo(2));
-        Assert.That(destination[2].StepCount, Is.EqualTo(2));
+        // Changing the obsolete sampling budget cannot change DDA costs.
+        Assert.That(destination[0].StepCount, Is.EqualTo(128));
+        Assert.That(destination[1].StepCount, Is.EqualTo(288));
+        Assert.That(destination[2].StepCount, Is.EqualTo(19));
     }
 
     [Test]
@@ -72,13 +68,13 @@ public class CascadeCostCalculatorTests
         CascadeCostCalculator.CollectCascadeCosts(ThreeCascades(), maximumSteps: 64, destination);
 
         Assert.That(destination[0].RayCount, Is.EqualTo(100));
-        Assert.That(destination[0].RayStepCount, Is.EqualTo(100)); // 100 * 1 step
+        Assert.That(destination[0].RayStepCount, Is.EqualTo(12800));
 
         Assert.That(destination[1].RayCount, Is.EqualTo(200));
-        Assert.That(destination[1].RayStepCount, Is.EqualTo(600)); // 200 * 3 steps
+        Assert.That(destination[1].RayStepCount, Is.EqualTo(57600));
 
         Assert.That(destination[2].RayCount, Is.EqualTo(300));
-        Assert.That(destination[2].RayStepCount, Is.EqualTo(3600)); // 300 * 12 steps
+        Assert.That(destination[2].RayStepCount, Is.EqualTo(5700));
     }
 
     [Test]

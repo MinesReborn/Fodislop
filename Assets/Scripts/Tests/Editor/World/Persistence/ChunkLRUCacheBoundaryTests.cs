@@ -1,10 +1,11 @@
 #nullable enable
 
 using System;
-using Fodinae.Persistence;
+using System.Collections.Generic;
+using Kern.Persistence;
 using NUnit.Framework;
 
-namespace Fodinae.Tests.World;
+namespace Kern.Tests.World;
 
 [TestFixture]
 public class ChunkLruCacheBoundaryTests
@@ -47,6 +48,49 @@ public class ChunkLruCacheBoundaryTests
         Assert.That(evictedIndex, Is.Not.Null);
         Assert.That(cache.Contains(evictedIndex!.Value), Is.False);
         Assert.That(cache.IsDirty(evictedIndex.Value), Is.False);
+    }
+
+    [Test]
+    public void PreserveDirtyChunks_SkipsDirtyEvictionAndKeepsDataResident()
+    {
+        int evictCalls = 0;
+        var cache = new ChunkLruCache<int>(
+            maxCapacity: 1,
+            onEvictDirty: (_, _) => evictCalls++,
+            allowDirtyEviction: false);
+
+        int[] first = [10];
+        int[] second = [20];
+        cache.AddOrUpdate(1, first);
+        cache.MarkDirty(1);
+        cache.AddOrUpdate(2, second);
+
+        Assert.That(cache.LoadedCount, Is.EqualTo(2));
+        Assert.That(cache.TryGet(1, out int[]? resident), Is.True);
+        Assert.That(resident, Is.SameAs(first));
+        Assert.That(evictCalls, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void DetachedDirtySnapshot_UsesCopyOnWriteForConcurrentMutation()
+    {
+        var cache = new ChunkLruCache<int>(4);
+        int[] original = [10, 20];
+        cache.AddOrUpdate(7, original);
+        cache.MarkDirty(7);
+
+        List<(int Index, int[] Chunk)> snapshot = cache.DetachDirtySnapshot();
+        int[] writable = cache.PrepareForWrite(7, original);
+        writable[0] = 99;
+        cache.MarkDirty(7);
+
+        Assert.That(snapshot, Has.Count.EqualTo(1));
+        Assert.That(snapshot[0].Chunk, Is.SameAs(original));
+        Assert.That(snapshot[0].Chunk[0], Is.EqualTo(10));
+        Assert.That(cache.TryGet(7, out int[]? resident), Is.True);
+        Assert.That(resident, Is.SameAs(writable));
+        Assert.That(resident![0], Is.EqualTo(99));
+        Assert.That(cache.IsDirty(7), Is.True);
     }
 
     [TestCase(1)]

@@ -1,10 +1,10 @@
 #nullable enable
 
 using System.Collections.Generic;
-using Fodinae.World;
+using Kern.World;
 using MinesServer.Data;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 internal sealed class MapCellSampler
 {
     private const int MaxChunkCacheEntries = 4096;
@@ -75,28 +75,34 @@ internal sealed class MapCellSampler
         int chunkY = serverY / _chunkSize;
         int chunkIndex = chunkY + (chunkX * _heightChunks);
 
-        CellType[]? chunk;
-        if (chunkIndex == _lastChunkIndex)
+        CellType[]? chunk = null;
+        bool hasCached = false;
+
+        if (chunkIndex == _lastChunkIndex && _lastChunk != null)
         {
             chunk = _lastChunk;
+            hasCached = true;
         }
-        else
+        else if (_chunks.TryGetValue(chunkIndex, out chunk))
         {
-            if (!_chunks.TryGetValue(chunkIndex, out chunk))
-            {
-                ChunkReadResult<CellType> result = _layer.ReadChunk(chunkIndex, touchLru: true);
-                if (result.Status == ChunkReadStatus.Available)
-                {
-                    chunk = result.Data;
-                    _chunks[chunkIndex] = chunk;
-                    _chunkOrder.Enqueue(chunkIndex);
-                    TrimCache();
-                }
-            }
-
-            _lastChunkIndex = chunkIndex;
-            _lastChunk = chunk;
+            hasCached = true;
         }
+
+        if (!hasCached)
+        {
+            ChunkReadResult<CellType> result = _layer.ReadChunk(chunkIndex, touchLru: true);
+            if (result.Status == ChunkReadStatus.Available && result.Data != null)
+            {
+                chunk = result.Data;
+                _chunks[chunkIndex] = chunk;
+                _chunkOrder.Enqueue(chunkIndex);
+                TrimCache();
+                hasCached = true;
+            }
+        }
+
+        _lastChunkIndex = chunkIndex;
+        _lastChunk = hasCached ? chunk : null;
 
         if (chunk == null)
         {

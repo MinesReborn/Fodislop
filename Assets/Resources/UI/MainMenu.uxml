@@ -68,7 +68,7 @@
             <ui:VisualElement name="MainMenuWordmark" class="mm-wordmark">
                 <ui:Image name="MainMenuPlanetIcon" class="mm-wordmark-icon" />
                 <ui:VisualElement class="mm-brand-text">
-                    <ui:Label class="mm-brand-title" text="FODINAE" />
+                    <ui:Label class="mm-brand-title" text="KERN" />
                     <ui:Label class="mm-brand-sub" text="mainmenu.brand_sub" />
                 </ui:VisualElement>
             </ui:VisualElement>
@@ -102,7 +102,7 @@
                  MainMenu.cs:265 запрашивает #UpdateAlertBanner и вешает на него
                  открытие окна обновления, но самого элемента в разметке не было —
                  биндинг молча получал null. Разметка соответствует
-                 .update-alert-banner из visual/fodinae-ui-lab. -->
+                 .update-alert-banner из visual/kern-ui-lab. -->
             <ui:Button name="UpdateAlertBanner" class="mm-update-banner">
                 <ui:VisualElement class="mm-update-banner-text">
                     <ui:Label class="mm-update-banner-title" text="mainmenu.update_banner_title" />

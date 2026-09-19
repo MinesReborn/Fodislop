@@ -1,10 +1,10 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
+using Kern.Core;
 using UnityEngine;
 
-namespace Fodinae.Rendering;
+namespace Kern.Rendering;
 
 public static class GraphicsQualityProfileLoader
 {

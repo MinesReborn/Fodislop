@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace Fodinae.Rendering.PostProcessing;
+namespace Kern.Rendering.PostProcessing;
 public static class ColorblindAdaptation
 {
     public static bool TryApply(

@@ -1,5 +1,5 @@
-#ifndef FODINAE_TERRAIN_CELL_DATA_INCLUDED
-#define FODINAE_TERRAIN_CELL_DATA_INCLUDED
+#ifndef KERN_TERRAIN_CELL_DATA_INCLUDED
+#define KERN_TERRAIN_CELL_DATA_INCLUDED
 
 // Квад террейна из текстур данных клетки (TerrainCellDataTextures).
 //

@@ -1,14 +1,14 @@
 #nullable enable
 
 using System;
-using Fodinae.Core.Interfaces;
+using Kern.Core.Interfaces;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Information;
 using MinesServer.Networking.Server.Packets.Movement;
 using MinesServer.Networking.Server.Packets.World;
 using UnityEngine;
 
-namespace Fodinae.Networking.Processors;
+namespace Kern.Networking.Processors;
 
 public sealed class PlayerInfoProcessor(
     IRobotService robotManager,

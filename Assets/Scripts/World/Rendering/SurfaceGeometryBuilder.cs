@@ -3,7 +3,7 @@
 using System;
 using UnityEngine;
 
-namespace Fodinae.World;
+namespace Kern.World;
 
 public sealed class SurfaceGeometryBuilder
 {

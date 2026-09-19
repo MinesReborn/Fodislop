@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Fodinae.Core.Interfaces.Diagnostics;
+namespace Kern.Core.Interfaces.Diagnostics;
 
 // Сколько раз и по какой причине дорогой путь пересобирался.
 //

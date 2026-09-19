@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Fodinae.Core;
+namespace Kern.Core;
 
 [AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
 public sealed class SettingRangeAttribute : Attribute

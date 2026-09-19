@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Fodinae.Rendering.PostProcessing;
+namespace Kern.Rendering.PostProcessing;
 
 public enum ColorCurveInterpolation
 {
@@ -76,13 +76,6 @@ public sealed class ColorGradeCurve
 
             return true;
         }
-    }
-
-    public Vector4[] ToShaderPoints()
-    {
-        var result = new Vector4[MaxPoints];
-        WriteShaderPoints(result);
-        return result;
     }
 
     // Без выделения: проход пишет в свой буфер каждый кадр.

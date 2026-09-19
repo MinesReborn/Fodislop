@@ -2,14 +2,14 @@
 
 using System;
 using Cysharp.Threading.Tasks;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Localization;
-using Fodinae.Networking.Connection;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Core.Localization;
+using Kern.Networking.Connection;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 public sealed class MenuModalManager
 {
@@ -373,7 +373,7 @@ public sealed class MenuModalManager
         // Theme.uss. Раньше код писал поверх неё инлайн, и класс не значил
         // ничего: активная вкладка оставалась активной навсегда, потому что
         // снять инлайн можно только инлайном.
-        foreach (var pane in new[] { _settingsPaneGraphics, _settingsPaneAudio, _settingsPaneControls, _settingsPaneNetwork })
+        foreach (var pane in (ReadOnlySpan<VisualElement?>)[_settingsPaneGraphics, _settingsPaneAudio, _settingsPaneControls, _settingsPaneNetwork])
         {
             pane?.EnableInClassList(SettingsPaneActiveClass, ReferenceEquals(pane, targetPane));
         }

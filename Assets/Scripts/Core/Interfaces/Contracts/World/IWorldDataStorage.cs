@@ -4,7 +4,13 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using MinesServer.Data;
 
-namespace Fodinae.Core.Interfaces;
+namespace Kern.Core.Interfaces;
+public interface IRegionBatchStorage
+{
+    void BeginRegionBatch();
+    void EndRegionBatch();
+}
+
     public interface IWorldDataStorage
     {
         event System.Action<int, int>? CellChanged;
@@ -17,6 +23,7 @@ namespace Fodinae.Core.Interfaces;
         void SetRegion(int startX, int startY, int width, int height, CellType[] cells);
         void SetRegion(int startX, int startY, int width, int height, System.ReadOnlySpan<CellType> cells);
         CellType GetCell(int x, int y);
+        bool TryGetCell(int x, int y, out CellType cellType);
         void InitWorld(string worldCodeName, int width, int height);
         void Dispose();
         UniTask DisposeAsync(CancellationToken cancellationToken = default);

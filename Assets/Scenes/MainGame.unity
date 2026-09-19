@@ -162,7 +162,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6cd4e8f91196b3c4c8a5d87c4c359162, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.UI.MissionArrowUI
+  m_EditorClassIdentifier: Kern.Runtime::Kern.UI.MissionArrowUI
 --- !u!1 &68980587
 GameObject:
   m_ObjectHideFlags: 0
@@ -206,7 +206,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f83192ba33a746847a80f0c4b06c1ce7, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.UI.MinimapController
+  m_EditorClassIdentifier: Kern.Runtime::Kern.UI.MinimapController
   _uiSize: 160
 --- !u!1 &118973001
 GameObject:
@@ -289,7 +289,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7573da269edf98340ab55e93d31cd39d, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.World.WorldTextureManager
+  m_EditorClassIdentifier: Kern.Runtime::Kern.World.WorldTextureManager
   _initialAtlasSize: 2048
   _maxAtlasSize: 4096
   _texturePadding: 2
@@ -386,7 +386,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: da070d51579102843abc6103040a41f1, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.UI.HUD.Inventory.View.InventoryView
+  m_EditorClassIdentifier: Kern.Runtime::Kern.UI.HUD.Inventory.View.InventoryView
 --- !u!1 &382654667
 GameObject:
   m_ObjectHideFlags: 0
@@ -462,7 +462,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e7f466f4c2540482ba800c8eba7db2de, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.Rendering.PostProcessing.PostProcessController
+  m_EditorClassIdentifier: Kern.Runtime::Kern.Rendering.PostProcessing.PostProcessController
   _volume: {fileID: 0}
 --- !u!1 &801820427
 GameObject:
@@ -507,7 +507,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1b12e12e935cd0842848fdc73d7b3553, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.World.SurfaceRenderer
+  m_EditorClassIdentifier: Kern.Runtime::Kern.World.SurfaceRenderer
   _transitTexture: {fileID: 0}
   _perspectiveTexture: {fileID: 0}
   _redRockTexture: {fileID: 0}
@@ -556,7 +556,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d18c722e60c7c4f409430219599ac6ef, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.UI.HUD.Player.View.PlayerHUDView
+  m_EditorClassIdentifier: Kern.Runtime::Kern.UI.HUD.Player.View.PlayerHUDView
 --- !u!1 &881552888
 GameObject:
   m_ObjectHideFlags: 0
@@ -600,7 +600,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2d8f1740e9d392848890f725fd671084, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.Game.Managers.ServerAudioEventManager
+  m_EditorClassIdentifier: Kern.Runtime::Kern.Game.Managers.ServerAudioEventManager
 --- !u!1 &893091723
 GameObject:
   m_ObjectHideFlags: 0
@@ -688,7 +688,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ba330c964bc50d74096579160aa69d19, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.UI.WorldMapRenderer
+  m_EditorClassIdentifier: Kern.Runtime::Kern.UI.WorldMapRenderer
   _renderInterval: 0.1
   _dragSpeed: 0.5
 --- !u!1 &1000000000
@@ -1054,7 +1054,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1b7fd9c5679864846828d5b0b15eff2d, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.UI.WorldMapController
+  m_EditorClassIdentifier: Kern.Runtime::Kern.UI.WorldMapController
 --- !u!1 &1108560715
 GameObject:
   m_ObjectHideFlags: 0
@@ -1153,7 +1153,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 28db09fc049bf324fbee51907a8eaa35, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.Game.VfxPool
+  m_EditorClassIdentifier: Kern.Runtime::Kern.Game.VfxPool
   _configs: []
   _defaultInitialSize: 2
   _shrinkDelay: 30
@@ -1201,7 +1201,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 61a3010210b760c489e321dcd1eafc27, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.Player.CameraFollow
+  m_EditorClassIdentifier: Kern.Runtime::Kern.Player.CameraFollow
   _target: {fileID: 0}
   _smoothSpeed: 5
   _offset: {x: 0, y: 0}
@@ -1252,7 +1252,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1d974ab55487a4c4cb3ab516dd76bbc6, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.UI.FPSCounter
+  m_EditorClassIdentifier: Kern.Runtime::Kern.UI.FPSCounter
 --- !u!1 &1553536788
 GameObject:
   m_ObjectHideFlags: 0
@@ -1296,7 +1296,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bec81cf68faa54656b0c16a179b6f461, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.World.Lighting.LightingEngine
+  m_EditorClassIdentifier: Kern.Runtime::Kern.World.Lighting.LightingEngine
   _debugView: 0
 --- !u!1 &1765704199
 GameObject:
@@ -1375,7 +1375,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 85dd94051ba2a1f41ac1f22fc016e865, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.UI.ReconnectUI
+  m_EditorClassIdentifier: Kern.Runtime::Kern.UI.ReconnectUI
 --- !u!1 &1832716196
 GameObject:
   m_ObjectHideFlags: 0
@@ -1419,7 +1419,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8f775f0ae07ec8c408bd3103696f4d00, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.World.WorldBackgroundSetup
+  m_EditorClassIdentifier: Kern.Runtime::Kern.World.WorldBackgroundSetup
 --- !u!1 &1833245200
 GameObject:
   m_ObjectHideFlags: 0
@@ -1463,7 +1463,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 479837b1b427b4889afe08e2d5a2078b, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.UI.InGameDebugOverlay
+  m_EditorClassIdentifier: Kern.Runtime::Kern.UI.InGameDebugOverlay
 --- !u!1 &1857202661
 GameObject:
   m_ObjectHideFlags: 0
@@ -1507,7 +1507,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 24fb6562c6a09484ea35deda86017029, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.UI.GlobalChatUI
+  m_EditorClassIdentifier: Kern.Runtime::Kern.UI.GlobalChatUI
 --- !u!1 &1868303243
 GameObject:
   m_ObjectHideFlags: 0
@@ -1551,7 +1551,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f97e6a7c6f0d34345a5f1d7d8e9c0b1a, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.Game.Managers.MapManager
+  m_EditorClassIdentifier: Kern.Runtime::Kern.Game.Managers.MapManager
 --- !u!1 &1880757873
 GameObject:
   m_ObjectHideFlags: 0
@@ -1595,7 +1595,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 599c9ef74e834989835d937a120f2539, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.Game.WorldEntityBatchRenderer
+  m_EditorClassIdentifier: Kern.Runtime::Kern.Game.WorldEntityBatchRenderer
 --- !u!1 &1882361801
 GameObject:
   m_ObjectHideFlags: 0
@@ -1641,7 +1641,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 38b5847a9697944228781e92b2ad246a, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.World.Terrain.TerrainRenderer
+  m_EditorClassIdentifier: Kern.Runtime::Kern.World.Terrain.TerrainRenderer
   _cellSize: 1
   _terrainShader: {fileID: 4800000, guid: 943286b1ceedb6e49881652498d6ec13, type: 3}
   _sortingLayerName: Default
@@ -1748,7 +1748,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9c04865ae1e3c7d41b3a3422f715a1cc, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.UI.PauseMenu
+  m_EditorClassIdentifier: Kern.Runtime::Kern.UI.PauseMenu
 --- !u!1 &2000000000
 GameObject:
   m_ObjectHideFlags: 0
@@ -1793,76 +1793,76 @@ MonoBehaviour:
   _postProcessVolume: {fileID: 358710300}
   _playerMovement: {fileID: 1000000005}
   _managerBindings:
-  - _managerType: Fodinae.World.MapManager, Fodinae.World, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.World.MapManager, Kern.World, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: World
     _target: {fileID: 1868303245}
-  - _managerType: Fodinae.World.Terrain.TerrainRenderer, Fodinae.World, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.World.Terrain.TerrainRenderer, Kern.World, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: Rendering
     _target: {fileID: 1882361803}
-  - _managerType: Fodinae.World.WorldBackgroundSetup, Fodinae.World, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.World.WorldBackgroundSetup, Kern.World, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: World
     _target: {fileID: 1832716198}
-  - _managerType: Fodinae.World.WorldTextureManager, Fodinae.World, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.World.WorldTextureManager, Kern.World, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: World
     _target: {fileID: 310136117}
-  - _managerType: Fodinae.Game.Managers.ServerAudioEventManager, Fodinae.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.Game.Managers.ServerAudioEventManager, Kern.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: Audio
     _target: {fileID: 881552890}
-  - _managerType: Fodinae.Game.VfxPool, Fodinae.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.Game.VfxPool, Kern.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: Rendering
     _target: {fileID: 1150380009}
-  - _managerType: Fodinae.Game.WorldEntityBatchRenderer, Fodinae.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.Game.WorldEntityBatchRenderer, Kern.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: Rendering
     _target: {fileID: 1880757875}
-  - _managerType: Fodinae.UI.GlobalChatUI, Fodinae.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.UI.GlobalChatUI, Kern.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: UI
     _target: {fileID: 1857202663}
-  - _managerType: Fodinae.UI.FPSCounter, Fodinae.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.UI.FPSCounter, Kern.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: UI
     _target: {fileID: 1458764064}
-  - _managerType: Fodinae.UI.FloatingChatManager, Fodinae.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.UI.FloatingChatManager, Kern.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: UI
     _target: {fileID: 2030377783}
-  - _managerType: Fodinae.UI.ReconnectUI, Fodinae.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.UI.ReconnectUI, Kern.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: UI
     _target: {fileID: 1812687274}
-  - _managerType: Fodinae.UI.AssetLoadingIndicator, Fodinae.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.UI.AssetLoadingIndicator, Kern.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: UI
     _target: {fileID: 2017390606}
-  - _managerType: Fodinae.UI.MissionArrowUI, Fodinae.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.UI.MissionArrowUI, Kern.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: UI
     _target: {fileID: 32888240}
-  - _managerType: Fodinae.Rendering.PostProcessing.PostProcessController, Fodinae.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.Rendering.PostProcessing.PostProcessController, Kern.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: Rendering
     _target: {fileID: 577792951}
-  - _managerType: Fodinae.World.Lighting.LightingEngine, Fodinae.World, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.World.Lighting.LightingEngine, Kern.World, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: Rendering
     _target: {fileID: 1553536790}
-  - _managerType: Fodinae.World.SurfaceRenderer, Fodinae.World, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.World.SurfaceRenderer, Kern.World, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: Rendering
     _target: {fileID: 801820429}
-  - _managerType: Fodinae.Player.CameraFollow, Fodinae.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.Player.CameraFollow, Kern.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: Rendering
     _target: {fileID: 1403310852}
-  - _managerType: Fodinae.UI.HUD.Player.View.PlayerHUDView, Fodinae.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.UI.HUD.Player.View.PlayerHUDView, Kern.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: UI
     _target: {fileID: 857961948}
-  - _managerType: Fodinae.UI.Inventory.InventoryView, Fodinae.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.UI.Inventory.InventoryView, Kern.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: UI
     _target: {fileID: 378316189}
-  - _managerType: Fodinae.UI.PauseMenu, Fodinae.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.UI.PauseMenu, Kern.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: UI
     _target: {fileID: 1920060539}
-  - _managerType: Fodinae.UI.MinimapController, Fodinae.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.UI.MinimapController, Kern.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: UI
     _target: {fileID: 68980589}
-  - _managerType: Fodinae.UI.WorldMapController, Fodinae.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.UI.WorldMapController, Kern.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: UI
     _target: {fileID: 1103923418}
-  - _managerType: Fodinae.UI.WorldMapRenderer, Fodinae.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.UI.WorldMapRenderer, Kern.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: UI
     _target: {fileID: 996933188}
-  - _managerType: Fodinae.UI.InGameDebugOverlay, Fodinae.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - _managerType: Kern.UI.InGameDebugOverlay, Kern.UI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     _serviceGroup: UI
     _target: {fileID: 1833245202}
 --- !u!4 &2000000002
@@ -1929,7 +1929,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7d6b6d4c0b8f4f0d9e1f6a2c3b4d5e6f, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.UI.AssetLoadingIndicator
+  m_EditorClassIdentifier: Kern.Runtime::Kern.UI.AssetLoadingIndicator
 --- !u!1 &2030377781
 GameObject:
   m_ObjectHideFlags: 0
@@ -1973,7 +1973,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f439dc65c294f754e9b16afc46fe45db, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.UI.FloatingChatManager
+  m_EditorClassIdentifier: Kern.Runtime::Kern.UI.FloatingChatManager
 --- !u!1 &2100000001
 GameObject:
   m_ObjectHideFlags: 0

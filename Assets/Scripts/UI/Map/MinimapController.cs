@@ -1,17 +1,17 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.World;
-using Fodinae.Player.Logic;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.World;
+using Kern.Player.Logic;
 using MinesServer.Data;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 using VContainer;
 
-namespace Fodinae.UI
+namespace Kern.UI
 {
     public class MinimapController : MonoBehaviour
     {
@@ -132,17 +132,35 @@ namespace Fodinae.UI
                 if (_isVisible)
                 {
                     RefreshTexture(_player.Position.x, _player.Position.y);
+                    _refreshPolicy.RecordInitialRefresh(
+                        Time.time,
+                        _player.Position,
+                        _mapStorage?.Revision ?? -1,
+                        _isVisible,
+                        _lastRefreshHadLoadedCells);
                 }
             }
         }
 
         protected void Update()
         {
+            if (!_uiCreated)
+            {
+                CreateUI();
+            }
+
             if (_doc == null || !_doc.enabled)
             {
                 return;
             }
 
+            // Инициализации здесь нет и быть не должно. Единственная дорога к
+            // ней — OnWorldReady, подписанный в Start на OnWorldInitialized и
+            // OnWorldDataLoaded: он сам проверяет готовность и отписывается
+            // только когда она действительно наступила, поэтому раннее событие
+            // при неготовом хранилище просто дождётся следующего. Прежний
+            // per-frame ретрай дублировал эту дорогу и прятал её отказ —
+            // если бы события не пришли, никто бы этого не заметил.
             if (_ready && _mapStorage != null &&
                 !ReferenceEquals(_cellLayer, _mapStorage.CellLayer))
             {
@@ -153,7 +171,22 @@ namespace Fodinae.UI
             if (_player != null && _player.HasServerPosition)
             {
                 long currentRevision = _mapStorage != null ? _mapStorage.Revision : -1;
-                if (_refreshPolicy.ShouldRefreshOnStorageOrMove(Time.time, currentRevision, _ready, _isVisible, true))
+                if (!_refreshPolicy.InitialRefreshDone && _ready)
+                {
+                    _view?.UpdateCoordinates(_player.Position.x, _player.Position.y);
+                    if (_isVisible)
+                    {
+                        RefreshTexture(_player.Position.x, _player.Position.y);
+                    }
+
+                    _refreshPolicy.RecordInitialRefresh(
+                        Time.time,
+                        _player.Position,
+                        currentRevision,
+                        _isVisible,
+                        _lastRefreshHadLoadedCells);
+                }
+                else if (_refreshPolicy.ShouldRefreshOnStorageOrMove(Time.time, currentRevision, _ready, _isVisible, true))
                 {
                     _cellSampler.Invalidate();
                     RefreshTexture(_player.Position.x, _player.Position.y);
@@ -270,6 +303,10 @@ namespace Fodinae.UI
 
             _isVisible = true;
             _uiCreated = true;
+            if (_ready)
+            {
+                SetVisible(_isVisible);
+            }
         }
 
         protected void OnEnable()

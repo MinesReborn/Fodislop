@@ -3,7 +3,7 @@
 using System;
 using UnityEngine;
 
-namespace Fodinae.Rendering.PostProcessing;
+namespace Kern.Rendering.PostProcessing;
 public readonly record struct ColorGradeZone
 {
     public ColorGradeZone(

@@ -3,7 +3,7 @@
 using System.Text.RegularExpressions;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Controls
+namespace Kern.UI.Controls
 {
     public class RegexTextField : TextField
     {

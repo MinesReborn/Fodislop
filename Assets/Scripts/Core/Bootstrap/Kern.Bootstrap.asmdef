@@ -1,0 +1,32 @@
+{
+    "name": "Kern.Bootstrap",
+    "rootNamespace": "Kern",
+    "references": [
+        "UniTask",
+        "Kern.Contracts",
+        "Kern.Networking",
+        "Kern.AssetPipeline",
+        "Kern.World",
+        "Kern.UI",
+        "Kern.Runtime",
+        "MinesServer.Data",
+        "MinesServer.Networking",
+        "MinesServer.Networking.Connection",
+        "MinesServer.Networking.Connection.Client",
+        "Unity.InputSystem",
+        "Unity.TextMeshPro",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "FMODUnity",
+        "VContainer"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

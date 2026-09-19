@@ -1,6 +1,6 @@
 #nullable enable
 
-namespace Fodinae.Game;
+namespace Kern.Game;
 public enum VfxType
 {
     None = 0,

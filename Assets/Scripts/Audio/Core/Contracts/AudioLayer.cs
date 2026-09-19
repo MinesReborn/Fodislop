@@ -2,25 +2,25 @@
 
 using UnityEngine;
 
-namespace Fodinae.Audio.Core;
+namespace Kern.Audio.Core;
 public enum AudioBusType
 {
-    [Fodinae.Core.AudioBusPath("bus:/")]
+    [Kern.Core.AudioBusPath("bus:/")]
     Master = 0,
 
-    [Fodinae.Core.AudioBusPath("bus:/sfx")]
+    [Kern.Core.AudioBusPath("bus:/sfx")]
     SFX = 10,
 
-    [Fodinae.Core.AudioBusPath("bus:/music")]
+    [Kern.Core.AudioBusPath("bus:/music")]
     Music = 20,
 
-    [Fodinae.Core.AudioBusPath("bus:/voice")]
+    [Kern.Core.AudioBusPath("bus:/voice")]
     Voice = 30,
 
-    [Fodinae.Core.AudioBusPath("bus:/ambience")]
+    [Kern.Core.AudioBusPath("bus:/ambience")]
     Ambience = 40,
 
-    [Fodinae.Core.AudioBusPath("bus:/ui")]
+    [Kern.Core.AudioBusPath("bus:/ui")]
     UI = 50,
 }
 

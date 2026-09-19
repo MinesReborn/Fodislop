@@ -2,12 +2,12 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Localization;
-using Fodinae.Core.Models;
-using Fodinae.Networking;
-using Fodinae.Game.Inventory;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Core.Localization;
+using Kern.Core.Models;
+using Kern.Networking;
+using Kern.Game.Inventory;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets.GUI;
 using MinesServer.Networking.Shared.Packets;
@@ -16,7 +16,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 using VContainer;
 
-namespace Fodinae.UI.Inventory
+namespace Kern.UI.Inventory
 {
     public class InventoryView : MonoBehaviour, ILocalizableUI
     {
@@ -30,7 +30,7 @@ namespace Fodinae.UI.Inventory
         [Inject]
         private IInventoryModel _model = null!;
         [Inject]
-        private Fodinae.Core.Interfaces.IInputBlocker _inputBlocker = null!;
+        private Kern.Core.Interfaces.IInputBlocker _inputBlocker = null!;
         [Inject]
         private ILocalizationService _loc = null!;
         [Inject]
@@ -51,6 +51,7 @@ namespace Fodinae.UI.Inventory
         private VisualElement _tooltipBg = null!;
         private Label _tooltipName = null!;
         private Label _tooltipDesc = null!;
+        private InventoryContextMenuController? _contextMenuController;
         private bool _initialized;
 
         protected void Start()
@@ -76,7 +77,7 @@ namespace Fodinae.UI.Inventory
                 _model.OnSlotSelected -= OnModelSlotSelected;
             }
 
-            HideContextMenu();
+            _contextMenuController?.HideContextMenu();
         }
 
         protected void Update()
@@ -102,43 +103,9 @@ namespace Fodinae.UI.Inventory
                 return;
             }
 
-            if (Keyboard.current.digit1Key.wasPressedThisFrame)
-            {
-                _model!.SelectSlot(0);
-            }
-            else if (Keyboard.current.digit2Key.wasPressedThisFrame)
-            {
-                _model!.SelectSlot(1);
-            }
-            else if (Keyboard.current.digit3Key.wasPressedThisFrame)
-            {
-                _model!.SelectSlot(2);
-            }
-            else if (Keyboard.current.digit4Key.wasPressedThisFrame)
-            {
-                _model!.SelectSlot(3);
-            }
-            else if (Keyboard.current.digit5Key.wasPressedThisFrame)
-            {
-                _model!.SelectSlot(4);
-            }
-            else if (Keyboard.current.digit6Key.wasPressedThisFrame)
-            {
-                _model!.SelectSlot(5);
-            }
-            else if (Keyboard.current.digit7Key.wasPressedThisFrame)
-            {
-                _model!.SelectSlot(6);
-            }
-            else if (Keyboard.current.digit8Key.wasPressedThisFrame)
-            {
-                _model!.SelectSlot(7);
-            }
-            else if (Keyboard.current.digit9Key.wasPressedThisFrame)
-            {
-                _model!.SelectSlot(8);
-            }
-            else if (Keyboard.current.enterKey.wasPressedThisFrame || Keyboard.current.numpadEnterKey.wasPressedThisFrame)
+            bool digitPressed = TrySelectSlotFromDigitKey();
+
+            if (!digitPressed && (Keyboard.current.enterKey.wasPressedThisFrame || Keyboard.current.numpadEnterKey.wasPressedThisFrame))
             {
                 // Enter применяет выбранный предмет и имеет приоритет над открытием
                 // чата: чат не должен перехватывать Enter и красть предмет у узла.
@@ -148,6 +115,20 @@ namespace Fodinae.UI.Inventory
                 // чтобы открытие чата не конфликтовало с применением предмета.
                 _model!.UseSelectedItem();
             }
+        }
+
+        private bool TrySelectSlotFromDigitKey()
+        {
+            if (Keyboard.current.digit1Key.wasPressedThisFrame) { _model!.SelectSlot(0); return true; }
+            if (Keyboard.current.digit2Key.wasPressedThisFrame) { _model!.SelectSlot(1); return true; }
+            if (Keyboard.current.digit3Key.wasPressedThisFrame) { _model!.SelectSlot(2); return true; }
+            if (Keyboard.current.digit4Key.wasPressedThisFrame) { _model!.SelectSlot(3); return true; }
+            if (Keyboard.current.digit5Key.wasPressedThisFrame) { _model!.SelectSlot(4); return true; }
+            if (Keyboard.current.digit6Key.wasPressedThisFrame) { _model!.SelectSlot(5); return true; }
+            if (Keyboard.current.digit7Key.wasPressedThisFrame) { _model!.SelectSlot(6); return true; }
+            if (Keyboard.current.digit8Key.wasPressedThisFrame) { _model!.SelectSlot(7); return true; }
+            if (Keyboard.current.digit9Key.wasPressedThisFrame) { _model!.SelectSlot(8); return true; }
+            return false;
         }
 
         private void TryInitialize()
@@ -183,6 +164,7 @@ namespace Fodinae.UI.Inventory
             _model.OnSlotSelected += OnModelSlotSelected;
 
             CreateTooltip(_doc.rootVisualElement);
+            _contextMenuController = new InventoryContextMenuController(_doc, _model, _loc);
             BuildUI();
             _initialized = true;
 
@@ -354,8 +336,8 @@ namespace Fodinae.UI.Inventory
                 }
                 else if (evt.button == 1)
                 {
-                    HideContextMenu();
-                    ShowContextMenu(
+                    _contextMenuController?.HideContextMenu();
+                    _contextMenuController?.ShowContextMenu(
                         evt.mousePosition,
                         slotIndex,
                         ShowItemInfo);
@@ -510,86 +492,6 @@ namespace Fodinae.UI.Inventory
         // Клавиша делает ровно то же, что полоса: отдельного окна больше нет.
         private void ToggleInventory() => ToggleFullInventory();
 
-        private VisualElement? _contextMenu;
-
-        private void ShowContextMenu(Vector2 mousePosition, int slotIndex, Action<ItemData> showItemInfo)
-        {
-            ItemData? item = _model!.GetSlot(slotIndex);
-            if (item == null)
-            {
-                return;
-            }
-
-            VisualElement root = _doc.rootVisualElement;
-            _contextMenu = new VisualElement
-            {
-                name = "ContextMenu",
-            };
-            _contextMenu.AddToClassList("inv-context-menu");
-            _contextMenu.style.left = mousePosition.x;
-            _contextMenu.style.top = mousePosition.y;
-            _contextMenu.pickingMode = PickingMode.Position;
-
-            AddContextMenuItem(_loc!.Get("inventory.context_use"), () =>
-            {
-                _model.SelectSlot(slotIndex);
-                _model.UseSelectedItem();
-                HideContextMenu();
-            });
-
-            AddContextMenuItem(_loc.Get("inventory.context_info"), () =>
-            {
-                showItemInfo(item);
-                HideContextMenu();
-            });
-
-            root.Add(_contextMenu);
-            root.RegisterCallback<MouseDownEvent>(OnContextMenuOutsideClick, TrickleDown.TrickleDown);
-            root.RegisterCallback<KeyDownEvent>(OnContextMenuEscape, TrickleDown.TrickleDown);
-        }
-
-        private void AddContextMenuItem(string labelText, Action onClick)
-        {
-            Button button = new(onClick)
-            {
-                text = labelText,
-            };
-            button.AddToClassList("inv-context-btn");
-            _contextMenu?.Add(button);
-        }
-
-        private void HideContextMenu()
-        {
-            if (_contextMenu != null)
-            {
-                _contextMenu.RemoveFromHierarchy();
-                _contextMenu = null;
-            }
-
-            if (_doc?.rootVisualElement is not VisualElement root)
-            {
-                return;
-            }
-
-            root.UnregisterCallback<MouseDownEvent>(OnContextMenuOutsideClick, TrickleDown.TrickleDown);
-            root.UnregisterCallback<KeyDownEvent>(OnContextMenuEscape, TrickleDown.TrickleDown);
-        }
-
-        private void OnContextMenuOutsideClick(MouseDownEvent evt)
-        {
-            if (_contextMenu != null && !_contextMenu.worldBound.Contains(evt.mousePosition))
-            {
-                HideContextMenu();
-            }
-        }
-
-        private void OnContextMenuEscape(KeyDownEvent evt)
-        {
-            if (evt.keyCode == KeyCode.Escape)
-            {
-                HideContextMenu();
-            }
-        }
 
         private void ShowItemInfo(ItemData item)
         {

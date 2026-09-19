@@ -2,11 +2,11 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Core.Lifecycle;
+using Kern.Core.Lifecycle;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace Fodinae.Game;
+namespace Kern.Game;
 
 public sealed class WorldEntityOverlayBatch : IDisposable
 {

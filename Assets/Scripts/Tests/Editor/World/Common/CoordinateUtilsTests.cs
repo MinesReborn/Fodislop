@@ -1,11 +1,11 @@
 #nullable enable
 
-using Fodinae.World;
-using Fodinae.World.Terrain;
+using Kern.World;
+using Kern.World.Terrain;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Fodinae.Tests.World;
+namespace Kern.Tests.World;
 
 [TestFixture]
 public class CoordinateUtilsTests

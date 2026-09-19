@@ -1,16 +1,16 @@
 #nullable enable
 
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Game.Managers;
-using Fodinae.Player;
-using Fodinae.World;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Game.Managers;
+using Kern.Player;
+using Kern.World;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-namespace Fodinae.Tools;
+namespace Kern.Tools;
 
 public static class DebugOverlayGizmos
 {
@@ -59,7 +59,7 @@ public static class DebugOverlayGizmos
                 Vector3 origin = CoordinateUtils.ServerToUnityPos(serverLeft, serverTop, worldHeight);
                 Vector3 center = origin + new Vector3(chunkSize * 0.5f - 0.5f, -(chunkSize * 0.5f - 0.5f), 0f);
 
-                FodinaeGizmos.DrawBounds(center, new Vector2(chunkSize, chunkSize), new Color(0f, 0.8f, 1f, 0.4f));
+                KernGizmos.DrawBounds(center, new Vector2(chunkSize, chunkSize), new Color(0f, 0.8f, 1f, 0.4f));
             }
         }
     }
@@ -97,6 +97,6 @@ public static class DebugOverlayGizmos
         }
 
         Color highlightColor = passable ? Color.green : Color.red;
-        FodinaeGizmos.DrawBounds(cellCenter, Vector2.one * 0.95f, highlightColor);
+        KernGizmos.DrawBounds(cellCenter, Vector2.one * 0.95f, highlightColor);
     }
 }

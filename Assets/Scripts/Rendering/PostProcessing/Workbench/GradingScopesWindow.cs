@@ -1,11 +1,11 @@
 #nullable enable
 
 using System.Collections.Generic;
-using Fodinae.Rendering.PostProcessing.Scopes;
-using Fodinae.Tools.Imgui;
+using Kern.Rendering.PostProcessing.Scopes;
+using Kern.Tools.Imgui;
 using UnityEngine;
 
-namespace Fodinae.Rendering.PostProcessing.Workbench;
+namespace Kern.Rendering.PostProcessing.Workbench;
 
 internal sealed class GradingScopesWindow : ToolWindow
 {
@@ -16,51 +16,6 @@ internal sealed class GradingScopesWindow : ToolWindow
     private const float ChromeWidth = 26f + 18f;
     private const float TwoColumnMinWidth = 700f;
     private const float ColumnGap = 8f;
-
-    private static readonly Option[] DebugViewOptions =
-    [
-        new("обычный", (int)PostProcessDebugView.None),
-        new("ложный цвет", (int)PostProcessDebugView.FalseColor),
-        new("отсечка", (int)PostProcessDebugView.Clipping),
-        new("highlights", (int)PostProcessDebugView.HighlightClipping),
-        new("shadows", (int)PostProcessDebugView.ShadowClipping),
-        new("gamut warning", (int)PostProcessDebugView.GamutWarning),
-        new("luma", (int)PostProcessDebugView.LumaOnly),
-        new("sat", (int)PostProcessDebugView.SaturationOnly),
-        new("matte", (int)PostProcessDebugView.QualifierMatte),
-        new("R", (int)PostProcessDebugView.SoloRed),
-        new("G", (int)PostProcessDebugView.SoloGreen),
-        new("B", (int)PostProcessDebugView.SoloBlue),
-    ];
-
-    private static readonly Option[] CompareOptions =
-    [
-        new("выкл", (int)CompareMode.Off),
-        new("верт. wipe", (int)CompareMode.VerticalWipe),
-        new("гориз. wipe", (int)CompareMode.HorizontalWipe),
-        new("side-by-side", (int)CompareMode.SideBySide),
-        new("A/B", (int)CompareMode.AbToggle),
-    ];
-
-    private static readonly Option[] SourceOptions =
-    [
-        new("после грейда", (int)ScopesSourceMode.After),
-        new("до грейда", (int)ScopesSourceMode.Before),
-    ];
-
-    private static readonly Option[] WaveformOptions =
-    [
-        new("overlay", (int)ScopeWaveformMode.Overlay),
-        new("RGB parade", (int)ScopeWaveformMode.Parade),
-        new("luma", (int)ScopeWaveformMode.Luma),
-    ];
-
-    private static readonly Option[] HistogramOptions =
-    [
-        new("RGB + luma", 0),
-        new("luma", 1),
-        new("RGB", 2),
-    ];
 
     private static readonly GUIContent _MeasureContent = new();
     private static readonly GUILayoutOption[] ExpandWidth = [GUILayout.ExpandWidth(true)];
@@ -148,7 +103,7 @@ internal sealed class GradingScopesWindow : ToolWindow
 
     private void DrawFrameSection()
     {
-        int view = SegmentedRow("ВИД КАДРА", DebugViewOptions, (int)PostProcessRuntimeState.DebugView);
+        int view = SegmentedRow("ВИД КАДРА", GradingScopesOptions.DebugViewOptions, (int)PostProcessRuntimeState.DebugView);
         if (view != (int)PostProcessRuntimeState.DebugView)
         {
             _debugViewRequested = (PostProcessDebugView)view;
@@ -173,9 +128,7 @@ internal sealed class GradingScopesWindow : ToolWindow
                 "чёрный — нейтральный, белый — максимальная насыщенность",
             PostProcessDebugView.QualifierMatte =>
                 "белое — выбранная qualifier-маска, чёрное — исключённые пиксели",
-            PostProcessDebugView.SoloRed => "только красный канал",
-            PostProcessDebugView.SoloGreen => "только зелёный канал",
-            PostProcessDebugView.SoloBlue => "только синий канал",
+            PostProcessDebugView.RgbParade => "трети R|G|B монохромом",
             _ => "кадр показывается без отладочной разметки",
         };
         GUILayout.Label(explanation, WrappedLabelStyle);
@@ -184,7 +137,7 @@ internal sealed class GradingScopesWindow : ToolWindow
     private void DrawCompareSection()
     {
         CompareMode mode = PostProcessRuntimeState.CompareMode;
-        int picked = SegmentedRow("СРАВНЕНИЕ ДО / ПОСЛЕ", CompareOptions, (int)mode);
+        int picked = SegmentedRow("СРАВНЕНИЕ ДО / ПОСЛЕ", GradingScopesOptions.CompareOptions, (int)mode);
         if (picked != (int)mode)
         {
             ApplyCompareMode((CompareMode)picked);
@@ -245,19 +198,19 @@ internal sealed class GradingScopesWindow : ToolWindow
 
         // Режимы пишутся только при смене: сеттеры прохода не обязаны быть
         // дешёвыми, а отрисовка вызывается несколько раз за кадр.
-        int source = SegmentedRow("ИСТОЧНИК", SourceOptions, (int)ScopesRenderPass.SourceMode);
+        int source = SegmentedRow("ИСТОЧНИК", GradingScopesOptions.SourceModeOptions, (int)ScopesRenderPass.SourceMode);
         if (source != (int)ScopesRenderPass.SourceMode)
         {
             ScopesRenderPass.SourceMode = (ScopesSourceMode)source;
         }
 
-        int waveform = SegmentedRow("WAVEFORM", WaveformOptions, (int)ScopesRenderPass.WaveformMode);
+        int waveform = SegmentedRow("WAVEFORM", GradingScopesOptions.WaveformOptions, (int)ScopesRenderPass.WaveformMode);
         if (waveform != (int)ScopesRenderPass.WaveformMode)
         {
             ScopesRenderPass.WaveformMode = (ScopeWaveformMode)waveform;
         }
 
-        int histogram = SegmentedRow("HISTOGRAM", HistogramOptions, ScopesRenderPass.HistogramMode);
+        int histogram = SegmentedRow("HISTOGRAM", GradingScopesOptions.HistogramOptions, ScopesRenderPass.HistogramMode);
         if (histogram != ScopesRenderPass.HistogramMode)
         {
             ScopesRenderPass.HistogramMode = histogram;
@@ -349,7 +302,7 @@ internal sealed class GradingScopesWindow : ToolWindow
 
     // Сегментированный ряд с переносом: кнопки раскладываются по рядам по
     // ширине окна, а не сжимаются в одну строку до нечитаемости.
-    private int SegmentedRow(string title, Option[] options, int current)
+    private int SegmentedRow(string title, GradingScopesOptions.Option[] options, int current)
     {
         GUILayout.Label(title, SectionLabelStyle);
         int picked = current;
@@ -361,7 +314,7 @@ internal sealed class GradingScopesWindow : ToolWindow
                 float used = 0f;
                 do
                 {
-                    Option option = options[index];
+                    GradingScopesOptions.Option option = options[index];
                     float width = MeasureButton(option.Label);
                     if (used > 0f && used + width > _contentWidth)
                     {
@@ -494,12 +447,5 @@ internal sealed class GradingScopesWindow : ToolWindow
                 GUI.Label(rect, "Нет сигнала", ToolTheme.MutedLabel);
             }
         }
-    }
-
-    private readonly struct Option(string label, int value)
-    {
-        public string Label { get; } = label;
-
-        public int Value { get; } = value;
     }
 }

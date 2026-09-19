@@ -1,6 +1,6 @@
 #nullable enable
 
-using Fodinae.Core.Interfaces;
+using Kern.Core.Interfaces;
 
 namespace MinesServer.Networking.Connection.Client;
 

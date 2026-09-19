@@ -3,11 +3,11 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Fodinae.Core.Interfaces;
+using Kern.Core.Interfaces;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.World.Textures;
+namespace Kern.World.Textures;
 
 public sealed class WorldAtlasCollection : IDisposable
 {

@@ -3,7 +3,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace Fodinae.Rendering.PostProcessing;
+namespace Kern.Rendering.PostProcessing;
 
 #if UNITY_EDITOR
 using UnityEditor;

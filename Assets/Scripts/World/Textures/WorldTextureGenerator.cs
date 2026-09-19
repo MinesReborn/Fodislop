@@ -3,7 +3,7 @@
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.World.Textures;
+namespace Kern.World.Textures;
 
 public static class WorldTextureGenerator
 {

@@ -2,16 +2,16 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Lifecycle;
-using Fodinae.World;
-using Fodinae.World.Terrain;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Core.Lifecycle;
+using Kern.World;
+using Kern.World.Terrain;
 using MinesServer.Data;
 using UnityEngine;
 using VContainer;
 
-namespace Fodinae.Game
+namespace Kern.Game
 {
     public class VfxPool : MonoBehaviour, IVfxService
     {

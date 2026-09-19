@@ -1,11 +1,11 @@
 #nullable enable
 
 using System;
-using Fodinae.Core.Localization;
+using Kern.Core.Localization;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 public sealed class MenuNavigationPresenter
 {
@@ -25,7 +25,7 @@ public sealed class MenuNavigationPresenter
     private Button? _sideUpdateButton;
     private Button? _sideDiscordButton;
     private Button? _sideTelegramButton;
-    private Button? _sideVkButton;
+    private Button? _sideVKButton;
     private Button? _sideExitButton;
 
     private Button? _newsTickerButton;
@@ -54,7 +54,7 @@ public sealed class MenuNavigationPresenter
         _sideUpdateButton = tree.Q<Button>("SideUpdateButton");
         _sideDiscordButton = tree.Q<Button>("SideDiscordButton");
         _sideTelegramButton = tree.Q<Button>("SideTelegramButton");
-        _sideVkButton = tree.Q<Button>("SideVkButton");
+        _sideVKButton = tree.Q<Button>("SideVkButton");
         _sideExitButton = tree.Q<Button>("SideExitButton");
 
         _newsTickerButton = tree.Q<Button>("NewsTickerButton");
@@ -115,9 +115,9 @@ public sealed class MenuNavigationPresenter
             _sideTelegramButton.clicked += OpenTelegram;
         }
 
-        if (_sideVkButton != null)
+        if (_sideVKButton != null)
         {
-            _sideVkButton.clicked += OpenVk;
+            _sideVKButton.clicked += OpenVK;
         }
 
         if (_sideExitButton != null)
@@ -233,11 +233,11 @@ public sealed class MenuNavigationPresenter
     }
 
     private static void OpenDiscord() =>
-        Application.OpenURL("https://discord.gg/fodinae");
+        Application.OpenURL("https://discord.gg/kern");
 
     private static void OpenTelegram() =>
-        Application.OpenURL("https://t.me/fodinae");
+        Application.OpenURL("https://t.me/kern");
 
-    private static void OpenVk() =>
-        Application.OpenURL("https://vk.com/fodinae");
+    private static void OpenVK() =>
+        Application.OpenURL("https://vk.com/kern");
 }

@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Fodinae.Core;
+namespace Kern.Core;
 
 public sealed class SceneContractException : InvalidOperationException
 {

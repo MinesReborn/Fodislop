@@ -6,7 +6,7 @@ using System.Reflection;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace Fodinae.Rendering.PostProcessing;
+namespace Kern.Rendering.PostProcessing;
 
 public static class PostProcessDefaults
 {
@@ -18,7 +18,10 @@ public static class PostProcessDefaults
         PostProcessLimits.BloomIntensityMin,
         PostProcessLimits.BloomIntensityMax);
 
-    public static ClampedFloatParameter BloomThreshold() => new(0f, 0f, 2f);
+    // Порог теперь относительный: во сколько раз пиксель обязан превзойти
+    // собственный локальный фон. Значения ниже единицы лишены смысла — они
+    // зажгли бы сам фон, — поэтому нижняя граница равна единице, а не нулю.
+    public static ClampedFloatParameter BloomThreshold() => new(1.6f, 1f, 8f);
 
     public static ClampedFloatParameter BloomSoftKnee() => new(0.5f, 0f, 1f);
 

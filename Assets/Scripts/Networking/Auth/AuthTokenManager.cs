@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace Fodinae.Networking.Auth;
+namespace Kern.Networking.Auth;
 public interface IGameTokenStore
 {
     bool HasToken { get; }

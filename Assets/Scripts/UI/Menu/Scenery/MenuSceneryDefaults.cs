@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 public static class MenuSceneryDefaults
 {

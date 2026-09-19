@@ -2,13 +2,13 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Localization;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Core.Localization;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 public sealed class GatewayOnboarding
 {
@@ -382,7 +382,7 @@ public sealed class GatewayOnboarding
             }
         });
 
-        Fodinae.Rendering.DisplayManager.ApplyFrameTiming(_clientConfig.Config.Display);
+        Kern.Rendering.DisplayManager.ApplyFrameTiming(_clientConfig.Config.Display);
     }
 
     private static float ValueOfUIScale(int index)

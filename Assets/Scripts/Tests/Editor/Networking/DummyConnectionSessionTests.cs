@@ -1,11 +1,11 @@
 #nullable enable
 
-using Fodinae.Core.Interfaces;
+using Kern.Core.Interfaces;
 using MinesServer.Networking.Connection.Client;
 using MinesServer.Networking.Shared;
 using NUnit.Framework;
 
-namespace Fodinae.Tests.Networking;
+namespace Kern.Tests.Networking;
 
 public sealed class DummyConnectionSessionTests
 {
@@ -87,6 +87,20 @@ public sealed class DummyConnectionSessionTests
     }
 
     [Test]
+    public void ConnectDuringDisconnect_SupersedesTheLateDisconnectCompletion()
+    {
+        var session = new DummyConnectionSession();
+        session.TryBeginConnect(out int firstVersion);
+        session.TryCompleteConnect(firstVersion);
+        Assert.That(session.TryBeginDisconnect(out int disconnectVersion), Is.True);
+
+        Assert.That(session.TryBeginConnect(out int reconnectVersion), Is.True);
+        Assert.That(session.TryCompleteDisconnect(disconnectVersion), Is.False);
+        Assert.That(session.TryCompleteConnect(reconnectVersion), Is.True);
+        Assert.That(session.Status, Is.EqualTo(ConnectionStatus.Connected));
+    }
+
+    [Test]
     public void Stop_InvalidatesAliveGeneration()
     {
         var session = new DummyConnectionSession();
@@ -101,11 +115,11 @@ public sealed class DummyConnectionSessionTests
     }
 
     [Test]
-    public void StableUserId_IsDeterministicAndInsideOfflineRange()
+    public void StableUserID_IsDeterministicAndInsideOfflineRange()
     {
-        long first = DummyAuthSession.StableUserId("device-a");
-        long repeated = DummyAuthSession.StableUserId("device-a");
-        long other = DummyAuthSession.StableUserId("device-b");
+        long first = DummyAuthSession.StableUserID("device-a");
+        long repeated = DummyAuthSession.StableUserID("device-a");
+        long other = DummyAuthSession.StableUserID("device-b");
 
         Assert.That(repeated, Is.EqualTo(first));
         Assert.That(other, Is.Not.EqualTo(first));

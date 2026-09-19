@@ -12,7 +12,7 @@
         <IntermediateOutputPath>$(BaseIntermediateOutputPath)</IntermediateOutputPath>
     </PropertyGroup>
 
-    <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Assembly-CSharp' Or '$(MSBuildProjectName)' == 'Assembly-CSharp-Editor' Or '$(MSBuildProjectName)' == 'Fodinae.Runtime' Or '$(MSBuildProjectName)' == 'Fodinae.Editor' Or '$(MSBuildProjectName)' == 'Fodinae.Bootstrap' Or '$(MSBuildProjectName)' == 'Fodinae.Tests.Editor'">
+    <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Assembly-CSharp' Or '$(MSBuildProjectName)' == 'Assembly-CSharp-Editor' Or '$(MSBuildProjectName)' == 'Kern.Runtime' Or '$(MSBuildProjectName)' == 'Kern.Editor' Or '$(MSBuildProjectName)' == 'Kern.Bootstrap' Or '$(MSBuildProjectName)' == 'Kern.Tests.Editor'">
         <Nullable>enable</Nullable>
         <!-- Свой код обязан быть nullable-чистым: нарушение CS86xx даёт warning,
          который валит pre-commit-lint.sh/CI (см. scripts/pre-commit-lint.sh).
@@ -21,7 +21,7 @@
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     </PropertyGroup>
 
-    <ItemGroup Condition="'$(MSBuildProjectName)' == 'Assembly-CSharp' Or '$(MSBuildProjectName)' == 'Assembly-CSharp-Editor' Or '$(MSBuildProjectName)' == 'Fodinae.Runtime' Or '$(MSBuildProjectName)' == 'Fodinae.Editor' Or '$(MSBuildProjectName)' == 'Fodinae.Bootstrap' Or '$(MSBuildProjectName)' == 'Fodinae.Tests.Editor'">
+    <ItemGroup Condition="'$(MSBuildProjectName)' == 'Assembly-CSharp' Or '$(MSBuildProjectName)' == 'Assembly-CSharp-Editor' Or '$(MSBuildProjectName)' == 'Kern.Runtime' Or '$(MSBuildProjectName)' == 'Kern.Editor' Or '$(MSBuildProjectName)' == 'Kern.Bootstrap' Or '$(MSBuildProjectName)' == 'Kern.Tests.Editor'">
         <!-- Стиль и форматирование -->
         <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556">
             <PrivateAssets>all</PrivateAssets>

@@ -2,16 +2,16 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Core.Interfaces;
-using Fodinae.Networking;
-using Fodinae.UI.Binding;
+using Kern.Core.Interfaces;
+using Kern.Networking;
+using Kern.UI.Binding;
 using MinesServer.Networking.Client.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Shared.Packets;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 public sealed class ServerWindowPresenter : IDisposable
 {

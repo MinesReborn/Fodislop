@@ -3,7 +3,14 @@ name: CI
 on:
   # Temporarily manual-only while the client refactor is in progress.
   # Restore push, pull_request, and schedule triggers to re-enable automation.
+  # With schedule restored (nightly, e.g. cron '0 2 * * *'), the soak job runs
+  # on every scheduled run; manually it runs when the soak input is set.
   workflow_dispatch:
+    inputs:
+      soak:
+        description: 'Run the nightly soak suite (scene cycles, reconnect storms, map streaming)'
+        type: boolean
+        default: false
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -28,14 +35,14 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - name: Validate architecture, USS, and localization
-        run: dotnet run --project tools/Fodinae.ArchitectureLinter
+        run: dotnet run --project tools/Kern.ArchitectureLinter
       - name: Test display mode lifecycle without Unity
-        run: dotnet test tools/Fodinae.DisplayTests/Fodinae.DisplayTests.csproj --verbosity minimal
+        run: dotnet test tools/Kern.DisplayTests/Kern.DisplayTests.csproj --verbosity minimal
 
   macos-tests:
     name: Unity tests (macOS ARM64)
     needs: architecture
-    runs-on: [self-hosted, macOS, ARM64, fodinae-unity]
+    runs-on: [self-hosted, macOS, ARM64, kern-unity]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
@@ -68,6 +75,7 @@ jobs:
           --output TestResults/playmode.xml
           --junit-output TestResults/playmode.junit.xml
           --timeout 1800 --format github
+          -- -testCategory "!Soak"
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -80,7 +88,7 @@ jobs:
   windows-tests:
     name: Unity tests (Windows x64)
     needs: architecture
-    runs-on: [self-hosted, Windows, X64, fodinae-unity]
+    runs-on: [self-hosted, Windows, X64, kern-unity]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
@@ -116,6 +124,7 @@ jobs:
           --output TestResults/playmode.xml
           --junit-output TestResults/playmode.junit.xml
           --timeout 1800 --format github
+          -- -testCategory "!Soak"
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -125,11 +134,47 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
+  macos-soak:
+    name: Soak (macOS ARM64)
+    if: github.event_name == 'schedule' || inputs.soak
+    needs: macos-tests
+    runs-on: [self-hosted, macOS, ARM64, kern-unity]
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          clean: true
+      - name: Bake planet maps
+        run: |
+          python3 -m pip install --quiet --disable-pip-version-check numpy pillow
+          python3 scripts/generate_planet_maps.py
+      - name: Soak tests
+        run: >-
+          unity test . --editor-version "$UNITY_EDITOR_VERSION"
+          --mode PlayMode --report-format nunit,junit
+          --output TestResults/soak.xml
+          --junit-output TestResults/soak.junit.xml
+          --timeout 13000 --format github
+          -- -testCategory "Soak"
+      - name: Collect soak metrics
+        if: always()
+        run: |
+          mkdir -p TestResults/soak-metrics
+          cp -R "$HOME/Library/Application Support/DefaultCompany/Project Kern/Soak/." TestResults/soak-metrics/ 2>/dev/null || true
+      - name: Upload soak reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unity-soak-results-macos
+          path: TestResults/
+          retention-days: 30
+          if-no-files-found: warn
+
   macos-player:
     name: IL2CPP player (macOS ARM64)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     needs: macos-tests
-    runs-on: [self-hosted, macOS, ARM64, fodinae-unity]
+    runs-on: [self-hosted, macOS, ARM64, kern-unity]
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
@@ -148,10 +193,10 @@ jobs:
         run: >-
           unity run . --editor-version "$UNITY_EDITOR_VERSION"
           --timeout 7000 --format github --
-          -nographics -executeMethod Fodinae.Editor.BuildScript.BuildMacOS
+          -nographics -executeMethod Kern.Editor.BuildScript.BuildMacOS
       - uses: actions/upload-artifact@v7
         with:
-          name: fodinae-macos-arm64
+          name: kern-macos-arm64
           path: Build/macOS/
           retention-days: 14
           if-no-files-found: error
@@ -160,7 +205,7 @@ jobs:
     name: IL2CPP player (Windows x64)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     needs: windows-tests
-    runs-on: [self-hosted, Windows, X64, fodinae-unity]
+    runs-on: [self-hosted, Windows, X64, kern-unity]
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
@@ -180,10 +225,10 @@ jobs:
         run: >-
           unity run . --editor-version "$env:UNITY_EDITOR_VERSION"
           --timeout 7000 --format github --
-          -nographics -executeMethod Fodinae.Editor.BuildScript.BuildWindows
+          -nographics -executeMethod Kern.Editor.BuildScript.BuildWindows
       - uses: actions/upload-artifact@v7
         with:
-          name: fodinae-windows-x64
+          name: kern-windows-x64
           path: Build/Windows/
           retention-days: 14
           if-no-files-found: error

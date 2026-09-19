@@ -1,12 +1,12 @@
 #nullable enable
 
-namespace Fodinae.Rendering;
+namespace Kern.Rendering;
 
 using System;
 using System.Text;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Rendering.PostProcessing;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Rendering.PostProcessing;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -15,6 +15,7 @@ public static class HDROutput
 {
     private static HDRDiagnosticState _lastDiagnosticState;
     private static bool _hasDiagnosticState;
+    private static string? _lastReadError;
     private static HDROutputController _controller = new(new UnityHDROutputBackend());
 
     public static bool Enabled => _controller.DesiredHDR;
@@ -25,6 +26,8 @@ public static class HDROutput
     public static bool CanSwitch => _controller.Current.CanSwitch &&
         _controller.Status is not HDROutputController.Phase.Pending and not HDROutputController.Phase.Uninitialized &&
         !_controller.HasReadFailure;
+
+    public static bool CanRetryRead => _controller.HasReadFailure;
 
     private readonly record struct HDRDiagnosticState(
         HDROutputController.Snapshot Output,
@@ -89,6 +92,12 @@ public static class HDROutput
         return ApplyPreference();
     }
 
+    public static void RetryRead()
+    {
+        _controller.RetryRead();
+        Reconcile();
+    }
+
     public static void Retry()
     {
         _controller.NotifyEnvironmentChanged();
@@ -121,6 +130,27 @@ public static class HDROutput
     {
         var state = new HDRDiagnosticState(
             _controller.Current, Enabled, Status, _controller.Attempts, _controller.Error);
+        string? readError = _controller.Error;
+
+        // A read failure is terminal until the user retries it. The same
+        // failure recurs every reconcile/tick while it stands, and the two
+        // startup paths (DisplayManager.ApplyInitialSettings vs
+        // HDROutputReconciler.Start) initialize with different DesiredHDR, so
+        // the state differs and the warning would otherwise fire twice.
+        if (readError != null)
+        {
+            if (readError == _lastReadError)
+            {
+                return;
+            }
+
+            _lastReadError = readError;
+        }
+        else
+        {
+            _lastReadError = null;
+        }
+
         if (_hasDiagnosticState && state == _lastDiagnosticState)
         {
             return;

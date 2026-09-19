@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Fodinae.Core;
+namespace Kern.Core;
 
 [Serializable]
 public sealed class InterfaceSettings
@@ -24,4 +24,13 @@ public sealed class InterfaceSettings
     [SettingLabel("gateway.onb.controls_scheme_label")]
     [SettingConsumer(SettingConsumerTarget.Gameplay, "Controls / Onboarding scheme")]
     public int ControlScheme;
+
+    [SettingUnbounded("Тумблер автовхода в воротах авторизации.")]
+    [SettingLabel("gateway.auth.auto_login")]
+    [SettingConsumer(SettingConsumerTarget.UserInterface, "AuthGate auto sign-in toggle")]
+    public bool AutoLogin;
+
+    [SettingUnbounded("Флаг пройденного онбординга; внутреннего тумблера нет.")]
+    [SettingConsumer(SettingConsumerTarget.UserInterface, "GatewayController onboarding gate")]
+    public bool OnboardingDone;
 }

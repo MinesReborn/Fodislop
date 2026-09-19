@@ -11,7 +11,7 @@ using MinesServer.Networking.Server.Packets;
 using MinesServer.Networking.Shared;
 using UnityEngine;
 
-namespace Fodinae.Networking.Connection
+namespace Kern.Networking.Connection
 {
     /// <summary>
     /// Резервный TCP-транспорт с собственным блокирующим receive-loop'ом.
@@ -99,7 +99,7 @@ namespace Fodinae.Networking.Connection
 
                 RunReadLoop(client, _stream);
             }
-            catch (Exception ex) when (_disposing)
+            catch (Exception) when (_disposing)
             {
                 // Явное закрытие: событие уже отправил Disconnect().
             }

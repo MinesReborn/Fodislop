@@ -6,19 +6,19 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Effekseer;
-using Fodinae.Audio.Backend;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Effekseer;
-using Fodinae.Game.Managers;
-using Fodinae.World;
-using Fodinae.World.Terrain;
+using Kern.Audio.Backend;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Effekseer;
+using Kern.Game.Managers;
+using Kern.World;
+using Kern.World.Terrain;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.World;
 using MinesServer.Networking.Shared.Packets;
 using UnityEngine;
 
-namespace Fodinae.Game;
+namespace Kern.Game;
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Gracefully handle any dynamic asset load/play errors.")]
 public sealed class ServerAudioEvent : IDisposable
 {

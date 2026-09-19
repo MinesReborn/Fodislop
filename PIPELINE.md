@@ -9,8 +9,6 @@
 меш террейна ──[раст. MRT, орто]──┬──► MaterialField  (F, RGBA32, +mips)
                                   └──► StaticEmission (F, ARGBHalf)
 
-источники ──[DynamicEmissionComposition]──► DynamicEmission (F, ARGBHalf)
-
                      ┌── MaterialField
 StaticEmission ──────┴──[SolveCascade]──► RadianceAtlas (uint3 × N)
                                               │
@@ -20,11 +18,10 @@ StaticEmission ──────┴──[SolveCascade]──► RadianceAtlas 
                                               ▼
                                     StaticDirect (F, ARGBHalf)
 
-                     ┌── MaterialField
-DynamicEmission ─────┴──[SolveCascade]──► RadianceAtlas   ← тот же буфер,
-                                              │             перезаписан
+DynamicLights ───────┴──[TraceDynamicPolar → SolveDynamicLighting]
+                                              │
                                               ▼
-                                       [ResolveDirect]
+                                       [ComposeDynamicLighting]
                                               │
                                               ▼
                                        Direct (F, ARGBHalf)
@@ -68,8 +65,9 @@ _WorldLightTexture ──► lightColor ────────┤             
 ## Экран
 
 ```
-кадр ──[сигмоида Fodinae]──[блум]──[виньетка]──[аберрация]──[зерно]──► экран
+кадр ──[CompositeFinal: блум + запечённый грейд]──[тонмапп URP]──[DisplayFinal: LUT/кривые, виньетка, зерно, смаз]──► экран
 ```
+Тонмаппинг — за URP (Neutral SDR / Neutral BT2390 HDR через `HDROutputReconciler`); своей сигмоиды и хроматической аберрации в коде нет.
 
 ## Таблица стадий
 
@@ -77,21 +75,19 @@ _WorldLightTexture ──► lightColor ────────┤             
 |----|---------------------|---------------------------------|-----------------|--------|-----------------|
 | 1  | Поле материалов     | меш террейна + анимация цвета   | Material + Emis | F      | геометрия/регион|
 | 2  | Мипы поля           | Material                        | Material.mips   | F      | геометрия/регион|
-| 3  | Динам. эмиссия      | источники + анимир. клетки      | DynEmission     | F      | каждый кадр     |
+| 3  | Геометрические кэши | Material                        | SolidMask/Taps  | F      | геометрия/регион|
 | 4  | Каскады (стат.)     | Material, StaticEmission        | RadianceAtlas   | N зап. | мир изменился   |
 | 5  | Resolve (стат.)     | RadianceAtlas                   | StaticDirect    | F      | мир изменился   |
-| 6  | Каскады (динам.)    | Material, DynEmission           | RadianceAtlas   | N зап. | каждый кадр*    |
-| 7  | Resolve (динам.)    | RadianceAtlas                   | Direct          | F      | каждый кадр*    |
-| 8  | Диффузный отскок    | Direct, StaticDirect, Material  | Bounce          | F/2    | каждый кадр     |
-| 9  | Сведение            | Direct, StaticDirect, Bounce    | Lightmap        | F      | каждый кадр     |
-| 10 | Выборка тайла       | BaseMap, атрибуты вершины       | texColor        | S      | каждый пиксель  |
-| 11 | Анимация цвета      | texColor, animData              | finalRGB        | S      | каждый пиксель  |
-| 12 | Силуэт              | маска соседства                 | finalAlpha      | S      | каждый пиксель  |
-| 13 | AO вокруг блоков    | MaterialField.mips (только фон) | occlusion       | S      | каждый пиксель  |
-| 14 | Освещение           | Lightmap, finalRGB, occlusion   | цвет пикселя    | S      | каждый пиксель  |
-| 15 | Постобработка       | кадр                            | экран           | S      | каждый кадр     |
-
-\* Нет динамических источников → 6-7 заменяются обнулением `Direct`.
+| 6  | Полярное динамич.   | Material, DynamicLights         | Direct          | F      | источник изменился|
+| 7  | Диффузный отскок    | Direct, StaticDirect, Material  | Bounce          | F/2    | свет изменился  |
+| 8  | Сведение            | Direct, StaticDirect, Bounce    | Lightmap        | F      | свет изменился  |
+| 9  | Выборка тайла       | BaseMap, атрибуты вершины       | texColor        | S      | каждый пиксель  |
+| 10 | Анимация цвета      | texColor, animData              | finalRGB        | S      | каждый пиксель  |
+| 11 | Силуэт              | маска соседства                 | finalAlpha      | S      | каждый пиксель  |
+| 12 | AO вокруг блоков    | MaterialField.mips (только фон) | occlusion       | S      | каждый пиксель  |
+| 13 | Освещение           | Lightmap, finalRGB, occlusion   | цвет пикселя    | S      | каждый пиксель  |
+| 14 | Постобработка       | кадр                            | экран           | S      | каждый кадр     |
+\* Нет динамических источников → динамический direct очищается, остальные стадии используют кэш статического света.
 
 ## Ветвления
 

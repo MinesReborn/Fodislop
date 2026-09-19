@@ -2,14 +2,14 @@
 
 using System;
 
-using Fodinae.Core.Localization;
-using Fodinae.Core.Interfaces;
-using Fodinae.UI;
+using Kern.Core.Localization;
+using Kern.Core.Interfaces;
+using Kern.UI;
 using UnityEngine;
 using UnityEngine.UIElements;
 using VContainer;
 
-namespace Fodinae.Core
+namespace Kern.Core
 {
     [RequireComponent(typeof(UIDocument))]
     public sealed class BootstrapLoadingScreen : MonoBehaviour, ILocalizableUI

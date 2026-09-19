@@ -1,16 +1,16 @@
 #nullable enable
 
 using System;
-using Fodinae;
-using Fodinae.Core.Lifecycle;
-using Fodinae.UI;
+using Kern;
+using Kern.Core.Lifecycle;
+using Kern.UI;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 using VContainer;
 using VContainer.Unity;
 
-namespace Fodinae.Core
+namespace Kern.Core
 {
     public sealed class MainMenuLifetimeScope : TransitionSceneLifetimeScope
     {
@@ -49,7 +49,7 @@ namespace Fodinae.Core
                     "MainMenu scene scope is missing serialized _document PanelSettings.");
             }
 
-            Fodinae.UI.DynamicAtlasConfigurator.Apply(_document.panelSettings);
+            Kern.UI.DynamicAtlasConfigurator.Apply(_document.panelSettings);
 
             // This scope is already registered by LifetimeScope.InstallTo as
             // RegisterInstance<LifetimeScope>(this).AsSelf() — an explicit

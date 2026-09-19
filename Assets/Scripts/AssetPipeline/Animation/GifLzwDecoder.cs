@@ -3,7 +3,7 @@
 using System;
 using System.IO;
 
-namespace Fodinae.World;
+namespace Kern.World;
 
 internal static class GifLzwDecoder
 {

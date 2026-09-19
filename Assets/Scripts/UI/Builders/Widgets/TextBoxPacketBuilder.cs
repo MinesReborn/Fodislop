@@ -1,10 +1,10 @@
 #nullable enable
 
-using Fodinae.UI.Controls;
+using Kern.UI.Controls;
 using MinesServer.Networking.Server.Packets.GUI.Components.Input;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Builders;
+namespace Kern.UI.Builders;
 public class TextBoxPacketBuilder : PacketUIBuilderBase<TextBoxPacket>
 {
     protected override VisualElement BuildTyped(TextBoxPacket packet, PacketUIBuilder builder)

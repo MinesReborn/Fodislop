@@ -5,7 +5,7 @@ using MinesServer.Data;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.HUD.Player.View;
+namespace Kern.UI.HUD.Player.View;
 
 public sealed class PlayerHUDSkillGrid
 {

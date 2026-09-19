@@ -1,10 +1,10 @@
 #nullable enable
 
-using Fodinae.Player.Logic;
+using Kern.Player.Logic;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Fodinae.Tests.Player;
+namespace Kern.Tests.Player;
 
 [TestFixture]
 public class PlayerMovementBoundaryTests

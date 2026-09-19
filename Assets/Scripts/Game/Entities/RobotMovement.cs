@@ -1,10 +1,10 @@
 #nullable enable
 
-using Fodinae.Core;
-using Fodinae.World;
+using Kern.Core;
+using Kern.World;
 using UnityEngine;
 
-namespace Fodinae.Game;
+namespace Kern.Game;
 
 public sealed class RobotMovement
 {

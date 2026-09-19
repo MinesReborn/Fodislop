@@ -1,4 +1,4 @@
-/* Fodinae Theme */
+/* Kern Theme */
 
 :root {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/Exo2_SDF.asset");
@@ -157,7 +157,7 @@ TextField,
    центрирование.
 
    Числа выведены, а не подобраны. Источник истины — planet-disc: 860px из
-   visual/fodinae-ui-lab/css/tokens.css. Здесь планета не CSS-фигура, а
+   visual/kern-ui-lab/css/tokens.css. Здесь планета не CSS-фигура, а
    рендер 3D-сферы в RenderTexture, и сфера занимает ~70% ширины кадра
    (замерено: контейнер 820 → диск 568). Отсюда контейнер = 860 / 0.7 ≈ 1229,
    а поля вокруг диска = (1229 − 860) / 2 ≈ 184. Чтобы диск уходил за правый
@@ -199,8 +199,8 @@ TextField,
 
 .mm-beacon-ping {
     position: absolute;
-    width: 16px;
-    height: 16px;
+    width: var(--space-8);
+    height: var(--space-8);
     border-radius: var(--radius-pill);
     border-width: 1px;
     border-color: var(--accent-gold);
@@ -253,7 +253,7 @@ TextField,
    читалась как случайное наложение, а не как выноска к точке высадки. */
 .mm-target-badge {
     position: absolute;
-    right: 28px;
+    right: var(--space-11);
     top: -10px;
     background-color: var(--surface-void-dense);
     border-width: 1px;
@@ -282,7 +282,7 @@ TextField,
 /* Плашка справа от маркера - для станции, которая живёт у правого лимба:
    слева она уезжала бы на диск планеты. */
 .mm-target-badge--right {
-    left: 28px;
+    left: var(--space-11);
     right: auto;
 }
 
@@ -315,8 +315,8 @@ TextField,
 }
 
 .mm-wordmark-icon {
-    width: 32px;
-    height: 32px;
+    width: var(--space-12);
+    height: var(--space-12);
     margin-right: var(--space-6);
 }
 
@@ -385,8 +385,8 @@ TextField,
 }
 
 .mm-user-avatar {
-    width: 24px;
-    height: 24px;
+    width: var(--space-10);
+    height: var(--space-10);
     border-radius: var(--radius-sharp);
     background-color: var(--accent-gold);
     align-items: center;
@@ -422,15 +422,15 @@ TextField,
 /* ── Правая боковая панель (8 кнопок) ── */
 .mm-sidebar {
     position: absolute;
-    right: 12px;
+    right: var(--space-6);
     top: 90px;
     flex-direction: column;
     align-items: center;
 }
 
 .mm-side-btn {
-    width: 48px;
-    height: 48px;
+    width: var(--space-14);
+    height: var(--space-14);
     border-radius: var(--radius-pill);
     background-color: var(--surface-slate-dense);
     border-width: 1px;
@@ -496,8 +496,8 @@ TextField,
     position: absolute;
     top: -2px;
     right: -2px;
-    width: 10px;
-    height: 10px;
+    width: var(--space-5);
+    height: var(--space-5);
     border-radius: var(--radius-md);
     background-color: var(--state-danger);
     border-width: 1px;
@@ -505,7 +505,7 @@ TextField,
 }
 
 .mm-sidebar-sep {
-    width: 24px;
+    width: var(--space-10);
     height: 1px;
     background-color: var(--border-subtle);
     margin-top: var(--space-2);
@@ -517,7 +517,7 @@ TextField,
     position: absolute;
     left: 64px;
     top: 64px;
-    bottom: 48px;
+    bottom: var(--space-14);
     justify-content: center;
     align-items: flex-start;
     width: 500px;
@@ -536,8 +536,8 @@ TextField,
 /* Золотая чёрточка перед надзаголовком. В макете это ::before, а
    псевдоэлементов в USS нет — здесь настоящий узел. Отступ вместо gap. */
 .mm-eyebrow-dash {
-    width: 14px;
-    height: 2px;
+    width: var(--space-7);
+    height: var(--space-1);
     background-color: var(--accent-gold);
     margin-right: var(--space-4);
 }
@@ -620,8 +620,8 @@ Button#PlayButton:hover {
 }
 
 .mm-btn-primary-arrow-box {
-    width: 28px;
-    height: 28px;
+    width: var(--space-11);
+    height: var(--space-11);
     background-color: var(--surface-on-accent);
     border-radius: var(--radius-sm);
     align-items: center;
@@ -730,7 +730,7 @@ Button#ServerSelectButton Label {
     position: absolute;
     left: 64px;
     top: 64px;
-    bottom: 48px;
+    bottom: var(--space-14);
     justify-content: center;
     width: 520px;
 }
@@ -782,7 +782,7 @@ Button#ServerSelectButton Label {
 }
 
 .mm-loader-phase-icon {
-    width: 20px;
+    width: var(--space-9);
     color: var(--text-tertiary);
 }
 
@@ -805,7 +805,7 @@ Button#ServerSelectButton Label {
     left: 0;
     right: 0;
     bottom: 0;
-    height: 48px;
+    height: var(--space-14);
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
@@ -853,7 +853,7 @@ Button#ServerSelectButton Label {
 }
 
 .mm-route-sep {
-    width: 20px;
+    width: var(--space-9);
     height: 1px;
     margin: 0 var(--space-4);
     background-color: var(--border-subtle);
@@ -865,7 +865,7 @@ Button#ServerSelectButton Label {
     background-color: var(--border-hairline);
     border-width: 1px;
     border-color: var(--border-subtle);
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     padding: 3px var(--space-6);
     max-width: 440px;
 }
@@ -1262,7 +1262,7 @@ Button.mm-btn-outline:hover {
     border-width: 1px;
     border-color: var(--border-cyan);
     border-radius: var(--radius-sharp);
-    padding: 2px 7px;
+    padding: var(--space-1) 7px;
     color: var(--accent-cyan);
     font-size: var(--size-xs);
     -unity-font-style: bold;
@@ -1280,7 +1280,7 @@ Button.mm-btn-outline:hover {
     left: 19px;
     top: var(--space-8);
     bottom: var(--space-8);
-    width: 2px;
+    width: var(--space-1);
     background-color: var(--accent-gold);
 }
 
@@ -1333,7 +1333,7 @@ Button.mm-btn-outline:hover {
     height: var(--space-7);
     border-radius: var(--radius-pill);
     background-color: var(--surface-void);
-    border-width: 2px;
+    border-width: var(--space-1);
     border-color: var(--accent-cyan);
 }
 
@@ -1423,7 +1423,7 @@ Button.mm-btn-outline:hover {
     background-color: var(--surface-void);
     border-width: 1px;
     border-color: var(--border-subtle);
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     padding: var(--space-6);
     flex-direction: column;
     height: 170px;
@@ -1499,7 +1499,7 @@ Button.mm-btn-outline:hover {
 
 /* ═══════════════════════════════════════════════════════════
    Баннер обязательного обновления (#UpdateAlertBanner)
-   Соответствует .update-alert-banner из visual/fodinae-ui-lab.
+   Соответствует .update-alert-banner из visual/kern-ui-lab.
    ═══════════════════════════════════════════════════════════ */
 
 .mm-update-banner {

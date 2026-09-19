@@ -4,14 +4,14 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Fodinae;
+using Kern;
 using MinesServer.Networking.Client.Packets.Movement;
 using MinesServer.Networking.Connection.Client;
 using MinesServer.Networking.Server.Packets;
 using MinesServer.Networking.Server.Packets.World;
 using NUnit.Framework;
 
-namespace Fodinae.Tests.Networking;
+namespace Kern.Tests.Networking;
 
 public sealed class DummyMovementResponderTests
 {
@@ -22,11 +22,12 @@ public sealed class DummyMovementResponderTests
         var supervisor = new RecordingSupervisor();
         var player = new DummyPlayerSimulationState();
         player.SetPosition(10, 20);
-        using var world = new DummyWorldSimulationState(supervisor, new Fodinae.Tests.Networking.UnavailableDummyWorldMapSource());
-        var teleports = new DummyTeleportManager(sent.Add, []);
+        using var world = new DummyWorldSimulationState(supervisor, new Kern.Tests.Networking.UnavailableDummyWorldMapSource());
+        var teleports = new DummyTeleportManager(sent.Add, [], supervisor);
         var pathFinder = new DummyPathFinder(sent.Add, world.GetCellConfig);
         using var movement = new DummyMovementResponder(
             supervisor,
+            new VirtualDummyClock(seed: 1),
             player,
             world,
             teleports,
@@ -53,11 +54,12 @@ public sealed class DummyMovementResponderTests
         var supervisor = new RecordingSupervisor();
         var player = new DummyPlayerSimulationState();
         player.SetPosition(10, 20);
-        using var world = new DummyWorldSimulationState(supervisor, new Fodinae.Tests.Networking.UnavailableDummyWorldMapSource());
-        var teleports = new DummyTeleportManager(sent.Add, []);
+        using var world = new DummyWorldSimulationState(supervisor, new Kern.Tests.Networking.UnavailableDummyWorldMapSource());
+        var teleports = new DummyTeleportManager(sent.Add, [], supervisor);
         var pathFinder = new DummyPathFinder(sent.Add, world.GetCellConfig);
         using var movement = new DummyMovementResponder(
             supervisor,
+            new VirtualDummyClock(seed: 1),
             player,
             world,
             teleports,

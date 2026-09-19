@@ -5,21 +5,21 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
-using Fodinae;
-using Fodinae.Core.Interfaces;
+using Kern;
+using Kern.Core.Interfaces;
 using MinesServer.Data;
 using MinesServer.Networking.Connection.Client;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Fodinae.Tests.Networking;
+namespace Kern.Tests.Networking;
 
 public sealed class DummyWorldSimulationStateTests
 {
     [Test]
     public void EmptyState_ReturnsUnloadedCellsAndNoConfiguration()
     {
-        using var state = new DummyWorldSimulationState(new StubSupervisor(), new Fodinae.Tests.Networking.UnavailableDummyWorldMapSource());
+        using var state = new DummyWorldSimulationState(new StubSupervisor(), new Kern.Tests.Networking.UnavailableDummyWorldMapSource());
 
         Assert.That(state.HasLayer, Is.False);
         Assert.That(state.GetCell(10, 20), Is.EqualTo(CellType.Unloaded));
@@ -29,7 +29,7 @@ public sealed class DummyWorldSimulationStateTests
     [UnityEngine.TestTools.UnityTest]
     public System.Collections.IEnumerator FailedInitialization_CanBeRetried()
     {
-        using var state = new DummyWorldSimulationState(new StubSupervisor(), new Fodinae.Tests.Networking.UnavailableDummyWorldMapSource());
+        using var state = new DummyWorldSimulationState(new StubSupervisor(), new Kern.Tests.Networking.UnavailableDummyWorldMapSource());
         int attempts = 0;
 
         async UniTask FailOnce()
@@ -69,7 +69,7 @@ public sealed class DummyWorldSimulationStateTests
     [Test]
     public async Task SuccessfulInitialization_IsIdempotentUntilReset()
     {
-        using var state = new DummyWorldSimulationState(new StubSupervisor(), new Fodinae.Tests.Networking.UnavailableDummyWorldMapSource());
+        using var state = new DummyWorldSimulationState(new StubSupervisor(), new Kern.Tests.Networking.UnavailableDummyWorldMapSource());
         int calls = 0;
         UniTask Initialize()
         {

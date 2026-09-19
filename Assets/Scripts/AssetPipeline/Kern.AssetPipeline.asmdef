@@ -1,0 +1,20 @@
+{
+    "name": "Kern.AssetPipeline",
+    "rootNamespace": "Kern.AssetPipeline",
+    "references": [
+        "UniTask",
+        "Kern.Contracts",
+        "MinesServer.Networking",
+        "unity.webp",
+        "VContainer"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,6 +1,6 @@
 #nullable enable
 
-namespace Fodinae.Core.Localization;
+namespace Kern.Core.Localization;
 
 public interface ILocalizableUI
 {

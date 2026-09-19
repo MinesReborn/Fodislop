@@ -6,11 +6,10 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
-using UnityEngine.Serialization;
-using Fodinae.Core.Interfaces;
+using Kern.Core.Interfaces;
 using UnityEngine;
 
-namespace Fodinae.Core;
+namespace Kern.Core;
 
 internal sealed class ClientConfigRepository
 {
@@ -46,8 +45,20 @@ internal sealed class ClientConfigRepository
                 ex);
         }
 
-        ClientConfig config = JsonUtility.FromJson<ClientConfig>(json) ??
+        ClientConfig? config;
+        try
+        {
+            config = JsonUtility.FromJson<ClientConfig>(json);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new InvalidDataException($"Client config '{_configPath}' is not valid JSON.", ex);
+        }
+
+        if (config == null)
+        {
             throw new InvalidDataException($"Client config '{_configPath}' is empty or invalid.");
+        }
 
         ValidateCurrentSchemaPresence(json, config);
         return new LoadedConfig(config, json);
@@ -118,7 +129,6 @@ internal sealed class ClientConfigRepository
             typeof(AccessibilitySettings),
             typeof(ConnectionSettings),
             typeof(PostProcessSettings),
-            typeof(WorldLightingSettings),
             typeof(TerrainSettings),
             typeof(EffectSettings),
         ];
@@ -135,25 +145,9 @@ internal sealed class ClientConfigRepository
         }
     }
 
-    // Переименованное поле с [FormerlySerializedAs] JsonUtility читает и по
-    // старому имени, поэтому файл со старым именем тоже полный.
-    private static bool HasSerializedName(string json, FieldInfo field)
-    {
-        if (JsonHasKey(json, field.Name))
-        {
-            return true;
-        }
-
-        foreach (FormerlySerializedAsAttribute former in field.GetCustomAttributes<FormerlySerializedAsAttribute>())
-        {
-            if (JsonHasKey(json, former.oldName))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
+    // Имя поля — только нынешнее. Старые имена не признаются: легаси запрещено.
+    private static bool HasSerializedName(string json, FieldInfo field) =>
+        JsonHasKey(json, field.Name);
 
     private static bool JsonHasKey(string json, string key) =>
         Regex.IsMatch(

@@ -3,7 +3,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace Fodinae.Tools.Imgui;
+namespace Kern.Tools.Imgui;
 
 public static class ToolTheme
 {
@@ -97,7 +97,7 @@ public static class ToolTheme
     {
         ToolPalette.Build();
         _skin = Object.Instantiate(source);
-        _skin.name = "Fodinae Runtime Tools";
+        _skin.name = "Kern Runtime Tools";
 
         ConfigureWindow(_skin.window);
         ConfigureButton(_skin.button);

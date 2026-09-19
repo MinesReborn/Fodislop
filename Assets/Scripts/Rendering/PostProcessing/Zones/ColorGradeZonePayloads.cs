@@ -3,7 +3,7 @@
 using System;
 using UnityEngine;
 
-namespace Fodinae.Rendering.PostProcessing;
+namespace Kern.Rendering.PostProcessing;
 [Serializable]
 internal sealed class ColorGradeZonePayload
 {
@@ -28,12 +28,9 @@ internal sealed class ColorGradeZonePayload
     public Vector4 PrimaryMaster = new(0f, 1f, 1f, 0f);
     public float WhitePoint = 1f;
     public float GreyOut = PostProcessLook.Grade.GreyOut;
-    public float CurveSlope = PostProcessLook.Grade.CurveSlope;
     public float ShoulderPower = PostProcessLook.Grade.ShoulderPower;
     public float ToePower = PostProcessLook.Grade.ToePower;
     public float ToeStops = PostProcessLook.Grade.ToeStops;
-    public float PathToWhiteAmount = PostProcessLook.Grade.PathToWhiteAmount;
-    public float PathToWhitePower = PostProcessLook.Grade.PathToWhitePower;
     public bool GamutCompressionEnabled = PostProcessLook.Grade.GamutCompressionEnabled;
     public float GamutCompressionStrength = PostProcessLook.Grade.GamutCompressionStrength;
 }
@@ -75,12 +72,9 @@ internal static class ColorGradeZonePayloads
                 PrimaryMaster = grade.PrimaryMaster,
                 WhitePoint = grade.WhitePoint,
                 GreyOut = grade.GreyOut,
-                CurveSlope = grade.CurveSlope,
                 ShoulderPower = grade.ShoulderPower,
                 ToePower = grade.ToePower,
                 ToeStops = grade.ToeStops,
-                PathToWhiteAmount = grade.PathToWhiteAmount,
-                PathToWhitePower = grade.PathToWhitePower,
                 GamutCompressionEnabled = grade.GamutCompressionEnabled,
                 GamutCompressionStrength = grade.GamutCompressionStrength,
             };
@@ -92,8 +86,7 @@ internal static class ColorGradeZonePayloads
     public static void Into(
         ColorGradeZones? zones,
         bool enabled,
-        ColorGradeZonePayload[]? payloads,
-        int payloadVersion)
+        ColorGradeZonePayload[]? payloads)
     {
         if (zones == null)
         {
@@ -114,57 +107,35 @@ internal static class ColorGradeZonePayloads
                 continue;
             }
 
-            bool hasFullGrade = payloadVersion >= 3;
             zones.Add(new ColorGradeZone
             {
                 Name = payload.Name,
                 CenterY = payload.CenterY,
                 HalfHeight = payload.HalfHeight,
                 Feather = payload.Feather,
-                Exposure = hasFullGrade
-                    ? payload.Exposure
-                    : PostProcessLook.ColorGrading.Exposure,
-                Contrast = hasFullGrade
-                    ? payload.Contrast
-                    : PostProcessLook.ColorGrading.Contrast,
-                Saturation = hasFullGrade
-                    ? payload.Saturation
-                    : PostProcessLook.ColorGrading.Saturation,
+                Exposure = payload.Exposure,
+                Contrast = payload.Contrast,
+                Saturation = payload.Saturation,
                 Grade = new ColorGradeSnapshot
                 {
                     Transform = (DisplayTransform)payload.Transform,
-                    Exposure = hasFullGrade
-                        ? payload.Exposure
-                        : PostProcessLook.ColorGrading.Exposure,
+                    Exposure = payload.Exposure,
                     Temperature = payload.Temperature,
                     Tint = payload.Tint,
                     Slope = payload.Slope,
                     Offset = payload.Offset,
                     Power = payload.Power,
-                    PrimaryLift = payloadVersion >= 18
-                        ? payload.PrimaryLift
-                        : Vector3.zero,
-                    PrimaryGamma = payloadVersion >= 18
-                        ? payload.PrimaryGamma
-                        : Vector3.one,
-                    PrimaryGain = payloadVersion >= 18
-                        ? payload.PrimaryGain
-                        : Vector3.one,
-                    PrimaryOffset = payloadVersion >= 18
-                        ? payload.PrimaryOffset
-                        : Vector3.zero,
-                    PrimaryMaster = payloadVersion >= 18
-                        ? payload.PrimaryMaster
-                        : new Vector4(0f, 1f, 1f, 0f),
+                    PrimaryLift = payload.PrimaryLift,
+                    PrimaryGamma = payload.PrimaryGamma,
+                    PrimaryGain = payload.PrimaryGain,
+                    PrimaryOffset = payload.PrimaryOffset,
+                    PrimaryMaster = payload.PrimaryMaster,
                     CdlSaturation = payload.CdlSaturation,
                     WhitePoint = payload.WhitePoint,
                     GreyOut = payload.GreyOut,
-                    CurveSlope = payload.CurveSlope,
                     ShoulderPower = payload.ShoulderPower,
                     ToePower = payload.ToePower,
                     ToeStops = payload.ToeStops,
-                    PathToWhiteAmount = payload.PathToWhiteAmount,
-                    PathToWhitePower = payload.PathToWhitePower,
                     GamutCompressionEnabled = payload.GamutCompressionEnabled,
                     GamutCompressionStrength = payload.GamutCompressionStrength,
                 },

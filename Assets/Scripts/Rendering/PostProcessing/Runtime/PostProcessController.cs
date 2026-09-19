@@ -1,22 +1,22 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Lifecycle;
-using Fodinae.Rendering.PostProcessing.Workbench;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Core.Lifecycle;
+using Kern.Rendering.PostProcessing.Workbench;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using VContainer;
 using Unity.Profiling;
 
-namespace Fodinae.Rendering.PostProcessing
+namespace Kern.Rendering.PostProcessing
 {
     [DisallowMultipleComponent]
     public class PostProcessController : MonoBehaviour
     {
-        private static readonly ProfilerMarker _PostProcessLateUpdateMarker = new("Fodinae.PostProcess.LateUpdate");
+        private static readonly ProfilerMarker _PostProcessLateUpdateMarker = new("Kern.PostProcess.LateUpdate");
 
         [SerializeField]
         private Volume? _volume;

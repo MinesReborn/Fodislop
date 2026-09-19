@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
-namespace Fodinae.Tools.Imgui.Profiling;
+namespace Kern.Tools.Imgui.Profiling;
 
 // Поиск по всем маркерам профайлера и закреплённые маркеры.
 //
@@ -17,7 +17,7 @@ public sealed class MarkerSearch : IDisposable
     public const int MaxResults = 40;
     private const int MinimumQueryLength = 2;
     // Закрепления — файл рядом с раскладкой окон инструментов, а не PlayerPrefs:
-    // настройки проекта живут в файлах (FOD-FORBIDDEN-API).
+    // настройки проекта живут в файлах (KERN-FORBIDDEN-API).
     private const string PinsFileName = "tool_marker_pins.txt";
 
     private readonly List<FrameProbe> _results = [];

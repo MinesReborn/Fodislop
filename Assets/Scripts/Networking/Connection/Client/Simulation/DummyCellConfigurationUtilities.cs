@@ -75,8 +75,8 @@ internal static class DummyCellConfigurationUtilities
         SetConfig(configs, CellType.LivingActiveAcid, SAND_BOULDER_PROPS | CellConfigProperties.Glowing, 1, color: unchecked((int)0xFF66FF22), distortion: CellDistortionType.Cause);
         SetConfig(configs, CellType.CorrosiveActiveAcid, SAND_BOULDER_PROPS | CellConfigProperties.Glowing, 1, color: unchecked((int)0xFF9AFF22), distortion: CellDistortionType.Cause);
 
-        SetConfig(configs, CellType.BuildingDoor, INDESTRUCTIBLE_PROPS | CellConfigProperties.Passable, 2, color: unchecked((int)0xFF8B4513), distortion: CellDistortionType.Block);
-        SetConfig(configs, CellType.BuildingCorner, INDESTRUCTIBLE_PROPS, 2, color: unchecked((int)0xFF555555), distortion: CellDistortionType.Block);
+        SetConfig(configs, CellType.BuildingDoor, INDESTRUCTIBLE_PROPS | CellConfigProperties.Passable | CellConfigProperties.Glowing, 2, color: unchecked((int)0xFF8B4513), distortion: CellDistortionType.Block);
+        SetConfig(configs, CellType.BuildingCorner, INDESTRUCTIBLE_PROPS | CellConfigProperties.Glowing, 2, color: unchecked((int)0xFF555555), distortion: CellDistortionType.Block);
         SetConfig(configs, CellType.QuadBlock, ARTIFICIAL_PROPS, 2, distortion: CellDistortionType.Block);
         SetConfig(configs, CellType.Support, ARTIFICIAL_PROPS, 2, distortion: CellDistortionType.Block);
         SetConfig(configs, CellType.MilitaryBlockFrame, ARTIFICIAL_PROPS, 2, distortion: CellDistortionType.Block);
@@ -85,7 +85,7 @@ internal static class DummyCellConfigurationUtilities
         SetConfig(configs, CellType.YellowBlock, ARTIFICIAL_PROPS, 2, distortion: CellDistortionType.Block);
         SetConfig(configs, CellType.FedBlock, ARTIFICIAL_PROPS, 2, distortion: CellDistortionType.Block);
         SetConfig(configs, CellType.RedBlock, ARTIFICIAL_PROPS, 2, distortion: CellDistortionType.Block);
-        SetConfig(configs, CellType.BuildingWall, INDESTRUCTIBLE_PROPS, 2, color: unchecked((int)0xFF666666), distortion: CellDistortionType.Block);
+        SetConfig(configs, CellType.BuildingWall, INDESTRUCTIBLE_PROPS | CellConfigProperties.Glowing, 2, color: unchecked((int)0xFF666666), distortion: CellDistortionType.Block);
 
         SetConfig(configs, CellType.XGreen, GLOWING_CRYSTAL_PROPS, 3, color: unchecked((int)0xFF00FF3D), distortion: CellDistortionType.Cause);
         SetConfig(configs, CellType.XBlue, GLOWING_CRYSTAL_PROPS, 3, color: unchecked((int)0xFF295FFF), distortion: CellDistortionType.Cause);
@@ -134,9 +134,9 @@ internal static class DummyCellConfigurationUtilities
 
     private static void ApplyMapColors(CellConfigurationPacket[] configs)
     {
-        for (int cellId = 0; cellId < configs.Length; cellId++)
+        for (int cellID = 0; cellID < configs.Length; cellID++)
         {
-            configs[cellId] = configs[cellId] with { Color = DummyMapColors.Get(cellId) };
+            configs[cellID] = configs[cellID] with { Color = DummyMapColors.Get(cellID) };
         }
     }
 
@@ -226,7 +226,7 @@ internal static class DummyCellConfigurationUtilities
         if (missing.Count > 0)
         {
             // Ошибка в лог, а не исключение. CellType живёт во внешнем пакете
-            // (darkar25.fodinae.data), и обновление зависимости добавляет
+            // (darkar25.kern.data), и обновление зависимости добавляет
             // значения без участия этого файла. Падать на инициализации мира
             // из-за чужого коммита — хуже той тишины, которую здесь чинят:
             // клетка без конфигурации отрисуется серой заглушкой, как и

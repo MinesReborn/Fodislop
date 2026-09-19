@@ -78,7 +78,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d41a4e37898c641a684eef4fef3833ee, type: 3}
   m_Name: VignetteComponent
-  m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Rendering.PostProcessing.VignetteComponent
+  m_EditorClassIdentifier: Assembly-CSharp::Kern.Rendering.PostProcessing.VignetteComponent
   active: 0
   intensity:
     m_OverrideState: 1
@@ -292,7 +292,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 53740a32af32d41049052a46cc137dd7, type: 3}
   m_Name: BloomComponent
-  m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Rendering.PostProcessing.BloomComponent
+  m_EditorClassIdentifier: Assembly-CSharp::Kern.Rendering.PostProcessing.BloomComponent
   active: 1
   intensity:
     m_OverrideState: 1
@@ -323,7 +323,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 996afb401c6ff45f882623218512cf5b, type: 3}
   m_Name: MotionBlurComponent
-  m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Rendering.PostProcessing.MotionBlurComponent
+  m_EditorClassIdentifier: Assembly-CSharp::Kern.Rendering.PostProcessing.MotionBlurComponent
   active: 1
   intensity:
     m_OverrideState: 1
@@ -389,7 +389,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 53740a32af32d41049052a46cc137dd7, type: 3}
   m_Name: BloomComponent
-  m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Rendering.PostProcessing.BloomComponent
+  m_EditorClassIdentifier: Assembly-CSharp::Kern.Rendering.PostProcessing.BloomComponent
   active: 0
   intensity:
     m_OverrideState: 1
@@ -765,7 +765,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d41a4e37898c641a684eef4fef3833ee, type: 3}
   m_Name: VignetteComponent
-  m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Rendering.PostProcessing.VignetteComponent
+  m_EditorClassIdentifier: Assembly-CSharp::Kern.Rendering.PostProcessing.VignetteComponent
   active: 1
   intensity:
     m_OverrideState: 1
@@ -871,7 +871,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a5cff0b10a0e941b098d09e285cea69d, type: 3}
   m_Name: EigengrauComponent
-  m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Rendering.PostProcessing.EigengrauComponent
+  m_EditorClassIdentifier: Assembly-CSharp::Kern.Rendering.PostProcessing.EigengrauComponent
   active: 1
   intensity:
     m_OverrideState: 1
@@ -899,7 +899,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2fa40d9b75c3f4178a67936681d8c115, type: 3}
   m_Name: ColorGradingComponent
-  m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Rendering.PostProcessing.ColorGradingComponent
+  m_EditorClassIdentifier: Assembly-CSharp::Kern.Rendering.PostProcessing.ColorGradingComponent
   active: 1
   exposure:
     m_OverrideState: 1
@@ -949,7 +949,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 996afb401c6ff45f882623218512cf5b, type: 3}
   m_Name: MotionBlurComponent
-  m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Rendering.PostProcessing.MotionBlurComponent
+  m_EditorClassIdentifier: Assembly-CSharp::Kern.Rendering.PostProcessing.MotionBlurComponent
   active: 0
   intensity:
     m_OverrideState: 1

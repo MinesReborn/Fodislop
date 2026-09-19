@@ -7,11 +7,11 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Cysharp.Threading.Tasks;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Networking;
-using Fodinae.Networking.Auth;
-using Fodinae.World.Terrain;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Networking;
+using Kern.Networking.Auth;
+using Kern.World.Terrain;
 using MinesServer.Networking.Connection.Client;
 using NUnit.Framework;
 using Unity.Profiling;
@@ -22,14 +22,14 @@ using VContainer;
 using VContainer.Unity;
 using Object = UnityEngine.Object;
 
-namespace Fodinae.Tests.PlayMode;
+namespace Kern.Tests.PlayMode;
 
 // Бенчмарк кадра в настоящем мире.
 //
 // Поднимает Bootstrap → MainMenu → MainGame на заглушке сервера, ждёт готовый
 // террейн и меряет одинаковые окна кадров в нескольких сценариях. Разница
 // между «всё» и «без отрисовки террейна» — цена террейна на экране; маркеры
-// Fodinae.Terrain.* — его цена на процессоре. Результат пишется в
+// Kern.Terrain.* — его цена на процессоре. Результат пишется в
 // Logs/benchmark_*.txt, чтобы сравнивать правки числами, а не на глаз.
 //
 // Explicit: в обычный прогон тестов не входит, запускается руками.
@@ -47,12 +47,12 @@ public sealed class FrameBenchmarkPlayModeTests
     private static readonly string[] _Markers =
     [
         "PlayerLoop",
-        "Fodinae.Terrain.LateUpdate.CPU",
-        "Fodinae.Terrain.MeshBuild",
-        "Fodinae.Terrain.MeshUpload",
-        "Fodinae.Terrain.Cache",
-        "Fodinae.Terrain.Precalculate",
-        "Fodinae.World.Terrain.BackgroundFloodFill",
+        "Kern.Terrain.LateUpdate.CPU",
+        "Kern.Terrain.MeshBuild",
+        "Kern.Terrain.MeshUpload",
+        "Kern.Terrain.Cache",
+        "Kern.Terrain.Precalculate",
+        "Kern.World.Terrain.BackgroundFloodFill",
         "Gfx.WaitForPresentOnGfxThread",
         "Gfx.PresentFrame",
         "UIR.DrawChain",

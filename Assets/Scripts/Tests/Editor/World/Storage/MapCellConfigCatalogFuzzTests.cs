@@ -3,14 +3,14 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Fodinae.World;
+using Kern.World;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.Information;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Fodinae.Tests.World;
+namespace Kern.Tests.World;
 
 [TestFixture]
 [Category("FuzzPure")]
@@ -166,6 +166,18 @@ public class MapCellConfigCatalogFuzzTests
     {
         Assert.That(MapCellConfigCatalog.IsRoundableLoose(type), Is.EqualTo(expected));
     }
+
+    [TestCase(CellType.Road, true)]
+    [TestCase(CellType.GoldenRoad, true)]
+    [TestCase(CellType.BuildingRoad, true)]
+    [TestCase(CellType.PolymerRoad, true)]
+    [TestCase(CellType.Empty, false)]
+    [TestCase(CellType.Rock, false)]
+    public void IsRoad_DocumentedTypes(CellType type, bool expected)
+    {
+        Assert.That(MapCellConfigCatalog.IsRoad(type), Is.EqualTo(expected));
+    }
+
 
     private static CellConfigurationPacket MakeConfig(CellType type, CellAnimationType anim, byte animSpeed)
     {

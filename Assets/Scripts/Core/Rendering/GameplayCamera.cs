@@ -3,7 +3,7 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace Fodinae.Core;
+namespace Kern.Core;
 
 // Resolves THE gameplay camera, as opposed to whatever camera Camera.main
 // happens to return.

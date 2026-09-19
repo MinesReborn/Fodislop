@@ -1,8 +1,8 @@
 #nullable enable
 
-using Fodinae.Rendering;
+using Kern.Rendering;
 
-namespace Fodinae.World.Lighting.Quality;
+namespace Kern.World.Lighting.Quality;
 public static class LightingQualityResolver
 {
     public static LightingQualityMode Resolve(
@@ -20,15 +20,20 @@ public static class LightingQualityResolver
         //
         // The lock's real purpose is to keep Ultra from quietly running the
         // cheaper per-block path, which is the enum's zero value and so the
-        // one any older serialized settings deserialize to. That is about
-        // PerBlock, not about Off.
+        // one any older serialized settings deserialize to. Ultra is authored
+        // with diffuse bounce ("ULTRA (4 cascades, 1 diffuse bounce)").
         if (requested == LightingQualityMode.Off)
         {
             return LightingQualityMode.Off;
         }
 
-        return preset == GraphicsPreset.Ultra
-            ? LightingQualityMode.PerPixel
-            : requested;
+        if (preset == GraphicsPreset.Ultra)
+        {
+            return requested is LightingQualityMode.PerBlock or LightingQualityMode.PerPixel
+                ? LightingQualityMode.PerPixelBilinearFixBounce
+                : requested;
+        }
+
+        return requested;
     }
 }

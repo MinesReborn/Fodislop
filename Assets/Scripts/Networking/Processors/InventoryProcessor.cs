@@ -1,12 +1,12 @@
 #nullable enable
 
 using System.Collections.Generic;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Models;
+using Kern.Core.Interfaces;
+using Kern.Core.Models;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Inventory;
 
-namespace Fodinae.Networking.Processors;
+namespace Kern.Networking.Processors;
 
 public sealed class InventoryProcessor(IInventoryState model) :
     IPacketProcessor<InventoryPacket>,
@@ -54,7 +54,7 @@ public sealed class InventoryProcessor(IInventoryState model) :
                     continue;
                 }
 
-                model.SetSlot(i, new Fodinae.Core.Models.ItemData(
+                model.SetSlot(i, new Kern.Core.Models.ItemData(
                     itemType.ToString(),
                     UnityEngine.Color.gray,
                     (int)quantity)

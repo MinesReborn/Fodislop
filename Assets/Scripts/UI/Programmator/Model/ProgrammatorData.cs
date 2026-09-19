@@ -5,7 +5,7 @@ using System.Linq;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.UI.Programmator;
+namespace Kern.UI.Programmator;
 public sealed class ProgrammatorData
 {
     public const int COLS = 16;

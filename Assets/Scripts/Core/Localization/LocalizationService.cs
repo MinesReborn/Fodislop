@@ -2,11 +2,11 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Core.Interfaces;
+using Kern.Core.Interfaces;
 using UnityEngine;
 using VContainer;
 
-namespace Fodinae.Core.Localization;
+namespace Kern.Core.Localization;
 public class LocalizationService : ILocalizationService
 {
     private readonly Dictionary<string, string> _translations = new(StringComparer.OrdinalIgnoreCase);

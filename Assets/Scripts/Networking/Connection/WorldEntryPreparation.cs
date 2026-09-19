@@ -2,12 +2,12 @@
 
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
+using Kern.Core;
+using Kern.Core.Interfaces;
 using MinesServer.Networking.Connection.Client;
 using VContainer.Unity;
 
-namespace Fodinae.Networking.Connection;
+namespace Kern.Networking.Connection;
 
 // Офлайн-сервер готовит карту мира до входа в него: распаковка ~300 МБ не должна
 // съедать таймаут перехода сцены. Прогрев стартует вместе с приложением, вход в

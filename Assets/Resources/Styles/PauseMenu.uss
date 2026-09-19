@@ -19,9 +19,9 @@
 
 .pause-panel {
     background-color: var(--surface-solid);
-    border-width: 2px;
+    border-width: var(--space-1);
     border-color: var(--border-subtle);
-    padding: 24px 30px;
+    padding: var(--space-10) 30px;
     flex-direction: column;
     align-items: center;
     width: 520px;
@@ -37,8 +37,8 @@
 .pause-settings {
     width: 760px;
     max-width: 90%;
-    padding-left: 28px;
-    padding-right: 28px;
+    padding-left: var(--space-11);
+    padding-right: var(--space-11);
 }
 
 .pause-page {
@@ -46,7 +46,7 @@
 }
 
 .pause-title {
-    font-size: 18px;
+    font-size: var(--size-lg);
     -unity-font-style: bold;
     color: var(--accent-gold);
     margin-bottom: var(--space-8);
@@ -118,7 +118,7 @@
 .settings-page .unity-scroll-view__content-viewport {
     padding-top: var(--space-3);
     padding-right: var(--space-7);
-    padding-bottom: 28px;
+    padding-bottom: var(--space-11);
     padding-left: var(--space-1);
 }
 
@@ -240,16 +240,16 @@
 
 .pause-confirm-panel {
     background-color: var(--surface-panel);
-    border-width: 2px;
+    border-width: var(--space-1);
     border-color: var(--border-subtle);
-    padding: var(--space-9) 40px;
+    padding: var(--space-9) var(--space-13);
     flex-direction: column;
     align-items: center;
     min-width: 300px;
 }
 
 .pause-confirm-title {
-    font-size: 18px;
+    font-size: var(--size-lg);
     -unity-font-style: bold;
     color: var(--accent-gold);
     margin-bottom: var(--space-6);
@@ -270,7 +270,7 @@
 
 .pause-btn-confirm {
     background-color: var(--state-danger-glow);
-    border-width: 2px;
+    border-width: var(--space-1);
     border-color: var(--state-magma-glow);
     padding: var(--space-4) var(--space-9);
     min-width: 100px;
@@ -282,7 +282,7 @@
 
 .pause-btn {
     background-color: var(--surface-raised);
-    border-width: 2px;
+    border-width: var(--space-1);
     border-color: var(--border-subtle);
     padding: var(--space-4) var(--space-9);
     min-width: 180px;

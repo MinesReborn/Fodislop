@@ -1,9 +1,9 @@
 #nullable enable
 
-using Fodinae.Player.Logic;
+using Kern.Player.Logic;
 using NUnit.Framework;
 
-namespace Fodinae.Tests.Editor.Player;
+namespace Kern.Tests.Editor.Player;
 
 public sealed class PlayerDigCooldownTests
 {

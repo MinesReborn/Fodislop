@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace Fodinae.Core.Interfaces;
+namespace Kern.Core.Interfaces;
 
 public interface IGameplayCamera
 {

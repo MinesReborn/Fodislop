@@ -1,13 +1,13 @@
 #nullable enable
 
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Lifecycle;
-using Fodinae.Networking.Processors;
-using Fodinae.UI.HUD.Player.Model;
+using Kern.Core.Interfaces;
+using Kern.Core.Lifecycle;
+using Kern.Networking.Processors;
+using Kern.UI.HUD.Player.Model;
 using MinesServer.Networking.Server.Packets.Information;
 using NUnit.Framework;
 
-namespace Fodinae.Tests.Networking;
+namespace Kern.Tests.Networking;
 
 [TestFixture]
 public class ClanProcessorTests

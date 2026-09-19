@@ -1,15 +1,15 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.World;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.World;
 using MinesServer.Data;
 using UnityEngine;
 using UnityEngine.UIElements;
 using VContainer;
 
-namespace Fodinae.UI
+namespace Kern.UI
 {
     public class WorldMapRenderer : MonoBehaviour
     {
@@ -17,18 +17,14 @@ namespace Fodinae.UI
         [SerializeField]
         private float _renderInterval = 0.1f;
         [SerializeField]
-        private float _dragSpeed = 0.5f;
+        private float _dragSpeed = 1f;
 
         private const int MaxChunkCacheEntries = 4096;
 
-        private int _texWidth;
-        private int _texHeight;
-        private int _lastPanelWidth = -1;
-        private int _lastPanelHeight = -1;
         private UIDocument? _document;
         private VisualElement? _mapOverlay;
         private Image? _mapImage;
-        private Texture2D? _mapTexture;
+        private readonly MapTextureController _textureController = new();
         private IWorldLayer<CellType>? _cellLayer;
         private int _chunkSize = ProjectRuntimeContracts.World.ChunkSize;
         private readonly MapCellSampler _cellSampler = new();
@@ -51,7 +47,6 @@ namespace Fodinae.UI
         private ILocalPlayerState _localPlayer = null!;
 
         private float _lastRenderTime;
-        private bool _initialRenderDone;
         private bool _renderRequested;
         private long _lastRenderedStorageRevision = -1;
         private bool _followPlayer = true;
@@ -120,10 +115,14 @@ namespace Fodinae.UI
                 return;
             }
 
+            if (!TryBindUI())
+            {
+                return;
+            }
+
             _playerTracker ??= new MapPlayerTracker(_localPlayer);
             _playerTracker.EnsureBinding();
 
-            BindUI();
             InitTexture();
             ResetWorldViewState(_storage);
 
@@ -133,6 +132,38 @@ namespace Fodinae.UI
             }
 
             _initialized = true;
+        }
+
+        private bool TryBindUI()
+        {
+            if (_mapOverlay != null && _mapImage != null)
+            {
+                return true;
+            }
+
+            // Панель может быть ещё не готова к моменту первой привязки; повторная попытка при необходимости.
+            _document = _injectedDocument;
+            if (_document == null || _document.rootVisualElement == null)
+            {
+                return false;
+            }
+
+            VisualElement? overlay = _document.rootVisualElement.Q<VisualElement>("WorldMapOverlay");
+            if (overlay == null)
+            {
+                return false;
+            }
+
+            Image? image = overlay.Q<Image>("WorldMapImage");
+            if (image == null)
+            {
+                return false;
+            }
+
+            _mapOverlay = overlay;
+            _mapImage = image;
+            _mapImage.image = null;
+            return true;
         }
 
         private void ResetWorldViewState(IWorldDataStorage storage)
@@ -157,16 +188,12 @@ namespace Fodinae.UI
             }
 
             _lastRenderedStorageRevision = -1;
-            _initialRenderDone = false;
             _renderRequested = true;
         }
 
         protected void OnDestroy()
         {
-            if (_mapTexture != null)
-            {
-                Destroy(_mapTexture);
-            }
+            _textureController.DestroyTexture();
 
             _manager.OnWorldInitialized -= OnWorldReady;
             _manager.OnWorldDataLoaded -= OnWorldReady;
@@ -280,29 +307,22 @@ namespace Fodinae.UI
                 !_manager.IsWorldInitialized || !_storage.IsReady)
             {
                 BindCellLayer(null);
-                _initialRenderDone = false;
                 _renderRequested = false;
                 return;
             }
 
-            if (_mapOverlay != null)
+            if (_mapOverlay != null && _textureController.CheckPanelResize(_mapOverlay))
             {
-                Rect panelRect = _mapOverlay.worldBound;
-                int curW = panelRect.width > 0f ? Mathf.RoundToInt(panelRect.width) : 0;
-                int curH = panelRect.height > 0f ? Mathf.RoundToInt(panelRect.height) : 0;
-                if (curW > 0 && curH > 0 && (curW != _lastPanelWidth || curH != _lastPanelHeight))
-                {
-                    InitTexture();
-                    _renderRequested = true;
-                }
+                InitTexture();
+                _renderRequested = true;
             }
 
             _interaction.HandleMouseScroll(
                 _mapOverlay,
                 _mapImage,
                 _document,
-                _texWidth,
-                _texHeight,
+                _textureController.TexWidth,
+                _textureController.TexHeight,
                 _maxCellsPerPixel,
                 ref _cellsPerPixel,
                 ref _viewCenterX,
@@ -331,6 +351,11 @@ namespace Fodinae.UI
 
         public void Show()
         {
+            if (!_initialized)
+            {
+                TryInitialize();
+            }
+
             if (_storage == null || _manager == null || _mapOverlay == null)
             {
                 return;
@@ -340,7 +365,6 @@ namespace Fodinae.UI
 
             enabled = true;
             _lastRenderTime = -1f;
-            _initialRenderDone = false;
             _renderRequested = true;
             _lastRenderedStorageRevision = -1;
             _followPlayer = true;
@@ -370,53 +394,11 @@ namespace Fodinae.UI
             ClampViewCenter();
         }
 
-        private void BindUI()
-        {
-            _document = _injectedDocument;
-            VisualElement overlay = _document.rootVisualElement.Q<VisualElement>("WorldMapOverlay") ??
-                throw new InvalidOperationException(
-                    "[WorldMapRenderer] WorldMapOverlay is missing from the gameplay UIDocument.");
-            Image image = overlay.Q<Image>("WorldMapImage") ??
-                throw new InvalidOperationException(
-                    "[WorldMapRenderer] WorldMapImage is missing from the gameplay UIDocument.");
-
-            _mapOverlay = overlay;
-            _mapImage = image;
-            _mapImage.image = null;
-        }
-
         private void InitTexture()
         {
             VisualElement overlay = _mapOverlay ?? throw new InvalidOperationException(
                 "[WorldMapRenderer] UI must be bound before the map texture.");
-            Rect panelRect = overlay.worldBound;
-
-            MapViewportBounds.CalculateTextureDimensions(
-                panelRect.width,
-                panelRect.height,
-                out _texWidth,
-                out _texHeight);
-
-            _lastPanelWidth = panelRect.width > 0f ? Mathf.RoundToInt(panelRect.width) : 1920;
-            _lastPanelHeight = panelRect.height > 0f ? Mathf.RoundToInt(panelRect.height) : 1080;
-
-            if (_mapTexture != null)
-            {
-                Destroy(_mapTexture);
-            }
-
-            _mapTexture = RuntimeTextureFactory.CreateRGBA32NoMip(
-                _texWidth,
-                _texHeight,
-                "WorldMapTexture",
-                RuntimeTextureColorSpace.Srgb,
-                FilterMode.Point,
-                TextureWrapMode.Clamp);
-
-            if (_mapImage != null)
-            {
-                _mapImage.image = _mapTexture;
-            }
+            _textureController.InitTexture(overlay, _mapImage);
         }
 
         private void HandleQueuedRender()
@@ -433,7 +415,6 @@ namespace Fodinae.UI
             {
                 BindCellLayer(storage.CellLayer);
                 _renderRequested = true;
-                _initialRenderDone = false;
                 _lastRenderedStorageRevision = -1;
             }
 
@@ -450,7 +431,10 @@ namespace Fodinae.UI
                 return;
             }
 
-            if (_initialRenderDone && Time.time - _lastRenderTime < _renderInterval)
+            // The render interval applies to every render, including the first one
+            // after Show(). _lastRenderTime starts at -1f so the first render is
+            // never throttled; subsequent renders respect the interval.
+            if (Time.time - _lastRenderTime < _renderInterval)
             {
                 return;
             }
@@ -461,11 +445,11 @@ namespace Fodinae.UI
             }
 
             _viewportRenderer.Render(
-                _mapTexture,
+                _textureController.MapTexture,
                 _manager,
                 _cellSampler,
-                _texWidth,
-                _texHeight,
+                _textureController.TexWidth,
+                _textureController.TexHeight,
                 _cellsPerPixel,
                 _viewCenterX,
                 _viewCenterY,
@@ -475,11 +459,10 @@ namespace Fodinae.UI
             _renderRequested = false;
             _lastRenderedStorageRevision = _storage.Revision;
             _lastRenderTime = Time.time;
-            _initialRenderDone = true;
         }
 
         private float ComputeMaxZoomOut(int worldW, int worldH) =>
-            MapViewportBounds.ComputeMaxZoomOut(_texWidth, _texHeight, _chunkSize, MaxChunkCacheEntries);
+            MapViewportBounds.ComputeMaxZoomOut(_textureController.TexWidth, _textureController.TexHeight, _chunkSize, MaxChunkCacheEntries);
 
         private void ClampViewCenter()
         {
@@ -492,8 +475,8 @@ namespace Fodinae.UI
                 ref _viewCenterX,
                 ref _viewCenterY,
                 _cellsPerPixel,
-                _texWidth,
-                _texHeight,
+                _textureController.TexWidth,
+                _textureController.TexHeight,
                 _boundWorldWidth,
                 _boundWorldHeight);
         }

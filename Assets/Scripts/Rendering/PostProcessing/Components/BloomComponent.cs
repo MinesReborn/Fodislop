@@ -5,10 +5,10 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
-namespace Fodinae.Rendering.PostProcessing
+namespace Kern.Rendering.PostProcessing
 {
     [Serializable]
-    [VolumeComponentMenu("Fodinae/Bloom")]
+    [VolumeComponentMenu("Kern/Bloom")]
     [SupportedOnRenderPipeline(typeof(UniversalRenderPipelineAsset))]
     public class BloomComponent : VolumeComponent, IPostProcessComponent
     {

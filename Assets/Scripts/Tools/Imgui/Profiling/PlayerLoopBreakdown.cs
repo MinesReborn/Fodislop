@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine.LowLevel;
 
-namespace Fodinae.Tools.Imgui.Profiling;
+namespace Kern.Tools.Imgui.Profiling;
 
 // Полный разбор игрового цикла без перечня имён руками.
 //

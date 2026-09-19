@@ -1,10 +1,10 @@
 #nullable enable
 
-using Fodinae.Core.Localization;
+using Kern.Core.Localization;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 public static class UILocalizer
 {
     public static void Apply(VisualElement root, ILocalizationService loc)

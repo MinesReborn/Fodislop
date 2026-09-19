@@ -3,11 +3,11 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Fodinae.Core.Interfaces;
+using Kern.Core.Interfaces;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace Fodinae.Core;
+namespace Kern.Core;
 
 internal static class SceneTransitionRuntime
 {

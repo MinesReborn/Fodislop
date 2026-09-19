@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.UI.Programmator;
+namespace Kern.UI.Programmator;
 
 // Selection state for the programmator grid: which cells are currently
 // selected (either a single rectangular drag range or an arbitrary

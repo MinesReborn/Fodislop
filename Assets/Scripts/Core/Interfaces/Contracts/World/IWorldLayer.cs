@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Fodinae;
+namespace Kern;
 
 public enum ChunkReadStatus
 {
@@ -28,6 +28,8 @@ public interface IWorldLayer<T> : IDisposable
     int MaxChunksInMemory { get; }
     bool HasDirtyChunks { get; }
 
+    // Raised when a chunk becomes resident in the layer cache. Changes to an
+    // already resident chunk use the owning storage's RegionChanged event.
     event Action<int, int, int, int>? ChunkLoaded;
 
     T this[int x, int y] { get; set; }

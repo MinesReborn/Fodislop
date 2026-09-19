@@ -1,9 +1,10 @@
 #nullable enable
 
 using System;
+using System.Threading;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
-using Fodinae;
+using Kern;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets;
 using MinesServer.Networking.Server.Packets.Information;
@@ -18,6 +19,7 @@ internal sealed class DummyBuffManager
 {
     private readonly Action<ServerPacket> _onReceived;
     private readonly IAsyncOperationSupervisor _operations;
+    private readonly IDummyClock _clock;
     private readonly Func<int, bool> _loopAlive;
     private readonly Dictionary<string, long> _activeBuffs = new();
     private readonly List<string> _expiredBuffTags = new();
@@ -31,10 +33,12 @@ internal sealed class DummyBuffManager
     public DummyBuffManager(
         Action<ServerPacket> onReceived,
         IAsyncOperationSupervisor operations,
+        IDummyClock clock,
         Func<int, bool> loopAlive)
     {
         _onReceived = onReceived;
         _operations = operations;
+        _clock = clock;
         _loopAlive = loopAlive;
     }
     public void StartBuffLoop(int lifecycleVersion)
@@ -48,7 +52,7 @@ internal sealed class DummyBuffManager
         _activeLifecycleVersion = lifecycleVersion;
         _operations.Run(
             "dummy_buff_loop",
-            _ => CheckBuffsLoop(lifecycleVersion));
+            cancellationToken => CheckBuffsLoop(lifecycleVersion, cancellationToken));
     }
 
     public void ActivateBuff(
@@ -62,7 +66,7 @@ internal sealed class DummyBuffManager
             StartBuffLoop(_activeLifecycleVersion);
         }
 
-        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        long now = DummyClockTime.UnixSeconds(_clock);
         var expiry = Math.Max(_activeBuffs.GetValueOrDefault(tag), now) + durationSeconds;
         _activeBuffs[tag] = expiry;
         _onReceived.Invoke(new ServerPacket(new AddStatusLinePacket(0, color, tag, new[] { name, expiry.ToString() })));
@@ -106,10 +110,10 @@ internal sealed class DummyBuffManager
     {
         _operations.Run(
             "dummy_daily_bonus_loop",
-            _ => SendDailyBonusMock(lifecycleVersion));
+            cancellationToken => SendDailyBonusMock(lifecycleVersion, cancellationToken));
     }
 
-    private async UniTask SendDailyBonusMock(int lifecycleVersion)
+    private async UniTask SendDailyBonusMock(int lifecycleVersion, CancellationToken cancellationToken)
     {
         while (LoopAlive(lifecycleVersion))
         {
@@ -118,7 +122,7 @@ internal sealed class DummyBuffManager
 
             while (_bonusCountdown > 0 && !_bonusClaimed && LoopAlive(lifecycleVersion))
             {
-                await UniTask.Delay(1000);
+                await _clock.Delay(1000, cancellationToken);
                 _bonusCountdown--;
             }
 
@@ -127,15 +131,15 @@ internal sealed class DummyBuffManager
                 break;
             }
 
-            _pendingBonusItem = DummyCellConfigurationUtilities.PickRandomBonusItem(_rng);
+            _pendingBonusItem = DummyCellConfigurationUtilities.PickRandomBonusItem(_clock.Random);
             _pendingBonusAmount = (int)DummyCellConfigurationUtilities.PickRandomAmount(
                 _pendingBonusItem,
-                _rng);
+                _clock.Random);
             _onReceived.Invoke(new ServerPacket(new DailyBonusStatePacket(true)));
 
             while (!_bonusClaimed && LoopAlive(lifecycleVersion))
             {
-                await UniTask.Delay(500);
+                await _clock.Delay(500, cancellationToken);
             }
 
             if (!LoopAlive(lifecycleVersion))
@@ -163,12 +167,12 @@ internal sealed class DummyBuffManager
         }
     }
 
-    private async UniTask CheckBuffsLoop(int lifecycleVersion)
+    private async UniTask CheckBuffsLoop(int lifecycleVersion, CancellationToken cancellationToken)
     {
         while (LoopAlive(lifecycleVersion))
         {
-            await UniTask.Delay(1000);
-            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            await _clock.Delay(1000, cancellationToken);
+            long now = DummyClockTime.UnixSeconds(_clock);
             _expiredBuffTags.Clear();
             foreach (KeyValuePair<string, long> active in _activeBuffs)
             {
@@ -190,6 +194,4 @@ internal sealed class DummyBuffManager
     {
         return _loopAlive(lifecycleVersion);
     }
-
-    private static readonly System.Random _rng = new();
 }

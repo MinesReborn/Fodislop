@@ -2,10 +2,10 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Core;
+using Kern.Core;
 using UnityEngine;
 
-namespace Fodinae.Game;
+namespace Kern.Game;
 
 internal sealed class WorldEntityTextureAtlas : IDisposable
 {

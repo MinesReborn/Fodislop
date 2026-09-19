@@ -1511,7 +1511,7 @@
     <ProjectReference Include="EffekseerEditor.csproj" />
     <ProjectReference Include="UniTask.Addressables.csproj" />
     <ProjectReference Include="Effekseer.csproj" />
-    <ProjectReference Include="Fodinae.Runtime.csproj" />
+    <ProjectReference Include="Kern.Runtime.csproj" />
     <ProjectReference Include="McpUnity.Editor.csproj" />
     <ProjectReference Include="UniTask.Linq.csproj" />
     <ProjectReference Include="UniTask.csproj" />

@@ -1,10 +1,11 @@
 #nullable enable
 
-using Fodinae.Player.Interfaces;
+using Kern.Player.Interfaces;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UIElements;
 
-namespace Fodinae.Player.Input
+namespace Kern.Player.Input
 {
     public class PlayerInputHandler : MonoBehaviour, IPlayerInput
     {
@@ -67,7 +68,13 @@ namespace Fodinae.Player.Input
             (Gamepad.current != null && Gamepad.current.leftTrigger.isPressed);
 
         [VContainer.Inject]
-        private Fodinae.Core.Interfaces.IClientConfigManager? _clientConfig;
+        private Kern.Core.Interfaces.IClientConfigManager? _clientConfig;
+
+        [VContainer.Inject]
+        private Kern.Core.Interfaces.IInputBlocker? _inputBlocker;
+
+        [VContainer.Inject]
+        private UIDocument? _uiDocument;
 
         protected void OnEnable()
         {
@@ -132,20 +139,23 @@ namespace Fodinae.Player.Input
                     }
                 }
 
-                // Mouse pointer scheme: if enabled or right button held, move toward screen center offset
+                // Mouse pointer scheme: if enabled or left button held, move toward screen center offset
                 var cfg = _clientConfig != null ? _clientConfig.Config : null;
                 bool isMouseScheme = cfg != null && cfg.Interface.ControlScheme == 1;
-                bool useMousePointer = isMouseScheme || (Mouse.current != null && Mouse.current.rightButton.isPressed);
+                bool useMousePointer = isMouseScheme || (Mouse.current != null && Mouse.current.leftButton.isPressed);
                 if (useMousePointer && Mouse.current != null)
                 {
-                    if (Mouse.current.rightButton.isPressed || (isMouseScheme && Mouse.current.leftButton.isPressed))
+                    if (Mouse.current.leftButton.isPressed)
                     {
                         Vector2 mousePos = Mouse.current.position.ReadValue();
-                        Vector2 center = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
-                        Vector2 dir = mousePos - center;
-                        if (dir.sqrMagnitude > 400f) // deadzone 20px
+                        if (!IsPointerOverUI(mousePos))
                         {
-                            _moveInput = dir.normalized;
+                            Vector2 center = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+                            Vector2 dir = mousePos - center;
+                            if (dir.sqrMagnitude > 400f) // deadzone 20px
+                            {
+                                _moveInput = dir.normalized;
+                            }
                         }
                     }
                 }
@@ -174,6 +184,30 @@ namespace Fodinae.Player.Input
             {
                 _moveInput.Normalize();
             }
+        }
+
+        private bool IsPointerOverUI(Vector2 mousePos)
+        {
+            if (_inputBlocker != null && _inputBlocker.IsInputBlocked)
+            {
+                return true;
+            }
+
+            var doc = _uiDocument;
+            if (doc == null || !doc.isActiveAndEnabled)
+            {
+                return false;
+            }
+
+            var root = doc.rootVisualElement;
+            if (root?.panel == null)
+            {
+                return false;
+            }
+
+            Vector2 panelPos = RuntimePanelUtils.ScreenToPanel(root.panel, mousePos);
+            VisualElement? picked = root.panel.Pick(panelPos);
+            return picked != null && picked != root && picked is not TemplateContainer;
         }
     }
 }

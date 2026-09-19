@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using Unity.Profiling;
 
-namespace Fodinae.Tools.Imgui.Profiling;
+namespace Kern.Tools.Imgui.Profiling;
 
 // Прочёсывание всех временных маркеров профайлера.
 //

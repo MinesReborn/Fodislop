@@ -1,10 +1,10 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
-using Fodinae.Rendering;
+using Kern.Core;
+using Kern.Rendering;
 
-namespace Fodinae.Core.Interfaces;
+namespace Kern.Core.Interfaces;
 public interface IClientConfigManager
 {
     ClientConfig Config { get; }

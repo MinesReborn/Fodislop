@@ -1,9 +1,9 @@
 #nullable enable
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 public static class GatewayDevFlags
 {
-    public const string ForceGatesPrefsKey = "Fodinae.Gateway.ForceGates";
+    public const string ForceGatesPrefsKey = "Kern.Gateway.ForceGates";
 
     public static bool ForceGates
     {

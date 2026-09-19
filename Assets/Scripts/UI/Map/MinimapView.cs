@@ -2,11 +2,11 @@
 
 using System;
 using System.Text;
-using Fodinae.Core;
+using Kern.Core;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 internal sealed class MinimapView : IDisposable
 {

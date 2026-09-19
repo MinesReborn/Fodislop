@@ -1,13 +1,13 @@
 #nullable enable
 
 using System;
-using Fodinae.Core.Interfaces;
-using Fodinae.Networking;
+using Kern.Core.Interfaces;
+using Kern.Networking;
 using MinesServer.Networking.Client.Packets.Chat;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 internal sealed class ChatColorController
 {

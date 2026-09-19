@@ -1,4 +1,4 @@
-# Стандарт сцен и сервисов Fodinae
+# Стандарт сцен и сервисов Kern
 
 Обязателен для всех сцен: `Bootstrap`, `Gateway`, `MainMenu`, `MainGame`. Код — источник истины; если документ расходится с кодом, правится одно из двух в том же изменении.
 
@@ -42,7 +42,7 @@ GameObject — только то, у чего есть **место в мире 
 
 1. Удалить объект сервиса со сцены и **сразу сохранить сцену**.
 2. Переписать класс по §1, заменить `RegisterManager<T>` на `Register`/`RegisterEntryPoint`.
-3. `Fodinae/Architecture/Populate Manager Contract` — привязки собираются из вызовов `RegisterManager<T>` в коде, поэтому после шага 2. Меню правит уже открытую сцену и сохраняет её.
+3. `Kern/Architecture/Populate Manager Contract` — привязки собираются из вызовов `RegisterManager<T>` в коде, поэтому после шага 2. Меню правит уже открытую сцену и сохраняет её.
 4. Перекомпилировать, проверить консоль и **файл сцены на диске**: GUID удалённого скрипта не должен встречаться в `.unity`. Если класс перестал быть `MonoBehaviour`, а объект остался в файле, Unity пишет «missing the class attribute 'ExtensionOfNativeClass'» и «references runtime script in scene file. Fixing!».
 4. Сцены и префабы — только через Unity Editor, никогда текстом.
 

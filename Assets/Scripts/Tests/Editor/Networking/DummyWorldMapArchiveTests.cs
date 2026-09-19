@@ -10,7 +10,7 @@ using MinesServer.Networking.Connection.Client;
 using NUnit.Framework;
 using UnityEngine.TestTools;
 
-namespace Fodinae.Tests.Networking;
+namespace Kern.Tests.Networking;
 
 public sealed class DummyWorldMapArchiveTests
 {
@@ -21,7 +21,7 @@ public sealed class DummyWorldMapArchiveTests
     [SetUp]
     public void SetUp()
     {
-        _root = Path.Combine(Path.GetTempPath(), "fodinae-dummy-map-" + Guid.NewGuid().ToString("N"));
+        _root = Path.Combine(Path.GetTempPath(), "kern-dummy-map-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_root);
     }
 
@@ -157,7 +157,7 @@ public sealed class DummyWorldMapArchiveTests
     {
         try
         {
-            await source.GetMapFileAsync("fodinae_missing_test_world", CancellationToken.None);
+            await source.GetMapFileAsync("kern_missing_test_world", CancellationToken.None);
         }
         catch (Exception exception)
         {
@@ -197,7 +197,7 @@ public sealed class DummyWorldMapArchiveTests
 }
 
 // Запускает операцию сразу и не ждёт её: для теста подготовки карты этого достаточно.
-internal sealed class ImmediateSupervisor : Fodinae.IAsyncOperationSupervisor
+internal sealed class ImmediateSupervisor : Kern.IAsyncOperationSupervisor
 {
     public int ActiveCount => 0;
 

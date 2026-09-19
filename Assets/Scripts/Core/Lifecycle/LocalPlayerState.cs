@@ -1,9 +1,9 @@
 #nullable enable
 
 using System;
-using Fodinae.Core.Interfaces;
+using Kern.Core.Interfaces;
 
-namespace Fodinae.Core.Lifecycle;
+namespace Kern.Core.Lifecycle;
 
 public sealed class LocalPlayerState : ILocalPlayerState
 {

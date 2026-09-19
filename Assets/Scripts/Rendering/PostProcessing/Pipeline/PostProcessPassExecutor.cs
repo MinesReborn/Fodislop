@@ -3,14 +3,19 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
-using static Fodinae.Rendering.PostProcessing.PostProcessShaderConstants;
+using static Kern.Rendering.PostProcessing.PostProcessShaderConstants;
 
-namespace Fodinae.Rendering.PostProcessing;
+namespace Kern.Rendering.PostProcessing;
 
 internal static class PostProcessPassExecutor
 {
     private static Texture2D? _identityLut1D;
     private static Texture3D? _identityLut3D;
+
+    // LocalKeyword ищет слово в шейдере по имени; кэшируем вместе со ссылкой
+    // на сам шейдер, чтобы не искать его дважды за кадр.
+    private static ComputeShader? _keywordShader;
+    private static LocalKeyword _diagnosticsKeyword;
 
     public static void Render(PostProcessPassData data, UnsafeGraphContext context)
     {
@@ -20,21 +25,31 @@ internal static class PostProcessPassExecutor
         int width = data.Width;
         int height = data.Height;
 
-        cmd.SetComputeVectorParam(data.PostProcessCS, ScreenSizeID, new Vector4(width, height, 1f / width, 1f / height));
+        SetDiagnosticsKeyword(data, cmd);
 
         if (data.BloomActive)
         {
             ExecuteBloom(data, cmd, width, height);
         }
-        else
+        else if (!data.IsDisplayPass)
         {
             cmd.SetComputeFloatParam(data.PostProcessCS, BloomIntensityID, 0f);
             cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelComposite, BloomTexID, Texture2D.blackTexture);
         }
 
+        // Один раз на проход. Блум оставляет здесь размер своего последнего
+        // уровня, поэтому композиту размер кадра ставится после него, а не до.
         cmd.SetComputeVectorParam(data.PostProcessCS, ScreenSizeID, new Vector4(width, height, 1f / width, 1f / height));
 
-        BindPostProcessParameters(data, cmd);
+        BindSharedParameters(data, cmd);
+        if (data.IsDisplayPass)
+        {
+            BindDisplayParameters(data, cmd);
+        }
+        else
+        {
+            BindCreativeParameters(data, cmd);
+        }
 
         if (data.KernelBakeGradeLut >= 0 && data.BakedGradeLut != null)
         {
@@ -42,11 +57,11 @@ internal static class PostProcessPassExecutor
             {
                 // Ключ сохраняется при исполнении прохода после записи
                 // dispatch, а не при построении потенциально неисполненного графа.
-                cmd.BeginSample("Fodinae.PostProcess.BakeGradeLut");
+                cmd.BeginSample("Kern.PostProcess.BakeGradeLut");
                 int groups = Mathf.CeilToInt(PostProcessRenderPass.BakedGradeLutSize / 4f);
                 cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelBakeGradeLut, BakedGradeLutID, data.BakedGradeLut);
                 cmd.DispatchCompute(data.PostProcessCS, data.KernelBakeGradeLut, groups, groups, groups);
-                cmd.EndSample("Fodinae.PostProcess.BakeGradeLut");
+                cmd.EndSample("Kern.PostProcess.BakeGradeLut");
                 data.GradeLutCache?.Store(data);
             }
 
@@ -54,35 +69,66 @@ internal static class PostProcessPassExecutor
             cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelComposite, BakedGradeLutTexID, data.BakedGradeLut);
         }
 
-        cmd.BeginSample("Fodinae.PostProcess.Composite");
+        cmd.BeginSample("Kern.PostProcess.Composite");
         cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelComposite, InputTexID, data.ColorTexture);
         cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelComposite, OutputTexID, data.IntermediateTexture);
         cmd.DispatchCompute(data.PostProcessCS, data.KernelComposite, Mathf.CeilToInt(width / 8f), Mathf.CeilToInt(height / 8f), 1);
-        cmd.EndSample("Fodinae.PostProcess.Composite");
+        cmd.EndSample("Kern.PostProcess.Composite");
 
         if (!data.SwapColor)
         {
-            cmd.BeginSample("Fodinae.PostProcess.BlitBack");
+            cmd.BeginSample("Kern.PostProcess.BlitBack");
             Blitter.BlitCameraTexture(cmd, data.IntermediateTexture, data.ColorTexture);
-            cmd.EndSample("Fodinae.PostProcess.BlitBack");
+            cmd.EndSample("Kern.PostProcess.BlitBack");
         }
 
         if (data.TemporalActive)
         {
-            cmd.BeginSample("Fodinae.PostProcess.HistoryCopy");
+            cmd.BeginSample("Kern.PostProcess.HistoryCopy");
             cmd.CopyTexture(data.IntermediateTexture, data.HistoryTexture);
-            cmd.EndSample("Fodinae.PostProcess.HistoryCopy");
+            cmd.EndSample("Kern.PostProcess.HistoryCopy");
         }
+    }
+
+    private static void SetDiagnosticsKeyword(PostProcessPassData data, CommandBuffer cmd)
+    {
+        if (!ReferenceEquals(_keywordShader, data.PostProcessCS))
+        {
+            _keywordShader = data.PostProcessCS;
+            _diagnosticsKeyword = new LocalKeyword(data.PostProcessCS, DiagnosticsKeyword);
+        }
+
+        cmd.SetKeyword(data.PostProcessCS, _diagnosticsKeyword, data.DiagnosticsActive);
     }
 
     private static void ExecuteBloom(PostProcessPassData data, CommandBuffer cmd, int width, int height)
     {
+        int levels = data.BloomLevels;
         cmd.SetComputeFloatParam(data.PostProcessCS, BloomThresholdID, data.BloomThreshold);
         cmd.SetComputeFloatParam(data.PostProcessCS, BloomSoftKneeID, data.BloomSoftKnee);
         cmd.SetComputeFloatParam(data.PostProcessCS, BloomRadiusID, data.BloomRadius);
         cmd.SetComputeFloatParam(data.PostProcessCS, BloomScatterID, data.BloomScatter);
         cmd.SetComputeVectorParam(data.PostProcessCS, BloomTintID, data.BloomTint);
-        cmd.SetComputeFloatParam(data.PostProcessCS, BloomIntensityID, data.BloomIntensity);
+
+        // Яркость подъёма нормируется по глубине пирамиды.
+        //
+        // Подъём складывает `highRes + lowRes * scatter` на каждом уровне,
+        // поэтому суммарный вес равен 1 + s + s^2 + ... + s^levels. Без
+        // нормировки добавление уровня само по себе делало блум ярче, и
+        // «интенсивность» означала разное при разной глубине. Теперь она
+        // означает долю добавленного света и не зависит от числа уровней.
+        float energy = 0f;
+        float term = 1f;
+        for (int i = 0; i <= levels; i++)
+        {
+            energy += term;
+            term *= Mathf.Max(data.BloomScatter, 0f);
+        }
+
+        cmd.SetComputeFloatParam(
+            data.PostProcessCS,
+            BloomIntensityID,
+            data.BloomIntensity / Mathf.Max(energy, 1e-4f));
 
         int prefilterWidth = Mathf.Max(1, width / 2);
         int prefilterHeight = Mathf.Max(1, height / 2);
@@ -98,7 +144,7 @@ internal static class PostProcessPassExecutor
             data.PostProcessCS,
             SourceTexelSizeID,
             new Vector4(1f / width, 1f / height, width, height));
-        cmd.BeginSample("Fodinae.PostProcess.Bloom.Prefilter");
+        cmd.BeginSample("Kern.PostProcess.Bloom.Prefilter");
         cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelPrefilter, InputTexID, data.ColorTexture);
         cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelPrefilter, DestTexID, data.BloomPrefilterTexture);
         cmd.DispatchCompute(
@@ -107,15 +153,15 @@ internal static class PostProcessPassExecutor
             Mathf.CeilToInt(prefilterWidth / 8f),
             Mathf.CeilToInt(prefilterHeight / 8f),
             1);
-        cmd.EndSample("Fodinae.PostProcess.Bloom.Prefilter");
+        cmd.EndSample("Kern.PostProcess.Bloom.Prefilter");
 
         int downWidth = prefilterWidth;
         int downHeight = prefilterHeight;
         int sourceWidth = prefilterWidth;
         int sourceHeight = prefilterHeight;
         TextureHandle currentSource = data.BloomPrefilterTexture;
-        cmd.BeginSample("Fodinae.PostProcess.Bloom.Downsample");
-        for (int i = 0; i < data.BloomDownTextures.Length; i++)
+        cmd.BeginSample("Kern.PostProcess.Bloom.Downsample");
+        for (int i = 0; i < levels; i++)
         {
             downWidth = Mathf.Max(1, downWidth / 2);
             downHeight = Mathf.Max(1, downHeight / 2);
@@ -140,13 +186,13 @@ internal static class PostProcessPassExecutor
             sourceHeight = downHeight;
         }
 
-        cmd.EndSample("Fodinae.PostProcess.Bloom.Downsample");
+        cmd.EndSample("Kern.PostProcess.Bloom.Downsample");
 
-        TextureHandle currentUp = data.BloomDownTextures[^1];
+        TextureHandle currentUp = data.BloomDownTextures[levels - 1];
         int currentUpWidth = downWidth;
         int currentUpHeight = downHeight;
-        cmd.BeginSample("Fodinae.PostProcess.Bloom.Upsample");
-        for (int i = data.BloomUpTextures.Length - 1; i >= 0; i--)
+        cmd.BeginSample("Kern.PostProcess.Bloom.Upsample");
+        for (int i = levels - 1; i >= 0; i--)
         {
             int upWidth = Mathf.Max(1, width >> (i + 1));
             int upHeight = Mathf.Max(1, height >> (i + 1));
@@ -175,41 +221,29 @@ internal static class PostProcessPassExecutor
             currentUpHeight = upHeight;
         }
 
-        cmd.EndSample("Fodinae.PostProcess.Bloom.Upsample");
+        cmd.EndSample("Kern.PostProcess.Bloom.Upsample");
 
         cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelComposite, BloomTexID, currentUp);
     }
 
-    private static void BindPostProcessParameters(PostProcessPassData data, CommandBuffer cmd)
+    // Читается обоими ядрами: CompositeFinal тоже спрашивает шторку сравнения.
+    private static void BindSharedParameters(PostProcessPassData data, CommandBuffer cmd)
     {
-        cmd.SetComputeFloatParam(data.PostProcessCS, VignetteIntensityID, data.VignetteActive ? data.VignetteIntensity : 0f);
-        if (data.VignetteActive)
-        {
-            cmd.SetComputeVectorParam(data.PostProcessCS, VignetteColorID, data.VignetteColor);
-            cmd.SetComputeFloatParam(data.PostProcessCS, VignetteSmoothnessID, data.VignetteSmoothness);
-            cmd.SetComputeVectorParam(data.PostProcessCS, VignetteCenterID, data.VignetteCenter);
-        }
+        cmd.SetComputeFloatParam(data.PostProcessCS, CompareSplitID, data.CompareSplit);
+        cmd.SetComputeIntParam(data.PostProcessCS, CompareModeID, data.CompareMode);
+        cmd.SetComputeIntParam(data.PostProcessCS, CompareBeforeID, data.CompareBefore ? 1 : 0);
+        cmd.SetComputeIntParam(data.PostProcessCS, CurveInterpolationID, data.CurveInterpolation);
+    }
 
+    // Входы запекаемой таблицы. Ядру дисплея ничего из этого не нужно: к нему
+    // творческий грейд приходит уже готовой таблицей.
+    private static void BindCreativeParameters(PostProcessPassData data, CommandBuffer cmd)
+    {
         cmd.SetComputeFloatParam(data.PostProcessCS, ExposureID, data.CgActive ? data.Exposure : 0f);
         cmd.SetComputeVectorParam(data.PostProcessCS, ColorFilterID, data.CgActive ? data.ColorFilter : Color.white);
         cmd.SetComputeFloatParam(data.PostProcessCS, ContrastID, data.CgActive ? data.Contrast : 0f);
         cmd.SetComputeFloatParam(data.PostProcessCS, SaturationID, data.CgActive ? data.Saturation : 1f);
         cmd.SetComputeFloatParam(data.PostProcessCS, CdlSaturationID, data.CdlSaturation);
-        cmd.SetComputeFloatParam(data.PostProcessCS, GammaID, data.Gamma);
-        // Keep the shader finite even if a stale/partially initialized HDR
-        // output profile reaches the pass before display reconciliation.
-        cmd.SetComputeFloatParam(
-            data.PostProcessCS,
-            DisplayPaperWhiteNitsID,
-            Mathf.Max(data.DisplayPaperWhiteNits, 1f));
-        cmd.SetComputeFloatParam(
-            data.PostProcessCS,
-            DisplayPeakRelativeID,
-            data.DisplayPeakRelative);
-        cmd.SetComputeIntParam(data.PostProcessCS, PostDebugViewID, data.PostDebugView);
-        cmd.SetComputeFloatParam(data.PostProcessCS, CompareSplitID, data.CompareSplit);
-        cmd.SetComputeIntParam(data.PostProcessCS, CompareModeID, data.CompareMode);
-        cmd.SetComputeIntParam(data.PostProcessCS, CompareBeforeID, data.CompareBefore ? 1 : 0);
         cmd.SetComputeVectorParam(data.PostProcessCS, WhiteBalanceID, data.WhiteBalance);
         cmd.SetComputeVectorParam(data.PostProcessCS, CdlSlopeID, data.CdlSlope);
         cmd.SetComputeVectorParam(data.PostProcessCS, CdlOffsetID, data.CdlOffset);
@@ -224,17 +258,6 @@ internal static class PostProcessPassExecutor
         cmd.SetComputeFloatParam(data.PostProcessCS, HueID, data.Hue);
         cmd.SetComputeVectorParam(data.PostProcessCS, ContrastControlsID, data.ContrastControls);
         cmd.SetComputeVectorParam(data.PostProcessCS, ContrastControls2ID, data.ContrastControls2);
-        cmd.SetComputeVectorParam(data.PostProcessCS, DisplayGrade0ID, data.DisplayGrade0);
-        cmd.SetComputeVectorParam(data.PostProcessCS, DisplayGrade1ID, data.DisplayGrade1);
-        cmd.SetComputeFloatParam(
-            data.PostProcessCS,
-            DisplayGradePathPowerID,
-            data.DisplayGradePathPower);
-        cmd.SetComputeFloatParam(data.PostProcessCS, GamutCompressionID, data.GamutCompression);
-        cmd.SetComputeVectorArrayParam(data.PostProcessCS, MasterCurveID, data.MasterCurvePoints);
-        cmd.SetComputeVectorArrayParam(data.PostProcessCS, RedCurveID, data.RedCurvePoints);
-        cmd.SetComputeVectorArrayParam(data.PostProcessCS, GreenCurveID, data.GreenCurvePoints);
-        cmd.SetComputeVectorArrayParam(data.PostProcessCS, BlueCurveID, data.BlueCurvePoints);
         cmd.SetComputeVectorArrayParam(
             data.PostProcessCS,
             HueVsHueCurveID,
@@ -255,10 +278,6 @@ internal static class PostProcessPassExecutor
             data.PostProcessCS,
             SaturationVsSaturationCurveID,
             data.SaturationVsSaturationCurvePoints);
-        cmd.SetComputeIntParam(data.PostProcessCS, MasterCurvePointCountID, data.MasterCurvePointCount);
-        cmd.SetComputeIntParam(data.PostProcessCS, RedCurvePointCountID, data.RedCurvePointCount);
-        cmd.SetComputeIntParam(data.PostProcessCS, GreenCurvePointCountID, data.GreenCurvePointCount);
-        cmd.SetComputeIntParam(data.PostProcessCS, BlueCurvePointCountID, data.BlueCurvePointCount);
         cmd.SetComputeIntParam(
             data.PostProcessCS,
             HueVsHueCurvePointCountID,
@@ -279,7 +298,6 @@ internal static class PostProcessPassExecutor
             data.PostProcessCS,
             SaturationVsSaturationCurvePointCountID,
             data.SaturationVsSaturationCurvePointCount);
-        cmd.SetComputeIntParam(data.PostProcessCS, CurveInterpolationID, data.CurveInterpolation);
         cmd.SetComputeVectorParam(data.PostProcessCS, Qualifier0ID, data.Qualifier0);
         cmd.SetComputeVectorParam(data.PostProcessCS, Qualifier1ID, data.Qualifier1);
         cmd.SetComputeVectorParam(data.PostProcessCS, Qualifier2ID, data.Qualifier2);
@@ -295,6 +313,42 @@ internal static class PostProcessPassExecutor
             data.PostProcessCS,
             QualifierHueSampleCountID,
             data.QualifierHueSampleCount);
+    }
+
+    // Точечные операции вывода: кривая дисплея, куб-LUT, виньетка, зерно,
+    // калибровка и временной смаз.
+    private static void BindDisplayParameters(PostProcessPassData data, CommandBuffer cmd)
+    {
+        cmd.SetComputeFloatParam(data.PostProcessCS, VignetteIntensityID, data.VignetteActive ? data.VignetteIntensity : 0f);
+        if (data.VignetteActive)
+        {
+            cmd.SetComputeVectorParam(data.PostProcessCS, VignetteColorID, data.VignetteColor);
+            cmd.SetComputeFloatParam(data.PostProcessCS, VignetteSmoothnessID, data.VignetteSmoothness);
+            cmd.SetComputeVectorParam(data.PostProcessCS, VignetteCenterID, data.VignetteCenter);
+        }
+
+        // Keep the shader finite even if a stale/partially initialized HDR
+        // output profile reaches the pass before display reconciliation.
+        cmd.SetComputeFloatParam(
+            data.PostProcessCS,
+            DisplayPaperWhiteNitsID,
+            Mathf.Max(data.DisplayPaperWhiteNits, 1f));
+        cmd.SetComputeFloatParam(
+            data.PostProcessCS,
+            DisplayPeakRelativeID,
+            data.DisplayPeakRelative);
+        cmd.SetComputeIntParam(data.PostProcessCS, PostDebugViewID, data.PostDebugView);
+        cmd.SetComputeVectorParam(data.PostProcessCS, DisplayGrade0ID, data.DisplayGrade0);
+        cmd.SetComputeVectorParam(data.PostProcessCS, DisplayGrade1ID, data.DisplayGrade1);
+        cmd.SetComputeFloatParam(data.PostProcessCS, GamutCompressionID, data.GamutCompression);
+        cmd.SetComputeVectorArrayParam(data.PostProcessCS, MasterCurveID, data.MasterCurvePoints);
+        cmd.SetComputeVectorArrayParam(data.PostProcessCS, RedCurveID, data.RedCurvePoints);
+        cmd.SetComputeVectorArrayParam(data.PostProcessCS, GreenCurveID, data.GreenCurvePoints);
+        cmd.SetComputeVectorArrayParam(data.PostProcessCS, BlueCurveID, data.BlueCurvePoints);
+        cmd.SetComputeIntParam(data.PostProcessCS, MasterCurvePointCountID, data.MasterCurvePointCount);
+        cmd.SetComputeIntParam(data.PostProcessCS, RedCurvePointCountID, data.RedCurvePointCount);
+        cmd.SetComputeIntParam(data.PostProcessCS, GreenCurvePointCountID, data.GreenCurvePointCount);
+        cmd.SetComputeIntParam(data.PostProcessCS, BlueCurvePointCountID, data.BlueCurvePointCount);
         cmd.SetComputeVectorParam(
             data.PostProcessCS,
             LutParamsID,
@@ -325,11 +379,14 @@ internal static class PostProcessPassExecutor
             cmd.SetComputeFloatParam(data.PostProcessCS, EigengrauDarknessThresholdID, data.EigengrauDarknessThreshold);
             cmd.SetComputeFloatParam(data.PostProcessCS, EigengrauNoiseScaleID, data.EigengrauNoiseScale);
             cmd.SetComputeFloatParam(data.PostProcessCS, EigengrauAnimationSpeedID, data.EigengrauAnimationSpeed);
-            cmd.SetComputeFloatParam(data.PostProcessCS, TimeID, data.TimeSeconds);
         }
 
         cmd.SetComputeFloatParam(data.PostProcessCS, TimeID, data.TimeSeconds);
         cmd.SetComputeFloatParam(data.PostProcessCS, MotionBlurHistoryID, data.MotionBlurHistory);
+        cmd.SetComputeMatrixParam(
+            data.PostProcessCS,
+            HistoryReprojectionID,
+            data.HistoryReprojection);
         if (data.TemporalActive && data.HistoryValid)
         {
             cmd.SetComputeTextureParam(

@@ -1,4 +1,4 @@
-Shader "Fodinae/Backgrounds/FractalBackground"
+Shader "Kern/Backgrounds/FractalBackground"
 {
     Properties
     {

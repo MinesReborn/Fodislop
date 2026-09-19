@@ -1,12 +1,12 @@
 #nullable enable
 
-using Fodinae.World.Terrain;
+using Kern.World.Terrain;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Fodinae.Tests.World;
+namespace Kern.Tests.World;
 
 [TestFixture]
 [Category("FuzzPure")]

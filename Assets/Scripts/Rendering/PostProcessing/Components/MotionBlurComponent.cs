@@ -5,10 +5,10 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
-namespace Fodinae.Rendering.PostProcessing
+namespace Kern.Rendering.PostProcessing
 {
     [Serializable]
-    [VolumeComponentMenu("Fodinae/Motion Blur")]
+    [VolumeComponentMenu("Kern/Motion Blur")]
     [SupportedOnRenderPipeline(typeof(UniversalRenderPipelineAsset))]
     public class MotionBlurComponent : VolumeComponent, IPostProcessComponent
     {

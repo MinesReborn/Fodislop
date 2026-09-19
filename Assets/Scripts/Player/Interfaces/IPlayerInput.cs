@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace Fodinae.Player.Interfaces;
+namespace Kern.Player.Interfaces;
 public interface IPlayerInput
 {
     Vector2 MoveInput { get; }

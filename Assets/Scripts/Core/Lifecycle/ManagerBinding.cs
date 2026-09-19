@@ -3,7 +3,7 @@
 using System;
 using UnityEngine;
 
-namespace Fodinae.Core.Lifecycle;
+namespace Kern.Core.Lifecycle;
 
 [Serializable]
 public sealed class ManagerBinding

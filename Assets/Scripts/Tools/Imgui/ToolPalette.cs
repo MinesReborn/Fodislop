@@ -1,11 +1,11 @@
 #nullable enable
 
 using System.Collections.Generic;
-using Fodinae;
+using Kern;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace Fodinae.Tools.Imgui;
+namespace Kern.Tools.Imgui;
 
 public static class ToolPalette
 {
@@ -41,8 +41,6 @@ public static class ToolPalette
 
     public static Texture2D White { get; private set; } = Texture2D.whiteTexture;
 
-    public static Texture2D Scanlines { get; private set; } = Texture2D.whiteTexture;
-
     public static Texture2D WindowFrame { get; private set; } = Texture2D.whiteTexture;
 
     public static Texture2D CardFrame { get; private set; } = Texture2D.whiteTexture;
@@ -77,7 +75,6 @@ public static class ToolPalette
     {
         Release();
         White = CreateSolid("Tool.White", new Color32(255, 255, 255, 255));
-        Scanlines = CreateScanlines();
 
         WindowFrame = CreateNotched("Tool.WindowFrame", Panel, _AccentDim);
         CardFrame = CreateNotched("Tool.CardFrame", Raised, _EdgeDim);
@@ -117,7 +114,6 @@ public static class ToolPalette
         }
 
         White = Texture2D.whiteTexture;
-        Scanlines = Texture2D.whiteTexture;
     }
 
     public static Color Fade(Color color, float alpha) =>
@@ -198,28 +194,6 @@ public static class ToolPalette
 
         texture.SetPixels32(pixels);
         texture.Apply(updateMipmaps: false, makeNoLongerReadable: true);
-        return texture;
-    }
-
-    private static Texture2D CreateScanlines()
-    {
-        Texture2D texture = RuntimeTextureFactory.CreateRGBA32NoMip(
-            1,
-            4,
-            "Tool.Scanlines",
-            RuntimeTextureColorSpace.Srgb,
-            FilterMode.Point,
-            TextureWrapMode.Repeat);
-        texture.hideFlags = HideFlags.HideAndDontSave;
-        texture.SetPixels32(
-        [
-            new Color32(255, 255, 255, 0),
-            new Color32(255, 255, 255, 0),
-            new Color32(120, 190, 210, 14),
-            new Color32(255, 255, 255, 0),
-        ]);
-        texture.Apply(updateMipmaps: false, makeNoLongerReadable: true);
-        _Textures.Add(texture);
         return texture;
     }
 }

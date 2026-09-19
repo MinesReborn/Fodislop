@@ -1,3 +1,4 @@
 using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("Fodinae.Tests.Editor")]
+[assembly: InternalsVisibleTo("Kern.Tests.Editor")]
+[assembly: InternalsVisibleTo("Kern.Tests.PlayMode")]

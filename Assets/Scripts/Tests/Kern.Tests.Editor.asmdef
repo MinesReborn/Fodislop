@@ -1,0 +1,37 @@
+{
+    "name": "Kern.Tests.Editor",
+    "rootNamespace": "Kern.Tests",
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "references": [
+        "Kern.Runtime",
+        "Kern.Bootstrap",
+        "Kern.UI",
+        "Kern.Editor",
+        "Kern.Contracts",
+        "Kern.Persistence",
+        "Kern.Networking",
+        "Kern.AssetPipeline",
+        "Kern.World",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "MinesServer.Data",
+        "MinesServer.Networking",
+        "MinesServer.Networking.Connection",
+        "MinesServer.Networking.Connection.Client",
+        "UniTask",
+        "VContainer"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

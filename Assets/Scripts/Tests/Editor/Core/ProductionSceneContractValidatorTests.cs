@@ -2,8 +2,8 @@
 
 using System.Collections.Generic;
 using System.Linq;
-using Fodinae.Core;
-using Fodinae.Editor;
+using Kern.Core;
+using Kern.Editor;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -11,7 +11,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 
-namespace Fodinae.Tests.Core;
+namespace Kern.Tests.Core;
 
 [TestFixture]
 public sealed class ProductionSceneContractValidatorTests
@@ -50,20 +50,20 @@ public sealed class ProductionSceneContractValidatorTests
     }
 
     [Test]
-    public void EnabledContentCamera_IsRejected()
+    public void ContentCamera_IsRejected()
     {
         Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         var documentObject = new GameObject("Document");
         documentObject.AddComponent<UIDocument>();
         var cameraObject = new GameObject("DisplayCamera");
-        cameraObject.AddComponent<Camera>().enabled = true;
+        cameraObject.AddComponent<Camera>().enabled = false;
         SceneManager.MoveGameObjectToScene(documentObject, scene);
         SceneManager.MoveGameObjectToScene(cameraObject, scene);
         var errors = new List<string>();
 
         ProductionSceneContractValidator.ValidateAllLoadedScenes(errors);
 
-        Assert.That(errors.Any(error => error.Contains("enabled display camera 'DisplayCamera'")), Is.True);
+        Assert.That(errors.Any(error => error.Contains("camera 'DisplayCamera'")), Is.True);
     }
 
     [Test]
@@ -134,7 +134,7 @@ public sealed class ProductionSceneContractValidatorTests
     [Test]
     public void BuildSettingsValidation_AcceptsAuthoredProductionOrder()
     {
-        Assert.DoesNotThrow(BuildSettingsFix.ValidateScenesInBuildSettings);
+        Assert.DoesNotThrow(BuildSceneOrder.Validate);
     }
 
     [Test]
@@ -146,7 +146,7 @@ public sealed class ProductionSceneContractValidatorTests
         EditorBuildSettings.scenes = invalid;
 
         Assert.Throws<System.InvalidOperationException>(
-            BuildSettingsFix.ValidateScenesInBuildSettings);
+            BuildSceneOrder.Validate);
         Assert.That(EditorBuildSettings.scenes[0].path, Is.EqualTo(invalid[0].path));
         Assert.That(EditorBuildSettings.scenes[1].path, Is.EqualTo(invalid[1].path));
     }

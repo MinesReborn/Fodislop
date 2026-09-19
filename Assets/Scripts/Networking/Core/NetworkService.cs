@@ -3,9 +3,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Fodinae.Core.Interfaces;
-using Fodinae.Networking.Connection;
-using Fodinae.Networking.Diagnostics;
+using Kern.Core.Interfaces;
+using Kern.Networking.Connection;
+using Kern.Networking.Diagnostics;
 using MinesServer.Networking.Client;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.Actions;
@@ -15,7 +15,7 @@ using MinesServer.Networking.Server.Packets.World;
 using UnityEngine;
 using VContainer;
 
-namespace Fodinae.Networking
+namespace Kern.Networking
 {
     public class NetworkService : MonoBehaviour, INetworkService
     {
@@ -219,15 +219,23 @@ namespace Fodinae.Networking
 
             if (payload is HBPacket hbPacket && hbPacket.Payload != null)
             {
+                PacketBatchStarted?.Invoke();
                 // Размер пачки считается перебором, а не свойством длины:
                 // тип полезной нагрузки задан протоколом, и обращаться к его
                 // внутреннему устройству ради одного числа значит привязать
                 // учёт к тому, что клиенту не принадлежит.
                 int batched = 0;
-                foreach (var innerPacket in hbPacket.Payload)
+                try
                 {
-                    batched++;
-                    Dispatch(innerPacket);
+                    foreach (var innerPacket in hbPacket.Payload)
+                    {
+                        batched++;
+                        Dispatch(innerPacket);
+                    }
+                }
+                finally
+                {
+                    PacketBatchCompleted?.Invoke();
                 }
 
                 PacketTelemetry.RecordBatch(batched);
@@ -237,6 +245,9 @@ namespace Fodinae.Networking
                 Dispatch(payload);
             }
         }
+
+        public event Action? PacketBatchStarted;
+        public event Action? PacketBatchCompleted;
 
         private void Dispatch(object packet)
         {
@@ -277,8 +288,8 @@ namespace Fodinae.Networking
             long handlerStarted = PacketTelemetry.Enabled ? System.Diagnostics.Stopwatch.GetTimestamp() : 0L;
             try
             {
-                using var allocationScope = Fodinae.Core.Interfaces.Diagnostics.AllocationLedger.Enabled
-                    ? Fodinae.Core.Interfaces.Diagnostics.AllocationLedger.Measure(PacketAllocationEntry(packetType))
+                using var allocationScope = Kern.Core.Interfaces.Diagnostics.AllocationLedger.Enabled
+                    ? Kern.Core.Interfaces.Diagnostics.AllocationLedger.Measure(PacketAllocationEntry(packetType))
                     : default;
                 InvokeHandlers(packet, packetType, handlers);
             }
@@ -296,13 +307,13 @@ namespace Fodinae.Networking
 
         // Одна запись учёта аллокаций на тип пакета; строка имени строится один
         // раз на тип, а не на пакет.
-        private static readonly Dictionary<Type, Fodinae.Core.Interfaces.Diagnostics.AllocationLedger.Entry> _PacketAllocationEntries = new();
+        private static readonly Dictionary<Type, Kern.Core.Interfaces.Diagnostics.AllocationLedger.Entry> _PacketAllocationEntries = new();
 
-        private static Fodinae.Core.Interfaces.Diagnostics.AllocationLedger.Entry PacketAllocationEntry(Type packetType)
+        private static Kern.Core.Interfaces.Diagnostics.AllocationLedger.Entry PacketAllocationEntry(Type packetType)
         {
             if (!_PacketAllocationEntries.TryGetValue(packetType, out var entry))
             {
-                entry = Fodinae.Core.Interfaces.Diagnostics.AllocationLedger.Register("Пакет · " + packetType.Name);
+                entry = Kern.Core.Interfaces.Diagnostics.AllocationLedger.Register("Пакет · " + packetType.Name);
                 _PacketAllocationEntries[packetType] = entry;
             }
 

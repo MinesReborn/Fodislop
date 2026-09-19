@@ -1,10 +1,10 @@
 #nullable enable
 
-using Fodinae.UI.HUD.Player.Model;
+using Kern.UI.HUD.Player.Model;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Fodinae.Tests.UI;
+namespace Kern.Tests.UI;
 
 [TestFixture]
 public class PlayerStatsModelTests

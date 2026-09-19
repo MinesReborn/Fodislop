@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace Fodinae.UI
+namespace Kern.UI
 {
     // ExecuteAlways so the station sits at its correct orbital position (and
     // can be previewed/captured) in Edit Mode too, not only once Play Mode

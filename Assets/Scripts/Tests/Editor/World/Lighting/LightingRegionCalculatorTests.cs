@@ -2,43 +2,20 @@
 
 using UnityEngine;
 using NUnit.Framework;
-using Fodinae.World.Lighting;
+using Kern.World.Lighting;
+using Kern.World.Streaming;
 
-namespace Fodinae.Tests.World.Lighting;
+namespace Kern.Tests.World.Lighting;
 
 [TestFixture]
 public class LightingRegionCalculatorTests
 {
     [Test]
-    public void SnapAlwaysAnchorsToAMultipleOfEight()
-    {
-        Assert.That(LightingRegionCalculator.SnapLightingRegion(0), Is.EqualTo(0));
-        Assert.That(LightingRegionCalculator.SnapLightingRegion(7), Is.EqualTo(0));
-        Assert.That(LightingRegionCalculator.SnapLightingRegion(8), Is.EqualTo(8));
-        Assert.That(LightingRegionCalculator.SnapLightingRegion(9), Is.EqualTo(8));
-        Assert.That(LightingRegionCalculator.SnapLightingRegion(16), Is.EqualTo(16));
-        Assert.That(LightingRegionCalculator.SnapLightingRegion(23), Is.EqualTo(16));
-        Assert.That(LightingRegionCalculator.SnapLightingRegion(31), Is.EqualTo(24));
-    }
-
-    [Test]
-    public void SnapFloorsNegativeCoordinatesTowardNegativeInfinity()
-    {
-        // Floor, not truncation: a coordinate just below zero must snap
-        // down to a negative anchor, otherwise the padded west edge of the
-        // world wraps and clips geometry on the far side.
-        Assert.That(LightingRegionCalculator.SnapLightingRegion(-1), Is.EqualTo(-8));
-        Assert.That(LightingRegionCalculator.SnapLightingRegion(-7), Is.EqualTo(-8));
-        Assert.That(LightingRegionCalculator.SnapLightingRegion(-8), Is.EqualTo(-8));
-        Assert.That(LightingRegionCalculator.SnapLightingRegion(-9), Is.EqualTo(-16));
-    }
-
-    [Test]
-    public void FreshRegionIsPaddedAndQuantizedToThirtyTwo()
+    public void FreshRegionUsesTransportPaddingAndQuantizesAllocation()
     {
         // No previous region (NaN) => compute from scratch. The visible area
-        // is 100x100 at origin; plus 16px padding each side and quantization
-        // up to a multiple of 32 yields a 160x160 region anchored at -16.
+        // is 100x100 at origin; transport padding is 16 cells and allocation
+        // dimensions are quantized independently by the governor.
         Vector4 region = LightingRegionCalculator.GetStableLightingRegion(
             visibleMinX: 0,
             visibleMinY: 0,
@@ -46,10 +23,10 @@ public class LightingRegionCalculatorTests
             visibleHeight: 100,
             lastVisibleRegion: new Vector4(float.NaN, 0, 0, 0));
 
-        Assert.That(region.x, Is.EqualTo(-16f), "West edge must be padded and anchored.");
-        Assert.That(region.y, Is.EqualTo(-16f), "South edge must be padded and anchored.");
-        Assert.That(region.z, Is.EqualTo(160f), "Width must be padded then quantized to 32.");
-        Assert.That(region.w, Is.EqualTo(160f), "Height must be padded then quantized to 32.");
+        Assert.That(region.x, Is.EqualTo(-32f), "West edge must include transport padding and policy alignment.");
+        Assert.That(region.y, Is.EqualTo(-32f), "South edge must include transport padding and policy alignment.");
+        Assert.That(region.z, Is.EqualTo(192f), "Width must include policy alignment slack.");
+        Assert.That(region.w, Is.EqualTo(192f), "Height must include policy alignment slack.");
     }
 
     [Test]
@@ -57,9 +34,8 @@ public class LightingRegionCalculatorTests
     {
         Vector4 previous = new(0, 0, 200, 200);
 
-        // A viewport that stays well inside the previous region (beyond the
-        // safe margin) must NOT trigger a recompute - that is the churn the
-        // quantization cache exists to prevent.
+        // A viewport that stays inside the previous allocated region must NOT
+        // trigger a recompute: this is the churn the governor prevents.
         Vector4 result = LightingRegionCalculator.GetStableLightingRegion(
             visibleMinX: 40,
             visibleMinY: 40,
@@ -71,10 +47,10 @@ public class LightingRegionCalculatorTests
     }
 
     [Test]
-    public void EscapingTheSafeMarginForcesAReanchoredRegion()
+    public void EscapingTheAllocatedRegionForcesAReanchoredRegion()
     {
-        // A viewport that slides far enough east that the west edge crosses
-        // inside the safe margin must re-anchor the whole field, not drift.
+        // A viewport that slides beyond the allocated region must re-anchor
+        // the whole field, not drift.
         Vector4 previous = new(0, 0, 200, 200);
         Vector4 result = LightingRegionCalculator.GetStableLightingRegion(
             visibleMinX: 160,
@@ -84,7 +60,7 @@ public class LightingRegionCalculatorTests
             lastVisibleRegion: previous);
 
         Assert.That(result.x, Is.Not.EqualTo(previous.x), "Region must move with the camera.");
-        Assert.That(result.x % 8, Is.EqualTo(0f), "Re-anchored west edge must stay on an 8-cell grid.");
+        Assert.That(result.x, Is.EqualTo(128f), "Re-anchored west edge must follow the policy-aligned viewport.");
         Assert.That(result.z % 32, Is.EqualTo(0f), "Re-anchored width must stay on a 32-cell quantum.");
     }
 
@@ -102,6 +78,96 @@ public class LightingRegionCalculatorTests
             Assert.That(moved.z, Is.EqualTo(first.z), $"width at offset {offset}");
             Assert.That(moved.w, Is.EqualTo(first.w), $"height at offset {offset}");
         }
+    }
+
+    [Test]
+    public void RegionDoesNotShrinkWhenViewportNeedsLessSpace()
+    {
+        Vector4 previous = new(0, 0, 192, 160);
+        Vector4 result = LightingRegionCalculator.GetStableLightingRegion(
+            visibleMinX: 300,
+            visibleMinY: 300,
+            visibleWidth: 40,
+            visibleHeight: 40,
+            lastVisibleRegion: previous);
+
+        Assert.That(result.z, Is.EqualTo(192f));
+        Assert.That(result.w, Is.EqualTo(160f));
+    }
+
+    [Test]
+    public void WalkingViewportDoesNotReanchorEverySmallStep()
+    {
+        Vector4 previous = new(float.NaN, 0, 0, 0);
+        int reanchors = 0;
+        int lastReanchorPosition = int.MinValue;
+
+        for (int position = 0; position <= 256; position++)
+        {
+            Vector4 next = LightingRegionCalculator.GetStableLightingRegion(
+                visibleMinX: position,
+                visibleMinY: 0,
+                visibleWidth: 100,
+                visibleHeight: 100,
+                lastVisibleRegion: previous);
+            if (float.IsNaN(previous.x) || next != previous)
+            {
+                reanchors++;
+                if (lastReanchorPosition != int.MinValue)
+                {
+                    Assert.That(
+                        position - lastReanchorPosition,
+                        Is.GreaterThan(1),
+                        "The streaming governor must not reanchor on consecutive cell steps.");
+                }
+
+                lastReanchorPosition = position;
+            }
+
+            previous = next;
+        }
+
+        Assert.That(reanchors, Is.GreaterThan(1),
+            "The walking fixture must exercise more than the initial region.");
+    }
+
+    [Test]
+    public void WalkingViewportReanchorsNoMoreOftenThanPolicyQuantum()
+    {
+        Vector4 previous = new(float.NaN, 0, 0, 0);
+        int lastReanchorPosition = int.MinValue;
+        int reanchorCount = 0;
+        int minimumInterval = int.MaxValue;
+
+        for (int position = 0; position <= 512; position++)
+        {
+            Vector4 next = LightingRegionCalculator.GetStableLightingRegion(
+                visibleMinX: position,
+                visibleMinY: 0,
+                visibleWidth: 100,
+                visibleHeight: 100,
+                lastVisibleRegion: previous);
+            if (float.IsNaN(previous.x) || next != previous)
+            {
+                if (lastReanchorPosition != int.MinValue)
+                {
+                    minimumInterval = Mathf.Min(
+                        minimumInterval,
+                        position - lastReanchorPosition);
+                }
+
+                lastReanchorPosition = position;
+                reanchorCount++;
+            }
+
+            previous = next;
+        }
+
+        Assert.That(reanchorCount, Is.GreaterThan(1));
+        Assert.That(
+            minimumInterval,
+            Is.GreaterThanOrEqualTo(StreamingPolicy.Default.AllocationQuantumCells),
+            "Lighting region must advance at policy cadence, never at a hidden smaller step.");
     }
 
     [Test]

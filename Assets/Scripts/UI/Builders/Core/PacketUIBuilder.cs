@@ -1,12 +1,12 @@
 #nullable enable
 
 using System;
-using Fodinae.Core.Interfaces;
-using Fodinae.UI.Builders;
+using Kern.Core.Interfaces;
+using Kern.UI.Builders;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 public class PacketUIBuilder
 {
     private readonly IAssetLoader _assetLoader;

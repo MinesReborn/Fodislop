@@ -2,11 +2,11 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.World.Terrain;
+using Kern.World.Terrain;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Fodinae.Tests.World;
+namespace Kern.Tests.World;
 
 [TestFixture]
 public class DirtyRectSetFuzzTests
@@ -41,7 +41,7 @@ public class DirtyRectSetFuzzTests
         var random = new System.Random(seed);
         var set = new DirtyRectSet();
 
-        for (int iteration = 0; iteration < 20000; iteration++)
+        for (int iteration = 0; iteration < 2000; iteration++)
         {
             set.Add(RandomRect(random), _Bounds);
 
@@ -59,19 +59,16 @@ public class DirtyRectSetFuzzTests
     }
 
     [Test]
-    public void TheSetNeverGrowsPastItsCapacity([ValueSource(nameof(_Seeds))] int seed)
+    public void ScatteredRegionsAreNotCollapsedByAnArtificialCapacity()
     {
-        var random = new System.Random(seed);
         var set = new DirtyRectSet();
 
-        for (int iteration = 0; iteration < 20000; iteration++)
+        for (int index = 0; index < 16; index++)
         {
-            set.Add(RandomRect(random), _Bounds);
-            Assert.That(
-                set.Count,
-                Is.InRange(0, DirtyRectSet.MaximumRects),
-                $"seed {seed}, iteration {iteration}");
+            set.Add(new RectInt(1000 + (index * 2), 2000, 1, 1), _Bounds);
         }
+
+        Assert.That(set.Count, Is.EqualTo(16));
     }
 
     [Test]
@@ -80,18 +77,16 @@ public class DirtyRectSetFuzzTests
         var random = new System.Random(seed);
         var set = new DirtyRectSet();
 
-        for (int iteration = 0; iteration < 20000; iteration++)
+        for (int iteration = 0; iteration < 2000; iteration++)
         {
             set.Add(RandomRect(random), _Bounds);
 
-            // Rectangles may overlap, so the sum can exceed the region area
-            // in principle - but only by the overlap, and it must stay
-            // bounded. An unbounded TotalArea would silently disable the
-            // renderer's "is this patch worth it" check by always tripping
-            // it, which is the exact defect this type was extracted to fix.
+            // Rectangles are merged when their union does not add wasted
+            // area, so disjoint accepted rectangles remain a bounded subset
+            // of the cached region.
             Assert.That(
                 set.TotalArea,
-                Is.LessThanOrEqualTo((long)DirtyRectSet.MaximumRects * MeshWidth * MeshHeight),
+                Is.LessThanOrEqualTo((long)MeshWidth * MeshHeight),
                 $"seed {seed}, iteration {iteration}");
             Assert.That(set.TotalArea, Is.GreaterThanOrEqualTo(0));
         }

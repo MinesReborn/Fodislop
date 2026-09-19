@@ -1,23 +1,23 @@
 #nullable enable
 
-using Fodinae.Core.Interfaces.Diagnostics;
+using Kern.Core.Interfaces.Diagnostics;
 using System;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Lifecycle;
-using Fodinae.World.Lighting;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Core.Lifecycle;
+using Kern.World.Lighting;
 using UnityEngine;
 using UnityEngine.Rendering;
 using VContainer;
 using Unity.Profiling;
 
-namespace Fodinae.World
+namespace Kern.World
 {
     [DisallowMultipleComponent]
     public class SurfaceRenderer : MonoBehaviour, ILightingGeometryContributor
     {
         private static readonly ProfilerMarker _SurfaceLateUpdateMarker =
-            new("Fodinae.Surface.LateUpdate");
+            new("Kern.Surface.LateUpdate");
 
         private static readonly AllocationLedger.Entry _AllocationEntry =
             AllocationLedger.Register("Поверхность — LateUpdate");

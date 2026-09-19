@@ -1,8 +1,8 @@
 # Расхождения компонентов с макетом
 
 ФАЙЛ МАШИННЫЙ. Правки будут затёрты.
-Генератор: `visual/fodinae-ui-lab/tools/compare-components.py`.
-Карта пар: `visual/fodinae-ui-lab/component-map.json`.
+Генератор: `visual/kern-ui-lab/tools/compare-components.py`.
+Карта пар: `visual/kern-ui-lab/component-map.json`.
 
 ## Что это
 

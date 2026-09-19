@@ -1,7 +1,7 @@
 # Цвета общего слоя вне палитры
 
 ФАЙЛ МАШИННЫЙ. Правки будут затёрты.
-Генератор: `visual/fodinae-ui-lab/tools/report-off-palette.py`.
+Генератор: `visual/kern-ui-lab/tools/report-off-palette.py`.
 Потолки этих чисел держит `DEBT_BUDGET` в `scripts/check-architecture.js`.
 
 ## Что это

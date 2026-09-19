@@ -6,7 +6,7 @@ using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Builders;
+namespace Kern.UI.Builders;
 public enum Dock
 {
     Left,

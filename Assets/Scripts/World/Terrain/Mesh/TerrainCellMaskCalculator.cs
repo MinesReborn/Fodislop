@@ -4,26 +4,26 @@ using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using UnityEngine;
 
-namespace Fodinae.World.Terrain;
+namespace Kern.World.Terrain;
 
 public sealed class TerrainCellMaskCalculator
 {
-    public int[,] CellTilingDescriptors { get; private set; } = null!;
+    public TerrainRingGrid<int> CellTilingDescriptors { get; } = new();
 
-    public int[,] CellCornerVariants { get; private set; } = null!;
+    public TerrainRingGrid<int> CellCornerVariants { get; } = new();
 
-    public byte[,] CellReliefMasks { get; private set; } = null!;
+    public TerrainRingGrid<byte> CellReliefMasks { get; } = new();
 
-    public byte[,] CellSolidBoundaryMasks { get; private set; } = null!;
+    public TerrainRingGrid<byte> CellSolidBoundaryMasks { get; } = new();
 
     public void EnsureCapacity(int meshWidth, int meshHeight)
     {
-        if (CellTilingDescriptors == null || CellTilingDescriptors.GetLength(0) != meshWidth || CellTilingDescriptors.GetLength(1) != meshHeight)
+        if (CellTilingDescriptors.Width != meshWidth || CellTilingDescriptors.Height != meshHeight)
         {
-            CellTilingDescriptors = new int[meshWidth, meshHeight];
-            CellCornerVariants = new int[meshWidth, meshHeight];
-            CellReliefMasks = new byte[meshWidth, meshHeight];
-            CellSolidBoundaryMasks = new byte[meshWidth, meshHeight];
+            CellTilingDescriptors.EnsureSize(meshWidth, meshHeight);
+            CellCornerVariants.EnsureSize(meshWidth, meshHeight);
+            CellReliefMasks.EnsureSize(meshWidth, meshHeight);
+            CellSolidBoundaryMasks.EnsureSize(meshWidth, meshHeight);
         }
     }
 
@@ -60,10 +60,10 @@ public sealed class TerrainCellMaskCalculator
     {
         EnsureCapacity(meshWidth, meshHeight);
 
-        TerrainCellCache.Scroll2DArray(CellTilingDescriptors, meshWidth, meshHeight, dx, dy);
-        TerrainCellCache.Scroll2DArray(CellCornerVariants, meshWidth, meshHeight, dx, dy);
-        TerrainCellCache.Scroll2DArray(CellReliefMasks, meshWidth, meshHeight, dx, dy);
-        TerrainCellCache.Scroll2DArray(CellSolidBoundaryMasks, meshWidth, meshHeight, dx, dy);
+        CellTilingDescriptors.Scroll(dx, dy);
+        CellCornerVariants.Scroll(dx, dy);
+        CellReliefMasks.Scroll(dx, dy);
+        CellSolidBoundaryMasks.Scroll(dx, dy);
 
         int cxStart = 0;
         int cxLen = 0;

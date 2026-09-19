@@ -4,12 +4,10 @@ using MinesServer.Data;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI
+namespace Kern.UI
 {
-    [UxmlElement]
-    public partial class UILine : VisualElement
+    public class UILine : VisualElement
     {
-        [UxmlAttribute("line-color")]
         public Color LineColor
         {
             get => _color; set
@@ -21,7 +19,6 @@ namespace Fodinae.UI
 
         private Color _color = Color.white;
 
-        [UxmlAttribute("thickness")]
         public float Thickness
         {
             get => _thickness; set

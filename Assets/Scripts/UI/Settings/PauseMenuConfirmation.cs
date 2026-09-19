@@ -1,13 +1,13 @@
 #nullable enable
 
 using System;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Localization;
-using Fodinae.UI;
+using Kern.Core.Interfaces;
+using Kern.Core.Localization;
+using Kern.UI;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 internal static class PauseMenuConfirmation
 {

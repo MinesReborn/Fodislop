@@ -2,10 +2,10 @@
   "version": 1,
   "isRoot": true,
   "tools": {
-    "fodinae.architecturelinter": {
+    "kern.architecturelinter": {
       "version": "1.0.0",
       "commands": [
-        "fodinae-archlint"
+        "kern-archlint"
       ],
       "rollForward": false
     }

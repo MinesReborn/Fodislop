@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 public sealed class MapModeState
 {

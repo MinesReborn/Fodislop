@@ -24,8 +24,8 @@
 }
 
 .programmator-cell {
-    width: 40px;
-    height: 40px;
+    width: var(--space-13);
+    height: var(--space-13);
     background-color: var(--surface-shelf-solid);
     border-color: var(--border-subtle);
     border-width: 1px;
@@ -72,7 +72,7 @@
     height: 36px;
     border-radius: var(--radius-md);
     background-color: var(--surface-shelf-solid);
-    border-width: 2px;
+    border-width: var(--space-1);
     border-color: var(--light-edge);
 }
 
@@ -92,8 +92,8 @@
 .prog-radial-ring--outer {
     width: 236px;
     height: 236px;
-    left: 12px;
-    top: 12px;
+    left: var(--space-6);
+    top: var(--space-6);
     border-radius: var(--radius-pill);
     border-color: var(--border-hairline);
     display: none;
@@ -116,7 +116,7 @@
     height: 36px;
     border-radius: var(--radius-md);
     background-color: var(--surface-shelf-dense);
-    border-width: 2px;
+    border-width: var(--space-1);
     border-color: var(--light-edge);
     display: none;
 }
@@ -127,7 +127,7 @@
 
 .prog-radial-back-label {
     color: var(--light-solid);
-    font-size: 18px;
+    font-size: var(--size-lg);
     -unity-text-align: middle-center;
 }
 
@@ -154,12 +154,14 @@
 
 .prog-panel {
     background-color: var(--surface-slate-dense);
-    border-width: 2px;
+    border-width: var(--space-1);
     border-color: var(--accent-cyan-deep);
     padding: var(--space-5);
     flex-direction: column;
     width: 618px;
-    min-height: 520px;
+    max-width: 96%;
+    max-height: 94%;
+    overflow: hidden;
 }
 
 .prog-panel--running {
@@ -189,7 +191,7 @@
 }
 
 .prog-title {
-    font-size: 18px;
+    font-size: var(--size-lg);
     -unity-font-style: bold;
     color: var(--accent-gold);
 }
@@ -217,11 +219,11 @@
 }
 
 .prog-close-btn {
-    width: 24px;
-    height: 24px;
+    width: var(--space-10);
+    height: var(--space-10);
     background-color: transparent;
     color: var(--text-secondary);
-    font-size: 18px;
+    font-size: var(--size-lg);
     -unity-text-align: middle-center;
     border-width: 0;
     padding: 0;
@@ -232,8 +234,8 @@
 }
 
 .prog-save-btn {
-    width: 24px;
-    height: 24px;
+    width: var(--space-10);
+    height: var(--space-10);
     background-color: transparent;
     color: var(--text-secondary);
     font-size: var(--size-base);
@@ -323,11 +325,35 @@
 /* Высота сетки: 12 рядов × 38 px = 456 px (все ряды фиксированного размера). */
 .prog-grid-scroll {
     max-height: 456px;
+    flex-shrink: 1;
+    overflow: scroll;
+}
+
+.tier--compact .prog-panel {
+    width: auto;
+    max-width: 98%;
+    max-height: 96%;
+    padding: var(--space-3);
+}
+
+.tier--compact .prog-grid-container {
+    width: auto;
+    max-width: 100%;
+}
+
+.tier--compact .prog-cell {
+    width: var(--space-10);
+    height: var(--space-10);
+    margin: 1px;
+}
+
+.tier--compact .prog-cell-label {
+    font-size: 8px;
 }
 
 .prog-cell {
-    width: 32px;
-    height: 32px;
+    width: var(--space-12);
+    height: var(--space-12);
     background-color: var(--surface-shelf-solid);
     border-width: 1px;
     border-color: var(--border-line);
@@ -358,7 +384,7 @@
 
 .prog-list-panel {
     background-color: var(--surface-slate-dense);
-    border-width: 2px;
+    border-width: var(--space-1);
     border-color: var(--accent-cyan-deep);
     padding: var(--space-5) var(--space-9);
     flex-direction: column;
@@ -372,7 +398,7 @@
 }
 
 .prog-list-title {
-    font-size: 18px;
+    font-size: var(--size-lg);
     -unity-font-style: bold;
     color: var(--accent-gold);
     flex-grow: 1;
@@ -436,7 +462,7 @@
 
 .prog-dialog-panel {
     background-color: var(--surface-slate-dense);
-    border-width: 2px;
+    border-width: var(--space-1);
     border-color: var(--accent-cyan-deep);
     padding: var(--space-8) var(--space-9);
     flex-direction: column;
@@ -452,7 +478,7 @@
 }
 
 .prog-dialog-input {
-    height: 32px;
+    height: var(--space-12);
     background-color: var(--surface-shelf-solid);
     color: var(--accent-gold-hover);
     font-size: var(--size-base);
@@ -510,7 +536,7 @@
     width: 36px;
     height: 36px;
     background-color: var(--surface-shelf-solid);
-    border-width: 2px;
+    border-width: var(--space-1);
     border-color: var(--light-edge);
     border-radius: var(--radius-md);
 }

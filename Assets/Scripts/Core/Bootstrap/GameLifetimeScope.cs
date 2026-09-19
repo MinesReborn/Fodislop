@@ -3,28 +3,28 @@
 using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
-using Fodinae.Audio.Backend;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Lifecycle;
-using Fodinae.Game;
-using Fodinae.Game.Managers;
-using Fodinae.Networking;
-using Fodinae.Networking.Connection;
-using Fodinae.Networking.Processors;
-using Fodinae.Player;
-using Fodinae.Player.Logic;
-using Fodinae.Rendering;
-using Fodinae.Rendering.PostProcessing;
-using Fodinae.UI;
-using Fodinae.Game.Inventory;
-using Fodinae.UI.Inventory;
-using Fodinae.UI.HUD.Player.Model;
-using Fodinae.UI.HUD.Player.View;
-using Fodinae.UI.Programmator;
-using Fodinae.World;
-using Fodinae.World.Lighting;
-using Fodinae.World.Terrain;
-using global::Fodinae.Core.Localization;
+using Kern.Audio.Backend;
+using Kern.Core.Interfaces;
+using Kern.Core.Lifecycle;
+using Kern.Game;
+using Kern.Game.Managers;
+using Kern.Networking;
+using Kern.Networking.Connection;
+using Kern.Networking.Processors;
+using Kern.Player;
+using Kern.Player.Logic;
+using Kern.Rendering;
+using Kern.Rendering.PostProcessing;
+using Kern.UI;
+using Kern.Game.Inventory;
+using Kern.UI.Inventory;
+using Kern.UI.HUD.Player.Model;
+using Kern.UI.HUD.Player.View;
+using Kern.UI.Programmator;
+using Kern.World;
+using Kern.World.Lighting;
+using Kern.World.Terrain;
+using global::Kern.Core.Localization;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
@@ -33,7 +33,7 @@ using UnityEngine.UIElements;
 using VContainer;
 using VContainer.Unity;
 
-namespace Fodinae.Core
+namespace Kern.Core
 {
     [DefaultExecutionOrder(-20000)]
     public class GameLifetimeScope : TransitionSceneLifetimeScope
@@ -137,7 +137,7 @@ namespace Fodinae.Core
                     "MainGame scene scope is missing serialized _uiDocument with PanelSettings.");
             }
 
-            Fodinae.UI.DynamicAtlasConfigurator.Apply(_uiDocument.panelSettings);
+            Kern.UI.DynamicAtlasConfigurator.Apply(_uiDocument.panelSettings);
 
             builder.RegisterInstance(_uiDocument);
             builder.Register<MapStorage>(Lifetime.Singleton)

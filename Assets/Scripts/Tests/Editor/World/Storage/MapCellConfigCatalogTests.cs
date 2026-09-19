@@ -1,12 +1,12 @@
 #nullable enable
 
-namespace Fodinae.Tests.World;
+namespace Kern.Tests.World;
 
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Fodinae.Core;
-using Fodinae.World;
+using Kern.Core;
+using Kern.World;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.Information;
@@ -210,5 +210,16 @@ public class MapCellConfigCatalogTests
         Assert.IsTrue(MapCellConfigCatalog.IsRoundableLoose(CellType.Lava));
         Assert.IsFalse(MapCellConfigCatalog.IsRoundableLoose(CellType.Empty));
         Assert.IsFalse(MapCellConfigCatalog.IsRoundableLoose(CellType.Rock));
+    }
+
+    [Test]
+    public void IsRoad_CorrectlyIdentifiesCellTypes()
+    {
+        Assert.IsTrue(MapCellConfigCatalog.IsRoad(CellType.Road));
+        Assert.IsTrue(MapCellConfigCatalog.IsRoad(CellType.GoldenRoad));
+        Assert.IsTrue(MapCellConfigCatalog.IsRoad(CellType.BuildingRoad));
+        Assert.IsTrue(MapCellConfigCatalog.IsRoad(CellType.PolymerRoad));
+        Assert.IsFalse(MapCellConfigCatalog.IsRoad(CellType.Empty));
+        Assert.IsFalse(MapCellConfigCatalog.IsRoad(CellType.Rock));
     }
 }

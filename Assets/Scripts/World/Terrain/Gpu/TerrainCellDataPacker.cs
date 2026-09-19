@@ -4,7 +4,7 @@ using System;
 using System.Runtime.InteropServices;
 using UnityEngine;
 
-namespace Fodinae.World.Terrain;
+namespace Kern.World.Terrain;
 
 // Тексель RGBAHalf: четыре сырых half, как они лежат в вершине.
 [StructLayout(LayoutKind.Sequential)]

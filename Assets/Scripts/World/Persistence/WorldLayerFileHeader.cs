@@ -1,6 +1,6 @@
 #nullable enable
 
-namespace Fodinae.Persistence;
+namespace Kern.Persistence;
 
 using System;
 using System.IO;
@@ -98,87 +98,29 @@ public static class WorldLayerFileHeader
         writer.Write(offset);
     }
 
-    public static void MigrateLegacyFormatIfRequired(
-        string filePath,
-        int expectedWidth,
-        int expectedHeight,
-        int expectedChunkSize)
+    public static int? TryReadFormatVersion(Stream stream)
     {
-        if (!File.Exists(filePath))
-        {
-            return;
-        }
-
-        string tempPath = filePath + ".migrate.tmp";
-        string backupPath = filePath + ".v0.backup";
         try
         {
-            using (var source = new FileStream(
-                filePath,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.None))
+            if (stream.Length < HeaderSize)
             {
-                if (source.Length == 0 || source.Length < HeaderSize)
-                {
-                    return;
-                }
-
-                using var reader = new BinaryReader(
-                    source,
-                    System.Text.Encoding.UTF8,
-                    leaveOpen: true);
-                int width = reader.ReadInt32();
-                int height = reader.ReadInt32();
-                int chunkSize = reader.ReadInt32();
-                int formatVersion = reader.ReadInt32();
-                if (formatVersion == CurrentFormatVersion)
-                {
-                    return;
-                }
-
-                if (formatVersion != 0)
-                {
-                    throw new IOException(
-                        $"Map file '{filePath}' uses unsupported format version {formatVersion}; " +
-                        $"this client supports version {CurrentFormatVersion}.");
-                }
-
-                if (width != expectedWidth || height != expectedHeight || chunkSize != expectedChunkSize)
-                {
-                    return;
-                }
-
-                source.Seek(0, SeekOrigin.Begin);
-                using var destination = new FileStream(
-                    tempPath,
-                    FileMode.Create,
-                    FileAccess.ReadWrite,
-                    FileShare.None);
-                source.CopyTo(destination);
-                destination.Seek(FormatVersionOffset, SeekOrigin.Begin);
-                using var writer = new BinaryWriter(
-                    destination,
-                    System.Text.Encoding.UTF8,
-                    leaveOpen: true);
-                writer.Write(CurrentFormatVersion);
-                writer.Flush();
-                destination.Flush(true);
+                return null;
             }
 
-            if (!File.Exists(backupPath))
-            {
-                File.Copy(filePath, backupPath);
-            }
-
-            File.Replace(tempPath, filePath, destinationBackupFileName: null);
+            stream.Seek(0, SeekOrigin.Begin);
+            using var reader = new BinaryReader(stream, System.Text.Encoding.UTF8, leaveOpen: true);
+            reader.ReadInt32();
+            reader.ReadInt32();
+            reader.ReadInt32();
+            return reader.ReadInt32();
         }
-        finally
+        catch (EndOfStreamException)
         {
-            if (File.Exists(tempPath))
-            {
-                File.Delete(tempPath);
-            }
+            return null;
+        }
+        catch (IOException)
+        {
+            return null;
         }
     }
 }

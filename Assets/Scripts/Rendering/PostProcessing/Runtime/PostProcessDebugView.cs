@@ -1,6 +1,6 @@
 #nullable enable
 
-namespace Fodinae.Rendering.PostProcessing;
+namespace Kern.Rendering.PostProcessing;
 
 public enum PostProcessDebugView
 {
@@ -18,13 +18,9 @@ public enum PostProcessDebugView
 
     QualifierMatte = 6,
 
-    SoloRed = 7,
+    RgbParade = 7,
 
-    SoloGreen = 8,
+    HighlightClipping = 8,
 
-    SoloBlue = 9,
-
-    HighlightClipping = 10,
-
-    ShadowClipping = 11,
+    ShadowClipping = 9,
 }

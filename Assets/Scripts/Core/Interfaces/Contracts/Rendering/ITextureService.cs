@@ -3,11 +3,11 @@
 using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
-using Fodinae.World;
+using Kern.World;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.Core.Interfaces;
+namespace Kern.Core.Interfaces;
 public interface ITextureService
 {
     event Action<string, Texture2D>? OnTextureLoaded;

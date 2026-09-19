@@ -1,9 +1,9 @@
 #nullable enable
 
-using Fodinae.Core.Interfaces;
+using Kern.Core.Interfaces;
 using MinesServer.Networking.Server.Packets.Connection;
 
-namespace Fodinae.Networking.Processors;
+namespace Kern.Networking.Processors;
 
 public sealed class ConnectionProcessor(IConnectionService connection) :
     IPacketProcessor<DisconnectPacket>,

@@ -1,13 +1,13 @@
 #nullable enable
 
 using System.Threading;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Rendering.PostProcessing;
-using Fodinae.World.Lighting;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Rendering.PostProcessing;
+using Kern.World.Lighting;
 using UnityEngine;
 
-namespace Fodinae.Game;
+namespace Kern.Game;
 
 public sealed class RobotLighting
 {
@@ -24,8 +24,6 @@ public sealed class RobotLighting
     private Vector2 _lastDynamicLightPosition;
     private Color _lastDynamicLightColor;
     private float _lastDynamicLightIntensity;
-
-    private const float DynamicLightPositionEpsilon = 0.00390625f;
 
     public RobotLighting()
     {
@@ -71,11 +69,6 @@ public sealed class RobotLighting
         }
     }
 
-    public void SetIntensity(float intensity, LightingEngine? lightingEngine)
-    {
-        _dynamicLightIntensity = Mathf.Clamp(intensity, 0f, 4f);
-    }
-
     public void SetColor(Color color, LightingEngine? lightingEngine)
     {
         _dynamicLightColor = new Color(
@@ -110,10 +103,9 @@ public sealed class RobotLighting
         if (_hasSubmittedDynamicLight &&
             ReferenceEquals(_lastDynamicLightEngine, lighting) &&
             _lastDynamicLightGeneration == generation &&
-            (_lastDynamicLightPosition - pos2D).sqrMagnitude <=
-                DynamicLightPositionEpsilon * DynamicLightPositionEpsilon &&
+            _lastDynamicLightPosition == pos2D &&
             _lastDynamicLightColor == _dynamicLightColor &&
-            Mathf.Approximately(_lastDynamicLightIntensity, _dynamicLightIntensity))
+            _lastDynamicLightIntensity == _dynamicLightIntensity)
         {
             return;
         }

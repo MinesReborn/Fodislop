@@ -3,12 +3,12 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Fodinae.Core.Interfaces;
+using Kern.Core.Interfaces;
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Builders;
+namespace Kern.UI.Builders;
 public class ImagePacketBuilder : PacketUIBuilderBase<ImagePacket>
 {
     protected override VisualElement BuildTyped(ImagePacket imagePacket, PacketUIBuilder builder)

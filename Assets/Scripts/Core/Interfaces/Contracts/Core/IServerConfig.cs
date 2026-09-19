@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Fodinae.Core.Interfaces;
+namespace Kern.Core.Interfaces;
 public interface IServerConfig
 {
     float DigCooldown { get; }

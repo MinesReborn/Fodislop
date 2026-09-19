@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace Fodinae.Core.Lifecycle;
+namespace Kern.Core.Lifecycle;
 
 public enum RuntimeOwner
 {

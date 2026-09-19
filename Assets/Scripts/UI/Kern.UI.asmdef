@@ -1,0 +1,26 @@
+{
+    "name": "Kern.UI",
+    "rootNamespace": "Kern.UI",
+    "references": [
+        "UniTask",
+        "Kern.Contracts",
+        "Kern.Persistence",
+        "Kern.Networking",
+        "Kern.World",
+        "Kern.AssetPipeline",
+        "Kern.Runtime",
+        "MinesServer.Data",
+        "MinesServer.Networking",
+        "Unity.InputSystem",
+        "VContainer"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

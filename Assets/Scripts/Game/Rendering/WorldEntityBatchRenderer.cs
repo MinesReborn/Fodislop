@@ -1,20 +1,22 @@
 #nullable enable
 
-using Fodinae.Core.Interfaces.Diagnostics;
+using Kern.Core.Interfaces.Diagnostics;
 using System;
 using System.Collections.Generic;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Lifecycle;
-using Fodinae.World;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Core.Lifecycle;
+using Kern.World;
+using Kern.World.Lighting;
+using Kern.World.Streaming;
 using Unity.Profiling;
 using UnityEngine;
 using UnityEngine.Rendering;
 using VContainer;
 
-namespace Fodinae.Game
+namespace Kern.Game
 {
-    public class WorldEntityBatchRenderer : MonoBehaviour
+    public class WorldEntityBatchRenderer : MonoBehaviour, ILightingGeometryContributor
     {
         // Matches the five-point tail used by the stable June implementation.
         public const int POINT_COUNT = 5;
@@ -24,10 +26,11 @@ namespace Fodinae.Game
         private const int BATCH_SORTING_ORDER = -1;
         private const int OVERLAY_BATCH_SORTING_ORDER = 600;
         private const int TENTACLE_SORTING_ORDER = -1;
-        private const float VisibleMargin = 36.0f;
+        private static readonly float _visibilityPrefetchMargin =
+            StreamingPolicy.Default.AllocationQuantumCells;
 
         private static readonly ProfilerMarker _LateUpdateMarker =
-            new("Fodinae.WorldEntities.LateUpdate");
+            new("Kern.WorldEntities.LateUpdate");
 
         private static readonly AllocationLedger.Entry _AllocationEntry =
             AllocationLedger.Register("Сущности мира — LateUpdate");
@@ -35,11 +38,8 @@ namespace Fodinae.Game
         private readonly List<Tentacle> _tentacles = [];
         private readonly List<SpriteHandle> _sprites = [];
         private readonly SpatialShardGrid<SpriteHandle> _spatialGrid = new();
-        private readonly List<SpriteHandle> _candidateSprites = [];
-
-        private readonly List<SpriteHandle> _visibleUnderTentacles = [];
-        private readonly List<SpriteHandle> _visibleOverTentacles = [];
-        private readonly List<SpriteHandle> _visibleOverlay = [];
+        private readonly WorldEntityVisibility _visibility;
+        private readonly WorldEntityLightingEmitter _lightingEmitter;
         private Vector3[] _verts = new Vector3[VERTS_PER_TENTACLE * INITIAL_CAPACITY];
         private Vector2[] _uvs = new Vector2[VERTS_PER_TENTACLE * INITIAL_CAPACITY];
         private Color32[] _colors = new Color32[VERTS_PER_TENTACLE * INITIAL_CAPACITY];
@@ -50,10 +50,6 @@ namespace Fodinae.Game
         private int _uploadedTentacleCount = -1;
         private int _uploadedSpriteCount = -1;
         private bool _geometryDirty = true;
-        private Vector3 _lastCameraPosition;
-        private float _lastCameraOrthographicSize;
-        private float _lastCameraAspect;
-        private bool _hasCameraState;
 
         [Inject]
         private ISceneObjectFactory _sceneObjects = null!;
@@ -61,18 +57,39 @@ namespace Fodinae.Game
         private ISharedMaterialCache _sharedMaterials = null!;
         [Inject]
         private IGameplayCamera? _gameplayCamera;
+        [Inject]
+        private LightingGeometryRegistry? _lightingGeometryRegistry;
+
+        // Light-emitting sprites are drawn into the lighting fields from their
+        // own mesh; see WorldEntityLightingEmitter. The revision follows only
+        // their state — camera motion rebuilds the visible batch every frame
+        // and must not re-solve light.
+        private Material? _batchMaterial;
+        private bool _lightingContributorRegistered;
+
+        public WorldEntityBatchRenderer()
+        {
+            _visibility = new WorldEntityVisibility(_spatialGrid, _visibilityPrefetchMargin);
+            _lightingEmitter = new WorldEntityLightingEmitter(_sprites, () => _batchMaterial, GetAtlasRect);
+        }
+
+        public ulong LightingGeometryRevision => _lightingEmitter.Revision;
 
         public sealed class SpriteHandle : WorldEntitySpriteHandle
         {
-            internal SpriteHandle(Transform transform, int sortingOrder, bool isStatic = false)
-                : base(transform, sortingOrder, isStatic)
+            internal SpriteHandle(Transform transform, int sortingOrder, bool isStatic, bool emitsLight)
+                : base(transform, sortingOrder, isStatic, emitsLight)
             {
             }
         }
 
-        public SpriteHandle RegisterSprite(Transform spriteTransform, int sortingOrder, bool isStatic = false)
+        public SpriteHandle RegisterSprite(
+            Transform spriteTransform,
+            int sortingOrder,
+            bool isStatic = false,
+            bool emitsLight = false)
         {
-            var handle = new SpriteHandle(spriteTransform, sortingOrder, isStatic);
+            var handle = new SpriteHandle(spriteTransform, sortingOrder, isStatic, emitsLight);
             _sprites.Add(handle);
             _sprites.Sort(static (left, right) => left.SortingOrder.CompareTo(right.SortingOrder));
             _spatialGrid.Insert(handle, spriteTransform.position);
@@ -139,6 +156,15 @@ namespace Fodinae.Game
                 "World-entity atlas is not initialized.");
         }
 
+        protected void Start()
+        {
+            if (_lightingGeometryRegistry != null && !_lightingContributorRegistered)
+            {
+                _lightingGeometryRegistry.Register(this);
+                _lightingContributorRegistered = true;
+            }
+        }
+
         protected void LateUpdate()
         {
             using var marker = _LateUpdateMarker.Auto();
@@ -153,23 +179,12 @@ namespace Fodinae.Game
                 }
             }
 
+            _lightingEmitter.UpdateRevision();
+
             Camera? camera = _gameplayCamera?.Camera;
-            if (camera != null)
+            if (_visibility.UpdateCameraState(camera))
             {
-                Vector3 camPos = camera.transform.position;
-                float orthoSize = camera.orthographicSize;
-                float aspect = camera.aspect;
-                if (!_hasCameraState ||
-                    (camPos - _lastCameraPosition).sqrMagnitude > 0.0001f ||
-                    Mathf.Abs(orthoSize - _lastCameraOrthographicSize) > 0.001f ||
-                    Mathf.Abs(aspect - _lastCameraAspect) > 0.001f)
-                {
-                    _geometryDirty = true;
-                    _lastCameraPosition = camPos;
-                    _lastCameraOrthographicSize = orthoSize;
-                    _lastCameraAspect = aspect;
-                    _hasCameraState = true;
-                }
+                _geometryDirty = true;
             }
 
             if (!_geometryDirty)
@@ -189,10 +204,10 @@ namespace Fodinae.Game
                 return;
             }
 
-            bool hasCamera = TryGetVisibleRect(camera, out Rect visibleRect);
-            CollectVisibleSprites(hasCamera, visibleRect);
+            bool hasCamera = _visibility.TryGetVisibleRect(camera, out Rect visibleRect);
+            _visibility.Collect(_sprites, hasCamera, visibleRect, OVERLAY_BATCH_SORTING_ORDER, TENTACLE_SORTING_ORDER);
             RebuildMesh(hasCamera, visibleRect);
-            _overlayBatch?.Rebuild(_visibleOverlay, GetAtlasRect, _mesh.bounds);
+            _overlayBatch?.Rebuild(_visibility.Overlay, GetAtlasRect, _mesh.bounds);
 
             for (int i = 0; i < _sprites.Count; i++)
             {
@@ -201,76 +216,6 @@ namespace Fodinae.Game
 
             _geometryDirty = false;
         }
-
-        private void CollectVisibleSprites(bool hasCamera, in Rect visibleRect)
-        {
-            _visibleUnderTentacles.Clear();
-            _visibleOverTentacles.Clear();
-            _visibleOverlay.Clear();
-
-            List<SpriteHandle> source;
-            if (hasCamera)
-            {
-                _candidateSprites.Clear();
-                _spatialGrid.QueryRect(visibleRect, _candidateSprites);
-                _candidateSprites.Sort(static (left, right) => left.SortingOrder.CompareTo(right.SortingOrder));
-                source = _candidateSprites;
-            }
-            else
-            {
-                source = _sprites;
-            }
-
-            for (int i = 0; i < source.Count; i++)
-            {
-                SpriteHandle handle = source[i];
-                if (!IsRenderable(handle) || (hasCamera && !IsInView(handle, true, visibleRect)))
-                {
-                    continue;
-                }
-
-                if (handle.SortingOrder >= OVERLAY_BATCH_SORTING_ORDER)
-                {
-                    _visibleOverlay.Add(handle);
-                }
-                else if (handle.SortingOrder < TENTACLE_SORTING_ORDER)
-                {
-                    _visibleUnderTentacles.Add(handle);
-                }
-                else
-                {
-                    _visibleOverTentacles.Add(handle);
-                }
-            }
-        }
-
-        private static bool TryGetVisibleRect(Camera? camera, out Rect visibleRect)
-        {
-            if (camera == null)
-            {
-                visibleRect = default;
-                return false;
-            }
-
-            Vector3 camPos = camera.transform.position;
-            float halfHeight = camera.orthographic
-                ? camera.orthographicSize
-                : Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad) * Mathf.Abs(camPos.z);
-            float halfWidth = halfHeight * camera.aspect;
-
-            visibleRect = new Rect(
-                camPos.x - halfWidth - VisibleMargin,
-                camPos.y - halfHeight - VisibleMargin,
-                (halfWidth + VisibleMargin) * 2f,
-                (halfHeight + VisibleMargin) * 2f);
-            return true;
-        }
-
-        private static bool IsInView(SpriteHandle handle, bool hasCamera, in Rect visibleRect) =>
-            !hasCamera || visibleRect.Contains((Vector2)handle.GetWorldPosition());
-
-        private static bool IsTentacleInView(Tentacle tentacle, bool hasCamera, in Rect visibleRect) =>
-            !hasCamera || visibleRect.Contains((Vector2)tentacle.RootPosition);
 
         private void EnsureRenderer()
         {
@@ -295,6 +240,7 @@ namespace Fodinae.Game
 
             var renderer = renderObject.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = _sharedMaterials.GetForTexture(_atlas.Texture);
+            _batchMaterial = renderer.sharedMaterial;
             renderer.sortingOrder = BATCH_SORTING_ORDER;
 
             _overlayBatch = new WorldEntityOverlayBatch(
@@ -318,25 +264,25 @@ namespace Fodinae.Game
             for (int i = 0; i < _tentacles.Count; i++)
             {
                 Tentacle tentacle = _tentacles[i];
-                if (tentacle.IsActive && IsTentacleInView(tentacle, hasCamera, visibleRect))
+                if (tentacle.IsActive && WorldEntityVisibility.IsTentacleInView(tentacle, hasCamera, visibleRect))
                 {
                     activeCount++;
                 }
             }
 
-            int activeSpriteCount = _visibleUnderTentacles.Count + _visibleOverTentacles.Count;
+            int activeSpriteCount = _visibility.UnderTentacles.Count + _visibility.OverTentacles.Count;
             int vertexCount = (activeCount * VERTS_PER_TENTACLE) + (activeSpriteCount * 4);
             int indexCount = (activeCount * TRIS_PER_TENTACLE) + (activeSpriteCount * 6);
             EnsureGeometryCapacity(vertexCount, indexCount);
 
             int vertexCursor = 0;
             int indexCursor = 0;
-            WriteSprites(_visibleUnderTentacles, ref vertexCursor, ref indexCursor);
+            WriteSprites(_visibility.UnderTentacles, ref vertexCursor, ref indexCursor);
 
             for (int i = 0; i < _tentacles.Count; i++)
             {
                 Tentacle tentacle = _tentacles[i];
-                if (!tentacle.IsActive || !IsTentacleInView(tentacle, hasCamera, visibleRect))
+                if (!tentacle.IsActive || !WorldEntityVisibility.IsTentacleInView(tentacle, hasCamera, visibleRect))
                 {
                     continue;
                 }
@@ -369,7 +315,7 @@ namespace Fodinae.Game
                 indexCursor += TRIS_PER_TENTACLE;
             }
 
-            WriteSprites(_visibleOverTentacles, ref vertexCursor, ref indexCursor);
+            WriteSprites(_visibility.OverTentacles, ref vertexCursor, ref indexCursor);
 
             vertexCount = vertexCursor;
             indexCount = indexCursor;
@@ -424,9 +370,14 @@ namespace Fodinae.Game
             _uploadedSpriteCount = activeSpriteCount;
         }
 
-        private static bool IsRenderable(SpriteHandle handle)
+        public void RenderLightingFields(CommandBuffer commandBuffer, in LightingFieldContext context)
         {
-            return handle.Enabled && handle.FrameAlive && handle.Sprite != null;
+            if (_atlas == null)
+            {
+                return;
+            }
+
+            _lightingEmitter.RenderFields(commandBuffer, context);
         }
 
         private void WriteSprites(
@@ -472,6 +423,14 @@ namespace Fodinae.Game
 
         protected void OnDestroy()
         {
+            if (_lightingContributorRegistered)
+            {
+                _lightingGeometryRegistry?.Unregister(this);
+                _lightingContributorRegistered = false;
+            }
+
+            _lightingEmitter.Dispose();
+
             if (_mesh != null)
             {
                 Destroy(_mesh);

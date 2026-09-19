@@ -1,4 +1,4 @@
-Shader "Fodinae/UI/MenuLineUnlit"
+Shader "Kern/UI/MenuLineUnlit"
 {
     // Unlit colour for the menu rig's orbit line and station point.
     //

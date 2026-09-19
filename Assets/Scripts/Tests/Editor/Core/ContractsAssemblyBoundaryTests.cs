@@ -3,14 +3,14 @@
 using System;
 using System.IO;
 using System.Linq;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
+using Kern.Core;
+using Kern.Core.Interfaces;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Fodinae.Tests.Core;
+namespace Kern.Tests.Core;
 
-// Сборка Fodinae.Contracts — нижний слой: её видят все остальные сборки, сама она
+// Сборка Kern.Contracts — нижний слой: её видят все остальные сборки, сама она
 // не видит ни одной. Корень сборки — Core/Interfaces/Contracts, но контракты модулей
 // лежат рядом с модулями, в папках Contracts, и подключаются к ней через .asmref.
 // Папка без .asmref молча попадает в сборку модуля, и нижний слой начинает
@@ -19,8 +19,8 @@ public sealed class ContractsAssemblyBoundaryTests
 {
     private const string ScriptsRoot = "Assets/Scripts";
     private const string ContractsFolderName = "Contracts";
-    private const string ContractsAssemblyName = "Fodinae.Contracts";
-    private const string ContractsAsmdefPath = "Assets/Scripts/Core/Interfaces/Contracts/Fodinae.Contracts.asmdef";
+    private const string ContractsAssemblyName = "Kern.Contracts";
+    private const string ContractsAsmdefPath = "Assets/Scripts/Core/Interfaces/Contracts/Kern.Contracts.asmdef";
 
     [Serializable]
     private sealed class AsmrefData
@@ -63,7 +63,7 @@ public sealed class ContractsAssemblyBoundaryTests
     {
         string[] upward = typeof(IClientConfigManager).Assembly.GetReferencedAssemblies()
             .Select(reference => reference.Name)
-            .Where(name => name.StartsWith("Fodinae.", StringComparison.Ordinal))
+            .Where(name => name.StartsWith("Kern.", StringComparison.Ordinal))
             .ToArray();
 
         Assert.That(upward, Is.Empty);

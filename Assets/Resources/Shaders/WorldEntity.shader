@@ -1,4 +1,4 @@
-Shader "Fodinae/World Entity"
+Shader "Kern/World Entity"
 {
     // Sprite shader for everything rendered through WorldEntityBatchRenderer
     // (robots, buildings, tentacles, pooled VFX, chat bubbles). Identical in
@@ -7,7 +7,7 @@ Shader "Fodinae/World Entity"
     // position and multiplies, so world entities finally receive the same
     // lighting as the terrain instead of glowing full-bright in dark caves.
     //
-    // The FODINAE_WORLD_LIGHTING keyword is toggled globally by LightingEngine
+    // The KERN_WORLD_LIGHTING keyword is toggled globally by LightingEngine
     // (same mechanism as Terrain.shader): when it is off, lighting is disabled
     // and the lookup short-circuits to white, so the shader is safe before the
     // first solve and under the "Off" quality mode.
@@ -39,7 +39,7 @@ Shader "Fodinae/World Entity"
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            #pragma multi_compile _ FODINAE_WORLD_LIGHTING
+            #pragma multi_compile _ KERN_WORLD_LIGHTING
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
@@ -105,15 +105,16 @@ Shader "Fodinae/World Entity"
             float4 _WorldLightRect;
             float4 _WorldLightTextureSize;
             int _WorldLightDebugView;
+            int _WorldLightPerBlock;
 
             float3 GetWorldLightColor(float2 worldPos)
             {
-                #if !defined(FODINAE_WORLD_LIGHTING)
+                #if !defined(KERN_WORLD_LIGHTING)
                     return 1.0;
                 #else
                 float2 rectSize = max(_WorldLightRect.zw, float2(0.0001, 0.0001));
                 float2 lightUV = saturate((worldPos - _WorldLightRect.xy) / rectSize);
-                if (_WorldLightDebugView != 0)
+                if (_WorldLightPerBlock != 0 || (_WorldLightDebugView >= 1 && _WorldLightDebugView <= 3))
                 {
                     int2 debugPixel = clamp(
                         int2(lightUV * _WorldLightTextureSize.xy),
@@ -162,6 +163,80 @@ Shader "Fodinae/World Entity"
                 }
 
                 return color;
+            }
+            ENDHLSL
+        }
+
+        // Light-emitting sprites (buildings) in the lighting fields. Emission
+        // is the sprite's own colour, the way glowing terrain emits its
+        // albedo. Material output stays zero: with Max blending it keeps the
+        // occupancy and albedo the terrain wrote, so a building glows without
+        // becoming a wall.
+        Pass
+        {
+            Name "LightingMaterialField"
+            Tags { "LightMode" = "KernLightingMaterialField" }
+
+            Blend One One
+            BlendOp Max
+            ZWrite Off
+            ZTest Always
+            Cull Off
+
+            HLSLPROGRAM
+            #pragma target 4.5
+            #pragma vertex LightingFieldVert
+            #pragma fragment LightingFieldFrag
+
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            struct Attributes
+            {
+                float4 positionOS : POSITION;
+                float2 uv         : TEXCOORD0;
+                float4 color      : COLOR;
+            };
+
+            struct Varyings
+            {
+                float4 positionCS : SV_POSITION;
+                float2 uv         : TEXCOORD0;
+                float4 color      : COLOR;
+            };
+
+            struct LightingFieldOutput
+            {
+                half4 material : SV_Target0;
+                half4 emission : SV_Target1;
+            };
+
+            TEXTURE2D(_MainTex);
+            SAMPLER(sampler_MainTex);
+
+            CBUFFER_START(UnityPerMaterial)
+                float4 _Color;
+                float4 _MainTex_TexelSize;
+            CBUFFER_END
+
+            Varyings LightingFieldVert(Attributes input)
+            {
+                Varyings output;
+                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                output.uv = input.uv;
+                output.color = input.color;
+                return output;
+            }
+
+            LightingFieldOutput LightingFieldFrag(Varyings input)
+            {
+                half4 color = SAMPLE_TEXTURE2D_LOD(_MainTex, sampler_PointClamp, input.uv, 0) *
+                    input.color * _Color;
+                float strength = step(0.05, color.a) * color.a;
+
+                LightingFieldOutput output;
+                output.material = half4(0.0, 0.0, 0.0, 0.0);
+                output.emission = half4(color.rgb * strength, strength);
+                return output;
             }
             ENDHLSL
         }

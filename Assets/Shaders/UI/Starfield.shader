@@ -1,4 +1,4 @@
-Shader "Fodinae/UI/Starfield"
+Shader "Kern/UI/Starfield"
 {
     // Procedural starfield for the main menu backdrop.
     //

@@ -5,7 +5,7 @@ using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace Fodinae.Rendering.PostProcessing.Scopes;
+namespace Kern.Rendering.PostProcessing.Scopes;
 
 internal sealed class ScopeResources : IDisposable
 {

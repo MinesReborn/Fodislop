@@ -29,7 +29,6 @@ internal static class DummyWorldMapArchive
         string streamingRoot = Application.streamingAssetsPath;
         string streamingDirectory = Path.Combine(streamingRoot, StreamingFolderName);
         string cacheDirectory = Path.Combine(Application.persistentDataPath, CacheFolderName);
-        string legacyCacheDirectory = Path.Combine(Application.temporaryCachePath, CacheFolderName);
         string buildGuid = Application.buildGUID;
 
         string mapPath = IsLocalPath(streamingRoot)
@@ -43,7 +42,6 @@ internal static class DummyWorldMapArchive
                 buildGuid,
                 cancellationToken);
 
-        await UniTask.RunOnThreadPool(() => DeleteDirectoryQuietly(legacyCacheDirectory, cacheDirectory));
         return mapPath;
     }
 
@@ -393,24 +391,6 @@ internal static class DummyWorldMapArchive
             {
                 DeleteFileQuietly(tempPath);
             }
-        }
-    }
-
-    private static void DeleteDirectoryQuietly(string directory, string keptDirectory)
-    {
-        if (string.Equals(Path.GetFullPath(directory), Path.GetFullPath(keptDirectory), StringComparison.Ordinal) ||
-            !Directory.Exists(directory))
-        {
-            return;
-        }
-
-        try
-        {
-            Directory.Delete(directory, recursive: true);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            // Старый кеш занят или недоступен — его всё равно уберёт система.
         }
     }
 

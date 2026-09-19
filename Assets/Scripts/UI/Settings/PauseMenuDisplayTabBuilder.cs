@@ -2,15 +2,15 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Localization;
-using Fodinae.Rendering;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Core.Localization;
+using Kern.Rendering;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 internal sealed class PauseMenuDisplayTabBuilder
 {
@@ -211,14 +211,6 @@ internal sealed class PauseMenuDisplayTabBuilder
         syncContext.text = _loc.Get("settings.display.sync_editor");
         UIState.SetHidden(syncContext, !Application.isEditor);
 
-        VisualElement gammaSlider = PauseMenuUIFactory.CreateBoundSlider<DisplaySettings>(
-            nameof(DisplaySettings.Gamma),
-            _loc,
-            () => _clientConfig.Config.Display.Gamma,
-            value => _displayManager.SetGamma(value),
-            _refreshers);
-        displaySection.Add(gammaSlider);
-
         Toggle hdrToggle = hdrOutputGroup.Q<Toggle>("HDRToggle") ??
             throw new InvalidOperationException("[PauseMenu] HDRToggle is missing from PauseMenu.uxml.");
         hdrToggle.label = _loc.Get("menu.settings.hdr");
@@ -228,7 +220,7 @@ internal sealed class PauseMenuDisplayTabBuilder
         Button hdrRetry = hdrOutputGroup.Q<Button>("HDRRetry") ??
             throw new InvalidOperationException("[PauseMenu] HDRRetry is missing from PauseMenu.uxml.");
         hdrRetry.text = _loc.Get("settings.display.hdr_retry");
-        hdrRetry.clicked += HDROutput.Retry;
+        hdrRetry.clicked += () => HDROutput.RetryRead();
 
         VisualElement paperWhiteSlider = PauseMenuUIFactory.CreateBoundSlider<DisplaySettings>(
             nameof(DisplaySettings.PaperWhiteNits),
@@ -266,9 +258,8 @@ internal sealed class PauseMenuDisplayTabBuilder
                     ? "settings.display.hdr_inactive" : "settings.display.hdr_fixed_off",
                 _ => "settings.display.hdr_pending",
             });
-            hdrRetry.SetEnabled(HDROutput.Status == HDROutputController.Phase.Failed && HDROutput.CanSwitch);
-            UIState.SetHidden(hdrRetry, HDROutput.Status != HDROutputController.Phase.Failed);
-            gammaSlider.SetEnabled(!hdrOn);
+            hdrRetry.SetEnabled(HDROutput.Status == HDROutputController.Phase.Failed || HDROutput.CanRetryRead);
+            UIState.SetHidden(hdrRetry, HDROutput.Status != HDROutputController.Phase.Failed && !HDROutput.CanRetryRead);
             paperWhiteSlider.SetEnabled(hdrOn);
             peakBrightnessSlider.SetEnabled(hdrOn);
         }

@@ -2,10 +2,10 @@
 
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Fodinae.Audio.Core;
+using Kern.Audio.Core;
 using UnityEngine;
 
-namespace Fodinae.Core.Interfaces;
+namespace Kern.Core.Interfaces;
 public interface IAudioPlaybackHandle
 {
     AudioBusType BusType { get; }

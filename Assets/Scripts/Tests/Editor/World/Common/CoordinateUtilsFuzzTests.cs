@@ -1,10 +1,10 @@
 #nullable enable
 
 using System;
-using Fodinae.World;
+using Kern.World;
 using NUnit.Framework;
 
-namespace Fodinae.Tests.World;
+namespace Kern.Tests.World;
 
 [TestFixture]
 [Category("FuzzPure")]

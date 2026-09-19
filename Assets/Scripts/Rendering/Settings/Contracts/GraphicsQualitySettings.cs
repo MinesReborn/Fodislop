@@ -1,28 +1,27 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
-using Fodinae.World.Lighting.Quality;
+using Kern.Core;
+using Kern.World.Lighting.Quality;
 using UnityEngine;
-using UnityEngine.Serialization;
 
-namespace Fodinae.Rendering;
+namespace Kern.Rendering;
 
 public enum GraphicsPreset
 {
-    [Fodinae.Core.SettingLabel("settings.preset.very_low")]
+    [Kern.Core.SettingLabel("settings.preset.very_low")]
     VeryLow,
-    [Fodinae.Core.SettingLabel("settings.preset.low")]
+    [Kern.Core.SettingLabel("settings.preset.low")]
     Low,
-    [Fodinae.Core.SettingLabel("settings.preset.medium")]
+    [Kern.Core.SettingLabel("settings.preset.medium")]
     Medium,
-    [Fodinae.Core.SettingLabel("settings.preset.high")]
+    [Kern.Core.SettingLabel("settings.preset.high")]
     High,
-    [Fodinae.Core.SettingLabel("settings.preset.very_high")]
+    [Kern.Core.SettingLabel("settings.preset.very_high")]
     VeryHigh,
-    [Fodinae.Core.SettingLabel("settings.preset.ultra")]
+    [Kern.Core.SettingLabel("settings.preset.ultra")]
     Ultra,
-    [Fodinae.Core.SettingLabel("settings.preset.custom")]
+    [Kern.Core.SettingLabel("settings.preset.custom")]
     Custom,
 }
 
@@ -33,7 +32,6 @@ public struct GraphicsQualitySettings : IEquatable<GraphicsQualitySettings>
 
     public static readonly int[] AntiAliasingSampleCounts = [0, 2, 4, 8];
 
-    [FormerlySerializedAs("LightingPixelsPerCell")]
     [Range(1, 8)]
     [SettingLabel("settings.lighting.density")]
     [Tooltip("Нижняя граница lighting-пикселей на клетку. Фактическое разрешение считается от render target базовой камеры.")]
@@ -57,12 +55,6 @@ public struct GraphicsQualitySettings : IEquatable<GraphicsQualitySettings>
     [Tooltip("Максимальное число шагов одного cascade interval.")]
     [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine compute shader interval step limit")]
     public int LightingMaximumRaySteps;
-
-    [Range(1f, ProjectRuntimeContracts.RuntimeLimits.MaximumLightingUpdatesPerSecond)]
-    [SettingLabel("settings.lighting.solve_rate")]
-    [Tooltip("Максимальная частота lighting solve. Изменение геометрии всё равно обрабатывается сразу.")]
-    [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine compute update rate")]
-    public float LightingUpdatesPerSecond;
 
     [Range(128, 4096)]
     [SettingLabel("settings.lighting.atlas_size")]
@@ -92,7 +84,6 @@ public struct GraphicsQualitySettings : IEquatable<GraphicsQualitySettings>
         int lightingMaximumTextureDimension,
         int lightingMaximumLightCount,
         int lightingMaximumRaySteps,
-        float lightingUpdatesPerSecond,
         int lightingCascadeAtlasLimit,
         float renderScale,
         int antiAliasing,
@@ -102,7 +93,6 @@ public struct GraphicsQualitySettings : IEquatable<GraphicsQualitySettings>
         LightingMaximumTextureDimension = lightingMaximumTextureDimension;
         LightingMaximumLightCount = lightingMaximumLightCount;
         LightingMaximumRaySteps = lightingMaximumRaySteps;
-        LightingUpdatesPerSecond = lightingUpdatesPerSecond;
         LightingCascadeAtlasLimit = lightingCascadeAtlasLimit;
         RenderScale = renderScale;
         AntiAliasing = antiAliasing;
@@ -115,7 +105,6 @@ public struct GraphicsQualitySettings : IEquatable<GraphicsQualitySettings>
             LightingMaximumTextureDimension == other.LightingMaximumTextureDimension &&
             LightingMaximumLightCount == other.LightingMaximumLightCount &&
             LightingMaximumRaySteps == other.LightingMaximumRaySteps &&
-            LightingUpdatesPerSecond.Equals(other.LightingUpdatesPerSecond) &&
             LightingCascadeAtlasLimit == other.LightingCascadeAtlasLimit &&
             RenderScale.Equals(other.RenderScale) &&
             AntiAliasing == other.AntiAliasing &&
@@ -139,7 +128,6 @@ public struct GraphicsQualitySettings : IEquatable<GraphicsQualitySettings>
         hash.Add(settings.LightingMaximumTextureDimension);
         hash.Add(settings.LightingMaximumLightCount);
         hash.Add(settings.LightingMaximumRaySteps);
-        hash.Add(settings.LightingUpdatesPerSecond);
         hash.Add(settings.LightingCascadeAtlasLimit);
         hash.Add(settings.RenderScale);
         hash.Add(settings.AntiAliasing);

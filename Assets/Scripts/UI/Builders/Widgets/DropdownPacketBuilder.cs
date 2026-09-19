@@ -6,7 +6,7 @@ using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Input;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Builders;
+namespace Kern.UI.Builders;
 public abstract class DropdownPacketBuilder<TPacket, TValue> : PacketUIBuilderBase<TPacket>
     where TPacket : DropdownComponentPacket<TValue>
     where TValue : notnull

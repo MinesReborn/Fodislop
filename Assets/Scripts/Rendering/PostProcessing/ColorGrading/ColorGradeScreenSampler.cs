@@ -1,11 +1,11 @@
 #nullable enable
 
 using System;
-using Fodinae.Tools.Imgui;
+using Kern.Tools.Imgui;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-namespace Fodinae.Rendering.PostProcessing;
+namespace Kern.Rendering.PostProcessing;
 
 public static class ColorGradeScreenSampler
 {

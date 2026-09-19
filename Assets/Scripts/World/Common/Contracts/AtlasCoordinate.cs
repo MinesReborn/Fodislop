@@ -4,7 +4,7 @@ using System;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.World;
+namespace Kern.World;
 
     public struct AtlasCoordinate : IEquatable<AtlasCoordinate>
     {

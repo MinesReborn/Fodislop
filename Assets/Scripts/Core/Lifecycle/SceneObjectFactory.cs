@@ -4,7 +4,7 @@ using System;
 using UnityEngine;
 using VContainer;
 
-namespace Fodinae.Core.Lifecycle;
+namespace Kern.Core.Lifecycle;
 
 public sealed class SceneObjectFactory(
     Transform runtimeRoot,

@@ -2,16 +2,15 @@
 
 using System;
 using UnityEngine;
-using Fodinae.Core;
+using Kern.Core;
 
-namespace Fodinae.Rendering.PostProcessing;
+namespace Kern.Rendering.PostProcessing;
 public static class PostProcessRuntimeState
 {
     internal static Camera? MainCamera { get; private set; }
     private static uint _cameraGeneration;
     private static uint _pipelineGeneration;
 
-    private static float _displayGamma = DisplaySettings.DefaultGamma;
     private static float _displayPaperWhiteNits = DisplaySettings.DefaultPaperWhite;
     private static float _displayPeakBrightnessNits = DisplaySettings.DefaultPeakBrightness;
     private static ColorGradeSnapshot _colorGrade = ColorGradeSnapshot.FromLook();
@@ -27,8 +26,6 @@ public static class PostProcessRuntimeState
     internal static uint CameraGeneration => _cameraGeneration;
 
     internal static uint PipelineGeneration => _pipelineGeneration;
-
-    internal static float DisplayGamma => _displayGamma;
 
     internal static float DisplayPaperWhiteNits => _displayPaperWhiteNits;
 
@@ -145,7 +142,6 @@ public static class PostProcessRuntimeState
         MainCamera = null;
         _cameraGeneration = 0;
         _pipelineGeneration = 0;
-        _displayGamma = DisplaySettings.DefaultGamma;
         _displayPaperWhiteNits = DisplaySettings.DefaultPaperWhite;
         _displayPeakBrightnessNits = DisplaySettings.DefaultPeakBrightness;
         _colorGrade = ColorGradeSnapshot.FromLook();
@@ -160,13 +156,8 @@ public static class PostProcessRuntimeState
         SkipPasses = false;
     }
 
-    public static void SetDisplayCalibration(float gamma, float paperWhiteNits, float peakBrightnessNits)
+    public static void SetDisplayCalibration(float paperWhiteNits, float peakBrightnessNits)
     {
-        float sanitizedGamma = FiniteClamp(
-            gamma,
-            DisplaySettings.GammaMin,
-            DisplaySettings.GammaMax,
-            DisplaySettings.DefaultGamma);
         float sanitizedPaperWhite = FiniteClamp(
             paperWhiteNits,
             DisplaySettings.PaperWhiteMin,
@@ -179,14 +170,12 @@ public static class PostProcessRuntimeState
                 DisplaySettings.PeakBrightnessMin,
                 DisplaySettings.PeakBrightnessMax,
                 DisplaySettings.DefaultPeakBrightness));
-        if (Mathf.Approximately(_displayGamma, sanitizedGamma) &&
-            Mathf.Approximately(_displayPaperWhiteNits, sanitizedPaperWhite) &&
+        if (Mathf.Approximately(_displayPaperWhiteNits, sanitizedPaperWhite) &&
             Mathf.Approximately(_displayPeakBrightnessNits, sanitizedPeakBrightness))
         {
             return;
         }
 
-        _displayGamma = sanitizedGamma;
         _displayPaperWhiteNits = sanitizedPaperWhite;
         _displayPeakBrightnessNits = sanitizedPeakBrightness;
         InvalidateTemporalHistory();

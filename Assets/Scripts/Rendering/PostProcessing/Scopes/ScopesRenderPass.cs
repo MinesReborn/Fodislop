@@ -4,9 +4,9 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
-using static Fodinae.Rendering.PostProcessing.Scopes.ScopeShaderConstants;
+using static Kern.Rendering.PostProcessing.Scopes.ScopeShaderConstants;
 
-namespace Fodinae.Rendering.PostProcessing.Scopes;
+namespace Kern.Rendering.PostProcessing.Scopes;
 
 internal sealed class ScopesRenderPass : ScriptableRenderPass2D
 {

@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace Fodinae.Core;
+namespace Kern.Core;
 
 public static class UIScaleUtility
 {

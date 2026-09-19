@@ -6,11 +6,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Cysharp.Threading.Tasks;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Game.Managers;
-using Fodinae.Networking;
-using Fodinae.Networking.Auth;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Game.Managers;
+using Kern.Networking;
 using MinesServer.Networking.Connection.Client;
 using NUnit.Framework;
 using UnityEngine;
@@ -21,78 +20,29 @@ using VContainer;
 using VContainer.Unity;
 using Object = UnityEngine.Object;
 
-namespace Fodinae.Tests.PlayMode;
+namespace Kern.Tests.PlayMode;
 
 [TestFixture]
 public sealed class SceneTransitionPlayModeTests
 {
-    private const float UITimeoutSeconds = 20f;
-    private const float WorldTimeoutSeconds = 45f;
     private const string TestDummyToken = "playmode-scene-transition-token";
     private BootstrapLifetimeScope _bootstrap = null!;
-    private string _originalClientToken = string.Empty;
-    private HashSet<string> _originalDummyTokens = [];
+    private DummyAuthenticationScope _authentication = null!;
 
     [UnitySetUp]
     public IEnumerator SetUp()
     {
         yield return DestroyPersistentBootstrapIfPresent();
-        SeedDummyAuthentication();
-        yield return SceneManager.LoadSceneAsync("Bootstrap", LoadSceneMode.Single);
-        yield return WaitUntil(
-            () => FindBootstrap() is { Container: not null },
-            UITimeoutSeconds,
-            "Bootstrap container was not built.");
+        _authentication = DummyAuthenticationScope.Seed(TestDummyToken);
+        yield return PlayModeHarness.StartAtGateway();
         _bootstrap = FindBootstrap()!;
-        yield return WaitUntil(
-            () => _bootstrap.CurrentSceneName == "Gateway" &&
-                SceneManager.GetSceneByName("Gateway").isLoaded &&
-                HasNamedUiElement(SceneManager.GetSceneByName("Gateway"), "GatewayRoot"),
-            UITimeoutSeconds,
-            "ApplicationBootstrap did not finish Bootstrap -> Gateway with ready UI.");
     }
 
     [UnityTearDown]
     public IEnumerator TearDown()
     {
-        BootstrapLifetimeScope? bootstrap = FindBootstrap();
-        if (bootstrap?.Container != null &&
-            bootstrap.Container.TryResolve<IConnectionService>(out IConnectionService connection))
-        {
-            connection.Disconnect();
-        }
-
-        yield return DestroyPersistentBootstrapIfPresent();
-        RestoreDummyAuthentication();
-    }
-
-    private void SeedDummyAuthentication()
-    {
-        var gameTokenStore = new GameTokenStore();
-        _originalClientToken = gameTokenStore.Load();
-        DummyTokenStore tokenStore = new();
-        _originalDummyTokens = tokenStore.Load();
-
-        HashSet<string> tokens = new(_originalDummyTokens)
-        {
-            TestDummyToken,
-        };
-        tokenStore.Save(tokens);
-        gameTokenStore.Save(TestDummyToken);
-    }
-
-    private void RestoreDummyAuthentication()
-    {
-        var gameTokenStore = new GameTokenStore();
-        new DummyTokenStore().Save(_originalDummyTokens);
-        if (string.IsNullOrEmpty(_originalClientToken))
-        {
-            gameTokenStore.Clear();
-        }
-        else
-        {
-            gameTokenStore.Save(_originalClientToken);
-        }
+        yield return PlayModeHarness.Shutdown();
+        _authentication.Restore();
     }
 
     [UnityTest]
@@ -132,10 +82,10 @@ public sealed class SceneTransitionPlayModeTests
     [UnityTest]
     public IEnumerator MainMenuToMainGame_KeepsLoaderSceneUntilWorldReady()
     {
-        yield return Await(_bootstrap.TransitionAsync("MainMenu"), UITimeoutSeconds);
+        yield return Await(_bootstrap.TransitionAsync("MainMenu"), PlayModeHarness.UITimeoutSeconds);
         bool menuObservedWhileWorldNotReady = false;
         UniTask transition = _bootstrap.TransitionAsync("MainGame").Preserve();
-        float deadline = Time.realtimeSinceStartup + WorldTimeoutSeconds;
+        float deadline = Time.realtimeSinceStartup + PlayModeHarness.WorldTimeoutSeconds;
         while (!transition.Status.IsCompleted() && Time.realtimeSinceStartup < deadline)
         {
             Scene game = SceneManager.GetSceneByName("MainGame");
@@ -181,13 +131,13 @@ public sealed class SceneTransitionPlayModeTests
     [UnityTest]
     public IEnumerator MainGameToMenuToMainGame_LeavesNoOldScopeListenersOrDummyPackets()
     {
-        yield return Await(_bootstrap.TransitionAsync("MainMenu"), UITimeoutSeconds);
-        yield return Await(_bootstrap.TransitionAsync("MainGame"), WorldTimeoutSeconds);
+        yield return Await(_bootstrap.TransitionAsync("MainMenu"), PlayModeHarness.UITimeoutSeconds);
+        yield return Await(_bootstrap.TransitionAsync("MainGame"), PlayModeHarness.WorldTimeoutSeconds);
         PacketHandler firstHandler = FindComponentInScene<GameLifetimeScope>(SceneManager.GetSceneByName("MainGame"))!
             .Container.Resolve<PacketHandler>();
         DummyConnection dummy = _bootstrap.Container.Resolve<DummyConnection>();
 
-        yield return Await(_bootstrap.TransitionAsync("MainMenu"), UITimeoutSeconds);
+        yield return Await(_bootstrap.TransitionAsync("MainMenu"), PlayModeHarness.UITimeoutSeconds);
         Assert.That(firstHandler.IsSubscribed, Is.False, "The first game PacketHandler kept its packet subscriptions after scene unload.");
 
         int packetsAfterDisconnect = 0;
@@ -197,7 +147,7 @@ public sealed class SceneTransitionPlayModeTests
         dummy.OnReceived -= OnPacket;
         Assert.That(packetsAfterDisconnect, Is.Zero, "A retired DummyConnection loop emitted packets in MainMenu.");
 
-        yield return Await(_bootstrap.TransitionAsync("MainGame"), WorldTimeoutSeconds);
+        yield return Await(_bootstrap.TransitionAsync("MainGame"), PlayModeHarness.WorldTimeoutSeconds);
         PacketHandler secondHandler = FindComponentInScene<GameLifetimeScope>(SceneManager.GetSceneByName("MainGame"))!
             .Container.Resolve<PacketHandler>();
         Assert.That(secondHandler, Is.Not.Null);
@@ -213,7 +163,7 @@ public sealed class SceneTransitionPlayModeTests
         try
         {
             UniTask transition = _bootstrap.TransitionAsync("MissingSceneContractFixture").Preserve();
-            yield return AwaitFailure(transition, UITimeoutSeconds);
+            yield return AwaitFailure(transition, PlayModeHarness.UITimeoutSeconds);
             Assert.That(failureCount, Is.EqualTo(1));
             Assert.That(SceneManager.GetSceneByName("Gateway").isLoaded, Is.True);
             Assert.That(HasNamedUiElement(SceneManager.GetSceneByName("Gateway"), "GatewayRoot"), Is.True);
@@ -243,7 +193,7 @@ public sealed class SceneTransitionPlayModeTests
         _bootstrap.TransitionChanged += CountingObserver;
         try
         {
-            yield return Await(_bootstrap.TransitionAsync("MainMenu"), UITimeoutSeconds);
+            yield return Await(_bootstrap.TransitionAsync("MainMenu"), PlayModeHarness.UITimeoutSeconds);
 
             Assert.That(_bootstrap.CurrentSceneName, Is.EqualTo("MainMenu"));
             Assert.That(completionCount, Is.EqualTo(1));
@@ -274,69 +224,22 @@ public sealed class SceneTransitionPlayModeTests
     [UnityTest]
     public IEnumerator LoadedScenes_ContainOneContentScopeAndOnePersistentBootstrapScope()
     {
-        yield return Await(_bootstrap.TransitionAsync("MainMenu"), UITimeoutSeconds);
+        yield return Await(_bootstrap.TransitionAsync("MainMenu"), PlayModeHarness.UITimeoutSeconds);
         LifetimeScope[] scopes = Object.FindObjectsByType<LifetimeScope>(FindObjectsInactive.Include);
         Assert.That(scopes.Count(scope => scope is BootstrapLifetimeScope), Is.EqualTo(1));
         Assert.That(CountScopes(SceneManager.GetSceneByName("MainMenu")), Is.EqualTo(1));
         Assert.That(scopes.Length, Is.EqualTo(2));
     }
 
-    private static IEnumerator DestroyPersistentBootstrapIfPresent()
-    {
-        BootstrapLifetimeScope? existing = FindBootstrap();
-        if (existing == null)
-        {
-            yield break;
-        }
+    private static IEnumerator DestroyPersistentBootstrapIfPresent() => PlayModeHarness.DestroyPersistentBootstrapIfPresent();
 
-        Object.Destroy(existing.gameObject);
-        yield return null;
-        yield return null;
-        Assert.That(FindBootstrap(), Is.Null, "Persistent Bootstrap scope survived test cleanup.");
-    }
+    private static BootstrapLifetimeScope? FindBootstrap() => PlayModeHarness.FindBootstrap();
 
-    private static BootstrapLifetimeScope? FindBootstrap()
-    {
-        return Object.FindAnyObjectByType<BootstrapLifetimeScope>(FindObjectsInactive.Include);
-    }
-
-    private static int CountScopes(Scene scene)
-    {
-        if (!scene.IsValid() || !scene.isLoaded)
-        {
-            return 0;
-        }
-
-        int count = 0;
-        foreach (GameObject root in scene.GetRootGameObjects())
-        {
-            count += root.GetComponentsInChildren<LifetimeScope>(true).Length;
-        }
-
-        return count;
-    }
+    private static int CountScopes(Scene scene) => PlayModeHarness.CountScopes(scene);
 
     private static T? FindComponentInScene<T>(Scene scene)
-        where T : Component
-    {
-        if (!scene.IsValid() || !scene.isLoaded)
-        {
-            return null;
-        }
+        where T : Component => PlayModeHarness.FindComponentInScene<T>(scene);
 
-        foreach (GameObject root in scene.GetRootGameObjects())
-        {
-            T? component = root.GetComponentInChildren<T>(true);
-            if (component != null && component.gameObject.scene == scene)
-            {
-                return component;
-            }
-        }
-
-        return null;
-    }
-
-    // Сервисы сцены живут в её контейнере, а не на объектах (SCENE_STANDARD.md §1).
     private static T? ResolveInScene<T>(Scene scene)
         where T : class
     {
@@ -346,51 +249,11 @@ public sealed class SceneTransitionPlayModeTests
             : null;
     }
 
-    private static bool HasNamedUiElement(Scene scene, string elementName)
-    {
-        UIDocument? document = FindComponentInScene<UIDocument>(scene);
-        return document != null && document.isActiveAndEnabled &&
-            document.rootVisualElement?.Q(elementName) != null;
-    }
+    private static bool HasNamedUiElement(Scene scene, string elementName) =>
+        PlayModeHarness.HasNamedUiElement(scene, elementName);
 
-    private static IEnumerator Await(UniTask task, float timeoutSeconds)
-    {
-        UniTask preserved = task.Preserve();
-        float deadline = Time.realtimeSinceStartup + timeoutSeconds;
-        while (!preserved.Status.IsCompleted() && Time.realtimeSinceStartup < deadline)
-        {
-            yield return null;
-        }
+    private static IEnumerator Await(UniTask task, float timeoutSeconds) => PlayModeHarness.Await(task, timeoutSeconds);
 
-        Assert.That(preserved.Status.IsCompleted(), Is.True, $"Operation timed out after {timeoutSeconds:F0}s.");
-        preserved.GetAwaiter().GetResult();
-    }
-
-    private static IEnumerator AwaitFailure(UniTask task, float timeoutSeconds)
-    {
-        float deadline = Time.realtimeSinceStartup + timeoutSeconds;
-        while (!task.Status.IsCompleted() && Time.realtimeSinceStartup < deadline)
-        {
-            yield return null;
-        }
-
-        Assert.That(task.Status.IsCompleted(), Is.True, $"Failed operation timed out after {timeoutSeconds:F0}s.");
-        Assert.Catch<Exception>(() => task.GetAwaiter().GetResult());
-    }
-
-    private static IEnumerator WaitUntil(Func<bool> condition, float timeoutSeconds, string failureMessage)
-    {
-        float deadline = Time.realtimeSinceStartup + timeoutSeconds;
-        while (Time.realtimeSinceStartup < deadline)
-        {
-            if (condition())
-            {
-                yield break;
-            }
-
-            yield return null;
-        }
-
-        Assert.Fail(failureMessage);
-    }
+    private static IEnumerator AwaitFailure(UniTask task, float timeoutSeconds) =>
+        PlayModeHarness.AwaitFailure(task, timeoutSeconds);
 }

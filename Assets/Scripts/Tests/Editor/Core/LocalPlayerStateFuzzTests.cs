@@ -1,10 +1,10 @@
 #nullable enable
 
-using Fodinae.Core.Lifecycle;
+using Kern.Core.Lifecycle;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Fodinae.Tests.Core;
+namespace Kern.Tests.Core;
 
 [TestFixture]
 public class LocalPlayerStateFuzzTests
@@ -14,13 +14,13 @@ public class LocalPlayerStateFuzzTests
     {
         var go1 = new GameObject("p1"); go1.SetActive(false);
         var go2 = new GameObject("p2"); go2.SetActive(false);
-        var p1 = go1.AddComponent<Fodinae.Player.Logic.PlayerMovementController>();
-        var p2 = go2.AddComponent<Fodinae.Player.Logic.PlayerMovementController>();
+        var p1 = go1.AddComponent<Kern.Player.Logic.PlayerMovementController>();
+        var p2 = go2.AddComponent<Kern.Player.Logic.PlayerMovementController>();
         try
         {
             var random = new System.Random(42);
             var state = new LocalPlayerState();
-            Fodinae.Core.Interfaces.ILocalPlayer? last = null;
+            Kern.Core.Interfaces.ILocalPlayer? last = null;
 
             for (int i = 0; i < 200; i++)
             {
@@ -58,7 +58,7 @@ public class LocalPlayerStateFuzzTests
     public void PublishSameTwice_NoDuplicateEvent()
     {
         var go = new GameObject("p"); go.SetActive(false);
-        var p = go.AddComponent<Fodinae.Player.Logic.PlayerMovementController>();
+        var p = go.AddComponent<Kern.Player.Logic.PlayerMovementController>();
         try
         {
             var state = new LocalPlayerState();
@@ -76,8 +76,8 @@ public class LocalPlayerStateFuzzTests
     {
         var go1 = new GameObject("a"); go1.SetActive(false);
         var go2 = new GameObject("b"); go2.SetActive(false);
-        var p1 = go1.AddComponent<Fodinae.Player.Logic.PlayerMovementController>();
-        var p2 = go2.AddComponent<Fodinae.Player.Logic.PlayerMovementController>();
+        var p1 = go1.AddComponent<Kern.Player.Logic.PlayerMovementController>();
+        var p2 = go2.AddComponent<Kern.Player.Logic.PlayerMovementController>();
         try
         {
             var state = new LocalPlayerState();

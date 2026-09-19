@@ -1,7 +1,7 @@
 #nullable enable
 
 using System;
-using Fodinae.Audio;
+using Kern.Audio;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets.Actions;
 using MinesServer.Networking.Client.Packets.Movement;
@@ -24,8 +24,9 @@ internal sealed class DummyGameplayActionResponder(
     DummyMissionRunner missionRunner,
     DummyInventoryResponder inventoryResponder,
     DummyChatSimulator chatSimulator,
+    IDummyClock clock,
     Action<ServerPacket> sendPacket,
-    ushort playerBotId)
+    ushort playerBotID)
 {
     private const ushort SpawnX = 25;
     private const ushort SpawnY = 50;
@@ -136,7 +137,7 @@ internal sealed class DummyGameplayActionResponder(
 
         long[]? contents = playerState.AddToBasket(
             basketIndex,
-            UnityEngine.Random.Range(1, 101));
+            clock.Random.Next(1, 101));
         if (contents != null)
         {
             sendPacket(new ServerPacket(new BasketPacket(50000, contents)));
@@ -149,12 +150,12 @@ internal sealed class DummyGameplayActionResponder(
         ushort effectY = playerState.Y;
         playerState.Respawn(SpawnX, SpawnY);
         movementResponder.CancelPath();
-        worldState.SendChunksAround(playerState.X, playerState.Y, sendPacket);
+        worldState.QueueChunksAround(playerState.X, playerState.Y, sendPacket);
         sendPacket(new ServerPacket(new HealthPacket(500, 500)));
         sendPacket(new ServerPacket(new TeleportPacket(SpawnX, SpawnY, false)));
         sendPacket(new ServerPacket(new HBPacket([
             new RobotPositionPacket(
-                playerBotId,
+                playerBotID,
                 SpawnX,
                 SpawnY,
                 (byte)playerState.Direction),
@@ -305,5 +306,5 @@ internal sealed class DummyGameplayActionResponder(
         sendPacket(new ServerPacket(new HBPacket([CreateAudioPacket(effect, x, y)])));
 
     private AudioPacket CreateAudioPacket(SFX effect, ushort x, ushort y) =>
-        new(effect, playerBotId, x, y, []);
+        new(effect, playerBotID, x, y, []);
 }

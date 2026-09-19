@@ -1,9 +1,9 @@
 #nullable enable
 
-using Fodinae.Game;
+using Kern.Game;
 using UnityEngine;
 
-namespace Fodinae.Core.Interfaces;
+namespace Kern.Core.Interfaces;
 public interface IVfxSlot
 {
     GameObject? GameObject { get; }

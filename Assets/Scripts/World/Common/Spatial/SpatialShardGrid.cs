@@ -3,10 +3,10 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using Fodinae.Core;
+using Kern.Core;
 using UnityEngine;
 
-namespace Fodinae.World;
+namespace Kern.World;
 
 /// <summary>
 /// High-performance 2D spatial sharding grid with zero runtime GC allocations in steady state.

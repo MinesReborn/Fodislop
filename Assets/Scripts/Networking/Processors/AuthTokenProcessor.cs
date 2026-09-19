@@ -1,11 +1,11 @@
 #nullable enable
 
-using Fodinae.Core.Interfaces;
-using Fodinae.Networking.Auth;
+using Kern.Core.Interfaces;
+using Kern.Networking.Auth;
 using UnityEngine;
 using MinesServer.Networking.Server.Packets.Connection;
 
-namespace Fodinae.Networking.Processors;
+namespace Kern.Networking.Processors;
 
 public sealed class AuthTokenProcessor(ILocalPlayerState localPlayer, IGameTokenStore tokens)
 {

@@ -1,11 +1,11 @@
 #nullable enable
 
-using Fodinae.World.Terrain.Background;
+using Kern.World.Terrain.Background;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using NUnit.Framework;
 
-namespace Fodinae.Tests.World;
+namespace Kern.Tests.World;
 
 public sealed class BackgroundFloodFillScrollTests
 {

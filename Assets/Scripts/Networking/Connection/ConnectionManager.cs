@@ -1,16 +1,16 @@
 #nullable enable
 
-using Fodinae.Core.Interfaces.Diagnostics;
+using Kern.Core.Interfaces.Diagnostics;
 using System;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Fodinae.Networking.Diagnostics;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Localization;
-using Fodinae.Networking.Auth;
+using Kern.Networking.Diagnostics;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Core.Localization;
+using Kern.Networking.Auth;
 using MinesServer.Networking.Client;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.Connection;
@@ -23,12 +23,12 @@ using Unity.Profiling;
 using UnityEngine;
 using VContainer;
 
-namespace Fodinae.Networking.Connection
+namespace Kern.Networking.Connection
 {
-    public class ConnectionManager : MonoBehaviour, IConnectionService
+    public class ConnectionManager : MonoBehaviour, IConnectionService, IWorldRegionRequester
     {
         private static readonly ProfilerMarker _PacketDrainMarker =
-            new("Fodinae.Net.DrainPacketQueue");
+            new("Kern.Net.DrainPacketQueue");
 
         private static readonly AllocationLedger.Entry _AllocationEntry =
             AllocationLedger.Register("Сеть — разбор очереди");
@@ -44,6 +44,15 @@ namespace Fodinae.Networking.Connection
         public IServerConnection? Connection { get; private set; }
         public bool IsConnected => Connection != null && Connection.ConnectionStatus != ConnectionStatus.Disconnected;
         public bool IsOffline => Connection is IOfflineConnection;
+
+        public void RequestWorldRegion(string worldCodeName, RectInt serverRegion)
+        {
+            if (IsConnected && Connection is IWorldRegionRequester requester)
+            {
+                requester.RequestWorldRegion(worldCodeName, serverRegion);
+            }
+        }
+
         private bool _useOldClient;
         public event Action<ServerPacket>? OnPacketReceived;
         public event Action<string>? OnReconnectStatusChanged;
@@ -173,7 +182,15 @@ namespace Fodinae.Networking.Connection
                 Connection.OnReceived -= OnReceived;
                 Connection.OnConnected -= OnConnected;
                 Connection.OnDisconnected -= OnDisconnected;
-                (Connection as IDisposable)?.Dispose();
+
+                // DummyConnection — синглтон Bootstrap и переиспользуется на
+                // следующем подключении; Dispose закрыл бы его состояние мира
+                // навсегда. Освобождается только одноразовый сокетный транспорт.
+                if (!ReferenceEquals(Connection, _dummyConnection))
+                {
+                    (Connection as IDisposable)?.Dispose();
+                }
+
                 Connection = null;
             }
 

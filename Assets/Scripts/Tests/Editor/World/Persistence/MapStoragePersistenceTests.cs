@@ -4,13 +4,13 @@ using System;
 using System.Collections;
 using System.IO;
 using Cysharp.Threading.Tasks;
-using Fodinae.Core.Lifecycle;
-using Fodinae.World;
+using Kern.Core.Lifecycle;
+using Kern.World;
 using MinesServer.Data;
 using NUnit.Framework;
 using UnityEngine.TestTools;
 
-namespace Fodinae.Tests.World;
+namespace Kern.Tests.World;
 
 [TestFixture]
 public sealed class MapStoragePersistenceTests

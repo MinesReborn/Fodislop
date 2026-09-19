@@ -1,49 +1,43 @@
 #nullable enable
 
-using System;
 using UnityEngine;
 
-namespace Fodinae.Rendering.PostProcessing;
+namespace Kern.Rendering.PostProcessing;
 
-// Снимок фактических входов ApplyCreativeGrade, а не ссылок на изменяемые
-// кривые. Время, камера и пиксели кадра в запекании не участвуют.
+// Ключ запекания творческого грейда.
+//
+// Прежний вариант собирал ключ из 112 векторов заново на каждом кадре:
+// stackalloc, копирование пяти массивов кривых и массива оттенков
+// квалификатора, затем поэлементное сравнение — и всё только ради ответа
+// «менялся ли грейд». Этот ответ уже есть: PostProcessRuntimeState.SetColorGrade
+// сравнивает снимок по содержимому и увеличивает поколение конвейера ровно
+// тогда, когда содержимое изменилось.
+//
+// Остаются входы, которых в снимке нет: экспозиция, контраст, насыщенность и
+// светофильтр приходят из VolumeComponent, мимо снимка. Их и держим явно —
+// два вектора вместо ста двенадцати.
 internal sealed class BakedGradeLutCache
 {
-    private const int ParameterCapacity = 128;
-    private readonly Vector4[] _parameters = new Vector4[ParameterCapacity];
-    private int _count;
     private bool _valid;
+    private uint _generation;
+    private Vector4 _volumeGrade;
+    private Vector4 _colorFilter;
 
     public bool Matches(PostProcessPassData data)
     {
-        if (!_valid)
-        {
-            return false;
-        }
-
-        Span<Vector4> current = stackalloc Vector4[ParameterCapacity];
-        int count = WriteParameters(data, current);
-        if (count != _count)
-        {
-            return false;
-        }
-
-        for (int index = 0; index < count; index++)
-        {
-            // Vector4.operator== использует допуск. Для ключа нужны точные
-            // значения, иначе небольшое изменение грейда потеряется.
-            if (!current[index].Equals(_parameters[index]))
-            {
-                return false;
-            }
-        }
-
-        return true;
+        // Vector4.operator== сравнивает с допуском. Для ключа нужны точные
+        // значения, иначе небольшое изменение грейда потеряется.
+        return _valid &&
+            _generation == data.GradeGeneration &&
+            _volumeGrade.Equals(VolumeGrade(data)) &&
+            _colorFilter.Equals(ColorFilter(data));
     }
 
     public void Store(PostProcessPassData data)
     {
-        _count = WriteParameters(data, _parameters);
+        _generation = data.GradeGeneration;
+        _volumeGrade = VolumeGrade(data);
+        _colorFilter = ColorFilter(data);
         _valid = true;
     }
 
@@ -52,58 +46,14 @@ internal sealed class BakedGradeLutCache
         _valid = false;
     }
 
-    private static int WriteParameters(PostProcessPassData data, Span<Vector4> target)
-    {
-        int count = 0;
-        // Те же нейтральные значения, что в BindPostProcessParameters.
-        target[count++] = new Vector4(
-            data.CgActive ? data.Exposure : 0f,
-            data.CgActive ? data.Contrast : 0f,
-            data.CgActive ? data.Saturation : 1f,
-            data.CdlSaturation);
-        target[count++] = data.CgActive ? data.ColorFilter : (Vector4)Color.white;
-        target[count++] = data.WhiteBalance;
-        target[count++] = data.CdlSlope;
-        target[count++] = data.CdlOffset;
-        target[count++] = data.CdlPower;
-        target[count++] = data.CdlMaster;
-        target[count++] = data.PrimaryLift;
-        target[count++] = data.PrimaryGamma;
-        target[count++] = data.PrimaryGain;
-        target[count++] = data.PrimaryOffset;
-        target[count++] = data.PrimaryMaster;
-        target[count++] = new Vector4(data.Vibrance, data.Hue, data.CurveInterpolation, 0f);
-        target[count++] = data.ContrastControls;
-        target[count++] = data.ContrastControls2;
-        target[count++] = data.Qualifier0;
-        target[count++] = data.Qualifier1;
-        target[count++] = data.Qualifier2;
-        target[count++] = data.Qualifier3;
-        target[count++] = data.Qualifier4;
-        target[count++] = data.Qualifier5;
-        target[count++] = data.Qualifier6;
-        target[count++] = new Vector4(
-            data.HueVsHueCurvePointCount,
-            data.HueVsSaturationCurvePointCount,
-            data.HueVsLuminanceCurvePointCount,
-            data.LuminanceVsSaturationCurvePointCount);
-        target[count++] = new Vector4(
-            data.SaturationVsSaturationCurvePointCount,
-            data.QualifierHueSampleCount,
-            0f,
-            0f);
-        Append(data.HueVsHueCurvePoints, target, ref count);
-        Append(data.HueVsSaturationCurvePoints, target, ref count);
-        Append(data.HueVsLuminanceCurvePoints, target, ref count);
-        Append(data.LuminanceVsSaturationCurvePoints, target, ref count);
-        Append(data.SaturationVsSaturationCurvePoints, target, ref count);
-        Append(data.QualifierHueSamples, target, ref count);
-        return count;
-    }
+    // Те же нейтральные значения, что в привязке параметров: выключенная
+    // цветокоррекция обязана давать тот же ключ, что и нейтральная.
+    private static Vector4 VolumeGrade(PostProcessPassData data) => new(
+        data.CgActive ? data.Exposure : 0f,
+        data.CgActive ? data.Contrast : 0f,
+        data.CgActive ? data.Saturation : 1f,
+        data.CdlSaturation);
 
-    private static void Append(Vector4[] values, Span<Vector4> target, ref int count)
-    {
-        values.AsSpan().CopyTo(target.Slice(count));
-        count += values.Length;
-    }
+    private static Vector4 ColorFilter(PostProcessPassData data) =>
+        data.CgActive ? data.ColorFilter : (Vector4)Color.white;
 }

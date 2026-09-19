@@ -3,7 +3,7 @@
 using System.Collections.Generic;
 using MinesServer.Data;
 
-namespace Fodinae.Networking.Buildings;
+namespace Kern.Networking.Buildings;
 public static class BuildingTemplates
 {
     private static readonly Dictionary<PackType, PackBuilding> _templates = new()

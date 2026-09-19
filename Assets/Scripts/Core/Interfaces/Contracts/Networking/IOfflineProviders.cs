@@ -1,6 +1,6 @@
 #nullable enable
 
-namespace Fodinae.Core.Interfaces;
+namespace Kern.Core.Interfaces;
 public interface IRuntimeDebugSettings
 {
     bool IgnoreCollision { get; set; }

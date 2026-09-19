@@ -4,11 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Fodinae.Audio.Core;
-using Fodinae.Core;
+using Kern.Audio.Core;
+using Kern.Core;
 using UnityEngine;
 
-namespace Fodinae.Audio.Backend;
+namespace Kern.Audio.Backend;
 public sealed class FmodAudioBackend
 {
     private readonly Dictionary<AudioBusType, FMOD.Studio.Bus> _buses = new();
@@ -16,6 +16,8 @@ public sealed class FmodAudioBackend
     private bool _paused;
     private bool _busesMapped;
     private bool _degraded;
+
+    private const string MasterBusPath = "bus:/";
 
     private static readonly FMOD.VECTOR _ForwardVector = new() { x = 0f, y = 0f, z = 1f };
     private static readonly FMOD.VECTOR _UpVector = new() { x = 0f, y = 1f, z = 0f };
@@ -96,6 +98,28 @@ public sealed class FmodAudioBackend
         if (_buses.TryGetValue(type, out FMOD.Studio.Bus bus))
         {
             bus.setVolume(Mathf.Clamp01(volume));
+        }
+    }
+
+    // FMOD RuntimeManager живёт дольше Bootstrap. Экземпляры событий
+    // отпускаются сразу после старта, поэтому зацикленная музыка и эмбиент
+    // играют, пока их не остановят явно, — в том числе после выхода из игры в
+    // редакторе и между PlayMode-тестами. Пауза мастер-шины тоже переживала
+    // Bootstrap и глушила следующий запуск.
+    public void StopAll()
+    {
+        _paused = false;
+        _buses.Clear();
+        _busesMapped = false;
+        if (!FMODUnity.RuntimeManager.IsInitialized)
+        {
+            return;
+        }
+
+        if (FMODUnity.RuntimeManager.StudioSystem.getBus(MasterBusPath, out FMOD.Studio.Bus master) == FMOD.RESULT.OK)
+        {
+            master.stopAllEvents(FMOD.Studio.STOP_MODE.IMMEDIATE);
+            master.setPaused(false);
         }
     }
 

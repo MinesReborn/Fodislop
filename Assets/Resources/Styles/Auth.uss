@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════
    Auth.uss — ворота входа
 
-   Портировано из visual/fodinae-ui-lab (.auth-*). Замены выполнены по
+   Портировано из visual/kern-ui-lab (.auth-*). Замены выполнены по
    контракту переносимости из стайлгайда:
 
      radial-gradient  → плотная заливка (в USS радиальных градиентов нет)
@@ -56,21 +56,21 @@
 }
 
 .gateway--auth .auth-brand-logo {
-    filter: drop-shadow(0 0 10px var(--accent-gold-glow));
+    filter: drop-shadow(0 0 var(--space-5) var(--accent-gold-glow));
 }
 
 /* Угловые скобки. В макете это ::before/::after, псевдоэлементов в USS нет. */
 .auth-brace {
     position: absolute;
-    width: 14px;
-    height: 14px;
+    width: var(--space-7);
+    height: var(--space-7);
 }
 
 .auth-brace--tl {
     top: -2px;
     left: -2px;
-    border-top-width: 2px;
-    border-left-width: 2px;
+    border-top-width: var(--space-1);
+    border-left-width: var(--space-1);
     border-top-color: var(--accent-gold);
     border-left-color: var(--accent-gold);
 }
@@ -78,8 +78,8 @@
 .auth-brace--br {
     bottom: -2px;
     right: -2px;
-    border-bottom-width: 2px;
-    border-right-width: 2px;
+    border-bottom-width: var(--space-1);
+    border-right-width: var(--space-1);
     border-bottom-color: var(--accent-gold);
     border-right-color: var(--accent-gold);
 }
@@ -109,7 +109,7 @@
     -unity-font-definition: var(--face-display);
     font-size: var(--size-xl);
     -unity-font-style: bold;
-    letter-spacing: 4px;
+    letter-spacing: var(--space-2);
     color: var(--text-primary);
     margin-bottom: var(--space-2);
 }
@@ -227,8 +227,8 @@
    -unity-background-image-tint-color (обычного image-tint в USS нет). */
 .auth-check .unity-toggle__checkmark,
 .onb-toggle .unity-toggle__checkmark {
-    width: 16px;
-    height: 16px;
+    width: var(--space-8);
+    height: var(--space-8);
     background-color: var(--surface-inset);
     border-width: 1px;
     border-color: var(--border-subtle);
@@ -278,7 +278,7 @@
 .auth-vk-sep-label {
     -unity-font-definition: var(--face-data);
     font-size: var(--size-2xs);
-    letter-spacing: 2px;
+    letter-spacing: var(--space-1);
     color: var(--text-tertiary);
     margin: 0 var(--space-4);
 }
@@ -342,7 +342,7 @@
 /* ─── Действия ──────────────────────────────────────────── */
 
 .auth-submit {
-    height: 48px;
+    height: var(--space-14);
     margin: 0 0 var(--space-8) 0;
     background-color: var(--accent-gold);
     border-width: 1px;
@@ -434,12 +434,12 @@
    mm_planet.png — запасной плейсхолдер (бурое пятно с циановым ореолом), и
    в композиции он читается как засветка, а не как планета.
    Чтобы поставить в ворота настоящую планету, в сцену нужно перенести риг
-   задника (Fodinae/Art/Build Menu Scenery Rig) — это отдельная работа. */
+   задника (Kern/Art/Build Menu Scenery Rig) — это отдельная работа. */
 
 /* ═══════════════════════════════════════════════════════════
    ОНБОРДИНГ
 
-   Портировано из visual/fodinae-ui-lab (.onboarding-*).
+   Портировано из visual/kern-ui-lab (.onboarding-*).
    Показывается один раз после первого прохода ворот.
    ═══════════════════════════════════════════════════════════ */
 
@@ -648,7 +648,7 @@
 }
 
 .onb-slider .unity-base-slider__tracker {
-    height: 4px;
+    height: var(--space-2);
     background-color: var(--surface-inset);
     border-width: 1px;
     border-color: var(--border-subtle);
@@ -656,8 +656,8 @@
 }
 
 .onb-slider .unity-base-slider__dragger {
-    width: 14px;
-    height: 14px;
+    width: var(--space-7);
+    height: var(--space-7);
     background-color: var(--accent-gold);
     border-width: 0;
     border-radius: var(--radius-sm);

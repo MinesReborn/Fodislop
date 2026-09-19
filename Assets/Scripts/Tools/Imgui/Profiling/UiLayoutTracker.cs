@@ -10,7 +10,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 
-namespace Fodinae.Tools.Imgui.Profiling;
+namespace Kern.Tools.Imgui.Profiling;
 
 // Кто заставляет интерфейс игры перераскладываться.
 //
@@ -49,23 +49,12 @@ public sealed class UiLayoutTracker : IDisposable
         public readonly List<string> TextSamples = [];
     }
 
-    private readonly struct Change
+    private readonly struct Change(VisualElement element, Rect oldRect, Rect newRect, string? text)
     {
-        public Change(VisualElement element, Rect oldRect, Rect newRect, string? text)
-        {
-            Element = element;
-            OldRect = oldRect;
-            NewRect = newRect;
-            Text = text;
-        }
-
-        public VisualElement Element { get; }
-
-        public Rect OldRect { get; }
-
-        public Rect NewRect { get; }
-
-        public string? Text { get; }
+        public VisualElement Element { get; } = element;
+        public Rect OldRect { get; } = oldRect;
+        public Rect NewRect { get; } = newRect;
+        public string? Text { get; } = text;
     }
 
     private readonly HashSet<VisualElement> _registered = [];
@@ -78,6 +67,7 @@ public sealed class UiLayoutTracker : IDisposable
     private readonly StringBuilder _label = new(256);
     private readonly StringBuilder _line = new(512);
 
+    private readonly UiRenderStatsCollector _renderStatsCollector = new();
     private ProfilerRecorder _layoutRecorder;
     private StreamWriter? _log;
     private float _nextRescan;
@@ -318,7 +308,7 @@ public sealed class UiLayoutTracker : IDisposable
             _registered.Remove(element);
         }
 
-        foreach (UIDocument document in CollectDocuments())
+        foreach (UIDocument document in _renderStatsCollector.CollectDocuments())
         {
             if (document.rootVisualElement != null)
             {
@@ -326,27 +316,8 @@ public sealed class UiLayoutTracker : IDisposable
             }
         }
 
-        CollectRenderStats();
+        _renderStatsCollector.CollectRenderStats(Short);
     }
-
-    // ── Состав видимого интерфейса ────────────────────────────────────────
-    //
-    // Отрисовка UI Toolkit стоит по числу видимых элементов, текстов и
-    // разрывов пакетов: разных текстур (слотов 8, в атлас идут только
-    // картинки до 64 px) и обрезающих контейнеров. Счёт идёт по живому
-    // дереву раз в секунду, спрятанные поддеревья (display: none) не
-    // заходятся.
-
-    // Классы, у которых в USS стоит overflow: hidden. resolvedStyle не
-    // отдаёт overflow, поэтому обрезка узнаётся по классу; видимая область
-    // ScrollView обрезает всегда.
-    private static readonly HashSet<string> _ClipClasses = new(StringComparer.Ordinal)
-    {
-        "ui-panel", "ui-scroll-viewport", "hud-minimap-container", "sci-fi-bar-track",
-        "world-labels", "chat-message", "gchat-message", "fit-clip", "fit-clamp", "fit-shrink",
-        "mm-root", "mm-loader-progress-track", "mm-ticker-text", "mm-settings-layout",
-        "unity-scroll-view__content-viewport",
-    };
 
     public sealed class RenderStats
     {
@@ -365,155 +336,7 @@ public sealed class UiLayoutTracker : IDisposable
         public readonly Dictionary<string, int> VisibleBySubtree = new(StringComparer.Ordinal);
     }
 
-    private readonly List<(VisualElement Element, string Subtree)> _statsStack = [];
-
-    public RenderStats Stats { get; private set; } = new();
-
-    private readonly List<GameObject> _sceneRoots = [];
-    private readonly List<UIDocument> _documents = [];
-    private readonly List<UIDocument> _documentScratch = [];
-
-    // Документы собираются обходом корней загруженных сцен: поиск по всем
-    // объектам (FindObjectsByType) запрещён (FOD-FORBIDDEN-API).
-    private List<UIDocument> CollectDocuments()
-    {
-        _documents.Clear();
-        for (int i = 0; i < SceneManager.sceneCount; i++)
-        {
-            Scene scene = SceneManager.GetSceneAt(i);
-            if (!scene.isLoaded)
-            {
-                continue;
-            }
-
-            scene.GetRootGameObjects(_sceneRoots);
-            foreach (GameObject root in _sceneRoots)
-            {
-                root.GetComponentsInChildren(includeInactive: false, _documentScratch);
-                foreach (UIDocument document in _documentScratch)
-                {
-                    if (document.isActiveAndEnabled)
-                    {
-                        _documents.Add(document);
-                    }
-                }
-            }
-        }
-
-        return _documents;
-    }
-
-    private void CollectRenderStats()
-    {
-        var stats = new RenderStats();
-        foreach (UIDocument document in CollectDocuments())
-        {
-            if (document.panelSettings != null)
-            {
-                stats.AtlasLimit = Math.Max(stats.AtlasLimit, document.panelSettings.dynamicAtlasSettings.maxSubTextureSize);
-            }
-
-            VisualElement? root = document.rootVisualElement;
-            if (root == null)
-            {
-                continue;
-            }
-
-            _statsStack.Clear();
-            _statsStack.Add((root, "(корень)"));
-            while (_statsStack.Count > 0)
-            {
-                (VisualElement element, string subtree) = _statsStack[^1];
-                _statsStack.RemoveAt(_statsStack.Count - 1);
-
-                IResolvedStyle style = element.resolvedStyle;
-                if (style.display == DisplayStyle.None ||
-                    style.visibility == Visibility.Hidden ||
-                    style.opacity <= 0f)
-                {
-                    continue;
-                }
-
-                stats.Visible++;
-                stats.VisibleBySubtree.TryGetValue(subtree, out int inSubtree);
-                stats.VisibleBySubtree[subtree] = inSubtree + 1;
-
-                if (style.opacity < 1f)
-                {
-                    stats.Translucent++;
-                }
-
-                if (style.translate.x != 0f || style.translate.y != 0f)
-                {
-                    stats.Translated++;
-                }
-
-                if (element is TextElement text && !string.IsNullOrEmpty(text.text))
-                {
-                    stats.Texts++;
-                    stats.TextCharacters += text.text.Length;
-                    if (style.unityTextOutlineWidth > 0f)
-                    {
-                        stats.OutlinedTexts++;
-                    }
-
-                    if (style.textShadow.color.a > 0f)
-                    {
-                        stats.ShadowedTexts++;
-                    }
-                }
-
-                Texture? texture = style.backgroundImage.texture != null
-                    ? style.backgroundImage.texture
-                    : style.backgroundImage.sprite != null
-                        ? style.backgroundImage.sprite.texture
-                        : style.backgroundImage.renderTexture;
-                if (element is Image image && image.image != null)
-                {
-                    texture = image.image;
-                }
-
-                if (texture != null)
-                {
-                    stats.Images++;
-                    stats.Textures.TryGetValue(texture, out int uses);
-                    stats.Textures[texture] = uses + 1;
-                }
-
-                foreach (string className in element.GetClasses())
-                {
-                    if (!_ClipClasses.Contains(className))
-                    {
-                        continue;
-                    }
-
-                    stats.Clips++;
-                    if (style.borderTopLeftRadius > 0f || style.borderTopRightRadius > 0f ||
-                        style.borderBottomLeftRadius > 0f || style.borderBottomRightRadius > 0f)
-                    {
-                        stats.RoundedClips++;
-                    }
-
-                    break;
-                }
-
-                for (int i = 0; i < element.hierarchy.childCount; i++)
-                {
-                    VisualElement child = element.hierarchy[i];
-                    // Обёртки без своего имени проходятся насквозь: панель
-                    // называется по первому осмысленному элементу под ними.
-                    bool wrapper = element == root ||
-                        subtree == "(корень)" ||
-                        subtree.StartsWith("TemplateContainer", StringComparison.Ordinal) ||
-                        subtree == "#UIDocument-container";
-                    string childSubtree = wrapper ? Short(child) : subtree;
-                    _statsStack.Add((child, childSubtree));
-                }
-            }
-        }
-
-        Stats = stats;
-    }
+    public RenderStats Stats => _renderStatsCollector.Stats;
 
     private void Register(VisualElement root)
     {
@@ -566,88 +389,22 @@ public sealed class UiLayoutTracker : IDisposable
         var all = new List<Stat>(_stats.Count);
         SortInto(all);
 
-        var md = new StringBuilder(16384);
-        md.AppendLine("# Перераскладки интерфейса — что править")
-            .AppendLine()
-            .Append("Снято: ").Append(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
-            .Append(Application.isEditor ? ", редактор" : ", сборка")
-            .Append(", ").Append(Screen.width).Append('×').Append(Screen.height).AppendLine()
-            .AppendLine()
-            .Append("- кадров под наблюдением: ").Append(Frames).AppendLine()
-            .Append("- кадров с раскладкой ≥ ").Append(SpikeMilliseconds.ToString("F0")).Append(" мс: ").Append(SpikeFrames).AppendLine()
-            .Append("- пик раскладки: ").Append(PeakLayoutMilliseconds.ToString("F2")).AppendLine(" мс")
-            .Append("- элементов под наблюдением: ").Append(ElementCount).AppendLine()
-            .Append("- изменений геометрии: ").Append(TotalChanges).AppendLine()
-            .Append("- полный журнал: `").Append(LogPath ?? "не записан").AppendLine("`")
-            .AppendLine();
+        string? path = UiLayoutTodoWriter.WriteTodo(
+            LogDirectory,
+            LogPath,
+            Frames,
+            SpikeFrames,
+            PeakLayoutMilliseconds,
+            ElementCount,
+            TotalChanges,
+            all);
 
-        if (all.Count == 0)
+        if (path != null)
         {
-            md.AppendLine("Ни один элемент не менял геометрию.");
-        }
-
-        int index = 0;
-        foreach (Stat stat in all)
-        {
-            index++;
-            double perFrame = Frames > 0 ? (double)stat.Changes / Frames : 0d;
-            md.Append("## ").Append(index).Append(". ").AppendLine(stat.Label)
-                .AppendLine()
-                .Append("- [ ] ").AppendLine(Advice(stat))
-                .Append("- путь: `").Append(stat.FullPath).AppendLine("`")
-                .Append("- тип: ").AppendLine(stat.ElementType)
-                .Append("- изменений: ").Append(stat.Changes)
-                .Append(" (").Append(perFrame.ToString("P1")).Append(" кадров), размер ").Append(stat.SizeChanges)
-                .Append(", только позиция ").Append(stat.PositionOnlyChanges)
-                .Append(", в пиковых кадрах ").Append(stat.SpikeChanges).AppendLine()
-                .Append("- ширина ").Append(stat.MinWidth.ToString("F0")).Append("…").Append(stat.MaxWidth.ToString("F0"))
-                .Append(", высота ").Append(stat.MinHeight.ToString("F0")).Append("…").Append(stat.MaxHeight.ToString("F0"))
-                .AppendLine();
-            if (stat.TextSamples.Count > 0)
-            {
-                md.Append("- тексты: ");
-                for (int i = 0; i < stat.TextSamples.Count; i++)
-                {
-                    md.Append(i > 0 ? ", " : string.Empty).Append('«').Append(Sanitize(stat.TextSamples[i])).Append('»');
-                }
-
-                md.AppendLine();
-            }
-
-            md.AppendLine();
-        }
-
-        try
-        {
-            Directory.CreateDirectory(LogDirectory);
-            string path = Path.Combine(LogDirectory, "ui_layout_todo.md");
-            File.WriteAllText(path, md.ToString(), new UTF8Encoding(false));
             LastTodoPath = path;
-            return path;
-        }
-        catch (Exception exception)
-        {
-            Debug.LogWarning($"[UiLayoutTracker] TODO раскладки не записан: {exception.Message}");
-            return null;
-        }
-    }
-
-    private static string Advice(Stat stat)
-    {
-        if (stat.SizeChanges > 0 && stat.TextSamples.Count > 0)
-        {
-            return "Размер зависит от текста: задать фиксированную ширину или min-width под самый длинный текст, " +
-                "цифры — моноширинными, чтобы смена значения не перераскладывала соседей.";
         }
 
-        if (stat.SizeChanges == 0)
-        {
-            return "Меняется только позиция: двигать через style.translate, а не left/top/margin — " +
-                "translate не запускает раскладку.";
-        }
-
-        return "Меняется размер без текста: найти, кто пишет width/height/display/flex этому элементу " +
-            "или его детям, и писать только при реальном изменении значения.";
+        return path;
     }
 
     public void ResetStats()

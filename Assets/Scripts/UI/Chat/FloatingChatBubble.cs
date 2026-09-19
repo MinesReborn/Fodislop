@@ -1,10 +1,10 @@
 #nullable enable
 
-using Fodinae.Core.Interfaces;
+using Kern.Core.Interfaces;
 using UnityEngine;
 using VContainer;
 
-namespace Fodinae.UI
+namespace Kern.UI
 {
     public class FloatingChatBubble : MonoBehaviour
     {

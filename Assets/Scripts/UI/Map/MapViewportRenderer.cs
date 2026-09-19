@@ -1,13 +1,13 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.World;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.World;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 internal sealed class MapViewportRenderer
 {
@@ -26,7 +26,13 @@ internal sealed class MapViewportRenderer
         for (int i = 0; i < 256; i++)
         {
             CellType type = (CellType)i;
-            _cellColorTable[i] = (Color32)manager.GetCellMinimapColor(type);
+            Color color = manager.GetCellMinimapColor(type);
+            if (color.a < 0.01f)
+            {
+                color = new Color(0.3f, 0.3f, 0.3f, 1f);
+            }
+
+            _cellColorTable[i] = (Color32)color;
         }
     }
 

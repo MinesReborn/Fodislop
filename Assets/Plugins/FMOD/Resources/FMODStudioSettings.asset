@@ -463,8 +463,8 @@ MonoBehaviour:
   switchSettingsMigration: 1
   HasSourceProject: 1
   HasPlatforms: 1
-  sourceProjectPath: FodinaeAudio/FodinaeAudio.fspro
-  sourceBankPath: FodinaeAudio/Build
+  sourceProjectPath: KernAudio/KernAudio.fspro
+  sourceBankPath: KernAudio/Build
   sourceBankPathUnformatted: 
   BankRefreshCooldown: 5
   ShowBankRefreshWindow: 1
@@ -516,7 +516,7 @@ MonoBehaviour:
   - {fileID: 6443755465167763830}
   - {fileID: 7339711218558300804}
   - {fileID: 8767898071123284081}
-  MigratedPlatforms: 0500000015000000090000000c0000000b00000000000000060000000a00000008000000120000000200000001000000
+  MigratedPlatforms: 0500000015000000090000000c0000000b00000000000000060000000a00000008000000120000000200000001000000i
 --- !u!114 &1074695725427292638
 MonoBehaviour:
   m_ObjectHideFlags: 0

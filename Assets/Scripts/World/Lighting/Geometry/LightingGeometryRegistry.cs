@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace Fodinae.World.Lighting;
+namespace Kern.World.Lighting;
 
 public sealed class LightingGeometryRegistry
 {
@@ -82,7 +82,7 @@ public sealed class LightingGeometryRegistry
                 "World lighting has no registered geometry contributors.");
         }
 
-        // clearFields == false means the caller (MaterialFieldStage) already
+        // clearFields == false means the material-field pass already
         // bound these targets for the terrain draw right before this call.
         // Re-issuing SetRenderTarget would end that render pass and force a
         // tile-memory flush + store/load on TBDR GPUs (Apple Metal) for no

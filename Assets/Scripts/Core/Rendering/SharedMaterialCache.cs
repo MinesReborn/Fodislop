@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Fodinae.Core;
+namespace Kern.Core;
 public interface ISharedMaterialCache
 {
     Material GetForTexture(Texture2D texture);

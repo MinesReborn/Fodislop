@@ -2,10 +2,10 @@
 
 using System;
 using System.IO;
-using Fodinae.Rendering;
+using Kern.Rendering;
 using UnityEngine;
 
-namespace Fodinae.Core;
+namespace Kern.Core;
 
 internal sealed class ClientConfigValidator(GraphicsQualityProfile graphicsQualityProfile)
 {
@@ -32,7 +32,6 @@ internal sealed class ClientConfigValidator(GraphicsQualityProfile graphicsQuali
         SettingSchema.Validate(config.Accessibility);
         SettingSchema.Validate(config.Connection);
         SettingSchema.Validate(config.PostProcess);
-        SettingSchema.Validate(config.Lighting);
         SettingSchema.Validate(config.Terrain);
         SettingSchema.Validate(config.Effects);
 
@@ -119,8 +118,7 @@ internal sealed class ClientConfigValidator(GraphicsQualityProfile graphicsQuali
         // секциях вида. Раньше это была цепочка из сорока сравнений, которую
         // забывали дополнять; теперь список полей берётся из объявления секции,
         // поэтому новое поле попадает под инвариант само.
-        if (!SettingSchema.MatchesDefaults(config.Lighting) ||
-            !SettingSchema.MatchesDefaults(config.Terrain) ||
+        if (!SettingSchema.MatchesDefaults(config.Terrain) ||
             !SettingSchema.MatchesDefaults(config.Effects) ||
             !SettingSchema.MatchesDefaults(config.PostProcess))
         {

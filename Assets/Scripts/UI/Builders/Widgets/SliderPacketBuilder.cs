@@ -4,7 +4,7 @@ using MinesServer.Networking.Server.Packets.GUI.Components.Input;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Builders;
+namespace Kern.UI.Builders;
 public class SliderPacketBuilder : PacketUIBuilderBase<SliderPacket>
 {
     protected override VisualElement BuildTyped(SliderPacket packet, PacketUIBuilder builder)

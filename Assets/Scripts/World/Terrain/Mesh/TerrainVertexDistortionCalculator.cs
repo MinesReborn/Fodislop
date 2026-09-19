@@ -4,19 +4,19 @@ using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using UnityEngine;
 
-namespace Fodinae.World.Terrain;
+namespace Kern.World.Terrain;
 
 public sealed class TerrainVertexDistortionCalculator
 {
-    public Vector3[,] GridVertexOffsets { get; private set; } = null!;
+    public TerrainRingGrid<Vector3> GridVertexOffsets { get; } = new();
 
     public bool EnableDistortion { get; set; } = true;
 
     public void EnsureCapacity(int meshWidth, int meshHeight)
     {
-        if (GridVertexOffsets == null || GridVertexOffsets.GetLength(0) != meshWidth + 1 || GridVertexOffsets.GetLength(1) != meshHeight + 1)
+        if (GridVertexOffsets.Width != meshWidth + 1 || GridVertexOffsets.Height != meshHeight + 1)
         {
-            GridVertexOffsets = new Vector3[meshWidth + 1, meshHeight + 1];
+            GridVertexOffsets.EnsureSize(meshWidth + 1, meshHeight + 1);
         }
     }
 
@@ -61,7 +61,7 @@ public sealed class TerrainVertexDistortionCalculator
         int gw = meshWidth + 1;
         int gh = meshHeight + 1;
 
-        TerrainCellCache.Scroll2DArray(GridVertexOffsets, gw, gh, dx, dy);
+        GridVertexOffsets.Scroll(dx, dy);
 
         int vxStart = 0;
         int vxLen = 0;

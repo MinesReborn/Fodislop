@@ -1,18 +1,16 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Localization;
-using Fodinae.Networking.Auth;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Core.Localization;
+using Kern.Networking.Auth;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 public sealed class AuthGate
 {
-    private const string AutoLoginPrefsKey = "Auth.AutoLogin";
-
     private const string ActiveTabClass = "auth-tab--active";
     private const string HiddenFormClass = "auth-form--hidden";
     private const string HintWarnClass = "auth-hint--warn";
@@ -135,18 +133,18 @@ public sealed class AuthGate
         _vkLabel = tree.Q<Label>("AuthVkLabel");
         if (_vkButton != null)
         {
-            _vkButton.clicked += StartVkLogin;
-            if (_vkLabel != null && _authentication.HasVkSession)
+            _vkButton.clicked += StartVKLogin;
+            if (_vkLabel != null && _authentication.HasVKSession)
             {
-                _vkLabel.text = L("gateway.auth.vk_continue", "Продолжить как {0} (VK)", _authentication.VkDisplayName);
+                _vkLabel.text = L("gateway.auth.vk_continue", "Продолжить как {0} (VK)", _authentication.VKDisplayName);
             }
         }
 
         _login.SetValueWithoutNotify(GenerateCallsign());
-        _autoLogin.SetValueWithoutNotify(PlayerPrefs.GetInt(AutoLoginPrefsKey, 0) == 1);
+        _autoLogin.SetValueWithoutNotify(_clientConfig.Config.Interface.AutoLogin);
     }
 
-    private async void StartVkLogin()
+    private async void StartVKLogin()
     {
         if (_vkBusy)
         {
@@ -162,7 +160,7 @@ public sealed class AuthGate
         AuthenticationResult result;
         try
         {
-            result = await _authentication.LoginWithVkAsync();
+            result = await _authentication.LoginWithVKAsync();
         }
         catch (Exception e)
         {
@@ -234,8 +232,8 @@ public sealed class AuthGate
     {
         // Согласие фиксируем только на выходе из ворот: до этого момента
         // галочка — намерение, а не решение.
-        PlayerPrefs.SetInt(AutoLoginPrefsKey, _autoLogin.value ? 1 : 0);
-        PlayerPrefs.Save();
+        bool autoLogin = _autoLogin.value;
+        _clientConfig.UpdateSection(config => config.Interface, settings => settings.AutoLogin = autoLogin);
 
         Passed?.Invoke();
     }

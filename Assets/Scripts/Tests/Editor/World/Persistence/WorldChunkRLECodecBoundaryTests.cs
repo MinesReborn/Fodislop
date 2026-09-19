@@ -2,10 +2,10 @@
 
 using System;
 using System.IO;
-using Fodinae.Persistence;
+using Kern.Persistence;
 using NUnit.Framework;
 
-namespace Fodinae.Tests.World;
+namespace Kern.Tests.World;
 
 [TestFixture]
 public class WorldChunkRleCodecBoundaryTests

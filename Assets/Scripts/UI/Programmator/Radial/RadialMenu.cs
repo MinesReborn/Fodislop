@@ -1,13 +1,13 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
-using Fodinae.Core.Localization;
+using Kern.Core;
+using Kern.Core.Localization;
 using MinesServer.Data;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Programmator;
+namespace Kern.UI.Programmator;
 public class RadialMenu
 {
     private readonly ILocalizationService _loc;
@@ -18,11 +18,11 @@ public class RadialMenu
     private readonly VisualElement _outerRingBg;
     private readonly VisualElement _backButton;
 
-    private int[] _innerIds = Array.Empty<int>();
+    private int[] _innerIDs = Array.Empty<int>();
     private int _innerCount;
     private Color[]? _innerItemColors;
 
-    private int[] _outerIds = Array.Empty<int>();
+    private int[] _outerIDs = Array.Empty<int>();
     private int _outerCount;
 
     private readonly float _innerRadius = 55f;
@@ -79,8 +79,8 @@ public class RadialMenu
     public void SetInnerItems(int[] ids, Color[]? colors = null)
     {
         _innerContainer.Clear();
-        _innerIds = ids ?? Array.Empty<int>();
-        _innerCount = _innerIds.Length;
+        _innerIDs = ids ?? Array.Empty<int>();
+        _innerCount = _innerIDs.Length;
         _innerItemColors = colors;
 
         for (int i = 0; i < _innerCount; i++)
@@ -118,7 +118,7 @@ public class RadialMenu
             item.name = $"radial_inner_{i}";
 
             // Categories use negative IDs — show name label
-            string catName = ProgrammatorData.CATEGORY_NAMES.TryGetValue(_innerIds[i], out var cn) ? _loc.Get(cn) : _innerIds[i].ToString();
+            string catName = ProgrammatorData.CATEGORY_NAMES.TryGetValue(_innerIDs[i], out var cn) ? _loc.Get(cn) : _innerIDs[i].ToString();
             var label = new Label(catName);
             label.AddToClassList("prog-radial-item-label");
             label.pickingMode = PickingMode.Ignore;
@@ -126,7 +126,7 @@ public class RadialMenu
 
             item.RegisterCallback<PointerEnterEvent>(_ => OnInnerPointerEnter(itemIdx));
             item.RegisterCallback<PointerLeaveEvent>(_ => OnInnerPointerLeave(itemIdx));
-            item.RegisterCallback<PointerDownEvent>(_ => OnCategoryClicked?.Invoke(_innerIds[itemIdx]));
+            item.RegisterCallback<PointerDownEvent>(_ => OnCategoryClicked?.Invoke(_innerIDs[itemIdx]));
 
             _innerContainer.Add(item);
         }
@@ -135,8 +135,8 @@ public class RadialMenu
     public void SetOuterItems(int[] ids, Color[]? colors = null)
     {
         _outerContainer.Clear();
-        _outerIds = ids ?? Array.Empty<int>();
-        _outerCount = _outerIds.Length;
+        _outerIDs = ids ?? Array.Empty<int>();
+        _outerCount = _outerIDs.Length;
 
         for (int i = 0; i < _outerCount; i++)
         {
@@ -166,7 +166,7 @@ public class RadialMenu
             item.pickingMode = PickingMode.Position;
             item.name = $"radial_outer_{i}";
 
-            int id = _outerIds[i];
+            int id = _outerIDs[i];
             var action = (ProgAction)id;
             var tex = _textures.GetTexture(action);
             if (tex != null)
@@ -185,7 +185,7 @@ public class RadialMenu
 
             item.RegisterCallback<PointerEnterEvent>(_ => OnOuterPointerEnter(itemIdx));
             item.RegisterCallback<PointerLeaveEvent>(_ => OnOuterPointerLeave(itemIdx));
-            item.RegisterCallback<PointerDownEvent>(_ => OnItemClicked?.Invoke(_outerIds[itemIdx]));
+            item.RegisterCallback<PointerDownEvent>(_ => OnItemClicked?.Invoke(_outerIDs[itemIdx]));
 
             _outerContainer.Add(item);
         }
@@ -198,7 +198,7 @@ public class RadialMenu
     {
         _outerContainer.Clear();
         _outerCount = 0;
-        _outerIds = Array.Empty<int>();
+        _outerIDs = Array.Empty<int>();
         _hoveredOuterIndex = -1;
         _outerRingBg.style.display = DisplayStyle.None;
         _backButton.style.display = DisplayStyle.None;

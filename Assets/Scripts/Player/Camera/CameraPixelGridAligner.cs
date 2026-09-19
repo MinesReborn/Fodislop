@@ -1,13 +1,13 @@
 #nullable enable
 
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.World;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.World;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
-namespace Fodinae.Player;
+namespace Kern.Player;
 internal sealed class CameraPixelGridAligner
 {
     private readonly IClientConfigManager? _clientConfig;

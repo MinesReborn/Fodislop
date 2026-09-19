@@ -99,7 +99,7 @@ public class LogiCalcFormatter : IFormatter
             {
                 var formatted = formattingInfo.FormatDetails.Formatter.Format(
                     "{0:" + formattingInfo.FormatterOptions + "}",
-                    new[] { result });
+                    [result]);
                 formattingInfo.Write(formatted);
             }
             else

@@ -3,6 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Cysharp.Threading.Tasks;
+using Kern;
 using MinesServer.Networking.Server.Packets;
 using MinesServer.Networking.Server.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI.Components;
@@ -17,7 +19,8 @@ namespace MinesServer.Networking.Connection.Client;
 internal sealed class DummyTeleportManager(
     Action<ServerPacket> onReceived,
     List<(ushort X, ushort Y)> teleportPositions,
-    Action<ushort, ushort>? onTeleport = null)
+    IAsyncOperationSupervisor operations,
+    Func<ushort, ushort, UniTask>? onTeleport = null)
 {
     private List<(ushort X, ushort Y)>? _teleportDestinations;
 
@@ -171,7 +174,21 @@ internal sealed class DummyTeleportManager(
 
         var (destX, destY) = _teleportDestinations[index];
         WindowOpen = false;
-        onTeleport?.Invoke(destX, destY);
+        // Через супервизора, а не .Forget(): брошенная задача переживает
+        // разрыв соединения, а её исключение не достаётся никому. Супервизор
+        // держит её в учёте и гасит вместе с жизненным циклом.
+        operations.Run(
+            "DummyTeleportManager.SendTeleport",
+            _ => SendTeleportAsync(destX, destY));
+    }
+
+    private async UniTask SendTeleportAsync(ushort destX, ushort destY)
+    {
+        if (onTeleport != null)
+        {
+            await onTeleport(destX, destY);
+        }
+
         onReceived.Invoke(new ServerPacket(new TeleportPacket(destX, destY, false)));
         onReceived.Invoke(new ServerPacket(new CloseWindowPacket()));
     }

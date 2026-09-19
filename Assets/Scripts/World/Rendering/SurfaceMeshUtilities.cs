@@ -1,11 +1,11 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
+using Kern.Core;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace Fodinae.World;
+namespace Kern.World;
 
 internal static class SurfaceMeshUtilities
 {

@@ -4,7 +4,7 @@ using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Builders;
+namespace Kern.UI.Builders;
 public class LinePacketBuilder : PacketUIBuilderBase<LinePacket>
 {
     protected override VisualElement BuildTyped(LinePacket packet, PacketUIBuilder builder)

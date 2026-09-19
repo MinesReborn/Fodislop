@@ -4,7 +4,7 @@ using System;
 using MinesServer.Networking.Server.Packets.Chat;
 using MinesServer.Networking.Server.Packets.World;
 
-namespace Fodinae.Networking;
+namespace Kern.Networking;
 
 public sealed class ChatEventGateway
 {

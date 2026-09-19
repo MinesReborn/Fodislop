@@ -1,6 +1,6 @@
 #nullable enable
 
-namespace Fodinae.Core;
+namespace Kern.Core;
 
 public static class ProjectRuntimeContracts
 {
@@ -8,6 +8,7 @@ public static class ProjectRuntimeContracts
     {
         public const float CellSize = 1f;
         public const int ChunkSize = 32;
+        public const int ResidentChunkCacheCapacity = 2000;
     }
 
     public static class Camera
@@ -37,8 +38,8 @@ public static class ProjectRuntimeContracts
 
     public static class Authentication
     {
-        public const string VKClientId = "";
-        public const string VKBackendUrl = "";
+        public const string VKClientID = "";
+        public const string VKBackendURL = "";
     }
 
     public static class Chat
@@ -99,6 +100,12 @@ public static class ProjectRuntimeContracts
         public const string MainGame = "MainGame";
     }
 
+    public static class EditorSession
+    {
+        // Сцена, из которой нажали Play: редактор кладёт её сюда, Bootstrap забирает.
+        public const string PlayModeTargetScene = "Kern.PlayModeTargetScene";
+    }
+
     public static class PreviewVisuals
     {
         public const float RobotPixelsPerUnit = 16f;
@@ -107,14 +114,13 @@ public static class ProjectRuntimeContracts
     public static class ShaderNames
     {
         public const string Terrain = "Universal Render Pipeline/Custom/Terrain";
-        public const string DynamicEmission = "Hidden/Fodinae/DynamicEmission";
-        public const string WorldSurface = "Fodinae/World Surface";
-        public const string WorldEntity = "Fodinae/World Entity";
-        public const string PlanetSurface = "Fodinae/UI/PlanetSurface";
-        public const string PlanetAtmosphere = "Fodinae/UI/PlanetAtmosphere";
-        public const string Starfield = "Fodinae/UI/Starfield";
-        public const string MenuLineUnlit = "Fodinae/UI/MenuLineUnlit";
-        public const string UnpremultiplyAlpha = "Fodinae/UI/UnpremultiplyAlpha";
+        public const string WorldSurface = "Kern/World Surface";
+        public const string WorldEntity = "Kern/World Entity";
+        public const string PlanetSurface = "Kern/UI/PlanetSurface";
+        public const string PlanetAtmosphere = "Kern/UI/PlanetAtmosphere";
+        public const string Starfield = "Kern/UI/Starfield";
+        public const string MenuLineUnlit = "Kern/UI/MenuLineUnlit";
+        public const string UnpremultiplyAlpha = "Kern/UI/UnpremultiplyAlpha";
     }
 
     public static class ShaderPassNames
@@ -125,9 +131,18 @@ public static class ProjectRuntimeContracts
     public static class ComputeKernelNames
     {
         public const string SolveCascade = "SolveCascade";
+        public const string ScrollRadianceAtlas = "ScrollRadianceAtlas";
+        public const string SolveDynamicLighting = "SolveDynamicLighting";
+        public const string ComposeDynamicLighting = "ComposeDynamicLighting";
+        public const string TraceDynamicPolar = "TraceDynamicPolar";
+        public const string ClearDynamicDirect = "ClearDynamicDirect";
         public const string ResolveDirect = "ResolveDirect";
+        public const string ResolveTransmissionDebug = "ResolveTransmissionDebug";
         public const string SolveDiffuseBounce = "SolveDiffuseBounce";
         public const string CompositeLighting = "CompositeLighting";
+        public const string BuildCellSolidMask = "BuildCellSolidMask";
+        public const string BuildBounceTaps = "BuildBounceTaps";
+        public const string BuildBounceFilter = "BuildBounceFilter";
     }
 
     public static class RequiredLayers
@@ -139,7 +154,5 @@ public static class ProjectRuntimeContracts
 
     public static class RuntimeLimits
     {
-        public const int MaximumPacketBatchPerFrame = 250;
-        public const int MaximumLightingUpdatesPerSecond = 60;
-    }
+        public const int MaximumPacketBatchPerFrame = 250;    }
 }

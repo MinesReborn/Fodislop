@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace Fodinae.Rendering.PostProcessing.Scopes;
+namespace Kern.Rendering.PostProcessing.Scopes;
 
 internal static class ScopeShaderConstants
 {

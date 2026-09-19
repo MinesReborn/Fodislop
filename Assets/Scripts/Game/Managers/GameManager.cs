@@ -1,18 +1,18 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Lifecycle;
-using Fodinae.Player;
-using Fodinae.Player.Logic;
-using Fodinae.World;
-using Fodinae.World.Lighting;
-using Fodinae.World.Terrain;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Core.Lifecycle;
+using Kern.Player;
+using Kern.Player.Logic;
+using Kern.World;
+using Kern.World.Lighting;
+using Kern.World.Terrain;
 using UnityEngine;
 using VContainer.Unity;
 
-namespace Fodinae.Game.Managers
+namespace Kern.Game.Managers
 {
     public enum GameState
     {
@@ -22,8 +22,6 @@ namespace Fodinae.Game.Managers
         Disconnected,
     }
 
-    // Чистый сервис контейнера (SCENE_STANDARD.md §1): ждёт готовности мира в
-    // тике контейнера, объекта на сцене не имеет.
     public sealed class GameManager : IWorldReadiness, ITickable, IDisposable
     {
         public GameState CurrentState { get; private set; } = GameState.Offline;
@@ -130,9 +128,6 @@ namespace Fodinae.Game.Managers
 
         public void NotifyWorldLoaded()
         {
-            // WorldInit can arrive again after reconnect or an offline-world
-            // restart. A published load belongs to the previous world session
-            // and must never suppress the next load notification.
             IsWorldLoaded = false;
             _worldLoadPublished = false;
             _worldLoadPending = true;
@@ -185,9 +180,6 @@ namespace Fodinae.Game.Managers
                     $"cellTexPending={_textureService.PendingCellTextureRequests}");
             }
 
-            // Publish monotonic loader phases from the gate itself: the same
-            // conditions that block WorldReady drive the descent loader, so the
-            // MainMenu progress bar reflects real readiness rather than a timer.
             if (player != null && player.HasServerPosition)
             {
                 _loadProgress.Report(WorldLoadPhase.SpawnSync);

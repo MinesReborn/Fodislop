@@ -25,8 +25,8 @@ repos:
             always_run: true
             pass_filenames: false
           - id: forbid-anti-patterns
-            name: Enforce Fodinae architecture, DI/lifecycle and settings-wiring invariants
-            entry: dotnet run --project tools/Fodinae.ArchitectureLinter --no-build
+            name: Enforce Kern architecture, DI/lifecycle and settings-wiring invariants
+            entry: dotnet run --project tools/Kern.ArchitectureLinter --no-build
             language: system
             always_run: true
             pass_filenames: false

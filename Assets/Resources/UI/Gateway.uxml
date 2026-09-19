@@ -10,7 +10,7 @@
     <ui:VisualElement name="GatewayRoot" class="gateway-root gateway--auth">
     <!-- ═══════════════════════════════════════════════════════
          ВОРОТА ВХОДА
-         Портировано из visual/fodinae-ui-lab (.auth-*). Замены по
+         Портировано из visual/kern-ui-lab (.auth-*). Замены по
          контракту переносимости: radial-gradient → плотная заливка,
          backdrop-filter → она же, ::before/::after угловые скобки →
          реальные элементы, box-shadow → рамка, gap → margin на детях.
@@ -29,7 +29,7 @@
 
             <ui:VisualElement class="auth-brand">
                 <ui:VisualElement name="AuthBrandLogo" class="auth-brand-logo" />
-                <ui:Label class="auth-brand-title" text="FODINAE" />
+                <ui:Label class="auth-brand-title" text="KERN" />
                 <ui:Label class="auth-brand-subtitle" text="DEEP SUBSURFACE EXPEDITION // MINES PROTOCOL v7" />
                 <ui:VisualElement class="auth-systems">
                     <ui:Label name="AuthStatusGpu" class="auth-system-chip" text="[GPU] OK" />

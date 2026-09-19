@@ -1,0 +1,34 @@
+{
+    "name": "Kern.Tests.PlayMode",
+    "rootNamespace": "Kern.Tests.PlayMode",
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "references": [
+        "Kern.Runtime",
+        "Kern.Bootstrap",
+        "Kern.UI",
+        "Kern.Contracts",
+        "Kern.Networking",
+        "Kern.AssetPipeline",
+        "Kern.World",
+        "Kern.Persistence",
+        "MinesServer.Data",
+        "MinesServer.Networking",
+        "MinesServer.Networking.Connection",
+        "MinesServer.Networking.Connection.Client",
+        "Unity.InputSystem",
+        "FMODUnity",
+        "UniTask",
+        "VContainer"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

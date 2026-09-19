@@ -3,7 +3,7 @@
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.Core.Models;
+namespace Kern.Core.Models;
 public class ItemData
 {
     public string Name { get; set; }

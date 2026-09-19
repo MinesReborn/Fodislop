@@ -4,7 +4,7 @@ using MinesServer.Networking.Connection.Client;
 using MinesServer.Networking.Shared;
 using NUnit.Framework;
 
-namespace Fodinae.Tests.Networking;
+namespace Kern.Tests.Networking;
 
 [TestFixture]
 public class DummyConnectionSessionFuzzTests

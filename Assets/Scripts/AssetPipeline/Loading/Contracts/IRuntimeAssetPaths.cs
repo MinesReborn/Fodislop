@@ -2,7 +2,7 @@
 
 using Cysharp.Threading.Tasks;
 
-namespace Fodinae.Core.Interfaces;
+namespace Kern.Core.Interfaces;
 public interface IRuntimeAssetPaths
 {
     string BundledTexturesRoot { get; }

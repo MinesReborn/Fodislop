@@ -9,16 +9,13 @@ namespace MinesServer.Networking.Connection.Client;
 internal sealed class DummyAuthSession
 {
     private readonly DummyTokenStore _tokenStore;
+    private readonly IDummyClock _clock;
     private readonly HashSet<string> _validTokens;
 
-    public DummyAuthSession()
-        : this(new DummyTokenStore())
-    {
-    }
-
-    internal DummyAuthSession(DummyTokenStore tokenStore)
+    internal DummyAuthSession(DummyTokenStore tokenStore, IDummyClock clock)
     {
         _tokenStore = tokenStore ?? throw new ArgumentNullException(nameof(tokenStore));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _validTokens = _tokenStore.Load();
     }
 
@@ -26,8 +23,8 @@ internal sealed class DummyAuthSession
     {
         get
         {
-            long userId = StableUserId(SystemInfo.deviceUniqueIdentifier);
-            return $"ШАХТЁР-{100 + (int)(userId % 900)}";
+            long userID = StableUserID(SystemInfo.deviceUniqueIdentifier);
+            return $"ШАХТЁР-{100 + (int)(userID % 900)}";
         }
     }
 
@@ -38,13 +35,15 @@ internal sealed class DummyAuthSession
             return receivedToken;
         }
 
-        string newToken = Guid.NewGuid().ToString("N");
+        var bytes = new byte[16];
+        _clock.Random.NextBytes(bytes);
+        string newToken = BitConverter.ToString(bytes).Replace("-", string.Empty).ToLowerInvariant();
         _validTokens.Add(newToken);
         _tokenStore.Save(_validTokens);
         return newToken;
     }
 
-    internal static long StableUserId(string? deviceIdentifier)
+    internal static long StableUserID(string? deviceIdentifier)
     {
         string seed = deviceIdentifier ?? string.Empty;
         uint hash = 2166136261u;

@@ -2,7 +2,7 @@
 
 using System.Collections.Generic;
 
-namespace Fodinae.Tools.Imgui.Profiling;
+namespace Kern.Tools.Imgui.Profiling;
 
 public static class FrameProbeCatalog
 {
@@ -10,28 +10,28 @@ public static class FrameProbeCatalog
     // сам по себе даёт только время записи команд на процессоре.
     public static List<FrameProbe> CreateGpuProbes() =>
     [
-        new("Свет — весь блок", "Fodinae.RadianceCascades", gpu: true),
-        new("· поле материалов", "Fodinae.Lighting.MaterialField", isDetail: true, gpu: true),
-        new("· сборка эмиссии", "Fodinae.Lighting.ComposeEmission", isDetail: true, gpu: true),
-        new("· статическая половина", "Fodinae.Lighting.StaticRadiance", isDetail: true, gpu: true),
-        new("· динамическая половина", "Fodinae.Lighting.DynamicRadiance", isDetail: true, gpu: true),
-        new("· каскады", "Fodinae.Lighting.RadianceCascades", isDetail: true, gpu: true),
-        new("· композит", "Fodinae.Lighting.Composite", isDetail: true, gpu: true),
-        new("Террейн — поля", "Fodinae.Terrain.RenderMaterialFields", gpu: true),
-        new("Постпроцесс — композит", "Fodinae.PostProcess.Composite", gpu: true),
-        new("· блум, префильтр", "Fodinae.PostProcess.Bloom.Prefilter", isDetail: true, gpu: true),
-        new("· блум, вниз", "Fodinae.PostProcess.Bloom.Downsample", isDetail: true, gpu: true),
-        new("· блум, вверх", "Fodinae.PostProcess.Bloom.Upsample", isDetail: true, gpu: true),
-        new("· возврат в кадр", "Fodinae.PostProcess.BlitBack", isDetail: true, gpu: true),
-        new("· копия истории", "Fodinae.PostProcess.HistoryCopy", isDetail: true, gpu: true),
+        new("Свет — весь блок", "Kern.RadianceCascades", gpu: true),
+        new("· поле материалов", "Kern.Lighting.MaterialField", isDetail: true, gpu: true),
+        new("· сборка эмиссии", "Kern.Lighting.ComposeEmission", isDetail: true, gpu: true),
+        new("· статическая половина", "Kern.Lighting.StaticRadiance", isDetail: true, gpu: true),
+        new("· динамическая половина", "Kern.Lighting.DynamicRadiance", isDetail: true, gpu: true),
+        new("· каскады", "Kern.Lighting.RadianceCascades", isDetail: true, gpu: true),
+        new("· композит", "Kern.Lighting.Composite", isDetail: true, gpu: true),
+        new("Террейн — поля", "Kern.Terrain.RenderMaterialFields", gpu: true),
+        new("Постпроцесс — композит", "Kern.PostProcess.Composite", gpu: true),
+        new("· блум, префильтр", "Kern.PostProcess.Bloom.Prefilter", isDetail: true, gpu: true),
+        new("· блум, вниз", "Kern.PostProcess.Bloom.Downsample", isDetail: true, gpu: true),
+        new("· блум, вверх", "Kern.PostProcess.Bloom.Upsample", isDetail: true, gpu: true),
+        new("· возврат в кадр", "Kern.PostProcess.BlitBack", isDetail: true, gpu: true),
+        new("· копия истории", "Kern.PostProcess.HistoryCopy", isDetail: true, gpu: true),
     ];
 
     // Записи рендера этих же участков на процессоре.
     public static List<FrameProbe> CreateGpuRecordProbes() =>
     [
-        new("Свет — запись блока", "Fodinae.RadianceCascades"),
-        new("Террейн — запись полей", "Fodinae.Terrain.RenderMaterialFields"),
-        new("Постпроцесс — запись композита", "Fodinae.PostProcess.Composite"),
+        new("Свет — запись блока", "Kern.RadianceCascades"),
+        new("Террейн — запись полей", "Kern.Terrain.RenderMaterialFields"),
+        new("Постпроцесс — запись композита", "Kern.PostProcess.Composite"),
     ];
 
     public static List<FrameProbe> CreateCpuProbes() =>
@@ -49,23 +49,23 @@ public static class FrameProbeCatalog
         new("· корутины", "Update.ScriptRunDelayedDynamicFrameRate", isDetail: true),
         new("· LateUpdate", "PreLateUpdate.ScriptRunBehaviourLateUpdate", isDetail: true),
         new("· сборка мусора", "GC.Collect", true, false, "GarbageCollector.CollectIncremental"),
-        new("Террейн — весь этап", "Fodinae.Terrain.LateUpdate.CPU"),
-        new("· кеш клеток", "Fodinae.Terrain.Cache", isDetail: true),
-        new("· предрасчёт", "Fodinae.Terrain.Precalculate", isDetail: true),
-        new("· заливка фона", "Fodinae.World.Terrain.BackgroundFloodFill", isDetail: true),
-        new("· сборка меша", "Fodinae.Terrain.MeshBuild", isDetail: true),
-        new("· заливка вершин", "Fodinae.Terrain.MeshUpload", isDetail: true),
-        new("Свет — весь этап", "Fodinae.Lighting.UpdateLighting.CPU"),
-        new("· запись команд", "Fodinae.Lighting.BuildCommands.CPU", isDetail: true),
-        new("· выполнение команд", "Fodinae.Lighting.ExecuteCommands.CPU", isDetail: true),
-        new("· загрузка источников", "Fodinae.Lighting.DynamicLights.Upload.CPU", isDetail: true),
-        new("· запись каскадов", "Fodinae.Lighting.Cascades.Record.CPU", isDetail: true),
-        new("· запись разрешения", "Fodinae.Lighting.Resolve.Record.CPU", isDetail: true),
-        new("· запись композита", "Fodinae.Lighting.Composite.Record.CPU", isDetail: true),
-        new("Поверхность", "Fodinae.Surface.LateUpdate"),
-        new("Сущности мира", "Fodinae.WorldEntities.LateUpdate"),
-        new("Постпроцесс", "Fodinae.PostProcess.LateUpdate"),
-        new("Сеть — разбор очереди", "Fodinae.Net.DrainPacketQueue"),
+        new("Террейн — весь этап", "Kern.Terrain.LateUpdate.CPU"),
+        new("· кеш клеток", "Kern.Terrain.Cache", isDetail: true),
+        new("· предрасчёт", "Kern.Terrain.Precalculate", isDetail: true),
+        new("· заливка фона", "Kern.World.Terrain.BackgroundFloodFill", isDetail: true),
+        new("· сборка меша", "Kern.Terrain.MeshBuild", isDetail: true),
+        new("· заливка вершин", "Kern.Terrain.MeshUpload", isDetail: true),
+        new("Свет — весь этап", "Kern.Lighting.UpdateLighting.CPU"),
+        new("· запись команд", "Kern.Lighting.BuildCommands.CPU", isDetail: true),
+        new("· выполнение команд", "Kern.Lighting.ExecuteCommands.CPU", isDetail: true),
+        new("· загрузка источников", "Kern.Lighting.DynamicLights.Upload.CPU", isDetail: true),
+        new("· запись каскадов", "Kern.Lighting.Cascades.Record.CPU", isDetail: true),
+        new("· запись разрешения", "Kern.Lighting.Resolve.Record.CPU", isDetail: true),
+        new("· запись композита", "Kern.Lighting.Composite.Record.CPU", isDetail: true),
+        new("Поверхность", "Kern.Surface.LateUpdate"),
+        new("Сущности мира", "Kern.WorldEntities.LateUpdate"),
+        new("Постпроцесс", "Kern.PostProcess.LateUpdate"),
+        new("Сеть — разбор очереди", "Kern.Net.DrainPacketQueue"),
     ];
 
     // В редакторе эти маркеры суммируют и перерисовку окон самого редактора.

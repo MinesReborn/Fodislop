@@ -7,97 +7,96 @@ using UnityEditor;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
-namespace Fodinae.Editor
+namespace Kern.Editor;
+
+[InitializeOnLoad]
+public static class PlanetMapBaker
 {
-    [InitializeOnLoad]
-    public static class PlanetMapBaker
+    private const string GeneratorPath = "scripts/generate_planet_maps.py";
+
+    private static readonly string[] _RequiredMaps =
     {
-        private const string GeneratorPath = "scripts/generate_planet_maps.py";
+        "Assets/Textures/UI/planet_albedo.png",
+        "Assets/Textures/UI/planet_normal.png",
+        "Assets/Textures/UI/planet_packed.png",
+    };
 
-        private static readonly string[] _RequiredMaps =
-        {
-            "Assets/Textures/UI/planet_albedo.png",
-            "Assets/Textures/UI/planet_normal.png",
-            "Assets/Textures/UI/planet_packed.png",
-        };
+    static PlanetMapBaker()
+    {
+        // Проверка отложена до первого простоя редактора: во время загрузки
+        // база ассетов ещё импортируется, и отсутствующий файл на этом
+        // этапе ничего не значит.
+        EditorApplication.delayCall += WarnIfMapsMissing;
+    }
 
-        static PlanetMapBaker()
+    [MenuItem("Kern/Planet/Bake Maps")]
+    public static void Bake()
+    {
+        string projectRoot = Directory.GetParent(Application.dataPath)!.FullName;
+        string generator = Path.Combine(projectRoot, GeneratorPath);
+
+        if (!File.Exists(generator))
         {
-            // Проверка отложена до первого простоя редактора: во время загрузки
-            // база ассетов ещё импортируется, и отсутствующий файл на этом
-            // этапе ничего не значит.
-            EditorApplication.delayCall += WarnIfMapsMissing;
+            Debug.LogError($"[PlanetMapBaker] Генератор не найден: {GeneratorPath}");
+            return;
         }
 
-        [MenuItem("Fodinae/Planet/Bake Maps")]
-        public static void Bake()
+        // Запекание 8K идёт минутами, поэтому оно синхронное и с прогрессом:
+        // молча висящий редактор читается как зависший.
+        EditorUtility.DisplayProgressBar("Запекание карт планеты", "Идёт расчёт полей...", 0.5f);
+        try
         {
-            string projectRoot = Directory.GetParent(Application.dataPath)!.FullName;
-            string generator = Path.Combine(projectRoot, GeneratorPath);
-
-            if (!File.Exists(generator))
+            var startInfo = new ProcessStartInfo
             {
-                Debug.LogError($"[PlanetMapBaker] Генератор не найден: {GeneratorPath}");
-                return;
-            }
+                FileName = "python3",
+                Arguments = GeneratorPath,
+                WorkingDirectory = projectRoot,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
 
-            // Запекание 8K идёт минутами, поэтому оно синхронное и с прогрессом:
-            // молча висящий редактор читается как зависший.
-            EditorUtility.DisplayProgressBar("Запекание карт планеты", "Идёт расчёт полей...", 0.5f);
-            try
+            using Process process = Process.Start(startInfo)!;
+            string output = process.StandardOutput.ReadToEnd();
+            string errors = process.StandardError.ReadToEnd();
+            process.WaitForExit();
+
+            if (process.ExitCode == 0)
             {
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = "python3",
-                    Arguments = GeneratorPath,
-                    WorkingDirectory = projectRoot,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                };
-
-                using Process process = Process.Start(startInfo)!;
-                string output = process.StandardOutput.ReadToEnd();
-                string errors = process.StandardError.ReadToEnd();
-                process.WaitForExit();
-
-                if (process.ExitCode == 0)
-                {
-                    Debug.Log($"[PlanetMapBaker] Карты запечены.\n{output}");
-                }
-                else
-                {
-                    Debug.LogError($"[PlanetMapBaker] Запекание не удалось (код {process.ExitCode}).\n{errors}");
-                }
+                Debug.Log($"[PlanetMapBaker] Карты запечены.\n{output}");
             }
-            catch (Exception ex)
+            else
             {
-                Debug.LogError($"[PlanetMapBaker] Не удалось запустить python3: {ex.Message}");
+                Debug.LogError($"[PlanetMapBaker] Запекание не удалось (код {process.ExitCode}).\n{errors}");
             }
-            finally
-            {
-                EditorUtility.ClearProgressBar();
-            }
-
-            AssetDatabase.Refresh();
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[PlanetMapBaker] Не удалось запустить python3: {ex.Message}");
+        }
+        finally
+        {
+            EditorUtility.ClearProgressBar();
         }
 
-        private static void WarnIfMapsMissing()
-        {
-            foreach (string path in _RequiredMaps)
-            {
-                if (File.Exists(path))
-                {
-                    continue;
-                }
+        AssetDatabase.Refresh();
+    }
 
-                Debug.LogError(
-                    $"[PlanetMapBaker] Нет карты планеты: {path}\n"
-                    + "Карты не хранятся в репозитории. Запеки их: меню "
-                    + "Fodinae > Planet > Bake Maps, либо python3 " + GeneratorPath + "\n"
-                    + "Пока их нет, планета в главном меню будет серой сферой.");
-                return;
+    private static void WarnIfMapsMissing()
+    {
+        foreach (string path in _RequiredMaps)
+        {
+            if (File.Exists(path))
+            {
+                continue;
             }
+
+            Debug.LogError(
+                $"[PlanetMapBaker] Нет карты планеты: {path}\n"
+                + "Карты не хранятся в репозитории. Запеки их: меню "
+                + "Kern > Planet > Bake Maps, либо python3 " + GeneratorPath + "\n"
+                + "Пока их нет, планета в главном меню будет серой сферой.");
+            return;
         }
     }
 }

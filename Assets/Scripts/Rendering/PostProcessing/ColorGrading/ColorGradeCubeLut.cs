@@ -6,7 +6,7 @@ using System.Globalization;
 using System.IO;
 using UnityEngine;
 
-namespace Fodinae.Rendering.PostProcessing;
+namespace Kern.Rendering.PostProcessing;
 
 public enum ColorGradeLutType
 {
@@ -321,11 +321,11 @@ public sealed class ColorGradeCubeLut : IDisposable
 
     private static Texture2D Create1DTexture(int size, Color[] values, string path)
     {
-        Texture2D texture = Fodinae.RuntimeTextureFactory.CreateRGBAFloatNoMip(
+        Texture2D texture = Kern.RuntimeTextureFactory.CreateRGBAFloatNoMip(
             size,
             1,
             $"LUT_1D_{System.IO.Path.GetFileName(path)}",
-            Fodinae.RuntimeTextureColorSpace.Linear,
+            Kern.RuntimeTextureColorSpace.Linear,
             FilterMode.Bilinear,
             TextureWrapMode.Clamp);
         texture.SetPixels(values);
@@ -335,7 +335,7 @@ public sealed class ColorGradeCubeLut : IDisposable
 
     private static Texture3D Create3DTexture(int size, Color[] values, string path)
     {
-        Texture3D texture = Fodinae.RuntimeTextureFactory.CreateRGBAFloat3DNoMip(
+        Texture3D texture = Kern.RuntimeTextureFactory.CreateRGBAFloat3DNoMip(
             size,
             $"LUT_3D_{System.IO.Path.GetFileName(path)}",
             FilterMode.Bilinear,

@@ -3,7 +3,7 @@
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Builders;
+namespace Kern.UI.Builders;
 public class TextPacketBuilder : PacketUIBuilderBase<TextPacket>
 {
     protected override VisualElement BuildTyped(TextPacket packet, PacketUIBuilder builder)

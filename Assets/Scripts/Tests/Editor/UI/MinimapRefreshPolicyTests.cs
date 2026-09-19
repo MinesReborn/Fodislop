@@ -1,8 +1,8 @@
 #nullable enable
 
-namespace Fodinae.Tests.UI;
+namespace Kern.Tests.UI;
 
-using Fodinae.UI;
+using Kern.UI;
 using NUnit.Framework;
 using UnityEngine;
 

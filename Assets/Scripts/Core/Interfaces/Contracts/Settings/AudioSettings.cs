@@ -1,9 +1,9 @@
 #nullable enable
 
 using System;
-using Fodinae.Audio.Core;
+using Kern.Audio.Core;
 
-namespace Fodinae.Core;
+namespace Kern.Core;
 
 [Serializable]
 public sealed class AudioSettings

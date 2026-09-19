@@ -1,11 +1,11 @@
 #nullable enable
 
 using System;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Localization;
+using Kern.Core.Interfaces;
+using Kern.Core.Localization;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.HUD.Player.View;
+namespace Kern.UI.HUD.Player.View;
 
 internal sealed class PlayerHUDModeController : IDisposable
 {

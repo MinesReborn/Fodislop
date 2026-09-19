@@ -1,6 +1,6 @@
 # Lighting research
 
-Локальная подборка первоисточников для развития GPU lighting pipeline Fodinae. PDF сохранены рядом с этим индексом; ссылки ведут на страницы статей в arXiv.
+Локальная подборка первоисточников для развития GPU lighting pipeline Kern. PDF сохранены рядом с этим индексом; ссылки ведут на страницы статей в arXiv.
 
 ## Читать в первую очередь
 
@@ -11,9 +11,9 @@
 ## Соседние production-техники
 
 4. **Scaling Probe-Based Real-Time Dynamic Global Illumination for Production** — Zander Majercik, Adam Marrs, Josef Spjut, Morgan McGuire (2020), [arXiv:2009.10796](https://arxiv.org/abs/2009.10796). Практика production DDGI: visibility, self-shadow bias, probe state machine, multiresolution cascaded volumes и сокращение бесполезной работы. Локально: `2009.10796-scaling-probe-based-ddgi.pdf`.
-5. **Occlusion-Point Reuse for Ray-Traced Ambient Occlusion and Shadow** — Haojie Jin et al. (2026), [arXiv:2607.23122](https://arxiv.org/abs/2607.23122). Отдельный материал по AO/visibility и переиспользованию occlusion samples. Не является рецептом для occupancy-based contact AO Fodinae, но полезен для строгого разделения AO, visibility и direct shadow. Локально: `2607.23122-occlusion-point-reuse-ao.pdf`.
+5. **Occlusion-Point Reuse for Ray-Traced Ambient Occlusion and Shadow** — Haojie Jin et al. (2026), [arXiv:2607.23122](https://arxiv.org/abs/2607.23122). Отдельный материал по AO/visibility и переиспользованию occlusion samples. Не является рецептом для occupancy-based contact AO Kern, но полезен для строгого разделения AO, visibility и direct shadow. Локально: `2607.23122-occlusion-point-reuse-ao.pdf`.
 
-## Привязка к Fodinae
+## Привязка к Kern
 
 - Radiance Cascades относятся к `SolveCascade`, `ResolveDirect` и объединению интервалов.
 - DDGI полезен для политики invalidation, pruning и масштабирования стоимости, но не заменяет текущий 2D RC на 3D probe volume.

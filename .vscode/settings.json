@@ -39,7 +39,7 @@
     "**/.vs/**": true,
     "**/.git/**": true,
     "**/UserSettings/**": true,
-    "**/FodinaeAudio/.cache/**": true
+    "**/KernAudio/.cache/**": true
   },
   "files.exclude": {
     "**/.git": true,

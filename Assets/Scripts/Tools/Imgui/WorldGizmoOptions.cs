@@ -1,6 +1,6 @@
 #nullable enable
 
-namespace Fodinae.Tools.Imgui;
+namespace Kern.Tools.Imgui;
 
 public sealed class WorldGizmoOptions
 {

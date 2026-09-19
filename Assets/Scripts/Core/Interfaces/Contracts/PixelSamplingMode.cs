@@ -1,6 +1,6 @@
 #nullable enable
 
-namespace Fodinae.Core;
+namespace Kern.Core;
 
 public enum PixelSamplingMode
 {

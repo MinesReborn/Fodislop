@@ -1,13 +1,19 @@
 #nullable enable
 
 using System;
-using Fodinae.Core.Interfaces;
+using Kern.Core.Interfaces;
 using MinesServer.Networking.Server.Packets.World;
 
-namespace Fodinae.Networking.Processors;
+namespace Kern.Networking.Processors;
 
 public sealed class MapRegionProcessor(IWorldDataStorage storage) : IPacketProcessor<MapRegionPacket>
 {
+    private readonly IRegionBatchStorage? _batchStorage = storage as IRegionBatchStorage;
+
+    public void BeginBatch() => _batchStorage?.BeginRegionBatch();
+
+    public void EndBatch() => _batchStorage?.EndRegionBatch();
+
     public void Process(MapRegionPacket packet)
     {
         if (!storage.IsReady || storage.CellLayer == null)

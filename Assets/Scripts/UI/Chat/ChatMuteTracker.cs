@@ -1,10 +1,10 @@
 #nullable enable
 
 using System;
-using Fodinae.Core.Localization;
+using Kern.Core.Localization;
 using MinesServer.Networking.Server.Packets.Chat;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 internal sealed class ChatMuteTracker
 {

@@ -2,12 +2,12 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.UI.Controls;
+using Kern.UI.Controls;
 using SmartFormat;
 using SmartFormat.Extensions;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Binding;
+namespace Kern.UI.Binding;
 public class WindowBinding : IDisposable
 {
     private readonly SmartFormatter _formatter;

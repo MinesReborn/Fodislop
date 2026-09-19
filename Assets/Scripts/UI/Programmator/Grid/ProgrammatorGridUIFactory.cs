@@ -1,14 +1,14 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
-using Fodinae.Core.Localization;
+using Kern.Core;
+using Kern.Core.Localization;
 using MinesServer.Data;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Programmator;
+namespace Kern.UI.Programmator;
 
 // Builds the programmator UI Toolkit tree: the static layout (popup, panel,
 // toolbar, program list, create dialog) lives in Programmator.uxml; this
@@ -391,9 +391,9 @@ internal sealed class ProgrammatorGridUIFactory : ILocalizableUI
     {
         int idx = (_data.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
                   + (row * ProgrammatorData.COLS) + col;
-        int opId = _data.Codes[idx];
-        var action = (ProgAction)opId;
-        string name = ProgrammatorData.OPERATOR_NAMES.TryGetValue(action, out var n) ? _loc.Get(n) : _loc.Get("programmator.code", opId);
+        int opID = _data.Codes[idx];
+        var action = (ProgAction)opID;
+        string name = ProgrammatorData.OPERATOR_NAMES.TryGetValue(action, out var n) ? _loc.Get(n) : _loc.Get("programmator.code", opID);
         string desc = ProgrammatorData.OPERATOR_DESCRIPTIONS.TryGetValue(action, out var d) ? _loc.Get(d) : string.Empty;
         string text = string.IsNullOrEmpty(desc)
             ? _loc.Get("programmator.cell", col, row, name)

@@ -1,6 +1,6 @@
 #nullable enable
 
-namespace Fodinae.Persistence;
+namespace Kern.Persistence;
 
 using System;
 using System.Collections.Generic;

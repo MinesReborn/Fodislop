@@ -2,11 +2,11 @@
 
 using System.Collections;
 using Cysharp.Threading.Tasks;
-using Fodinae.Core.Lifecycle;
+using Kern.Core.Lifecycle;
 using NUnit.Framework;
 using UnityEngine.TestTools;
 
-namespace Fodinae.Tests.Core;
+namespace Kern.Tests.Core;
 
 [TestFixture]
 public sealed class AsyncOperationSupervisorTests

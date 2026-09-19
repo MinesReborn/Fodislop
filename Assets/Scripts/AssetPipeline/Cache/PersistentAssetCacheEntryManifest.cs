@@ -5,7 +5,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Fodinae;
+namespace Kern;
 
 internal readonly record struct PersistentAssetCacheEntryManifest(
     string ETag,

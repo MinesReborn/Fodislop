@@ -3,11 +3,11 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Fodinae.Core.Lifecycle;
+using Kern.Core.Lifecycle;
 using UnityEngine.SceneManagement;
 using VContainer.Unity;
 
-namespace Fodinae.Core
+namespace Kern.Core
 {
     public sealed class GameBootstrap : IPostStartable
     {

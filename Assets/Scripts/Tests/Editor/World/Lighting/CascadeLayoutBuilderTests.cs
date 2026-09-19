@@ -2,19 +2,20 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.World.Lighting;
+using Kern.World.Lighting;
+using Kern.World.Lighting.Quality;
 using NUnit.Framework;
 
-namespace Fodinae.Tests.World.Lighting;
+namespace Kern.Tests.World.Lighting;
 
 [TestFixture]
 public class CascadeLayoutBuilderTests
 {
     [Test]
-    public void CascadeCountIsThreeBelowAtlasThresholdAndFourAbove()
+    public void CascadeCountAllowsFourIntervalsForEveryAtlas()
     {
-        Assert.That(CascadeLayoutBuilder.GetMaximumCascadeCount(0), Is.EqualTo(3));
-        Assert.That(CascadeLayoutBuilder.GetMaximumCascadeCount(256), Is.EqualTo(3));
+        Assert.That(CascadeLayoutBuilder.GetMaximumCascadeCount(0), Is.EqualTo(4));
+        Assert.That(CascadeLayoutBuilder.GetMaximumCascadeCount(256), Is.EqualTo(4));
         Assert.That(CascadeLayoutBuilder.GetMaximumCascadeCount(257), Is.EqualTo(4));
         Assert.That(CascadeLayoutBuilder.GetMaximumCascadeCount(4096), Is.EqualTo(4));
     }
@@ -97,27 +98,122 @@ public class CascadeLayoutBuilderTests
         for (int i = 1; i < cascades.Count; i++)
         {
             Assert.That(cascades[i].ProbeSpacing, Is.EqualTo(cascades[i - 1].ProbeSpacing * 2));
-            Assert.That(cascades[i].DirectionCount, Is.EqualTo(cascades[i - 1].DirectionCount * 4));
+            Assert.That(
+                cascades[i].DirectionCount,
+                Is.EqualTo(Math.Min(cascades[i - 1].DirectionCount * 4, 64)));
             Assert.That(cascades[i].IntervalStart, Is.EqualTo(cascades[i - 1].IntervalEnd));
-            Assert.That(cascades[i].IntervalEnd, Is.EqualTo(cascades[i - 1].IntervalEnd * 4f));
+            float expectedEnd = i == cascades.Count - 1
+                ? Math.Max(cascades[i - 1].IntervalEnd * 4f, (float)Math.Sqrt(100 * 100 + 50 * 50))
+                : cascades[i - 1].IntervalEnd * 4f;
+            Assert.That(cascades[i].IntervalEnd, Is.EqualTo(expectedEnd).Within(0.0001f));
         }
     }
 
     [Test]
-    public void DirectionCountIsCappedAtTwoHundredFiftySix()
+    public void DefaultDirectionCountIsCappedAtSixtyFour()
     {
         // A large world forces enough cascades that the direction budget
-        // would quadruple past 256; it must cap, not overflow the buffer.
+        // would quadruple past the safe default; it must cap, not overflow
+        // the buffer.
         var cascades = new List<CascadeLayout>();
         CascadeLayoutBuilder.BuildCascadeLayouts(4000, 4000, 512, cascades);
 
         foreach (CascadeLayout cascade in cascades)
         {
-            Assert.That(cascade.DirectionCount, Is.LessThanOrEqualTo(256));
+            Assert.That(cascade.DirectionCount, Is.LessThanOrEqualTo(64));
         }
 
         // At least one cascade should actually hit the cap on a world this big.
-        Assert.That(cascades[^1].DirectionCount, Is.GreaterThanOrEqualTo(256));
+        Assert.That(cascades[^1].DirectionCount, Is.EqualTo(64));
+    }
+
+    [Test]
+    public void FarCascadeBudgetCanBoundLongRayCost()
+    {
+        var cascades = new List<CascadeLayout>();
+        CascadeLayoutBuilder.BuildCascadeLayouts(
+            768,
+            512,
+            4096,
+            cascades,
+            maximumDirections: 64);
+
+        Assert.That(cascades[0].DirectionCount, Is.EqualTo(4));
+        Assert.That(cascades[1].DirectionCount, Is.EqualTo(16));
+        Assert.That(cascades[2].DirectionCount, Is.EqualTo(64));
+        Assert.That(cascades[^1].DirectionCount, Is.EqualTo(64));
+        Assert.That(cascades[^1].EntryCount, Is.EqualTo(96 * 64 * 64));
+    }
+
+    [Test]
+    public void AngularBudgetDropsForLargeFieldsInsteadOfExceedingRayWorkBudget()
+    {
+        int directions = CascadeLayoutBuilder.SelectMaximumCascadeDirections(
+            768,
+            512,
+            4096,
+            directionCeiling: 64,
+            maximumRayWorkUnits: 200_000_000);
+
+        Assert.That(directions, Is.EqualTo(4));
+        Assert.That(
+            CascadeLayoutBuilder.EstimateCascadeRayWorkUnits(768, 512, 4096, directions),
+            Is.LessThanOrEqualTo(200_000_000));
+        Assert.That(
+            CascadeLayoutBuilder.EstimateCascadeRayWorkUnits(768, 512, 4096, 8),
+            Is.GreaterThan(200_000_000));
+    }
+
+    [Test]
+    public void StaticSolveBudgetDropsPixelScaleBeforeAllowingAnEightMillionStepBurst()
+    {
+        int pixelsPerCell = CascadeLayoutBuilder.SelectStablePixelsPerCell(
+            192,
+            128,
+            requestedScale: 4,
+            maximumTextureDimension: 4096,
+            atlasDimension: 4096,
+            maximumDirections: 64,
+            maximumRayWorkUnits: LightingPerformanceBudget.MaximumStaticCascadeRayWorkUnits);
+
+        Assert.That(pixelsPerCell, Is.EqualTo(1));
+        Assert.That(
+            CascadeLayoutBuilder.EstimateCascadeRayWorkUnits(192, 128, 4096, 4),
+            Is.LessThanOrEqualTo(LightingPerformanceBudget.MaximumStaticCascadeRayWorkUnits));
+    }
+
+    [Test]
+    public void FourthCascadeKeepsTheWorkingRegionInsideTheStaticBudget()
+    {
+        var cascades = new List<CascadeLayout>();
+        CascadeLayoutBuilder.BuildCascadeLayouts(
+            192,
+            128,
+            atlasDimension: 4096,
+            cascades,
+            maximumDirections: 4);
+
+        Assert.That(cascades.Count, Is.EqualTo(4));
+        Assert.That(
+            CascadeCostCalculator.EstimateRayWorkUnits(cascades),
+            Is.LessThan(LightingPerformanceBudget.MaximumStaticCascadeRayWorkUnits));
+    }
+
+    [Test]
+    public void RayWorkEstimateMatchesPublishedCascadeCostSamples()
+    {
+        var cascades = new List<CascadeLayout>();
+        CascadeLayoutBuilder.BuildCascadeLayouts(384, 256, 4096, cascades, 4);
+        var samples = new List<CascadeCostSample>();
+        CascadeCostCalculator.CollectCascadeCosts(cascades, int.MaxValue, samples);
+
+        long measured = 0;
+        foreach (CascadeCostSample sample in samples)
+        {
+            measured += sample.RayStepCount;
+        }
+
+        Assert.That(CascadeCostCalculator.EstimateRayWorkUnits(cascades), Is.EqualTo(measured));
     }
 
     [Test]

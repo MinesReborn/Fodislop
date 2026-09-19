@@ -3,10 +3,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Fodinae;
+using Kern;
 using UnityEngine;
 
-namespace Fodinae.World;
+namespace Kern.World;
 public static class AnimationContainerDecoder
 {
     public enum ContainerType

@@ -3,21 +3,20 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Localization;
-using Fodinae.Networking.Auth;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Core.Localization;
+using Kern.Networking.Auth;
 using UnityEngine;
 using UnityEngine.UIElements;
 using VContainer;
 
-namespace Fodinae.UI
+namespace Kern.UI
 {
     [RequireComponent(typeof(UIDocument))]
     public sealed class GatewayController : MonoBehaviour, ILocalizableUI
     {
         private const string MainMenuSceneName = ProjectRuntimeContracts.SceneNames.MainMenu;
-        private const string OnboardingDonePrefsKey = "OnboardingCompleted1";
 
         // Состояние ворот. Ровно один класс на корне за раз: раньше видимость
         // была своя у каждого слоя, и ничто не мешало показать вход и онбординг
@@ -162,7 +161,7 @@ namespace Fodinae.UI
         private void OnAuthPassed()
         {
             bool alreadyDone = !GatewayDevFlags.ForceGates
-                && PlayerPrefs.GetInt(OnboardingDonePrefsKey, 0) == 1;
+                && _clientConfig.Config.Interface.OnboardingDone;
 
             if (alreadyDone || _onboarding == null)
             {
@@ -176,8 +175,7 @@ namespace Fodinae.UI
 
         private void OnOnboardingFinished()
         {
-            PlayerPrefs.SetInt(OnboardingDonePrefsKey, 1);
-            PlayerPrefs.Save();
+            _clientConfig.UpdateSection(config => config.Interface, settings => settings.OnboardingDone = true);
             GoToMainMenu();
         }
 

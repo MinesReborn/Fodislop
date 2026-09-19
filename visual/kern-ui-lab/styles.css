@@ -1,0 +1,29 @@
+/* ============================================================================
+   KERN — точка входа дизайн-системы.
+   Порядок импортов = порядок каскада. Он же воспроизводится в Unity через
+   порядок @import в Assets/UI Toolkit/KernTheme.tss.
+   ============================================================================ */
+
+@import url('css/tokens.css');
+@import url('css/base.css');
+@import url('css/shell.css');
+@import url('css/components.css');
+@import url('css/text.css');
+
+/* Ниже — слой компонентов и экранов. Разбирается по css/components.css и
+   css/screens/*.css; пока лежит здесь целиком. */
+
+
+@import url('css/screens/devtools.css');
+@import url('css/screens/menu.css');
+@import url('css/screens/chrome.css');
+@import url('css/screens/modals.css');
+@import url('css/screens/descent.css');
+@import url('css/screens/reconnect.css');
+@import url('css/screens/auth.css');
+@import url('css/screens/onboarding.css');
+@import url('css/screens/ingame.css');
+@import url('css/screens/pause.css');
+
+/* Эффекты последними: единственный файл без соответствия в USS. */
+@import url('css/effects.css');

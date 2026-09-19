@@ -3,11 +3,11 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
+using Kern.Core;
+using Kern.Core.Interfaces;
 using UnityEngine;
 
-namespace Fodinae.Game;
+namespace Kern.Game;
 
 public sealed class RobotAssetLoader
 {

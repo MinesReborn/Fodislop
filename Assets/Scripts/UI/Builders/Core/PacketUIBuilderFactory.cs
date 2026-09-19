@@ -7,7 +7,7 @@ using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
 using MinesServer.Networking.Server.Packets.GUI.Components.Input;
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
 
-namespace Fodinae.UI.Builders;
+namespace Kern.UI.Builders;
 public class PacketUIBuilderFactory
 {
     private static readonly IReadOnlyDictionary<Type, PacketUIBuilderBase> _Builders =

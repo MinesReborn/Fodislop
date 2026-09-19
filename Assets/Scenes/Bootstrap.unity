@@ -95,6 +95,30 @@ LightmapSettings:
     m_LightProbeSampleCountMultiplier: 4
   m_LightingDataAsset: {fileID: 20201, guid: 0000000000000000f000000000000000, type: 0}
   m_LightingSettings: {fileID: 0}
+--- !u!196 &4
+NavMeshSettings:
+  serializedVersion: 2
+  m_ObjectHideFlags: 0
+  m_BuildSettings:
+    serializedVersion: 3
+    agentTypeID: 0
+    agentRadius: 0.5
+    agentHeight: 2
+    agentSlope: 45
+    agentClimb: 0.4
+    ledgeDropHeight: 0
+    maxJumpAcrossDistance: 0
+    minRegionArea: 2
+    manualCellSize: 0
+    cellSize: 0.16666667
+    manualTileSize: 0
+    tileSize: 256
+    buildHeightMesh: 0
+    maxJobWorkers: 0
+    preserveTilesOutsideBounds: 0
+    debug:
+      m_Flags: 0
+  m_NavMeshData: {fileID: 0}
 --- !u!1 &5555788
 GameObject:
   m_ObjectHideFlags: 0
@@ -138,7 +162,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8e52b82a7f53d484e874839352c3d82f, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Networking.Connection.ConnectionManager
+  m_EditorClassIdentifier: Assembly-CSharp::Kern.Networking.Connection.ConnectionManager
 --- !u!1 &202584983
 GameObject:
   m_ObjectHideFlags: 0
@@ -240,7 +264,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: deca7b178f9374f87a6decba0cb28d1b, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Fodinae.Core.BootstrapLifetimeScope
+  m_EditorClassIdentifier: Assembly-CSharp::Kern.Core.BootstrapLifetimeScope
   parentReference:
     TypeName: 
   autoRun: 1
@@ -355,7 +379,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: eba4e802270442b4b75f839d56b0de0d, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.Networking.NetworkService
+  m_EditorClassIdentifier: Kern.Runtime::Kern.Networking.NetworkService
 --- !u!1 &349801298
 GameObject:
   m_ObjectHideFlags: 0
@@ -399,7 +423,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4ee627813fe1e894eb5869d35899cf31, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Fodinae.ClientAssetLoader
+  m_EditorClassIdentifier: Assembly-CSharp::Kern.ClientAssetLoader
 --- !u!1 &660489372
 GameObject:
   m_ObjectHideFlags: 0
@@ -511,7 +535,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7b2a4c8e91f148839e0f5f5420aa6b22, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.Core.BootstrapLoadingScreen
+  m_EditorClassIdentifier: Kern.Runtime::Kern.Core.BootstrapLoadingScreen
 --- !u!114 &1219617903
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -642,7 +666,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: eda0c0467499d4b258a08680deb78d56, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.Core.ClientConfigManager
+  m_EditorClassIdentifier: Kern.Runtime::Kern.Core.ClientConfigManager
 --- !u!1 &2062074422
 GameObject:
   m_ObjectHideFlags: 0
@@ -686,7 +710,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e20f200e25ed643389ce05cd2fc6022c, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.AssetPipeline::Fodinae.AssetPipeline.TextureStorageManager
+  m_EditorClassIdentifier: Kern.AssetPipeline::Kern.AssetPipeline.TextureStorageManager
   _enableDebugLogging: 0
 --- !u!1 &2107242843
 GameObject:
@@ -731,7 +755,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: afff30fc9bdb407d9838b79f83e9bf0c, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Fodinae.Runtime::Fodinae.Audio.Backend.AudioSystem
+  m_EditorClassIdentifier: Kern.Runtime::Kern.Audio.Backend.AudioSystem
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

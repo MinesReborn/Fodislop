@@ -1,16 +1,16 @@
 #nullable enable
 
 using System.Linq;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Localization;
-using Fodinae.Networking;
+using Kern.Core.Interfaces;
+using Kern.Core.Localization;
+using Kern.Networking;
 using MinesServer.Networking.Client.Packets.Connection;
 using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.Information;
 using MinesServer.Networking.Server.Packets.Information.StatusPanel;
 using UnityEngine;
 
-namespace Fodinae.Networking.Processors;
+namespace Kern.Networking.Processors;
 
 public sealed class StatusProcessor(
     IPlayerStats stats,

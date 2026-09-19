@@ -1,13 +1,13 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Localization;
-using Fodinae.Rendering;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Core.Localization;
+using Kern.Rendering;
 using NUnit.Framework;
 
-namespace Fodinae.Tests.Editor.Core;
+namespace Kern.Tests.Editor.Core;
 
 [TestFixture]
 public class LocalizationServiceTests

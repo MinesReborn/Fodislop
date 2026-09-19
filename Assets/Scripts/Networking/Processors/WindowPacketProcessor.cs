@@ -3,7 +3,7 @@
 using System;
 using MinesServer.Networking.Server.Packets.GUI;
 
-namespace Fodinae.Networking.Processors;
+namespace Kern.Networking.Processors;
 
 public sealed class WindowPacketProcessor(WindowCommandStream commands) :
     IPacketProcessor<OpenWindowPacket>,

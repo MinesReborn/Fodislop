@@ -1,5 +1,5 @@
 <linker>
-  <assembly fullname="Fodinae.Runtime" preserve="all"/>
+  <assembly fullname="Kern.Runtime" preserve="all"/>
   <assembly fullname="Assembly-CSharp" preserve="all"/>
   <assembly fullname="VContainer" preserve="all"/>
   <assembly fullname="UniTask" preserve="all"/>

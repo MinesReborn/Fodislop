@@ -4,11 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
-using Fodinae.Core;
-using Fodinae.World;
+using Kern.Core;
+using Kern.World;
 using UnityEngine;
 
-namespace Fodinae;
+namespace Kern;
 
 internal sealed class AssetCacheEntry
 {
@@ -32,7 +32,7 @@ internal sealed class AssetCacheEntry
     private TaskCompletionSource<Sprite[]?>? _spritePromise;
 
     // Stored alongside sprites for AnimatedSpriteData lookups
-    private float _spriteFps;
+    private float _spriteFPS;
     private int _spriteFrameHeight;
     private int _spriteFrameCount;
 
@@ -64,7 +64,7 @@ internal sealed class AssetCacheEntry
         _texture = null;
         _sprites = null;
         _audio = null;
-        _spriteFps = 0f;
+        _spriteFPS = 0f;
         _spriteFrameHeight = 0;
         _spriteFrameCount = 0;
     }
@@ -157,7 +157,7 @@ internal sealed class AssetCacheEntry
 
         lock (_lock)
         {
-            return new AnimatedSpriteData(frames, _spriteFps, _spriteFrameHeight);
+            return new AnimatedSpriteData(frames, _spriteFPS, _spriteFrameHeight);
         }
     }
 
@@ -184,12 +184,7 @@ internal sealed class AssetCacheEntry
         }
         catch (Exception ex)
         {
-            lock (_lock)
-            {
-                _bytesPromise?.TrySetException(ex);
-                _bytesPromise = null;
-            }
-
+            FailPromise(ref _bytesPromise, ex);
             throw;
         }
     }
@@ -214,7 +209,7 @@ internal sealed class AssetCacheEntry
             lock (_lock)
             {
                 _texture = decoded.Texture;
-                _spriteFps = decoded.Fps;
+                _spriteFPS = decoded.FPS;
                 _spriteFrameHeight = decoded.FrameHeight;
                 _spriteFrameCount = decoded.FrameCount;
                 texPromise = _texturePromise;
@@ -272,14 +267,14 @@ internal sealed class AssetCacheEntry
         try
         {
             Texture2D? cachedAnimationTexture;
-            float cachedFps;
+            float cachedFPS;
             int cachedFrameHeight;
             int cachedFrameCount;
             TaskCompletionSource<Sprite[]?>? cachedSpritePromise;
             lock (_lock)
             {
                 cachedAnimationTexture = _texture;
-                cachedFps = _spriteFps;
+                cachedFPS = _spriteFPS;
                 cachedFrameHeight = _spriteFrameHeight;
                 cachedFrameCount = _spriteFrameCount;
                 cachedSpritePromise = _spritePromise;
@@ -294,7 +289,7 @@ internal sealed class AssetCacheEntry
                 lock (_lock)
                 {
                     _sprites = cachedSprites;
-                    _spriteFps = cachedFps;
+                    _spriteFPS = cachedFPS;
                     _spriteFrameCount = cachedFrameCount > 0
                         ? cachedFrameCount
                         : Mathf.Max(1, cachedAnimationTexture.height / cachedFrameHeight);
@@ -322,7 +317,7 @@ internal sealed class AssetCacheEntry
             lock (_lock)
             {
                 _sprites = anim.Sprites;
-                _spriteFps = anim.Fps;
+                _spriteFPS = anim.FPS;
                 _spriteFrameHeight = anim.FrameHeight;
                 _spriteFrameCount = anim.FrameCount;
                 _texture = anim.Atlas;

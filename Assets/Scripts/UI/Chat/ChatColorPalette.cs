@@ -2,7 +2,7 @@
 
 using System.Drawing;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 internal static class ChatColorPalette
 {

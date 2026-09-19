@@ -4,7 +4,7 @@ using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 
-namespace Fodinae.Core.Interfaces;
+namespace Kern.Core.Interfaces;
 public interface ISceneNavigator
 {
     string? CurrentSceneName { get; }

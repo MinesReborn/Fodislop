@@ -2,22 +2,22 @@
 
 using UnityEngine;
 
-namespace Fodinae.World.Terrain;
+namespace Kern.World.Terrain;
 
 public class TerrainPrecalculator
 {
     private readonly TerrainVertexDistortionCalculator _distortion = new();
     private readonly TerrainCellMaskCalculator _cellMask = new();
 
-    public Vector3[,] GridVertexOffsets => _distortion.GridVertexOffsets;
+    public TerrainRingGrid<Vector3> GridVertexOffsets => _distortion.GridVertexOffsets;
 
-    public int[,] CellTilingDescriptors => _cellMask.CellTilingDescriptors;
+    public TerrainRingGrid<int> CellTilingDescriptors => _cellMask.CellTilingDescriptors;
 
-    public int[,] CellCornerVariants => _cellMask.CellCornerVariants;
+    public TerrainRingGrid<int> CellCornerVariants => _cellMask.CellCornerVariants;
 
-    public byte[,] CellReliefMasks => _cellMask.CellReliefMasks;
+    public TerrainRingGrid<byte> CellReliefMasks => _cellMask.CellReliefMasks;
 
-    public byte[,] CellSolidBoundaryMasks => _cellMask.CellSolidBoundaryMasks;
+    public TerrainRingGrid<byte> CellSolidBoundaryMasks => _cellMask.CellSolidBoundaryMasks;
 
     public bool EnableDistortion
     {

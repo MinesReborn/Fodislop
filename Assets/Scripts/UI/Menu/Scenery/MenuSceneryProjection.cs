@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 internal static class MenuSceneryProjection
 {
@@ -10,28 +10,28 @@ internal static class MenuSceneryProjection
     private static readonly Vector3 _orbitTilt = new(72f, 0f, -19f);
 
     public static bool TryGetStationViewportPosition(
-        Camera? camera,
+        MenuSceneryViewpoint viewpoint,
         OrbitalStationMotion? station,
         Transform? occluder,
         out Vector2 viewportPosition)
     {
         viewportPosition = default;
-        if (camera == null || station == null)
+        if (station == null)
         {
             return false;
         }
 
         Vector3 stationPosition = station.transform.position;
-        if (IsOccluded(camera, stationPosition, occluder))
+        if (IsOccluded(viewpoint, stationPosition, occluder))
         {
             return false;
         }
 
-        return TryProject(camera, stationPosition, out viewportPosition);
+        return TryProject(viewpoint, stationPosition, out viewportPosition);
     }
 
     public static bool TryGetOrbitPointViewportPosition(
-        Camera? camera,
+        MenuSceneryViewpoint viewpoint,
         Transform center,
         float angleDegrees,
         out Vector2 viewportPosition)
@@ -41,11 +41,11 @@ internal static class MenuSceneryProjection
             0f,
             Mathf.Sin(angleDegrees * Mathf.Deg2Rad)) * OrbitRadius;
         Vector3 point = center.position + (Quaternion.Euler(_orbitTilt) * localOffset);
-        return TryProject(camera, point, out viewportPosition);
+        return TryProject(viewpoint, point, out viewportPosition);
     }
 
     public static bool TryGetSurfaceViewportPosition(
-        Camera? camera,
+        MenuSceneryViewpoint viewpoint,
         Transform? planet,
         Vector3 localSurfaceDirection,
         out Vector2 viewportPosition)
@@ -58,21 +58,16 @@ internal static class MenuSceneryProjection
 
         float radius = 0.5f * planet.lossyScale.x;
         Vector3 point = planet.position + (localSurfaceDirection.normalized * radius);
-        return TryProject(camera, point, out viewportPosition);
+        return TryProject(viewpoint, point, out viewportPosition);
     }
 
     private static bool TryProject(
-        Camera? camera,
+        MenuSceneryViewpoint viewpoint,
         Vector3 worldPosition,
         out Vector2 viewportPosition)
     {
         viewportPosition = default;
-        if (camera == null)
-        {
-            return false;
-        }
-
-        Vector3 viewport = camera.WorldToViewportPoint(worldPosition);
+        Vector3 viewport = viewpoint.WorldToViewport(worldPosition);
         if (viewport.z <= 0f)
         {
             return false;
@@ -82,14 +77,14 @@ internal static class MenuSceneryProjection
         return true;
     }
 
-    private static bool IsOccluded(Camera camera, Vector3 point, Transform? occluder)
+    private static bool IsOccluded(MenuSceneryViewpoint viewpoint, Vector3 point, Transform? occluder)
     {
         if (occluder == null)
         {
             return false;
         }
 
-        Vector3 cameraPosition = camera.transform.position;
+        Vector3 cameraPosition = viewpoint.Position;
         Vector3 toOccluder = occluder.position - cameraPosition;
         Vector3 toPoint = point - cameraPosition;
         if (toPoint.magnitude <= toOccluder.magnitude)

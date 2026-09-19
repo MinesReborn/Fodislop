@@ -1,10 +1,10 @@
 #nullable enable
 
-namespace Fodinae.Tests.World;
+namespace Kern.Tests.World;
 
 using System;
 using System.IO;
-using Fodinae.Persistence;
+using Kern.Persistence;
 using NUnit.Framework;
 
 [TestFixture]

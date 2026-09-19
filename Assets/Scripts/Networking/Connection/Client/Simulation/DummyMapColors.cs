@@ -4,14 +4,14 @@ namespace MinesServer.Networking.Connection.Client;
 
 internal static class DummyMapColors
 {
-    public static int Get(int cellId)
+    public static int Get(int cellID)
     {
-        if (cellId is < 0 or > 255)
+        if (cellID is < 0 or > 255)
         {
             return RGB(128, 128, 128);
         }
 
-        return _Table[cellId];
+        return _Table[cellID];
     }
 
     private static readonly int[] _Table = BuildTable();

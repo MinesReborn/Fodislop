@@ -3,7 +3,7 @@
 using System;
 using UnityEngine.SceneManagement;
 
-namespace Fodinae.Core;
+namespace Kern.Core;
 
 internal static class SceneTransitionSceneLookup
 {

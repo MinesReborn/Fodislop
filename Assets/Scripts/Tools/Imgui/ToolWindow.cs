@@ -4,7 +4,7 @@ using System;
 using Unity.Profiling;
 using UnityEngine;
 
-namespace Fodinae.Tools.Imgui;
+namespace Kern.Tools.Imgui;
 
 public abstract class ToolWindow : IDisposable
 {
@@ -194,7 +194,7 @@ public abstract class ToolWindow : IDisposable
         if (!_drawMarkerCreated)
         {
             _drawMarkerCreated = true;
-            _drawMarker = new ProfilerMarker(ProfilerCategory.Gui, "Fodinae.Tools." + Title);
+            _drawMarker = new ProfilerMarker(ProfilerCategory.Gui, "Kern.Tools." + Title);
         }
 
         long started = System.Diagnostics.Stopwatch.GetTimestamp();

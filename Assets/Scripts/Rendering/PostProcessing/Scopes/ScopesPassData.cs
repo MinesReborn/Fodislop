@@ -3,7 +3,7 @@
 using UnityEngine;
 using UnityEngine.Rendering.RenderGraphModule;
 
-namespace Fodinae.Rendering.PostProcessing.Scopes;
+namespace Kern.Rendering.PostProcessing.Scopes;
 
 internal sealed class ScopesPassData
 {

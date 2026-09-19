@@ -4,17 +4,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Fodinae.Audio.Core;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Game;
-using Fodinae.World;
-using Fodinae.World.Terrain;
+using Kern.Audio.Core;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Game;
+using Kern.World;
+using Kern.World.Terrain;
 using MinesServer.Networking.Server.Packets.World;
 using UnityEngine;
 using VContainer;
 
-namespace Fodinae.Game.Managers
+namespace Kern.Game.Managers
 {
     public class ServerAudioEventManager : MonoBehaviour, IServerAudioService
     {

@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Fodinae.Tools.Imgui;
+namespace Kern.Tools.Imgui;
 
 // Замена GUILayout.*Scope и GUILayout.Width/ExpandWidth без мусора.
 //

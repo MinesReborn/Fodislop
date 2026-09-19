@@ -3,7 +3,7 @@
 using System;
 using UnityEngine;
 
-namespace Fodinae.Game;
+namespace Kern.Game;
 
 internal static class WorldEntityGeometry
 {

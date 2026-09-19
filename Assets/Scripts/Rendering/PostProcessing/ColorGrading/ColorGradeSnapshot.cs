@@ -3,7 +3,7 @@
 using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
 
-namespace Fodinae.Rendering.PostProcessing;
+namespace Kern.Rendering.PostProcessing;
 
 public readonly record struct ColorGradeSnapshot
 {
@@ -57,17 +57,11 @@ public readonly record struct ColorGradeSnapshot
 
     public float GreyOut { get; init; }
 
-    public float CurveSlope { get; init; }
-
     public float ShoulderPower { get; init; }
 
     public float ToePower { get; init; }
 
     public float ToeStops { get; init; }
-
-    public float PathToWhiteAmount { get; init; }
-
-    public float PathToWhitePower { get; init; }
 
     public bool GamutCompressionEnabled { get; init; }
 
@@ -117,11 +111,9 @@ public readonly record struct ColorGradeSnapshot
         Saturation = PostProcessLook.ColorGrading.Saturation;
         Pivot = 0.5f;
         GreyOut = PostProcessLook.Grade.GreyOut;
-        CurveSlope = PostProcessLook.Grade.CurveSlope;
         ShoulderPower = PostProcessLook.Grade.ShoulderPower;
         ToePower = PostProcessLook.Grade.ToePower;
         ToeStops = PostProcessLook.Grade.ToeStops;
-        PathToWhitePower = PostProcessLook.Grade.PathToWhitePower;
         GamutCompressionEnabled = PostProcessLook.Grade.GamutCompressionEnabled;
         GamutCompressionStrength = PostProcessLook.Grade.GamutCompressionStrength;
         // Общие нейтральные экземпляры, а не новые. Этот конструктор вызывает
@@ -180,22 +172,13 @@ public readonly record struct ColorGradeSnapshot
         Hue = 0f,
         CdlMaster = new Vector3(1f, 0f, 1f),
         GreyOut = PostProcessLook.Grade.GreyOut,
-        CurveSlope = PostProcessLook.Grade.CurveSlope,
         ShoulderPower = PostProcessLook.Grade.ShoulderPower,
         ToePower = PostProcessLook.Grade.ToePower,
         ToeStops = PostProcessLook.Grade.ToeStops,
-        PathToWhiteAmount = PostProcessLook.Grade.PathToWhiteAmount,
-        PathToWhitePower = PostProcessLook.Grade.PathToWhitePower,
         GamutCompressionEnabled = PostProcessLook.Grade.GamutCompressionEnabled,
         GamutCompressionStrength = PostProcessLook.Grade.GamutCompressionStrength,
         LutIntensity = 0f,
         LutColorSpace = ColorGradeLutColorSpace.LinearRec709,
-    };
-
-    [ExcludeFromCodeCoverage]
-    public ColorGradeSnapshot WithTemperature(float temperature) => this with
-    {
-        Temperature = temperature,
     };
 
     public ColorGradeSnapshot BlendTo(ColorGradeSnapshot other, float weight)
@@ -241,12 +224,9 @@ public readonly record struct ColorGradeSnapshot
             Hue = Mathf.Lerp(Hue, other.Hue, t),
             CdlMaster = Vector3.Lerp(CdlMaster, other.CdlMaster, t),
             GreyOut = Mathf.Lerp(GreyOut, other.GreyOut, t),
-            CurveSlope = Mathf.Lerp(CurveSlope, other.CurveSlope, t),
             ShoulderPower = Mathf.Lerp(ShoulderPower, other.ShoulderPower, t),
             ToePower = Mathf.Lerp(ToePower, other.ToePower, t),
             ToeStops = Mathf.Lerp(ToeStops, other.ToeStops, t),
-            PathToWhiteAmount = Mathf.Lerp(PathToWhiteAmount, other.PathToWhiteAmount, t),
-            PathToWhitePower = Mathf.Lerp(PathToWhitePower, other.PathToWhitePower, t),
             GamutCompressionEnabled = t > 0.5f ? other.GamutCompressionEnabled : GamutCompressionEnabled,
             GamutCompressionStrength = Mathf.Lerp(GamutCompressionStrength, other.GamutCompressionStrength, t),
             // Ссылки, а не клоны — как и на краях t<=0 и t>=1 выше. Получатель
@@ -323,208 +303,41 @@ public readonly record struct ColorGradeSnapshot
     // девять новых кривых и квалификатор при каждом вызове.
     public static ColorGradeSnapshot Look => LookDefaults.Value;
 
+    // Нейтральность грейда живёт здесь, рядом с полями, а не в проходе.
+    //
+    // Раньше эти два списка полей стояли в PostProcessRenderPass, третий их
+    // список — в ключе запекания, и все три обязаны были согласовываться
+    // вручную. Они уже разошлись: ключ учитывал интерполяцию кривых, проверка
+    // нейтральности — нет. Добавление поля в снимок тихо ломало либо кэш,
+    // либо ранний выход прохода, и компилятор об этом молчал.
+
+    // Входы творческого прохода (всё, что запекается в таблицу) в нейтрали:
+    // композит тогда возвращает тот же цвет, и проход не нужен.
+    public bool IsCreativeNeutral =>
+        Temperature == 0f && Tint == 0f &&
+        Slope == Vector3.one && Offset == Vector3.zero && Power == Vector3.one &&
+        CdlMaster == new Vector3(1f, 0f, 1f) && CdlSaturation == 1f &&
+        PrimaryLift == Vector3.zero && PrimaryGamma == Vector3.one &&
+        PrimaryGain == Vector3.one && PrimaryOffset == Vector3.zero &&
+        PrimaryMaster == new Vector4(0f, 1f, 1f, 0f) &&
+        Vibrance == 0f && Hue == 0f &&
+        Shadows == 0f && Highlights == 0f && Blacks == 0f &&
+        Whites == 0f && Toe == 0f && Shoulder == 0f &&
+        !Qualifier.Enabled &&
+        HueVsHueCurve.IsNeutral && HueVsSaturationCurve.IsNeutral &&
+        HueVsLuminanceCurve.IsNeutral && LuminanceVsSaturationCurve.IsNeutral &&
+        SaturationVsSaturationCurve.IsNeutral;
+
+    // Точечные операции прохода дисплея в нейтрали.
+    public bool IsDisplayNeutral =>
+        Transform == DisplayTransform.None &&
+        (Lut == null || LutIntensity <= 0f) &&
+        (!GamutCompressionEnabled || GamutCompressionStrength <= 0f) &&
+        MasterCurve.IsNeutral && RedCurve.IsNeutral &&
+        GreenCurve.IsNeutral && BlueCurve.IsNeutral;
+
     public ColorGradeSnapshot Sanitized() => SanitizedReusing(null);
 
-    // Кривые и квалификатор, совпадающие по содержимому с уже санитизированным
-    // предыдущим грейдом, берутся из него, а не клонируются заново. Смешивание
-    // зон меняет при движении камеры только скаляры, и без этого каждый кадр
-    // в переходе давал девять новых кривых.
-    public ColorGradeSnapshot SanitizedReusing(ColorGradeSnapshot? previous)
-    {
-        ColorGradeSnapshot defaults = LookDefaults.Value;
-        return new ColorGradeSnapshot
-        {
-            EnabledMask = EnabledMask & ((1 << 6) - 1),
-            Transform = Transform is DisplayTransform.None or DisplayTransform.Fodinae
-                ? Transform
-                : defaults.Transform,
-            Exposure = FiniteClamp(
-                Exposure,
-                ColorGradeState.ExposureHardMin,
-                ColorGradeState.ExposureHardMax,
-                defaults.Exposure),
-            WhitePoint = FiniteClamp(
-                WhitePoint,
-                ColorGradeState.WhitePointMin,
-                ColorGradeState.WhitePointMax,
-                defaults.WhitePoint),
-            Contrast = FiniteClamp(
-                Contrast,
-                ColorGradeState.ContrastMin,
-                ColorGradeState.ContrastMax,
-                defaults.Contrast),
-            Pivot = FiniteClamp(Pivot, 0.1f, 0.9f, defaults.Pivot),
-            Shadows = FiniteClamp(Shadows, -0.5f, 0.5f, defaults.Shadows),
-            Highlights = FiniteClamp(Highlights, -0.5f, 0.5f, defaults.Highlights),
-            Blacks = FiniteClamp(Blacks, -0.5f, 0.5f, defaults.Blacks),
-            Whites = FiniteClamp(Whites, -0.5f, 0.5f, defaults.Whites),
-            Toe = FiniteClamp(Toe, 0f, 1f, defaults.Toe),
-            Shoulder = FiniteClamp(Shoulder, 0f, 1f, defaults.Shoulder),
-            Temperature = FiniteClamp(
-                Temperature,
-                ColorGradeState.TemperatureMin,
-                ColorGradeState.TemperatureMax,
-                defaults.Temperature),
-            Tint = FiniteClamp(
-                Tint,
-                ColorGradeState.TemperatureMin,
-                ColorGradeState.TemperatureMax,
-                defaults.Tint),
-            Slope = FiniteClamp(
-                Slope,
-                ColorGradeState.SlopeMin,
-                ColorGradeState.SlopeMax,
-                defaults.Slope),
-            Offset = FiniteClamp(
-                Offset,
-                ColorGradeState.OffsetMin,
-                ColorGradeState.OffsetMax,
-                defaults.Offset),
-            Power = FiniteClamp(
-                Power,
-                ColorGradeState.PowerMin,
-                ColorGradeState.PowerMax,
-                defaults.Power),
-            PrimaryLift = FiniteClamp(
-                PrimaryLift,
-                ColorGradeState.OffsetMin,
-                ColorGradeState.OffsetMax,
-                defaults.PrimaryLift),
-            PrimaryGamma = FiniteClamp(
-                PrimaryGamma,
-                ColorGradeState.PowerMin,
-                ColorGradeState.PowerMax,
-                defaults.PrimaryGamma),
-            PrimaryGain = FiniteClamp(
-                PrimaryGain,
-                ColorGradeState.SlopeMin,
-                ColorGradeState.SlopeMax,
-                defaults.PrimaryGain),
-            PrimaryOffset = FiniteClamp(
-                PrimaryOffset,
-                ColorGradeState.OffsetMin,
-                ColorGradeState.OffsetMax,
-                defaults.PrimaryOffset),
-            PrimaryMaster = new Vector4(
-                FiniteClamp(PrimaryMaster.x, ColorGradeState.OffsetMin, ColorGradeState.OffsetMax, 0f),
-                FiniteClamp(PrimaryMaster.y, ColorGradeState.PowerMin, ColorGradeState.PowerMax, 1f),
-                FiniteClamp(PrimaryMaster.z, ColorGradeState.SlopeMin, ColorGradeState.SlopeMax, 1f),
-                FiniteClamp(PrimaryMaster.w, ColorGradeState.OffsetMin, ColorGradeState.OffsetMax, 0f)),
-            Vibrance = FiniteClamp(Vibrance, -1f, 1f, defaults.Vibrance),
-            Saturation = FiniteClamp(
-                Saturation,
-                ColorGradeState.SaturationMin,
-                ColorGradeState.SaturationMax,
-                defaults.Saturation),
-            CdlSaturation = FiniteClamp(
-                CdlSaturation,
-                ColorGradeState.CdlSaturationMin,
-                ColorGradeState.CdlSaturationMax,
-                defaults.CdlSaturation),
-            Hue = FiniteClamp(Hue, -180f, 180f, defaults.Hue),
-            CdlMaster = new Vector3(
-                FiniteClamp(CdlMaster.x, 0f, 4f, defaults.CdlMaster.x),
-                FiniteClamp(CdlMaster.y, -0.5f, 0.5f, defaults.CdlMaster.y),
-                FiniteClamp(CdlMaster.z, 0.1f, 4f, defaults.CdlMaster.z)),
-            GreyOut = FiniteClamp(
-                GreyOut,
-                ColorGradeState.GreyOutMin,
-                ColorGradeState.GreyOutMax,
-                defaults.GreyOut),
-            CurveSlope = FiniteClamp(
-                CurveSlope,
-                ColorGradeState.CurveSlopeMin,
-                ColorGradeState.CurveSlopeMax,
-                defaults.CurveSlope),
-            ShoulderPower = FiniteClamp(
-                ShoulderPower,
-                ColorGradeState.CurvePowerMin,
-                ColorGradeState.CurvePowerMax,
-                defaults.ShoulderPower),
-            ToePower = FiniteClamp(
-                ToePower,
-                ColorGradeState.CurvePowerMin,
-                ColorGradeState.CurvePowerMax,
-                defaults.ToePower),
-            ToeStops = FiniteClamp(
-                ToeStops,
-                ColorGradeState.ToeStopsMin,
-                ColorGradeState.ToeStopsMax,
-                defaults.ToeStops),
-            PathToWhiteAmount = FiniteClamp(
-                PathToWhiteAmount,
-                ColorGradeState.PathToWhiteAmountMin,
-                ColorGradeState.PathToWhiteAmountMax,
-                defaults.PathToWhiteAmount),
-            PathToWhitePower = FiniteClamp(
-                PathToWhitePower,
-                ColorGradeState.PathToWhitePowerMin,
-                ColorGradeState.PathToWhitePowerMax,
-                defaults.PathToWhitePower),
-            GamutCompressionEnabled = GamutCompressionEnabled,
-            GamutCompressionStrength = FiniteClamp(
-                GamutCompressionStrength,
-                ColorGradeState.GamutCompressionStrengthMin,
-                ColorGradeState.GamutCompressionStrengthMax,
-                defaults.GamutCompressionStrength),
-            MasterCurve = SanitizeCurve(MasterCurve, defaults.MasterCurve, previous?.MasterCurve),
-            RedCurve = SanitizeCurve(RedCurve, defaults.RedCurve, previous?.RedCurve),
-            GreenCurve = SanitizeCurve(GreenCurve, defaults.GreenCurve, previous?.GreenCurve),
-            BlueCurve = SanitizeCurve(BlueCurve, defaults.BlueCurve, previous?.BlueCurve),
-            HueVsHueCurve = SanitizeCurve(HueVsHueCurve, defaults.HueVsHueCurve, previous?.HueVsHueCurve),
-            HueVsSaturationCurve = SanitizeCurve(HueVsSaturationCurve, defaults.HueVsSaturationCurve, previous?.HueVsSaturationCurve),
-            HueVsLuminanceCurve = SanitizeCurve(HueVsLuminanceCurve, defaults.HueVsLuminanceCurve, previous?.HueVsLuminanceCurve),
-            LuminanceVsSaturationCurve = SanitizeCurve(LuminanceVsSaturationCurve, defaults.LuminanceVsSaturationCurve, previous?.LuminanceVsSaturationCurve),
-            SaturationVsSaturationCurve = SanitizeCurve(SaturationVsSaturationCurve, defaults.SaturationVsSaturationCurve, previous?.SaturationVsSaturationCurve),
-            Qualifier = SanitizeQualifier(Qualifier, defaults.Qualifier, previous?.Qualifier),
-            Lut = LutIntensity > 0.0001f ? Lut : null,
-            LutIntensity = FiniteClamp(LutIntensity, 0f, 1f, 0f),
-            LutColorSpace = LutColorSpace is ColorGradeLutColorSpace.LinearRec709 or ColorGradeLutColorSpace.SrgbRec709
-                ? LutColorSpace
-                : defaults.LutColorSpace,
-        };
-    }
-
-    private static ColorGradeCurve SanitizeCurve(
-        ColorGradeCurve? curve,
-        ColorGradeCurve fallback,
-        ColorGradeCurve? previous)
-    {
-        // Предыдущий уже санитизирован и не меняется: равный ему по
-        // содержимому источник можно не клонировать.
-        if (previous != null && curve != null && previous.ContentEquals(curve))
-        {
-            return previous;
-        }
-
-        ColorGradeCurve result = curve?.Clone() ?? fallback.Clone();
-        result.Sanitize();
-        return result;
-    }
-
-    private static ColorGradeQualifier SanitizeQualifier(
-        ColorGradeQualifier? qualifier,
-        ColorGradeQualifier fallback,
-        ColorGradeQualifier? previous)
-    {
-        if (previous != null && qualifier != null && previous.ContentEquals(qualifier))
-        {
-            return previous;
-        }
-
-        ColorGradeQualifier result = qualifier?.Clone() ?? fallback.Clone();
-        result.Sanitize();
-        return result;
-    }
-
-    private static float FiniteClamp(float value, float minimum, float maximum, float fallback) =>
-        float.IsNaN(value) || float.IsInfinity(value)
-            ? fallback
-            : Mathf.Clamp(value, minimum, maximum);
-
-    private static Vector3 FiniteClamp(Vector3 value, float minimum, float maximum, Vector3 fallback) =>
-        new(
-            FiniteClamp(value.x, minimum, maximum, fallback.x),
-            FiniteClamp(value.y, minimum, maximum, fallback.y),
-            FiniteClamp(value.z, minimum, maximum, fallback.z));
+    public ColorGradeSnapshot SanitizedReusing(ColorGradeSnapshot? previous) =>
+        ColorGradeSnapshotSanitizer.Sanitize(this, LookDefaults.Value, previous);
 }

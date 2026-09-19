@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Fodinae;
+namespace Kern;
 
 public static class TileBitmaskConverter
 {

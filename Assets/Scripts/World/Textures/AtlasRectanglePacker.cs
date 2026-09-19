@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Fodinae.World;
+namespace Kern.World;
 
 internal sealed class AtlasRectanglePacker
 {

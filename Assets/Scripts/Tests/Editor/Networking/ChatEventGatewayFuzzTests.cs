@@ -2,12 +2,12 @@
 
 using System;
 using System.Drawing;
-using Fodinae.Networking;
+using Kern.Networking;
 using MinesServer.Networking.Server.Packets.Chat;
 using MinesServer.Networking.Server.Packets.World;
 using NUnit.Framework;
 
-namespace Fodinae.Tests.Networking;
+namespace Kern.Tests.Networking;
 
 [TestFixture]
 public class ChatEventGatewayFuzzTests

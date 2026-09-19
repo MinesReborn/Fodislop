@@ -1,9 +1,9 @@
 #nullable enable
 
 using System;
-using Fodinae.Core.Models;
+using Kern.Core.Models;
 
-namespace Fodinae.Game.Inventory;
+namespace Kern.Game.Inventory;
 public interface IInventoryModel
 {
     event Action<int>? OnSlotChanged;

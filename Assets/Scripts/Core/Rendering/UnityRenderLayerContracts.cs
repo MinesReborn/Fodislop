@@ -1,3 +1,3 @@
-namespace Fodinae.Core.Rendering
+namespace Kern.Core.Rendering
 {
 }

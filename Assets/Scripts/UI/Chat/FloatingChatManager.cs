@@ -2,17 +2,17 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Lifecycle;
-using Fodinae.Game.Managers;
-using Fodinae.Networking;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Core.Lifecycle;
+using Kern.Game.Managers;
+using Kern.Networking;
 using MinesServer.Networking.Server.Packets.Chat;
 using MinesServer.Networking.Server.Packets.World;
 using UnityEngine;
 using VContainer;
 
-namespace Fodinae.UI
+namespace Kern.UI
 {
     public class FloatingChatManager : MonoBehaviour
     {

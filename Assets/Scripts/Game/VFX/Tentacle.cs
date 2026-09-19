@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace Fodinae.Game;
+namespace Kern.Game;
 
 public class Tentacle
 {

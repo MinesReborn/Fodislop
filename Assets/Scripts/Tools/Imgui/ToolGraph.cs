@@ -1,11 +1,11 @@
 #nullable enable
 
 using System;
-using Fodinae;
+using Kern;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace Fodinae.Tools.Imgui;
+namespace Kern.Tools.Imgui;
 
 public sealed class ToolGraph : IDisposable
 {

@@ -1,8 +1,8 @@
 #nullable enable
 
-using Fodinae.Core.Models;
+using Kern.Core.Models;
 
-namespace Fodinae.Core.Interfaces;
+namespace Kern.Core.Interfaces;
 
 public interface IInventoryState
 {

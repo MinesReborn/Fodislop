@@ -1,10 +1,10 @@
 #nullable enable
 
 using System.Net;
-using Fodinae.Networking.Connection;
+using Kern.Networking.Connection;
 using NUnit.Framework;
 
-namespace Fodinae.Tests.Networking;
+namespace Kern.Tests.Networking;
 
 [TestFixture]
 public class ConnectionTransportConfigTests

@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Fodinae.Networking.Diagnostics;
+namespace Kern.Networking.Diagnostics;
 
 public static class PacketTelemetry
 {

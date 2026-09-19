@@ -2,20 +2,22 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.World;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.World;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.World.Terrain;
+namespace Kern.World.Terrain;
 public class TerrainCellCache
 {
-    private CachedCellData[,] _cellCache = new CachedCellData[0, 0];
+    private readonly TerrainRingGrid<CachedCellData> _cellCache = new();
     private int _cacheMinX = int.MinValue;
     private int _cacheMinY = int.MinValue;
     private int _cacheWidth;
     private int _cacheHeight;
+    private readonly Dictionary<CellType, HashSet<long>> _cellsByType = [];
+    private readonly Dictionary<long, CellType> _cellTypeByCoordinate = [];
 
     // IsPopulated flag lives inside CellMetadata itself — one array instead of two
     private readonly CellMetadata[] _metadataLookup = new CellMetadata[65536];
@@ -36,9 +38,11 @@ public class TerrainCellCache
     {
         _cacheWidth = width + 2;
         _cacheHeight = height + 2;
-        if (_cellCache == null || _cellCache.GetLength(0) != _cacheWidth || _cellCache.GetLength(1) != _cacheHeight)
+        if (_cellCache.Width != _cacheWidth || _cellCache.Height != _cacheHeight)
         {
-            _cellCache = new CachedCellData[_cacheWidth, _cacheHeight];
+            _cellCache.EnsureSize(_cacheWidth, _cacheHeight);
+            _cellsByType.Clear();
+            _cellTypeByCoordinate.Clear();
         }
     }
 
@@ -64,19 +68,22 @@ public class TerrainCellCache
             }
         }
 
-        for (int x = 0; x < _cacheWidth; x++)
+        foreach (CellType cellType in cellTypes)
         {
-            for (int y = 0; y < _cacheHeight; y++)
+            if (!_cellsByType.TryGetValue(cellType, out HashSet<long>? cells))
             {
-                CellType cellType = _cellCache[x, y].Type;
-                if (!cellTypes.Contains(cellType))
-                {
-                    continue;
-                }
+                continue;
+            }
 
-                _cellCache[x, y] = CreateCachedData(
-                    cellType,
-                    GetMetadata(cellType, mapManager, textureService, atlases));
+            CellMetadata metadata = GetMetadata(cellType, mapManager, textureService, atlases);
+            foreach (long key in cells)
+            {
+                int x = UnpackX(key) - _cacheMinX;
+                int y = UnpackY(key) - _cacheMinY;
+                if ((uint)x < (uint)_cacheWidth && (uint)y < (uint)_cacheHeight)
+                {
+                    _cellCache[x, y] = CreateCachedData(cellType, metadata);
+                }
             }
         }
     }
@@ -120,6 +127,8 @@ public class TerrainCellCache
 
         _cacheMinX = minX - 1;
         _cacheMinY = minY - 1;
+        _cellsByType.Clear();
+        _cellTypeByCoordinate.Clear();
 
         for (int x = 0; x < _cacheWidth; x++)
         {
@@ -134,12 +143,12 @@ public class TerrainCellCache
 
                 if (type == CellType.Unloaded)
                 {
-                    _cellCache[x, y] = _UnloadedCellData;
+                    SetCachedData(x, y, _UnloadedCellData, removePrevious: false);
                     continue;
                 }
 
                 var meta = GetMetadata(type, mm, wtm, atlases);
-                _cellCache[x, y] = CreateCachedData(type, meta);
+                SetCachedData(x, y, CreateCachedData(type, meta), removePrevious: false);
             }
         }
 
@@ -179,12 +188,12 @@ public class TerrainCellCache
 
                 if (type == CellType.Unloaded)
                 {
-                    _cellCache[x, y] = _UnloadedCellData;
+                    SetCachedData(x, y, _UnloadedCellData);
                     continue;
                 }
 
                 var meta = GetMetadata(type, mm, wtm, atlases);
-                _cellCache[x, y] = CreateCachedData(type, meta);
+                SetCachedData(x, y, CreateCachedData(type, meta));
             }
         }
     }
@@ -214,10 +223,11 @@ public class TerrainCellCache
             return;
         }
 
+        RemoveScrolledOutCells(dx, dy);
         _cacheMinX += dx;
         _cacheMinY += dy;
 
-        Scroll2DArray(_cellCache, _cacheWidth, _cacheHeight, dx, dy);
+        _cellCache.Scroll(dx, dy);
 
         int lastChunkIndex = -1;
         CellType[]? currentChunk = null;
@@ -231,12 +241,12 @@ public class TerrainCellCache
 
             if (type == CellType.Unloaded)
             {
-                _cellCache[cx, cy] = _UnloadedCellData;
+                SetCachedData(cx, cy, _UnloadedCellData);
                 return;
             }
 
             var meta = GetMetadata(type, mm, wtm, atlases);
-            _cellCache[cx, cy] = CreateCachedData(type, meta);
+            SetCachedData(cx, cy, CreateCachedData(type, meta));
         }
 
         if (dx > 0)
@@ -404,8 +414,84 @@ public class TerrainCellCache
             IsTextureReady = meta.IsTextureReady,
         };
     }
-    public static void Scroll2DArray<T>(T[,] buffer, int w, int h, int dx, int dy)
+
+    private void SetCachedData(int x, int y, CachedCellData data, bool removePrevious = true)
     {
-        TerrainCacheArrayScroller.Scroll(buffer, w, h, dx, dy);
+        long key = PackCoordinate(_cacheMinX + x, _cacheMinY + y);
+        if (removePrevious)
+        {
+            RemoveCellIndexKey(key);
+        }
+        if (data.Type == CellType.Unloaded)
+        {
+            _cellCache[x, y] = data;
+            return;
+        }
+
+        if (!_cellsByType.TryGetValue(data.Type, out HashSet<long>? cells))
+        {
+            cells = [];
+            _cellsByType.Add(data.Type, cells);
+        }
+
+        cells.Add(key);
+        _cellTypeByCoordinate[key] = data.Type;
+        _cellCache[x, y] = data;
     }
+
+    private void RemoveScrolledOutCells(int dx, int dy)
+    {
+        int oldMinX = _cacheMinX;
+        int oldMinY = _cacheMinY;
+        if (dx > 0)
+        {
+            RemoveCellIndexRect(oldMinX, oldMinX + dx, oldMinY, oldMinY + _cacheHeight);
+        }
+        else if (dx < 0)
+        {
+            RemoveCellIndexRect(oldMinX + _cacheWidth + dx, oldMinX + _cacheWidth, oldMinY, oldMinY + _cacheHeight);
+        }
+
+        if (dy > 0)
+        {
+            RemoveCellIndexRect(oldMinX, oldMinX + _cacheWidth, oldMinY, oldMinY + dy);
+        }
+        else if (dy < 0)
+        {
+            RemoveCellIndexRect(oldMinX, oldMinX + _cacheWidth, oldMinY + _cacheHeight + dy, oldMinY + _cacheHeight);
+        }
+    }
+
+    private void RemoveCellIndexRect(int startX, int endX, int startY, int endY)
+    {
+        for (int x = startX; x < endX; x++)
+        {
+            for (int y = startY; y < endY; y++)
+            {
+                RemoveCellIndexKey(PackCoordinate(x, y));
+            }
+        }
+    }
+
+    private void RemoveCellIndexKey(long key)
+    {
+        if (!_cellTypeByCoordinate.Remove(key, out CellType previousType) ||
+            !_cellsByType.TryGetValue(previousType, out HashSet<long>? cells))
+        {
+            return;
+        }
+
+        cells.Remove(key);
+        if (cells.Count == 0)
+        {
+            _cellsByType.Remove(previousType);
+        }
+    }
+
+    private static long PackCoordinate(int x, int y) => ((long)x << 32) | (uint)y;
+
+    private static int UnpackX(long key) => (int)(key >> 32);
+
+    private static int UnpackY(long key) => (int)key;
+
 }

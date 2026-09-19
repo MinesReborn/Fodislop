@@ -4,7 +4,7 @@ using System;
 using System.IO;
 using UnityEngine;
 
-namespace Fodinae.World;
+namespace Kern.World;
 
 internal static class GifFrameCompositor
 {

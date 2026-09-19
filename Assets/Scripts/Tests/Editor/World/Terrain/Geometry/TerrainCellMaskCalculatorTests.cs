@@ -1,8 +1,8 @@
 #nullable enable
 
-namespace Fodinae.Tests.World;
+namespace Kern.Tests.World;
 
-using Fodinae.World.Terrain;
+using Kern.World.Terrain;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using NUnit.Framework;

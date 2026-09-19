@@ -3,10 +3,10 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using Fodinae.Tools.Imgui;
+using Kern.Tools.Imgui;
 using UnityEngine;
 
-namespace Fodinae.Rendering.PostProcessing.Workbench;
+namespace Kern.Rendering.PostProcessing.Workbench;
 
 internal sealed class GradingQualifierWindow : ToolWindow
 {

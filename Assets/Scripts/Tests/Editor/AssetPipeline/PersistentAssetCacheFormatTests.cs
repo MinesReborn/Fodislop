@@ -5,7 +5,7 @@ using System.IO;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Fodinae.Tests.AssetPipeline;
+namespace Kern.Tests.AssetPipeline;
 
 [TestFixture]
 public sealed class PersistentAssetCacheFormatTests
@@ -18,7 +18,7 @@ public sealed class PersistentAssetCacheFormatTests
     {
         _testRoot = Path.Combine(
             Path.GetTempPath(),
-            $"fodinae_asset_cache_format_{Guid.NewGuid():N}");
+            $"kern_asset_cache_format_{Guid.NewGuid():N}");
         _cachePath = Path.Combine(_testRoot, "AssetCache");
         Directory.CreateDirectory(_testRoot);
     }
@@ -33,7 +33,7 @@ public sealed class PersistentAssetCacheFormatTests
     }
 
     [Test]
-    public void EnsureCurrent_MigratesV0AtomicallyAndPreservesBackup()
+    public void EnsureCurrent_UnmarkedCacheWithPayloads_StampsMarkerAndPreservesPayloads()
     {
         string relativeAsset = Path.Combine("Cells", "117.png");
         string assetPath = Path.Combine(_cachePath, relativeAsset);
@@ -42,77 +42,68 @@ public sealed class PersistentAssetCacheFormatTests
 
         PersistentAssetCacheFormat.EnsureCurrent(_cachePath);
 
-        string backupPath = Path.Combine(
-            _cachePath,
-            PersistentAssetCacheFormat.LegacyBackupFileName);
         Assert.That(
             File.ReadAllText(Path.Combine(
                 _cachePath,
                 PersistentAssetCacheFormat.MarkerFileName)).Trim(),
             Is.EqualTo(PersistentAssetCacheFormat.CurrentSchemaVersion.ToString()));
         Assert.That(File.ReadAllBytes(Path.Combine(_cachePath, relativeAsset)), Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
-        Assert.That(File.ReadAllText(backupPath).Trim(), Is.EqualTo("0"));
     }
 
     [Test]
-    public void EnsureCurrent_RecoversInterruptedMarkerCommitWithoutTouchingPayloads()
+    public void EnsureCurrent_FreshInstall_WritesCurrentMarker()
+    {
+        PersistentAssetCacheFormat.EnsureCurrent(_cachePath);
+
+        Assert.That(
+            File.ReadAllText(Path.Combine(_cachePath, PersistentAssetCacheFormat.MarkerFileName)).Trim(),
+            Is.EqualTo(PersistentAssetCacheFormat.CurrentSchemaVersion.ToString()));
+    }
+
+    [Test]
+    public void EnsureCurrent_UnknownMarkerVersion_RestampsWithoutTouchingPayloads()
     {
         Directory.CreateDirectory(_cachePath);
-        string payloadPath = Path.Combine(_cachePath, "legacy.bin");
-        string backupPath = Path.Combine(
-            _cachePath,
-            PersistentAssetCacheFormat.LegacyBackupFileName);
-        string stagingPath = Path.Combine(
-            _cachePath,
-            PersistentAssetCacheFormat.MigrationStagingFileName);
-        File.WriteAllText(payloadPath, "legacy");
-        File.WriteAllText(backupPath, "0");
-        File.WriteAllText(stagingPath, "torn");
+        string payloadPath = Path.Combine(_cachePath, "old.bin");
+        File.WriteAllText(payloadPath, "old");
+        File.WriteAllText(
+            Path.Combine(_cachePath, PersistentAssetCacheFormat.MarkerFileName),
+            "999");
 
         PersistentAssetCacheFormat.EnsureCurrent(_cachePath);
 
-        Assert.That(File.ReadAllText(payloadPath), Is.EqualTo("legacy"));
-        Assert.That(File.ReadAllText(backupPath).Trim(), Is.EqualTo("0"));
+        Assert.That(File.ReadAllText(payloadPath), Is.EqualTo("old"));
         Assert.That(
             File.ReadAllText(Path.Combine(
                 _cachePath,
                 PersistentAssetCacheFormat.MarkerFileName)).Trim(),
             Is.EqualTo(PersistentAssetCacheFormat.CurrentSchemaVersion.ToString()));
-        Assert.That(File.Exists(stagingPath), Is.False);
     }
 
     [Test]
-    public void EnsureCurrent_RejectsUnknownSchemaWithoutMutatingCache()
+    public void EnsureCurrent_RejectsCorruptMarker()
     {
         Directory.CreateDirectory(_cachePath);
-        string payloadPath = Path.Combine(_cachePath, "asset.bin");
-        File.WriteAllText(payloadPath, "keep-me");
         File.WriteAllText(
             Path.Combine(_cachePath, PersistentAssetCacheFormat.MarkerFileName),
-            "999");
+            "not-a-version");
 
         Assert.Throws<InvalidDataException>(
             () => PersistentAssetCacheFormat.EnsureCurrent(_cachePath));
-        Assert.That(File.ReadAllText(payloadPath), Is.EqualTo("keep-me"));
-        Assert.That(
-            File.Exists(Path.Combine(
-                _cachePath,
-                PersistentAssetCacheFormat.LegacyBackupFileName)),
-            Is.False);
     }
 
     [Test]
-    public void VersionOneEntry_IsLazilyInvalidatedOnFirstRead()
+    public void ManifestlessPayload_IsInvalidatedOnFirstRead()
     {
         Directory.CreateDirectory(_cachePath);
         File.WriteAllText(
             Path.Combine(_cachePath, PersistentAssetCacheFormat.MarkerFileName),
             "1");
-        string payloadPath = Path.Combine(_cachePath, "legacy.bin");
+        string payloadPath = Path.Combine(_cachePath, "old.bin");
         File.WriteAllBytes(payloadPath, [1, 2, 3]);
         var cache = new PersistentAssetCache(_cachePath);
 
-        byte[]? payload = cache.GetAsset("legacy.bin");
+        byte[]? payload = cache.GetAsset("old.bin");
 
         Assert.That(payload, Is.Null);
         Assert.That(File.Exists(payloadPath), Is.False);
@@ -124,27 +115,7 @@ public sealed class PersistentAssetCacheFormatTests
     }
 
     [Test]
-    public void EnsureCurrent_RejectsCorruptVersionOneBackup()
-    {
-        Directory.CreateDirectory(_cachePath);
-        File.WriteAllText(
-            Path.Combine(_cachePath, PersistentAssetCacheFormat.MarkerFileName),
-            "1");
-        File.WriteAllText(
-            Path.Combine(_cachePath, PersistentAssetCacheFormat.VersionOneBackupFileName),
-            "corrupt");
-
-        Assert.Throws<InvalidDataException>(
-            () => PersistentAssetCacheFormat.EnsureCurrent(_cachePath));
-        Assert.That(
-            File.ReadAllText(Path.Combine(
-                _cachePath,
-                PersistentAssetCacheFormat.MarkerFileName)).Trim(),
-            Is.EqualTo("1"));
-    }
-
-    [Test]
-    public void VersionTwoEntry_RejectsTamperedPayload()
+    public void Entry_RejectsTamperedPayload()
     {
         var cache = new PersistentAssetCache(_cachePath);
         cache.SaveAsset("Cells/117.png", [1, 2, 3, 4], "etag-1");
@@ -160,7 +131,7 @@ public sealed class PersistentAssetCacheFormatTests
     }
 
     [Test]
-    public void VersionTwoEntry_RoundTripsPayloadAndEtag()
+    public void Entry_RoundTripsPayloadAndEtag()
     {
         var cache = new PersistentAssetCache(_cachePath);
 
@@ -171,7 +142,7 @@ public sealed class PersistentAssetCacheFormatTests
     }
 
     [Test]
-    public void VersionTwoEntry_RoundTripsEmptyEtag()
+    public void Entry_RoundTripsEmptyEtag()
     {
         var cache = new PersistentAssetCache(_cachePath);
 
@@ -182,7 +153,7 @@ public sealed class PersistentAssetCacheFormatTests
     }
 
     [Test]
-    public void VersionTwoEntry_MissingManifestInvalidatesOrphanPayload()
+    public void Entry_MissingManifestInvalidatesOrphanPayload()
     {
         var cache = new PersistentAssetCache(_cachePath);
         cache.SaveAsset("orphan.bin", [1, 2, 3], "etag");

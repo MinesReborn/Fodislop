@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Profiling;
 
-namespace Fodinae.Core.Interfaces.Diagnostics;
+namespace Kern.Core.Interfaces.Diagnostics;
 
 // Сколько управляемой памяти аллоцирует каждый игровой путь за кадр.
 //

@@ -1,12 +1,12 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
-using Fodinae.Rendering.PostProcessing.Scopes;
+using Kern.Core;
+using Kern.Rendering.PostProcessing.Scopes;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 
-namespace Fodinae.Rendering.PostProcessing
+namespace Kern.Rendering.PostProcessing
 {
     [DisallowMultipleRendererFeature]
     public class PostProcessRendererFeature : ScriptableRendererFeature

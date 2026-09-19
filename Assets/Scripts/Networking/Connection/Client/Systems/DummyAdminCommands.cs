@@ -13,7 +13,8 @@ namespace MinesServer.Networking.Connection.Client;
 internal sealed class DummyAdminCommands(
     Action<ServerPacket> sendPacket,
     DummyPlayerSimulationState playerState,
-    DummyWorldSimulationState worldState)
+    DummyWorldSimulationState worldState,
+    IDummyClock clock)
 {
     private const string CommandPrefix = "/";
 
@@ -83,7 +84,7 @@ internal sealed class DummyAdminCommands(
         }
 
         playerState.SetPosition(x, y);
-        worldState.SendChunksAround(x, y, sendPacket);
+        worldState.QueueChunksAround(x, y, sendPacket);
         sendPacket(new ServerPacket(new TeleportPacket(x, y, false)));
         Reply($"Телепорт в ({x}, {y}).");
     }
@@ -133,7 +134,7 @@ internal sealed class DummyAdminCommands(
 
     private void Reply(string text)
     {
-        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        long now = DummyClockTime.UnixMilliseconds(clock);
         var message = new ChatMessagePacket(
             now,
             now,

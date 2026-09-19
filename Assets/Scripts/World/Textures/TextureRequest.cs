@@ -3,7 +3,7 @@
 using Cysharp.Threading.Tasks;
 using MinesServer.Data;
 
-namespace Fodinae.World.Textures;
+namespace Kern.World.Textures;
 
 public sealed class TextureRequest
 {

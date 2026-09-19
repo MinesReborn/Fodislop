@@ -8,7 +8,7 @@ using Cysharp.Threading.Tasks;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.World.Textures;
+namespace Kern.World.Textures;
 
 public sealed class CellTextureRetryTracker
 {

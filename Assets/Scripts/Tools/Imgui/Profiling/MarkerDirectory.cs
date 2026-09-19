@@ -7,17 +7,14 @@ using Unity.Profiling.LowLevel;
 using Unity.Profiling.LowLevel.Unsafe;
 using UnityEngine;
 
-namespace Fodinae.Tools.Imgui.Profiling;
+namespace Kern.Tools.Imgui.Profiling;
 
 public readonly record struct MarkerInfo(
     ProfilerRecorderHandle Handle,
     string Name,
     ProfilerCategory Category,
     ProfilerMarkerDataUnit Unit,
-    MarkerFlags Flags)
-{
-    public bool SamplesGpu => (Flags & MarkerFlags.SampleGPU) != 0;
-}
+    MarkerFlags Flags);
 
 // Справочник всех маркеров и счётчиков, которые профайлер знает прямо сейчас.
 //

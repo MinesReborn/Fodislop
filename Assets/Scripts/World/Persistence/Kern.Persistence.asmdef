@@ -1,0 +1,17 @@
+{
+    "name": "Kern.Persistence",
+    "rootNamespace": "Kern.Persistence",
+    "references": [
+        "UniTask",
+        "Kern.Contracts"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

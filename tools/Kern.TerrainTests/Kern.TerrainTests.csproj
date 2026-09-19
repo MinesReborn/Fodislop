@@ -1,0 +1,70 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    EditMode-тесты террейна вне Unity: те же файлы тестов из Assets/Scripts/Tests,
+    тот же код игры, движковые типы — из подмены бенчмарка.
+    Запуск: dotnet test tools/Kern.TerrainTests
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <RunAnalyzers>false</RunAnalyzers>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);CS8981;CS0105;NUnit2045</NoWarn>
+    <ScriptAssemblies>../../Library/ScriptAssemblies</ScriptAssemblies>
+    <Game>../../Assets/Scripts</Game>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="MinesServer.Data">
+      <HintPath>$(ScriptAssemblies)/MinesServer.Data.dll</HintPath>
+    </Reference>
+    <Reference Include="MinesServer.Networking">
+      <HintPath>$(ScriptAssemblies)/MinesServer.Networking.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Подмена движка и кэша — общая с бенчмарком. -->
+    <Compile Include="../Kern.TerrainBench/UnityShim.cs" Link="Shim/UnityShim.cs" />
+    <Compile Include="../Kern.TerrainBench/Game/BenchTerrainCellCache.cs" Link="Shim/BenchTerrainCellCache.cs" />
+
+    <!-- Код игры. -->
+    <Compile Include="$(Game)/Core/Interfaces/Contracts/ProjectRuntimeContracts.cs" Link="Game/ProjectRuntimeContracts.cs" />
+    <Compile Include="$(Game)/World/Common/TileBitmaskConverter.cs" Link="Game/TileBitmaskConverter.cs" />
+    <Compile Include="$(Game)/World/Terrain/Mesh/TerrainVertex.cs" Link="Game/TerrainVertex.cs" />
+    <Compile Include="$(Game)/World/Terrain/Mesh/TerrainMeshScroller.cs" Link="Game/TerrainMeshScroller.cs" />
+    <Compile Include="$(Game)/World/Terrain/Mesh/TerrainCellMaskCalculator.cs" Link="Game/TerrainCellMaskCalculator.cs" />
+    <Compile Include="$(Game)/World/Terrain/Mesh/TerrainVertexDistortionCalculator.cs" Link="Game/TerrainVertexDistortionCalculator.cs" />
+    <Compile Include="$(Game)/World/Terrain/Gpu/TerrainCellDataPacker.cs" Link="Game/TerrainCellDataPacker.cs" />
+    <Compile Include="$(Game)/World/Terrain/Gpu/TerrainDirtyRegion.cs" Link="Game/TerrainDirtyRegion.cs" />
+    <Compile Include="$(Game)/World/Terrain/Cache/DirtyRectSet.cs" Link="Game/DirtyRectSet.cs" />
+    <Compile Include="$(Game)/World/Terrain/Cache/TerrainRingGrid.cs" Link="Game/TerrainRingGrid.cs" />
+    <Compile Include="$(Game)/World/Streaming/StreamingPolicy.cs" Link="Game/StreamingPolicy.cs" />
+    <Compile Include="$(Game)/World/Streaming/StreamingPlan.cs" Link="Game/StreamingPlan.cs" />
+    <Compile Include="$(Game)/World/Streaming/StreamingGovernor.cs" Link="Game/StreamingGovernor.cs" />
+    <Compile Include="$(Game)/World/Terrain/Cache/TerrainMetadata.cs" Link="Game/TerrainMetadata.cs" />
+    <Compile Include="$(Game)/World/Terrain/Background/BackgroundFloodFill.cs" Link="Game/BackgroundFloodFill.cs" />
+    <Compile Include="$(Game)/World/Lighting/Core/LightingRegionCalculator.cs" Link="Game/LightingRegionCalculator.cs" />
+    <Compile Include="$(Game)/World/Lighting/Core/LightingRuntimeState.cs" Link="Game/LightingRuntimeState.cs" />
+    <Compile Include="$(Game)/UI/Map/MinimapRefreshPolicy.cs" Link="Game/MinimapRefreshPolicy.cs" />
+
+    <!-- Тесты из Assets: те же, что гоняет Unity. -->
+    <Compile Include="$(Game)/Tests/Editor/World/BackgroundFloodFill*.cs" LinkBase="Tests" />
+    <Compile Include="$(Game)/Tests/Editor/World/Terrain/Geometry/*.cs" LinkBase="Tests/Geometry" />
+    <Compile Include="$(Game)/Tests/Editor/World/Lighting/LightingRegionCalculator*.cs" LinkBase="Tests/Lighting" />
+    <Compile Include="$(Game)/Tests/Editor/World/Lighting/LightingRuntimeStateTests.cs" Link="Tests/Lighting/LightingRuntimeStateTests.cs" />
+    <Compile Include="$(Game)/Tests/Editor/World/Streaming/StreamingGovernorTests.cs" Link="Tests/Streaming/StreamingGovernorTests.cs" />
+    <Compile Include="$(Game)/Tests/Editor/UI/MinimapRefreshPolicy*.cs" LinkBase="Tests/UI" />
+  </ItemGroup>
+</Project>

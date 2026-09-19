@@ -1,21 +1,24 @@
 #nullable enable
 
 using System.Collections.Generic;
+using Kern.World.Lighting;
 using UnityEngine;
 
-namespace Fodinae.Tools.Imgui.Windows;
+namespace Kern.Tools.Imgui.Windows;
 
 public sealed class ToolbarWindow : ToolWindow
 {
+    private readonly LightingEngine? _lighting;
     private readonly Dictionary<ToolWindow, string> _labels = [];
     private int _labelSignature;
     private Vector2 _scroll;
     private float _labelScale = -1f;
     private string _scaleLabel = string.Empty;
 
-    public ToolbarWindow()
+    public ToolbarWindow(LightingEngine? lighting = null)
         : base("Инструменты  ·  F1", new Rect(16f, 16f, 260f, 350f))
     {
+        _lighting = lighting;
         Visible = true;
     }
 
@@ -91,6 +94,9 @@ public sealed class ToolbarWindow : ToolWindow
 
         using (ToolLayout.ScrollView(ref _scroll))
         {
+            DrawLightingActions();
+            ToolTheme.Separator();
+
             foreach (ToolWindow window in ToolWindows.All)
             {
                 if (ReferenceEquals(window, this))
@@ -117,6 +123,23 @@ public sealed class ToolbarWindow : ToolWindow
                 "«Сбросить расположение» стирает и запомненное.",
                 MutedLabelStyle);
         }
+    }
+
+    private void DrawLightingActions()
+    {
+        ToolChrome.SectionHeader("ОТЛАДКА ОСВЕЩЕНИЯ");
+        if (_lighting == null)
+        {
+            GUILayout.Label("Движок освещения недоступен.", MutedLabelStyle);
+            return;
+        }
+
+        if (GUILayout.Button("Сохранить dump текущего кадра", ActiveButtonStyle))
+        {
+            _lighting.DumpCurrentFrame();
+        }
+
+        GUILayout.Label("Файлы сохраняются в LightingDumps/.", MutedLabelStyle);
     }
 
     private void DrawWindowRow(ToolWindow window)

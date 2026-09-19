@@ -2,10 +2,10 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.World.Lighting;
+using Kern.World.Lighting;
 using NUnit.Framework;
 
-namespace Fodinae.Tests.World.Lighting;
+namespace Kern.Tests.World.Lighting;
 
 [TestFixture]
 public class CascadeCostCalculatorFuzzTests
@@ -161,19 +161,19 @@ public class CascadeCostCalculatorFuzzTests
         CascadeLayout cascade = cascades[index];
         string context = $"seed {seed}, iteration {iteration}, cascade {index}";
 
-        // intervalLength = max(end - start, 1); stepCount = clamp(ceil(intervalLength), 1, maximumSteps).
-        float intervalLength = Math.Max(cascade.IntervalEnd - cascade.IntervalStart, 1f);
-        int stepCount = Clamp((int)Math.Ceiling(intervalLength), 1, maximumSteps);
-
+        float traceLength = Math.Max(cascade.IntervalEnd - cascade.IntervalStart, 0f);
+        int traceCount = 1;
         long mergeTaps = 0;
         if (index + 1 < cascades.Count)
         {
-            int branchCount = Clamp(
-                cascades[index + 1].DirectionCount / Math.Max(1, cascade.DirectionCount),
-                1,
-                4);
-            mergeTaps = (long)cascade.EntryCount * branchCount * 4;
+            CascadeLayout far = cascades[index + 1];
+            traceCount = Clamp(far.DirectionCount / Math.Max(1, cascade.DirectionCount), 1, 4) * 4;
+            mergeTaps = (long)cascade.EntryCount * traceCount;
+            traceLength = Math.Abs(cascade.IntervalStart) + Math.Abs(far.IntervalStart) +
+                (float)Math.Sqrt(2f) * far.ProbeSpacing;
         }
+
+        int stepCount = ((int)Math.Ceiling((float)Math.Sqrt(2f) * traceLength) + 2) * traceCount;
 
         Assert.That(sample.Index, Is.EqualTo(index), context);
         Assert.That(sample.ProbeWidth, Is.EqualTo(cascade.ProbeWidth), context);

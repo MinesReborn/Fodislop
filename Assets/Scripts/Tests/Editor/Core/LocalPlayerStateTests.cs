@@ -1,13 +1,13 @@
 #nullable enable
 
 using System;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Lifecycle;
-using Fodinae.Player.Logic;
+using Kern.Core.Interfaces;
+using Kern.Core.Lifecycle;
+using Kern.Player.Logic;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Fodinae.Tests.Core;
+namespace Kern.Tests.Core;
 
 [TestFixture]
 public class LocalPlayerStateTests

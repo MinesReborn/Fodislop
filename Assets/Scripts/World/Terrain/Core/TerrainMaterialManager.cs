@@ -2,12 +2,12 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
+using Kern.Core;
+using Kern.Core.Interfaces;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.World.Terrain;
+namespace Kern.World.Terrain;
 
 public sealed class TerrainMaterialManager
 {
@@ -29,7 +29,7 @@ public sealed class TerrainMaterialManager
     // Единственный материал террейна: меш идентификаторов, все атласы разом.
     public Material[] CellMaterials => _cellMaterials;
     private Shader? _terrainShader;
-    private int _lastAtlasCount = -1;
+    private readonly List<IAtlasDescriptor> _lastAtlases = new();
     private bool _lightingBindingValidated;
 
     public Material[] Materials => _materials;
@@ -82,80 +82,149 @@ public sealed class TerrainMaterialManager
         IClientConfigManager clientConfigManager,
         TerrainCellCache cellCache)
     {
-        bool materialsChanged = false;
-        if (atlases.Count != _lastAtlasCount)
+        if (AtlasRefsEqual(atlases, _lastAtlases))
         {
-            IClientConfigManager cfgManager = clientConfigManager ??
-                throw new InvalidOperationException(
-                    "TerrainRenderer requires IClientConfigManager injection.");
-            ClientConfig clientConfig = cfgManager.Config ??
-                throw new InvalidOperationException(
-                    "TerrainRenderer requires an initialized ClientConfig.");
-
-            _lastAtlasCount = atlases.Count;
-            _lightingBindingValidated = false;
-            cellCache.ClearCaches();
-            CleanupMaterials();
-
-            _materials = new Material[atlases.Count];
-            _overlayMaterials = new Material[atlases.Count];
-            for (int i = 0; i < atlases.Count; i++)
-            {
-                Shader shader = _terrainShader ??
-                    throw new InvalidOperationException(
-                        "Terrain shader was not initialized before atlas material creation.");
-                _materials[i] = new Material(shader)
-                {
-                    name = $"Terrain Atlas Material {i}",
-                    hideFlags = HideFlags.HideAndDontSave,
-                };
-                RequireShaderProperties(_materials[i]);
-                _materials[i].SetVector(_FlowScalePropertyID, clientConfig.Terrain.FlowScale);
-                _materials[i].SetFloat(_ShimmerSpeedScalePropertyID, clientConfig.Terrain.ShimmerSpeedScale);
-                _materials[i].SetFloat(_PulseSpeedScalePropertyID, clientConfig.Terrain.PulseSpeedScale);
-                _materials[i].SetColor(_ShimmerColorPropertyID, clientConfig.Terrain.ShimmerColor);
-                _materials[i].SetColor(_DebugColorPropertyID, clientConfig.Terrain.DebugColor);
-                _materials[i].SetFloat(_DebugModePropertyID, clientConfig.Terrain.DebugMode ? 1f : 0f);
-
-                if (_materials[i].FindPass("Universal2D") < 0 ||
-                    _materials[i].FindPass(
-                        ProjectRuntimeContracts.ShaderPassNames.LightingMaterialField) < 0)
-                {
-                    throw new InvalidOperationException(
-                        $"Terrain material '{_materials[i].name}' is missing required " +
-                        "world-lighting properties or passes.");
-                }
-
-                _overlayMaterials[i] = new Material(_materials[i])
-                {
-                    name = $"Terrain Door Overlay Material {i}",
-                    hideFlags = HideFlags.HideAndDontSave,
-                };
-
-            }
-
-            if (atlases.Count > _TerrainAtlasPropertyIDs.Length)
-            {
-                throw new InvalidOperationException(
-                    $"Terrain cell material holds {_TerrainAtlasPropertyIDs.Length} atlases, got {atlases.Count}.");
-            }
-
-            // Один материал на все атласы рисует меш идентификаторов: при
-            // материале на атлас каждый проходил бы все вершины сетки.
-            _cellMaterials =
-            [
-                new Material(_materials[0])
-                {
-                    name = "Terrain Cell Material",
-                    hideFlags = HideFlags.HideAndDontSave,
-                },
-            ];
-            _cellMaterials[0].EnableKeyword(CellModeKeyword);
-
-            materialsChanged = true;
+            return false;
         }
 
-        return materialsChanged;
+        IClientConfigManager cfgManager = clientConfigManager ??
+            throw new InvalidOperationException(
+                "TerrainRenderer requires IClientConfigManager injection.");
+        ClientConfig clientConfig = cfgManager.Config ??
+            throw new InvalidOperationException(
+                "TerrainRenderer requires an initialized ClientConfig.");
+
+        // Рост в конец: новые текстуры стримятся по мере исследования мира.
+        // Старые индексы атласов в текселях при этом валидны, поэтому кеши,
+        // материалы и привязка света не трогаются — создаются только новые
+        // материалы. Раньше любой рост валил ClearCaches + BuildFull + полный
+        // static solve прямо посреди движения по новому контенту.
+        if (IsAtlasAppend(atlases, _lastAtlases) && _cellMaterials.Length > 0)
+        {
+            int startIndex = _lastAtlases.Count;
+            Array.Resize(ref _materials, atlases.Count);
+            Array.Resize(ref _overlayMaterials, atlases.Count);
+            for (int i = startIndex; i < atlases.Count; i++)
+            {
+                CreateAtlasMaterials(i, clientConfig);
+            }
+
+            SnapshotAtlasRefs(atlases);
+            return false;
+        }
+
+        _lightingBindingValidated = false;
+        cellCache.ClearCaches();
+        CleanupMaterials();
+        _cellMaterials = [];
+
+        _materials = new Material[atlases.Count];
+        _overlayMaterials = new Material[atlases.Count];
+        for (int i = 0; i < atlases.Count; i++)
+        {
+            CreateAtlasMaterials(i, clientConfig);
+        }
+
+        if (atlases.Count > _TerrainAtlasPropertyIDs.Length)
+        {
+            throw new InvalidOperationException(
+                $"Terrain cell material holds {_TerrainAtlasPropertyIDs.Length} atlases, got {atlases.Count}.");
+        }
+
+        // Один материал на все атласы рисует меш идентификаторов: при
+        // материале на атлас каждый проходил бы все вершины сетки.
+        _cellMaterials =
+        [
+            new Material(_materials[0])
+            {
+                name = "Terrain Cell Material",
+                hideFlags = HideFlags.HideAndDontSave,
+            },
+        ];
+        _cellMaterials[0].EnableKeyword(CellModeKeyword);
+
+        SnapshotAtlasRefs(atlases);
+        return true;
+    }
+
+    private static bool AtlasRefsEqual(
+        IReadOnlyList<IAtlasDescriptor> atlases,
+        List<IAtlasDescriptor> previous)
+    {
+        if (atlases.Count != previous.Count)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < atlases.Count; i++)
+        {
+            if (!ReferenceEquals(atlases[i], previous[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsAtlasAppend(
+        IReadOnlyList<IAtlasDescriptor> atlases,
+        List<IAtlasDescriptor> previous)
+    {
+        if (atlases.Count <= previous.Count)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < previous.Count; i++)
+        {
+            if (!ReferenceEquals(atlases[i], previous[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private void SnapshotAtlasRefs(IReadOnlyList<IAtlasDescriptor> atlases)
+    {
+        _lastAtlases.Clear();
+        _lastAtlases.AddRange(atlases);
+    }
+
+    private void CreateAtlasMaterials(int index, ClientConfig clientConfig)
+    {
+        Shader shader = _terrainShader ??
+            throw new InvalidOperationException(
+                "Terrain shader was not initialized before atlas material creation.");
+        _materials[index] = new Material(shader)
+        {
+            name = $"Terrain Atlas Material {index}",
+            hideFlags = HideFlags.HideAndDontSave,
+        };
+        RequireShaderProperties(_materials[index]);
+        _materials[index].SetVector(_FlowScalePropertyID, clientConfig.Terrain.FlowScale);
+        _materials[index].SetFloat(_ShimmerSpeedScalePropertyID, clientConfig.Terrain.ShimmerSpeedScale);
+        _materials[index].SetFloat(_PulseSpeedScalePropertyID, clientConfig.Terrain.PulseSpeedScale);
+        _materials[index].SetColor(_ShimmerColorPropertyID, clientConfig.Terrain.ShimmerColor);
+        _materials[index].SetColor(_DebugColorPropertyID, clientConfig.Terrain.DebugColor);
+        _materials[index].SetFloat(_DebugModePropertyID, clientConfig.Terrain.DebugMode ? 1f : 0f);
+
+        if (_materials[index].FindPass("Universal2D") < 0 ||
+            _materials[index].FindPass(
+                ProjectRuntimeContracts.ShaderPassNames.LightingMaterialField) < 0)
+        {
+            throw new InvalidOperationException(
+                $"Terrain material '{_materials[index].name}' is missing required " +
+                "world-lighting properties or passes.");
+        }
+
+        _overlayMaterials[index] = new Material(_materials[index])
+        {
+            name = $"Terrain Door Overlay Material {index}",
+            hideFlags = HideFlags.HideAndDontSave,
+        };
     }
 
     public void BindAtlasTextures(
@@ -223,7 +292,7 @@ public sealed class TerrainMaterialManager
         Shader.PropertyToID("_TerrainAtlas6"),
         Shader.PropertyToID("_TerrainAtlas7"),
     ];
-    private const string CellModeKeyword = "FODINAE_TERRAIN_CELLS";
+    private const string CellModeKeyword = "KERN_TERRAIN_CELLS";
 
     public void ValidateLightingBinding()
     {

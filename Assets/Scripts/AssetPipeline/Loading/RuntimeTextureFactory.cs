@@ -4,7 +4,7 @@ using System;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace Fodinae;
+namespace Kern;
 
 public enum RuntimeTextureColorSpace
 {
@@ -94,6 +94,32 @@ public static class RuntimeTextureFactory
             width,
             height,
             TextureFormat.RGBAFloat,
+            mipChain: false,
+            linear: colorSpace == RuntimeTextureColorSpace.Linear)
+        {
+            name = name,
+        };
+        ApplySampling(texture, filterMode, wrapMode);
+        return texture;
+    }
+
+    // Половинная точность: столько же каналов, вдвое меньше памяти. Нужна для
+    // снятия содержимого HDR-целей на CPU (ReadPixels), где RGBA32 обрезал бы
+    // всё ярче единицы, а RGBAFloat стоил бы вдвое больше без выигрыша в
+    // точности — цель и так хранит half.
+    public static Texture2D CreateRGBAHalfNoMip(
+        int width,
+        int height,
+        string name,
+        RuntimeTextureColorSpace colorSpace,
+        FilterMode filterMode,
+        TextureWrapMode wrapMode)
+    {
+        ValidateDimensions(width, height, name);
+        var texture = new Texture2D(
+            width,
+            height,
+            TextureFormat.RGBAHalf,
             mipChain: false,
             linear: colorSpace == RuntimeTextureColorSpace.Linear)
         {

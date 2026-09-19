@@ -2,5 +2,5 @@
 
 using UnityEngine;
 
-namespace Fodinae.Core.Models;
+namespace Kern.Core.Models;
 public readonly record struct StatusLineEntry(string[] Text, Color Color, byte BlinkRate, long Expiry);

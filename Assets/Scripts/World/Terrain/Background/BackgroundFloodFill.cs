@@ -7,8 +7,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
+using Kern.World.Terrain;
 
-namespace Fodinae.World.Terrain.Background;
+namespace Kern.World.Terrain.Background;
 public sealed class BackgroundFloodFill
 {
     private int[] _fbpwGeneration = Array.Empty<int>();
@@ -16,7 +17,8 @@ public sealed class BackgroundFloodFill
     private readonly List<(int X, int Y)> _fbpwFrontier = new(64);
     private readonly List<(int X, int Y)> _fbpwNextFrontier = new(64);
 
-    private CellType[,] _bgMapBuffer = new CellType[0, 0];
+    private readonly TerrainRingGrid<CellType> _bgMapBuffer = new();
+    private readonly TerrainRingGrid<CachedCellInfo> _sourceCells = new();
     private int _width;
     private int _height;
 
@@ -27,14 +29,15 @@ public sealed class BackgroundFloodFill
 
     public void Allocate(int width, int height)
     {
-        if (_width == width && _height == height && _bgMapBuffer != null)
+        if (_width == width && _height == height && _bgMapBuffer.IsAllocated)
         {
             return;
         }
 
         _width = width;
         _height = height;
-        _bgMapBuffer = new CellType[width, height];
+        _bgMapBuffer.EnsureSize(width, height);
+        _sourceCells.EnsureSize(width, height);
         _fbpwGeneration = new int[width * height];
         _fbpwCurrentGen = 1;
         _columnFrontiers = new List<(int X, int Y)>[width];
@@ -44,7 +47,7 @@ public sealed class BackgroundFloodFill
         }
     }
 
-    public CellType[,] Buffer => _bgMapBuffer;
+    public TerrainRingGrid<CellType> Buffer => _bgMapBuffer;
 
     private static bool IsFloorCell(CellType type, CellConfigProperties properties)
     {
@@ -59,32 +62,44 @@ public sealed class BackgroundFloodFill
         var frontier = _fbpwFrontier;
         frontier.Clear();
 
+        Parallel.For(
+            0,
+            w,
+            x =>
+            {
+                for (int y = 0; y < h; y++)
+                {
+                    _sourceCells[x, y] = cellCache.GetCell(x + 1, y + 1);
+                }
+            });
+
         // The seed scan writes only its own cell and appends to its own
-        // column list, so it parallelises cleanly. Measured at 5.81 ms for a
-        // 192x128 region on the main thread, which was the single most
-        // expensive stage of a terrain rebuild - and a rebuild fires on every
-        // mined cell.
+        // column list, so it parallelises cleanly. A full populate remains a
+        // fallback path; ordinary camera movement uses ComputeScrolled.
         //
         // Concatenating the column lists in x order reproduces the sequential
         // frontier exactly, which matters: FBPWPropagate fills each Unloaded
         // cell from whichever seed reaches it first, so a different frontier
         // order would be a different background map.
-        for (int x = 0; x < w; x++)
-        {
-            List<(int X, int Y)> columnFrontier = _columnFrontiers[x];
-            columnFrontier.Clear();
-            for (int y = 0; y < h; y++)
+        Parallel.For(
+            0,
+            w,
+            x =>
             {
-                SeedCell(x, y, cellCache, columnFrontier);
-            }
-        }
+                List<(int X, int Y)> columnFrontier = _columnFrontiers[x];
+                columnFrontier.Clear();
+                for (int y = 0; y < h; y++)
+                {
+                    SeedCell(x, y, columnFrontier);
+                }
+            });
 
         for (int x = 0; x < w; x++)
         {
             frontier.AddRange(_columnFrontiers[x]);
         }
 
-        FBPWPropagate(frontier, cellCache);
+        FBPWPropagate(frontier);
         ReplaceUnloadedWithEmpty(0, w, 0, h);
     }
 
@@ -109,7 +124,8 @@ public sealed class BackgroundFloodFill
             return;
         }
 
-        Scroll2DArray(_bgMapBuffer, w, h, dx, dy);
+        _bgMapBuffer.Scroll(dx, dy);
+        _sourceCells.Scroll(dx, dy);
 
         var frontier = _fbpwFrontier;
         frontier.Clear();
@@ -120,7 +136,8 @@ public sealed class BackgroundFloodFill
         int columnCount = Math.Abs(dx);
         if (columnCount > 0)
         {
-            SeedBorderRegion(columnStart, columnCount, 0, h, cellCache, frontier);
+            CacheRegion(columnStart, 0, columnCount, h, cellCache);
+            SeedBorderRegion(columnStart, columnCount, 0, h, frontier);
         }
 
         int rowStart = dy > 0 ? h - dy : 0;
@@ -129,7 +146,8 @@ public sealed class BackgroundFloodFill
         int remainingCount = w - columnCount;
         if (rowCount > 0 && remainingCount > 0)
         {
-            SeedBorderRegion(remainingStart, remainingCount, rowStart, rowCount, cellCache, frontier);
+            CacheRegion(remainingStart, rowStart, remainingCount, rowCount, cellCache);
+            SeedBorderRegion(remainingStart, remainingCount, rowStart, rowCount, frontier);
         }
 
         // Линия уже разрешённой внутренности вплотную к кайме — тоже
@@ -153,7 +171,7 @@ public sealed class BackgroundFloodFill
         // Волна заливает только неразрешённые клетки каймы. Раньше она
         // перезаливала всю связную породу окна: 73% стоимости шага камеры, а
         // внутренность при этом перещёлкивалась на ничьих ~10% клеток.
-        FBPWPropagate(frontier, cellCache, onlyUnresolved: true);
+        FBPWPropagate(frontier, onlyUnresolved: true);
 
         if (columnCount > 0)
         {
@@ -175,11 +193,18 @@ public sealed class BackgroundFloodFill
         int clampedStartX = Math.Max(0, startX);
         int clampedStartY = Math.Max(0, startY);
 
+        CacheRegion(
+            clampedStartX,
+            clampedStartY,
+            endX - clampedStartX,
+            endY - clampedStartY,
+            cellCache);
+
         for (int x = clampedStartX; x < endX; x++)
         {
             for (int y = clampedStartY; y < endY; y++)
             {
-                var cell = cellCache.GetCell(x + 1, y + 1);
+                CachedCellInfo cell = _sourceCells[x, y];
 
                 if (IsFloorCell(cell.Type, cell.Properties))
                 {
@@ -187,7 +212,7 @@ public sealed class BackgroundFloodFill
                 }
                 else
                 {
-                    CellType neighbor = FindMostFrequentPassableNeighbor(cellCache, x, y, w, h);
+                    CellType neighbor = FindMostFrequentPassableNeighbor(x, y, w, h);
                     _bgMapBuffer[x, y] = neighbor != CellType.Unloaded ? neighbor : CellType.Empty;
                 }
             }
@@ -227,13 +252,13 @@ public sealed class BackgroundFloodFill
         }
     }
 
-    private void SeedBorderRegion(int startX, int countX, int startY, int countY, ICachedCellDataProvider cellCache, List<(int, int)> frontier)
+    private void SeedBorderRegion(int startX, int countX, int startY, int countY, List<(int, int)> frontier)
     {
         for (int x = startX; x < startX + countX; x++)
         {
             for (int y = startY; y < startY + countY; y++)
             {
-                SeedCell(x, y, cellCache, frontier);
+                SeedCell(x, y, frontier);
             }
         }
     }
@@ -252,17 +277,21 @@ public sealed class BackgroundFloodFill
         }
     }
 
-    private void SeedCell(int x, int y, ICachedCellDataProvider cellCache, List<(int, int)> frontier)
+    private void SeedCell(int x, int y, List<(int, int)> frontier)
     {
-        var cell = cellCache.GetCell(x + 1, y + 1);
+        CachedCellInfo cell = _sourceCells[x, y];
         if (IsFloorCell(cell.Type, cell.Properties))
         {
             _bgMapBuffer[x, y] = cell.Type;
-            frontier.Add((x, y));
+            // A floor cell is already resolved and is never overwritten by
+            // propagation. Only unresolved cells adjacent to a floor need a
+            // seed; launching a wave from every floor cell repeats the same
+            // eight-neighbour scan and made full populates unnecessarily
+            // expensive.
         }
         else
         {
-            CellType neighbor = FindMostFrequentPassableNeighbor(cellCache, x, y, _width, _height);
+            CellType neighbor = FindMostFrequentPassableNeighbor(x, y, _width, _height);
             _bgMapBuffer[x, y] = neighbor;
             if (neighbor != CellType.Unloaded)
             {
@@ -271,8 +300,7 @@ public sealed class BackgroundFloodFill
         }
     }
 
-    private static CellType FindMostFrequentPassableNeighbor(
-        ICachedCellDataProvider cellCache,
+    private CellType FindMostFrequentPassableNeighbor(
         int x,
         int y,
         int w,
@@ -297,7 +325,7 @@ public sealed class BackgroundFloodFill
                     continue;
                 }
 
-                var n = cellCache.GetCell(nx + 1, ny + 1);
+                CachedCellInfo n = _sourceCells[nx, ny];
                 if (!IsFloorCell(n.Type, n.Properties))
                 {
                     continue;
@@ -342,7 +370,6 @@ public sealed class BackgroundFloodFill
 
     private void FBPWPropagate(
         List<(int, int)> frontier,
-        ICachedCellDataProvider cellCache,
         bool onlyUnresolved = false)
     {
         if (frontier.Count == 0)
@@ -395,7 +422,7 @@ public sealed class BackgroundFloodFill
                             continue;
                         }
 
-                        var n = cellCache.GetCell(nx + 1, ny + 1);
+                        CachedCellInfo n = _sourceCells[nx, ny];
                         if (IsFloorCell(n.Type, n.Properties))
                         {
                             continue;
@@ -422,26 +449,18 @@ public sealed class BackgroundFloodFill
         }
     }
 
-    private static void Scroll2DArray<T>(T[,] array, int w, int h, int dx, int dy)
+    private void CacheRegion(
+        int startX,
+        int startY,
+        int width,
+        int height,
+        ICachedCellDataProvider cellCache)
     {
-        if (dx == 0 && dy == 0)
+        for (int x = startX; x < startX + width; x++)
         {
-            return;
-        }
-
-        int xStart = dx >= 0 ? 0 : w - 1;
-        int xEnd = dx >= 0 ? w - dx : -dx - 1;
-        int xStep = dx >= 0 ? 1 : -1;
-
-        int yStart = dy >= 0 ? 0 : h - 1;
-        int yEnd = dy >= 0 ? h - dy : -dy - 1;
-        int yStep = dy >= 0 ? 1 : -1;
-
-        for (int x = xStart; x != xEnd; x += xStep)
-        {
-            for (int y = yStart; y != yEnd; y += yStep)
+            for (int y = startY; y < startY + height; y++)
             {
-                array[x, y] = array[x + dx, y + dy];
+                _sourceCells[x, y] = cellCache.GetCell(x + 1, y + 1);
             }
         }
     }

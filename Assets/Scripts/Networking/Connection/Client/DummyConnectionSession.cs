@@ -10,9 +10,13 @@ internal sealed class DummyConnectionSession
 
     public int LifecycleVersion { get; private set; }
 
+    // Подключение во время незавершённого отключения его перебивает: новая
+    // версия жизненного цикла делает запоздалое завершение отключения пустым.
+    // Раньше такой Connect молча отбрасывался, и быстрый возврат из меню в игру
+    // оставлял клиента без соединения навсегда.
     public bool TryBeginConnect(out int lifecycleVersion)
     {
-        if (Status != ConnectionStatus.Disconnected)
+        if (Status != ConnectionStatus.Disconnected && Status != ConnectionStatus.Disconnecting)
         {
             lifecycleVersion = LifecycleVersion;
             return false;

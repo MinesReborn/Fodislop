@@ -1,21 +1,21 @@
 #nullable enable
 
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Rendering.PostProcessing;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Rendering.PostProcessing;
 using NUnit.Framework;
 using System;
 using System.IO;
 using UnityEngine;
 
-namespace Fodinae.Tests.Core;
+namespace Kern.Tests.Core;
 
 public sealed class RuntimeAssetPathsTests
 {
     [Test]
     public void RuntimeAssetPaths_UsesPersistentOverrideAndCaseInsensitiveBundledLookup()
     {
-        string root = Path.Combine(Path.GetTempPath(), $"fodinae-paths-{Guid.NewGuid():N}");
+        string root = Path.Combine(Path.GetTempPath(), $"kern-paths-{Guid.NewGuid():N}");
         string bundled = Path.Combine(root, "bundled");
         string persistent = Path.Combine(root, "persistent");
         Directory.CreateDirectory(Path.Combine(bundled, "Skin"));
@@ -45,7 +45,7 @@ public sealed class RuntimeAssetPathsTests
     [TestCase("skin//bee.png")]
     public void RuntimeAssetPaths_RejectsUnsafeRelativePaths(string relativePath)
     {
-        string root = Path.Combine(Path.GetTempPath(), $"fodinae-paths-{Guid.NewGuid():N}");
+        string root = Path.Combine(Path.GetTempPath(), $"kern-paths-{Guid.NewGuid():N}");
         Directory.CreateDirectory(root);
 
         try
@@ -317,10 +317,20 @@ public sealed class RuntimeAssetPathsTests
         Assert.That(zone.Saturation, Is.EqualTo(PostProcessLook.ColorGrading.Saturation));
     }
 
+    // with-вирази на init-пропах снапшота вимагають IsExternalInit, якого нема
+    // в тестовій збірці: йдемо через mutable стейт (ctor = ResetToLook, тобто
+    // ті ж дефолти що FromLook) і чисту авторську конверсію без превью.
+    private static ColorGradeSnapshot GradeWithTemperature(float temperature)
+    {
+        var state = new ColorGradeState();
+        state.Temperature = temperature;
+        return state.ToAuthoredSnapshot();
+    }
+
     [Test]
     public void ColorGradeZoneDriver_DisabledZonesRestoreBaseGrade()
     {
-        ColorGradeSnapshot modified = ColorGradeSnapshot.FromLook().WithTemperature(40f);
+        ColorGradeSnapshot modified = GradeWithTemperature(40f);
         PostProcessRuntimeState.SetColorGrade(modified);
         var zones = new ColorGradeZones
         {
@@ -355,7 +365,7 @@ public sealed class RuntimeAssetPathsTests
             centerY: 20f,
             halfHeight: 5f,
             feather: 5f,
-            grade: ColorGradeSnapshot.FromLook().WithTemperature(25f),
+            grade: GradeWithTemperature(25f),
             exposure: 1.25f,
             contrast: 0.2f,
             saturation: 0.7f));
@@ -404,7 +414,7 @@ public sealed class RuntimeAssetPathsTests
             centerY: 50f,
             halfHeight: 10f,
             feather: 5f,
-            grade: ColorGradeSnapshot.FromLook().WithTemperature(-30f),
+            grade: GradeWithTemperature(-30f),
             exposure: -1.0f,
             centerX: 200f,
             halfWidth: 50f));
@@ -430,12 +440,8 @@ public sealed class RuntimeAssetPathsTests
     {
         PostProcessRuntimeState.SetDisplayCalibration(
             float.NaN,
-            float.PositiveInfinity,
-            float.NegativeInfinity);
+            float.PositiveInfinity);
 
-        Assert.That(
-            PostProcessRuntimeState.DisplayGamma,
-            Is.EqualTo(DisplaySettings.DefaultGamma));
         Assert.That(
             PostProcessRuntimeState.DisplayPaperWhiteNits,
             Is.EqualTo(DisplaySettings.DefaultPaperWhite));
@@ -448,7 +454,6 @@ public sealed class RuntimeAssetPathsTests
     public void PostProcessRuntimeState_DisplayPeakNeverFallsBelowPaperWhite()
     {
         PostProcessRuntimeState.SetDisplayCalibration(
-            DisplaySettings.DefaultGamma,
             DisplaySettings.PaperWhiteMax,
             DisplaySettings.PeakBrightnessMin);
 

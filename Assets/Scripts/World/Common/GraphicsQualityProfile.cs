@@ -2,14 +2,14 @@
 
 using System;
 using System.IO;
-using Fodinae.Core;
-using Fodinae.Rendering.PostProcessing;
-using Fodinae.World.Lighting.Quality;
+using Kern.Core;
+using Kern.Rendering.PostProcessing;
+using Kern.World.Lighting.Quality;
 using UnityEngine;
 
-namespace Fodinae.Rendering
+namespace Kern.Rendering
 {
-[CreateAssetMenu(fileName = "GraphicsQualityProfile", menuName = "Fodinae/Graphics Quality Profile")]
+[CreateAssetMenu(fileName = "GraphicsQualityProfile", menuName = "Kern/Graphics Quality Profile")]
     public sealed class GraphicsQualityProfile : ScriptableObject
     {
         public const int StandardPresetCount = (int)GraphicsPreset.Custom;
@@ -106,11 +106,11 @@ namespace Fodinae.Rendering
             }
 
             if (context == nameof(GraphicsPreset.Ultra) &&
-                settings.LightingQuality != LightingQualityMode.PerPixel)
+                settings.LightingQuality is not (LightingQualityMode.PerPixel or LightingQualityMode.PerPixelBilinearFixBounce))
             {
                 throw new InvalidOperationException(
                     $"Graphics quality settings '{context}' must use {nameof(LightingQualityMode.PerPixel)} " +
-                    "lighting - Ultra is locked to it.");
+                    $"or {nameof(LightingQualityMode.PerPixelBilinearFixBounce)} lighting - Ultra is locked to per-pixel tiers.");
             }
         }
     }

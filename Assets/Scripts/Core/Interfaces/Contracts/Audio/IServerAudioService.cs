@@ -2,7 +2,7 @@
 
 using MinesServer.Networking.Server.Packets.World;
 
-namespace Fodinae.Core.Interfaces;
+namespace Kern.Core.Interfaces;
 public interface IServerAudioService
 {
     void PlayEffect(AudioPacket packet);

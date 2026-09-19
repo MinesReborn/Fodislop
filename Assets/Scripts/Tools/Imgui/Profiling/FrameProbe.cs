@@ -3,7 +3,7 @@
 using System;
 using Unity.Profiling;
 
-namespace Fodinae.Tools.Imgui.Profiling;
+namespace Kern.Tools.Imgui.Profiling;
 
 // Один маркер или счётчик профайлера: время участка, байты или количество.
 // Имя разрешается через MarkerDirectory, без угадывания категории; можно
@@ -58,7 +58,7 @@ public sealed class FrameProbe : IDisposable
     public double Peak { get; private set; }
 
     // Маркер есть, но у него нет GPU-метки: время видеокарты по нему не снять.
-    public bool GpuUnsupported { get; private set; }
+    public bool GPUUnsupported { get; private set; }
 
     public void Start()
     {
@@ -97,15 +97,15 @@ public sealed class FrameProbe : IDisposable
         if (_gpu)
         {
             // Сэмплеры RenderGraph не несут флага SampleGPU, и GPU-рекордер
-            // по ним пуст. Старый Recorder по имени сэмплера отдаёт время
+            // по ним пуст. Recorder по имени сэмплера отдаёт время
             // видеокарты и на Metal.
-            UnityEngine.Profiling.Recorder legacy = UnityEngine.Profiling.Recorder.Get(info.Name);
-            GpuUnsupported = legacy == null || !legacy.isValid;
+            UnityEngine.Profiling.Recorder gpuRecorderByName = UnityEngine.Profiling.Recorder.Get(info.Name);
+            GPUUnsupported = gpuRecorderByName == null || !gpuRecorderByName.isValid;
             ResolvedName = info.Name;
-            if (!GpuUnsupported)
+            if (!GPUUnsupported)
             {
-                legacy!.enabled = true;
-                _gpuRecorder = legacy;
+                gpuRecorderByName!.enabled = true;
+                _gpuRecorder = gpuRecorderByName;
             }
 
             return;

@@ -1,17 +1,17 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
+using Kern.Core;
 using UnityEngine;
 
-namespace Fodinae.World;
+namespace Kern.World;
 
 public sealed class SurfaceMaterialManager
 {
     private const string SurfaceShaderName = ProjectRuntimeContracts.ShaderNames.WorldSurface;
-    private const string RedRockKeyword = "FODINAE_SURFACE_REDROCK";
-    private const string TransitKeyword = "FODINAE_SURFACE_TRANSIT";
-    private const string PerspectiveKeyword = "FODINAE_SURFACE_PERSPECTIVE";
+    private const string RedRockKeyword = "KERN_SURFACE_REDROCK";
+    private const string TransitKeyword = "KERN_SURFACE_TRANSIT";
+    private const string PerspectiveKeyword = "KERN_SURFACE_PERSPECTIVE";
 
     private static readonly int _BaseMapID = Shader.PropertyToID("_BaseMap");
     private static readonly int _EmissionColorID = Shader.PropertyToID("_EmissionColor");

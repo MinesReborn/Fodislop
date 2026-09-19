@@ -1,10 +1,10 @@
 #nullable enable
 
 using System.Collections.Generic;
-using Fodinae.Core;
+using Kern.Core;
 using UnityEngine;
 
-namespace Fodinae.Tools.Imgui;
+namespace Kern.Tools.Imgui;
 
 public static class ToolWindows
 {

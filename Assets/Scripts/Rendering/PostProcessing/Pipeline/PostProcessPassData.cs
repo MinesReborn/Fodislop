@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 
-namespace Fodinae.Rendering.PostProcessing;
+namespace Kern.Rendering.PostProcessing;
 
 internal sealed class PostProcessPassData
 {
@@ -18,6 +18,10 @@ internal sealed class PostProcessPassData
     public int KernelBakeGradeLut = -1;
     public RenderTexture? BakedGradeLut;
     public BakedGradeLutCache? GradeLutCache;
+    // Поколение грейда из PostProcessRuntimeState. Оно уже меняется ровно
+    // тогда, когда меняется содержимое грейда, — и служит ключом запекания
+    // вместо посборного сравнения сотни векторов на каждом кадре.
+    public uint GradeGeneration;
 
     public TextureHandle ColorTexture;
     public TextureHandle IntermediateTexture;
@@ -28,7 +32,17 @@ internal sealed class PostProcessPassData
     public int Width;
     public int Height;
 
+    // Проход дисплея и творческий проход грузят разные наборы параметров.
+    // Раньше оба грузили все ~70, включая девять массивов кривых, которые
+    // творческому проходу не нужны вовсе (они уже запечены в таблицу), а
+    // дисплейному не нужны CDL, колёса и квалификатор.
+    public bool IsDisplayPass;
+    public bool DiagnosticsActive;
+
     public bool BloomActive;
+    // Фактическое число уровней пирамиды в этом кадре: на малом окне нижние
+    // уровни вырождаются в один пиксель и считать их незачем.
+    public int BloomLevels;
     public float BloomThreshold;
     public float BloomSoftKnee;
     public float BloomRadius;
@@ -48,7 +62,6 @@ internal sealed class PostProcessPassData
     public float Contrast;
     public float Saturation;
     public float CdlSaturation;
-    public float Gamma;
     public float DisplayPaperWhiteNits;
     public float DisplayPeakRelative;
     public int PostDebugView;
@@ -72,7 +85,6 @@ internal sealed class PostProcessPassData
     public Vector3 ContrastControls2;
     public Vector4 DisplayGrade0;
     public Vector4 DisplayGrade1;
-    public float DisplayGradePathPower;
     public float GamutCompression;
     public Vector4[] MasterCurvePoints = null!;
     public Vector4[] RedCurvePoints = null!;
@@ -120,6 +132,9 @@ internal sealed class PostProcessPassData
     public float MotionBlurHistory;
     public bool HistoryValid;
     public bool TemporalActive;
+
+    // clip прошлого кадра из clip текущего: VP_prev * inverse(VP_cur).
+    public Matrix4x4 HistoryReprojection;
 
     // Промежуточная текстура становится цветом камеры вместо копирования обратно.
     public bool SwapColor;

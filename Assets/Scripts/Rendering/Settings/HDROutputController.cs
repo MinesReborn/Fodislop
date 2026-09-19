@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Fodinae.Rendering;
+namespace Kern.Rendering;
 
 public sealed class HDROutputController(HDROutputController.IBackend backend)
 {
@@ -74,11 +74,28 @@ public sealed class HDROutputController(HDROutputController.IBackend backend)
         ResetAttempts();
     }
 
+    public void RetryRead()
+    {
+        _readFailed = false;
+        _hasSnapshot = false;
+        Current = default;
+        Status = Phase.Uninitialized;
+        ResetAttempts();
+    }
+
     public void Update(double now)
     {
         if (double.IsNaN(now) || double.IsInfinity(now) || now < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(now));
+        }
+
+        // A read failure is terminal until the caller explicitly retries.
+        // Re-reading on every reconcile/tick only repeats the same query
+        // that already failed and re-logs the identical warning.
+        if (_readFailed)
+        {
+            return;
         }
 
         Snapshot previous = Current;

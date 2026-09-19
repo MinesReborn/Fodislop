@@ -3,7 +3,7 @@
 using System.Collections.Generic;
 using MinesServer.Data;
 
-namespace Fodinae.UI.Programmator;
+namespace Kern.UI.Programmator;
 
 public static class ProgrammatorLocalization
 {

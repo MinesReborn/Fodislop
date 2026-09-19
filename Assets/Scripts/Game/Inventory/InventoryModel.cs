@@ -2,14 +2,14 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Models;
-using Fodinae.Networking;
+using Kern.Core.Interfaces;
+using Kern.Core.Models;
+using Kern.Networking;
 using MinesServer.Networking.Client.Packets.Inventory;
 using UnityEngine;
 using VContainer;
 
-namespace Fodinae.Game.Inventory;
+namespace Kern.Game.Inventory;
 public class InventoryModel : IInventoryModel, IInventoryState
 {
     public const int HOTBAR_SIZE = 9;

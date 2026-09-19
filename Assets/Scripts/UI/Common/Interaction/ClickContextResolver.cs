@@ -3,11 +3,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Fodinae.UI.Controls;
+using Kern.UI.Controls;
 using MinesServer.Networking.Shared.Packets;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 public static class ClickContextResolver
 {

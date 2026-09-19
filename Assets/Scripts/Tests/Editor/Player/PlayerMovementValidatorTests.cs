@@ -1,13 +1,13 @@
 #nullable enable
 
-namespace Fodinae.Tests.Player;
+namespace Kern.Tests.Player;
 
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Fodinae.Core.Interfaces;
-using Fodinae.Player.Logic;
+using Kern.Core.Interfaces;
+using Kern.Player.Logic;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.Information;
@@ -227,9 +227,9 @@ public class PlayerMovementValidatorTests
         public float GetMoveCooldown(CellType cellType) =>
             cellType == CellType.Empty ? emptyCooldown : normalCooldown;
 
-        public bool TryGetTileGroup(CellType type, out int groupId)
+        public bool TryGetTileGroup(CellType type, out int groupID)
         {
-            groupId = 0;
+            groupID = 0;
             return false;
         }
 
@@ -253,6 +253,11 @@ public class PlayerMovementValidatorTests
         public void SetRegion(int startX, int startY, int width, int height, CellType[] cells) { }
         public void SetRegion(int startX, int startY, int width, int height, ReadOnlySpan<CellType> cells) { }
         public CellType GetCell(int x, int y) => defaultCell;
+        public bool TryGetCell(int x, int y, out CellType cellType)
+        {
+            cellType = defaultCell;
+            return cellLayerAvailable;
+        }
         public void InitWorld(string worldCodeName, int width, int height) { }
         public void Dispose() { }
         public UniTask DisposeAsync(CancellationToken cancellationToken = default) => UniTask.CompletedTask;

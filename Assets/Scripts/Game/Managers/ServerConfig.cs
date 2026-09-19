@@ -1,10 +1,10 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
+using Kern.Core;
+using Kern.Core.Interfaces;
 
-namespace Fodinae.Game.Managers;
+namespace Kern.Game.Managers;
 
 // Чистый сервис контейнера: ни рендера, ни transform (SCENE_STANDARD.md §1).
 public sealed class ServerConfig : IServerConfig

@@ -1,12 +1,12 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
+using Kern.Core;
 using MinesServer.Data;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Programmator;
+namespace Kern.UI.Programmator;
 public class ObserverJoystick
 {
     private readonly VisualElement _root;

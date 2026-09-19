@@ -3,7 +3,7 @@
 using System.Linq;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Controls
+namespace Kern.UI.Controls
 {
     public class Selectable : BindableElement, INotifyValueChanged<bool>
     {

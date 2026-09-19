@@ -4,7 +4,7 @@ using System.IO;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Fodinae.Tests.Networking;
+namespace Kern.Tests.Networking;
 
 public sealed class DummyResponderDecompositionContractTests
 {
@@ -54,12 +54,16 @@ public sealed class DummyResponderDecompositionContractTests
     {
         string connection = ReadClientSource("DummyConnection.cs");
         string responder = ReadClientSource("DummyMovementResponder.cs");
+        string worldState = ReadClientSource("Simulation/DummyWorldSimulationState.cs");
 
         Assert.That(connection, Does.Contain("_movementResponder.HandleMove(move)"));
         Assert.That(connection, Does.Contain("_movementResponder.HandleClick(click)"));
         Assert.That(connection, Does.Not.Contain("dummy_walk_path"));
         Assert.That(responder, Does.Contain("dummy_walk_path"));
         Assert.That(responder, Does.Contain("public void CancelPath()"));
+        Assert.That(responder, Does.Not.Contain("GetCellSync"));
+        Assert.That(worldState, Does.Not.Contain("GetCellSync"));
+        Assert.That(worldState, Does.Contain("EnsureCellAvailableAsync"));
     }
 
     [Test]

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.Networking.Buildings;
+namespace Kern.Networking.Buildings;
 public abstract class PackBuilding
 {
     public abstract PackType Type { get; }

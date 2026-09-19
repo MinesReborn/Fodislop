@@ -1,10 +1,10 @@
 #nullable enable
 
 using System.Collections.Generic;
-using Fodinae.Networking.Diagnostics;
+using Kern.Networking.Diagnostics;
 using UnityEngine;
 
-namespace Fodinae.Tools.Imgui.Windows;
+namespace Kern.Tools.Imgui.Windows;
 
 public sealed class PacketTrafficWindow : ToolWindow
 {

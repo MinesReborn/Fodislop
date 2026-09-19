@@ -1,15 +1,15 @@
 #nullable enable
 
 using System;
-using Fodinae.Core.Lifecycle;
-using Fodinae.UI;
+using Kern.Core.Lifecycle;
+using Kern.UI;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 using VContainer;
 using VContainer.Unity;
 
-namespace Fodinae.Core
+namespace Kern.Core
 {
     public sealed class GatewayLifetimeScope : TransitionSceneLifetimeScope
     {

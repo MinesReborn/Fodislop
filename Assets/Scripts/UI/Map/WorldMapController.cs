@@ -1,25 +1,25 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.World;
-using Fodinae.Player;
-using Fodinae.Player.Logic;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.World;
+using Kern.Player;
+using Kern.Player.Logic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using VContainer;
 
-namespace Fodinae.UI
+namespace Kern.UI
 {
     public class WorldMapController : MonoBehaviour
     {
         [Inject]
         private CameraFollow _cameraFollow = null!;
         [Inject]
-        private Fodinae.UI.HUD.Player.View.PlayerHUDView _playerHud = null!;
+        private Kern.UI.HUD.Player.View.PlayerHUDView _playerHud = null!;
         [Inject]
-        private Fodinae.UI.Inventory.InventoryView _inventory = null!;
+        private Kern.UI.Inventory.InventoryView _inventory = null!;
         [Inject]
         private FPSCounter _fps = null!;
         [Inject]

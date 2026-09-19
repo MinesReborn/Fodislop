@@ -1,10 +1,10 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
+using Kern.Core;
 using NUnit.Framework;
 
-namespace Fodinae.Tests.Core;
+namespace Kern.Tests.Core;
 
 public sealed class GameStartupReportTests
 {

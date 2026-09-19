@@ -1,11 +1,11 @@
 #nullable enable
 
-using Fodinae.Core.Localization;
-using Fodinae.UI.HUD.Player.Model;
+using Kern.Core.Localization;
+using Kern.UI.HUD.Player.Model;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.HUD.Player.View;
+namespace Kern.UI.HUD.Player.View;
 
 public sealed class PlayerHUDMissionPanel
 {

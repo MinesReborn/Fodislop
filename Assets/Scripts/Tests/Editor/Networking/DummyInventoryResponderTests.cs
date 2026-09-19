@@ -7,7 +7,7 @@ using MinesServer.Networking.Server.Packets;
 using MinesServer.Networking.Server.Packets.Information;
 using NUnit.Framework;
 
-namespace Fodinae.Tests.Networking;
+namespace Kern.Tests.Networking;
 
 public sealed class DummyInventoryResponderTests
 {

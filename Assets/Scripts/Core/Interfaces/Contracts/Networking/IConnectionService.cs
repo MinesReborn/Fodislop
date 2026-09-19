@@ -4,7 +4,7 @@ using System;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Server.Packets;
 
-namespace Fodinae.Core.Interfaces;
+namespace Kern.Core.Interfaces;
 public interface IConnectionService
 {
     bool IsConnected { get; }
@@ -26,4 +26,10 @@ public interface IOfflineConnection
 {
     void TriggerDisconnect(string reason);
     void TriggerReconnect(string reason);
+}
+
+// Optional transport capability; coordinates are server cells, Y down.
+public interface IWorldRegionRequester
+{
+    void RequestWorldRegion(string worldCodeName, UnityEngine.RectInt serverRegion);
 }

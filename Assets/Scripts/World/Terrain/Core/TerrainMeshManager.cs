@@ -1,11 +1,11 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
+using Kern.Core;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace Fodinae.World.Terrain;
+namespace Kern.World.Terrain;
 
 public sealed class TerrainMeshManager
 {
@@ -72,7 +72,7 @@ public sealed class TerrainMeshManager
                 $"Terrain material '{materials[0].name}' is missing the LightingMaterialField pass.");
         }
 
-        commandBuffer.BeginSample("Fodinae.Terrain.RenderMaterialFields");
+        commandBuffer.BeginSample("Kern.Terrain.RenderMaterialFields");
 
         // Поле рисуется целиком и одним материалом: проход поля не читает
         // атлас, а меш идентификаторов покрывает все квады сетки.
@@ -85,10 +85,10 @@ public sealed class TerrainMeshManager
         // чистить прямоугольник, которому можно доверять на всех бэкендах.
         // Поле покрывает всю сетку со смещением ноль; экранное смещение
         // возвращается сразу после, чтобы кадр камеры не съехал.
-        commandBuffer.SetGlobalVector(TerrainCellDataTextures.ViewOffsetId, Vector4.zero);
+        commandBuffer.SetGlobalVector(TerrainCellDataTextures.ViewOffsetID, Vector4.zero);
         commandBuffer.DrawMesh(mesh, localToWorldMatrix, materials[0], 0, materialFieldPass);
-        commandBuffer.SetGlobalVector(TerrainCellDataTextures.ViewOffsetId, screenViewOffset);
+        commandBuffer.SetGlobalVector(TerrainCellDataTextures.ViewOffsetID, screenViewOffset);
 
-        commandBuffer.EndSample("Fodinae.Terrain.RenderMaterialFields");
+        commandBuffer.EndSample("Kern.Terrain.RenderMaterialFields");
     }
 }

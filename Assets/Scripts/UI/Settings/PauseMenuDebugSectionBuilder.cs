@@ -1,13 +1,13 @@
 #nullable enable
 
 using System;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Localization;
+using Kern.Core.Interfaces;
+using Kern.Core.Localization;
 using MinesServer.Networking.Client.Packets.GUI;
 using MinesServer.Networking.Shared.Packets;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 internal sealed class PauseMenuDebugSectionBuilder
 {

@@ -1,6 +1,6 @@
 #nullable enable
 
-namespace Fodinae.World.Lighting;
+namespace Kern.World.Lighting;
 public readonly record struct CascadeLayout(
     int Offset,
     int EntryCount,

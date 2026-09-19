@@ -1,12 +1,12 @@
 #nullable enable
 
 using System;
-using Fodinae.Networking;
+using Kern.Networking;
 using MinesServer.Networking.Server.Packets.Chat;
 using MinesServer.Networking.Server.Packets.World;
 using UnityEngine;
 
-namespace Fodinae.Networking.Processors;
+namespace Kern.Networking.Processors;
 
 public sealed class ChatProcessor(ChatEventGateway events) :
     IPacketProcessor<ChatMessageListPacket>,

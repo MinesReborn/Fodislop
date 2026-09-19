@@ -1,10 +1,10 @@
-name: Deploy Fodinae Interface Lab
+name: Deploy Kern Interface Lab
 
 on:
   push:
     branches: [main]
     paths:
-      - 'visual/fodinae-ui-lab/**'
+      - 'visual/kern-ui-lab/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -35,7 +35,7 @@ jobs:
       - name: Upload static site
         uses: actions/upload-pages-artifact@v5
         with:
-          path: visual/fodinae-ui-lab
+          path: visual/kern-ui-lab
 
       - name: Deploy to GitHub Pages
         id: deployment

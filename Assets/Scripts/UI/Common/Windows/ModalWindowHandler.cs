@@ -1,12 +1,12 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
+using Kern.Core;
 using MinesServer.Networking.Server.Packets.GUI;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 public class ModalWindowHandler
 {

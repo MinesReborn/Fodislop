@@ -1,15 +1,15 @@
 #nullable enable
 
 using System;
-using Fodinae.Rendering.PostProcessing;
-using Fodinae.Core.Interfaces;
+using Kern.Rendering.PostProcessing;
+using Kern.Core.Interfaces;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using VContainer.Unity;
 
-namespace Fodinae.Rendering;
+namespace Kern.Rendering;
 public sealed class HDROutputReconciler : IStartable, ITickable, IDisposable
 {
     // Probing every frame is pointless: HDR availability changes on the

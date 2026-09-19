@@ -5,18 +5,18 @@ description: Синхронизация и компиляция звуковых
 
 # FMOD Studio Bank Build & Audio Backend Pipeline
 
-Навык взаимодействия с аудиосистемой FMOD Studio (`FodinaeAudio`), бинарными банками и CLI-компиляцией.
+Навык взаимодействия с аудиосистемой FMOD Studio (`KernAudio`), бинарными банками и CLI-компиляцией.
 
 ## 1. Автоматическая компиляция банков через FmodBankBuilder
 
-Редакторский скрипт `FmodBankBuilder.cs` компилирует проект `FodinaeAudio/FodinaeAudio.fspro` в бинарники `.bank`:
+Редакторский скрипт `FmodBankBuilder.cs` компилирует проект `KernAudio/KernAudio.fspro` в бинарники `.bank`:
 
 * **macOS CLI**: `/Applications/FMOD Studio.app/Contents/MacOS/fmodstudiocl`
 * **Windows CLI**: `C:\Program Files (x86)\FMOD SoundSystem\FMOD Studio\fmodstudiocl.exe`
 
 Вызов компилятора:
 ```bash
-"/Applications/FMOD Studio.app/Contents/MacOS/fmodstudiocl" build "/path/to/FodinaeAudio/FodinaeAudio.fspro"
+"/Applications/FMOD Studio.app/Contents/MacOS/fmodstudiocl" build "/path/to/KernAudio/KernAudio.fspro"
 ```
 
 ## 2. Результат сборки и целевые пути

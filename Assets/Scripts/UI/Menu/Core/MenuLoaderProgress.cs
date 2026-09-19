@@ -1,12 +1,12 @@
 #nullable enable
 
 using System.Collections.Generic;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Localization;
+using Kern.Core.Interfaces;
+using Kern.Core.Localization;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 internal sealed class MenuLoaderProgress
 {
     // Значения — ключи словаря локализации, а не текст: Get() возвращает

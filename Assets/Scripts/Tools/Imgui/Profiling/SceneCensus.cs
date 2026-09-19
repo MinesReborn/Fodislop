@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace Fodinae.Tools.Imgui.Profiling;
+namespace Kern.Tools.Imgui.Profiling;
 
 /// <summary>
 /// Перепись живой иерархии: сколько объектов, в каких сценах и под какими
@@ -91,10 +91,16 @@ public sealed class SceneCensus
             }
         }
 
-        // DontDestroyOnLoad не обходится: достать эту сцену можно только
-        // объектом-зондом, а создавать объекты в обход фабрики и переносить их
-        // между сценами запрещено (FOD-FORBIDDEN-API). Все игровые объекты
-        // лежат под LifetimeScope своих сцен.
+        // DontDestroyOnLoad перечисляется по имени без объектов-зондов:
+        // GetSceneByName ничего не создаёт и не переносит между сценами,
+        // поэтому запрет KERN-FORBIDDEN-API его не касается. Без этого
+        // application-камера Bootstrap и менеджеры были невидимы («камер не
+        // найдено» при рендерящейся игре).
+        Scene ddolScene = SceneManager.GetSceneByName("DontDestroyOnLoad");
+        if (ddolScene.isLoaded)
+        {
+            WalkScene(ddolScene, roots, snapshot);
+        }
 
         snapshot.Roots.Sort((a, b) => b.Objects.CompareTo(a.Objects));
         if (snapshot.Roots.Count > TopRoots)

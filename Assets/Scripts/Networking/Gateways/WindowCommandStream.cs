@@ -3,7 +3,7 @@
 using System;
 using MinesServer.Networking.Server.Packets.GUI;
 
-namespace Fodinae.Networking;
+namespace Kern.Networking;
 
 public sealed class WindowCommandStream
 {

@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
 
-namespace Fodinae.Editor;
+namespace Kern.Editor;
 
 [InitializeOnLoad]
 internal static class UnityVersionGate
@@ -40,7 +40,7 @@ internal static class UnityVersionGate
         EditorApplication.isPlaying = false;
 
         string message =
-            $"Fodinae requires Unity {RequiredVersion} or newer, " +
+            $"Kern requires Unity {RequiredVersion} or newer, " +
             $"but this project is running in Unity {Application.unityVersion}. " +
             "The Editor will close to prevent importing or modifying project data with an older version.";
 

@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 public sealed class MapInteractionController
 {
@@ -43,11 +43,11 @@ public sealed class MapInteractionController
 
             if (delta.sqrMagnitude > 1f)
             {
-                // Screen-space: +X right, +Y up. World: +X right, +Y down.
+                // Screen-space: +X right, +Y up. Server world: +X right, +Y down.
                 // Dragging right moves view left (decrease centerX).
-                // Dragging up moves view up towards surface (decrease centerY).
+                // Dragging up moves view down towards deeper cells (increase centerY).
                 viewCenterX -= delta.x * cellsPerPixel * dragSpeed;
-                viewCenterY -= delta.y * cellsPerPixel * dragSpeed;
+                viewCenterY += delta.y * cellsPerPixel * dragSpeed;
                 clampViewCenter();
                 renderRequested = true;
             }
@@ -151,7 +151,7 @@ public sealed class MapInteractionController
         worldX = viewCenterX +
             ((pixelX - (texWidth * 0.5f)) * cellsPerPixel);
         worldY = viewCenterY +
-            (((texHeight - pixelY) - (texHeight * 0.5f)) * cellsPerPixel);
+            ((pixelY - (texHeight * 0.5f)) * cellsPerPixel);
         return true;
     }
 
@@ -186,6 +186,6 @@ public sealed class MapInteractionController
         viewCenterX = cursorWorldX -
             ((pixelX - (texWidth * 0.5f)) * cellsPerPixel);
         viewCenterY = cursorWorldY -
-            (((texHeight - pixelY) - (texHeight * 0.5f)) * cellsPerPixel);
+            ((pixelY - (texHeight * 0.5f)) * cellsPerPixel);
     }
 }

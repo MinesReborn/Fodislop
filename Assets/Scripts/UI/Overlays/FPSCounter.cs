@@ -1,12 +1,12 @@
 #nullable enable
 
 using System.Text;
-using Fodinae.Networking;
+using Kern.Networking;
 using UnityEngine;
 using UnityEngine.UIElements;
 using VContainer;
 
-namespace Fodinae.UI
+namespace Kern.UI
 {
     public class FPSCounter : MonoBehaviour
     {
@@ -18,13 +18,14 @@ namespace Fodinae.UI
         private float _runningSum;
         private float _nextDisplayUpdate;
         private Label? _fpsLabel;
+        private Label? _versionLabel;
 
         [Inject]
         private UIDocument _document = null!;
         [Inject]
         private NetworkStatusModel _networkStatus = null!;
 
-        public float CurrentFps { get; private set; }
+        public float CurrentFPS { get; private set; }
 
         public int PingMs => _networkStatus.PingMs;
 
@@ -43,7 +44,7 @@ namespace Fodinae.UI
             }
 
             _runningSum = initialDelta * SampleSize;
-            CurrentFps = 1f / initialDelta;
+            CurrentFPS = 1f / initialDelta;
         }
 
         protected void Start()
@@ -71,23 +72,24 @@ namespace Fodinae.UI
         protected void OnDestroy()
         {
             _fpsLabel = null;
+            _versionLabel = null;
         }
 
         protected void Update()
         {
             float delta = Time.unscaledDeltaTime;
-            if (float.IsNaN(delta) || float.IsInfinity(delta) || delta < 0f)
+            if (delta <= 0f)
             {
-                delta = 0f;
+                return;
             }
 
             _runningSum -= _frameTimes[_frameIndex];
-            _frameTimes[_frameIndex] = delta;
             _runningSum += delta;
+            _frameTimes[_frameIndex] = delta;
             _frameIndex = (_frameIndex + 1) % SampleSize;
 
             float averageDelta = _runningSum / SampleSize;
-            CurrentFps = averageDelta > 0f ? 1f / averageDelta : 0f;
+            CurrentFPS = averageDelta > 0f ? 1f / averageDelta : 0f;
 
             if (_document != null && !_document.enabled)
             {
@@ -106,7 +108,7 @@ namespace Fodinae.UI
 
             _nextDisplayUpdate = Time.unscaledTime + 0.25f;
             _displayBuilder.Clear();
-            _displayBuilder.Append("FPS: ").Append((int)CurrentFps)
+            _displayBuilder.Append("FPS: ").Append((int)CurrentFPS)
                 .Append(" (").Append((averageDelta * 1000f).ToString("F1"))
                 .Append("ms)  Ping: ").Append(_networkStatus.PingMs)
                 .Append("ms  Robots: ").Append(_networkStatus.OnlinePlayers)
@@ -149,6 +151,11 @@ namespace Fodinae.UI
 
             VisualElement? root = _document.rootVisualElement;
             _fpsLabel = root?.Q<Label>("FPSCounterLabel");
+            _versionLabel = root?.Q<Label>("BuildVersionLabel");
+            if (_versionLabel != null)
+            {
+                _versionLabel.text = $"v{Application.version}";
+            }
         }
     }
 }

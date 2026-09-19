@@ -2,15 +2,15 @@
 
 using System.Collections;
 using System.Collections.Generic;
-using Fodinae.Core.Models;
-using Fodinae.Networking.Processors;
-using Fodinae.Game.Inventory;
+using Kern.Core.Models;
+using Kern.Networking.Processors;
+using Kern.Game.Inventory;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Inventory;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Fodinae.Tests.Networking;
+namespace Kern.Tests.Networking;
 
 [TestFixture]
 public class InventoryProcessorTests

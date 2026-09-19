@@ -9,7 +9,7 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using VContainer;
 
-namespace Fodinae;
+namespace Kern;
 
 public interface IPersistentAssetCache
 {

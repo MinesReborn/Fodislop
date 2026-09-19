@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Fodinae.UI.Builders;
+namespace Kern.UI.Builders;
 public readonly record struct GridItem(int Row, int Column, int RowSpan, int ColumnSpan, float Width, float Height);
 
 public readonly record struct GridRect(float Left, float Top, float Width, float Height);

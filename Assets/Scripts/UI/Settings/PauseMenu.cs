@@ -2,19 +2,19 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Localization;
-using Fodinae.Networking;
-using Fodinae.Networking.Connection;
-using Fodinae.Player;
-using Fodinae.Player.Logic;
-using Fodinae.Rendering;
-using Fodinae.Rendering.PostProcessing;
-using Fodinae.UI;
-using Fodinae.UI.Programmator;
-using Fodinae.World.Lighting;
-using Fodinae.World.Terrain;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Core.Localization;
+using Kern.Networking;
+using Kern.Networking.Connection;
+using Kern.Player;
+using Kern.Player.Logic;
+using Kern.Rendering;
+using Kern.Rendering.PostProcessing;
+using Kern.UI;
+using Kern.UI.Programmator;
+using Kern.World.Lighting;
+using Kern.World.Terrain;
 using MinesServer.Networking.Client.Packets.GUI;
 using MinesServer.Networking.Shared.Packets;
 using UnityEngine;
@@ -22,7 +22,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 using VContainer;
 
-namespace Fodinae.UI
+namespace Kern.UI
 {
     public class PauseMenu : MonoBehaviour, ILocalizableUI
     {
@@ -85,6 +85,13 @@ namespace Fodinae.UI
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
             {
                 if (!_isOpen && _windowCommands.HasOpenWindows)
+                {
+                    return;
+                }
+
+                // Escape в открытом чате принадлежит чату, даже если его
+                // Update в этом кадре ещё не выполнялся.
+                if (!_isOpen && (_uiInput.IsChatFocused || _uiInput.IsEscapeConsumedThisFrame))
                 {
                     return;
                 }

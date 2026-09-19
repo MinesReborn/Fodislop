@@ -4,7 +4,7 @@ using MinesServer.Networking.Server.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Builders;
+namespace Kern.UI.Builders;
 public class ScrollViewerPacketBuilder : PacketUIBuilderBase<ScrollViewerPacket>
 {
     protected override VisualElement BuildTyped(ScrollViewerPacket packet, PacketUIBuilder builder)

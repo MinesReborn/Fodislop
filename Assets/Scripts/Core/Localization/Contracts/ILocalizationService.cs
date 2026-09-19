@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Fodinae.Core.Localization;
+namespace Kern.Core.Localization;
 public interface ILocalizationService
 {
     string CurrentLanguage { get; }

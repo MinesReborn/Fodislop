@@ -3,7 +3,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Fodinae.World;
+namespace Kern.World;
 
 /// <summary>
 /// Unified spatial partitioning index contract for 2D world entities and objects.

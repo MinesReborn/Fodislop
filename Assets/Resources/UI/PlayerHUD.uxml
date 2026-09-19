@@ -1,8 +1,17 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
     <ui:VisualElement name="PlayerHUDRoot" class="hud-root" picking-mode="Ignore">
 
-        <ui:VisualElement class="hud-fps-counter-container" picking-mode="Ignore">
-            <ui:Label name="FPSCounterLabel" class="hud-fps-counter" text="" picking-mode="Ignore" />
+        <ui:VisualElement class="hud-top-pill-container" picking-mode="Ignore">
+            <ui:VisualElement name="TopStatusPill" class="hud-top-pill" picking-mode="Position">
+                <ui:Label name="BuildVersionLabel" class="hud-top-pill-version" text="" picking-mode="Ignore" />
+                <ui:VisualElement class="hud-top-pill-divider" picking-mode="Ignore" />
+                <ui:Label name="FPSCounterLabel" class="hud-top-pill-fps" text="" picking-mode="Ignore" />
+                <ui:VisualElement class="hud-top-pill-divider" picking-mode="Ignore" />
+                <ui:VisualElement name="AssetStatusPill" class="hud-top-pill-asset" picking-mode="Ignore">
+                    <ui:VisualElement name="AssetStatusDot" class="hud-top-pill-dot" picking-mode="Ignore" />
+                    <ui:Label name="AssetStatusLabel" class="hud-top-pill-asset-text" text="" picking-mode="Ignore" />
+                </ui:VisualElement>
+            </ui:VisualElement>
         </ui:VisualElement>
 
         <!-- ════════════ ЕДИНАЯ ПАНЕЛЬ ИГРОКА (hud-panel): статус, валюта, корзина ════════════ -->

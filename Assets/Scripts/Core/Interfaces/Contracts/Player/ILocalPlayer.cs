@@ -4,7 +4,7 @@ using System;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.Core.Interfaces;
+namespace Kern.Core.Interfaces;
 public interface ILocalPlayer
 {
     GameObject gameObject { get; }

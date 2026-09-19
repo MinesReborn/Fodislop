@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.UI.Programmator;
+namespace Kern.UI.Programmator;
 
 public static class ProgrammatorOperators
 {

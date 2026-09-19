@@ -1,19 +1,19 @@
 #nullable enable
 
 using UnityEngine.UIElements;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Rendering.PostProcessing;
-using Fodinae.Tools;
-using Fodinae.Tools.Imgui;
-using Fodinae.Tools.Imgui.Windows;
-using Fodinae.World;
-using Fodinae.World.Lighting;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Rendering.PostProcessing;
+using Kern.Tools;
+using Kern.Tools.Imgui;
+using Kern.Tools.Imgui.Windows;
+using Kern.World;
+using Kern.World.Lighting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using VContainer;
 
-namespace Fodinae.UI
+namespace Kern.UI
 {
     [DisallowMultipleComponent]
     public sealed class InGameDebugOverlay : MonoBehaviour
@@ -35,7 +35,7 @@ namespace Fodinae.UI
         [Inject]
         private SurfaceRenderer _surfaceRenderer = null!;
         [Inject]
-        private Fodinae.Game.WorldEntityBatchRenderer _entityRenderer = null!;
+        private Kern.Game.WorldEntityBatchRenderer _entityRenderer = null!;
         [Inject]
         private UIDocument _gameUIDocument = null!;
 
@@ -118,7 +118,7 @@ namespace Fodinae.UI
                 return;
             }
 
-            var toolbar = new ToolbarWindow();
+            var toolbar = new ToolbarWindow(_lighting);
             var stats = new FrameStatsWindow(_telemetry, _lighting);
             var world = new WorldInfoWindow(
                 _telemetry,

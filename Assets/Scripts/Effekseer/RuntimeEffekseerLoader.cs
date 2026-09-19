@@ -8,17 +8,17 @@ using System.IO;
 using Cysharp.Threading.Tasks;
 using Effekseer;
 using Effekseer.Internal;
-using Fodinae;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.World;
-using Fodinae.World.Terrain;
+using Kern;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.World;
+using Kern.World.Terrain;
 using UnityEngine;
 
-namespace Fodinae.Effekseer;
+namespace Kern.Effekseer;
 public static class RuntimeEffekseerLoader
 {
-    private static readonly HashSet<EntityId> _ActiveRuntimeEffectIds = new();
+    private static readonly HashSet<EntityId> _activeRuntimeEffectIDs = new();
 
     /// <param name="efkBytes">Raw .efk file data (SKFE format).</param>
     /// <param name="effectName">Name for the effect asset (used for logging and native registration).</param>
@@ -107,7 +107,7 @@ public static class RuntimeEffekseerLoader
             // LoadEffect is intentionally called exactly once. Calling asset.LoadEffect()
             // after this repeats the native resource reload for the same asset.
             EffekseerSystem.Instance.LoadEffect(asset);
-            _ActiveRuntimeEffectIds.Add(asset.GetEntityId());
+            _activeRuntimeEffectIDs.Add(asset.GetEntityId());
             return asset;
         }
         catch
@@ -126,7 +126,7 @@ public static class RuntimeEffekseerLoader
             return;
         }
 
-        _ActiveRuntimeEffectIds.Remove(asset.GetEntityId());
+        _activeRuntimeEffectIDs.Remove(asset.GetEntityId());
 
         var resources = asset.textureResources;
         if (resources != null)

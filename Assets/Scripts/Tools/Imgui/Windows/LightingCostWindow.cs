@@ -1,12 +1,13 @@
 #nullable enable
 
 using System.Collections.Generic;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.World.Lighting;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.World.Lighting;
+using Kern.World.Lighting.Quality;
 using UnityEngine;
 
-namespace Fodinae.Tools.Imgui.Windows;
+namespace Kern.Tools.Imgui.Windows;
 
 public sealed class LightingCostWindow : ToolWindow
 {
@@ -96,8 +97,16 @@ public sealed class LightingCostWindow : ToolWindow
         _cascadeLimited = lighting.CascadeBudgetLimited;
         _fieldDetail =
             $"{lighting.FieldWidth}×{lighting.FieldHeight} при {lighting.EffectivePixelsPerCell:F2} пикс/клетку";
-        _cascadeDetail = $"{lighting.CascadeCount} каскадов, шагов до {lighting.MaximumIntervalSteps}";
-        _atlasDetail = $"{lighting.AtlasEntryCount} записей, источников {lighting.DynamicLightCount}";
+        if (lighting.ActiveLightingQuality == LightingQualityMode.PerBlock)
+        {
+            _cascadeDetail = "static cascade cache, результат усреднён по клетке";
+            _atlasDetail = $"источников {lighting.DynamicLightCount}";
+        }
+        else
+        {
+            _cascadeDetail = $"{lighting.CascadeCount} каскадов, шагов до {lighting.MaximumIntervalSteps}";
+            _atlasDetail = $"{lighting.AtlasEntryCount} записей, источников {lighting.DynamicLightCount}";
+        }
     }
 
     private void Recalculate()
@@ -106,6 +115,15 @@ public sealed class LightingCostWindow : ToolWindow
         _totalRaySteps = 0;
         _totalMergeTaps = 0;
         _heaviestRaySteps = 0;
+
+        if (_lighting?.ActiveLightingQuality == LightingQualityMode.PerBlock)
+        {
+            _summary = "Режим: По блокам (cascade cache + targeted dynamic light)";
+            _solveMix = $"за секунду: {_telemetry.LightingStaticSolveCount} решений";
+            _rows.Add("Динамика: только изменившиеся тайлы источников");
+            _rows.Add("Разрешение: ровно 1 тексель на блок (Point sampling)");
+            return;
+        }
 
         foreach (CascadeCostSample sample in _samples)
         {
@@ -153,6 +171,7 @@ public sealed class LightingCostWindow : ToolWindow
             ToolChrome.SectionHeader("КАСКАДЫ");
             DrawCascadeRows();
             DrawLimits();
+            DrawDiagnostics();
         }
     }
 
@@ -196,5 +215,30 @@ public sealed class LightingCostWindow : ToolWindow
         }
 
         GUILayout.Space(3f);
+    }
+
+    private void DrawDiagnostics()
+    {
+        ToolChrome.SectionHeader("ДАМП КАДРА");
+        if (GUILayout.Button("Dump Lighting Frame"))
+        {
+            _lighting?.DumpCurrentFrame();
+        }
+
+        if (_lighting != null && _lighting.Journal.Count > 0)
+        {
+            ToolChrome.SectionHeader("ЖУРНАЛ ИНВАЛИДАЦИИ (ПОСЛЕДНИЕ СОБЫТИЯ)");
+            var recent = _lighting.Journal.GetRecent(3);
+            foreach (var rec in recent)
+            {
+                GUILayout.Label($"Кадр #{rec.FrameIndex}: {rec.Reason}", WrappedLabelStyle);
+                GUILayout.Label($"  Запущено: {string.Join(", ", rec.ExecutedPasses)}", MutedLabelStyle);
+                if (rec.SkippedPasses.Length > 0)
+                {
+                    GUILayout.Label($"  Пропущено: {string.Join(", ", rec.SkippedPasses)}", MutedLabelStyle);
+                }
+                GUILayout.Space(2f);
+            }
+        }
     }
 }

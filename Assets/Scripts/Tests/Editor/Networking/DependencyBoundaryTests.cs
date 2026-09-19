@@ -3,13 +3,13 @@
 using System;
 using System.Linq;
 using System.Reflection;
-using Fodinae.Game.Managers;
-using Fodinae.World;
-using Fodinae.Networking;
+using Kern.Game.Managers;
+using Kern.World;
+using Kern.Networking;
 using NUnit.Framework;
 using UnityEngine.UIElements;
 
-namespace Fodinae.Tests.Networking;
+namespace Kern.Tests.Networking;
 
 [TestFixture]
 public sealed class DependencyBoundaryTests
@@ -29,7 +29,7 @@ public sealed class DependencyBoundaryTests
         foreach (FieldInfo field in fields)
         {
             CollectionAssert.DoesNotContain(forbiddenExactTypes, field.FieldType, field.Name);
-            Assert.That(field.FieldType.Namespace, Does.Not.StartWith("Fodinae.UI"), field.Name);
+            Assert.That(field.FieldType.Namespace, Does.Not.StartWith("Kern.UI"), field.Name);
             Assert.That(field.FieldType.Namespace, Does.Not.StartWith("UnityEngine.UIElements"), field.Name);
         }
     }
@@ -38,7 +38,7 @@ public sealed class DependencyBoundaryTests
     public void PacketProcessors_DoNotReferencePresentationTypes()
     {
         Type[] processors = typeof(PacketHandler).Assembly.GetTypes()
-            .Where(type => type.Namespace == "Fodinae.Networking.Processors")
+            .Where(type => type.Namespace == "Kern.Networking.Processors")
             .ToArray();
         Assert.That(processors, Is.Not.Empty);
 
@@ -54,7 +54,7 @@ public sealed class DependencyBoundaryTests
 
             foreach (Type dependency in dependencies)
             {
-                Assert.That(dependency.Namespace, Does.Not.StartWith("Fodinae.UI"), $"{processor.Name} -> {dependency.Name}");
+                Assert.That(dependency.Namespace, Does.Not.StartWith("Kern.UI"), $"{processor.Name} -> {dependency.Name}");
                 Assert.That(dependency.Namespace, Does.Not.StartWith("UnityEngine.UIElements"), $"{processor.Name} -> {dependency.Name}");
             }
         }

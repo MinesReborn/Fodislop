@@ -1,12 +1,12 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
-using Fodinae.Core.Lifecycle;
-using Fodinae.Core.Interfaces;
+using Kern.Core;
+using Kern.Core.Lifecycle;
+using Kern.Core.Interfaces;
 using UnityEngine;
 
-namespace Fodinae.Game;
+namespace Kern.Game;
 
 public sealed class RobotNameplate
 {
@@ -16,7 +16,7 @@ public sealed class RobotNameplate
 
     public void Initialize(
         Transform robotTransform,
-        uint botId,
+        uint botID,
         string nickname,
         bool isLocalPlayer,
         ISceneObjectFactory sceneObjects,

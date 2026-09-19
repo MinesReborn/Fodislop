@@ -1,14 +1,12 @@
 #nullable enable
 
 using System;
-using System.Threading;
-using Cysharp.Threading.Tasks;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Localization;
-using Fodinae.Game.Managers;
-using Fodinae.Networking;
-using Fodinae.Game.Inventory;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Core.Localization;
+using Kern.Game.Managers;
+using Kern.Networking;
+using Kern.Game.Inventory;
 using MinesServer.Networking.Client.Packets.Chat;
 using MinesServer.Networking.Server.Packets.Chat;
 using MinesServer.Networking.Server.Packets.World;
@@ -17,7 +15,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 using VContainer;
 
-namespace Fodinae.UI
+namespace Kern.UI
 {
     public class GlobalChatUI : MonoBehaviour, ILocalizableUI
     {
@@ -32,8 +30,8 @@ namespace Fodinae.UI
         private ChatEventGateway _chatEvents = null!;
         private ChatViewElements? _view;
         private ChatColorController? _colorController;
+        private ChatBlinkController? _blink;
         private bool _isOpen;
-        private CancellationTokenSource? _idleCts;
         private bool _initialized;
         private ChatChannel _activeChannel;
         private readonly ChatMessageHistory _history = new();
@@ -85,6 +83,7 @@ namespace Fodinae.UI
             // вручную не нужна и запрещена линтером.
             loc.RegisterLocalizable(this);
             CreateUI();
+            _blink = new ChatBlinkController(_operations, destroyCancellationToken, () => _view?.Blinker);
             if (_view?.Panel != null)
             {
                 _view.Panel.style.display = DisplayStyle.None;
@@ -136,9 +135,8 @@ namespace Fodinae.UI
                 _chatEvents.MuteReceived -= ApplyMute;
             }
 
-            _idleCts?.Cancel();
-            _idleCts?.Dispose();
-            _view?.Blinker?.StopBlink();
+            _blink?.Dispose();
+            _blink = null;
             _view?.Tree.RemoveFromHierarchy();
             _view = null;
             _colorController = null;
@@ -208,6 +206,7 @@ namespace Fodinae.UI
 
             if (Keyboard.current.escapeKey.wasPressedThisFrame)
             {
+                _uiInput.ConsumeEscape();
                 Hide();
             }
         }
@@ -236,15 +235,15 @@ namespace Fodinae.UI
                 _view.InputField.selectAllOnMouseUp = false;
                 _view.InputField.RegisterCallback<FocusEvent>(_ =>
                 {
-                    StartBlink();
+                    _blink?.StartBlink();
                     _uiInput.IsChatFocused = true;
                 });
                 _view.InputField.RegisterCallback<BlurEvent>(_ =>
                 {
-                    StopBlink();
+                    _blink?.StopBlink();
                     _uiInput.IsChatFocused = false;
                 });
-                _view.InputField.RegisterValueChangedCallback(_ => OnInputChanged());
+                _view.InputField.RegisterValueChangedCallback(_ => _blink?.NotifyInput());
             }
 
             _view.BindActions(
@@ -332,47 +331,6 @@ namespace Fodinae.UI
             {
                 _view.InputField.value = string.Empty;
                 _view.InputField.Blur();
-            }
-        }
-
-        private void StartBlink()
-        {
-            _view?.Blinker?.StartBlink();
-        }
-
-        private void StopBlink()
-        {
-            _view?.Blinker?.StopBlink();
-            _idleCts?.Cancel();
-        }
-
-        private void OnInputChanged()
-        {
-            _view?.Blinker?.StopBlink();
-            _idleCts?.Cancel();
-            _idleCts?.Dispose();
-            _idleCts = new CancellationTokenSource();
-            CancellationToken idleToken = _idleCts.Token;
-            _operations.Run(
-                "global_chat_blink_delay",
-                supervisorToken => DelayedStartBlink(idleToken, supervisorToken));
-        }
-
-        private async UniTask DelayedStartBlink(
-            CancellationToken idleToken,
-            CancellationToken supervisorToken)
-        {
-            using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
-                idleToken,
-                supervisorToken,
-                destroyCancellationToken);
-            CancellationToken cancellationToken = linkedCancellation.Token;
-            bool canceled = await UniTask.Delay(
-                500,
-                cancellationToken: cancellationToken).SuppressCancellationThrow();
-            if (!canceled && !cancellationToken.IsCancellationRequested)
-            {
-                StartBlink();
             }
         }
 

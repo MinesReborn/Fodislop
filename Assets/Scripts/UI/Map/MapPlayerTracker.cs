@@ -1,10 +1,10 @@
 #nullable enable
 
 using System;
-using Fodinae.Core.Interfaces;
+using Kern.Core.Interfaces;
 using UnityEngine;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 public sealed class MapPlayerTracker
 {

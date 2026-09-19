@@ -1,12 +1,12 @@
 #nullable enable
 
 using System;
-using Fodinae.Core.Localization;
+using Kern.Core.Localization;
 using UnityEngine;
 using UnityEngine.UIElements;
 using MinesServer.Data;
 
-namespace Fodinae.UI.Programmator;
+namespace Kern.UI.Programmator;
 
 // Owns the radial category/operator menu and the observer joystick used to
 // place operators into a grid cell. Cell repaints and the "auto-advance to a
@@ -131,16 +131,16 @@ internal sealed class ProgrammatorRadialController
         cell.RegisterCallback(callback);
     }
 
-    private void OnRadialCategoryClicked(int categoryId)
+    private void OnRadialCategoryClicked(int categoryID)
     {
         // Category clicked — populate outer ring with operators
-        if (!ProgrammatorData.CATEGORY_OPERATORS.TryGetValue(categoryId, out var ops))
+        if (!ProgrammatorData.CATEGORY_OPERATORS.TryGetValue(categoryID, out var ops))
         {
             return;
         }
 
         // CAT_OBSERVER uses a joystick instead of the outer ring
-        if (categoryId == ProgrammatorData.CAT_OBSERVER)
+        if (categoryID == ProgrammatorData.CAT_OBSERVER)
         {
             _radial.ClearOuterItems();
             _joystick.Hide();
@@ -152,7 +152,7 @@ internal sealed class ProgrammatorRadialController
         // Other categories: populate standard outer ring
         _joystick.Hide();
 
-        if (!ProgrammatorData.CATEGORY_COLORS.TryGetValue(categoryId, out var catColor))
+        if (!ProgrammatorData.CATEGORY_COLORS.TryGetValue(categoryID, out var catColor))
         {
             catColor = Color.white;
         }
@@ -193,7 +193,7 @@ internal sealed class ProgrammatorRadialController
         _radialCellIndex = -1;
     }
 
-    private void OnRadialItemClicked(int selectedId)
+    private void OnRadialItemClicked(int selectedID)
     {
         // Outer ring item clicked — place the operator in the cell
         if (_radialCellIndex < 0)
@@ -206,7 +206,7 @@ internal sealed class ProgrammatorRadialController
         int idx = (_data.CurrentPage * ProgrammatorData.CELLS_PER_PAGE)
                   + (row * ProgrammatorData.COLS) + col;
         _data.PushUndo();
-        _data.Codes[idx] = selectedId;
+        _data.Codes[idx] = selectedID;
         _updateCell(row, col);
 
         if ((row * ProgrammatorData.COLS) + col == ProgrammatorData.CELLS_PER_PAGE - 1

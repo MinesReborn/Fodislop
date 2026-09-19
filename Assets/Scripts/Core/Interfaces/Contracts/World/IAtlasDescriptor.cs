@@ -3,7 +3,7 @@
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.Core.Interfaces;
+namespace Kern.Core.Interfaces;
 public interface IAtlasDescriptor
 {
     Texture2D? Texture { get; }

@@ -2,13 +2,13 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Rendering.PostProcessing.Scopes;
-using Fodinae.Tools.Imgui;
-using Fodinae.Tools.Imgui.Windows;
+using Kern.Rendering.PostProcessing.Scopes;
+using Kern.Tools.Imgui;
+using Kern.Tools.Imgui.Windows;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-namespace Fodinae.Rendering.PostProcessing.Workbench;
+namespace Kern.Rendering.PostProcessing.Workbench;
 
 public sealed class GradingWorkbench : IDisposable
 {

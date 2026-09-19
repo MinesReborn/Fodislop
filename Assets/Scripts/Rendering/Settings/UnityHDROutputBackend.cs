@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
-namespace Fodinae.Rendering;
+namespace Kern.Rendering;
 
 internal sealed class UnityHDROutputBackend : HDROutputController.IBackend
 {

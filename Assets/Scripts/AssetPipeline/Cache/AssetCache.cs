@@ -5,10 +5,10 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Fodinae.Core;
+using Kern.Core;
 using UnityEngine;
 
-namespace Fodinae;
+namespace Kern;
 public sealed class AssetCache
 {
     private readonly ConcurrentDictionary<string, AssetCacheEntry> _entries = new(StringComparer.OrdinalIgnoreCase);

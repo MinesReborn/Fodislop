@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.UI.Programmator;
+namespace Kern.UI.Programmator;
 
 // Clipboard (copy/cut/paste) and shift-with-push logic for the programmator
 // grid. Operates on the shared selection model and reports cell repaints

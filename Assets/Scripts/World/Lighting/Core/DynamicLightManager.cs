@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace Fodinae.World.Lighting;
+namespace Kern.World.Lighting;
 public readonly struct DynamicLightGpuData
 {
     public readonly Vector4 PositionRadius;
@@ -28,11 +28,8 @@ public readonly record struct DynamicLightSource(
 
 public sealed class DynamicLightManager
 {
-    private const float DynamicLightPositionEpsilon = 0.00390625f;
-    private const float MaximumDynamicLightPositionEpsilon = 0.0625f;
-
     private readonly SortedDictionary<int, DynamicLightSource> _externalLights = new();
-    private readonly List<int> _lastDroppedDynamicLightIds = new();
+    private readonly List<int> _lastDroppedDynamicLightIDs = new();
     private DynamicLightGpuData[] _dynamicLights = new DynamicLightGpuData[1];
     private int _lastDynamicLightCount;
     private int _lastDroppedDynamicLightCount;
@@ -42,8 +39,18 @@ public sealed class DynamicLightManager
     public int Count => _externalLights.Count;
     public uint Generation => _dynamicLightGeneration;
     public int UploadedCount => _lastDynamicLightCount;
+
+    // Same dynamic lights, in the same order, as the last GPU upload.
+    public System.ReadOnlySpan<DynamicLightGpuData> UploadedLights =>
+        new(_dynamicLights, 0, _lastDynamicLightCount);
+
+    // Caller ids of UploadedLights, index for index.
+    public System.ReadOnlySpan<int> UploadedLightIDs =>
+        new(_uploadedLightIDs, 0, _lastDynamicLightCount);
+
+    private int[] _uploadedLightIDs = new int[1];
     public int DroppedCount => _lastDroppedDynamicLightCount;
-    public IReadOnlyList<int> DroppedLightIds => _lastDroppedDynamicLightIds;
+    public IReadOnlyList<int> DroppedLightIDs => _lastDroppedDynamicLightIDs;
     public bool IsDirty => _externalLightsDirty;
 
     public void ClearDirty() => _externalLightsDirty = false;
@@ -56,8 +63,7 @@ public sealed class DynamicLightManager
         int id,
         Vector2 position,
         Color color,
-        float intensity,
-        float effectivePixelsPerCell)
+        float intensity)
     {
         if (Mathf.Max(0f, intensity) <= 0f)
         {
@@ -67,7 +73,7 @@ public sealed class DynamicLightManager
 
         var source = new DynamicLightSource(position, color, intensity);
         if (_externalLights.TryGetValue(id, out DynamicLightSource previous) &&
-            DynamicLightSourceApproximatelyEquals(previous, source, effectivePixelsPerCell))
+            previous == source)
         {
             return;
         }
@@ -101,6 +107,7 @@ public sealed class DynamicLightManager
         if (_dynamicLights.Length != capacity)
         {
             _dynamicLights = new DynamicLightGpuData[capacity];
+            _uploadedLightIDs = new int[capacity];
         }
     }
 
@@ -108,7 +115,7 @@ public sealed class DynamicLightManager
     {
         _lastDynamicLightCount = 0;
         _lastDroppedDynamicLightCount = 0;
-        _lastDroppedDynamicLightIds.Clear();
+        _lastDroppedDynamicLightIDs.Clear();
     }
 
     public int UploadDynamicLights(
@@ -122,26 +129,26 @@ public sealed class DynamicLightManager
         int dynamicLightCount = 0;
         int previousDynamicLightCount = _lastDynamicLightCount;
         uploadedLightsChanged = false;
-        _lastDroppedDynamicLightIds.Clear();
+        _lastDroppedDynamicLightIDs.Clear();
 
         foreach (KeyValuePair<int, DynamicLightSource> pair in _externalLights)
         {
             DynamicLightSource source = pair.Value;
             if (dynamicLightCount >= maximumLightCount)
             {
-                _lastDroppedDynamicLightIds.Add(pair.Key);
+                _lastDroppedDynamicLightIDs.Add(pair.Key);
                 continue;
             }
 
             if (source.Intensity <= 0f)
             {
-                _lastDroppedDynamicLightIds.Add(pair.Key);
+                _lastDroppedDynamicLightIDs.Add(pair.Key);
                 continue;
             }
 
-            if (!IntersectsWorldRect(source.Position, 32f, worldRect, cellSize))
+            if (!IntersectsReach(source, worldRect, cellSize))
             {
-                _lastDroppedDynamicLightIds.Add(pair.Key);
+                _lastDroppedDynamicLightIDs.Add(pair.Key);
                 continue;
             }
 
@@ -156,6 +163,7 @@ public sealed class DynamicLightManager
                 uploadedLightsChanged = true;
             }
 
+            _uploadedLightIDs[dynamicLightCount] = pair.Key;
             _dynamicLights[dynamicLightCount++] = dynamicLight;
         }
 
@@ -165,7 +173,7 @@ public sealed class DynamicLightManager
         }
 
         _lastDynamicLightCount = dynamicLightCount;
-        _lastDroppedDynamicLightCount = _lastDroppedDynamicLightIds.Count;
+        _lastDroppedDynamicLightCount = _lastDroppedDynamicLightIDs.Count;
 
         if (uploadedLightsChanged && dynamicLightCount > 0 && dynamicLightBuffer != null)
         {
@@ -188,18 +196,35 @@ public sealed class DynamicLightManager
             left.ColorIntensity == right.ColorIntensity;
     }
 
-    private static bool DynamicLightSourceApproximatelyEquals(
-        DynamicLightSource left,
-        DynamicLightSource right,
-        float effectivePixelsPerCell)
+    // A source is relevant while its Beer-Lambert reach touches the field,
+    // not while its center is near it: a bright source lights dozens of
+    // cells past its own position. Mirrors the rect math in
+    // DynamicLightingSolver so culling never drops a visible contribution.
+    private static bool IntersectsReach(
+        DynamicLightSource source,
+        Vector4 worldRect,
+        float cellSize)
     {
-        float epsilon = effectivePixelsPerCell > 0f
-            ? Mathf.Min(0.5f / effectivePixelsPerCell, MaximumDynamicLightPositionEpsilon)
-            : DynamicLightPositionEpsilon;
+        float brightest = Mathf.Max(
+            0f,
+            Mathf.Max(source.Color.r, Mathf.Max(source.Color.g, source.Color.b)) * source.Intensity) *
+            LightingConfigHolder.EmissionScale;
+        if (brightest <= 0f)
+        {
+            return false;
+        }
 
-        return (left.Position - right.Position).sqrMagnitude <= epsilon * epsilon &&
-            left.Color == right.Color &&
-            Mathf.Approximately(left.Intensity, right.Intensity);
+        float minimumExtinction = LightingComputeBinder.ResolveMinimumExtinction();
+        if (minimumExtinction <= 0f)
+        {
+            return true;
+        }
+
+        float reachCells = Mathf.Max(
+            0f,
+            Mathf.Log(brightest * 1.5f / LightingComputeBinder.InvisibleDynamicRadiance) /
+                minimumExtinction);
+        return IntersectsWorldRect(source.Position, 0.5f + reachCells, worldRect, cellSize);
     }
 
     private static bool IntersectsWorldRect(

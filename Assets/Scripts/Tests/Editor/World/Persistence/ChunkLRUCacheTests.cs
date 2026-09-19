@@ -1,10 +1,10 @@
 #nullable enable
 
-namespace Fodinae.Tests.World;
+namespace Kern.Tests.World;
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Persistence;
+using Kern.Persistence;
 using NUnit.Framework;
 
 [TestFixture]
@@ -127,5 +127,26 @@ public class ChunkLruCacheTests
         {
             cache.AddOrUpdate(1, null!);
         });
+    }
+
+    [Test]
+    public void DirtyOverflow_ShrinksBackToCapacityOnceWritten()
+    {
+        var cache = new ChunkLruCache<int>(maxCapacity: 2, allowDirtyEviction: false);
+        for (int index = 0; index < 5; index++)
+        {
+            cache.AddOrUpdate(index, [index]);
+            cache.MarkDirty(index);
+        }
+
+        Assert.That(cache.LoadedCount, Is.EqualTo(5), "Dirty chunks must not be evicted before they are written.");
+
+        var snapshot = cache.DetachDirtySnapshot();
+        cache.CompleteDirtySnapshot(snapshot.ConvertAll(entry => entry.Index));
+        cache.AddOrUpdate(5, [5]);
+
+        Assert.That(cache.LoadedCount, Is.EqualTo(2), "The cache stayed at its dirty high-water mark after the write.");
+        Assert.That(cache.Contains(5), Is.True);
+        Assert.That(cache.Contains(4), Is.True, "Trimming evicted the most recently used chunk.");
     }
 }

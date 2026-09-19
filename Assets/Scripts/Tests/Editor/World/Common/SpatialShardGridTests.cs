@@ -1,11 +1,11 @@
 #nullable enable
 
 using System.Collections.Generic;
-using Fodinae.World;
+using Kern.World;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Fodinae.Tests.World;
+namespace Kern.Tests.World;
 
 [TestFixture]
 public class SpatialShardGridTests

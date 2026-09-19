@@ -1,22 +1,21 @@
 #nullable enable
 
 using System;
-using UnityEngine.Serialization;
+using Kern.Rendering.PostProcessing;
 
-namespace Fodinae.Core;
+namespace Kern.Core;
 
 [Serializable]
 public sealed class DisplaySettings
 {
-    public const float GammaMin = 1.8f;
-    public const float GammaMax = 2.6f;
-    public const float DefaultGamma = 2.2f;
     public const float PaperWhiteMin = 100f;
     public const float PaperWhiteMax = 400f;
-    public const float DefaultPaperWhite = 200f;
     public const float PeakBrightnessMin = 400f;
     public const float PeakBrightnessMax = 2000f;
-    public const float DefaultPeakBrightness = 1000f;
+
+    // Дефолти — авторська калібровка, єдиний дім у PostProcessLook.
+    public const float DefaultPaperWhite = PostProcessLook.DisplayCalibration.PaperWhiteNits;
+    public const float DefaultPeakBrightness = PostProcessLook.DisplayCalibration.PeakBrightnessNits;
 
     // Ноль означает «разрешение не выбрано, взять родное». Диапазон поэтому
     // не отрезок, а «ноль либо 320..16384», и проверяется отдельно в
@@ -45,7 +44,6 @@ public sealed class DisplaySettings
 
     [SettingUnbounded("Тумблер HDR-вывода.")]
     [SettingLabel("menu.settings.hdr")]
-    [FormerlySerializedAs("HdrEnabled")]
     [SettingConsumer(SettingConsumerTarget.DisplayManager, "DisplayManager.SetHDREnabled / HDROutput")]
     public bool HDREnabled = ProjectRuntimeContracts.ClientConfiguration.DefaultHDREnabled;
 
@@ -57,11 +55,6 @@ public sealed class DisplaySettings
     [SettingUnbounded("Режим выборки — перечисление; проверяется на определённость.")]
     [SettingConsumer(SettingConsumerTarget.DisplayManager, "DisplayManager.SetPixelSamplingMode -> CameraFollow + Shader.SetGlobalFloat(_PixelArtFiltering)")]
     public PixelSamplingMode PixelSampling = PixelSamplingMode.SmoothFiltered;
-
-    [SettingRange(GammaMin, GammaMax)]
-    [SettingLabel("settings.display.gamma")]
-    [SettingConsumer(SettingConsumerTarget.DisplayManager, "DisplayManager.SetGamma / PostProcessRuntimeState.SetDisplayCalibration")]
-    public float Gamma = DefaultGamma;
 
     [SettingRange(PaperWhiteMin, PaperWhiteMax)]
     [SettingLabel("settings.display.paper_white")]

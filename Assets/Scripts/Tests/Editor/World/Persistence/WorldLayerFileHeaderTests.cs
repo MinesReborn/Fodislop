@@ -1,10 +1,10 @@
 #nullable enable
 
-namespace Fodinae.Tests.World;
+namespace Kern.Tests.World;
 
 using System;
 using System.IO;
-using Fodinae.Persistence;
+using Kern.Persistence;
 using NUnit.Framework;
 
 [TestFixture]
@@ -15,7 +15,7 @@ public class WorldLayerFileHeaderTests
     [SetUp]
     public void SetUp()
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), "fodinae_header_tests_" + Guid.NewGuid().ToString("N"));
+        _tempDir = Path.Combine(Path.GetTempPath(), "kern_header_tests_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDir);
     }
 
@@ -103,7 +103,7 @@ public class WorldLayerFileHeaderTests
     }
 
     [Test]
-    public void MigrateLegacyFormat_V0Format_MigratesToV1AndBackupsOriginal()
+    public void TryReadFormatVersion_V0Format_ReturnsZero()
     {
         string filePath = Path.Combine(_tempDir, "legacy.map");
         const int width = 2;
@@ -116,30 +116,28 @@ public class WorldLayerFileHeaderTests
             writer.Write(width);
             writer.Write(height);
             writer.Write(chunkSize);
-            writer.Write(0); // v0 format
+            writer.Write(0); // v0 format: legacy, never migrated
             writer.Write(-1L);
             writer.Write(-1L);
             writer.Write(-1L);
             writer.Write(-1L);
         }
 
-        WorldLayerFileHeader.MigrateLegacyFormatIfRequired(filePath, width, height, chunkSize);
+        using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+        {
+            Assert.AreEqual(0, WorldLayerFileHeader.TryReadFormatVersion(fs));
+        }
 
-        // Verify that backup file was created
-        string backupPath = filePath + ".v0.backup";
-        Assert.IsTrue(File.Exists(backupPath));
-
-        // Verify migrated file has version 1
+        // v0 header is rejected by TryReadHeader: no legacy support.
         long[] offsets = new long[4];
         using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read))
         {
-            bool success = WorldLayerFileHeader.TryReadHeader(fs, width, height, chunkSize, offsets);
-            Assert.IsTrue(success);
+            Assert.IsFalse(WorldLayerFileHeader.TryReadHeader(fs, width, height, chunkSize, offsets));
         }
     }
 
     [Test]
-    public void MigrateLegacyFormat_AlreadyV1_LeavesUntouched()
+    public void TryReadFormatVersion_CurrentFormat_ReturnsCurrent()
     {
         string filePath = Path.Combine(_tempDir, "v1.map");
         const int width = 2;
@@ -152,9 +150,20 @@ public class WorldLayerFileHeaderTests
             WorldLayerFileHeader.WriteHeader(fs, width, height, chunkSize, offsets);
         }
 
-        WorldLayerFileHeader.MigrateLegacyFormatIfRequired(filePath, width, height, chunkSize);
+        using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+        {
+            Assert.AreEqual(
+                WorldLayerFileHeader.CurrentFormatVersion,
+                WorldLayerFileHeader.TryReadFormatVersion(fs));
+        }
+    }
 
-        string backupPath = filePath + ".v0.backup";
-        Assert.IsFalse(File.Exists(backupPath));
+    [Test]
+    public void TryReadFormatVersion_TruncatedFile_ReturnsNull()
+    {
+        using var memory = new MemoryStream();
+        memory.Write(new byte[8]); // Less than 16 bytes
+
+        Assert.IsNull(WorldLayerFileHeader.TryReadFormatVersion(memory));
     }
 }

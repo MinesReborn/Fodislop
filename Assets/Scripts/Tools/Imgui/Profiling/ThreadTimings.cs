@@ -3,7 +3,7 @@
 using System;
 using UnityEngine;
 
-namespace Fodinae.Tools.Imgui.Profiling;
+namespace Kern.Tools.Imgui.Profiling;
 
 public sealed class RollingSeries
 {
@@ -64,7 +64,7 @@ public sealed class ThreadTimings
 
     public int SampledFrames { get; private set; }
 
-    public int GpuSampledFrames { get; private set; }
+    public int GPUSampledFrames { get; private set; }
 
     public RollingSeries Frame { get; } = new(Window);
 
@@ -74,7 +74,7 @@ public sealed class ThreadTimings
 
     public RollingSeries RenderThread { get; } = new(Window);
 
-    public RollingSeries Gpu { get; } = new(Window);
+    public RollingSeries GPU { get; } = new(Window);
 
     public bool Available { get; private set; }
 
@@ -113,8 +113,8 @@ public sealed class ThreadTimings
         // Для уже учтённого CPU-кадра GPU-результат может появиться позже.
         if (!_gpuRecordedForLastFrame && IsPositiveFinite(timing.gpuFrameTime))
         {
-            Gpu.Push(timing.gpuFrameTime);
-            GpuSampledFrames++;
+            GPU.Push(timing.gpuFrameTime);
+            GPUSampledFrames++;
             _gpuRecordedForLastFrame = true;
         }
     }
@@ -128,12 +128,12 @@ public sealed class ThreadTimings
         MainThread.Clear();
         PresentWait.Clear();
         RenderThread.Clear();
-        Gpu.Clear();
+        GPU.Clear();
         Available = false;
         _lastTimestamp = 0;
         _hasTimestamp = false;
         _gpuRecordedForLastFrame = false;
         SampledFrames = 0;
-        GpuSampledFrames = 0;
+        GPUSampledFrames = 0;
     }
 }

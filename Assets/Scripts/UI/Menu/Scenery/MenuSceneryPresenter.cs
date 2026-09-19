@@ -2,12 +2,12 @@
 
 using System;
 using System.IO;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
+using Kern.Core;
+using Kern.Core.Interfaces;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 internal sealed class MenuSceneryPresenter(IRuntimeAssetPaths runtimeAssetPaths)
 {

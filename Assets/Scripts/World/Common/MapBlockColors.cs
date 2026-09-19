@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.World;
+namespace Kern.World;
 
 public static class MapBlockColors
 {

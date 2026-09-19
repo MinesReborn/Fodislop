@@ -3,7 +3,7 @@
 using UnityEngine;
 using VContainer.Unity;
 
-namespace Fodinae.Core
+namespace Kern.Core
 {
     public abstract class TransitionSceneLifetimeScope : LifetimeScope
     {

@@ -1,10 +1,10 @@
 #nullable enable
 
-using Fodinae.Core.Interfaces;
-using Fodinae.Tools.Imgui;
+using Kern.Core.Interfaces;
+using Kern.Tools.Imgui;
 using UnityEngine.InputSystem;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 public sealed class InputBlockState : IInputBlocker
 {

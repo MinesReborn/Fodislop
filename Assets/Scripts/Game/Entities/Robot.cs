@@ -3,19 +3,19 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Lifecycle;
-using Fodinae.Game.Managers;
-using Fodinae.Player.Logic;
-using Fodinae.Rendering.PostProcessing;
-using Fodinae.World;
-using Fodinae.World.Lighting;
-using Fodinae.World.Terrain;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Core.Lifecycle;
+using Kern.Game.Managers;
+using Kern.Player.Logic;
+using Kern.Rendering.PostProcessing;
+using Kern.World;
+using Kern.World.Lighting;
+using Kern.World.Terrain;
 using UnityEngine;
 using VContainer;
 
-namespace Fodinae.Game
+namespace Kern.Game
 {
     public class Robot : MonoBehaviour, IRobotView
     {
@@ -278,12 +278,6 @@ namespace Fodinae.Game
             _nameplate.UpdatePosition(finalPosition, _visuals.SkinSprite, transform, _visuals.ClanTransform);
             _lighting.Update(_movement.SmoothPosition, _lightingEngine);
         }
-
-        public void SetDynamicLightIntensity(float intensity) => _lighting.SetIntensity(intensity, _lightingEngine);
-
-        public void SetDynamicLightColor(Color color) => _lighting.SetColor(color, _lightingEngine);
-
-        public void SetDynamicLightEnabled(bool enabled) => _lighting.SetEnabled(enabled, _lightingEngine);
 
         public void ResetDynamicLightPreferences()
         {

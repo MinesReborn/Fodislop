@@ -2,14 +2,14 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Audio;
-using Fodinae.Audio.Core;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Localization;
+using Kern.Audio;
+using Kern.Audio.Core;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Core.Localization;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 internal sealed class PauseMenuAudioTabBuilder
 {

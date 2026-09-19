@@ -3,9 +3,9 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
-using Fodinae.Core;
+using Kern.Core;
 
-namespace Fodinae.Networking.Connection;
+namespace Kern.Networking.Connection;
 public enum ConnectionTransportKind
 {
     Dummy,

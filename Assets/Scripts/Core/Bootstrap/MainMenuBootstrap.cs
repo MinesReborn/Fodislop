@@ -2,12 +2,12 @@
 
 using System;
 using Cysharp.Threading.Tasks;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Lifecycle;
-using Fodinae.UI;
+using Kern.Core.Interfaces;
+using Kern.Core.Lifecycle;
+using Kern.UI;
 using VContainer.Unity;
 
-namespace Fodinae.Core;
+namespace Kern.Core;
 
 public sealed class MainMenuBootstrap : IStartable
 {

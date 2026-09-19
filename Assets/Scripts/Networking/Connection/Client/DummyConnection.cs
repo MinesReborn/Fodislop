@@ -2,10 +2,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Cysharp.Threading.Tasks;
-using Fodinae;
-using Fodinae.Audio;
-using Fodinae.Core.Interfaces;
+using Kern;
+using Kern.Audio;
+using Kern.Core.Interfaces;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.Actions;
@@ -32,34 +33,66 @@ using MinesServer.Networking.Server.Packets.World;
 using MinesServer.Networking.Shared;
 using MinesServer.Networking.Shared.Packets;
 using UnityEngine;
+using VContainer;
 
 namespace MinesServer.Networking.Connection.Client;
-public class DummyConnection : IServerConnection, IOfflineConnection
+public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegionRequester
 {
     private readonly ITextureStorageService _textureStorage;
     private readonly IAsyncOperationSupervisor _operations;
     private readonly IRuntimeDebugSettings _debugSettings;
     private readonly DummyConnectionSession _session = new();
     private readonly DummyScenarioController _scenario;
+    private readonly IDummyClock _clock;
 
+    public void RequestWorldRegion(string worldCodeName, RectInt serverRegion)
+    {
+        _worldState.QueueTerrainRegion(worldCodeName, serverRegion, SendPacket);
+    }
+
+    [Inject]
     public DummyConnection(
         ITextureStorageService textureStorage,
         IItemCatalog itemCatalog,
         IAsyncOperationSupervisor operations,
         IRuntimeDebugSettings debugSettings,
         IOfflineScenarioSettings scenarioSettings,
-        DummyWorldMapSource worldMaps)
+        DummyWorldMapSource worldMaps,
+        IDummyClock clock)
+        : this(
+            textureStorage,
+            itemCatalog,
+            operations,
+            debugSettings,
+            scenarioSettings,
+            (IDummyWorldMapSource)worldMaps,
+            new DummyTokenStore(),
+            clock)
     {
+    }
+
+    internal DummyConnection(
+        ITextureStorageService textureStorage,
+        IItemCatalog itemCatalog,
+        IAsyncOperationSupervisor operations,
+        IRuntimeDebugSettings debugSettings,
+        IOfflineScenarioSettings scenarioSettings,
+        IDummyWorldMapSource worldMaps,
+        DummyTokenStore tokenStore,
+        IDummyClock clock)
+    {
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _textureStorage = textureStorage;
         _operations = operations;
         _debugSettings = debugSettings;
         _scenario = new DummyScenarioController(scenarioSettings);
         _worldState = new DummyWorldSimulationState(operations, worldMaps);
-        _authSession = new DummyAuthSession();
+        _authSession = new DummyAuthSession(tokenStore, clock);
         _missionRunner = new DummyMissionRunner(SendPacket);
         _buffManager = new DummyBuffManager(
             SendPacket,
             operations,
+            clock,
             LoopAlive);
         _inventoryResponder = new DummyInventoryResponder(
             SendPacket,
@@ -71,31 +104,38 @@ public class DummyConnection : IServerConnection, IOfflineConnection
         _teleportManager = new DummyTeleportManager(
             SendPacket,
             _teleportPositions,
-            (destX, destY) =>
+            operations,
+            async (destX, destY) =>
             {
+                await _worldState.SendChunksAroundAsync(
+                    destX,
+                    destY,
+                    SendPacket,
+                    CancellationToken.None);
                 _playerState.SetPosition(destX, destY);
-                _worldState.SendChunksAround(destX, destY, SendPacket);
             });
         // LoopAlive привязан к жизненному циклу соединения: чат-петля
         // умирает вместе с коннектом (раньше она жила вечно и текла
         // через реконнекты — фиксированный источник мусора).
         _chatSimulator = new DummyChatSimulator(
             SendPacket,
-            () => LoopAlive(_session.LifecycleVersion),
-            operations);
-        _chatResponder = new DummyChatResponder(SendPacket);
-        _adminCommands = new DummyAdminCommands(SendPacket, _playerState, _worldState);
+            LoopAlive,
+            operations,
+            clock);
+        _chatResponder = new DummyChatResponder(SendPacket, clock);
+        _adminCommands = new DummyAdminCommands(SendPacket, _playerState, _worldState, clock);
         _clanManager = new DummyClanManager(SendPacket);
         _pathFinder = new DummyPathFinder(SendPacket, _worldState.GetCellConfig);
         _movementResponder = new DummyMovementResponder(
             operations,
+            clock,
             _playerState,
             _worldState,
             _teleportManager,
             _pathFinder,
             SendPacket,
             () => _debugSettings.IgnoreCollision,
-            _mockBotId);
+            _mockBotID);
         _actionResponder = new DummyGameplayActionResponder(
             _playerState,
             _worldState,
@@ -103,8 +143,9 @@ public class DummyConnection : IServerConnection, IOfflineConnection
             _missionRunner,
             _inventoryResponder,
             _chatSimulator,
+            clock,
             SendPacket,
-            _mockBotId);
+            _mockBotID);
         _windowResponder = new DummyWindowResponder(
             SendPacket,
             _buffManager,
@@ -114,6 +155,7 @@ public class DummyConnection : IServerConnection, IOfflineConnection
             _missionRunner);
         _worldStartup = new DummyWorldStartupResponder(
             operations,
+            clock,
             itemCatalog,
             _worldState,
             _playerState,
@@ -139,6 +181,9 @@ public class DummyConnection : IServerConnection, IOfflineConnection
     public event Action? OnDisconnecting;
     public event Action? OnConnecting;
 
+    // Всё, что клиент отправил офлайн-серверу; для тестов и отладочных инструментов.
+    internal event Action<ClientPacket>? ClientPacketSent;
+
     private readonly DummyAuthSession _authSession;
     private readonly DummyMissionRunner _missionRunner;
     private readonly DummyBuffManager _buffManager;
@@ -156,7 +201,7 @@ public class DummyConnection : IServerConnection, IOfflineConnection
     private readonly DummyWorldSimulationState _worldState;
     private readonly DummyWorldStartupResponder _worldStartup;
 
-    private const ushort _mockBotId = 456;
+    private const ushort _mockBotID = 456;
     private readonly List<(ushort X, ushort Y)> _teleportPositions = new();
 
     // Depth warning/damage feature disabled in DummyConnection
@@ -187,7 +232,7 @@ public class DummyConnection : IServerConnection, IOfflineConnection
 
     private async UniTask ConnectAsync(int lifecycleVersion)
     {
-        await UniTask.Yield();
+        await _clock.Yield();
 
         if (_scenario.StallsConnection)
         {
@@ -231,12 +276,12 @@ public class DummyConnection : IServerConnection, IOfflineConnection
         OnDisconnecting?.Invoke();
         _operations.Run(
             "dummy_disconnect",
-            _ => DisconnectAsync(lifecycleVersion));
+            cancellationToken => DisconnectAsync(lifecycleVersion, cancellationToken));
     }
 
-    private async UniTask DisconnectAsync(int lifecycleVersion)
+    private async UniTask DisconnectAsync(int lifecycleVersion, CancellationToken cancellationToken)
     {
-        await UniTask.Delay(100);
+        await _clock.Delay(100, cancellationToken);
 
         if (!_session.TryCompleteDisconnect(lifecycleVersion))
         {
@@ -279,6 +324,7 @@ public class DummyConnection : IServerConnection, IOfflineConnection
 
     public void SendAsync(ClientPacket packet)
     {
+        ClientPacketSent?.Invoke(packet);
         if (packet.Data is ActionClientPacket actionPacket)
         {
             _actionResponder.Handle(actionPacket);
@@ -324,7 +370,7 @@ public class DummyConnection : IServerConnection, IOfflineConnection
                     return;
                 }
 
-                _operations.Run("dummy_world_init", _ => InitWorldAsync());
+                _operations.Run("dummy_world_init", InitWorldAsync);
                 break;
             case RuntimeAssetRequestPacket runtimeAssets:
                 _operations.Run(
@@ -350,7 +396,7 @@ public class DummyConnection : IServerConnection, IOfflineConnection
             case SendLocalChatMessagePacket localMsg:
                 _chatResponder.SendLocal(
                     localMsg,
-                    _mockBotId,
+                    _mockBotID,
                     _playerState.X,
                     _playerState.Y);
                 break;
@@ -385,9 +431,17 @@ public class DummyConnection : IServerConnection, IOfflineConnection
                 break;
         }
     }
-    private UniTask InitWorldAsync()
+    // Отключение или переподключение отменяет незавершённый вход в мир: это
+    // штатно и не должно уходить в лог как сбой.
+    private async UniTask InitWorldAsync(CancellationToken cancellationToken)
     {
-        return _worldState.EnsureInitializedAsync(InitWorldCoreAsync);
+        try
+        {
+            await _worldState.EnsureInitializedAsync(InitWorldCoreAsync);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+        }
     }
 
     private UniTask InitWorldCoreAsync()
@@ -398,7 +452,7 @@ public class DummyConnection : IServerConnection, IOfflineConnection
             _PlayerName,
             _Level,
             _Currency,
-            _mockBotId);
+            _mockBotID);
     }
 
 }

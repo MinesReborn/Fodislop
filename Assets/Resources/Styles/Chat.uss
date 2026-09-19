@@ -38,13 +38,13 @@
 
 .gchat-panel {
     position: absolute;
-    right: 10px;
+    right: var(--space-5);
     top: 50%;
     translate: 0 -50%;
     width: 340px;
     height: 420px;
     background-color: var(--surface-slate-dense);
-    border-width: 2px;
+    border-width: var(--space-1);
     border-color: var(--accent-cyan-deep);
     padding: var(--space-4);
     flex-direction: column;
@@ -105,7 +105,7 @@
 
 .gchat-bottom-row {
     flex-direction: row;
-    height: 28px;
+    height: var(--space-11);
     flex-shrink: 0;
     flex-grow: 0;
 }
@@ -123,7 +123,7 @@
 }
 
 .gchat-send-button {
-    width: 32px;
+    width: var(--space-12);
     flex-shrink: 0;
     padding: 0;
     background-color: var(--surface-shelf-solid);
@@ -136,8 +136,8 @@
 }
 
 .gchat-color-button {
-    width: 28px;
-    height: 28px;
+    width: var(--space-11);
+    height: var(--space-11);
     flex-shrink: 0;
     padding: 0;
     border-width: 1px;
@@ -158,8 +158,8 @@
 }
 
 .gchat-swatch {
-    width: 20px;
-    height: 20px;
+    width: var(--space-9);
+    height: var(--space-9);
     margin: 1px;
     padding: 0;
     border-width: 1px;

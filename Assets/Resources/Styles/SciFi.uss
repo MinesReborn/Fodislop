@@ -134,7 +134,7 @@
 }
 
 .sci-fi-bar-track {
-    height: 8px;
+    height: var(--space-4);
     background-color: var(--surface-inset);
     border-width: 1px;
     border-color: var(--border-subtle);

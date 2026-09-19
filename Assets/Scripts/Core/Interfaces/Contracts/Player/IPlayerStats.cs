@@ -5,8 +5,8 @@ using System.Collections.Generic;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.Core.Interfaces;
-using Fodinae.Core.Models;
+namespace Kern.Core.Interfaces;
+using Kern.Core.Models;
 public interface IPlayerStats
 {
     bool IsReady { get; }

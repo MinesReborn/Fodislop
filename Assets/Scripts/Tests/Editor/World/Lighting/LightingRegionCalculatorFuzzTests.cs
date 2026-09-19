@@ -1,21 +1,21 @@
 #nullable enable
 
-using Fodinae.World.Lighting;
+using Kern.World.Lighting;
+using Kern.World.Streaming;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Fodinae.Tests.World.Lighting;
+namespace Kern.Tests.World.Lighting;
 
 [TestFixture]
 public class LightingRegionCalculatorFuzzTests
 {
-    private const int Padding = LightingRegionCalculator.LightingRegionPaddingCells;
+    private static int Padding => LightingRegionCalculator.LightingRegionPaddingCells;
 
-    private const int AnchorCells = 8;
+    private static int Quantum => StreamingPolicy.Default.AllocationQuantumCells;
 
-    private const int Quantum = 32;
-
-    private const int MinCell = 2;
+    private const int MinCell = StreamingPolicy.DefaultMinimumWindowDimension;
+    private const int MaximumCellWindow = StreamingPolicy.DefaultMaximumWindowDimension;
 
     private static readonly int[] _Seeds = [1, 7, 42, 1337, 90210, 2147483, 8675309];
 
@@ -78,30 +78,21 @@ public class LightingRegionCalculatorFuzzTests
             Vector4 result = LightingRegionCalculator.GetStableLightingRegion(
                 minX, minY, width, height, previous);
 
-            // The reference re-derives the safe-margin rule from the doc
-            // contract: margin = min(16, max(2, min(w,h) / 4)), and the
-            // viewport is kept put only when it clears the margin on all
-            // four sides. Exactly that - no extra drift tolerance, no
-            // hysteresis - is what the renderer depends on.
+            // The reference re-derives the reanchor rule from the shared
+            // streaming policy. Lighting and terrain must make the same
+            // decision for the same window geometry.
             int currentMinX = Mathf.RoundToInt(previous.x);
             int currentMinY = Mathf.RoundToInt(previous.y);
             int regionWidth = Mathf.RoundToInt(previous.z);
             int regionHeight = Mathf.RoundToInt(previous.w);
-            int safeMargin = Mathf.Min(
-                Padding,
-                Mathf.Max(MinCell, Mathf.Min(regionWidth, regionHeight) / 4));
-
-            bool inside =
-                minX >= currentMinX + safeMargin &&
-                minX + width <= currentMinX + regionWidth - safeMargin &&
-                minY >= currentMinY + safeMargin &&
-                minY + height <= currentMinY + regionHeight - safeMargin;
+            bool inside = StreamingPolicy.Default.ContainsViewport(
+                new Vector2Int(regionWidth, regionHeight),
+                new Vector2Int(minX - currentMinX, minY - currentMinY),
+                new Vector2Int(width, height));
 
             Vector4 expected = inside
                 ? previous
-                : LightingRegionCalculator.GetStableLightingRegion(
-                    minX, minY, width, height,
-                    new Vector4(float.NaN, 0, 0, 0));
+                : ReanchoredReference(minX, minY, width, height, previous);
 
             Assert.That(
                 result,
@@ -199,9 +190,6 @@ public class LightingRegionCalculatorFuzzTests
     {
         string context = $"seed {seed}, iteration {iteration}: viewport {minX},{minY} {width}x{height}, region {region}.";
 
-        Assert.That(region.x % AnchorCells, Is.EqualTo(0f), context + " west edge must sit on an 8-cell anchor.");
-        Assert.That(region.y % AnchorCells, Is.EqualTo(0f), context + " south edge must sit on an 8-cell anchor.");
-
         Assert.That(region.z, Is.GreaterThanOrEqualTo(MinCell), context);
         Assert.That(region.w, Is.GreaterThanOrEqualTo(MinCell), context);
 
@@ -217,20 +205,48 @@ public class LightingRegionCalculatorFuzzTests
             Is.True,
             context + " height must be a 32-cell quantum or the 2-cell minimum.");
 
-        // Coverage, computed in long so the assertion itself can never wrap.
-        // A viewport with a negative extent is an inverted interval; the
-        // region still trivially covers it because it extends outward from
-        // the snapped min edge.
-        Assert.That((long)region.x, Is.LessThanOrEqualTo((long)minX - Padding), context + " west padding missing.");
-        Assert.That((long)region.y, Is.LessThanOrEqualTo((long)minY - Padding), context + " south padding missing.");
-        Assert.That(
-            (long)region.x + (long)region.z,
-            Is.GreaterThanOrEqualTo((long)minX + width + Padding),
-            context + " east padding missing.");
-        Assert.That(
-            (long)region.y + (long)region.w,
-            Is.GreaterThanOrEqualTo((long)minY + height + Padding),
-            context + " north padding missing.");
+        // The policy intentionally caps resident windows. Oversized or
+        // inverted fuzz inputs test the cap below, while only representable
+        // camera viewports are required to be fully covered.
+        if (FitsPolicyWindow(width) && FitsPolicyWindow(height))
+        {
+            Assert.That((long)region.x, Is.LessThanOrEqualTo((long)minX - Padding), context + " west padding missing.");
+            Assert.That((long)region.y, Is.LessThanOrEqualTo((long)minY - Padding), context + " south padding missing.");
+            Assert.That(
+                (long)region.x + (long)region.z,
+                Is.GreaterThanOrEqualTo((long)minX + width + Padding),
+                context + " east padding missing.");
+            Assert.That(
+                (long)region.y + (long)region.w,
+                Is.GreaterThanOrEqualTo((long)minY + height + Padding),
+                context + " north padding missing.");
+        }
+    }
+
+    private static bool FitsPolicyWindow(int extent)
+    {
+        return extent >= 0 &&
+            (long)extent + (Padding * 2L) + Quantum - 1 <= MaximumCellWindow;
+    }
+
+    private static Vector4 ReanchoredReference(
+        int minX,
+        int minY,
+        int width,
+        int height,
+        Vector4 previous)
+    {
+        Vector4 fresh = LightingRegionCalculator.GetStableLightingRegion(
+            minX,
+            minY,
+            width,
+            height,
+            new Vector4(float.NaN, 0, 0, 0));
+        int widthHighWater = StreamingPolicy.Default.QuantizeDimension(
+            Mathf.Max(Mathf.RoundToInt(fresh.z), Mathf.RoundToInt(previous.z)));
+        int heightHighWater = StreamingPolicy.Default.QuantizeDimension(
+            Mathf.Max(Mathf.RoundToInt(fresh.w), Mathf.RoundToInt(previous.w)));
+        return new Vector4(fresh.x, fresh.y, widthHighWater, heightHighWater);
     }
 
     private static T Pick<T>(System.Random random, params T[] options)

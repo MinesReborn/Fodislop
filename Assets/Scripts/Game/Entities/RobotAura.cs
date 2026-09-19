@@ -1,11 +1,11 @@
 #nullable enable
 
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Lifecycle;
-using Fodinae.World;
+using Kern.Core.Interfaces;
+using Kern.Core.Lifecycle;
+using Kern.World;
 using UnityEngine;
 
-namespace Fodinae.Game;
+namespace Kern.Game;
 
 internal sealed class RobotAura
 {

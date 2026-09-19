@@ -4,7 +4,7 @@ using System;
 using MinesServer.Networking.Client.Packets.Actions;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.HUD.Player.View;
+namespace Kern.UI.HUD.Player.View;
 
 public sealed class PlayerHUDPopups
 {

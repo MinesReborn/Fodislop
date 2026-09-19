@@ -6,12 +6,12 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
-namespace Fodinae.Core.Lifecycle;
+namespace Kern.Core.Lifecycle;
 
 public sealed class AsyncOperationSupervisor : IAsyncOperationSupervisor, IDisposable
 {
     private readonly CancellationTokenSource _lifetime = new();
-    private readonly HashSet<long> _activeOperations = [];
+    private readonly Dictionary<long, string> _activeOperations = [];
     private readonly object _gate = new();
     private long _nextOperationID;
     private bool _disposed;
@@ -23,6 +23,21 @@ public sealed class AsyncOperationSupervisor : IAsyncOperationSupervisor, IDispo
             lock (_gate)
             {
                 return _activeOperations.Count;
+            }
+        }
+    }
+
+    // Имена живых операций: по одному счётчику не понять, какая из них не
+    // завершилась.
+    public string[] ActiveOperationNames
+    {
+        get
+        {
+            lock (_gate)
+            {
+                var names = new string[_activeOperations.Count];
+                _activeOperations.Values.CopyTo(names, 0);
+                return names;
             }
         }
     }
@@ -49,7 +64,7 @@ public sealed class AsyncOperationSupervisor : IAsyncOperationSupervisor, IDispo
         long operationID = Interlocked.Increment(ref _nextOperationID);
         lock (_gate)
         {
-            _activeOperations.Add(operationID);
+            _activeOperations.Add(operationID, operationName);
         }
 
         ExecuteAsync(operationID, operationName, operation).Forget();

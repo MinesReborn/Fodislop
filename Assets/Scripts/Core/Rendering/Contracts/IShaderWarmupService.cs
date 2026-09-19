@@ -4,7 +4,7 @@ using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 
-namespace Fodinae.Core;
+namespace Kern.Core;
 
 public interface IShaderWarmupService
 {

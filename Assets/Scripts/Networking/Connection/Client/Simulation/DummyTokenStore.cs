@@ -9,9 +9,17 @@ using UnityEngine;
 namespace MinesServer.Networking.Connection.Client;
 public sealed class DummyTokenStore
 {
-    private readonly string _path = Path.Combine(
-        Application.temporaryCachePath,
-        "server_tokens.json");
+    private readonly string _path;
+
+    public DummyTokenStore()
+        : this(Path.Combine(Application.temporaryCachePath, "server_tokens.json"))
+    {
+    }
+
+    internal DummyTokenStore(string path)
+    {
+        _path = path;
+    }
 
     public HashSet<string> Load()
     {

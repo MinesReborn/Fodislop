@@ -3,13 +3,13 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Lifecycle;
-using Fodinae.Core.Localization;
-using Fodinae.Rendering;
+using Kern.Core.Interfaces;
+using Kern.Core.Lifecycle;
+using Kern.Core.Localization;
+using Kern.Rendering;
 using VContainer.Unity;
 
-namespace Fodinae.Core;
+namespace Kern.Core;
 
 public sealed class ApplicationBootstrap : IStartable
 {
@@ -101,9 +101,9 @@ public sealed class ApplicationBootstrap : IStartable
     {
 #if UNITY_EDITOR
         string target = UnityEditor.SessionState.GetString(
-            "Fodinae.PlayModeTargetScene",
+            ProjectRuntimeContracts.EditorSession.PlayModeTargetScene,
             string.Empty);
-        UnityEditor.SessionState.SetString("Fodinae.PlayModeTargetScene", string.Empty);
+        UnityEditor.SessionState.SetString(ProjectRuntimeContracts.EditorSession.PlayModeTargetScene, string.Empty);
         if (!string.IsNullOrWhiteSpace(target) &&
             target != ProjectRuntimeContracts.SceneNames.Bootstrap)
         {

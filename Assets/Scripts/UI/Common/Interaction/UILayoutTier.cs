@@ -3,7 +3,7 @@
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 public static class UILayoutTier
 {
     public const string CompactClass = "tier--compact";

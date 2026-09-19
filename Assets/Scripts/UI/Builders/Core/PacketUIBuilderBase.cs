@@ -3,7 +3,7 @@
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Builders;
+namespace Kern.UI.Builders;
 public abstract class PacketUIBuilderBase
 {
     public abstract VisualElement Build(IGUIComponentPacket packet, PacketUIBuilder builder);

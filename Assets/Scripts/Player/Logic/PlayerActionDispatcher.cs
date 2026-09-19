@@ -1,17 +1,17 @@
 #nullable enable
 
 using System;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Game;
-using Fodinae.Networking;
-using Fodinae.Player.Interfaces;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Game;
+using Kern.Networking;
+using Kern.Player.Interfaces;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Client.Packets.Actions;
 using UnityEngine;
 
-namespace Fodinae.Player.Logic;
+namespace Kern.Player.Logic;
 
 internal sealed class PlayerActionDispatcher
 {

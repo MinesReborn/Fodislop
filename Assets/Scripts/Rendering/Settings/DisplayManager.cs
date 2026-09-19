@@ -3,14 +3,14 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.Rendering.PostProcessing;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Rendering.PostProcessing;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 using VContainer.Unity;
 
-namespace Fodinae.Rendering
+namespace Kern.Rendering
 {
     // Чистый сервис контейнера (SCENE_STANDARD.md §1): настройки вывода
     // применяются при старте scope.
@@ -41,7 +41,6 @@ namespace Fodinae.Rendering
             AutoDetectDisplayCapabilities(display);
             SanitizeCalibration(display);
             PostProcessRuntimeState.SetDisplayCalibration(
-                display.Gamma,
                 display.PaperWhiteNits,
                 display.PeakBrightnessNits);
 
@@ -164,26 +163,6 @@ namespace Fodinae.Rendering
             return result;
         }
 
-        public void SetGamma(float gamma)
-        {
-            if (_clientConfig?.Config == null)
-            {
-                return;
-            }
-
-            float sanitized = FiniteClamp(
-                gamma,
-                DisplaySettings.GammaMin,
-                DisplaySettings.GammaMax,
-                DisplaySettings.DefaultGamma);
-            _clientConfig.UpdateSection(config => config.Display, display => display.Gamma = sanitized);
-            PostProcessRuntimeState.SetDisplayCalibration(
-                sanitized,
-                _clientConfig.Config.Display.PaperWhiteNits,
-                _clientConfig.Config.Display.PeakBrightnessNits);
-            Debug.Log($"[DisplayManager] SetGamma: {sanitized}");
-        }
-
         public void SetPaperWhiteNits(float paperWhiteNits)
         {
             if (_clientConfig?.Config == null)
@@ -209,7 +188,6 @@ namespace Fodinae.Rendering
                 display.PeakBrightnessNits = sanitizedPeak;
             });
             PostProcessRuntimeState.SetDisplayCalibration(
-                _clientConfig.Config.Display.Gamma,
                 sanitizedPaperWhite,
                 sanitizedPeak);
             Debug.Log(
@@ -242,7 +220,6 @@ namespace Fodinae.Rendering
                 display.PeakBrightnessNits = sanitizedPeak;
             });
             PostProcessRuntimeState.SetDisplayCalibration(
-                _clientConfig.Config.Display.Gamma,
                 paperWhite,
                 sanitizedPeak);
             Debug.Log($"[DisplayManager] SetPeakBrightnessNits: {sanitizedPeak}");
@@ -255,11 +232,6 @@ namespace Fodinae.Rendering
 
         private static void SanitizeCalibration(DisplaySettings display)
         {
-            display.Gamma = FiniteClamp(
-                display.Gamma,
-                DisplaySettings.GammaMin,
-                DisplaySettings.GammaMax,
-                DisplaySettings.DefaultGamma);
             display.PaperWhiteNits = FiniteClamp(
                 display.PaperWhiteNits,
                 DisplaySettings.PaperWhiteMin,

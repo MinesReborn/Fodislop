@@ -3,7 +3,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace Fodinae.World.Lighting;
+namespace Kern.World.Lighting;
 
 public interface ILightingGeometryContributor
 {

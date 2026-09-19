@@ -1,11 +1,11 @@
 #nullable enable
 
 using System.Collections.Generic;
-using Fodinae.World;
+using Kern.World;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 internal sealed class MinimapTextureRenderer
 {

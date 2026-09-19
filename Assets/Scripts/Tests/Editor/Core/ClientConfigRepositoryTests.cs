@@ -1,11 +1,11 @@
 #nullable enable
 
 using System.IO;
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
+using Kern.Core;
+using Kern.Core.Interfaces;
 using NUnit.Framework;
 
-namespace Fodinae.Tests.Core;
+namespace Kern.Tests.Core;
 
 public sealed class ClientConfigRepositoryTests
 {
@@ -17,7 +17,7 @@ public sealed class ClientConfigRepositoryTests
     {
         _directory = Path.Combine(
             Path.GetTempPath(),
-            $"fodinae-config-repository-{System.Guid.NewGuid():N}");
+            $"kern-config-repository-{System.Guid.NewGuid():N}");
         _configPath = Path.Combine(_directory, "client_config.json");
     }
 

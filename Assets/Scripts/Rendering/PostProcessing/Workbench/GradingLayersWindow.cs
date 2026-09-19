@@ -1,10 +1,10 @@
 #nullable enable
 
 using System.Collections.Generic;
-using Fodinae.Tools.Imgui;
+using Kern.Tools.Imgui;
 using UnityEngine;
 
-namespace Fodinae.Rendering.PostProcessing.Workbench;
+namespace Kern.Rendering.PostProcessing.Workbench;
 
 internal sealed class GradingLayersWindow : ToolWindow
 {
@@ -19,12 +19,8 @@ internal sealed class GradingLayersWindow : ToolWindow
     // Подписи вкладок и баннеров меняются только со сменой состояния слоёв;
     // собирать их на каждое событие IMGUI незачем.
     private readonly Dictionary<string, string[]> _tabTitles = [];
-    private ColorGradeLayer? _soloLabelLayer;
-    private string _soloLabel = string.Empty;
-    private int _bypassLabelCount = -1;
-    private string _bypassLabel = string.Empty;
-    private ColorGradeLayer? _focusedLabelLayer;
-    private string _focusedLabel = string.Empty;
+
+    private readonly GradingLayerStatusBanners _banners;
 
     public GradingLayersWindow(ColorGradeState state, ColorGradeZones zones)
         : base("Тонкоррекция  ·  F5", new Rect(292f, 16f, 430f, 740f))
@@ -32,6 +28,7 @@ internal sealed class GradingLayersWindow : ToolWindow
         _state = state;
         _zones = zones;
         _drawer = new GradingLayerControlsDrawer(state, zones);
+        _banners = new GradingLayerStatusBanners(state, _drawer);
     }
 
     public override bool WantsSampling => false;
@@ -54,7 +51,7 @@ internal sealed class GradingLayersWindow : ToolWindow
         HandleKeyboardShortcuts();
         _drawer.ApplyPendingActions();
         DrawLayerTabBar();
-        DrawMasterStatusBanners();
+        _banners.DrawMasterStatusBanners();
 
         using (ToolLayout.ScrollView(ref _scroll))
         {
@@ -266,89 +263,6 @@ internal sealed class GradingLayersWindow : ToolWindow
         }
     }
 
-    private void DrawMasterStatusBanners()
-    {
-        if (_state.Solo.HasValue)
-        {
-            using (ToolLayout.Vertical(CardStyle))
-            {
-                using (ToolLayout.Horizontal())
-                {
-                    GUILayout.Label(
-                        SoloLabel(_state.Solo.Value),
-                        ToolTheme.WarningLabel);
-                    if (GUILayout.Button("Снять", SecondaryButtonStyle, ToolLayout.Width(72f)))
-                    {
-                        _drawer.RequestSolo(null);
-                    }
-                }
-            }
-        }
-
-        int bypassedCount = GetBypassedCount();
-        if (bypassedCount > 0)
-        {
-            using (ToolLayout.Vertical(CardStyle))
-            {
-                using (ToolLayout.Horizontal())
-                {
-                    GUILayout.Label(BypassLabel(bypassedCount), ToolTheme.WarningLabel);
-                    if (GUILayout.Button("Включить все", SecondaryButtonStyle, ToolLayout.Width(104f)))
-                    {
-                        _drawer.RequestClearBypasses();
-                    }
-                }
-            }
-        }
-    }
-
-    private string SoloLabel(ColorGradeLayer layer)
-    {
-        if (_soloLabelLayer != layer)
-        {
-            _soloLabelLayer = layer;
-            _soloLabel = $"★  Соло: {GradingLayerControlsDrawer.GetLayerTitle(layer)}";
-        }
-
-        return _soloLabel;
-    }
-
-    private string BypassLabel(int count)
-    {
-        if (_bypassLabelCount != count)
-        {
-            _bypassLabelCount = count;
-            _bypassLabel = $"⚠  В обходе слоёв: {count}";
-        }
-
-        return _bypassLabel;
-    }
-
-    private string FocusedLabel(ColorGradeLayer layer)
-    {
-        if (_focusedLabelLayer != layer)
-        {
-            _focusedLabelLayer = layer;
-            _focusedLabel = $"СЛОЙ: {GradingLayerControlsDrawer.GetLayerTitle(layer).ToUpperInvariant()}";
-        }
-
-        return _focusedLabel;
-    }
-
-    private int GetBypassedCount()
-    {
-        int count = 0;
-        for (int i = 0; i < 6; i++)
-        {
-            if (_state.IsBypassed((ColorGradeLayer)i))
-            {
-                count++;
-            }
-        }
-
-        return count;
-    }
-
     private void DrawFocusedLayer(ColorGradeLayer layer)
     {
         using (ToolLayout.Horizontal())
@@ -360,7 +274,7 @@ internal sealed class GradingLayersWindow : ToolWindow
 
             GUILayout.FlexibleSpace();
             GUILayout.Label(
-                FocusedLabel(layer),
+                _banners.GetFocusedLabel(layer),
                 SectionLabelStyle);
             GUILayout.FlexibleSpace();
 
@@ -374,6 +288,7 @@ internal sealed class GradingLayersWindow : ToolWindow
         {
             DrawLayerHeaderBar(layer, GradingLayerControlsDrawer.GetLayerTitle(layer), showFocusButton: false);
             GUILayout.Space(4f);
+            _banners.DrawFocusedLayerStatusBanner(layer);
             _drawer.DrawLayerControls(layer);
         }
 

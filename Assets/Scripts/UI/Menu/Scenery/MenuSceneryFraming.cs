@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 internal static class MenuSceneryFraming
 {
     private const float RestDiscWidthFraction = 860f / 1440f;

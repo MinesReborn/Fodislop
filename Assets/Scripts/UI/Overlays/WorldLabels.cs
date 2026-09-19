@@ -2,12 +2,12 @@
 
 using System;
 using System.Collections.Generic;
-using Fodinae.Core.Interfaces;
+using Kern.Core.Interfaces;
 using UnityEngine;
 using UnityEngine.UIElements;
 using VContainer.Unity;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 public sealed class WorldLabels(UIDocument document, IGameplayCamera camera) : IWorldLabels, ILateTickable, IDisposable
 {

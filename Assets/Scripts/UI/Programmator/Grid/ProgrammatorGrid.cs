@@ -1,13 +1,13 @@
 #nullable enable
 
 using System;
-using Fodinae.Core.Localization;
+using Kern.Core.Localization;
 using MinesServer.Data;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Programmator;
+namespace Kern.UI.Programmator;
 
 // Thin lifecycle owner for the programmator popup. UI construction, cell
 // rendering, selection, clipboard, radial menu, and program storage each

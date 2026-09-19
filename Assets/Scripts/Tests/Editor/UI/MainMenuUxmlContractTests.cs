@@ -4,7 +4,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.Tests.UI;
+namespace Kern.Tests.UI;
 
 [TestFixture]
 public sealed class MainMenuUxmlContractTests

@@ -1,8 +1,8 @@
 #nullable enable
 
-using Fodinae.Core;
+using Kern.Core;
 
-namespace Fodinae.Rendering.PostProcessing;
+namespace Kern.Rendering.PostProcessing;
 
 public static class PostProcessLimits
 {
@@ -13,7 +13,9 @@ public static class PostProcessLimits
     public const float ContrastMin = PostProcessSettings.ContrastMin;
     public const float ContrastMax = PostProcessSettings.ContrastMax;
     public const float EigengrauIntensityMin = 0f;
-    public const float EigengrauIntensityMax = 0.25f;
+    // Потолок был 0.25 при авторском значении 0.3 в PostProcessLook: параметр
+    // молча зажимался, и авторское число означало не то, что написано.
+    public const float EigengrauIntensityMax = 1f;
     public const float MotionBlurIntensityMin = 0f;
     public const float MotionBlurIntensityMax = 0.5f;
 }

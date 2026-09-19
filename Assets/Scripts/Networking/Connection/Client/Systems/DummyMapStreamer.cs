@@ -1,81 +1,208 @@
 #nullable enable
 
-using Fodinae;
-using Fodinae.Core;
+using Kern;
+using Kern.Core;
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets;
 using MinesServer.Networking.Server.Packets.World;
+using Kern.World.Streaming;
+using UnityEngine;
 
 namespace MinesServer.Networking.Connection.Client;
 
 internal static class DummyMapStreamer
 {
-    public static void SendMapChunksAround(IWorldLayer<CellType>? worldLayer, HashSet<int> sentMapChunks, ushort serverX, ushort serverY, Action<ServerPacket> sendPacket)
+    private static readonly StreamingGovernor _governor =
+        new(StreamingPolicy.Default);
+
+    public static bool NeedsStreaming(
+        IWorldLayer<CellType>? worldLayer,
+        StreamingWindow currentWindow,
+        ushort serverX,
+        ushort serverY)
     {
-        // The dummy server runs inside the Unity player. Loading a 9x9 chunk
-        // window synchronously during the handshake stalls the main thread on
-        // the 296 MB prebaked map and makes PlayMode startup exceed its test
-        // timeout. One surrounding chunk is enough for the startup scene and
-        // keeps the fixture disposable; movement requests stream more later.
-        const int StreamingRadiusChunks = 1;
         if (worldLayer == null)
         {
-            throw new InvalidOperationException(
-                "Cannot stream map chunks before the DummyConnection world layer is initialized.");
+            return false;
         }
 
-        int centerChunkX = serverX / ProjectRuntimeContracts.World.ChunkSize;
-        int centerChunkY = serverY / ProjectRuntimeContracts.World.ChunkSize;
-        int minimumChunkX = Math.Max(0, centerChunkX - StreamingRadiusChunks);
+        StreamingWindow targetWindow = SelectTargetWindow(
+            currentWindow,
+            serverX,
+            serverY,
+            worldLayer.WidthChunks * worldLayer.ChunkSize,
+            worldLayer.HeightChunks * worldLayer.ChunkSize);
+        return targetWindow != currentWindow;
+    }
+
+    public static async UniTask<StreamingWindow> SendMapChunksAroundAsync(
+        IWorldLayer<CellType>? worldLayer,
+        HashSet<int> sentMapChunks,
+        StreamingWindow currentWindow,
+        ushort serverX,
+        ushort serverY,
+        Action<ServerPacket> sendPacket,
+        CancellationToken cancellationToken = default)
+    {
+        if (worldLayer == null)
+        {
+            return currentWindow;
+        }
+
+        StreamingWindow targetWindow = SelectTargetWindow(
+            currentWindow,
+            serverX,
+            serverY,
+            worldLayer.WidthChunks * worldLayer.ChunkSize,
+            worldLayer.HeightChunks * worldLayer.ChunkSize);
+        StreamingPlan plan = _governor.Plan(
+            currentWindow,
+            targetWindow.Origin,
+            targetWindow.Size,
+            dimensionsChanged: false);
+        StreamingWindow window = plan.Target;
+
+        await SendMapWindowAsync(worldLayer, sentMapChunks, window, sendPacket, cancellationToken);
+        return window;
+    }
+
+    public static async UniTask SendMapWindowAsync(
+        IWorldLayer<CellType> worldLayer,
+        HashSet<int> sentMapChunks,
+        StreamingWindow window,
+        Action<ServerPacket> sendPacket,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        int minimumChunkX = Math.Max(0, window.Origin.x / worldLayer.ChunkSize);
         int maximumChunkX = Math.Min(
             worldLayer.WidthChunks - 1,
-            centerChunkX + StreamingRadiusChunks);
-        int minimumChunkY = Math.Max(0, centerChunkY - StreamingRadiusChunks);
+            (window.Origin.x + window.Size.x - 1) / worldLayer.ChunkSize);
+        int minimumChunkY = Math.Max(0, window.Origin.y / worldLayer.ChunkSize);
         int maximumChunkY = Math.Min(
             worldLayer.HeightChunks - 1,
-            centerChunkY + StreamingRadiusChunks);
+            (window.Origin.y + window.Size.y - 1) / worldLayer.ChunkSize);
+        var pendingRegions = new List<IHBPacket>();
+        var pendingChunkIndices = new List<int>();
+
+        // Start every missing disk read before awaiting any one of them.
+        // The old loop paid at least one Update per cold chunk, then another
+        // Update per four prepared payloads, with movement awaiting the batch.
         for (int chunkX = minimumChunkX; chunkX <= maximumChunkX; chunkX++)
         {
             for (int chunkY = minimumChunkY; chunkY <= maximumChunkY; chunkY++)
             {
+                int chunkIndex = chunkY + chunkX * worldLayer.HeightChunks;
+                if (!sentMapChunks.Contains(chunkIndex))
+                {
+                    worldLayer.ReadChunk(chunkIndex, touchLru: true);
+                }
+            }
+        }
+
+        for (int chunkX = minimumChunkX; chunkX <= maximumChunkX; chunkX++)
+        {
+            for (int chunkY = minimumChunkY; chunkY <= maximumChunkY; chunkY++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
                 int chunkIndex = chunkY + (chunkX * worldLayer.HeightChunks);
                 if (sentMapChunks.Contains(chunkIndex))
                 {
                     continue;
                 }
 
-                CellType[] source = worldLayer.GetOrCreateChunk(chunkIndex, touchLru: true);
-
-                CellType[] payload = CreatePayload(source);
-                sendPacket(new ServerPacket(new HBPacket(new IHBPacket[]
+                ChunkReadResult<CellType> result = worldLayer.ReadChunk(chunkIndex, touchLru: true);
+                while (result.Status == ChunkReadStatus.Loading)
                 {
-                    new MapRegionPacket(
-                        (ushort)(chunkX * ProjectRuntimeContracts.World.ChunkSize),
-                        (ushort)(chunkY * ProjectRuntimeContracts.World.ChunkSize),
-                        ProjectRuntimeContracts.World.ChunkSize - 1,
-                        ProjectRuntimeContracts.World.ChunkSize - 1,
-                        payload),
-                })));
+                    await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
+                    result = worldLayer.ReadChunk(chunkIndex, touchLru: true);
+                }
 
-                sentMapChunks.Add(chunkIndex);
+                if (result.Status == ChunkReadStatus.Failed)
+                {
+                    throw new InvalidOperationException($"Failed to load map chunk {chunkIndex}.", result.Error);
+                }
+
+                int chunkSize = worldLayer.ChunkSize;
+                CellType[] source = result.Status == ChunkReadStatus.Available && result.Data != null
+                    ? result.Data
+                    : new CellType[chunkSize * chunkSize];
+                pendingRegions.Add(
+                    new MapRegionPacket(
+                        (ushort)(chunkX * chunkSize),
+                        (ushort)(chunkY * chunkSize),
+                        (byte)(chunkSize - 1),
+                        (byte)(chunkSize - 1),
+                        CreatePayload(source, chunkSize)));
+                pendingChunkIndices.Add(chunkIndex);
+            }
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        if (pendingRegions.Count > 0)
+        {
+            sendPacket(new ServerPacket(new HBPacket(pendingRegions.ToArray())));
+            for (int index = 0; index < pendingChunkIndices.Count; index++)
+            {
+                sentMapChunks.Add(pendingChunkIndices[index]);
             }
         }
     }
 
-    private static CellType[] CreatePayload(CellType[] source)
+    private static StreamingWindow SelectTargetWindow(
+        StreamingWindow currentWindow,
+        int serverX,
+        int serverY,
+        int worldWidth,
+        int worldHeight)
+    {
+        StreamingPolicy policy = _governor.Policy;
+        int requestedDimension = StreamingPolicy.DefaultMapWindowDimensionCells;
+        int windowDimension = policy.QuantizeDimensionWithHeadroom(requestedDimension);
+        windowDimension = Math.Min(windowDimension, Math.Min(worldWidth, worldHeight));
+        windowDimension = Math.Max(StreamingPolicy.DefaultMinimumWindowDimension, windowDimension);
+
+        Vector2Int player = new(serverX, serverY);
+        Vector2Int centeredOrigin = new(
+            serverX - (windowDimension / 2),
+            serverY - (windowDimension / 2));
+        if (!currentWindow.IsValid)
+        {
+            return new StreamingWindow(
+                policy.AlignOrigin(centeredOrigin),
+                new Vector2Int(windowDimension, windowDimension));
+        }
+
+        Vector2Int targetOrigin = _governor.SelectTargetOrigin(
+            currentWindow.Origin,
+            centeredOrigin,
+            player,
+            Vector2Int.one,
+            currentWindow.Size,
+            dimensionsChanged: false,
+            reanchorMarginCells: policy.ResolvePrefetchMarginCells(currentWindow.Size.x));
+        return new StreamingWindow(
+            targetOrigin,
+            new Vector2Int(windowDimension, windowDimension));
+    }
+
+    private static CellType[] CreatePayload(CellType[] source, int chunkSize)
     {
         var payload = new CellType[source.Length];
-        for (int lx = 0; lx < ProjectRuntimeContracts.World.ChunkSize; lx++)
+        for (int lx = 0; lx < chunkSize; lx++)
         {
-            for (int ly = 0; ly < ProjectRuntimeContracts.World.ChunkSize; ly++)
+            for (int ly = 0; ly < chunkSize; ly++)
             {
-                payload[(ly * ProjectRuntimeContracts.World.ChunkSize) + lx] =
-                    source[ly + (lx * ProjectRuntimeContracts.World.ChunkSize)];
+                payload[(ly * chunkSize) + lx] = source[ly + (lx * chunkSize)];
             }
         }
 
         return payload;
     }
+
 }

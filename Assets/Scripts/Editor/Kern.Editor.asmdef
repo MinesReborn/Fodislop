@@ -1,0 +1,25 @@
+{
+    "name": "Kern.Editor",
+    "rootNamespace": "Kern.Editor",
+    "references": [
+        "Kern.Runtime",
+        "Kern.Bootstrap",
+        "Kern.UI",
+        "Kern.World",
+        "Kern.AssetPipeline",
+        "Kern.Contracts",
+        "Unity.TextMeshPro",
+        "VContainer"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

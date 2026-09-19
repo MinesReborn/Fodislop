@@ -3,13 +3,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Fodinae.Core;
+using Kern.Core;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.Information;
 using UnityEngine;
 
-namespace Fodinae.World;
+namespace Kern.World;
 
 public sealed class MapCellConfigCatalog
 {
@@ -31,6 +31,9 @@ public sealed class MapCellConfigCatalog
 
     public static bool IsRoundableLoose(CellType type) => _RoundableLooseTypes.Contains(type);
 
+    public static bool IsRoad(CellType type) =>
+        type is CellType.Road or CellType.GoldenRoad or CellType.BuildingRoad or CellType.PolymerRoad;
+
     public void LoadConfigurations(CellConfigurationPacket[]? configurations, byte[][]? tileGroups)
     {
         ValidateCellConfigurations(configurations);
@@ -47,9 +50,9 @@ public sealed class MapCellConfigCatalog
                     continue;
                 }
 
-                foreach (byte cellId in tileGroups[i])
+                foreach (byte cellID in tileGroups[i])
                 {
-                    _cellToTileGroup[(CellType)cellId] = i;
+                    _cellToTileGroup[(CellType)cellID] = i;
                 }
             }
         }
@@ -102,9 +105,9 @@ public sealed class MapCellConfigCatalog
         return _cellConfigurations[(int)type];
     }
 
-    public bool TryGetTileGroup(CellType type, out int groupId)
+    public bool TryGetTileGroup(CellType type, out int groupID)
     {
-        return _cellToTileGroup.TryGetValue(type, out groupId);
+        return _cellToTileGroup.TryGetValue(type, out groupID);
     }
 
     public Color GetCellMinimapColor(CellType type)

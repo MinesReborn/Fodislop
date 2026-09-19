@@ -1,9 +1,9 @@
 #nullable enable
 
-using Fodinae.World.Lighting;
+using Kern.World.Lighting;
 using UnityEngine;
 
-namespace Fodinae.Game;
+namespace Kern.Game;
 
 public sealed class RobotCuller
 {

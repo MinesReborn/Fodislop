@@ -490,8 +490,10 @@ Assets/_Recovery.meta
 .idea/
 *.csproj
 !/*.csproj
-!/tools/Fodinae.ArchitectureLinter/Fodinae.ArchitectureLinter.csproj
-!/tools/Fodinae.DisplayTests/Fodinae.DisplayTests.csproj
+!/tools/Kern.ArchitectureLinter/Kern.ArchitectureLinter.csproj
+!/tools/Kern.DisplayTests/Kern.DisplayTests.csproj
+!/tools/Kern.TerrainBench/Kern.TerrainBench.csproj
+!/tools/Kern.TerrainTests/Kern.TerrainTests.csproj
 *.sln
 *.slnx
 *.suo
@@ -501,6 +503,9 @@ Assets/_Recovery.meta
 # Diagnostic runtime logs
 diagnostic.txt
 memory_growth.txt
+
+# Lighting frame dumps are local diagnostic output and are rotated at runtime.
+/LightingDumps/
 
 # AI tools files
 .omo/
@@ -513,9 +518,9 @@ memory_growth.txt
 /[Aa]ssets/Plugins/FMOD/Cache/*
 /[Aa]ssets/StreamingAssets/**/*.bank
 /[Aa]ssets/StreamingAssets/**/*.bank.meta
-/FodinaeAudio/.cache/
-/FodinaeAudio/.unsaved/
-/FodinaeAudio/.user/
+/KernAudio/.cache/
+/KernAudio/.unsaved/
+/KernAudio/.user/
 # Распакованный кэш карт — генерируется из *.zip при первом запуске
 /[Aa]ssets/StreamingAssets/WorldMaps/*.mapb
 /[Aa]ssets/StreamingAssets/WorldMaps/*.mapb.meta
@@ -542,17 +547,16 @@ ArtCaptures/
 /[Aa]ssets/InitTestScene*.unity
 /[Aa]ssets/InitTestScene*.unity.meta
 
-# Диагностические снимки планеты: результат запуска инструментов, а не исходник.
-# preview_planet.py и PlanetCapture перезаписывают их на каждом прогоне.
+# Диагностический снимок планеты: результат запуска инструмента, а не исходник.
+# preview_planet.py перезаписывает его на каждом прогоне.
 /planet_preview.png
-/planet_capture.png
 
 # Запечённые карты планеты.
 #
 # Детерминированный вывод scripts/generate_planet_maps.py: в 8K это ~150 МБ, а
 # мелкое зерно в них — шум, который не сжимается, поэтому каждая перепечка
 # осела бы в истории целиком и навсегда. Версионируется генератор, а не его
-# результат. Запекается через меню Fodinae > Planet > Bake Maps.
+# результат. Запекается через меню Kern > Planet > Bake Maps.
 #
 # Файлы .meta НЕ игнорируются намеренно: в них GUID, по которым
 # PlanetSurface.mat ссылается на текстуры, и без них ссылки повиснут.

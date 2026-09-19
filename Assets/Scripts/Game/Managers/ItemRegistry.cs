@@ -4,15 +4,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using MinesServer.Data;
-using Fodinae.Core.Interfaces;
+using Kern.Core.Interfaces;
 using UnityEngine;
 
-namespace Fodinae.Game.Managers;
+namespace Kern.Game.Managers;
 
 public sealed class ItemRegistry(IRuntimeAssetPaths runtimeAssetPaths) : IItemCatalog
 {
     private const string TAG = "[ItemRegistry]";
-    private readonly Dictionary<ItemType, Texture2D> _iconCache = new();
+    private readonly Dictionary<ItemType, Texture2D?> _iconCache = new();
     private readonly HashSet<ItemType> _missingIconWarned = new();
 
     public string GetName(ItemType type) => type.ToString();
@@ -29,15 +29,17 @@ public sealed class ItemRegistry(IRuntimeAssetPaths runtimeAssetPaths) : IItemCa
         }
 
         var typeName = type.ToString();
-        var camelName = char.ToLowerInvariant(typeName[0]) + typeName.Substring(1);
-        // Раньше здесь стоял Application.dataPath напрямую — в редакторе это
-        // Assets/, а в плеере каталог данных, куда сборка каталог Textures
-        // не кладёт. Иконки предметов молча пропадали именно в билде.
+        var camelName = string.Create(typeName.Length, typeName, static (span, state) =>
+        {
+            state.AsSpan().CopyTo(span);
+            span[0] = char.ToLowerInvariant(span[0]);
+        });
         string? path = runtimeAssetPaths.FindBundledTextureFile($"Items/{camelName}.png") ??
             runtimeAssetPaths.FindBundledTextureFile($"Items/{typeName.ToLowerInvariant()}.png");
 
         if (path == null)
         {
+            _iconCache[type] = null;
             if (_missingIconWarned.Add(type))
             {
                 Debug.Log($"{TAG} No local icon for item type '{type}' (searched {camelName}.png), will use server texture if available");

@@ -1,10 +1,10 @@
 #nullable enable
 
 using System;
-using Fodinae.Core.Interfaces;
+using Kern.Core.Interfaces;
 using UnityEngine;
 
-namespace Fodinae.Audio.Core;
+namespace Kern.Audio.Core;
 public sealed class AudioPlaybackHandle : IAudioPlaybackHandle
 {
     public AudioBusType BusType { get; }

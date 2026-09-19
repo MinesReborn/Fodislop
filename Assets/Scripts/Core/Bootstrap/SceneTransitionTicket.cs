@@ -3,10 +3,10 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Fodinae.Core.Interfaces;
+using Kern.Core.Interfaces;
 using UnityEngine.SceneManagement;
 
-namespace Fodinae.Core;
+namespace Kern.Core;
 
 public sealed class SceneTransitionTicket : IDisposable
 {

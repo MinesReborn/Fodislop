@@ -8,7 +8,7 @@ using unity.libwebp;
 using unity.libwebp.Interop;
 using UnityEngine;
 
-namespace Fodinae.World;
+namespace Kern.World;
 
 public static class WebPAnimationDecoder
 {

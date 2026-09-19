@@ -3,12 +3,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Fodinae.Core.Localization;
+using Kern.Core.Localization;
 using MinesServer.Data;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Programmator;
+namespace Kern.UI.Programmator;
 
 // Program storage, page navigation, and run/stop state for the programmator.
 // Reads and writes ProgrammatorData directly (page/cell contents are global,

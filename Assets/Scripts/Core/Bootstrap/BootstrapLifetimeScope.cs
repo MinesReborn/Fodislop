@@ -3,24 +3,23 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Fodinae.Audio.Backend;
-using Fodinae.Core.Interfaces;
-using Fodinae.Core.Lifecycle;
-using Fodinae.Core.Localization;
-using Fodinae.Game.Managers;
-using Fodinae.AssetPipeline;
-using Fodinae.Networking;
-using Fodinae.Networking.Auth;
-using Fodinae.Networking.Connection;
-using Fodinae.Rendering;
-using Fodinae.UI;
+using Kern.Audio.Backend;
+using Kern.Core.Interfaces;
+using Kern.Core.Lifecycle;
+using Kern.Core.Localization;
+using Kern.Game.Managers;
+using Kern.AssetPipeline;
+using Kern.Networking;
+using Kern.Networking.Auth;
+using Kern.Networking.Connection;
+using Kern.Rendering;
 using MinesServer.Networking.Connection.Client;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using VContainer;
 using VContainer.Unity;
 
-namespace Fodinae.Core
+namespace Kern.Core
 {
     [DefaultExecutionOrder(-30000)]
     public class BootstrapLifetimeScope : LifetimeScope, IMainMenuNavigation, ISceneNavigator
@@ -85,14 +84,11 @@ namespace Fodinae.Core
                     Debug.LogError($"[Bootstrap] Application camera bind failed: {ex.Message}");
                     throw;
                 }
-
-                SceneManager.sceneLoaded += OnSceneLoaded;
             }
         }
 
         protected override void OnDestroy()
         {
-            SceneManager.sceneLoaded -= OnSceneLoaded;
             // Do not dispose the gate here. A transition can still be unwinding
             // after the scope receives OnDestroy (for example when the Test
             // Runner exits PlayMode). Disposing it makes the continuation's
@@ -100,14 +96,6 @@ namespace Fodinae.Core
             // transition result. SemaphoreSlim is managed state and can be
             // reclaimed normally once no transition references it.
             base.OnDestroy();
-        }
-
-        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
-        {
-            // HDR is reconciled by HDROutputReconciler, an entry point on this
-            // scope: keeping the display surface in step is a rendering concern
-            // and does not belong in the composition root.
-            EnforceSingleCamera(scene);
         }
 
         private void BindApplicationCamera()
@@ -125,32 +113,6 @@ namespace Fodinae.Core
             }
 
             GameplayCamera.BindPersistent(camera);
-            EnforceSingleCamera(gameObject.scene);
-        }
-
-        private void EnforceSingleCamera(Scene scene)
-        {
-            Camera applicationCamera = _applicationCamera;
-            if (applicationCamera == null || applicationCamera.gameObject.scene != gameObject.scene)
-            {
-                throw new InvalidOperationException("BootstrapLifetimeScope requires an authored application camera reference in this scene.");
-            }
-            applicationCamera.backgroundColor = new Color(0.012f, 0.018f, 0.032f, 1f);
-            applicationCamera.clearFlags = CameraClearFlags.SolidColor;
-            foreach (GameObject root in scene.GetRootGameObjects())
-            {
-                foreach (Camera camera in root.GetComponentsInChildren<Camera>(true))
-                {
-                    if (camera == applicationCamera || camera.targetTexture != null ||
-                        camera.GetComponentInParent<MenuSceneryController>() != null)
-                    {
-                        continue;
-                    }
-
-                    camera.enabled = false;
-                    camera.tag = "Untagged";
-                }
-            }
         }
 
         private async UniTask EnsureMainMenuLoadedAsync()
@@ -402,14 +364,15 @@ namespace Fodinae.Core
 
             // DummyConnection emulates the game server in offline mode. External
             // identity providers do not route authentication through it.
+            builder.Register<RealtimeDummyClock>(Lifetime.Singleton).As<IDummyClock>();
             builder.Register<DummyConnection>(Lifetime.Singleton).AsSelf().AsImplementedInterfaces();
             builder.Register<DummyWorldMapSource>(Lifetime.Singleton);
-            builder.RegisterEntryPoint<Fodinae.Networking.Connection.WorldEntryPreparation>()
+            builder.RegisterEntryPoint<Kern.Networking.Connection.WorldEntryPreparation>()
                 .As<IWorldEntryPreparation>();
             builder.Register<GameTokenStore>(Lifetime.Singleton).As<IGameTokenStore>();
             builder.Register<RuntimeDebugSettings>(Lifetime.Singleton).As<IRuntimeDebugSettings>();
             builder.Register<OfflineScenarioSettings>(Lifetime.Singleton).As<IOfflineScenarioSettings>();
-            builder.Register<VkIdentityProvider>(Lifetime.Singleton);
+            builder.Register<VKIdentityProvider>(Lifetime.Singleton);
             builder.Register<AuthenticationService>(Lifetime.Singleton).As<IAuthenticationService>();
 
             // Application-tier session state: NetworkService (Bootstrap) and

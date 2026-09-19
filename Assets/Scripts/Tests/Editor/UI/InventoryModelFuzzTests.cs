@@ -1,12 +1,12 @@
 #nullable enable
 
-using Fodinae.Core.Models;
-using Fodinae.Game.Inventory;
+using Kern.Core.Models;
+using Kern.Game.Inventory;
 using MinesServer.Data;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Fodinae.Tests.UI;
+namespace Kern.Tests.UI;
 
 [TestFixture]
 public class InventoryModelFuzzTests

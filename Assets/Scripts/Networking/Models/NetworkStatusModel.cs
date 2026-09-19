@@ -1,6 +1,6 @@
 #nullable enable
 
-namespace Fodinae.Networking;
+namespace Kern.Networking;
 
 public sealed class NetworkStatusModel
 {

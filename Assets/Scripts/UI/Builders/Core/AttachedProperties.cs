@@ -4,7 +4,7 @@ using System.Globalization;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Shared.Packets;
 
-namespace Fodinae.UI.Builders;
+namespace Kern.UI.Builders;
 public static class AttachedProperties
 {
     public static bool TryGetFloat(IGUIComponentPacket packet, string key, out float value)

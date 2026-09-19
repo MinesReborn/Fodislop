@@ -4,9 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Fodinae.Audio.Core;
+using Kern.Audio.Core;
 
-namespace Fodinae.Core;
+namespace Kern.Core;
 
 [AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
 public sealed class AudioBusPathAttribute(string path) : Attribute

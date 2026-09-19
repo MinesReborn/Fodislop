@@ -1,11 +1,11 @@
 #nullable enable
 
-using Fodinae.Core;
-using Fodinae.World.Terrain;
+using Kern.Core;
+using Kern.World.Terrain;
 using UnityEngine;
 using VContainer;
 
-namespace Fodinae.World
+namespace Kern.World
 {
     public class WorldBackgroundSetup : MonoBehaviour
     {

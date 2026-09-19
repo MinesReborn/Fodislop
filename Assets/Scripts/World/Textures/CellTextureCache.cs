@@ -3,17 +3,15 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using MinesServer.Data;
 using UnityEngine;
 
-namespace Fodinae.World;
+namespace Kern.World;
 
 public class CellTextureCache
 {
     private readonly ConcurrentDictionary<CellType, CellTextureInfo> _textureCache = new();
     private readonly ConcurrentDictionary<CellType, Texture2D> _loadedTextures = new();
-    private readonly ConcurrentDictionary<string, CellType> _filenameCache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <param name="cellType">The cell type.</param>
     /// <param name="textureInfo">Texture information.</param>
@@ -28,10 +26,6 @@ public class CellTextureCache
 
         _textureCache.AddOrUpdate(cellType, textureInfo, (key, oldValue) => textureInfo);
         _loadedTextures.AddOrUpdate(cellType, textureInfo.BaseTexture, (key, oldValue) => textureInfo.BaseTexture);
-
-        // Cache filename mapping
-        var filename = $"Cells/{(int)cellType}";
-        _filenameCache.TryAdd(filename, cellType);
     }
 
     /// <param name="cellType">The cell type.</param>
@@ -58,7 +52,6 @@ public class CellTextureCache
 
         _textureCache.Clear();
         _loadedTextures.Clear();
-        _filenameCache.Clear();
         foreach (Texture2D texture in ownedTextures)
         {
             DestroyTexture(texture);
@@ -85,35 +78,6 @@ public class CellTextureCache
     /// <returns>Cache statistics string.</returns>
     public string GetCacheStats() =>
         $"Cache: {_textureCache.Count} textures, {GetMemoryUsage() / 1024} KB";
-
-    /// <param name="filename">The filename to parse.</param>
-    /// <param name="cellType">Output cell type.</param>
-    /// <returns>True if successfully parsed, false otherwise.</returns>
-    private static bool TryParseCellTypeFromFilename(string filename, out CellType cellType)
-    {
-        cellType = CellType.Unloaded;
-
-        // Extract cell ID from filenames such as "Cells/50".
-        if (filename.StartsWith("Cells/", StringComparison.OrdinalIgnoreCase))
-        {
-            string idStr = filename.Substring(6);
-
-            int dotIndex = idStr.LastIndexOf('.');
-            if (dotIndex > 0)
-            {
-                idStr = idStr.Substring(0, dotIndex);
-            }
-
-            if (int.TryParse(idStr, out int cellId) &&
-                Enum.IsDefined(typeof(CellType), cellId))
-            {
-                cellType = (CellType)cellId;
-                return true;
-            }
-        }
-
-        return false;
-    }
 
     private static void DestroyTexture(Texture2D texture)
     {

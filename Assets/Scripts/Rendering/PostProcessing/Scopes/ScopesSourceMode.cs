@@ -1,6 +1,6 @@
 #nullable enable
 
-namespace Fodinae.Rendering.PostProcessing.Scopes;
+namespace Kern.Rendering.PostProcessing.Scopes;
 
 internal enum ScopesSourceMode
 {

@@ -3,7 +3,7 @@
 using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI.Builders;
+namespace Kern.UI.Builders;
 public class CanvasPacketBuilder : PacketUIBuilderBase<CanvasPacket>
 {
     protected override VisualElement BuildTyped(CanvasPacket packet, PacketUIBuilder builder)

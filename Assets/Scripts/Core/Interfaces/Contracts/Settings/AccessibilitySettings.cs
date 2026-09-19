@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Fodinae.Core;
+namespace Kern.Core;
 
 [Serializable]
 public sealed class AccessibilitySettings

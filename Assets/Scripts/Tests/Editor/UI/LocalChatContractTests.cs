@@ -4,7 +4,7 @@ using System.IO;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Fodinae.Tests.UI;
+namespace Kern.Tests.UI;
 
 [TestFixture]
 public sealed class LocalChatContractTests

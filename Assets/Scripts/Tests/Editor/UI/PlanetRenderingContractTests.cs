@@ -8,7 +8,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace Fodinae.Tests.UI;
+namespace Kern.Tests.UI;
 
 public sealed class PlanetRenderingContractTests
 {
@@ -29,8 +29,8 @@ public sealed class PlanetRenderingContractTests
         Material surface = RequireAsset<Material>(SurfaceMaterialPath);
         Material atmosphere = RequireAsset<Material>(AtmosphereMaterialPath);
 
-        Assert.That(surface.shader.name, Is.EqualTo("Fodinae/UI/PlanetSurface"));
-        Assert.That(atmosphere.shader.name, Is.EqualTo("Fodinae/UI/PlanetAtmosphere"));
+        Assert.That(surface.shader.name, Is.EqualTo("Kern/UI/PlanetSurface"));
+        Assert.That(atmosphere.shader.name, Is.EqualTo("Kern/UI/PlanetAtmosphere"));
 
         Assert.That(surface.GetTexture("_AlbedoMap"), Is.SameAs(RequireAsset<Texture2D>(AlbedoPath)));
         Assert.That(surface.GetTexture("_NormalMap"), Is.SameAs(RequireAsset<Texture2D>(NormalPath)));

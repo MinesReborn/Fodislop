@@ -1,11 +1,11 @@
 #nullable enable
 
-using Fodinae.Editor;
+using Kern.Editor;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 
-namespace Fodinae.Tests.Core;
+namespace Kern.Tests.Core;
 
 [TestFixture]
 public sealed class PlayModeSceneBootstrapperTests

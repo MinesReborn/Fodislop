@@ -2,7 +2,7 @@
 
 using UnityEngine.UIElements;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 public static class UIVisibilityAnimator
 {
     public const string HiddenState = "sci-fi-window-anim--hidden";

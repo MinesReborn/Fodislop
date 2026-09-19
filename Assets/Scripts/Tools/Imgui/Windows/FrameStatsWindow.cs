@@ -1,11 +1,11 @@
 #nullable enable
 
-using Fodinae.Core;
-using Fodinae.Core.Interfaces;
-using Fodinae.World.Lighting;
+using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.World.Lighting;
 using UnityEngine;
 
-namespace Fodinae.Tools.Imgui.Windows;
+namespace Kern.Tools.Imgui.Windows;
 
 public sealed class FrameStatsWindow : ToolWindow
 {
@@ -27,12 +27,20 @@ public sealed class FrameStatsWindow : ToolWindow
     private const string InitialFpsText = "--";
     private const string InitialFrameMsText = "-- мс на кадр   ·   решений света --/с";
     private const string InitialFrameStatsText = "кадр: сред --  мин --  макс -- мс";
+    private const string InitialGpuText = "GPU: --";
     private const string InitialAllocationsText = "мусор: -- КБ/кадр   -- МБ/с   сборок 0";
 
     private string _fpsText = InitialFpsText;
     private string _frameMsText = InitialFrameMsText;
     private string _frameStatsText = InitialFrameStatsText;
+    private string _gpuText = InitialGpuText;
     private string _allocationsText = InitialAllocationsText;
+
+    // FrameTimingManager даёт gpuFrameTime в плеер-билдах без нейтива.
+    // Масив один на жизнь окна: GetLatestTimings пишет в него, аллокаций нет.
+    // В Editor PlayMode фича обычно недоступна — показываем прочерк, а не ноль.
+    private readonly FrameTiming[] _frameTimings = new FrameTiming[1];
+    private bool? _gpuTimingsSupported;
 
     public FrameStatsWindow(IFrameTelemetry telemetry, LightingEngine? lighting)
         : base("Производительность", new Rect(292f, 16f, 380f, 350f))
@@ -79,6 +87,7 @@ public sealed class FrameStatsWindow : ToolWindow
         _fpsText = _fps.ToString("F0");
         _frameMsText = $"{_frameMs:F1} мс на кадр   ·   решений света {_solvesPerSecond:F1}/с";
         _frameStatsText = $"кадр: сред {_frameTime.Average:F1}  мин {_frameTime.Minimum:F1}  макс {_frameTime.Maximum:F1} мс";
+        _gpuText = SampleGpuFrameTime();
         _allocationsText = $"мусор: {_allocations.Last:F1} КБ/кадр   {_telemetry.GcAllocTotalPerSecondBytes / (1024f * 1024f):F2} МБ/с   сборок {_telemetry.GcCollectionCount}";
 
         _fpsFrames = 0;
@@ -96,6 +105,7 @@ public sealed class FrameStatsWindow : ToolWindow
         _fpsFrames = 0;
         _fps = 0f;
         _frameMs = 0f;
+        _gpuText = InitialGpuText;
         _lastSolveCount = _lighting?.SolveCount ?? 0;
         _solvesPerSecond = 0f;
         _fpsText = InitialFpsText;
@@ -125,6 +135,7 @@ public sealed class FrameStatsWindow : ToolWindow
             ToolChrome.MeterLine(_frameMs / 16.7f, FrameHealthColor());
             GUILayout.Space(4f);
             GUILayout.Label(_frameStatsText, MutedLabelStyle);
+            GUILayout.Label(_gpuText, MutedLabelStyle);
 
             // Шкала прибита к 33 мс — двум кадрам при шестидесяти. Без опоры график
             // самонормируется, и ровный участок выглядит так же, как провал.
@@ -165,6 +176,28 @@ public sealed class FrameStatsWindow : ToolWindow
 
     // Общие на все события: GUIContent и GUILayoutOption — классы, и
     // создавать их в отрисовке значит мусорить на каждое событие IMGUI.
+    private string SampleGpuFrameTime()
+    {
+        _gpuTimingsSupported ??= FrameTimingManager.IsFeatureEnabled();
+        if (_gpuTimingsSupported != true)
+        {
+            return "GPU: — (тайминги недоступны)";
+        }
+
+        FrameTimingManager.CaptureFrameTimings();
+        if (FrameTimingManager.GetLatestTimings(1, _frameTimings) == 0)
+        {
+            return "GPU: — (нет данных)";
+        }
+
+        double gpuMs = _frameTimings[0].gpuFrameTime;
+        if (double.IsNaN(gpuMs) || double.IsInfinity(gpuMs) || gpuMs < 0.0)
+        {
+            return "GPU: — (нет данных)";
+        }
+
+        return $"GPU: {gpuMs:F1} мс";
+    }
     private static readonly GUIContent _HeroContent = new();
     private static readonly GUILayoutOption _NoExpandWidth = GUILayout.ExpandWidth(false);
 

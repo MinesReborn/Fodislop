@@ -3,7 +3,7 @@
 using System;
 using System.Security.Cryptography;
 
-namespace Fodinae;
+namespace Kern;
 
 public static class ETagCalculator
 {

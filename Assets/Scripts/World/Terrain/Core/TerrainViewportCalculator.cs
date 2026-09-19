@@ -1,22 +1,20 @@
 #nullable enable
 
-using Fodinae.Core;
+using Kern.Core;
+using Kern.World.Streaming;
 using UnityEngine;
 
-namespace Fodinae.World.Terrain;
+namespace Kern.World.Terrain;
 
 public sealed class TerrainViewportCalculator
 {
-    private const int TerrainRegionAnchorCells = 8;
-    private const int DimensionAllocationQuantum = 32;
-    private const int MaximumTerrainDimension = 384;
-    private const float DimensionShrinkDelay = 5.0f;
-    private const int ViewportMargin = 4;
-
-    private int _lastRequestedWidth;
-    private int _lastRequestedHeight;
-    private float _lastViewportSizeChangeTime;
+    private readonly StreamingGovernor _streamingGovernor =
+        new(StreamingPolicy.Default);
     private bool _invalidGridPositionLogged;
+
+    public StreamingPolicy Policy => _streamingGovernor.Policy;
+
+    public StreamingPlan LastPlan { get; private set; }
 
     public void CalculateDimensions(
         Camera camera,
@@ -34,9 +32,11 @@ public sealed class TerrainViewportCalculator
         out int requestedHeight,
         out bool dimensionsChanged)
     {
-        effectivePadding = Mathf.Max(
+        StreamingPolicy policy = _streamingGovernor.Policy;
+        effectivePadding = policy.ResolveEffectivePadding(
             baseViewportPadding,
-            requiredLightingPadding + TerrainRegionAnchorCells + stableRegionPadding);
+            requiredLightingPadding,
+            stableRegionPadding);
 
         // Сетка считается на кадр максимального отдаления, а не текущий кадр.
         // Она же — поле препятствий и регион освещения: при размере от зума
@@ -45,28 +45,21 @@ public sealed class TerrainViewportCalculator
         float sizingOrthographicSize = Mathf.Max(
             camera.orthographicSize,
             ProjectRuntimeContracts.Camera.MaximumOrthographicSize);
-        requestedWidth = Mathf.Clamp(
-            Mathf.CeilToInt((sizingOrthographicSize * 2 * camera.aspect) / cellSize) + (effectivePadding * 2),
-            2,
-            MaximumTerrainDimension);
-        requestedHeight = Mathf.Clamp(
-            Mathf.CeilToInt((sizingOrthographicSize * 2) / cellSize) + (effectivePadding * 2),
-            2,
-            MaximumTerrainDimension);
+        int rawRequestedWidth = Mathf.CeilToInt(
+            (sizingOrthographicSize * 2 * camera.aspect) / cellSize) + (effectivePadding * 2);
+        int rawRequestedHeight = Mathf.CeilToInt(
+            (sizingOrthographicSize * 2) / cellSize) + (effectivePadding * 2);
+        requestedWidth = policy.QuantizeDimensionWithHeadroom(rawRequestedWidth);
+        requestedHeight = policy.QuantizeDimensionWithHeadroom(rawRequestedHeight);
 
-        if (requestedWidth != _lastRequestedWidth || requestedHeight != _lastRequestedHeight)
-        {
-            _lastRequestedWidth = requestedWidth;
-            _lastRequestedHeight = requestedHeight;
-            _lastViewportSizeChangeTime = Time.unscaledTime;
-        }
-
-        bool viewportSizeSettled =
-            !Application.isPlaying ||
-            Time.unscaledTime - _lastViewportSizeChangeTime >= DimensionShrinkDelay;
-
-        int targetWidth = SelectCachedDimension(requestedWidth, currentMeshWidth, isInitialized, viewportSizeSettled);
-        int targetHeight = SelectCachedDimension(requestedHeight, currentMeshHeight, isInitialized, viewportSizeSettled);
+        int targetWidth = policy.SelectWindowDimension(
+            requestedWidth,
+            currentMeshWidth,
+            isInitialized);
+        int targetHeight = policy.SelectWindowDimension(
+            requestedHeight,
+            currentMeshHeight,
+            isInitialized);
 
         dimensionsChanged = targetWidth != currentMeshWidth || targetHeight != currentMeshHeight;
         meshWidth = targetWidth;
@@ -88,15 +81,11 @@ public sealed class TerrainViewportCalculator
         out int viewportWidth,
         out int viewportHeight)
     {
+        StreamingPolicy policy = _streamingGovernor.Policy;
         Vector3 camPos = camera.transform.position;
         Vector2Int desiredGridPos = new(
             Mathf.FloorToInt(camPos.x / cellSize) - (meshWidth / 2),
             Mathf.FloorToInt(camPos.y / cellSize) - (meshHeight / 2));
-
-        int regionAnchor = Mathf.Clamp(
-            TerrainRegionAnchorCells,
-            1,
-            Mathf.Max(1, effectivePadding));
 
         // Видимое окно — реальный кадр камеры: рисуется только то, что на экране.
         viewportWidth = Mathf.Clamp(
@@ -110,18 +99,24 @@ public sealed class TerrainViewportCalculator
         viewportMinX = Mathf.FloorToInt(camPos.x / cellSize) - (viewportWidth / 2);
         viewportMinY = Mathf.FloorToInt(camPos.y / cellSize) - (viewportHeight / 2);
 
-        bool regionOutsideViewport =
-            lastGridPos.x == int.MinValue ||
-            viewportMinX - ViewportMargin < lastGridPos.x ||
-            viewportMinY - ViewportMargin < lastGridPos.y ||
-            viewportMinX + viewportWidth + ViewportMargin > lastGridPos.x + meshWidth ||
-            viewportMinY + viewportHeight + ViewportMargin > lastGridPos.y + meshHeight;
-
-        Vector2Int currentGridPos = regionOutsideViewport || dimensionsChanged
-            ? new Vector2Int(
-                SnapRegionCoordinate(desiredGridPos.x, regionAnchor),
-                SnapRegionCoordinate(desiredGridPos.y, regionAnchor))
-            : lastGridPos;
+        Vector2Int targetOrigin = _streamingGovernor.SelectTargetOrigin(
+            lastGridPos,
+            desiredGridPos,
+            new Vector2Int(viewportMinX, viewportMinY),
+            new Vector2Int(viewportWidth, viewportHeight),
+            new Vector2Int(meshWidth, meshHeight),
+            dimensionsChanged,
+            reanchorMarginCells: policy.ResolvePrefetchMarginCells(
+                Mathf.Min(meshWidth, meshHeight)));
+        var currentWindow = new StreamingWindow(
+            lastGridPos,
+            new Vector2Int(meshWidth, meshHeight));
+        LastPlan = _streamingGovernor.Plan(
+            currentWindow,
+            targetOrigin,
+            new Vector2Int(meshWidth, meshHeight),
+            dimensionsChanged);
+        Vector2Int currentGridPos = LastPlan.Target.Origin;
 
         if (currentGridPos.x == int.MinValue || currentGridPos.y == int.MinValue)
         {
@@ -134,46 +129,69 @@ public sealed class TerrainViewportCalculator
                     $"last grid={lastGridPos}; dimensions={meshWidth}x{meshHeight}.");
             }
 
-            currentGridPos = new Vector2Int(
-                SnapRegionCoordinate(desiredGridPos.x, regionAnchor),
-                SnapRegionCoordinate(desiredGridPos.y, regionAnchor));
+            currentGridPos = desiredGridPos;
+            LastPlan = new StreamingPlan(
+                StreamingPlanKind.FullRebuild,
+                currentWindow,
+                new StreamingWindow(currentGridPos, new Vector2Int(meshWidth, meshHeight)),
+                currentGridPos - lastGridPos);
         }
 
         return currentGridPos;
     }
 
-    private static int SelectCachedDimension(
-        int requestedDimension,
-        int currentDimension,
-        bool isInitialized,
-        bool viewportSizeSettled)
+    public TerrainFramePlan SelectFramePlan(
+        StreamingWindow requestedWindow,
+        StreamingWindow committedWindow,
+        RectInt cameraViewport,
+        RectInt retainedLightingViewport,
+        bool isRequestedResident,
+        bool requestedDimensionsChanged,
+        bool cellsCommitted)
     {
-        int quantumDimension = Mathf.CeilToInt((float)requestedDimension / DimensionAllocationQuantum) *
-            DimensionAllocationQuantum;
-        quantumDimension = Mathf.Clamp(quantumDimension, 2, MaximumTerrainDimension);
-
-        if (!isInitialized || currentDimension <= 0)
+        if (!isRequestedResident)
         {
-            return quantumDimension;
+            if (!cellsCommitted || retainedLightingViewport.width <= 0 || retainedLightingViewport.height <= 0)
+            {
+                return new TerrainFramePlan(
+                    requestedWindow,
+                    committedWindow,
+                    committedWindow,
+                    cameraViewport,
+                    retainedLightingViewport,
+                    DimensionsChanged: false,
+                    ShouldProcess: false);
+            }
+
+            // Keep processing the committed window, including dirty terrain
+            // and the dynamic light's exact position. A pending streaming request must
+            // neither resize its resources nor reanchor lighting onto it.
+            return new TerrainFramePlan(
+                requestedWindow,
+                committedWindow,
+                committedWindow,
+                cameraViewport,
+                retainedLightingViewport,
+                DimensionsChanged: false,
+                ShouldProcess: true);
         }
 
-        if (requestedDimension > currentDimension)
-        {
-            return quantumDimension;
-        }
-
-        if (viewportSizeSettled &&
-            requestedDimension + (DimensionAllocationQuantum * 2) <= currentDimension)
-        {
-            return quantumDimension;
-        }
-
-        return currentDimension;
-    }
-
-    private static int SnapRegionCoordinate(int coordinate, int quantum)
-    {
-        int snapped = Mathf.FloorToInt((float)coordinate / quantum) * quantum;
-        return snapped == int.MinValue ? snapped + quantum : snapped;
+        return new TerrainFramePlan(
+            requestedWindow,
+            committedWindow,
+            requestedWindow,
+            cameraViewport,
+            cameraViewport,
+            DimensionsChanged: requestedDimensionsChanged,
+            ShouldProcess: true);
     }
 }
+
+public readonly record struct TerrainFramePlan(
+    StreamingWindow RequestedWindow,
+    StreamingWindow CommittedWindow,
+    StreamingWindow ActiveWindow,
+    RectInt CameraViewport,
+    RectInt LightingViewport,
+    bool DimensionsChanged,
+    bool ShouldProcess);

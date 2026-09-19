@@ -1,12 +1,12 @@
 #nullable enable
 
-using Fodinae.Player.Logic;
+using Kern.Player.Logic;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Fodinae.Tests.Player;
+namespace Kern.Tests.Player;
 
 [TestFixture]
 public class PlayerMovementBoundaryFuzzTests

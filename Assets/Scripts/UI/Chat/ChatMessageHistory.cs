@@ -2,7 +2,7 @@
 
 using System.Collections.Generic;
 
-namespace Fodinae.UI;
+namespace Kern.UI;
 
 internal enum ChatChannel
 {
