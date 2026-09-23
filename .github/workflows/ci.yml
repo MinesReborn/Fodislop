@@ -23,6 +23,8 @@ env:
   UNITY_EDITOR_VERSION: 6000.6.0f1
   UNITY_NO_CONSENT_PROMPT: '1'
   UNITY_NO_UPDATE_CHECK: '1'
+  UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+  UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
 
 jobs:
   changes:
@@ -67,20 +69,17 @@ jobs:
     name: Architecture and asset contracts
     needs: changes
     if: needs.changes.outputs.code_changed == 'true'
-    runs-on: [self-hosted, macOS, ARM64, kern-unity]
-    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
         with:
           clean: true
-      - name: Verify Unity toolchain
-        run: |
-          unity --version
-          unity editors --installed --format json
+      - name: Install Unity CLI and activate license
+        run: bash .github/scripts/prepare-unity.sh
       - name: Rebuild Unity assemblies from this checkout
         run: |
-          rm -rf Library/ScriptAssemblies Library/Bee Temp
-          unity test . --editor-version "$UNITY_EDITOR_VERSION" \
+          unity test . --editor-version "$UNITY_EDITOR_VERSION" --allow-install \
             --mode EditMode --report-format nunit \
             --output TestResults/architecture-editmode.xml \
             --timeout 1200 --format github
@@ -97,26 +96,24 @@ jobs:
   macos-tests:
     name: Unity tests (macOS ARM64)
     needs: architecture
-    runs-on: [self-hosted, macOS, ARM64, kern-unity]
-    timeout-minutes: 60
+    runs-on: macos-latest
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
         with:
           clean: true
-      - name: Verify toolchain
-        run: |
-          unity --version
-          unity editors --installed --format json
+      - name: Install Unity CLI and activate license
+        run: bash .github/scripts/prepare-unity.sh
       - name: EditMode tests
         run: >-
-          unity test . --editor-version "$UNITY_EDITOR_VERSION"
+          unity test . --editor-version "$UNITY_EDITOR_VERSION" --allow-install
           --mode EditMode --report-format nunit,junit
           --output TestResults/editmode.xml
           --junit-output TestResults/editmode.junit.xml
           --timeout 1200 --format github
       - name: PlayMode tests
         run: >-
-          unity test . --editor-version "$UNITY_EDITOR_VERSION"
+          unity test . --editor-version "$UNITY_EDITOR_VERSION" --allow-install
           --mode PlayMode --report-format nunit,junit
           --output TestResults/playmode.xml
           --junit-output TestResults/playmode.junit.xml
@@ -134,21 +131,19 @@ jobs:
   windows-tests:
     name: Unity tests (Windows x64)
     needs: architecture
-    runs-on: [self-hosted, Windows, X64, kern-unity]
-    timeout-minutes: 60
+    runs-on: windows-latest
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
         with:
           clean: true
-      - name: Verify toolchain
+      - name: Install Unity CLI and activate license
         shell: pwsh
-        run: |
-          unity --version
-          unity editors --installed --format json
+        run: .github/scripts/prepare-unity.ps1
       - name: EditMode tests
         shell: pwsh
         run: >-
-          unity test . --editor-version "$env:UNITY_EDITOR_VERSION"
+          unity test . --editor-version "$env:UNITY_EDITOR_VERSION" --allow-install
           --mode EditMode --report-format nunit,junit
           --output TestResults/editmode.xml
           --junit-output TestResults/editmode.junit.xml
@@ -156,7 +151,7 @@ jobs:
       - name: PlayMode tests
         shell: pwsh
         run: >-
-          unity test . --editor-version "$env:UNITY_EDITOR_VERSION"
+          unity test . --editor-version "$env:UNITY_EDITOR_VERSION" --allow-install
           --mode PlayMode --report-format nunit,junit
           --output TestResults/playmode.xml
           --junit-output TestResults/playmode.junit.xml
@@ -175,15 +170,17 @@ jobs:
     name: Soak (macOS ARM64)
     if: github.event_name == 'schedule' || inputs.soak
     needs: macos-tests
-    runs-on: [self-hosted, macOS, ARM64, kern-unity]
+    runs-on: macos-latest
     timeout-minutes: 240
     steps:
       - uses: actions/checkout@v7
         with:
           clean: true
+      - name: Install Unity CLI and activate license
+        run: bash .github/scripts/prepare-unity.sh
       - name: Soak tests
         run: >-
-          unity test . --editor-version "$UNITY_EDITOR_VERSION"
+          unity test . --editor-version "$UNITY_EDITOR_VERSION" --allow-install
           --mode PlayMode --report-format nunit,junit
           --output TestResults/soak.xml
           --junit-output TestResults/soak.junit.xml
@@ -207,16 +204,18 @@ jobs:
     name: IL2CPP player (macOS ARM64)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     needs: macos-tests
-    runs-on: [self-hosted, macOS, ARM64, kern-unity]
-    timeout-minutes: 120
+    runs-on: macos-latest
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
         with:
           clean: true
+      - name: Install Unity CLI and activate license
+        run: bash .github/scripts/prepare-unity.sh
       - name: Build player
         run: >-
           unity run . --editor-version "$UNITY_EDITOR_VERSION"
-          --timeout 7000 --format github --
+          --allow-install --timeout 7000 --format github --
           -nographics -executeMethod Kern.Editor.BuildScript.BuildMacOS
       - uses: actions/upload-artifact@v7
         with:
@@ -229,17 +228,20 @@ jobs:
     name: IL2CPP player (Windows x64)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     needs: windows-tests
-    runs-on: [self-hosted, Windows, X64, kern-unity]
-    timeout-minutes: 120
+    runs-on: windows-latest
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
         with:
           clean: true
+      - name: Install Unity CLI and activate license
+        shell: pwsh
+        run: .github/scripts/prepare-unity.ps1
       - name: Build player
         shell: pwsh
         run: >-
           unity run . --editor-version "$env:UNITY_EDITOR_VERSION"
-          --timeout 7000 --format github --
+          --allow-install --timeout 7000 --format github --
           -nographics -executeMethod Kern.Editor.BuildScript.BuildWindows
       - uses: actions/upload-artifact@v7
         with:

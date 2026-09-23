@@ -18,24 +18,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    name: Publish Interface Lab
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  package:
+    name: Package Interface Lab
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v6
+      - name: Verify static site
+        run: test -f visual/kern-ui-lab/index.html
 
       - name: Upload static site
         uses: actions/upload-pages-artifact@v5
         with:
           path: visual/kern-ui-lab
+
+  deploy:
+    name: Publish Interface Lab
+    needs: package
+    if: github.repository == 'murasamadsp/Fodislop'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
 
       - name: Deploy to GitHub Pages
         id: deployment
