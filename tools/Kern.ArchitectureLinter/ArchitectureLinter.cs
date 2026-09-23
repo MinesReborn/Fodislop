@@ -12,12 +12,12 @@ public sealed class ArchitectureLinter
     {
         _context = context;
         IReadOnlyList<IRule> discoveredRules = rules ?? CreateDefaultRules();
-        _rules = SelectRules(discoveredRules, context.IncludedRuleIds);
+        _rules = SelectRules(discoveredRules, context.IncludedRuleIds, context.SourceOnly);
     }
 
-    internal static bool SelectedRulesRequireAssemblies(IReadOnlySet<string> includedRuleIds)
+    internal static bool SelectedRulesRequireAssemblies(IReadOnlySet<string> includedRuleIds, bool sourceOnly)
     {
-        return SelectRules(CreateDefaultRules(), includedRuleIds)
+        return SelectRules(CreateDefaultRules(), includedRuleIds, sourceOnly)
             .Any(rule => rule.RequiresAssemblies);
     }
 
@@ -170,13 +170,14 @@ public sealed class ArchitectureLinter
 
     private static IReadOnlyList<IRule> SelectRules(
         IReadOnlyList<IRule> rules,
-        IReadOnlySet<string> includedRuleIds)
+        IReadOnlySet<string> includedRuleIds,
+        bool sourceOnly)
     {
         ValidateRuleCatalog(rules);
 
         if (includedRuleIds.Count == 0)
         {
-            return rules;
+            return sourceOnly ? rules.Where(rule => !rule.RequiresAssemblies).ToArray() : rules;
         }
 
         string[] knownIds = rules.Select(rule => rule.Id).ToArray();
@@ -189,9 +190,15 @@ public sealed class ArchitectureLinter
             throw new ArgumentException($"Unknown architecture rule(s): {string.Join(", ", unknownIds)}");
         }
 
-        return rules
+        IRule[] selectedRules = rules
             .Where(rule => includedRuleIds.Contains(rule.Id))
             .ToArray();
+        if (sourceOnly && selectedRules.Any(rule => rule.RequiresAssemblies))
+        {
+            throw new ArgumentException("--source-only cannot select rules that require Unity assemblies.");
+        }
+
+        return selectedRules;
     }
 
     private static void ValidateRuleCatalog(IReadOnlyList<IRule> rules)

@@ -11,6 +11,7 @@ public sealed class LinterContext
     public required IReadOnlySet<string> IncludedRuleIds { get; init; } =
         new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     public bool EnableSarif { get; init; }
+    public bool SourceOnly { get; init; }
     public string? SarifOutputPath { get; init; }
     public RuleSeverity FailOnSeverity { get; init; } = RuleSeverity.Error;
     public bool Strict { get; init; }

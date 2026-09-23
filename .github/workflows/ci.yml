@@ -81,7 +81,7 @@ jobs:
       - name: Build architecture linter
         run: dotnet build tools/Kern.ArchitectureLinter --nologo --verbosity quiet
       - name: Check architecture and settings contracts
-        run: dotnet run --project tools/Kern.ArchitectureLinter --no-build --no-restore
+        run: dotnet run --project tools/Kern.ArchitectureLinter --no-build --no-restore -- --source-only
       - name: Test terrain raster coverage and AO geometry without Unity
         run: node tools/terrain-raster-tests/run.js
       - name: Test display mode lifecycle without Unity
