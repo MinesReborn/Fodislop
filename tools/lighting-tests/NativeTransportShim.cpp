@@ -52,6 +52,9 @@ float2 max(float2 a,float2 b) { return {max(a.x,b.x),max(a.y,b.y)}; }
 float3 max(float3 a,float3 b) { return {max(a.x,b.x),max(a.y,b.y),max(a.z,b.z)}; }
 float3 min(float3 a,float b) { return {min(a.x,b),min(a.y,b),min(a.z,b)}; }
 float3 max(float3 a,float b) { return {max(a.x,b),max(a.y,b),max(a.z,b)}; }
+using std::abs;
+using std::floor;
+using std::exp;
 float2 abs(float2 a) { return {abs(a.x),abs(a.y)}; }
 float2 floor(float2 a) { return {floor(a.x),floor(a.y)}; }
 float2 ceil(float2 a) { return {std::ceil(a.x),std::ceil(a.y)}; }
