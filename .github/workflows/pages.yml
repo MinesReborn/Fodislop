@@ -6,6 +6,10 @@ on:
     paths:
       - 'visual/kern-ui-lab/**'
       - '.github/workflows/pages.yml'
+  pull_request:
+    paths:
+      - 'visual/kern-ui-lab/**'
+      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -37,7 +41,7 @@ jobs:
   deploy:
     name: Publish Interface Lab
     needs: package
-    if: github.repository == 'murasamadsp/Fodislop'
+    if: github.repository == 'murasamadsp/Fodislop' && github.event_name != 'pull_request'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

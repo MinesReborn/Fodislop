@@ -65,6 +65,28 @@ jobs:
             echo "code_changed=false" >> "$GITHUB_OUTPUT"
           fi
 
+  static-contracts:
+    name: Static architecture and asset contracts
+    needs: changes
+    if: needs.changes.outputs.code_changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          clean: true
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build architecture linter
+        run: dotnet build tools/Kern.ArchitectureLinter --nologo --verbosity quiet
+      - name: Check architecture and settings contracts
+        run: dotnet run --project tools/Kern.ArchitectureLinter --no-build --no-restore
+      - name: Test terrain raster coverage and AO geometry without Unity
+        run: node tools/terrain-raster-tests/run.js
+      - name: Test display mode lifecycle without Unity
+        run: dotnet test tools/Kern.DisplayTests/Kern.DisplayTests.csproj --verbosity minimal
+
   architecture:
     name: Architecture and asset contracts
     needs: changes
