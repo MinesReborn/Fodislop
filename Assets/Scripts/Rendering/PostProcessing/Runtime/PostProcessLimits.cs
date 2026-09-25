@@ -16,6 +16,4 @@ public static class PostProcessLimits
     // Потолок был 0.25 при авторском значении 0.3 в PostProcessLook: параметр
     // молча зажимался, и авторское число означало не то, что написано.
     public const float EigengrauIntensityMax = 1f;
-    public const float MotionBlurIntensityMin = 0f;
-    public const float MotionBlurIntensityMax = 0.5f;
 }

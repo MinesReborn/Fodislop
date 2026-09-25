@@ -269,7 +269,7 @@ namespace Kern.UI.Inventory
             }
             else
             {
-                throw new InvalidOperationException("[InventoryView] Failed to load UI/Inventory.uxml");
+                throw new InvalidOperationException("[InventoryView] Failed to load UI/Gameplay/Inventory.uxml");
             }
         }
 

@@ -42,19 +42,19 @@ internal static class SurfaceMeshUtilities
     public static void DrawLightingField(
         CommandBuffer commandBuffer,
         Mesh mesh,
-        Material material)
+        Material material,
+        string shaderPassName)
     {
         if (mesh.vertexCount == 0)
         {
             return;
         }
 
-        int pass = material.FindPass(
-            ProjectRuntimeContracts.ShaderPassNames.LightingMaterialField);
+        int pass = material.FindPass(shaderPassName);
         if (pass < 0)
         {
             throw new InvalidOperationException(
-                $"Surface material '{material.name}' is missing LightingMaterialField pass.");
+                $"Surface material '{material.name}' is missing {shaderPassName} pass.");
         }
 
         commandBuffer.DrawMesh(

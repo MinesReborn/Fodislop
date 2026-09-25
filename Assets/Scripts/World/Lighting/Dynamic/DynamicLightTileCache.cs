@@ -67,12 +67,12 @@ internal sealed class DynamicLightTileCache
 
     public void EnsurePolar(int angles, int radii)
     {
-        if (Polar != null && Polar.width >= angles && Polar.height >= radii)
+        if (Polar != null && Polar.width >= angles + 2 && Polar.height >= radii)
         {
             return;
         }
 
-        int width = Math.Max(angles, Polar?.width ?? 0);
+        int width = Math.Max(angles + 2, Polar?.width ?? 0);
         int height = Math.Max(radii, Polar?.height ?? 0);
         if (width > SystemInfo.maxTextureSize || height > SystemInfo.maxTextureSize)
         {
@@ -86,7 +86,7 @@ internal sealed class DynamicLightTileCache
             enableRandomWrite = true,
             useMipMap = false,
             autoGenerateMips = false,
-            filterMode = FilterMode.Point,
+            filterMode = FilterMode.Bilinear,
             wrapMode = TextureWrapMode.Clamp,
             name = "_DynamicRayDepth",
         };

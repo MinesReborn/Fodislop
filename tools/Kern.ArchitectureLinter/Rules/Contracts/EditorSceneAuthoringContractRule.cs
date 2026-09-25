@@ -75,7 +75,7 @@ public sealed class EditorSceneAuthoringContractRule : IRule
         }
 
         // GameLifetimeScope
-        var scopePath = Path.Combine(projectRoot, "Assets/Scripts/Core/Bootstrap/GameLifetimeScope.cs");
+        var scopePath = Path.Combine(projectRoot, "Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs");
         if (File.Exists(scopePath))
         {
             var scope = File.ReadAllText(scopePath);
@@ -87,7 +87,7 @@ public sealed class EditorSceneAuthoringContractRule : IRule
                     RuleId = Id,
                     Message = "MainGame World manager contract должен включать WorldTextureManager.",
                     Severity = Severity,
-                    TypeName = "Assets/Scripts/Core/Bootstrap/GameLifetimeScope.cs"
+                    TypeName = "Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs"
                 });
             }
 
@@ -99,7 +99,7 @@ public sealed class EditorSceneAuthoringContractRule : IRule
                     RuleId = Id,
                     Message = "RegisterManager должен требовать typed ManagerBindings без hierarchy-search fallback.",
                     Severity = Severity,
-                    TypeName = "Assets/Scripts/Core/Bootstrap/GameLifetimeScope.cs"
+                    TypeName = "Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs"
                 });
             }
         }

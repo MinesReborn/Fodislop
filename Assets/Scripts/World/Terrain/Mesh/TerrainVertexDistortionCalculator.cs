@@ -24,19 +24,15 @@ public readonly record struct TerrainVertexOffset(int XSteps, int YSteps, int ZS
 
 public sealed class TerrainVertexDistortionCalculator
 {
-    // Сила искажения: сколько шагов сетки 1/32 приходится на единицу
-    // randxd/randyd. Оригинал Mines делит те же хэши на 16, мы храним
-    // смещение шагами по 1/32 — поэтому двойка и есть оригинальная
-    // амплитуда, а не удвоенная. Единица оставит вдвое более спокойную
-    // сетку; ноль равносилен выключенному искажению.
-    public const int DistortionStrengthSteps = 2;
+    // Совместимое имя для существующих проверок. Авторское значение живёт
+    // вместе с остальными параметрами дисторшена в TerrainConfigHolder.
+    public const int DistortionStrengthSteps = TerrainConfigHolder.ClassicDistortionStrengthSteps;
 
-    private const int OrganicMaximumOffsetSteps = 6;
-    private const int OrganicFreeJitterCenterSteps = OrganicMaximumOffsetSteps / 2;
+    private const int OrganicFreeJitterCenterSteps = TerrainConfigHolder.OrganicMaximumOffsetSteps / 2;
 
-    // Середина свободного джиттера. Хэш даёт 0..6, вычитание трёх центрирует
-    // его в ноль, то есть узел уезжает в обе стороны, а не только наружу.
-    private const int FreeJitterCenterSteps = 3 * DistortionStrengthSteps;
+    // Центрируется по общему диапазону классического хэша.
+    private const int FreeJitterCenterSteps =
+        ((TerrainConfigHolder.ClassicJitterRange - 1) / 2) * DistortionStrengthSteps;
 
     public TerrainRingGrid<TerrainVertexOffset> GridVertexOffsets { get; } = new();
 
@@ -188,16 +184,32 @@ public sealed class TerrainVertexDistortionCalculator
 
         // Плавный шум задаёт крупную форму; дополнительные точки на рёбрах
         // задаются отдельно и не превращают весь край в прямую линию.
-        float xNoise = 0.50f * ValueNoise(worldX, worldY, 9, 0xA53u) +
-            0.35f * ValueNoise(worldX, worldY, 4, 0xB71u) +
-            0.15f * ValueNoise(worldX, worldY, 2, 0xC25u);
-        float yNoise = 0.50f * ValueNoise(worldX, worldY, 9, 0xD49u) +
-            0.35f * ValueNoise(worldX, worldY, 4, 0xE83u) +
-            0.15f * ValueNoise(worldX, worldY, 2, 0xF17u);
-        int rx = Mathf.RoundToInt(Mathf.Clamp01((xNoise * 2f) - 0.5f) *
-            OrganicMaximumOffsetSteps);
-        int ry = Mathf.RoundToInt(Mathf.Clamp01((yNoise * 2f) - 0.5f) *
-            OrganicMaximumOffsetSteps);
+        float xNoise = TerrainConfigHolder.OrganicNoiseBroadWeight * ValueNoise(
+                worldX, worldY, TerrainConfigHolder.OrganicNoiseBroadPeriodCells,
+                TerrainConfigHolder.OrganicNoiseBroadXSeed) +
+            TerrainConfigHolder.OrganicNoiseMediumWeight * ValueNoise(
+                worldX, worldY, TerrainConfigHolder.OrganicNoiseMediumPeriodCells,
+                TerrainConfigHolder.OrganicNoiseMediumXSeed) +
+            TerrainConfigHolder.OrganicNoiseFineWeight * ValueNoise(
+                worldX, worldY, TerrainConfigHolder.OrganicNoiseFinePeriodCells,
+                TerrainConfigHolder.OrganicNoiseFineXSeed);
+        float yNoise = TerrainConfigHolder.OrganicNoiseBroadWeight * ValueNoise(
+                worldX, worldY, TerrainConfigHolder.OrganicNoiseBroadPeriodCells,
+                TerrainConfigHolder.OrganicNoiseBroadYSeed) +
+            TerrainConfigHolder.OrganicNoiseMediumWeight * ValueNoise(
+                worldX, worldY, TerrainConfigHolder.OrganicNoiseMediumPeriodCells,
+                TerrainConfigHolder.OrganicNoiseMediumYSeed) +
+            TerrainConfigHolder.OrganicNoiseFineWeight * ValueNoise(
+                worldX, worldY, TerrainConfigHolder.OrganicNoiseFinePeriodCells,
+                TerrainConfigHolder.OrganicNoiseFineYSeed);
+        int rx = Mathf.RoundToInt(Mathf.Clamp01(
+            (xNoise * TerrainConfigHolder.OrganicNoiseContrast) -
+            TerrainConfigHolder.OrganicNoiseCenter) *
+            TerrainConfigHolder.OrganicMaximumOffsetSteps);
+        int ry = Mathf.RoundToInt(Mathf.Clamp01(
+            (yNoise * TerrainConfigHolder.OrganicNoiseContrast) -
+            TerrainConfigHolder.OrganicNoiseCenter) *
+            TerrainConfigHolder.OrganicMaximumOffsetSteps);
         return ComputeOffsetFromJitter(
             tl, tr, bl, br, worldY, rx, ry, OrganicFreeJitterCenterSteps);
     }
@@ -303,7 +315,10 @@ public sealed class TerrainVertexDistortionCalculator
     // по 2/32 кодируется в двух каналах meta вместе с остальными рёбрами.
     public static int ComputeOrganicEdgeBend(int worldX, int unityY, bool vertical)
     {
-        float noise = Hash01(worldX, unityY, vertical ? 0x6D21u : 0x39B7u);
+        float noise = Hash01(
+            worldX, unityY,
+            vertical ? TerrainConfigHolder.OrganicEdgeVerticalSeed :
+                TerrainConfigHolder.OrganicEdgeHorizontalSeed);
         return Mathf.Min((int)(noise * 5f), 4) - 2;
     }
 
@@ -319,13 +334,21 @@ public sealed class TerrainVertexDistortionCalculator
 
     public static float RandXd(int x, int y)
     {
-        int num = (((5 * x) + (11 * y)) * ((13 * x) + (7 * y))) % 3221;
-        return (num * num) % 7;
+        int num = (((TerrainConfigHolder.ClassicXHashA * x) +
+            (TerrainConfigHolder.ClassicXHashB * y)) *
+            ((TerrainConfigHolder.ClassicXHashC * x) +
+            (TerrainConfigHolder.ClassicXHashD * y))) %
+            TerrainConfigHolder.ClassicXHashModulus;
+        return (num * num) % TerrainConfigHolder.ClassicJitterRange;
     }
 
     public static float RandYd(int x, int y)
     {
-        int num = (((17 * x) + (19 * y)) * ((23 * x) + (37 * y))) % 3469;
-        return (num * num) % 7;
+        int num = (((TerrainConfigHolder.ClassicYHashA * x) +
+            (TerrainConfigHolder.ClassicYHashB * y)) *
+            ((TerrainConfigHolder.ClassicYHashC * x) +
+            (TerrainConfigHolder.ClassicYHashD * y))) %
+            TerrainConfigHolder.ClassicYHashModulus;
+        return (num * num) % TerrainConfigHolder.ClassicJitterRange;
     }
 }

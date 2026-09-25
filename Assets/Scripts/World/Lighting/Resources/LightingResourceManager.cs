@@ -30,8 +30,8 @@ internal sealed class LightingResourceManager
     private RenderTexture? _staticDirectTexture;
     private RenderTexture? _lightmapTexture;
     private RenderTexture? _cellSolidMask;
+    private RenderTexture? _surfaceAirCache;
     private RenderTexture? _ambientOcclusionField;
-    private RenderTexture? _ambientOcclusionScratch;
 
     public LightingResources Registry { get; } = new();
     public ComputeShader? LightingCompute { get; private set; }
@@ -53,14 +53,15 @@ internal sealed class LightingResourceManager
     // it (see WorldLighting.compute). Recreated together with the field
     // textures, which invalidates them.
     public RenderTexture? CellSolidMask => _cellSolidMask;
+    public RenderTexture? SurfaceAirCache => _surfaceAirCache;
     public RenderTexture? AmbientOcclusionField => _ambientOcclusionField;
-    public RenderTexture? AmbientOcclusionScratch => _ambientOcclusionScratch;
     public bool GeometryCachesValid { get; set; }
     public int CellGridWidth { get; private set; }
     public int CellGridHeight { get; private set; }
 
     public int SolveCascadeKernel { get; private set; }
     public int ScrollRadianceAtlasKernel { get; private set; }
+    public int ClearCascadeChangedMaskKernel { get; private set; }
     public int SolveDynamicLightingKernel { get; private set; }
     public int ComposeDynamicLightingKernel { get; private set; }
     public int TraceDynamicPolarKernel { get; private set; }
@@ -69,6 +70,7 @@ internal sealed class LightingResourceManager
     public int ResolveTransmissionDebugKernel { get; private set; }
     public int CompositeLightingKernel { get; private set; }
     public int BuildCellSolidMaskKernel { get; private set; }
+    public int BuildSurfaceAirCacheKernel { get; private set; }
     public int FieldWidth { get; private set; }
     public int FieldHeight { get; private set; }
     public int AmbientOcclusionWidth { get; private set; }
@@ -93,6 +95,7 @@ internal sealed class LightingResourceManager
         LightingCompute = loaded.Compute;
         SolveCascadeKernel = loaded.SolveCascadeKernel;
         ScrollRadianceAtlasKernel = loaded.ScrollRadianceAtlasKernel;
+        ClearCascadeChangedMaskKernel = loaded.ClearCascadeChangedMaskKernel;
         SolveDynamicLightingKernel = loaded.SolveDynamicLightingKernel;
         ComposeDynamicLightingKernel = loaded.ComposeDynamicLightingKernel;
         TraceDynamicPolarKernel = loaded.TraceDynamicPolarKernel;
@@ -101,9 +104,10 @@ internal sealed class LightingResourceManager
         ResolveTransmissionDebugKernel = loaded.ResolveTransmissionDebugKernel;
         CompositeLightingKernel = loaded.CompositeLightingKernel;
         BuildCellSolidMaskKernel = loaded.BuildCellSolidMaskKernel;
+        BuildSurfaceAirCacheKernel = loaded.BuildSurfaceAirCacheKernel;
         LightingShaderValidator.ValidateGpuRequirements();
-        LightingShaderValidator.ValidateMaterialFieldPass(LightingTexturePool.DestroyLightingObject);
-        LightingCommandBuffer = new CommandBuffer
+        LightingShaderValidator.ValidateTerrainFieldPasses(LightingTexturePool.DestroyLightingObject);
+        LightingCommandBuffer ??= new CommandBuffer
         {
             name = "Kern Radiance Cascades",
         };
@@ -121,12 +125,49 @@ internal sealed class LightingResourceManager
         GPUPipelineInitialized = false;
     }
 
+    public bool EnsureAmbientOcclusionOnlyResources(
+        int gridWidth,
+        int gridHeight,
+        int maximumTextureDimension)
+    {
+        int scale = Mathf.Max(
+            1,
+            Mathf.Min(maximumTextureDimension / gridWidth, maximumTextureDimension / gridHeight));
+        int width = gridWidth * scale;
+        int height = gridHeight * scale;
+        if (_materialField == null && _ambientOcclusionField != null &&
+            AmbientOcclusionWidth == width && AmbientOcclusionHeight == height &&
+            CellGridWidth == gridWidth && CellGridHeight == gridHeight)
+        {
+            return false;
+        }
+
+        ReleaseResources();
+        AmbientOcclusionWidth = width;
+        AmbientOcclusionHeight = height;
+        CellGridWidth = gridWidth;
+        CellGridHeight = gridHeight;
+        _ambientOcclusionField = LightingTexturePool.CreateTexture(
+            width,
+            height,
+            RenderTextureFormat.ARGB32,
+            randomWrite: false,
+            FilterMode.Bilinear,
+            "_LightingAmbientOcclusionField",
+            useMipMap: false);
+        LightingCommandBuffer ??= new CommandBuffer
+        {
+            name = "Kern Ambient Occlusion",
+        };
+        SyncRegistry();
+        return true;
+    }
+
     public void EnsureResources(
         int gridWidth,
         int gridHeight,
         Camera camera,
         in GraphicsQualitySettings qualitySettings,
-        LightingQualityMode qualityMode,
         out bool textureDimensionLimited,
         out bool cascadeBudgetLimited,
         out int effectivePixelsPerCell)
@@ -146,9 +187,7 @@ internal sealed class LightingResourceManager
                 $"orthographicSize={camera.orthographicSize}, aspect={camera.aspect}.");
         }
 
-        int requestedPixelsPerCell = qualityMode == LightingQualityMode.PerBlock
-            ? 1
-            : Mathf.Clamp(qualitySettings.LightingMinimumPixelsPerCell, 1, 16);
+        int requestedPixelsPerCell = Mathf.Clamp(qualitySettings.LightingMinimumPixelsPerCell, 1, 16);
 
         int requestedScale = Mathf.Max(1, Mathf.FloorToInt(requestedPixelsPerCell));
         int scale = CascadeLayoutBuilder.SelectStablePixelsPerCell(
@@ -186,9 +225,7 @@ internal sealed class LightingResourceManager
             MaximumStaticCascadeDirections,
             MaximumStaticCascadeRayWork);
 
-        FilterMode lightmapFilterMode = qualityMode == LightingQualityMode.PerBlock
-            ? FilterMode.Point
-            : FilterMode.Bilinear;
+        const FilterMode lightmapFilterMode = FilterMode.Bilinear;
 
         if (FieldWidth == fieldWidth && FieldHeight == fieldHeight &&
             AmbientOcclusionWidth == ambientOcclusionWidth &&
@@ -212,8 +249,8 @@ internal sealed class LightingResourceManager
         AmbientOcclusionWidth = ambientOcclusionWidth;
         AmbientOcclusionHeight = ambientOcclusionHeight;
 
-        // Transport reads mip0 only. Terrain AO owns a separate geometry
-        // pyramid below, so lighting quality cannot change its silhouette.
+        // Transport reads mip0 only. Terrain AO owns a separate high-resolution
+        // geometry field so lighting quality cannot change its silhouette.
         _materialField = LightingTexturePool.CreateTexture(
             fieldWidth,
             fieldHeight,
@@ -260,10 +297,17 @@ internal sealed class LightingResourceManager
             randomWrite: true,
             FilterMode.Point,
             "_LightingCellSolidMask");
-        // AO has its own geometry field. PerBlock lighting is one texel per
-        // cell and cannot represent rounded silhouettes or texture holes;
-        // this field uses all spatial resolution allowed by the selected
-        // texture budget without increasing radiance-transport work.
+        _surfaceAirCache = LightingTexturePool.CreateTexture(
+            fieldWidth,
+            fieldHeight,
+            RenderTextureFormat.ARGBHalf,
+            randomWrite: true,
+            FilterMode.Point,
+            "_LightingSurfaceAirCache");
+        // AO имеет своё поле геометрии: один тексель освещения на клетку не
+        // умеет ни скруглённый силуэт, ни дырку в текстуре, поэтому это поле
+        // берёт всё пространственное разрешение из бюджета текстур, не
+        // увеличивая работу транспорта.
         _ambientOcclusionField = LightingTexturePool.CreateTexture(
             ambientOcclusionWidth,
             ambientOcclusionHeight,
@@ -271,14 +315,7 @@ internal sealed class LightingResourceManager
             randomWrite: false,
             FilterMode.Bilinear,
             "_LightingAmbientOcclusionField",
-            useMipMap: true);
-        _ambientOcclusionScratch = LightingTexturePool.CreateTexture(
-            ambientOcclusionWidth,
-            ambientOcclusionHeight,
-            RenderTextureFormat.ARGB32,
-            randomWrite: false,
-            FilterMode.Bilinear,
-            "_LightingAmbientOcclusionScratch");
+            useMipMap: false);
         GeometryCachesValid = false;
 
         CascadeLayoutBuilder.BuildCascadeLayouts(
@@ -320,6 +357,7 @@ internal sealed class LightingResourceManager
         Registry.Geometry.Material = _materialField;
         Registry.Geometry.StaticEmission = _staticEmissionField;
         Registry.Geometry.CellSolidMask = _cellSolidMask;
+        Registry.Geometry.SurfaceAirCache = _surfaceAirCache;
         Registry.Geometry.AmbientOcclusion = _ambientOcclusionField;
         Registry.Geometry.AmbientOcclusionWidth = AmbientOcclusionWidth;
         Registry.Geometry.AmbientOcclusionHeight = AmbientOcclusionHeight;
@@ -348,8 +386,8 @@ internal sealed class LightingResourceManager
         LightingTexturePool.ReleaseTexture(ref _staticDirectTexture);
         LightingTexturePool.ReleaseTexture(ref _lightmapTexture);
         LightingTexturePool.ReleaseTexture(ref _cellSolidMask);
+        LightingTexturePool.ReleaseTexture(ref _surfaceAirCache);
         LightingTexturePool.ReleaseTexture(ref _ambientOcclusionField);
-        LightingTexturePool.ReleaseTexture(ref _ambientOcclusionScratch);
         GeometryCachesValid = false;
         CellGridWidth = 0;
         CellGridHeight = 0;

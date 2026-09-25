@@ -18,6 +18,24 @@ float2 max(float2 a,float b){return max(a,make_float2(b));}
 
 """;
 
+// Расплав и его цвета читают свойства материала из TerrainMaterialCBuffer.hlsl,
+// но тест срезает директиву include вместе с ними. Объявляем нужные величины
+// здесь, с авторскими значениями.
+const string MoltenUniforms = """
+
+float4 _MoltenFlowDirectionA = {1.9f, -1.3f, 0.0f, 0.0f};
+float4 _MoltenFlowDirectionB = {-1.1f, 2.1f, 0.0f, 0.0f};
+float _MoltenFlowPhase = 0.7f;
+float _MoltenFlowWeightA = 0.3f;
+float _MoltenFlowWeightB = 0.2f;
+float _MoltenFlowWeightC = 0.5f;
+float _MoltenHeatBase = 0.35f;
+float _MoltenHeatScale = 0.8f;
+float4 _MoltenHotColor = {0.6f, 0.35f, 0.035f, 1.0f};
+float _MoltenSheetScrollSpeed = 0.05f;
+
+""";
+
 // Concatenate production HLSL sources
 string source = string.Join("\n",
     new[] { "TerrainTileAddressing.hlsl", "TerrainSampling.hlsl", "TerrainMoltenHeat.hlsl" }
@@ -71,7 +89,7 @@ try
         string cppPath = Path.Combine(tmpPrefix, "test.cpp");
         string exePath = Path.Combine(tmpPrefix, "test");
 
-        File.WriteAllText(cppPath, shim + Extra + candidate + lavaTestCpp);
+        File.WriteAllText(cppPath, shim + Extra + MoltenUniforms + candidate + lavaTestCpp);
 
         RunProcess("clang++", $"-std=c++20 -O2 {cppPath} -o {exePath}", checkSuccess: true);
         int exitCode = RunProcess(exePath, string.Empty, checkSuccess: false);

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using Kern.Core.Interfaces.WorldLighting;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -9,8 +10,9 @@ namespace Kern.World.Lighting;
 
 public sealed class LightingGeometryRegistry
 {
-    private readonly List<ILightingGeometryContributor> _contributors = [];
+    private readonly List<Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor> _contributors = [];
     private readonly RenderTargetIdentifier[] _fieldTargets = new RenderTargetIdentifier[2];
+    private readonly RenderTargetIdentifier[] _ambientOcclusionTarget = new RenderTargetIdentifier[1];
     private ulong _registryRevision = 1;
 
     public bool HasContributors => _contributors.Count > 0;
@@ -20,7 +22,7 @@ public sealed class LightingGeometryRegistry
         get
         {
             ulong revision = _registryRevision;
-            foreach (ILightingGeometryContributor contributor in _contributors)
+            foreach (Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor contributor in _contributors)
             {
                 revision = RotateLeft(revision, 7) ^ contributor.LightingGeometryRevision;
             }
@@ -29,7 +31,7 @@ public sealed class LightingGeometryRegistry
         }
     }
 
-    public void Register(ILightingGeometryContributor contributor)
+    public void Register(Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor contributor)
     {
         if (contributor == null)
         {
@@ -45,7 +47,7 @@ public sealed class LightingGeometryRegistry
         _registryRevision++;
     }
 
-    public void Unregister(ILightingGeometryContributor contributor)
+    public void Unregister(Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor contributor)
     {
         if (contributor == null)
         {
@@ -58,7 +60,7 @@ public sealed class LightingGeometryRegistry
         }
     }
 
-    public void RenderLightingFields(
+    public void RenderMaterialEmissionFields(
         CommandBuffer commandBuffer,
         RenderTexture materialField,
         RenderTexture emissionField,
@@ -113,10 +115,63 @@ public sealed class LightingGeometryRegistry
             Matrix4x4.identity,
             GL.GetGPUProjectionMatrix(projection, renderIntoTexture: true));
 
-        var context = new LightingFieldContext(materialField, emissionField, worldRect);
-        foreach (ILightingGeometryContributor contributor in _contributors)
+        var context = new LightingMaterialEmissionContext(materialField, emissionField, worldRect);
+        foreach (Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor contributor in _contributors)
         {
-            contributor.RenderLightingFields(commandBuffer, context);
+            contributor.RenderMaterialEmissionFields(commandBuffer, context);
+        }
+    }
+
+    public void RenderAmbientOcclusionField(
+        CommandBuffer commandBuffer,
+        RenderTexture ambientOcclusionField,
+        Vector4 worldRect,
+        bool clearField = true)
+    {
+        if (commandBuffer == null)
+        {
+            throw new ArgumentNullException(nameof(commandBuffer));
+        }
+
+        if (!ambientOcclusionField.IsCreated())
+        {
+            throw new InvalidOperationException(
+                "The AO contact field must be created before geometry contributors are rendered.");
+        }
+
+        if (_contributors.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "World lighting has no registered geometry contributors.");
+        }
+
+        if (clearField)
+        {
+            _ambientOcclusionTarget[0] = new RenderTargetIdentifier(ambientOcclusionField);
+            commandBuffer.SetRenderTarget(
+                _ambientOcclusionTarget,
+                new RenderTargetIdentifier(BuiltinRenderTextureType.None));
+            commandBuffer.ClearRenderTarget(
+                clearDepth: false,
+                clearColor: true,
+                backgroundColor: Color.clear);
+        }
+
+        Matrix4x4 projection = Matrix4x4.Ortho(
+            worldRect.x,
+            worldRect.x + worldRect.z,
+            worldRect.y,
+            worldRect.y + worldRect.w,
+            -100f,
+            100f);
+        commandBuffer.SetViewProjectionMatrices(
+            Matrix4x4.identity,
+            GL.GetGPUProjectionMatrix(projection, renderIntoTexture: true));
+
+        var context = new LightingAmbientOcclusionContext(ambientOcclusionField, worldRect);
+        foreach (Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor contributor in _contributors)
+        {
+            contributor.RenderAmbientOcclusionField(commandBuffer, context);
         }
     }
 

@@ -3,18 +3,14 @@
 
 // CompositeLighting: финальная сборка изображения.
 //
-// READS: _DirectInput, _StaticDirectInput, _MaterialField, _EmissionField
+// READS: _DirectInput, _StaticDirectInput, _MaterialField, _EmissionField, _SurfaceAirCache
 // WRITES: _Result
 // MUST NOT: вызывать DDA, трогать каскады, источники
 
-float3 SurfaceReflection(float2 position, float3 albedo)
+float3 SurfaceReflection(int2 pixel, float3 albedo, float3 centerIncident)
 {
-    float2 uv = OutputUv(position);
-    float3 incident =
-        _DirectInput.SampleLevel(sampler_LinearClamp, uv, 0).rgb +
-        _StaticDirectInput.SampleLevel(sampler_LinearClamp, uv, 0).rgb;
-    float2 pixelsPerCell = float2(_FieldSize) * _CellSize / _WorldRect.zw;
-    int2 pixel = int2(floor(position));
+    float3 incident = centerIncident;
+    float4 firstAir = _SurfaceAirCache.Load(int3(pixel, 0));
     static const int2 offsets[4] =
     {
         int2(-1, 0),
@@ -25,36 +21,19 @@ float3 SurfaceReflection(float2 position, float3 albedo)
     [unroll]
     for (int i = 0; i < 4; i++)
     {
-        // Reach stays one cell, but the light is read at the first air texel
-        // on this row or column - the face itself. Sampling a fixed cell away
-        // gave every texel of a one-cell block the same point in front of the
-        // face, so whole blocks lit as flat squares.
-        int reach = max(1, (int)ceil(abs(dot(float2(offsets[i]), pixelsPerCell))));
-        [loop]
-        for (int stepIndex = 1; stepIndex <= reach; stepIndex++)
+        int stepIndex = (int)firstAir[i];
+        if (stepIndex > 0)
         {
             int2 neighbor = pixel + offsets[i] * stepIndex;
-            if (any(neighbor < 0) || any(neighbor >= _FieldSize))
-            {
-                break;
-            }
-
-            int2 materialNeighbor = MaterialPixel(neighbor);
-
-            if (IsSolidOccupancy(_MaterialField.Load(int3(materialNeighbor, 0)).a))
-            {
-                continue;
-            }
-
             float3 light =
                 _DirectInput.Load(int3(neighbor, 0)).rgb +
                 _StaticDirectInput.Load(int3(neighbor, 0)).rgb;
 
-            // Incident light reaches the exposed face through half an air cell.
+            // Incident light reaches the exposed face through the surface
+            // reflection reach, in cells (_SurfaceReflectionReachCells).
             // Surface reflection is presentation only; it is never transmitted
             // through the wall or used as light on its opposite face.
-            incident = max(incident, light * SegmentTransmission(0.0, 0.5));
-            break;
+            incident = max(incident, light * SegmentTransmission(0.0, _SurfaceReflectionReachCells));
         }
     }
 
@@ -86,7 +65,6 @@ void CompositeLighting(uint3 dispatchId : SV_DispatchThreadID)
     {
         return;
     }
-    float2 uv = (float2(pixel) + 0.5) / float2(_FieldSize);
     int2 materialPixel = MaterialPixel(pixel);
 
     float4 material = _MaterialField.Load(int3(materialPixel.x, materialPixel.y, 0)).rgba;
@@ -152,18 +130,12 @@ void CompositeLighting(uint3 dispatchId : SV_DispatchThreadID)
 
     float4 combinedDirect = dynamicDirect + staticDirect;
 
-    if (_BlockAveraged != 0 && _DebugView == 0)
-    {
-        _Result[pixel] = float4(max(combinedDirect.rgb, 0.0), 1.0);
-        return;
-    }
-
     float solid = saturate(material.a);
 
     float3 surfaceRefl = 0.0;
     if (solid > 0.0)
     {
-        surfaceRefl = solid * SurfaceReflection(float2(pixel) + 0.5, material.rgb);
+        surfaceRefl = solid * SurfaceReflection(pixel, material.rgb, combinedDirect.rgb);
     }
 
     float3 directAndSurface = combinedDirect.rgb + surfaceRefl;

@@ -21,6 +21,13 @@ void buildMask() {
     for(int y=0;y<_CellGridSize.y;y++)for(int x=0;x<_CellGridSize.x;x++)BuildCellSolidMask(uint3{(uint)x,(uint)y,0});
     _CellSolidMask=_CellSolidMaskOutput;
 }
+// Rebuilds the per-texel surface air cache from the current material fixture,
+// as the engine does whenever the material field is redrawn.
+void buildAirCache() {
+    _SurfaceAirCacheOutput.reset(_FieldSize.x,_FieldSize.y);
+    for(int y=0;y<_FieldSize.y;y++)for(int x=0;x<_FieldSize.x;x++)BuildSurfaceAirCache(uint3{(uint)x,(uint)y,0});
+    _SurfaceAirCache=_SurfaceAirCacheOutput;
+}
 float3 trace(float2 a,float2 b,float3* radiance=nullptr) {
     buildMask();
     float3 r,t;
@@ -69,10 +76,13 @@ void solveDynamicLights(bool writeDirect=false,bool fullReach=false) {
     for(_DynamicLightIndex=0;_DynamicLightIndex<_DynamicLightCount;_DynamicLightIndex++) {
         int radii=(int)std::ceil(std::sqrt((float)(w*w+h*h)))+8;
         int angles=std::max(64,(int)std::ceil(2*PI*radii));
-        _DynamicPolar.reset(angles,radii*DynamicEmitterPointsPerAxis*DynamicEmitterPointsPerAxis); _DynamicPolarSize={angles,radii};
+        int rows=radii*_DynamicEmitterPointsPerAxis*_DynamicEmitterPointsPerAxis;
+        // Полярная текстура несёт по одной обёрточной колонке с каждого края
+        // (WriteDynamicPolar), поэтому её ширина на две колонки больше числа лучей.
+        _DynamicPolar.reset(angles+2,rows); _DynamicPolarSize={angles,radii}; _DynamicPolarTextureSize={angles+2,rows};
         _DynamicReach.at(_DynamicLightIndex)=0;
-        for(_DynamicPolarPoint=0;_DynamicPolarPoint<DynamicEmitterPointsPerAxis*DynamicEmitterPointsPerAxis;_DynamicPolarPoint++)
-            for(int a=0;a<angles;a++)TraceDynamicPolar(uint3{(uint)a,0,0});
+        for(int point=0;point<_DynamicEmitterPointsPerAxis*_DynamicEmitterPointsPerAxis;point++)
+            for(int a=0;a<angles;a++)TraceDynamicPolar(uint3{(uint)a,(uint)point,0});
         if(fullReach) _DynamicReach.at(_DynamicLightIndex)=1u<<30;
         _DynamicPolarInput=_DynamicPolar;
         _DynamicTileOffset={0,h*_DynamicLightIndex};
@@ -247,15 +257,18 @@ int main() {
         near(cornerLight.x,0,1e-30f,"emitter behind closed diagonal corner");
         // Surface reflection follows the light along the face texel by texel,
         // never one flat value per block, and still reaches only one cell deep.
+        // It now reads the cached first-air texel per direction and takes the
+        // centre incident light from the caller.
         setup(8,4,4); _EmptyExtinctionRGB={.2f,.2f,.2f,0};
         for(int y=0;y<16;y++)for(int x=12;x<24;x++)_MaterialField.data[y*32+x].w=1;
         _DirectInput.reset(32,16); _StaticDirectInput.reset(32,16);
         for(int y=0;y<16;y++)for(int x=0;x<12;x++)_StaticDirectInput.data[y*32+x]={(float)y,(float)y,(float)y,0};
-        float faceTransmission=std::exp(-.2f*.5f);
+        buildAirCache();
+        float faceTransmission=std::exp(-.2f*_SurfaceReflectionReachCells);
         for(int y: {1,6,13}) {
-            near(SurfaceReflection(float2{12.5f,y+.5f},float3{1,1,1}).x,y*faceTransmission,1e-5f,"surface light follows the face per texel");
-            near(SurfaceReflection(float2{15.5f,y+.5f},float3{1,1,1}).x,y*faceTransmission,1e-5f,"whole first cell reads its own row at the face");
-            near(SurfaceReflection(float2{16.5f,y+.5f},float3{1,1,1}).x,0,0,"surface light stays one cell deep");
+            near(SurfaceReflection(int2{12,y},float3{1,1,1},float3{0,0,0}).x,y*faceTransmission,1e-5f,"surface light follows the face per texel");
+            near(SurfaceReflection(int2{15,y},float3{1,1,1},float3{0,0,0}).x,y*faceTransmission,1e-5f,"whole first cell reads its own row at the face");
+            near(SurfaceReflection(int2{16,y},float3{1,1,1},float3{0,0,0}).x,0,0,"surface light stays one cell deep");
         }
         // Сбор фонаря отсекается за дальностью, где ни один его луч не несёт
         // видимого света. Под породой отсечение обязано срабатывать и не

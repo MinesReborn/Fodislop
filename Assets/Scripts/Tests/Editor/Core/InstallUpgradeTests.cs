@@ -43,7 +43,7 @@ public sealed class InstallUpgradeTests
     {
         _dataRoot = Path.Combine(Path.GetTempPath(), $"kern_install_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_dataRoot);
-        _profile = GraphicsQualityProfileLoader.LoadRequired();
+        _profile = GraphicsQualityProfile.CreateDefault();
     }
 
     [TearDown]
@@ -143,7 +143,7 @@ public sealed class InstallUpgradeTests
         Assert.That(result.Config.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
         Assert.That(result.Config.Terrain.EnableReliefRim, Is.True);
         Assert.That(result.Config.Terrain.DistortionStyle, Is.EqualTo(TerrainDistortionStyle.Organic));
-        Assert.That(result.Config.GraphicsPreset, Is.EqualTo(GraphicsPreset.Custom));
+        Assert.That(result.Config.GraphicsPreset, Is.EqualTo(GraphicsPreset.Overdrive));
         Assert.That(File.ReadAllText(ConfigPath + ".backup"), Is.EqualTo(previousJson));
     }
 
@@ -217,10 +217,13 @@ public sealed class InstallUpgradeTests
     private string OldVersionConfig(int schemaVersion, PixelSamplingMode pixelSampling)
     {
         ClientConfig config = ClientConfigDefaults.Create(_profile);
-        config.GraphicsPreset = GraphicsPreset.Custom;
         config.Display.PixelSampling = pixelSampling;
         config.SchemaVersion = schemaVersion;
         string json = JsonUtility.ToJson(config, prettyPrint: true);
+        // Ступень пишется числом старой схемы (5 — прежнее «Ultra»): нынешнее
+        // перечисление такой ступени уже не знает, и миграция обязана перевести
+        // её в «Overdrive», а не оставить как есть.
+        json = Regex.Replace(json, @"""GraphicsPreset"":\s*\d+", "\"GraphicsPreset\": 5");
         Directory.CreateDirectory(Path.GetDirectoryName(ConfigPath)!);
         File.WriteAllText(ConfigPath, json);
         return json;

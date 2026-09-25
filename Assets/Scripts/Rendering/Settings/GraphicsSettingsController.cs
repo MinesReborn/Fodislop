@@ -40,33 +40,10 @@ public sealed class GraphicsSettingsController
 
     public GraphicsPreset SelectedPreset => _clientConfig.SelectedGraphicsPreset;
 
-    public GraphicsQualitySettings CustomSettings => _clientConfig.Config.GraphicsQualitySettings;
-
-    public void MarkCustom()
+    public void SelectPreset(GraphicsPreset preset)
     {
-        _clientConfig.MarkGraphicsAsCustom();
-    }
-
-    public void SelectStandardPreset(GraphicsPreset preset)
-    {
-        Debug.Log($"[GraphicsSettingsController] Selecting standard preset: {preset}");
+        Debug.Log($"[GraphicsSettingsController] Selecting preset: {preset}");
         _clientConfig.SelectGraphicsPreset(preset);
-        ApplyAll();
-        _clientConfig.Save();
-    }
-
-    public void SelectCustomPreset()
-    {
-        Debug.Log("[GraphicsSettingsController] Selecting custom preset");
-        _clientConfig.MarkGraphicsAsCustom();
-        ApplyAll();
-        _clientConfig.Save();
-    }
-
-    public void SetCustomSettings(GraphicsQualitySettings settings)
-    {
-        Debug.Log($"[GraphicsSettingsController] Setting custom quality settings: Lighting={settings.LightingQuality}, RenderScale={settings.RenderScale}");
-        _clientConfig.SetCustomGraphicsSettings(settings);
         ApplyAll();
         _clientConfig.Save();
     }
@@ -85,10 +62,9 @@ public sealed class GraphicsSettingsController
         _postProcessController.ApplyClientConfig();
     }
 
-    public void UpdateCustomWorldMaterialSettings(Action<ClientConfig> update)
+    public void UpdateWorldMaterialSettings(Action<ClientConfig> update)
     {
-        Debug.Log("[GraphicsSettingsController] Updating custom world material settings");
-        MarkCustom();
+        Debug.Log("[GraphicsSettingsController] Updating world material settings");
         _clientConfig.UpdateAndSave(update);
         _terrainRenderer.ApplyClientConfig();
         _surfaceRenderer.ApplyClientConfig();

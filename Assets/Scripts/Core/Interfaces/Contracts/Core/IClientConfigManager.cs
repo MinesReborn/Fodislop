@@ -10,9 +10,7 @@ public interface IClientConfigManager
     ClientConfig Config { get; }
     string ConfigFilePath { get; }
     GraphicsPreset SelectedGraphicsPreset { get; }
-    void MarkGraphicsAsCustom();
     void SelectGraphicsPreset(GraphicsPreset preset);
-    void SetCustomGraphicsSettings(GraphicsQualitySettings settings);
 
     /// <example>
     /// <c>UpdateSection(config =&gt; config.Audio, audio =&gt; audio.MasterVolume = value);</c>

@@ -19,16 +19,14 @@ namespace Kern.Rendering.PostProcessing
             RenderTextureDescriptor cameraTargetDescriptor,
             out int width,
             out int height,
-            out TextureDesc intermediateDesc,
-            out RenderTextureDescriptor historyDesc)
+            out TextureDesc intermediateDesc)
         {
-            historyDesc = cameraTargetDescriptor;
             width = activeColorDesc.sizeMode == TextureSizeMode.Explicit
                 ? activeColorDesc.width
-                : historyDesc.width;
+                : cameraTargetDescriptor.width;
             height = activeColorDesc.sizeMode == TextureSizeMode.Explicit
                 ? activeColorDesc.height
-                : historyDesc.height;
+                : cameraTargetDescriptor.height;
             width = Mathf.Max(1, width);
             height = Mathf.Max(1, height);
 
@@ -43,14 +41,6 @@ namespace Kern.Rendering.PostProcessing
             intermediateDesc.useMipMap = false;
             intermediateDesc.autoGenerateMips = false;
             intermediateDesc.clearBuffer = false;
-
-            historyDesc.width = width;
-            historyDesc.height = height;
-            historyDesc.graphicsFormat = activeColorDesc.colorFormat;
-            historyDesc.depthBufferBits = 0;
-            historyDesc.msaaSamples = 1;
-            historyDesc.bindMS = false;
-            historyDesc.enableRandomWrite = true;
         }
 
         internal static Vector4 ComputeScreenToEmission(Camera camera, bool bloomActive)
@@ -130,14 +120,11 @@ namespace Kern.Rendering.PostProcessing
             VignetteComponent vignette,
             ColorGradingComponent cg,
             EigengrauComponent eigengrau,
-            MotionBlurComponent mb,
             bool bloomActive,
             int bloomLevels,
             bool vignetteActive,
             bool cgActive,
             bool eigengrauActive,
-            bool temporalActive,
-            bool mbActive,
             bool displayPass,
             bool hdrOutput,
             ColorGamut hdrGamut,
@@ -175,12 +162,8 @@ namespace Kern.Rendering.PostProcessing
             passData.EigengrauColor = eigengrau.color.value;
             passData.EigengrauDarknessThreshold = eigengrau.darknessThreshold.value;
             passData.EigengrauNoiseScale = eigengrau.noiseScale.value;
-            passData.EigengrauAnimationSpeed = eigengrau.animationSpeed.value;
-
-            passData.MotionBlurHistory = passData.HistoryValid && displayPass && mbActive
-                ? mb.intensity.value
-                : 0f;
-            passData.TemporalActive = temporalActive;
+            // Амплитуда — не параметр эффекта, а авторская величина: читается прямо из PostProcessLook.
+            passData.EigengrauNoiseAmplitude = PostProcessLook.FilmGrain.EigengrauNoiseAmplitude;
         }
 
         internal static void FillGradeTransport(

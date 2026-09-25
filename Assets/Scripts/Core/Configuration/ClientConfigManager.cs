@@ -100,52 +100,14 @@ namespace Kern.Core
                 $"at {_Repository.ConfigPath}; GraphicsPreset={Config.GraphicsPreset}");
         }
 
-        public void MarkGraphicsAsCustom()
-        {
-            if (Config.GraphicsPreset == GraphicsPreset.Custom)
-            {
-                return;
-            }
-
-            if (!GraphicsQualityProfile.IsStandard(Config.GraphicsPreset))
-            {
-                throw new InvalidOperationException(
-                    $"Cannot promote unknown graphics preset '{Config.GraphicsPreset}' to Custom.");
-            }
-
-            Config.GraphicsQualitySettings = _graphicsQualityProfile.Get(Config.GraphicsPreset);
-            Config.GraphicsPreset = GraphicsPreset.Custom;
-            Debug.Log("[ClientConfigManager] Marked graphics preset as Custom");
-        }
-
         public void SelectGraphicsPreset(GraphicsPreset preset)
         {
-            if (!GraphicsQualityProfile.IsStandard(preset))
-            {
-                throw new ArgumentException(
-                    "Only one of the six immutable standard presets can be selected directly.",
-                    nameof(preset));
-            }
-
+            // Неизвестное значение отвергает сам профиль: ступеней две, и
+            // «промежуточной» ступени, куда можно было бы перевести конфиг,
+            // больше нет.
             Config.GraphicsPreset = preset;
             Config.GraphicsQualitySettings = _graphicsQualityProfile.Get(preset);
-
-            // Стандартный пресет обязан совпадать с авторскими значениями во
-            // всех секциях вида — этого требует инвариант валидатора. Раньше
-            // здесь было два вызова, копировавших сорок полей из снимка;
-            // теперь авторское значение и есть новый экземпляр секции.
-            Config.Terrain = new TerrainSettings();
-            Config.Effects = new EffectSettings();
-            Config.PostProcess = new PostProcessSettings();
             Debug.Log($"[ClientConfigManager] Selected graphics preset: {preset}");
-        }
-
-        public void SetCustomGraphicsSettings(GraphicsQualitySettings settings)
-        {
-            MarkGraphicsAsCustom();
-            GraphicsQualityProfile.ValidateSettings(settings, "Custom");
-            Config.GraphicsQualitySettings = settings;
-            Debug.Log($"[ClientConfigManager] Set custom graphics settings (Lighting={settings.LightingQuality}, AA={settings.AntiAliasing}, RenderScale={settings.RenderScale})");
         }
 
         public void UpdateSection<TSection>(
@@ -187,7 +149,6 @@ namespace Kern.Core
                 throw new ArgumentNullException(nameof(update));
             }
 
-            MarkGraphicsAsCustom();
             update(Config);
             Debug.Log("[ClientConfigManager] Updated post-process settings");
             SaveDeferred();

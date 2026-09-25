@@ -27,7 +27,6 @@ internal sealed class LightingGPULifecycle
         int gridHeight,
         Camera camera,
         in GraphicsQualitySettings qualitySettings,
-        LightingQualityMode qualityMode,
         out bool textureDimensionLimited,
         out bool cascadeBudgetLimited,
         out int effectivePixelsPerCell)
@@ -40,7 +39,6 @@ internal sealed class LightingGPULifecycle
             gridHeight,
             camera,
             in qualitySettings,
-            qualityMode,
             out textureDimensionLimited,
             out cascadeBudgetLimited,
             out effectivePixelsPerCell);

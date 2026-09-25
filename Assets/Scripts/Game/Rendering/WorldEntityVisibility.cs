@@ -54,9 +54,9 @@ namespace Kern.Game
                 Mathf.Abs(orthoSize - _lastCameraOrthographicSize) > 0.001f ||
                 Mathf.Abs(aspect - _lastCameraAspect) > 0.001f;
             if (cameraChanged &&
-                (!TryGetVisibleRect(camera, out Rect currentVisibleRect) ||
+                (!TryGetCameraRect(camera, 0f, out Rect currentCameraRect) ||
                 !_hasCachedVisibleRect ||
-                !Contains(_cachedVisibleRect, currentVisibleRect)))
+                !Contains(_cachedVisibleRect, currentCameraRect)))
             {
                 return true;
             }
@@ -126,7 +126,10 @@ namespace Kern.Game
             }
         }
 
-        public bool TryGetVisibleRect(Camera? camera, out Rect visibleRect)
+        public bool TryGetVisibleRect(Camera? camera, out Rect visibleRect) =>
+            TryGetCameraRect(camera, _prefetchMargin, out visibleRect);
+
+        private static bool TryGetCameraRect(Camera? camera, float margin, out Rect visibleRect)
         {
             if (camera == null)
             {
@@ -141,10 +144,10 @@ namespace Kern.Game
             float halfWidth = halfHeight * camera.aspect;
 
             visibleRect = new Rect(
-                camPos.x - halfWidth - _prefetchMargin,
-                camPos.y - halfHeight - _prefetchMargin,
-                (halfWidth + _prefetchMargin) * 2f,
-                (halfHeight + _prefetchMargin) * 2f);
+                camPos.x - halfWidth - margin,
+                camPos.y - halfHeight - margin,
+                (halfWidth + margin) * 2f,
+                (halfHeight + margin) * 2f);
             return true;
         }
 

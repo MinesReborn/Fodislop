@@ -57,6 +57,46 @@
         {
             "first": {
                 "serializedVersion": "2",
+                "Hash": "1558a8b091526176f83e9e9facf96e48"
+            },
+            "second": {
+                "shader": {
+                    "fileID": 4800000,
+                    "guid": "b5b2cd0432454877a4825471a6e12a70",
+                    "type": 3
+                },
+                "shaderName": "Kern/World Surface",
+                "shaderAssetGUID": "b5b2cd0432454877a4825471a6e12a70",
+                "shaderAssetLocalIdentifierInFile": 4800000,
+                "keywordNames": "KERN_SURFACE_TRANSIT",
+                "subShaderIndex": 0,
+                "passIndex": 2,
+                "graphicsStateInfoSet": [
+                    {
+                        "vertexLayout": 4933427786327595115,
+                        "renderPass": 10318760660961652147,
+                        "renderState": 13447626246968948397,
+                        "subPassIndex": -1,
+                        "topology": 0,
+                        "forceCullMode": -1,
+                        "shadingRateCombinerPrimitive": 0,
+                        "shadingRateCombinerFragment": 0,
+                        "baseShadingRate": 0,
+                        "depthBias": 0.0,
+                        "slopeDepthBias": 0.0,
+                        "userBackface": false,
+                        "appBackface": false,
+                        "wireframe": false,
+                        "invertProjectionMatrix": true,
+                        "unfilterableTextureBindings": 0,
+                        "nonfilteringSamplerBindings": 0
+                    }
+                ]
+            }
+        },
+        {
+            "first": {
+                "serializedVersion": "2",
                 "Hash": "20a81fe87817d5e292583bf0a8d18874"
             },
             "second": {
@@ -126,6 +166,46 @@
                         "appBackface": false,
                         "wireframe": false,
                         "invertProjectionMatrix": false,
+                        "unfilterableTextureBindings": 0,
+                        "nonfilteringSamplerBindings": 0
+                    }
+                ]
+            }
+        },
+        {
+            "first": {
+                "serializedVersion": "2",
+                "Hash": "b607f5f039e201ffe35d11e844ea05dc"
+            },
+            "second": {
+                "shader": {
+                    "fileID": 4800000,
+                    "guid": "943286b1ceedb6e49881652498d6ec13",
+                    "type": 3
+                },
+                "shaderName": "Universal Render Pipeline/Custom/Terrain",
+                "shaderAssetGUID": "943286b1ceedb6e49881652498d6ec13",
+                "shaderAssetLocalIdentifierInFile": 4800000,
+                "keywordNames": "KERN_WORLD_LIGHTING",
+                "subShaderIndex": 0,
+                "passIndex": 0,
+                "graphicsStateInfoSet": [
+                    {
+                        "vertexLayout": 9346122305125408839,
+                        "renderPass": 15945554207292896147,
+                        "renderState": 2874810695172648804,
+                        "subPassIndex": 0,
+                        "topology": 0,
+                        "forceCullMode": -1,
+                        "shadingRateCombinerPrimitive": 0,
+                        "shadingRateCombinerFragment": 0,
+                        "baseShadingRate": 0,
+                        "depthBias": 0.0,
+                        "slopeDepthBias": 0.0,
+                        "userBackface": false,
+                        "appBackface": false,
+                        "wireframe": false,
+                        "invertProjectionMatrix": true,
                         "unfilterableTextureBindings": 0,
                         "nonfilteringSamplerBindings": 0
                     }
@@ -212,6 +292,46 @@
                         "renderPass": 6414441604444330763,
                         "renderState": 17905316057205185287,
                         "subPassIndex": -1,
+                        "topology": 0,
+                        "forceCullMode": -1,
+                        "shadingRateCombinerPrimitive": 0,
+                        "shadingRateCombinerFragment": 0,
+                        "baseShadingRate": 0,
+                        "depthBias": 0.0,
+                        "slopeDepthBias": 0.0,
+                        "userBackface": false,
+                        "appBackface": false,
+                        "wireframe": false,
+                        "invertProjectionMatrix": false,
+                        "unfilterableTextureBindings": 0,
+                        "nonfilteringSamplerBindings": 0
+                    }
+                ]
+            }
+        },
+        {
+            "first": {
+                "serializedVersion": "2",
+                "Hash": "9756dc62848710360dc8cd24c32a703b"
+            },
+            "second": {
+                "shader": {
+                    "fileID": 4800000,
+                    "guid": "a89bee29cffa951418fc1e2da94d1959",
+                    "type": 3
+                },
+                "shaderName": "Hidden/Universal/BlitHDROverlay",
+                "shaderAssetGUID": "a89bee29cffa951418fc1e2da94d1959",
+                "shaderAssetLocalIdentifierInFile": 4800000,
+                "keywordNames": "HDR_ENCODING _HDR_OVERLAY",
+                "subShaderIndex": 0,
+                "passIndex": 1,
+                "graphicsStateInfoSet": [
+                    {
+                        "vertexLayout": 15807068410263000910,
+                        "renderPass": 17386594603764001319,
+                        "renderState": 17623681824384884761,
+                        "subPassIndex": 0,
                         "topology": 0,
                         "forceCullMode": -1,
                         "shadingRateCombinerPrimitive": 0,
@@ -586,6 +706,25 @@
                 "graphicsStateInfoSet": [
                     {
                         "vertexLayout": 4933427786327595115,
+                        "renderPass": 10318760660961652147,
+                        "renderState": 3409366084545131148,
+                        "subPassIndex": -1,
+                        "topology": 0,
+                        "forceCullMode": -1,
+                        "shadingRateCombinerPrimitive": 0,
+                        "shadingRateCombinerFragment": 0,
+                        "baseShadingRate": 0,
+                        "depthBias": 0.0,
+                        "slopeDepthBias": 0.0,
+                        "userBackface": false,
+                        "appBackface": false,
+                        "wireframe": false,
+                        "invertProjectionMatrix": true,
+                        "unfilterableTextureBindings": 0,
+                        "nonfilteringSamplerBindings": 0
+                    },
+                    {
+                        "vertexLayout": 4933427786327595115,
                         "renderPass": 17065834461829938205,
                         "renderState": 3409366084545131148,
                         "subPassIndex": -1,
@@ -938,6 +1077,46 @@
                         "vertexLayout": 15933458755787866262,
                         "renderPass": 9055674608511331306,
                         "renderState": 4161966877222828655,
+                        "subPassIndex": -1,
+                        "topology": 0,
+                        "forceCullMode": -1,
+                        "shadingRateCombinerPrimitive": 0,
+                        "shadingRateCombinerFragment": 0,
+                        "baseShadingRate": 0,
+                        "depthBias": 0.0,
+                        "slopeDepthBias": 0.0,
+                        "userBackface": false,
+                        "appBackface": false,
+                        "wireframe": false,
+                        "invertProjectionMatrix": true,
+                        "unfilterableTextureBindings": 0,
+                        "nonfilteringSamplerBindings": 0
+                    }
+                ]
+            }
+        },
+        {
+            "first": {
+                "serializedVersion": "2",
+                "Hash": "428b0693e2614dcc5c40c5eac3c91360"
+            },
+            "second": {
+                "shader": {
+                    "fileID": 4800000,
+                    "guid": "943286b1ceedb6e49881652498d6ec13",
+                    "type": 3
+                },
+                "shaderName": "Universal Render Pipeline/Custom/Terrain",
+                "shaderAssetGUID": "943286b1ceedb6e49881652498d6ec13",
+                "shaderAssetLocalIdentifierInFile": 4800000,
+                "keywordNames": "KERN_TERRAIN_CELLS",
+                "subShaderIndex": 0,
+                "passIndex": 2,
+                "graphicsStateInfoSet": [
+                    {
+                        "vertexLayout": 1433109904469103815,
+                        "renderPass": 10318760660961652147,
+                        "renderState": 13447626246968948397,
                         "subPassIndex": -1,
                         "topology": 0,
                         "forceCullMode": -1,
@@ -1941,6 +2120,25 @@
                 "graphicsStateInfoSet": [
                     {
                         "vertexLayout": 4933427786327595115,
+                        "renderPass": 10318760660961652147,
+                        "renderState": 3409366084545131148,
+                        "subPassIndex": -1,
+                        "topology": 0,
+                        "forceCullMode": -1,
+                        "shadingRateCombinerPrimitive": 0,
+                        "shadingRateCombinerFragment": 0,
+                        "baseShadingRate": 0,
+                        "depthBias": 0.0,
+                        "slopeDepthBias": 0.0,
+                        "userBackface": false,
+                        "appBackface": false,
+                        "wireframe": false,
+                        "invertProjectionMatrix": true,
+                        "unfilterableTextureBindings": 0,
+                        "nonfilteringSamplerBindings": 0
+                    },
+                    {
+                        "vertexLayout": 4933427786327595115,
                         "renderPass": 17065834461829938205,
                         "renderState": 3409366084545131148,
                         "subPassIndex": -1,
@@ -2023,47 +2221,25 @@
         {
             "first": {
                 "serializedVersion": "2",
-                "Hash": "2ae7921e47e96e193c370cd995830575"
+                "Hash": "222fff5a694fab63b986ab2a1fb8b73c"
             },
             "second": {
                 "shader": {
-                    "fileID": 4800000,
-                    "guid": "c6683efbb720048d7951440dffe41149",
-                    "type": 3
+                    "instanceID": 0
                 },
-                "shaderName": "Kern/UI/UnpremultiplyAlpha",
-                "shaderAssetGUID": "c6683efbb720048d7951440dffe41149",
+                "shaderName": "Hidden/SH",
+                "shaderAssetGUID": "5f839f58fafbe2847bfd524a316494fe",
                 "shaderAssetLocalIdentifierInFile": 4800000,
                 "keywordNames": "",
                 "subShaderIndex": 0,
-                "passIndex": 0,
-                "graphicsStateInfoSet": [
-                    {
-                        "vertexLayout": 1433109904469103815,
-                        "renderPass": 10448193199478569617,
-                        "renderState": 17623681824384884761,
-                        "subPassIndex": -1,
-                        "topology": 0,
-                        "forceCullMode": -1,
-                        "shadingRateCombinerPrimitive": 0,
-                        "shadingRateCombinerFragment": 0,
-                        "baseShadingRate": 0,
-                        "depthBias": 0.0,
-                        "slopeDepthBias": 0.0,
-                        "userBackface": false,
-                        "appBackface": false,
-                        "wireframe": false,
-                        "invertProjectionMatrix": true,
-                        "unfilterableTextureBindings": 0,
-                        "nonfilteringSamplerBindings": 0
-                    }
-                ]
+                "passIndex": 1,
+                "graphicsStateInfoSet": []
             }
         },
         {
             "first": {
                 "serializedVersion": "2",
-                "Hash": "9b7696a92f5ceca9cbd522d9951adb9b"
+                "Hash": "2effd054a3233d45c8996285395a881f"
             },
             "second": {
                 "shader": {
@@ -2074,33 +2250,14 @@
                 "shaderName": "Kern/World Surface",
                 "shaderAssetGUID": "b5b2cd0432454877a4825471a6e12a70",
                 "shaderAssetLocalIdentifierInFile": 4800000,
-                "keywordNames": "KERN_SURFACE_PERSPECTIVE",
+                "keywordNames": "KERN_SURFACE_REDROCK",
                 "subShaderIndex": 0,
-                "passIndex": 1,
+                "passIndex": 2,
                 "graphicsStateInfoSet": [
                     {
                         "vertexLayout": 4933427786327595115,
-                        "renderPass": 17065834461829938205,
-                        "renderState": 3409366084545131148,
-                        "subPassIndex": -1,
-                        "topology": 0,
-                        "forceCullMode": -1,
-                        "shadingRateCombinerPrimitive": 0,
-                        "shadingRateCombinerFragment": 0,
-                        "baseShadingRate": 0,
-                        "depthBias": 0.0,
-                        "slopeDepthBias": 0.0,
-                        "userBackface": false,
-                        "appBackface": false,
-                        "wireframe": false,
-                        "invertProjectionMatrix": true,
-                        "unfilterableTextureBindings": 0,
-                        "nonfilteringSamplerBindings": 0
-                    },
-                    {
-                        "vertexLayout": 4933427786327595115,
-                        "renderPass": 9980060513523334430,
-                        "renderState": 3409366084545131148,
+                        "renderPass": 10318760660961652147,
+                        "renderState": 13447626246968948397,
                         "subPassIndex": -1,
                         "topology": 0,
                         "forceCullMode": -1,
@@ -2160,44 +2317,26 @@
         {
             "first": {
                 "serializedVersion": "2",
-                "Hash": "222fff5a694fab63b986ab2a1fb8b73c"
-            },
-            "second": {
-                "shader": {
-                    "instanceID": 0
-                },
-                "shaderName": "Hidden/SH",
-                "shaderAssetGUID": "5f839f58fafbe2847bfd524a316494fe",
-                "shaderAssetLocalIdentifierInFile": 4800000,
-                "keywordNames": "",
-                "subShaderIndex": 0,
-                "passIndex": 1,
-                "graphicsStateInfoSet": []
-            }
-        },
-        {
-            "first": {
-                "serializedVersion": "2",
-                "Hash": "9756dc62848710360dc8cd24c32a703b"
+                "Hash": "2ae7921e47e96e193c370cd995830575"
             },
             "second": {
                 "shader": {
                     "fileID": 4800000,
-                    "guid": "a89bee29cffa951418fc1e2da94d1959",
+                    "guid": "c6683efbb720048d7951440dffe41149",
                     "type": 3
                 },
-                "shaderName": "Hidden/Universal/BlitHDROverlay",
-                "shaderAssetGUID": "a89bee29cffa951418fc1e2da94d1959",
+                "shaderName": "Kern/UI/UnpremultiplyAlpha",
+                "shaderAssetGUID": "c6683efbb720048d7951440dffe41149",
                 "shaderAssetLocalIdentifierInFile": 4800000,
-                "keywordNames": "HDR_ENCODING _HDR_OVERLAY",
+                "keywordNames": "",
                 "subShaderIndex": 0,
-                "passIndex": 1,
+                "passIndex": 0,
                 "graphicsStateInfoSet": [
                     {
-                        "vertexLayout": 15807068410263000910,
-                        "renderPass": 17386594603764001319,
+                        "vertexLayout": 1433109904469103815,
+                        "renderPass": 10448193199478569617,
                         "renderState": 17623681824384884761,
-                        "subPassIndex": 0,
+                        "subPassIndex": -1,
                         "topology": 0,
                         "forceCullMode": -1,
                         "shadingRateCombinerPrimitive": 0,
@@ -2208,7 +2347,85 @@
                         "userBackface": false,
                         "appBackface": false,
                         "wireframe": false,
-                        "invertProjectionMatrix": false,
+                        "invertProjectionMatrix": true,
+                        "unfilterableTextureBindings": 0,
+                        "nonfilteringSamplerBindings": 0
+                    }
+                ]
+            }
+        },
+        {
+            "first": {
+                "serializedVersion": "2",
+                "Hash": "9b7696a92f5ceca9cbd522d9951adb9b"
+            },
+            "second": {
+                "shader": {
+                    "fileID": 4800000,
+                    "guid": "b5b2cd0432454877a4825471a6e12a70",
+                    "type": 3
+                },
+                "shaderName": "Kern/World Surface",
+                "shaderAssetGUID": "b5b2cd0432454877a4825471a6e12a70",
+                "shaderAssetLocalIdentifierInFile": 4800000,
+                "keywordNames": "KERN_SURFACE_PERSPECTIVE",
+                "subShaderIndex": 0,
+                "passIndex": 1,
+                "graphicsStateInfoSet": [
+                    {
+                        "vertexLayout": 4933427786327595115,
+                        "renderPass": 10318760660961652147,
+                        "renderState": 3409366084545131148,
+                        "subPassIndex": -1,
+                        "topology": 0,
+                        "forceCullMode": -1,
+                        "shadingRateCombinerPrimitive": 0,
+                        "shadingRateCombinerFragment": 0,
+                        "baseShadingRate": 0,
+                        "depthBias": 0.0,
+                        "slopeDepthBias": 0.0,
+                        "userBackface": false,
+                        "appBackface": false,
+                        "wireframe": false,
+                        "invertProjectionMatrix": true,
+                        "unfilterableTextureBindings": 0,
+                        "nonfilteringSamplerBindings": 0
+                    },
+                    {
+                        "vertexLayout": 4933427786327595115,
+                        "renderPass": 17065834461829938205,
+                        "renderState": 3409366084545131148,
+                        "subPassIndex": -1,
+                        "topology": 0,
+                        "forceCullMode": -1,
+                        "shadingRateCombinerPrimitive": 0,
+                        "shadingRateCombinerFragment": 0,
+                        "baseShadingRate": 0,
+                        "depthBias": 0.0,
+                        "slopeDepthBias": 0.0,
+                        "userBackface": false,
+                        "appBackface": false,
+                        "wireframe": false,
+                        "invertProjectionMatrix": true,
+                        "unfilterableTextureBindings": 0,
+                        "nonfilteringSamplerBindings": 0
+                    },
+                    {
+                        "vertexLayout": 4933427786327595115,
+                        "renderPass": 9980060513523334430,
+                        "renderState": 3409366084545131148,
+                        "subPassIndex": -1,
+                        "topology": 0,
+                        "forceCullMode": -1,
+                        "shadingRateCombinerPrimitive": 0,
+                        "shadingRateCombinerFragment": 0,
+                        "baseShadingRate": 0,
+                        "depthBias": 0.0,
+                        "slopeDepthBias": 0.0,
+                        "userBackface": false,
+                        "appBackface": false,
+                        "wireframe": false,
+                        "invertProjectionMatrix": true,
                         "unfilterableTextureBindings": 0,
                         "nonfilteringSamplerBindings": 0
                     }
@@ -2268,6 +2485,46 @@
                         "appBackface": false,
                         "wireframe": false,
                         "invertProjectionMatrix": false,
+                        "unfilterableTextureBindings": 0,
+                        "nonfilteringSamplerBindings": 0
+                    }
+                ]
+            }
+        },
+        {
+            "first": {
+                "serializedVersion": "2",
+                "Hash": "b3278976068a6228567c026a179d5888"
+            },
+            "second": {
+                "shader": {
+                    "fileID": 4800000,
+                    "guid": "b5b2cd0432454877a4825471a6e12a70",
+                    "type": 3
+                },
+                "shaderName": "Kern/World Surface",
+                "shaderAssetGUID": "b5b2cd0432454877a4825471a6e12a70",
+                "shaderAssetLocalIdentifierInFile": 4800000,
+                "keywordNames": "KERN_SURFACE_REDROCK",
+                "subShaderIndex": 0,
+                "passIndex": 0,
+                "graphicsStateInfoSet": [
+                    {
+                        "vertexLayout": 4933427786327595115,
+                        "renderPass": 15945554207292896147,
+                        "renderState": 2874810695172648804,
+                        "subPassIndex": 0,
+                        "topology": 0,
+                        "forceCullMode": -1,
+                        "shadingRateCombinerPrimitive": 0,
+                        "shadingRateCombinerFragment": 0,
+                        "baseShadingRate": 0,
+                        "depthBias": 0.0,
+                        "slopeDepthBias": 0.0,
+                        "userBackface": false,
+                        "appBackface": false,
+                        "wireframe": false,
+                        "invertProjectionMatrix": true,
                         "unfilterableTextureBindings": 0,
                         "nonfilteringSamplerBindings": 0
                     }
@@ -2355,46 +2612,6 @@
         {
             "first": {
                 "serializedVersion": "2",
-                "Hash": "b607f5f039e201ffe35d11e844ea05dc"
-            },
-            "second": {
-                "shader": {
-                    "fileID": 4800000,
-                    "guid": "943286b1ceedb6e49881652498d6ec13",
-                    "type": 3
-                },
-                "shaderName": "Universal Render Pipeline/Custom/Terrain",
-                "shaderAssetGUID": "943286b1ceedb6e49881652498d6ec13",
-                "shaderAssetLocalIdentifierInFile": 4800000,
-                "keywordNames": "KERN_WORLD_LIGHTING",
-                "subShaderIndex": 0,
-                "passIndex": 0,
-                "graphicsStateInfoSet": [
-                    {
-                        "vertexLayout": 9346122305125408839,
-                        "renderPass": 15945554207292896147,
-                        "renderState": 2874810695172648804,
-                        "subPassIndex": 0,
-                        "topology": 0,
-                        "forceCullMode": -1,
-                        "shadingRateCombinerPrimitive": 0,
-                        "shadingRateCombinerFragment": 0,
-                        "baseShadingRate": 0,
-                        "depthBias": 0.0,
-                        "slopeDepthBias": 0.0,
-                        "userBackface": false,
-                        "appBackface": false,
-                        "wireframe": false,
-                        "invertProjectionMatrix": true,
-                        "unfilterableTextureBindings": 0,
-                        "nonfilteringSamplerBindings": 0
-                    }
-                ]
-            }
-        },
-        {
-            "first": {
-                "serializedVersion": "2",
                 "Hash": "d007ef55ae7ad120050e1b744dd2c3b5"
             },
             "second": {
@@ -2410,6 +2627,25 @@
                 "subShaderIndex": 0,
                 "passIndex": 1,
                 "graphicsStateInfoSet": [
+                    {
+                        "vertexLayout": 1433109904469103815,
+                        "renderPass": 10318760660961652147,
+                        "renderState": 3409366084545131148,
+                        "subPassIndex": -1,
+                        "topology": 0,
+                        "forceCullMode": -1,
+                        "shadingRateCombinerPrimitive": 0,
+                        "shadingRateCombinerFragment": 0,
+                        "baseShadingRate": 0,
+                        "depthBias": 0.0,
+                        "slopeDepthBias": 0.0,
+                        "userBackface": false,
+                        "appBackface": false,
+                        "wireframe": false,
+                        "invertProjectionMatrix": true,
+                        "unfilterableTextureBindings": 0,
+                        "nonfilteringSamplerBindings": 0
+                    },
                     {
                         "vertexLayout": 1433109904469103815,
                         "renderPass": 17065834461829938205,
@@ -2454,26 +2690,26 @@
         {
             "first": {
                 "serializedVersion": "2",
-                "Hash": "b3278976068a6228567c026a179d5888"
+                "Hash": "8e871b5a5b18670ad071db29227c470a"
             },
             "second": {
                 "shader": {
                     "fileID": 4800000,
-                    "guid": "b5b2cd0432454877a4825471a6e12a70",
+                    "guid": "943286b1ceedb6e49881652498d6ec13",
                     "type": 3
                 },
-                "shaderName": "Kern/World Surface",
-                "shaderAssetGUID": "b5b2cd0432454877a4825471a6e12a70",
+                "shaderName": "Universal Render Pipeline/Custom/Terrain",
+                "shaderAssetGUID": "943286b1ceedb6e49881652498d6ec13",
                 "shaderAssetLocalIdentifierInFile": 4800000,
-                "keywordNames": "KERN_SURFACE_REDROCK",
+                "keywordNames": "KERN_TERRAIN_CELLS KERN_WORLD_LIGHTING",
                 "subShaderIndex": 0,
-                "passIndex": 0,
+                "passIndex": 2,
                 "graphicsStateInfoSet": [
                     {
-                        "vertexLayout": 4933427786327595115,
-                        "renderPass": 15945554207292896147,
-                        "renderState": 2874810695172648804,
-                        "subPassIndex": 0,
+                        "vertexLayout": 1433109904469103815,
+                        "renderPass": 10318760660961652147,
+                        "renderState": 13447626246968948397,
+                        "subPassIndex": -1,
                         "topology": 0,
                         "forceCullMode": -1,
                         "shadingRateCombinerPrimitive": 0,
@@ -8547,6 +8783,550 @@
                 ],
                 "subPassCount": 1,
                 "depthAttachmentIndex": -1,
+                "shadingRateIndex": -1,
+                "foveationImageIndex": -1,
+                "multiviewCount": 0,
+                "sampleCount": 1
+            }
+        },
+        {
+            "first": 10318760660961652147,
+            "second": {
+                "attachments": [
+                    {
+                        "format": 8,
+                        "needsResolve": false,
+                        "canMultiview": false,
+                        "loadAction": 0,
+                        "storeAction": 0,
+                        "sampleCount": 1
+                    },
+                    {
+                        "format": 94,
+                        "needsResolve": false,
+                        "canMultiview": false,
+                        "loadAction": 0,
+                        "storeAction": 0,
+                        "sampleCount": 1
+                    },
+                    {
+                        "format": 0,
+                        "needsResolve": false,
+                        "canMultiview": false,
+                        "loadAction": 0,
+                        "storeAction": 0,
+                        "sampleCount": 0
+                    },
+                    {
+                        "format": 0,
+                        "needsResolve": false,
+                        "canMultiview": false,
+                        "loadAction": 0,
+                        "storeAction": 0,
+                        "sampleCount": 0
+                    },
+                    {
+                        "format": 0,
+                        "needsResolve": false,
+                        "canMultiview": false,
+                        "loadAction": 0,
+                        "storeAction": 0,
+                        "sampleCount": 0
+                    },
+                    {
+                        "format": 0,
+                        "needsResolve": false,
+                        "canMultiview": false,
+                        "loadAction": 0,
+                        "storeAction": 0,
+                        "sampleCount": 0
+                    },
+                    {
+                        "format": 0,
+                        "needsResolve": false,
+                        "canMultiview": false,
+                        "loadAction": 0,
+                        "storeAction": 0,
+                        "sampleCount": 0
+                    },
+                    {
+                        "format": 0,
+                        "needsResolve": false,
+                        "canMultiview": false,
+                        "loadAction": 0,
+                        "storeAction": 0,
+                        "sampleCount": 0
+                    }
+                ],
+                "attachmentCount": 2,
+                "subPasses": [
+                    {
+                        "inputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "colorOutputs": {
+                            "attachments": [
+                                0,
+                                -1,
+                                -1,
+                                -1,
+                                -1,
+                                -1,
+                                -1,
+                                -1
+                            ],
+                            "activeAttachments": 1
+                        },
+                        "flags": 0
+                    },
+                    {
+                        "inputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "colorOutputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "flags": 0
+                    },
+                    {
+                        "inputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "colorOutputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "flags": 0
+                    },
+                    {
+                        "inputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "colorOutputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "flags": 0
+                    },
+                    {
+                        "inputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "colorOutputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "flags": 0
+                    },
+                    {
+                        "inputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "colorOutputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "flags": 0
+                    },
+                    {
+                        "inputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "colorOutputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "flags": 0
+                    },
+                    {
+                        "inputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "colorOutputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "flags": 0
+                    },
+                    {
+                        "inputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "colorOutputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "flags": 0
+                    },
+                    {
+                        "inputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "colorOutputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "flags": 0
+                    },
+                    {
+                        "inputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "colorOutputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "flags": 0
+                    },
+                    {
+                        "inputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "colorOutputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "flags": 0
+                    },
+                    {
+                        "inputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "colorOutputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "flags": 0
+                    },
+                    {
+                        "inputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "colorOutputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "flags": 0
+                    },
+                    {
+                        "inputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "colorOutputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "flags": 0
+                    },
+                    {
+                        "inputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "colorOutputs": {
+                            "attachments": [
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0
+                            ],
+                            "activeAttachments": 0
+                        },
+                        "flags": 0
+                    }
+                ],
+                "subPassCount": 1,
+                "depthAttachmentIndex": 1,
                 "shadingRateIndex": -1,
                 "foveationImageIndex": -1,
                 "multiviewCount": 0,
@@ -14663,6 +15443,118 @@
                     "depthState": {
                         "depthWrite": 1,
                         "depthFunc": 4
+                    },
+                    "stencilState": {
+                        "stencilEnable": 0,
+                        "readMask": 255,
+                        "writeMask": 255,
+                        "padding": 0,
+                        "stencilFuncFront": 8,
+                        "stencilPassOpFront": 0,
+                        "stencilFailOpFront": 0,
+                        "stencilZFailOpFront": 0,
+                        "stencilFuncBack": 8,
+                        "stencilPassOpBack": 0,
+                        "stencilFailOpBack": 0,
+                        "stencilZFailOpBack": 0
+                    },
+                    "stencilRef": 0,
+                    "mask": 15
+                }
+            }
+        },
+        {
+            "first": 13447626246968948397,
+            "second": {
+                "renderState": {
+                    "blendState": {
+                        "rt": [
+                            {
+                                "writeMask": 1,
+                                "srcBlend": 1,
+                                "dstBlend": 1,
+                                "srcBlendAlpha": 1,
+                                "dstBlendAlpha": 1,
+                                "blendOp": 4,
+                                "blendOpAlpha": 4
+                            },
+                            {
+                                "writeMask": 15,
+                                "srcBlend": 1,
+                                "dstBlend": 0,
+                                "srcBlendAlpha": 1,
+                                "dstBlendAlpha": 0,
+                                "blendOp": 0,
+                                "blendOpAlpha": 0
+                            },
+                            {
+                                "writeMask": 15,
+                                "srcBlend": 1,
+                                "dstBlend": 0,
+                                "srcBlendAlpha": 1,
+                                "dstBlendAlpha": 0,
+                                "blendOp": 0,
+                                "blendOpAlpha": 0
+                            },
+                            {
+                                "writeMask": 15,
+                                "srcBlend": 1,
+                                "dstBlend": 0,
+                                "srcBlendAlpha": 1,
+                                "dstBlendAlpha": 0,
+                                "blendOp": 0,
+                                "blendOpAlpha": 0
+                            },
+                            {
+                                "writeMask": 15,
+                                "srcBlend": 1,
+                                "dstBlend": 0,
+                                "srcBlendAlpha": 1,
+                                "dstBlendAlpha": 0,
+                                "blendOp": 0,
+                                "blendOpAlpha": 0
+                            },
+                            {
+                                "writeMask": 15,
+                                "srcBlend": 1,
+                                "dstBlend": 0,
+                                "srcBlendAlpha": 1,
+                                "dstBlendAlpha": 0,
+                                "blendOp": 0,
+                                "blendOpAlpha": 0
+                            },
+                            {
+                                "writeMask": 15,
+                                "srcBlend": 1,
+                                "dstBlend": 0,
+                                "srcBlendAlpha": 1,
+                                "dstBlendAlpha": 0,
+                                "blendOp": 0,
+                                "blendOpAlpha": 0
+                            },
+                            {
+                                "writeMask": 15,
+                                "srcBlend": 1,
+                                "dstBlend": 0,
+                                "srcBlendAlpha": 1,
+                                "dstBlendAlpha": 0,
+                                "blendOp": 0,
+                                "blendOpAlpha": 0
+                            }
+                        ],
+                        "separateMRTBlend": 0,
+                        "alphaToMask": 0
+                    },
+                    "rasterState": {
+                        "cullMode": 0,
+                        "depthBias": 0,
+                        "slopeScaledDepthBias": 0.0,
+                        "depthClip": 1,
+                        "conservative": 0
+                    },
+                    "depthState": {
+                        "depthWrite": 0,
+                        "depthFunc": 8
                     },
                     "stencilState": {
                         "stencilEnable": 0,

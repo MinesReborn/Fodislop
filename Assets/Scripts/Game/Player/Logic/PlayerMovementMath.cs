@@ -33,16 +33,6 @@ public static class PlayerMovementMath
         };
     }
 
-    public static float DirectionToAngle(Vector2Int direction)
-    {
-        if (direction.x != 0)
-        {
-            return direction.x > 0 ? 0f : 180f;
-        }
-
-        return direction.y > 0 ? 90f : 270f;
-    }
-
     public static Vector2Int DirectionToDigOffset(Direction direction)
     {
         return direction switch

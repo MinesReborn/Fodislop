@@ -29,6 +29,16 @@ bool DirtySegmentOverlap(float2 start, float2 end)
     return overlap;
 }
 
+[numthreads(64, 1, 1)]
+void ClearCascadeChangedMask(uint3 dispatchId : SV_DispatchThreadID)
+{
+    uint index = dispatchId.x + dispatchId.y * (uint)_CascadeDispatchRowWidth;
+    if (index < (uint)_CascadeChangedMaskCount)
+    {
+        _CascadeChangedMask[index] = 0u;
+    }
+}
+
 bool CascadeEntryMayChange(int2 probe, uint directionIndex)
 {
     float2 origin = (float2(probe) + 0.5) * _CascadeProbeSpacing;

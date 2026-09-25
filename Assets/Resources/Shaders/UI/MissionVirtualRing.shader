@@ -31,6 +31,15 @@ Shader "Kern/UI/MissionVirtualRing"
         _Color ("Ring Color", Color) = (1, 0.45, 0.12, 1)
         _MissionOpacity ("Mission Opacity", Range(0, 1)) = 1
         _MissionAngle ("Mission Angle", Float) = 0
+        [HideInInspector] _RingRadius ("Ring Radius", Float) = 0.74
+        [HideInInspector] _RingSquash ("Ring Squash", Float) = 0.90
+        [HideInInspector] _ArcHalfAngle ("Arc Half Angle", Float) = 0.50
+        [HideInInspector] _ArcThickness ("Arc Thickness", Float) = 0.030
+        [HideInInspector] _ArcEndTaper ("Arc End Taper", Float) = 0.45
+        [HideInInspector] _ArcCoreWidth ("Arc Core Width", Float) = 0.35
+        [HideInInspector] _ArcEnergy ("Arc Energy", Float) = 1
+        [HideInInspector] _CoreEnergy ("Core Energy", Float) = 0.85
+        [HideInInspector] _CoreColor ("Core Color", Color) = (1, 0.95, 0.86, 1)
     }
 
     SubShader
@@ -70,23 +79,18 @@ Shader "Kern/UI/MissionVirtualRing"
 
             #define KERN_TAU 6.28318530718
 
-            // Радиус окружности в долях полукадра. Остаток до единицы —
-            // запас на размытие краёв дуги, иначе её срезало бы кадром.
-            #define KERN_RING_RADIUS 0.74
-
-            // Сплющивание по вертикали: указатель лежит на земле, а вид
-            // сверху в этой игре слегка наклонён.
-            #define KERN_RING_SQUASH 0.90
-
-            // Половина углового размера дуги в радианах.
-            #define KERN_ARC_HALF_ANGLE 0.50
-
-            // Толщина дуги в тех же долях полукадра, что и радиус.
-            #define KERN_ARC_THICKNESS 0.030
-
             float4 _Color;
             float _MissionOpacity;
             float _MissionAngle;
+            float _RingRadius;
+            float _RingSquash;
+            float _ArcHalfAngle;
+            float _ArcThickness;
+            float _ArcEndTaper;
+            float _ArcCoreWidth;
+            float _ArcEnergy;
+            float _CoreEnergy;
+            float4 _CoreColor;
 
             // Координата внутри элемента приезжает в layoutUV (uv.zw) и
             // кладётся в uvClip.xy: у сплошного элемента это поле занято
@@ -116,7 +120,7 @@ Shader "Kern/UI/MissionVirtualRing"
             UIE_FRAG_T Frag(v2f input) : SV_Target
             {
                 float2 p = (input.uvClip.xy * 2.0) - 1.0;
-                p.y /= KERN_RING_SQUASH;
+                p.y /= _RingSquash;
 
                 float radius = length(p);
                 float angle = atan2(p.y, p.x);
@@ -124,23 +128,23 @@ Shader "Kern/UI/MissionVirtualRing"
                 // Дуга обрывается к концам, а не отрезается: резкий торец
                 // читается как деталь интерфейса, плавный — как указатель.
                 float angular = AngularDistance(angle, _MissionAngle);
-                float along = saturate(angular / KERN_ARC_HALF_ANGLE);
+                float along = saturate(angular / _ArcHalfAngle);
                 float taper = 1.0 - (along * along);
 
                 // Поперёк дуга тоньше к концам по той же причине.
-                float thickness = KERN_ARC_THICKNESS * lerp(1.0, 0.45, along);
-                float band = Bell(radius - KERN_RING_RADIUS, thickness);
+                float thickness = _ArcThickness * lerp(1.0, _ArcEndTaper, along);
+                float band = Bell(radius - _RingRadius, thickness);
 
                 float arc = band * taper;
 
                 // Ядро: узкая яркая линия по центру дуги. Без неё указатель
                 // выглядит размытым пятном и не даёт точного направления.
-                float core = Bell(radius - KERN_RING_RADIUS, thickness * 0.35) * taper;
+                float core = Bell(radius - _RingRadius, thickness * _ArcCoreWidth) * taper;
 
                 float3 emissive =
-                    (_Color.rgb * arc * 1.00) +
-                    (float3(1.00, 0.95, 0.86) * core * 0.85);
-                float weight = (arc * 1.00) + (core * 0.85);
+                    (_Color.rgb * arc * _ArcEnergy) +
+                    (_CoreColor.rgb * core * _CoreEnergy);
+                float weight = (arc * _ArcEnergy) + (core * _CoreEnergy);
 
                 // Делим на сырую сумму весов, а не на итоговую альфу: после
                 // домножения на прозрачность нормировка цвета перестала бы

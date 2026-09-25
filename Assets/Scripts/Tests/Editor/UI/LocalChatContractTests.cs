@@ -14,7 +14,7 @@ public sealed class LocalChatContractTests
     {
         string uxml = File.ReadAllText(Path.Combine(
             Application.dataPath,
-            "Resources/UI/GlobalChat.uxml"));
+            "Resources/UI/Gameplay/GlobalChat.uxml"));
         string controller = File.ReadAllText(Path.Combine(
             Application.dataPath,
             "Scripts/UI/Chat/GlobalChatUI.cs"));

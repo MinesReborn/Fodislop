@@ -24,11 +24,7 @@ public static class CascadeLayoutBuilder
             throw new ArgumentOutOfRangeException(nameof(width));
         }
 
-        int maximumDirections = Mathf.Clamp(
-            directionCeiling,
-            4,
-            DefaultMaximumCascadeDirections);
-        maximumDirections = HighestPowerOfTwoAtMost(maximumDirections);
+        int maximumDirections = ResolveDirectionCeiling(directionCeiling);
 
         for (int candidate = maximumDirections; candidate >= 4; candidate /= 2)
         {
@@ -65,6 +61,14 @@ public static class CascadeLayoutBuilder
         BuildCascadeLayouts(width, height, atlasDimension, cascades, maximumDirections);
         return CascadeCostCalculator.EstimateRayWorkUnits(cascades);
     }
+
+    // Потолок числа направлений в том виде, в каком его применяет построитель:
+    // ограниченный сверху и сниженный до степени двойки.
+    private static int ResolveDirectionCeiling(int directionCeiling) =>
+        HighestPowerOfTwoAtMost(Mathf.Clamp(
+            directionCeiling,
+            4,
+            DefaultMaximumCascadeDirections));
 
     private static int HighestPowerOfTwoAtMost(int value)
     {
@@ -188,6 +192,22 @@ public static class CascadeLayoutBuilder
 
             if (width > maximumTextureDimension ||
                 height > maximumTextureDimension)
+            {
+                continue;
+            }
+
+            // Первым понижается разрешение поля, а не число углов. Проверять
+            // бюджет по направлениям, которые уже урезаны под этот же бюджет,
+            // бессмысленно: проверка проходила бы всегда, и поле оставалось бы
+            // максимальным при всплеске статики на весь кадр. На последней
+            // ступени углы всё ещё можно урезать — иначе большое окно не
+            // влезло бы ни в одно разрешение и планировщик бросил бы исключение.
+            if (scale > 1 &&
+                EstimateCascadeRayWorkUnits(
+                    width,
+                    height,
+                    atlasDimension,
+                    ResolveDirectionCeiling(maximumDirections)) > maximumRayWorkUnits)
             {
                 continue;
             }

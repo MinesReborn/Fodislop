@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using MinesServer.Data;
 
@@ -16,9 +17,9 @@ namespace Kern.World.Terrain;
 // здесь и последовательно, а сама сборка потом только читает.
 //
 // ЧТО ИМЕННО ГРЕЕТСЯ. Передний план берёт метаданные прямо из клетки кэша и
-// ни о чём не спрашивает. Спрашивает только фоновый слой — типами из карты
-// заливки, плюс две подстановки: Road под проходимым блоком здания и Empty
-// под пустой клеткой (см. TerrainCellLayers.TryGetType).
+// ни о чём не спрашивает. Фоновый слой использует типы из карты заливки и их
+// одноклеточное соседство для tile-group descriptor, плюс две подстановки:
+// Road под проходимым блоком здания и Empty под пустой клеткой.
 public sealed class TerrainMetadataWarmup
 {
     private readonly HashSet<CellType> _types = [];
@@ -33,11 +34,16 @@ public sealed class TerrainMetadataWarmup
         _types.Clear();
         _types.Add(CellType.Road);
         _types.Add(CellType.Empty);
-        for (int x = startX; x < endX; x++)
+        TerrainRingGrid<CellType> background = sources.FloodFill.Buffer;
+        int warmStartX = Math.Max(0, startX - 1);
+        int warmEndX = Math.Min(background.Width, endX + 1);
+        int warmStartY = Math.Max(0, startY - 1);
+        int warmEndY = Math.Min(background.Height, endY + 1);
+        for (int x = warmStartX; x < warmEndX; x++)
         {
-            for (int y = startY; y < endY; y++)
+            for (int y = warmStartY; y < warmEndY; y++)
             {
-                _types.Add(sources.FloodFill.Buffer[x, y]);
+                _types.Add(background[x, y]);
             }
         }
 

@@ -9,6 +9,7 @@ namespace Kern.UI;
 public sealed class MapInteractionController
 {
     private bool _isDragging;
+    private bool _panelUnavailableWarningReported;
     private Vector2 _lastMousePos;
 
     public void HandleDrag(
@@ -73,17 +74,31 @@ public sealed class MapInteractionController
         }
     }
 
-    private static bool TryGetPanelPosition(
+    private bool TryGetPanelPosition(
         Image? mapImage,
         UIDocument? document,
         Vector2 screenPosition,
         out Vector2 panelPosition)
     {
         panelPosition = default;
-        if (mapImage == null || document?.rootVisualElement.panel == null)
+        if (mapImage == null)
         {
             return false;
         }
+
+        if (document == null || document.rootVisualElement.panel == null)
+        {
+            if (!_panelUnavailableWarningReported)
+            {
+                _panelUnavailableWarningReported = true;
+                Debug.LogWarning(
+                    "World map input was ignored because its UI Toolkit panel is not attached.");
+            }
+
+            return false;
+        }
+
+        _panelUnavailableWarningReported = false;
 
         panelPosition = RuntimePanelUtils.ScreenToPanel(
             document.rootVisualElement.panel,
@@ -94,8 +109,9 @@ public sealed class MapInteractionController
     public void HandleMouseScroll(
         VisualElement? mapOverlay,
         Image? mapImage,
+        UIDocument? document,
         float delta,
-        Vector2 panelPoint,
+        Vector2 screenPosition,
         int texWidth,
         int texHeight,
         float maxCellsPerPixel,
@@ -108,6 +124,7 @@ public sealed class MapInteractionController
         if (mapOverlay == null ||
             mapOverlay.resolvedStyle.display == DisplayStyle.None ||
             mapImage == null ||
+            !TryGetPanelPosition(mapImage, document, screenPosition, out Vector2 panelPoint) ||
             !mapImage.worldBound.Contains(panelPoint))
         {
             return;

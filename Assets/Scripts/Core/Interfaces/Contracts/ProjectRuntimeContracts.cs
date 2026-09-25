@@ -85,7 +85,6 @@ public static class ProjectRuntimeContracts
     public static class ResourcePaths
     {
         public const string PrismaticFlowMap = "PrismaticFlowMap";
-        public const string GraphicsQualityProfile = "GraphicsQualityProfile";
         public const string WorldLightingCompute = "Shaders/Lighting/WorldLighting";
         public const string PostProcessCompute = "Shaders/PostProcessing/PostProcess";
         public const string ScopesCompute = "Shaders/PostProcessing/Scopes";
@@ -95,21 +94,21 @@ public static class ProjectRuntimeContracts
         // а ассет едет со сборкой сам и приезжает к игроку.
         public const string GraphicsStateCollection = "Rendering/GraphicsStates";
         public const string MissionVirtualRingShader = "Shaders/UI/MissionVirtualRing";
-        public const string GatewayUxml = "UI/Gateway";
-        public const string MainMenuUxml = "UI/MainMenu";
-        public const string AssetLoadingIndicatorUxml = "UI/AssetLoadingIndicator";
-        public const string GlobalChatUxml = "UI/GlobalChat";
-        public const string PlayerHudUxml = "UI/PlayerHUD";
-        public const string ReconnectUxml = "UI/Reconnect";
-        public const string InventoryUxml = "UI/Inventory";
-        public const string BootstrapLoadingScreenUxml = "UI/BootstrapLoadingScreen";
-        public const string ProgrammatorUxml = "UI/Programmator";
-        public const string TooltipUxml = "UI/Tooltip";
-        public const string ModalWindowUxml = "UI/ModalWindow";
-        public const string ObserverJoystickUxml = "UI/ObserverJoystick";
-        public const string RadialMenuUxml = "UI/RadialMenu";
-        public const string PauseMenuUxml = "UI/PauseMenu";
-        public const string MinimapUxml = "UI/Minimap";
+        public const string GatewayUxml = "UI/Menus/Gateway";
+        public const string MainMenuUxml = "UI/Menus/MainMenu";
+        public const string AssetLoadingIndicatorUxml = "UI/Menus/AssetLoadingIndicator";
+        public const string GlobalChatUxml = "UI/Gameplay/GlobalChat";
+        public const string PlayerHudUxml = "UI/Gameplay/PlayerHUD";
+        public const string ReconnectUxml = "UI/Menus/Reconnect";
+        public const string InventoryUxml = "UI/Gameplay/Inventory";
+        public const string BootstrapLoadingScreenUxml = "UI/Menus/BootstrapLoadingScreen";
+        public const string ProgrammatorUxml = "UI/Gameplay/Programmator";
+        public const string TooltipUxml = "UI/Overlays/Tooltip";
+        public const string ModalWindowUxml = "UI/Overlays/ModalWindow";
+        public const string ObserverJoystickUxml = "UI/Gameplay/ObserverJoystick";
+        public const string RadialMenuUxml = "UI/Gameplay/RadialMenu";
+        public const string PauseMenuUxml = "UI/Overlays/PauseMenu";
+        public const string MinimapUxml = "UI/Gameplay/Minimap";
     }
 
     public static class SceneNames
@@ -145,12 +144,14 @@ public static class ProjectRuntimeContracts
     public static class ShaderPassNames
     {
         public const string LightingMaterialField = "LightingMaterialField";
+        public const string LightingAmbientOcclusionField = "LightingAmbientOcclusionField";
     }
 
     public static class ComputeKernelNames
     {
         public const string SolveCascade = "SolveCascade";
         public const string ScrollRadianceAtlas = "ScrollRadianceAtlas";
+        public const string ClearCascadeChangedMask = "ClearCascadeChangedMask";
         public const string SolveDynamicLighting = "SolveDynamicLighting";
         public const string ComposeDynamicLighting = "ComposeDynamicLighting";
         public const string TraceDynamicPolar = "TraceDynamicPolar";
@@ -159,6 +160,7 @@ public static class ProjectRuntimeContracts
         public const string ResolveTransmissionDebug = "ResolveTransmissionDebug";
         public const string CompositeLighting = "CompositeLighting";
         public const string BuildCellSolidMask = "BuildCellSolidMask";
+        public const string BuildSurfaceAirCache = "BuildSurfaceAirCache";
     }
 
     public static class RequiredLayers

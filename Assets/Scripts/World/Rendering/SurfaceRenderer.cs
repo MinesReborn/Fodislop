@@ -14,10 +14,12 @@ using Unity.Profiling;
 namespace Kern.World
 {
     [DisallowMultipleComponent]
-    public class SurfaceRenderer : MonoBehaviour, ILightingGeometryContributor
+    public class SurfaceRenderer : MonoBehaviour, Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor
     {
         private static readonly ProfilerMarker _SurfaceLateUpdateMarker =
             new("Kern.Surface.LateUpdate");
+        private static readonly ProfilerMarker _SurfaceLightingMeshBuildMarker =
+            new("Kern.Surface.RebuildLightingMeshes");
 
         private static readonly AllocationLedger.Entry _AllocationEntry =
             AllocationLedger.Register("Поверхность — LateUpdate");
@@ -69,6 +71,10 @@ namespace Kern.World
         private int _lastWorldHeight = int.MinValue;
         private Rect _cachedCoverageRect;
         private bool _hasCachedCoverage;
+        private Vector4 _lastLightingMeshRect;
+        private int _lastLightingMeshWorldWidth = int.MinValue;
+        private int _lastLightingMeshWorldHeight = int.MinValue;
+        private bool _hasLightingMeshes;
         private bool _initialized;
         private bool _registered;
 
@@ -142,9 +148,26 @@ namespace Kern.World
             }
         }
 
-        public void RenderLightingFields(
+        public void RenderMaterialEmissionFields(
             CommandBuffer commandBuffer,
-            in LightingFieldContext context)
+            in Kern.Core.Interfaces.WorldLighting.LightingMaterialEmissionContext context) =>
+            RenderLightingMeshes(
+                commandBuffer,
+                context.WorldRect,
+                ProjectRuntimeContracts.ShaderPassNames.LightingMaterialField);
+
+        public void RenderAmbientOcclusionField(
+            CommandBuffer commandBuffer,
+            in Kern.Core.Interfaces.WorldLighting.LightingAmbientOcclusionContext context) =>
+            RenderLightingMeshes(
+                commandBuffer,
+                context.WorldRect,
+                ProjectRuntimeContracts.ShaderPassNames.LightingAmbientOcclusionField);
+
+        private void RenderLightingMeshes(
+            CommandBuffer commandBuffer,
+            Vector4 worldRect,
+            string shaderPassName)
         {
             if (!_initialized || _transitLightingMesh == null ||
                 _perspectiveLightingMesh == null || _redRockLightingMesh == null ||
@@ -155,37 +178,57 @@ namespace Kern.World
                     "Surface lighting fields cannot be rendered before surface initialization.");
             }
 
-            Rect lightingRect = Rect.MinMaxRect(
-                context.WorldRect.x,
-                context.WorldRect.y,
-                context.WorldRect.x + context.WorldRect.z,
-                context.WorldRect.y + context.WorldRect.w);
-            _geometry.UpdateBoundaryMesh(
-                _redRockLightingMesh,
-                lightingRect,
-                _mapManager.WorldWidth,
-                _mapManager.WorldHeight);
-            _geometry.UpdateTransitMesh(
-                _transitLightingMesh,
-                lightingRect,
-                _mapManager.WorldHeight);
-            _geometry.UpdatePerspectiveMesh(
-                _perspectiveLightingMesh,
-                lightingRect,
-                _mapManager.WorldHeight);
+            int worldWidth = _mapManager.WorldWidth;
+            int worldHeight = _mapManager.WorldHeight;
+            if (!_hasLightingMeshes || _lastLightingMeshRect != worldRect ||
+                _lastLightingMeshWorldWidth != worldWidth ||
+                _lastLightingMeshWorldHeight != worldHeight)
+            {
+                using var buildMarker = _SurfaceLightingMeshBuildMarker.Auto();
+                Rect lightingRect = Rect.MinMaxRect(
+                    worldRect.x,
+                    worldRect.y,
+                    worldRect.x + worldRect.z,
+                    worldRect.y + worldRect.w);
+                _geometry.UpdateBoundaryMesh(
+                    _redRockLightingMesh,
+                    lightingRect,
+                    worldWidth,
+                    worldHeight);
+                _geometry.UpdateTransitMesh(
+                    _transitLightingMesh,
+                    lightingRect,
+                    worldHeight);
+                _geometry.UpdatePerspectiveMesh(
+                    _perspectiveLightingMesh,
+                    lightingRect,
+                    worldHeight);
+                _lastLightingMeshRect = worldRect;
+                _lastLightingMeshWorldWidth = worldWidth;
+                _lastLightingMeshWorldHeight = worldHeight;
+                _hasLightingMeshes = true;
+            }
 
             SurfaceMeshUtilities.DrawLightingField(
                 commandBuffer,
                 _redRockLightingMesh,
-                _redRockMaterial);
-            SurfaceMeshUtilities.DrawLightingField(
-                commandBuffer,
-                _perspectiveLightingMesh,
-                _perspectiveMaterial);
+                _redRockMaterial,
+                shaderPassName);
+            // Perspective is authored with zero physical occupancy. Its
+            // material pass emits light, but it has no AO contribution.
+            if (shaderPassName == ProjectRuntimeContracts.ShaderPassNames.LightingMaterialField)
+            {
+                SurfaceMeshUtilities.DrawLightingField(
+                    commandBuffer,
+                    _perspectiveLightingMesh,
+                    _perspectiveMaterial,
+                    shaderPassName);
+            }
             SurfaceMeshUtilities.DrawLightingField(
                 commandBuffer,
                 _transitLightingMesh,
-                _transitMaterial);
+                _transitMaterial,
+                shaderPassName);
         }
 
         protected void OnEnable()

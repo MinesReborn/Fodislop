@@ -25,9 +25,6 @@ namespace Kern.Rendering.PostProcessing
         [Tooltip("Size of the retinal noise cells, in physical screen pixels.")]
         public ClampedFloatParameter noiseScale = PostProcessDefaults.EigengrauNoiseScale();
 
-        [Tooltip("How fast the lifted floor shimmers, in independent noise patterns per second.")]
-        public ClampedFloatParameter animationSpeed = PostProcessDefaults.EigengrauAnimationSpeed();
-
         public bool IsActive() => intensity.value > 0f;
         public bool IsTileCompatible() => true;
 #pragma warning restore SA1307

@@ -72,7 +72,7 @@ public sealed class UIBoundSettingsRule : IRule
                     }
 
                     var handlerText = string.Join("\n", handlerLines);
-                    var mutatesSettings = Regex.IsMatch(handlerText, @"ApplyCustomTechnicalSettings|_graphicsSettings|_clientConfig|_lightingEngine|_displayManager");
+                    var mutatesSettings = Regex.IsMatch(handlerText, @"_graphicsSettings|_clientConfig|_lightingEngine|_displayManager");
                     var hasRefresh = Regex.IsMatch(handlerText, @"Refresh|Update|_refreshAll");
 
                     if (mutatesSettings && !hasRefresh)

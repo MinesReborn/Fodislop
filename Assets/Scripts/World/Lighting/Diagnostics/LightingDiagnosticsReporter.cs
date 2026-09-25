@@ -42,14 +42,6 @@ internal sealed class LightingDiagnosticsReporter(
         List<CascadeCostSample> destination,
         in LightingDiagnosticsContext context)
     {
-        // PerBlock не строит каскадов: показывать нечего, и пустой список —
-        // это ответ, а не отсутствие ответа.
-        if (context.Quality == LightingQualityMode.PerBlock)
-        {
-            destination.Clear();
-            return;
-        }
-
         CascadeCostCalculator.CollectCascadeCosts(
             resources.Cascades, context.MaximumIntervalSteps, destination);
     }

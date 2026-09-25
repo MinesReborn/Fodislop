@@ -41,6 +41,7 @@ public sealed class TerrainFramePlanner
         float preparationLatencySeconds,
         RectInt retainedLightingViewport,
         bool allowPartialAdvance,
+        bool holdingPublishedView,
         IWorldDataStorage? storage,
         IMapDataProvider? mapData,
         IConnectionService? connectionService,
@@ -133,7 +134,8 @@ public sealed class TerrainFramePlanner
             isRequestedResident,
             dimensionsChanged,
             cellsCommitted,
-            cpuBuildInFlight);
+            cpuBuildInFlight,
+            holdingPublishedView);
     }
 
     private static void PublishStreamingTelemetry(IFrameTelemetry telemetry, StreamingPlan plan)

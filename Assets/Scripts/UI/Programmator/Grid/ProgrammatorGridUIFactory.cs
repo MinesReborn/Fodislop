@@ -98,7 +98,7 @@ internal sealed class ProgrammatorGridUIFactory : ILocalizableUI
         VisualTreeAsset template = Resources.Load<VisualTreeAsset>(
             ProjectRuntimeContracts.ResourcePaths.ProgrammatorUxml) ??
             throw new InvalidOperationException(
-                "[Programmator] Resources/UI/Programmator.uxml is required.");
+                "[Programmator] Resources/UI/Gameplay/Programmator.uxml is required.");
         TemplateContainer tree = template.Instantiate();
         tree.AddToClassList("ui-fullscreen");
         tree.pickingMode = PickingMode.Ignore;

@@ -193,7 +193,7 @@ public sealed class SettingsWiringRule : IRule
         }
 
         // Startup application contract
-        var bootstrapFile = Path.Combine(projectRoot, "Assets/Scripts/Core/Bootstrap/GameStartupPipeline.cs");
+        var bootstrapFile = Path.Combine(projectRoot, "Assets/Scripts/Core/Bootstrap/Startup/GameStartupPipeline.cs");
         if (File.Exists(bootstrapFile))
         {
             var bootstrapSrc = File.ReadAllText(bootstrapFile);

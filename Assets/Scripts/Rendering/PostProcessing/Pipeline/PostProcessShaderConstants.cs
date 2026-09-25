@@ -101,15 +101,11 @@ internal static class PostProcessShaderConstants
     public static readonly int EigengrauColorID = Shader.PropertyToID("_EigengrauColor");
     public static readonly int EigengrauDarknessThresholdID = Shader.PropertyToID("_EigengrauDarknessThreshold");
     public static readonly int EigengrauNoiseScaleID = Shader.PropertyToID("_EigengrauNoiseScale");
-    public static readonly int EigengrauAnimationSpeedID = Shader.PropertyToID("_EigengrauAnimationSpeed");
+    public static readonly int EigengrauNoiseAmplitudeID = Shader.PropertyToID("_EigengrauNoiseAmplitude");
     public static readonly int TimeID = Shader.PropertyToID("_Time");
     public static readonly int FrameIndexID = Shader.PropertyToID("_FrameIndex");
     public static readonly int CalibrationPatternID = Shader.PropertyToID("_CalibrationPattern");
     public static readonly int CalibrationValueID = Shader.PropertyToID("_CalibrationValue");
-
-    public static readonly int HistoryTexID = Shader.PropertyToID("_HistoryTex");
-    public static readonly int MotionBlurHistoryID = Shader.PropertyToID("_MotionBlurHistory");
-    public static readonly int HistoryReprojectionID = Shader.PropertyToID("_HistoryReprojection");
 
     // Ключевое слово отладочных видов и шторки сравнения. Вне инструмента
     // колориста вариант не включается, и весь этот код в kernel не попадает.

@@ -19,8 +19,6 @@ Texture2D<float4> _SourceTex;
 Texture2D<float4> _BaseTex;
 Texture2D<float4> _BloomTex;
 Texture2D<float4> _EmissionTex;
-Texture2D<float4> _HistoryTex;
-
 RWTexture2D<float4> _DestTex;
 RWTexture2D<float4> _OutputTex;
 // Запечённый творческий грейд: 33^3 в лог-шкале входа и выхода.
@@ -99,7 +97,8 @@ float _EigengrauIntensity;
 float4 _EigengrauColor;
 float _EigengrauDarknessThreshold;
 float _EigengrauNoiseScale;
-float _EigengrauAnimationSpeed;
+// Громкость зерна поверх пола: размах, на который шум качает поднятую точку.
+float _EigengrauNoiseAmplitude;
 float _Time;
 float _FrameIndex;
 
@@ -108,16 +107,6 @@ float _FrameIndex;
 // в нитах: белую точку для режима 1, пик для режима 2.
 float _CalibrationPattern;
 float _CalibrationValue;
-
-float _MotionBlurHistory; // доля истории в смазе движения
-
-// Репроекция истории: clip прошлого кадра из clip текущего, то есть
-// VP_prev * inverse(VP_cur). Камера проекта ортографическая, и при ортографии
-// x и y результата не зависят от глубины — поэтому одной матрицы хватает,
-// чтобы точно найти пиксель прошлого кадра для всей статичной геометрии, без
-// буфера векторов движения. Раньше история просто объявлялась негодной при
-// любом сдвиге камеры, то есть смаз не работал ровно во время движения.
-float4x4 _HistoryReprojection;
 
 // Color grading functions must see the complete parameter block above. Keeping
 // this include after the declarations also makes Metal compile every kernel
@@ -220,19 +209,9 @@ float FilmGrain(float2 pixel)
     // scale values are clamped here so they can never create giant cells.
     float grainSize = clamp(_EigengrauNoiseScale, 0.75, 2.0);
     float2 grainPixel = floor(pixel / grainSize);
-    // Эпоха считается по номеру кадра, а не по времени: шум зрения обновляется
-    // каждый кадр, и привязка к секундам этого не даёт — при частоте кадров выше
-    // заданной один узор держался бы по нескольку кадров, что читается как
-    // подрагивание картинки, а не как зерно.
-    //
-    // Animation Speed задаёт удержание: 60 (штатное) — новый узор каждый кадр,
-    // меньшие значения держат узор по нескольку кадров для тех, кому нужно
-    // спокойнее. Межкадровое смешивание убрано — усреднять белый шум значит
-    // делать его серым.
-    float holdFrames = max(1.0, round(60.0 / clamp(_EigengrauAnimationSpeed, 1.0, 60.0)));
-    float epoch = floor(_FrameIndex / holdFrames);
-
-    return Hash31(float3(grainPixel, epoch * 1.618 + 17.0)) * 2.0 - 1.0;
+    // Один новый узор на отрисованный кадр, независимо от частоты дисплея.
+    // Межкадровое смешивание усредняло белый шум в серый.
+    return Hash31(float3(grainPixel, _FrameIndex * 1.618 + 17.0)) * 2.0 - 1.0;
 }
 
 float3 ApplyCreativeGrade(float3 color)
@@ -601,7 +580,7 @@ void DisplayFinal(uint3 id : SV_DispatchThreadID)
         // светит, подниматься нечему — значит и шевелиться нечему. Узор
         // обновляется каждый кадр, см. FilmGrain.
         float grain = FilmGrain(id.xy + 0.5);
-        floorColor *= 1.0 + grain * 0.35;
+        floorColor *= 1.0 + grain * _EigengrauNoiseAmplitude;
 
         // Darkness Threshold задан уровнем кодирования, значит и сравнивать
         // его надо с закодированной яркостью, а не с линейной. Нижняя граница
@@ -626,9 +605,6 @@ void DisplayFinal(uint3 id : SV_DispatchThreadID)
     // точка кадра, где величина задаётся в долях paper white и не будет потом
     // переделана ни кривой вывода, ни грейдом. Узор заменяет кадр целиком —
     // сравнивать яркость можно только с чёрным, а не с игрой за ним.
-    //
-    // Дальше идёт временной смаз: он мешал бы ступени проявиться сразу, и
-    // ниже узор выходит из функции, не доходя до него.
     if (_CalibrationPattern > 0.5)
     {
         float paperWhite = max(_DisplayPaperWhiteNits, 1.0);
@@ -682,44 +658,6 @@ void DisplayFinal(uint3 id : SV_DispatchThreadID)
 
         _OutputTex[id.xy] = float4(ToDisplayOutput(patternColor), srcAlpha);
         return;
-    }
-
-    // ------------------------------------------------------------------
-    // Временной смаз. Стоит последним: история — это готовый кадр прошлого
-    // раза, и сравнивать с ней можно только готовый кадр этого, иначе обе
-    // величины живут в разных пространствах.
-    //
-    // История читается с репроекцией. Прежний код вместо этого объявлял её
-    // негодной при любом сдвиге камеры (PostProcessRenderPass сбрасывал
-    // _historyValid по смене view-projection), то есть смаз выключался ровно
-    // на время движения — единственное время, когда он имеет смысл. При этом
-    // полноэкранная текстура истории и её копия оплачивались каждый кадр.
-    //
-    // Соседского окна больше нет. Оно стояло вместо репроекции: гасило
-    // расхождение, вызванное сдвигом камеры, ценой девяти чтений полного
-    // кадра на пиксель. Когда сдвиг камеры снят точно, остаточная разница —
-    // это движение самих объектов, то есть ровно то, что смаз обязан
-    // размазывать, а не подавлять.
-    if (_MotionBlurHistory > 0.001)
-    {
-        float2 ndc = screenUv * 2.0 - 1.0;
-        float4 previousClip = mul(_HistoryReprojection, float4(ndc, 0.0, 1.0));
-        float2 previousUv =
-            (previousClip.xy / max(abs(previousClip.w), 1e-6)) * 0.5 + 0.5;
-
-        // За краем прошлого кадра истории нет: там раскрытие, а не движение.
-        float2 inside = step(0.0, previousUv) * step(previousUv, 1.0);
-        float valid = inside.x * inside.y;
-
-        float3 history =
-            _HistoryTex.SampleLevel(sampler_LinearClamp, previousUv, 0).rgb / paperWhite;
-#if defined(HDR_COLORSPACE_CONVERSION)
-        history = RotateOutputSpaceToRec709(history);
-#endif
-        float temporalDifference = Luminance(abs(color - history));
-        float motionWeight = saturate(temporalDifference * 4.0) *
-            saturate(_MotionBlurHistory) * 0.5 * valid;
-        color = lerp(color, history, motionWeight);
     }
 
     // ------------------------------------------------------------------

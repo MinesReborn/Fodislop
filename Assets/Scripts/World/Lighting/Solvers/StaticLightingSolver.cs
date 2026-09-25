@@ -80,6 +80,34 @@ internal sealed class StaticLightingSolver
         if (useDependencyMask)
         {
             _resources.DirtyRegions!.SetData(dirtyFieldRegions);
+            // The solve only dispatches a tight probe rect. A near tier can
+            // still read any far-tier changed flag, so flags outside that rect
+            // must be zero for this solve rather than left over from an older
+            // edit (or uninitialized after a full solve).
+            int maskCount = _resources.CascadeChangedMask!.count;
+            int maskGroups = Mathf.CeilToInt(maskCount / 64f);
+            int maskGroupsX = Mathf.Min(MaximumDispatchGroupsPerDimension, maskGroups);
+            ComputeShader maskCompute = _resources.LightingCompute!;
+            int clearMaskKernel = _resources.ClearCascadeChangedMaskKernel;
+            commandBuffer.SetComputeBufferParam(
+                maskCompute,
+                clearMaskKernel,
+                LightingComputeBinder.CascadeChangedMaskID,
+                _resources.CascadeChangedMask);
+            commandBuffer.SetComputeIntParam(
+                maskCompute,
+                LightingComputeBinder.CascadeChangedMaskCountID,
+                maskCount);
+            commandBuffer.SetComputeIntParam(
+                maskCompute,
+                LightingComputeBinder.CascadeDispatchRowWidthID,
+                maskGroupsX * 64);
+            commandBuffer.DispatchCompute(
+                maskCompute,
+                clearMaskKernel,
+                maskGroupsX,
+                Mathf.CeilToInt(maskGroups / (float)maskGroupsX),
+                1);
         }
 
         if (scrollDeltas != null)

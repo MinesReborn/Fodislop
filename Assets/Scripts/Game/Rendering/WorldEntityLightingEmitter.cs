@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using Kern.Core;
-using Kern.World.Lighting;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -67,7 +66,22 @@ namespace Kern.Game
             }
         }
 
-        public void RenderFields(CommandBuffer commandBuffer, in LightingFieldContext context)
+        public void RenderMaterialEmissionFields(
+            CommandBuffer commandBuffer,
+            in Kern.Core.Interfaces.WorldLighting.LightingMaterialEmissionContext context) =>
+            RenderField(commandBuffer);
+
+        public void RenderAmbientOcclusionField(
+            CommandBuffer commandBuffer,
+            in Kern.Core.Interfaces.WorldLighting.LightingAmbientOcclusionContext context)
+        {
+            // This contributor contains emission-only sprites. Its material
+            // pass writes zero physical occupancy, so drawing it into the AO
+            // target only rebuilds the mesh and issues an MRT pass against a
+            // single render target.
+        }
+
+        private void RenderField(CommandBuffer commandBuffer)
         {
             Material? batchMaterial = _batchMaterial();
             if (batchMaterial == null)

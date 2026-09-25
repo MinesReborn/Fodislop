@@ -1,5 +1,6 @@
 #pragma kernel SolveCascade
 #pragma kernel ScrollRadianceAtlas
+#pragma kernel ClearCascadeChangedMask
 #pragma kernel ResolveDirect
 #pragma kernel ResolveTransmissionDebug
 #pragma kernel SolveDynamicLighting
@@ -8,6 +9,7 @@
 #pragma kernel ClearDynamicDirect
 #pragma kernel CompositeLighting
 #pragma kernel BuildCellSolidMask
+#pragma kernel BuildSurfaceAirCache
 
 #pragma target 5.0
 
@@ -74,11 +76,14 @@ RWTexture2D<float4> _Result;
 
 Texture2D<float4> _CellSolidMask;
 RWTexture2D<float4> _CellSolidMaskOutput;
+Texture2D<float4> _SurfaceAirCache;
+RWTexture2D<float4> _SurfaceAirCacheOutput;
 
 RWStructuredBuffer<uint> _LightingCounters;
 int _LightingCountersEnabled;
 StructuredBuffer<int4> _DirtyRegions;
 RWStructuredBuffer<uint> _CascadeChangedMask;
+int _CascadeChangedMaskCount;
 int _DirtyRegionCount;
 int _CascadeMaskEnabled;
 
@@ -102,7 +107,7 @@ int2 _ComposeOrigin;
 int2 _ComposeSize;
 
 int2 _DynamicPolarSize;
-int _DynamicPolarPoint;
+int2 _DynamicPolarTextureSize;
 RWTexture2D<float4> _DynamicPolar;
 Texture2D<float4> _DynamicPolarInput;
 
@@ -132,13 +137,25 @@ int _DebugView;
 int _MaterialYFlip;
 int _EnableBilinearFix;
 
-// PerBlock quality tier: when nonzero, ResolveDirect samples the radiance atlas
-// at the field pixel nearest each world cell's center instead of the dispatch
-// thread's own pixel, so every pixel inside one cell reads the identical
-// resolved value - flat per-block shading instead of PerPixel's smooth per-texel
-// gradient. Reuses the same cascade solve and atlas; only the read position for
-// the final resolve changes.
-int _BlockAveraged;
+// Плечо отражения поверхности и параметры динамического света: значения живут
+// в VisualTuning.cs, объявляются здесь и приходят из LightingComputeBinder.
+float _SurfaceReflectionReachCells;
+float _DynamicNearCells;
+int _DynamicAngularSampleCount;
+
+// Плотность эмиттера по оси: число точек сетки на сторону фонаря. Авторское
+// значение живёт в VisualTuning.cs.
+int _DynamicEmitterPointsPerAxis;
+
+// Запас дальности фонаря до отсечения: в текселях поля и в клетках, плюс
+// маржа входа источника в полярном веере. Авторские значения в VisualTuning.cs.
+float _DynamicReachSlackTexels;
+float _DynamicReachSlackCells;
+float _DynamicPolarMargin;
+
+// Пороги solidity поля материала: авторские значения в VisualTuning.cs.
+float _SolidOccupancyThreshold;
+float _TransportSolidThreshold;
 
 // ============================================================================
 // Cascade Parameters

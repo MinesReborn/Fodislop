@@ -22,6 +22,7 @@ internal sealed class ClientConfigLoader
     private const int ReliefRimSourceSchemaVersion = 31;
     private const int ReliefRimSchemaVersion = 32;
     private const int DistortionStyleSchemaVersion = 33;
+    private const int PresetPairSchemaVersion = 34;
 
     private readonly ClientConfigRepository _repository;
     private readonly ClientConfigValidator _validator;
@@ -117,6 +118,16 @@ internal sealed class ClientConfigLoader
         config.SchemaVersion = DistortionStyleSchemaVersion;
     }
 
+    private static void MigrateSchema33To34(ClientConfig config)
+    {
+        // Шесть ступеней (VeryLow…Ultra) и Custom схлопнуты в две: «Стандарт» и
+        // «Overdrive». Старое число ступени не читается — маппить шесть значений
+        // в две пары нечего, и все они переводятся в «Overdrive». Снимок
+        // настроек следом выравнивает ReconcileStandardPreset.
+        config.GraphicsPreset = GraphicsPreset.Overdrive;
+        config.SchemaVersion = PresetPairSchemaVersion;
+    }
+
     private static void ApplyMigrations(ClientConfig config, string sourceJson, int sourceSchemaVersion)
     {
         int schema = sourceSchemaVersion;
@@ -184,6 +195,12 @@ internal sealed class ClientConfigLoader
             schema = DistortionStyleSchemaVersion;
         }
 
+        if (schema == DistortionStyleSchemaVersion)
+        {
+            MigrateSchema33To34(config);
+            schema = PresetPairSchemaVersion;
+        }
+
         config.SchemaVersion = schema;
     }
 
@@ -215,7 +232,6 @@ internal sealed class ClientConfigLoader
             BloomEnabled = legacy.BloomEnabled,
             VignetteEnabled = legacy.VignetteEnabled,
             EigengrauEnabled = legacy.FilmGrainEnabled,
-            MotionBlurEnabled = legacy.MotionBlurEnabled,
         };
         SettingSchema.Clamp(config.Terrain);
         SettingSchema.Clamp(config.Effects);
@@ -242,28 +258,13 @@ internal sealed class ClientConfigLoader
         public bool BloomEnabled = default;
         public bool VignetteEnabled = default;
         public bool FilmGrainEnabled = default;
-        public bool MotionBlurEnabled = default;
     }
 
     private void ReconcileStandardPreset(ClientConfig config)
     {
-        if (!GraphicsQualityProfile.IsStandard(config.GraphicsPreset))
-        {
-            return;
-        }
-
-        GraphicsQualitySettings standardSettings =
-            _graphicsQualityProfile.Get(config.GraphicsPreset);
-        if (config.GraphicsQualitySettings != standardSettings)
-        {
-            config.GraphicsQualitySettings = standardSettings;
-        }
-
-        if (!SettingSchema.MatchesDefaults(config.Terrain) ||
-            !SettingSchema.MatchesDefaults(config.Effects) ||
-            !SettingSchema.MatchesDefaults(config.PostProcess))
-        {
-            config.GraphicsPreset = GraphicsPreset.Custom;
-        }
+        // Ступени неизменяемы, поэтому снимок настроек всегда авторский: правка
+        // конфига руками не переживает загрузку. Раньше здесь была ветка
+        // «настройки разошлись — перевести в Custom», но Custom больше нет.
+        config.GraphicsQualitySettings = _graphicsQualityProfile.Get(config.GraphicsPreset);
     }
 }

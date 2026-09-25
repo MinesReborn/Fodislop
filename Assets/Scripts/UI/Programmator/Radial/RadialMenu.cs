@@ -55,7 +55,7 @@ public class RadialMenu
         VisualTreeAsset template = Resources.Load<VisualTreeAsset>(
             ProjectRuntimeContracts.ResourcePaths.RadialMenuUxml) ??
             throw new InvalidOperationException(
-                "[RadialMenu] Resources/UI/RadialMenu.uxml is required.");
+                "[RadialMenu] Resources/UI/Gameplay/RadialMenu.uxml is required.");
         TemplateContainer tree = template.Instantiate();
         tree.AddToClassList("prog-radial-root");
         tree.pickingMode = PickingMode.Ignore;

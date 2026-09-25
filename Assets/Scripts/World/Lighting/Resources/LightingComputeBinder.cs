@@ -39,6 +39,20 @@ internal static class LightingComputeBinder
     public static readonly int SolidExtinctionRGBID = Shader.PropertyToID("_SolidExtinctionRGB");
     public static readonly int EmissionScaleID = Shader.PropertyToID("_EmissionScale");
     public static readonly int MaximumLightMultiplierID = Shader.PropertyToID("_MaximumLightMultiplier");
+    public static readonly int SurfaceReflectionReachID =
+        Shader.PropertyToID("_SurfaceReflectionReachCells");
+    public static readonly int DynamicNearCellsID = Shader.PropertyToID("_DynamicNearCells");
+    public static readonly int DynamicAngularSampleCountID =
+        Shader.PropertyToID("_DynamicAngularSampleCount");
+    public static readonly int DynamicEmitterPointsPerAxisID =
+        Shader.PropertyToID("_DynamicEmitterPointsPerAxis");
+    public static readonly int DynamicReachSlackTexelsID = Shader.PropertyToID("_DynamicReachSlackTexels");
+    public static readonly int DynamicReachSlackCellsID = Shader.PropertyToID("_DynamicReachSlackCells");
+    public static readonly int DynamicPolarMarginID = Shader.PropertyToID("_DynamicPolarMargin");
+    public static readonly int SolidOccupancyThresholdID =
+        Shader.PropertyToID("_SolidOccupancyThreshold");
+    public static readonly int TransportSolidThresholdID =
+        Shader.PropertyToID("_TransportSolidThreshold");
     public static readonly int CellSizeID = Shader.PropertyToID("_CellSize");
     public static readonly int TransmittanceDebugDistanceCellsID = Shader.PropertyToID("_TransmittanceDebugDistanceCells");
     public static readonly int DebugViewID = Shader.PropertyToID("_DebugView");
@@ -67,8 +81,8 @@ internal static class LightingComputeBinder
     public static readonly int DirtyRegionsID = Shader.PropertyToID("_DirtyRegions");
     public static readonly int DirtyRegionCountID = Shader.PropertyToID("_DirtyRegionCount");
     public static readonly int CascadeChangedMaskID = Shader.PropertyToID("_CascadeChangedMask");
+    public static readonly int CascadeChangedMaskCountID = Shader.PropertyToID("_CascadeChangedMaskCount");
     public static readonly int CascadeMaskEnabledID = Shader.PropertyToID("_CascadeMaskEnabled");
-    public static readonly int BlockAveragedID = Shader.PropertyToID("_BlockAveraged");
     public static readonly int DynamicLightsID = Shader.PropertyToID("_DynamicLights");
     public static readonly int DynamicReachID = Shader.PropertyToID("_DynamicReach");
     public static readonly int DynamicDispatchOriginID = Shader.PropertyToID("_DynamicDispatchOrigin");
@@ -85,11 +99,13 @@ internal static class LightingComputeBinder
     public static readonly int DynamicPolarID = Shader.PropertyToID("_DynamicPolar");
     public static readonly int DynamicPolarInputID = Shader.PropertyToID("_DynamicPolarInput");
     public static readonly int DynamicPolarSizeID = Shader.PropertyToID("_DynamicPolarSize");
-    public static readonly int DynamicPolarPointID = Shader.PropertyToID("_DynamicPolarPoint");
+    public static readonly int DynamicPolarTextureSizeID = Shader.PropertyToID("_DynamicPolarTextureSize");
 
-    // DynamicEmitterPointsPerAxis squared in WorldLighting.compute: ray fans
-    // traced per dynamic light, one band of rows each in the dynamic light ray texture.
-    public const int DynamicEmitterPointCount = 9;
+    // Квадрат плотности эмиттера: столько вееров лучей на фонарь, по полосе
+    // строк каждый в текстуре полярных лучей.
+    public const int DynamicEmitterPointCount =
+        LightingConfigHolder.DynamicEmitterPointsPerAxis *
+        LightingConfigHolder.DynamicEmitterPointsPerAxis;
 
     // Must match InvisibleDynamicRadiance in WorldLighting.compute: absolute
     // radiance below which dynamic light cannot move any display level.
@@ -97,6 +113,8 @@ internal static class LightingComputeBinder
     public static readonly int CellGridSizeID = Shader.PropertyToID("_CellGridSize");
     public static readonly int CellSolidMaskID = Shader.PropertyToID("_CellSolidMask");
     public static readonly int CellSolidMaskOutputID = Shader.PropertyToID("_CellSolidMaskOutput");
+    public static readonly int SurfaceAirCacheID = Shader.PropertyToID("_SurfaceAirCache");
+    public static readonly int SurfaceAirCacheOutputID = Shader.PropertyToID("_SurfaceAirCacheOutput");
     public static readonly int LightingCountersID = Shader.PropertyToID("_LightingCounters");
     public static readonly int LightingCountersEnabledID = Shader.PropertyToID("_LightingCountersEnabled");
 
@@ -170,7 +188,6 @@ internal static class LightingComputeBinder
         int fieldHeight,
         Vector4 worldRect,
         float cellSize,
-        LightingQualityMode qualityMode,
         LightingEngine.DebugView debugView,
         RenderTexture materialField,
         RenderTexture emissionField,
@@ -191,8 +208,44 @@ internal static class LightingComputeBinder
             AmbientColorID,
             LightingConfigHolder.AmbientColor * LightingConfigHolder.AmbientIntensity);
         BindExtinction(commandBuffer, compute);
+        commandBuffer.SetComputeFloatParam(
+            compute,
+            SolidOccupancyThresholdID,
+            LightingConfigHolder.SolidOccupancyThreshold);
+        commandBuffer.SetComputeFloatParam(
+            compute,
+            TransportSolidThresholdID,
+            LightingConfigHolder.TransportSolidThreshold);
         commandBuffer.SetComputeFloatParam(compute, EmissionScaleID, LightingConfigHolder.EmissionScale);
         commandBuffer.SetComputeFloatParam(compute, MaximumLightMultiplierID, LightingConfigHolder.MaximumLightMultiplier);
+        commandBuffer.SetComputeFloatParam(
+            compute,
+            SurfaceReflectionReachID,
+            LightingConfigHolder.SurfaceReflectionReachCells);
+        commandBuffer.SetComputeFloatParam(
+            compute,
+            DynamicNearCellsID,
+            LightingConfigHolder.DynamicNearCells);
+        commandBuffer.SetComputeIntParam(
+            compute,
+            DynamicAngularSampleCountID,
+            LightingConfigHolder.DynamicAngularSampleCount);
+        commandBuffer.SetComputeIntParam(
+            compute,
+            DynamicEmitterPointsPerAxisID,
+            LightingConfigHolder.DynamicEmitterPointsPerAxis);
+        commandBuffer.SetComputeFloatParam(
+            compute,
+            DynamicReachSlackTexelsID,
+            LightingConfigHolder.DynamicReachSlackTexels);
+        commandBuffer.SetComputeFloatParam(
+            compute,
+            DynamicReachSlackCellsID,
+            LightingConfigHolder.DynamicReachSlackCells);
+        commandBuffer.SetComputeFloatParam(
+            compute,
+            DynamicPolarMarginID,
+            LightingConfigHolder.DynamicPolarMargin);
         commandBuffer.SetComputeIntParam(compute, LightingCountersEnabledID, 0);
         commandBuffer.SetComputeFloatParam(compute, CellSizeID, cellSize);
         commandBuffer.SetComputeFloatParam(
@@ -204,12 +257,10 @@ internal static class LightingComputeBinder
             compute,
             MaterialYFlipID,
             SystemInfo.graphicsUVStartsAtTop ? 1 : 0);
-        bool bilinearFix = qualityMode == LightingQualityMode.PerPixelBilinearFix;
-        commandBuffer.SetComputeIntParam(compute, EnableBilinearFixID, bilinearFix ? 1 : 0);
         commandBuffer.SetComputeIntParam(
             compute,
-            BlockAveragedID,
-            qualityMode == LightingQualityMode.PerBlock ? 1 : 0);
+            EnableBilinearFixID,
+            LightingConfigHolder.EnableBilinearFix ? 1 : 0);
 
         BindFieldTextures(commandBuffer, compute, solveCascadeKernel, materialField, emissionField);
         BindFieldTextures(commandBuffer, compute, resolveDirectKernel, materialField, emissionField);

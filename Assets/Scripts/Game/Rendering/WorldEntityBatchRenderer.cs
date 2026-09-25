@@ -16,7 +16,7 @@ using VContainer;
 
 namespace Kern.Game
 {
-    public class WorldEntityBatchRenderer : MonoBehaviour, ILightingGeometryContributor
+    public class WorldEntityBatchRenderer : MonoBehaviour, Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor
     {
         // Matches the five-point tail used by the stable June implementation.
         public const int POINT_COUNT = 5;
@@ -34,6 +34,14 @@ namespace Kern.Game
 
         private static readonly AllocationLedger.Entry _AllocationEntry =
             AllocationLedger.Register("Сущности мира — LateUpdate");
+
+        private static readonly int _SpriteAlphaCullID =
+            Shader.PropertyToID("_SpriteAlphaCull");
+
+        private static readonly int _EmissiveFieldThresholdID =
+            Shader.PropertyToID("_EmissiveFieldThreshold");
+
+        private static bool _tuningGlobalsApplied;
 
         private readonly List<Tentacle> _tentacles = [];
         private readonly List<SpriteHandle> _sprites = [];
@@ -62,8 +70,8 @@ namespace Kern.Game
 
         // Light-emitting sprites are drawn into the lighting fields from their
         // own mesh; see WorldEntityLightingEmitter. The revision follows only
-        // their state — camera motion rebuilds the visible batch every frame
-        // and must not re-solve light.
+        // their state — camera motion may rebuild the visible batch when it
+        // leaves the cached coverage and must not re-solve light.
         private Material? _batchMaterial;
         private bool _lightingContributorRegistered;
 
@@ -219,6 +227,7 @@ namespace Kern.Game
 
         private void EnsureRenderer()
         {
+            ApplyTuningGlobals();
             if (_mesh != null)
             {
                 return;
@@ -247,6 +256,22 @@ namespace Kern.Game
                 _sceneObjects,
                 renderer.sharedMaterial,
                 OVERLAY_BATCH_SORTING_ORDER);
+        }
+
+        // Пороги отсечения одинаковы для всех материалов мира сущностей, поэтому
+        // уходят глобальными юниформами, а не в каждый материал по отдельности.
+        private static void ApplyTuningGlobals()
+        {
+            if (_tuningGlobalsApplied)
+            {
+                return;
+            }
+
+            Shader.SetGlobalFloat(_SpriteAlphaCullID, WorldRenderConfigHolder.SpriteAlphaCull);
+            Shader.SetGlobalFloat(
+                _EmissiveFieldThresholdID,
+                WorldRenderConfigHolder.EmissiveFieldThreshold);
+            _tuningGlobalsApplied = true;
         }
 
         private void EnsureTextureInAtlas(Texture2D texture)
@@ -370,14 +395,28 @@ namespace Kern.Game
             _uploadedSpriteCount = activeSpriteCount;
         }
 
-        public void RenderLightingFields(CommandBuffer commandBuffer, in LightingFieldContext context)
+        public void RenderMaterialEmissionFields(
+            CommandBuffer commandBuffer,
+            in Kern.Core.Interfaces.WorldLighting.LightingMaterialEmissionContext context)
         {
             if (_atlas == null)
             {
                 return;
             }
 
-            _lightingEmitter.RenderFields(commandBuffer, context);
+            _lightingEmitter.RenderMaterialEmissionFields(commandBuffer, context);
+        }
+
+        public void RenderAmbientOcclusionField(
+            CommandBuffer commandBuffer,
+            in Kern.Core.Interfaces.WorldLighting.LightingAmbientOcclusionContext context)
+        {
+            if (_atlas == null)
+            {
+                return;
+            }
+
+            _lightingEmitter.RenderAmbientOcclusionField(commandBuffer, context);
         }
 
         private void WriteSprites(

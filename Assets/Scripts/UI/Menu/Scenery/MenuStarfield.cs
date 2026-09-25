@@ -29,6 +29,16 @@ namespace Kern.UI
         private static readonly int _ShaderTimeID = Shader.PropertyToID("_ShaderTime");
         private static readonly int _AspectID = Shader.PropertyToID("_Aspect");
         private static readonly int _ParallaxOffsetID = Shader.PropertyToID("_ParallaxOffset");
+        private static readonly int _DensityID = Shader.PropertyToID("_Density");
+        private static readonly int _BrightnessID = Shader.PropertyToID("_Brightness");
+        private static readonly int _CoreSizeID = Shader.PropertyToID("_CoreSize");
+        private static readonly int _GlowSizeID = Shader.PropertyToID("_GlowSize");
+        private static readonly int _TwinkleAmountID = Shader.PropertyToID("_TwinkleAmount");
+        private static readonly int _TwinkleSpeedID = Shader.PropertyToID("_TwinkleSpeed");
+        private static readonly int _SkyColorID = Shader.PropertyToID("_SkyColor");
+        private static readonly int _NebulaIntensityID = Shader.PropertyToID("_NebulaIntensity");
+        private static readonly int _NebulaColor1ID = Shader.PropertyToID("_NebulaColor1");
+        private static readonly int _NebulaColor2ID = Shader.PropertyToID("_NebulaColor2");
 
         [SerializeField]
         private Material? _starfieldMaterial = null;
@@ -192,6 +202,57 @@ namespace Kern.UI
                 name = $"{_starfieldMaterial.name} (Runtime)",
                 hideFlags = HideFlags.HideAndDontSave,
             };
+            _runtimeMaterial.SetFloat(_DensityID, MenuStarfieldLook.Density);
+            _runtimeMaterial.SetFloat(_BrightnessID, MenuStarfieldLook.Brightness);
+            _runtimeMaterial.SetFloat(_CoreSizeID, MenuStarfieldLook.CoreSize);
+            _runtimeMaterial.SetFloat(_GlowSizeID, MenuStarfieldLook.GlowSize);
+            _runtimeMaterial.SetFloat(_TwinkleAmountID, MenuStarfieldLook.TwinkleAmount);
+            _runtimeMaterial.SetFloat(_TwinkleSpeedID, MenuStarfieldLook.TwinkleSpeed);
+            _runtimeMaterial.SetColor(_SkyColorID, MenuStarfieldLook.SkyColor);
+            _runtimeMaterial.SetFloat(_NebulaIntensityID, MenuStarfieldLook.NebulaIntensity);
+            _runtimeMaterial.SetColor(_NebulaColor1ID, MenuStarfieldLook.NebulaColor1);
+            _runtimeMaterial.SetColor(_NebulaColor2ID, MenuStarfieldLook.NebulaColor2);
+            _runtimeMaterial.SetFloat("_NebulaFbmStartAmplitude", MenuStarfieldLook.NebulaFbmStartAmplitude);
+            _runtimeMaterial.SetFloat("_NebulaFbmFrequencyScale", MenuStarfieldLook.NebulaFbmFrequencyScale);
+            _runtimeMaterial.SetFloat("_NebulaFbmAmplitudeDecay", MenuStarfieldLook.NebulaFbmAmplitudeDecay);
+            _runtimeMaterial.SetInt("_NebulaFbmOctaves", MenuStarfieldLook.NebulaFbmOctaves);
+            _runtimeMaterial.SetFloat("_NebulaCoordinateScale", MenuStarfieldLook.NebulaCoordinateScale);
+            _runtimeMaterial.SetVector("_NebulaFbmShift", MenuStarfieldLook.NebulaFbmShift);
+            _runtimeMaterial.SetVector("_NebulaWarpOffset", MenuStarfieldLook.NebulaWarpOffset);
+            _runtimeMaterial.SetFloat("_NebulaWarpStrength", MenuStarfieldLook.NebulaWarpStrength);
+            _runtimeMaterial.SetFloat("_NebulaDustThresholdStart", MenuStarfieldLook.NebulaDustThresholdStart);
+            _runtimeMaterial.SetFloat("_NebulaDustThresholdEnd", MenuStarfieldLook.NebulaDustThresholdEnd);
+            _runtimeMaterial.SetFloat("_NebulaGasThresholdStart", MenuStarfieldLook.NebulaGasThresholdStart);
+            _runtimeMaterial.SetFloat("_NebulaGasThresholdEnd", MenuStarfieldLook.NebulaGasThresholdEnd);
+            _runtimeMaterial.SetFloat("_NebulaGasContrast", MenuStarfieldLook.NebulaGasContrast);
+            _runtimeMaterial.SetFloat("_NebulaGasMix", MenuStarfieldLook.NebulaGasMix);
+            _runtimeMaterial.SetFloat("_StarPresenceThreshold", MenuStarfieldLook.StarPresenceThreshold);
+            _runtimeMaterial.SetFloat("_StarMagnitudePower", MenuStarfieldLook.StarMagnitudePower);
+            _runtimeMaterial.SetFloat("_StarMinimumRadiusScale", MenuStarfieldLook.StarMinimumRadiusScale);
+            _runtimeMaterial.SetFloat("_StarMagnitudeRadiusScale", MenuStarfieldLook.StarMagnitudeRadiusScale);
+            _runtimeMaterial.SetFloat("_StarWingDistanceScale", MenuStarfieldLook.StarWingDistanceScale);
+            _runtimeMaterial.SetFloat("_StarWingMix", MenuStarfieldLook.StarWingMix);
+            _runtimeMaterial.SetFloat("_StarRateMinimum", MenuStarfieldLook.StarRateMinimum);
+            _runtimeMaterial.SetFloat("_StarRateRange", MenuStarfieldLook.StarRateRange);
+            _runtimeMaterial.SetFloat("_StarSensorBreathingAmplitude", MenuStarfieldLook.StarSensorBreathingAmplitude);
+            _runtimeMaterial.SetFloat("_StarMagnitudeFloor", MenuStarfieldLook.StarMagnitudeFloor);
+            _runtimeMaterial.SetFloat("_StarPresenceHashOffset", MenuStarfieldLook.StarPresenceHashOffset);
+            _runtimeMaterial.SetFloat("_StarMagnitudeHashOffset", MenuStarfieldLook.StarMagnitudeHashOffset);
+            _runtimeMaterial.SetFloat("_StarPhaseHashOffset", MenuStarfieldLook.StarPhaseHashOffset);
+            _runtimeMaterial.SetFloat("_StarRateHashOffset", MenuStarfieldLook.StarRateHashOffset);
+            _runtimeMaterial.SetFloat("_StarColorHashOffset", MenuStarfieldLook.StarColorHashOffset);
+            _runtimeMaterial.SetFloat("_SecondaryStarDensityScale", MenuStarfieldLook.SecondaryStarDensityScale);
+            _runtimeMaterial.SetFloat("_SecondaryStarSizeScale", MenuStarfieldLook.SecondaryStarSizeScale);
+            _runtimeMaterial.SetFloat("_SecondaryStarSeed", MenuStarfieldLook.SecondaryStarSeed);
+            _runtimeMaterial.SetFloat("_SecondaryStarBrightness", MenuStarfieldLook.SecondaryStarBrightness);
+            _runtimeMaterial.SetVector("_StarColorBlue", MenuStarfieldLook.StarColorBlue);
+            _runtimeMaterial.SetVector("_StarColorWhite", MenuStarfieldLook.StarColorWhite);
+            _runtimeMaterial.SetVector("_StarColorYellow", MenuStarfieldLook.StarColorYellow);
+            _runtimeMaterial.SetVector("_StarColorOrange", MenuStarfieldLook.StarColorOrange);
+            _runtimeMaterial.SetVector("_StarColorRed", MenuStarfieldLook.StarColorRed);
+            _runtimeMaterial.SetFloat("_StarColorBlueEnd", MenuStarfieldLook.StarColorBlueEnd);
+            _runtimeMaterial.SetFloat("_StarColorYellowEnd", MenuStarfieldLook.StarColorYellowEnd);
+            _runtimeMaterial.SetFloat("_StarColorOrangeEnd", MenuStarfieldLook.StarColorOrangeEnd);
             _runtimeMaterialSource = _starfieldMaterial;
         }
 

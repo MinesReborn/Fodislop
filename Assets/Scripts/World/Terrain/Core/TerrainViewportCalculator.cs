@@ -168,7 +168,8 @@ public sealed class TerrainViewportCalculator
         bool isRequestedResident,
         bool requestedDimensionsChanged,
         bool cellsCommitted,
-        bool cpuBuildInFlight)
+        bool cpuBuildInFlight,
+        bool holdingPublishedView)
     {
         if (cpuBuildInFlight && !cellsCommitted)
         {
@@ -205,20 +206,25 @@ public sealed class TerrainViewportCalculator
             // без обработки свет не ставится никогда, меш показа тоже, и
             // экран остаётся чёрным, пока запрос не станет резидентным.
             // Свет ставится по кадру камеры внутри опубликованного окна.
-            if (retainedLightingViewport.width <= 0 || retainedLightingViewport.height <= 0)
+            RectInt lightingViewport = TerrainLightingViewportPolicy.ResolveLightingViewport(
+                cameraViewport,
+                retainedLightingViewport,
+                holdingPublishedView);
+            if (lightingViewport.width <= 0 || lightingViewport.height <= 0)
             {
-                retainedLightingViewport = ClampInto(cameraViewport, committedWindow);
+                lightingViewport = ClampInto(cameraViewport, committedWindow);
             }
 
             // Keep processing the committed window, including dirty terrain
-            // and the dynamic light's exact position. A pending streaming request must
-            // neither resize its resources nor reanchor lighting onto it.
+            // and the dynamic light's exact position. Lighting follows the real
+            // camera while a build is pending; only a held presentation retains
+            // its previously committed lighting viewport.
             return new TerrainFramePlan(
                 requestedWindow,
                 committedWindow,
                 committedWindow,
                 cameraViewport,
-                retainedLightingViewport,
+                lightingViewport,
                 DimensionsChanged: false,
                 ShouldProcess: true);
         }

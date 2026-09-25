@@ -38,7 +38,7 @@
 - [TerrainVertexDistortionCalculator.cs](Assets/Scripts/World/Terrain/Mesh/TerrainVertexDistortionCalculator.cs): `IsCause`, `IsBlock` по серверному `Distortion`.
 - [CellVisualProtocol.cs](Assets/Scripts/World/Storage/CellVisualProtocol.cs): четыре набора типов.
 - [TerrainSheetCatalog.cs](Assets/Scripts/World/Terrain/Mesh/TerrainSheetCatalog.cs): выбор непрерывного листа.
-- [TerrainSampling.hlsl](Assets/Shaders/TerrainSampling.hlsl): фактическая адресация текстуры.
+- [TerrainSampling.hlsl](Assets/Shaders/Terrain/TerrainSampling.hlsl): фактическая адресация текстуры.
 
 Участие в смещении общих узлов определяет серверный `Distortion`:
 
@@ -75,7 +75,7 @@ packet.ReliefGroup
   → отладочные виды рельефа
 ```
 
-В [Terrain.shader](Assets/Shaders/Terrain.shader) обычный проход больше не умножает альбедо на кайму. Единственный вызов `TerrainReliefRim(surface)` находится в [TerrainDebugView.hlsl](Assets/Shaders/TerrainDebugView.hlsl). Декодирование `reliefCode` обслуживает эту функцию и отладочные виды чужих сторон/кода рельефа. В производственном освещении другого потребителя найдено не было.
+В [Terrain.shader](Assets/Shaders/Terrain/Terrain.shader) обычный проход больше не умножает альбедо на кайму. Единственный вызов `TerrainReliefRim(surface)` находится в [TerrainDebugView.hlsl](Assets/Shaders/Terrain/TerrainDebugView.hlsl). Декодирование `reliefCode` обслуживает эту функцию и отладочные виды чужих сторон/кода рельефа. В производственном освещении другого потребителя найдено не было.
 
 Следовательно, расчёт и транспорт рельефа — кандидат на удаление вместе с соответствующей диагностикой. Это отдельное изменение функциональности отладчика, а не полностью неиспользуемый код. Альтернатива при сохранении диагностики — вынести расчёт в её собственный путь с корректным обновлением данных при включении вида.
 
@@ -116,7 +116,7 @@ packet.ReliefGroup
 
 ## 5. Дубли и неиспользуемые биты в данных GPU
 
-Источники: [TerrainLightingData.cs](Assets/Scripts/World/Terrain/Mesh/TerrainLightingData.cs), [TerrainLightingData.hlsl](Assets/Shaders/TerrainLightingData.hlsl), [TerrainContour.hlsl](Assets/Shaders/TerrainContour.hlsl).
+Источники: [TerrainLightingData.cs](Assets/Scripts/World/Terrain/Mesh/TerrainLightingData.cs), [TerrainLightingData.hlsl](Assets/Shaders/Terrain/TerrainLightingData.hlsl), [TerrainContour.hlsl](Assets/Shaders/Terrain/TerrainContour.hlsl).
 
 - Скругление пишется в `RoundedPhysicalContour` внутри `PackedFlags` и в `RoundableContourFlag` внутри `PackedContour`. Производственный контур читает второй вариант. У `KernTerrainHasRoundedPhysicalContour` вызовов не найдено.
 - Свечение повторно пишется в `GlowingContourFlag` — бит 0 `PackedContour`. Читателя этого бита не найдено; действующая эмиссия читает `Emissive` из `PackedFlags`.
@@ -159,7 +159,7 @@ packet.ReliefGroup
 
 ## 8. Анимация и текстурная разметка
 
-Источники: [TerrainAnimationProfile.cs](Assets/Scripts/World/Terrain/Mesh/TerrainAnimationProfile.cs), [TerrainColorAnimation.hlsl](Assets/Shaders/TerrainColorAnimation.hlsl), [WorldTextureManager.cs](Assets/Scripts/World/Textures/WorldTextureManager.cs).
+Источники: [TerrainAnimationProfile.cs](Assets/Scripts/World/Terrain/Mesh/TerrainAnimationProfile.cs), [TerrainColorAnimation.hlsl](Assets/Shaders/Terrain/TerrainColorAnimation.hlsl), [WorldTextureManager.cs](Assets/Scripts/World/Textures/WorldTextureManager.cs).
 
 Специальные клиентские профили выбирают собственный эффект и скорость для пяти X-кристаллов, Lava и шести обычных кристаллов. В выборе цветового эффекта они приоритетнее packet.Animation. Это кандидат на одно итоговое описание эффекта вместо передачи двух конкурирующих классификаторов.
 

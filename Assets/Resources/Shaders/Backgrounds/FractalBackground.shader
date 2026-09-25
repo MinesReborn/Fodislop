@@ -5,6 +5,7 @@ Shader "Kern/Backgrounds/FractalBackground"
         _Speed ("Speed", Float) = 1.0
         [HDR] _ColorTint ("Color Tint", Color) = (1, 1, 1, 1)
         [IntRange] _Iterations ("Iterations", Range(10, 99)) = 50
+        _FoldFrequency ("Fold Frequency", Float) = 32
     }
 
     SubShader
@@ -45,6 +46,7 @@ Shader "Kern/Backgrounds/FractalBackground"
                 float _Speed;
                 float4 _ColorTint;
                 int _Iterations;
+                float _FoldFrequency;
             CBUFFER_END
 
             Varyings vert(Attributes input)
@@ -75,15 +77,13 @@ Shader "Kern/Backgrounds/FractalBackground"
                 // Раньше здесь крутился цикл `d = 1; повторить пять раз d += d`.
                 // Он не зависит ни от чего и всегда даёт 32 — то есть двести
                 // пятьдесят сложений на пиксель ради константы.
-                const float foldFrequency = 32.0;
-
                 for (int iter = 0; iter < _Iterations; iter++)
                 {
                     float3 p = z * rayDirection;
 
                     p.z -= time;
 
-                    p += sin(p * foldFrequency + p.z * foldFrequency) / foldFrequency;
+                    p += sin(p * _FoldFrequency + p.z * _FoldFrequency) / _FoldFrequency;
 
                     float2 offset = float2(0, 2);
                     d = 0.1 * length(1.0 + p.xy * sin(p.z + offset));

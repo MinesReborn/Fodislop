@@ -1,0 +1,309 @@
+Kern Architecture Linter v1.0.0
+Project root: /Users/murasama/Projects/games/Fodislop
+Assemblies: 15
+Rules: 54
+
+Loaded 15 assemblies successfully.
+
+Running rule KERN-ART-ASSET (Art paths referenced from code must exist)... OK
+Running rule KERN-ART-METRIC (Art family metric and state set consistency)... OK
+Running rule KERN-ASSEMBLY-GRAPH (Assembly graph and namespace visibility)... OK
+Running rule KERN-ASYNC-VOID (async void methods outside event handlers in MonoBehaviours)... OK
+Running rule KERN-BLOCK-NAMESPACE (Unity-inheriting types must use block namespace (not file-scoped))... OK
+Running rule KERN-COMPOSITION-ROOT-SCAN (Composition root scene scan prohibition)... OK
+Running rule KERN-COMPUTE-KERNEL (Compute shader kernel function definition checks)... OK
+Running rule KERN-CONFIGURE-REENTRANCY (Configure reentrancy validation)... OK
+Running rule KERN-CONTAINER-CONSTRUCTOR (VContainer constructor choice validation)... OK
+Running rule KERN-DEAD-MEMBERS (Dead member detection)... 6 violation(s)
+Running rule KERN-DEP-CYCLE (Dependency cycle detection between Kern assemblies)... OK
+Running rule KERN-DESIGN-SYSTEM-DEBT (Design system debt ceiling enforcement)... OK
+Running rule KERN-DISPLAY-TRANSFORM (Display transform shader and Render Graph invariants)... OK
+Running rule KERN-EARLY-LIFECYCLE-DI (Early lifecycle DI access validation)... OK
+Running rule KERN-EDITOR-SCENE-AUTHORING (Editor scene authoring contract validation)... OK
+Running rule KERN-EXECUTION-ORDER (DefaultExecutionOrder contract validation)... OK
+Running rule KERN-FORBIDDEN-API (Forbidden API usage detection)... OK
+Running rule KERN-GAME-BOOTSTRAP-DEPENDENCY (GameBootstrap startup dependency contract)... OK
+Running rule KERN-HARDCODED-TEXT (Hardcoded text detection)... OK
+Running rule KERN-INJECT-ATTRIBUTE ([Inject] attribute usage validation)... OK
+Running rule KERN-LIFECYCLE-SELF-CALL (Lifecycle methods must not call themselves)... OK
+Running rule KERN-LIGHTING-SETTER-INVALIDATION (LightingEngine setter invalidation validation)... OK
+Running rule KERN-LOCALIZATION (Localization parity and wiring checks)... 202 violation(s)
+Running rule KERN-LOCALIZATION-REGISTRY (Localization registry validation)... OK
+Running rule KERN-LOCALIZATION-WIRING (Localization wiring validation)... OK
+Running rule KERN-MONO-ACCESS (MonoBehaviour lifecycle method accessibility)... OK
+Running rule KERN-NAMING (Naming convention validation)... OK
+Running rule KERN-ONE-ROAD-INIT (Single-road view initialization enforcement)... OK
+Running rule KERN-OVERSIZED-FILE (Oversized production file detection)... 12 violation(s)
+Running rule KERN-PACKET-SUBSCRIPTION (Packet subscription symmetry)... OK
+Running rule KERN-PATTERN (Forbidden architectural pattern detection)... 7 violation(s)
+Running rule KERN-PERSISTENT-CACHE (Persistent cache contract validation)... OK
+Running rule KERN-POSTPROCESS-RUNTIME (Post-process and IMGUI runtime lifecycle contracts)... OK
+Running rule KERN-RENDER-PASS-INVARIANT (Render pass invariant validation)... OK
+Running rule KERN-RESOURCE-PATHS (ResourcePaths validation)... OK
+Running rule KERN-SCENE-CONTRACT (Serialized scene contract validation)... OK
+Running rule KERN-SCENE-READINESS (Scene readiness contract validation)... OK
+Running rule KERN-SCENE-SCOPE-INJECTION (Scene scope injection validation)... OK
+Running rule KERN-SCRIPT-META (Script meta GUID integrity)... OK
+Running rule KERN-SETTING-CONSUMER-TARGET (SettingConsumer target validation)... OK
+Running rule KERN-SETTINGS-EMPTY (Empty settings sections with live wiring)... OK
+Running rule KERN-SETTINGS-PROBE (Settings validation probe (defaults, clamps, ranges, buses))... — значения по умолчанию проходят собственную валидацию
+— свежая секция опознаётся как авторская
+— кламп приводит запредельные значения к допустимым
+— объявленные границы осмысленны
+— каждая аудио-шина связана с путём и с полем громкости
+— у показываемых значений перечислений есть подписи
+— ключи подписей существуют в локализации
+— у технических настроек графики объявлены диапазоны
+— каждое поле настройки декларирует потребителя и механизм
+— изменение каждого поля настройки сбрасывает статус авторских значений
+— проверка мутации профилей качества графики и цикла смены MSAA
+— рефлексия всех констант и свойств PostProcessLook
+— глубокая проверка рефлексией потребителей настроек [SettingConsumer]
+— режимы выборки, привязка к сетке и целократный масштаб рендера
+OK
+Running rule KERN-SETTINGS-WIRING (Settings wiring and dead field detection)... OK
+Running rule KERN-SHADER-COLOR (Shader color library include checks)... OK
+Running rule KERN-SHADER-DEAD-UNIFORM (Shader globals declared but never read)... OK
+Running rule KERN-SHADER-INCLUDE (Shader and compute include target existence)... OK
+Running rule KERN-SILENT-UI-NOOP (Silent UI no-op detection)... 1 violation(s)
+Running rule KERN-SWITCH-DEFAULT (Switch statements with 3+ cases must have default)... OK
+Running rule KERN-TERRAIN-LIGHTING-BOUNDARY (Terrain and Lighting implementation boundary)... OK
+Running rule KERN-TRANSITION-STATE (Scene transition state contract validation)... OK
+Running rule KERN-UI-BOUND-SETTINGS (UI settings bound control validation)... OK
+Running rule KERN-UI-TRANSITION-GUARD (UI transition guard validation)... OK
+Running rule KERN-UNITY-NAMESPACE (Unity types must use block namespace)... OK
+Running rule KERN-USS-STYLESHEET (USS stylesheet validation)... OK
+
+Total violations: 228
+
+209 Error(s):
+  KERN-LOCALIZATION: Dead key 'assetload.title' declared but never used in production code. [Assets/Resources/Localization!assetload.title]
+  KERN-LOCALIZATION: Dead key 'common.create' declared but never used in production code. [Assets/Resources/Localization!common.create]
+  KERN-LOCALIZATION: Dead key 'gateway.auth.confirm_password_field' declared but never used in production code. [Assets/Resources/Localization!gateway.auth.confirm_password_field]
+  KERN-LOCALIZATION: Dead key 'gateway.auth.eula_accept' declared but never used in production code. [Assets/Resources/Localization!gateway.auth.eula_accept]
+  KERN-LOCALIZATION: Dead key 'gateway.auth.eula_line1' declared but never used in production code. [Assets/Resources/Localization!gateway.auth.eula_line1]
+  KERN-LOCALIZATION: Dead key 'gateway.auth.eula_line2' declared but never used in production code. [Assets/Resources/Localization!gateway.auth.eula_line2]
+  KERN-LOCALIZATION: Dead key 'gateway.auth.eula_line3' declared but never used in production code. [Assets/Resources/Localization!gateway.auth.eula_line3]
+  KERN-LOCALIZATION: Dead key 'gateway.auth.eula_title' declared but never used in production code. [Assets/Resources/Localization!gateway.auth.eula_title]
+  KERN-LOCALIZATION: Dead key 'gateway.auth.login_field' declared but never used in production code. [Assets/Resources/Localization!gateway.auth.login_field]
+  KERN-LOCALIZATION: Dead key 'gateway.auth.login_tab' declared but never used in production code. [Assets/Resources/Localization!gateway.auth.login_tab]
+  KERN-LOCALIZATION: Dead key 'gateway.auth.new_callsign_field' declared but never used in production code. [Assets/Resources/Localization!gateway.auth.new_callsign_field]
+  KERN-LOCALIZATION: Dead key 'gateway.auth.offline' declared but never used in production code. [Assets/Resources/Localization!gateway.auth.offline]
+  KERN-LOCALIZATION: Dead key 'gateway.auth.password_field' declared but never used in production code. [Assets/Resources/Localization!gateway.auth.password_field]
+  KERN-LOCALIZATION: Dead key 'gateway.auth.recover' declared but never used in production code. [Assets/Resources/Localization!gateway.auth.recover]
+  KERN-LOCALIZATION: Dead key 'gateway.auth.register_tab' declared but never used in production code. [Assets/Resources/Localization!gateway.auth.register_tab]
+  KERN-LOCALIZATION: Dead key 'gateway.auth.remember' declared but never used in production code. [Assets/Resources/Localization!gateway.auth.remember]
+  KERN-LOCALIZATION: Dead key 'gateway.auth.submit' declared but never used in production code. [Assets/Resources/Localization!gateway.auth.submit]
+  KERN-LOCALIZATION: Dead key 'gateway.auth.vk' declared but never used in production code. [Assets/Resources/Localization!gateway.auth.vk]
+  KERN-LOCALIZATION: Dead key 'gateway.auth.vk_or' declared but never used in production code. [Assets/Resources/Localization!gateway.auth.vk_or]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.colorblind_hint' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.colorblind_hint]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.controls_scheme_hint' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.controls_scheme_hint]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.eyebrow' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.eyebrow]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.flicker_hint' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.flicker_hint]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.flicker_label' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.flicker_label]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.fps_hint' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.fps_hint]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.fps_label' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.fps_label]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.lighting_hint' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.lighting_hint]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.lighting_label' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.lighting_label]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.master_volume_hint' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.master_volume_hint]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.master_volume_label' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.master_volume_label]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.mute_hint' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.mute_hint]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.mute_label' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.mute_label]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.pill1' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.pill1]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.pill2' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.pill2]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.pill3' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.pill3]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.prev' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.prev]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.skip' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.skip]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.step1_block_title' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.step1_block_title]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.step2_block_title' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.step2_block_title]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.step3_block_title' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.step3_block_title]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.ui_scale_hint' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.ui_scale_hint]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.ui_scale_label' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.ui_scale_label]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.vsync_hint' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.vsync_hint]
+  KERN-LOCALIZATION: Dead key 'gateway.onb.vsync_label' declared but never used in production code. [Assets/Resources/Localization!gateway.onb.vsync_label]
+  KERN-LOCALIZATION: Dead key 'hud.back' declared but never used in production code. [Assets/Resources/Localization!hud.back]
+  KERN-LOCALIZATION: Dead key 'hud.bonus' declared but never used in production code. [Assets/Resources/Localization!hud.bonus]
+  KERN-LOCALIZATION: Dead key 'hud.bonus.claim' declared but never used in production code. [Assets/Resources/Localization!hud.bonus.claim]
+  KERN-LOCALIZATION: Dead key 'hud.buildings' declared but never used in production code. [Assets/Resources/Localization!hud.buildings]
+  KERN-LOCALIZATION: Dead key 'hud.chat' declared but never used in production code. [Assets/Resources/Localization!hud.chat]
+  KERN-LOCALIZATION: Dead key 'hud.close' declared but never used in production code. [Assets/Resources/Localization!hud.close]
+  KERN-LOCALIZATION: Dead key 'hud.mission_badge' declared but never used in production code. [Assets/Resources/Localization!hud.mission_badge]
+  KERN-LOCALIZATION: Dead key 'hud.ok' declared but never used in production code. [Assets/Resources/Localization!hud.ok]
+  KERN-LOCALIZATION: Dead key 'hud.respawn' declared but never used in production code. [Assets/Resources/Localization!hud.respawn]
+  KERN-LOCALIZATION: Dead key 'hud.world_map' declared but never used in production code. [Assets/Resources/Localization!hud.world_map]
+  KERN-LOCALIZATION: Dead key 'inventory.material' declared but never used in production code. [Assets/Resources/Localization!inventory.material]
+  KERN-LOCALIZATION: Dead key 'mainmenu.avatar_letter' declared but never used in production code. [Assets/Resources/Localization!mainmenu.avatar_letter]
+  KERN-LOCALIZATION: Dead key 'mainmenu.below_surface' declared but never used in production code. [Assets/Resources/Localization!mainmenu.below_surface]
+  KERN-LOCALIZATION: Dead key 'mainmenu.brand_sub' declared but never used in production code. [Assets/Resources/Localization!mainmenu.brand_sub]
+  KERN-LOCALIZATION: Dead key 'mainmenu.chronicle' declared but never used in production code. [Assets/Resources/Localization!mainmenu.chronicle]
+  KERN-LOCALIZATION: Dead key 'mainmenu.chronicle_archive' declared but never used in production code. [Assets/Resources/Localization!mainmenu.chronicle_archive]
+  KERN-LOCALIZATION: Dead key 'mainmenu.chronicle_close' declared but never used in production code. [Assets/Resources/Localization!mainmenu.chronicle_close]
+  KERN-LOCALIZATION: Dead key 'mainmenu.chronicle_current' declared but never used in production code. [Assets/Resources/Localization!mainmenu.chronicle_current]
+  KERN-LOCALIZATION: Dead key 'mainmenu.chronicle_event_body' declared but never used in production code. [Assets/Resources/Localization!mainmenu.chronicle_event_body]
+  KERN-LOCALIZATION: Dead key 'mainmenu.chronicle_event_date' declared but never used in production code. [Assets/Resources/Localization!mainmenu.chronicle_event_date]
+  KERN-LOCALIZATION: Dead key 'mainmenu.chronicle_event_tag' declared but never used in production code. [Assets/Resources/Localization!mainmenu.chronicle_event_tag]
+  KERN-LOCALIZATION: Dead key 'mainmenu.chronicle_event_title' declared but never used in production code. [Assets/Resources/Localization!mainmenu.chronicle_event_title]
+  KERN-LOCALIZATION: Dead key 'mainmenu.chronicle_modal_title' declared but never used in production code. [Assets/Resources/Localization!mainmenu.chronicle_modal_title]
+  KERN-LOCALIZATION: Dead key 'mainmenu.chronicle_patch_body' declared but never used in production code. [Assets/Resources/Localization!mainmenu.chronicle_patch_body]
+  KERN-LOCALIZATION: Dead key 'mainmenu.chronicle_patch_date' declared but never used in production code. [Assets/Resources/Localization!mainmenu.chronicle_patch_date]
+  KERN-LOCALIZATION: Dead key 'mainmenu.chronicle_patch_tag' declared but never used in production code. [Assets/Resources/Localization!mainmenu.chronicle_patch_tag]
+  KERN-LOCALIZATION: Dead key 'mainmenu.chronicle_patch_title' declared but never used in production code. [Assets/Resources/Localization!mainmenu.chronicle_patch_title]
+  KERN-LOCALIZATION: Dead key 'mainmenu.chronicle_today' declared but never used in production code. [Assets/Resources/Localization!mainmenu.chronicle_today]
+  KERN-LOCALIZATION: Dead key 'mainmenu.chronicle_upcoming' declared but never used in production code. [Assets/Resources/Localization!mainmenu.chronicle_upcoming]
+  KERN-LOCALIZATION: Dead key 'mainmenu.chronicle_update_body' declared but never used in production code. [Assets/Resources/Localization!mainmenu.chronicle_update_body]
+  KERN-LOCALIZATION: Dead key 'mainmenu.chronicle_update_tag' declared but never used in production code. [Assets/Resources/Localization!mainmenu.chronicle_update_tag]
+  KERN-LOCALIZATION: Dead key 'mainmenu.chronicle_update_title' declared but never used in production code. [Assets/Resources/Localization!mainmenu.chronicle_update_title]
+  KERN-LOCALIZATION: Dead key 'mainmenu.fed_base' declared but never used in production code. [Assets/Resources/Localization!mainmenu.fed_base]
+  KERN-LOCALIZATION: Dead key 'mainmenu.kbd_landing' declared but never used in production code. [Assets/Resources/Localization!mainmenu.kbd_landing]
+  KERN-LOCALIZATION: Dead key 'mainmenu.kbd_menu' declared but never used in production code. [Assets/Resources/Localization!mainmenu.kbd_menu]
+  KERN-LOCALIZATION: Dead key 'mainmenu.loading_eyebrow' declared but never used in production code. [Assets/Resources/Localization!mainmenu.loading_eyebrow]
+  KERN-LOCALIZATION: Dead key 'mainmenu.loading_heading' declared but never used in production code. [Assets/Resources/Localization!mainmenu.loading_heading]
+  KERN-LOCALIZATION: Dead key 'mainmenu.loading_heading_accent' declared but never used in production code. [Assets/Resources/Localization!mainmenu.loading_heading_accent]
+  KERN-LOCALIZATION: Dead key 'mainmenu.loading_subtitle' declared but never used in production code. [Assets/Resources/Localization!mainmenu.loading_subtitle]
+  KERN-LOCALIZATION: Dead key 'mainmenu.online_count' declared but never used in production code. [Assets/Resources/Localization!mainmenu.online_count]
+  KERN-LOCALIZATION: Dead key 'mainmenu.orbit_status' declared but never used in production code. [Assets/Resources/Localization!mainmenu.orbit_status]
+  KERN-LOCALIZATION: Dead key 'mainmenu.profile_clan' declared but never used in production code. [Assets/Resources/Localization!mainmenu.profile_clan]
+  KERN-LOCALIZATION: Dead key 'mainmenu.profile_close' declared but never used in production code. [Assets/Resources/Localization!mainmenu.profile_close]
+  KERN-LOCALIZATION: Dead key 'mainmenu.profile_copy_token' declared but never used in production code. [Assets/Resources/Localization!mainmenu.profile_copy_token]
+  KERN-LOCALIZATION: Dead key 'mainmenu.profile_drill' declared but never used in production code. [Assets/Resources/Localization!mainmenu.profile_drill]
+  KERN-LOCALIZATION: Dead key 'mainmenu.profile_drill_val' declared but never used in production code. [Assets/Resources/Localization!mainmenu.profile_drill_val]
+  KERN-LOCALIZATION: Dead key 'mainmenu.profile_drone' declared but never used in production code. [Assets/Resources/Localization!mainmenu.profile_drone]
+  KERN-LOCALIZATION: Dead key 'mainmenu.profile_equipment' declared but never used in production code. [Assets/Resources/Localization!mainmenu.profile_equipment]
+  KERN-LOCALIZATION: Dead key 'mainmenu.profile_expedition_id' declared but never used in production code. [Assets/Resources/Localization!mainmenu.profile_expedition_id]
+  KERN-LOCALIZATION: Dead key 'mainmenu.profile_inventory_slots' declared but never used in production code. [Assets/Resources/Localization!mainmenu.profile_inventory_slots]
+  KERN-LOCALIZATION: Dead key 'mainmenu.profile_inventory_slots_val' declared but never used in production code. [Assets/Resources/Localization!mainmenu.profile_inventory_slots_val]
+  KERN-LOCALIZATION: Dead key 'mainmenu.profile_modal_title' declared but never used in production code. [Assets/Resources/Localization!mainmenu.profile_modal_title]
+  KERN-LOCALIZATION: Dead key 'mainmenu.profile_switch_account' declared but never used in production code. [Assets/Resources/Localization!mainmenu.profile_switch_account]
+  KERN-LOCALIZATION: Dead key 'mainmenu.profile_token_title' declared but never used in production code. [Assets/Resources/Localization!mainmenu.profile_token_title]
+  KERN-LOCALIZATION: Dead key 'mainmenu.repair_all_ok' declared but never used in production code. [Assets/Resources/Localization!mainmenu.repair_all_ok]
+  KERN-LOCALIZATION: Dead key 'mainmenu.repair_close' declared but never used in production code. [Assets/Resources/Localization!mainmenu.repair_close]
+  KERN-LOCALIZATION: Dead key 'mainmenu.repair_log1' declared but never used in production code. [Assets/Resources/Localization!mainmenu.repair_log1]
+  KERN-LOCALIZATION: Dead key 'mainmenu.repair_log2' declared but never used in production code. [Assets/Resources/Localization!mainmenu.repair_log2]
+  KERN-LOCALIZATION: Dead key 'mainmenu.repair_log3' declared but never used in production code. [Assets/Resources/Localization!mainmenu.repair_log3]
+  KERN-LOCALIZATION: Dead key 'mainmenu.repair_log4' declared but never used in production code. [Assets/Resources/Localization!mainmenu.repair_log4]
+  KERN-LOCALIZATION: Dead key 'mainmenu.repair_modal_desc' declared but never used in production code. [Assets/Resources/Localization!mainmenu.repair_modal_desc]
+  KERN-LOCALIZATION: Dead key 'mainmenu.repair_modal_title' declared but never used in production code. [Assets/Resources/Localization!mainmenu.repair_modal_title]
+  KERN-LOCALIZATION: Dead key 'mainmenu.repair_rerun' declared but never used in production code. [Assets/Resources/Localization!mainmenu.repair_rerun]
+  KERN-LOCALIZATION: Dead key 'mainmenu.rig_ready' declared but never used in production code. [Assets/Resources/Localization!mainmenu.rig_ready]
+  KERN-LOCALIZATION: Dead key 'mainmenu.route_descent' declared but never used in production code. [Assets/Resources/Localization!mainmenu.route_descent]
+  KERN-LOCALIZATION: Dead key 'mainmenu.route_orbit' declared but never used in production code. [Assets/Resources/Localization!mainmenu.route_orbit]
+  KERN-LOCALIZATION: Dead key 'mainmenu.route_surface' declared but never used in production code. [Assets/Resources/Localization!mainmenu.route_surface]
+  KERN-LOCALIZATION: Dead key 'mainmenu.server_close' declared but never used in production code. [Assets/Resources/Localization!mainmenu.server_close]
+  KERN-LOCALIZATION: Dead key 'mainmenu.server_confirm' declared but never used in production code. [Assets/Resources/Localization!mainmenu.server_confirm]
+  KERN-LOCALIZATION: Dead key 'mainmenu.server_default_depth' declared but never used in production code. [Assets/Resources/Localization!mainmenu.server_default_depth]
+  KERN-LOCALIZATION: Dead key 'mainmenu.server_depth_label' declared but never used in production code. [Assets/Resources/Localization!mainmenu.server_depth_label]
+  KERN-LOCALIZATION: Dead key 'mainmenu.server_dummy_desc' declared but never used in production code. [Assets/Resources/Localization!mainmenu.server_dummy_desc]
+  KERN-LOCALIZATION: Dead key 'mainmenu.server_eu_north' declared but never used in production code. [Assets/Resources/Localization!mainmenu.server_eu_north]
+  KERN-LOCALIZATION: Dead key 'mainmenu.server_eu_north_desc' declared but never used in production code. [Assets/Resources/Localization!mainmenu.server_eu_north_desc]
+  KERN-LOCALIZATION: Dead key 'mainmenu.server_eu_north_online' declared but never used in production code. [Assets/Resources/Localization!mainmenu.server_eu_north_online]
+  KERN-LOCALIZATION: Dead key 'mainmenu.server_eu_north_ping' declared but never used in production code. [Assets/Resources/Localization!mainmenu.server_eu_north_ping]
+  KERN-LOCALIZATION: Dead key 'mainmenu.server_hazard_high' declared but never used in production code. [Assets/Resources/Localization!mainmenu.server_hazard_high]
+  KERN-LOCALIZATION: Dead key 'mainmenu.server_hazard_label' declared but never used in production code. [Assets/Resources/Localization!mainmenu.server_hazard_label]
+  KERN-LOCALIZATION: Dead key 'mainmenu.server_modal_desc' declared but never used in production code. [Assets/Resources/Localization!mainmenu.server_modal_desc]
+  KERN-LOCALIZATION: Dead key 'mainmenu.server_modal_title' declared but never used in production code. [Assets/Resources/Localization!mainmenu.server_modal_title]
+  KERN-LOCALIZATION: Dead key 'mainmenu.server_ping_label' declared but never used in production code. [Assets/Resources/Localization!mainmenu.server_ping_label]
+  KERN-LOCALIZATION: Dead key 'mainmenu.server_seed_label' declared but never used in production code. [Assets/Resources/Localization!mainmenu.server_seed_label]
+  KERN-LOCALIZATION: Dead key 'mainmenu.server_select' declared but never used in production code. [Assets/Resources/Localization!mainmenu.server_select]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_active' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_active]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_borderless' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_borderless]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_cache' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_cache]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_cache_size' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_cache_size]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_card_display' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_card_display]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_card_keys' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_card_keys]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_card_network' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_card_network]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_hdr' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_hdr]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_key_autodig' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_key_autodig]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_key_dig' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_key_dig]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_key_move' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_key_move]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_lighting' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_lighting]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_lighting_ultra' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_lighting_ultra]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_master_volume' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_master_volume]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_modal_title' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_modal_title]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_mode' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_mode]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_protocol' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_protocol]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_save' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_save]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_sfx' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_sfx]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_spatial' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_spatial]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_tab_audio' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_tab_audio]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_tab_controls' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_tab_controls]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_tab_graphics' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_tab_graphics]
+  KERN-LOCALIZATION: Dead key 'mainmenu.settings_tab_network' declared but never used in production code. [Assets/Resources/Localization!mainmenu.settings_tab_network]
+  KERN-LOCALIZATION: Dead key 'mainmenu.start_descent' declared but never used in production code. [Assets/Resources/Localization!mainmenu.start_descent]
+  KERN-LOCALIZATION: Dead key 'mainmenu.tagline' declared but never used in production code. [Assets/Resources/Localization!mainmenu.tagline]
+  KERN-LOCALIZATION: Dead key 'mainmenu.ticker' declared but never used in production code. [Assets/Resources/Localization!mainmenu.ticker]
+  KERN-LOCALIZATION: Dead key 'mainmenu.tooltip.chronicle' declared but never used in production code. [Assets/Resources/Localization!mainmenu.tooltip.chronicle]
+  KERN-LOCALIZATION: Dead key 'mainmenu.tooltip.discord' declared but never used in production code. [Assets/Resources/Localization!mainmenu.tooltip.discord]
+  KERN-LOCALIZATION: Dead key 'mainmenu.tooltip.quit' declared but never used in production code. [Assets/Resources/Localization!mainmenu.tooltip.quit]
+  KERN-LOCALIZATION: Dead key 'mainmenu.tooltip.repair' declared but never used in production code. [Assets/Resources/Localization!mainmenu.tooltip.repair]
+  KERN-LOCALIZATION: Dead key 'mainmenu.tooltip.settings' declared but never used in production code. [Assets/Resources/Localization!mainmenu.tooltip.settings]
+  KERN-LOCALIZATION: Dead key 'mainmenu.tooltip.telegram' declared but never used in production code. [Assets/Resources/Localization!mainmenu.tooltip.telegram]
+  KERN-LOCALIZATION: Dead key 'mainmenu.tooltip.update' declared but never used in production code. [Assets/Resources/Localization!mainmenu.tooltip.update]
+  KERN-LOCALIZATION: Dead key 'mainmenu.tooltip.vk' declared but never used in production code. [Assets/Resources/Localization!mainmenu.tooltip.vk]
+  KERN-LOCALIZATION: Dead key 'mainmenu.update_banner_cta' declared but never used in production code. [Assets/Resources/Localization!mainmenu.update_banner_cta]
+  KERN-LOCALIZATION: Dead key 'mainmenu.update_banner_sub' declared but never used in production code. [Assets/Resources/Localization!mainmenu.update_banner_sub]
+  KERN-LOCALIZATION: Dead key 'mainmenu.update_banner_title' declared but never used in production code. [Assets/Resources/Localization!mainmenu.update_banner_title]
+  KERN-LOCALIZATION: Dead key 'mainmenu.update_changelog' declared but never used in production code. [Assets/Resources/Localization!mainmenu.update_changelog]
+  KERN-LOCALIZATION: Dead key 'mainmenu.update_changelog_1' declared but never used in production code. [Assets/Resources/Localization!mainmenu.update_changelog_1]
+  KERN-LOCALIZATION: Dead key 'mainmenu.update_changelog_2' declared but never used in production code. [Assets/Resources/Localization!mainmenu.update_changelog_2]
+  KERN-LOCALIZATION: Dead key 'mainmenu.update_changelog_3' declared but never used in production code. [Assets/Resources/Localization!mainmenu.update_changelog_3]
+  KERN-LOCALIZATION: Dead key 'mainmenu.update_changelog_4' declared but never used in production code. [Assets/Resources/Localization!mainmenu.update_changelog_4]
+  KERN-LOCALIZATION: Dead key 'mainmenu.update_confirm' declared but never used in production code. [Assets/Resources/Localization!mainmenu.update_confirm]
+  KERN-LOCALIZATION: Dead key 'mainmenu.update_downloading' declared but never used in production code. [Assets/Resources/Localization!mainmenu.update_downloading]
+  KERN-LOCALIZATION: Dead key 'mainmenu.update_modal_desc' declared but never used in production code. [Assets/Resources/Localization!mainmenu.update_modal_desc]
+  KERN-LOCALIZATION: Dead key 'mainmenu.update_modal_title' declared but never used in production code. [Assets/Resources/Localization!mainmenu.update_modal_title]
+  KERN-LOCALIZATION: Dead key 'mainmenu.update_offline' declared but never used in production code. [Assets/Resources/Localization!mainmenu.update_offline]
+  KERN-LOCALIZATION: Dead key 'mainmenu.update_protocol_version' declared but never used in production code. [Assets/Resources/Localization!mainmenu.update_protocol_version]
+  KERN-LOCALIZATION: Dead key 'mainmenu.user_name' declared but never used in production code. [Assets/Resources/Localization!mainmenu.user_name]
+  KERN-LOCALIZATION: Dead key 'mainmenu.user_rank' declared but never used in production code. [Assets/Resources/Localization!mainmenu.user_rank]
+  KERN-LOCALIZATION: Dead key 'mainmenu.world_waiting' declared but never used in production code. [Assets/Resources/Localization!mainmenu.world_waiting]
+  KERN-LOCALIZATION: Dead key 'programmator.create' declared but never used in production code. [Assets/Resources/Localization!programmator.create]
+  KERN-LOCALIZATION: Dead key 'programmator.list_title' declared but never used in production code. [Assets/Resources/Localization!programmator.list_title]
+  KERN-LOCALIZATION: Dead key 'programmator.new_program' declared but never used in production code. [Assets/Resources/Localization!programmator.new_program]
+  KERN-LOCALIZATION: Dead key 'settings.audio.section_desc' declared but never used in production code. [Assets/Resources/Localization!settings.audio.section_desc]
+  KERN-LOCALIZATION: Dead key 'settings.audio.section_title' declared but never used in production code. [Assets/Resources/Localization!settings.audio.section_title]
+  KERN-LOCALIZATION: Dead key 'settings.display.hdr_output' declared but never used in production code. [Assets/Resources/Localization!settings.display.hdr_output]
+  KERN-LOCALIZATION: Dead key 'settings.display.section_desc' declared but never used in production code. [Assets/Resources/Localization!settings.display.section_desc]
+  KERN-LOCALIZATION: Dead key 'settings.display.section_title' declared but never used in production code. [Assets/Resources/Localization!settings.display.section_title]
+  KERN-LOCALIZATION: Dead key 'settings.graphics.section_desc' declared but never used in production code. [Assets/Resources/Localization!settings.graphics.section_desc]
+  KERN-LOCALIZATION: Dead key 'settings.graphics.section_title' declared but never used in production code. [Assets/Resources/Localization!settings.graphics.section_title]
+  KERN-LOCALIZATION: Dead key 'settings.interface.section_desc' declared but never used in production code. [Assets/Resources/Localization!settings.interface.section_desc]
+  KERN-LOCALIZATION: Dead key 'settings.interface.section_title' declared but never used in production code. [Assets/Resources/Localization!settings.interface.section_title]
+  KERN-LOCALIZATION: Dead key 'settings.lighting.absorption' declared but never used in production code. [Assets/Resources/Localization!settings.lighting.absorption]
+  KERN-LOCALIZATION: Dead key 'settings.lighting.ambient' declared but never used in production code. [Assets/Resources/Localization!settings.lighting.ambient]
+  KERN-LOCALIZATION: Dead key 'settings.lighting.bounds' declared but never used in production code. [Assets/Resources/Localization!settings.lighting.bounds]
+  KERN-LOCALIZATION: Dead key 'settings.lighting.dynamic' declared but never used in production code. [Assets/Resources/Localization!settings.lighting.dynamic]
+  KERN-LOCALIZATION: Dead key 'settings.lighting.section_title' declared but never used in production code. [Assets/Resources/Localization!settings.lighting.section_title]
+  KERN-LOCALIZATION: Dead key 'settings.post_process.camera_color' declared but never used in production code. [Assets/Resources/Localization!settings.post_process.camera_color]
+  KERN-LOCALIZATION: Dead key 'settings.post_process.glow' declared but never used in production code. [Assets/Resources/Localization!settings.post_process.glow]
+  KERN-LOCALIZATION: Dead key 'settings.post_process.section_desc' declared but never used in production code. [Assets/Resources/Localization!settings.post_process.section_desc]
+  KERN-LOCALIZATION: Dead key 'settings.post_process.section_title' declared but never used in production code. [Assets/Resources/Localization!settings.post_process.section_title]
+  KERN-LOCALIZATION: Dead key 'settings.world.section_desc' declared but never used in production code. [Assets/Resources/Localization!settings.world.section_desc]
+  KERN-LOCALIZATION: Dead key 'settings.world.section_title' declared but never used in production code. [Assets/Resources/Localization!settings.world.section_title]
+  KERN-PATTERN: DontDestroyOnLoad outside BootstrapLifetimeScope [Assets/Scripts/Core/Bootstrap/Scopes/BootstrapLifetimeScope.cs!Assets/Scripts/Core/Bootstrap/Scopes/BootstrapLifetimeScope.cs]
+  KERN-PATTERN: DI fallback resolution (use required constructor/explicit dependency) [Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs!Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs]
+  KERN-PATTERN: DI fallback resolution (use required constructor/explicit dependency) [Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs!Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs]
+  KERN-PATTERN: DI fallback resolution (use required constructor/explicit dependency) [Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs!Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs]
+  KERN-PATTERN: DI fallback resolution (use required constructor/explicit dependency) [Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs!Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs]
+  KERN-PATTERN: DI fallback resolution (use required constructor/explicit dependency) [Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs!Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs]
+  KERN-PATTERN: DI fallback resolution (use required constructor/explicit dependency) [Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs!Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs]
+
+19 Warning(s):
+  KERN-OVERSIZED-FILE: 509 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/Game/Audio/ServerAudioEvent.cs]
+  KERN-OVERSIZED-FILE: 587 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/Networking/Connection/ConnectionManager.cs]
+  KERN-OVERSIZED-FILE: 540 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/Rendering/Tools/Imgui/Windows/RenderBypassWindow.cs]
+  KERN-SILENT-UI-NOOP: строка 83: guard на rootVisualElement == null молча делает return без Debug-лога и без комментария. При неготовой панели экран не построится, а в консоль не попадёт ничего. [<unknown>!Assets/Scripts/UI/Map/Core/MapInteractionController.cs:83]
+  KERN-OVERSIZED-FILE: 758 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/UI/Map/WorldMap/WorldMapRenderer.cs]
+  KERN-OVERSIZED-FILE: 573 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/World/Lighting/Core/LightingEngine.cs]
+  KERN-OVERSIZED-FILE: 526 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/World/Lighting/Solvers/DynamicLightingSolver.cs]
+  KERN-OVERSIZED-FILE: 747 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/World/Terrain/Core/TerrainRenderer.cs]
+  KERN-OVERSIZED-FILE: 675 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/World/Terrain/Gpu/TerrainCellBuilder.cs]
+  KERN-OVERSIZED-FILE: 528 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/World/Terrain/Gpu/TerrainCellDataTextures.cs]
+  KERN-OVERSIZED-FILE: 689 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/World/Terrain/Gpu/TerrainWindow.cs]
+  KERN-OVERSIZED-FILE: 570 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/World/Textures/TextureAtlas.cs]
+  KERN-OVERSIZED-FILE: 535 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/World/Textures/WorldTextureManager.cs]
+  KERN-DEAD-MEMBERS: Dead member 'CreateRGBA32WithMipmaps' declared at Assets/Scripts/AssetPipeline/Loading/RuntimeTextureFactory.cs:62 is never referenced outside its declaration. [Assets/Scripts/AssetPipeline/Loading/RuntimeTextureFactory.cs!Assets/Scripts/AssetPipeline/Loading/RuntimeTextureFactory.cs]
+  KERN-DEAD-MEMBERS: Dead member 'DirectionToAngle' declared at Assets/Scripts/Game/Player/Logic/PlayerMovementMath.cs:35 is never referenced outside its declaration. [Assets/Scripts/Game/Player/Logic/PlayerMovementMath.cs!Assets/Scripts/Game/Player/Logic/PlayerMovementMath.cs]
+  KERN-DEAD-MEMBERS: Dead member 'HasStoredChunk' declared at Assets/Scripts/UI/Map/Core/WorldMapMipCache.cs:126 is never referenced outside its declaration. [Assets/Scripts/UI/Map/Core/WorldMapMipCache.cs!Assets/Scripts/UI/Map/Core/WorldMapMipCache.cs]
+  KERN-DEAD-MEMBERS: Dead member 'TryLoadInto' declared at Assets/Scripts/World/Persistence/WorldLayerFile.cs:127 is never referenced outside its declaration. [Assets/Scripts/World/Persistence/WorldLayerFile.cs!Assets/Scripts/World/Persistence/WorldLayerFile.cs]
+  KERN-DEAD-MEMBERS: Dead member 'UpdateRegion' declared at Assets/Scripts/World/Terrain/Cache/TerrainCellCache.cs:310 is never referenced outside its declaration. [Assets/Scripts/World/Terrain/Cache/TerrainCellCache.cs!Assets/Scripts/World/Terrain/Cache/TerrainCellCache.cs]
+  KERN-DEAD-MEMBERS: Dead member 'IsBuildingBlock' declared at Assets/Scripts/World/Terrain/Mesh/TerrainQuadBuilder.cs:27 is never referenced outside its declaration. [Assets/Scripts/World/Terrain/Mesh/TerrainQuadBuilder.cs!Assets/Scripts/World/Terrain/Mesh/TerrainQuadBuilder.cs]

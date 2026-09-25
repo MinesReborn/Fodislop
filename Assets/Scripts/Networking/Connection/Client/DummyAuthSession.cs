@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace MinesServer.Networking.Connection.Client;
 
@@ -19,14 +18,10 @@ internal sealed class DummyAuthSession
         _validTokens = _tokenStore.Load();
     }
 
-    public string PlayerName
-    {
-        get
-        {
-            long userID = StableUserID(SystemInfo.deviceUniqueIdentifier);
-            return $"ШАХТЁР-{100 + (int)(userID % 900)}";
-        }
-    }
+    // Ник дамми-сессии — простая строка без склейки. Привязка к айдишнику
+    // устройства давала устойчивый номер, но для дамми это не нужно, а
+    // конкатенация мешала подставить в локальную сессию нужное значение.
+    public string PlayerName => "Vlaxxe – пидор";
 
     public string ResolveToken(string? receivedToken)
     {

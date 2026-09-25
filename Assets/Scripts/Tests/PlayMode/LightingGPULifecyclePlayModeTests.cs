@@ -22,6 +22,7 @@ namespace Kern.Tests.PlayMode;
 public sealed class LightingGPULifecyclePlayModeTests
 {
     private const string TestDummyToken = "playmode-lighting-gpu-token";
+    private static int _dynamicLightUpdateSequence;
 
     // Имена целей освещения из LightingResourceManager.CreateTexture.
     private static readonly HashSet<string> _LightingTargetNames =
@@ -38,7 +39,6 @@ public sealed class LightingGPULifecyclePlayModeTests
     private DummyAuthenticationScope _authentication = null!;
     private IClientConfigManager _config = null!;
     private GraphicsPreset _originalPreset;
-    private GraphicsQualitySettings _originalSettings;
 
     [UnitySetUp]
     public IEnumerator SetUp()
@@ -49,7 +49,6 @@ public sealed class LightingGPULifecyclePlayModeTests
         _bootstrap = PlayModeHarness.FindBootstrap()!;
         _config = _bootstrap.Container.Resolve<IClientConfigManager>();
         _originalPreset = _config.Config.GraphicsPreset;
-        _originalSettings = _config.Config.GraphicsQualitySettings;
         yield return PlayModeHarness.EnterMainGame(_bootstrap);
     }
 
@@ -57,27 +56,17 @@ public sealed class LightingGPULifecyclePlayModeTests
     public IEnumerator TearDown()
     {
         GraphicsSettingsController? graphics = PlayModeHarness.ResolveInGame<GraphicsSettingsController>();
-        if (graphics != null)
-        {
-            if (GraphicsQualityProfile.IsStandard(_originalPreset))
-            {
-                graphics.SelectStandardPreset(_originalPreset);
-            }
-            else
-            {
-                graphics.SetCustomSettings(_originalSettings);
-            }
-        }
+        graphics?.SelectPreset(_originalPreset);
 
         yield return PlayModeHarness.Shutdown();
         _authentication.Restore();
     }
 
     [UnityTest]
-    public IEnumerator EnteringWorld_CreatesPipelineThatSolvesOnInvalidation()
+    public IEnumerator EnteringWorld_CreatesPipelineThatUpdatesDynamicLighting()
     {
         LightingEngine lighting = PlayModeHarness.RequireInGame<LightingEngine>();
-        yield return SelectAndSettle(GraphicsPreset.High);
+        yield return SelectAndSettle(GraphicsPreset.Overdrive);
 
         Assert.That(lighting.IsInitialized, Is.True);
         Assert.That(lighting.IsGPUPipelineInitialized, Is.True);
@@ -85,7 +74,7 @@ public sealed class LightingGPULifecyclePlayModeTests
         Assert.That(lighting.GPUResources.Output.Lightmap!.IsCreated(), Is.True);
         Assert.That(Shader.IsKeywordEnabled(LightingPresentation.WorldLightingKeyword), Is.True);
 
-        yield return AssertSolvesAfterInvalidation(lighting, "Lighting did not re-solve an invalidated world.");
+        yield return AssertUpdatesAfterDynamicLightChange(lighting, "Lighting did not update after a dynamic-light change.");
     }
 
     [UnityTest]
@@ -94,12 +83,8 @@ public sealed class LightingGPULifecyclePlayModeTests
         LightingEngine lighting = PlayModeHarness.RequireInGame<LightingEngine>();
         GraphicsPreset[] presets =
         [
-            GraphicsPreset.High,
-            GraphicsPreset.VeryLow,
-            GraphicsPreset.Ultra,
-            GraphicsPreset.Low,
-            GraphicsPreset.Medium,
-            GraphicsPreset.VeryHigh,
+            GraphicsPreset.Standard,
+            GraphicsPreset.Overdrive,
         ];
 
         for (int round = 0; round < 2; round++)
@@ -114,7 +99,7 @@ public sealed class LightingGPULifecyclePlayModeTests
 
                 if (lighting.IsGPUPipelineInitialized)
                 {
-                    yield return AssertSolvesAfterInvalidation(lighting, $"Lighting did not solve after switching to {preset}.");
+                    yield return AssertUpdatesAfterDynamicLightChange(lighting, $"Lighting did not update after switching to {preset}.");
                 }
                 else
                 {
@@ -128,7 +113,7 @@ public sealed class LightingGPULifecyclePlayModeTests
     [UnityTest]
     public IEnumerator LeavingWorld_ReleasesEveryLightingTarget()
     {
-        yield return SelectAndSettle(GraphicsPreset.High);
+        yield return SelectAndSettle(GraphicsPreset.Overdrive);
         Assert.That(LiveLightingTargets(), Is.Not.Empty);
 
         yield return PlayModeHarness.Await(
@@ -147,18 +132,23 @@ public sealed class LightingGPULifecyclePlayModeTests
         Assert.That(LiveLightingTargets().Values.All(count => count == 1), Is.True);
     }
 
-    // Освещение кэширует решение и пересчитывает его только при инвалидации,
-    // поэтому живость конвейера проверяется явной инвалидацией.
-    private static IEnumerator AssertSolvesAfterInvalidation(LightingEngine lighting, string failureMessage)
+    // Изменение источника света проходит через тот же путь обновления динамического поля,
+    // который используется движущимися игровыми объектами.
+    private static IEnumerator AssertUpdatesAfterDynamicLightChange(LightingEngine lighting, string failureMessage)
     {
         ulong solves = lighting.SolveCount;
-        lighting.InvalidateStaticCache();
+        int sequence = ++_dynamicLightUpdateSequence;
+        lighting.SetDynamicLight(
+            -2048,
+            new Vector2(10f + sequence, 10f),
+            Color.white,
+            1f);
         yield return PlayModeHarness.WaitUntil(() => lighting.SolveCount > solves, 5f, failureMessage);
     }
 
     private IEnumerator SelectAndSettle(GraphicsPreset preset)
     {
-        PlayModeHarness.RequireInGame<GraphicsSettingsController>().SelectStandardPreset(preset);
+        PlayModeHarness.RequireInGame<GraphicsSettingsController>().SelectPreset(preset);
 
         // Destroy освобождает объекты в конце кадра, а ресурсы новой
         // конфигурации создаются в ближайшем обновлении освещения.

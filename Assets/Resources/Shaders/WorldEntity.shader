@@ -71,7 +71,12 @@ Shader "Kern/World Entity"
                 float4 _MainTex_TexelSize;
             CBUFFER_END
 
-            #include "Assets/Shaders/WorldLightSampling.hlsl"
+            // Пороги отсечения одинаковы для всех материалов мира сущностей,
+            // поэтому это глобальные юниформы: код кладёт их Shader.SetGlobalFloat.
+            float _SpriteAlphaCull;
+            float _EmissiveFieldThreshold;
+
+            #include "Assets/Shaders/World/WorldLightSampling.hlsl"
 
             Varyings vert(Attributes input)
             {
@@ -94,7 +99,7 @@ Shader "Kern/World Entity"
                     input.uv,
                     _MainTex_TexelSize.zw);
                 half4 color = texColor * input.color * _Color;
-                if (color.a > 0.003)
+                if (color.a > _SpriteAlphaCull)
                 {
                     float3 worldLight = GetWorldLightColor(input.worldPos);
                     color.rgb *= worldLight;
@@ -162,6 +167,9 @@ Shader "Kern/World Entity"
                 float4 _MainTex_TexelSize;
             CBUFFER_END
 
+            float _SpriteAlphaCull;
+            float _EmissiveFieldThreshold;
+
             Varyings LightingFieldVert(Attributes input)
             {
                 Varyings output;
@@ -180,7 +188,7 @@ Shader "Kern/World Entity"
                 // интерполяцией, а текстура остаётся точечной намеренно.
                 half4 color = SAMPLE_TEXTURE2D_LOD(_MainTex, sampler_PointClamp, input.uv, 0) *
                     input.color * _Color;
-                float strength = step(0.05, color.a) * color.a;
+                float strength = step(_EmissiveFieldThreshold, color.a) * color.a;
 
                 LightingFieldOutput output;
                 output.material = half4(0.0, 0.0, 0.0, 0.0);

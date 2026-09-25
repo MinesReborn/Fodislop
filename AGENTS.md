@@ -18,6 +18,15 @@ Specializations are implemented as skills and auto-load based on task triggers. 
 | Diagnostics, performance | section 6 of [`project-context.md`](.agents/project-context.md) | |
 | Directory boundaries and asmdef | [`repository-map.md`](.agents/repository-map.md) | |
 
+Terrain and lighting changes MUST follow the review gates in
+[`TERRAIN_LIGHTING_STANDARD.md`](docs/architecture/TERRAIN_LIGHTING_STANDARD.md).
+Treat it as the normative target; attach its required evidence bundle and pass
+its merge gates. Do not extend its documented conformance debt or waive a failed
+invariant in a PR comment.
+The first Terrain-to-Lighting orchestration migration MUST follow gates A–D in
+that standard in order; do not replace the direct reference with a forwarding
+facade.
+
 Code is the source of truth if reference context is stale. Don't read everything — only what the task requires.
 
 ## Authority boundaries
@@ -45,6 +54,15 @@ Code is the source of truth if reference context is stale. Don't read everything
 When the user sends project errors, compiler output, stack traces, or runtime logs, treat them as an instruction to fix the reported problem immediately. Locate the root cause, edit the affected files, and run the strongest permitted verification. Do not stop at explaining the error or merely suggesting a fix; only report without editing when the user explicitly asks for diagnosis only.
 
 For non-trivial work: define the outcome, make the changes, and continue until verified completion unless a new user decision is required. Without separate approval, you may run relevant local checks that do not control Unity, have no production access, and use disposable fixtures. Fix failures caused by your change and re-run the relevant checks.
+
+For terrain/lighting work, identify the owning domain, stage, invalidation path,
+and required proof before editing; apply the mandatory checklist in
+`docs/architecture/TERRAIN_LIGHTING_STANDARD.md` to the final diff. Missing
+required evidence or a failed applicable gate blocks completion.
+
+When the user reports a current performance regression, treat it as present in the current working tree. A previously fixed bug or measurements from before that fix do not resolve the report; continue investigating the current cause and do not shift verification of the reported regression onto the user.
+
+Keep the investigation anchored to the subsystem and symptom the user identified. For a lighting FPS regression, trace the current frame's lighting invalidation, repeated rebuilds, dispatches, shaders, and GPU cost until the cause of the reported slowdown is established. A screenshot of GC, an incidental diagnostic cost, or an unrelated inefficiency is supporting evidence only; do not switch tasks or edit that path unless its causal contribution to the reported slowdown is demonstrated. Do not present a minor or unmeasured improvement as a fix for the main regression.
 
 For claims about visual or GPU results, the test must go through the production path: real shader and pass, real mesh attributes/`SV_POSITION`, production material keywords, real data textures, and the same camera/projection path. An isolated probe shader, a manual helper function call, a static source check, or a CPU model are supplementary tests only — they do not prove game behavior. If the production path cannot be run, explicitly mark the verification as incomplete.
 

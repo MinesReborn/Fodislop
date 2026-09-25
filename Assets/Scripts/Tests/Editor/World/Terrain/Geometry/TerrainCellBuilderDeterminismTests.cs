@@ -138,34 +138,93 @@ public sealed class TerrainCellBuilderDeterminismTests
         AssertTexelsEqual(parallel, sequential, "полная против последовательной");
     }
 
+    [Test]
+    public void BuildRegion_ParallelThresholdMatchesSerialColumns()
+    {
+        const int width = 96;
+        const int height = 64;
+        const int originX = 96;
+        const int originY = 64;
+
+        List<TerrainCellTexels> parallel = BuildAndSnapshot(
+            width,
+            height,
+            originX,
+            originY,
+            builder => builder.BuildRegion(
+                CreateSources(width, height, originX, originY),
+                originX,
+                originY,
+                0,
+                0,
+                width,
+                height));
+        List<TerrainCellTexels> serial = BuildAndSnapshot(
+            width,
+            height,
+            originX,
+            originY,
+            builder =>
+            {
+                TerrainCellSources sources = CreateSources(width, height, originX, originY);
+                for (int x = 0; x < width; x++)
+                {
+                    builder.BuildRegion(sources, originX, originY, x, 0, 1, height);
+                }
+            });
+
+        AssertTexelsEqual(parallel, serial, "parallel BuildRegion против последовательных колонок");
+    }
+
     private static TerrainCellSources CreateSources()
+    {
+        return CreateSources(Width, Height, OriginX, OriginY);
+    }
+
+    private static TerrainCellSources CreateSources(int width, int height, int originX, int originY)
     {
         var world = new TerrainTestWorld();
         return world.BuildSources(
             new TerrainCellCache(),
             new TerrainPrecalculator(),
             new BackgroundFloodFill(),
-            OriginX,
-            OriginY,
-            Width,
-            Height);
+            originX,
+            originY,
+            width,
+            height);
     }
 
     private static List<TerrainCellTexels> BuildAndSnapshot(
         System.Action<TerrainCellBuilder> build)
+        => BuildAndSnapshot(build, Width, Height, OriginX, OriginY);
+
+    private static List<TerrainCellTexels> BuildAndSnapshot(
+        int width,
+        int height,
+        int originX,
+        int originY,
+        System.Action<TerrainCellBuilder> build) =>
+        BuildAndSnapshot(build, width, height, originX, originY);
+
+    private static List<TerrainCellTexels> BuildAndSnapshot(
+        System.Action<TerrainCellBuilder> build,
+        int width,
+        int height,
+        int originX,
+        int originY)
     {
         using var builder = new TerrainCellBuilder();
-        builder.EnsureCapacity(Width, Height, 1f);
+        builder.EnsureCapacity(width, height, 1f);
         build(builder);
 
         var snapshot = new List<TerrainCellTexels>(
-            Width * Height * TerrainCellDataPacker.LayersPerCell);
-        for (int x = 0; x < Width; x++)
+            width * height * TerrainCellDataPacker.LayersPerCell);
+        for (int x = 0; x < width; x++)
         {
-            for (int y = 0; y < Height; y++)
+            for (int y = 0; y < height; y++)
             {
-                int ringX = TerrainCellDataTextures.Ring(OriginX + x, Width);
-                int ringY = TerrainCellDataTextures.Ring(OriginY + y, Height);
+                int ringX = TerrainCellDataTextures.Ring(originX + x, width);
+                int ringY = TerrainCellDataTextures.Ring(originY + y, height);
                 snapshot.Add(builder.Textures.GetCell(
                     ringX, ringY, TerrainCellDataPacker.BackgroundLayer));
                 snapshot.Add(builder.Textures.GetCell(

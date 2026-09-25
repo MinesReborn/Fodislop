@@ -8,9 +8,8 @@ namespace Kern.World.Terrain;
 //
 // Световой вид показывает, сколько света пришло в пиксель. Он не отвечает на
 // вопрос, почему пиксель тёмный: гасить может кайма рельефа, силуэт клетки,
-// контактное затенение или просто не тот слой. Здесь каждый вид возвращает
-// ровно один терм, без света и без атласа поверх, — и тогда видно, какой
-// именно множитель работает.
+// контактное затенение или просто не тот слой. Термы показываются отдельно;
+// категориальные виды окрашивают слои и atlas tile identity.
 //
 // Раскладка обязана совпадать с TerrainDebugView.hlsl: номера едут в шейдер
 // как есть.
@@ -26,11 +25,14 @@ public enum TerrainDebugView
     ReliefGroup = 7,
     ContinuousSheet = 8,
     AmbientOcclusion = 9,
+    BackgroundTileIdentity = 10,
 }
 
 public static class TerrainDebugViewState
 {
     private static readonly int _terrainDebugViewID = Shader.PropertyToID("_TerrainDebugView");
+    private static readonly int _terrainDebugBackgroundTileIdentityID =
+        Shader.PropertyToID("_TerrainDebugBackgroundTileIdentity");
 
     // Глобаль шейдера живёт в нативной части и переживает доменную
     // перезагрузку, а статическое поле — нет. Без публикации на старте они
@@ -59,6 +61,7 @@ public static class TerrainDebugViewState
         TerrainDebugView.ReliefGroup => "Рельефная группа",
         TerrainDebugView.ContinuousSheet => "Сплошной лист",
         TerrainDebugView.AmbientOcclusion => "Контактное затенение",
+        TerrainDebugView.BackgroundTileIdentity => "Уникальные тайлы фона",
         _ => view.ToString(),
     };
 
@@ -70,19 +73,20 @@ public static class TerrainDebugViewState
             "Фиолетовое — кайма выключена настройкой, считать нечего.",
         TerrainDebugView.ForeignSides =>
             "Красный — чужой сосед сверху, зелёный — снизу, синий — слева, " +
-            "жёлтый — справа. Серое — клетка без рельефной группы.",
+            "жёлтый — справа. Цветной передний план обрезан по силуэту; " +
+            "серое — подложка или клетка без рельефной группы.",
         TerrainDebugView.Coverage =>
-            "Бирюзовое — пиксель принадлежит клетке, малиновое — вырезан. " +
-            "Здесь видно скругление и силуэт смещённой клетки.",
+            "Бирюзовое — передний план внутри контура, малиновое — вырезанная " +
+            "часть его несущего прямоугольника, серое — подложка.",
         TerrainDebugView.Layer =>
-            "Зелёное — передний план, синее — подложка. Синее там, где ждёшь " +
-            "блок, значит блок не нарисован.",
+            "Зелёное — видимый контур переднего плана, синее — подложка. " +
+            "Синее там, где ждёшь блок, значит блок не нарисован.",
         TerrainDebugView.Anchored =>
-            "Жёлтое — у клетки смещён хотя бы один угол, и она растеризуется " +
-            "через несущий прямоугольник.",
+            "Жёлтое — у клетки смещён хотя бы один угол. Цвет ограничен " +
+            "видимым контуром клетки.",
         TerrainDebugView.CellLocal =>
-            "Красный — X внутри клетки, зелёный — Y. Плоский угол канала " +
-            "означает выход за пределы клетки.",
+            "Красный — X внутри клетки, зелёный — Y. Цвет ограничен " +
+            "видимым контуром клетки.",
         TerrainDebugView.ReliefGroup =>
             "Оттенок — код рельефа. Чёрно-синее — клетка без группы.",
         TerrainDebugView.ContinuousSheet =>
@@ -92,6 +96,11 @@ public static class TerrainDebugViewState
             "Зелёное — затенения нет, красное — полное. Если полоса в кадре " +
             "видна здесь красным, гасит затенение; если тут ровно зелено — " +
             "гасит что-то другое.",
+        TerrainDebugView.BackgroundTileIdentity =>
+            "Показывает только подложку. Цвет без хеша кодирует слот атласа " +
+            "и координату тайла 32×32: один atlas tile всегда получает один " +
+            "цвет. Пурпурный — нет корректного адреса либо он за пределом " +
+            "поддерживаемого размера.",
         _ => string.Empty,
     };
 
@@ -103,8 +112,13 @@ public static class TerrainDebugViewState
 
     // Глобаль переживает смену сцены и доменную перезагрузку, поэтому её
     // публикуют заново, а не полагаются на прошлое значение.
-    public static void Publish() =>
+    public static void Publish()
+    {
         Shader.SetGlobalInteger(_terrainDebugViewID, (int)Active);
+        Shader.SetGlobalInteger(
+            _terrainDebugBackgroundTileIdentityID,
+            Active == TerrainDebugView.BackgroundTileIdentity ? 1 : 0);
+    }
 
     public static void Reset() => Set(TerrainDebugView.Off);
 }

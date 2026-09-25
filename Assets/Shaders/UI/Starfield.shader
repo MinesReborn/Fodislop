@@ -34,6 +34,47 @@ Shader "Kern/UI/Starfield"
         _NebulaIntensity ("Nebula Intensity", Range(0, 2)) = 0.65
         _NebulaColor1 ("Nebula Deep Indigo", Color) = (0.025, 0.055, 0.11, 1)
         _NebulaColor2 ("Nebula Warm Dust", Color) = (0.09, 0.045, 0.025, 1)
+        [HideInInspector] _NebulaFbmStartAmplitude ("Nebula FBM Start Amplitude", Float) = 0.5
+        [HideInInspector] _NebulaFbmFrequencyScale ("Nebula FBM Frequency Scale", Float) = 2.1
+        [HideInInspector] _NebulaFbmAmplitudeDecay ("Nebula FBM Amplitude Decay", Float) = 0.5
+        [HideInInspector] _NebulaFbmOctaves ("Nebula FBM Octaves", Float) = 3
+        [HideInInspector] _NebulaCoordinateScale ("Nebula Coordinate Scale", Float) = 1.5
+        [HideInInspector] _NebulaFbmShift ("Nebula FBM Shift", Vector) = (100, 100, 0, 0)
+        [HideInInspector] _NebulaWarpOffset ("Nebula Warp Offset", Vector) = (5.2, 1.3, 0, 0)
+        [HideInInspector] _NebulaWarpStrength ("Nebula Warp Strength", Float) = 0.7
+        [HideInInspector] _NebulaDustThresholdStart ("Nebula Dust Threshold Start", Float) = 0.34
+        [HideInInspector] _NebulaDustThresholdEnd ("Nebula Dust Threshold End", Float) = 0.76
+        [HideInInspector] _NebulaGasThresholdStart ("Nebula Gas Threshold Start", Float) = 0.42
+        [HideInInspector] _NebulaGasThresholdEnd ("Nebula Gas Threshold End", Float) = 0.82
+        [HideInInspector] _NebulaGasContrast ("Nebula Gas Contrast", Float) = 1.15
+        [HideInInspector] _NebulaGasMix ("Nebula Gas Mix", Float) = 0.65
+        [HideInInspector] _StarPresenceThreshold ("Star Presence Threshold", Float) = 0.62
+        [HideInInspector] _StarMagnitudePower ("Star Magnitude Power", Float) = 6
+        [HideInInspector] _StarMinimumRadiusScale ("Star Minimum Radius Scale", Float) = 0.55
+        [HideInInspector] _StarMagnitudeRadiusScale ("Star Magnitude Radius Scale", Float) = 1.9
+        [HideInInspector] _StarWingDistanceScale ("Star Wing Distance Scale", Float) = 42
+        [HideInInspector] _StarWingMix ("Star Wing Mix", Float) = 0.1
+        [HideInInspector] _StarRateMinimum ("Star Rate Minimum", Float) = 0.5
+        [HideInInspector] _StarRateRange ("Star Rate Range", Float) = 1.5
+        [HideInInspector] _StarSensorBreathingAmplitude ("Star Sensor Breathing Amplitude", Float) = 0.05
+        [HideInInspector] _StarMagnitudeFloor ("Star Magnitude Floor", Float) = 0.03
+        [HideInInspector] _StarPresenceHashOffset ("Star Presence Hash Offset", Float) = 7.13
+        [HideInInspector] _StarMagnitudeHashOffset ("Star Magnitude Hash Offset", Float) = 19.7
+        [HideInInspector] _StarPhaseHashOffset ("Star Phase Hash Offset", Float) = 3.77
+        [HideInInspector] _StarRateHashOffset ("Star Rate Hash Offset", Float) = 11.3
+        [HideInInspector] _StarColorHashOffset ("Star Color Hash Offset", Float) = 5.19
+        [HideInInspector] _SecondaryStarDensityScale ("Secondary Star Density Scale", Float) = 0.43
+        [HideInInspector] _SecondaryStarSizeScale ("Secondary Star Size Scale", Float) = 0.22
+        [HideInInspector] _SecondaryStarSeed ("Secondary Star Seed", Float) = 41.7
+        [HideInInspector] _SecondaryStarBrightness ("Secondary Star Brightness", Float) = 1.6
+        [HideInInspector] _StarColorBlue ("Star Color Blue", Vector) = (0.72, 0.80, 1, 0)
+        [HideInInspector] _StarColorWhite ("Star Color White", Vector) = (1, 0.98, 0.96, 0)
+        [HideInInspector] _StarColorYellow ("Star Color Yellow", Vector) = (1, 0.93, 0.78, 0)
+        [HideInInspector] _StarColorOrange ("Star Color Orange", Vector) = (1, 0.80, 0.60, 0)
+        [HideInInspector] _StarColorRed ("Star Color Red", Vector) = (1, 0.68, 0.50, 0)
+        [HideInInspector] _StarColorBlueEnd ("Star Color Blue End", Float) = 0.22
+        [HideInInspector] _StarColorYellowEnd ("Star Color Yellow End", Float) = 0.48
+        [HideInInspector] _StarColorOrangeEnd ("Star Color Orange End", Float) = 0.75
         _ParallaxOffset ("Parallax Offset", Vector) = (0, 0, 0, 0)
         _ShaderTime ("Shader Time", Float) = 0
         _Aspect ("Aspect Ratio", Float) = 1.7777
@@ -66,6 +107,47 @@ Shader "Kern/UI/Starfield"
                 float _NebulaIntensity;
                 float4 _NebulaColor1;
                 float4 _NebulaColor2;
+                float _NebulaFbmStartAmplitude;
+                float _NebulaFbmFrequencyScale;
+                float _NebulaFbmAmplitudeDecay;
+                int _NebulaFbmOctaves;
+                float _NebulaCoordinateScale;
+                float4 _NebulaFbmShift;
+                float4 _NebulaWarpOffset;
+                float _NebulaWarpStrength;
+                float _NebulaDustThresholdStart;
+                float _NebulaDustThresholdEnd;
+                float _NebulaGasThresholdStart;
+                float _NebulaGasThresholdEnd;
+                float _NebulaGasContrast;
+                float _NebulaGasMix;
+                float _StarPresenceThreshold;
+                float _StarMagnitudePower;
+                float _StarMinimumRadiusScale;
+                float _StarMagnitudeRadiusScale;
+                float _StarWingDistanceScale;
+                float _StarWingMix;
+                float _StarRateMinimum;
+                float _StarRateRange;
+                float _StarSensorBreathingAmplitude;
+                float _StarMagnitudeFloor;
+                float _StarPresenceHashOffset;
+                float _StarMagnitudeHashOffset;
+                float _StarPhaseHashOffset;
+                float _StarRateHashOffset;
+                float _StarColorHashOffset;
+                float _SecondaryStarDensityScale;
+                float _SecondaryStarSizeScale;
+                float _SecondaryStarSeed;
+                float _SecondaryStarBrightness;
+                float4 _StarColorBlue;
+                float4 _StarColorWhite;
+                float4 _StarColorYellow;
+                float4 _StarColorOrange;
+                float4 _StarColorRed;
+                float _StarColorBlueEnd;
+                float _StarColorYellowEnd;
+                float _StarColorOrangeEnd;
                 float4 _ParallaxOffset;
                 float _ShaderTime;
                 float _Aspect;
@@ -122,14 +204,17 @@ Shader "Kern/UI/Starfield"
             float NebulaFbm(float2 p)
             {
                 float val = 0.0;
-                float amp = 0.5;
-                float2 shift = float2(100.0, 100.0);
+                float amp = _NebulaFbmStartAmplitude;
+                float2 shift = _NebulaFbmShift.xy;
                 [unroll]
                 for (int i = 0; i < 3; i++)
                 {
-                    val += amp * ValueNoise(p);
-                    p = (p * 2.1) + shift;
-                    amp *= 0.5;
+                    if (i < _NebulaFbmOctaves)
+                    {
+                        val += amp * ValueNoise(p);
+                        p = (p * _NebulaFbmFrequencyScale) + shift;
+                        amp *= _NebulaFbmAmplitudeDecay;
+                    }
                 }
 
                 return val;
@@ -137,33 +222,38 @@ Shader "Kern/UI/Starfield"
 
             float3 EvaluateNebula(float2 uv)
             {
-                float2 p = uv * 1.5;
+                float2 p = uv * _NebulaCoordinateScale;
                 float2 warp = float2(
                     NebulaFbm(p),
-                    NebulaFbm(p + float2(5.2, 1.3)));
+                    NebulaFbm(p + _NebulaWarpOffset.xy));
 
-                float n1 = NebulaFbm(p + (warp * 0.7));
+                float n1 = NebulaFbm(p + (warp * _NebulaWarpStrength));
 
-                float dustMask = smoothstep(0.34, 0.76, n1);
-                float gasMask = smoothstep(0.42, 0.82, n1 * 1.15);
+                float dustMask = smoothstep(_NebulaDustThresholdStart, _NebulaDustThresholdEnd, n1);
+                float gasMask = smoothstep(
+                    _NebulaGasThresholdStart,
+                    _NebulaGasThresholdEnd,
+                    n1 * _NebulaGasContrast);
 
-                float3 nebula = (dustMask * _NebulaColor1.rgb) + (gasMask * _NebulaColor2.rgb * 0.65);
+                float3 nebula =
+                    (dustMask * _NebulaColor1.rgb) +
+                    (gasMask * _NebulaColor2.rgb * _NebulaGasMix);
                 return nebula * _NebulaIntensity;
             }
 
             // Rough main-sequence colour ramp, blue-white through to red dwarf.
             float3 StarColor(float t)
             {
-                float3 blue = float3(0.72, 0.80, 1.00);
-                float3 white = float3(1.00, 0.98, 0.96);
-                float3 yellow = float3(1.00, 0.93, 0.78);
-                float3 orange = float3(1.00, 0.80, 0.60);
-                float3 red = float3(1.00, 0.68, 0.50);
+                float3 blue = _StarColorBlue.rgb;
+                float3 white = _StarColorWhite.rgb;
+                float3 yellow = _StarColorYellow.rgb;
+                float3 orange = _StarColorOrange.rgb;
+                float3 red = _StarColorRed.rgb;
 
-                float3 c = lerp(blue, white, smoothstep(0.00, 0.22, t));
-                c = lerp(c, yellow, smoothstep(0.22, 0.48, t));
-                c = lerp(c, orange, smoothstep(0.48, 0.75, t));
-                c = lerp(c, red, smoothstep(0.75, 1.00, t));
+                float3 c = lerp(blue, white, smoothstep(0.0, _StarColorBlueEnd, t));
+                c = lerp(c, yellow, smoothstep(_StarColorBlueEnd, _StarColorYellowEnd, t));
+                c = lerp(c, orange, smoothstep(_StarColorYellowEnd, _StarColorOrangeEnd, t));
+                c = lerp(c, red, smoothstep(_StarColorOrangeEnd, 1.0, t));
                 return c;
             }
 
@@ -188,42 +278,44 @@ Shader "Kern/UI/Starfield"
                         float2 id = cell + offset + seed;
 
                         float2 jitter = Hash22(id);
-                        float presence = Hash12(id + 7.13);
+                        float presence = Hash12(id + _StarPresenceHashOffset);
 
                         // Most cells are empty; a sparse field reads far more
                         // like a sky than one star per cell ever does.
-                        if (presence < 0.62)
+                        if (presence < _StarPresenceThreshold)
                         {
                             continue;
                         }
 
                         // Magnitude: pow() with a high exponent leaves only a
                         // few percent of stars visibly bright.
-                        float m = Hash12(id + 19.7);
-                        float mag = pow(m, 6.0);
+                        float m = Hash12(id + _StarMagnitudeHashOffset);
+                        float mag = pow(m, _StarMagnitudePower);
 
                         float2 delta = local - offset - jitter;
                         float dist = length(delta);
 
                         // Brighter stars present a larger disc, as they do
                         // through any real optic.
-                        float radius = sizeScale * (0.55 + (mag * 1.9));
+                        float radius = sizeScale *
+                            (_StarMinimumRadiusScale + (mag * _StarMagnitudeRadiusScale));
 
                         float core = exp(-(dist * dist) / max(radius * radius, 1e-6));
-                        float wing = radius / (radius + (dist * dist * 42.0));
-                        float shape = core + (wing * 0.10);
+                        float wing = radius / (radius + (dist * dist * _StarWingDistanceScale));
+                        float shape = core + (wing * _StarWingMix);
 
                         // In deep space vacuum, stars do NOT twinkle: there is no atmosphere
                         // to refract light. Stars shine with pure, static crystal clarity.
                         // Micro-sensor variation is available if _TwinkleAmount > 0.
-                        float phase = Hash12(id + 3.77) * 6.2831853;
-                        float rate = 0.5 + (Hash12(id + 11.3) * 1.5);
+                        float phase = Hash12(id + _StarPhaseHashOffset) * 6.2831853;
+                        float rate = _StarRateMinimum +
+                            (Hash12(id + _StarRateHashOffset) * _StarRateRange);
                         float t = (activeTime * _TwinkleSpeed * rate);
-                        float sensorBreathing = sin(t + phase) * 0.05;
+                        float sensorBreathing = sin(t + phase) * _StarSensorBreathingAmplitude;
                         float twinkle = 1.0 + (sensorBreathing * _TwinkleAmount);
 
-                        float3 color = StarColor(Hash12(id + 5.19));
-                        accum += color * shape * (mag + 0.03) * twinkle;
+                        float3 color = StarColor(Hash12(id + _StarColorHashOffset));
+                        accum += color * shape * (mag + _StarMagnitudeFloor) * twinkle;
                     }
                 }
 
@@ -238,7 +330,11 @@ Shader "Kern/UI/Starfield"
                 float3 nebula = EvaluateNebula(uv);
 
                 float3 stars = StarLayer(uv, _Density, _CoreSize, 0.0);
-                stars += StarLayer(uv, _Density * 0.43, _GlowSize * 0.22, 41.7) * 1.6;
+                stars += StarLayer(
+                    uv,
+                    _Density * _SecondaryStarDensityScale,
+                    _GlowSize * _SecondaryStarSizeScale,
+                    _SecondaryStarSeed) * _SecondaryStarBrightness;
 
                 float3 color = _SkyColor.rgb + nebula + (stars * _Brightness);
                 return half4(color, 1.0);

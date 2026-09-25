@@ -3,7 +3,6 @@
 using Kern.Core;
 using UnityEngine;
 using UnityEngine.Rendering;
-using Kern.World.Terrain;
 
 namespace Kern.World.Lighting;
 
@@ -18,19 +17,20 @@ internal sealed class GeometryLightingSolver
 
     public void RecordMaterialField(
         CommandBuffer commandBuffer,
-        TerrainRenderer terrainRenderer,
+        Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor terrainGeometry,
         LightingGeometryRegistry geometryRegistry,
         Vector4 worldRect)
     {
         commandBuffer.BeginSample("Kern.Lighting.MaterialField");
-        terrainRenderer.RenderLightingMaterialFields(
+        terrainGeometry.RenderMaterialEmissionFields(
             commandBuffer,
-            _resources.MaterialField!,
-            _resources.StaticEmissionField!,
-            worldRect);
+            new Kern.Core.Interfaces.WorldLighting.LightingMaterialEmissionContext(
+                _resources.MaterialField!,
+                _resources.StaticEmissionField!,
+                worldRect));
         if (geometryRegistry.HasContributors)
         {
-            geometryRegistry.RenderLightingFields(
+            geometryRegistry.RenderMaterialEmissionFields(
                 commandBuffer,
                 _resources.MaterialField!,
                 _resources.StaticEmissionField!,
@@ -43,33 +43,29 @@ internal sealed class GeometryLightingSolver
 
     public void RecordAmbientOcclusionField(
         CommandBuffer commandBuffer,
-        TerrainRenderer terrainRenderer,
+        Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor terrainGeometry,
         LightingGeometryRegistry geometryRegistry,
         Vector4 worldRect)
     {
         RenderTexture ambientOcclusionField = _resources.AmbientOcclusionField!;
-        RenderTexture ambientOcclusionScratch = _resources.AmbientOcclusionScratch!;
 
         commandBuffer.BeginSample("Kern.Lighting.AmbientOcclusionField");
-        terrainRenderer.RenderLightingMaterialFields(
+        terrainGeometry.RenderAmbientOcclusionField(
             commandBuffer,
-            ambientOcclusionField,
-            ambientOcclusionScratch,
-            worldRect);
+            new Kern.Core.Interfaces.WorldLighting.LightingAmbientOcclusionContext(
+                ambientOcclusionField,
+                worldRect));
         if (geometryRegistry.HasContributors)
         {
-            geometryRegistry.RenderLightingFields(
+            geometryRegistry.RenderAmbientOcclusionField(
                 commandBuffer,
                 ambientOcclusionField,
-                ambientOcclusionScratch,
                 worldRect,
-                clearFields: false);
+                clearField: false);
         }
 
-        // The visible terrain samples this independent occupancy pyramid.
-        // Keeping it separate prevents PerBlock lighting from collapsing a
-        // rounded or alpha-cutout block to one solid square texel.
-        commandBuffer.GenerateMips(ambientOcclusionField);
+        // Visible terrain samples mip zero around the transformed receiver.
+        // Keeping exact displaced occupancy avoids carrier-shaped mip halos.
         commandBuffer.EndSample("Kern.Lighting.AmbientOcclusionField");
     }
 
@@ -123,6 +119,20 @@ internal sealed class GeometryLightingSolver
             buildMaskKernel,
             LightingComputeBinder.DispatchGroups(_resources.CellGridWidth),
             LightingComputeBinder.DispatchGroups(_resources.CellGridHeight),
+            1);
+
+        int buildSurfaceAirKernel = _resources.BuildSurfaceAirCacheKernel;
+        BindFieldTextures(commandBuffer, compute, buildSurfaceAirKernel);
+        commandBuffer.SetComputeTextureParam(
+            compute,
+            buildSurfaceAirKernel,
+            LightingComputeBinder.SurfaceAirCacheOutputID,
+            _resources.SurfaceAirCache!);
+        commandBuffer.DispatchCompute(
+            compute,
+            buildSurfaceAirKernel,
+            LightingComputeBinder.DispatchGroups(_resources.FieldWidth),
+            LightingComputeBinder.DispatchGroups(_resources.FieldHeight),
             1);
 
         commandBuffer.EndSample("Kern.Lighting.GeometryCaches");

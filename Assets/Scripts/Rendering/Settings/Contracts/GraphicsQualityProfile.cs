@@ -9,37 +9,51 @@ using UnityEngine;
 
 namespace Kern.Rendering
 {
-[CreateAssetMenu(fileName = "GraphicsQualityProfile", menuName = "Kern/Graphics Quality Profile")]
-    public sealed class GraphicsQualityProfile : ScriptableObject
+    /// <summary>
+    /// Две неизменяемые ступени качества: «Стандарт» и «Overdrive».
+    /// </summary>
+    ///
+    /// Значения живут кодом, а не ассетом: ступеней ровно две, они неизменяемы, и
+    /// правка в инспекторе ничего не добавляла бы, зато расхождение ассета с
+    /// кодом пришлось бы ловить вручную.
+    public sealed class GraphicsQualityProfile
     {
-        public const int StandardPresetCount = (int)GraphicsPreset.Custom;
+        private readonly GraphicsQualitySettings _standard;
+        private readonly GraphicsQualitySettings _overdrive;
 
-        [SerializeField]
-        private GraphicsQualitySettings _veryLow = default;
-        [SerializeField]
-        private GraphicsQualitySettings _low = default;
-        [SerializeField]
-        private GraphicsQualitySettings _medium = default;
-        [SerializeField]
-        private GraphicsQualitySettings _high = default;
-        [SerializeField]
-        private GraphicsQualitySettings _veryHigh = default;
-        [SerializeField]
-        private GraphicsQualitySettings _ultra = default;
+        private GraphicsQualityProfile(
+            GraphicsQualitySettings standard,
+            GraphicsQualitySettings overdrive)
+        {
+            _standard = standard;
+            _overdrive = overdrive;
+        }
+
+        public static GraphicsQualityProfile CreateDefault()
+        {
+            // Standard keeps contact AO while the radiance transport is off.
+            GraphicsQualitySettings withoutLighting = new(
+                lightingPixelsPerCell: 4,
+                lightingMaximumTextureDimension: 1280,
+                lightingMaximumLightCount: 512,
+                lightingCascadeAtlasLimit: 1280,
+                renderScale: 1f,
+                antiAliasing: 0,
+                lightingQuality: LightingQualityMode.Off);
+            GraphicsQualitySettings withLighting = withoutLighting;
+            withLighting.LightingQuality = LightingQualityMode.PerPixel;
+
+            var profile = new GraphicsQualityProfile(withoutLighting, withLighting);
+            profile.Validate();
+            return profile;
+        }
 
         public GraphicsQualitySettings Get(GraphicsPreset preset)
         {
             GraphicsQualitySettings settings = preset switch
             {
-                GraphicsPreset.VeryLow => _veryLow,
-                GraphicsPreset.Low => _low,
-                GraphicsPreset.Medium => _medium,
-                GraphicsPreset.High => _high,
-                GraphicsPreset.VeryHigh => _veryHigh,
-                GraphicsPreset.Ultra => _ultra,
-                GraphicsPreset.Custom => throw new ArgumentException(
-                    "Custom graphics settings are stored in ClientConfig, not in the immutable profile.",
-                    nameof(preset)),
+                GraphicsPreset.Standard => _standard,
+                GraphicsPreset.Overdrive => _overdrive,
                 _ => throw new ArgumentOutOfRangeException(
                     nameof(preset),
                     preset,
@@ -52,15 +66,10 @@ namespace Kern.Rendering
 
         public void Validate()
         {
-            for (int index = 0; index < StandardPresetCount; index++)
+            foreach (GraphicsPreset preset in Enum.GetValues(typeof(GraphicsPreset)))
             {
-                _ = Get((GraphicsPreset)index);
+                _ = Get(preset);
             }
-        }
-
-        public static bool IsStandard(GraphicsPreset preset)
-        {
-            return preset is >= GraphicsPreset.VeryLow and <= GraphicsPreset.Ultra;
         }
 
         public static void ValidateSettings(
@@ -95,22 +104,32 @@ namespace Kern.Rendering
             {
                 // A value outside the known tiers would otherwise sail
                 // through here (it satisfies every check above) and only
-                // fail once PauseMenu tries to index its 3-entry tier-name
-                // array with it - a crash on opening Settings instead of a
-                // clear error at load/apply time. Catch it at the same
-                // boundary every other enum-typed config field is caught at
-                // (compare ClientConfigManager's GraphicsPreset check).
+                // fail once the pause menu tries to label it.
                 throw new InvalidOperationException(
                     $"Graphics quality settings '{context}' has an undefined " +
                     $"LightingQuality value ({(int)settings.LightingQuality}).");
             }
 
-            if (context == nameof(GraphicsPreset.Ultra) &&
-                settings.LightingQuality is not (LightingQualityMode.PerPixel or LightingQualityMode.PerPixelBilinearFix))
+            // Обе ступени получают контактное AO; только Overdrive считает
+            // транспорт света. Поэтому LightingQuality здесь означает именно
+            // режим транспорта, а не наличие AO.
+            // Раньше здесь стоял замок «Ultra обязан быть per-pixel»; теперь
+            // инвариант сильнее: выключенный свет разрешён только «Стандарту»,
+            // включённый обязателен «Overdrive».
+            if (context == nameof(GraphicsPreset.Standard) &&
+                settings.LightingQuality != LightingQualityMode.Off)
             {
                 throw new InvalidOperationException(
-                    $"Graphics quality settings '{context}' must use {nameof(LightingQualityMode.PerPixel)} " +
-                    $"or {nameof(LightingQualityMode.PerPixelBilinearFix)} lighting - Ultra is locked to per-pixel tiers.");
+                    $"Graphics quality settings '{context}' must disable lighting: " +
+                    $"'{nameof(GraphicsPreset.Standard)}' is the preset without radiance transport.");
+            }
+
+            if (context == nameof(GraphicsPreset.Overdrive) &&
+                settings.LightingQuality == LightingQualityMode.Off)
+            {
+                throw new InvalidOperationException(
+                    $"Graphics quality settings '{context}' must enable lighting: " +
+                    $"'{nameof(GraphicsPreset.Overdrive)}' is the preset with lighting.");
             }
         }
     }

@@ -37,12 +37,6 @@ internal sealed class PauseMenuSettingsBuilder
     private readonly Action _closeMenu;
     private readonly ILocalizationService _loc;
 
-    // The custom-profile foldout is created on the graphics page but is
-    // also opened from technical settings applied elsewhere, so it has to
-    // outlive BuildGraphicsPage.
-    private Foldout? _customGraphicsSection;
-    private Action? _updateLightingQualityButton;
-
 #if UNITY_EDITOR || UNITY_ENABLE_CHECKS
     // Created before the graphics/advanced pages so the lighting debug
     // controls built alongside the advanced page can be appended to it.
@@ -95,13 +89,10 @@ internal sealed class PauseMenuSettingsBuilder
     {
         var builder = new PauseMenuGraphicsTabBuilder(
             _graphicsSettings,
-            _lightingEngine,
             _clientConfig,
             _refreshers,
             _loc,
-            RefreshAll,
-            action => _updateLightingQualityButton = action,
-            foldout => _customGraphicsSection = foldout);
+            RefreshAll);
         return builder.Build(graphicsScroll);
     }
 
@@ -135,8 +126,7 @@ internal sealed class PauseMenuSettingsBuilder
             _clientConfig,
             _localPlayer,
             _refreshers,
-            _loc,
-            MarkGraphicsCustom
+            _loc
 #if UNITY_EDITOR || UNITY_ENABLE_CHECKS
             , AddLightingDebugControls
 #endif
@@ -204,7 +194,6 @@ internal sealed class PauseMenuSettingsBuilder
         debugSection.Add(refreshLightingDiagnostics);
         var resetLightingPreferences = new Button(() =>
         {
-            MarkGraphicsCustom();
             _lightingEngine.ResetRuntimeLightingPreferences();
             ResolveLocalRobot()?.ResetDynamicLightPreferences();
             RefreshAll();
@@ -221,12 +210,6 @@ internal sealed class PauseMenuSettingsBuilder
     private Robot? ResolveLocalRobot()
     {
         return _localPlayer.Current?.GetComponent<Robot>();
-    }
-
-    private void MarkGraphicsCustom()
-    {
-        _graphicsSettings.MarkCustom();
-        _updateLightingQualityButton?.Invoke();
     }
 
     private void RefreshAll()

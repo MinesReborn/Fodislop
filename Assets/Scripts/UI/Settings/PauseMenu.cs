@@ -224,7 +224,7 @@ namespace Kern.UI
             VisualTreeAsset menuTemplate = Resources.Load<VisualTreeAsset>(
                 ProjectRuntimeContracts.ResourcePaths.PauseMenuUxml) ??
                 throw new InvalidOperationException(
-                    "[PauseMenu] Resources/UI/PauseMenu.uxml is required.");
+                    "[PauseMenu] Resources/UI/Overlays/PauseMenu.uxml is required.");
             TemplateContainer menuTree = menuTemplate.Instantiate();
             _menuTree = menuTree;
             menuTree.AddToClassList("ui-fullscreen");

@@ -53,30 +53,30 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets/Scripts/Tests/Editor/World/Storage/MapCellConfigCatalogTests.cs" />
-    <Compile Include="Assets/Scripts/Tests/Editor/UI/MinimapRefreshPolicyTests.cs" />
+    <Compile Include="Assets/Scripts/Tests/Editor/UI/Gameplay/MinimapRefreshPolicyTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/Player/PlayerMovementValidatorTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/World/Terrain/Geometry/TerrainVertexDistortionCalculatorTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/World/Terrain/Geometry/TerrainCellMaskCalculatorTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/World/Terrain/Geometry/DirtyRectSetFuzzTests.cs" />
-    <Compile Include="Assets/Scripts/Tests/Editor/Networking/ClanProcessorTests.cs" />
+    <Compile Include="Assets/Scripts/Tests/Editor/Networking/Processors/ClanProcessorTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/Core/LocalizationServiceTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/World/Common/TileBitmaskConverterTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/Player/PlayerDigCooldownTests.cs" />
-    <Compile Include="Assets/Scripts/Tests/Editor/Networking/PlayerStatsProcessorTests.cs" />
+    <Compile Include="Assets/Scripts/Tests/Editor/Networking/Processors/PlayerStatsProcessorTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/World/Common/CoordinateUtilsTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/World/Rendering/SurfaceRendererDecompositionContractTests.cs" />
-    <Compile Include="Assets/Scripts/Tests/Editor/Networking/StatusProcessorTests.cs" />
+    <Compile Include="Assets/Scripts/Tests/Editor/Networking/Processors/StatusProcessorTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/World/Lighting/LightingQualityWiringTests.cs" />
-    <Compile Include="Assets/Scripts/Tests/Editor/Networking/ConnectionTransportConfigTests.cs" />
-    <Compile Include="Assets/Scripts/Tests/Editor/Networking/DummyConnectionSessionTests.cs" />
-    <Compile Include="Assets/Scripts/Tests/Editor/Networking/DummyChatResponderTests.cs" />
-    <Compile Include="Assets/Scripts/Tests/Editor/Networking/DummyInventoryResponderTests.cs" />
-    <Compile Include="Assets/Scripts/Tests/Editor/Networking/DummyResponderDecompositionContractTests.cs" />
-    <Compile Include="Assets/Scripts/Tests/Editor/Networking/DummyPlayerSimulationStateTests.cs" />
-    <Compile Include="Assets/Scripts/Tests/Editor/Networking/DummyWorldSimulationStateTests.cs" />
-    <Compile Include="Assets/Scripts/Tests/Editor/Networking/DummyMovementResponderTests.cs" />
-    <Compile Include="Assets/Scripts/Tests/Editor/Networking/DummyGameplayActionResponderTests.cs" />
-    <Compile Include="Assets/Scripts/Tests/Editor/UI/InventoryModelTests.cs" />
+    <Compile Include="Assets/Scripts/Tests/Editor/Networking/Transport/ConnectionTransportConfigTests.cs" />
+    <Compile Include="Assets/Scripts/Tests/Editor/Networking/Dummy/DummyConnectionSessionTests.cs" />
+    <Compile Include="Assets/Scripts/Tests/Editor/Networking/Dummy/DummyChatResponderTests.cs" />
+    <Compile Include="Assets/Scripts/Tests/Editor/Networking/Dummy/DummyInventoryResponderTests.cs" />
+    <Compile Include="Assets/Scripts/Tests/Editor/Networking/Dummy/DummyResponderDecompositionContractTests.cs" />
+    <Compile Include="Assets/Scripts/Tests/Editor/Networking/Dummy/DummyPlayerSimulationStateTests.cs" />
+    <Compile Include="Assets/Scripts/Tests/Editor/Networking/Dummy/DummyWorldSimulationStateTests.cs" />
+    <Compile Include="Assets/Scripts/Tests/Editor/Networking/Dummy/DummyMovementResponderTests.cs" />
+    <Compile Include="Assets/Scripts/Tests/Editor/Networking/Dummy/DummyGameplayActionResponderTests.cs" />
+    <Compile Include="Assets/Scripts/Tests/Editor/UI/Gameplay/InventoryModelTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/UI/LocalChatContractTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/Player/PlayerMovementBoundaryTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/World/Persistence/WorldLayerRleTests.cs" />
@@ -85,10 +85,10 @@
     <Compile Include="Assets/Scripts/Tests/Editor/Core/ClientConfigDecompositionContractTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/Core/SceneTransitionTicketTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/Core/LocalPlayerStateTests.cs" />
-    <Compile Include="Assets/Scripts/Tests/Editor/Networking/WindowCommandStreamTests.cs" />
-    <Compile Include="Assets/Scripts/Tests/Editor/Networking/ChatEventGatewayTests.cs" />
+    <Compile Include="Assets/Scripts/Tests/Editor/Networking/Gateways/WindowCommandStreamTests.cs" />
+    <Compile Include="Assets/Scripts/Tests/Editor/Networking/Gateways/ChatEventGatewayTests.cs" />
     <Compile Include="Assets/Scripts/Tests/Editor/UI/PlayerStatsModelTests.cs" />
-    <Compile Include="Assets/Scripts/Tests/Editor/Networking/InventoryProcessorTests.cs" />
+    <Compile Include="Assets/Scripts/Tests/Editor/Networking/Processors/InventoryProcessorTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets/Scripts/Tests/Kern.Tests.Editor.asmdef" />

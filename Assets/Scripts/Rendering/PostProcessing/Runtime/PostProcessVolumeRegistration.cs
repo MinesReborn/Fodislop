@@ -23,7 +23,6 @@ public static class PostProcessVolumeRegistration
             _ = stack.GetComponent<VignetteComponent>();
             _ = stack.GetComponent<ColorGradingComponent>();
             _ = stack.GetComponent<EigengrauComponent>();
-            _ = stack.GetComponent<MotionBlurComponent>();
         }
     }
 }

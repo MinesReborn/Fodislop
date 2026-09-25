@@ -271,7 +271,7 @@ namespace Kern.UI.HUD.Player.View
             VisualTreeAsset template = Resources.Load<VisualTreeAsset>(
                 ProjectRuntimeContracts.ResourcePaths.PlayerHudUxml) ??
                 throw new InvalidOperationException(
-                    "[PlayerHUD] Resources/UI/PlayerHUD.uxml is required.");
+                    "[PlayerHUD] Resources/UI/Gameplay/PlayerHUD.uxml is required.");
             TemplateContainer tree = template.Instantiate();
             tree.AddToClassList("ui-fullscreen");
             tree.pickingMode = PickingMode.Ignore;

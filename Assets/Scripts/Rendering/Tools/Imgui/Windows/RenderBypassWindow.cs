@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using Kern.Core.Interfaces;
 using Kern.Core.Interfaces.Diagnostics;
 using Kern.Rendering.PostProcessing;
@@ -25,6 +24,7 @@ public sealed class RenderBypassWindow : ToolWindow
     private readonly SurfaceRenderer? _surfaceRenderer;
     private readonly WorldEntityBatchRenderer? _entityRenderer;
     private readonly UIDocument? _gameUIDocument;
+    private readonly RenderBypassSweep _sweep;
     private bool _hideSurface;
     private bool _hideEntities;
     private bool _hideGameUI;
@@ -53,7 +53,7 @@ public sealed class RenderBypassWindow : ToolWindow
         _surfaceRenderer = surfaceRenderer;
         _entityRenderer = entityRenderer;
         _gameUIDocument = gameUIDocument;
-        _sweepSteps =
+        _sweep = new RenderBypassSweep(
         [
             ("Расчёт освещения", on => _debugSettings.BypassLightingCompute = on),
 
@@ -82,61 +82,12 @@ public sealed class RenderBypassWindow : ToolWindow
                 SetEverythingButTerrainBypassed(on);
                 SetDistortion(on ? false : _sweepDistortion);
             }),
-        ];
+        ]);
     }
 
     public override void Tick()
     {
-        if (_sweepStep < 0)
-        {
-            return;
-        }
-
-        _sweepFrame++;
-        if (_sweepFrame <= SweepSettleFrames)
-        {
-            return;
-        }
-
-        _sweepFrameMs.Add(Time.unscaledDeltaTime * 1000.0);
-        FrameTimingManager.CaptureFrameTimings();
-        if (FrameTimingManager.GetLatestTimings(1, _sweepTimings) > 0 && _sweepTimings[0].gpuFrameTime > 0.0)
-        {
-            _sweepGpuMs.Add(_sweepTimings[0].gpuFrameTime);
-        }
-
-        if (_sweepFrame < SweepSettleFrames + SweepMeasureFrames)
-        {
-            return;
-        }
-
-        _sweepResults.Add((SweepLabel(_sweepStep), Median(_sweepFrameMs), Median(_sweepGpuMs), _sweepGpuMs.Count));
-        SetSweepStep(_sweepStep, false);
-        _sweepStep++;
-        if (_sweepStep > _sweepSteps.Count + 1)
-        {
-            FinishSweep();
-            return;
-        }
-
-        SetSweepStep(_sweepStep, true);
-        _sweepFrame = 0;
-        _sweepFrameMs.Clear();
-        _sweepGpuMs.Clear();
-    }
-
-    // Шаг 0 и последний — кадр без обходов: разница между ними показывает,
-    // насколько за время замера уплыл сам кадр.
-    private string SweepLabel(int step) =>
-        step >= 1 && step <= _sweepSteps.Count ? _sweepSteps[step - 1].Label :
-        step == 0 ? "без обходов" : "без обходов (повтор)";
-
-    private void SetSweepStep(int step, bool on)
-    {
-        if (step >= 1 && step <= _sweepSteps.Count)
-        {
-            _sweepSteps[step - 1].Apply(on);
-        }
+        _sweep.Tick();
     }
 
     private void SetEverythingButTerrainBypassed(bool on)
@@ -162,82 +113,16 @@ public sealed class RenderBypassWindow : ToolWindow
         _terrainRenderer.ApplyClientConfig();
     }
 
-    private void StartSweep()
-    {
-        _sweepDistortion = _clientConfig?.Config?.Terrain.EnableDistortion ?? true;
-        foreach ((_, Action<bool> apply) in _sweepSteps)
-        {
-            apply(false);
-        }
-
-        _sweepResults.Clear();
-        _sweepFrameMs.Clear();
-        _sweepGpuMs.Clear();
-        _sweepFrame = 0;
-        _sweepStep = 0;
-        _sweepSummary = string.Empty;
-    }
-
-    private void FinishSweep()
-    {
-        _sweepStep = -1;
-        double baseFrame = (_sweepResults[0].FrameMs + _sweepResults[^1].FrameMs) * 0.5;
-        double baseGpu = (_sweepResults[0].GpuMs + _sweepResults[^1].GpuMs) * 0.5;
-        var text = new StringBuilder(1024);
-        text.Append("Кадр без обходов: ").Append(baseFrame.ToString("F2")).Append(" мс, GPU ")
-            .Append(baseGpu.ToString("F2")).Append(" мс (первый ").Append(_sweepResults[0].FrameMs.ToString("F2"))
-            .Append(", повтор ").Append(_sweepResults[^1].FrameMs.ToString("F2")).AppendLine(")");
-        text.AppendLine("Что снимает обход (медиана кадра; GPU — по доступным замерам FrameTimingManager):");
-        for (int index = 1; index < _sweepResults.Count - 1; index++)
-        {
-            (string label, double frameMs, double gpuMs, int gpuSamples) = _sweepResults[index];
-            text.Append("  ").Append(label).Append(": кадр ").Append(frameMs.ToString("F2"))
-                .Append(" мс (").Append((baseFrame - frameMs).ToString("+0.00;-0.00")).Append("), GPU ")
-                .Append(gpuMs.ToString("F2")).Append(" мс (").Append((baseGpu - gpuMs).ToString("+0.00;-0.00"))
-                .Append(", замеров ").Append(gpuSamples).AppendLine(")");
-        }
-
-        _sweepSummary = text.ToString();
-        DiagnosticReport.Write("Performance", "bypass_cost", "Цена этапов кадра", _sweepSummary);
-        Debug.Log("[BypassCost]\n" + _sweepSummary);
-    }
-
-    private static double Median(List<double> values)
-    {
-        if (values.Count == 0)
-        {
-            return 0.0;
-        }
-
-        values.Sort();
-        return values[values.Count / 2];
-    }
-
-    // Замер цены этапов: каждый обход по очереди на полторы-две секунды,
-    // медиана кадра и GPU-время против той же медианы без обходов. Время
-    // проходов на Metal в редакторе недоступно, а разница с обходом и без
-    // него меряет настоящий путь рендера — те же шейдеры, те же проходы.
-    private const int SweepSettleFrames = 45;
-    private const int SweepMeasureFrames = 150;
-
-    private readonly List<(string Label, Action<bool> Apply)> _sweepSteps;
-    private readonly List<double> _sweepFrameMs = new(SweepMeasureFrames);
-    private readonly List<double> _sweepGpuMs = new(SweepMeasureFrames);
-    private readonly List<(string Label, double FrameMs, double GpuMs, int GpuSamples)> _sweepResults = [];
-    private readonly FrameTiming[] _sweepTimings = new FrameTiming[1];
-    private int _sweepStep = -1;
     private bool _sweepDistortion;
-    private int _sweepFrame;
-    private string _sweepSummary = string.Empty;
 
-    public override bool WantsSampling => _sweepStep >= 0;
+    public override bool WantsSampling => _sweep.IsRunning;
 
     public override Vector2 MinimumSize => new(250f, 330f);
 
     protected override void OnPlaySessionReset()
     {
         _scroll = default;
-        _sweepStep = -1;
+        _sweep.Cancel();
         _debugSettings.BypassLightingCompute = false;
         _debugSettings.BypassTerrainDraw = false;
         _debugSettings.BypassCpuMeshRebuild = false;
@@ -321,7 +206,6 @@ public sealed class RenderBypassWindow : ToolWindow
         if (DrawSwitch(distortion, "Искажение сетки", ToolTheme.Success) != distortion)
         {
             bool next = !distortion;
-            _clientConfig.MarkGraphicsAsCustom();
             _clientConfig.UpdateSection(config => config.Terrain, terrain => terrain.EnableDistortion = next);
             _terrainRenderer.ApplyClientConfig();
         }
@@ -336,7 +220,6 @@ public sealed class RenderBypassWindow : ToolWindow
         if (DrawSwitch(rim, "Кайма рельефа", ToolTheme.Success) != rim)
         {
             bool next = !rim;
-            _clientConfig.MarkGraphicsAsCustom();
             _clientConfig.UpdateSection(config => config.Terrain, terrain => terrain.EnableReliefRim = next);
             _terrainRenderer.ApplyClientConfig();
         }
@@ -353,20 +236,19 @@ public sealed class RenderBypassWindow : ToolWindow
     private void DrawSweep()
     {
         ToolChrome.SectionHeader("ЦЕНА ЭТАПОВ");
-        if (_sweepStep >= 0)
+        if (_sweep.IsRunning)
         {
-            GUILayout.Label(
-                $"Замер: {SweepLabel(_sweepStep)} ({_sweepStep + 1} из {_sweepSteps.Count + 2}). Не трогайте игру.",
-                WrappedLabelStyle);
+            GUILayout.Label(_sweep.ProgressLabel, WrappedLabelStyle);
         }
         else if (GUILayout.Button("Замерить цену этапов (~1 мин)", ActiveButtonStyle))
         {
-            StartSweep();
+            _sweepDistortion = _clientConfig?.Config?.Terrain.EnableDistortion ?? true;
+            _sweep.Start();
         }
 
-        if (_sweepSummary.Length > 0)
+        if (_sweep.Summary.Length > 0)
         {
-            GUILayout.Label(_sweepSummary, WrappedLabelStyle);
+            GUILayout.Label(_sweep.Summary, WrappedLabelStyle);
         }
     }
 

@@ -2,6 +2,7 @@
 
 using System;
 using Kern.Core;
+using Kern.Game;
 using UnityEngine;
 
 namespace Kern.World;
@@ -19,6 +20,9 @@ public sealed class SurfaceMaterialManager
     private static readonly int _OccupancyID = Shader.PropertyToID("_Occupancy");
     private static readonly int _BaseMapTileCountID = Shader.PropertyToID("_BaseMapTileCount");
     private static readonly int _WorldSizeID = Shader.PropertyToID("_WorldSize");
+    private static readonly int _SurfaceFieldThresholdID = Shader.PropertyToID("_SurfaceFieldThreshold");
+
+    private static bool _surfaceFieldThresholdApplied;
 
     public enum SurfaceKind
     {
@@ -50,6 +54,7 @@ public sealed class SurfaceMaterialManager
             hideFlags = HideFlags.DontSave,
         };
         RequireShaderProperties(material);
+        ApplySurfaceFieldThreshold();
         material.SetTexture(_BaseMapID, texture);
         material.SetColor(_EmissionColorID, emissionColor);
         material.SetFloat(_EmissionStrengthID, emissionStrength);
@@ -134,5 +139,18 @@ public sealed class SurfaceMaterialManager
                     $"'{propertyName}'. Client graphics settings cannot be applied.");
             }
         }
+    }
+
+    // Порог поля поверхности одинаков для всех материалов, поэтому это
+    // глобальная юниформа, а не свойство материала: кладём её один раз.
+    private static void ApplySurfaceFieldThreshold()
+    {
+        if (_surfaceFieldThresholdApplied)
+        {
+            return;
+        }
+
+        Shader.SetGlobalFloat(_SurfaceFieldThresholdID, WorldRenderConfigHolder.SurfaceFieldThreshold);
+        _surfaceFieldThresholdApplied = true;
     }
 }

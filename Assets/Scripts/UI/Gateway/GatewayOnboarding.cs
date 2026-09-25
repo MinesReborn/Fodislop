@@ -125,16 +125,6 @@ public sealed class GatewayOnboarding
             };
         }
 
-        var photoSens = _root.Q<DropdownField>("OnbPhotosensitivity");
-        if (photoSens != null)
-        {
-            photoSens.choices = new List<string>
-            {
-                _loc.Get("gateway.onb.photosens.off"),
-                _loc.Get("gateway.onb.photosens.on"),
-            };
-        }
-
         var controlScheme = _root.Q<DropdownField>("OnbControlScheme");
         if (controlScheme != null)
         {
@@ -176,17 +166,6 @@ public sealed class GatewayOnboarding
                 _loc.Get("gateway.onb.colorblind.high_contrast"),
             };
             colorblind.index = Mathf.Clamp(config.Accessibility.ColorblindMode, 0, 4);
-        }
-
-        var photoSens = _root.Q<DropdownField>("OnbPhotosensitivity");
-        if (photoSens != null)
-        {
-            photoSens.choices = new List<string>
-            {
-                _loc.Get("gateway.onb.photosens.off"),
-                _loc.Get("gateway.onb.photosens.on"),
-            };
-            photoSens.index = config.Accessibility.ReducePhotosensitivity ? 1 : 0;
         }
 
         var frameRate = _root.Q<DropdownField>("OnbFrameRate");
@@ -343,12 +322,6 @@ public sealed class GatewayOnboarding
             if (colorblind != null && colorblind.index >= 0)
             {
                 config.Accessibility.ColorblindMode = colorblind.index;
-            }
-
-            var photoSens = _root.Q<DropdownField>("OnbPhotosensitivity");
-            if (photoSens != null && photoSens.index >= 0)
-            {
-                config.Accessibility.ReducePhotosensitivity = photoSens.index == 1;
             }
 
             var frameRate = _root.Q<DropdownField>("OnbFrameRate");

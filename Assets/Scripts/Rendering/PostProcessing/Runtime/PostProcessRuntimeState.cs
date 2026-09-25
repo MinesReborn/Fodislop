@@ -8,7 +8,6 @@ namespace Kern.Rendering.PostProcessing;
 public static class PostProcessRuntimeState
 {
     internal static Camera? MainCamera { get; private set; }
-    private static uint _cameraGeneration;
     private static uint _pipelineGeneration;
 
     private static float _displayPaperWhiteNits = DisplaySettings.DefaultPaperWhite;
@@ -22,8 +21,6 @@ public static class PostProcessRuntimeState
     private static bool _compareBefore;
     private static bool _bypassPostProcessEffects;
     private static bool _temporaryBypass;
-
-    internal static uint CameraGeneration => _cameraGeneration;
 
     internal static uint PipelineGeneration => _pipelineGeneration;
 
@@ -44,7 +41,6 @@ public static class PostProcessRuntimeState
             }
 
             _bypassPostProcessEffects = value;
-            InvalidateTemporalHistory();
         }
     }
 
@@ -76,7 +72,6 @@ public static class PostProcessRuntimeState
             }
 
             _temporaryBypass = value;
-            InvalidateTemporalHistory();
         }
     }
 
@@ -94,7 +89,6 @@ public static class PostProcessRuntimeState
             }
 
             _debugView = sanitized;
-            InvalidateTemporalHistory();
         }
     }
 
@@ -112,7 +106,6 @@ public static class PostProcessRuntimeState
             }
 
             _compareSplit = sanitized;
-            InvalidateTemporalHistory();
         }
     }
 
@@ -130,7 +123,6 @@ public static class PostProcessRuntimeState
             }
 
             _compareMode = sanitized;
-            InvalidateTemporalHistory();
         }
     }
 
@@ -145,7 +137,6 @@ public static class PostProcessRuntimeState
             }
 
             _compareBefore = value;
-            InvalidateTemporalHistory();
         }
     }
 
@@ -153,7 +144,6 @@ public static class PostProcessRuntimeState
     private static void ResetForDomainReload()
     {
         MainCamera = null;
-        _cameraGeneration = 0;
         _pipelineGeneration = 0;
         _displayPaperWhiteNits = DisplaySettings.DefaultPaperWhite;
         _displayPeakBrightnessNits = DisplaySettings.DefaultPeakBrightness;
@@ -193,7 +183,6 @@ public static class PostProcessRuntimeState
 
         _displayPaperWhiteNits = sanitizedPaperWhite;
         _displayPeakBrightnessNits = sanitizedPeakBrightness;
-        InvalidateTemporalHistory();
     }
 
     public static void SetColorGrade(ColorGradeSnapshot grade)
@@ -219,24 +208,10 @@ public static class PostProcessRuntimeState
         }
 
         _colorGrade = sanitized;
-        InvalidateTemporalHistory();
-    }
-
-    public static void InvalidateTemporalHistory()
-    {
-        _pipelineGeneration = unchecked(_pipelineGeneration + 1);
     }
 
     public static void SetMainCamera(Camera? camera)
     {
-        if (MainCamera != camera)
-        {
-            // Смена камеры обесценивает историю временных эффектов: она
-            // снята с другого ракурса. Поколение сбрасывает её, не трогая
-            // сам проход.
-            _cameraGeneration++;
-        }
-
         MainCamera = camera;
     }
 

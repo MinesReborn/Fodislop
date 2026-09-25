@@ -23,7 +23,7 @@ namespace Kern.Tests.World;
 public sealed class TerrainDebugViewContractTests
 {
     private static string ShaderSource() => File.ReadAllText(
-        Path.Combine(Application.dataPath, "Shaders", "TerrainDebugView.hlsl"));
+        Path.Combine(Application.dataPath, "Shaders", "Terrain", "TerrainDebugView.hlsl"));
 
     private static Dictionary<string, int> ShaderConstants()
     {
@@ -101,7 +101,52 @@ public sealed class TerrainDebugViewContractTests
         Assert.That(
             ShaderSource(),
             Does.Contain("> KERN_TERRAIN_DEBUG_OFF").And
-                .Contain("<= KERN_TERRAIN_DEBUG_AMBIENT_OCCLUSION"),
+                .Contain("<= KERN_TERRAIN_DEBUG_BACKGROUND_TILE_IDENTITY"),
             "Активность отладочного вида обязана проверяться диапазоном объявленных номеров.");
+    }
+
+    [Test]
+    public void BackgroundTileIdentityViewIsolatedAndUsesResolvedAtlasTile()
+    {
+        string terrainShader = File.ReadAllText(
+            Path.Combine(Application.dataPath, "Shaders", "Terrain", "Terrain.shader"));
+        string debugShader = ShaderSource();
+        string cellDataShader = File.ReadAllText(
+            Path.Combine(Application.dataPath, "Shaders", "Terrain", "TerrainCellData.hlsl"));
+        string samplingShader = File.ReadAllText(
+            Path.Combine(Application.dataPath, "Shaders", "Terrain", "TerrainSampling.hlsl"));
+
+        Assert.That(
+            terrainShader,
+            Does.Contain("clip(0.5 - input.isForeground)").And
+                .Contain("debugTile.identityTileOffsetUV").And
+                .Contain("KernTerrainUniqueTileColor("),
+            "Режим тайлов фона обязан отсечь передний план и классифицировать фактически выбранный atlas tile.");
+        Assert.That(
+            debugShader,
+            Does.Contain("atlasTexelSize.zw").And
+                .Contain("tileOriginPixels").And
+                .Contain("(atlasSlot << 14u)").And
+                .Contain("(tileCoordinate.y << 7u)").And
+                .Contain("tileCoordinate.x"),
+            "Цвет классификации обязан напрямую кодировать уникальные координаты atlas tile.");
+        Assert.That(
+            terrainShader,
+            Does.Contain("#define KERN_TERRAIN_DEBUG_BACKGROUND_TILE_VIEW"),
+            "Только экранный проход может показывать подложку под полностью закрытыми клетками.");
+        Assert.That(
+            cellDataShader,
+            Does.Contain("occludedBackground = occludedBackground && _TerrainDebugBackgroundTileIdentity == 0"),
+            "Проходы поля освещения не должны менять occupancy из-за отладки фона.");
+        Assert.That(
+            samplingShader,
+            Does.Contain("float2 geometryCellPosition").And
+                .Contain("+ geometryCellPosition").And
+                .Contain("TerrainResolveGeometryTileUV(").And
+                .Contain("TerrainSetResolvedTileIdentity(res, baseUV, tileSizeUV)").And
+                .Contain("tile.finalUV - baseUV").And
+                .Contain("subAtlasSizeUV.y <= 0.0").And
+                .Contain("tileSizeUV.y <= 0.0"),
+            "Сплошные листы обязаны получать непрерывные UV из фактической деформированной позиции; клеточная UV должна восстанавливаться отдельно для тайловой выборки.");
     }
 }

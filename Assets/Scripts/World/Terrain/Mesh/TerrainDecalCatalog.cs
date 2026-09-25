@@ -21,8 +21,6 @@ public static class TerrainDecalCatalog
     // поэтому величина обладает полезным свойством: её подъём только
     // добавляет декали, не трогая уже стоящие. Мир не перерисовывается
     // заново, к нему добавляется гуще.
-    private const uint GroundPlacementPercent = 24;
-
     // Доля для камня, песка и дороги. Сегодня недостижима: единственный вызов
     // снаружи — GetGroundPlacement, а он жёстко передаёт CellType.Empty, то
     // есть семейство всегда Ground. Ветки Stone/Sand/Road вместе с их раскладкой
@@ -41,7 +39,7 @@ public static class TerrainDecalCatalog
 
         uint hash = Hash(worldX, serverY, (uint)cellType);
         uint placementPercent = family == TerrainDecalFamily.Ground
-            ? GroundPlacementPercent
+            ? TerrainConfigHolder.GroundDecalPlacementPercent
             : PlacementPercent;
         if ((hash % 100u) >= placementPercent)
         {

@@ -14,7 +14,7 @@ namespace Kern.Editor;
 
 public static class ManagerContractMigrator
 {
-    private const string ScopeSourcePath = "Assets/Scripts/Core/Bootstrap/GameLifetimeScope.cs";
+    private const string ScopeSourcePath = "Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs";
     private const string MainGameScenePath = "Assets/Scenes/MainGame.unity";
 
     private static readonly Regex _CallPattern = new(

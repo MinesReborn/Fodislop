@@ -19,9 +19,9 @@ namespace Kern.World.Lighting;
 /// чистая арифметика и тестируются без сцены.
 internal static class LightingUnityQualityApplier
 {
-    public static void ApplyQualityLevel(GraphicsPreset preset)
+    public static void ApplyQualityLevel()
     {
-        int qualityIndex = LightingUnityQuality.ResolveQualityLevelIndex(preset);
+        int qualityIndex = LightingUnityQuality.ResolveQualityLevelIndex();
         if (qualityIndex < 0)
         {
             return;

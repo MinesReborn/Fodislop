@@ -184,7 +184,7 @@ public sealed class DiskFailurePlayModeTests
     {
         string configPath = Path.Combine(_dataRoot, "Config", "client_config.json");
         var repository = new ClientConfigRepository(configPath);
-        ClientConfig original = ClientConfigDefaults.Create(GraphicsQualityProfileLoader.LoadRequired());
+        ClientConfig original = ClientConfigDefaults.Create(GraphicsQualityProfile.CreateDefault());
         repository.Save(original);
         string saved = File.ReadAllText(configPath);
 

@@ -208,8 +208,6 @@ public sealed class DisplayTransformRule : IRule
             "Display effects must execute after URP tone mapping.");
         Require(violations, path, source, @"output.paperWhite.value",
             "Effect calibration must use the same VolumeStack paper white as URP.");
-        Require(violations, path, source, @"_outputSignature\s*!=\s*signature",
-            "Display changes must invalidate temporal history.");
         Require(
             violations,
             path,
@@ -222,12 +220,6 @@ public sealed class DisplayTransformRule : IRule
             source,
             @"TextureHandle\s+intermediateTexture\s*=\s*renderGraph\.CreateTexture\(desc\)",
             "Render Graph intermediate color must use the active-color-derived descriptor.");
-        Require(
-            violations,
-            path,
-            source,
-            @"temporalActive\s*=\s*PostProcessRuntimeState\.DebugView\s*==\s*PostProcessDebugView\.None",
-            "Debug views must disable temporal history.");
     }
 
     private void CheckHDRDisplayAccess(

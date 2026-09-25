@@ -4,16 +4,17 @@ using System;
 using System.Collections.Generic;
 using Kern.Core;
 using Kern.Core.Interfaces;
+using Kern.Core.Interfaces.WorldLighting;
 using Kern.Rendering;
 using Kern.World.Lighting.Diagnostics;
 using Kern.World.Lighting.Quality;
-using Kern.World.Terrain;
 using UnityEngine;
 using VContainer;
 
 namespace Kern.World.Lighting
 {
     [DisallowMultipleComponent]
+    [DefaultExecutionOrder(200)]
     public class LightingEngine : MonoBehaviour
     {
         public enum DebugView
@@ -39,10 +40,6 @@ namespace Kern.World.Lighting
         [Header("Quality")]
 
         // Quality is selected by ClientConfig.GraphicsPreset at runtime.
-        private GraphicsPreset _graphicsPreset;
-        private LightingQualityMode _lightingQualityMode = LightingQualityMode.PerBlock;
-
-
         [Header("Diagnostics")]
         [SerializeField]
         [Tooltip("Debug view для проверки отдельных lighting-слоёв без скрытого AO/exposure влияния.")]
@@ -51,10 +48,11 @@ namespace Kern.World.Lighting
         private readonly LightingResourceManager _resources = new();
         private readonly LightingRuntimeState _runtimeState = new();
         private LightingComposition? _composition;
+        private LightingQualityController? _qualityController;
         private LightingDiagnosticsReporter? _diagnostics;
         private readonly LightingInvalidationJournal _journal = new();
+        private readonly LightingTerrainExchangeState _terrainExchangeState = new();
         private readonly DynamicLightManager _dynamicLightManager = new();
-        private GraphicsQualitySettings _qualitySettings;
 
         // Граф строится по первому требованию: его вход — внедрённые
         // зависимости, а их у MonoBehaviour на момент инициализации полей ещё
@@ -68,13 +66,21 @@ namespace Kern.World.Lighting
                 _telemetry,
                 _journal);
 
+        private LightingQualityController QualityController =>
+            _qualityController ??= new LightingQualityController(
+                _resources,
+                _runtimeState,
+                _dynamicLightManager,
+                () => _composition,
+                () => Composition);
+
         private LightingDiagnosticsReporter Diagnostics =>
             _diagnostics ??= new LightingDiagnosticsReporter(
                 _resources, _runtimeState, _telemetry);
 
         private LightingDiagnosticsContext DiagnosticsContext => new(
             _initialized,
-            _lightingQualityMode,
+            QualityController.QualityMode,
             WorldRect,
             CellSize,
             MaximumIntervalSteps);
@@ -97,6 +103,8 @@ namespace Kern.World.Lighting
         private IFrameTelemetry _telemetry = null!;
         [Inject]
         private IRuntimeDebugSettings _debugSettings = null!;
+        [Inject]
+        private ITerrainLightingExchange _terrainLightingExchange = null!;
 
         private bool _initialized;
 
@@ -118,9 +126,7 @@ namespace Kern.World.Lighting
             }
         }
 
-        public GraphicsPreset ActiveGraphicsPreset => _graphicsPreset;
-
-        public LightingQualityMode ActiveLightingQuality => _lightingQualityMode;
+        public GraphicsPreset ActiveGraphicsPreset => QualityController.ActivePreset;
 
         public DebugView ActiveDebugView => _debugView;
 
@@ -192,7 +198,7 @@ namespace Kern.World.Lighting
         public string? DumpCurrentFrame(string? targetDirectory = null) =>
             Diagnostics.DumpCurrentFrame(DiagnosticsContext, targetDirectory);
 
-        public void CaptureBudgetViolationIfNeeded() =>
+        private void CaptureBudgetViolationIfNeeded() =>
             Diagnostics.CaptureBudgetViolationIfNeeded(DiagnosticsContext);
 
         public int MaterialYFlip => SystemInfo.graphicsUVStartsAtTop ? 1 : 0;
@@ -254,11 +260,13 @@ namespace Kern.World.Lighting
             ApplyQualitySettings(
                 _clientConfig.Config.GraphicsPreset,
                 _clientConfig.Config.GraphicsQualitySettings);
+            PublishTerrainRequirementsIfChanged();
 
             _initialized = true;
             OnInitialized?.Invoke();
 
-            if (_lightingQualityMode == LightingQualityMode.Off)
+            if (QualityController.QualityMode == LightingQualityMode.Off &&
+                QualityController.ActivePreset != GraphicsPreset.Standard)
             {
                 DisableGPULighting();
             }
@@ -319,38 +327,12 @@ namespace Kern.World.Lighting
             _dynamicLightManager.ClearDynamicLights();
         }
 
-        public void InvalidateStaticCache()
-        {
-            _runtimeState.FieldDirty = true;
-        }
-
-        public void InvalidateRegion(int worldX, int worldY, int width, int height)
-        {
-            if (width <= 0 || height <= 0)
-            {
-                return;
-            }
-
-            if (!LightingRegionCalculator.TouchesStableRegion(
-                worldX,
-                worldY,
-                width,
-                height,
-                _runtimeState.LastVisibleRegion))
-            {
-                return;
-            }
-
-            _telemetry.LightingRegionInvalidationCount++;
-            _telemetry.LightingRegionInvalidationFrameCount++;
-            _runtimeState.QueueRegionInvalidation(
-                new RectInt(worldX, worldY, width, height));
-        }
         public void ApplyClientConfig()
         {
             ApplyQualitySettings(
                 _clientConfig.Config.GraphicsPreset,
                 _clientConfig.Config.GraphicsQualitySettings);
+            PublishTerrainRequirementsIfChanged();
             LightingRuntimeInvalidation.ResetFieldAndRadiance(_runtimeState);
             _dynamicLightManager.IncrementGeneration();
             _dynamicLightManager.MarkDirty();
@@ -393,83 +375,131 @@ namespace Kern.World.Lighting
             ApplyQualitySettings(
                 _clientConfig.Config.GraphicsPreset,
                 _clientConfig.Config.GraphicsQualitySettings);
+            PublishTerrainRequirementsIfChanged();
             LightingRuntimeInvalidation.ResetFieldAndRadiance(_runtimeState);
         }
 
-        public void UpdateLighting(
-            int visibleMinX,
-            int visibleMinY,
-            int visibleWidth,
-            int visibleHeight,
-            Camera camera,
-            IWorldDataStorage? storage,
-            MapManager? mapManager,
-            TerrainRenderer terrainRenderer)
+        private void PublishTerrainRequirementsIfChanged()
         {
-            Composition.UpdateCoordinator.Update(
-                visibleMinX,
-                visibleMinY,
-                visibleWidth,
-                visibleHeight,
-                camera,
-                storage,
-                mapManager,
-                terrainRenderer,
-                _qualitySettings,
-                _lightingQualityMode,
-                _debugView,
-                BypassLightingCompute);
+            ITerrainLightingExchange exchange = _terrainLightingExchange ??
+                throw new InvalidOperationException(
+                    "LightingEngine requires ITerrainLightingExchange before publishing terrain requirements.");
+            _terrainExchangeState.PublishRequirements(
+                exchange,
+                RequiredTerrainPadding,
+                StableRegionPaddingCells);
         }
 
-        private void DisableGPULighting()
+        private void LateUpdate()
         {
-            LightingGpuTeardown.ReleasePipeline(
-                _composition, _resources, _dynamicLightManager);
-            Composition.Presentation.PublishDisabled();
-        }
-
-        private void ApplyQualitySettings(
-            GraphicsPreset preset,
-            GraphicsQualitySettings settings)
-        {
-            GraphicsQualityProfile.ValidateSettings(settings, preset.ToString());
-            bool technicalSettingsChanged = _qualitySettings != settings;
-            LightingQualityMode previousQuality = _lightingQualityMode;
-            if (technicalSettingsChanged && _resources.GPUPipelineInitialized)
-            {
-                LightingGpuTeardown.ReleaseResources(
-                    _composition, _resources, _dynamicLightManager, _runtimeState);
-            }
-
-            _graphicsPreset = preset;
-            LightingUnityQualityApplier.ApplyQualityLevel(preset);
-            _qualitySettings = settings;
-            LightingQualityMode resolvedQuality = LightingQualityResolver.Resolve(
-                preset,
-                settings.LightingQuality);
-            if (resolvedQuality != _lightingQualityMode)
-            {
-                _lightingQualityMode = resolvedQuality;
-            }
-
-            if (resolvedQuality == LightingQualityMode.Off)
-            {
-                DisableGPULighting();
-            }
-            else
-            {
-                Composition.Presentation.MarkEnabled();
-                Shader.EnableKeyword(LightingPresentation.WorldLightingKeyword);
-            }
-
-            LightingUnityQualityApplier.ApplyRenderingSettings(_qualitySettings);
-            if (!technicalSettingsChanged && previousQuality == resolvedQuality)
+            if (!_initialized)
             {
                 return;
             }
 
-            _runtimeState.LastVisibleRegion = new Vector4(float.NaN, float.NaN, float.NaN, float.NaN);
-            LightingRuntimeInvalidation.ResetFieldAndRadiance(_runtimeState);
+            ITerrainLightingExchange terrainLightingExchange = _terrainLightingExchange ??
+                throw new InvalidOperationException(
+                    "LightingEngine requires ITerrainLightingExchange injection before its frame tick.");
+            _terrainExchangeState.ProcessLatestFrame(terrainLightingExchange, ProcessTerrainFrame);
         }
+
+        private bool ProcessTerrainFrame(TerrainLightingFrameSnapshot frame)
+        {
+            ITerrainLightingExchange terrainLightingExchange = _terrainLightingExchange ??
+                throw new InvalidOperationException(
+                    "LightingEngine requires ITerrainLightingExchange injection before its frame tick.");
+
+            if (frame.State is not TerrainLightingFrameState.Ready and
+                not TerrainLightingFrameState.HoldingPublishedView ||
+                frame.Camera == null ||
+                frame.GeometryContributor == null ||
+                frame.GeometryContributor.LightingGeometryRevision != frame.TerrainGeometryRevision)
+            {
+                throw new InvalidOperationException(
+                    "Lighting received a terrain frame without a valid committed presentation.");
+            }
+
+            if ((QualityController.QualityMode == LightingQualityMode.Off &&
+                 QualityController.ActivePreset != GraphicsPreset.Standard) ||
+                BypassLightingCompute)
+            {
+                UpdateLightingCoordinator(frame);
+                _terrainExchangeState.PublishOutput(
+                    terrainLightingExchange,
+                    frame.WorldGeneration,
+                    LightingOutputState.Disabled,
+                    default);
+                return false;
+            }
+
+            _terrainExchangeState.StageTerrainChanges(
+                terrainLightingExchange,
+                frame.WorldGeneration,
+                ApplyTerrainLightingChange);
+            UpdateLightingCoordinator(frame);
+            _terrainExchangeState.AcknowledgeStagedChanges(terrainLightingExchange);
+            if (QualityController.QualityMode != LightingQualityMode.Off)
+            {
+                CaptureBudgetViolationIfNeeded();
+            }
+            _terrainExchangeState.PublishOutput(
+                terrainLightingExchange,
+                frame.WorldGeneration,
+                LightingOutputState.Published,
+                CurrentLightingWorldRectCells());
+            return true;
+        }
+
+        private void UpdateLightingCoordinator(TerrainLightingFrameSnapshot frame)
+        {
+            RectInt viewport = frame.LightingViewportCells;
+            Composition.UpdateCoordinator.Update(
+                viewport.x,
+                viewport.y,
+                viewport.width,
+                viewport.height,
+                frame.Camera,
+                frame.GeometryContributor,
+                QualityController.Settings,
+                QualityController.QualityMode,
+                _debugView,
+                BypassLightingCompute,
+                QualityController.ActivePreset == GraphicsPreset.Standard);
+        }
+
+        private RectInt CurrentLightingWorldRectCells()
+        {
+            Vector4 region = _runtimeState.LastVisibleRegion;
+            return new RectInt(
+                Mathf.RoundToInt(region.x),
+                Mathf.RoundToInt(region.y),
+                Mathf.RoundToInt(region.z),
+                Mathf.RoundToInt(region.w));
+        }
+
+        private void ApplyTerrainLightingChange(TerrainLightingChange change)
+        {
+            bool regionQueued = TerrainLightingChangeApplier.Apply(change, _runtimeState);
+            if (change.Kind == TerrainLightingChangeKind.Region && !regionQueued)
+            {
+                return;
+            }
+
+            if (regionQueued)
+            {
+                _telemetry.LightingRegionInvalidationCount++;
+                _telemetry.LightingRegionInvalidationFrameCount++;
+            }
+        }
+
+        private void DisableGPULighting()
+        {
+            QualityController.DisableGpuLighting();
+        }
+
+        private void ApplyQualitySettings(
+            GraphicsPreset preset,
+            GraphicsQualitySettings settings) =>
+            QualityController.Apply(preset, settings);
     }
 }

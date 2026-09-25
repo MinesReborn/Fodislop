@@ -2,6 +2,7 @@
 
 using System.Text;
 using Kern.Core;
+using Kern.Core.Interfaces;
 using Kern.Core.Interfaces.Diagnostics;
 using UnityEngine;
 

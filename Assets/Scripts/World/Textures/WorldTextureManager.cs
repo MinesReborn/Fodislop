@@ -43,18 +43,11 @@ namespace Kern.World
         [Inject]
         private IAsyncOperationSupervisor _operations = null!;
         private CellTextureCache _textureCache = null!;
-        private Texture2D? _prismaticFlowMapTexture;
-        public Texture2D? PrismaticFlowMapTexture => _prismaticFlowMapTexture;
-        private Texture2D? _flowMapTexture;
-        public Texture2D? FlowMapTexture => _flowMapTexture;
-        private readonly TerrainDecalAtlasLoader _decalLoader = new(
-            "terrain-decals.png",
-            "load_terrain_decal_atlas");
-        private readonly TerrainDecalAtlasLoader _decalStoneLoader = new(
-            "terrain-decals-stone.png",
-            "load_terrain_decal_stone_atlas");
-        public Texture2D? TerrainDecalAtlasTexture => _decalLoader.AtlasTexture;
-        public Texture2D? TerrainDecalStoneAtlasTexture => _decalStoneLoader.AtlasTexture;
+        private readonly WorldTextureAuxiliaryAssets _auxiliaryAssets = new();
+        public Texture2D? PrismaticFlowMapTexture => _auxiliaryAssets.PrismaticFlowMapTexture;
+        public Texture2D? FlowMapTexture => _auxiliaryAssets.FlowMapTexture;
+        public Texture2D? TerrainDecalAtlasTexture => _auxiliaryAssets.TerrainDecalAtlasTexture;
+        public Texture2D? TerrainDecalStoneAtlasTexture => _auxiliaryAssets.TerrainDecalStoneAtlasTexture;
         private ConcurrentDictionary<CellType, TextureRequest> _pendingRequests = null!;
         private readonly CellTextureRetryTracker _retryTracker = new();
         private readonly SemaphoreSlim _textureLoadSlots = new(
@@ -71,36 +64,7 @@ namespace Kern.World
             _textureCache?.Clear();
             _atlasCollection?.Dispose();
 
-            if (_flowMapTexture != null)
-            {
-                if (Application.isPlaying)
-                {
-                    Destroy(_flowMapTexture);
-                }
-                else
-                {
-                    DestroyImmediate(_flowMapTexture);
-                }
-
-                _flowMapTexture = null;
-            }
-
-            if (_prismaticFlowMapTexture != null)
-            {
-                if (Application.isPlaying)
-                {
-                    Destroy(_prismaticFlowMapTexture);
-                }
-                else
-                {
-                    DestroyImmediate(_prismaticFlowMapTexture);
-                }
-
-                _prismaticFlowMapTexture = null;
-            }
-
-            _decalLoader.Dispose();
-            _decalStoneLoader.Dispose();
+            _auxiliaryAssets.Dispose();
         }
 
         private void Initialize()
@@ -119,10 +83,7 @@ namespace Kern.World
                 GetCachedTexture);
             _pendingRequests = new ConcurrentDictionary<CellType, TextureRequest>();
 
-            _prismaticFlowMapTexture = WorldTextureGenerator.CreatePrismaticFlowMap();
-            GenerateFlowMap();
-            _decalLoader.StartLoad(_textureStorage, _operations, (name, tex) => OnTextureLoaded?.Invoke(name, tex));
-            _decalStoneLoader.StartLoad(_textureStorage, _operations, (name, tex) => OnTextureLoaded?.Invoke(name, tex));
+            _auxiliaryAssets.Initialize(_textureStorage, _operations, RaiseTextureLoaded);
         }
 
         private void EnsureInitialized()
@@ -133,24 +94,9 @@ namespace Kern.World
             }
         }
 
-        private void GenerateFlowMap()
-        {
-            if (_flowMapTexture != null)
-            {
-                if (Application.isPlaying)
-                {
-                    Destroy(_flowMapTexture);
-                }
-                else
-                {
-                    DestroyImmediate(_flowMapTexture);
-                }
-            }
-
-            _flowMapTexture = WorldTextureGenerator.CreateFlowMap();
-        }
-
         public event Action<string, Texture2D>? OnTextureLoaded;
+
+        private void RaiseTextureLoaded(string name, Texture2D texture) => OnTextureLoaded?.Invoke(name, texture);
 
         public void RequestTexture(CellType cellType)
         {
@@ -382,8 +328,8 @@ namespace Kern.World
                 Texture2D cachedTexture = cachedTextureInfo.BaseTexture;
                 if (!_atlasCollection.ContainsCell(cellType))
                 {
-                    // Замер непрозрачности читает текстуру через GPU: только
-                    // с главного потока.
+                    // Атлас и данные декодированной текстуры принадлежат
+                    // главному потоку Unity.
                     await UniTask.SwitchToMainThread();
                     AddTextureToAtlas(
                         cellType,
@@ -515,7 +461,7 @@ namespace Kern.World
             EnsureInitialized();
             _textureCache.Clear();
             _atlasCollection.Reset();
-            GenerateFlowMap();
+            _auxiliaryAssets.RegenerateFlowMap();
             _cachedEmptyTexture = null;
             TextureRevision++;
         }

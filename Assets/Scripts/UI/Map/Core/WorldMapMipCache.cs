@@ -15,7 +15,6 @@ internal sealed class WorldMapMipCache
     private readonly int[] _levelHeights;
     private readonly Color32[] _cellColorTable;
     private readonly Color32 _unloadedColor;
-    private readonly byte[] _storedChunks;
     private readonly int _chunkSize;
 
     private int _currentChunkIndex = -1;
@@ -57,8 +56,6 @@ internal sealed class WorldMapMipCache
         _chunkSize = chunkSize;
         _cellColorTable = cellColorTable;
         _unloadedColor = unloadedColor;
-        _storedChunks = new byte[checked((widthChunks * heightChunks + 7) / 8)];
-
         int levelCount = 1;
         int levelWidth = widthChunks;
         int levelHeight = heightChunks;
@@ -71,7 +68,7 @@ internal sealed class WorldMapMipCache
             levelCount++;
         }
 
-        long cacheBytes = totalPixels * sizeof(uint) + _storedChunks.Length;
+        long cacheBytes = totalPixels * sizeof(uint);
         if (cacheBytes > MaxCacheBytes)
         {
             throw new InvalidOperationException(
@@ -123,18 +120,6 @@ internal sealed class WorldMapMipCache
     }
 
     public void CompleteStoredScan() => FlushCurrentChunk();
-
-    public bool HasStoredChunk(int chunkIndex)
-    {
-        if (chunkIndex < 0 || chunkIndex >= WidthChunks * HeightChunks)
-        {
-            return false;
-        }
-
-        int byteIndex = chunkIndex >> 3;
-        int bitMask = 1 << (chunkIndex & 7);
-        return (_storedChunks[byteIndex] & bitMask) != 0;
-    }
 
     public void SetChunkCells(int chunkIndex, CellType[] cells)
     {
@@ -222,8 +207,6 @@ internal sealed class WorldMapMipCache
         int chunkX = chunkIndex / HeightChunks;
         int chunkY = chunkIndex % HeightChunks;
         SetLevelPixel(0, chunkX, chunkY, average);
-        _storedChunks[chunkIndex >> 3] |= (byte)(1 << (chunkIndex & 7));
-
         int childX = chunkX;
         int childY = chunkY;
         for (int level = 1; level < _levels.Length; level++)

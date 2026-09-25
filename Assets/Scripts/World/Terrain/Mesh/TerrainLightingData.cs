@@ -17,7 +17,7 @@ internal enum TerrainLightingFlags : byte
 }
 
 // Wire format written to TerrainVertex.UV6 and decoded by
-// Assets/Shaders/TerrainLightingData.hlsl.
+// Assets/Shaders/Terrain/TerrainLightingData.hlsl.
 internal readonly record struct TerrainLightingData(
     float PackedFlags,
     float PackedContour)

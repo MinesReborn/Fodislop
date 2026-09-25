@@ -3,155 +3,79 @@
 
 using System;
 using Kern.Rendering;
-using Kern.Rendering.PostProcessing;
 using Kern.World.Lighting.Quality;
 using NUnit.Framework;
-using UnityEngine;
 
 namespace Kern.Tests.World.Lighting;
 
 // Guardrail for the "many layers, any one can silently drop the value"
 // failure mode: GUI -> ClientConfig -> GraphicsQualityProfile ->
 // LightingEngine -> WorldLighting.compute. Each test below
-// targets one hop that a manual audit already caught breaking once
-// (Ultra profile drifting from PerPixel, standard presets not actually
-// differing) so a future edit that reintroduces the same class of bug
-// fails loudly here instead of only in a debug view nobody is looking
-// at.
+// targets one hop that a manual audit already caught breaking once, so a
+// future edit that reintroduces the same class of bug fails loudly here
+// instead of only in a debug view nobody is looking at.
 [TestFixture]
 public sealed class LightingQualityWiringTests
 {
-    [Test]
-    public void ResolverUpgradesUltraToTopTierWhenLightingIsOn()
-    {
-        foreach (LightingQualityMode requested in new[]
-                 {
-                     LightingQualityMode.PerBlock,
-                     LightingQualityMode.PerPixel,
-                     LightingQualityMode.PerPixelBilinearFix,
-                 })
-        {
-            Assert.That(
-                LightingQualityResolver.Resolve(GraphicsPreset.Ultra, requested),
-                Is.EqualTo(LightingQualityMode.PerPixelBilinearFix),
-                $"Ultra must resolve to PerPixelBilinearFix even when {requested} was requested.");
-        }
-    }
+    private static readonly GraphicsQualityProfile _profile = GraphicsQualityProfile.CreateDefault();
 
     [Test]
-    public void ResolverNeverOverridesAnExplicitOffOnAnyPreset()
+    public void StandardPresetDisablesLighting()
     {
-        // Ultra used to override Off too, which made the control that
-        // disables the most expensive subsystem in the frame do nothing at
-        // all on the preset that needs it most - with no feedback anywhere
-        // that the choice had been discarded.
-        foreach (GraphicsPreset preset in new[]
-                 {
-                     GraphicsPreset.VeryLow,
-                     GraphicsPreset.Low,
-                     GraphicsPreset.Medium,
-                     GraphicsPreset.High,
-                     GraphicsPreset.VeryHigh,
-                     GraphicsPreset.Ultra,
-                     GraphicsPreset.Custom,
-                 })
-        {
-            Assert.That(
-                LightingQualityResolver.Resolve(preset, LightingQualityMode.Off),
-                Is.EqualTo(LightingQualityMode.Off),
-                $"{preset} must not override an explicit Off.");
-        }
-    }
-
-    [Test]
-    public void ResolverPassesRequestedModeThroughForNonUltraPresets()
-    {
-        foreach (GraphicsPreset preset in new[]
-                 {
-                     GraphicsPreset.VeryLow,
-                     GraphicsPreset.Low,
-                     GraphicsPreset.Medium,
-                     GraphicsPreset.High,
-                     GraphicsPreset.VeryHigh,
-                     GraphicsPreset.Custom,
-                 })
-        {
-            foreach (LightingQualityMode requested in new[]
-                     {
-                         LightingQualityMode.Off,
-                         LightingQualityMode.PerBlock,
-                         LightingQualityMode.PerPixel,
-                         LightingQualityMode.PerPixelBilinearFix,
-                     })
-            {
-                Assert.That(
-                    LightingQualityResolver.Resolve(preset, requested),
-                    Is.EqualTo(requested),
-                    $"{preset} must not override the requested tier {requested}.");
-            }
-        }
-    }
-
-    [Test]
-    public void UltraProfileAssetIsActuallyPerPixel()
-    {
-        GraphicsQualityProfile profile = Resources.Load<GraphicsQualityProfile>(
-            "GraphicsQualityProfile");
-        Assert.That(profile, Is.Not.Null, "Resources/GraphicsQualityProfile.asset is missing.");
-
-        GraphicsQualitySettings ultra = profile!.Get(GraphicsPreset.Ultra);
         Assert.That(
-            ultra.LightingQuality,
+            _profile.Get(GraphicsPreset.Standard).LightingQuality,
+            Is.EqualTo(LightingQualityMode.Off),
+            "'Стандарт' is the preset without lighting: if it ever drifts back to a " +
+            "solving mode, the cheap preset silently starts computing light.");
+    }
+
+    [Test]
+    public void OverdrivePresetSolvesLightingPerPixel()
+    {
+        Assert.That(
+            _profile.Get(GraphicsPreset.Overdrive).LightingQuality,
             Is.EqualTo(LightingQualityMode.PerPixel),
-            "The Ultra preset asset must carry LightingQuality: PerPixel explicitly - " +
-            "if this ever regresses to the enum's zero-default (PerBlock), Ultra silently " +
-            "stops being per-pixel and no exception fires anywhere in the chain.");
+            "'Overdrive' is the preset with lighting - dropping back to a disabled mode " +
+            "silently removes light from the preset that is supposed to show it.");
     }
 
     [Test]
-    public void StandardPresetsBelowHighDefaultToPerBlock()
+    public void TheTwoPresetsDifferOnlyInLighting()
     {
-        GraphicsQualityProfile profile = Resources.Load<GraphicsQualityProfile>(
-            "GraphicsQualityProfile");
-        Assert.That(profile, Is.Not.Null, "Resources/GraphicsQualityProfile.asset is missing.");
-
-        foreach (GraphicsPreset preset in new[]
-                 {
-                     GraphicsPreset.VeryLow,
-                     GraphicsPreset.Low,
-                     GraphicsPreset.Medium,
-                 })
-        {
-            Assert.That(
-                profile!.Get(preset).LightingQuality,
-                Is.EqualTo(LightingQualityMode.PerBlock),
-                $"{preset} is expected to default to PerBlock. If this is an intentional " +
-                "design change, update this test alongside it - don't let it silently pass.");
-        }
+        // The whole point of the pair: «всё, кроме освещения» and «всё». If any other
+        // field ever drifts apart, one of the two stops being "everything".
+        GraphicsQualitySettings standard = _profile.Get(GraphicsPreset.Standard);
+        GraphicsQualitySettings overdrive = _profile.Get(GraphicsPreset.Overdrive);
+        overdrive.LightingQuality = standard.LightingQuality;
+        Assert.That(
+            overdrive,
+            Is.EqualTo(standard),
+            "The two presets must be identical apart from LightingQuality.");
     }
 
     [Test]
-    public void HighAndAbovePresetsArePerPixel()
+    public void ValidateSettingsRejectsLightingOnTheStandardPreset()
     {
-        GraphicsQualityProfile profile = Resources.Load<GraphicsQualityProfile>(
-            "GraphicsQualityProfile");
-        Assert.That(profile, Is.Not.Null, "Resources/GraphicsQualityProfile.asset is missing.");
+        GraphicsQualitySettings settings = _profile.Get(GraphicsPreset.Standard);
+        settings.LightingQuality = LightingQualityMode.PerPixel;
 
-        foreach (GraphicsPreset preset in new[]
-                 {
-                     GraphicsPreset.High,
-                     GraphicsPreset.VeryHigh,
-                 })
-        {
-            Assert.That(
-                profile!.Get(preset).LightingQuality,
-                Is.EqualTo(LightingQualityMode.PerPixel),
-                $"{preset} must carry LightingQuality: PerPixel explicitly. Dropping back " +
-                "to the enum's zero-default silently returns the preset to one lighting " +
-                "texel per world cell, and surface detail disappears with no error anywhere.");
-        }
+        Assert.Throws<InvalidOperationException>(
+            () => GraphicsQualityProfile.ValidateSettings(
+                settings,
+                nameof(GraphicsPreset.Standard)));
     }
 
+    [Test]
+    public void ValidateSettingsRejectsDisabledLightingOnOverdrive()
+    {
+        GraphicsQualitySettings settings = _profile.Get(GraphicsPreset.Overdrive);
+        settings.LightingQuality = LightingQualityMode.Off;
+
+        Assert.Throws<InvalidOperationException>(
+            () => GraphicsQualityProfile.ValidateSettings(
+                settings,
+                nameof(GraphicsPreset.Overdrive)));
+    }
 
     [Test]
     public void ValidateSettingsRejectsAnUndefinedLightingQualityValue()
@@ -159,22 +83,22 @@ public sealed class LightingQualityWiringTests
         // A corrupted save, a hand-edited config JSON, or a future enum
         // reorder can put an out-of-range int here. Without this check
         // it sails through validation (every other field is in range)
-        // and only blows up later as an IndexOutOfRangeException when
-        // PauseMenu indexes its tier-name array with it - a
-        // crash on opening Settings instead of a clear error at
+        // and only blows up later, when the pause menu tries to label it -
+        // a crash on opening Settings instead of a clear error at
         // load/apply time.
         var settings = new GraphicsQualitySettings(
             lightingPixelsPerCell: 1,
             lightingMaximumTextureDimension: 512,
             lightingMaximumLightCount: 64,
-            lightingMaximumRaySteps: 8,
             lightingCascadeAtlasLimit: 512,
             renderScale: 0.8f,
             antiAliasing: 0,
             lightingQuality: (LightingQualityMode)99);
 
         Assert.Throws<InvalidOperationException>(
-            () => GraphicsQualityProfile.ValidateSettings(settings, "Custom"));
+            () => GraphicsQualityProfile.ValidateSettings(
+                settings,
+                nameof(GraphicsPreset.Overdrive)));
     }
 
     [Test]
@@ -184,14 +108,15 @@ public sealed class LightingQualityWiringTests
             lightingPixelsPerCell: 1,
             lightingMaximumTextureDimension: 128,
             lightingMaximumLightCount: 64,
-            lightingMaximumRaySteps: 8,
             lightingCascadeAtlasLimit: 512,
             renderScale: 0.8f,
             antiAliasing: 0,
             lightingQuality: LightingQualityMode.PerPixel);
 
         Assert.Throws<InvalidOperationException>(
-            () => GraphicsQualityProfile.ValidateSettings(settings, "Custom"));
+            () => GraphicsQualityProfile.ValidateSettings(
+                settings,
+                nameof(GraphicsPreset.Overdrive)));
     }
 }
 #endif

@@ -16,7 +16,7 @@ void SampleCellSolid(int2 cellCoord, float2 cellsPerPixel, out bool isSolid)
     float2 centerPixel = (float2(cellCoord) + 0.5) / cellsPerPixel;
     if (all(centerPixel >= 0.0) && all(centerPixel < float2(_FieldSize)))
     {
-        isSolid = (SampleOccupancy(centerPixel, 0.0) >= TransportSolidThreshold);
+        isSolid = (SampleOccupancy(centerPixel, 0.0) >= _TransportSolidThreshold);
     }
 }
 

@@ -49,7 +49,7 @@ public static class Program
         // LightingConfigHolder is now static with constants - no dirty tracking needed
         CheckSettingMutationDetection();
         CheckGraphicsQualitySettingsMutationAndMsaaCycle();
-        CheckPostProcessLookAllConstantsValidViaReflection();
+        CheckVisualTuningConstantsValidViaReflection();
         CheckConsumerTargetsAndMechanismsReflection(root);
         CheckPixelGridLeavesNoMoire();
 
@@ -516,7 +516,7 @@ public static class Program
 
         // Проверяем, что смена AntiAliasing изменяет равенство и хэш GraphicsQualitySettings
         _checks++;
-        var baseSettings = new GraphicsQualitySettings(2, 512, 128, 16, 1024, 1f, 0);
+        var baseSettings = new GraphicsQualitySettings(2, 512, 128, 1024, 1f, 0);
         var changedSettings = baseSettings;
         changedSettings.AntiAliasing = 4;
         if (baseSettings == changedSettings || baseSettings.GetHashCode() == changedSettings.GetHashCode())
@@ -525,35 +525,49 @@ public static class Program
         }
     }
 
-    private static void CheckPostProcessLookAllConstantsValidViaReflection()
+    private static void CheckVisualTuningConstantsValidViaReflection()
     {
-        Section("рефлексия всех констант и свойств PostProcessLook");
-        Type lookType = typeof(Kern.Rendering.PostProcessing.PostProcessLook);
-        foreach (Type nested in lookType.GetNestedTypes(BindingFlags.Public | BindingFlags.Static))
-        {
-            foreach (FieldInfo field in nested.GetFields(BindingFlags.Public | BindingFlags.Static))
-            {
-                _checks++;
-                object? val = field.GetValue(null);
-                if (val is float f && (float.IsNaN(f) || float.IsInfinity(f)))
-                {
-                    Failures.Add($"{nested.Name}.{field.Name}: невалидный float ({f}) в PostProcessLook");
-                }
-            }
+        Section("рефлексия всех констант и свойств холдеров визуального тюнинга");
+        // Террейн идёт первым по конвейеру. Его холдер раньше был вложен в
+        // PostProcessLook и попадал под проверку как вложенный тип; теперь он
+        // стоит отдельно, и обход одного PostProcessLook его бы не увидел.
+        CheckHolderConstants(typeof(Kern.World.Terrain.TerrainConfigHolder));
+        CheckHolderConstants(typeof(Kern.Rendering.PostProcessing.PostProcessLook));
+    }
 
-            foreach (PropertyInfo prop in nested.GetProperties(BindingFlags.Public | BindingFlags.Static))
+    /// <summary>
+    /// Проверяет собственные поля и свойства холдера и рекурсивно его
+    /// вложенные типы-холдеры.
+    /// </summary>
+    private static void CheckHolderConstants(Type holder)
+    {
+        foreach (FieldInfo field in holder.GetFields(BindingFlags.Public | BindingFlags.Static))
+        {
+            _checks++;
+            object? val = field.GetValue(null);
+            if (val is float f && (float.IsNaN(f) || float.IsInfinity(f)))
             {
-                _checks++;
-                object? val = prop.GetValue(null);
-                if (val is Color c && (float.IsNaN(c.r) || float.IsNaN(c.g) || float.IsNaN(c.b) || float.IsNaN(c.a)))
-                {
-                    Failures.Add($"{nested.Name}.{prop.Name}: невалидный Color в PostProcessLook");
-                }
-                else if (val is Vector2 v && (float.IsNaN(v.x) || float.IsNaN(v.y)))
-                {
-                    Failures.Add($"{nested.Name}.{prop.Name}: невалидный Vector2 в PostProcessLook");
-                }
+                Failures.Add($"{holder.Name}.{field.Name}: невалидный float ({f})");
             }
+        }
+
+        foreach (PropertyInfo prop in holder.GetProperties(BindingFlags.Public | BindingFlags.Static))
+        {
+            _checks++;
+            object? val = prop.GetValue(null);
+            if (val is Color c && (float.IsNaN(c.r) || float.IsNaN(c.g) || float.IsNaN(c.b) || float.IsNaN(c.a)))
+            {
+                Failures.Add($"{holder.Name}.{prop.Name}: невалидный Color");
+            }
+            else if (val is Vector2 v && (float.IsNaN(v.x) || float.IsNaN(v.y)))
+            {
+                Failures.Add($"{holder.Name}.{prop.Name}: невалидный Vector2");
+            }
+        }
+
+        foreach (Type nested in holder.GetNestedTypes(BindingFlags.Public | BindingFlags.Static))
+        {
+            CheckHolderConstants(nested);
         }
     }
 
@@ -698,15 +712,13 @@ public static class Program
     {
         public ClientConfig Config { get; set; } = new();
         public string ConfigFilePath => "test_config.json";
-        public GraphicsPreset SelectedGraphicsPreset => GraphicsPreset.Medium;
+        public GraphicsPreset SelectedGraphicsPreset => GraphicsPreset.Standard;
         public void EnsureInitialized() { }
         public void Load() { }
         public void Save() { }
         public void SaveDeferred() { }
         public void ApplyDefaults() { }
-        public void MarkGraphicsAsCustom() { }
         public void SelectGraphicsPreset(GraphicsPreset preset) { }
-        public void SetCustomGraphicsSettings(GraphicsQualitySettings settings) { }
         public void UpdateSection<TSection>(Func<ClientConfig, TSection> select, Action<TSection> update) where TSection : class, new() => update(select(Config));
         public void UpdateAndSave(Action<ClientConfig> update) => update(Config);
         public void UpdatePostProcessAndSave(Action<ClientConfig> update) => update(Config);

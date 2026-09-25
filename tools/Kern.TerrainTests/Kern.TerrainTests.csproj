@@ -95,7 +95,7 @@
     <Compile Include="$(Game)/Tests/Editor/World/Streaming/TerrainBuildSchedulerTests.cs" Link="Tests/Streaming/TerrainBuildSchedulerTests.cs" />
     <Compile Include="$(Game)/Tests/Editor/World/Streaming/TerrainMemoryEstimateTests.cs" Link="Tests/Streaming/TerrainMemoryEstimateTests.cs" />
     <Compile Include="$(Game)/Tests/Editor/Networking/PacketAdmissionBudgetTests.cs" Link="Tests/Networking/PacketAdmissionBudgetTests.cs" />
-    <Compile Include="$(Game)/Tests/Editor/UI/MinimapRefreshPolicy*.cs" LinkBase="Tests/UI" />
+    <Compile Include="$(Game)/Tests/Editor/UI/Gameplay/MinimapRefreshPolicy*.cs" LinkBase="Tests/UI" />
     <!-- Тесты кодека чанков: те же файлы, что гоняет Unity, но проверяются
          здесь за секунды и без редактора. -->
     <Compile Include="$(Game)/Tests/Editor/World/Persistence/WorldChunkRLECodec*.cs" LinkBase="Tests/Persistence" />

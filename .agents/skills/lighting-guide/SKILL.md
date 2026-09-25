@@ -3,9 +3,9 @@ name: lighting-guide
 description: >-
   Kern lighting system guide: dataflow, stage boundaries, DDA call placement rules, telemetry
   metrics, and static/dynamic split contract. Use when editing any lighting shader or C# —
-  geometry cache, cascade trace/resolve, dynamic polar, bounce cache/solve, composite, or block
-  lighting. Triggers on: LightingTypes.hlsl, DDA.hlsl, CascadeTrace, CascadeResolve, DynamicPolar,
-  DynamicLightTrace, BounceCache, BounceSolve, CompositeLighting, BlockLighting, TraceLightSegment,
+  geometry cache, cascade trace/resolve, dynamic polar, bounce cache/solve, or composite.
+  Triggers on: LightingTypes.hlsl, DDA.hlsl, CascadeTrace, CascadeResolve, DynamicPolar,
+  DynamicLightTrace, BounceCache, BounceSolve, CompositeLighting, TraceLightSegment,
   TraceRadianceSegment, LightingDdaSegments, LightingDdaTexelVisits, SolveCascade, ResolveDirect,
   BuildCellSolidMask, SolveDiffuseBounce, BuildBounceTaps, IFrameTelemetry.
 ---
@@ -28,7 +28,6 @@ description: >-
 | `Bounce/BounceCache.hlsl` | `BuildBounceTaps`, `BuildBounceFilter` (DDA) |
 | `Bounce/BounceSolve.hlsl` | `SolveDiffuseBounce` |
 | `Composite/CompositeLighting.hlsl` | `CompositeLighting` |
-| `Block/BlockLighting.hlsl` | PerBlock tier |
 
 ## Prohibitions
 
@@ -37,7 +36,6 @@ description: >-
 - `DynamicLightTrace`
 - `BounceSolve`
 - `CompositeLighting`
-- `BlockLighting`
 
 ## Metrics and verification
 

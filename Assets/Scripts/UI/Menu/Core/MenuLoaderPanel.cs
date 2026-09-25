@@ -43,7 +43,7 @@ namespace Kern.UI
             if (missing.Length > 0)
             {
                 throw new InvalidOperationException(
-                    "[MainMenu] В Resources/UI/MainMenu.uxml нет элементов, которых ждёт загрузчик: " +
+                    "[MainMenu] В Resources/UI/Menus/MainMenu.uxml нет элементов, которых ждёт загрузчик: " +
                     string.Join(", ", missing) +
                     ". Имя или тип элемента в разметке разошлись с кодом.");
             }

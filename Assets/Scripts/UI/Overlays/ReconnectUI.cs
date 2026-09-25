@@ -94,7 +94,7 @@ namespace Kern.UI
             VisualTreeAsset template = Resources.Load<VisualTreeAsset>(
                 ProjectRuntimeContracts.ResourcePaths.ReconnectUxml) ??
                 throw new InvalidOperationException(
-                    "[ReconnectUI] Resources/UI/Reconnect.uxml is required.");
+                    "[ReconnectUI] Resources/UI/Menus/Reconnect.uxml is required.");
             TemplateContainer tree = template.Instantiate();
 
             // Статические ключи Uxml резолвятся сразу при сборке (контракт

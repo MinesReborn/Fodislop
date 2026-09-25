@@ -65,13 +65,6 @@ public static class PostProcessDefaults
 
     public static ClampedFloatParameter EigengrauNoiseScale() => new(0.75f, 0.75f, 2f);
 
-    public static ClampedFloatParameter EigengrauAnimationSpeed() => new(1f, 1f, 60f);
-
-    public static ClampedFloatParameter MotionBlurIntensity() => new(
-        PostProcessLimits.MotionBlurIntensityMin,
-        PostProcessLimits.MotionBlurIntensityMin,
-        PostProcessLimits.MotionBlurIntensityMax);
-
     public static void RequireVolumeComponent<T>(
         [NotNull] ref T? target,
         VolumeProfile profile)

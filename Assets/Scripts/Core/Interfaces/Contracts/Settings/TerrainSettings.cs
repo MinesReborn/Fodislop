@@ -1,7 +1,7 @@
 #nullable enable
 
 using System;
-using Kern.Rendering.PostProcessing;
+using Kern.World.Terrain;
 using UnityEngine;
 
 namespace Kern.Core;
@@ -15,25 +15,25 @@ public enum TerrainDistortionStyle
 [Serializable]
 public sealed class TerrainSettings
 {
-    // Дефолти — авторський вигляд, єдиний дім у PostProcessLook.SurfaceLook.
+    // Дефолти — авторський вигляд, єдиний дім у TerrainConfigHolder.
     [SettingRange(0.001f, 1024f)]
     [SettingConsumer(SettingConsumerTarget.TerrainRenderer, "TerrainMaterialManager.FlowScale")]
-    public Vector2 FlowScale = PostProcessLook.SurfaceLook.FlowScale;
+    public Vector2 FlowScale = TerrainConfigHolder.FlowScale;
 
     [SettingRange(0f, 10f)]
     [SettingLabel("settings.world.shimmer_speed")]
     [SettingConsumer(SettingConsumerTarget.TerrainRenderer, "TerrainMaterialManager.ShimmerSpeedScale")]
-    public float ShimmerSpeedScale = PostProcessLook.SurfaceLook.ShimmerSpeedScale;
+    public float ShimmerSpeedScale = TerrainConfigHolder.ShimmerSpeedScale;
 
     [SettingRange(0f, 10f)]
     [SettingLabel("settings.world.pulse_speed")]
     [SettingConsumer(SettingConsumerTarget.TerrainRenderer, "TerrainMaterialManager.PulseSpeedScale")]
-    public float PulseSpeedScale = PostProcessLook.SurfaceLook.PulseSpeedScale;
+    public float PulseSpeedScale = TerrainConfigHolder.PulseSpeedScale;
 
     [SettingLabel("settings.world.shimmer_color")]
     [SettingUnbounded("Цвет: компоненты проверяются на конечность и неотрицательность, отрезка нет — яркость выше единицы законна.")]
     [SettingConsumer(SettingConsumerTarget.TerrainRenderer, "TerrainMaterialManager.ShimmerColor")]
-    public Color ShimmerColor = PostProcessLook.SurfaceLook.ShimmerColor;
+    public Color ShimmerColor = TerrainConfigHolder.ShimmerColor;
 
     [SettingUnbounded("Цвет: компоненты проверяются на конечность и неотрицательность, отрезка нет — яркость выше единицы законна.")]
     [SettingConsumer(SettingConsumerTarget.TerrainRenderer, "TerrainMaterialManager.DebugColor")]
@@ -71,24 +71,24 @@ public sealed class TerrainSettings
     [SettingLabel("settings.world.surface_emission_color")]
     [SettingUnbounded("Цвет: компоненты проверяются на конечность и неотрицательность, отрезка нет — яркость выше единицы законна.")]
     [SettingConsumer(SettingConsumerTarget.SurfaceRenderer, "SurfaceRenderer._materialManager.ApplyMaterialConfig")]
-    public Color TransitEmissionColor = PostProcessLook.SurfaceLook.TransitEmissionColor;
+    public Color TransitEmissionColor = TerrainConfigHolder.TransitEmissionColor;
 
     [SettingRange(0f, 8f)]
     [SettingLabel("settings.world.surface_emission")]
     [SettingConsumer(SettingConsumerTarget.SurfaceRenderer, "SurfaceRenderer._materialManager.ApplyMaterialConfig")]
-    public float TransitEmissionStrength = PostProcessLook.SurfaceLook.TransitEmissionStrength;
+    public float TransitEmissionStrength = TerrainConfigHolder.TransitEmissionStrength;
 
     [SettingLabel("settings.world.far_surface_color")]
     [SettingUnbounded("Цвет: компоненты проверяются на конечность и неотрицательность, отрезка нет — яркость выше единицы законна.")]
     [SettingConsumer(SettingConsumerTarget.SurfaceRenderer, "SurfaceRenderer._materialManager.ApplyMaterialConfig")]
-    public Color PerspectiveEmissionColor = PostProcessLook.SurfaceLook.PerspectiveEmissionColor;
+    public Color PerspectiveEmissionColor = TerrainConfigHolder.PerspectiveEmissionColor;
 
     [SettingRange(0f, 8f)]
     [SettingLabel("settings.world.far_surface_emission")]
     [SettingConsumer(SettingConsumerTarget.SurfaceRenderer, "SurfaceRenderer._materialManager.ApplyMaterialConfig")]
-    public float PerspectiveEmissionStrength = PostProcessLook.SurfaceLook.PerspectiveEmissionStrength;
+    public float PerspectiveEmissionStrength = TerrainConfigHolder.PerspectiveEmissionStrength;
 
     [SettingRange(0f, 1f)]
     [SettingConsumer(SettingConsumerTarget.SurfaceRenderer, "SurfaceRenderer._materialManager.ApplyMaterialConfig")]
-    public float SurfaceOccupancy = PostProcessLook.SurfaceLook.SurfaceOccupancy;
+    public float SurfaceOccupancy = TerrainConfigHolder.SurfaceOccupancy;
 }
