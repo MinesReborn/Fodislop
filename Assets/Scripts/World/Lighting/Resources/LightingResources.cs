@@ -18,6 +18,7 @@ public sealed class LightingResources
         public RenderTexture? Material { get; internal set; }
         public RenderTexture? StaticEmission { get; internal set; }
         public RenderTexture? CellSolidMask { get; internal set; }
+        public RenderTexture? SurfaceAirCache { get; internal set; }
         public RenderTexture? AmbientOcclusion { get; internal set; }
         public int AmbientOcclusionWidth { get; internal set; }
         public int AmbientOcclusionHeight { get; internal set; }
@@ -67,6 +68,7 @@ public sealed class LightingResources
         Geometry.Material = null;
         Geometry.StaticEmission = null;
         Geometry.CellSolidMask = null;
+        Geometry.SurfaceAirCache = null;
         Geometry.AmbientOcclusion = null;
         Geometry.AmbientOcclusionWidth = 0;
         Geometry.AmbientOcclusionHeight = 0;

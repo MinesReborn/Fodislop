@@ -137,14 +137,5 @@ internal static class CompareComponentsTool
         return resolved.Replace("rgb(", "rgba(").Trim().ToLowerInvariant();
     }
 
-    private static string GetRoot()
-    {
-        string dir = Directory.GetCurrentDirectory();
-        while (!File.Exists(Path.Combine(dir, "index.html")))
-        {
-            dir = Path.GetDirectoryName(dir) ?? dir;
-            if (Path.GetPathRoot(dir) == dir) break;
-        }
-        return dir;
-    }
+    private static string GetRoot() => DesignSystemPaths.GetRoot();
 }

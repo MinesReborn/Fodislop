@@ -17,7 +17,7 @@
 
 Прогон: 7 состояний (`switchViewState`) и 11 модалок (`openModal`) на трёх
 режимах — без псевдоязыка, p90 (×1.5) и худший (×4.5). Коэффициенты посчитаны по
-`en.json`/`ru.json`, а не выбраны (`tools/measure-i18n.js`).
+`en.json`/`ru.json`, а не выбраны (`dotnet run --project tools/Kern.DesignSystem -- measure-i18n`).
 
 ## Что нашли: 24 находки на ×4.5
 

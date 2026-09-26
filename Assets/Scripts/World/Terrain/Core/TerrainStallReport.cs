@@ -2,6 +2,7 @@
 
 using System.Text;
 using Kern.Core;
+using Kern.Core.Interfaces;
 using Kern.Core.Interfaces.Diagnostics;
 using UnityEngine;
 
@@ -30,6 +31,10 @@ public readonly record struct TerrainStallFrame(
     int UploadStrips,
     float PlanMs,
     float DimensionsMs,
+    int ResidencyProbeCalls,
+    int ResidencyChunkReads,
+    int ResidencyCacheHits,
+    int ResidencyLruTouches,
     TerrainStallBuildState State,
     TerrainWorkerCost Worker);
 
@@ -163,6 +168,10 @@ public sealed class TerrainStallReport : IFrameEventSource
             $"в ({frame.Origin.x},{frame.Origin.y}) · " +
             $"сборка {frame.State.Build}{(frame.State.InFlight ? " (идёт)" : string.Empty)} · " +
             $"план {frame.PlanMs:F1} · размеры {frame.DimensionsMs:F1} · " +
+            $"резидентность {frame.ResidencyProbeCalls} проб (1 цель + поиск) / " +
+            $"{frame.ResidencyChunkReads} уникальных статусов в поиске / " +
+            $"{frame.ResidencyLruTouches} LRU touch / " +
+            $"{frame.ResidencyCacheHits} попаданий · " +
             $"процесс {frame.ProcessMs:F1} (кэш {totals.CacheMs:F1} · атласы {totals.AtlasMs:F1}) · " +
             $"выгрузка {frame.UploadMs:F1} · прочее {totalMs - accounted:F1} · " +
             $"[выгрузка: {(frame.UploadRectCount == 0 ? "целиком" : frame.UploadRectCount + " прямоуг.")} " +

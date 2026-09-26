@@ -7,6 +7,7 @@ using Kern.Core.Interfaces;
 using MinesServer.Data;
 using UnityEngine;
 using Kern.Core.Interfaces.Diagnostics;
+using Kern.Core.Interfaces.WorldLighting;
 
 namespace Kern.World.Terrain;
 
@@ -76,6 +77,9 @@ public sealed class TerrainMaterialManager
             material.SetColor(_ShimmerColorPropertyID, config.Terrain.ShimmerColor);
             material.SetColor(_DebugColorPropertyID, config.Terrain.DebugColor);
             material.SetFloat(_DebugModePropertyID, config.Terrain.DebugMode ? 1f : 0f);
+            // Вид поверхности авторский: декали, кайма, глинт и
+            // призматик берут числа из TerrainConfigHolder.
+            TerrainMaterialTuning.Apply(material);
         }
     }
 
@@ -224,14 +228,19 @@ public sealed class TerrainMaterialManager
         _materials[index].SetColor(_ShimmerColorPropertyID, clientConfig.Terrain.ShimmerColor);
         _materials[index].SetColor(_DebugColorPropertyID, clientConfig.Terrain.DebugColor);
         _materials[index].SetFloat(_DebugModePropertyID, clientConfig.Terrain.DebugMode ? 1f : 0f);
+        // Вид поверхности авторский: декали, кайма, глинт и
+        // призматик берут числа из TerrainConfigHolder.
+        TerrainMaterialTuning.Apply(_materials[index]);
 
         if (_materials[index].FindPass("Universal2D") < 0 ||
             _materials[index].FindPass(
-                ProjectRuntimeContracts.ShaderPassNames.LightingMaterialField) < 0)
+                ProjectRuntimeContracts.ShaderPassNames.LightingMaterialField) < 0 ||
+            _materials[index].FindPass(
+                ProjectRuntimeContracts.ShaderPassNames.LightingAmbientOcclusionField) < 0)
         {
             throw new InvalidOperationException(
-                $"Terrain material '{_materials[index].name}' is missing required " +
-                "world-lighting properties or passes.");
+                $"Terrain material '{_materials[index].name}' is missing a required " +
+                "world-lighting pass.");
         }
 
         _overlayMaterials[index] = new Material(_materials[index])
@@ -347,11 +356,17 @@ public sealed class TerrainMaterialManager
     ];
     private const string CellModeKeyword = "KERN_TERRAIN_CELLS";
 
-    public void ValidateLightingBinding()
+    public void ValidateLightingBinding(in LightingOutputSnapshot output)
     {
-        if (_lightingBindingValidated || _materials.Length == 0)
+        if (output.State == LightingOutputState.Disabled || _lightingBindingValidated || _materials.Length == 0)
         {
             return;
+        }
+
+        if (output.State != LightingOutputState.Published ||
+            output.WorldRectCells.width <= 0 || output.WorldRectCells.height <= 0)
+        {
+            throw new InvalidOperationException("Lighting output snapshot is invalid for Terrain binding.");
         }
 
         for (int materialIndex = 0; materialIndex < _materials.Length; materialIndex++)
@@ -359,7 +374,9 @@ public sealed class TerrainMaterialManager
             Material material = _materials[materialIndex];
             if (material.FindPass("Universal2D") < 0 ||
                 material.FindPass(
-                    ProjectRuntimeContracts.ShaderPassNames.LightingMaterialField) < 0)
+                    ProjectRuntimeContracts.ShaderPassNames.LightingMaterialField) < 0 ||
+                material.FindPass(
+                    ProjectRuntimeContracts.ShaderPassNames.LightingAmbientOcclusionField) < 0)
             {
                 throw new InvalidOperationException(
                     $"Terrain material '{material.name}' is missing world-lighting passes.");
@@ -371,7 +388,20 @@ public sealed class TerrainMaterialManager
         if (globalTexture == null || globalRect.z <= 0f || globalRect.w <= 0f)
         {
             throw new InvalidOperationException(
-                "Radiance Cascades completed without publishing a valid world light texture and rect.");
+                    "Radiance Cascades completed without publishing a valid world light texture and rect.");
+        }
+
+        float cellSize = ProjectRuntimeContracts.World.CellSize;
+        var expectedRect = new Vector4(
+            output.WorldRectCells.x * cellSize,
+            output.WorldRectCells.y * cellSize,
+            output.WorldRectCells.width * cellSize,
+            output.WorldRectCells.height * cellSize);
+        if (globalRect != expectedRect)
+        {
+            throw new InvalidOperationException(
+                $"Lighting output rectangle {globalRect} does not match published cell rectangle " +
+                $"{output.WorldRectCells}.");
         }
 
         _lightingBindingValidated = true;

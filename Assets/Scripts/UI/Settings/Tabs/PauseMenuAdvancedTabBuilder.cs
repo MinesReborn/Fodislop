@@ -21,7 +21,6 @@ internal sealed class PauseMenuAdvancedTabBuilder
     private readonly ILocalPlayerState _localPlayer;
     private readonly ICollection<Action> _refreshers;
     private readonly ILocalizationService _loc;
-    private readonly Action _markGraphicsCustom;
 #if UNITY_EDITOR || UNITY_ENABLE_CHECKS
     private readonly Action _addLightingDebugControls;
 #endif
@@ -32,8 +31,7 @@ internal sealed class PauseMenuAdvancedTabBuilder
         IClientConfigManager clientConfig,
         ILocalPlayerState localPlayer,
         ICollection<Action> refreshers,
-        ILocalizationService loc,
-        Action markGraphicsCustom
+        ILocalizationService loc
 #if UNITY_EDITOR || UNITY_ENABLE_CHECKS
         , Action addLightingDebugControls
 #endif
@@ -45,7 +43,6 @@ internal sealed class PauseMenuAdvancedTabBuilder
         _localPlayer = localPlayer;
         _refreshers = refreshers;
         _loc = loc;
-        _markGraphicsCustom = markGraphicsCustom;
 #if UNITY_EDITOR || UNITY_ENABLE_CHECKS
         _addLightingDebugControls = addLightingDebugControls;
 #endif
@@ -70,8 +67,7 @@ internal sealed class PauseMenuAdvancedTabBuilder
 
         void SaveShaderSetting(Action<ClientConfig> update)
         {
-            _markGraphicsCustom();
-            _graphicsSettings.UpdateCustomWorldMaterialSettings(update);
+            _graphicsSettings.UpdateWorldMaterialSettings(update);
         }
 
         worldMaterialsSection.Add(PauseMenuUIFactory.CreateBoundSlider<TerrainSettings>(

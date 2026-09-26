@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Kern.Core.Interfaces.Diagnostics;
@@ -40,147 +39,15 @@ public sealed class TerrainCellDataTextures : IDisposable
     public static readonly int OriginID = Shader.PropertyToID("_TerrainCellOrigin");
     public static readonly int ViewOffsetID = Shader.PropertyToID("_TerrainCellViewOffset");
 
-    private sealed class Channel<T>(TextureFormat format, string name)
-        where T : struct
-    {
-        // Одна промежуточная текстура на канал, ПОСТОЯННОГО размера.
-        //
-        // ЗАЧЕМ ИМЕННО ТАК. Загрузить в Texture2D кусок нельзя: Apply()
-        // отправляет текстуру целиком. Поэтому прямоугольник сначала
-        // набивается в маленькую текстуру, а потом переносится на место
-        // командой GPU.
-        //
-        // НИКАКИХ ПРЕДПОЛОЖЕНИЙ О ФОРМЕ. Раньше размер подгонялся под
-        // прямоугольник, и текстура пересоздавалась, как только форма
-        // менялась, — девять штук за кадр, по 30+ мс. Пул под «ожидаемые»
-        // формы это лечил ровно до первого неожиданного прямоугольника, а
-        // прямоугольники приходят с сервера: любой поток изменений мира даёт
-        // любую форму, и тогда пул промахивается каждый кадр.
-        //
-        // Постоянный размер снимает вопрос. Ширина — во всю текстуру, потому
-        // что шире прямоугольник быть не может; высота — фиксированная
-        // полоска. Любой прямоугольник режется на такие полоски по высоте и
-        // грузится за несколько переносов. Текстура создаётся один раз и
-        // живёт, сколько живёт окно.
-        //
-        // Лишняя площадь при этом грузится (полоска 33 текселя шириной
-        // занимает её всю), и это осознанно: замер показал, что загрузка
-        // стоит 0.0-0.1 мс, а создание текстуры — десятки миллисекунд.
-        // Плата за предсказуемость берётся там, где она почти бесплатна.
-        private const int StagingRows = 128;
-
-        public Texture2D? Target;
-        public T[] Data = [];
-
-        // Промежуточные текстуры по слотам. Слот один на все каналы: его
-        // выбирает TerrainCellDataTextures так, чтобы текстура не набивалась
-        // повторно, пока её прошлую загрузку ещё может читать render thread.
-        private readonly List<Texture2D> _staging = [];
-
-        public static long CopyTicks;
-        public static long ApplyTicks;
-
-        public void Allocate(int width, int height)
-        {
-            Target = Create(width, height, format, name);
-            Data = new T[width * height];
-            EnsureStagingSlot(0);
-        }
-
-        public void UploadAll()
-        {
-            NativeArray<T> pixels = Target!.GetPixelData<T>(0);
-            pixels.CopyFrom(Data);
-            Target.Apply(false, false);
-        }
-
-        /// <summary>Высота промежуточной текстуры: по ней режутся высокие куски.</summary>
-        public int StagingHeight => Math.Min(StagingRows, Target!.height);
-
-        public int StagingWidth => Target!.width;
-
-        public void EnsureStagingSlot(int slot)
-        {
-            while (_staging.Count <= slot)
-            {
-                _staging.Add(Create(StagingWidth, StagingHeight, format, name + "Staging" + _staging.Count));
-            }
-        }
-
-        /// <summary>
-        /// Набить все куски одной промежуточной текстуры и отдать её на GPU:
-        /// один доступ к пиксельному буферу и одна загрузка на канал.
-        /// </summary>
-        ///
-        /// Перенос на место — отдельно (CopyStaged): Apply() — это загрузка с
-        /// синхронизацией, CopyTexture — команда GPU; сначала набиваются все
-        /// каналы, потом переносятся все.
-        public void Stage(int slot, List<TerrainStagedPiece> pieces, int start, int end)
-        {
-            long copyStart = System.Diagnostics.Stopwatch.GetTimestamp();
-            Texture2D staging = _staging[slot];
-            int textureWidth = Target!.width;
-            int stagingWidth = staging.width;
-            NativeArray<T> pixels = staging.GetPixelData<T>(0);
-            for (int index = start; index < end; index++)
-            {
-                TerrainStagedPiece piece = pieces[index];
-                RectInt target = piece.Target;
-                for (int row = 0; row < target.height; row++)
-                {
-                    NativeArray<T>.Copy(
-                        Data,
-                        ((target.y + row) * textureWidth) + target.x,
-                        pixels,
-                        ((piece.StageY + row) * stagingWidth) + piece.StageX,
-                        target.width);
-                }
-            }
-
-            CopyTicks += System.Diagnostics.Stopwatch.GetTimestamp() - copyStart;
-
-            long applyStart = System.Diagnostics.Stopwatch.GetTimestamp();
-            staging.Apply(false, false);
-            ApplyTicks += System.Diagnostics.Stopwatch.GetTimestamp() - applyStart;
-        }
-
-        public void CopyStaged(int slot, List<TerrainStagedPiece> pieces, int start, int end)
-        {
-            Texture2D staging = _staging[slot];
-            for (int index = start; index < end; index++)
-            {
-                TerrainStagedPiece piece = pieces[index];
-                RectInt target = piece.Target;
-                Graphics.CopyTexture(
-                    staging, 0, 0, piece.StageX, piece.StageY, target.width, target.height,
-                    Target!, 0, 0, target.x, target.y);
-            }
-        }
-
-        public void Destroy()
-        {
-            DestroyTexture(ref Target);
-            for (int index = 0; index < _staging.Count; index++)
-            {
-                Texture2D? staging = _staging[index];
-                DestroyTexture(ref staging);
-            }
-
-            _staging.Clear();
-            Data = [];
-        }
-
-    }
-
-    private readonly Channel<Color32> _color = new(TextureFormat.RGBA32, "TerrainCellColor");
-    private readonly Channel<Color32> _meta = new(TextureFormat.RGBA32, "TerrainCellMeta");
-    private readonly Channel<TerrainHalfTexel> _atlasRect = new(TextureFormat.RGBAHalf, "TerrainCellAtlasRect");
-    private readonly Channel<TerrainHalfTexel> _tileSize = new(TextureFormat.RGBAHalf, "TerrainCellTileSize");
-    private readonly Channel<TerrainHalfTexel> _animation = new(TextureFormat.RGBAHalf, "TerrainCellAnimation");
-    private readonly Channel<Vector4> _world = new(TextureFormat.RGBAFloat, "TerrainCellWorld");
-    private readonly Channel<Vector4> _glow = new(TextureFormat.RGBAFloat, "TerrainCellGlow");
-    private readonly Channel<TerrainHalfTexel> _geometryX = new(TextureFormat.RGBAHalf, "TerrainCellGeometryX");
-    private readonly Channel<TerrainHalfTexel> _geometryY = new(TextureFormat.RGBAHalf, "TerrainCellGeometryY");
+    private readonly TerrainCellDataChannel<Color32> _color = new(TextureFormat.RGBA32, "TerrainCellColor");
+    private readonly TerrainCellDataChannel<Color32> _meta = new(TextureFormat.RGBA32, "TerrainCellMeta");
+    private readonly TerrainCellDataChannel<TerrainHalfTexel> _atlasRect = new(TextureFormat.RGBAHalf, "TerrainCellAtlasRect");
+    private readonly TerrainCellDataChannel<TerrainHalfTexel> _tileSize = new(TextureFormat.RGBAHalf, "TerrainCellTileSize");
+    private readonly TerrainCellDataChannel<TerrainHalfTexel> _animation = new(TextureFormat.RGBAHalf, "TerrainCellAnimation");
+    private readonly TerrainCellDataChannel<Vector4> _world = new(TextureFormat.RGBAFloat, "TerrainCellWorld");
+    private readonly TerrainCellDataChannel<Vector4> _glow = new(TextureFormat.RGBAFloat, "TerrainCellGlow");
+    private readonly TerrainCellDataChannel<TerrainHalfTexel> _geometryX = new(TextureFormat.RGBAHalf, "TerrainCellGeometryX");
+    private readonly TerrainCellDataChannel<TerrainHalfTexel> _geometryY = new(TextureFormat.RGBAHalf, "TerrainCellGeometryY");
 
     private readonly TerrainDirtyRegion _dirty = new();
     private readonly List<RectInt> _uploadRects = [];
@@ -224,12 +91,12 @@ public sealed class TerrainCellDataTextures : IDisposable
 
     private static void ResetStageCounters()
     {
-        Channel<Color32>.CopyTicks = 0;
-        Channel<Color32>.ApplyTicks = 0;
-        Channel<TerrainHalfTexel>.CopyTicks = 0;
-        Channel<TerrainHalfTexel>.ApplyTicks = 0;
-        Channel<Vector4>.CopyTicks = 0;
-        Channel<Vector4>.ApplyTicks = 0;
+        TerrainCellDataChannel<Color32>.CopyTicks = 0;
+        TerrainCellDataChannel<Color32>.ApplyTicks = 0;
+        TerrainCellDataChannel<TerrainHalfTexel>.CopyTicks = 0;
+        TerrainCellDataChannel<TerrainHalfTexel>.ApplyTicks = 0;
+        TerrainCellDataChannel<Vector4>.CopyTicks = 0;
+        TerrainCellDataChannel<Vector4>.ApplyTicks = 0;
     }
 
     private static float TicksToMs(long ticks) =>
@@ -265,6 +132,9 @@ public sealed class TerrainCellDataTextures : IDisposable
         _glow.Allocate(meshWidth, height);
         _geometryX.Allocate(meshWidth, height);
         _geometryY.Allocate(meshWidth, height);
+        // Every channel allocated staging slot zero above. Register it now so
+        // the first patch reuses that slot instead of reporting a new one.
+        _stagingSlotFrames.Add(int.MinValue);
         _dirty.Reset(meshWidth, meshHeight);
     }
 
@@ -402,11 +272,11 @@ public sealed class TerrainCellDataTextures : IDisposable
 
             LastStageMs = ElapsedMs(stageStart);
             LastStageCopyMs = TicksToMs(
-                Channel<Color32>.CopyTicks + Channel<TerrainHalfTexel>.CopyTicks +
-                Channel<Vector4>.CopyTicks);
+                TerrainCellDataChannel<Color32>.CopyTicks + TerrainCellDataChannel<TerrainHalfTexel>.CopyTicks +
+                TerrainCellDataChannel<Vector4>.CopyTicks);
             LastStageApplyMs = TicksToMs(
-                Channel<Color32>.ApplyTicks + Channel<TerrainHalfTexel>.ApplyTicks +
-                Channel<Vector4>.ApplyTicks);
+                TerrainCellDataChannel<Color32>.ApplyTicks + TerrainCellDataChannel<TerrainHalfTexel>.ApplyTicks +
+                TerrainCellDataChannel<Vector4>.ApplyTicks);
         }
 
         _dirty.Clear();
@@ -495,31 +365,4 @@ public sealed class TerrainCellDataTextures : IDisposable
         MeshHeight = 0;
     }
 
-    private static Texture2D Create(int width, int height, TextureFormat format, string name) =>
-        new(width, height, format, mipChain: false, linear: true)
-        {
-            name = name,
-            filterMode = FilterMode.Point,
-            wrapMode = TextureWrapMode.Clamp,
-            hideFlags = HideFlags.DontSave,
-        };
-
-    private static void DestroyTexture(ref Texture2D? texture)
-    {
-        if (texture == null)
-        {
-            return;
-        }
-
-        if (Application.isPlaying)
-        {
-            UnityEngine.Object.Destroy(texture);
-        }
-        else
-        {
-            UnityEngine.Object.DestroyImmediate(texture);
-        }
-
-        texture = null;
-    }
 }

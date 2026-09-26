@@ -18,7 +18,7 @@ MonoBehaviour:
     m_Value: 0
   color:
     m_OverrideState: 1
-    m_Value: {r: 0.018, g: 0.02, b: 0.028, a: 1}
+    m_Value: {r: 0.0863, g: 0.0863, b: 0.1137, a: 1}
   darknessThreshold:
     m_OverrideState: 1
     m_Value: 0.22
@@ -45,23 +45,6 @@ MonoBehaviour:
   - {fileID: 6149127147275241794}
   - {fileID: 3524879773850928676}
   - {fileID: -6271604533652656483}
-  - {fileID: 3512870612399361332}
---- !u!114 &3512870612399361332
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 996afb401c6ff45f882623218512cf5b, type: 3}
-  m_Name: MotionBlurComponent
-  m_EditorClassIdentifier: Assembly-CSharp::Kern.Rendering.PostProcessing.MotionBlurComponent
-  active: 0
-  intensity:
-    m_OverrideState: 1
-    m_Value: 0
 --- !u!114 &3524879773850928676
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -111,10 +94,10 @@ MonoBehaviour:
     m_Value: 0.5
   radius:
     m_OverrideState: 1
-    m_Value: 3
+    m_Value: 1.5
   scatter:
     m_OverrideState: 1
-    m_Value: 0.55
+    m_Value: 0.35
   tint:
     m_OverrideState: 1
     m_Value: {r: 1, g: 1, b: 1, a: 1}

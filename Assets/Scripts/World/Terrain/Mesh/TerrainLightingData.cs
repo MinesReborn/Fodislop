@@ -17,7 +17,7 @@ internal enum TerrainLightingFlags : byte
 }
 
 // Wire format written to TerrainVertex.UV6 and decoded by
-// Assets/Shaders/TerrainLightingData.hlsl.
+// Assets/Shaders/Terrain/TerrainLightingData.hlsl.
 internal readonly record struct TerrainLightingData(
     float PackedFlags,
     float PackedContour)
@@ -30,7 +30,8 @@ internal readonly record struct TerrainLightingData(
     private const int ReliefCodeRange = 1 << ReliefCodeShift;
 
     // Бит 0 — roundable contour, биты 1-4 — диагональные соседи,
-    // биты 5-9 — код рельефа. Код, а не маска:
+    // биты 5-9 — код сторон рельефа, биты 10-13 — вогнутые углы.
+    // Код сторон, а не маска:
     // ноль означает «клетка без рельефа, каймы нет», а маска рельефа
     // хранится как mask + 1. Иначе клетка без рельефа и клетка, у которой
     // все четыре соседа чужие, выглядели бы одинаково.
@@ -46,6 +47,8 @@ internal readonly record struct TerrainLightingData(
         ((int)MathF.Round(PackedContour) >> SolidDiagonalShift) & SolidBoundaryMask;
 
     public int ReliefCode => ((int)MathF.Round(PackedContour) >> ReliefCodeShift) & 0x1F;
+
+    public byte ReliefCornerMask => (byte)(((int)MathF.Round(PackedContour) >> 10) & 0x0F);
 
     public bool IsEmissive => (Flags & TerrainLightingFlags.Emissive) != 0;
 
@@ -67,7 +70,8 @@ internal readonly record struct TerrainLightingData(
         bool isPhysicalMass,
         float emissionStrength,
         byte reliefMask,
-        bool hasRelief)
+        bool hasRelief,
+        byte reliefCornerMask = 0)
     {
         var flags = (TerrainLightingFlags)(solidConnectivityMask & SolidBoundaryMask);
         if (isGlowing)
@@ -83,9 +87,10 @@ internal readonly record struct TerrainLightingData(
         int contourFlags = hasRoundedPhysicalContour ? RoundableContourFlag : 0;
         int solidDiagonal = solidConnectivityMask >> 4;
         int reliefCode = hasRelief ? (reliefMask & SolidBoundaryMask) + 1 : NoRelief;
+        int packedReliefCorners = hasRelief ? (reliefCornerMask & SolidBoundaryMask) << 10 : 0;
         return new TerrainLightingData(
             (byte)flags + (emissionStrength * EmissionFractionScale),
             contourFlags + (solidDiagonal << SolidDiagonalShift) +
-                (reliefCode * ReliefCodeRange));
+                (reliefCode * ReliefCodeRange) + packedReliefCorners);
     }
 }

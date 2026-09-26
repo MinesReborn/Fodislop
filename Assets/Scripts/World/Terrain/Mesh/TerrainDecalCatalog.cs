@@ -21,8 +21,6 @@ public static class TerrainDecalCatalog
     // поэтому величина обладает полезным свойством: её подъём только
     // добавляет декали, не трогая уже стоящие. Мир не перерисовывается
     // заново, к нему добавляется гуще.
-    private const uint GroundPlacementPercent = 24;
-
     // Доля для камня, песка и дороги. Сегодня недостижима: единственный вызов
     // снаружи — GetGroundPlacement, а он жёстко передаёт CellType.Empty, то
     // есть семейство всегда Ground. Ветки Stone/Sand/Road вместе с их раскладкой
@@ -41,7 +39,7 @@ public static class TerrainDecalCatalog
 
         uint hash = Hash(worldX, serverY, (uint)cellType);
         uint placementPercent = family == TerrainDecalFamily.Ground
-            ? GroundPlacementPercent
+            ? TerrainConfigHolder.GroundDecalPlacementPercent
             : PlacementPercent;
         if ((hash % 100u) >= placementPercent)
         {
@@ -99,7 +97,7 @@ public static class TerrainDecalCatalog
     // Остальной камень той же семьи — золото, металл, глубинная порода —
     // им не красим: гамма расходится с палитрой самой клетки.
     public static bool IsStoneDecalSurface(CellType cellType, bool isBackground) =>
-        !isBackground && cellType is CellType.RedRock or CellType.NiggerRock;
+        !isBackground && cellType is CellType.RedRock or CellType.BlackRock;
 
     public static bool IsGroundDecalSurface(CellType cellType, bool isBackground) =>
         cellType == CellType.Empty ||
@@ -129,7 +127,7 @@ public static class TerrainDecalCatalog
             CellType.Boulder3 or
             CellType.Rock or
             CellType.HeavyRock or
-            CellType.NiggerRock or
+            CellType.BlackRock or
             CellType.RedRock or
             CellType.GoldenRock or
             CellType.DeepRock or

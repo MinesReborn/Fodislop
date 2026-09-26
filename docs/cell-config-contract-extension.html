@@ -92,7 +92,7 @@ ol, ul { margin: 10px 0; padding-left: 22px; } li { margin: 5px 0; }
   <td>Гасит <code>Glowing</code> и исключает из декалей — то есть переопределяет серверный флаг клиентским списком.</td></tr>
 
 <tr><td>Профиль анимации и фаза</td>
-  <td><code>TerrainAnimationProfileCatalog.Get</code>: FacetedCrystal, PrismaticCrystal, молтен, и фазы <code>XGreen=1 … XCyan=5</code></td>
+  <td><code>TerrainAnimationProfileCatalog.Get</code>: FacetedCrystal, PrismaticCrystal и фазы <code>XGreen=1 … XCyan=5</code></td>
   <td><code>animType</code>, <code>animSpeed</code>, <code>dx2</code>/<code>dy2</code></td>
   <td><code>Animation</code> и <code>AnimationSpeed</code> в пакете есть, но клиент их частично переопределяет.</td></tr>
 
@@ -127,7 +127,7 @@ ol, ul { margin: 10px 0; padding-left: 22px; } li { margin: 5px 0; }
 <tr><td><code>SheetTilesX</code></td><td><code>byte</code></td><td>1</td><td>период тайлинга по X в клетках</td><td rowspan="2">вывод размера участка из размера PNG</td></tr>
 <tr><td><code>SheetTilesY</code></td><td><code>byte</code></td><td>1</td><td>период по Y</td></tr>
 <tr><td><code>AnimationProfile</code></td><td><code>byte</code> enum</td><td>1</td>
-  <td>Default, FacetedCrystal, PrismaticCrystal, Molten</td><td><code>TerrainAnimationProfileCatalog</code></td></tr>
+  <td>Default, FacetedCrystal, PrismaticCrystal</td><td><code>TerrainAnimationProfileCatalog</code></td></tr>
 <tr><td><code>AnimationPhase</code></td><td><code>byte</code></td><td>1</td>
   <td>индекс фазы, сегодня <code>XGreen = 1 … XCyan = 5</code></td><td>таблицу фаз в клиенте</td></tr>
 <tr><td><code>DecalFamily</code></td><td><code>byte</code> enum</td><td>1</td>

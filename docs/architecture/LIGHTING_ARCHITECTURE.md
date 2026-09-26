@@ -1,5 +1,10 @@
 # Lighting Architecture
 
+The normative ownership and change standard is
+[`TERRAIN_LIGHTING_STANDARD.md`](TERRAIN_LIGHTING_STANDARD.md). This document
+records the current pipeline and implementation behavior; where current code
+differs from the standard, the difference is conformance debt, not a new rule.
+
 Документ описывает фактическую архитектуру освещения и границу между lighting, terrain и streaming.
 
 ## Главный dataflow
@@ -15,7 +20,7 @@ MapRegionProcessor → WorldLayer.SetRegion
     ↓
 TerrainRenderer cache + mesh + textures
     ↓
-LightingEngine.UpdateLighting
+TerrainLightingFrameSnapshot → LightingEngine.LateUpdate
     ↓
 LightingUpdateCoordinator
     ↓
@@ -33,6 +38,68 @@ WorldLightTexture
 ```
 
 Окно terrain и окно lighting связаны координатами world region, но имеют разные кэши и разные invalidation rules. Новый origin нельзя публиковать в presentation, пока все используемые terrain и lighting resources не готовы.
+
+## Статус миграции границы
+
+Gate A: DTO, `ILightingGeometryContributor`, purpose-specific field contexts и
+`ITerrainLightingExchange` находятся в `Kern.Contracts`; `TerrainLightingExchange`
+зарегистрирован одним VContainer singleton в `GameLifetimeScope`. Проверка
+`TerrainLightingExchangeTests` компилирует production contract/exchange без Unity
+Editor, проверяет ровно одну DI binding-декларацию, VContainer singleton identity,
+границы `Kern.Contracts`, поколения, последовательности, ack/retry, reset и
+неизменяемость значений. Gate A source/tests готовы; Unity assembly/DI compile не выполнялся.
+
+Gate B подключил Terrain journal к Lighting-owned pending invalidation state.
+Terrain публикует region и named full-reset записи после успешной обработки
+геометрии; Lighting принимает их перед текущим solve-вызовом и подтверждает
+каждую запись только после переноса в своё состояние. Прямые вызовы
+`LightingEngine.InvalidateRegion` и `InvalidateStaticCache` удалены из Terrain.
+Тесты pump/applier проверяют retry, contiguous acknowledgement, world replacement,
+полное сбрасывание старых участков, сохранение соседних sequence identities,
+stable-region filtering и forced-full-reanchor policy.
+
+Gate C source integration подключает требования до Terrain planning, committed
+change/frame publication, generation-scoped frame snapshots, Lighting-owned
+LateUpdate tick, success-only acknowledgements и output publication. Terrain protocol
+sequence/pending-reset ownership вынесено в `TerrainLightingFramePublisher`; оно не
+меняет очередь и порядок Terrain commit/plan/process. `dotnet test
+tools/Kern.WorldLightingExchangeTests/Kern.WorldLightingExchangeTests.csproj
+--no-restore` прошёл: 21 tests. Production Unity compile/PlayMode проверки frame
+order, teleport presentation, GPU output rect и material binding не запускались,
+поэтому acceptance Gate C остаётся pending.
+
+Gate D boundary rule добавлено и автоматически обнаруживается default rule catalog;
+fixtures для namespace imports, alias chains, fully qualified references, neutral
+contract, nested UXML localization, и relocated composition roots проходят: 10 linter
+tests passed. Targeted boundary lint на production source завершился с 0 нарушений.
+Localization scanner теперь учитывает вложенные UXML: 202 ложных dead-key findings
+исчезли без удаления ключей. Pattern rule применяет те же точечные исключения к
+перенесённым файлам в `Core/Bootstrap/Scopes`: семь ложных Bootstrap findings
+исчезли без изменения scope кода. Полный architecture linter проверил 54 rules и
+завершился с exit code 0, 0 errors и 15 warnings. Полный вывод и классификация
+сохранены в
+`docs/architecture/evidence/terrain-lighting-architecture-linter-2026-09-24.txt` и
+`docs/architecture/evidence/terrain-lighting-linter-classification-2026-09-24.md`.
+Начальные 209 findings сохранены отдельно в
+`docs/architecture/evidence/terrain-lighting-architecture-linter-initial-2026-09-24.txt`.
+Boundary, naming, forbidden API и full-linter checks проходят; Gate D принят. Остаток
+15 warnings перечислен в classification evidence.
+
+## Terrain/Lighting lifecycle evidence (`TL-LIFE`)
+
+| Owner | Lifecycle transition | Method and resources/publication |
+| --- | --- | --- |
+| `TerrainRenderer` | uninitialized → ready | `Awake` binds mesh/material owners; `Start` captures camera; `EnsureSubscriptions` binds world and texture notifications. |
+| `TerrainRenderer` | ready → active | `LateUpdate` consumes Lighting requirements, commits/presents Terrain, then publishes committed change/frame snapshots. |
+| `TerrainRenderer` | active → disposing → disposed | `OnDestroy` disposes subscriptions, presentation mesh state, diagnostics, and Terrain window resources. |
+| `LightingEngine` | uninitialized → ready | `EnsureInitialized` creates Lighting resources and publishes Terrain planning requirements. |
+| `LightingEngine` | ready → active | `LateUpdate` processes only a fresh exchange frame; successful coordinator update is followed by change/frame acknowledgement and output publication. |
+| `LightingEngine` | active → disposing → disposed | `OnDestroy` releases coordinator/GPU lifecycle resources and prevents further tick work. |
+| `TerrainLightingExchange` | scope creation → active → scope disposal | `GameLifetimeScope` registers exactly one singleton; it stores values and watermarks only and owns no Unity/GPU resources or callbacks. |
+
+Frame-order, teleport presentation, shader output rect, binding validation and GPU
+resource lifecycle remain unverified until a specifically authorized Unity runtime
+operation is run.
 
 ## Runtime ownership
 
@@ -59,6 +126,53 @@ DummyMapStreamer
   └── MapRegion packet            — delivery to client storage
 ```
 
+## Terrain texture addressing and diagnostics
+
+`TerrainSampling.hlsl` is the shared atlas-addressing path for the visible
+terrain and lighting-field albedo. Displaced carriers recover per-cell atlas
+UVs from the decoded cell geometry. Continuous sheet materials instead use the
+fragment's actual cell-space position, so the texture follows distortion and
+stays continuous across displaced cell boundaries. If a displaced fragment
+crosses a cell edge, the resolver applies the periodic address available from
+the current material layout. A grouped autotile retains its per-cell variant
+because the neighbor's distinct descriptor and UV transform are not part of
+the fragment contract; at a displaced edge, its transformed UV is clamped to
+the selected variant edge instead of wrapping to the opposite side and making
+a seam. The visible pass, material/emission field, AO field, and tile-identity
+diagnostic use this same resolver.
+
+Animation masks and terrain decals use the geometry-recovered per-cell UV.
+Decals and faceted masks remain attached to the cell; continuous-sheet albedo
+uses the actual displaced cell-space position. Neither path uses the carrier's
+interpolated UV: carrier bounds expand for displaced cells, so that coordinate
+stretches independently of the rendered terrain surface. The material/emission
+field reconstructs the per-cell UV once and reuses it for animation and decals,
+while the shared albedo resolver also receives the displaced cell-space
+position.
+The screen and field passes also choose the same point/linear atlas sampler from
+`_PixelArtFiltering`; otherwise alpha cutouts and edge texels can disagree even
+when their UVs match.
+
+`TerrainDebugView.BackgroundTileIdentity` clips foreground fragments and colors
+the resolved background atlas tile from its packed atlas slot and absolute
+32-pixel atlas-grid coordinate. This is an injective 17-bit key for eight
+atlases and the configured 4096-pixel atlas limit; animated frames are
+classified from the final sampled UV. An invalid or out-of-range address is
+magenta. Culling of fully covered background cells is bypassed only in the
+visible terrain pass while this view is active. Material/emission and AO field
+passes keep their normal culling and occupancy inputs.
+
+The other terrain debug categories clip foreground fragments to the same
+displaced silhouette as the visible pass. Coverage alone retains the full
+foreground carrier to expose its cutouts; background quads remain rectangular
+in all views.
+
+Background autotile descriptors are computed from the resolved flood-fill
+background types, not borrowed from the foreground descriptor. The metadata
+warmup includes the one-cell neighborhood required by the eight-neighbor tile
+group mask. Regional background rebuilds therefore need their adjacent fill
+types warmed before parallel quad generation.
+
 ## Lighting stages and contracts
 
 ### GeometryField / GeometryCache
@@ -73,14 +187,100 @@ DummyMapStreamer
 - `_MaterialField`;
 - `_StaticEmissionField`;
 - `_CellSolidMask`;
-- `_AmbientOcclusionField` (quality-independent occupancy pyramid for terrain AO);
+- `_AmbientOcclusionField` (quality-independent contact falloff field for terrain AO);
 - bounce geometry caches.
+
+The Standard graphics preset records only `_AmbientOcclusionField` when terrain
+or contributor geometry or the stable world region changes. It allocates no
+radiance atlas, material field, or lightmap and publishes a neutral white light
+texture with the AO field. Overdrive records the same AO field in the full
+lighting frame. Both presets therefore use the same terrain AO pass and shader
+sample, while only Overdrive solves radiance transport.
 
 Terrain mesh lighting metadata has one encoder,
 `TerrainLightingData.cs`, and one shader decoder,
 `TerrainLightingData.hlsl`. `TerrainAmbientOcclusion.hlsl` owns both AO sampling
 and the receiver rule: every non-physical terrain surface receives AO, while
-physical foreground mass does not darken itself.
+physical foreground mass does not darken itself. AO uses one spatial source:
+the contact falloff field, sampled once at the receiver's transformed world position.
+That field is rasterized from the same displaced cell coverage as the visible
+terrain, including organic bends. Atlas alpha rejects transparent source texels;
+internal alpha holes do not yet have a distance-based contact falloff. The cell-neighbor
+mask is not combined into AO, so nominal grid directions cannot add shadows at
+locations where displaced geometry no longer touches the receiver.
+
+The displaced silhouette has one geometric predicate in
+`TerrainGeometry.hlsl`: four corner vertices for regular cells, or those corners
+plus four bend vertices for organic cells. Stored corners and derived bend
+vertices are quantized to the 1/32-cell geometry grid before raster coverage.
+Visible/material coverage tests the continuous raster sample against that
+polygon; per-cell fragment quantization would move opposite sides of a shared
+edge apart and open gaps. Relief-rim distance and AO field contact also retain
+continuous fragment positions and measure the same quantized polygon; AO fades
+over half a cell from its signed distance. The crystal phase map uses those same
+pixel centers. The organic carrier quad gets its bounds from the same corner
+and bend point functions used by the polygon predicate, so there is no second bend,
+pivot, or rounding implementation that can clip the polygon it encloses. During
+the AO-field draw only, the carrier expands by half a cell plus half an AO-field
+texel in world units, converted to cell-local units by the terrain shader. This
+keeps the full contact falloff available at extreme corners;
+material/emission and visible passes use zero carrier padding.
+
+The cell shape encoding has two explicit owners at the CPU/GPU boundary:
+`TerrainCellGeometry` encodes four organic edge bends and their Meta bytes on
+the CPU; `TerrainGeometryContract.hlsl` owns shader-side 1/32 quantization and
+Meta decoding. `TerrainQuadBuilder` selects the four edge values but does not
+own their wire format, and `TerrainCellDataPacker` transports the contract but
+does not define it. `TerrainCellData.hlsl` consumes decoded geometry metadata;
+`TerrainGeometry.hlsl` evaluates the polygon and signed distance, while
+`TerrainContour.hlsl` owns contour and relief consumers. This keeps
+carrier construction, raster coverage, relief, AO, and crystal sampling on the
+same cell-local geometry convention.
+
+**AO stage contract (`TL-STAGE`):** `GeometryLightingSolver.RecordAmbientOcclusionField`
+records a full `DrawMesh` through `TerrainMeshManager.RenderLightingAmbientOcclusionField`
+into one target using the dedicated `LightingAmbientOcclusionField` pass
+(`Terrain.shader`). Shared vertex decoding and field-atlas alpha sampling live
+in `TerrainLightingFieldCommon.hlsl`; AO owns only the occupancy fragment and
+writes alpha to the ARGB32 target. Overlapping masses use Max blending to retain
+the strongest contact value. Background and non-physical cell quads are culled
+in the field vertex stage before rasterization. Remaining fragments outside
+the contact radius or with transparent source alpha do not blend into the target.
+The separate `LightingMaterialField` pass
+writes the transport material/emission MRT and keeps hard physical occupancy in
+material alpha. The visible color pass keeps its pixel-grid silhouette, while
+the AO field uses signed distance to the same displaced edges and a smooth
+half-cell falloff. This avoids directional copies of the silhouette and their
+stepped outer edge. Flat cells use an analytic box distance; displaced cells
+traverse polygon edges once and retain the nearest edge point. AO samples
+exterior atlas alpha at that point, so a continuous sheet cannot switch to an
+unrelated texel outside the displaced silhouette. Fragments beyond the
+half-cell support skip the atlas read. Registered
+contributors receive only the AO target: emission-only world entities issue no
+AO draw, while world surfaces use a dedicated alpha-only occupancy pass. World
+surface lighting meshes are rebuilt when the field rect or world dimensions
+change and reused by the material and AO draws; the
+`Kern.Surface.RebuildLightingMeshes` marker shows this rebuild. The field
+is sized from the lighting cell grid and AO texture-dimension limit; there is no
+scratch target, compute kernel, dispatch, or mip generation. The target is
+cleared to transparent before the full mesh draw. `GeometryLightingSolver` owns
+the field; terrain geometry revision or lighting-region/resource change triggers
+its rebuild, and a stable frame reuses the published field. `LightingPresentation`
+publishes the field and world mapping. The
+visible terrain fragment in `Terrain.shader` samples mip zero at
+`TransformObjectToWorld(cell.positionOS)` and applies receiver floor/strength.
+Cost is one full field raster on rebuild, 4 bytes per AO texel, signed-distance
+contact falloff for physical field fragments, and one bilinear sample per
+receiving screen fragment; stable frames do not
+rasterize the field. Standard-preset rebuilds also write their dimensions and
+reason into `FrameEventLog`; `FrameStallMonitor` samples the
+`Kern.Lighting.AmbientOcclusionField` marker beside render-thread stalls.
+The half-cell carrier expansion grows a regular cell's field footprint from
+one cell square to at most four cell squares on an invalidating rebuild; the
+`Kern.Terrain.RenderAmbientOcclusionField` marker exposes that draw. AO field
+storage remains four bytes per texel, with no additional texture or dispatch.
+The surface pass preserves its existing hard physical occupancy; only terrain
+geometry currently supplies distance-based contact beyond its visible edge.
 
 **May**
 

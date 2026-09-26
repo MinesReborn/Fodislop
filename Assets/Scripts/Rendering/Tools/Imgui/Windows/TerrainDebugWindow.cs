@@ -11,8 +11,7 @@ namespace Kern.Tools.Imgui.Windows;
 // Световое окно отвечает на вопрос «сколько света пришло». На вопрос «почему
 // пиксель тёмный» оно не отвечает: гасить может кайма рельефа, вырезанный
 // силуэт, контактное затенение или не тот слой под клеткой. Здесь каждый вид
-// показывает ровно один множитель, без света и без атласа поверх, и тогда
-// видно, какой именно работает.
+// показывает один терм или категорию, без обычного освещения и текстуры поверх.
 public sealed class TerrainDebugWindow : ToolWindow
 {
     private static readonly TerrainDebugView[] _views =
@@ -56,9 +55,26 @@ public sealed class TerrainDebugWindow : ToolWindow
                 GUILayout.Space(4f);
             }
 
-            ToolChrome.SectionHeader("ВИД");
+            DrawViewRow(TerrainDebugView.Off, active);
+
+            ToolChrome.SectionHeader("ГЕОМЕТРИЯ");
+            bool surfaceSectionStarted = false;
             foreach (TerrainDebugView view in _views)
             {
+                if (view == TerrainDebugView.Off)
+                {
+                    continue;
+                }
+
+                if (TerrainDebugViewState.IsSurfacePipelineView(view))
+                {
+                    if (!surfaceSectionStarted)
+                    {
+                        ToolChrome.SectionHeader("ПОВЕРХНОСТЬ И ЕЁ ЭТАПЫ");
+                        surfaceSectionStarted = true;
+                    }
+                }
+
                 DrawViewRow(view, active);
             }
 

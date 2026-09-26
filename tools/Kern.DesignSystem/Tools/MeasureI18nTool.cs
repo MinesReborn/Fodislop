@@ -81,14 +81,5 @@ internal static class MeasureI18nTool
         return v[Math.Min((int)(p * (v.Count - 1)), v.Count - 1)];
     }
 
-    private static string GetRoot()
-    {
-        string dir = Directory.GetCurrentDirectory();
-        while (!File.Exists(Path.Combine(dir, "index.html")))
-        {
-            dir = Path.GetDirectoryName(dir) ?? dir;
-            if (Path.GetPathRoot(dir) == dir) break;
-        }
-        return dir;
-    }
+    private static string GetRoot() => DesignSystemPaths.GetRoot();
 }

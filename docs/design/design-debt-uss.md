@@ -1,7 +1,7 @@
 # Цвета общего слоя вне палитры
 
 ФАЙЛ МАШИННЫЙ. Правки будут затёрты.
-Генератор: `visual/kern-ui-lab/tools/report-off-palette.js`.
+Генератор: `dotnet run --project tools/Kern.DesignSystem -- report-off-palette`.
 Потолки этих чисел держит `Debt`-бюджетами в правилах `tools/Kern.ArchitectureLinter`.
 
 ## Что это

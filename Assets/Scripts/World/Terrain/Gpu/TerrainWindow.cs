@@ -24,121 +24,69 @@ public enum TerrainBuildState
 }
 
 /// <summary>
-/// Окно террейна: где оно стоит, что в нём просрочено и как оно доводится до
-/// текселей на GPU.
+/// Owns terrain-window scheduling, completion acceptance, generation and size
+/// validation, and same-frame publication state transitions.
 /// </summary>
-///
-/// У окна три состояния, и все три меняются здесь: начало (куда переехала
-/// сетка), просроченные клетки (что изменил мир) и признак «тексели выгружены».
-/// Вместе они решают единственный вопрос кадра — собрать окно целиком,
-/// сдвинуть с полосой, заплатать изменённое или не делать ничего.
-///
-/// Сборка идёт в фоне шагами. Шаг — приращение к состоянию конвейера:
-/// главный поток перечитывает в кэш вошедшие и изменённые клетки, рабочий
-/// поток досчитывает предрасчёт, заливку и тексели, главный поток публикует
-/// тексели, начало окна и двери в одном кадре. Пока шаг идёт, конвейер
-/// принадлежит рабочему потоку, и следующего шага нет: всё, что мир изменил
-/// за это время, копится и становится следующим шагом. Готовый шаг поэтому
-/// никогда не выбрасывается из-за движения камеры.
-public sealed class TerrainWindow : IDisposable
+public sealed class TerrainWindow
 {
-    private static readonly RebuildLedger.Entry _RebuildResize = RebuildLedger.Register("Террейн · полная: смена размера сетки");
-    private static readonly RebuildLedger.Entry _RebuildGridMove = RebuildLedger.Register("Террейн · полная: сдвиг сетки");
-    private static readonly RebuildLedger.Entry _RebuildRefresh = RebuildLedger.Register("Террейн · полная: флаг обновления");
-    private static readonly RebuildLedger.Entry _RebuildPatch = RebuildLedger.Register("Террейн · частичная: изменённые клетки");
-
     private readonly TerrainBuildDriver _driver = new();
-    private readonly TerrainDirtyTracker _dirty = new();
-    private HashSet<CellType> _pendingTextureCellTypes = [];
-    private HashSet<CellType> _buildTextureCellTypes = [];
-    private readonly DirtyRectSet _publishedChangedRegions = new();
-    private List<RectInt> _changedRegions = [];
-    private List<RectInt> _buildChangedRegions = [];
+    private readonly TerrainWindowChangeJournal _changes = new();
+    private readonly TerrainWindowPublishedView _publishedView = new();
+    private readonly TerrainWindowBuildRequestScheduler _requestScheduler;
 
-    // Меш идентификаторов всей сетки: поле материалов рисуется целиком, без
-    // смещения показа, поэтому у него собственный меш на весь прямоугольник.
-    private readonly TerrainCellIDMesh _cellIDMesh = new();
-    private readonly TerrainBuildScheduler<TerrainCpuBuildRequest, TerrainCpuBuildResult> _builds;
-
-    private Transform? _transform;
-    private float _cellSize = 1f;
-    private bool _cellTexturesDirty;
     private bool _wasCpuMeshRebuildBypassed;
     private long _worldGeneration;
-    private long _buildStartTimestamp;
-    private long _oldestChangeTimestamp;
     private long _buildOldestChangeTimestamp;
-    private bool _buildRefreshesTextures;
-    private bool? _requestedDistortion;
-    private TerrainDistortionStyle? _requestedDistortionStyle;
-    private bool _rebuildAllCells;
     private TerrainBuildCompletion<TerrainCpuBuildRequest, TerrainCpuBuildResult>? _heldCompletion;
     private float _preparationLatencySeconds = StreamingPolicy.DefaultPreparationLatencySeconds;
 
     public TerrainWindow()
     {
-        _builds = new(_driver.Execute);
+        _requestScheduler = new(_driver, _changes, _publishedView);
     }
 
     public TerrainBuildDriver Driver => _driver;
 
-    /// <summary>Изменения мира, ещё не взятые в шаг.</summary>
-    public TerrainDirtyTracker Dirty => _dirty;
+    public TerrainDirtyTracker Dirty => _changes.Dirty;
 
-    public HashSet<CellType> PendingTextureCellTypes => _pendingTextureCellTypes;
+    public HashSet<CellType> PendingTextureCellTypes => _changes.PendingTextureCellTypes;
 
-    public Mesh? CellIDMesh => _cellIDMesh.Mesh;
+    public Mesh? CellIDMesh => _publishedView.CellIDMesh;
 
-    /// <summary>Начало опубликованного окна: его видит шейдер.</summary>
-    public Vector2Int Origin { get; private set; } = new(int.MinValue, int.MinValue);
+    public Vector2Int Origin => _publishedView.Origin;
 
-    public int Width { get; private set; }
+    public int Width => _publishedView.Width;
 
-    public int Height { get; private set; }
+    public int Height => _publishedView.Height;
 
-    public bool IsInitialized { get; private set; }
+    public bool IsInitialized => _publishedView.IsInitialized;
 
-    /// <summary>На GPU лежит согласованная опубликованная версия текущего мира.</summary>
-    public bool CellsCommitted { get; private set; }
+    public bool CellsCommitted => _publishedView.CellsCommitted;
 
-    public ulong PublishedContentRevision { get; private set; }
+    public ulong PublishedContentRevision => _publishedView.PublishedContentRevision;
 
-    /// <summary>Перекрытие переносить нельзя: содержимое окна изменилось целиком.</summary>
-    public bool NeedsRefresh { get; set; }
+    public bool NeedsRefresh
+    {
+        get => _changes.NeedsRefresh;
+        set => _changes.NeedsRefresh = value;
+    }
 
-    public bool HasOrigin => Origin.x != int.MinValue;
+    public bool HasOrigin => _publishedView.HasOrigin;
 
-    public bool HasCpuBuildInFlight => _builds.IsBusy;
+    public bool HasCpuBuildInFlight => _requestScheduler.IsBusy;
 
-    /// <summary>Приехавшие текстуры уже взяты в шаг, но ещё не на экране.</summary>
-    public bool HasUnpublishedTextureRefresh => _buildRefreshesTextures;
+    public bool HasUnpublishedTextureRefresh => _requestScheduler.HasUnpublishedTextureRefresh;
 
     public TerrainBuildState BuildState { get; private set; } = TerrainBuildState.WaitingForData;
 
-    /// <summary>Сглаженная длительность шага от постановки до публикации, в секундах.</summary>
     public float EstimatedPreparationSeconds => _preparationLatencySeconds;
 
-    /// <summary>Начало, в координатах которого копятся изменения мира.</summary>
-    ///
-    /// Во время шага конвейер уже стоит в его начале: вошедшая полоса прочитана
-    /// из хранилища в момент постановки, и изменение внутри неё обязано попасть
-    /// в следующий шаг, даже если опубликованное окно его ещё не накрывает.
-    private Vector2Int BuildOrigin => _builds.ActiveRequest?.Origin ?? HeldOrigin ?? Origin;
+    private Vector2Int BuildOrigin => _requestScheduler.ActiveRequest?.Origin ?? HeldOrigin ?? Origin;
 
-    /// <summary>
-    /// Готовый шаг не публикуется, пока идёт переход вида (телепорт): экран
-    /// показывает прежнее окно, а шаг ждёт кадра, в котором камера встанет
-    /// на место назначения.
-    /// </summary>
     public bool HoldPublication { get; set; }
 
-    /// <summary>Начало окна, собранного и ждущего публикации.</summary>
     public Vector2Int? HeldOrigin => _heldCompletion?.Request.Origin;
 
-    /// <summary>
-    /// Начало, которое окажется на экране после публикации всего готового:
-    /// удержанного шага, если он есть, иначе опубликованного окна.
-    /// </summary>
     public Vector2Int ProspectiveOrigin => HeldOrigin ?? Origin;
 
     public void Attach(
@@ -148,19 +96,15 @@ public sealed class TerrainWindow : IDisposable
         int doorOverlaySortingOrder,
         float cellSize)
     {
-        _transform = transform;
-        _cellSize = cellSize;
-        _driver.Attach(transform, sceneObjects, sortingLayerName, doorOverlaySortingOrder, cellSize);
+        _publishedView.Attach(
+            transform,
+            sceneObjects,
+            sortingLayerName,
+            doorOverlaySortingOrder,
+            cellSize,
+            _driver);
     }
 
-    /// <summary>
-    /// Принять размер сетки. Смена размера роняет начало окна: кольцевые адреса
-    /// текселей считаны по старому размеру и переносу не подлежат.
-    /// </summary>
-    ///
-    /// Во время шага массивы конвейера принадлежат рабочему потоку: шаг
-    /// отменяется, а размер применяется в кадре после его завершения —
-    /// планировщик кадра продолжит просить новый размер.
     public void ApplyDimensions(Vector2Int size, bool dimensionsChanged)
     {
         if (!dimensionsChanged && IsInitialized)
@@ -168,49 +112,24 @@ public sealed class TerrainWindow : IDisposable
             return;
         }
 
-        if (_builds.IsBusy)
+        if (_requestScheduler.IsBusy)
         {
-            _builds.Cancel();
+            _requestScheduler.Cancel();
             return;
         }
 
-        // Новые массивы и GPU-текстуры пусты до первой публикации нового
-        // размера: прежняя картинка к ним уже не относится.
-        WithdrawPublication();
+        _publishedView.WithdrawPublication(_driver);
         _heldCompletion = null;
-        Width = size.x;
-        Height = size.y;
-        IsInitialized = true;
-        Origin = new Vector2Int(int.MinValue, int.MinValue);
-        _driver.EnsureCapacity(Width, Height);
-        _cellIDMesh.EnsureSize(Width, Height, _cellSize);
-        FrameEventLog.Record($"террейн: окно пересоздано {Width}×{Height}");
-        _dirty.Clear();
+        _publishedView.ApplyDimensions(size, _driver);
+        _changes.ClearDirty();
         NeedsRefresh = true;
     }
 
-    /// <summary>
-    /// Заплатки перестали окупаться — тексели окна собираются целиком, но кэш
-    /// клеток по-прежнему перечитывается только в изменённых местах.
-    /// </summary>
     public void CoalesceDirtyRects()
     {
-        if (!_rebuildAllCells && !_dirty.IsEmpty &&
-            _dirty.PrefersFullRebuild(BuildOrigin, Width, Height))
-        {
-            _rebuildAllCells = true;
-        }
+        _changes.RebuildAllCells = _changes.ShouldCoalesceDirtyRects(BuildOrigin, Width, Height);
     }
 
-    /// <summary>
-    /// Учесть изменение мира. Возвращает true, если изменение задевает окно
-    /// сборки (с каймой соседства) и значит изменит опубликованную картинку.
-    /// </summary>
-    ///
-    /// Изменение вне окна не копится и не считается изменением содержимого:
-    /// оно приедет вместе с окном из хранилища. Поднимать ради него ревизию
-    /// нельзя — освещение приняло бы ближайшую публикацию за смену
-    /// геометрии и пересчитало статику целиком, хотя на экране ничего нет.
     public bool RecordWorldChange(
         int serverX,
         int serverY,
@@ -218,116 +137,67 @@ public sealed class TerrainWindow : IDisposable
         int height,
         int worldHeight)
     {
-        if (!HasOrigin && !_builds.IsBusy)
-        {
-            NeedsRefresh = true;
-            return true;
-        }
-
-        if (_dirty.Add(
-            serverX, serverY, width, height,
-            BuildOrigin, Width, Height, worldHeight) is not { } region)
-        {
-            return false;
-        }
-
-        _changedRegions.Add(region);
-        if (_oldestChangeTimestamp == 0)
-        {
-            _oldestChangeTimestamp = Stopwatch.GetTimestamp();
-        }
-
-        return true;
+        TerrainWindowWorldChangeResult result = _changes.RecordWorldChange(
+            serverX,
+            serverY,
+            width,
+            height,
+            worldHeight,
+            HasOrigin,
+            _requestScheduler.IsBusy,
+            BuildOrigin,
+            Width,
+            Height);
+        return result != TerrainWindowWorldChangeResult.None;
     }
 
-    /// <summary>
-    /// Лежит ли прямоугольник мира (в координатах Unity) не дальше
-    /// <paramref name="marginCells"/> от окна сборки. До первого окна —
-    /// всегда да: куда встанет окно, ещё неизвестно.
-    /// </summary>
     public bool IsNearBuildWindow(RectInt unityRect, int marginCells)
     {
-        if (!IsInitialized || (!HasOrigin && !_builds.IsBusy))
-        {
-            return true;
-        }
-
-        Vector2Int origin = BuildOrigin;
-        return unityRect.xMax > origin.x - marginCells &&
-            unityRect.xMin < origin.x + Width + marginCells &&
-            unityRect.yMax > origin.y - marginCells &&
-            unityRect.yMin < origin.y + Height + marginCells;
+        return _changes.IsNearBuildWindow(
+            unityRect,
+            marginCells,
+            IsInitialized,
+            HasOrigin,
+            _requestScheduler.IsBusy,
+            BuildOrigin,
+            Width,
+            Height);
     }
 
-    /// <summary>
-    /// Мир сменился целиком: прежнее опубликованное окно показывает чужие
-    /// клетки. Идущий шаг отменяется, окно не рисуется до новой публикации.
-    /// </summary>
     public void InvalidateWorld()
     {
         _worldGeneration++;
         FrameEventLog.Record("террейн: смена мира");
-        _builds.Cancel();
+        _requestScheduler.Cancel();
         _heldCompletion = null;
         NeedsRefresh = true;
-        _dirty.Clear();
-        _changedRegions.Clear();
-        _oldestChangeTimestamp = 0;
+        _changes.ClearWorldChanges();
+        _changes.ClearChangedRegions();
         WithdrawPublication();
     }
 
-    /// <summary>Переключатель искажения меняет предрасчёт: применяется к следующему шагу.</summary>
     public void RequestDistortion(bool enabled)
     {
-        _requestedDistortion = enabled;
-        NeedsRefresh = true;
+        _changes.RequestDistortion(enabled);
     }
 
     public void RequestDistortionStyle(TerrainDistortionStyle style)
     {
-        _requestedDistortionStyle = style;
-        NeedsRefresh = true;
+        _changes.RequestDistortionStyle(style);
     }
 
-    /// <summary>Отдать прямоугольники, чья новая геометрия опубликована в этом кадре.</summary>
-    ///
-    /// Прямоугольники уже слиты по правилам DirtyRectSet и обрезаны окном с
-    /// каймой. Если после слияния их всё равно слишком много (чанки сыплются
-    /// вразнобой), освещение получает один охватывающий прямоугольник: один
-    /// пересчёт по маске дешевле сотни мелких очередей.
     public void TakePublishedChangedRegions(List<RectInt> destination)
     {
-        const int MaximumSeparateRegions = 16;
-        int count = _publishedChangedRegions.Count;
-        if (count == 0)
-        {
-            return;
-        }
+        _changes.TakePublishedChangedRegions(destination);
+    }
 
-        if (count <= MaximumSeparateRegions)
-        {
-            for (int index = 0; index < count; index++)
-            {
-                destination.Add(_publishedChangedRegions[index]);
-            }
-        }
-        else
-        {
-            RectInt bounds = _publishedChangedRegions[0];
-            for (int index = 1; index < count; index++)
-            {
-                RectInt rect = _publishedChangedRegions[index];
-                int minX = Math.Min(bounds.xMin, rect.xMin);
-                int minY = Math.Min(bounds.yMin, rect.yMin);
-                int maxX = Math.Max(bounds.xMax, rect.xMax);
-                int maxY = Math.Max(bounds.yMax, rect.yMax);
-                bounds = new RectInt(minX, minY, maxX - minX, maxY - minY);
-            }
+    public float Commit() => _publishedView.Commit(_driver);
 
-            destination.Add(bounds);
-        }
-
-        _publishedChangedRegions.Clear();
+    public void Dispose()
+    {
+        _requestScheduler.Dispose();
+        _publishedView.Dispose();
+        _driver.Dispose();
     }
 
     /// <summary>
@@ -339,43 +209,43 @@ public sealed class TerrainWindow : IDisposable
     ///
     /// Сразу после публикации вызывающий обязан выгрузить тексели (Commit) в
     /// том же кадре: начало окна и двери уже новые.
-    public bool TryPublishCompleted(in TerrainBuildServices services, out Exception? failure)
+    public bool TryPublishCompleted(in TerrainBuildContext context, out Exception? failure)
     {
         failure = null;
 
         // Удержанный шаг публикуется, только пока рабочий поток свободен:
         // идущий шаг уже пишет в те же массивы конвейера. Тогда удержанный
         // заменит этот шаг — он тоже собран целиком.
-        if (!HoldPublication && !_builds.IsBusy && _heldCompletion is { } held)
+        if (!HoldPublication && !_requestScheduler.IsBusy && _heldCompletion is { } held)
         {
             _heldCompletion = null;
-            if (!Complete(services, held, out failure))
+            if (!Complete(context, held, out failure))
             {
                 return false;
             }
         }
 
-        if (!_builds.IsBusy ||
-            !_builds.TryTakeCompleted(
+        if (!_requestScheduler.IsBusy ||
+            !_requestScheduler.TryTakeCompleted(
                 out TerrainBuildCompletion<TerrainCpuBuildRequest, TerrainCpuBuildResult> completion))
         {
             return true;
         }
 
-        services.Telemetry.TerrainBuildInFlight = 0;
+        context.Telemetry.TerrainBuildInFlight = 0;
         if (HoldPublication && completion.Result != null &&
             completion.Request.WorldGeneration == _worldGeneration)
         {
             // Удерживается только последний готовый шаг: каждый шаг перехода
             // собирает окно целиком, и новый заменяет прежний без остатка.
             _heldCompletion = completion;
-            _buildRefreshesTextures = false;
+            _requestScheduler.MarkCompletionHasNoTextureRefresh();
             BuildState = TerrainBuildState.WaitingForPublication;
             return true;
         }
 
         _heldCompletion = null;
-        return Complete(services, completion, out failure);
+        return Complete(context, completion, out failure);
     }
 
     /// <summary>
@@ -383,7 +253,7 @@ public sealed class TerrainWindow : IDisposable
     /// есть что делать. Возвращает false при отказе сборки.
     /// </summary>
     public bool Process(
-        in TerrainBuildServices services,
+        in TerrainBuildContext context,
         IClientConfigManager clientConfigManager,
         Vector2Int requestedOrigin,
         bool dimensionsChanged,
@@ -393,8 +263,8 @@ public sealed class TerrainWindow : IDisposable
         out Exception? failure)
     {
         failure = null;
-        services.Telemetry.TerrainBuildInFlight = _builds.IsBusy ? 1 : 0;
-        if (_builds.IsBusy)
+        context.Telemetry.TerrainBuildInFlight = _requestScheduler.IsBusy ? 1 : 0;
+        if (_requestScheduler.IsBusy)
         {
             BuildState = TerrainBuildState.CpuPreparing;
             return true;
@@ -414,7 +284,7 @@ public sealed class TerrainWindow : IDisposable
         }
 
         bool rebuild = requestedOrigin != ProspectiveOrigin || NeedsRefresh || dimensionsChanged ||
-            !_dirty.IsEmpty || _pendingTextureCellTypes.Count > 0;
+            !Dirty.IsEmpty || PendingTextureCellTypes.Count > 0;
         if (!rebuild)
         {
             BuildState = _heldCompletion != null ? TerrainBuildState.WaitingForPublication
@@ -423,157 +293,51 @@ public sealed class TerrainWindow : IDisposable
             return true;
         }
 
-        return TrySchedule(
-            services,
-            clientConfigManager,
+        var intent = new TerrainBuildSchedulingIntent(
             requestedOrigin,
             dimensionsChanged,
             meshRenderer,
             contentRevision,
-            out failure);
-    }
-
-    /// <summary>
-    /// Одна выгрузка текселей за кадр, в кадре публикации. Начало окна
-    /// публикуется вместе с ними: шейдер берёт по нему кольцевой адрес.
-    /// Возвращает время выгрузки в миллисекундах или ноль, если выгружать нечего.
-    /// </summary>
-    public float Commit()
-    {
-        if (!_cellTexturesDirty || !HasOrigin || _cellIDMesh.Mesh == null)
-        {
-            return 0f;
-        }
-
-        _cellTexturesDirty = false;
-        float uploadMs = _driver.Commit(Origin.x, Origin.y);
-        CellsCommitted = true;
-        return uploadMs;
-    }
-
-    public void Dispose()
-    {
-        // Рабочий поток пишет только в управляемые массивы конвейера. GPU-
-        // ресурсы ниже он не трогает, поэтому их освобождение его не ждёт.
-        _builds.Dispose();
-        _cellIDMesh.Dispose();
-        _driver.Dispose();
-    }
-
-    private bool TrySchedule(
-        in TerrainBuildServices services,
-        IClientConfigManager clientConfigManager,
-        Vector2Int origin,
-        bool dimensionsChanged,
-        MeshRenderer? meshRenderer,
-        ulong contentRevision,
-        out Exception? failure)
-    {
-        failure = null;
-        if (!_driver.TryBeginBuild(
-            services,
+            _worldGeneration,
+            HoldPublication,
+            _heldCompletion != null,
+            NeedsRefresh,
+            HasOrigin,
+            Origin,
+            new Vector2Int(Width, Height));
+        TerrainBuildSchedulingResult result = _requestScheduler.Schedule(
+            context,
             clientConfigManager,
-            out TerrainBuildContext context,
-            out bool materialsChanged))
+            intent,
+            out failure,
+            out long oldestChangeTimestamp);
+        if (result == TerrainBuildSchedulingResult.WaitingForData)
         {
             BuildState = TerrainBuildState.WaitingForData;
             return false;
         }
 
-        if (materialsChanged)
-        {
-            // Прежние атласы и материалы уже уничтожены: прежние тексели
-            // ссылаются на несуществующие индексы. Окно не рисуется, пока новый
-            // набор не собран целиком.
-            if (meshRenderer != null)
-            {
-                meshRenderer.sharedMaterials = _driver.Materials.CellMaterials;
-            }
-
-            if (CellsCommitted)
-            {
-                WithdrawPublication();
-            }
-        }
-
-        if (_requestedDistortion is { } distortion)
-        {
-            _driver.Pipeline.EnableDistortion = distortion;
-            _requestedDistortion = null;
-        }
-
-        if (_requestedDistortionStyle is { } distortionStyle)
-        {
-            _driver.Pipeline.DistortionStyle = distortionStyle;
-            _requestedDistortionStyle = null;
-        }
-
-        // Во время перехода конвейер мог уйти вперёд неопубликованным шагом:
-        // приращение к нему не с чем сверить, поэтому шаг перехода — целиком.
-        bool forceFull = HoldPublication || _heldCompletion != null ||
-            NeedsRefresh || dimensionsChanged || !HasOrigin || materialsChanged ||
-            Math.Abs((long)origin.x - Origin.x) >= Width ||
-            Math.Abs((long)origin.y - Origin.y) >= Height;
-        RebuildLedger.Count(
-            dimensionsChanged ? _RebuildResize
-            : forceFull ? _RebuildRefresh
-            : origin != Origin ? _RebuildGridMove
-            : _RebuildPatch);
-
-        // Набор приехавших типов отдаётся шагу целиком и сразу заменяется
-        // пустым: текстура, приехавшая во время подготовки, ложится в новый
-        // набор и станет следующим шагом, а не меняет перебираемый.
-        (_buildTextureCellTypes, _pendingTextureCellTypes) = (_pendingTextureCellTypes, _buildTextureCellTypes);
-        _pendingTextureCellTypes.Clear();
-        TerrainCpuBuildRequest request;
-        try
-        {
-            request = _driver.Prepare(
-                context,
-                origin,
-                forceFull,
-                materialsChanged || _rebuildAllCells,
-                _dirty.Rects,
-                _buildTextureCellTypes,
-                contentRevision,
-                _worldGeneration);
-        }
-        catch (Exception exception)
+        if (result == TerrainBuildSchedulingResult.Failed)
         {
             BuildState = TerrainBuildState.Error;
-            failure = exception;
             return false;
         }
 
-        // Всё, что шаг взял, из очереди снимается сразу: изменения, пришедшие
-        // во время шага, копятся заново и станут следующим шагом.
-        _buildRefreshesTextures = _buildTextureCellTypes.Count > 0;
-        _buildTextureCellTypes.Clear();
-        _dirty.Clear();
-        _rebuildAllCells = false;
-
-        // Списки меняются местами, а не копируются: шаг за шагом без аллокаций.
-        (_buildChangedRegions, _changedRegions) = (_changedRegions, _buildChangedRegions);
-        _changedRegions.Clear();
-        _buildOldestChangeTimestamp = _oldestChangeTimestamp;
-        _oldestChangeTimestamp = 0;
-        NeedsRefresh = false;
-        _buildStartTimestamp = Stopwatch.GetTimestamp();
-        _builds.Start(request);
+        _buildOldestChangeTimestamp = oldestChangeTimestamp;
         BuildState = TerrainBuildState.CpuPreparing;
-        services.Telemetry.TerrainBuildInFlight = 1;
+        context.Telemetry.TerrainBuildInFlight = 1;
         return true;
     }
 
     private bool Complete(
-        in TerrainBuildServices services,
+        in TerrainBuildContext context,
         in TerrainBuildCompletion<TerrainCpuBuildRequest, TerrainCpuBuildResult> completion,
         out Exception? failure)
     {
         failure = null;
         TerrainCpuBuildRequest request = completion.Request;
-        _buildRefreshesTextures = false;
-        List<RectInt> changedRegions = _buildChangedRegions;
+        _requestScheduler.MarkCompletionHasNoTextureRefresh();
+        List<RectInt> changedRegions = _changes.BuildChangedRegions;
 
         if (completion.Result is not { } result)
         {
@@ -581,18 +345,14 @@ public sealed class TerrainWindow : IDisposable
             // больше не согласованы, и следующий шаг обязан собрать окно
             // целиком. Изменения шага возвращаются в очередь освещения.
             NeedsRefresh = true;
-            _changedRegions.AddRange(changedRegions);
+            _changes.ChangedRegions.AddRange(changedRegions);
             changedRegions.Clear();
-            if (_buildOldestChangeTimestamp != 0 &&
-                (_oldestChangeTimestamp == 0 || _buildOldestChangeTimestamp < _oldestChangeTimestamp))
-            {
-                _oldestChangeTimestamp = _buildOldestChangeTimestamp;
-            }
+            _changes.RestoreOldestChangeTimestamp(_buildOldestChangeTimestamp);
 
             _buildOldestChangeTimestamp = 0;
             if (completion.WasCanceled)
             {
-                services.Telemetry.TerrainBuildCancelCount++;
+                context.Telemetry.TerrainBuildCancelCount++;
                 BuildState = TerrainBuildState.Canceled;
                 return true;
             }
@@ -611,7 +371,7 @@ public sealed class TerrainWindow : IDisposable
             return true;
         }
 
-        if (!_driver.TryContinueBuild(services, out TerrainBuildContext context))
+        if (!_driver.TryContinueBuild(context, out IReadOnlyList<IAtlasDescriptor> atlases))
         {
             // Атласы пропали между постановкой и публикацией (сброс набора
             // текстур): тексели ссылаются на них, публиковать нельзя.
@@ -621,11 +381,25 @@ public sealed class TerrainWindow : IDisposable
             return true;
         }
 
-        float latencySeconds = (float)((Stopwatch.GetTimestamp() - _buildStartTimestamp) /
-            (double)Stopwatch.Frequency);
+        if (!_driver.IsAtlasSnapshotCurrent(request, atlases) ||
+            _changes.PendingTextureCellTypes.Count > 0)
+        {
+            // The worker encoded a different atlas state than the one now
+            // bound for drawing. Keep the old publication and rebuild from
+            // the newest texture metadata before accepting this result.
+            NeedsRefresh = true;
+            _changes.ChangedRegions.AddRange(changedRegions);
+            changedRegions.Clear();
+            _changes.RestoreOldestChangeTimestamp(_buildOldestChangeTimestamp);
+            _buildOldestChangeTimestamp = 0;
+            BuildState = TerrainBuildState.Canceled;
+            return true;
+        }
+
+        float latencySeconds = _requestScheduler.BuildStartElapsedSeconds;
         try
         {
-            _driver.Publish(context, request, result, latencySeconds * 1000f);
+            _driver.Publish(context, atlases, request, result, latencySeconds * 1000f);
         }
         catch (Exception exception)
         {
@@ -634,33 +408,22 @@ public sealed class TerrainWindow : IDisposable
             return false;
         }
 
-        Origin = request.Origin;
-        if (_transform != null)
-        {
-            _transform.position = new Vector3(
-                request.Origin.x * _cellSize,
-                request.Origin.y * _cellSize,
-                0f);
-        }
-
-        _cellTexturesDirty = true;
-        PublishedContentRevision = request.ContentRevision;
-        var lightingBounds = new RectInt(Origin.x - 1, Origin.y - 1, Width + 2, Height + 2);
+        RectInt lightingBounds = _publishedView.Publish(request);
         for (int index = 0; index < changedRegions.Count; index++)
         {
-            _publishedChangedRegions.Add(changedRegions[index], lightingBounds);
+            _changes.AddPublishedChangedRegion(changedRegions[index], lightingBounds);
         }
 
         changedRegions.Clear();
         BuildState = TerrainBuildState.Published;
 
         ObservePreparationLatency(latencySeconds);
-        services.Telemetry.TerrainWorkerBuildMs = result.ElapsedMs;
-        services.Telemetry.TerrainBuildLatencyMs = latencySeconds * 1000f;
+        context.Telemetry.TerrainWorkerBuildMs = result.ElapsedMs;
+        context.Telemetry.TerrainBuildLatencyMs = latencySeconds * 1000f;
         if (_buildOldestChangeTimestamp != 0)
         {
-            services.Telemetry.TerrainEditDisplayLatencyMs = (float)(
-                (Stopwatch.GetTimestamp() - _buildOldestChangeTimestamp) * 1000.0 / Stopwatch.Frequency);
+            context.Telemetry.TerrainEditDisplayLatencyMs = (float)(
+                (System.Diagnostics.Stopwatch.GetTimestamp() - _buildOldestChangeTimestamp) * 1000.0 / System.Diagnostics.Stopwatch.Frequency);
             _buildOldestChangeTimestamp = 0;
         }
 
@@ -669,9 +432,7 @@ public sealed class TerrainWindow : IDisposable
 
     private void WithdrawPublication()
     {
-        CellsCommitted = false;
-        _cellTexturesDirty = false;
-        _driver.HideDoorOverlay();
+        _publishedView.WithdrawPublication(_driver);
     }
 
     private void ObservePreparationLatency(float observedSeconds)

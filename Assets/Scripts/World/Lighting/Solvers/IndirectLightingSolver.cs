@@ -52,6 +52,11 @@ internal sealed class IndirectLightingSolver
             kernel,
             LightingComputeBinder.ResultID,
             _resources.LightmapTexture!);
+        commandBuffer.SetComputeTextureParam(
+            compute,
+            kernel,
+            LightingComputeBinder.SurfaceAirCacheID,
+            _resources.SurfaceAirCache!);
         int fieldWidth = _resources.FieldWidth;
         int fieldHeight = _resources.FieldHeight;
         if (TryGetFieldRect(fieldDirtyRect, worldRect, cellSize, out RectInt compositeRect))

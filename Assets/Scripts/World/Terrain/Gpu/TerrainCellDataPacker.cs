@@ -68,12 +68,14 @@ public static class TerrainCellDataPacker
         ref readonly TerrainVertex v = ref quad[0];
         byte drawn = atlasIndex < 0 ? (byte)0 : (byte)Math.Min(atlasIndex + 1, byte.MaxValue);
         int organicEdges = Mathf.RoundToInt(Mathf.HalfToFloat(v.UV5w));
+        (byte organicLowByte, byte organicHighByte) =
+            TerrainCellGeometry.PackOrganicEdgeMetadata(organicEdges);
         byte anchored = organicEdges > 0
-            ? (byte)(128 + (organicEdges >> 8))
+            ? organicHighByte
             : v.UV5x != 0 ? byte.MaxValue : (byte)0;
         return new TerrainCellTexels(
             v.Color,
-            new Color32(drawn, PackCornerUvs(quad), (byte)(organicEdges & 0xFF), anchored),
+            new Color32(drawn, PackCornerUvs(quad), organicLowByte, anchored),
             new TerrainHalfTexel(v.UV1x, v.UV1y, v.UV1z, v.UV1w),
             new TerrainHalfTexel(v.UV2x, v.UV2y, v.UV2z, v.UV2w),
             new TerrainHalfTexel(v.UV4x, v.UV4y, v.UV4z, v.UV4w),

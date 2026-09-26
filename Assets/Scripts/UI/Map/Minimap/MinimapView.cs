@@ -37,7 +37,7 @@ internal sealed class MinimapView : IDisposable
     {
         VisualTreeAsset template = Resources.Load<VisualTreeAsset>(
             ProjectRuntimeContracts.ResourcePaths.MinimapUxml) ??
-            throw new InvalidOperationException("[Minimap] Resources/UI/Minimap.uxml is required.");
+            throw new InvalidOperationException("[Minimap] Resources/UI/Gameplay/Minimap.uxml is required.");
         TemplateContainer tree = template.Instantiate();
         tree.AddToClassList("ui-fullscreen");
         tree.pickingMode = PickingMode.Ignore;

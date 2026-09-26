@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading;
 using Kern.Core;
 using Kern.Core.Interfaces;
@@ -13,43 +12,24 @@ using UnityEngine;
 
 namespace Kern.World.Terrain;
 
-/// <summary>Сервисы, из которых террейн берёт данные для сборки.</summary>
-public readonly record struct TerrainBuildServices(
+/// <summary>Живые источники главного потока для планирования и публикации сборки.</summary>
+public readonly record struct TerrainBuildContext(
     IWorldDataStorage Storage,
     IMapDataProvider MapData,
     ITextureService TextureService,
-    IFrameTelemetry Telemetry);
+    IFrameTelemetry Telemetry,
+    int MeshWidth,
+    int MeshHeight);
 
-/// <summary>
-/// Сборка террейна целиком: материалы, тексели и накладка дверей.
-/// </summary>
-///
-/// Эти три вещи неразделимы по смыслу. Тексель несёт индекс атласа, поэтому
-/// смена набора атласов запрещает переносить перекрытие. Накладка дверей
-/// собирается из тех же источников, что тексели, и пересобирается ровно тогда,
-/// когда сборка задела дверь. Держать их врозь значит каждый раз вручную
-/// вспоминать эти связи — чем рендерер и занимался.
-///
-/// Тексели считаются в фоне, а накладка дверей и привязка атласов меняются
-/// только в <see cref="Publish"/> — в том же кадре, что выгрузка текселей и
-/// новое начало окна. До этого кадр видит целиком прежнюю версию.
+/// <summary>Coordinates CPU build stages and delegates scene presentation to its owner.</summary>
 public sealed class TerrainBuildDriver : IDisposable
 {
     private readonly TerrainBuildPipeline _pipeline = new();
-    private readonly TerrainMaterialManager _materials = new();
-    private readonly TerrainDoorOverlayBuilder _doorOverlay = new();
-
-    private Transform? _parent;
-    private ISceneObjectFactory? _sceneObjects;
-    private string _sortingLayerName = "Default";
-    private int _doorOverlaySortingOrder;
-    private float _cellSize = 1f;
-    private int _meshWidth;
-    private int _meshHeight;
+    private readonly TerrainBuildPresentation _presentation = new();
 
     public TerrainBuildPipeline Pipeline => _pipeline;
 
-    public TerrainMaterialManager Materials => _materials;
+    internal TerrainBuildPresentation Presentation => _presentation;
 
     /// <summary>Привязка к сцене: у накладки дверей собственный объект под террейном.</summary>
     public void Attach(
@@ -59,18 +39,17 @@ public sealed class TerrainBuildDriver : IDisposable
         int doorOverlaySortingOrder,
         float cellSize)
     {
-        _parent = parent;
-        _sceneObjects = sceneObjects;
-        _sortingLayerName = sortingLayerName;
-        _doorOverlaySortingOrder = doorOverlaySortingOrder;
-        _cellSize = cellSize;
+        _presentation.Attach(
+            parent,
+            sceneObjects,
+            sortingLayerName,
+            doorOverlaySortingOrder,
+            cellSize);
     }
 
     public void EnsureCapacity(int meshWidth, int meshHeight)
     {
-        _meshWidth = meshWidth;
-        _meshHeight = meshHeight;
-        _pipeline.EnsureCapacity(meshWidth, meshHeight, _cellSize);
+        _pipeline.EnsureCapacity(meshWidth, meshHeight, _presentation.CellSize);
     }
 
     /// <summary>
@@ -78,51 +57,30 @@ public sealed class TerrainBuildDriver : IDisposable
     /// если строить ещё не из чего: атласы не приехали.
     /// </summary>
     public bool TryBeginBuild(
-        in TerrainBuildServices services,
+        in TerrainBuildContext context,
         IClientConfigManager clientConfigManager,
-        out TerrainBuildContext context,
+        out IReadOnlyList<IAtlasDescriptor> atlases,
         out bool materialsChanged)
     {
-        context = default;
-        materialsChanged = false;
-
-        IReadOnlyList<IAtlasDescriptor> atlases = services.TextureService.GetAllAtlases();
-        if (atlases == null || atlases.Count == 0)
-        {
-            return false;
-        }
-
-        materialsChanged = _materials.EnsureMaterials(
-            atlases, _meshWidth, _meshHeight, clientConfigManager, _pipeline.CellCache);
-        FlushAtlases(services, atlases, out context);
-        if (materialsChanged)
-        {
-            // Прежние материалы уничтожены вместе с прежними атласами: новые
-            // получают текстуры сразу, а не в кадре публикации.
-            _materials.BindAtlasTextures(atlases, services.TextureService);
-        }
-
-        return true;
+        return _presentation.TryBeginBuild(
+            context,
+            clientConfigManager,
+            _pipeline.CellCache,
+            out atlases,
+            out materialsChanged);
     }
 
     /// <summary>Контекст без пересоздания материалов: публикация их не меняет.</summary>
     public bool TryContinueBuild(
-        in TerrainBuildServices services,
-        out TerrainBuildContext context)
+        in TerrainBuildContext context,
+        out IReadOnlyList<IAtlasDescriptor> atlases)
     {
-        context = default;
-        IReadOnlyList<IAtlasDescriptor> atlases = services.TextureService.GetAllAtlases();
-        if (atlases == null || atlases.Count == 0 || _materials.Materials.Length == 0)
-        {
-            return false;
-        }
-
-        FlushAtlases(services, atlases, out context);
-        return true;
+        return _presentation.TryContinueBuild(context, out atlases);
     }
 
     internal TerrainCpuBuildRequest Prepare(
         in TerrainBuildContext context,
+        IReadOnlyList<IAtlasDescriptor> atlases,
         Vector2Int origin,
         bool forceFull,
         bool rebuildAllCells,
@@ -132,6 +90,7 @@ public sealed class TerrainBuildDriver : IDisposable
         long worldGeneration) =>
         _pipeline.Prepare(
             context,
+            atlases,
             origin,
             forceFull,
             rebuildAllCells,
@@ -145,93 +104,42 @@ public sealed class TerrainBuildDriver : IDisposable
         CancellationToken cancellationToken) =>
         _pipeline.Execute(request, cancellationToken);
 
+    internal bool IsAtlasSnapshotCurrent(
+        TerrainCpuBuildRequest request,
+        IReadOnlyList<IAtlasDescriptor> atlases) =>
+        _pipeline.IsAtlasSnapshotCurrent(request, atlases);
+
     /// <summary>
     /// Главный поток, шаг завершён: привязать атласы и довести накладку дверей
     /// до той же версии, что тексели. Вызывается до переноса родителя.
     /// </summary>
     internal void Publish(
         in TerrainBuildContext context,
+        IReadOnlyList<IAtlasDescriptor> atlases,
         TerrainCpuBuildRequest request,
         TerrainCpuBuildResult result,
         float latencyMs)
     {
         _pipeline.RecordPublished(request, result, latencyMs);
-        _materials.BindAtlasTextures(context.Atlases, context.TextureService);
-
-        if (result.DoorsTouched)
-        {
-            // Накладка берёт индексы атласов из тех же текселей, что шаг, —
-            // значит, и число подмешей по тому же набору, а не по живому,
-            // который мог вырасти после постановки шага.
-            RebuildDoorOverlay(
-                context with { Atlases = request.Atlases },
-                request.Origin.x,
-                request.Origin.y);
-            return;
-        }
-
-        if (_pipeline.LastBuildScrolled)
-        {
-            // Состав дверей не изменился: накладке достаточно переехать
-            // вместе с родителем, её квады пересобирать незачем.
-            Vector2Int delta = _pipeline.LastScrollDelta;
-            _doorOverlay.CompensateParentTranslation(
-                new Vector3(delta.x * _cellSize, delta.y * _cellSize, 0f));
-        }
+        _presentation.Publish(
+            atlases,
+            context,
+            request,
+            result,
+            _pipeline.CellBuilder,
+            _pipeline.CreateSources(request),
+            _pipeline.LastBuildScrolled,
+            _pipeline.LastScrollDelta);
     }
 
     /// <summary>Опубликованной версии больше нет: её двери не показываются.</summary>
-    public void HideDoorOverlay() => _doorOverlay.Hide();
+    public void HideDoorOverlay() => _presentation.HideDoorOverlay();
 
     public float Commit(int originX, int originY) => _pipeline.Commit(originX, originY);
 
     public void Dispose()
     {
         _pipeline.Dispose();
-        _doorOverlay.Dispose();
-        _materials.CleanupMaterials();
-    }
-
-    private void FlushAtlases(
-        in TerrainBuildServices services,
-        IReadOnlyList<IAtlasDescriptor> atlases,
-        out TerrainBuildContext context)
-    {
-        long atlasUploadStart = Stopwatch.GetTimestamp();
-        services.TextureService.FlushDirtyAtlases();
-        services.Telemetry.TerrainAtlasUploadTimeMs += (float)(
-            (Stopwatch.GetTimestamp() - atlasUploadStart) * 1000.0 / Stopwatch.Frequency);
-
-        context = new TerrainBuildContext(
-            services.Storage,
-            services.MapData,
-            services.TextureService,
-            atlases,
-            services.Telemetry,
-            _meshWidth,
-            _meshHeight);
-    }
-
-    private void RebuildDoorOverlay(in TerrainBuildContext context, int minX, int minY)
-    {
-        if (_parent == null || _sceneObjects == null)
-        {
-            throw new InvalidOperationException(
-                "Terrain door overlay cannot be built before the driver is attached to the scene.");
-        }
-
-        _doorOverlay.Rebuild(
-            _pipeline.CellBuilder,
-            _pipeline.CreateSources(context),
-            minX,
-            minY,
-            _parent,
-            _sceneObjects,
-            _materials.OverlayMaterials,
-            _sortingLayerName,
-            _doorOverlaySortingOrder,
-            _meshWidth,
-            _meshHeight,
-            _cellSize);
+        _presentation.Dispose();
     }
 }

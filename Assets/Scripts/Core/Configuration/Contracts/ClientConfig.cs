@@ -9,8 +9,9 @@ public class ClientConfig
 {
     // 32: TerrainSettings.EnableReliefRim.
     // 33: TerrainSettings.DistortionStyle.
-    // Схемы 31 и 32 мигрируются штатным загрузчиком с созданием backup.
-    public const int CurrentSchemaVersion = 33;
+    // 34: две ступени качества (Стандарт/Overdrive) вместо шести, без Custom.
+    // Схемы 31–33 мигрируются штатным загрузчиком с созданием backup.
+    public const int CurrentSchemaVersion = 34;
 
     public int SchemaVersion;
     public AudioSettings Audio = new();
@@ -22,6 +23,6 @@ public class ClientConfig
     public TerrainSettings Terrain = new();
     public EffectSettings Effects = new();
 
-    public GraphicsPreset GraphicsPreset = GraphicsPreset.High;
+    public GraphicsPreset GraphicsPreset = GraphicsPreset.Standard;
     public GraphicsQualitySettings GraphicsQualitySettings;
 }

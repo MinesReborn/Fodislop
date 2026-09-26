@@ -14,7 +14,7 @@ internal sealed class LightingRuntimeState
     public bool HasDynamicRadianceState { get; set; }
     public bool WasLightingBypassed { get; set; }
     public Vector4 LastVisibleRegion { get; set; } = new(float.NaN, float.NaN, float.NaN, float.NaN);
-    public ulong LastTerrainContentRevision { get; set; }
+    public ulong LastTerrainGeometryRevision { get; set; }
     public ulong LastContributorGeometryRevision { get; set; }
     public ulong SolveCount { get; set; }
     public float RequestedPixelsPerCell { get; set; }

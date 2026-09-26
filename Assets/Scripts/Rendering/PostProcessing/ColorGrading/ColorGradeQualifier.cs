@@ -15,24 +15,24 @@ public sealed class ColorGradeQualifier
 
     public bool Invert { get; set; }
 
-    public float HueCenter { get; set; } = 120f;
-    public float HueWidth { get; set; } = 30f;
-    public float HueSoftness { get; set; } = 15f;
-    public float SaturationCenter { get; set; } = 0.5f;
-    public float SaturationWidth { get; set; } = 0.5f;
-    public float SaturationSoftness { get; set; } = 0.1f;
-    public float LuminanceCenter { get; set; } = 0.5f;
-    public float LuminanceWidth { get; set; } = 0.5f;
-    public float LuminanceSoftness { get; set; } = 0.1f;
+    public float HueCenter { get; set; } = PostProcessLook.Qualifier.HueCenter;
+    public float HueWidth { get; set; } = PostProcessLook.Qualifier.HueWidth;
+    public float HueSoftness { get; set; } = PostProcessLook.Qualifier.HueSoftness;
+    public float SaturationCenter { get; set; } = PostProcessLook.Qualifier.SaturationCenter;
+    public float SaturationWidth { get; set; } = PostProcessLook.Qualifier.SaturationWidth;
+    public float SaturationSoftness { get; set; } = PostProcessLook.Qualifier.SaturationSoftness;
+    public float LuminanceCenter { get; set; } = PostProcessLook.Qualifier.LuminanceCenter;
+    public float LuminanceWidth { get; set; } = PostProcessLook.Qualifier.LuminanceWidth;
+    public float LuminanceSoftness { get; set; } = PostProcessLook.Qualifier.LuminanceSoftness;
 
     public float HueShift { get; set; }
-    public float Saturation { get; set; } = 1f;
+    public float Saturation { get; set; } = PostProcessLook.ColorGrading.Saturation;
     public float Exposure { get; set; }
     public float Temperature { get; set; }
     public float Tint { get; set; }
     public Vector3 Lift { get; set; }
-    public Vector3 Gamma { get; set; } = Vector3.one;
-    public Vector3 Gain { get; set; } = Vector3.one;
+    public Vector3 Gamma { get; set; } = PostProcessLook.Grade.PrimaryGamma;
+    public Vector3 Gain { get; set; } = PostProcessLook.Grade.PrimaryGain;
 
     public IReadOnlyList<float> HueSamples => _hueSamples;
 
@@ -61,23 +61,23 @@ public sealed class ColorGradeQualifier
     {
         Enabled = false;
         Invert = false;
-        HueCenter = 120f;
-        HueWidth = 30f;
-        HueSoftness = 15f;
-        SaturationCenter = 0.5f;
-        SaturationWidth = 0.5f;
-        SaturationSoftness = 0.1f;
-        LuminanceCenter = 0.5f;
-        LuminanceWidth = 0.5f;
-        LuminanceSoftness = 0.1f;
+        HueCenter = PostProcessLook.Qualifier.HueCenter;
+        HueWidth = PostProcessLook.Qualifier.HueWidth;
+        HueSoftness = PostProcessLook.Qualifier.HueSoftness;
+        SaturationCenter = PostProcessLook.Qualifier.SaturationCenter;
+        SaturationWidth = PostProcessLook.Qualifier.SaturationWidth;
+        SaturationSoftness = PostProcessLook.Qualifier.SaturationSoftness;
+        LuminanceCenter = PostProcessLook.Qualifier.LuminanceCenter;
+        LuminanceWidth = PostProcessLook.Qualifier.LuminanceWidth;
+        LuminanceSoftness = PostProcessLook.Qualifier.LuminanceSoftness;
         HueShift = 0f;
-        Saturation = 1f;
-        Exposure = 0f;
-        Temperature = 0f;
-        Tint = 0f;
-        Lift = Vector3.zero;
-        Gamma = Vector3.one;
-        Gain = Vector3.one;
+        Saturation = PostProcessLook.ColorGrading.Saturation;
+        Exposure = PostProcessLook.ColorGrading.Exposure;
+        Temperature = PostProcessLook.Grade.Temperature;
+        Tint = PostProcessLook.Grade.Tint;
+        Lift = PostProcessLook.Grade.PrimaryLift;
+        Gamma = PostProcessLook.Grade.PrimaryGamma;
+        Gain = PostProcessLook.Grade.PrimaryGain;
         _hueSamples.Clear();
     }
 
@@ -171,9 +171,9 @@ public sealed class ColorGradeQualifier
         Exposure = FiniteClamp(Exposure, -8f, 8f, 0f);
         Temperature = FiniteClamp(Temperature, -100f, 100f, 0f);
         Tint = FiniteClamp(Tint, -100f, 100f, 0f);
-        Lift = FiniteVector(Lift, -0.5f, 0.5f, Vector3.zero);
-        Gamma = FiniteVector(Gamma, 0.1f, 4f, Vector3.one);
-        Gain = FiniteVector(Gain, 0f, 4f, Vector3.one);
+        Lift = FiniteVector(Lift, -0.5f, 0.5f, PostProcessLook.Grade.PrimaryLift);
+        Gamma = FiniteVector(Gamma, 0.1f, 4f, PostProcessLook.Grade.PrimaryGamma);
+        Gain = FiniteVector(Gain, 0f, 4f, PostProcessLook.Grade.PrimaryGain);
         for (int index = _hueSamples.Count - 1; index >= 0; index--)
         {
             float sample = _hueSamples[index];

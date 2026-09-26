@@ -23,23 +23,6 @@ float InterleavedGradientNoise(float2 pixelCoord)
     return frac(magic.z * frac(dot(pixelCoord, magic.xy)));
 }
 
-// Nearest field pixel to the center of the world cell containing `pixel`.
-// Used by the PerBlock tier so every pixel inside one cell reads the same
-// atlas probe, regardless of how many field pixels the cell actually spans.
-void GetBlockSnappedPixel(int2 pixel, out int2 result)
-{
-    result = pixel;
-    if (_BlockAveraged != 0)
-    {
-        float safeCellSize = max(_CellSize, 0.0001);
-        float2 safeFieldSize = max(float2(_FieldSize), float2(1.0, 1.0));
-        float2 regionCellCount = max(_WorldRect.zw / safeCellSize, float2(0.0001, 0.0001));
-        float2 cell = floor((float2(pixel) + 0.5) * regionCellCount / safeFieldSize);
-        float2 cellCenterFieldPos = (cell + 0.5) * safeFieldSize / regionCellCount;
-        result = clamp(int2(floor(cellCenterFieldPos)), int2(0, 0), _FieldSize - 1);
-    }
-}
-
 float2 MaterialUv(float2 pixelPosition)
 {
     float2 uv = OutputUv(pixelPosition);
@@ -61,16 +44,16 @@ float SampleOccupancy(float2 pixelPosition, float mipLevel)
     return material.a;
 }
 
-// Пороги solidity в одном месте. TransportSolidThreshold ниже, чем
-// SolidOccupancyThreshold: транспорт считает частично покрытый тексель
-// блокирующим раньше, чтобы свет не тёк сквозь полупрозрачные кромки.
-// Значения не унифицировать без перепроверки транспорта.
-static const float SolidOccupancyThreshold = 0.5;
-static const float TransportSolidThreshold = 0.4;
+// Пороги solidity приходят юниформами _SolidOccupancyThreshold и
+// _TransportSolidThreshold: авторские значения живут в VisualTuning.cs.
+// TransportSolidThreshold ниже, чем SolidOccupancyThreshold: транспорт
+// считает частично покрытый тексель блокирующим раньше, чтобы свет не тёк
+// сквозь полупрозрачные кромки. Значения не унифицировать без перепроверки
+// транспорта.
 
 bool IsSolidOccupancy(float occupancy)
 {
-    return occupancy >= SolidOccupancyThreshold;
+    return occupancy >= _SolidOccupancyThreshold;
 }
 
 // Compute-пиксель в тексель текстуры материала (Y-флип).

@@ -110,8 +110,8 @@ int2 _FieldSize;
 float4 _WorldRect, _EmptyExtinctionRGB, _SolidExtinctionRGB;
 float _CellSize=1, _EmissionScale=1;
 static const float InvisibleDynamicRadiance = 1e-6f;
-static const float SolidOccupancyThreshold = 0.5f;
-static const float TransportSolidThreshold = 0.4f;
+float _SolidOccupancyThreshold = 0.5f;
+float _TransportSolidThreshold = 0.4f;
 int2 _DynamicDispatchOrigin,_DynamicDispatchSize;
 int _DynamicLightIndex=0;
 int _WriteDynamicDirect=0;
@@ -120,12 +120,20 @@ std::vector<DynamicTileInfo> _DynamicTileInfos;
 Texture _DynamicTiles,_DynamicTilesInput;
 int2 _DynamicTileOffset,_ComposeOrigin,_ComposeSize;
 int _DynamicTileCount=0;
-static const float DynamicNearCells = 6.0f;
-static const int DynamicEmitterPointsPerAxis = 3;
+// Плечо отражения поверхности и параметры динамического света — юниформы
+// WorldLighting.compute; авторские значения живут в VisualTuning.cs.
+float _SurfaceReflectionReachCells = 0.5f;
+float _DynamicNearCells = 6.0f;
+int _DynamicAngularSampleCount = 8;
+int _DynamicEmitterPointsPerAxis = 3;
+float _DynamicReachSlackTexels = 2.0f;
+float _DynamicReachSlackCells = 1.5f;
+float _DynamicPolarMargin = 1.5f;
 int2 _DynamicPolarSize;
-int _DynamicPolarPoint=0;
+int2 _DynamicPolarTextureSize;
 Texture _DynamicPolar,_DynamicPolarInput;
 Texture _CellSolidMask,_CellSolidMaskOutput;
+Texture _SurfaceAirCache,_SurfaceAirCacheOutput;
 int2 _CellGridSize;
 bool sameAtlas(const std::vector<uint3>& left,const std::vector<uint3>& right) {
     if(left.size()!=right.size()) return false;

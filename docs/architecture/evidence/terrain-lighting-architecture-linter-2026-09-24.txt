@@ -1,0 +1,94 @@
+Kern Architecture Linter v1.0.0
+Project root: /Users/murasama/Projects/games/Fodislop
+Assemblies: 15
+Rules: 54
+
+Loaded 15 assemblies successfully.
+
+Running rule KERN-ART-ASSET (Art paths referenced from code must exist)... OK
+Running rule KERN-ART-METRIC (Art family metric and state set consistency)... OK
+Running rule KERN-ASSEMBLY-GRAPH (Assembly graph and namespace visibility)... OK
+Running rule KERN-ASYNC-VOID (async void methods outside event handlers in MonoBehaviours)... OK
+Running rule KERN-BLOCK-NAMESPACE (Unity-inheriting types must use block namespace (not file-scoped))... OK
+Running rule KERN-COMPOSITION-ROOT-SCAN (Composition root scene scan prohibition)... OK
+Running rule KERN-COMPUTE-KERNEL (Compute shader kernel function definition checks)... OK
+Running rule KERN-CONFIGURE-REENTRANCY (Configure reentrancy validation)... OK
+Running rule KERN-CONTAINER-CONSTRUCTOR (VContainer constructor choice validation)... OK
+Running rule KERN-DEAD-MEMBERS (Dead member detection)... 4 violation(s)
+Running rule KERN-DEP-CYCLE (Dependency cycle detection between Kern assemblies)... OK
+Running rule KERN-DESIGN-SYSTEM-DEBT (Design system debt ceiling enforcement)... OK
+Running rule KERN-DISPLAY-TRANSFORM (Display transform shader and Render Graph invariants)... OK
+Running rule KERN-EARLY-LIFECYCLE-DI (Early lifecycle DI access validation)... OK
+Running rule KERN-EDITOR-SCENE-AUTHORING (Editor scene authoring contract validation)... OK
+Running rule KERN-EXECUTION-ORDER (DefaultExecutionOrder contract validation)... OK
+Running rule KERN-FORBIDDEN-API (Forbidden API usage detection)... OK
+Running rule KERN-GAME-BOOTSTRAP-DEPENDENCY (GameBootstrap startup dependency contract)... OK
+Running rule KERN-HARDCODED-TEXT (Hardcoded text detection)... OK
+Running rule KERN-INJECT-ATTRIBUTE ([Inject] attribute usage validation)... OK
+Running rule KERN-LIFECYCLE-SELF-CALL (Lifecycle methods must not call themselves)... OK
+Running rule KERN-LIGHTING-SETTER-INVALIDATION (LightingEngine setter invalidation validation)... OK
+Running rule KERN-LOCALIZATION (Localization parity and wiring checks)... OK
+Running rule KERN-LOCALIZATION-REGISTRY (Localization registry validation)... OK
+Running rule KERN-LOCALIZATION-WIRING (Localization wiring validation)... OK
+Running rule KERN-MONO-ACCESS (MonoBehaviour lifecycle method accessibility)... OK
+Running rule KERN-NAMING (Naming convention validation)... OK
+Running rule KERN-ONE-ROAD-INIT (Single-road view initialization enforcement)... OK
+Running rule KERN-OVERSIZED-FILE (Oversized production file detection)... 10 violation(s)
+Running rule KERN-PACKET-SUBSCRIPTION (Packet subscription symmetry)... OK
+Running rule KERN-PATTERN (Forbidden architectural pattern detection)... OK
+Running rule KERN-PERSISTENT-CACHE (Persistent cache contract validation)... OK
+Running rule KERN-POSTPROCESS-RUNTIME (Post-process and IMGUI runtime lifecycle contracts)... OK
+Running rule KERN-RENDER-PASS-INVARIANT (Render pass invariant validation)... OK
+Running rule KERN-RESOURCE-PATHS (ResourcePaths validation)... OK
+Running rule KERN-SCENE-CONTRACT (Serialized scene contract validation)... OK
+Running rule KERN-SCENE-READINESS (Scene readiness contract validation)... OK
+Running rule KERN-SCENE-SCOPE-INJECTION (Scene scope injection validation)... OK
+Running rule KERN-SCRIPT-META (Script meta GUID integrity)... OK
+Running rule KERN-SETTING-CONSUMER-TARGET (SettingConsumer target validation)... OK
+Running rule KERN-SETTINGS-EMPTY (Empty settings sections with live wiring)... OK
+Running rule KERN-SETTINGS-PROBE (Settings validation probe (defaults, clamps, ranges, buses))... — значения по умолчанию проходят собственную валидацию
+— свежая секция опознаётся как авторская
+— кламп приводит запредельные значения к допустимым
+— объявленные границы осмысленны
+— каждая аудио-шина связана с путём и с полем громкости
+— у показываемых значений перечислений есть подписи
+— ключи подписей существуют в локализации
+— у технических настроек графики объявлены диапазоны
+— каждое поле настройки декларирует потребителя и механизм
+— изменение каждого поля настройки сбрасывает статус авторских значений
+— проверка мутации профилей качества графики и цикла смены MSAA
+— рефлексия всех констант и свойств PostProcessLook
+— глубокая проверка рефлексией потребителей настроек [SettingConsumer]
+— режимы выборки, привязка к сетке и целократный масштаб рендера
+OK
+Running rule KERN-SETTINGS-WIRING (Settings wiring and dead field detection)... OK
+Running rule KERN-SHADER-COLOR (Shader color library include checks)... OK
+Running rule KERN-SHADER-DEAD-UNIFORM (Shader globals declared but never read)... OK
+Running rule KERN-SHADER-INCLUDE (Shader and compute include target existence)... OK
+Running rule KERN-SILENT-UI-NOOP (Silent UI no-op detection)... 1 violation(s)
+Running rule KERN-SWITCH-DEFAULT (Switch statements with 3+ cases must have default)... OK
+Running rule KERN-TERRAIN-LIGHTING-BOUNDARY (Terrain and Lighting implementation boundary)... OK
+Running rule KERN-TRANSITION-STATE (Scene transition state contract validation)... OK
+Running rule KERN-UI-BOUND-SETTINGS (UI settings bound control validation)... OK
+Running rule KERN-UI-TRANSITION-GUARD (UI transition guard validation)... OK
+Running rule KERN-UNITY-NAMESPACE (Unity types must use block namespace)... OK
+Running rule KERN-USS-STYLESHEET (USS stylesheet validation)... OK
+
+Total violations: 15
+
+15 Warning(s):
+  KERN-OVERSIZED-FILE: 509 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/Game/Audio/ServerAudioEvent.cs]
+  KERN-OVERSIZED-FILE: 587 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/Networking/Connection/ConnectionManager.cs]
+  KERN-OVERSIZED-FILE: 540 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/Rendering/Tools/Imgui/Windows/RenderBypassWindow.cs]
+  KERN-SILENT-UI-NOOP: строка 83: guard на rootVisualElement == null молча делает return без Debug-лога и без комментария. При неготовой панели экран не построится, а в консоль не попадёт ничего. [<unknown>!Assets/Scripts/UI/Map/Core/MapInteractionController.cs:83]
+  KERN-OVERSIZED-FILE: 758 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/UI/Map/WorldMap/WorldMapRenderer.cs]
+  KERN-OVERSIZED-FILE: 571 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/World/Lighting/Core/LightingEngine.cs]
+  KERN-OVERSIZED-FILE: 623 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/World/Terrain/Core/TerrainRenderer.cs]
+  KERN-OVERSIZED-FILE: 675 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/World/Terrain/Gpu/TerrainCellBuilder.cs]
+  KERN-OVERSIZED-FILE: 689 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/World/Terrain/Gpu/TerrainWindow.cs]
+  KERN-OVERSIZED-FILE: 570 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/World/Textures/TextureAtlas.cs]
+  KERN-OVERSIZED-FILE: 535 строк превышает лимит 500 для production файлов. Разделите ответственности вместо создания god-object. [<unknown>!Assets/Scripts/World/Textures/WorldTextureManager.cs]
+  KERN-DEAD-MEMBERS: Dead member 'CreateRGBA32WithMipmaps' declared at Assets/Scripts/AssetPipeline/Loading/RuntimeTextureFactory.cs:62 is never referenced outside its declaration. [Assets/Scripts/AssetPipeline/Loading/RuntimeTextureFactory.cs!Assets/Scripts/AssetPipeline/Loading/RuntimeTextureFactory.cs]
+  KERN-DEAD-MEMBERS: Dead member 'DirectionToAngle' declared at Assets/Scripts/Game/Player/Logic/PlayerMovementMath.cs:35 is never referenced outside its declaration. [Assets/Scripts/Game/Player/Logic/PlayerMovementMath.cs!Assets/Scripts/Game/Player/Logic/PlayerMovementMath.cs]
+  KERN-DEAD-MEMBERS: Dead member 'HasStoredChunk' declared at Assets/Scripts/UI/Map/Core/WorldMapMipCache.cs:126 is never referenced outside its declaration. [Assets/Scripts/UI/Map/Core/WorldMapMipCache.cs!Assets/Scripts/UI/Map/Core/WorldMapMipCache.cs]
+  KERN-DEAD-MEMBERS: Dead member 'TryLoadInto' declared at Assets/Scripts/World/Persistence/WorldLayerFile.cs:127 is never referenced outside its declaration. [Assets/Scripts/World/Persistence/WorldLayerFile.cs!Assets/Scripts/World/Persistence/WorldLayerFile.cs]

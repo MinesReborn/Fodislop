@@ -8,7 +8,7 @@
 | - | - | - |
 | Фриз при переходе через границу окна | `Assets/Scripts/Networking/Connection/Client/Systems/DummyMapStreamer.cs` | `SendMapChunksAroundAsync` |
 | Чанк применяется и вызывает каскад событий | `Assets/Scripts/World/Persistence/WorldLayer.cs` | `SetRegion`, `BeginChunkLoadBatch`, `EndChunkLoadBatch` |
-| Packet batch применяется | `Assets/Scripts/Networking/Processors/MapRegionProcessor.cs` | `Process`, `BeginBatch`, `EndBatch` |
+| Packet batch применяется | `Assets/Scripts/Networking/Processors/World/MapRegionProcessor.cs` | `Process`, `BeginBatch`, `EndBatch` |
 | Почему пришла lighting invalidation | `Assets/Scripts/World/Terrain/Core/TerrainRenderer.cs` | `HandleRegionChanged`, `OnCellLayerChunkLoaded` |
 | Почему static solve полный | `Assets/Scripts/World/Lighting/Core/LightingUpdateCoordinator.cs` | `regionChanged`, `geometryChanged`, `FieldDirty`, `RecordLightingFrame` |
 | Dependency mask | `Assets/Scripts/World/Lighting/Core/StaticLightingSolver.cs` | `ShouldUseDependencyMask`, `RecordCascade` |

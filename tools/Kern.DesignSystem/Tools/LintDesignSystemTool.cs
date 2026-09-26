@@ -91,16 +91,7 @@ internal static class LintDesignSystemTool
         list.Add(message);
     }
 
-    private static string GetRoot()
-    {
-        string dir = Directory.GetCurrentDirectory();
-        while (!File.Exists(Path.Combine(dir, "index.html")))
-        {
-            dir = Path.GetDirectoryName(dir) ?? dir;
-            if (Path.GetPathRoot(dir) == dir) break;
-        }
-        return dir;
-    }
+    private static string GetRoot() => DesignSystemPaths.GetRoot();
 
     private static string CssCode(string path)
     {

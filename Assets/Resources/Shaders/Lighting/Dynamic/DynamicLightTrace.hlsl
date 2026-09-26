@@ -27,21 +27,22 @@ void SolveDynamicLighting(uint3 dispatchId : SV_DispatchThreadID)
 
     // Дальше дальности фонаря ни один его луч не несёт видимого света
     // (TraceDynamicPolar). Запас: излучатели разнесены по клетке фонаря
-    // (до 0.71 клетки от центра) — клетка; смешивание соседних радиусов —
-    // два тексела. Ближнее поле (DynamicNearCells по большей оси от клетки,
-    // то есть до 1.5 · (DynamicNearCells + 1) клетки по прямой) собирается
-    // прямым DDA без лучей и не отсекается никогда.
+    // (до 0.71 клетки от центра) — _DynamicReachSlackCells клетки; смешивание
+    // соседних радиусов — _DynamicReachSlackTexels текселя. Ближнее поле
+    // (_DynamicNearCells по большей оси от клетки, то есть до
+    // _DynamicReachSlackCells · (_DynamicNearCells + 1) клетки по прямой)
+    // собирается прямым DDA без лучей и не отсекается никогда.
     float2 texelsPerCell = float2(_FieldSize) / (_WorldRect.zw / _CellSize);
     float cellTexels = max(texelsPerCell.x, texelsPerCell.y);
     float2 lightTexel = (light.positionRadius.xy - _WorldRect.xy) / _WorldRect.zw * float2(_FieldSize);
     float reachTexels = max(
-        float(_DynamicReach[_DynamicLightIndex]) + cellTexels + 2.0,
-        1.5 * (DynamicNearCells + 1.0) * cellTexels);
+        float(_DynamicReach[_DynamicLightIndex]) + cellTexels + _DynamicReachSlackTexels,
+        _DynamicReachSlackCells * (_DynamicNearCells + 1.0) * cellTexels);
     float2 fromLight = origin - lightTexel;
     float3 radiance = 0.0;
     if (dot(fromLight, fromLight) <= reachTexels * reachTexels)
     {
-        radiance = DynamicRadianceFromPolar(origin, light, 8);
+        radiance = DynamicRadianceFromPolar(origin, light, _DynamicAngularSampleCount);
     }
 
     _DynamicTiles[_DynamicTileOffset + int2(dispatchId.xy)] = float4(radiance, 1.0);

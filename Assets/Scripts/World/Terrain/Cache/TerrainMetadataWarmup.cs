@@ -1,24 +1,26 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using MinesServer.Data;
 
 namespace Kern.World.Terrain;
 
-// Прогрев метаданных перед сборкой клеток.
+// Проверка готовности метаданных перед сборкой клеток.
 //
 // ЗАЧЕМ. Полная сборка идёт через Parallel.For, а разрешение типа клетки —
 // операция главного потока: она читает конфиг мира, пишет большую структуру в
 // общий массив и дозаказывает недостающую текстуру. Пока это делалось прямо из
 // FillCell, результат полной сборки зависел от того, какой поток успел первым.
 //
-// Прогрев снимает вопрос: все типы, которые сборке понадобятся, разрешаются
-// здесь и последовательно, а сама сборка потом только читает.
+// Живые map/texture services разрешают захваченные типы в Prepare на главном
+// потоке. Здесь проверяется полнота этого снимка до Parallel.For; сама сборка
+// после этой точки только читает метаданные.
 //
-// ЧТО ИМЕННО ГРЕЕТСЯ. Передний план берёт метаданные прямо из клетки кэша и
-// ни о чём не спрашивает. Спрашивает только фоновый слой — типами из карты
-// заливки, плюс две подстановки: Road под проходимым блоком здания и Empty
-// под пустой клеткой (см. TerrainCellLayers.TryGetType).
+// ЧТО ИМЕННО ПРОВЕРЯЕТСЯ. Передний план берёт метаданные прямо из клетки кэша и
+// ни о чём не спрашивает. Фоновый слой использует типы из карты заливки и их
+// одноклеточное соседство для tile-group descriptor, плюс две подстановки:
+// Road под проходимым блоком здания и Empty под пустой клеткой.
 public sealed class TerrainMetadataWarmup
 {
     private readonly HashSet<CellType> _types = [];
@@ -33,41 +35,20 @@ public sealed class TerrainMetadataWarmup
         _types.Clear();
         _types.Add(CellType.Road);
         _types.Add(CellType.Empty);
-        for (int x = startX; x < endX; x++)
+        TerrainRingGrid<CellType> background = sources.FloodFill.Buffer;
+        int warmStartX = Math.Max(0, startX - 1);
+        int warmEndX = Math.Min(background.Width, endX + 1);
+        int warmStartY = Math.Max(0, startY - 1);
+        int warmEndY = Math.Min(background.Height, endY + 1);
+        for (int x = warmStartX; x < warmEndX; x++)
         {
-            for (int y = startY; y < endY; y++)
+            for (int y = warmStartY; y < warmEndY; y++)
             {
-                _types.Add(sources.FloodFill.Buffer[x, y]);
+                _types.Add(background[x, y]);
             }
         }
 
-        Warm(sources);
-    }
-
-    private void Warm(in TerrainCellSources sources)
-    {
-        if (!sources.CanResolveMetadata)
-        {
-            Verify(sources);
-            return;
-        }
-
-        // Прогрев — это тоже проход: неготовый тип обязан перерешаться, но
-        // один раз, а не на каждой клетке полосы.
-        sources.CellCache.BeginMetadataPass();
-        foreach (CellType type in _types)
-        {
-            if (type == CellType.Unloaded)
-            {
-                continue;
-            }
-
-            sources.CellCache.GetMetadata(
-                type,
-                sources.MapData!,
-                sources.TextureService!,
-                sources.Atlases);
-        }
+        Verify(sources);
     }
 
     // Фоновая сборка: разрешать нечем, типы обязаны быть разрешены главным

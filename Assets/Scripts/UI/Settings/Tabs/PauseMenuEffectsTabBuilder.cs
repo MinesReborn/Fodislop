@@ -99,11 +99,6 @@ internal sealed class PauseMenuEffectsTabBuilder
             () => Cfg().Effects.EigengrauEnabled,
             (config, value) => config.Effects.EigengrauEnabled = value));
 
-        cameraGroup.Add(Switch(
-            nameof(EffectSettings.MotionBlurEnabled),
-            () => Cfg().Effects.MotionBlurEnabled,
-            (config, value) => config.Effects.MotionBlurEnabled = value));
-
         return effectsScroll;
     }
 }

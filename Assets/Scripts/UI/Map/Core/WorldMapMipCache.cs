@@ -15,7 +15,6 @@ internal sealed class WorldMapMipCache
     private readonly int[] _levelHeights;
     private readonly Color32[] _cellColorTable;
     private readonly Color32 _unloadedColor;
-    private readonly byte[] _storedChunks;
     private readonly int _chunkSize;
 
     private int _currentChunkIndex = -1;
@@ -57,8 +56,6 @@ internal sealed class WorldMapMipCache
         _chunkSize = chunkSize;
         _cellColorTable = cellColorTable;
         _unloadedColor = unloadedColor;
-        _storedChunks = new byte[checked((widthChunks * heightChunks + 7) / 8)];
-
         int levelCount = 1;
         int levelWidth = widthChunks;
         int levelHeight = heightChunks;
@@ -71,7 +68,7 @@ internal sealed class WorldMapMipCache
             levelCount++;
         }
 
-        long cacheBytes = totalPixels * sizeof(uint) + _storedChunks.Length;
+        long cacheBytes = totalPixels * sizeof(uint);
         if (cacheBytes > MaxCacheBytes)
         {
             throw new InvalidOperationException(
@@ -124,18 +121,6 @@ internal sealed class WorldMapMipCache
 
     public void CompleteStoredScan() => FlushCurrentChunk();
 
-    public bool HasStoredChunk(int chunkIndex)
-    {
-        if (chunkIndex < 0 || chunkIndex >= WidthChunks * HeightChunks)
-        {
-            return false;
-        }
-
-        int byteIndex = chunkIndex >> 3;
-        int bitMask = 1 << (chunkIndex & 7);
-        return (_storedChunks[byteIndex] & bitMask) != 0;
-    }
-
     public void SetChunkCells(int chunkIndex, CellType[] cells)
     {
         if (cells == null)
@@ -174,17 +159,7 @@ internal sealed class WorldMapMipCache
             Mathf.Log(cellsPerOverviewPixel, 2f),
             0f,
             _levels.Length - 1);
-        int lowerLevel = Mathf.FloorToInt(lod);
-        int upperLevel = Mathf.Min(lowerLevel + 1, _levels.Length - 1);
-        float blend = lod - lowerLevel;
-        Color lower = SampleLevel(lowerLevel, worldX, worldY);
-        if (upperLevel == lowerLevel || blend <= 0f)
-        {
-            return lower;
-        }
-
-        Color upper = SampleLevel(upperLevel, worldX, worldY);
-        return Color32.Lerp((Color32)lower, (Color32)upper, blend);
+        return SampleLevel(Mathf.RoundToInt(lod), worldX, worldY);
     }
 
     private void FlushCurrentChunk()
@@ -222,8 +197,6 @@ internal sealed class WorldMapMipCache
         int chunkX = chunkIndex / HeightChunks;
         int chunkY = chunkIndex % HeightChunks;
         SetLevelPixel(0, chunkX, chunkY, average);
-        _storedChunks[chunkIndex >> 3] |= (byte)(1 << (chunkIndex & 7));
-
         int childX = chunkX;
         int childY = chunkY;
         for (int level = 1; level < _levels.Length; level++)
@@ -287,27 +260,17 @@ internal sealed class WorldMapMipCache
         _levels[level][y * _levelWidths[level] + x] = color;
     }
 
-    private Color SampleLevel(int level, float worldX, float worldY)
+    private Color32 SampleLevel(int level, float worldX, float worldY)
     {
         float levelScale = _chunkSize * Mathf.Pow(2f, level);
         float pixelX = (worldX / levelScale) - 0.5f;
         float pixelY = (worldY / levelScale) - 0.5f;
-        int x0 = Mathf.FloorToInt(pixelX);
-        int y0 = Mathf.FloorToInt(pixelY);
-        float blendX = pixelX - x0;
-        float blendY = pixelY - y0;
-        Color top = Color.Lerp(
-            ReadClamped(level, x0, y0),
-            ReadClamped(level, x0 + 1, y0),
-            blendX);
-        Color bottom = Color.Lerp(
-            ReadClamped(level, x0, y0 + 1),
-            ReadClamped(level, x0 + 1, y0 + 1),
-            blendX);
-        return Color.Lerp(top, bottom, blendY);
+        int nearestX = Mathf.RoundToInt(pixelX);
+        int nearestY = Mathf.RoundToInt(pixelY);
+        return ReadClamped(level, nearestX, nearestY);
     }
 
-    private Color ReadClamped(int level, int x, int y)
+    private Color32 ReadClamped(int level, int x, int y)
     {
         int clampedX = Mathf.Clamp(x, 0, _levelWidths[level] - 1);
         int clampedY = Mathf.Clamp(y, 0, _levelHeights[level] - 1);

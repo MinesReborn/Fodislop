@@ -87,8 +87,31 @@ public sealed class TerrainRingGrid<T>
 
     private int PhysicalIndex(int x, int y)
     {
-        return PositiveModulo(x + _offsetX, Width) * Height +
-            PositiveModulo(y + _offsetY, Height);
+        return WrapCoordinate(x, _offsetX, Width) * Height +
+            WrapCoordinate(y, _offsetY, Height);
+    }
+
+    private static int WrapCoordinate(int coordinate, int offset, int length)
+    {
+        // Logical grid accesses are usually in range, so the ring offset needs
+        // at most one wrap. Keep the modulo fallback for arbitrary indices.
+        int value = coordinate + offset;
+        if ((uint)value < (uint)length)
+        {
+            return value;
+        }
+
+        if (value >= length && value - length < length)
+        {
+            return value - length;
+        }
+
+        if (value < 0 && value >= -length)
+        {
+            return value + length;
+        }
+
+        return PositiveModulo(value, length);
     }
 
     private static int PositiveModulo(int value, int modulus)

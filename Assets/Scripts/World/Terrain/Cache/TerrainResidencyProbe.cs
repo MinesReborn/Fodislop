@@ -1,5 +1,7 @@
 #nullable enable
 
+using System;
+using System.Collections.Generic;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using MinesServer.Data;
@@ -18,6 +20,121 @@ namespace Kern.World.Terrain;
 /// TryPatch), поэтому ждать «всё или ничего» для первого билда больше не нужно.
 public static class TerrainResidencyProbe
 {
+    /// <summary>
+    /// Chunk statuses are stable during one synchronous terrain plan. Reuse
+    /// the first read across candidate windows so overlapping probes touch an
+    /// LRU node only once per frame.
+    ///
+    /// Stable-frame work is one full requested-window probe. A partial advance
+    /// checks at most five additional candidates; worst-case unique reads are
+    /// the union of six chunk rectangles, bounded by six window footprints.
+    /// The dictionary retains its peak capacity on the planner and is cleared
+    /// without per-frame allocation. [TerrainStall] reports probes, unique
+    /// ReadChunk calls, and avoided repeated reads.
+    /// </summary>
+    internal sealed class FrameCache
+    {
+        private readonly Dictionary<int, ChunkReadStatus> _statuses = new(64);
+        private IWorldLayer<CellType>? _layer;
+        private IWorldDataStorage? _storage;
+        private IMapDataProvider? _mapData;
+        private int _worldWidth;
+        private int _worldHeight;
+        private int _chunkSize;
+        private int _windowWidth;
+        private int _windowHeight;
+
+        public FrameCache()
+        {
+            ResidencyCallback = IsWindowResident;
+        }
+
+        public Func<Vector2Int, bool> ResidencyCallback { get; }
+
+        public int ChunkReads { get; private set; }
+
+        public int CacheHits { get; private set; }
+
+        public int ProbeCalls { get; private set; }
+
+        public int LruTouches { get; private set; }
+
+        public void BeginFrame(
+            IWorldDataStorage? storage,
+            IMapDataProvider? mapData,
+            int windowWidth,
+            int windowHeight)
+        {
+            _statuses.Clear();
+            ChunkReads = 0;
+            CacheHits = 0;
+            ProbeCalls = 0;
+            LruTouches = 0;
+            _storage = storage;
+            _mapData = mapData;
+            _windowWidth = windowWidth;
+            _windowHeight = windowHeight;
+        }
+
+        private bool IsWindowResident(Vector2Int position) =>
+            TerrainResidencyProbe.IsWindowResident(
+                storage: _storage,
+                mapData: _mapData,
+                connectionService: null,
+                gridPosition: position,
+                width: _windowWidth,
+                height: _windowHeight,
+                frameCache: this);
+
+        public ChunkReadStatus ReadStatus(
+            IWorldLayer<CellType> layer,
+            int chunkIndex,
+            bool refreshLru = false)
+        {
+            if (_statuses.TryGetValue(chunkIndex, out ChunkReadStatus status))
+            {
+                CacheHits++;
+                if (refreshLru && status == ChunkReadStatus.Available)
+                {
+                    layer.ReadChunk(chunkIndex, touchLru: true);
+                    LruTouches++;
+                }
+
+                return status;
+            }
+
+            status = layer.ReadChunk(chunkIndex, touchLru: true).Status;
+            _statuses.Add(chunkIndex, status);
+            ChunkReads++;
+            if (status == ChunkReadStatus.Available)
+            {
+                LruTouches++;
+            }
+
+            return status;
+        }
+
+        public void PrepareLayer(IWorldLayer<CellType> layer, int worldWidth, int worldHeight)
+        {
+            int chunkSize = layer.ChunkSize;
+            if (ReferenceEquals(_layer, layer) &&
+                _worldWidth == worldWidth &&
+                _worldHeight == worldHeight &&
+                _chunkSize == chunkSize)
+            {
+                return;
+            }
+
+            _statuses.Clear();
+            _layer = layer;
+            _worldWidth = worldWidth;
+            _worldHeight = worldHeight;
+            _chunkSize = chunkSize;
+        }
+
+        public void RecordProbe() => ProbeCalls++;
+    }
+
     /// <summary>
     /// Лежит ли окно в памяти. Ничего не заказывает — этим можно щупать
     /// промежуточные положения окна, не поднимая сетевого трафика.
@@ -42,6 +159,25 @@ public static class TerrainResidencyProbe
         int height) =>
         Probe(storage, mapData, connectionService, gridPosition, width, height);
 
+    internal static bool IsWindowResident(
+        IWorldDataStorage? storage,
+        IMapDataProvider? mapData,
+        IConnectionService? connectionService,
+        Vector2Int gridPosition,
+        int width,
+        int height,
+        FrameCache frameCache) =>
+        Probe(storage, mapData, connectionService, gridPosition, width, height, frameCache);
+
+    internal static void TouchWindow(
+        IWorldDataStorage? storage,
+        IMapDataProvider? mapData,
+        Vector2Int gridPosition,
+        int width,
+        int height,
+        FrameCache frameCache) =>
+        Probe(storage, mapData, null, gridPosition, width, height, frameCache, refreshLru: true);
+
     /// <summary>
     /// Есть ли в окне хоть один доступный чанк. Ничего не заказывает.
     /// </summary>
@@ -49,7 +185,7 @@ public static class TerrainResidencyProbe
     /// Позволяет начать строить окно с первого пришедшего пакета любого размера:
     /// пока данных нет вовсе, планировщик продолжает ждать; как только пришла
     /// первая пачка чанков — окно строится, а недогруженные области остаются
-    /// пустыми клетками и заполняются по мере прихода следующих регионов.
+    /// пустыми и заполняются по мере прихода следующих регионов.
     public static bool HasAnyResidentData(
         IWorldDataStorage? storage,
         IMapDataProvider? mapData,
@@ -88,8 +224,11 @@ public static class TerrainResidencyProbe
         IConnectionService? connectionService,
         Vector2Int gridPosition,
         int width,
-        int height)
+        int height,
+        FrameCache? frameCache = null,
+        bool refreshLru = false)
     {
+        frameCache?.RecordProbe();
         WindowChunkGeom geom = WindowChunkGeom.Compute(storage, mapData, gridPosition, width, height);
         if (geom.Layer == null)
         {
@@ -101,32 +240,32 @@ public static class TerrainResidencyProbe
             return true;
         }
 
+        frameCache?.PrepareLayer(geom.Layer, geom.WorldWidth, geom.WorldHeight);
         bool resident = true;
         bool missing = false;
         for (int chunkX = geom.FirstChunkX; chunkX <= geom.LastChunkX; chunkX++)
         {
             for (int chunkY = geom.FirstChunkY; chunkY <= geom.LastChunkY; chunkY++)
             {
-                ChunkReadResult<CellType> result = geom.ReadChunk(chunkX, chunkY, touchLru: true);
-                resident &= result.Status == ChunkReadStatus.Available;
-                missing |= result.Status == ChunkReadStatus.Missing;
+                int chunkIndex = chunkY + (chunkX * geom.Layer.HeightChunks);
+                ChunkReadStatus status = frameCache == null
+                    ? geom.ReadChunk(chunkX, chunkY, touchLru: true).Status
+                    : frameCache.ReadStatus(geom.Layer, chunkIndex, refreshLru);
+                resident &= status == ChunkReadStatus.Available;
+                missing |= status == ChunkReadStatus.Missing;
             }
         }
 
         if (missing && connectionService is IWorldRegionRequester requester)
         {
             // Заказ выравнивается по границам чанков и берётся с запасом в
-            // чанк во все стороны. Причина — не запас как таковой, а
-            // УСТОЙЧИВОСТЬ прямоугольника: пока он совпадает с уже заказанным,
-            // повторный запрос не нужен. Точный по окну прямоугольник менялся
-            // на каждом шаге камеры, каждый шаг порождал новый запрос, а новый
-            // запрос отменяет предыдущий — поток чанков рвался ровно тогда,
-            // когда игрок шёл.
+            // чанк во все стороны, поэтому повторный запрос не сбрасывает
+            // ещё идущую загрузку на каждом шаге камеры.
             int chunkSize = geom.Layer.ChunkSize;
-            int requestMinX = Mathf.Max(0, ((geom.FirstChunkX - 1) * chunkSize));
-            int requestMinY = Mathf.Max(0, ((geom.FirstChunkY - 1) * chunkSize));
-            int requestMaxX = Mathf.Min(geom.WorldWidth - 1, (((geom.LastChunkX + 2) * chunkSize) - 1));
-            int requestMaxY = Mathf.Min(geom.WorldHeight - 1, (((geom.LastChunkY + 2) * chunkSize) - 1));
+            int requestMinX = Mathf.Max(0, (geom.FirstChunkX - 1) * chunkSize);
+            int requestMinY = Mathf.Max(0, (geom.FirstChunkY - 1) * chunkSize);
+            int requestMaxX = Mathf.Min(geom.WorldWidth - 1, ((geom.LastChunkX + 2) * chunkSize) - 1);
+            int requestMaxY = Mathf.Min(geom.WorldHeight - 1, ((geom.LastChunkY + 2) * chunkSize) - 1);
             requester.RequestWorldRegion(
                 geom.WorldCodeName,
                 new RectInt(

@@ -129,7 +129,7 @@ When styling UI or adjusting theme make sure to not only apply to the elements d
 |------|------------|------|-----|
 | `name` attribute | camelCase | `submitButton` | `submit-button` |
 | `class` attribute / USS | kebab-case | `.submit-button` | `.submitButton` |
-| File paths | Feature folders | `Assets/UI/Inventory/` | `Assets/Scripts/UI/` |
+| File paths | Feature folders | `Assets/UI/Gameplay/Inventory/` | `Assets/Scripts/UI/` |
 
 **Output format:**
 ```uxml Filename.uxml

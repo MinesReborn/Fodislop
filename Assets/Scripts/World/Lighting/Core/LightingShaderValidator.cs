@@ -13,6 +13,7 @@ internal static class LightingShaderValidator
         ComputeShader Compute,
         int SolveCascadeKernel,
         int ScrollRadianceAtlasKernel,
+        int ClearCascadeChangedMaskKernel,
         int SolveDynamicLightingKernel,
         int ComposeDynamicLightingKernel,
         int TraceDynamicPolarKernel,
@@ -20,7 +21,8 @@ internal static class LightingShaderValidator
         int ResolveDirectKernel,
         int ResolveTransmissionDebugKernel,
         int CompositeLightingKernel,
-        int BuildCellSolidMaskKernel);
+        int BuildCellSolidMaskKernel,
+        int BuildSurfaceAirCacheKernel);
 
     public static LoadedLightingCompute LoadComputeShader()
     {
@@ -36,6 +38,7 @@ internal static class LightingShaderValidator
 
         int solveCascadeKernel = FindAndValidateKernel(compute, ProjectRuntimeContracts.ComputeKernelNames.SolveCascade);
         int scrollRadianceAtlasKernel = FindAndValidateKernel(compute, ProjectRuntimeContracts.ComputeKernelNames.ScrollRadianceAtlas);
+        int clearCascadeChangedMaskKernel = FindAndValidateKernel(compute, ProjectRuntimeContracts.ComputeKernelNames.ClearCascadeChangedMask);
         int solveDynamicLightingKernel = FindAndValidateKernel(compute, ProjectRuntimeContracts.ComputeKernelNames.SolveDynamicLighting);
         int composeDynamicLightingKernel = FindAndValidateKernel(compute, ProjectRuntimeContracts.ComputeKernelNames.ComposeDynamicLighting);
         int traceDynamicPolarKernel = FindAndValidateKernel(compute, ProjectRuntimeContracts.ComputeKernelNames.TraceDynamicPolar);
@@ -44,11 +47,13 @@ internal static class LightingShaderValidator
         int resolveTransmissionDebugKernel = FindAndValidateKernel(compute, ProjectRuntimeContracts.ComputeKernelNames.ResolveTransmissionDebug);
         int compositeLightingKernel = FindAndValidateKernel(compute, ProjectRuntimeContracts.ComputeKernelNames.CompositeLighting);
         int buildCellSolidMaskKernel = FindAndValidateKernel(compute, ProjectRuntimeContracts.ComputeKernelNames.BuildCellSolidMask);
+        int buildSurfaceAirCacheKernel = FindAndValidateKernel(compute, ProjectRuntimeContracts.ComputeKernelNames.BuildSurfaceAirCache);
 
         return new LoadedLightingCompute(
             compute,
             solveCascadeKernel,
             scrollRadianceAtlasKernel,
+            clearCascadeChangedMaskKernel,
             solveDynamicLightingKernel,
             composeDynamicLightingKernel,
             traceDynamicPolarKernel,
@@ -56,7 +61,8 @@ internal static class LightingShaderValidator
             resolveDirectKernel,
             resolveTransmissionDebugKernel,
             compositeLightingKernel,
-            buildCellSolidMaskKernel);
+            buildCellSolidMaskKernel,
+            buildSurfaceAirCacheKernel);
     }
 
     private static int FindAndValidateKernel(ComputeShader compute, string kernelName)
@@ -89,7 +95,7 @@ internal static class LightingShaderValidator
         }
     }
 
-    public static void ValidateMaterialFieldPass(Action<UnityEngine.Object> destroyObject)
+    public static void ValidateTerrainFieldPasses(Action<UnityEngine.Object> destroyObject)
     {
         Shader terrainShader = Shader.Find(ProjectRuntimeContracts.ShaderNames.Terrain) ??
             throw new InvalidOperationException("The terrain shader required by lighting is missing.");
@@ -103,6 +109,13 @@ internal static class LightingShaderValidator
             {
                 throw new InvalidOperationException(
                     "The terrain shader is missing the LightingMaterialField pass.");
+            }
+
+            if (validationMaterial.FindPass(
+                    ProjectRuntimeContracts.ShaderPassNames.LightingAmbientOcclusionField) < 0)
+            {
+                throw new InvalidOperationException(
+                    "The terrain shader is missing the LightingAmbientOcclusionField pass.");
             }
         }
         finally

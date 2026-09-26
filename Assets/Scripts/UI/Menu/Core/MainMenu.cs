@@ -143,7 +143,7 @@ namespace Kern.UI
             if (mainMenuUxml == null)
             {
                 throw new InvalidOperationException(
-                    "Required UI asset 'Resources/UI/MainMenu.uxml' was not found.");
+                    "Required UI asset 'Resources/UI/Menus/MainMenu.uxml' was not found.");
             }
 
             _root.Clear();

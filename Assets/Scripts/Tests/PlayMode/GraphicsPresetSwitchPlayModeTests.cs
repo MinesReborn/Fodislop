@@ -5,7 +5,6 @@ using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Rendering;
 using Kern.World.Lighting;
-using Kern.World.Lighting.Quality;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -23,7 +22,6 @@ public sealed class GraphicsPresetSwitchPlayModeTests
     private DummyAuthenticationScope _authentication = null!;
     private IClientConfigManager _config = null!;
     private GraphicsPreset _originalPreset;
-    private GraphicsQualitySettings _originalSettings;
 
     [UnitySetUp]
     public IEnumerator SetUp()
@@ -35,7 +33,6 @@ public sealed class GraphicsPresetSwitchPlayModeTests
         _bootstrap = PlayModeHarness.FindBootstrap()!;
         _config = _bootstrap.Container.Resolve<IClientConfigManager>();
         _originalPreset = _config.Config.GraphicsPreset;
-        _originalSettings = _config.Config.GraphicsQualitySettings;
         yield return PlayModeHarness.EnterMainGame(_bootstrap);
     }
 
@@ -43,56 +40,32 @@ public sealed class GraphicsPresetSwitchPlayModeTests
     public IEnumerator TearDown()
     {
         GraphicsSettingsController? graphics = PlayModeHarness.ResolveInGame<GraphicsSettingsController>();
-        if (graphics != null)
-        {
-            if (GraphicsQualityProfile.IsStandard(_originalPreset))
-            {
-                graphics.SelectStandardPreset(_originalPreset);
-            }
-            else
-            {
-                graphics.SetCustomSettings(_originalSettings);
-            }
-        }
+        graphics?.SelectPreset(_originalPreset);
 
         yield return PlayModeHarness.Shutdown();
         _authentication.Restore();
     }
 
     [UnityTest]
-    public IEnumerator StandardPresetsAndCustomSettings_SwitchThroughProductionPath()
+    public IEnumerator BothPresets_SwitchThroughProductionPath()
     {
         GraphicsSettingsController graphics = PlayModeHarness.RequireInGame<GraphicsSettingsController>();
         LightingEngine lighting = PlayModeHarness.RequireInGame<LightingEngine>();
         GraphicsPreset[] presets =
         [
-            GraphicsPreset.VeryLow,
-            GraphicsPreset.Low,
-            GraphicsPreset.Medium,
-            GraphicsPreset.High,
-            GraphicsPreset.VeryHigh,
-            GraphicsPreset.Ultra,
+            GraphicsPreset.Standard,
+            GraphicsPreset.Overdrive,
         ];
 
         foreach (GraphicsPreset preset in presets)
         {
-            graphics.SelectStandardPreset(preset);
+            graphics.SelectPreset(preset);
             yield return PlayModeHarness.Frames(12);
 
             Assert.That(graphics.SelectedPreset, Is.EqualTo(preset));
             Assert.That(_config.Config.GraphicsPreset, Is.EqualTo(preset));
             Assert.That(lighting.IsInitialized, Is.True, $"Lighting was lost after selecting {preset}.");
         }
-
-        GraphicsQualitySettings custom = _config.Config.GraphicsQualitySettings;
-        custom.LightingQuality = LightingQualityMode.Off;
-        custom.RenderScale = 1f;
-        graphics.SetCustomSettings(custom);
-        yield return PlayModeHarness.Frames(12);
-
-        Assert.That(graphics.SelectedPreset, Is.EqualTo(GraphicsPreset.Custom));
-        Assert.That(_config.Config.GraphicsPreset, Is.EqualTo(GraphicsPreset.Custom));
-        Assert.That(_config.Config.GraphicsQualitySettings.LightingQuality, Is.EqualTo(LightingQualityMode.Off));
     }
 
     [UnityTest]
@@ -102,17 +75,17 @@ public sealed class GraphicsPresetSwitchPlayModeTests
         GraphicsSettingsController graphics = PlayModeHarness.RequireInGame<GraphicsSettingsController>();
         GraphicsPreset[] sequence =
         [
-            GraphicsPreset.Ultra,
-            GraphicsPreset.VeryLow,
-            GraphicsPreset.Ultra,
-            GraphicsPreset.VeryLow,
-            GraphicsPreset.High,
-            GraphicsPreset.VeryLow,
+            GraphicsPreset.Overdrive,
+            GraphicsPreset.Standard,
+            GraphicsPreset.Overdrive,
+            GraphicsPreset.Standard,
+            GraphicsPreset.Overdrive,
+            GraphicsPreset.Standard,
         ];
 
         foreach (GraphicsPreset preset in sequence)
         {
-            graphics.SelectStandardPreset(preset);
+            graphics.SelectPreset(preset);
             yield return PlayModeHarness.Frames(20);
             Assert.That(graphics.SelectedPreset, Is.EqualTo(preset));
         }

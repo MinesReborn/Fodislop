@@ -22,7 +22,6 @@ internal static class Program
                 "freeze-report" => FreezeReport.Run(args[1..]),
                 "transport" => NativeHarness.RunTransport(repositoryRoot),
                 "rects" => ProbeRectTests.Run(),
-                "equivalence" => RunEquivalence(repositoryRoot, args[1..]),
                 "compile" => NativeHarness.CompileShaders(repositoryRoot, args.Length > 1 ? args[1] : null),
                 "layout" => RunLayoutChecks(),
                 _ => Usage(),
@@ -33,20 +32,6 @@ internal static class Program
             Console.Error.WriteLine(exception.Message);
             return 1;
         }
-    }
-
-    private static int RunEquivalence(string repositoryRoot, string[] args)
-    {
-        if (args.Length is < 1 or > 2)
-        {
-            Console.Error.WriteLine("usage: dotnet run -- equivalence <reference.compute> [candidate.compute]");
-            return 2;
-        }
-
-        string candidate = args.Length == 2
-            ? args[1]
-            : "Assets/Resources/Shaders/Lighting/WorldLighting.compute";
-        return NativeHarness.RunEquivalence(repositoryRoot, args[0], candidate);
     }
 
     private static string FindRepositoryRoot()
@@ -143,7 +128,7 @@ internal static class Program
 
     private static int Usage()
     {
-        Console.Error.WriteLine("usage: dotnet run -- [all|layout|oracle|golden|streaming|transport|equivalence|compile|freeze-report <dump>]");
+        Console.Error.WriteLine("usage: dotnet run -- [all|layout|oracle|golden|streaming|transport|compile|freeze-report <dump>]");
         return 2;
     }
 }

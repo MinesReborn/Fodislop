@@ -9,7 +9,7 @@ namespace Kern.UI.Backgrounds
     public sealed class FractalBackgroundQuad : MonoBehaviour
     {
         [SerializeField] private Material? _material = null;
-        [SerializeField] private float _speed = 1.0f;
+        [SerializeField] private float _speed = FractalBackgroundLook.Speed;
 
         private Mesh? _mesh;
         private Material? _runtimeMaterial;
@@ -92,6 +92,9 @@ namespace Kern.UI.Backgrounds
             if (_runtimeMaterial != null)
             {
                 _runtimeMaterial.SetFloat("_Speed", _speed);
+                _runtimeMaterial.SetFloat("_FoldFrequency", FractalBackgroundLook.FoldFrequency);
+                _runtimeMaterial.SetInt("_Iterations", FractalBackgroundLook.Iterations);
+                _runtimeMaterial.SetColor("_ColorTint", FractalBackgroundLook.Tint);
             }
         }
 

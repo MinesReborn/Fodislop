@@ -98,10 +98,8 @@ namespace Kern.World.Lighting.Quality
 {
     public enum LightingQualityMode
     {
-        PerBlock = 0,
-        Off = 1,
-        PerPixel = 2,
-        PerPixelBilinearFix = 3,
+        Off = 0,
+        PerPixel = 1,
     }
 }
 
@@ -113,8 +111,6 @@ namespace Kern.World.Lighting
         None = 0,
         StaticRC = 1 << 0,
         DynamicLights = 1 << 1,
-        VisibilityAwareMerge = 1 << 3,
-        WallAwareUpsample = 1 << 4,
     }
 
     public static class LightingConfigHolder
@@ -125,6 +121,16 @@ namespace Kern.World.Lighting
         public const float MaximumLightMultiplier = 1f;
         public const float EmptyExtinctionMultiplier = 0.2f;
         public const float SolidExtinctionMultiplier = 1f;
+        public const float SurfaceReflectionReachCells = 0.5f;
+        public const float DynamicNearCells = 6f;
+        public const int DynamicAngularSampleCount = 8;
+        public const bool EnableBilinearFix = true;
+        public const float SolidOccupancyThreshold = 0.5f;
+        public const float TransportSolidThreshold = 0.4f;
+        public const int DynamicEmitterPointsPerAxis = 3;
+        public const float DynamicReachSlackTexels = 2f;
+        public const float DynamicReachSlackCells = 1.5f;
+        public const float DynamicPolarMargin = 1.5f;
         public static UnityEngine.Color AmbientColor => UnityEngine.Color.white;
         public static UnityEngine.Color EmptyExtinctionRGB => UnityEngine.Color.white;
         public static UnityEngine.Color SolidExtinctionRGB => UnityEngine.Color.white;

@@ -1,7 +1,7 @@
 # Kern standalone tools
 
 Инструменты здесь собираются отдельно от Unity-проекта и не являются
-runtime-кодом игры. Все текущие проекты — `net10.0`.
+runtime-кодом игры. Все standalone-проекты в `tools/` используют `net10.0`.
 
 ## Архитектура и качество
 
@@ -12,14 +12,22 @@ runtime-кодом игры. Все текущие проекты — `net10.0`.
 
 ## Планета и UI-ассеты
 
-- `Kern.UIAssets` — подготовка UI-ассетов.
+- `Kern.UIAssets` — единая точка входа генерации UI-ассетов. Команды `all`,
+  `menu` и `sidebar-icons` запускают профильные реализации в соседних проектах
+  `Kern.MenuAssetsGenerator` и `Kern.SidebarIconsGenerator`.
+
+```sh
+dotnet run --project tools/Kern.UIAssets/Kern.UIAssets.csproj -- all
+dotnet run --project tools/Kern.UIAssets/Kern.UIAssets.csproj -- menu
+dotnet run --project tools/Kern.UIAssets/Kern.UIAssets.csproj -- sidebar-icons
+```
 
 ## Terrain и lighting
 
 - `Kern.TerrainBench` — бенчмарки terrain.
 - `Kern.TerrainTests` — standalone terrain tests.
 - `Kern.LightingTests` — lighting harness и fixtures.
-- `Kern.TerrainCrystalTests` — проверки shimmer/lava из исходного проекта.
+- `Kern.TerrainCrystalTests` — проверки кристаллической анимации из исходного проекта.
 - `Kern.TerrainRasterTests` — raster/contact-AO regression checks.
 
 ## Правила

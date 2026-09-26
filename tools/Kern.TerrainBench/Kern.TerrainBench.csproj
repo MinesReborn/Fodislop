@@ -30,13 +30,28 @@
   <ItemGroup>
     <!-- Настоящие файлы игры, без копий: бенчмарк меряет тот же код. -->
     <Compile Include="../../Assets/Scripts/Core/Interfaces/Contracts/ProjectRuntimeContracts.cs" Link="Game/ProjectRuntimeContracts.cs" />
+    <Compile Include="../../Assets/Scripts/Core/Interfaces/Contracts/Settings/TerrainSettings.cs" Link="Game/TerrainSettings.cs" />
+    <Compile Include="../../Assets/Scripts/Core/Configuration/Contracts/SettingAttributes.cs" Link="Game/SettingAttributes.cs" />
+    <Compile Include="../../Assets/Scripts/Rendering/PostProcessing/ColorGrading/Contracts/VisualTuning.cs" Link="Game/VisualTuning.cs" />
+    <Compile Include="../../Assets/Scripts/Rendering/PostProcessing/ColorGrading/Contracts/DisplayTransform.cs" Link="Game/DisplayTransform.cs" />
+    <Compile Include="../../Assets/Scripts/World/Common/CoordinateUtils.cs" Link="Game/CoordinateUtils.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainVertex.cs" Link="Game/TerrainVertex.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainCellGeometry.cs" Link="Game/TerrainCellGeometry.cs" />
+    <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainPrecalculator.cs" Link="Game/TerrainPrecalculator.cs" />
+    <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainQuadBuilder.cs" Link="Game/TerrainQuadBuilder.cs" />
+    <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainQuadSite.cs" Link="Game/TerrainQuadSite.cs" />
+    <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainQuadUvs.cs" Link="Game/TerrainQuadUvs.cs" />
+    <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainCellLayers.cs" Link="Game/TerrainCellLayers.cs" />
+    <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainLightingData.cs" Link="Game/TerrainLightingData.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Gpu/TerrainCellDataPacker.cs" Link="Game/TerrainCellDataPacker.cs" />
+    <Compile Include="../../Assets/Scripts/World/Terrain/Gpu/TerrainCellTypeSet.cs" Link="Game/TerrainCellTypeSet.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Gpu/TerrainDirtyRegion.cs" Link="Game/TerrainDirtyRegion.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Cache/DirtyRectSet.cs" Link="Game/DirtyRectSet.cs" />
+    <Compile Include="../../Assets/Scripts/World/Terrain/Cache/TerrainCellRegion.cs" Link="Game/TerrainCellRegion.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Cache/TerrainRingGrid.cs" Link="Game/TerrainRingGrid.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Cache/TerrainScrollBands.cs" Link="Game/TerrainScrollBands.cs" />
+    <Compile Include="../../Assets/Scripts/World/Terrain/Cache/TerrainResidencyProbe.cs" Link="Game/TerrainResidencyProbe.cs" />
+    <Compile Include="../../Assets/Scripts/World/Terrain/Core/TerrainWindowAdvance.cs" Link="Game/TerrainWindowAdvance.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Cache/CellTypeSpatialIndex.cs" Link="Game/CellTypeSpatialIndex.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Cache/TerrainMetadata.cs" Link="Game/TerrainMetadata.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Cache/TerrainCellDataSource.cs" Link="Game/TerrainCellDataSource.cs" />

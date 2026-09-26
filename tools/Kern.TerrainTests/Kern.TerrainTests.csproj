@@ -40,6 +40,10 @@
 
     <!-- Код игры. -->
     <Compile Include="$(Game)/Core/Interfaces/Contracts/ProjectRuntimeContracts.cs" Link="Game/ProjectRuntimeContracts.cs" />
+    <Compile Include="$(Game)/Core/Configuration/Contracts/SettingAttributes.cs" Link="Game/SettingAttributes.cs" />
+    <Compile Include="$(Game)/Core/Interfaces/Contracts/Settings/TerrainSettings.cs" Link="Game/TerrainSettings.cs" />
+    <Compile Include="$(Game)/Rendering/PostProcessing/ColorGrading/Contracts/VisualTuning.cs" Link="Game/VisualTuning.cs" />
+    <Compile Include="$(Game)/Rendering/PostProcessing/ColorGrading/Contracts/DisplayTransform.cs" Link="Game/DisplayTransform.cs" />
     <Compile Include="$(Game)/World/Common/TileBitmaskConverter.cs" Link="Game/TileBitmaskConverter.cs" />
     <Compile Include="$(Game)/World/Terrain/Mesh/TerrainVertex.cs" Link="Game/TerrainVertex.cs" />
     <Compile Include="$(Game)/World/Terrain/Mesh/TerrainCellLayers.cs" Link="Game/TerrainCellLayers.cs" />
@@ -47,6 +51,7 @@
     <Compile Include="$(Game)/World/Terrain/Mesh/TerrainLightingData.cs" Link="Game/TerrainLightingData.cs" />
     <Compile Include="$(Game)/World/Terrain/Mesh/TerrainCellMaskCalculator.cs" Link="Game/TerrainCellMaskCalculator.cs" />
     <Compile Include="$(Game)/World/Terrain/Mesh/TerrainVertexDistortionCalculator.cs" Link="Game/TerrainVertexDistortionCalculator.cs" />
+    <Compile Include="$(Game)/World/Terrain/Mesh/TerrainPrecalculator.cs" Link="Game/TerrainPrecalculator.cs" />
     <Compile Include="$(Game)/World/Common/Contracts/RenderingConstants.cs" Link="Game/RenderingConstants.cs" />
     <Compile Include="$(Game)/World/Common/MapBlockColors.cs" Link="Game/MapBlockColors.cs" />
     <Compile Include="$(Game)/World/Storage/CellVisualProtocol.cs" Link="Game/CellVisualProtocol.cs" />
@@ -58,9 +63,11 @@
     <Compile Include="$(Game)/World/Terrain/Mesh/TerrainReliefRimCatalog.cs" Link="Game/TerrainReliefRimCatalog.cs" />
     <Compile Include="$(Game)/World/Terrain/Gpu/TerrainCellDataPacker.cs" Link="Game/TerrainCellDataPacker.cs" />
     <Compile Include="$(Game)/World/Terrain/Gpu/TerrainCellTextureIndex.cs" Link="Game/TerrainCellTextureIndex.cs" />
+    <Compile Include="$(Game)/World/Terrain/Gpu/TerrainCellTypeSet.cs" Link="Game/TerrainCellTypeSet.cs" />
     <Compile Include="$(Game)/World/Terrain/Gpu/TerrainDirtyRegion.cs" Link="Game/TerrainDirtyRegion.cs" />
     <Compile Include="$(Game)/World/Terrain/Cache/CellTypeSpatialIndex.cs" Link="Game/CellTypeSpatialIndex.cs" />
     <Compile Include="$(Game)/World/Terrain/Cache/TerrainScrollBands.cs" Link="Game/TerrainScrollBands.cs" />
+    <Compile Include="$(Game)/World/Terrain/Cache/TerrainCellRegion.cs" Link="Game/TerrainCellRegion.cs" />
     <Compile Include="$(Game)/World/Terrain/Core/TerrainWindowAdvance.cs" Link="Game/TerrainWindowAdvance.cs" />
     <Compile Include="$(Game)/World/Terrain/Gpu/TerrainUploadStrips.cs" Link="Game/TerrainUploadStrips.cs" />
     <Compile Include="$(Game)/World/Terrain/Gpu/TerrainStagingPacker.cs" Link="Game/TerrainStagingPacker.cs" />
@@ -94,8 +101,8 @@
     <Compile Include="$(Game)/Tests/Editor/World/Streaming/StreamingGovernorTests.cs" Link="Tests/Streaming/StreamingGovernorTests.cs" />
     <Compile Include="$(Game)/Tests/Editor/World/Streaming/TerrainBuildSchedulerTests.cs" Link="Tests/Streaming/TerrainBuildSchedulerTests.cs" />
     <Compile Include="$(Game)/Tests/Editor/World/Streaming/TerrainMemoryEstimateTests.cs" Link="Tests/Streaming/TerrainMemoryEstimateTests.cs" />
-    <Compile Include="$(Game)/Tests/Editor/Networking/PacketAdmissionBudgetTests.cs" Link="Tests/Networking/PacketAdmissionBudgetTests.cs" />
-    <Compile Include="$(Game)/Tests/Editor/UI/MinimapRefreshPolicy*.cs" LinkBase="Tests/UI" />
+    <Compile Include="$(Game)/Tests/Editor/Networking/Protocol/PacketAdmissionBudgetTests.cs" Link="Tests/Networking/PacketAdmissionBudgetTests.cs" />
+    <Compile Include="$(Game)/Tests/Editor/UI/Gameplay/MinimapRefreshPolicy*.cs" LinkBase="Tests/UI" />
     <!-- Тесты кодека чанков: те же файлы, что гоняет Unity, но проверяются
          здесь за секунды и без редактора. -->
     <Compile Include="$(Game)/Tests/Editor/World/Persistence/WorldChunkRLECodec*.cs" LinkBase="Tests/Persistence" />

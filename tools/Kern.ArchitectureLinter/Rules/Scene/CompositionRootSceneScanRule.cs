@@ -21,10 +21,10 @@ public sealed class CompositionRootSceneScanRule : IRule
 
     private static readonly string[] CompositionRoots =
     {
-        "Assets/Scripts/Core/Bootstrap/BootstrapLifetimeScope.cs",
-        "Assets/Scripts/Core/Bootstrap/GameLifetimeScope.cs",
-        "Assets/Scripts/Core/Bootstrap/GatewayLifetimeScope.cs",
-        "Assets/Scripts/Core/Bootstrap/MainMenuLifetimeScope.cs",
+        "Assets/Scripts/Core/Bootstrap/Scopes/BootstrapLifetimeScope.cs",
+        "Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs",
+        "Assets/Scripts/Core/Bootstrap/Scopes/GatewayLifetimeScope.cs",
+        "Assets/Scripts/Core/Bootstrap/Scopes/MainMenuLifetimeScope.cs",
     };
 
     private static readonly Regex Forbidden = new(

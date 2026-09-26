@@ -97,16 +97,8 @@ public sealed class LightingCostWindow : ToolWindow
         _cascadeLimited = lighting.CascadeBudgetLimited;
         _fieldDetail =
             $"{lighting.FieldWidth}×{lighting.FieldHeight} при {lighting.EffectivePixelsPerCell:F2} пикс/клетку";
-        if (lighting.ActiveLightingQuality == LightingQualityMode.PerBlock)
-        {
-            _cascadeDetail = "static cascade cache, результат усреднён по клетке";
-            _atlasDetail = $"источников {lighting.DynamicLightCount}";
-        }
-        else
-        {
-            _cascadeDetail = $"{lighting.CascadeCount} каскадов, шагов до {lighting.MaximumIntervalSteps}";
-            _atlasDetail = $"{lighting.AtlasEntryCount} записей, источников {lighting.DynamicLightCount}";
-        }
+        _cascadeDetail = $"{lighting.CascadeCount} каскадов, шагов до {lighting.MaximumIntervalSteps}";
+        _atlasDetail = $"{lighting.AtlasEntryCount} записей, источников {lighting.DynamicLightCount}";
     }
 
     private void Recalculate()
@@ -115,15 +107,6 @@ public sealed class LightingCostWindow : ToolWindow
         _totalRaySteps = 0;
         _totalMergeTaps = 0;
         _heaviestRaySteps = 0;
-
-        if (_lighting?.ActiveLightingQuality == LightingQualityMode.PerBlock)
-        {
-            _summary = "Режим: По блокам (cascade cache + targeted dynamic light)";
-            _solveMix = $"за секунду: {_telemetry.LightingStaticSolveCount} решений";
-            _rows.Add("Динамика: только изменившиеся тайлы источников");
-            _rows.Add("Разрешение: ровно 1 тексель на блок (Point sampling)");
-            return;
-        }
 
         foreach (CascadeCostSample sample in _samples)
         {

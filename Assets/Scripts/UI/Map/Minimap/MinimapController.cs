@@ -7,7 +7,6 @@ using Kern.World;
 using Kern.Player.Logic;
 using MinesServer.Data;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 using VContainer;
 
@@ -23,6 +22,8 @@ namespace Kern.UI
         private UIDocument _doc = null!;
         [Inject]
         private MapModeState _mapModeState = null!;
+        [Inject]
+        private IInputBlocker _inputBlocker = null!;
         [Inject]
         private ILocalPlayerState _localPlayer = null!;
         private MinimapView? _view;
@@ -48,9 +49,9 @@ namespace Kern.UI
         private bool _lastRefreshHadLoadedCells;
         private IWorldLayer<CellType>? _subscribedCellLayer;
         private bool _playerMoveSubscribed;
+        private bool _localPlayerChangeSubscribed;
+        private bool _mapDataRefreshPending;
 
-        // Toggle state
-        private bool _isVisible = true;
         private bool _uiCreated;
 
         protected void Start()
@@ -85,6 +86,9 @@ namespace Kern.UI
 
             CreateUI();
             _mapModeState.Changed += OnMapModeChanged;
+            SubscribeToLocalPlayerChanges();
+            _mapStorage.CellChanged += OnCellChanged;
+            _mapStorage.RegionChanged += OnRegionChanged;
 
             if (_mapManager != null)
             {
@@ -101,10 +105,6 @@ namespace Kern.UI
             if (_player != null)
             {
                 BindPlayer(_player);
-            }
-            else
-            {
-                _localPlayer.Changed += OnPlayerChanged;
             }
         }
 
@@ -130,27 +130,36 @@ namespace Kern.UI
 
         private void OnPlayerChanged(ILocalPlayer? player)
         {
-            _localPlayer.Changed -= OnPlayerChanged;
             if (player == null)
             {
+                if (_playerMoveSubscribed && _player != null)
+                {
+                    _player.OnPlayerMoved -= OnPlayerMoved;
+                    _playerMoveSubscribed = false;
+                }
+
+                _player = null;
                 return;
             }
 
             _player = player;
             BindPlayer(player);
+
             if (_ready)
             {
                 _view?.UpdateCoordinates(_player.Position.x, _player.Position.y);
-                if (_isVisible)
+                bool minimapVisible = !_mapModeState.IsOpen;
+                if (minimapVisible)
                 {
                     RefreshTexture(_player.Position.x, _player.Position.y);
-                    _refreshPolicy.RecordInitialRefresh(
-                        Time.time,
-                        _player.Position,
-                        _mapStorage?.Revision ?? -1,
-                        _isVisible,
-                        _lastRefreshHadLoadedCells);
                 }
+
+                _refreshPolicy.RecordInitialRefresh(
+                    Time.time,
+                    _player.Position,
+                    _mapStorage?.Revision ?? -1,
+                    minimapVisible,
+                    _lastRefreshHadLoadedCells);
             }
         }
 
@@ -180,13 +189,28 @@ namespace Kern.UI
                 InitializeWorldState();
             }
 
+            if (_ready && _mapDataRefreshPending && !_mapModeState.IsOpen &&
+                _refreshPolicy.CanRefresh(Time.time))
+            {
+                bool hasServerPosition = _player is { HasServerPosition: true };
+                int centerX = hasServerPosition ? _player!.Position.x : _worldWidth / 2;
+                int centerY = hasServerPosition ? _player!.Position.y : _worldHeight / 2;
+                RefreshTexture(centerX, centerY, drawPlayerMarker: hasServerPosition);
+                long revision = _mapStorage?.Revision ?? -1;
+                _refreshPolicy.RecordRefresh(Time.time, revision, _lastRefreshHadLoadedCells);
+                _mapDataRefreshPending = false;
+            }
+
             if (_player != null && _player.HasServerPosition)
             {
                 long currentRevision = _mapStorage != null ? _mapStorage.Revision : -1;
-                if (!_refreshPolicy.InitialRefreshDone && _ready)
+                if (!_refreshPolicy.InitialRefreshDone &&
+                    _ready &&
+                    _refreshPolicy.CanRefresh(Time.time))
                 {
                     _view?.UpdateCoordinates(_player.Position.x, _player.Position.y);
-                    if (_isVisible)
+                    bool minimapVisible = !_mapModeState.IsOpen;
+                    if (minimapVisible)
                     {
                         RefreshTexture(_player.Position.x, _player.Position.y);
                     }
@@ -195,16 +219,25 @@ namespace Kern.UI
                         Time.time,
                         _player.Position,
                         currentRevision,
-                        _isVisible,
+                        minimapVisible,
                         _lastRefreshHadLoadedCells);
                 }
-                else if (_refreshPolicy.ShouldRefreshOnStorageOrMove(Time.time, currentRevision, _ready, _isVisible, true))
+                else if (_refreshPolicy.ShouldRefreshOnStorageOrMove(
+                    Time.time,
+                    currentRevision,
+                    _ready,
+                    !_mapModeState.IsOpen,
+                    true))
                 {
                     _cellSampler.Invalidate();
                     RefreshTexture(_player.Position.x, _player.Position.y);
                     _refreshPolicy.RecordRefresh(Time.time, currentRevision, _lastRefreshHadLoadedCells);
                 }
-                else if (_refreshPolicy.ShouldRefreshOnChunkLoad(Time.time, _ready, _isVisible, true))
+                else if (_refreshPolicy.ShouldRefreshOnChunkLoad(
+                    Time.time,
+                    _ready,
+                    !_mapModeState.IsOpen,
+                    true))
                 {
                     RefreshTexture(_player.Position.x, _player.Position.y);
                     MapStorage storage = _mapStorage ??
@@ -213,14 +246,15 @@ namespace Kern.UI
                 }
             }
 
-            if (Keyboard.current != null && Keyboard.current.nKey.wasPressedThisFrame)
-            {
-                ToggleVisibility();
-            }
         }
 
         private void TryInitialize()
         {
+            if (_localPlayer == null || _mapModeState == null)
+            {
+                return;
+            }
+
             if (_mapManager == null || !_mapManager.IsWorldInitialized)
             {
                 return;
@@ -245,7 +279,8 @@ namespace Kern.UI
             if (_player != null && _player.HasServerPosition && !_refreshPolicy.InitialRefreshDone)
             {
                 _view?.UpdateCoordinates(_player.Position.x, _player.Position.y);
-                if (_isVisible)
+                bool minimapVisible = !_mapModeState.IsOpen;
+                if (minimapVisible)
                 {
                     RefreshTexture(_player.Position.x, _player.Position.y);
                 }
@@ -254,14 +289,14 @@ namespace Kern.UI
                     Time.time,
                     _player.Position,
                     _mapStorage.Revision,
-                    _isVisible,
+                    minimapVisible,
                     _lastRefreshHadLoadedCells);
             }
         }
 
         private void InitializeWorldState()
         {
-            if (_mapStorage == null || _mapManager == null)
+            if (_mapModeState == null || _mapStorage == null || _mapManager == null)
             {
                 return;
             }
@@ -290,7 +325,8 @@ namespace Kern.UI
             _worldHeight = _mapManager.WorldHeight;
             _textureRenderer?.CacheCellColors(_mapManager);
             _ready = true;
-            SetVisible(_isVisible);
+            RefreshTexture(_worldWidth / 2, _worldHeight / 2, drawPlayerMarker: false);
+            SetVisible(!_mapModeState.IsOpen);
         }
 
         private void CreateUI()
@@ -311,28 +347,64 @@ namespace Kern.UI
             _view = MinimapView.Create(
                 _doc,
                 _minimapTexture ?? throw new InvalidOperationException("Minimap texture is required."),
-                () => _mapModeState.SetOpen(true));
+                RequestOpenMap);
 
-            _isVisible = true;
             _uiCreated = true;
             if (_ready)
             {
-                SetVisible(_isVisible);
+                SetVisible(!_mapModeState.IsOpen);
+            }
+        }
+
+        private void RequestOpenMap()
+        {
+            if (!_inputBlocker.IsInputBlockedExcludingMapMode)
+            {
+                _mapModeState.SetOpen(true);
             }
         }
 
         protected void OnEnable()
         {
+            if (_mapModeState == null)
+            {
+                return;
+            }
+
+            SubscribeToLocalPlayerChanges();
             if (_ready)
             {
                 RebindRuntimeSources();
-                SetVisible(_isVisible);
+                SetVisible(!_mapModeState.IsOpen);
             }
         }
 
         protected void OnDisable()
         {
+            UnsubscribeFromLocalPlayerChanges();
             SetVisible(false);
+        }
+
+        private void SubscribeToLocalPlayerChanges()
+        {
+            if (_localPlayer == null || _localPlayerChangeSubscribed)
+            {
+                return;
+            }
+
+            _localPlayer.Changed += OnPlayerChanged;
+            _localPlayerChangeSubscribed = true;
+        }
+
+        private void UnsubscribeFromLocalPlayerChanges()
+        {
+            if (_localPlayer == null || !_localPlayerChangeSubscribed)
+            {
+                return;
+            }
+
+            _localPlayer.Changed -= OnPlayerChanged;
+            _localPlayerChangeSubscribed = false;
         }
 
         private void BindPlayer(ILocalPlayer player)
@@ -367,7 +439,7 @@ namespace Kern.UI
                 return;
             }
 
-            _localPlayer.Changed -= OnPlayerChanged;
+            UnsubscribeFromLocalPlayerChanges();
             if (_playerMoveSubscribed && _player != null)
             {
                 _player.OnPlayerMoved -= OnPlayerMoved;
@@ -379,10 +451,8 @@ namespace Kern.UI
             {
                 BindPlayer(_player);
             }
-            else
-            {
-                _localPlayer.Changed += OnPlayerChanged;
-            }
+
+            SubscribeToLocalPlayerChanges();
 
             if (_subscribedCellLayer != null)
             {
@@ -410,8 +480,20 @@ namespace Kern.UI
                 _view?.UpdateCoordinates(_player.Position.x, _player.Position.y);
             }
 
-            if (!_isVisible)
+            if (_mapModeState.IsOpen)
             {
+                return;
+            }
+
+            long movedCells = Math.Abs((long)newPos.x - oldPos.x) +
+                Math.Abs((long)newPos.y - oldPos.y);
+            if (movedCells > 1)
+            {
+                _cellSampler.Invalidate();
+                RefreshTexture(newPos.x, newPos.y);
+                MapStorage storage = _mapStorage ??
+                    throw new InvalidOperationException("Minimap storage was lost during relocation.");
+                _refreshPolicy.RecordRefresh(Time.time, storage.Revision, _lastRefreshHadLoadedCells);
                 return;
             }
 
@@ -430,10 +512,37 @@ namespace Kern.UI
             // Only the loaded chunk changed. Dropping the whole sampler here
             // made every load re-request every chunk under the minimap.
             _cellSampler.InvalidateChunk(serverX, serverY);
-            _refreshPolicy.NotifyChunkLoaded();
+            _mapDataRefreshPending = true;
         }
 
-        private void RefreshTexture(int playerX, int playerY)
+        private void OnCellChanged(int serverX, int serverY)
+        {
+            _cellSampler.InvalidateChunk(serverX, serverY);
+            _mapDataRefreshPending = true;
+        }
+
+        private void OnRegionChanged(int startX, int startY, int width, int height)
+        {
+            if (width <= 0 || height <= 0 || _cellLayer == null)
+            {
+                return;
+            }
+
+            int chunkSize = _cellLayer.ChunkSize;
+            int endX = startX + width - 1;
+            int endY = startY + height - 1;
+            for (int chunkX = Mathf.Max(0, startX / chunkSize); chunkX <= endX / chunkSize; chunkX++)
+            {
+                for (int chunkY = Mathf.Max(0, startY / chunkSize); chunkY <= endY / chunkSize; chunkY++)
+                {
+                    _cellSampler.InvalidateChunk(chunkX * chunkSize, chunkY * chunkSize);
+                }
+            }
+
+            _mapDataRefreshPending = true;
+        }
+
+        private void RefreshTexture(int playerX, int playerY, bool drawPlayerMarker = true)
         {
             if (_textureRenderer == null)
             {
@@ -446,7 +555,8 @@ namespace Kern.UI
                 playerY,
                 _worldWidth,
                 _worldHeight,
-                _cellSampler);
+                _cellSampler,
+                drawPlayerMarker);
 
             _view?.MarkDirty();
         }
@@ -458,7 +568,13 @@ namespace Kern.UI
                 _mapModeState.Changed -= OnMapModeChanged;
             }
 
-            _localPlayer.Changed -= OnPlayerChanged;
+            UnsubscribeFromLocalPlayerChanges();
+
+            if (_mapStorage != null)
+            {
+                _mapStorage.CellChanged -= OnCellChanged;
+                _mapStorage.RegionChanged -= OnRegionChanged;
+            }
 
             if (_mapManager != null)
             {
@@ -487,19 +603,6 @@ namespace Kern.UI
             }
         }
 
-        private void ToggleVisibility()
-        {
-            _isVisible = !_isVisible;
-            SetVisible(_isVisible);
-            if (_isVisible && _player != null && _ready)
-            {
-                RefreshTexture(_player.Position.x, _player.Position.y);
-                MapStorage storage = _mapStorage ??
-                    throw new InvalidOperationException("Minimap storage was lost while becoming visible.");
-                _refreshPolicy.RecordRefresh(Time.time, storage.Revision, _lastRefreshHadLoadedCells);
-            }
-        }
-
         private void SetVisible(bool visible)
         {
             _view?.SetVisible(visible);
@@ -507,7 +610,12 @@ namespace Kern.UI
 
         private void OnMapModeChanged(bool mapModeEnabled)
         {
-            SetVisible(!mapModeEnabled && _isVisible);
+            SetVisible(!mapModeEnabled);
+            if (!mapModeEnabled && _ready && _player is { HasServerPosition: true })
+            {
+                RefreshTexture(_player.Position.x, _player.Position.y);
+                _refreshPolicy.RecordRefresh(Time.time, _mapStorage.Revision, _lastRefreshHadLoadedCells);
+            }
         }
     }
 }

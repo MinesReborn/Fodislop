@@ -46,8 +46,11 @@ public sealed class TerrainIncrementalScrollDifferentialTests
         incrementalPrecalc.EnsureCapacity(Width, Height);
         incrementalCache.PopulateFull(
             StartX, StartY, world.Storage, world.MapData, world.Textures, world.Atlases);
-        incrementalPrecalc.PrecalculateFull(
-            incrementalCache, Width, Height, TerrainTestWorld.WorldWidth, TerrainTestWorld.WorldHeight);
+        var incrementalInput = new TerrainPrecalculationInput(
+            incrementalCache,
+            new Vector2Int(Width, Height),
+            new Vector2Int(TerrainTestWorld.WorldWidth, TerrainTestWorld.WorldHeight));
+        incrementalPrecalc.PrecalculateFull(incrementalInput);
 
         int originX = StartX;
         int originY = StartY;
@@ -57,14 +60,7 @@ public sealed class TerrainIncrementalScrollDifferentialTests
             originY += step.y;
             incrementalCache.ScrollAndFill(
                 step.x, step.y, world.Storage, world.MapData, world.Textures, world.Atlases);
-            incrementalPrecalc.PrecalculateIncremental(
-                incrementalCache,
-                Width,
-                Height,
-                step.x,
-                step.y,
-                TerrainTestWorld.WorldWidth,
-                TerrainTestWorld.WorldHeight);
+            incrementalPrecalc.PrecalculateIncremental(incrementalInput, step);
         }
 
         var fullCache = new TerrainCellCache();
@@ -73,8 +69,10 @@ public sealed class TerrainIncrementalScrollDifferentialTests
         fullPrecalc.EnsureCapacity(Width, Height);
         fullCache.PopulateFull(
             originX, originY, world.Storage, world.MapData, world.Textures, world.Atlases);
-        fullPrecalc.PrecalculateFull(
-            fullCache, Width, Height, TerrainTestWorld.WorldWidth, TerrainTestWorld.WorldHeight);
+        fullPrecalc.PrecalculateFull(new TerrainPrecalculationInput(
+            fullCache,
+            new Vector2Int(Width, Height),
+            new Vector2Int(TerrainTestWorld.WorldWidth, TerrainTestWorld.WorldHeight)));
 
         Assert.That(incrementalCache.CacheMinX, Is.EqualTo(fullCache.CacheMinX));
         Assert.That(incrementalCache.CacheMinY, Is.EqualTo(fullCache.CacheMinY));

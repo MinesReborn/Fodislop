@@ -8,7 +8,6 @@ internal enum TerrainAnimationProfile : byte
 {
     Default = 0,
     PrismaticCrystal = 1,
-    MoltenSurface = 2,
     FacetedCrystal = 3,
 }
 
@@ -19,11 +18,6 @@ internal readonly record struct TerrainAnimationSettings(
 
 internal static class TerrainAnimationProfileCatalog
 {
-    // Shader converts this legacy speed unit to radians per second (x 0.05).
-    private const float PrismaticCrystalSpeed = 50f;
-    private const float MoltenSurfaceSpeed = 10f;
-    private const float FacetedCrystalSpeed = 0.06f;
-
     public static TerrainAnimationSettings Get(CellType cellType, float configuredSpeed)
     {
         if (cellType is
@@ -35,7 +29,7 @@ internal static class TerrainAnimationProfileCatalog
         {
             return new TerrainAnimationSettings(
                 TerrainAnimationProfile.PrismaticCrystal,
-                PrismaticCrystalSpeed,
+                TerrainConfigHolder.PrismaticCrystalAnimationSpeed,
                 cellType switch
                 {
                     CellType.XGreen => 1f,
@@ -45,13 +39,6 @@ internal static class TerrainAnimationProfileCatalog
                     CellType.XCyan => 5f,
                     _ => throw new System.ArgumentOutOfRangeException(nameof(cellType)),
                 });
-        }
-
-        if (cellType == CellType.Lava)
-        {
-            return new TerrainAnimationSettings(
-                TerrainAnimationProfile.MoltenSurface,
-                MoltenSurfaceSpeed);
         }
 
         if (cellType is
@@ -64,7 +51,7 @@ internal static class TerrainAnimationProfileCatalog
         {
             return new TerrainAnimationSettings(
                 TerrainAnimationProfile.FacetedCrystal,
-                FacetedCrystalSpeed);
+                TerrainConfigHolder.FacetedCrystalAnimationSpeed);
         }
 
         return new TerrainAnimationSettings(

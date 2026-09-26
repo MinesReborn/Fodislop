@@ -113,7 +113,7 @@ public class ObserverJoystick
         VisualTreeAsset template = Resources.Load<VisualTreeAsset>(
             ProjectRuntimeContracts.ResourcePaths.ObserverJoystickUxml) ??
             throw new InvalidOperationException(
-                "[ObserverJoystick] Resources/UI/ObserverJoystick.uxml is required.");
+                "[ObserverJoystick] Resources/UI/Gameplay/ObserverJoystick.uxml is required.");
         TemplateContainer tree = template.Instantiate();
         tree.AddToClassList("prog-joy-root");
         tree.pickingMode = PickingMode.Ignore;

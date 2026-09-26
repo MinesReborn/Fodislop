@@ -25,9 +25,4 @@ public sealed class EffectSettings
     [SettingLabel("settings.effects.eigengrau")]
     [SettingConsumer(SettingConsumerTarget.PostProcessController, "PostProcessController.EigengrauIntensity")]
     public bool EigengrauEnabled = PostProcessLook.Effects.Eigengrau;
-
-    [SettingUnbounded("Тумблер смаза движения.")]
-    [SettingLabel("settings.effects.motion_blur")]
-    [SettingConsumer(SettingConsumerTarget.PostProcessController, "PostProcessController.MotionBlurIntensity")]
-    public bool MotionBlurEnabled = PostProcessLook.Effects.MotionBlur;
 }

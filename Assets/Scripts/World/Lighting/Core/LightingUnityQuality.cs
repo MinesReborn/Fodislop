@@ -19,47 +19,25 @@ namespace Kern.World.Lighting;
 // трогает и не требует ни Unity-сцены, ни живого конвейера.
 internal static class LightingUnityQuality
 {
-    // Уровень качества Unity, который соответствует пресету, либо -1, если
+    // Уровень качества Unity, который соответствует ступеням, либо -1, если
     // подходящего уровня нет или менять нечего.
-    public static int ResolveQualityLevelIndex(GraphicsPreset preset)
+    //
+    // Обе ступени — «всё»: они отличаются только освещением, а оно на уровень
+    // Unity не влияет. Поэтому берётся верхний авторский уровень, и параметр
+    // «какая ступень» здесь не нужен. Сопоставление по имени ступени отсюда
+    // ушло: имена уровней в ProjectSettings («Very Low»…«Ultra») больше не
+    // совпадают с членами перечисления, и старый фолбэк на (int)preset молча
+    // выставил бы «Very Low»/«Low».
+    public static int ResolveQualityLevelIndex()
     {
-        if (!GraphicsQualityProfile.IsStandard(preset))
-        {
-            return -1;
-        }
-
-        string targetName = preset.ToString();
         string[] qualityNames = QualitySettings.names;
-        int qualityIndex = Array.IndexOf(qualityNames, targetName);
-        if (qualityIndex < 0)
-        {
-            int presetIndex = (int)preset;
-            if (presetIndex >= 0 && presetIndex < qualityNames.Length)
-            {
-                qualityIndex = presetIndex;
-            }
-            else
-            {
-                for (int i = 0; i < qualityNames.Length; i++)
-                {
-                    if (string.Equals(
-                        qualityNames[i].Replace(" ", string.Empty),
-                        targetName,
-                        StringComparison.OrdinalIgnoreCase))
-                    {
-                        qualityIndex = i;
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (qualityIndex < 0 || QualitySettings.GetQualityLevel() == qualityIndex)
+        if (qualityNames.Length == 0)
         {
             return -1;
         }
 
-        return qualityIndex;
+        int topIndex = qualityNames.Length - 1;
+        return QualitySettings.GetQualityLevel() == topIndex ? -1 : topIndex;
     }
 
     public static string DescribeQualityLevel(int qualityIndex)

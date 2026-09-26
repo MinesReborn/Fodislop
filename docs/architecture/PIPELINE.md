@@ -1,16 +1,16 @@
 # PIPELINE
 
-`F` — размер поля освещения = клетки региона × scale (scale: 1 в PerBlock, 2 в High, 4 в Ultra).
+`F` — размер поля освещения = клетки региона × scale (scale выбирает `SelectStablePixelsPerCell` по лимиту текстуры, лимиту атласа и бюджету лучей).
 `A` — поле геометрии AO = клетки региона × максимальный scale, разрешённый лимитом текстуры.
 Регион ≈ 128×96 клеток. `S` — разрешение экрана.
 
 ## Освещение
 
 ```
-меш террейна ──[раст. MRT, орто]──┬──► MaterialField  (F, RGBA32, без мипов)
-                                   └──► StaticEmission (F, ARGBHalf)
+меш террейна ──[LightingMaterialField, MRT]──┬──► MaterialField  (F, RGBA32, без мипов)
+                                             └──► StaticEmission (F, ARGBHalf)
 
-меш террейна ──[раст. MRT, орто + mip chain]──► AmbientOcclusionField (A, RGBA32)
+меш террейна ──[LightingAmbientOcclusionField, alpha only]──► AmbientOcclusionField (A, RGBA32)
 
                       ┌── MaterialField
 StaticEmission ──────┴──[SolveCascade]──► RadianceAtlas (uint3 × N)
@@ -56,7 +56,7 @@ animData ─────────┘
 маска соседства ──[силуэт: круг + углы]──► finalAlpha       │
                                                              │
 _WorldLightTexture ──► lightColor ────────────────────────────┤
-AmbientOcclusionField ──[mip + sqrt]──► AO ──────────────────┤
+AmbientOcclusionField ──[8 radial taps + mean + sqrt]──► AO ─┤
                                            │                 │
                                            ▼                 ▼
                      finalRGB × lightColor × AO ÷ finalAlpha (AO только фону)
@@ -68,7 +68,7 @@ AmbientOcclusionField ──[mip + sqrt]──► AO ─────────
 ## Экран
 
 ```
-кадр ──[CompositeFinal: блум + запечённый грейд]──[тонмапп URP]──[DisplayFinal: LUT/кривые, виньетка, зерно, смаз]──► экран
+кадр ──[CompositeFinal: блум + запечённый грейд]──[тонмапп URP]──[DisplayFinal: LUT/кривые, виньетка, зерно]──► экран
 ```
 
 Тонмаппинг — за URP (Neutral SDR / Neutral BT2390 HDR через `HDROutputReconciler`); своей сигмоиды и хроматической аберрации в коде нет.
@@ -78,7 +78,7 @@ AmbientOcclusionField ──[mip + sqrt]──► AO ─────────
 | #  | Стадия              | Читает                          | Пишет           | Размер | Когда           |
 |----|---------------------|---------------------------------|-----------------|--------|-----------------|
 | 1  | Поле материалов     | меш террейна + атлас + анимация цвета   | Material + Emis | F      | геометрия/регион/текстуры|
-| 2  | Поле AO + мипы      | меш террейна + атлас            | AO occupancy    | A      | геометрия/регион/текстуры|
+| 2  | Поле AO             | меш террейна + атлас            | AO occupancy    | A      | геометрия/регион/текстуры|
 | 3  | Геометрические кэши | Material                        | SolidMask/Taps  | F      | геометрия/регион|
 | 4  | Каскады (стат.)     | Material, StaticEmission        | RadianceAtlas   | N зап. | мир изменился   |
 | 5  | Resolve (стат.)     | RadianceAtlas                   | StaticDirect    | F      | мир изменился   |
@@ -87,7 +87,7 @@ AmbientOcclusionField ──[mip + sqrt]──► AO ─────────
 | 8  | Сведение            | Direct, StaticDirect, Bounce    | Lightmap        | F      | свет изменился  |
 | 9  | Выборка тайла       | BaseMap, атрибуты вершины       | texColor        | S      | каждый пиксель  |
 | 10 | Анимация цвета      | texColor, animData              | finalRGB        | S      | каждый пиксель  |
-| 11 | Силуэт              | маска соседства                 | finalAlpha      | S      | каждый пиксель  |
+| 11 | Силуэт              | displaced cell coverage         | finalAlpha      | S      | каждый пиксель  |
 | 12 | AO вокруг блоков    | AO occupancy (только фон)       | множитель       | S      | каждый пиксель  |
 | 13 | Освещение           | Lightmap, finalRGB, occlusion   | цвет пикселя    | S      | каждый пиксель  |
 | 14 | Постобработка       | кадр                            | экран           | S      | каждый кадр     |
@@ -97,8 +97,8 @@ AmbientOcclusionField ──[mip + sqrt]──► AO ─────────
 
 | Условие                       | Эффект                                                  |
 |-------------------------------|---------------------------------------------------------|
-| `_WorldLightDebugView != 0`   | Стадии 10-14 не выполняются, выводится тексель Lightmap |
-| `_BlockAveraged != 0`         | В 5 и 7 выборка атласа привязана к центру клетки        |
+| `_WorldLightDebugView == 9`   | AO поле выводится по displaced foreground coverage |
+| `_WorldLightDebugView != 0 && != 9` | Выводится тексель Lightmap без стадий 10-14 |
 | `!rebuildFields`              | Стадии 1-2 пропущены, используются прошлые текстуры     |
 | Лимит текстуры превышен       | `scale` понижается, вплоть до 1                         |
 

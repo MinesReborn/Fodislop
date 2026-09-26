@@ -12,10 +12,13 @@ public static class LightingPerformanceBudget
     public const float CascadeMergeMaxMs = 0.25f;
     public const float DynamicLightingMaxMs = 0.7f;
     public const float CompositeMaxMs = 0.15f;
-    // Preserve the configured spatial quality and up to 64 angular directions
-    // on the normal lighting region. This remains below the previous
-    // 256-direction transport estimate.
-    public const long MaximumStaticCascadeRayWorkUnits = 1_500_000_000;
+    // Перепривязка региона записывает весь статический транспорт в один
+    // командный буфер, и этот всплеск обязан уложиться в кадр. Бюджет задаёт
+    // границу всплеска: до 64 направлений сохраняется, а разрешение поля
+    // понижается до ступени, которая в бюджет влезает. Прежние 1.5e9
+    // пропускали всплеск в 896M единиц (поле 512x512 при 64 направлениях) —
+    // он и давал ожидание команд рендера на перепривязке.
+    public const long MaximumStaticCascadeRayWorkUnits = 200_000_000;
 
     public const float MaxAllowedRegressionFactor = 1.20f; // 20% regression threshold
 

@@ -169,7 +169,8 @@ public sealed class TerrainViewportCalculator
         bool hasAnyResidentData,
         bool requestedDimensionsChanged,
         bool cellsCommitted,
-        bool cpuBuildInFlight)
+        bool cpuBuildInFlight,
+        bool holdingPublishedView)
     {
         bool hadAnything = isRequestedResident || hasAnyResidentData;
         if (!hadAnything)
@@ -203,24 +204,27 @@ public sealed class TerrainViewportCalculator
                     ShouldProcess: false);
             }
 
-            // Окно опубликовано, а свет ещё ни разу не ставился: отказ от
-            // обработки здесь не ждёт, а запирает — свет и меш не ставятся
-            // никогда, экран остаётся чёрным. Свет ставится по кадру камеры
-            // внутри опубликованного окна.
-            if (retainedLightingViewport.width <= 0 || retainedLightingViewport.height <= 0)
+            // Свет следует фактическому viewport камеры; при удержании
+            // опубликованного вида сохраняется его последняя область.
+            RectInt lightingViewport = TerrainLightingViewportPolicy.ResolveLightingViewport(
+                cameraViewport,
+                retainedLightingViewport,
+                holdingPublishedView);
+            if (lightingViewport.width <= 0 || lightingViewport.height <= 0)
             {
-                retainedLightingViewport = ClampInto(cameraViewport, committedWindow);
+                lightingViewport = ClampInto(cameraViewport, committedWindow);
             }
 
             // Keep processing the committed window, including dirty terrain
-            // and the dynamic light's exact position. A pending streaming request must
-            // neither resize its resources nor reanchor lighting onto it.
+            // and the dynamic light's exact position. Lighting follows the real
+            // camera while a build is pending; only a held presentation retains
+            // its previously committed lighting viewport.
             return new TerrainFramePlan(
                 requestedWindow,
                 committedWindow,
                 committedWindow,
                 cameraViewport,
-                retainedLightingViewport,
+                lightingViewport,
                 DimensionsChanged: false,
                 ShouldProcess: true);
         }

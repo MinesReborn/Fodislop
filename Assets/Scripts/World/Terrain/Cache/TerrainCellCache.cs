@@ -308,16 +308,6 @@ public class TerrainCellCache : ITerrainCellDataSource
         ApplyPendingCapture();
     }
 
-    public void UpdateRegion(int gridMinX, int unityMinY, int width, int height, IWorldDataStorage mapStorage, IMapDataProvider mm, ITextureService wtm, IReadOnlyList<IAtlasDescriptor> atlases)
-    {
-        CaptureRegion(gridMinX, unityMinY, width, height, mapStorage, mm, wtm, atlases);
-        if (_hasPending)
-        {
-            ResolveCapturedTypes(mm, wtm, atlases);
-            ApplyPendingCapture();
-        }
-    }
-
     public void ScrollAndFill(int dx, int dy, IWorldDataStorage mapStorage, IMapDataProvider mm, ITextureService wtm, IReadOnlyList<IAtlasDescriptor> atlases)
     {
         CaptureScroll(dx, dy, mapStorage, mm, wtm, atlases);

@@ -38,13 +38,13 @@ repos:
             pass_filenames: false
           - id: terrain-crystal-math
             name: X-crystal phase and math checks (CPU)
-            entry: node tools/Kern.TerrainCrystalTests/run.js
+            entry: dotnet run --project tools/Kern.TerrainCrystalTests/RunCrystalTests/RunCrystalTests.csproj --no-restore
             language: system
             files: ^(Assets/Shaders/Terrain|Assets/Resources/PrismaticFlowMap|tools/Kern.TerrainCrystalTests/|tools/Kern.LightingTests/NativeTransportShim.cpp)
             pass_filenames: false
           - id: terrain-raster-regression
             name: Validate terrain raster coverage and AO geometry
-            entry: node tools/Kern.TerrainRasterTests/run.js
+            entry: dotnet run --project tools/Kern.TerrainRasterTests/RunRasterTests/RunRasterTests.csproj --no-restore
             language: system
             files: ^(Assets/Shaders/Terrain|Assets/Scripts/World/Terrain/|tools/Kern.TerrainRasterTests/|tools/Kern.LightingTests/NativeTransportShim.cpp)
             pass_filenames: false

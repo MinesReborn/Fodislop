@@ -29,6 +29,7 @@ public sealed class TerrainCellIDMesh : IDisposable
     private int _height;
     private int _boundsWidth;
     private int _boundsHeight;
+    private float _cellSize;
 
     public Mesh? Mesh => _mesh;
 
@@ -38,17 +39,35 @@ public sealed class TerrainCellIDMesh : IDisposable
     {
         boundsWidth = Math.Max(boundsWidth, meshWidth);
         boundsHeight = Math.Max(boundsHeight, meshHeight);
-        if (_mesh != null && _width == meshWidth && _height == meshHeight &&
-            _boundsWidth == boundsWidth && _boundsHeight == boundsHeight)
+        if (_mesh != null && _width == meshWidth && _height == meshHeight)
         {
-            return false;
+            if (_boundsWidth == boundsWidth && _boundsHeight == boundsHeight &&
+                _cellSize.Equals(cellSize))
+            {
+                return false;
+            }
+
+            // The presentation mesh topology depends on its visible size.
+            // Backing-grid bounds only affect culling, so changing the terrain
+            // window must not allocate vertex/index arrays or upload a new mesh.
+            _boundsWidth = boundsWidth;
+            _boundsHeight = boundsHeight;
+            _cellSize = cellSize;
+            UpdateBounds(_mesh, boundsWidth, boundsHeight, cellSize);
+            return true;
         }
 
+        bool hadMesh = _mesh != null;
+        int previousWidth = _width;
+        int previousHeight = _height;
+        int previousBoundsWidth = _boundsWidth;
+        int previousBoundsHeight = _boundsHeight;
         Dispose();
         _width = meshWidth;
         _height = meshHeight;
         _boundsWidth = boundsWidth;
         _boundsHeight = boundsHeight;
+        _cellSize = cellSize;
 
         int quads = meshWidth * meshHeight * TerrainCellDataPacker.LayersPerCell;
         var positions = new Vector3[quads * 4];
@@ -95,12 +114,24 @@ public sealed class TerrainCellIDMesh : IDisposable
 
         // Позиции в меше — адреса, а не координаты: границы задаются
         // по реальному прямоугольнику сетки, как у меша вершин.
-        _mesh.bounds = new Bounds(
+        UpdateBounds(_mesh, boundsWidth, boundsHeight, cellSize);
+        _mesh.UploadMeshData(markNoLongerReadable: true);
+        long managedArrayBytes = (positions.LongLength * 12) + (corners.LongLength * 8) + (indices.LongLength * 4);
+        string reason = hadMesh
+            ? $"геометрия {previousWidth}×{previousHeight}→{meshWidth}×{meshHeight}, " +
+                $"границы {previousBoundsWidth}×{previousBoundsHeight}→{boundsWidth}×{boundsHeight}"
+            : $"первая геометрия, границы {boundsWidth}×{boundsHeight}";
+        FrameEventLog.Record(
+            $"меш клеток {meshWidth}×{meshHeight} пересоздан ({reason}; " +
+            $"CPU-массивы {managedArrayBytes} Б)");
+        return true;
+    }
+
+    private static void UpdateBounds(Mesh mesh, int boundsWidth, int boundsHeight, float cellSize)
+    {
+        mesh.bounds = new Bounds(
             new Vector3(boundsWidth * cellSize * 0.5f, boundsHeight * cellSize * 0.5f, 0f),
             new Vector3((boundsWidth + 2) * cellSize, (boundsHeight + 2) * cellSize, 2f));
-        _mesh.UploadMeshData(markNoLongerReadable: true);
-        FrameEventLog.Record($"меш клеток {meshWidth}×{meshHeight} пересоздан");
-        return true;
     }
 
     public void Dispose()

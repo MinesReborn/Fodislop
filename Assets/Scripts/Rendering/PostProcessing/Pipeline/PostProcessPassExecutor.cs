@@ -81,13 +81,6 @@ internal static class PostProcessPassExecutor
             Blitter.BlitCameraTexture(cmd, data.IntermediateTexture, data.ColorTexture);
             cmd.EndSample("Kern.PostProcess.BlitBack");
         }
-
-        if (data.TemporalActive)
-        {
-            cmd.BeginSample("Kern.PostProcess.HistoryCopy");
-            cmd.CopyTexture(data.IntermediateTexture, data.HistoryTexture);
-            cmd.EndSample("Kern.PostProcess.HistoryCopy");
-        }
     }
 
     private static void SetDiagnosticsKeyword(PostProcessPassData data, CommandBuffer cmd)
@@ -319,7 +312,7 @@ internal static class PostProcessPassExecutor
     }
 
     // Точечные операции вывода: кривая дисплея, куб-LUT, виньетка, зерно,
-    // калибровка и временной смаз.
+    // калибровка.
     private static void BindDisplayParameters(PostProcessPassData data, CommandBuffer cmd)
     {
         cmd.SetComputeFloatParam(data.PostProcessCS, VignetteIntensityID, data.VignetteActive ? data.VignetteIntensity : 0f);
@@ -381,34 +374,13 @@ internal static class PostProcessPassExecutor
             cmd.SetComputeVectorParam(data.PostProcessCS, EigengrauColorID, data.EigengrauColor);
             cmd.SetComputeFloatParam(data.PostProcessCS, EigengrauDarknessThresholdID, data.EigengrauDarknessThreshold);
             cmd.SetComputeFloatParam(data.PostProcessCS, EigengrauNoiseScaleID, data.EigengrauNoiseScale);
-            cmd.SetComputeFloatParam(data.PostProcessCS, EigengrauAnimationSpeedID, data.EigengrauAnimationSpeed);
+            cmd.SetComputeFloatParam(data.PostProcessCS, EigengrauNoiseAmplitudeID, data.EigengrauNoiseAmplitude);
         }
 
         cmd.SetComputeFloatParam(data.PostProcessCS, TimeID, data.TimeSeconds);
         cmd.SetComputeFloatParam(data.PostProcessCS, FrameIndexID, data.FrameIndex);
         cmd.SetComputeFloatParam(data.PostProcessCS, CalibrationPatternID, data.CalibrationPattern);
         cmd.SetComputeFloatParam(data.PostProcessCS, CalibrationValueID, data.CalibrationValue);
-        cmd.SetComputeFloatParam(data.PostProcessCS, MotionBlurHistoryID, data.MotionBlurHistory);
-        cmd.SetComputeMatrixParam(
-            data.PostProcessCS,
-            HistoryReprojectionID,
-            data.HistoryReprojection);
-        if (data.TemporalActive && data.HistoryValid)
-        {
-            cmd.SetComputeTextureParam(
-                data.PostProcessCS,
-                data.KernelComposite,
-                HistoryTexID,
-                data.HistoryTexture);
-        }
-        else
-        {
-            cmd.SetComputeTextureParam(
-                data.PostProcessCS,
-                data.KernelComposite,
-                HistoryTexID,
-                Texture2D.blackTexture);
-        }
     }
 
     private static Texture2D GetIdentityLut1D()

@@ -271,15 +271,9 @@ Assets/_Recovery.meta
 .idea/
 *.csproj
 !/*.csproj
-!/tools/Kern.ArchitectureLinter/Kern.ArchitectureLinter.csproj
-!/tools/Kern.DisplayTests/Kern.DisplayTests.csproj
-!/tools/Kern.TerrainBench/Kern.TerrainBench.csproj
-!/tools/Kern.TerrainTests/Kern.TerrainTests.csproj
-!/tools/Kern.LightingTests/Kern.LightingTests.csproj
-!/tools/Kern.TerrainCrystalTests/GenerateCrystalFixtures/GenerateCrystalFixtures.csproj
-!/tools/Kern.TerrainCrystalTests/GenerateLava/GenerateLava.csproj
-!/tools/Kern.TerrainCrystalTests/RunCrystalTests/RunCrystalTests.csproj
-!/tools/Kern.TerrainRasterTests/RunRasterTests/RunRasterTests.csproj
+# Standalone tool project definitions are source; Unity-generated root projects
+# remain tracked through the root-only exception above.
+!/tools/**/*.csproj
 *.sln
 *.slnx
 *.suo

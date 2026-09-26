@@ -19,8 +19,8 @@ public sealed class WorldLabels(UIDocument document, IGameplayCamera camera) : I
     {
         if (_root == null)
         {
-            VisualTreeAsset template = Resources.Load<VisualTreeAsset>("UI/WorldLabels")
-                ?? throw new InvalidOperationException("Missing UI/WorldLabels.");
+            VisualTreeAsset template = Resources.Load<VisualTreeAsset>("UI/Gameplay/WorldLabels")
+                ?? throw new InvalidOperationException("Missing UI/Gameplay/WorldLabels.");
             _root = template.CloneTree();
             _root.AddToClassList("world-labels");
             _root.pickingMode = PickingMode.Ignore;

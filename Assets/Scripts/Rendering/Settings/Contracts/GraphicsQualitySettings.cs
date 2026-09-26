@@ -7,22 +7,14 @@ using UnityEngine;
 
 namespace Kern.Rendering;
 
+// Ступеней ровно две, и они неизменяемы. Отличие одно — освещение:
+// «Стандарт» оставляет только контактное AO, «Overdrive» включает транспорт света.
 public enum GraphicsPreset
 {
-    [Kern.Core.SettingLabel("settings.preset.very_low")]
-    VeryLow,
-    [Kern.Core.SettingLabel("settings.preset.low")]
-    Low,
-    [Kern.Core.SettingLabel("settings.preset.medium")]
-    Medium,
-    [Kern.Core.SettingLabel("settings.preset.high")]
-    High,
-    [Kern.Core.SettingLabel("settings.preset.very_high")]
-    VeryHigh,
-    [Kern.Core.SettingLabel("settings.preset.ultra")]
-    Ultra,
-    [Kern.Core.SettingLabel("settings.preset.custom")]
-    Custom,
+    [Kern.Core.SettingLabel("settings.preset.standard")]
+    Standard,
+    [Kern.Core.SettingLabel("settings.preset.overdrive")]
+    Overdrive,
 }
 
 [Serializable]
@@ -50,12 +42,6 @@ public struct GraphicsQualitySettings : IEquatable<GraphicsQualitySettings>
     [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine GPU buffer capacity")]
     public int LightingMaximumLightCount;
 
-    [Range(1, 128)]
-    [SettingLabel("settings.lighting.cascade_steps")]
-    [Tooltip("Максимальное число шагов одного cascade interval.")]
-    [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine compute shader interval step limit")]
-    public int LightingMaximumRaySteps;
-
     [Range(128, 4096)]
     [SettingLabel("settings.lighting.atlas_size")]
     [Tooltip("Бюджет radiance cascade atlas.")]
@@ -75,24 +61,22 @@ public struct GraphicsQualitySettings : IEquatable<GraphicsQualitySettings>
     public int AntiAliasing;
 
     [SettingUnbounded("Режим освещения — перечисление; проверяется на определённость.")]
-    [Tooltip("Off/PerBlock/PerPixel режим освещения. Ultra всегда принудительно PerPixel.")]
-    [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingQualityResolver -> LightingEngine._lightingQualityMode")]
+    [Tooltip("Режим транспорта света: «Стандарт» оставляет контактное AO, «Overdrive» считает свет попиксельно.")]
+    [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingQualityController.QualityMode")]
     public LightingQualityMode LightingQuality;
 
     public GraphicsQualitySettings(
         int lightingPixelsPerCell,
         int lightingMaximumTextureDimension,
         int lightingMaximumLightCount,
-        int lightingMaximumRaySteps,
         int lightingCascadeAtlasLimit,
         float renderScale,
         int antiAliasing,
-        LightingQualityMode lightingQuality = LightingQualityMode.PerBlock)
+        LightingQualityMode lightingQuality = LightingQualityMode.Off)
     {
         LightingMinimumPixelsPerCell = lightingPixelsPerCell;
         LightingMaximumTextureDimension = lightingMaximumTextureDimension;
         LightingMaximumLightCount = lightingMaximumLightCount;
-        LightingMaximumRaySteps = lightingMaximumRaySteps;
         LightingCascadeAtlasLimit = lightingCascadeAtlasLimit;
         RenderScale = renderScale;
         AntiAliasing = antiAliasing;
@@ -104,7 +88,6 @@ public struct GraphicsQualitySettings : IEquatable<GraphicsQualitySettings>
         return LightingMinimumPixelsPerCell == other.LightingMinimumPixelsPerCell &&
             LightingMaximumTextureDimension == other.LightingMaximumTextureDimension &&
             LightingMaximumLightCount == other.LightingMaximumLightCount &&
-            LightingMaximumRaySteps == other.LightingMaximumRaySteps &&
             LightingCascadeAtlasLimit == other.LightingCascadeAtlasLimit &&
             RenderScale.Equals(other.RenderScale) &&
             AntiAliasing == other.AntiAliasing &&
@@ -127,7 +110,6 @@ public struct GraphicsQualitySettings : IEquatable<GraphicsQualitySettings>
         hash.Add(settings.LightingMinimumPixelsPerCell);
         hash.Add(settings.LightingMaximumTextureDimension);
         hash.Add(settings.LightingMaximumLightCount);
-        hash.Add(settings.LightingMaximumRaySteps);
         hash.Add(settings.LightingCascadeAtlasLimit);
         hash.Add(settings.RenderScale);
         hash.Add(settings.AntiAliasing);

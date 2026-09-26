@@ -38,8 +38,8 @@ public sealed class GameBootstrapDependencyRule : IRule
         var violations = new List<RuleViolation>();
         var projectRoot = context.ProjectRoot;
 
-        var scopePath = Path.Combine(projectRoot, "Assets/Scripts/Core/Bootstrap/GameLifetimeScope.cs");
-        var bootstrapPath = Path.Combine(projectRoot, "Assets/Scripts/Core/Bootstrap/GameBootstrap.cs");
+        var scopePath = Path.Combine(projectRoot, "Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs");
+        var bootstrapPath = Path.Combine(projectRoot, "Assets/Scripts/Core/Bootstrap/Startup/GameBootstrap.cs");
 
         if (File.Exists(scopePath))
         {
@@ -52,7 +52,7 @@ public sealed class GameBootstrapDependencyRule : IRule
                     RuleId = Id,
                     Message = "GameStartupServices удалён: GameBootstrap получает только реальные startup dependencies через constructor injection.",
                     Severity = Severity,
-                    TypeName = "Assets/Scripts/Core/Bootstrap/GameLifetimeScope.cs"
+                    TypeName = "Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs"
                 });
             }
 
@@ -63,7 +63,7 @@ public sealed class GameBootstrapDependencyRule : IRule
                     RuleId = Id,
                     Message = "GameLifetimeScope должен регистрировать GameBootstrap как entry point MainGame composition root.",
                     Severity = Severity,
-                    TypeName = "Assets/Scripts/Core/Bootstrap/GameLifetimeScope.cs"
+                    TypeName = "Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs"
                 });
             }
 
@@ -76,7 +76,7 @@ public sealed class GameBootstrapDependencyRule : IRule
                         RuleId = Id,
                         Message = $"GameLifetimeScope должен регистрировать {service}.",
                         Severity = Severity,
-                        TypeName = "Assets/Scripts/Core/Bootstrap/GameLifetimeScope.cs"
+                        TypeName = "Assets/Scripts/Core/Bootstrap/Scopes/GameLifetimeScope.cs"
                     });
                 }
             }
@@ -94,7 +94,7 @@ public sealed class GameBootstrapDependencyRule : IRule
                     RuleId = Id,
                     Message = "GameBootstrap должен только координировать typed GameStartupPipeline и scene ticket.",
                     Severity = Severity,
-                    TypeName = "Assets/Scripts/Core/Bootstrap/GameBootstrap.cs"
+                    TypeName = "Assets/Scripts/Core/Bootstrap/Startup/GameBootstrap.cs"
                 });
             }
 
@@ -106,7 +106,7 @@ public sealed class GameBootstrapDependencyRule : IRule
                     RuleId = Id,
                     Message = "GameBootstrap не должен резолвить из контейнера; только constructor injection.",
                     Severity = Severity,
-                    TypeName = "Assets/Scripts/Core/Bootstrap/GameBootstrap.cs"
+                    TypeName = "Assets/Scripts/Core/Bootstrap/Startup/GameBootstrap.cs"
                 });
             }
         }

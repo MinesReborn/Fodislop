@@ -2,9 +2,7 @@
 
 using System;
 using Kern.Core;
-using Kern.Core.Interfaces;
 using UnityEngine;
-using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
@@ -16,7 +14,6 @@ namespace Kern.Rendering.PostProcessing
     {
         private readonly bool _displayPass;
         private readonly ComputeShader _postProcessCS;
-        private Vector3 _outputSignature;
         private readonly int _kernelPrefilter;
         private readonly int _kernelDownsample;
         private readonly int _kernelUpsample;
@@ -36,17 +33,7 @@ namespace Kern.Rendering.PostProcessing
         private ColorGradingComponent? _colorGrading;
         private EigengrauComponent? _eigengrau;
 
-
-        private MotionBlurComponent? _motionBlur;
         private readonly PostProcessPassDataAssembler.GradeScratch _gradeScratch;
-        private RTHandle? _historyTexture;
-        private GraphicsFormat _historyFormat;
-        private bool _historyValid;
-        private bool _temporalWasActive;
-        private uint _observedCameraGeneration;
-        private uint _observedPipelineGeneration;
-        private Matrix4x4 _lastViewProjection;
-        private bool _hasViewProjection;
 
         private void RefreshVolumeComponents(VolumeStack stack)
         {
@@ -60,7 +47,6 @@ namespace Kern.Rendering.PostProcessing
             _vignette = stack.GetComponent<VignetteComponent>();
             _colorGrading = stack.GetComponent<ColorGradingComponent>();
             _eigengrau = stack.GetComponent<EigengrauComponent>();
-            _motionBlur = stack.GetComponent<MotionBlurComponent>();
         }
 
         private static T RequireComponent<T>(T? component, string componentName)
@@ -108,49 +94,12 @@ namespace Kern.Rendering.PostProcessing
                 return;
             }
 
-            if (_observedPipelineGeneration != PostProcessRuntimeState.PipelineGeneration)
-            {
-                _observedPipelineGeneration = PostProcessRuntimeState.PipelineGeneration;
-                _historyValid = false;
-            }
-
-            if (_observedCameraGeneration != PostProcessRuntimeState.CameraGeneration)
-            {
-                _observedCameraGeneration = PostProcessRuntimeState.CameraGeneration;
-                _historyValid = false;
-            }
-
             UniversalCameraData cameraData = frameData.Get<UniversalCameraData>();
             if (cameraData.renderType != CameraRenderType.Base ||
                 cameraData.camera.cameraType != CameraType.Game ||
                 cameraData.camera != PostProcessRuntimeState.MainCamera)
             {
                 return;
-            }
-
-            // Сдвиг камеры больше не обесценивает историю — он из неё
-            // вычитается.
-            //
-            // Раньше здесь стоял сброс _historyValid при любом изменении
-            // view-projection, потому что репроекции не было и переиспользование
-            // истории давало шлейфы. Но камера следует за игроком, то есть
-            // условие выполнялось каждый кадр движения: смаз выключался ровно
-            // тогда, когда он нужен, а полноэкранная текстура истории и её
-            // копия оплачивались всё равно.
-            //
-            // Матрица VP_prev * inverse(VP_cur) переводит точку текущего кадра
-            // в тот же пиксель прошлого. Камера проекта ортографическая, и при
-            // ортографии результат по x и y не зависит от глубины — одной
-            // матрицы достаточно для всей статичной геометрии, без буфера
-            // векторов движения.
-            Matrix4x4 viewProjection =
-                cameraData.camera.projectionMatrix * cameraData.camera.worldToCameraMatrix;
-            Matrix4x4 historyReprojection = _hasViewProjection
-                ? _lastViewProjection * viewProjection.inverse
-                : Matrix4x4.identity;
-            if (!_hasViewProjection)
-            {
-                _historyValid = false;
             }
 
             var stack = VolumeManager.instance.stack;
@@ -163,7 +112,6 @@ namespace Kern.Rendering.PostProcessing
             EigengrauComponent eigengrau = RequireComponent(
                 _eigengrau,
                 nameof(EigengrauComponent));
-            MotionBlurComponent mb = RequireComponent(_motionBlur, nameof(MotionBlurComponent));
 
             // Обход не трогает статику: правится только то, что уходит в кадр.
             bool bypass = PostProcessRuntimeState.BypassPostProcessEffects ||
@@ -174,7 +122,6 @@ namespace Kern.Rendering.PostProcessing
             bool vignetteActive = !bypass && vignette.active && vignette.IsActive();
             bool cgActive = !bypass && cg.active && cg.IsActive();
             bool eigengrauActive = !bypass && eigengrau.active && eigengrau.IsActive();
-            bool mbActive = !bypass && mb.active && mb.IsActive();
 
             // Досрочного выхода по «ни одного включённого эффекта» здесь нет и
             // быть не может. Тонмап работает в обоих режимах вывода и не
@@ -197,12 +144,8 @@ namespace Kern.Rendering.PostProcessing
                 cameraData.cameraTargetDescriptor,
                 out int width,
                 out int height,
-                out TextureDesc desc,
-                out RenderTextureDescriptor historyDesc);
+                out TextureDesc desc);
 
-            bool temporalActive = PostProcessRuntimeState.DebugView == PostProcessDebugView.None &&
-                PostProcessRuntimeState.CompareMode == CompareMode.Off &&
-                _displayPass && mbActive;
             Tonemapping output = stack.GetComponent<Tonemapping>();
             bool hdrOutput = cameraData.isHDROutputActive;
 
@@ -217,30 +160,6 @@ namespace Kern.Rendering.PostProcessing
             float peakNits = hdrOutput
                 ? Mathf.Max(output.maxNits.value, paperWhite)
                 : 0f;
-            var signature = new Vector3(paperWhite, peakNits, (float)hdrGamut);
-            if (_outputSignature != signature)
-            {
-                _outputSignature = signature;
-                _historyValid = false;
-            }
-
-            if (temporalActive && !_temporalWasActive)
-            {
-                _historyValid = false;
-            }
-
-            // Выключенное временное сглаживание отдаёт свою историю обратно.
-            // Кадр истории — полноэкранная цель; она переживала выключение и
-            // просто занимала память до конца сессии, потому что освобождение
-            // висело только на Dispose.
-            if (!temporalActive && _temporalWasActive)
-            {
-                _historyTexture?.Release();
-                _historyTexture = null;
-                _historyValid = false;
-            }
-
-            _temporalWasActive = temporalActive;
 
             // Проход, который ничего не меняет, не запускается вовсе. Каждый из
             // двух проходов — полноэкранный compute на полном разрешении кадра,
@@ -269,21 +188,12 @@ namespace Kern.Rendering.PostProcessing
             }
 
             bool passNeeded = _displayPass
-                ? diagnosticsActive || vignetteActive || eigengrauActive || temporalActive ||
+                ? diagnosticsActive || vignetteActive || eigengrauActive ||
                     !activeGrade.IsDisplayNeutral
                 : diagnosticsActive || bloomActive || cgActive || !activeGrade.IsCreativeNeutral;
             if (!passNeeded)
             {
                 return;
-            }
-
-            TextureHandle historyTexture = default;
-            if (temporalActive)
-            {
-                EnsureHistoryTexture(historyDesc);
-                historyTexture = renderGraph.ImportTexture(
-                    _historyTexture ?? throw new InvalidOperationException(
-                        "Post-process history texture allocation failed."));
             }
 
             desc.name = "_PPIntermediateColor";
@@ -339,12 +249,10 @@ namespace Kern.Rendering.PostProcessing
                 passData.BloomUpTextures = _bloomUpTextures;
                 passData.Width = width;
                 passData.Height = height;
-                passData.HistoryTexture = historyTexture;
 
                 passData.IsDisplayPass = _displayPass;
                 passData.DiagnosticsActive = diagnosticsActive;
                 passData.GradeGeneration = PostProcessRuntimeState.PipelineGeneration;
-                passData.HistoryReprojection = historyReprojection;
                 passData.ScreenToEmission = screenToEmission;
 
                 PostProcessPassDataAssembler.FillPassComponents(
@@ -353,14 +261,11 @@ namespace Kern.Rendering.PostProcessing
                     vignette,
                     cg,
                     eigengrau,
-                    mb,
                     bloomActive,
                     bloomLevels,
                     vignetteActive,
                     cgActive,
                     eigengrauActive,
-                    temporalActive,
-                    mbActive,
                     _displayPass,
                     hdrOutput,
                     hdrGamut,
@@ -373,7 +278,6 @@ namespace Kern.Rendering.PostProcessing
                 passData.CompareBefore = PostProcessRuntimeState.CompareBefore;
                 PostProcessPassDataAssembler.FillGradeTransport(passData, grade, _gradeScratch);
 
-                passData.HistoryValid = _historyValid;
                 passData.TimeSeconds = Time.time;
                 passData.FrameIndex = Time.frameCount;
                 passData.CalibrationPattern = (int)PostProcessRuntimeState.CalibrationMode;
@@ -388,10 +292,6 @@ namespace Kern.Rendering.PostProcessing
                     passData.ColorTexture,
                     passData.SwapColor ? AccessFlags.Read : AccessFlags.ReadWrite);
                 builder.UseTexture(passData.IntermediateTexture, AccessFlags.ReadWrite);
-                if (passData.TemporalActive)
-                {
-                    builder.UseTexture(passData.HistoryTexture, AccessFlags.ReadWrite);
-                }
 
                 if (passData.BloomActive)
                 {
@@ -410,50 +310,15 @@ namespace Kern.Rendering.PostProcessing
                     resourceData.cameraColor = intermediateTexture;
                 }
             }
-
-            if (temporalActive)
-            {
-                _historyValid = true;
-                // Ракурс запоминается только когда история действительно
-                // переписана этим кадром: иначе матрица репроекции ссылалась бы
-                // на кадр, которого в текстуре нет.
-                _lastViewProjection = viewProjection;
-                _hasViewProjection = true;
-            }
         }
 
         // Нейтральность грейда переехала в ColorGradeSnapshot: списки полей
         // обязаны согласовываться с самим снимком, и держать их врозь значило
         // держать три копии одного знания.
 
-        private void EnsureHistoryTexture(RenderTextureDescriptor descriptor)
-        {
-            if (_historyTexture != null &&
-                _historyTexture.rt.width == descriptor.width &&
-                _historyTexture.rt.height == descriptor.height &&
-                _historyFormat == descriptor.graphicsFormat)
-            {
-                return;
-            }
-
-            _historyTexture?.Release();
-            _historyTexture = RTHandles.Alloc(
-                descriptor,
-                FilterMode.Bilinear,
-                TextureWrapMode.Clamp,
-                name: "_PPTemporalHistory");
-            _historyFormat = descriptor.graphicsFormat;
-            _historyValid = false;
-        }
-
         public void Dispose()
         {
             _gradeLut.Release();
-            _historyTexture?.Release();
-            _historyTexture = null;
-            _historyValid = false;
-            _temporalWasActive = false;
-            _hasViewProjection = false;
         }
     }
 }

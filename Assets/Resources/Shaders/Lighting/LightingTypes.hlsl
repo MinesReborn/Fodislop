@@ -13,8 +13,9 @@
 // (see TraceLightSegment). Not a tuning value: derived from output precision.
 static const float InvisibleDynamicRadiance = 1e-6;
 
-static const float DynamicNearCells = 6.0;
-static const int DynamicEmitterPointsPerAxis = 3;
+// Плотность сэмплирования эмиттера по оси — юниформа
+// _DynamicEmitterPointsPerAxis, объявленная в WorldLighting.compute.
+// Авторское значение живёт в VisualTuning.cs.
 
 uint2 PackRadiance(float3 radiance)
 {

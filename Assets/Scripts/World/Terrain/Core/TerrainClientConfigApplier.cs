@@ -44,7 +44,7 @@ public sealed class TerrainClientConfigApplier
         bool enableReliefRim = config.Terrain.EnableReliefRim;
         Shader.SetGlobalFloat(_reliefRimEnabledID, enableReliefRim ? 1f : 0f);
 
-        _window.Driver.Materials.ApplyClientConfig(config);
+        _window.Driver.Presentation.ApplyClientConfig(config);
         Debug.Log(
             $"[TerrainRenderer] ApplyClientConfig: distortion={enableDistortion}, " +
             $"distortionStyle={distortionStyle}, " +

@@ -24,17 +24,6 @@ namespace Kern.UI
         //
         // Меньшая сторона, а не большая: иначе на широком экране кольцо
         // вылезало бы за верх и низ кадра.
-        private const float RingRadiusViewportFraction = 0.34f;
-
-        // Доля половины кадра, на которой шейдер ставит указатель. Остаток
-        // кадра — запас на размытие краёв дуги, поэтому элемент шире кольца.
-        private const float ShaderRingRadius = 0.74f;
-
-        // Указатель гаснет, когда цель прямо под игроком: пеленг там не
-        // определён, а дуга без направления только мешает.
-        private const float CenterFadeUnits = 0.6f;
-        private const float FullOpacityUnits = 2.2f;
-
         // Размер и положение теперь меняются только со сменой размера
         // вьюпорта, но писать стили каждый кадр всё равно нельзя: запись
         // держит панель в состоянии style-dirty. Ниже полпикселя разницы не
@@ -245,8 +234,11 @@ namespace Kern.UI
 
             Vector2 toTarget = new(targetWorld.x - playerWorld.x, targetWorld.y - playerWorld.y);
             float distance = toTarget.magnitude;
-            float opacity = Mathf.InverseLerp(CenterFadeUnits, FullOpacityUnits, distance);
-            if (opacity <= 0.001f)
+            float opacity = Mathf.InverseLerp(
+                MissionRingLook.CenterFadeDistance,
+                MissionRingLook.FullOpacityDistance,
+                distance);
+            if (opacity <= MissionRingLook.MinimumVisibleOpacity)
             {
                 UIState.Hide(_ring);
                 return;
@@ -269,12 +261,12 @@ namespace Kern.UI
             }
 
             float ringPanelRadius =
-                Mathf.Min(viewportWidth, viewportHeight) * RingRadiusViewportFraction;
+                Mathf.Min(viewportWidth, viewportHeight) * MissionRingLook.ViewportRadiusFraction;
             Vector2 centerLocal = new(viewportWidth * 0.5f, viewportHeight * 0.5f);
 
             // Элемент шире виртуального кольца ровно во столько, во сколько
             // кадр шейдера шире окружности, по которой он ставит указатель.
-            float elementSize = ringPanelRadius * 2f / ShaderRingRadius;
+            float elementSize = ringPanelRadius * 2f / MissionRingLook.Radius;
             float left = centerLocal.x - (elementSize * 0.5f);
             float top = centerLocal.y - (elementSize * 0.5f);
 
@@ -324,6 +316,15 @@ namespace Kern.UI
             private readonly Material _material;
             private readonly int _opacityId = Shader.PropertyToID("_MissionOpacity");
             private readonly int _angleId = Shader.PropertyToID("_MissionAngle");
+            private readonly int _ringRadiusId = Shader.PropertyToID("_RingRadius");
+            private readonly int _ringSquashId = Shader.PropertyToID("_RingSquash");
+            private readonly int _arcHalfAngleId = Shader.PropertyToID("_ArcHalfAngle");
+            private readonly int _arcThicknessId = Shader.PropertyToID("_ArcThickness");
+            private readonly int _arcEndTaperId = Shader.PropertyToID("_ArcEndTaper");
+            private readonly int _arcCoreWidthId = Shader.PropertyToID("_ArcCoreWidth");
+            private readonly int _arcEnergyId = Shader.PropertyToID("_ArcEnergy");
+            private readonly int _coreEnergyId = Shader.PropertyToID("_CoreEnergy");
+            private readonly int _coreColorId = Shader.PropertyToID("_CoreColor");
 
             private float _lastOpacity = float.NaN;
             private float _lastBearing = float.NaN;
@@ -342,6 +343,15 @@ namespace Kern.UI
                 {
                     hideFlags = HideFlags.HideAndDontSave,
                 };
+                _material.SetFloat(_ringRadiusId, MissionRingLook.Radius);
+                _material.SetFloat(_ringSquashId, MissionRingLook.VerticalSquash);
+                _material.SetFloat(_arcHalfAngleId, MissionRingLook.ArcHalfAngle);
+                _material.SetFloat(_arcThicknessId, MissionRingLook.ArcThickness);
+                _material.SetFloat(_arcEndTaperId, MissionRingLook.EndTaper);
+                _material.SetFloat(_arcCoreWidthId, MissionRingLook.CoreWidth);
+                _material.SetFloat(_arcEnergyId, MissionRingLook.ArcEnergy);
+                _material.SetFloat(_coreEnergyId, MissionRingLook.CoreEnergy);
+                _material.SetColor(_coreColorId, MissionRingLook.CoreColor);
 
                 // Материал уходит прямо в стиль элемента. Ни RenderTexture,
                 // ни Image здесь больше нет: кадр фиксированной стороны

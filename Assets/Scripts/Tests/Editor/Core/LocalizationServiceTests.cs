@@ -99,11 +99,9 @@ public class LocalizationServiceTests
     {
         public ClientConfig Config { get; } = new();
         public string ConfigFilePath => string.Empty;
-        public GraphicsPreset SelectedGraphicsPreset => GraphicsPreset.Custom;
+        public GraphicsPreset SelectedGraphicsPreset => GraphicsPreset.Standard;
         public void EnsureInitialized() { }
-        public void MarkGraphicsAsCustom() { }
         public void SelectGraphicsPreset(GraphicsPreset preset) { }
-        public void SetCustomGraphicsSettings(GraphicsQualitySettings settings) { }
         public void UpdateSection<TSection>(
             Func<ClientConfig, TSection> select,
             Action<TSection> update)

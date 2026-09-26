@@ -57,7 +57,12 @@ internal sealed class TerrainCellTextureIndex
     /// Собрать квады окна, задетые перечисленными типами. Список отсортирован:
     /// сборка идёт по нему подряд и метит соседние клетки одним прямоугольником.
     /// </summary>
-    public void CollectRefreshQuads(HashSet<CellType> cellTypes, int minX, int minY, int width, int height)
+    public void CollectRefreshQuads(
+        in TerrainCellTypeSet cellTypes,
+        int minX,
+        int minY,
+        int width,
+        int height)
     {
         _textureRefreshQuads.Clear();
         _textureRefreshMarks.Clear();
@@ -75,6 +80,17 @@ internal sealed class TerrainCellTextureIndex
         }
 
         _textureRefreshQuads.Sort();
+    }
+
+    public void CollectRefreshQuads(
+        HashSet<CellType> cellTypes,
+        int minX,
+        int minY,
+        int width,
+        int height)
+    {
+        TerrainCellTypeSet snapshot = TerrainCellTypeSet.Capture(cellTypes);
+        CollectRefreshQuads(snapshot, minX, minY, width, height);
     }
 
 

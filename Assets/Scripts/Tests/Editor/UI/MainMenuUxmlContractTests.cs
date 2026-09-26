@@ -23,7 +23,7 @@ public sealed class MainMenuUxmlContractTests
     [Test]
     public void MainMenuResourceContainsCompleteLoadingUi()
     {
-        VisualTreeAsset asset = Resources.Load<VisualTreeAsset>("UI/MainMenu");
+        VisualTreeAsset asset = Resources.Load<VisualTreeAsset>("UI/Menus/MainMenu");
         Assert.That(asset, Is.Not.Null);
 
         TemplateContainer tree = asset.CloneTree();

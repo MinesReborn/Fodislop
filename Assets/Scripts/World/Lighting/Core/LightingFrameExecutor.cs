@@ -3,9 +3,7 @@
 using System;
 using System.Collections.Generic;
 using Kern.Core;
-using Kern.Core.Interfaces;
 using Kern.World.Lighting.Quality;
-using Kern.World.Terrain;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -83,6 +81,16 @@ internal sealed class LightingFrameExecutor
             backgroundColor: Color.clear);
     }
 
+    public void RecordAmbientOcclusionField(
+        CommandBuffer commandBuffer,
+        Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor terrainGeometry,
+        Vector4 worldRect) =>
+        _geometrySolver.RecordAmbientOcclusionField(
+            commandBuffer,
+            terrainGeometry,
+            _geometryRegistry,
+            worldRect);
+
     public void ConfigureSharedComputeParameters(
         CommandBuffer commandBuffer,
         Vector4 worldRect,
@@ -98,7 +106,6 @@ internal sealed class LightingFrameExecutor
             _resources.FieldHeight,
             worldRect,
             cellSize,
-            quality,
             debugView,
             _resources.MaterialField!,
             emissionField,
@@ -112,7 +119,7 @@ internal sealed class LightingFrameExecutor
     public LightingFrameResult Record(
         CommandBuffer commandBuffer,
         LightingFrameRequest request,
-        TerrainRenderer terrainRenderer,
+        Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor terrainGeometry,
         RenderTexture emissionField,
         RenderTexture staticDirectTexture)
     {
@@ -123,16 +130,15 @@ internal sealed class LightingFrameExecutor
         {
             _geometrySolver.RecordMaterialField(
                 commandBuffer,
-                terrainRenderer,
+                terrainGeometry,
                 _geometryRegistry,
                 request.WorldRect);
             _executedStages.Add("MaterialField");
             _geometrySolver.PrepareCaches(commandBuffer, materialFieldRebuilt: true);
             _executedStages.Add("GeometryCache");
-            _geometrySolver.RecordAmbientOcclusionField(
+            RecordAmbientOcclusionField(
                 commandBuffer,
-                terrainRenderer,
-                _geometryRegistry,
+                terrainGeometry,
                 request.WorldRect);
             _executedStages.Add("AmbientOcclusionField");
         }

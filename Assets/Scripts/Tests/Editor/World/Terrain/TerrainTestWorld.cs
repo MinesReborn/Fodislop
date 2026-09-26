@@ -97,7 +97,10 @@ public sealed class TerrainTestWorld
         floodFill.Allocate(width, height);
 
         cache.PopulateFull(minX, minY, _storage, _mapData, _textures, _atlases);
-        precalc.PrecalculateFull(cache, width, height, WorldWidth, WorldHeight);
+        precalc.PrecalculateFull(new TerrainPrecalculationInput(
+            cache,
+            new Vector2Int(width, height),
+            new Vector2Int(WorldWidth, WorldHeight)));
         floodFill.ComputeFull(cache);
 
         return new TerrainCellSources(
@@ -106,9 +109,7 @@ public sealed class TerrainTestWorld
             floodFill,
             WorldWidth,
             WorldHeight,
-            _atlases,
-            _mapData,
-            _textures);
+            _atlases);
     }
 
     private sealed class FakeAtlas : IAtlasDescriptor

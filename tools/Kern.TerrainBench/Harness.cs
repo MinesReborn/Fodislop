@@ -26,6 +26,14 @@ public sealed record BenchResult(
     int Gen0Collections)
 {
     public string Key => $"{Suite}/{Name}/{Grid}";
+
+    public double CpuP50Ms { get; init; }
+
+    public double CpuP95Ms { get; init; }
+
+    public double CpuMaxMs { get; init; }
+
+    public double CpuAtMaxWallMs { get; init; }
 }
 
 // Показатель качества, а не времени: доля выгрузки, размер, число расхождений.
@@ -47,7 +55,7 @@ public sealed class BenchOptions
 
     public int MinIterations { get; set; } = 10;
 
-    public int MaxIterations { get; set; } = 2000;
+    public int MaxIterations { get; set; } = 20000;
 
     public string OutputDirectory { get; set; } = Path.Combine("Logs", "bench");
 
@@ -119,7 +127,12 @@ public sealed class BenchRunner(BenchOptions options)
 
     // Результат из уже снятых выборок: сквозные сценарии меряют каждый шаг
     // сами, потому что шаги не одинаковы.
-    public void Record(string name, List<double> samples, long allocatedBytes, int gen0)
+    public void Record(
+        string name,
+        List<double> samples,
+        long allocatedBytes,
+        int gen0,
+        List<double>? cpuSamples = null)
     {
         if (!Wants(name) || samples.Count == 0)
         {
@@ -127,25 +140,58 @@ public sealed class BenchRunner(BenchOptions options)
         }
 
         double[] sorted = samples.OrderBy(s => s).ToArray();
+        double[]? sortedCpu = cpuSamples?.OrderBy(s => s).ToArray();
         double mean = sorted.Average();
         double variance = sorted.Sum(s => (s - mean) * (s - mean)) / sorted.Length;
+        int slowestWallSample = 0;
+        for (int i = 1; i < samples.Count; i++)
+        {
+            if (samples[i] > samples[slowestWallSample])
+            {
+                slowestWallSample = i;
+            }
+        }
+
         var result = new BenchResult(
             Suite, name, Grid, sorted.Length, mean,
             Percentile(sorted, 0.50), Percentile(sorted, 0.95), sorted[^1],
-            Math.Sqrt(variance), allocatedBytes / sorted.Length, gen0);
+            Math.Sqrt(variance), allocatedBytes / sorted.Length, gen0)
+        {
+            CpuP50Ms = sortedCpu == null ? 0 : Percentile(sortedCpu, 0.50),
+            CpuP95Ms = sortedCpu == null ? 0 : Percentile(sortedCpu, 0.95),
+            CpuMaxMs = sortedCpu == null ? 0 : sortedCpu[^1],
+            CpuAtMaxWallMs = cpuSamples == null ? 0 : cpuSamples[slowestWallSample],
+        };
         _results.Add(result);
         Console.WriteLine(
             $"  {name,-62} {mean,9:F4} мс  p50 {result.P50Ms,9:F4}  p95 {result.P95Ms,9:F4}  " +
-            $"p99 {Percentile(sorted, 0.99),9:F4}  max {result.MaxMs,9:F3}  {result.AllocatedBytesPerIteration,8} Б  gen0 {gen0,3}  ×{sorted.Length}");
+            $"p99 {Percentile(sorted, 0.99),9:F4}  max {result.MaxMs,9:F3}  " +
+            FormatCpu(result) +
+            $"{result.AllocatedBytesPerIteration,8} Б  gen0 {gen0,3}  ×{sorted.Length}");
     }
 
     public string Grid { get; set; } = "";
 
     public string Suite { get; set; } = "";
 
-    public bool Wants(string name) =>
-        options.Filter == null ||
-        $"{Suite}/{name}".Contains(options.Filter, StringComparison.OrdinalIgnoreCase);
+    public bool Wants(string name)
+    {
+        if (options.Filter == null)
+        {
+            return true;
+        }
+
+        string target = $"{Suite}/{name}";
+        foreach (string filter in options.Filter.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (target.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     // Прогон до целевого времени: дешёвые операции получают больше итераций,
     // дорогие — не меньше MinIterations. Первая итерация — прогрев JIT.
@@ -164,6 +210,9 @@ public sealed class BenchRunner(BenchOptions options)
         GC.Collect();
 
         var samples = new List<double>();
+        var cpuSamples = new List<double>();
+        int slowestWallSample = 0;
+        using Process currentProcess = Process.GetCurrentProcess();
         long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
         int gen0Before = GC.CollectionCount(0);
         var budget = Stopwatch.StartNew();
@@ -171,9 +220,20 @@ public sealed class BenchRunner(BenchOptions options)
             (samples.Count < options.MinIterations || budget.Elapsed.TotalSeconds < options.TargetSeconds))
         {
             setup?.Invoke();
+            long cpuStart = currentProcess.TotalProcessorTime.Ticks;
             long start = Stopwatch.GetTimestamp();
             action();
-            samples.Add(Stopwatch.GetElapsedTime(start).TotalMilliseconds);
+            double elapsedMs = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+            double cpuMs =
+                (currentProcess.TotalProcessorTime.Ticks - cpuStart) /
+                (double)TimeSpan.TicksPerMillisecond;
+            if (samples.Count == 0 || elapsedMs > samples[slowestWallSample])
+            {
+                slowestWallSample = samples.Count;
+            }
+
+            samples.Add(elapsedMs);
+            cpuSamples.Add(cpuMs);
         }
 
         long allocated = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
@@ -181,6 +241,7 @@ public sealed class BenchRunner(BenchOptions options)
         GCSettings.LatencyMode = GCLatencyMode.Interactive;
 
         double[] sorted = samples.OrderBy(s => s).ToArray();
+        double[] sortedCpu = cpuSamples.OrderBy(s => s).ToArray();
         double mean = sorted.Average();
         double variance = sorted.Sum(s => (s - mean) * (s - mean)) / sorted.Length;
         var result = new BenchResult(
@@ -194,12 +255,86 @@ public sealed class BenchRunner(BenchOptions options)
             sorted[^1],
             Math.Sqrt(variance),
             allocated / sorted.Length,
-            gen0);
+            gen0)
+        {
+            CpuP50Ms = Percentile(sortedCpu, 0.50),
+            CpuP95Ms = Percentile(sortedCpu, 0.95),
+            CpuMaxMs = sortedCpu[^1],
+            CpuAtMaxWallMs = cpuSamples[slowestWallSample],
+        };
         _results.Add(result);
         Console.WriteLine(
             $"  {name,-62} {mean,9:F4} мс  p50 {result.P50Ms,9:F4}  p95 {result.P95Ms,9:F4}  " +
-            $"max {result.MaxMs,9:F3}  ±{result.StdDevMs,7:F4}  {result.AllocatedBytesPerIteration,8} Б  gen0 {gen0,3}  ×{sorted.Length}");
+            $"max {result.MaxMs,9:F3}  cpu p50 {result.CpuP50Ms,7:F3}  cpu p95 {result.CpuP95Ms,7:F3}  " +
+            $"cpu max {result.CpuMaxMs,7:F3} / max-wall {result.CpuAtMaxWallMs,7:F3}  " +
+            $"±{result.StdDevMs,7:F4}  {result.AllocatedBytesPerIteration,8} Б  gen0 {gen0,3}  ×{sorted.Length}");
     }
+
+    public void RunAlternating(string firstName, Action firstAction, string secondName, Action secondAction)
+    {
+        if (!Wants(firstName) || !Wants(secondName))
+        {
+            return;
+        }
+
+        firstAction();
+        secondAction();
+        GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        var firstWall = new List<double>();
+        var secondWall = new List<double>();
+        var firstCpu = new List<double>();
+        var secondCpu = new List<double>();
+        using Process currentProcess = Process.GetCurrentProcess();
+        long firstAllocated = 0;
+        long secondAllocated = 0;
+        int gen0Before = GC.CollectionCount(0);
+        var budget = Stopwatch.StartNew();
+        bool firstOrder = true;
+        while (firstWall.Count < options.MaxIterations &&
+            secondWall.Count < options.MaxIterations &&
+            (firstWall.Count < options.MinIterations || budget.Elapsed.TotalSeconds < options.TargetSeconds * 2))
+        {
+            if (firstOrder)
+            {
+                Measure(firstAction, firstWall, firstCpu, ref firstAllocated);
+                Measure(secondAction, secondWall, secondCpu, ref secondAllocated);
+            }
+            else
+            {
+                Measure(secondAction, secondWall, secondCpu, ref secondAllocated);
+                Measure(firstAction, firstWall, firstCpu, ref firstAllocated);
+            }
+
+            firstOrder = !firstOrder;
+        }
+
+        int gen0 = GC.CollectionCount(0) - gen0Before;
+        GCSettings.LatencyMode = GCLatencyMode.Interactive;
+        Record(firstName, firstWall, firstAllocated, gen0, firstCpu);
+        Record(secondName, secondWall, secondAllocated, gen0, secondCpu);
+
+        void Measure(Action action, List<double> wallSamples, List<double> cpuSamples, ref long allocated)
+        {
+            long allocatedStart = GC.GetAllocatedBytesForCurrentThread();
+            long cpuStart = currentProcess.TotalProcessorTime.Ticks;
+            long start = Stopwatch.GetTimestamp();
+            action();
+            wallSamples.Add(Stopwatch.GetElapsedTime(start).TotalMilliseconds);
+            cpuSamples.Add(
+                (currentProcess.TotalProcessorTime.Ticks - cpuStart) /
+                (double)TimeSpan.TicksPerMillisecond);
+            allocated += GC.GetAllocatedBytesForCurrentThread() - allocatedStart;
+        }
+    }
+
+    private static string FormatCpu(BenchResult result) => result.CpuP50Ms == 0 && result.CpuP95Ms == 0
+        ? string.Empty
+        : $"cpu p50 {result.CpuP50Ms,7:F3}  cpu p95 {result.CpuP95Ms,7:F3}  " +
+          $"cpu max {result.CpuMaxMs,7:F3} / max-wall {result.CpuAtMaxWallMs,7:F3}  ";
 
     private static double Percentile(double[] sorted, double fraction) =>
         sorted[Math.Clamp((int)Math.Round(fraction * (sorted.Length - 1)), 0, sorted.Length - 1)];
@@ -223,11 +358,17 @@ public static class BenchReport
         foreach (IGrouping<string, BenchResult> grid in results.GroupBy(r => r.Grid))
         {
             text.AppendLine($"## Сетка {grid.Key}").AppendLine()
-                .AppendLine("| Набор | Замер | p50, мс | p95, мс | max, мс | аллок, Б |")
-                .AppendLine("|---|---|---:|---:|---:|---:|");
+                .AppendLine("| Набор | Замер | p50, мс | p95, мс | max, мс | CPU p50/p95, мс | CPU max/max-wall, мс | аллок, Б |")
+                .AppendLine("|---|---|---:|---:|---:|---:|---:|---:|");
             foreach (BenchResult r in grid)
             {
-                text.AppendLine($"| {r.Suite} | {r.Name} | {r.P50Ms:F4} | {r.P95Ms:F4} | {r.MaxMs:F3} | {r.AllocatedBytesPerIteration} |");
+                string cpu = r.CpuP50Ms == 0 && r.CpuP95Ms == 0
+                    ? "—"
+                    : $"{r.CpuP50Ms:F3}/{r.CpuP95Ms:F3}";
+                string cpuMax = r.CpuMaxMs == 0 && r.CpuAtMaxWallMs == 0
+                    ? "—"
+                    : $"{r.CpuMaxMs:F3}/{r.CpuAtMaxWallMs:F3}";
+                text.AppendLine($"| {r.Suite} | {r.Name} | {r.P50Ms:F4} | {r.P95Ms:F4} | {r.MaxMs:F3} | {cpu} | {cpuMax} | {r.AllocatedBytesPerIteration} |");
             }
 
             List<BenchMetric> gridMetrics = metrics.Where(m => m.Grid == grid.Key).ToList();

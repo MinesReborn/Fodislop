@@ -11,15 +11,6 @@ internal sealed class DynamicLightingSolver
 {
     private static readonly uint[] _ZeroReach = [0u];
 
-    // Polar tracing is required for every moved dynamic light, but one texel-wide ray
-    // fan at the edge of a large field creates a quadratic-looking burst:
-    // angles * emitter points * ray length. This is a frame-wide budget, not a
-    // per-light budget: otherwise N visible dynamic lights multiply the supposed cap by
-    // N and walking past a busy area creates a burst. The budget is shared
-    // only by lights that need a trace this frame; static lights reuse their
-    // tiles and must not dilute it.
-    private const long MaximumPolarRayWorkUnits = 2_000_000;
-
     private readonly LightingResourceManager _resources;
     private readonly DynamicLightManager _lightManager;
     private readonly DynamicLightTileCache _tileCache;
@@ -184,13 +175,28 @@ internal sealed class DynamicLightingSolver
         _tileCache.AssignSlots(lightIDs.Slice(0, count));
         MarkLightsNeedingTrace(count, lights, lightIDs);
 
-        int widestRayFan = AllocatePolarRayFans(count, out int longestRay);
+        int widestRayFan = DynamicPolarWorkBudget.AllocateRayFans(
+            count,
+            _lightRequestedRayFans,
+            _lightNeedsTrace,
+            _lightRaySizes,
+            out int longestRay);
 
         if (invalidateDynamicTiles)
         {
-            ClearDynamicDirect(commandBuffer);
-            // Full clear with a static re-solve following: the frame takes
-            // the full composite path, so no partial rect applies.
+            // The trace/compose pass replaces the whole direct texture when
+            // current light bounds cover the field. Clearing it first only
+            // adds a full-field write on the most expensive rebuild frames.
+            bool currentCoversField = composeMinX <= 0 && composeMinY <= 0 &&
+                composeMaxX >= _resources.FieldWidth &&
+                composeMaxY >= _resources.FieldHeight;
+            if (!currentCoversField)
+            {
+                ClearDynamicDirect(commandBuffer);
+            }
+
+            // A static re-solve takes the full composite path, so no partial
+            // dirty rectangle applies.
             dynamicDirtyUnion = default;
         }
         else
@@ -199,9 +205,10 @@ internal sealed class DynamicLightingSolver
             RectInt clearRect = hasPreviousRectUnion
                 ? previousRectUnion
                 : default;
+            RectInt currentRectUnion = default;
             if (hasCurrentRectUnion)
             {
-                RectInt currentRectUnion = new(
+                currentRectUnion = new RectInt(
                     composeMinX,
                     composeMinY,
                     composeMaxX - composeMinX,
@@ -211,7 +218,16 @@ internal sealed class DynamicLightingSolver
                     : currentRectUnion;
             }
 
-            if (clearRect.width > 0 && clearRect.height > 0)
+            // ComposeDynamicLighting (or the single-light trace) overwrites
+            // every pixel in the current union. Clear only when the old union
+            // extends outside it, where stale light would otherwise remain.
+            bool currentCoversPrevious = hasCurrentRectUnion &&
+                (!hasPreviousRectUnion ||
+                    (currentRectUnion.xMin <= previousRectUnion.xMin &&
+                     currentRectUnion.yMin <= previousRectUnion.yMin &&
+                     currentRectUnion.xMax >= previousRectUnion.xMax &&
+                     currentRectUnion.yMax >= previousRectUnion.yMax));
+            if (!currentCoversPrevious && clearRect.width > 0 && clearRect.height > 0)
             {
                 ClearDynamicDirect(commandBuffer, clearRect);
             }
@@ -227,6 +243,11 @@ internal sealed class DynamicLightingSolver
         ComputeShader compute = _resources.LightingCompute!;
         RenderTexture tiles = _tileCache.Tiles!;
         RenderTexture polarRays = _tileCache.Polar!;
+        commandBuffer.SetComputeIntParams(
+            compute,
+            LightingComputeBinder.DynamicPolarTextureSizeID,
+            polarRays.width,
+            polarRays.height);
         ComputeBuffer reachBuffer = _resources.DynamicReachBuffer!;
         int traceKernel = _resources.SolveDynamicLightingKernel;
         BindFieldTextures(commandBuffer, traceKernel, _resources.StaticEmissionField!);
@@ -285,11 +306,12 @@ internal sealed class DynamicLightingSolver
             // Дальность копится максимумом по всем веерам этого фонаря и
             // читается сбором ниже: перед первым веером — ноль.
             commandBuffer.SetBufferData(reachBuffer, _ZeroReach, 0, lightIndex, 1);
-            for (int point = 0; point < LightingComputeBinder.DynamicEmitterPointCount; point++)
-            {
-                commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicPolarPointID, point);
-                commandBuffer.DispatchCompute(compute, rayKernel, Mathf.CeilToInt(raySize.x / 64f), 1, 1);
-            }
+            commandBuffer.DispatchCompute(
+                compute,
+                rayKernel,
+                Mathf.CeilToInt(raySize.x / 64f),
+                LightingComputeBinder.DynamicEmitterPointCount,
+                1);
 
             commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.DynamicDispatchOriginID, rect.x, rect.y);
             commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.DynamicDispatchSizeID, rect.width, rect.height);
@@ -425,62 +447,6 @@ internal sealed class DynamicLightingSolver
                 lights[lightIndex].ColorIntensity,
                 _lightRects[lightIndex]);
         }
-    }
-
-    private int AllocatePolarRayFans(int count, out int longestRay)
-    {
-        int maxTextureSize = SystemInfo.maxTextureSize;
-        int maxRayLength = Mathf.Max(1, maxTextureSize / LightingComputeBinder.DynamicEmitterPointCount);
-
-        long requestedWork = 0;
-        for (int lightIndex = 0; lightIndex < count; lightIndex++)
-        {
-            if (!_lightNeedsTrace[lightIndex])
-            {
-                continue;
-            }
-
-            Vector2Int raySize = _lightRaySizes[lightIndex];
-            requestedWork += (long)_lightRequestedRayFans[lightIndex] *
-                LightingComputeBinder.DynamicEmitterPointCount *
-                Mathf.Max(1, raySize.y);
-        }
-
-        long budget = MaximumPolarRayWorkUnits;
-        int widestRayFan = 1;
-        longestRay = 1;
-        for (int lightIndex = 0; lightIndex < count; lightIndex++)
-        {
-            if (!_lightNeedsTrace[lightIndex])
-            {
-                _lightRaySizes[lightIndex] = new Vector2Int(1, 1);
-                continue;
-            }
-
-            int requested = Mathf.Max(1, _lightRequestedRayFans[lightIndex]);
-            // The fan sets angular density only; the stored length is capped
-            // to the polar texture limit. Receivers past the cap reuse the
-            // edge depth through the Clamp sampler: bounded degradation that
-            // cannot crash the frame, unlike an oversized allocation.
-            int rayLength = Mathf.Min(Mathf.Max(1, _lightRaySizes[lightIndex].y), maxRayLength);
-            int rayFan = requested;
-            if (requestedWork > budget)
-            {
-                long weightedBudget = budget * requested;
-                long weightedWork = requestedWork;
-                rayFan = Mathf.Clamp(
-                    (int)(weightedBudget / Mathf.Max(1L, weightedWork)),
-                    1,
-                    requested);
-            }
-
-            rayFan = Mathf.Min(rayFan, maxTextureSize);
-            _lightRaySizes[lightIndex] = new Vector2Int(rayFan, rayLength);
-            widestRayFan = Mathf.Max(widestRayFan, rayFan);
-            longestRay = Mathf.Max(longestRay, rayLength);
-        }
-
-        return widestRayFan;
     }
 
     private void BindFieldTextures(

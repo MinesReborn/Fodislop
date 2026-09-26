@@ -180,7 +180,7 @@ public class TerrainVertexDistortionCalculatorTests
     [TestCase(CellType.AliveCyan)]
     [TestCase(CellType.AliveRed)]
     [TestCase(CellType.AliveViol)]
-    [TestCase(CellType.AliveNigger)]
+    [TestCase(CellType.AliveBlack)]
     [TestCase(CellType.AliveWhite)]
     [TestCase(CellType.AliveRainbow)]
     [TestCase(CellType.AliveBlue)]

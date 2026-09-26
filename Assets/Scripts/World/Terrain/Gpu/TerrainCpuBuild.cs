@@ -1,6 +1,8 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using Kern.Core.Interfaces;
 using MinesServer.Data;
 using UnityEngine;
@@ -19,6 +21,9 @@ namespace Kern.World.Terrain;
 /// главный поток до публикации к этим структурам не прикасается.
 internal sealed class TerrainCpuBuildRequest
 {
+    private readonly TerrainWorldCellRegion[] _dirtyRegions;
+    private readonly ReadOnlyCollection<IAtlasDescriptor> _atlases;
+
     public TerrainCpuBuildRequest(
         Vector2Int origin,
         Vector2Int size,
@@ -28,23 +33,33 @@ internal sealed class TerrainCpuBuildRequest
         IReadOnlyList<IAtlasDescriptor> atlases,
         int worldWidth,
         int worldHeight,
-        RectInt[] dirtyRects,
-        HashSet<CellType> textureTypes,
+        TerrainWorldCellRegion[] dirtyRegions,
+        in TerrainCellTypeSet textureTypes,
         ulong contentRevision,
-        long worldGeneration)
+        long worldGeneration,
+        ulong atlasRevision)
     {
         Origin = origin;
         Size = size;
         CacheScrolled = cacheScrolled;
         ScrollDelta = scrollDelta;
         BuildFull = buildFull;
-        Atlases = atlases;
+        IAtlasDescriptor[] atlasSnapshot = new IAtlasDescriptor[atlases.Count];
+        for (int index = 0; index < atlasSnapshot.Length; index++)
+        {
+            atlasSnapshot[index] = atlases[index];
+        }
+
+        _atlases = Array.AsReadOnly(atlasSnapshot);
         WorldWidth = worldWidth;
         WorldHeight = worldHeight;
-        DirtyRects = dirtyRects;
+        // The prepare stage transfers this freshly allocated array into the
+        // request and does not retain or mutate it afterwards.
+        _dirtyRegions = dirtyRegions;
         TextureTypes = textureTypes;
         ContentRevision = contentRevision;
         WorldGeneration = worldGeneration;
+        AtlasRevision = atlasRevision;
     }
 
     public Vector2Int Origin { get; }
@@ -60,25 +75,82 @@ internal sealed class TerrainCpuBuildRequest
     public bool BuildFull { get; }
 
     /// <summary>Числовые снимки атласов: живые атласы меняются на главном потоке.</summary>
-    public IReadOnlyList<IAtlasDescriptor> Atlases { get; }
+    public IReadOnlyList<IAtlasDescriptor> Atlases => _atlases;
 
     public int WorldWidth { get; }
 
     public int WorldHeight { get; }
 
-    /// <summary>Изменённые клетки в координатах Unity, уже перечитанные в кэш.</summary>
-    public RectInt[] DirtyRects { get; }
+    /// <summary>Изменённые клетки мира Unity, уже перечитанные в кэш.</summary>
+    public ReadOnlySpan<TerrainWorldCellRegion> DirtyRegions => _dirtyRegions;
 
     /// <summary>Типы, чьи метаданные обновились после приезда текстуры.</summary>
-    public HashSet<CellType> TextureTypes { get; }
+    public TerrainCellTypeSet TextureTypes { get; }
 
     public ulong ContentRevision { get; }
 
     public long WorldGeneration { get; }
+
+    public ulong AtlasRevision { get; }
 }
 
 /// <summary>Итог шага: что изменилось и сколько это стоило рабочему потоку.</summary>
 internal sealed class TerrainCpuBuildResult
+{
+    public TerrainCpuBuildResult(
+        bool doorsTouched,
+        float cacheMs,
+        float precalculateMs,
+        float floodFillMs,
+        float meshMs,
+        float elapsedMs,
+        float scrollMs,
+        float warmupMs,
+        float fillMs,
+        int filledCells,
+        float quadMs,
+        float packMs)
+    {
+        DoorsTouched = doorsTouched;
+        CacheMs = cacheMs;
+        PrecalculateMs = precalculateMs;
+        FloodFillMs = floodFillMs;
+        MeshMs = meshMs;
+        ElapsedMs = elapsedMs;
+        ScrollMs = scrollMs;
+        WarmupMs = warmupMs;
+        FillMs = fillMs;
+        FilledCells = filledCells;
+        QuadMs = quadMs;
+        PackMs = packMs;
+    }
+
+    public bool DoorsTouched { get; }
+
+    public float CacheMs { get; }
+
+    public float PrecalculateMs { get; }
+
+    public float FloodFillMs { get; }
+
+    public float MeshMs { get; }
+
+    public float ElapsedMs { get; }
+
+    public float ScrollMs { get; }
+
+    public float WarmupMs { get; }
+
+    public float FillMs { get; }
+
+    public int FilledCells { get; }
+
+    public float QuadMs { get; }
+
+    public float PackMs { get; }
+}
+
+internal sealed class TerrainCpuBuildResultBuilder
 {
     public bool DoorsTouched { get; set; }
 
@@ -90,8 +162,6 @@ internal sealed class TerrainCpuBuildResult
     public float FloodFillMs { get; set; }
 
     public float MeshMs { get; set; }
-
-    public float ElapsedMs { get; set; }
 
     // Разбивка текселей по стадиям сборщика, сложенная по всем его вызовам
     // шага: полоса и каждая заплатка сбрасывают счётчики сборщика заново.
@@ -107,6 +177,8 @@ internal sealed class TerrainCpuBuildResult
 
     public float PackMs { get; set; }
 
+    public float ElapsedMs { get; set; }
+
     public void AddBuilderStages(TerrainCellBuilder builder)
     {
         ScrollMs += builder.LastScrollMs;
@@ -116,4 +188,18 @@ internal sealed class TerrainCpuBuildResult
         QuadMs += builder.LastQuadMs;
         PackMs += builder.LastPackMs;
     }
+
+    public TerrainCpuBuildResult Build() => new(
+        DoorsTouched,
+        CacheMs,
+        PrecalculateMs,
+        FloodFillMs,
+        MeshMs,
+        ElapsedMs,
+        ScrollMs,
+        WarmupMs,
+        FillMs,
+        FilledCells,
+        QuadMs,
+        PackMs);
 }

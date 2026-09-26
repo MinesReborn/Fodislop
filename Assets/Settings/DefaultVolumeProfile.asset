@@ -312,22 +312,6 @@ MonoBehaviour:
   tint:
     m_OverrideState: 1
     m_Value: {r: 1, g: 1, b: 1, a: 1}
---- !u!114 &-5648619660486152773
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 996afb401c6ff45f882623218512cf5b, type: 3}
-  m_Name: MotionBlurComponent
-  m_EditorClassIdentifier: Assembly-CSharp::Kern.Rendering.PostProcessing.MotionBlurComponent
-  active: 1
-  intensity:
-    m_OverrideState: 1
-    m_Value: 0
 --- !u!114 &-4244528812422069689
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -715,7 +699,6 @@ MonoBehaviour:
   - {fileID: 589368484139133588}
   - {fileID: 4119909782479700770}
   - {fileID: -6165366111512881764}
-  - {fileID: -5648619660486152773}
   - {fileID: 2620290625453124485}
   - {fileID: -1629418828966726489}
   - {fileID: 706138679262252285}
@@ -732,7 +715,6 @@ MonoBehaviour:
   - {fileID: -8845824707100210153}
   - {fileID: 1313164147148986656}
   - {fileID: -3249425112775911864}
-  - {fileID: 1843113406747026597}
   - {fileID: -3291442341143893385}
   - {fileID: -3502402503355023550}
 --- !u!114 &549961647254572129
@@ -835,31 +817,6 @@ MonoBehaviour:
   rounded:
     m_OverrideState: 1
     m_Value: 0
---- !u!114 &1843113406747026597
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ccf1aba9553839d41ae37dd52e9ebcce, type: 3}
-  m_Name: MotionBlur
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.MotionBlur
-  active: 1
-  mode:
-    m_OverrideState: 1
-    m_Value: 0
-  quality:
-    m_OverrideState: 1
-    m_Value: 0
-  intensity:
-    m_OverrideState: 1
-    m_Value: 0
-  clamp:
-    m_OverrideState: 1
-    m_Value: 0.05
 --- !u!114 &2620290625453124485
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -938,22 +895,6 @@ MonoBehaviour:
   texture:
     m_OverrideState: 1
     m_Value: {fileID: 0}
---- !u!114 &7056487251985366309
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 996afb401c6ff45f882623218512cf5b, type: 3}
-  m_Name: MotionBlurComponent
-  m_EditorClassIdentifier: Assembly-CSharp::Kern.Rendering.PostProcessing.MotionBlurComponent
-  active: 0
-  intensity:
-    m_OverrideState: 1
-    m_Value: 0
 --- !u!114 &8186967007110362811
 MonoBehaviour:
   m_ObjectHideFlags: 3

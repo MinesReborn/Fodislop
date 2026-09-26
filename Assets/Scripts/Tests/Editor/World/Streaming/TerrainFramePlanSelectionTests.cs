@@ -29,7 +29,8 @@ public sealed class TerrainFramePlanSelectionTests
             hasAnyResidentData: true,
             requestedDimensionsChanged: true,
             cellsCommitted: true,
-            cpuBuildInFlight: false);
+            cpuBuildInFlight: false,
+            holdingPublishedView: false);
 
         Assert.That(plan.ShouldProcess, Is.True);
         Assert.That(plan.ActiveWindow, Is.EqualTo(committed));
@@ -38,7 +39,7 @@ public sealed class TerrainFramePlanSelectionTests
     }
 
     [Test]
-    public void FallbackLightingViewportStaysInsideCommittedWindow()
+    public void CameraViewportOutsideCommittedWindowIsNotClampedIntoLightingDemand()
     {
         var calculator = new TerrainViewportCalculator();
         var committed = new StreamingWindow(new Vector2Int(0, 0), new Vector2Int(100, 80));
@@ -53,10 +54,11 @@ public sealed class TerrainFramePlanSelectionTests
             hasAnyResidentData: true,
             requestedDimensionsChanged: false,
             cellsCommitted: true,
-            cpuBuildInFlight: true);
+            cpuBuildInFlight: true,
+            holdingPublishedView: false);
 
         Assert.That(plan.ShouldProcess, Is.True);
-        Assert.That(plan.LightingViewport, Is.EqualTo(new RectInt(60, 0, 40, 30)));
+        Assert.That(plan.LightingViewport, Is.EqualTo(camera));
     }
 
     [Test]
@@ -74,7 +76,8 @@ public sealed class TerrainFramePlanSelectionTests
             hasAnyResidentData: false,
             requestedDimensionsChanged: false,
             cellsCommitted: false,
-            cpuBuildInFlight: false);
+            cpuBuildInFlight: false,
+            holdingPublishedView: false);
 
         Assert.That(plan.ShouldProcess, Is.False);
     }

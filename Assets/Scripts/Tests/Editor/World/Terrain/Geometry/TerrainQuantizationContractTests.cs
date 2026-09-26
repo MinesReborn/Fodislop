@@ -144,7 +144,7 @@ public sealed class TerrainQuantizationContractTests
     }
 
     [Test]
-    public void GeometrySourceQuantizesEveryCornerToThe32PixelGrid()
+    public void GeometrySourcePreservesContinuousCornersForFinalShaderQuantization()
     {
         TerrainCellGeometry geometry = TerrainCellGeometry.FromOffsets(
             new Vector3(0.037f, -0.021f, 0f),
@@ -152,42 +152,49 @@ public sealed class TerrainQuantizationContractTests
             new Vector3(0.028f, 0.046f, 0f),
             new Vector3(-0.031f, -0.038f, 0f));
 
-        Vector2[] corners =
-        [geometry.Corner00, geometry.Corner10, geometry.Corner11, geometry.Corner01];
-        foreach (Vector2 corner in corners)
-        {
-            Assert.That(corner.x * TerrainCellGeometry.GridSize,
-                Is.EqualTo(Mathf.Round(corner.x * TerrainCellGeometry.GridSize)).Within(0.0001f));
-            Assert.That(corner.y * TerrainCellGeometry.GridSize,
-                Is.EqualTo(Mathf.Round(corner.y * TerrainCellGeometry.GridSize)).Within(0.0001f));
-        }
+        Assert.That(geometry.Corner00.x, Is.EqualTo(0.037f).Within(0.00001f));
+        Assert.That(geometry.Corner00.y, Is.EqualTo(-0.021f).Within(0.00001f));
+        Assert.That(geometry.Corner10.x, Is.EqualTo(1f - 0.044f).Within(0.00001f));
+        Assert.That(geometry.Corner10.y, Is.EqualTo(0.019f).Within(0.00001f));
+        Assert.That(geometry.Corner11.x, Is.EqualTo(1f + 0.028f).Within(0.00001f));
+        Assert.That(geometry.Corner11.y, Is.EqualTo(1f + 0.046f).Within(0.00001f));
+        Assert.That(geometry.Corner01.x, Is.EqualTo(-0.031f).Within(0.00001f));
+        Assert.That(geometry.Corner01.y, Is.EqualTo(1f - 0.038f).Within(0.00001f));
     }
 
     [Test]
     public void ShaderSourceUsesOneCoverageContractAndPerCellGeometry()
     {
-        string terrain = ReadRepoFile("Assets", "Shaders", "Terrain.shader");
-        string contour = ReadRepoFile("Assets", "Shaders", "TerrainContour.hlsl");
-        string cellData = ReadRepoFile("Assets", "Shaders", "TerrainCellData.hlsl");
-        string cellBuilder = ReadRepoFile("Assets", "Scripts", "World", "Terrain", "Gpu", "TerrainCellBuilder.cs");
+        string terrain = ReadRepoFile("Assets", "Shaders", "Terrain", "Terrain.shader");
+        string contour = ReadRepoFile("Assets", "Shaders", "Terrain", "TerrainContour.hlsl");
+        string geometry = ReadRepoFile("Assets", "Shaders", "Terrain", "TerrainGeometry.hlsl");
+        string geometryContract = ReadRepoFile("Assets", "Shaders", "Terrain", "TerrainGeometryContract.hlsl");
+        string cellData = ReadRepoFile("Assets", "Shaders", "Terrain", "TerrainCellData.hlsl");
+        string cellGeometry = ReadRepoFile("Assets", "Scripts", "World", "Terrain", "Mesh", "TerrainCellGeometry.cs");
+        string cellPacker = ReadRepoFile("Assets", "Scripts", "World", "Terrain", "Gpu", "TerrainCellDataPacker.cs");
         string textures = ReadRepoFile("Assets", "Scripts", "World", "Terrain", "Gpu", "TerrainCellDataTextures.cs");
 
         Assert.That(CountOccurrences(terrain, "EvaluateTerrainCellCoverage("), Is.EqualTo(2));
-        Assert.That(CountOccurrences(terrain, "clip(cellCoverage - 0.5);"), Is.EqualTo(2));
-        Assert.That(CountOccurrences(contour, "TerrainGeometryCoverage("), Is.EqualTo(2));
-        // Объявление, прямое покрытие и органическое покрытие: обе формы
-        // контура квантуют точку одной и той же функцией.
-        Assert.That(CountOccurrences(contour, "QuantizeTerrainGeometryPoint("), Is.EqualTo(3));
-        Assert.That(contour, Does.Contain("float TerrainOrganicGeometryCoverage("));
-        Assert.That(contour, Does.Contain("KERN_TERRAIN_FACE_GRID_SIZE = 32.0"));
-        Assert.That(contour, Does.Contain("KERN_TERRAIN_GEOMETRY_EPSILON"));
+        Assert.That(CountOccurrences(terrain, "clip(cellCoverage - 0.5);"), Is.EqualTo(3));
+        Assert.That(CountOccurrences(contour, "TerrainGeometryCoverage("), Is.EqualTo(1));
+        // Geometry owns the polygon and distance rules; the shared contract
+        // owns the cell grid quantization used by its corner and bend points.
+        Assert.That(
+            CountOccurrences(geometry, "QuantizeTerrainGeometryPoint(") +
+            CountOccurrences(geometryContract, "QuantizeTerrainGeometryPoint("),
+            Is.EqualTo(3));
+        Assert.That(geometry, Does.Contain("float TerrainOrganicGeometryCoverage("));
+        Assert.That(geometryContract, Does.Contain("KERN_TERRAIN_FACE_GRID_SIZE = 32.0"));
+        Assert.That(geometry, Does.Contain("KERN_TERRAIN_GEOMETRY_EPSILON"));
         Assert.That(contour, Does.Contain("TerrainGeometryCoverage("));
         Assert.That(contour, Does.Not.Contain("edgeMargins"));
         Assert.That(cellData, Does.Contain("_TerrainCellGeometryX"));
         Assert.That(cellData, Does.Contain("_TerrainCellGeometryY"));
-        Assert.That(cellData, Does.Contain("if (layer == 0 && meta.b > 0.5)"));
-        Assert.That(cellData, Does.Contain("bool anchored = layer > 0 && meta.a > 0.5"));
-        Assert.That(cellBuilder, Does.Contain("if (vertex.UV5x != 0)"));
+        Assert.That(cellGeometry, Does.Not.Contain("Quantize("));
+        Assert.That(geometry, Does.Contain("TerrainGeometryRawCorner"));
+        Assert.That(cellData, Does.Contain("bool occludedBackground = layer == 0 && meta.b > 0.5"));
+        Assert.That(cellData, Does.Contain("DecodeTerrainGeometryMetadata(meta, layer > 0)"));
+        Assert.That(cellPacker, Does.Contain("v.UV5x != 0"));
         Assert.That(terrain, Does.Contain("applyGeometry = input.isForeground"));
         Assert.That(cellData, Does.Contain("v.atlasIndex = -1.0"));
         Assert.That(textures, Does.Contain("_geometryX.Data[index] = texels.GeometryX"));

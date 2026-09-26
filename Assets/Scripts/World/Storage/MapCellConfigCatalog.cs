@@ -123,12 +123,13 @@ public sealed class MapCellConfigCatalog
     /// </summary>
     public Color32 GetCellMinimapColor32(CellType type)
     {
+
         if (MapBlockColors.IsAuthored(type))
         {
             return MapBlockColors.GetColor32(type);
         }
 
-        var config = GetCellConfig(type);
+        CellConfigurationPacket config = GetCellConfig(type);
         if (config.Color != 0)
         {
             int argb = config.Color;

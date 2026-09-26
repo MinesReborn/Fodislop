@@ -4,7 +4,6 @@ using Kern;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using Cysharp.Threading.Tasks;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using MinesServer.Data;
@@ -29,7 +28,7 @@ public class TextureAtlas : IDisposable, IAtlasDescriptor
 
     public Texture2D? Texture => _atlasTexture;
 
-    private Color32[]? _atlasPixels;
+    private readonly AtlasPixelTransfer _pixelTransfer;
     private readonly ConcurrentDictionary<CellType, AtlasCell> _cells = new();
     private readonly AtlasRectanglePacker _packer;
     private readonly HashSet<CellType> _dirtyCells = new();
@@ -67,6 +66,7 @@ public class TextureAtlas : IDisposable, IAtlasDescriptor
         Size = size;
         CELL_SIZE = cellSize;
         Padding = padding;
+        _pixelTransfer = new AtlasPixelTransfer(size, padding);
         _textureResolver = textureResolver ?? throw new ArgumentNullException(nameof(textureResolver));
         _packer = new AtlasRectanglePacker(size, padding);
 
@@ -144,14 +144,21 @@ public class TextureAtlas : IDisposable, IAtlasDescriptor
 
     public void SetFullyOpaque(CellType cellType, bool opaque) => _fullyOpaque[cellType] = opaque;
 
-    // Альфа всех пикселей текстуры — только по CPU-читаемой текстуре.
-    // Нечитаемая (уже залитая на GPU) считается НЕпрозрачной: фон под ней
-    // дорисуется, картинка корректна, лишний fill дешевле синхронного
-    // GPU-readback. Старый путь Blit + ReadPixels ставил полный стал
-    // конвейера прямо на загрузке новых типов клеток при движении.
+    // Статические декодированные текстуры сохраняют признак непрозрачности
+    // до освобождения CPU-копии. Для остальных читаемых текстур проверяем
+    // альфу здесь без синхронного чтения с GPU.
     public static bool MeasureFullyOpaque(Texture2D texture)
     {
         const byte OpaqueAlpha = 250;
+        // RuntimeTextureFactory records alpha before releasing the CPU copy.
+        // On Metal, cell textures are normally GPU-only by the time they reach
+        // this atlas; treating every one as translucent retains a full
+        // background layer under otherwise opaque terrain.
+        if (RuntimeTextureFactory.TryGetDecodedOpacity(texture, out bool decodedOpaque))
+        {
+            return decodedOpaque;
+        }
+
         if (!texture.isReadable)
         {
             return false;
@@ -290,7 +297,8 @@ public class TextureAtlas : IDisposable, IAtlasDescriptor
 
     public void SyncApply()
     {
-        if (!_isDirty || _atlasTexture == null)
+        Texture2D? atlasTexture = _atlasTexture;
+        if (!_isDirty || atlasTexture == null)
         {
             return;
         }
@@ -311,24 +319,7 @@ public class TextureAtlas : IDisposable, IAtlasDescriptor
             }
         }
 
-        if (dirtyTextures.Count > 0 && RuntimeTextureFactory.SupportsTexture2DGpuCopy)
-        {
-            foreach (var (_, texture, rect) in dirtyTextures)
-            {
-                UploadGpuTexture(texture, rect);
-            }
-        }
-        else if (dirtyTextures.Count > 0)
-        {
-            EnsurePixelBuffer();
-            foreach (var (_, texture, rect) in dirtyTextures)
-            {
-                CopyPixelsToAtlasArray(texture.GetPixels32(), texture.width, texture.height, rect);
-            }
-
-            _atlasTexture.SetPixels32(_atlasPixels);
-            _atlasTexture.Apply(false, false);
-        }
+        _pixelTransfer.Apply(atlasTexture, dirtyTextures);
 
         lock (_lock)
         {
@@ -338,213 +329,6 @@ public class TextureAtlas : IDisposable, IAtlasDescriptor
             }
 
             _isDirty = _dirtyCells.Count > 0;
-        }
-    }
-
-    private void EnsurePixelBuffer()
-    {
-        _atlasPixels ??= new Color32[Size * Size];
-    }
-
-    private async UniTask CopyTexturesToAtlas(List<(Texture2D texture, Rectangle rect)> textures)
-    {
-        if (RuntimeTextureFactory.SupportsTexture2DGpuCopy)
-        {
-            await UniTask.SwitchToMainThread();
-            if (_atlasTexture != null)
-            {
-                foreach (var (texture, rect) in textures)
-                {
-                    UploadGpuTexture(texture, rect);
-                }
-            }
-
-            return;
-        }
-
-        const int BATCH_SIZE = 10;
-
-        EnsurePixelBuffer();
-
-        for (int i = 0; i < textures.Count; i += BATCH_SIZE)
-        {
-            int batchEnd = Math.Min(i + BATCH_SIZE, textures.Count);
-            var pixelDataList = new List<(Color32[] pixels, int width, int height, Rectangle rect)>(batchEnd - i);
-
-            for (int textureIndex = i; textureIndex < batchEnd; textureIndex++)
-            {
-                var (tex, rect) = textures[textureIndex];
-                if (tex != null)
-                {
-                    pixelDataList.Add((tex.GetPixels32(), tex.width, tex.height, rect));
-                }
-            }
-
-            await UniTask.SwitchToThreadPool();
-
-            foreach (var data in pixelDataList)
-            {
-                CopyPixelsToAtlasArray(data.pixels, data.width, data.height, data.rect);
-            }
-
-            await UniTask.SwitchToMainThread();
-        }
-
-        if (_atlasTexture != null && _atlasPixels != null)
-        {
-            _atlasTexture.SetPixels32(_atlasPixels);
-            _atlasTexture.Apply();
-        }
-    }
-
-    private void CopyPixelsToAtlasArray(Color32[] sourcePixels, int width, int height, Rectangle destination)
-    {
-        if (_atlasPixels == null)
-        {
-            throw new InvalidOperationException(
-                $"CPU pixel storage is unavailable for {Size}x{Size} atlas.");
-        }
-
-        if (sourcePixels.Length != checked(width * height))
-        {
-            throw new InvalidOperationException(
-                $"Source pixel count {sourcePixels.Length} does not match " +
-                $"the declared texture size {width}x{height}.");
-        }
-
-        if (width != destination.Width || height != destination.Height ||
-            destination.X < 0 || destination.Y < 0 ||
-            destination.X + width > Size || destination.Y + height > Size)
-        {
-            throw new InvalidOperationException(
-                $"Texture {width}x{height} cannot be copied into atlas rectangle " +
-                $"({destination.X}, {destination.Y}, " +
-                $"{destination.Width}, {destination.Height}) in {Size}x{Size} atlas.");
-        }
-
-        for (int y = 0; y < height; y++)
-        {
-            for (int x = 0; x < width; x++)
-            {
-                int sourceIndex = (y * width) + x;
-                int destX = destination.X + x;
-                int destY = destination.Y + y;
-                int destIndex = (destY * Size) + destX;
-                _atlasPixels[destIndex] = sourcePixels[sourceIndex];
-            }
-        }
-
-        // Extrude the source edge into every reserved gutter. Smooth atlas
-        // sampling can approach a region from any direction; padding only on
-        // the right and bottom still lets the left/top edge blend with the
-        // neighbouring region or the transparent atlas clear color.
-        for (int y = 0; y < height; y++)
-        {
-            Color32 leftEdge = sourcePixels[y * width];
-            Color32 rightEdge = sourcePixels[(y * width) + (width - 1)];
-            for (int padding = 1; padding <= Padding; padding++)
-            {
-                int row = (destination.Y + y) * Size;
-                _atlasPixels[row + destination.X - padding] = leftEdge;
-                _atlasPixels[row + destination.X + width + padding - 1] = rightEdge;
-            }
-        }
-
-        for (int padding = 1; padding <= Padding; padding++)
-        {
-            int topRow = (destination.Y - padding) * Size;
-            int bottomRow = (destination.Y + height + padding - 1) * Size;
-            for (int x = -Padding; x < width + Padding; x++)
-            {
-                int sourceX = Math.Clamp(x, 0, width - 1);
-                _atlasPixels[topRow + destination.X + x] = sourcePixels[sourceX];
-                _atlasPixels[bottomRow + destination.X + x] =
-                    sourcePixels[((height - 1) * width) + sourceX];
-            }
-        }
-    }
-
-    private void UploadGpuTexture(Texture2D source, Rectangle destination)
-    {
-        ValidateGpuCopySource(source, destination);
-        Graphics.CopyTexture(
-            source, 0, 0, 0, 0, source.width, source.height,
-            _atlasTexture, 0, 0, destination.X, destination.Y);
-
-        for (int padding = 1; padding <= Padding; padding++)
-        {
-            Graphics.CopyTexture(
-                source, 0, 0, 0, 0, 1, source.height,
-                _atlasTexture, 0, 0,
-                destination.X - padding,
-                destination.Y);
-
-            Graphics.CopyTexture(
-                source, 0, 0, source.width - 1, 0, 1, source.height,
-                _atlasTexture, 0, 0,
-                destination.X + source.width + padding - 1,
-                destination.Y);
-
-            Graphics.CopyTexture(
-                source, 0, 0, 0, 0, source.width, 1,
-                _atlasTexture, 0, 0,
-                destination.X,
-                destination.Y - padding);
-
-            Graphics.CopyTexture(
-                source, 0, 0, 0, source.height - 1, source.width, 1,
-                _atlasTexture, 0, 0,
-                destination.X,
-                destination.Y + source.height + padding - 1);
-
-            Graphics.CopyTexture(
-                source, 0, 0, 0, 0, 1, 1,
-                _atlasTexture, 0, 0,
-                destination.X - padding,
-                destination.Y - padding);
-
-            Graphics.CopyTexture(
-                source, 0, 0, source.width - 1, 0, 1, 1,
-                _atlasTexture, 0, 0,
-                destination.X + source.width + padding - 1,
-                destination.Y - padding);
-
-            Graphics.CopyTexture(
-                source, 0, 0, 0, source.height - 1, 1, 1,
-                _atlasTexture, 0, 0,
-                destination.X - padding,
-                destination.Y + source.height + padding - 1);
-
-            Graphics.CopyTexture(
-                source, 0, 0, source.width - 1, source.height - 1, 1, 1,
-                _atlasTexture, 0, 0,
-                destination.X + source.width + padding - 1,
-                destination.Y + source.height + padding - 1);
-        }
-    }
-
-    private void ValidateGpuCopySource(Texture2D source, Rectangle destination)
-    {
-        Texture2D atlasTexture = _atlasTexture ??
-            throw new ObjectDisposedException(
-                nameof(TextureAtlas),
-                "Cannot upload into a disposed terrain atlas.");
-        if (source.width != destination.Width ||
-            source.height != destination.Height)
-        {
-            throw new InvalidOperationException(
-                $"Terrain texture '{source.name}' is {source.width}x{source.height}, " +
-                $"but its reserved atlas rectangle is " +
-                $"{destination.Width}x{destination.Height}.");
-        }
-
-        if (source.graphicsFormat != atlasTexture.graphicsFormat)
-        {
-            throw new InvalidOperationException(
-                $"Terrain texture '{source.name}' uses GPU format " +
-                $"{source.graphicsFormat}, but atlas '{atlasTexture.name}' uses " +
-                $"{atlasTexture.graphicsFormat}. Runtime image decoding must " +
-                "canonicalize terrain textures before Graphics.CopyTexture.");
         }
     }
 

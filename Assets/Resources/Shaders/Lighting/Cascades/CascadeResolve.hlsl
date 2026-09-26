@@ -16,9 +16,7 @@ void ResolveDirect(uint3 dispatchId : SV_DispatchThreadID)
     }
 
     int2 pixel = int2(dispatchId.xy);
-    int2 samplePixel = pixel;
-    GetBlockSnappedPixel(pixel, samplePixel);
-    int probeIndex = samplePixel.y * _FieldSize.x + samplePixel.x;
+    int probeIndex = pixel.y * _FieldSize.x + pixel.x;
     float3 radiance = 0.0;
 
     [unroll]

@@ -96,20 +96,32 @@ public readonly record struct ColorGradeSnapshot
     public ColorGradeSnapshot()
     {
         EnabledMask = (1 << 6) - 1;
-        Contrast = 0f;
-        Slope = Vector3.one;
-        Offset = Vector3.zero;
-        Power = Vector3.one;
+        Transform = PostProcessLook.Grade.Transform;
+        Exposure = PostProcessLook.ColorGrading.Exposure;
+        Contrast = PostProcessLook.ColorGrading.Contrast;
+        Temperature = PostProcessLook.Grade.Temperature;
+        Tint = PostProcessLook.Grade.Tint;
+        Slope = PostProcessLook.Grade.Slope;
+        Offset = PostProcessLook.Grade.Offset;
+        Power = PostProcessLook.Grade.Power;
         WhitePoint = PostProcessLook.Grade.WhitePoint;
-        PrimaryLift = Vector3.zero;
-        PrimaryGamma = Vector3.one;
-        PrimaryGain = Vector3.one;
-        PrimaryOffset = Vector3.zero;
-        PrimaryMaster = new Vector4(0f, 1f, 1f, 0f);
-        CdlMaster = new Vector3(1f, 0f, 1f);
-        CdlSaturation = 1f;
+        PrimaryLift = PostProcessLook.Grade.PrimaryLift;
+        PrimaryGamma = PostProcessLook.Grade.PrimaryGamma;
+        PrimaryGain = PostProcessLook.Grade.PrimaryGain;
+        PrimaryOffset = PostProcessLook.Grade.PrimaryOffset;
+        PrimaryMaster = PostProcessLook.Grade.PrimaryMaster;
+        CdlMaster = PostProcessLook.ColorGrading.CdlMaster;
+        CdlSaturation = PostProcessLook.ColorGrading.CdlSaturation;
         Saturation = PostProcessLook.ColorGrading.Saturation;
-        Pivot = 0.5f;
+        Vibrance = PostProcessLook.ColorGrading.Vibrance;
+        Pivot = PostProcessLook.ColorGrading.ContrastPivot;
+        Shadows = PostProcessLook.ColorGrading.TonalAdjustment;
+        Highlights = PostProcessLook.ColorGrading.TonalAdjustment;
+        Blacks = PostProcessLook.ColorGrading.TonalAdjustment;
+        Whites = PostProcessLook.ColorGrading.TonalAdjustment;
+        Toe = PostProcessLook.ColorGrading.TonalAdjustment;
+        Shoulder = PostProcessLook.ColorGrading.TonalAdjustment;
+        Hue = PostProcessLook.ColorGrading.Hue;
         GreyOut = PostProcessLook.Grade.GreyOut;
         ShoulderPower = PostProcessLook.Grade.ShoulderPower;
         ToePower = PostProcessLook.Grade.ToePower;
@@ -149,28 +161,28 @@ public readonly record struct ColorGradeSnapshot
         Exposure = PostProcessLook.ColorGrading.Exposure,
         Contrast = PostProcessLook.ColorGrading.Contrast,
         WhitePoint = PostProcessLook.Grade.WhitePoint,
-        Pivot = 0.5f,
-        Shadows = 0f,
-        Highlights = 0f,
-        Blacks = 0f,
-        Whites = 0f,
-        Toe = 0f,
-        Shoulder = 0f,
+        Pivot = PostProcessLook.ColorGrading.ContrastPivot,
+        Shadows = PostProcessLook.ColorGrading.TonalAdjustment,
+        Highlights = PostProcessLook.ColorGrading.TonalAdjustment,
+        Blacks = PostProcessLook.ColorGrading.TonalAdjustment,
+        Whites = PostProcessLook.ColorGrading.TonalAdjustment,
+        Toe = PostProcessLook.ColorGrading.TonalAdjustment,
+        Shoulder = PostProcessLook.ColorGrading.TonalAdjustment,
         Temperature = PostProcessLook.Grade.Temperature,
         Tint = PostProcessLook.Grade.Tint,
         Slope = PostProcessLook.Grade.Slope,
         Offset = PostProcessLook.Grade.Offset,
         Power = PostProcessLook.Grade.Power,
-        PrimaryLift = Vector3.zero,
-        PrimaryGamma = Vector3.one,
-        PrimaryGain = Vector3.one,
-        PrimaryOffset = Vector3.zero,
-        PrimaryMaster = new Vector4(0f, 1f, 1f, 0f),
-        Vibrance = 0f,
+        PrimaryLift = PostProcessLook.Grade.PrimaryLift,
+        PrimaryGamma = PostProcessLook.Grade.PrimaryGamma,
+        PrimaryGain = PostProcessLook.Grade.PrimaryGain,
+        PrimaryOffset = PostProcessLook.Grade.PrimaryOffset,
+        PrimaryMaster = PostProcessLook.Grade.PrimaryMaster,
+        Vibrance = PostProcessLook.ColorGrading.Vibrance,
         Saturation = PostProcessLook.ColorGrading.Saturation,
-        CdlSaturation = 1f,
-        Hue = 0f,
-        CdlMaster = new Vector3(1f, 0f, 1f),
+        CdlSaturation = PostProcessLook.ColorGrading.CdlSaturation,
+        Hue = PostProcessLook.ColorGrading.Hue,
+        CdlMaster = PostProcessLook.ColorGrading.CdlMaster,
         GreyOut = PostProcessLook.Grade.GreyOut,
         ShoulderPower = PostProcessLook.Grade.ShoulderPower,
         ToePower = PostProcessLook.Grade.ToePower,
@@ -314,15 +326,24 @@ public readonly record struct ColorGradeSnapshot
     // Входы творческого прохода (всё, что запекается в таблицу) в нейтрали:
     // композит тогда возвращает тот же цвет, и проход не нужен.
     public bool IsCreativeNeutral =>
-        Temperature == 0f && Tint == 0f &&
-        Slope == Vector3.one && Offset == Vector3.zero && Power == Vector3.one &&
-        CdlMaster == new Vector3(1f, 0f, 1f) && CdlSaturation == 1f &&
-        PrimaryLift == Vector3.zero && PrimaryGamma == Vector3.one &&
-        PrimaryGain == Vector3.one && PrimaryOffset == Vector3.zero &&
-        PrimaryMaster == new Vector4(0f, 1f, 1f, 0f) &&
-        Vibrance == 0f && Hue == 0f &&
-        Shadows == 0f && Highlights == 0f && Blacks == 0f &&
-        Whites == 0f && Toe == 0f && Shoulder == 0f &&
+        Temperature == PostProcessLook.Grade.Temperature && Tint == PostProcessLook.Grade.Tint &&
+        Slope == PostProcessLook.Grade.Slope && Offset == PostProcessLook.Grade.Offset &&
+        Power == PostProcessLook.Grade.Power &&
+        CdlMaster == PostProcessLook.ColorGrading.CdlMaster &&
+        CdlSaturation == PostProcessLook.ColorGrading.CdlSaturation &&
+        PrimaryLift == PostProcessLook.Grade.PrimaryLift &&
+        PrimaryGamma == PostProcessLook.Grade.PrimaryGamma &&
+        PrimaryGain == PostProcessLook.Grade.PrimaryGain &&
+        PrimaryOffset == PostProcessLook.Grade.PrimaryOffset &&
+        PrimaryMaster == PostProcessLook.Grade.PrimaryMaster &&
+        Vibrance == PostProcessLook.ColorGrading.Vibrance &&
+        Hue == PostProcessLook.ColorGrading.Hue &&
+        Shadows == PostProcessLook.ColorGrading.TonalAdjustment &&
+        Highlights == PostProcessLook.ColorGrading.TonalAdjustment &&
+        Blacks == PostProcessLook.ColorGrading.TonalAdjustment &&
+        Whites == PostProcessLook.ColorGrading.TonalAdjustment &&
+        Toe == PostProcessLook.ColorGrading.TonalAdjustment &&
+        Shoulder == PostProcessLook.ColorGrading.TonalAdjustment &&
         !Qualifier.Enabled &&
         HueVsHueCurve.IsNeutral && HueVsSaturationCurve.IsNeutral &&
         HueVsLuminanceCurve.IsNeutral && LuminanceVsSaturationCurve.IsNeutral &&

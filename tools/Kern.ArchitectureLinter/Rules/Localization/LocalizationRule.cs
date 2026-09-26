@@ -203,7 +203,7 @@ public sealed class LocalizationRule : IRule
         var uiDir = Path.Combine(projectRoot, UIDir);
         if (Directory.Exists(uiDir))
         {
-            foreach (var file in Directory.EnumerateFiles(uiDir, "*.uxml"))
+            foreach (var file in SourceScanner.EnumerateUxmlFiles(uiDir))
             {
                 var content = File.ReadAllText(file);
                 foreach (Match m in Regex.Matches(content, @"(?:text|tooltip)=""([^""]*)"""))

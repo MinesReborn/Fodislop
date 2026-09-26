@@ -79,7 +79,7 @@ Determine what the user is asking for:
 | Type | Convention | Good | Bad |
 |------|------------|------|-----|
 | GameObject names | PascalCase | `SubmitButton` | `submit-button` |
-| Prefab paths | Feature folders | `Assets/UI/Inventory/` | `Assets/Prefabs/UI/` |
+| Prefab paths | Feature folders | `Assets/UI/Gameplay/Inventory/` | `Assets/Prefabs/UI/` |
 
 ## Workflow
 

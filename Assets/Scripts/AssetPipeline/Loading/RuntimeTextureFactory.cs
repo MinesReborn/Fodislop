@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -14,8 +15,32 @@ public enum RuntimeTextureColorSpace
 
 public static class RuntimeTextureFactory
 {
+    private sealed class TextureOpacity
+    {
+        public TextureOpacity(bool fullyOpaque)
+        {
+            FullyOpaque = fullyOpaque;
+        }
+
+        public bool FullyOpaque { get; }
+    }
+
+    private static readonly ConditionalWeakTable<Texture2D, TextureOpacity> _decodedOpacity = new();
+
     public static bool SupportsTexture2DGpuCopy =>
         (SystemInfo.copyTextureSupport & CopyTextureSupport.Basic) != 0;
+
+    public static bool TryGetDecodedOpacity(Texture2D texture, out bool fullyOpaque)
+    {
+        if (_decodedOpacity.TryGetValue(texture, out TextureOpacity opacity))
+        {
+            fullyOpaque = opacity.FullyOpaque;
+            return true;
+        }
+
+        fullyOpaque = false;
+        return false;
+    }
 
     public static Texture2D CreateRGBA32NoMip(
         int width,
@@ -33,24 +58,6 @@ public static class RuntimeTextureFactory
             filterMode,
             wrapMode,
             mipChain: false);
-    }
-
-    public static Texture2D CreateRGBA32WithMipmaps(
-        int width,
-        int height,
-        string name,
-        RuntimeTextureColorSpace colorSpace,
-        FilterMode filterMode,
-        TextureWrapMode wrapMode)
-    {
-        return CreateRGBA32(
-            width,
-            height,
-            name,
-            colorSpace,
-            filterMode,
-            wrapMode,
-            mipChain: true);
     }
 
     private static Texture2D CreateRGBA32(
@@ -262,10 +269,22 @@ public static class RuntimeTextureFactory
             wrapMode);
         try
         {
-            result.SetPixels32(source.GetPixels32());
+            Color32[] pixels = source.GetPixels32();
+            bool fullyOpaque = true;
+            for (int index = 0; index < pixels.Length; index++)
+            {
+                if (pixels[index].a < 250)
+                {
+                    fullyOpaque = false;
+                    break;
+                }
+            }
+
+            result.SetPixels32(pixels);
             result.Apply(
                 updateMipmaps: false,
                 makeNoLongerReadable: makeNoLongerReadable);
+            _decodedOpacity.Add(result, new TextureOpacity(fullyOpaque));
             return result;
         }
         catch

@@ -21,8 +21,8 @@ public sealed class SceneScopeInjectionRule : IRule
 
     private static readonly (string File, string Component, string InjectVar)[] Contracts = new[]
     {
-        ("Assets/Scripts/Core/Bootstrap/GatewayLifetimeScope.cs", "GatewayController", "controller"),
-        ("Assets/Scripts/Core/Bootstrap/MainMenuLifetimeScope.cs", "MainMenu", "controller"),
+        ("Assets/Scripts/Core/Bootstrap/Scopes/GatewayLifetimeScope.cs", "GatewayController", "controller"),
+        ("Assets/Scripts/Core/Bootstrap/Scopes/MainMenuLifetimeScope.cs", "MainMenu", "controller"),
     };
 
     public Task<IReadOnlyList<RuleViolation>> EvaluateAsync(

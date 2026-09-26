@@ -624,23 +624,11 @@ function applyColorblindTheme(val) {
 }
 
 /* Канонический контракт — атрибут на <html> (css/tokens.css §3, css/base.css).
-   Раньше здесь вешался класс .reduce-motion на <body>, которого не ловил никто:
-   тумблер в настройках не делал ничего. Три записи контракта сведены к одной. */
-function toggleReduceMotion(enabled) {
-  document.documentElement.setAttribute('data-reduce-motion', enabled ? 'true' : 'false');
-}
-
-/* Системная настройка гасит шкалу длительностей (tokens.css §3), пользовательский
-   тумблер останавливает бесконечные циклы (base.css) — это разные средства, и
-   поэтому оба нужны. Но стартовать тумблер обязан из системного значения, иначе
-   при включённой настройке ОС он показывает «выключено» и на вид ничего не делает. */
+   Пользовательский тумблер ушёл вместе с настройкой фоточувствительности игры,
+   поэтому атрибут ставится только из системной настройки. */
 function initReduceMotion() {
-  const select = document.getElementById('reduceMotionSelect');
   const system = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   document.documentElement.setAttribute('data-reduce-motion', system ? 'true' : 'false');
-  if (select) {
-    select.value = system ? 'yes' : 'no';
-  }
 }
 
 // ----------------------------------------------------

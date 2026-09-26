@@ -20,7 +20,7 @@ public class Tooltip
         VisualTreeAsset template = Resources.Load<VisualTreeAsset>(
             ProjectRuntimeContracts.ResourcePaths.TooltipUxml) ??
             throw new InvalidOperationException(
-                "[Tooltip] Resources/UI/Tooltip.uxml is required.");
+                "[Tooltip] Resources/UI/Overlays/Tooltip.uxml is required.");
         TemplateContainer tree = template.Instantiate();
         _tooltipElement = tree;
 

@@ -54,7 +54,7 @@ internal sealed class MapTextureController
             TexHeight,
             "WorldMapTexture",
             RuntimeTextureColorSpace.Srgb,
-            FilterMode.Bilinear,
+            FilterMode.Point,
             TextureWrapMode.Clamp);
 
         // new Texture2D не инициализирует пиксели, и до первого Render панель

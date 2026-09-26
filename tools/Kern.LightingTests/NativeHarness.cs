@@ -16,9 +16,9 @@ internal static class NativeHarness
         "MaterialPixel", "IsSolidOccupancy",
         "SampleOccupancy", "PathLengthInCells", "SampleCellSolid", "CheckCellSolid",
         "ClipSegmentToField", "EmissiveBoxExit", "CellOfTexel",
-        "BuildCellSolidMask", "CheckDiagonalStepOccluded", "DirtySegmentOverlap",
+        "BuildCellSolidMask", "BuildSurfaceAirCache", "CheckDiagonalStepOccluded", "DirtySegmentOverlap",
         "CascadeEntryMayChange", "AbsorbedFraction", "CellEmissionWeight", "TraceLightSegment",
-        "TraceRadianceSegment", "GatherDynamicSource", "DynamicEmitterPoint", "TraceDynamicPolar",
+        "TraceRadianceSegment", "GatherDynamicSource", "DynamicEmitterPoint", "WriteDynamicPolar", "TraceDynamicPolar",
         "PolarOpticalDepth", "DynamicRadianceFromPolar", "SolveDynamicLighting", "ComposeDynamicLighting",
         "PackRadiance", "UnpackRadiance", "PackInterval", "UnpackTransmittance", "SolveCascade",
         "InterleavedGradientNoise", "SurfaceReflection",
@@ -46,25 +46,6 @@ internal static class NativeHarness
         return CompileAndRun(source, "lighting-transport", TimeSpan.FromSeconds(90));
     }
 
-    public static int RunEquivalence(string repositoryRoot, string referencePath, string candidatePath)
-    {
-        string fixtureRoot = Path.Combine(repositoryRoot, "tools/Kern.LightingTests");
-        string shim = File.ReadAllText(Path.Combine(fixtureRoot, "NativeTransportShim.cpp"));
-        string scenario = File.ReadAllText(Path.Combine(fixtureRoot, "NativeEquivalenceScenario.cpp"));
-        string reference = RunShader(repositoryRoot, referencePath, "reference", shim, scenario);
-        string candidate = RunShader(repositoryRoot, candidatePath, "candidate", shim, scenario);
-        string[] expected = reference.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        string[] actual = candidate.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        if (!expected.SequenceEqual(actual, StringComparer.Ordinal))
-        {
-            Console.Error.WriteLine("shader equivalence failed: native outputs differ");
-            return 1;
-        }
-
-        Console.WriteLine("shader equivalence passed: native outputs are bit-identical.");
-        return 0;
-    }
-
     public static int CompileShaders(string repositoryRoot, string? validator)
     {
         string computePath = Path.Combine(repositoryRoot, "Assets/Resources/Shaders/Lighting/WorldLighting.compute");
@@ -79,7 +60,7 @@ internal static class NativeHarness
                 string entry = match.Groups[1].Value;
                 ProcessResult result = RunProcess(
                     executable,
-                    ["-D", "-V", "-S", "comp", "-e", entry, computePath, "-o", Path.Combine(temporaryDirectory, entry + ".spv")],
+                    ["-D", "-V", "-S", "comp", "-e", entry, "-I", repositoryRoot, computePath, "-o", Path.Combine(temporaryDirectory, entry + ".spv")],
                     TimeSpan.FromSeconds(90));
                 if (result.ExitCode != 0)
                 {
@@ -96,25 +77,6 @@ internal static class NativeHarness
         {
             Directory.Delete(temporaryDirectory, recursive: true);
         }
-    }
-
-    private static string RunShader(
-        string repositoryRoot,
-        string shaderPath,
-        string name,
-        string shim,
-        string scenario)
-    {
-        string resolvedPath = Path.IsPathRooted(shaderPath)
-            ? shaderPath
-            : Path.Combine(repositoryRoot, shaderPath);
-        string shader = ExpandIncludes(resolvedPath, repositoryRoot);
-        string code = ExtractFunctions(shader, shim);
-        string prefix = shader.Contains("void BuildCellSolidMask(", StringComparison.Ordinal)
-            ? "#define CACHED\n"
-            : string.Empty;
-        string source = prefix + shim + Environment.NewLine + code + Environment.NewLine + scenario;
-        return CompileAndCapture(source, "lighting-equivalence-" + name, TimeSpan.FromMinutes(10));
     }
 
     private static string ExpandIncludes(string path, string repositoryRoot)

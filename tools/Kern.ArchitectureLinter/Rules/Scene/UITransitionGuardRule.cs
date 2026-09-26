@@ -48,9 +48,9 @@ public sealed class UITransitionGuardRule : IRule
         }
 
         // Gateway guard
-        var gatewayPath = Path.Combine(projectRoot, "Assets/Scripts/UI/Gateway/GatewayController.cs");
+        var gatewayPath = Path.Combine(projectRoot, "Assets/Scripts/UI/Menus/Gateway/GatewayController.cs");
         if (!File.Exists(gatewayPath))
-            gatewayPath = Path.Combine(projectRoot, "Assets/Scripts/UI/GatewayController.cs");
+            gatewayPath = Path.Combine(projectRoot, "Assets/Scripts/UI/Menus/GatewayController.cs");
 
         if (File.Exists(gatewayPath))
         {
@@ -62,7 +62,7 @@ public sealed class UITransitionGuardRule : IRule
                     RuleId = Id,
                     Message = "Gateway-to-menu transition должен быть защищён от дублированной активации.",
                     Severity = Severity,
-                    TypeName = "Assets/Scripts/UI/Gateway/GatewayController.cs"
+                    TypeName = "Assets/Scripts/UI/Menus/Gateway/GatewayController.cs"
                 });
             }
         }

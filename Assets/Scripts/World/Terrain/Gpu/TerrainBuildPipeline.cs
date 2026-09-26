@@ -14,16 +14,6 @@ using UnityEngine;
 
 namespace Kern.World.Terrain;
 
-/// <summary>Источники данных и размер окна для одного прохода сборки.</summary>
-public readonly record struct TerrainBuildContext(
-    IWorldDataStorage Storage,
-    IMapDataProvider MapData,
-    ITextureService TextureService,
-    IReadOnlyList<IAtlasDescriptor> Atlases,
-    IFrameTelemetry Telemetry,
-    int MeshWidth,
-    int MeshHeight);
-
 /// <summary>
 /// Путь клетки от данных мира до текселя: кэш → предрасчёт → заливка фона →
 /// тексели.
@@ -43,16 +33,13 @@ public sealed class TerrainBuildPipeline : IDisposable
 {
     private static readonly ProfilerMarker _CacheMarker = new("Kern.Terrain.Cache");
 
-    // Пустой набор типов для шагов без перечитывания текстур. Рабочий поток
-    // его только читает, поэтому один экземпляр на все шаги.
-    private static readonly HashSet<CellType> _NoTextureTypes = [];
-
     private readonly TerrainCellCache _cellCache = new();
     private readonly TerrainPrecalculator _precalc = new();
     private readonly BackgroundFloodFill _floodFill = new();
     private readonly TerrainCellBuilder _cellBuilder = new();
     private readonly List<IAtlasDescriptor> _snapshotSources = [];
     private IAtlasDescriptor[] _atlasSnapshots = [];
+    private ulong _atlasRevision;
 
     public TerrainCellCache CellCache => _cellCache;
 
@@ -84,6 +71,8 @@ public sealed class TerrainBuildPipeline : IDisposable
     /// <summary>Сколько стоил рабочему потоку последний опубликованный шаг.</summary>
     public TerrainWorkerCost LastWorkerCost { get; private set; }
 
+    public ulong AtlasRevision => _atlasRevision;
+
     public void EnsureCapacity(int meshWidth, int meshHeight, float cellSize)
     {
         _cellCache.EnsureCapacity(meshWidth, meshHeight);
@@ -93,16 +82,14 @@ public sealed class TerrainBuildPipeline : IDisposable
     }
 
     /// <summary>Источники для главного потока: накладка дверей после публикации.</summary>
-    public TerrainCellSources CreateSources(in TerrainBuildContext context) =>
+    internal TerrainCellSources CreateSources(TerrainCpuBuildRequest request) =>
         new(
             _cellCache,
             _precalc,
             _floodFill,
-            context.MapData.WorldWidth,
-            context.MapData.WorldHeight,
-            context.Atlases,
-            context.MapData,
-            context.TextureService);
+            request.WorldWidth,
+            request.WorldHeight,
+            request.Atlases);
 
     /// <summary>
     /// Главный поток: довести кэш клеток до шага и составить задание рабочему.
@@ -122,6 +109,7 @@ public sealed class TerrainBuildPipeline : IDisposable
     /// </param>
     internal TerrainCpuBuildRequest Prepare(
         in TerrainBuildContext context,
+        IReadOnlyList<IAtlasDescriptor> atlases,
         Vector2Int origin,
         bool forceFull,
         bool rebuildAllCells,
@@ -154,7 +142,7 @@ public sealed class TerrainBuildPipeline : IDisposable
             if (textureTypes.Count > 0 && _cellCache.CacheMinX != int.MinValue)
             {
                 _cellCache.CaptureTextureRefresh(
-                    textureTypes, context.MapData, context.TextureService, context.Atlases);
+                    textureTypes, context.MapData, context.TextureService, atlases);
             }
 
             if (!canScrollCache)
@@ -162,13 +150,13 @@ public sealed class TerrainBuildPipeline : IDisposable
                 telemetry.TerrainFullPopulateCount++;
                 _cellCache.CaptureFull(
                     minX, minY, context.Storage, context.MapData,
-                    context.TextureService, context.Atlases);
+                    context.TextureService, atlases);
             }
             else if (scrollDelta != Vector2Int.zero)
             {
                 _cellCache.CaptureScroll(
                     cacheDeltaX, cacheDeltaY, context.Storage, context.MapData,
-                    context.TextureService, context.Atlases);
+                    context.TextureService, atlases);
             }
 
             if (canScrollCache)
@@ -184,43 +172,50 @@ public sealed class TerrainBuildPipeline : IDisposable
                         context.Storage,
                         context.MapData,
                         context.TextureService,
-                        context.Atlases);
+                        atlases);
                 }
             }
 
             _cellCache.ResolveCapturedTypes(
-                context.MapData, context.TextureService, context.Atlases);
+                context.MapData, context.TextureService, atlases);
         }
 
         telemetry.TerrainCacheTimeMs += ElapsedMs(cacheStart);
 
-        IReadOnlyList<IAtlasDescriptor> atlases = CaptureAtlases(context.Atlases, textureTypes.Count > 0 || !canScrollCache);
+        IReadOnlyList<IAtlasDescriptor> atlasSnapshots = CaptureAtlases(
+            atlases,
+            textureTypes.Count > 0);
 
         bool buildFull = !canScrollCache || rebuildAllCells;
-        RectInt[] rects = buildFull ? [] : new RectInt[dirtyRects.Count];
-        for (int index = 0; index < rects.Length; index++)
+        TerrainWorldCellRegion[] regions = buildFull
+            ? []
+            : new TerrainWorldCellRegion[dirtyRects.Count];
+        for (int index = 0; index < regions.Length; index++)
         {
-            rects[index] = dirtyRects[index];
+            regions[index] = new TerrainWorldCellRegion(dirtyRects[index]);
         }
 
-        if (rects.Length > 0)
+        if (regions.Length > 0)
         {
             telemetry.TerrainDirtyPatchCount++;
         }
 
         return new TerrainCpuBuildRequest(
-            origin,
-            new Vector2Int(context.MeshWidth, context.MeshHeight),
-            canScrollCache,
-            scrollDelta,
-            buildFull,
-            atlases,
-            context.MapData.WorldWidth,
-            context.MapData.WorldHeight,
-            rects,
-            buildFull || textureTypes.Count == 0 ? _NoTextureTypes : new HashSet<CellType>(textureTypes),
-            contentRevision,
-            worldGeneration);
+            origin: origin,
+            size: new Vector2Int(context.MeshWidth, context.MeshHeight),
+            cacheScrolled: canScrollCache,
+            scrollDelta: scrollDelta,
+            buildFull: buildFull,
+            atlases: atlasSnapshots,
+            worldWidth: context.MapData.WorldWidth,
+            worldHeight: context.MapData.WorldHeight,
+            dirtyRegions: regions,
+            textureTypes: buildFull || textureTypes.Count == 0
+                ? default
+                : TerrainCellTypeSet.Capture(textureTypes),
+            contentRevision: contentRevision,
+            worldGeneration: worldGeneration,
+            atlasRevision: _atlasRevision);
     }
 
     /// <summary>
@@ -235,9 +230,7 @@ public sealed class TerrainBuildPipeline : IDisposable
         CancellationToken cancellationToken)
     {
         long start = Stopwatch.GetTimestamp();
-        var result = new TerrainCpuBuildResult();
-        int meshWidth = request.Size.x;
-        int meshHeight = request.Size.y;
+        var result = new TerrainCpuBuildResultBuilder();
         int minX = request.Origin.x;
         int minY = request.Origin.y;
         TerrainCellSources sources = new(
@@ -246,9 +239,11 @@ public sealed class TerrainBuildPipeline : IDisposable
             _floodFill,
             request.WorldWidth,
             request.WorldHeight,
-            request.Atlases,
-            null,
-            null);
+            request.Atlases);
+        var precalculation = new TerrainPrecalculationInput(
+            _cellCache,
+            request.Size,
+            new Vector2Int(request.WorldWidth, request.WorldHeight));
 
         long cacheStart = Stopwatch.GetTimestamp();
         _cellCache.ApplyPendingCapture();
@@ -259,45 +254,50 @@ public sealed class TerrainBuildPipeline : IDisposable
         bool moved = request.BuildFull || request.ScrollDelta != Vector2Int.zero;
         if (moved)
         {
-            RunWindowStages(request, sources, result, cancellationToken);
+            RunWindowStages(request, precalculation, sources, result, cancellationToken);
         }
 
-        for (int index = 0; index < request.DirtyRects.Length; index++)
+        for (int index = 0; index < request.DirtyRegions.Length; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             // Прямоугольник снят в координатах окна до сдвига: после сдвига он
             // может частично или целиком выйти за окно. Вышедшая часть уехала
             // вместе с окном, вошедшая уже собрана полосой из свежего кэша.
-            RectInt rect = request.DirtyRects[index];
-            int localStartX = Math.Max(0, rect.xMin - 1 - minX);
-            int localStartY = Math.Max(0, rect.yMin - 1 - minY);
-            int countX = Math.Min(meshWidth, rect.xMax + 1 - minX) - localStartX;
-            int countY = Math.Min(meshHeight, rect.yMax + 1 - minY) - localStartY;
-            if (countX <= 0 || countY <= 0)
+            TerrainWindowCellRegion region = request.DirtyRegions[index].ToWindowLocal(
+                request.Origin,
+                request.Size,
+                neighbourHalo: 1);
+            if (region.IsEmpty)
             {
                 continue;
             }
 
             long precalculateStart = Stopwatch.GetTimestamp();
             _precalc.PrecalculateRegion(
-                _cellCache, meshWidth, meshHeight,
-                localStartX, localStartY, countX, countY,
-                request.WorldWidth, request.WorldHeight);
+                precalculation,
+                region);
             result.PrecalculateMs += ElapsedMs(precalculateStart);
 
             long floodStart = Stopwatch.GetTimestamp();
-            _floodFill.UpdateLocalRegion(localStartX, localStartY, countX, countY, _cellCache);
+            _floodFill.UpdateLocalRegion(
+                region.StartX, region.StartY, region.CountX, region.CountY, _cellCache);
             result.FloodFillMs += ElapsedMs(floodStart);
 
             long meshStart = Stopwatch.GetTimestamp();
             _cellBuilder.BuildRegion(
-                sources, minX, minY, localStartX, localStartY, countX, countY);
+                sources,
+                minX,
+                minY,
+                region.StartX,
+                region.StartY,
+                region.CountX,
+                region.CountY);
             result.DoorsTouched |= _cellBuilder.DoorsTouched;
             result.AddBuilderStages(_cellBuilder);
             result.MeshMs += ElapsedMs(meshStart);
         }
 
-        if (request.TextureTypes.Count > 0)
+        if (!request.TextureTypes.IsEmpty)
         {
             cancellationToken.ThrowIfCancellationRequested();
             long meshStart = Stopwatch.GetTimestamp();
@@ -308,17 +308,16 @@ public sealed class TerrainBuildPipeline : IDisposable
         }
 
         result.ElapsedMs = ElapsedMs(start);
-        return result;
+        return result.Build();
     }
 
     private void RunWindowStages(
         TerrainCpuBuildRequest request,
+        in TerrainPrecalculationInput precalculation,
         in TerrainCellSources sources,
-        TerrainCpuBuildResult result,
+        TerrainCpuBuildResultBuilder result,
         CancellationToken cancellationToken)
     {
-        int meshWidth = request.Size.x;
-        int meshHeight = request.Size.y;
         cancellationToken.ThrowIfCancellationRequested();
         // Полная сборка текселей идёт по полному предрасчёту и заливке: после
         // пачки изменений приращение по сдвигу не покрыло бы изменённые
@@ -328,15 +327,13 @@ public sealed class TerrainBuildPipeline : IDisposable
         if (incremental)
         {
             _precalc.PrecalculateIncremental(
-                _cellCache, meshWidth, meshHeight,
-                request.ScrollDelta.x, request.ScrollDelta.y,
-                request.WorldWidth, request.WorldHeight);
+                precalculation,
+                request.ScrollDelta);
         }
         else
         {
             _precalc.PrecalculateFull(
-                _cellCache, meshWidth, meshHeight,
-                request.WorldWidth, request.WorldHeight);
+                precalculation);
         }
 
         result.PrecalculateMs += ElapsedMs(precalculateStart);
@@ -400,6 +397,11 @@ public sealed class TerrainBuildPipeline : IDisposable
             return _atlasSnapshots;
         }
 
+        if (_atlasRevision == ulong.MaxValue)
+        {
+            throw new InvalidOperationException("Terrain atlas revision overflowed.");
+        }
+
         var snapshots = new IAtlasDescriptor[atlases.Count];
         for (int index = 0; index < snapshots.Length; index++)
         {
@@ -413,7 +415,28 @@ public sealed class TerrainBuildPipeline : IDisposable
         }
 
         _atlasSnapshots = snapshots;
+        _atlasRevision++;
         return snapshots;
+    }
+
+    internal bool IsAtlasSnapshotCurrent(
+        TerrainCpuBuildRequest request,
+        IReadOnlyList<IAtlasDescriptor> atlases)
+    {
+        if (request.AtlasRevision != _atlasRevision || atlases.Count != _snapshotSources.Count)
+        {
+            return false;
+        }
+
+        for (int index = 0; index < atlases.Count; index++)
+        {
+            if (!ReferenceEquals(_snapshotSources[index], atlases[index]))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>Главный поток после завершения шага: запомнить, чем он был.</summary>
@@ -427,7 +450,7 @@ public sealed class TerrainBuildPipeline : IDisposable
         TerrainBuildStepKind kind =
             request.BuildFull ? TerrainBuildStepKind.Full
             : request.ScrollDelta != Vector2Int.zero ? TerrainBuildStepKind.Scroll
-            : request.DirtyRects.Length > 0 ? TerrainBuildStepKind.Patch
+            : request.DirtyRegions.Length > 0 ? TerrainBuildStepKind.Patch
             : TerrainBuildStepKind.Textures;
         LastWorkerCost = new TerrainWorkerCost(
             kind,

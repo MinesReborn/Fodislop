@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Kern.Core;
+using Kern.Core.Interfaces;
 using Kern.World;
 using Kern.World.Terrain;
 using Kern.World.Terrain.Background;
@@ -20,6 +22,74 @@ namespace Kern.TerrainBench;
 public static class Suites
 {
     private const int Seed = 1337;
+    private static int _quadFillSink;
+    private static int _maskCompositionSink;
+
+    private sealed class ResidencyLayer(int chunkSize, int heightChunks) : IWorldLayer<CellType>
+    {
+        private readonly HashSet<int> _resident = [];
+        private readonly Dictionary<int, LinkedListNode<int>> _nodes = [];
+        private readonly LinkedList<int> _lru = [];
+
+        public int ChunkSize { get; } = chunkSize;
+
+        public int HeightChunks { get; } = heightChunks;
+
+        public int ReadCount { get; private set; }
+
+        public int TouchCount { get; private set; }
+
+        public void AddResident(int chunkIndex)
+        {
+            _resident.Add(chunkIndex);
+            LinkedListNode<int> node = _lru.AddFirst(chunkIndex);
+            _nodes.Add(chunkIndex, node);
+        }
+
+        public void ResetCounters()
+        {
+            ReadCount = 0;
+            TouchCount = 0;
+        }
+
+        public ChunkReadResult<CellType> ReadChunk(int chunkIndex, bool touchLru = true)
+        {
+            ReadCount++;
+            if (!_resident.Contains(chunkIndex))
+            {
+                return new ChunkReadResult<CellType>(ChunkReadStatus.Missing, null, null);
+            }
+
+            if (touchLru)
+            {
+                LinkedListNode<int> node = _nodes[chunkIndex];
+                _lru.Remove(node);
+                _lru.AddFirst(node);
+                TouchCount++;
+            }
+
+            return new ChunkReadResult<CellType>(ChunkReadStatus.Available, null, null);
+        }
+    }
+
+    private sealed class ResidencyStorage(ResidencyLayer layer) : IWorldDataStorage
+    {
+        public IWorldLayer<CellType>? CellLayer { get; } = layer;
+
+        public string GetWorldCodeName() => "terrain-bench";
+    }
+
+    private sealed class ResidencyMap(ushort width, ushort height) : IMapDataProvider
+    {
+        public ushort WorldWidth { get; } = width;
+
+        public ushort WorldHeight { get; } = height;
+    }
+
+    private sealed class BenchAtlasDescriptor(int size) : IAtlasDescriptor
+    {
+        public int Size { get; } = size;
+    }
 
     public static void All(BenchRunner runner, int width, int height)
     {
@@ -31,12 +101,180 @@ public static class Suites
         CacheScroll(runner, width, height);
         FloodFill(runner, width, height);
         Masks(runner, width, height);
+        MaskComposition(runner, width, height);
         Distortion(runner, width, height);
+        QuadFill(runner, width, height);
         FloodFillEquivalence(runner, width, height);
+        ResidencyProbe(runner, width, height);
         CellTypeIndex(runner, width, height);
         QuadCatalogs(runner, width, height);
         Spatial(runner, width, height);
         SessionPipeline(runner, width, height);
+        TimingDiagnostics(runner);
+    }
+
+    private static void ResidencyProbe(BenchRunner runner, int windowWidth, int windowHeight)
+    {
+        runner.Suite = "residency";
+        if (!runner.Wants("полные пробы каждого кандидата"))
+        {
+            return;
+        }
+
+        StableResidencyProbe(runner, windowWidth, windowHeight);
+
+        const int WorldSize = 4096;
+        const int ChunkSize = 16;
+        const int HeightChunks = WorldSize / ChunkSize;
+        var layer = new ResidencyLayer(ChunkSize, HeightChunks);
+        int residentChunkCount = ((500 + windowWidth) / ChunkSize) + 1;
+        for (int chunkX = 0; chunkX < residentChunkCount; chunkX++)
+        {
+            for (int chunkY = 0; chunkY < HeightChunks; chunkY++)
+            {
+                layer.AddResident(chunkY + (chunkX * HeightChunks));
+            }
+        }
+
+        var storage = new ResidencyStorage(layer);
+        var map = new ResidencyMap(WorldSize, WorldSize);
+        var cache = new TerrainResidencyProbe.FrameCache();
+        Vector2Int committed = new(500, 500);
+        Vector2Int requested = new(520, 500);
+        int uncachedReads = 0;
+        int cachedReads = 0;
+        int cacheHits = 0;
+        int cachedUniqueReads = 0;
+        int cachedTouches = 0;
+        Vector2Int uncachedTarget = default;
+        Vector2Int cachedTarget = default;
+
+        void RunUncached()
+        {
+            layer.ResetCounters();
+            bool resident = TerrainResidencyProbe.IsWindowResident(
+                storage, map, null, requested, windowWidth, windowHeight);
+            uncachedTarget = resident
+                ? requested
+                : TerrainWindowAdvance.Resolve(
+                    committed,
+                    requested,
+                    windowWidth,
+                    windowHeight,
+                    position => TerrainResidencyProbe.IsWindowResident(
+                        storage, map, position, windowWidth, windowHeight));
+            uncachedReads = layer.ReadCount;
+        }
+
+        void RunCached()
+        {
+            layer.ResetCounters();
+            bool resident = TerrainResidencyProbe.IsWindowResident(
+                storage, map, null, requested, windowWidth, windowHeight);
+            cachedTarget = resident
+                ? requested
+                : ResolveCached();
+
+            if (cachedTarget != committed)
+            {
+                TerrainResidencyProbe.TouchWindow(
+                    storage,
+                    map,
+                    cachedTarget,
+                    windowWidth,
+                    windowHeight,
+                    cache);
+            }
+
+            cachedReads = layer.ReadCount;
+            cacheHits = cache.CacheHits;
+            cachedUniqueReads = cache.ChunkReads;
+            cachedTouches = layer.TouchCount;
+
+            Vector2Int ResolveCached()
+            {
+                cache.BeginFrame(storage, map, windowWidth, windowHeight);
+                return TerrainWindowAdvance.Resolve(
+                    committed,
+                    requested,
+                    windowWidth,
+                    windowHeight,
+                    cache.ResidencyCallback);
+            }
+        }
+
+        RunUncached();
+        RunCached();
+        if (uncachedTarget != cachedTarget)
+        {
+            throw new InvalidOperationException("Cached terrain residency changed the selected window origin.");
+        }
+
+        runner.Metric("расхождение выбранного окна для cached probe", 0, "клеток");
+        runner.RunAlternating(
+            "полные пробы каждого кандидата",
+            RunUncached,
+            "чтение статуса чанка один раз за план",
+            RunCached);
+        runner.Metric("ReadChunk без кэша за выбор окна", uncachedReads, "вызовов");
+        runner.Metric("ReadChunk с кэшем за выбор окна", cachedReads, "вызовов");
+        runner.Metric("уникальные статусы с кэшем", cachedUniqueReads, "чанков");
+        runner.Metric("LRU touch для выбранного окна", cachedTouches, "вызовов");
+        runner.Metric("повторные чтения чанков устранены", cacheHits, "вызовов");
+    }
+
+    private static void StableResidencyProbe(BenchRunner runner, int windowWidth, int windowHeight)
+    {
+        const int WorldSize = 4096;
+        const int ChunkSize = ProjectRuntimeContracts.World.ChunkSize;
+        const int HeightChunks = WorldSize / ChunkSize;
+        var layer = new ResidencyLayer(ChunkSize, HeightChunks);
+        int residentChunkCount = ((500 + windowWidth) / ChunkSize) + 2;
+        for (int chunkX = 0; chunkX < residentChunkCount; chunkX++)
+        {
+            for (int chunkY = 0; chunkY < HeightChunks; chunkY++)
+            {
+                layer.AddResident(chunkY + (chunkX * HeightChunks));
+            }
+        }
+
+        var storage = new ResidencyStorage(layer);
+        var map = new ResidencyMap(WorldSize, WorldSize);
+        int readsPerProbe = 0;
+        int touchesPerProbe = 0;
+        void RunStableProbe()
+        {
+            layer.ResetCounters();
+            bool resident = TerrainResidencyProbe.IsWindowResident(
+                storage,
+                map,
+                new Vector2Int(500, 500),
+                windowWidth,
+                windowHeight);
+            if (!resident)
+            {
+                throw new InvalidOperationException("Stable residency fixture unexpectedly missed a chunk.");
+            }
+
+            readsPerProbe = layer.ReadCount;
+            touchesPerProbe = layer.TouchCount;
+        }
+
+        runner.Run("одна проверка окна на стабильном кадре", RunStableProbe);
+        runner.Metric("ReadChunk на стабильный план", readsPerProbe, "вызовов");
+        runner.Metric("LRU touch на стабильный план", touchesPerProbe, "вызовов");
+    }
+
+    private static void TimingDiagnostics(BenchRunner runner)
+    {
+        runner.Suite = "timing-diagnostic";
+        if (!runner.Wants("sleep") && !runner.Wants("spin"))
+        {
+            return;
+        }
+
+        runner.Run("sleep 2 ms", () => System.Threading.Thread.Sleep(2));
+        runner.Run("CPU spin", () => System.Threading.Thread.SpinWait(500_000));
     }
 
     // ── Сквозной сценарий: 600 шагов ходьбы с копанием ───────────────────
@@ -231,6 +469,7 @@ public static class Suites
             int borderMismatches = 0;
             int interiorMismatches = 0;
             int interiorCells = 0;
+            var mismatchSamples = new List<string>(8);
             const int BorderCells = 4;
             for (int x = 0; x < width; x++)
             {
@@ -244,6 +483,11 @@ public static class Suites
                     }
 
                     mismatches++;
+                    if (mismatchSamples.Count < mismatchSamples.Capacity)
+                    {
+                        mismatchSamples.Add($"({x},{y}) {scrolled.Buffer[x, y]}→{full.Buffer[x, y]}");
+                    }
+
                     CachedCellInfo cell = provider.GetCell(x + 1, y + 1);
                     if ((cell.Properties & CellConfigProperties.Passable) != 0)
                     {
@@ -265,6 +509,10 @@ public static class Suites
             runner.Metric($"  из них на проходимых клетках ({dx},{dy})", floorMismatches, "клеток");
             runner.Metric($"  из них у каймы ≤{BorderCells} ({dx},{dy})", borderMismatches, "клеток");
             runner.Metric($"  из них в глубине окна ({dx},{dy})", interiorMismatches * 100.0 / interiorCells, "% глубины");
+            if (mismatchSamples.Count > 0)
+            {
+                Console.WriteLine($"  примеры mismatch ({dx},{dy}): {string.Join(", ", mismatchSamples)}");
+            }
         }
     }
 
@@ -544,7 +792,7 @@ public static class Suites
                 }
             }
 
-            GC.KeepAlive(sink);
+            System.Threading.Volatile.Write(ref _quadFillSink, sink);
         });
         runner.Metric("размер CachedCellData", Marshal.SizeOf<CachedCellData>(), "Б");
         runner.Metric("кэш клеток целиком", Marshal.SizeOf<CachedCellData>() * (width + 2) * (height + 2) / 1048576.0, "МБ");
@@ -554,10 +802,52 @@ public static class Suites
     private static void FloodFill(BenchRunner runner, int width, int height)
     {
         runner.Suite = "flood-fill";
-        var provider = new CaveProvider(width, height, Seed);
+        if (!runner.Wants("ComputeFull") &&
+            !runner.Wants("ComputeScrolled") &&
+            !runner.Wants("UpdateLocalRegion") &&
+            !runner.Wants("fixture"))
+        {
+            return;
+        }
+
+        var provider = new PrecomputedCaveProvider(width, height, Seed);
+        var generatedProvider = new CaveProvider(width, height, Seed);
         var fill = new BackgroundFloodFill();
+        int fullProcessorCount = Environment.ProcessorCount;
+        var fullDegreeFill = new BackgroundFloodFill(fullProcessorCount);
         fill.Allocate(width, height);
-        runner.Run("ComputeFull", () => fill.ComputeFull(provider));
+        fullDegreeFill.Allocate(width, height);
+        int providerMismatches = CountProviderMismatches(provider, generatedProvider, width, height);
+        runner.Metric("расхождения предвычисленного и hash provider", providerMismatches, "клеток");
+        if (providerMismatches != 0)
+        {
+            throw new InvalidOperationException($"Precomputed cave source differs in {providerMismatches} cells.");
+        }
+
+        runner.Run("fixture: cached source reads", () => ReadProvider(provider, width, height));
+        runner.Run("fixture: cave hash generation", () => ReadProvider(generatedProvider, width, height));
+        fill.ComputeFull(provider);
+        fullDegreeFill.ComputeFull(provider);
+        int fillMismatches = CountFillMismatches(fill, fullDegreeFill, width, height);
+        runner.Metric("расхождения ComputeFull DOP4 и DOP max", fillMismatches, "клеток");
+        if (fillMismatches != 0)
+        {
+            throw new InvalidOperationException($"Capped flood fill differs in {fillMismatches} cells.");
+        }
+
+        if (Math.Min(4, fullProcessorCount) != fullProcessorCount)
+        {
+            runner.RunAlternating(
+                $"ComputeFull DOP {Math.Min(4, fullProcessorCount)}",
+                () => fill.ComputeFull(provider),
+                $"ComputeFull DOP {fullProcessorCount}",
+                () => fullDegreeFill.ComputeFull(provider));
+        }
+        else
+        {
+            runner.Run("ComputeFull", () => fill.ComputeFull(provider));
+        }
+
         runner.Run("ComputeScrolled +1,0", () => fill.ComputeScrolled(1, 0, provider));
         runner.Run("ComputeScrolled +1,+1", () => fill.ComputeScrolled(1, 1, provider));
         runner.Run("ComputeScrolled +13,0", () => fill.ComputeScrolled(13, 0, provider));
@@ -569,6 +859,58 @@ public static class Suites
         runner.Run("UpdateLocalRegion во всё окно", () => fill.UpdateLocalRegion(0, 0, width, height, provider));
     }
 
+    private static int CountProviderMismatches(
+        ICachedCellDataProvider first,
+        ICachedCellDataProvider second,
+        int width,
+        int height)
+    {
+        int mismatches = 0;
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                CachedCellInfo a = first.GetCell(x + 1, y + 1);
+                CachedCellInfo b = second.GetCell(x + 1, y + 1);
+                mismatches += a.Type != b.Type || a.Properties != b.Properties ? 1 : 0;
+            }
+        }
+
+        return mismatches;
+    }
+
+    private static int CountFillMismatches(
+        BackgroundFloodFill first,
+        BackgroundFloodFill second,
+        int width,
+        int height)
+    {
+        int mismatches = 0;
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                mismatches += first.Buffer[x, y] != second.Buffer[x, y] ? 1 : 0;
+            }
+        }
+
+        return mismatches;
+    }
+
+    private static void ReadProvider(ICachedCellDataProvider provider, int width, int height)
+    {
+        int sink = 0;
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                sink += (byte)provider.GetCell(x + 1, y + 1).Type;
+            }
+        }
+
+        System.Threading.Volatile.Write(ref _maskCompositionSink, sink);
+    }
+
     // ── Маски клеток (настоящий TerrainCellMaskCalculator) ───────────────
     private static void Masks(BenchRunner runner, int width, int height)
     {
@@ -577,10 +919,185 @@ public static class Suites
         cache.FillCaves(width, height, 5000, 7000, Seed);
         var masks = new TerrainCellMaskCalculator();
         masks.EnsureCapacity(width, height);
-        runner.Run("PrecalculateFull", () => masks.PrecalculateFull(cache, width, height));
+        int neighborhoodMismatches = CountNeighborhoodMismatches(cache, width, height, masks);
+        runner.Metric("расхождения скользящего окна с расчётом по клеткам", neighborhoodMismatches, "масок");
+        if (neighborhoodMismatches != 0)
+        {
+            throw new InvalidOperationException(
+                $"Sliding-neighbourhood mask calculation differs in {neighborhoodMismatches} outputs.");
+        }
+
+        int fullPassDegree = Math.Min(4, Environment.ProcessorCount);
+        if (fullPassDegree < Environment.ProcessorCount)
+        {
+            var fullDegreeOptions = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount };
+            runner.RunAlternating(
+                $"PrecalculateFull DOP {fullPassDegree}",
+                () => masks.PrecalculateFull(cache, width, height),
+                $"PrecalculateFull DOP {Environment.ProcessorCount}",
+                () => Parallel.For(0, width, fullDegreeOptions, x => masks.CalculateColumn(cache, x, 0, height)));
+        }
+        else
+        {
+            runner.Run("PrecalculateFull", () => masks.PrecalculateFull(cache, width, height));
+        }
+
+        var cellByCell = new TerrainCellMaskCalculator();
+        cellByCell.EnsureCapacity(width, height);
+        runner.Run("полный проход: по одной клетке", () =>
+        {
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    cellByCell.CalculateCellNode(cache, x, y);
+                }
+            }
+        });
         runner.Run("PrecalculateIncremental +1,0", () => masks.PrecalculateIncremental(cache, width, height, 1, 0));
         runner.Run("PrecalculateRegion 5×5", () => masks.PrecalculateRegion(cache, width, height, width / 2, height / 2, 5, 5));
         runner.Run("PrecalculateRegion во всё окно", () => masks.PrecalculateRegion(cache, width, height, 0, 0, width, height));
+    }
+
+    private static int CountNeighborhoodMismatches(
+        TerrainCellCache cache,
+        int width,
+        int height,
+        TerrainCellMaskCalculator sliding)
+    {
+        sliding.PrecalculateFull(cache, width, height);
+        var reference = new TerrainCellMaskCalculator();
+        reference.EnsureCapacity(width, height);
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                reference.CalculateCellNode(cache, x, y);
+            }
+        }
+
+        int mismatches = 0;
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                mismatches += sliding.CellTilingDescriptors[x, y] != reference.CellTilingDescriptors[x, y] ? 1 : 0;
+                mismatches += sliding.CellCornerVariants[x, y] != reference.CellCornerVariants[x, y] ? 1 : 0;
+                mismatches += sliding.CellReliefMasks[x, y] != reference.CellReliefMasks[x, y] ? 1 : 0;
+                mismatches += sliding.CellReliefCornerMasks[x, y] != reference.CellReliefCornerMasks[x, y] ? 1 : 0;
+                mismatches += sliding.CellSolidBoundaryMasks[x, y] != reference.CellSolidBoundaryMasks[x, y] ? 1 : 0;
+            }
+        }
+
+        return mismatches;
+    }
+
+    // A/B the former pair of mask calculations against the fused production
+    // calculation. Both read the same deterministic neighbourhoods; the
+    // equivalence scan runs before timing so a faster wrong result is rejected.
+    private static void MaskComposition(BenchRunner runner, int width, int height)
+    {
+        runner.Suite = "mask-composition";
+        if (!runner.Wants("ReliefMask"))
+        {
+            return;
+        }
+
+        var cache = new TerrainCellCache();
+        cache.FillCaves(width, height, 5000, 7000, Seed);
+        int mismatches = CountReliefMaskMismatches(cache, width, height);
+        runner.Metric("различия fused и исходной пары масок", mismatches, "клеток");
+        if (mismatches != 0)
+        {
+            throw new InvalidOperationException($"Relief mask fusion differs on {mismatches} cells.");
+        }
+
+        runner.Run("исходная пара масок", () => RunReliefMaskComposition(cache, width, height, fused: false));
+        runner.Run("объединённые маски", () => RunReliefMaskComposition(cache, width, height, fused: true));
+    }
+
+    private static int CountReliefMaskMismatches(TerrainCellCache cache, int width, int height)
+    {
+        int mismatches = 0;
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                ReadReliefNeighborhood(cache, x, y, out CachedCellData data, out CachedCellData top,
+                    out CachedCellData left, out CachedCellData bottom, out CachedCellData right,
+                    out CachedCellData topLeft, out CachedCellData topRight,
+                    out CachedCellData bottomLeft, out CachedCellData bottomRight);
+                byte expectedRelief = TerrainCellMaskCalculator.CalculateReliefMask(data, top, left, bottom, right);
+                byte expectedCorners = TerrainCellMaskCalculator.CalculateReliefCornerMask(
+                    data, top, left, bottom, right, topLeft, topRight, bottomLeft, bottomRight);
+                TerrainCellMaskCalculator.CalculateReliefMasks(
+                    data, top, left, bottom, right, topLeft, topRight, bottomLeft, bottomRight,
+                    out byte actualRelief, out byte actualCorners);
+                if (expectedRelief != actualRelief || expectedCorners != actualCorners)
+                {
+                    mismatches++;
+                }
+            }
+        }
+
+        return mismatches;
+    }
+
+    private static void RunReliefMaskComposition(TerrainCellCache cache, int width, int height, bool fused)
+    {
+        int sink = 0;
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                ReadReliefNeighborhood(cache, x, y, out CachedCellData data, out CachedCellData top,
+                    out CachedCellData left, out CachedCellData bottom, out CachedCellData right,
+                    out CachedCellData topLeft, out CachedCellData topRight,
+                    out CachedCellData bottomLeft, out CachedCellData bottomRight);
+                if (fused)
+                {
+                    TerrainCellMaskCalculator.CalculateReliefMasks(
+                        data, top, left, bottom, right, topLeft, topRight, bottomLeft, bottomRight,
+                        out byte relief, out byte corners);
+                    sink += relief + corners;
+                }
+                else
+                {
+                    sink += TerrainCellMaskCalculator.CalculateReliefMask(data, top, left, bottom, right);
+                    sink += TerrainCellMaskCalculator.CalculateReliefCornerMask(
+                        data, top, left, bottom, right, topLeft, topRight, bottomLeft, bottomRight);
+                }
+            }
+        }
+
+        System.Threading.Volatile.Write(ref _maskCompositionSink, sink);
+    }
+
+    private static void ReadReliefNeighborhood(
+        TerrainCellCache cache,
+        int x,
+        int y,
+        out CachedCellData data,
+        out CachedCellData top,
+        out CachedCellData left,
+        out CachedCellData bottom,
+        out CachedCellData right,
+        out CachedCellData topLeft,
+        out CachedCellData topRight,
+        out CachedCellData bottomLeft,
+        out CachedCellData bottomRight)
+    {
+        int cx = x + 1;
+        int cy = y + 1;
+        data = cache.GetCellData(cx, cy);
+        top = cache.GetCellData(cx, cy + 1);
+        left = cache.GetCellData(cx - 1, cy);
+        bottom = cache.GetCellData(cx, cy - 1);
+        right = cache.GetCellData(cx + 1, cy);
+        topLeft = cache.GetCellData(cx - 1, cy + 1);
+        topRight = cache.GetCellData(cx + 1, cy + 1);
+        bottomLeft = cache.GetCellData(cx - 1, cy - 1);
+        bottomRight = cache.GetCellData(cx + 1, cy - 1);
     }
 
     // ── Искажение сетки (настоящий TerrainVertexDistortionCalculator) ─────
@@ -595,6 +1112,102 @@ public static class Suites
         runner.Run("PrecalculateIncremental +1,0", () => distortion.PrecalculateIncremental(cache, width, height, 1, 0, 10016, 40000));
         runner.Run("PrecalculateRegion 5×5", () => distortion.PrecalculateRegion(cache, width, height, width / 2, height / 2, 5, 5, 10016, 40000));
         runner.Run("PrecalculateRegion во всё окно", () => distortion.PrecalculateRegion(cache, width, height, 0, 0, width, height, 10016, 40000));
+    }
+
+    // Production FillQuad: tile-neighbour math, organic edge checks, geometry
+    // assembly, UV transform, lighting/decal packing, and all corner writes.
+    // Atlas/metadata are inert benchmark adapters; the implementation under
+    // measurement is the game's TerrainQuadBuilder itself.
+    private static void QuadFill(BenchRunner runner, int width, int height)
+    {
+        runner.Suite = "quad-fill";
+        if (!runner.Wants("FillQuad"))
+        {
+            return;
+        }
+
+        const int MinX = 5000;
+        const int MinY = 20000;
+        const int WorldWidth = 10016;
+        const int WorldHeight = 40000;
+        var cache = new TerrainCellCache();
+        cache.FillCaves(width, height, MinX, MinY, Seed);
+        cache.PrepareRenderData();
+
+        var precalculator = new TerrainPrecalculator();
+        precalculator.EnsureCapacity(width, height);
+        var input = new TerrainPrecalculationInput(
+            cache,
+            new Vector2Int(width, height),
+            new Vector2Int(WorldWidth, WorldHeight));
+        precalculator.PrecalculateFull(input);
+
+        var provider = new CaveProvider(width, height, Seed) { OriginX = MinX, OriginY = MinY };
+        var floodFill = new BackgroundFloodFill();
+        floodFill.Allocate(width, height);
+        floodFill.ComputeFull(provider);
+
+        IAtlasDescriptor[] atlases = [new BenchAtlasDescriptor(1024)];
+        var sources = new TerrainCellSources(
+            cache,
+            precalculator,
+            floodFill,
+            WorldWidth,
+            WorldHeight,
+            atlases,
+            new BenchTerrainMetadataLookup());
+        var quad = new TerrainVertex[4];
+
+        precalculator.DistortionStyle = TerrainDistortionStyle.Organic;
+        precalculator.PrecalculateFull(input);
+        MeasureQuadLayer(runner, sources, quad, width, height, MinX, MinY, TerrainQuadLayer.Foreground, "органический передний план");
+        MeasureQuadLayer(runner, sources, quad, width, height, MinX, MinY, TerrainQuadLayer.Background, "органический фон");
+
+        precalculator.DistortionStyle = TerrainDistortionStyle.Classic;
+        precalculator.PrecalculateFull(input);
+        MeasureQuadLayer(runner, sources, quad, width, height, MinX, MinY, TerrainQuadLayer.Foreground, "классический передний план");
+    }
+
+    private static void MeasureQuadLayer(
+        BenchRunner runner,
+        TerrainCellSources sources,
+        TerrainVertex[] quad,
+        int width,
+        int height,
+        int minX,
+        int minY,
+        TerrainQuadLayer layer,
+        string name)
+    {
+        int previousResultCount = runner.Results.Count;
+        runner.Run($"FillQuad · {name}", () =>
+        {
+            int sink = 0;
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    var site = new TerrainQuadSite(x, y, minX + x, minY + y, 1f);
+                    TerrainQuadResult result = TerrainQuadBuilder.FillQuad(
+                        sources,
+                        site,
+                        layer,
+                        quad);
+                    sink += result.AtlasIndex + (result.IsDoor ? 1 : 0);
+                }
+            }
+
+            System.Threading.Volatile.Write(ref _quadFillSink, sink);
+        });
+
+        if (runner.Results.Count > previousResultCount)
+        {
+            BenchResult result = runner.Results[^1];
+            runner.Metric(
+                $"FillQuad · {name}, наносекунд на клетку",
+                result.P50Ms * 1_000_000.0 / (width * (double)height),
+                "нс/клетку");
+        }
     }
 
     // ── Каталоги типов, которые FillQuad опрашивает на каждый квад ───────
@@ -884,6 +1497,46 @@ public static class Suites
         {
             CachedCellData cell = TerrainCellCache.CellAt(OriginX + x - 1, OriginY + y - 1, seed);
             return new CachedCellInfo { Type = cell.Type, Properties = cell.Properties };
+        }
+    }
+
+    private sealed class PrecomputedCaveProvider : ICachedCellDataProvider
+    {
+        private readonly CachedCellInfo[] _cells;
+        private readonly int _width;
+        private readonly int _height;
+
+        public PrecomputedCaveProvider(int width, int height, int seed)
+        {
+            _width = width;
+            _height = height;
+            _cells = new CachedCellInfo[width * height];
+            const int OriginX = 5000;
+            const int OriginY = 7000;
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    CachedCellData cell = TerrainCellCache.CellAt(OriginX + x, OriginY + y, seed);
+                    _cells[(x * height) + y] = new CachedCellInfo
+                    {
+                        Type = cell.Type,
+                        Properties = cell.Properties,
+                    };
+                }
+            }
+        }
+
+        public CachedCellInfo GetCell(int x, int y)
+        {
+            int localX = x - 1;
+            int localY = y - 1;
+            if ((uint)localX >= (uint)_width || (uint)localY >= (uint)_height)
+            {
+                return new CachedCellInfo { Type = CellType.Unloaded };
+            }
+
+            return _cells[(localX * _height) + localY];
         }
     }
 
