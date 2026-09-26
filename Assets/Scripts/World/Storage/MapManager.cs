@@ -281,6 +281,8 @@ namespace Kern.World
 
         public Color GetCellMinimapColor(CellType type) => _cellCatalog.GetCellMinimapColor(type);
 
+        public Color32 GetCellMinimapColor32(CellType type) => _cellCatalog.GetCellMinimapColor32(type);
+
         public int GetAnimationFrameHeight(CellType cellType) => _cellCatalog.GetAnimationFrameHeight(cellType);
 
         public byte GetAnimationSpeed(CellType cellType) => _cellCatalog.GetAnimationSpeed(cellType);

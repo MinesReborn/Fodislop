@@ -183,6 +183,8 @@ public sealed class TerrainTestWorld
 
         public Color GetCellMinimapColor(CellType type) => new(0.25f, 0.35f, 0.45f, 1f);
 
+        public Color32 GetCellMinimapColor32(CellType type) => new(64, 89, 115, 255);
+
         public void UpdateMovementSpeeds(MovementSpeedPacket packet) =>
             throw new NotSupportedException();
 

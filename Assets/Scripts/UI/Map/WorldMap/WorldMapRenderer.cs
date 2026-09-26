@@ -730,6 +730,7 @@ namespace Kern.UI
                 _playerTracker.CurrentPlayer,
                 _playerTracker.PlayerBlinkState);
 
+            _mapImage?.MarkDirtyRepaint();
             _renderRequested = false;
             _lastRenderedStorageRevision = _storage.Revision;
             _lastRenderTime = Time.time;

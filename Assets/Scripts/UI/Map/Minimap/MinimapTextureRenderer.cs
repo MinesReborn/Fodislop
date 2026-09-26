@@ -40,13 +40,7 @@ internal sealed class MinimapTextureRenderer
                 continue;
             }
 
-            Color color = mapManager.GetCellMinimapColor(cellType);
-            if (color.a < 0.01f)
-            {
-                color = new Color(0.3f, 0.3f, 0.3f, 1f);
-            }
-
-            _cellColors[i] = (Color32)color;
+            _cellColors[i] = mapManager.GetCellMinimapColor32(cellType);
         }
     }
 

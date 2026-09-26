@@ -107,8 +107,27 @@ public sealed class MapCellConfigCatalog
         return _cellToTileGroup.TryGetValue(type, out groupID);
     }
 
-    public Color GetCellMinimapColor(CellType type)
+    /// <summary>
+    /// Разрешает цвет клетки для мини-карты, большой карты и fallback-текстуры
+    /// рельефа.
+    ///
+    /// Палитра клиента — источник правды. Сервер цвета не присылает: в
+    /// <c>CellConfigurationPacket.Color</c> он кладёт <c>0xFFFFFFFF</c> для всех
+    /// 256 типов, поэтому доверять пакету для описанных типов нельзя. Пакет
+    /// читается только там, где палитра ничего не знает, — то есть для типа,
+    /// которого в клиентской таблице ещё нет.
+    ///
+    /// Считается в <see cref="Color32"/>: растеризаторы карты пишут эти байты в
+    /// текстуру напрямую, а путь через <see cref="Color"/> терял бы единицу в
+    /// каналах на обратном касте.
+    /// </summary>
+    public Color32 GetCellMinimapColor32(CellType type)
     {
+        if (MapBlockColors.IsAuthored(type))
+        {
+            return MapBlockColors.GetColor32(type);
+        }
+
         var config = GetCellConfig(type);
         if (config.Color != 0)
         {
@@ -123,11 +142,13 @@ public sealed class MapCellConfigCatalog
             byte g = (byte)((argb >> 8) & 0xFF);
             byte b = (byte)(argb & 0xFF);
 
-            return new Color(r / 255f, g / 255f, b / 255f, a / 255f);
+            return new Color32(r, g, b, a);
         }
 
-        return MapBlockColors.GetColor(type);
+        return MapBlockColors.MissingServerColor;
     }
+
+    public Color GetCellMinimapColor(CellType type) => GetCellMinimapColor32(type);
 
     public int GetAnimationFrameHeight(CellType cellType)
     {

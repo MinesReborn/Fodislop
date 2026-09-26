@@ -71,6 +71,18 @@ namespace Kern.UI
                 FilterMode.Point,
                 TextureWrapMode.Clamp);
 
+            // new Texture2D не инициализирует пиксели, и до первого Refresh
+            // панель показала бы неинициализированную память. Заливаем цветом
+            // незагруженной клетки: миникарта без данных обязана быть чёрной.
+            var unloaded = new Color32[_uiSize * _uiSize];
+            Array.Fill(unloaded, new Color32(0, 0, 0, 255));
+            _minimapTexture.SetPixelData(unloaded, 0);
+            _minimapTexture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
+
+            // Текстура переписывается на каждом рефреше, поэтому динамический атлас
+            // UI Toolkit обязан её исключить.
+            DynamicAtlasConfigurator.RegisterRuntimeRedrawn(_minimapTexture);
+
             CreateUI();
             _mapModeState.Changed += OnMapModeChanged;
 
@@ -435,6 +447,8 @@ namespace Kern.UI
                 _worldWidth,
                 _worldHeight,
                 _cellSampler);
+
+            _view?.MarkDirty();
         }
 
         protected void OnDestroy()

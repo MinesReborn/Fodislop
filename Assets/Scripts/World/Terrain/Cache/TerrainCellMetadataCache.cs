@@ -132,7 +132,7 @@ public sealed class TerrainCellMetadataCache : ITerrainMetadataLookup
             Distortion = config.Distortion,
             HasTileGroup = mm.TryGetTileGroup(type, out int gid),
             TileGroupID = gid,
-            MinimapColor = (Color32)mm.GetCellMinimapColor(type),
+            MinimapColor = mm.GetCellMinimapColor32(type),
             Animation = config.Animation,
             AnimationSpeed = wtm.GetAnimationSpeedForCell(type),
             AtlasRect = atlasRect,

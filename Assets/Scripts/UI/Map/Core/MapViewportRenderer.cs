@@ -28,13 +28,7 @@ internal sealed class MapViewportRenderer
         for (int i = 0; i < 256; i++)
         {
             CellType type = (CellType)i;
-            Color color = manager.GetCellMinimapColor(type);
-            if (color.a < 0.01f)
-            {
-                color = new Color(0.3f, 0.3f, 0.3f, 1f);
-            }
-
-            _cellColorTable[i] = (Color32)color;
+            _cellColorTable[i] = manager.GetCellMinimapColor32(type);
         }
     }
 

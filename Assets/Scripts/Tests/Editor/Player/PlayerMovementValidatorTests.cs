@@ -234,6 +234,8 @@ public class PlayerMovementValidatorTests
         }
 
         public Color GetCellMinimapColor(CellType type) => Color.white;
+
+        public Color32 GetCellMinimapColor32(CellType type) => Color.white;
         public void UpdateMovementSpeeds(MovementSpeedPacket packet) { }
         public void LoadWorldInit(WorldInitPacket packet) { }
         public Action? OnWorldInitialized { get; set; }
