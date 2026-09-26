@@ -21,6 +21,11 @@ struct TerrainVertexInput
 {
     float4 positionOS   : POSITION;
     float2 uv           : TEXCOORD0;
+#if !defined(KERN_TERRAIN_CELLS)
+    // The cell-ID mesh carries only POSITION and TEXCOORD0; all remaining
+    // vertex data is fetched from the cell-data textures in this variant.
+    // Keep these inputs out of its Metal vertex signature so Unity does not
+    // bind dummy attributes for channels the mesh intentionally omits.
     float4 color        : COLOR;
     float4 subAtlasRect : TEXCOORD1;
     float4 tileSizeUV   : TEXCOORD2;
@@ -28,6 +33,7 @@ struct TerrainVertexInput
     float4 animData     : TEXCOORD4;
     float4 packedData   : TEXCOORD5;
     float4 glowAttr     : TEXCOORD6;
+#endif
 };
 
 // Разбор вершины в режиме клеток. Объявляет `cell` — проходу она нужна и
