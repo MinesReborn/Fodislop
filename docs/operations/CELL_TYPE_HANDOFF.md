@@ -2,7 +2,7 @@
 
 Дата: 2026-09-22.
 
-Исходный запрос: проверить [CELL_TYPE_MAP.md](CELL_TYPE_MAP.md), установить реальные дубли, неиспользуемые данные и минимальные независимые свойства клетки.
+Исходный запрос: проверить [CELL_TYPE_MAP.md](../architecture/CELL_TYPE_MAP.md), установить реальные дубли, неиспользуемые данные и минимальные независимые свойства клетки.
 
 ## Статус и границы выполненной работы
 
@@ -19,7 +19,7 @@
 ?? CELL_TYPE_MAP.md
 ```
 
-Это существующие пользовательские изменения. Их нельзя откатывать или перезаписывать. Перед реализацией прочитать актуальный [AGENTS.md](AGENTS.md). В частности, операции Unity, commit/push и rollback ограничены отдельными правилами проекта. Создание этого документа их не разрешает.
+Это существующие пользовательские изменения. Их нельзя откатывать или перезаписывать. Перед реализацией прочитать актуальный [AGENTS.md](../../AGENTS.md). В частности, операции Unity, commit/push и rollback ограничены отдельными правилами проекта. Создание этого документа их не разрешает.
 
 ## Основной вывод
 
@@ -35,10 +35,10 @@
 
 Источники:
 
-- [TerrainVertexDistortionCalculator.cs](Assets/Scripts/World/Terrain/Mesh/TerrainVertexDistortionCalculator.cs): `IsCause`, `IsBlock` по серверному `Distortion`.
-- [CellVisualProtocol.cs](Assets/Scripts/World/Storage/CellVisualProtocol.cs): четыре набора типов.
-- [TerrainSheetCatalog.cs](Assets/Scripts/World/Terrain/Mesh/TerrainSheetCatalog.cs): выбор непрерывного листа.
-- [TerrainSampling.hlsl](Assets/Shaders/Terrain/TerrainSampling.hlsl): фактическая адресация текстуры.
+- [TerrainVertexDistortionCalculator.cs](../../Assets/Scripts/World/Terrain/Mesh/TerrainVertexDistortionCalculator.cs): `IsCause`, `IsBlock` по серверному `Distortion`.
+- [CellVisualProtocol.cs](../../Assets/Scripts/World/Storage/CellVisualProtocol.cs): четыре набора типов.
+- [TerrainSheetCatalog.cs](../../Assets/Scripts/World/Terrain/Mesh/TerrainSheetCatalog.cs): выбор непрерывного листа.
+- [TerrainSampling.hlsl](../../Assets/Shaders/Terrain/TerrainSampling.hlsl): фактическая адресация текстуры.
 
 Участие в смещении общих узлов определяет серверный `Distortion`:
 
@@ -75,14 +75,14 @@ packet.ReliefGroup
   → отладочные виды рельефа
 ```
 
-В [Terrain.shader](Assets/Shaders/Terrain/Terrain.shader) обычный проход больше не умножает альбедо на кайму. Единственный вызов `TerrainReliefRim(surface)` находится в [TerrainDebugView.hlsl](Assets/Shaders/Terrain/TerrainDebugView.hlsl). Декодирование `reliefCode` обслуживает эту функцию и отладочные виды чужих сторон/кода рельефа. В производственном освещении другого потребителя найдено не было.
+В [Terrain.shader](../../Assets/Shaders/Terrain/Terrain.shader) обычный проход больше не умножает альбедо на кайму. Единственный вызов `TerrainReliefRim(surface)` находится в [TerrainDebugView.hlsl](../../Assets/Shaders/Terrain/TerrainDebugView.hlsl). Декодирование `reliefCode` обслуживает эту функцию и отладочные виды чужих сторон/кода рельефа. В производственном освещении другого потребителя найдено не было.
 
 Следовательно, расчёт и транспорт рельефа — кандидат на удаление вместе с соответствующей диагностикой. Это отдельное изменение функциональности отладчика, а не полностью неиспользуемый код. Альтернатива при сохранении диагностики — вынести расчёт в её собственный путь с корректным обновлением данных при включении вида.
 
 Если цепочку сохранять, её классификацию всё равно можно сократить:
 
 - `ParticipatesInRim` возвращает `true` для всех шести содержательных семейств; `false` получает только `None`, соответствующий `Unloaded`.
-- `IsRock` содержит одинаковые десять типов в `TerrainSheetCatalog` и [TerrainReliefRimCatalog.cs](Assets/Scripts/World/Terrain/Mesh/TerrainReliefRimCatalog.cs).
+- `IsRock` содержит одинаковые десять типов в `TerrainSheetCatalog` и [TerrainReliefRimCatalog.cs](../../Assets/Scripts/World/Terrain/Mesh/TerrainReliefRimCatalog.cs).
 - Различие Rock/Crystal ещё используется внутри `SameReliefSurface` для непрерывных листов. Его нельзя удалить из сохранённого расчёта маски без замены.
 - Текущее соединение поверхностей учитывает равенство ненулевых `ReliefGroup` либо принадлежность обоих листов одному семейству. Простая подмена этого отношения одним новым номером группы требует отдельной проверки.
 
@@ -90,7 +90,7 @@ packet.ReliefGroup
 
 ## 3. Декали: DecalFamily не нужен как поле каждой клетки
 
-Источники: [TerrainDecalCatalog.cs](Assets/Scripts/World/Terrain/Mesh/TerrainDecalCatalog.cs), `TerrainQuadBuilder.FillQuad`.
+Источники: [TerrainDecalCatalog.cs](../../Assets/Scripts/World/Terrain/Mesh/TerrainDecalCatalog.cs), `TerrainQuadBuilder.FillQuad`.
 
 Производственный путь вызывает `GetGroundPlacement`, который всегда передаёт `CellType.Empty` в `GetPackedPlacement`. Поэтому размещение использует только семейство Ground.
 
@@ -116,7 +116,7 @@ packet.ReliefGroup
 
 ## 5. Дубли и неиспользуемые биты в данных GPU
 
-Источники: [TerrainLightingData.cs](Assets/Scripts/World/Terrain/Mesh/TerrainLightingData.cs), [TerrainLightingData.hlsl](Assets/Shaders/Terrain/TerrainLightingData.hlsl), [TerrainContour.hlsl](Assets/Shaders/Terrain/TerrainContour.hlsl).
+Источники: [TerrainLightingData.cs](../../Assets/Scripts/World/Terrain/Mesh/TerrainLightingData.cs), [TerrainLightingData.hlsl](../../Assets/Shaders/Terrain/TerrainLightingData.hlsl), [TerrainContour.hlsl](../../Assets/Shaders/Terrain/TerrainContour.hlsl).
 
 - Скругление пишется в `RoundedPhysicalContour` внутри `PackedFlags` и в `RoundableContourFlag` внутри `PackedContour`. Производственный контур читает второй вариант. У `KernTerrainHasRoundedPhysicalContour` вызовов не найдено.
 - Свечение повторно пишется в `GlowingContourFlag` — бит 0 `PackedContour`. Читателя этого бита не найдено; действующая эмиссия читает `Emissive` из `PackedFlags`.
@@ -128,7 +128,7 @@ packet.ReliefGroup
 
 ## 6. Цвета: палитра клиента — источник правды, а не дубль серверных данных
 
-Источники: [MapBlockColors.cs](Assets/Scripts/World/Common/MapBlockColors.cs), [DummyMapColors.cs](Assets/Scripts/Networking/Connection/Client/Simulation/DummyMapColors.cs), [DummyCellConfigurationUtilities.cs](Assets/Scripts/Networking/Connection/Client/Simulation/DummyCellConfigurationUtilities.cs), а на сервере — `NewMinesServer/MinesServer/Server/ProtocolWorld.cs` и `Game/World/Cell.cs`.
+Источники: [MapBlockColors.cs](../../Assets/Scripts/World/Common/MapBlockColors.cs), [DummyMapColors.cs](../../Assets/Scripts/Networking/Connection/Client/Simulation/DummyMapColors.cs), [DummyCellConfigurationUtilities.cs](../../Assets/Scripts/Networking/Connection/Client/Simulation/DummyCellConfigurationUtilities.cs), а на сервере — `NewMinesServer/MinesServer/Server/ProtocolWorld.cs` и `Game/World/Cell.cs`.
 
 **Прежний вывод раздела был неверен.** Запись шла: таблица — дубль серверных цветовых данных, кандидат на удаление, сервер — источник правды. Фактически сервер цвета клеток не моделирует: в `Cell.cs` (47 строк) нет поля цвета, в `cells.json` его нет, а `ProtocolWorld.BuildCellConfigurations` кладёт `unchecked((int)0xFFFFFFFF)` в `Color` для всех 256 типов. Клиент разворачивал это в белый — обе карты становились полностью белыми.
 
@@ -140,7 +140,7 @@ packet.ReliefGroup
 
 ## 7. Новый CellVisualProtocol пока не устраняет источники дублей
 
-Источники: [CellVisualProtocol.cs](Assets/Scripts/World/Storage/CellVisualProtocol.cs), [MapCellConfigCatalog.cs](Assets/Scripts/World/Storage/MapCellConfigCatalog.cs).
+Источники: [CellVisualProtocol.cs](../../Assets/Scripts/World/Storage/CellVisualProtocol.cs), [MapCellConfigCatalog.cs](../../Assets/Scripts/World/Storage/MapCellConfigCatalog.cs).
 
 `GetVisualProperties` используется рендером; `CellVisualProtocolRegistry.Replace` пока не вызывается. Реализация оборачивает четыре клиентских списка; каталоги листов, анимации и декалей остаются отдельными.
 
@@ -159,7 +159,7 @@ packet.ReliefGroup
 
 ## 8. Анимация и текстурная разметка
 
-Источники: [TerrainAnimationProfile.cs](Assets/Scripts/World/Terrain/Mesh/TerrainAnimationProfile.cs), [TerrainColorAnimation.hlsl](Assets/Shaders/Terrain/TerrainColorAnimation.hlsl), [WorldTextureManager.cs](Assets/Scripts/World/Textures/WorldTextureManager.cs).
+Источники: [TerrainAnimationProfile.cs](../../Assets/Scripts/World/Terrain/Mesh/TerrainAnimationProfile.cs), [TerrainColorAnimation.hlsl](../../Assets/Shaders/Terrain/TerrainColorAnimation.hlsl), [WorldTextureManager.cs](../../Assets/Scripts/World/Textures/WorldTextureManager.cs).
 
 Специальные клиентские профили выбирают собственный эффект и скорость для пяти X-кристаллов, Lava и шести обычных кристаллов. В выборе цветового эффекта они приоритетнее packet.Animation. Это кандидат на одно итоговое описание эффекта вместо передачи двух конкурирующих классификаторов.
 

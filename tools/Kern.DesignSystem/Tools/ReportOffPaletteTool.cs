@@ -10,7 +10,7 @@ internal static class ReportOffPaletteTool
     {
         string root = GetRoot();
         string repo = Path.GetFullPath(Path.Combine(root, "..", ".."));
-        string palettePath = Path.Combine(repo, "Assets", "Resources", "Styles", "token-palette.json");
+        string palettePath = Path.Combine(repo, "Assets", "Resources", "Styles", "TokenPalette.json");
         string stylesDir = Path.Combine(repo, "Assets", "Resources", "Styles");
         string outPath = Path.Combine(repo, "docs", "design", "design-debt-uss.md");
 
@@ -69,14 +69,5 @@ internal static class ReportOffPaletteTool
         return 0;
     }
 
-    private static string GetRoot()
-    {
-        string dir = Directory.GetCurrentDirectory();
-        while (!File.Exists(Path.Combine(dir, "index.html")))
-        {
-            dir = Path.GetDirectoryName(dir) ?? dir;
-            if (Path.GetPathRoot(dir) == dir) break;
-        }
-        return dir;
-    }
+    private static string GetRoot() => DesignSystemPaths.GetRoot();
 }

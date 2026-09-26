@@ -28,7 +28,7 @@ public sealed class DesignSystemDebtRule : IRule
     };
 
     private static readonly HashSet<string> MainGameDirs = new() { "HUD", "Map", "Chat", "Programmator", "Settings", "Overlays", "Inventory" };
-    private static readonly HashSet<string> MainGameUss = new() { "HUD.uss", "Inventory.uss", "Chat.uss", "chat-input.uss", "Programmator.uss", "PauseMenu.uss", "Modal.uss" };
+    private static readonly HashSet<string> MainGameUss = new() { "HUD.uss", "Inventory.uss", "Chat.uss", "ChatInput.uss", "Programmator.uss", "PauseMenu.uss", "Modal.uss" };
     private static readonly HashSet<string> GeneratedUss = new() { "ThemeTokens.uss", "TokenUtilities.uss" };
 
     private static readonly Regex HexColor = new(@"#[0-9a-fA-F]{3,8}\b", RegexOptions.Compiled);

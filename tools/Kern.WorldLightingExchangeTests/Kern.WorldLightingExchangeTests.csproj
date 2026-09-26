@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>12.0</LangVersion>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <RunAnalyzers>false</RunAnalyzers>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <UnityRoot>../../Assets/Scripts</UnityRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="VContainer">
+      <HintPath>../../Library/ScriptAssemblies/VContainer.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>/Applications/Unity/Hub/Editor/6000.6.0f1/Unity.app/Contents/Resources/Scripting/Managed/UnityEngine/UnityEngine.CoreModule.dll</HintPath>
+      <Aliases>UnityEngineRuntime</Aliases>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="$(UnityRoot)/Core/Interfaces/Contracts/WorldLighting/TerrainLightingContracts.cs" Link="Production/TerrainLightingContracts.cs" />
+    <Compile Include="$(UnityRoot)/Core/Bootstrap/WorldLighting/TerrainLightingExchange.cs" Link="Production/TerrainLightingExchange.cs" />
+    <Compile Include="$(UnityRoot)/World/Lighting/Core/TerrainLightingChangePump.cs" Link="Production/TerrainLightingChangePump.cs" />
+    <Compile Include="$(UnityRoot)/World/Lighting/Core/TerrainLightingFramePump.cs" Link="Production/TerrainLightingFramePump.cs" />
+    <Compile Include="$(UnityRoot)/World/Lighting/Core/TerrainLightingChangeApplier.cs" Link="Production/TerrainLightingChangeApplier.cs" />
+    <Compile Include="$(UnityRoot)/World/Lighting/Core/LightingRuntimeState.cs" Link="Production/LightingRuntimeState.cs" />
+    <Compile Include="$(UnityRoot)/World/Lighting/Core/LightingRegionCalculator.cs" Link="Production/LightingRegionCalculator.cs" />
+    <Compile Include="$(UnityRoot)/World/Lighting/Core/LightingRegionInvalidationPolicy.cs" Link="Production/LightingRegionInvalidationPolicy.cs" />
+    <Compile Include="$(UnityRoot)/World/Lighting/Core/LightingQualityTransitionPolicy.cs" Link="Production/LightingQualityTransitionPolicy.cs" />
+    <Compile Include="$(UnityRoot)/World/Lighting/Quality/Contracts/LightingQualityMode.cs" Link="Production/LightingQualityMode.cs" />
+    <Compile Include="$(UnityRoot)/Core/Configuration/Contracts/SettingAttributes.cs" Link="Production/SettingAttributes.cs" />
+    <Compile Include="$(UnityRoot)/World/Streaming/StreamingPolicy.cs" Link="Production/StreamingPolicy.cs" />
+    <Compile Include="$(UnityRoot)/World/Terrain/Core/TerrainLightingViewportPolicy.cs" Link="Production/TerrainLightingViewportPolicy.cs" />
+    <Compile Include="$(UnityRoot)/World/Terrain/Core/TerrainContentRevisionJournal.cs" Link="Production/TerrainContentRevisionJournal.cs" />
+    <Compile Include="$(UnityRoot)/Tests/Editor/World/Lighting/TerrainLightingExchangeTests.cs" Link="Tests/TerrainLightingExchangeTests.cs" />
+    <Compile Include="$(UnityRoot)/Tests/Editor/World/Lighting/LightingQualityTransitionPolicyTests.cs" Link="Tests/LightingQualityTransitionPolicyTests.cs" />
+    <Compile Include="$(UnityRoot)/Tests/Editor/World/Terrain/TerrainContentRevisionJournalTests.cs" Link="Tests/TerrainContentRevisionJournalTests.cs" />
+  </ItemGroup>
+</Project>

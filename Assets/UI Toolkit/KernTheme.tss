@@ -11,7 +11,7 @@
 @import url("../Resources/Styles/Input.uss");
 @import url("../Resources/Styles/HUD.uss");
 @import url("../Resources/Styles/Chat.uss");
-@import url("../Resources/Styles/chat-input.uss");
+@import url("../Resources/Styles/ChatInput.uss");
 @import url("../Resources/Styles/Inventory.uss");
 @import url("../Resources/Styles/Programmator.uss");
 @import url("../Resources/Styles/PauseMenu.uss");

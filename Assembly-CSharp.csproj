@@ -508,7 +508,7 @@
     <None Include="Assets/Resources/Styles/Modal.uss" />
     <None Include="Assets/Resources/UI/LocalChat.uxml" />
     <None Include="Assets/TextMesh Pro/Shaders/TMP_SDF-Mobile.shader" />
-    <None Include="Assets/Resources/Styles/chat-input.uss" />
+    <None Include="Assets/Resources/Styles/ChatInput.uss" />
     <None Include="Assets/TextMesh Pro/Shaders/TMP_Sprite.shader" />
   </ItemGroup>
   <ItemGroup>

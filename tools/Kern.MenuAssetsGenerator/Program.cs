@@ -1,4 +1,4 @@
-// C# backend invoked by scripts/generate_menu_assets.js.
+// Standalone C# generator for the menu UI textures.
 // Generates mm_logo.png and mm_space_bg.png into Assets/Textures/UI/
 
 using SixLabors.ImageSharp;

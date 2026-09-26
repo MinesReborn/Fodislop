@@ -1,6 +1,7 @@
 # Terrain raster and contact AO regression
 
-Run `node tools/Kern.TerrainRasterTests/run.js` (Node.js and the test backend required).
+Run `dotnet run --project tools/Kern.TerrainRasterTests/RunRasterTests` (the .NET
+SDK, clang++ and the C++ test backend are required).
 The local pre-commit hook and the architecture CI job run this check. CI currently
 has manual workflow triggers; the hook supplies automatic local coverage.
 

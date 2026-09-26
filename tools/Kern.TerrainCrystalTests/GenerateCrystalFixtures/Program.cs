@@ -1,4 +1,4 @@
-// C# backend invoked by tools/Kern.TerrainCrystalTests/generate.js.
+// Standalone C# generator for the crystal phase-map fixture.
 // Extracts the original OpenMines phase map without resizing or recoloring.
 
 using SixLabors.ImageSharp;

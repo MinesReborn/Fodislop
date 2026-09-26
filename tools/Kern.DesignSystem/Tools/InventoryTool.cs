@@ -14,7 +14,7 @@ internal static class InventoryTool
         var cssFiles = Directory.GetFiles(Path.Combine(root, "css"), "*.css", SearchOption.AllDirectories).ToList();
         cssFiles.Add(Path.Combine(root, "styles.css"));
         var markup = new[] { Path.Combine(root, "index.html"), Path.Combine(root, "styleguide.html") };
-        var scripts = new[] { Path.Combine(root, "app.js"), Path.Combine(root, "js", "styleguide.js") };
+        var scripts = new[] { Path.Combine(root, "app.js"), Path.Combine(root, "tools", "computed-snapshot.js") };
         var allFiles = cssFiles.Concat(markup).Concat(scripts).ToList();
 
         var declared = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -68,14 +68,5 @@ internal static class InventoryTool
         return 0;
     }
 
-    private static string GetRoot()
-    {
-        string dir = Directory.GetCurrentDirectory();
-        while (!File.Exists(Path.Combine(dir, "index.html")))
-        {
-            dir = Path.GetDirectoryName(dir) ?? dir;
-            if (Path.GetPathRoot(dir) == dir) break;
-        }
-        return dir;
-    }
+    private static string GetRoot() => DesignSystemPaths.GetRoot();
 }

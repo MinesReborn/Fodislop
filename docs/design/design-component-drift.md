@@ -1,7 +1,7 @@
 # Расхождения компонентов с макетом
 
 ФАЙЛ МАШИННЫЙ. Правки будут затёрты.
-Генератор: `visual/kern-ui-lab/tools/compare-components.js`.
+Генератор: `dotnet run --project tools/Kern.DesignSystem -- compare-components`.
 Карта пар: `visual/kern-ui-lab/component-map.json`.
 
 ## Что это

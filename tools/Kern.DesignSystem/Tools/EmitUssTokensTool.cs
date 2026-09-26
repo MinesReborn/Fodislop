@@ -39,7 +39,7 @@ internal static class EmitUssTokensTool
         string stylesDir = Path.Combine(repo, "Assets", "Resources", "Styles");
         string themePath = Path.Combine(stylesDir, "ThemeTokens.uss");
         string utilsPath = Path.Combine(stylesDir, "TokenUtilities.uss");
-        string palettePath = Path.Combine(stylesDir, "token-palette.json");
+        string palettePath = Path.Combine(stylesDir, "TokenPalette.json");
 
         string tokensText = File.ReadAllText(tokensPath);
         var (baseTokens, tiers) = ReadBlocks(tokensText);
@@ -305,16 +305,7 @@ internal static class EmitUssTokensTool
         return JsonSerializer.Serialize(palette, new JsonSerializerOptions { WriteIndented = true }) + "\n";
     }
 
-    private static string GetRoot()
-    {
-        string dir = Directory.GetCurrentDirectory();
-        while (!File.Exists(Path.Combine(dir, "index.html")))
-        {
-            dir = Path.GetDirectoryName(dir) ?? dir;
-            if (Path.GetPathRoot(dir) == dir) break;
-        }
-        return dir;
-    }
+    private static string GetRoot() => DesignSystemPaths.GetRoot();
 
     private static string GetRepoRoot()
     {

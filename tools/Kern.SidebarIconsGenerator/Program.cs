@@ -1,4 +1,4 @@
-// C# backend invoked by scripts/generate_sidebar_icons.js.
+// Standalone C# generator for the sidebar UI textures.
 // Generates sidebar icon PNGs into Assets/Textures/UI/ using 4x super-sampling + Lanczos downsample.
 
 using SixLabors.ImageSharp;
