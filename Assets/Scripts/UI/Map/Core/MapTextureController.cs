@@ -57,6 +57,18 @@ internal sealed class MapTextureController
             FilterMode.Point,
             TextureWrapMode.Clamp);
 
+        // new Texture2D не инициализирует пиксели, и до первого Render панель
+        // показала бы неинициализированную память. Заливаем цветом незагруженной
+        // клетки: карта без данных обязана быть чёрной, а не мусором.
+        var unloaded = new Color32[TexWidth * TexHeight];
+        Array.Fill(unloaded, new Color32(0, 0, 0, 255));
+        MapTexture.SetPixelData(unloaded, 0);
+        MapTexture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
+
+        // Текстура переписывается на каждом кадре рендера, поэтому динамический
+        // атлас UI Toolkit обязан её исключить.
+        DynamicAtlasConfigurator.RegisterRuntimeRedrawn(MapTexture);
+
         if (mapImage != null)
         {
             mapImage.image = MapTexture;

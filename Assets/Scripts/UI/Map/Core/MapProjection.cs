@@ -15,7 +15,7 @@ internal static class MapProjection
         for (int i = 0; i < colors.Length; i++)
         {
             CellType type = (CellType)i;
-            colors[i] = (Color32)manager.GetCellMinimapColor(type);
+            colors[i] = manager.GetCellMinimapColor32(type);
         }
 
         return colors;

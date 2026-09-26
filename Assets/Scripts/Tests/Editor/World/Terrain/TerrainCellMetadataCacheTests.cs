@@ -179,6 +179,8 @@ public sealed class TerrainCellMetadataCacheTests
 
         public Color GetCellMinimapColor(CellType type) => Color.gray;
 
+        public Color32 GetCellMinimapColor32(CellType type) => Color.gray;
+
         public void UpdateMovementSpeeds(MovementSpeedPacket packet) =>
             throw new NotSupportedException();
 

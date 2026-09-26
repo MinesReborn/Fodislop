@@ -139,7 +139,7 @@ public class MapCellConfigCatalogTests
     }
 
     [Test]
-    public void GetCellMinimapColor_WithConfigColor_UnpacksRGB()
+    public void GetCellMinimapColor_AuthoredType_IgnoresServerColor()
     {
         var catalog = new MapCellConfigCatalog();
         int argb = unchecked((int)0xFF112233);
@@ -147,10 +147,74 @@ public class MapCellConfigCatalogTests
 
         Color color = catalog.GetCellMinimapColor((CellType)0);
 
-        Assert.AreEqual(0x11 / 255f, color.r, 0.001f);
-        Assert.AreEqual(0x22 / 255f, color.g, 0.001f);
-        Assert.AreEqual(0x33 / 255f, color.b, 0.001f);
+        // (CellType)0 описан в палитре, поэтому серверное значение не читается.
+        Color32 expected = MapBlockColors.GetColor32((CellType)0);
+        Assert.AreEqual(expected.r / 255f, color.r, 0.001f);
+        Assert.AreEqual(expected.g / 255f, color.g, 0.001f);
+        Assert.AreEqual(expected.b / 255f, color.b, 0.001f);
+    }
+
+    [Test]
+    public void GetCellMinimapColor_AuthoredType_IgnoresSaturatedWhiteServerColor()
+    {
+        // Сервер кладёт 0xFFFFFFFF в Color для всех 256 типов. Если бы пакет был
+        // источником правды, карта и мини-карта были бы полностью белыми.
+        var catalog = new MapCellConfigCatalog();
+        var configs = new CellConfigurationPacket[256];
+        for (int index = 0; index < configs.Length; index++)
+        {
+            configs[index] = CreateConfig(color: unchecked((int)0xFFFFFFFF));
+        }
+
+        catalog.LoadConfigurations(configs, null);
+
+        var values = Enum.GetValues(typeof(CellType));
+        foreach (CellType type in values)
+        {
+            Color32 color = catalog.GetCellMinimapColor32(type);
+            Assert.AreEqual(
+                MapBlockColors.GetColor32(type),
+                color,
+                $"Cell type '{type}' must not take the server's white colour.");
+        }
+    }
+
+    [Test]
+    public void GetCellMinimapColor_UnauthoredType_UnpacksServerColor()
+    {
+        var catalog = new MapCellConfigCatalog();
+        var configs = new CellConfigurationPacket[16];
+        for (int index = 0; index < configs.Length; index++)
+        {
+            configs[index] = CreateConfig();
+        }
+
+        configs[5] = CreateConfig(color: unchecked((int)0xFF804020));
+        catalog.LoadConfigurations(configs, null);
+
+        Color color = catalog.GetCellMinimapColor((CellType)5);
+
+        Assert.AreEqual(0x80 / 255f, color.r, 0.001f);
+        Assert.AreEqual(0x40 / 255f, color.g, 0.001f);
+        Assert.AreEqual(0x20 / 255f, color.b, 0.001f);
         Assert.AreEqual(1f, color.a, 0.001f);
+    }
+
+    [Test]
+    public void GetCellMinimapColor_UnauthoredType_ZeroServerColor_UsesGreyPlaceholder()
+    {
+        var catalog = new MapCellConfigCatalog();
+        var configs = new CellConfigurationPacket[16];
+        for (int index = 0; index < configs.Length; index++)
+        {
+            configs[index] = CreateConfig(color: 0);
+        }
+
+        catalog.LoadConfigurations(configs, null);
+
+        Color32 color = catalog.GetCellMinimapColor32((CellType)5);
+
+        Assert.AreEqual(MapBlockColors.MissingServerColor, color);
     }
 
     [Test]

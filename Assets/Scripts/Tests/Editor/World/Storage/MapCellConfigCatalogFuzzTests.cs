@@ -141,9 +141,13 @@ public class MapCellConfigCatalogFuzzTests
     {
         var catalog = new MapCellConfigCatalog();
         const int argb = unchecked((int)0xFF804020);
-        catalog.LoadConfigurations(Configs(
-            (CellType.Empty, new CellConfigurationPacket(CellConfigProperties.None, CellDistortionType.Neutral, CellAnimationType.None, 0, 0, argb, 0))), null);
-        Color c = catalog.GetCellMinimapColor(CellType.Empty);
+        var configs = Configs(
+            (CellType.Empty, new CellConfigurationPacket(CellConfigProperties.None, CellDistortionType.Neutral, CellAnimationType.None, 0, 0, argb, 0)));
+        configs[5] = new CellConfigurationPacket(CellConfigProperties.None, CellDistortionType.Neutral, CellAnimationType.None, 0, 0, argb, 0);
+        catalog.LoadConfigurations(configs, null);
+
+        // (CellType)5 в палитре не описан, поэтому серверный цвет читается.
+        Color c = catalog.GetCellMinimapColor((CellType)5);
         Assert.That(c.r, Is.EqualTo(0x80 / 255f).Within(0.001f));
         Assert.That(c.g, Is.EqualTo(0x40 / 255f).Within(0.001f));
         Assert.That(c.b, Is.EqualTo(0x20 / 255f).Within(0.001f));

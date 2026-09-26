@@ -287,6 +287,10 @@
     align-items: flex-start;
 }
 
+.inv-tooltip-meta .sci-fi-badge-gold {
+    margin-top: var(--space-1);
+}
+
 .inv-tooltip-title {
     font-size: var(--size-base);
     -unity-font-style: bold;

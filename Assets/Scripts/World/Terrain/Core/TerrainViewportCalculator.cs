@@ -166,28 +166,32 @@ public sealed class TerrainViewportCalculator
         RectInt cameraViewport,
         RectInt retainedLightingViewport,
         bool isRequestedResident,
+        bool hasAnyResidentData,
         bool requestedDimensionsChanged,
         bool cellsCommitted,
         bool cpuBuildInFlight,
         bool holdingPublishedView)
     {
-        if (cpuBuildInFlight && !cellsCommitted)
+        bool hadAnything = isRequestedResident || hasAnyResidentData;
+        if (!hadAnything)
         {
-            // The initial CPU build must be polled before there is a committed
-            // window. Otherwise ShouldProcess stays false forever and the
-            // completed task can never publish its result.
-            return new TerrainFramePlan(
-                requestedWindow,
-                committedWindow,
-                requestedWindow,
-                cameraViewport,
-                cameraViewport,
-                DimensionsChanged: requestedDimensionsChanged,
-                ShouldProcess: true);
-        }
+            // Первый CPU-билд нужно опрашивать до появления закоммиченного
+            // окна: иначе ShouldProcess остаётся false навсегда и завершённая
+            // задача так и не публикует результат.
+            if (cpuBuildInFlight)
+            {
+                return new TerrainFramePlan(
+                    requestedWindow,
+                    committedWindow,
+                    requestedWindow,
+                    cameraViewport,
+                    cameraViewport,
+                    DimensionsChanged: requestedDimensionsChanged,
+                    ShouldProcess: true);
+            }
 
-        if (!isRequestedResident || cpuBuildInFlight)
-        {
+            // Данных в окне нет вовсе: кадр стоит, пока не приедет первая
+            // пачка чанков.
             if (!cellsCommitted)
             {
                 return new TerrainFramePlan(
@@ -200,12 +204,8 @@ public sealed class TerrainViewportCalculator
                     ShouldProcess: false);
             }
 
-            // Окно опубликовано, а свет ещё ни разу не ставился: запрос
-            // (новый размер или начало) не приехал в кадре первой
-            // публикации. Отказ от обработки здесь не ждёт, а запирает:
-            // без обработки свет не ставится никогда, меш показа тоже, и
-            // экран остаётся чёрным, пока запрос не станет резидентным.
-            // Свет ставится по кадру камеры внутри опубликованного окна.
+            // Свет следует фактическому viewport камеры; при удержании
+            // опубликованного вида сохраняется его последняя область.
             RectInt lightingViewport = TerrainLightingViewportPolicy.ResolveLightingViewport(
                 cameraViewport,
                 retainedLightingViewport,
@@ -229,6 +229,42 @@ public sealed class TerrainViewportCalculator
                 ShouldProcess: true);
         }
 
+        // Запрошенное окно собрано целиком — строим его.
+        if (isRequestedResident && !cpuBuildInFlight)
+        {
+            return new TerrainFramePlan(
+                requestedWindow,
+                committedWindow,
+                requestedWindow,
+                cameraViewport,
+                cameraViewport,
+                DimensionsChanged: requestedDimensionsChanged,
+                ShouldProcess: true);
+        }
+
+        // Запрошенное окно полностью не приехало. Уже опубликованный мир не
+        // рвём: продолжаем его обрабатывать (свет — по кадру камеры внутри
+        // него), пока не доедет запрошенное окно.
+        if (cellsCommitted)
+        {
+            if (retainedLightingViewport.width <= 0 || retainedLightingViewport.height <= 0)
+            {
+                retainedLightingViewport = ClampInto(cameraViewport, committedWindow);
+            }
+
+            return new TerrainFramePlan(
+                requestedWindow,
+                committedWindow,
+                committedWindow,
+                cameraViewport,
+                retainedLightingViewport,
+                DimensionsChanged: false,
+                ShouldProcess: true);
+        }
+
+        // Ничего ещё не опубликовано, но приехал хоть первый пакет чанков:
+        // строим запрошенное окно. Недогруженные места остаются пустыми и
+        // зарастают по мере прихода данных (ChunkLoaded → dirty → TryPatch).
         return new TerrainFramePlan(
             requestedWindow,
             committedWindow,

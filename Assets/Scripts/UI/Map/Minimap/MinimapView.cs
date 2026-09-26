@@ -13,6 +13,7 @@ internal sealed class MinimapView : IDisposable
     private readonly TemplateContainer _tree;
     private readonly VisualElement _root;
     private readonly Label _coordinates;
+    private readonly Image _image;
     private readonly StringBuilder _coordinatesBuilder = new(16);
     private int _lastDisplayedX = int.MinValue;
     private int _lastDisplayedY = int.MinValue;
@@ -20,11 +21,13 @@ internal sealed class MinimapView : IDisposable
     private MinimapView(
         TemplateContainer tree,
         VisualElement root,
-        Label coordinates)
+        Label coordinates,
+        Image image)
     {
         _tree = tree;
         _root = root;
         _coordinates = coordinates;
+        _image = image;
     }
 
     public static MinimapView Create(
@@ -52,10 +55,16 @@ internal sealed class MinimapView : IDisposable
             evt.StopPropagation();
         });
         document.rootVisualElement.Add(tree);
-        var view = new MinimapView(tree, root, coordinates);
+        var view = new MinimapView(tree, root, coordinates, image);
         view.SetVisible(false);
         return view;
     }
+
+    /// <summary>
+    /// Просит перерисовать текстуру миникарты. Текстура пишется на месте, без
+    /// смены ссылки, поэтому элемент нужно явно пометить грязным.
+    /// </summary>
+    public void MarkDirty() => _image.MarkDirtyRepaint();
 
     public void UpdateCoordinates(int x, int y)
     {
