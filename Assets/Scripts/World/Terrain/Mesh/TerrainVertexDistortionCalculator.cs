@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Kern.World.Terrain;
 
-public readonly record struct TerrainVertexOffset(int XSteps, int YSteps, int ZSteps)
+public readonly record struct TerrainVertexOffset(float XSteps, float YSteps, float ZSteps)
 {
     public const int GridSize = 32;
 
@@ -28,10 +28,10 @@ public sealed class TerrainVertexDistortionCalculator
     // вместе с остальными параметрами дисторшена в TerrainConfigHolder.
     public const int DistortionStrengthSteps = TerrainConfigHolder.ClassicDistortionStrengthSteps;
 
-    private const int OrganicFreeJitterCenterSteps = TerrainConfigHolder.OrganicMaximumOffsetSteps / 2;
+    private const float OrganicFreeJitterCenterSteps = TerrainConfigHolder.OrganicMaximumOffsetSteps / 2f;
 
     // Центрируется по общему диапазону классического хэша.
-    private const int FreeJitterCenterSteps =
+    private const float FreeJitterCenterSteps =
         ((TerrainConfigHolder.ClassicJitterRange - 1) / 2) * DistortionStrengthSteps;
 
     public TerrainRingGrid<TerrainVertexOffset> GridVertexOffsets { get; } = new();
@@ -202,14 +202,14 @@ public sealed class TerrainVertexDistortionCalculator
             TerrainConfigHolder.OrganicNoiseFineWeight * ValueNoise(
                 worldX, worldY, TerrainConfigHolder.OrganicNoiseFinePeriodCells,
                 TerrainConfigHolder.OrganicNoiseFineYSeed);
-        int rx = Mathf.RoundToInt(Mathf.Clamp01(
+        float rx = Mathf.Clamp01(
             (xNoise * TerrainConfigHolder.OrganicNoiseContrast) -
             TerrainConfigHolder.OrganicNoiseCenter) *
-            TerrainConfigHolder.OrganicMaximumOffsetSteps);
-        int ry = Mathf.RoundToInt(Mathf.Clamp01(
+            TerrainConfigHolder.OrganicMaximumOffsetSteps;
+        float ry = Mathf.Clamp01(
             (yNoise * TerrainConfigHolder.OrganicNoiseContrast) -
             TerrainConfigHolder.OrganicNoiseCenter) *
-            TerrainConfigHolder.OrganicMaximumOffsetSteps);
+            TerrainConfigHolder.OrganicMaximumOffsetSteps;
         return ComputeOffsetFromJitter(
             tl, tr, bl, br, worldY, rx, ry, OrganicFreeJitterCenterSteps);
     }
@@ -220,9 +220,9 @@ public sealed class TerrainVertexDistortionCalculator
         CachedCellData bl,
         CachedCellData br,
         int worldY,
-        int rx,
-        int ry,
-        int freeJitterCenterSteps)
+        float rx,
+        float ry,
+        float freeJitterCenterSteps)
     {
         // Внутри сплошного массива узел колышется свободно в обе стороны:
         // здесь нет внешней стороны, к которой нужно привязывать знак.

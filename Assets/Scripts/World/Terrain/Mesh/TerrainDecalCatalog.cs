@@ -97,7 +97,7 @@ public static class TerrainDecalCatalog
     // Остальной камень той же семьи — золото, металл, глубинная порода —
     // им не красим: гамма расходится с палитрой самой клетки.
     public static bool IsStoneDecalSurface(CellType cellType, bool isBackground) =>
-        !isBackground && cellType is CellType.RedRock or CellType.NiggerRock;
+        !isBackground && cellType is CellType.RedRock or CellType.BlackRock;
 
     public static bool IsGroundDecalSurface(CellType cellType, bool isBackground) =>
         cellType == CellType.Empty ||
@@ -127,7 +127,7 @@ public static class TerrainDecalCatalog
             CellType.Boulder3 or
             CellType.Rock or
             CellType.HeavyRock or
-            CellType.NiggerRock or
+            CellType.BlackRock or
             CellType.RedRock or
             CellType.GoldenRock or
             CellType.DeepRock or

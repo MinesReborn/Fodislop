@@ -9,6 +9,8 @@ namespace MinesServer.Networking.Connection.Client;
 
 internal static class DummyCellConfigurationUtilities
 {
+    private const byte GreenBlueRockReliefGroup = 6;
+
     private static readonly HashSet<CellType> _ConfiguredTypes = [];
 
     public static CellConfigurationPacket[] CreateCellConfigurations()
@@ -59,7 +61,7 @@ internal static class DummyCellConfigurationUtilities
         SetConfig(configs, CellType.DarkYellowSand, DESTRUCTIBLE_SHADOW_PROPS, 1, distortion: CellDistortionType.Block);
         SetConfig(configs, CellType.DeepMagmaBoulder, DESTRUCTIBLE_SHADOW_PROPS | CellConfigProperties.Glowing, 1, distortion: CellDistortionType.Block);
         SetConfig(configs, CellType.MilitaryBlockSand, DESTRUCTIBLE_SHADOW_PROPS, 1, distortion: CellDistortionType.Block);
-        SetConfig(configs, CellType.Lava, DESTRUCTIBLE_SHADOW_PROPS | CellConfigProperties.Glowing, 1, animation: (CellAnimationType)4, animationSpeed: 10, frameOffset: 0, distortion: CellDistortionType.Block);
+        SetConfig(configs, CellType.Lava, DESTRUCTIBLE_SHADOW_PROPS | CellConfigProperties.Glowing, 1, distortion: CellDistortionType.Block);
         SetConfig(configs, CellType.Boulder1, DESTRUCTIBLE_SHADOW_PROPS, 1, distortion: CellDistortionType.Block);
         SetConfig(configs, CellType.Boulder2, DESTRUCTIBLE_SHADOW_PROPS, 1, distortion: CellDistortionType.Block);
         SetConfig(configs, CellType.Boulder3, DESTRUCTIBLE_SHADOW_PROPS, 1, distortion: CellDistortionType.Block);
@@ -82,11 +84,8 @@ internal static class DummyCellConfigurationUtilities
         SetConfig(configs, CellType.RedBlock, DESTRUCTIBLE_SHADOW_PROPS, 0, distortion: CellDistortionType.Block);
         SetConfig(configs, CellType.BuildingWall, INDESTRUCTIBLE_PROPS, 0, distortion: CellDistortionType.Block);
 
-        // Рельефная группа — семья, внутри которой клетки сливаются в один
-        // массив. По границе между разными группами рисуется кайма, поэтому
-        // группа 3 (кристаллы) и группа 5 (порода) разведены намеренно: пока
-        // они делили один номер, кристалл врастал в породу и жила читалась
-        // куском той же стены. В оригинале это тоже две разные семьи.
+        // Зелёные и синие кристаллы с пустоскалом образуют отдельную общую
+        // группу, не сливающуюся с остальными кристаллами и породами.
         SetConfig(configs, CellType.XGreen, GLOWING_CRYSTAL_PROPS, 3, distortion: CellDistortionType.Cause);
         SetConfig(configs, CellType.XBlue, GLOWING_CRYSTAL_PROPS, 3, distortion: CellDistortionType.Cause);
         SetConfig(configs, CellType.XRed, GLOWING_CRYSTAL_PROPS, 3, distortion: CellDistortionType.Cause);
@@ -96,10 +95,10 @@ internal static class DummyCellConfigurationUtilities
         SetConfig(configs, CellType.DeepTurquoiseRock, GLOWING_CRYSTAL_PROPS, 3, distortion: CellDistortionType.Cause);
         SetConfig(configs, CellType.DeepRainbowRock, GLOWING_CRYSTAL_PROPS, 3, distortion: CellDistortionType.Cause);
         SetConfig(configs, CellType.DeepStripedRock, DESTRUCTIBLE_SHADOW_PROPS, 5, distortion: CellDistortionType.Cause);
-        SetConfig(configs, CellType.Rock, DESTRUCTIBLE_SHADOW_PROPS, 5, distortion: CellDistortionType.Cause);
-        SetConfig(configs, CellType.Green, GLOWING_CRYSTAL_PROPS, 3, distortion: CellDistortionType.Cause);
+        SetConfig(configs, CellType.Rock, DESTRUCTIBLE_SHADOW_PROPS, GreenBlueRockReliefGroup, distortion: CellDistortionType.Cause);
+        SetConfig(configs, CellType.Green, GLOWING_CRYSTAL_PROPS, GreenBlueRockReliefGroup, distortion: CellDistortionType.Cause);
         SetConfig(configs, CellType.Red, GLOWING_CRYSTAL_PROPS, 3, distortion: CellDistortionType.Cause);
-        SetConfig(configs, CellType.Blue, GLOWING_CRYSTAL_PROPS, 3, distortion: CellDistortionType.Cause);
+        SetConfig(configs, CellType.Blue, GLOWING_CRYSTAL_PROPS, GreenBlueRockReliefGroup, distortion: CellDistortionType.Cause);
         SetConfig(configs, CellType.Violet, GLOWING_CRYSTAL_PROPS, 3, distortion: CellDistortionType.Cause);
         SetConfig(configs, CellType.White, GLOWING_CRYSTAL_PROPS, 3, distortion: CellDistortionType.Cause);
         SetConfig(configs, CellType.Cyan, GLOWING_CRYSTAL_PROPS, 3, distortion: CellDistortionType.Cause);
@@ -112,7 +111,7 @@ internal static class DummyCellConfigurationUtilities
         SetConfig(configs, CellType.AliveCyan, GLOWING_CRYSTAL_PROPS, 3, distortion: CellDistortionType.Block);
         SetConfig(configs, CellType.AliveRed, GLOWING_CRYSTAL_PROPS, 3, distortion: CellDistortionType.Block);
         SetConfig(configs, CellType.AliveViol, GLOWING_CRYSTAL_PROPS, 3, distortion: CellDistortionType.Block);
-        SetConfig(configs, CellType.AliveNigger, GLOWING_CRYSTAL_PROPS, 3, distortion: CellDistortionType.Block);
+        SetConfig(configs, CellType.AliveBlack, GLOWING_CRYSTAL_PROPS, 3, distortion: CellDistortionType.Block);
         SetConfig(configs, CellType.AliveWhite, GLOWING_CRYSTAL_PROPS, 3, distortion: CellDistortionType.Block);
         SetConfig(configs, CellType.AliveRainbow, GLOWING_CRYSTAL_PROPS, 3, distortion: CellDistortionType.Block);
         SetConfig(configs, CellType.AliveBlue, GLOWING_CRYSTAL_PROPS, 3, distortion: CellDistortionType.Block);
@@ -121,7 +120,7 @@ internal static class DummyCellConfigurationUtilities
         SetConfig(configs, CellType.SuperRainbow, GLOWING_CRYSTAL_PROPS, 3);
         SetConfig(configs, CellType.HypnoRock, GLOWING_CRYSTAL_PROPS, 3, distortion: CellDistortionType.Cause);
 
-        SetConfig(configs, CellType.NiggerRock, INDESTRUCTIBLE_PROPS, 4, distortion: CellDistortionType.Cause);
+        SetConfig(configs, CellType.BlackRock, INDESTRUCTIBLE_PROPS, 4, distortion: CellDistortionType.Cause);
         SetConfig(configs, CellType.LivingBlackRock, INDESTRUCTIBLE_PROPS, 4, distortion: CellDistortionType.Cause);
         SetConfig(configs, CellType.RedRock, INDESTRUCTIBLE_PROPS, 4, distortion: CellDistortionType.Cause);
         SetConfig(configs, CellType.Gate, ROAD_PROPS, 0, distortion: CellDistortionType.Block);

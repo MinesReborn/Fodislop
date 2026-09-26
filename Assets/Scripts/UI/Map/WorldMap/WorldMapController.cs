@@ -31,19 +31,41 @@ namespace Kern.UI
 
         private bool _isInMapMode;
         private bool _playerSpawnSubscription;
+        private bool _hasStarted;
         [Inject]
         private MapModeState _mapModeState = null!;
         [Inject]
         private ILocalPlayerState _localPlayer = null!;
         [Inject]
         private UIInputManager _uiInput = null!;
+        [Inject]
+        private IInputBlocker _inputBlocker = null!;
 
         protected void Start()
         {
+            _hasStarted = true;
             _mapModeState.Changed += OnMapModeChanged;
             _mapRenderer.CloseRequested += OnMapCloseRequested;
+            BindLocalPlayer();
+        }
+
+        protected void OnEnable()
+        {
+            if (_hasStarted)
+            {
+                BindLocalPlayer();
+            }
+        }
+
+        private void BindLocalPlayer()
+        {
+            if (_localPlayer == null)
+            {
+                return;
+            }
+
             _player = _localPlayer.Current;
-            if (_player == null)
+            if (isActiveAndEnabled && !_playerSpawnSubscription)
             {
                 _localPlayer.Changed += OnLocalPlayerChanged;
                 _playerSpawnSubscription = true;
@@ -52,15 +74,19 @@ namespace Kern.UI
 
         protected void Update()
         {
-            if (_isInMapMode && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            if (_isInMapMode &&
+                Keyboard.current != null &&
+                Keyboard.current.escapeKey.wasPressedThisFrame &&
+                !_inputBlocker.IsInputBlockedExcludingMapMode &&
+                !_uiInput.IsEscapeConsumedThisFrame)
             {
                 _mapModeState.SetOpen(false);
                 return;
             }
 
-            // Map toggle as a direct keyboard check (mirrors MinimapController's N key);
-            // Ignore when typing in chat.
-            if (Keyboard.current != null && Keyboard.current.mKey.wasPressedThisFrame && !_uiInput.IsChatFocused)
+            if (Keyboard.current != null &&
+                Keyboard.current.mKey.wasPressedThisFrame &&
+                !_inputBlocker.IsInputBlockedExcludingMapMode)
             {
                 ToggleMapMode();
             }
@@ -90,12 +116,12 @@ namespace Kern.UI
         private void OnLocalPlayerChanged(ILocalPlayer? player)
         {
             UnsubscribeFromPlayerSpawn();
-            if (player == null)
-            {
-                return;
-            }
-
             _player = player;
+            if (isActiveAndEnabled)
+            {
+                _localPlayer.Changed += OnLocalPlayerChanged;
+                _playerSpawnSubscription = true;
+            }
         }
 
         private void UnsubscribeFromPlayerSpawn()
@@ -111,7 +137,7 @@ namespace Kern.UI
 
         public void ToggleMapMode()
         {
-            if (!enabled)
+            if (!enabled || _inputBlocker.IsInputBlockedExcludingMapMode)
             {
                 return;
             }

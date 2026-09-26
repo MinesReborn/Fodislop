@@ -101,7 +101,7 @@ public sealed class TerrainDebugViewContractTests
         Assert.That(
             ShaderSource(),
             Does.Contain("> KERN_TERRAIN_DEBUG_OFF").And
-                .Contain("<= KERN_TERRAIN_DEBUG_BACKGROUND_TILE_IDENTITY"),
+                .Contain("<= KERN_TERRAIN_DEBUG_FOREGROUND_TILE_IDENTITY"),
             "Активность отладочного вида обязана проверяться диапазоном объявленных номеров.");
     }
 

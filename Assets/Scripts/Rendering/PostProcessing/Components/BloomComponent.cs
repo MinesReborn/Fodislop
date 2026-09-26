@@ -15,22 +15,22 @@ namespace Kern.Rendering.PostProcessing
         // Unity Volume serialization and the existing profile use these stable
         // lower-case field names; changing them would orphan serialized overrides.
         [Tooltip("Strength of the glow added around pixels brighter than Threshold.")]
-        public ClampedFloatParameter intensity = PostProcessDefaults.BloomIntensity();
+        public FloatParameter intensity = new(PostProcessLook.Bloom.Intensity);
 
         [Tooltip("Minimum source brightness that contributes to Bloom.")]
-        public ClampedFloatParameter threshold = PostProcessDefaults.BloomThreshold();
+        public FloatParameter threshold = new(PostProcessLook.Bloom.Threshold);
 
         [Tooltip("Threshold transition width as a fraction of Threshold.")]
-        public ClampedFloatParameter softKnee = PostProcessDefaults.BloomSoftKnee();
+        public FloatParameter softKnee = new(PostProcessLook.Bloom.SoftKnee);
 
         [Tooltip("Dual Kawase sampling radius in source texels.")]
-        public ClampedFloatParameter radius = PostProcessDefaults.BloomRadius();
+        public FloatParameter radius = new(PostProcessLook.Bloom.Radius);
 
         [Tooltip("How strongly reconstructed wide glow is mixed with the local glow.")]
-        public ClampedFloatParameter scatter = PostProcessDefaults.BloomScatter();
+        public FloatParameter scatter = new(PostProcessLook.Bloom.Scatter);
 
         [Tooltip("Color multiplier applied to the glow.")]
-        public ColorParameter tint = PostProcessDefaults.BloomTint();
+        public ColorParameter tint = new(PostProcessLook.Bloom.Tint);
 
         public bool IsActive() => intensity.value > 0f;
         public bool IsTileCompatible() => true;

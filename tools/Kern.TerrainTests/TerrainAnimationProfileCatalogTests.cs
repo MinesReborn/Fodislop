@@ -34,6 +34,7 @@ public sealed class TerrainAnimationProfileCatalogTests
     }
 
     [TestCase(CellType.PurpleAcid)]
+    [TestCase(CellType.Lava)]
     public void Get_OtherCell_PreservesConfiguredAnimation(CellType cellType)
     {
         TerrainAnimationSettings settings =
@@ -58,14 +59,4 @@ public sealed class TerrainAnimationProfileCatalogTests
         Assert.That(settings.Speed, Is.EqualTo(0.06f));
     }
 
-    [TestCase(0f)]
-    [TestCase(7f)]
-    public void Get_Lava_UsesOwnShaderSpeed(float configuredSpeed)
-    {
-        TerrainAnimationSettings settings =
-            TerrainAnimationProfileCatalog.Get(CellType.Lava, configuredSpeed);
-
-        Assert.That(settings.Profile, Is.EqualTo(TerrainAnimationProfile.MoltenSurface));
-        Assert.That(settings.Speed, Is.EqualTo(10f));
-    }
 }

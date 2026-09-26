@@ -3,12 +3,10 @@
 
 #include "TerrainLightingData.hlsl"
 #include "TerrainContour.hlsl"
+#include "TerrainAnimationProfile.hlsl"
 
-// Отладочные виды террейна. Отдельно от _WorldLightDebugView: тот показывает
-// свет, а тут разбираются термы самой клетки — силуэт, слой, кайма, лист.
-//
-// Смысл в том, чтобы не гадать, какой из множителей гасит пиксель. Термы и
-// категории клеток выводятся без обычного света и текстуры поверх.
+// Здесь разбираются геометрия клетки и поверхностные эффекты. Диагностика
+// мирового света остаётся в световом отладочном виде.
 int _TerrainDebugView;
 
 static const int KERN_TERRAIN_DEBUG_OFF = 0;
@@ -22,6 +20,14 @@ static const int KERN_TERRAIN_DEBUG_RELIEF_GROUP = 7;
 static const int KERN_TERRAIN_DEBUG_CONTINUOUS_SHEET = 8;
 static const int KERN_TERRAIN_DEBUG_AMBIENT_OCCLUSION = 9;
 static const int KERN_TERRAIN_DEBUG_BACKGROUND_TILE_IDENTITY = 10;
+static const int KERN_TERRAIN_DEBUG_FACETED_GLINT = 11;
+static const int KERN_TERRAIN_DEBUG_SOURCE_ALBEDO = 12;
+static const int KERN_TERRAIN_DEBUG_ANIMATED_COLOR = 13;
+static const int KERN_TERRAIN_DEBUG_PRISMATIC_TINT = 14;
+static const int KERN_TERRAIN_DEBUG_DECAL_CONTRIBUTION = 15;
+static const int KERN_TERRAIN_DEBUG_SHIMMER_FLOW = 16;
+static const int KERN_TERRAIN_DEBUG_PRISMATIC_FLOW = 17;
+static const int KERN_TERRAIN_DEBUG_FOREGROUND_TILE_IDENTITY = 18;
 
 // Диапазон, а не «не ноль». Глобаль живёт в нативной части и переживает
 // доменную перезагрузку: номер удалённого вида остаётся в ней и после того,
@@ -30,7 +36,81 @@ static const int KERN_TERRAIN_DEBUG_BACKGROUND_TILE_IDENTITY = 10;
 bool KernTerrainDebugActive()
 {
     return _TerrainDebugView > KERN_TERRAIN_DEBUG_OFF &&
-        _TerrainDebugView <= KERN_TERRAIN_DEBUG_BACKGROUND_TILE_IDENTITY;
+        _TerrainDebugView <= KERN_TERRAIN_DEBUG_FOREGROUND_TILE_IDENTITY;
+}
+
+bool KernTerrainDebugNeedsSurfaceSample()
+{
+    return _TerrainDebugView >= KERN_TERRAIN_DEBUG_FACETED_GLINT &&
+        _TerrainDebugView <= KERN_TERRAIN_DEBUG_PRISMATIC_FLOW;
+}
+
+float3 KernTerrainDebugEncodeSignedDelta(float3 delta, float contrast)
+{
+    // Diagnostic contrast only: amplify subtle per-stage changes while keeping
+    // the signed mapping monotonic and asymptotically inside display range.
+    float3 contrastedDelta = delta * max(contrast, 0.0);
+    return float3(0.5, 0.5, 0.5) +
+        (0.5 * contrastedDelta) / (float3(1.0, 1.0, 1.0) + abs(contrastedDelta));
+}
+
+float3 KernTerrainDebugSurfaceColor(
+    float3 sourceAlbedo,
+    float3 flowSample,
+    float3 animatedColor,
+    float3 decalColor,
+    float facetedGlintSignal,
+    int animationProfile,
+    int animationType,
+    float deltaContrast)
+{
+    if (_TerrainDebugView == KERN_TERRAIN_DEBUG_SOURCE_ALBEDO)
+    {
+        return sourceAlbedo;
+    }
+
+    if (_TerrainDebugView == KERN_TERRAIN_DEBUG_SHIMMER_FLOW)
+    {
+        bool usesShimmerFlow = animationType == 2 &&
+            animationProfile != KERN_TERRAIN_ANIMATION_PROFILE_PRISMATIC_CRYSTAL &&
+            animationProfile != KERN_TERRAIN_ANIMATION_PROFILE_FACETED_CRYSTAL;
+        return usesShimmerFlow ? flowSample : float3(0.0, 0.0, 0.0);
+    }
+
+    if (_TerrainDebugView == KERN_TERRAIN_DEBUG_PRISMATIC_FLOW)
+    {
+        return animationProfile == KERN_TERRAIN_ANIMATION_PROFILE_PRISMATIC_CRYSTAL
+            ? flowSample
+            : float3(0.0, 0.0, 0.0);
+    }
+
+    if (_TerrainDebugView == KERN_TERRAIN_DEBUG_ANIMATED_COLOR)
+    {
+        return animatedColor;
+    }
+
+    if (_TerrainDebugView == KERN_TERRAIN_DEBUG_PRISMATIC_TINT)
+    {
+        float3 tintDelta = animationProfile == KERN_TERRAIN_ANIMATION_PROFILE_PRISMATIC_CRYSTAL
+            ? animatedColor - sourceAlbedo
+            : float3(0.0, 0.0, 0.0);
+        return KernTerrainDebugEncodeSignedDelta(tintDelta, deltaContrast);
+    }
+
+    if (_TerrainDebugView == KERN_TERRAIN_DEBUG_FACETED_GLINT)
+    {
+        return lerp(
+            float3(0.015, 0.01, 0.025),
+            float3(1.0, 0.42, 0.05),
+            saturate(facetedGlintSignal));
+    }
+
+    if (_TerrainDebugView == KERN_TERRAIN_DEBUG_DECAL_CONTRIBUTION)
+    {
+        return KernTerrainDebugEncodeSignedDelta(decalColor - animatedColor, deltaContrast);
+    }
+
+    return float3(1.0, 0.0, 0.8);
 }
 
 float3 KernTerrainUniqueTileColor(
@@ -190,15 +270,15 @@ float3 KernTerrainDebugColor(
             : float3(0.2, 0.1, 0.1);
     }
 
-    // Единственный оставшийся вид; неизвестный номер сюда не доходит,
-    // его отсекает KernTerrainDebugActive.
-    //
-    // Рампа, а не серая шкала. Серым «затенения нет» выходило белой заливкой
-    // и было неотличимо от пересвеченного кадра: по скриншоту нельзя было
-    // сказать, включён вид или нет. Отладочный вид обязан выглядеть как
-    // отладочный вид при любом значении.
-    float occlusion = 1.0 - ambientOcclusion;
-    return float3(occlusion, 1.0 - occlusion, 0.35);
+    if (_TerrainDebugView == KERN_TERRAIN_DEBUG_AMBIENT_OCCLUSION)
+    {
+        // Рампа, а не серая шкала: отсутствие AO должно отличаться от белого
+        // пересвета в кадре.
+        float occlusion = 1.0 - ambientOcclusion;
+        return float3(occlusion, 1.0 - occlusion, 0.35);
+    }
+
+    return float3(1.0, 0.0, 0.8);
 }
 
 #endif

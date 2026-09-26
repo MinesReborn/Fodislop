@@ -1,6 +1,8 @@
 #ifndef KERN_TERRAIN_CELL_DATA_INCLUDED
 #define KERN_TERRAIN_CELL_DATA_INCLUDED
 
+#include "TerrainGeometryContract.hlsl"
+
 // Квад террейна из текстур данных клетки (TerrainCellDataTextures).
 //
 // Меш идентификаторов (TerrainCellIdMesh) несёт в POSITION адрес квада
@@ -58,9 +60,7 @@ struct TerrainCellVertex
 
 TerrainCellVertex LoadTerrainCellVertex(
     float3 address,
-    float2 cornerBase,
-    float organicBendStrength,
-    float organicBendPivot)
+    float2 cornerBase)
 {
     TerrainCellVertex v = (TerrainCellVertex)0;
     int x = (int)round(address.x) + (int)round(_TerrainCellViewOffset.x);
@@ -112,11 +112,10 @@ TerrainCellVertex LoadTerrainCellVertex(
     // Geometry is a foreground-only contract.  Background texels can share
     // the same ring address and must never inherit a stale anchor bit from a
     // previous cell upload.
-    bool anchored = layer > 0 && meta.a > 0.5;
-    bool organic = anchored && meta.a < 0.75;
-    float organicEdges = organic
-        ? round(meta.b * 255.0) + 256.0 * (round(meta.a * 255.0) - 128.0)
-        : 0.0;
+    float2 geometryMetadata = DecodeTerrainGeometryMetadata(meta, layer > 0);
+    bool anchored = geometryMetadata.x > 0.5;
+    bool organic = geometryMetadata.y > 0.5;
+    float organicEdges = geometryMetadata.y;
     // Rasterize a carrier enclosing the ENTIRE pixel silhouette. Rasterizing
     // the displaced polygon first loses fragments on the outward half of every
     // staircase; fragment clipping cannot bring those fragments back.
@@ -125,57 +124,45 @@ TerrainCellVertex LoadTerrainCellVertex(
     float2 carrierMax = float2(1.0, 1.0);
     if (anchored)
     {
-        float2 boundsMin = float2(
-            min(min(geometryX.x, geometryX.y), min(geometryX.z, geometryX.w)),
-            min(min(geometryY.x, geometryY.y), min(geometryY.z, geometryY.w)));
-        float2 boundsMax = float2(
-            max(max(geometryX.x, geometryX.y), max(geometryX.z, geometryX.w)),
-            max(max(geometryY.x, geometryY.y), max(geometryY.z, geometryY.w)));
-        // Include the four extra edge points in the carrier. The AO render
-        // pass adds only its half-texel filter support after these bounds.
+        float2 firstCorner = TerrainGeometryCorner(geometryX, geometryY, 0);
+        float2 boundsMin = firstCorner;
+        float2 boundsMax = firstCorner;
+        [unroll]
+        for (int corner = 1; corner < KERN_TERRAIN_ORGANIC_EDGE_COUNT; corner++)
+        {
+            float2 finalCorner = TerrainGeometryCorner(geometryX, geometryY, corner);
+            boundsMin = min(boundsMin, finalCorner);
+            boundsMax = max(boundsMax, finalCorner);
+        }
+
+        // The carrier bounds use the exact same corner and bend points as the
+        // fragment geometry predicate. It encloses the silhouette without a
+        // second bend/pivot/rounding implementation.
         if (organic)
         {
-            int code = (int)organicEdges - 1;
-            float bendScale = organicBendStrength / 32.0;
-            float bottomBend = ((code % 5) - 2) * bendScale;
-            code /= 5;
-            float rightBend = ((code % 5) - 2) * bendScale;
-            code /= 5;
-            float topBend = ((code % 5) - 2) * bendScale;
-            code /= 5;
-            float leftBend = ((code % 5) - 2) * bendScale;
-            float4 edgeT = float4(
-                bottomBend > 0.0 ? organicBendPivot : 1.0 - organicBendPivot,
-                rightBend > 0.0 ? organicBendPivot : 1.0 - organicBendPivot,
-                topBend > 0.0 ? 1.0 - organicBendPivot : organicBendPivot,
-                leftBend > 0.0 ? 1.0 - organicBendPivot : organicBendPivot);
-            float4 edgeX = float4(
-                lerp(geometryX.x, geometryX.y, edgeT.x),
-                lerp(geometryX.y, geometryX.z, edgeT.y) + rightBend,
-                lerp(geometryX.z, geometryX.w, edgeT.z),
-                lerp(geometryX.w, geometryX.x, edgeT.w) + leftBend);
-            float4 edgeY = float4(
-                lerp(geometryY.x, geometryY.y, edgeT.x) + bottomBend,
-                lerp(geometryY.y, geometryY.z, edgeT.y),
-                lerp(geometryY.z, geometryY.w, edgeT.z) + topBend,
-                lerp(geometryY.w, geometryY.x, edgeT.w));
-            edgeX = round(edgeX * 32.0) / 32.0;
-            edgeY = round(edgeY * 32.0) / 32.0;
-            boundsMin = min(boundsMin, float2(
-                min(min(edgeX.x, edgeX.y), min(edgeX.z, edgeX.w)),
-                min(min(edgeY.x, edgeY.y), min(edgeY.z, edgeY.w))));
-            boundsMax = max(boundsMax, float2(
-                max(max(edgeX.x, edgeX.y), max(edgeX.z, edgeX.w)),
-                max(max(edgeY.x, edgeY.y), max(edgeY.z, edgeY.w))));
+            float4 bends = TerrainOrganicGeometryBends(organicEdges);
+            [unroll]
+            for (int side = 0; side < 4; side++)
+            {
+                float2 bend = TerrainOrganicGeometryPoint(
+                    geometryX,
+                    geometryY,
+                    bends,
+                    side * 2 + 1);
+                boundsMin = min(boundsMin, bend);
+                boundsMax = max(boundsMax, bend);
+            }
         }
         carrierMin = boundsMin;
         carrierMax = boundsMax;
     }
-    // The AO field uses a signed-distance edge filter. Extend its raster
-    // carrier by half a field texel so the exterior half of that filter exists
-    // even at the polygon's extreme corners. Other passes set this to zero.
-    float2 carrierPadding = max(_TerrainGeometryCarrierPaddingWorld, float2(0.0, 0.0)) /
+    // Only the AO field extends its raster carrier for signed-distance filter
+    // support. Screen and material passes cannot inherit this global state.
+    float2 carrierPadding = float2(0.0, 0.0);
+#if defined(KERN_TERRAIN_AO_FIELD)
+    carrierPadding = max(_TerrainGeometryCarrierPaddingWorld, float2(0.0, 0.0)) /
         max(_TerrainCellGridSize.z, 0.0001);
+#endif
     carrierMin -= carrierPadding;
     carrierMax += carrierPadding;
     float2 carrierCorner = lerp(carrierMin, carrierMax, cornerBase);

@@ -8,11 +8,20 @@ namespace Kern.World.Terrain;
 
 public sealed class TerrainCellMaskCalculator
 {
+    // A/B runs on a 192×128 window show lower aggregate process CPU with four
+    // workers; wall-time throughput varies slightly against the full count.
+    private static readonly System.Threading.Tasks.ParallelOptions _FullPassParallelOptions = new()
+    {
+        MaxDegreeOfParallelism = System.Math.Min(4, System.Environment.ProcessorCount),
+    };
+
     public TerrainRingGrid<int> CellTilingDescriptors { get; } = new();
 
     public TerrainRingGrid<int> CellCornerVariants { get; } = new();
 
     public TerrainRingGrid<byte> CellReliefMasks { get; } = new();
+
+    public TerrainRingGrid<byte> CellReliefCornerMasks { get; } = new();
 
     public TerrainRingGrid<byte> CellSolidBoundaryMasks { get; } = new();
 
@@ -23,6 +32,7 @@ public sealed class TerrainCellMaskCalculator
             CellTilingDescriptors.EnsureSize(meshWidth, meshHeight);
             CellCornerVariants.EnsureSize(meshWidth, meshHeight);
             CellReliefMasks.EnsureSize(meshWidth, meshHeight);
+            CellReliefCornerMasks.EnsureSize(meshWidth, meshHeight);
             CellSolidBoundaryMasks.EnsureSize(meshWidth, meshHeight);
         }
     }
@@ -31,12 +41,9 @@ public sealed class TerrainCellMaskCalculator
     {
         EnsureCapacity(meshWidth, meshHeight);
 
-        System.Threading.Tasks.Parallel.For(0, meshWidth, x =>
+        System.Threading.Tasks.Parallel.For(0, meshWidth, _FullPassParallelOptions, x =>
         {
-            for (int y = 0; y < meshHeight; y++)
-            {
-                CalculateCellNode(cellCache, x, y);
-            }
+            CalculateColumn(cellCache, x, 0, meshHeight);
         });
     }
 
@@ -49,10 +56,7 @@ public sealed class TerrainCellMaskCalculator
 
         for (int x = cxMin; x < cxMax; x++)
         {
-            for (int y = cyMin; y < cyMax; y++)
-            {
-                CalculateCellNode(cellCache, x, y);
-            }
+            CalculateColumn(cellCache, x, cyMin, cyMax - cyMin);
         }
     }
 
@@ -63,6 +67,7 @@ public sealed class TerrainCellMaskCalculator
         CellTilingDescriptors.Scroll(dx, dy);
         CellCornerVariants.Scroll(dx, dy);
         CellReliefMasks.Scroll(dx, dy);
+        CellReliefCornerMasks.Scroll(dx, dy);
         CellSolidBoundaryMasks.Scroll(dx, dy);
 
         // Кайма в одну клетку: маска клетки описывает её восемь соседей, и у
@@ -77,10 +82,7 @@ public sealed class TerrainCellMaskCalculator
     {
         for (int x = band.xMin; x < band.xMax; x++)
         {
-            for (int y = band.yMin; y < band.yMax; y++)
-            {
-                CalculateCellNode(cellCache, x, y);
-            }
+            CalculateColumn(cellCache, x, band.yMin, band.height);
         }
     }
 
@@ -89,7 +91,6 @@ public sealed class TerrainCellMaskCalculator
         int cx = x + 1;
         int cy = y + 1;
         CachedCellData data = cellCache.GetCellData(cx, cy);
-
         CachedCellData top = cellCache.GetCellData(cx, cy + 1);
         CachedCellData bottom = cellCache.GetCellData(cx, cy - 1);
         CachedCellData left = cellCache.GetCellData(cx - 1, cy);
@@ -98,10 +99,79 @@ public sealed class TerrainCellMaskCalculator
         CachedCellData bottomRight = cellCache.GetCellData(cx + 1, cy - 1);
         CachedCellData topRight = cellCache.GetCellData(cx + 1, cy + 1);
         CachedCellData topLeft = cellCache.GetCellData(cx - 1, cy + 1);
+        CalculateCellNode(x, y, data, top, left, bottom, right, topLeft, topRight, bottomLeft, bottomRight);
+    }
 
+    internal void CalculateColumn(ITerrainCellDataSource cellCache, int x, int startY, int countY)
+    {
+        if (countY <= 0)
+        {
+            return;
+        }
+
+        int cx = x + 1;
+        int cy = startY + 1;
+        CachedCellData bottomLeft = cellCache.GetCellData(cx - 1, cy - 1);
+        CachedCellData bottom = cellCache.GetCellData(cx, cy - 1);
+        CachedCellData bottomRight = cellCache.GetCellData(cx + 1, cy - 1);
+        CachedCellData left = cellCache.GetCellData(cx - 1, cy);
+        CachedCellData data = cellCache.GetCellData(cx, cy);
+        CachedCellData right = cellCache.GetCellData(cx + 1, cy);
+        CachedCellData topLeft = cellCache.GetCellData(cx - 1, cy + 1);
+        CachedCellData top = cellCache.GetCellData(cx, cy + 1);
+        CachedCellData topRight = cellCache.GetCellData(cx + 1, cy + 1);
+
+        for (int row = 0; row < countY; row++)
+        {
+            int y = startY + row;
+            CalculateCellNode(x, y, data, top, left, bottom, right, topLeft, topRight, bottomLeft, bottomRight);
+            if (row + 1 == countY)
+            {
+                continue;
+            }
+
+            bottomLeft = left;
+            bottom = data;
+            bottomRight = right;
+            left = topLeft;
+            data = top;
+            right = topRight;
+            int nextTopY = cy + row + 2;
+            topLeft = cellCache.GetCellData(cx - 1, nextTopY);
+            top = cellCache.GetCellData(cx, nextTopY);
+            topRight = cellCache.GetCellData(cx + 1, nextTopY);
+        }
+    }
+
+    private void CalculateCellNode(
+        int x,
+        int y,
+        in CachedCellData data,
+        in CachedCellData top,
+        in CachedCellData left,
+        in CachedCellData bottom,
+        in CachedCellData right,
+        in CachedCellData topLeft,
+        in CachedCellData topRight,
+        in CachedCellData bottomLeft,
+        in CachedCellData bottomRight)
+    {
         CellTilingDescriptors[x, y] = CalculateTilingDescriptor(data, left, bottomLeft, bottom, bottomRight, right, topRight, top, topLeft);
         CellCornerVariants[x, y] = CalculateCornerSideMask(data, left, right, top, bottom);
-        CellReliefMasks[x, y] = CalculateReliefMask(data, top, left, bottom, right);
+        CalculateReliefMasks(
+            data,
+            top,
+            left,
+            bottom,
+            right,
+            topLeft,
+            topRight,
+            bottomLeft,
+            bottomRight,
+            out byte reliefMask,
+            out byte reliefCornerMask);
+        CellReliefMasks[x, y] = reliefMask;
+        CellReliefCornerMasks[x, y] = reliefCornerMask;
         CellSolidBoundaryMasks[x, y] = CalculateSolidBoundaryMask(top, left, bottom, right, topLeft, topRight, bottomLeft, bottomRight);
     }
 
@@ -200,9 +270,9 @@ public sealed class TerrainCellMaskCalculator
     }
 
     // Рельефная маска: бит стоит там, где сосед принадлежит той же рельефной
-    // поверхности. Для обычных клеток это рельефная группа. Для непрерывных
-    // crystal/rock-листов это семейство листа: разные варианты одной
-    // текстуры не должны получать внутреннюю фаску на границе тайла.
+    // поверхности. Обычно это ненулевая серверная группа. Непрерывные листы
+    // также объединяются по семейству; зелёный и синий кристаллы с пустоскалом
+    // образуют собственное исключительное семейство и не сливаются с ними.
     //
     // Сравнение именно на равенство, а не «сосед не ниже». Кайма рисуется по
     // сторонам, где сосед чужой, и порядковое сравнение делало её
@@ -246,11 +316,33 @@ public sealed class TerrainCellMaskCalculator
         return rm;
     }
 
-    private static bool SameReliefSurface(CachedCellData first, CachedCellData second)
+    private static bool SameReliefSurface(in CachedCellData first, in CachedCellData second)
     {
         if (second.ReliefGroup == 0)
         {
             return false;
+        }
+
+        TerrainRimFamily firstFamily = TerrainReliefRimCatalog.GetFamily(first.Type);
+        return SameReliefSurface(first, firstFamily, second);
+    }
+
+    private static bool SameReliefSurface(
+        in CachedCellData first,
+        TerrainRimFamily firstFamily,
+        in CachedCellData second)
+    {
+        if (second.ReliefGroup == 0)
+        {
+            return false;
+        }
+
+        TerrainRimFamily secondFamily = TerrainReliefRimCatalog.GetFamily(second.Type);
+        bool firstIsExclusiveFamily = firstFamily == TerrainRimFamily.GreenBlueRock;
+        bool secondIsExclusiveFamily = secondFamily == TerrainRimFamily.GreenBlueRock;
+        if (firstIsExclusiveFamily || secondIsExclusiveFamily)
+        {
+            return firstIsExclusiveFamily && secondIsExclusiveFamily;
         }
 
         if (first.ReliefGroup == second.ReliefGroup)
@@ -258,10 +350,120 @@ public sealed class TerrainCellMaskCalculator
             return true;
         }
 
-        return TerrainSheetCatalog.IsContinuousSheet(first.Type) &&
-            TerrainSheetCatalog.IsContinuousSheet(second.Type) &&
-            TerrainReliefRimCatalog.GetFamily(first.Type) ==
-            TerrainReliefRimCatalog.GetFamily(second.Type);
+        return firstFamily != TerrainRimFamily.None && firstFamily == secondFamily;
+    }
+
+    internal static void CalculateReliefMasks(
+        in CachedCellData data,
+        in CachedCellData top,
+        in CachedCellData left,
+        in CachedCellData bottom,
+        in CachedCellData right,
+        in CachedCellData topLeft,
+        in CachedCellData topRight,
+        in CachedCellData bottomLeft,
+        in CachedCellData bottomRight,
+        out byte reliefMask,
+        out byte reliefCornerMask)
+    {
+        reliefMask = 0;
+        reliefCornerMask = 0;
+        if (data.ReliefGroup == 0)
+        {
+            return;
+        }
+
+        TerrainRimFamily family = TerrainReliefRimCatalog.GetFamily(data.Type);
+        bool topSame = SameReliefSurface(data, family, top);
+        bool leftSame = SameReliefSurface(data, family, left);
+        bool bottomSame = SameReliefSurface(data, family, bottom);
+        bool rightSame = SameReliefSurface(data, family, right);
+
+        if (topSame)
+        {
+            reliefMask |= 1;
+        }
+
+        if (leftSame)
+        {
+            reliefMask |= 2;
+        }
+
+        if (bottomSame)
+        {
+            reliefMask |= 4;
+        }
+
+        if (rightSame)
+        {
+            reliefMask |= 8;
+        }
+
+        if (bottomSame && leftSame && !SameReliefSurface(data, family, bottomLeft))
+        {
+            reliefCornerMask |= 1 << 0;
+        }
+
+        if (bottomSame && rightSame && !SameReliefSurface(data, family, bottomRight))
+        {
+            reliefCornerMask |= 1 << 1;
+        }
+
+        if (topSame && rightSame && !SameReliefSurface(data, family, topRight))
+        {
+            reliefCornerMask |= 1 << 2;
+        }
+
+        if (topSame && leftSame && !SameReliefSurface(data, family, topLeft))
+        {
+            reliefCornerMask |= 1 << 3;
+        }
+    }
+
+    // Вогнутый угол силуэта: обе кардинальные клетки принадлежат поверхности,
+    // диагональная — нет. Одной маски сторон для такого шаблона недостаточно.
+    public static byte CalculateReliefCornerMask(
+        CachedCellData data,
+        CachedCellData top,
+        CachedCellData left,
+        CachedCellData bottom,
+        CachedCellData right,
+        CachedCellData topLeft,
+        CachedCellData topRight,
+        CachedCellData bottomLeft,
+        CachedCellData bottomRight)
+    {
+        if (data.ReliefGroup == 0)
+        {
+            return 0;
+        }
+
+        byte cornerMask = 0;
+        if (SameReliefSurface(data, bottom) && SameReliefSurface(data, left) &&
+            !SameReliefSurface(data, bottomLeft))
+        {
+            cornerMask |= 1 << 0;
+        }
+
+        if (SameReliefSurface(data, bottom) && SameReliefSurface(data, right) &&
+            !SameReliefSurface(data, bottomRight))
+        {
+            cornerMask |= 1 << 1;
+        }
+
+        if (SameReliefSurface(data, top) && SameReliefSurface(data, right) &&
+            !SameReliefSurface(data, topRight))
+        {
+            cornerMask |= 1 << 2;
+        }
+
+        if (SameReliefSurface(data, top) && SameReliefSurface(data, left) &&
+            !SameReliefSurface(data, topLeft))
+        {
+            cornerMask |= 1 << 3;
+        }
+
+        return cornerMask;
     }
 
     public static byte CalculateSolidBoundaryMask(

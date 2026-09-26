@@ -48,7 +48,8 @@ public sealed class TerrainBuildPipelineWorkerTests
 
         var origin = new Vector2Int(StartX, StartY);
         RunOnWorker(incremental, incremental.Prepare(
-            Context(world, telemetry), origin, forceFull: true, rebuildAllCells: false,
+            Context(world, telemetry), world.Atlases, origin,
+            forceFull: true, rebuildAllCells: false,
             dirty, noTextures, contentRevision: 1, worldGeneration: 0));
 
         ulong revision = 1;
@@ -78,7 +79,8 @@ public sealed class TerrainBuildPipelineWorkerTests
             }
 
             TerrainCpuBuildRequest request = incremental.Prepare(
-                Context(world, telemetry), origin, forceFull: false, rebuildAllCells: false,
+                Context(world, telemetry), world.Atlases, origin,
+                forceFull: false, rebuildAllCells: false,
                 dirty, textures, ++revision, worldGeneration: 0);
             Assert.That(request.BuildFull, Is.False, $"шаг {index} обязан идти приращением");
             RunOnWorker(incremental, request);
@@ -87,7 +89,8 @@ public sealed class TerrainBuildPipelineWorkerTests
         using var full = new TerrainBuildPipeline();
         full.EnsureCapacity(Width, Height, 1f);
         RunOnWorker(full, full.Prepare(
-            Context(world, telemetry), origin, forceFull: true, rebuildAllCells: false,
+            Context(world, telemetry), world.Atlases, origin,
+            forceFull: true, rebuildAllCells: false,
             new DirtyRectSet(), noTextures, contentRevision: 1, worldGeneration: 0));
 
         AssertCachesEqual(incremental.CellCache, full.CellCache);
@@ -107,7 +110,7 @@ public sealed class TerrainBuildPipelineWorkerTests
         using var pipeline = new TerrainBuildPipeline();
         pipeline.EnsureCapacity(Width, Height, 1f);
         TerrainCpuBuildRequest request = pipeline.Prepare(
-            Context(world, telemetry), new Vector2Int(StartX, StartY), forceFull: true,
+            Context(world, telemetry), world.Atlases, new Vector2Int(StartX, StartY), forceFull: true,
             rebuildAllCells: false, new DirtyRectSet(), new HashSet<CellType>(),
             contentRevision: 1, worldGeneration: 0);
 
@@ -120,7 +123,7 @@ public sealed class TerrainBuildPipelineWorkerTests
     }
 
     private static TerrainBuildContext Context(TerrainTestWorld world, IFrameTelemetry telemetry) =>
-        new(world.Storage, world.MapData, world.Textures, world.Atlases, telemetry, Width, Height);
+        new(world.Storage, world.MapData, world.Textures, telemetry, Width, Height);
 
     private static void RunOnWorker(TerrainBuildPipeline pipeline, TerrainCpuBuildRequest request)
     {

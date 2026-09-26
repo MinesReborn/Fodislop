@@ -13,8 +13,12 @@ public static class ColorGradePreviewBuilder
             Transform = state.IsActive(ColorGradeLayer.Curve)
                 ? authored.Transform
                 : DisplayTransform.None,
-            Exposure = state.IsActive(ColorGradeLayer.Exposure) ? authored.Exposure : 0f,
-            CdlSaturation = state.IsActive(ColorGradeLayer.Cdl) ? authored.CdlSaturation : 1f,
+            Exposure = state.IsActive(ColorGradeLayer.Exposure)
+                ? authored.Exposure
+                : PostProcessLook.ColorGrading.Exposure,
+            CdlSaturation = state.IsActive(ColorGradeLayer.Cdl)
+                ? authored.CdlSaturation
+                : PostProcessLook.ColorGrading.CdlSaturation,
             MasterCurve = state.IsActive(ColorGradeLayer.Curve)
                 ? authored.MasterCurve
                 : new ColorGradeCurve(),
@@ -42,36 +46,60 @@ public static class ColorGradePreviewBuilder
             SaturationVsSaturationCurve = state.IsActive(ColorGradeLayer.Saturation)
                 ? authored.SaturationVsSaturationCurve
                 : new ColorGradeCurve(ColorGradeCurveKind.Range),
-            Temperature = state.IsActive(ColorGradeLayer.WhiteBalance) ? authored.Temperature : 0f,
-            Tint = state.IsActive(ColorGradeLayer.WhiteBalance) ? authored.Tint : 0f,
+            Temperature = state.IsActive(ColorGradeLayer.WhiteBalance)
+                ? authored.Temperature
+                : PostProcessLook.Grade.Temperature,
+            Tint = state.IsActive(ColorGradeLayer.WhiteBalance)
+                ? authored.Tint
+                : PostProcessLook.Grade.Tint,
             PrimaryLift = state.IsActive(ColorGradeLayer.WhiteBalance)
                 ? authored.PrimaryLift
-                : Vector3.zero,
+                : PostProcessLook.Grade.PrimaryLift,
             PrimaryGamma = state.IsActive(ColorGradeLayer.WhiteBalance)
                 ? authored.PrimaryGamma
-                : Vector3.one,
+                : PostProcessLook.Grade.PrimaryGamma,
             PrimaryGain = state.IsActive(ColorGradeLayer.WhiteBalance)
                 ? authored.PrimaryGain
-                : Vector3.one,
+                : PostProcessLook.Grade.PrimaryGain,
             PrimaryOffset = state.IsActive(ColorGradeLayer.WhiteBalance)
                 ? authored.PrimaryOffset
-                : Vector3.zero,
+                : PostProcessLook.Grade.PrimaryOffset,
             PrimaryMaster = state.IsActive(ColorGradeLayer.WhiteBalance)
                 ? authored.PrimaryMaster
-                : new Vector4(0f, 1f, 1f, 0f),
-            Slope = state.IsActive(ColorGradeLayer.Cdl) ? authored.Slope : Vector3.one,
-            Offset = state.IsActive(ColorGradeLayer.Cdl) ? authored.Offset : Vector3.zero,
-            Power = state.IsActive(ColorGradeLayer.Cdl) ? authored.Power : Vector3.one,
-            CdlMaster = state.IsActive(ColorGradeLayer.Cdl) ? authored.CdlMaster : new Vector3(1f, 0f, 1f),
-            Pivot = state.IsActive(ColorGradeLayer.Contrast) ? authored.Pivot : 0.5f,
-            Shadows = state.IsActive(ColorGradeLayer.Contrast) ? authored.Shadows : 0f,
-            Highlights = state.IsActive(ColorGradeLayer.Contrast) ? authored.Highlights : 0f,
-            Blacks = state.IsActive(ColorGradeLayer.Contrast) ? authored.Blacks : 0f,
-            Whites = state.IsActive(ColorGradeLayer.Contrast) ? authored.Whites : 0f,
-            Toe = state.IsActive(ColorGradeLayer.Contrast) ? authored.Toe : 0f,
-            Shoulder = state.IsActive(ColorGradeLayer.Contrast) ? authored.Shoulder : 0f,
-            Vibrance = state.IsActive(ColorGradeLayer.Saturation) ? authored.Vibrance : 0f,
-            Hue = state.IsActive(ColorGradeLayer.Saturation) ? authored.Hue : 0f,
+                : PostProcessLook.Grade.PrimaryMaster,
+            Slope = state.IsActive(ColorGradeLayer.Cdl) ? authored.Slope : PostProcessLook.Grade.Slope,
+            Offset = state.IsActive(ColorGradeLayer.Cdl) ? authored.Offset : PostProcessLook.Grade.Offset,
+            Power = state.IsActive(ColorGradeLayer.Cdl) ? authored.Power : PostProcessLook.Grade.Power,
+            CdlMaster = state.IsActive(ColorGradeLayer.Cdl)
+                ? authored.CdlMaster
+                : PostProcessLook.ColorGrading.CdlMaster,
+            Pivot = state.IsActive(ColorGradeLayer.Contrast)
+                ? authored.Pivot
+                : PostProcessLook.ColorGrading.ContrastPivot,
+            Shadows = state.IsActive(ColorGradeLayer.Contrast)
+                ? authored.Shadows
+                : PostProcessLook.ColorGrading.TonalAdjustment,
+            Highlights = state.IsActive(ColorGradeLayer.Contrast)
+                ? authored.Highlights
+                : PostProcessLook.ColorGrading.TonalAdjustment,
+            Blacks = state.IsActive(ColorGradeLayer.Contrast)
+                ? authored.Blacks
+                : PostProcessLook.ColorGrading.TonalAdjustment,
+            Whites = state.IsActive(ColorGradeLayer.Contrast)
+                ? authored.Whites
+                : PostProcessLook.ColorGrading.TonalAdjustment,
+            Toe = state.IsActive(ColorGradeLayer.Contrast)
+                ? authored.Toe
+                : PostProcessLook.ColorGrading.TonalAdjustment,
+            Shoulder = state.IsActive(ColorGradeLayer.Contrast)
+                ? authored.Shoulder
+                : PostProcessLook.ColorGrading.TonalAdjustment,
+            Vibrance = state.IsActive(ColorGradeLayer.Saturation)
+                ? authored.Vibrance
+                : PostProcessLook.ColorGrading.Vibrance,
+            Hue = state.IsActive(ColorGradeLayer.Saturation)
+                ? authored.Hue
+                : PostProcessLook.ColorGrading.Hue,
         };
     }
 }

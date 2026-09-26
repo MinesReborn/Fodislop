@@ -23,7 +23,7 @@
 
   <PropertyGroup>
     <UnityManagedPath Condition="Exists('/Applications/Unity/Hub/Editor/6000.6.0f1')">/Applications/Unity/Hub/Editor/6000.6.0f1/Unity.app/Contents/Resources/Scripting/Managed</UnityManagedPath>
-    <UnityManagedPath Condition="Exists('/Applications/Unity/Hub/Editor/6000.5.0f1') AND '$(UnityManagedPath)' == ''">/Applications/Unity/Hub/Editor/6000.5.0f1/Unity.app/Contents/Resources/Scripting/Managed</UnityManagedPath>
+    <UnityManagedPath Condition="Exists('/Applications/Unity/Hub/Editor/6000.6.0f1') AND '$(UnityManagedPath)' == ''">/Applications/Unity/Hub/Editor/6000.6.0f1/Unity.app/Contents/Resources/Scripting/Managed</UnityManagedPath>
     <DefineConstants Condition="'$(UnityManagedPath)' != ''">$(DefineConstants);KERN_SETTINGS_PROBE</DefineConstants>
   </PropertyGroup>
 
@@ -58,7 +58,6 @@
     <Compile Include="..\..\Assets\Scripts\Core\Interfaces\Contracts\Settings\*.cs" />
     <Compile Include="..\..\Assets\Scripts\Rendering\PostProcessing\ColorGrading\Contracts\DisplayTransform.cs" />
     <Compile Include="..\..\Assets\Scripts\Rendering\PostProcessing\ColorGrading\Contracts\VisualTuning.cs" />
-    <Compile Include="..\..\Assets\Scripts\Rendering\PostProcessing\Runtime\PostProcessLimits.cs" />
   </ItemGroup>
 
   <ItemGroup>

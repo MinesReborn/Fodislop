@@ -19,7 +19,7 @@ runtime-кодом игры. Все текущие проекты — `net10.0`.
 - `Kern.TerrainBench` — бенчмарки terrain.
 - `Kern.TerrainTests` — standalone terrain tests.
 - `Kern.LightingTests` — lighting harness и fixtures.
-- `Kern.TerrainCrystalTests` — проверки shimmer/lava из исходного проекта.
+- `Kern.TerrainCrystalTests` — проверки кристаллической анимации из исходного проекта.
 - `Kern.TerrainRasterTests` — raster/contact-AO regression checks.
 
 ## Правила

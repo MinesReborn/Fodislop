@@ -12,7 +12,7 @@ using Kern.World.Terrain;
 //
 //   dotnet run -c Release --project tools/Kern.TerrainBench -- [опции]
 //     --sizes 128x96,192x128,256x160   размеры сетки
-//     --filter flood                   только наборы/замеры с подстрокой
+//     --filter flood,quad-fill         наборы/замеры с любой из подстрок
 //     --seconds 0.25                   целевое время на замер
 //     --quick                          быстрый прогон
 //     --threshold 0.1                  порог регрессии в сравнении

@@ -22,11 +22,12 @@ public sealed class InputBlockState : IInputBlocker
         _uiInput = uiInput;
     }
 
-    public bool IsInputBlocked =>
+    public bool IsInputBlocked => IsInputBlockedExcludingMapMode || _mapMode.IsOpen;
+
+    public bool IsInputBlockedExcludingMapMode =>
         _uiInput.IsInputBlocked ||
         _windows.HasOpenWindows ||
         _windows.IsModalShowing ||
-        _mapMode.IsOpen ||
         IsToolInputCaptured();
 
     public string? TopWindowTag => _windows.TopWindowTag;

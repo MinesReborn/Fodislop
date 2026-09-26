@@ -258,6 +258,10 @@ namespace Kern.Game
 
             if (_movement.IsSettled(_visuals.TentaclesSettled))
             {
+                // The last moving frame may leave the rendered Transform at
+                // the visual tremor offset. The light source is anchored to
+                // SmoothPosition, so settle the sprite on that same position.
+                transform.position = _movement.SmoothPosition;
                 _visuals.UpdateMotion(transform.position, transform.eulerAngles.z, 0f, Time.deltaTime, true);
                 _nameplate.UpdatePosition(transform.position, _visuals.SkinSprite, transform, _visuals.ClanTransform);
                 _lighting.Update(_movement.SmoothPosition, _lightingEngine);

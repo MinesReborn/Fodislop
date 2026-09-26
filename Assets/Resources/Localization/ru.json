@@ -56,6 +56,7 @@
   "menu.loading.phase.ready": "Вход в шлюзовую камеру",
   "hud.health": "ПРОЧНОСТЬ",
   "hud.world_map": "КАРТА МИРА",
+  "hud.map_follow_player": "К игроку",
   "hud.map_preparing": "Подготовка карты…",
   "hud.map_preparing_progress": "Подготовка карты… {0}%",
   "hud.map_prepare_failed": "Не удалось подготовить карту",

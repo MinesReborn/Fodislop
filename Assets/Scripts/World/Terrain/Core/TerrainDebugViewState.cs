@@ -6,10 +6,9 @@ namespace Kern.World.Terrain;
 
 // Отладочные виды террейна, отдельно от световых.
 //
-// Световой вид показывает, сколько света пришло в пиксель. Он не отвечает на
-// вопрос, почему пиксель тёмный: гасить может кайма рельефа, силуэт клетки,
-// контактное затенение или просто не тот слой. Термы показываются отдельно;
-// категориальные виды окрашивают слои и atlas tile identity.
+// Световой дебаг принадлежит lighting. Этот список разделяет геометрию
+// клетки, контактное затенение и этапы поверхностного цвета: текстуру,
+// анимацию и декаль.
 //
 // Раскладка обязана совпадать с TerrainDebugView.hlsl: номера едут в шейдер
 // как есть.
@@ -26,6 +25,14 @@ public enum TerrainDebugView
     ContinuousSheet = 8,
     AmbientOcclusion = 9,
     BackgroundTileIdentity = 10,
+    FacetedGlint = 11,
+    SourceAlbedo = 12,
+    AnimatedColor = 13,
+    PrismaticTint = 14,
+    DecalContribution = 15,
+    ShimmerFlow = 16,
+    PrismaticFlow = 17,
+    ForegroundTileIdentity = 18,
 }
 
 public static class TerrainDebugViewState
@@ -60,8 +67,16 @@ public static class TerrainDebugViewState
         TerrainDebugView.CellLocal => "Координата в клетке",
         TerrainDebugView.ReliefGroup => "Рельефная группа",
         TerrainDebugView.ContinuousSheet => "Сплошной лист",
-        TerrainDebugView.AmbientOcclusion => "Контактное затенение",
+        TerrainDebugView.AmbientOcclusion => "AO: вклад в террейн",
         TerrainDebugView.BackgroundTileIdentity => "Уникальные тайлы фона",
+        TerrainDebugView.FacetedGlint => "Глинт фасеток",
+        TerrainDebugView.SourceAlbedo => "Исходная текстура",
+        TerrainDebugView.AnimatedColor => "Цвет после анимации",
+        TerrainDebugView.PrismaticTint => "Призматический тинт",
+        TerrainDebugView.DecalContribution => "Вклад декали",
+        TerrainDebugView.ShimmerFlow => "Поток shimmer",
+        TerrainDebugView.PrismaticFlow => "Поток призматик",
+        TerrainDebugView.ForegroundTileIdentity => "Уникальные тайлы передних блоков",
         _ => view.ToString(),
     };
 
@@ -69,8 +84,9 @@ public static class TerrainDebugViewState
     {
         TerrainDebugView.Off => "Термы террейна не подменяются.",
         TerrainDebugView.ReliefRim =>
-            "Зелёное — кайма не трогает пиксель, красное — гасит. " +
-            "Фиолетовое — кайма выключена настройкой, считать нечего.",
+            "Зелёное — фаска не затемняет пиксель, красное — максимальное " +
+            "затемнение. Это геометрический множитель после анимации и декалей. " +
+            "Фиолетовое — фаска выключена настройкой.",
         TerrainDebugView.ForeignSides =>
             "Красный — чужой сосед сверху, зелёный — снизу, синий — слева, " +
             "жёлтый — справа. Цветной передний план обрезан по силуэту; " +
@@ -93,15 +109,54 @@ public static class TerrainDebugViewState
             "Бирюзовое — клетка адресует лист целиком по мировой координате; " +
             "тёмное — тайл на клетку.",
         TerrainDebugView.AmbientOcclusion =>
-            "Зелёное — затенения нет, красное — полное. Если полоса в кадре " +
-            "видна здесь красным, гасит затенение; если тут ровно зелено — " +
-            "гасит что-то другое.",
+            "Показывает эффективное затемнение, которое AO применяет к террейну " +
+            "с учётом флага получателя, силы и нижнего предела. Зелёное — " +
+            "вклада нет, красное — максимальное затемнение.",
         TerrainDebugView.BackgroundTileIdentity =>
             "Показывает только подложку. Цвет без хеша кодирует слот атласа " +
             "и координату тайла 32×32: один atlas tile всегда получает один " +
             "цвет. Пурпурный — нет корректного адреса либо он за пределом " +
             "поддерживаемого размера.",
+        TerrainDebugView.ForegroundTileIdentity =>
+            "Показывает только передний слой. Цвет без хеша кодирует слот атласа " +
+            "и фактически выбранный тайл 32×32 после автотайлинга; силуэт " +
+            "учитывает геометрию клетки. Пурпурный — некорректный адрес.",
+        TerrainDebugView.FacetedGlint =>
+            "Фактическая интенсивность формулы глинта, нормализованная на его силу: " +
+            "почти чёрное — вклада нет, оранжевое — активный глинт.",
+        TerrainDebugView.SourceAlbedo => "Цвет реального текселя после выборки атласа.",
+        TerrainDebugView.AnimatedColor =>
+            "Результат выбранного типа цветовой анимации до наложения декали.",
+        TerrainDebugView.PrismaticTint =>
+            "Фактическое изменение цвета от Prismatic Crystal: нейтральный серый — " +
+            "вклада нет; контраст усилен только в диагностическом отображении.",
+        TerrainDebugView.DecalContribution =>
+            "Разница до и после декали: нейтральный серый — нет вклада, " +
+            "каналы показывают знак и силу изменения с усиленным диагностическим контрастом.",
+        TerrainDebugView.ShimmerFlow =>
+            "Статическая выборка _FlowMap для shimmer. Карта задаёт пространственное " +
+            "поле; движение результата смотри в «Цвет после анимации». Чёрное — " +
+            "профиль клетки не использует эту карту.",
+        TerrainDebugView.PrismaticFlow =>
+            "Статическая выборка _PrismaticFlowMap для призматических кристаллов. " +
+            "Карта задаёт оттенок, а время меняет фазу эффекта. Для результата " +
+            "смотри «Цвет после анимации». Чёрное — клетка не призматическая.",
         _ => string.Empty,
+    };
+
+    public static bool IsSurfacePipelineView(TerrainDebugView view) => view switch
+    {
+        TerrainDebugView.BackgroundTileIdentity or
+        TerrainDebugView.ForegroundTileIdentity or
+        TerrainDebugView.AmbientOcclusion or
+        TerrainDebugView.FacetedGlint or
+        TerrainDebugView.SourceAlbedo or
+        TerrainDebugView.AnimatedColor or
+        TerrainDebugView.PrismaticTint or
+        TerrainDebugView.DecalContribution or
+        TerrainDebugView.ShimmerFlow or
+        TerrainDebugView.PrismaticFlow => true,
+        _ => false,
     };
 
     public static void Set(TerrainDebugView view)

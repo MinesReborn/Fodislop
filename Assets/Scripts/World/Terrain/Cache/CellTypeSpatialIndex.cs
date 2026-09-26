@@ -84,11 +84,11 @@ public sealed class CellTypeSpatialIndex
     /// проходом по слотам. Порядок — по слотам, то есть один и тот же для
     /// одного и того же состояния окна.
     /// </summary>
-    public void CollectEntries(
-        HashSet<CellType> types,
+    internal void CollectEntries(
+        in TerrainCellTypeSet types,
         List<(long Key, CellType Type)> into)
     {
-        if (types.Count == 0)
+        if (types.IsEmpty)
         {
             return;
         }
@@ -107,6 +107,14 @@ public sealed class CellTypeSpatialIndex
                 into.Add((key, type));
             }
         }
+    }
+
+    public void CollectEntries(
+        HashSet<CellType> types,
+        List<(long Key, CellType Type)> into)
+    {
+        TerrainCellTypeSet snapshot = TerrainCellTypeSet.Capture(types);
+        CollectEntries(snapshot, into);
     }
 
     public void Clear()

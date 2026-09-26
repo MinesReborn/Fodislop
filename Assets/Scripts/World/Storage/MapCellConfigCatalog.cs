@@ -109,7 +109,16 @@ public sealed class MapCellConfigCatalog
 
     public Color GetCellMinimapColor(CellType type)
     {
-        var config = GetCellConfig(type);
+        CellConfigurationPacket[] configurations = _cellConfigurations ??
+            throw new InvalidOperationException(
+                $"Cell configuration requested for '{type}' before WorldInitPacket was loaded.");
+        int typeIndex = (int)type;
+        if (typeIndex < 0 || typeIndex >= configurations.Length)
+        {
+            return MapBlockColors.GetColor(type);
+        }
+
+        CellConfigurationPacket config = configurations[typeIndex];
         if (config.Color != 0)
         {
             int argb = config.Color;

@@ -25,6 +25,9 @@ CBUFFER_START(UnityPerMaterial)
     float _OrganicBendStrength;
     float _OrganicBendPivot;
     float _RoundableCornerRadius;
+    float _ReliefRimDistanceScale;
+    float _ReliefRimFalloff;
+    float _ReliefRimQuantizationEnabled;
     float4 _DebugColor;
     float _DebugMode;
 
@@ -34,8 +37,7 @@ CBUFFER_START(UnityPerMaterial)
     float _GroundDecalStrength;
     float _StoneDecalStrength;
     float _DecalPlacementOffset;
-    float _ReliefRimDistanceScale;
-    float _ReliefRimFalloff;
+    float _TerrainDebugDeltaContrast;
     float4 _FacetedGlintDirection;
     float _FacetedGlintSweepStart;
     float _FacetedGlintSweepEnd;
@@ -50,20 +52,8 @@ CBUFFER_START(UnityPerMaterial)
     float _FacetedGlintFallEnd;
     float _FacetedGlintSweepDuration;
     float _ShimmerChromaFloor;
-    float _MoltenContourAntialiasScale;
     float _PrismaticPhaseSpeed;
-    float _MoltenPhaseSpeed;
     float _RainbowHueDivisor;
-    float4 _MoltenFlowDirectionA;
-    float4 _MoltenFlowDirectionB;
-    float _MoltenFlowPhase;
-    float _MoltenFlowWeightA;
-    float _MoltenFlowWeightB;
-    float _MoltenFlowWeightC;
-    float _MoltenHeatBase;
-    float _MoltenHeatScale;
-    float4 _MoltenHotColor;
-    float _MoltenSheetScrollSpeed;
     float4 _PrismaticTintA;
     float4 _PrismaticTintB;
     float4 _PrismaticTintC;

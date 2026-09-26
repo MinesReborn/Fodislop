@@ -23,6 +23,11 @@ int KernTerrainReliefCode(float packedContour)
     return (int(round(packedContour)) >> 5) & 31;
 }
 
+int KernTerrainReliefCornerMask(float packedContour)
+{
+    return (int(round(packedContour)) >> 10) & 15;
+}
+
 int KernTerrainSolidDiagonal(float packedContour)
 {
     return (int(round(packedContour)) >> 1) & int(KERN_TERRAIN_SOLID_BOUNDARY_MASK);

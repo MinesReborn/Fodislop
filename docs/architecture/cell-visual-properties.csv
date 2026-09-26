@@ -1,0 +1,88 @@
+﻿CellTypeId,CellType,PropertiesMask,Passable,Breakable,DropsShadow,ReceivesShadow,Blending,Glowing,Distortion,Animation,AnimationSpeed,FrameOffset,Color,ReliefGroup,TileGroup,MovementCooldown,RoundableLoose,Road,CrystalSheet,RockSheet,NonPhysicalMass
+0,Unloaded,,,,,,,,Neutral,None,0,0,"RGBA(0, 0, 0, 0.5)",0,—,—,0,0,0,0,0
+1,Pregener,,,,,,,,Neutral,None,0,0,"RGBA(0, 0, 0, 0.5)",0,—,—,0,0,0,0,0
+29,BuildingRoad,Passable,1,0,0,0,0,0,Block,None,0,0,"Default(29/512, 29/256, 0.01)",0,—,20,0,1,0,0,0
+30,Gate,Passable,1,0,0,0,0,0,Block,None,0,0,"Default(30/512, 30/256, 0.01)",0,—,20,0,0,0,0,0
+31,VolcanoBackground,Glowing | Passable,1,0,0,0,0,1,Neutral,None,0,0,"Default(31/512, 31/256, 0.01)",0,—,20,0,0,0,0,0
+32,Empty,Passable,1,0,0,0,0,0,Neutral,None,0,0,"RGBq(0, 0, 0)",0,—,20,0,0,0,0,0
+33,BackgroundWithLightTraces,,,,,,,,Neutral,None,0,0,"RGBq(15, 11, 3)",0,—,—,0,0,0,0,0
+34,BackgroundWithHeavyTraces,,,,,,,,Neutral,None,0,0,"RGBq(29, 25, 18)",0,—,—,0,0,0,0,0
+35,Road,Passable,1,0,0,0,0,0,Neutral,None,0,0,"RGBq(68, 68, 68)",0,—,20,0,1,0,0,0
+36,GoldenRoad,Passable,1,0,0,0,0,0,Neutral,None,0,0,"RGBq(85, 68, 34)",0,—,20,0,1,0,0,0
+37,BuildingDoor,DropsShadow | Passable,1,0,1,0,0,0,Block,None,0,0,"RGBq(68, 0, 0)",0,0,20,0,0,0,0,0
+38,BuildingCorner,DropsShadow,0,0,1,0,0,0,Block,None,0,0,"RGBq(51, 68, 0)",0,0,100,0,0,0,0,0
+39,PolymerRoad,Passable,1,0,0,0,0,0,Neutral,None,0,0,"Default(39/512, 39/256, 0.01)",0,—,20,0,1,0,0,0
+40,BlackBoulder1,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(255, 97, 107)",1,—,100,0,0,0,0,0
+41,BlackBoulder2,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(255, 107, 97)",1,—,100,0,0,0,0,0
+42,BlackBoulder3,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(255, 107, 107)",1,—,100,0,0,0,0,0
+43,MetalBoulder1,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(255, 187, 251)",1,—,100,0,0,0,0,0
+44,MetalBoulder2,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(191, 241, 251)",1,—,100,0,0,0,0,0
+45,MetalBoulder3,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(207, 203, 241)",1,—,100,0,0,0,0,0
+48,QuadBlock,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(255, 255, 255)",0,—,100,0,0,0,0,0
+49,Support,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(101, 150, 126)",0,—,100,0,0,0,0,0
+50,AliveCyan,Glowing,0,0,0,0,0,1,Block,None,0,0,"RGBq(101, 255, 255)",3,—,100,0,0,1,0,0
+51,AliveRed,Glowing,0,0,0,0,0,1,Block,None,0,0,"RGBq(255, 51, 51)",3,—,100,0,0,1,0,0
+52,AliveViol,Glowing,0,0,0,0,0,1,Block,None,0,0,"RGBq(255, 101, 255)",3,—,100,0,0,1,0,0
+53,AliveNigger,Glowing,0,0,0,0,0,1,Block,None,0,0,"RGBq(34, 101, 255)",3,—,100,0,0,1,0,0
+54,AliveWhite,Glowing,0,0,0,0,0,1,Block,None,0,0,"RGBq(238, 254, 255)",3,—,100,0,0,1,0,0
+55,AliveRainbow,Glowing,0,0,0,0,0,1,Block,None,0,0,"RGBq(238, 254, 255)",3,—,100,0,0,1,0,0
+60,WhiteSand,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(204, 204, 204)",1,—,100,1,0,0,0,0
+61,DarkWhiteSand,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(221, 221, 221)",1,—,100,1,0,0,0,0
+62,RustySand,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(255, 204, 204)",1,—,100,1,0,0,0,0
+63,DarkRustySand,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(255, 221, 221)",1,—,100,1,0,0,0,0
+64,BlackSand,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(170, 170, 170)",1,—,100,1,0,0,0,0
+65,DarkBlackSand,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(187, 187, 187)",1,—,100,1,0,0,0,0
+66,GrayAcid,Breakable | DropsShadow | Glowing,0,1,1,0,0,1,Block,Blinking,5,1,"RGBq(184, 153, 51)",1,—,100,1,0,0,0,0
+67,PurpleAcid,Breakable | DropsShadow | Glowing,0,1,1,0,0,1,Block,Shimmer,50,1,"RGBq(184, 136, 187)",1,—,100,1,0,0,0,0
+68,Pearl,Glowing,0,0,0,0,0,1,Cause,None,0,0,"RGBq(119, 68, 68)",3,—,100,0,0,1,0,0
+69,DeepLazuriteSand,Glowing,0,0,0,0,0,1,Cause,None,0,0,"RGBq(34, 68, 153)",3,—,100,0,0,1,0,0
+70,DeepMagmaBoulder,Breakable | DropsShadow | Glowing,0,1,1,0,0,1,Block,None,0,0,"RGBq(243, 241, 152)",1,—,100,0,0,0,0,0
+71,XGreen,Glowing,0,0,0,0,0,1,Cause,None,0,0,"RGBq(71, 215, 100)",3,—,100,0,0,1,0,0
+72,XBlue,Glowing,0,0,0,0,0,1,Cause,None,0,0,"RGBq(101, 134, 247)",3,—,100,0,0,1,0,0
+73,XRed,Glowing,0,0,0,0,0,1,Cause,None,0,0,"RGBq(247, 82, 67)",3,—,100,0,0,1,0,0
+74,XCyan,Glowing,0,0,0,0,0,1,Cause,None,0,0,"RGBq(132, 238, 247)",3,—,100,0,0,1,0,0
+75,XViolet,Glowing,0,0,0,0,0,1,Cause,None,0,0,"RGBq(255, 135, 231)",3,—,100,0,0,1,0,0
+76,DeepObsidianRock,Breakable | DropsShadow,0,1,1,0,0,0,Cause,None,0,0,"Default(76/512, 76/256, 0.01)",5,—,100,0,0,0,1,0
+77,DeepTurquoiseRock,Glowing,0,0,0,0,0,1,Cause,None,0,0,"Default(77/512, 77/256, 0.01)",3,—,100,0,0,1,0,0
+78,DeepRainbowRock,Glowing,0,0,0,0,0,1,Cause,None,0,0,"Default(78/512, 78/256, 0.01)",3,—,100,0,0,1,0,0
+79,DeepStripedRock,Breakable | DropsShadow,0,1,1,0,0,0,Cause,None,0,0,"Default(79/512, 79/256, 0.01)",5,—,100,0,0,0,1,0
+80,MilitaryBlockFrame,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"Default(80/512, 80/256, 0.01)",0,—,100,0,0,0,0,0
+81,MilitaryBlock,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"Default(81/512, 81/256, 0.01)",0,—,100,0,0,0,0,0
+82,MilitaryBlockSand,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(17, 102, 102)",1,—,100,1,0,0,0,0
+83,TeleportBlock,Passable,1,0,0,0,0,0,Block,None,0,0,"RGBq(50, 135, 152)",0,—,20,0,0,0,0,0
+86,PassiveAcid,Breakable | DropsShadow | Glowing,0,1,1,0,0,1,Cause,None,0,0,"RGBq(184, 255, 17)",1,—,100,0,0,0,0,0
+87,SuperRainbow,Glowing,0,0,0,0,0,1,Neutral,None,0,0,"Default(87/512, 87/256, 0.01)",3,—,100,0,0,1,0,0
+88,Skull,,,,,,,,Neutral,None,0,0,"Default(88/512, 88/256, 0.01)",0,—,—,0,0,0,0,0
+90,Box,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(238, 238, 238)",0,—,100,0,0,0,0,0
+91,Lava,Breakable | DropsShadow | Glowing,0,1,1,0,0,1,Block,None,0,0,"RGBq(255, 90, 0)",1,—,100,1,0,0,0,1
+92,Boulder1,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(193, 187, 187)",1,—,100,0,0,0,0,0
+93,Boulder2,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(187, 193, 187)",1,—,100,0,0,0,0,0
+94,Boulder3,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(187, 187, 193)",1,—,100,0,0,0,0,0
+95,LivingActiveAcid,Breakable | DropsShadow | Glowing,0,1,1,0,0,1,Cause,None,0,0,"RGBq(184, 255, 34)",1,—,100,0,0,0,0,0
+96,CorrosiveActiveAcid,Breakable | DropsShadow | Glowing,0,1,1,0,0,1,Cause,None,0,0,"RGBq(184, 255, 68)",1,—,100,0,0,0,0,0
+97,BlueSand,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(112, 160, 183)",1,—,100,1,0,0,0,0
+98,DarkBlueSand,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(112, 187, 207)",1,—,100,1,0,0,0,0
+99,YellowSand,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(219, 209, 125)",1,—,100,1,0,0,0,0
+100,DarkYellowSand,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(181, 168, 57)",1,—,100,1,0,0,0,0
+101,GreenBlock,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(76, 191, 0)",0,—,100,0,0,0,0,0
+102,YellowBlock,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(208, 206, 0)",0,—,100,0,0,0,0,0
+103,Rock,Breakable | DropsShadow,0,1,1,0,0,0,Cause,None,0,0,"RGBq(133, 81, 166)",6,—,100,0,0,0,1,0
+104,FedBlock,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(153, 153, 136)",0,—,100,0,0,0,0,0
+105,RedBlock,Breakable | DropsShadow,0,1,1,0,0,0,Block,None,0,0,"RGBq(198, 0, 0)",0,—,100,0,0,0,0,0
+106,BuildingWall,DropsShadow,0,0,1,0,0,0,Block,None,0,0,"RGBq(136, 136, 136)",0,0,100,0,0,0,0,0
+107,Green,Glowing,0,0,0,0,0,1,Cause,None,0,0,"RGBq(8, 215, 100)",6,—,100,0,0,1,0,0
+108,Red,Glowing,0,0,0,0,0,1,Cause,None,0,0,"RGBq(255, 0, 0)",3,—,100,0,0,1,0,0
+109,Blue,Glowing,0,0,0,0,0,1,Cause,None,0,0,"RGBq(0, 0, 255)",6,—,100,0,0,1,0,0
+110,Violet,Glowing,0,0,0,0,0,1,Cause,None,0,0,"RGBq(255, 0, 255)",3,—,100,0,0,1,0,0
+111,White,Glowing,0,0,0,0,0,1,Cause,None,0,0,"RGBq(238, 238, 255)",3,—,100,0,0,1,0,0
+112,Cyan,Glowing,0,0,0,0,0,1,Cause,None,0,0,"RGBq(0, 255, 255)",3,—,100,0,0,1,0,0
+113,HeavyRock,Breakable | DropsShadow,0,1,1,0,0,0,Cause,None,0,0,"RGBq(211, 159, 166)",5,—,100,0,0,0,1,0
+114,NiggerRock,DropsShadow,0,0,1,0,0,0,Cause,None,0,0,"RGBq(119, 119, 119)",4,—,100,0,0,0,1,0
+115,LivingBlackRock,DropsShadow,0,0,1,0,0,0,Cause,None,0,0,"RGBq(56, 118, 65)",4,—,100,0,0,0,1,0
+116,AliveBlue,Glowing,0,0,0,0,0,1,Block,None,0,0,"RGBq(17, 17, 255)",3,—,100,0,0,1,0,0
+117,RedRock,DropsShadow,0,0,1,0,0,0,Cause,None,0,0,"RGBq(170, 119, 119)",4,—,100,0,0,0,1,0
+118,AcidRock,Glowing,0,0,0,0,0,1,Cause,None,0,0,"RGBq(100, 98, 21)",3,—,100,0,0,1,0,0
+119,HypnoRock,Glowing,0,0,0,0,0,1,Cause,None,0,0,"RGBq(170, 255, 255)",3,—,100,0,0,1,0,0
+120,GoldenRock,Breakable | DropsShadow,0,1,1,0,0,0,Cause,None,0,0,"RGBq(227, 191, 120)",5,—,100,0,0,0,1,0
+121,DeepRock,Breakable | DropsShadow,0,1,1,0,0,0,Cause,None,0,0,"RGBq(163, 136, 72)",5,—,100,0,0,0,1,0
+122,GRock,Breakable | DropsShadow,0,1,1,0,0,0,Cause,None,0,0,"RGBq(51, 153, 120)",5,—,100,0,0,0,1,0

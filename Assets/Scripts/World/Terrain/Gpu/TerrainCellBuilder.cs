@@ -186,7 +186,11 @@ public sealed class TerrainCellBuilder : IDisposable
             sources);
     }
 
-    public void BuildTextureCells(HashSet<CellType> cellTypes, TerrainCellSources sources, int minX, int minY)
+    internal void BuildTextureCells(
+        in TerrainCellTypeSet cellTypes,
+        TerrainCellSources sources,
+        int minX,
+        int minY)
     {
         _doorsTouched = false;
         if (!CanBuild(sources))

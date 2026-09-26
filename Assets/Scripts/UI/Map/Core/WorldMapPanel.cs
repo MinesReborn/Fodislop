@@ -14,9 +14,11 @@ internal sealed class WorldMapPanel : IDisposable
     private VisualElement? _overlay;
     private Image? _image;
     private Button? _closeButton;
+    private Button? _followButton;
     private Label? _status;
     private EventCallback<WheelEvent>? _wheelCallback;
-    private Action? _closeRequested;
+    private Action _closeRequested = null!;
+    private Action _followPlayer = null!;
     private bool _bindingFailureReported;
 
     public VisualElement? Overlay => _overlay;
@@ -30,6 +32,7 @@ internal sealed class WorldMapPanel : IDisposable
     public bool TryBind(
         UIDocument? document,
         Action closeRequested,
+        Action followPlayer,
         EventCallback<WheelEvent> wheelCallback)
     {
         if (IsBound)
@@ -44,6 +47,11 @@ internal sealed class WorldMapPanel : IDisposable
             return false;
         }
 
+        if (_document.rootVisualElement.panel == null)
+        {
+            return false;
+        }
+
         VisualElement? overlay = _document.rootVisualElement.Q<VisualElement>("WorldMapOverlay");
         if (overlay == null)
         {
@@ -53,21 +61,25 @@ internal sealed class WorldMapPanel : IDisposable
 
         Image? image = overlay.Q<Image>("WorldMapImage");
         Button? closeButton = overlay.Q<Button>("WorldMapCloseButton");
+        Button? followButton = overlay.Q<Button>("WorldMapFollowPlayerButton");
         Label? status = overlay.Q<Label>("WorldMapStatus");
-        if (image == null || closeButton == null || status == null)
+        if (image == null || closeButton == null || followButton == null || status == null)
         {
             ReportBindingFailure(
-                "World map panel cannot bind because WorldMapImage, WorldMapCloseButton, or WorldMapStatus is missing.");
+                "World map panel cannot bind because a required map control is missing.");
             return false;
         }
 
         _overlay = overlay;
         _image = image;
         _closeButton = closeButton;
+        _followButton = followButton;
         _status = status;
         _image.image = null;
         _closeRequested = closeRequested;
+        _followPlayer = followPlayer;
         _closeButton.clicked += _closeRequested;
+        _followButton.clicked += _followPlayer;
         _wheelCallback = wheelCallback;
         _bindingFailureReported = false;
         _document.rootVisualElement.RegisterCallback(
@@ -80,7 +92,7 @@ internal sealed class WorldMapPanel : IDisposable
     {
         if (_overlay != null)
         {
-            _overlay.style.display = DisplayStyle.Flex;
+            UIState.Show(_overlay);
         }
     }
 
@@ -88,7 +100,7 @@ internal sealed class WorldMapPanel : IDisposable
     {
         if (_overlay != null)
         {
-            _overlay.style.display = DisplayStyle.None;
+            UIState.Hide(_overlay);
         }
     }
 
@@ -132,6 +144,11 @@ internal sealed class WorldMapPanel : IDisposable
         if (_closeButton != null)
         {
             _closeButton.clicked -= _closeRequested;
+        }
+
+        if (_followButton != null)
+        {
+            _followButton.clicked -= _followPlayer;
         }
     }
 

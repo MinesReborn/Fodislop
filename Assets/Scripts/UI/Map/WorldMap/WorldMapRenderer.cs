@@ -22,12 +22,14 @@ namespace Kern.UI
 
         private readonly WorldMapPanel _panel = new();
         private readonly MapTextureController _textureController = new();
-        private readonly MapCellSampler _cellSampler = new();
+        [Inject]
+        private MapCellSampler _cellSampler = null!;
         private readonly MapInteractionController _interaction = new();
         private readonly MapViewportRenderer _viewportRenderer = new();
         private readonly WorldMapMipScan _mipScan = new();
         private WorldMapLayerBinding _layerBinding = null!;
         private MapPlayerTracker _playerTracker = null!;
+        private VisualElement? _documentRoot;
 
         private float _viewCenterX;
         private float _viewCenterY;
@@ -51,6 +53,7 @@ namespace Kern.UI
         private int _boundWorldHeight;
         private string _boundWorldCodeName = string.Empty;
         private bool _initialized;
+        private bool _pointerCallbacksBound;
 
         [Inject]
         private ILocalizationService _localization = null!;
@@ -59,6 +62,12 @@ namespace Kern.UI
 
         protected void Start()
         {
+            _documentRoot = _injectedDocument.rootVisualElement;
+            if (_documentRoot.panel == null)
+            {
+                _documentRoot.RegisterCallback<AttachToPanelEvent>(OnDocumentAttached);
+            }
+
             _mipScan.SetRequestRenderCallback(RequestRender);
             _layerBinding = new WorldMapLayerBinding(_cellSampler, _mipScan, RequestRender);
             _playerTracker = new MapPlayerTracker(_localPlayer);
@@ -134,6 +143,8 @@ namespace Kern.UI
                 return;
             }
 
+            BindPointerCallbacks();
+
             _playerTracker ??= new MapPlayerTracker(_localPlayer);
             _playerTracker.EnsureBinding();
 
@@ -152,10 +163,40 @@ namespace Kern.UI
         private bool TryBindUI()
         {
             // Панель может быть ещё не готова к моменту первой привязки; повторная попытка при необходимости.
-            return _panel.TryBind(_injectedDocument, OnCloseButtonClicked, OnWorldMapWheel);
+            return _panel.TryBind(
+                _injectedDocument,
+                OnCloseButtonClicked,
+                FollowPlayer,
+                OnWorldMapWheel);
+        }
+
+        private void OnDocumentAttached(AttachToPanelEvent _)
+        {
+            if (_documentRoot?.panel == null)
+            {
+                return;
+            }
+
+            _documentRoot.UnregisterCallback<AttachToPanelEvent>(OnDocumentAttached);
+            OnWorldReady();
         }
 
         private void OnCloseButtonClicked() => CloseRequested?.Invoke();
+
+        private void FollowPlayer()
+        {
+            ILocalPlayer? player = _playerTracker.CurrentPlayer;
+            if (player == null || !player.HasServerPosition)
+            {
+                return;
+            }
+
+            _followPlayer = true;
+            _viewCenterX = player.Position.x;
+            _viewCenterY = player.Position.y;
+            ClampViewCenter();
+            _renderRequested = true;
+        }
 
         private void RequestRender() => _renderRequested = true;
 
@@ -164,7 +205,6 @@ namespace Kern.UI
             _interaction.HandleMouseScroll(
                 _panel.Overlay,
                 _panel.Image,
-                _injectedDocument,
                 evt.delta.y,
                 evt.mousePosition,
                 _textureController.TexWidth,
@@ -176,6 +216,40 @@ namespace Kern.UI
                 ref _renderRequested,
                 ClampViewCenter);
         }
+
+        private void BindPointerCallbacks()
+        {
+            Image? image = _panel.Image;
+            if (image == null || _pointerCallbacksBound)
+            {
+                return;
+            }
+
+            image.RegisterCallback<PointerDownEvent>(OnMapPointerDown);
+            image.RegisterCallback<PointerMoveEvent>(OnMapPointerMove);
+            image.RegisterCallback<PointerUpEvent>(OnMapPointerUp);
+            _pointerCallbacksBound = true;
+        }
+
+        private void OnMapPointerDown(PointerDownEvent evt) =>
+            _interaction.HandlePointerDown(evt, _panel.Image);
+
+        private void OnMapPointerMove(PointerMoveEvent evt) =>
+            _interaction.HandlePointerMove(
+                evt,
+                _panel.Image,
+                _textureController.TexWidth,
+                _textureController.TexHeight,
+                _cellsPerPixel,
+                _dragSpeed,
+                ref _viewCenterX,
+                ref _viewCenterY,
+                ref _followPlayer,
+                ref _renderRequested,
+                ClampViewCenter);
+
+        private void OnMapPointerUp(PointerUpEvent evt) =>
+            _interaction.HandlePointerUp(evt, _panel.Image);
 
         private void ResetWorldViewState(IWorldDataStorage storage)
         {
@@ -205,6 +279,19 @@ namespace Kern.UI
 
         protected void OnDestroy()
         {
+            if (_documentRoot != null)
+            {
+                _documentRoot.UnregisterCallback<AttachToPanelEvent>(OnDocumentAttached);
+            }
+
+            if (_pointerCallbacksBound && _panel.Image != null)
+            {
+                _panel.Image.UnregisterCallback<PointerDownEvent>(OnMapPointerDown);
+                _panel.Image.UnregisterCallback<PointerMoveEvent>(OnMapPointerMove);
+                _panel.Image.UnregisterCallback<PointerUpEvent>(OnMapPointerUp);
+                _pointerCallbacksBound = false;
+            }
+
             _panel.Dispose();
             _textureController.DestroyTexture();
 
@@ -305,19 +392,6 @@ namespace Kern.UI
                 ClampViewCenter();
                 _renderRequested = true;
             }
-
-            _interaction.HandleDrag(
-            _panel.Image,
-            _injectedDocument,
-                _textureController.TexWidth,
-                _textureController.TexHeight,
-                _cellsPerPixel,
-                _dragSpeed,
-                ref _viewCenterX,
-                ref _viewCenterY,
-                ref _followPlayer,
-                ref _renderRequested,
-                ClampViewCenter);
 
             _playerTracker.Update(
                 Time.deltaTime,

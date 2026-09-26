@@ -57,6 +57,24 @@ public class TerrainCellCache : ITerrainCellDataSource
         }
     }
 
+    public void PrepareRenderData()
+    {
+        for (int x = 0; x < CacheWidth; x++)
+        {
+            for (int y = 0; y < CacheHeight; y++)
+            {
+                ref CachedCellData cell = ref _cells[x, y];
+                cell.MinimapColor = new UnityEngine.Color32(128, 128, 128, 255);
+                cell.AtlasRect = new UnityEngine.Vector4(0f, 0f, 0.0625f, 0.0625f);
+                cell.AtlasIndex = 0;
+                cell.UVTileSize = 1f / 1024f;
+                cell.AnimationFrameCount = 1;
+                cell.FrameHeightTiles = 1f;
+                cell.IsTextureReady = true;
+            }
+        }
+    }
+
     // Как ScrollAndFill: сдвиг массива и дозаполнение вошедшей каймы.
     public void ScrollTo(int minX, int minY, int seed)
     {

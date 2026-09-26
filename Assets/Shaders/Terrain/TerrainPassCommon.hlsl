@@ -34,7 +34,7 @@ struct TerrainVertexInput
 // после макроса.
 #define TERRAIN_RESOLVE_CELL_VERTEX(input, output) \
     TerrainCellVertex cell = LoadTerrainCellVertex( \
-        input.positionOS.xyz, input.uv, _OrganicBendStrength, _OrganicBendPivot); \
+        input.positionOS.xyz, input.uv); \
     output.positionCS = TerrainVertexClipPosition(cell.atlasIndex, cell.positionOS); \
     output.uv = cell.uv; \
     output.color = cell.color; \

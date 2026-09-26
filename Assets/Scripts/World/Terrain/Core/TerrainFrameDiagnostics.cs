@@ -16,7 +16,11 @@ public readonly record struct TerrainFrameTimings(
     float ProcessMs,
     float UploadMs,
     int DirtyRectCount,
-    long DirtyArea);
+    long DirtyArea,
+    int ResidencyProbeCalls,
+    int ResidencyChunkReads,
+    int ResidencyCacheHits,
+    int ResidencyLruTouches);
 
 /// <summary>
 /// Наблюдение за кадром террейна и разбор отказа сборки.
@@ -72,6 +76,10 @@ public sealed class TerrainFrameDiagnostics : IDisposable
                 textures.LastUploadStrips,
                 timings.PlanMs,
                 timings.DimensionsMs,
+                timings.ResidencyProbeCalls,
+                timings.ResidencyChunkReads,
+                timings.ResidencyCacheHits,
+                timings.ResidencyLruTouches,
                 new TerrainStallBuildState(_window.BuildState, _window.HasCpuBuildInFlight),
                 pipeline.LastWorkerCost));
     }

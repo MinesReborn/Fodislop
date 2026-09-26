@@ -65,6 +65,8 @@ namespace UnityEngine
 
         public static Vector3 zero => default;
 
+        public static Vector3 one => new(1, 1, 1);
+
         public static Vector3 operator +(Vector3 a, Vector3 b) => new(a.x + b.x, a.y + b.y, a.z + b.z);
 
         public static Vector3 operator *(Vector3 a, float d) => new(a.x * d, a.y * d, a.z * d);
@@ -114,6 +116,8 @@ namespace UnityEngine
         public float a = a;
 
         public static Color white => new(1, 1, 1, 1);
+
+        public static Color magenta => new(1, 0, 1, 1);
 
         public static implicit operator Color32(Color c) =>
             new((byte)(c.r * 255), (byte)(c.g * 255), (byte)(c.b * 255), (byte)(c.a * 255));
@@ -180,6 +184,10 @@ namespace UnityEngine
         public static int Min(int a, int b) => Math.Min(a, b);
 
         public static float Max(float a, float b) => Math.Max(a, b);
+
+        public static float Clamp01(float value) => Math.Clamp(value, 0f, 1f);
+
+        public static float Lerp(float a, float b, float t) => a + ((b - a) * t);
 
         public static float Min(float a, float b) => Math.Min(a, b);
 

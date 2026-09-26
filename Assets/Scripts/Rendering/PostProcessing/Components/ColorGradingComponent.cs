@@ -14,16 +14,16 @@ namespace Kern.Rendering.PostProcessing
     {
         // Keep the serialized Volume parameter names stable for existing profiles.
         [Tooltip("Exposure compensation in stops. Zero is neutral.")]
-        public ClampedFloatParameter exposure = PostProcessDefaults.ColorGradingExposure();
+        public FloatParameter exposure = new(PostProcessLook.ColorGrading.Exposure);
 
         [Tooltip("Multiplicative color filter. White is neutral.")]
-        public ColorParameter colorFilter = PostProcessDefaults.ColorGradingFilter();
+        public ColorParameter colorFilter = new(PostProcessLook.ColorGrading.Filter);
 
         [Tooltip("Contrast adjustment. Zero is neutral.")]
-        public ClampedFloatParameter contrast = PostProcessDefaults.ColorGradingContrast();
+        public FloatParameter contrast = new(PostProcessLook.ColorGrading.Contrast);
 
         [Tooltip("Color saturation. One is neutral, zero is grayscale.")]
-        public ClampedFloatParameter saturation = PostProcessDefaults.ColorGradingSaturation();
+        public FloatParameter saturation = new(PostProcessLook.ColorGrading.Saturation);
 
         // Сжатие динамического диапазона удалено целиком, поэтому
         // компонент активен только при действительной цветокоррекции.

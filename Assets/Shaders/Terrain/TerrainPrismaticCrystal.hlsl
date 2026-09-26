@@ -21,7 +21,7 @@ float2 PrismaticCrystalFlowUV(float2 serverCell, float2 localPosition)
     float2 surfacePosition = float2(serverCell.x + localPosition.x, serverCell.y - localPosition.y);
     // Quantize the lookup position, not the sampled hue or animation time.
     // Every fragment in one terrain pixel gets the same phase in both passes.
-    float2 pixelCenter = (floor(surfacePosition * 32.0) + 0.5) / 32.0;
+    float2 pixelCenter = QuantizeTerrainPixelCenter(surfacePosition);
     return pixelCenter / float2(10.0, 8.0);
 }
 

@@ -134,13 +134,23 @@ public sealed class MapPlayerTracker
     {
         _localPlayer.Changed -= OnLocalPlayerChanged;
         _playerSpawnSubscription = false;
+        if (_playerMoveSubscription && _player != null)
+        {
+            UnsubscribeFromPlayer(_player);
+        }
+
+        _player = null;
+        _lastPlayerPos = new Vector2Int(int.MinValue, int.MinValue);
         if (player == null)
         {
+            _localPlayer.Changed += OnLocalPlayerChanged;
+            _playerSpawnSubscription = true;
             return;
         }
 
         SubscribeToPlayer(player);
-        _lastPlayerPos = new Vector2Int(int.MinValue, int.MinValue);
+        _localPlayer.Changed += OnLocalPlayerChanged;
+        _playerSpawnSubscription = true;
         OnPlayerSpawned?.Invoke();
     }
 

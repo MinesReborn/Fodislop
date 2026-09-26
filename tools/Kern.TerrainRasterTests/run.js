@@ -12,6 +12,8 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 const shim = read("tools/Kern.LightingTests/NativeTransportShim.cpp");
 const loader = read("Assets/Shaders/Terrain/TerrainCellData.hlsl");
 const terrainContour = read("Assets/Shaders/Terrain/TerrainContour.hlsl");
+const terrainGeometryContract = read("Assets/Shaders/Terrain/TerrainGeometryContract.hlsl");
+const terrainGeometry = read("Assets/Shaders/Terrain/TerrainGeometry.hlsl");
 const terrainShader = read("Assets/Shaders/Terrain/Terrain.shader");
 const scenario = read("tools/Kern.TerrainRasterTests/scenario.cpp");
 const aoShim = read("tools/Kern.TerrainRasterTests/ao-field.cpp");
@@ -78,6 +80,7 @@ float2 QuantizeTerrainFaceUV(float2 uv)
 `;
 const extra = `
 float2 round(float2 a) { return {std::round(a.x), std::round(a.y)}; }
+float distance(float2 a, float2 b) { return length(a - b); }
 float lerp(float a, float b, float t) { return a + (b-a)*t; }
 float2 lerp(float2 a, float2 b, float2 t) { return a + (b-a)*t; }
 float4 round(float4 a) { return {std::round(a.x),std::round(a.y),std::round(a.z),std::round(a.w)}; }
@@ -98,6 +101,8 @@ const terrainUniforms = `
 float _OrganicBendStrength = 1.0;
 float _OrganicBendPivot = 0.35;
 float _RoundableCornerRadius = 0.51;
+float _ReliefRimQuantizationEnabled = 0.0;
+float _TerrainAmbientOcclusionDistance = 0.25;
 float _ReliefRimDistanceScale = 2.0;
 float _ReliefRimFalloff = 0.5;
 `;
@@ -105,6 +110,8 @@ float _ReliefRimFalloff = 0.5;
 function translate(source) {
   return source
     .replace(/^#.*$/gm, "")
+    .replaceAll("[unroll]", "")
+    .replaceAll("[branch]", "")
     .replace("inout TerrainTileUvResult tile", "TerrainTileUvResult& tile")
     .replace("out float2 nearestPosition", "float2& nearestPosition")
     .replaceAll("Texture2D<float4>", "Texture")
@@ -127,24 +134,27 @@ try {
 
   for (const mutation of mutations) {
     let candidateLoader = loader;
+    let candidateGeometry = terrainGeometry;
     let candidateContour = contour;
     let candidateAo = ao;
 
     if (mutation === "double-quantize-fragments") {
-      candidateContour = candidateContour.replace(
+      candidateGeometry = candidateGeometry.replace(
         "    return TerrainPolygonContains(\n" +
           "        samplePosition,\n" +
           "        cornersX,\n" +
           "        cornersY,\n" +
-          "        0.0,",
+          "        packedEdges,\n" +
+          "        true) ? 1.0 : 0.0;",
         "    float2 fragmentGridSample = (floor(samplePosition * 32.0) + 0.5) / 32.0;\n" +
           "    return TerrainPolygonContains(\n" +
           "        fragmentGridSample,\n" +
           "        cornersX,\n" +
           "        cornersY,\n" +
-          "        0.0,",
+          "        packedEdges,\n" +
+          "        true) ? 1.0 : 0.0;",
       );
-      if (candidateContour === contour) throw new Error("double-quantize-fragments mutation is stale");
+      if (candidateGeometry === terrainGeometry) throw new Error("double-quantize-fragments mutation is stale");
     }
     if (mutation === "ao-flat-contact") {
       candidateAo = candidateAo.replaceAll(
@@ -164,7 +174,10 @@ try {
     fs.writeFileSync(
       cppPath,
       shim + extra + aoShim + terrainUniforms +
-        translate(candidateLoader + lighting + candidateContour + quantizeUv + rim + terrainGeometryUv + candidateAo) +
+        translate(
+          terrainGeometryContract + candidateGeometry + candidateLoader + lighting +
+          candidateContour + quantizeUv + rim + terrainGeometryUv + candidateAo,
+        ) +
         scenario,
     );
 

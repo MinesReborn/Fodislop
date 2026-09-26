@@ -210,19 +210,32 @@ mask is not combined into AO, so nominal grid directions cannot add shadows at
 locations where displaced geometry no longer touches the receiver.
 
 The displaced silhouette has one geometric predicate in
-`TerrainContour.hlsl`: four corner vertices for regular cells, or those corners
+`TerrainGeometry.hlsl`: four corner vertices for regular cells, or those corners
 plus four bend vertices for organic cells. Stored corners and derived bend
-vertices are quantized to the 1/32-cell geometry grid before raster coverage;
-fragment positions are not quantized again. The visible pass uses a hard mask
-from that predicate, relief-rim distance measures those same sides from the
-continuous fragment position, and AO
-field contact fades over half a cell from the same signed distance.
-The organic carrier quad uses the same bend strength, pivot, and snapped bend
-vertices so rasterization cannot clip the polygon it is meant to cover. During
+vertices are quantized to the 1/32-cell geometry grid before raster coverage.
+Visible/material coverage tests the continuous raster sample against that
+polygon; per-cell fragment quantization would move opposite sides of a shared
+edge apart and open gaps. Relief-rim distance and AO field contact also retain
+continuous fragment positions and measure the same quantized polygon; AO fades
+over half a cell from its signed distance. The crystal phase map uses those same
+pixel centers. The organic carrier quad gets its bounds from the same corner
+and bend point functions used by the polygon predicate, so there is no second bend,
+pivot, or rounding implementation that can clip the polygon it encloses. During
 the AO-field draw only, the carrier expands by half a cell plus half an AO-field
 texel in world units, converted to cell-local units by the terrain shader. This
 keeps the full contact falloff available at extreme corners;
 material/emission and visible passes use zero carrier padding.
+
+The cell shape encoding has two explicit owners at the CPU/GPU boundary:
+`TerrainCellGeometry` encodes four organic edge bends and their Meta bytes on
+the CPU; `TerrainGeometryContract.hlsl` owns shader-side 1/32 quantization and
+Meta decoding. `TerrainQuadBuilder` selects the four edge values but does not
+own their wire format, and `TerrainCellDataPacker` transports the contract but
+does not define it. `TerrainCellData.hlsl` consumes decoded geometry metadata;
+`TerrainGeometry.hlsl` evaluates the polygon and signed distance, while
+`TerrainContour.hlsl` owns contour and relief consumers. This keeps
+carrier construction, raster coverage, relief, AO, and crystal sampling on the
+same cell-local geometry convention.
 
 **AO stage contract (`TL-STAGE`):** `GeometryLightingSolver.RecordAmbientOcclusionField`
 records a full `DrawMesh` through `TerrainMeshManager.RenderLightingAmbientOcclusionField`

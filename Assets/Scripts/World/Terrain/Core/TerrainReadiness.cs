@@ -12,7 +12,7 @@ namespace Kern.World.Terrain
             window.IsInitialized &&
             window.CellIDMesh != null &&
             window.CellsCommitted &&
-            window.Driver.Materials.Materials.Length > 0 &&
+            window.Driver.Presentation.HasMaterials &&
             window.PendingTextureCellTypes.Count == 0 &&
             !window.HasUnpublishedTextureRefresh &&
             textureService.PendingCellTextureRequests == 0;

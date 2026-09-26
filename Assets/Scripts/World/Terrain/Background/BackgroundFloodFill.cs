@@ -13,6 +13,10 @@ using UnityEngine;
 namespace Kern.World.Terrain.Background;
 public sealed class BackgroundFloodFill
 {
+    // Full-window A/B on a 192×128 fixture used less process CPU with four
+    // workers; wall-time throughput was similar to using all processors.
+    private readonly ParallelOptions _fullPassParallelOptions;
+
     private int[] _fbpwGeneration = Array.Empty<int>();
     private int _fbpwCurrentGen = 1;
     private readonly List<(int X, int Y)> _fbpwFrontier = new(64);
@@ -27,6 +31,19 @@ public sealed class BackgroundFloodFill
     // still produce the exact sequential frontier when concatenated in
     // column order. Allocated once per resize rather than per rebuild.
     private List<(int X, int Y)>[] _columnFrontiers = Array.Empty<List<(int X, int Y)>>();
+
+    public BackgroundFloodFill()
+        : this(Math.Min(4, Environment.ProcessorCount))
+    {
+    }
+
+    internal BackgroundFloodFill(int maxDegreeOfParallelism)
+    {
+        _fullPassParallelOptions = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = maxDegreeOfParallelism,
+        };
+    }
 
     public void Allocate(int width, int height)
     {
@@ -66,6 +83,7 @@ public sealed class BackgroundFloodFill
         Parallel.For(
             0,
             w,
+            _fullPassParallelOptions,
             x =>
             {
                 for (int y = 0; y < h; y++)
@@ -85,6 +103,7 @@ public sealed class BackgroundFloodFill
         Parallel.For(
             0,
             w,
+            _fullPassParallelOptions,
             x =>
             {
                 List<(int X, int Y)> columnFrontier = _columnFrontiers[x];

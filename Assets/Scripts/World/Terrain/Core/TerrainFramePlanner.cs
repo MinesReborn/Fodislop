@@ -8,6 +8,30 @@ using UnityEngine;
 
 namespace Kern.World.Terrain;
 
+/// <summary>All inputs required to decide the active terrain window for one frame.</summary>
+public readonly record struct TerrainFramePlanningInput(
+    Camera Camera,
+    Vector3 FocusPosition,
+    float CellSize,
+    int ViewportPadding,
+    int RequiredLightingPadding,
+    int StableRegionPadding,
+    Vector2Int CommittedOrigin,
+    int MeshWidth,
+    int MeshHeight,
+    bool IsInitialized,
+    bool CellsCommitted,
+    bool CpuBuildInFlight,
+    float SpeedCellsPerSecond,
+    float PreparationLatencySeconds,
+    RectInt RetainedLightingViewport,
+    bool AllowPartialAdvance,
+    bool HoldingPublishedView,
+    IWorldDataStorage? Storage,
+    IMapDataProvider? MapData,
+    IConnectionService? ConnectionService,
+    IFrameTelemetry Telemetry);
+
 /// <summary>
 /// Решение о кадре: какое окно просит камера, какое уже собрано и с каким
 /// кадр работает на самом деле.
@@ -21,41 +45,33 @@ namespace Kern.World.Terrain;
 public sealed class TerrainFramePlanner
 {
     private readonly TerrainViewportCalculator _viewport = new();
+    private readonly TerrainResidencyProbe.FrameCache _residencyCache = new();
+    private int _lastResidencyProbeCalls;
+    private int _lastResidencyChunkReads;
+    private int _lastResidencyCacheHits;
+    private int _lastResidencyLruTouches;
 
     public StreamingPolicy Policy => _viewport.Policy;
 
-    public TerrainFramePlan Plan(
-        Camera camera,
-        Vector3 focusPosition,
-        float cellSize,
-        int viewportPadding,
-        int requiredLightingPadding,
-        int stableRegionPadding,
-        Vector2Int committedOrigin,
-        int meshWidth,
-        int meshHeight,
-        bool isInitialized,
-        bool cellsCommitted,
-        bool cpuBuildInFlight,
-        float speedCellsPerSecond,
-        float preparationLatencySeconds,
-        RectInt retainedLightingViewport,
-        bool allowPartialAdvance,
-        bool holdingPublishedView,
-        IWorldDataStorage? storage,
-        IMapDataProvider? mapData,
-        IConnectionService? connectionService,
-        IFrameTelemetry telemetry)
+    public int LastResidencyProbeCalls => _lastResidencyProbeCalls;
+
+    public int LastResidencyChunkReads => _lastResidencyChunkReads;
+
+    public int LastResidencyCacheHits => _lastResidencyCacheHits;
+
+    public int LastResidencyLruTouches => _lastResidencyLruTouches;
+
+    public TerrainFramePlan Plan(in TerrainFramePlanningInput input)
     {
         _viewport.CalculateDimensions(
-            camera,
-            cellSize,
-            viewportPadding,
-            requiredLightingPadding,
-            stableRegionPadding,
-            meshWidth,
-            meshHeight,
-            isInitialized,
+            input.Camera,
+            input.CellSize,
+            input.ViewportPadding,
+            input.RequiredLightingPadding,
+            input.StableRegionPadding,
+            input.MeshWidth,
+            input.MeshHeight,
+            input.IsInitialized,
             out int targetWidth,
             out int targetHeight,
             out int effectivePadding,
@@ -64,42 +80,46 @@ public sealed class TerrainFramePlanner
             out bool dimensionsChanged);
 
         Vector2Int requestedOrigin = _viewport.ResolveGridPosition(
-            camera,
-            focusPosition,
-            cellSize,
+            input.Camera,
+            input.FocusPosition,
+            input.CellSize,
             targetWidth,
             targetHeight,
             requestedWidth,
             requestedHeight,
             effectivePadding,
             dimensionsChanged,
-            committedOrigin,
-            speedCellsPerSecond,
-            preparationLatencySeconds,
-            centerOnFocus: !allowPartialAdvance,
+            input.CommittedOrigin,
+            input.SpeedCellsPerSecond,
+            input.PreparationLatencySeconds,
+            centerOnFocus: !input.AllowPartialAdvance,
             out int viewportMinX,
             out int viewportMinY,
             out int viewportWidth,
             out int viewportHeight);
 
-        PublishStreamingTelemetry(telemetry, _viewport.LastPlan);
+        PublishStreamingTelemetry(input.Telemetry, _viewport.LastPlan);
 
         var requestedWindow = new StreamingWindow(
             requestedOrigin,
             new Vector2Int(targetWidth, targetHeight));
         var committedWindow = new StreamingWindow(
-            committedOrigin,
-            new Vector2Int(meshWidth, meshHeight));
+            input.CommittedOrigin,
+            new Vector2Int(input.MeshWidth, input.MeshHeight));
         var cameraViewport = new RectInt(
             viewportMinX,
             viewportMinY,
             viewportWidth,
             viewportHeight);
 
+        _lastResidencyProbeCalls = 1;
+        _lastResidencyChunkReads = 0;
+        _lastResidencyCacheHits = 0;
+        _lastResidencyLruTouches = 0;
         bool isRequestedResident = TerrainResidencyProbe.IsWindowResident(
-            storage,
-            mapData,
-            connectionService,
+            input.Storage,
+            input.MapData,
+            input.ConnectionService,
             requestedWindow.Origin,
             requestedWindow.Size.x,
             requestedWindow.Size.y);
@@ -110,32 +130,46 @@ public sealed class TerrainFramePlanner
         // Кроме перехода вида (телепорт): там промежуточное окно никому не
         // видно, а каждый шаг к нему — полная сборка впустую. Ждём место
         // назначения целиком.
-        if (allowPartialAdvance && !isRequestedResident && committedOrigin.x != int.MinValue && !dimensionsChanged)
+        if (input.AllowPartialAdvance && !isRequestedResident &&
+            input.CommittedOrigin.x != int.MinValue && !dimensionsChanged)
         {
+            Vector2Int requestedSize = requestedWindow.Size;
+            _residencyCache.BeginFrame(input.Storage, input.MapData, requestedSize.x, requestedSize.y);
             Vector2Int reachable = TerrainWindowAdvance.Resolve(
-                committedOrigin,
+                input.CommittedOrigin,
                 requestedWindow.Origin,
-                requestedWindow.Size.x,
-                requestedWindow.Size.y,
-                origin => TerrainResidencyProbe.IsWindowResident(
-                    storage, mapData, origin, requestedWindow.Size.x, requestedWindow.Size.y));
-            if (reachable != committedOrigin)
+                requestedSize.x,
+                requestedSize.y,
+                _residencyCache.ResidencyCallback);
+            if (reachable != input.CommittedOrigin)
             {
                 requestedWindow = new StreamingWindow(reachable, requestedWindow.Size);
                 isRequestedResident = true;
+                TerrainResidencyProbe.TouchWindow(
+                    input.Storage,
+                    input.MapData,
+                    reachable,
+                    requestedSize.x,
+                    requestedSize.y,
+                    _residencyCache);
             }
+
+            _lastResidencyProbeCalls += _residencyCache.ProbeCalls;
+            _lastResidencyChunkReads = _residencyCache.ChunkReads;
+            _lastResidencyCacheHits = _residencyCache.CacheHits;
+            _lastResidencyLruTouches = _residencyCache.LruTouches;
         }
 
         return _viewport.SelectFramePlan(
             requestedWindow,
             committedWindow,
             cameraViewport,
-            retainedLightingViewport,
+            input.RetainedLightingViewport,
             isRequestedResident,
             dimensionsChanged,
-            cellsCommitted,
-            cpuBuildInFlight,
-            holdingPublishedView);
+            input.CellsCommitted,
+            input.CpuBuildInFlight,
+            input.HoldingPublishedView);
     }
 
     private static void PublishStreamingTelemetry(IFrameTelemetry telemetry, StreamingPlan plan)

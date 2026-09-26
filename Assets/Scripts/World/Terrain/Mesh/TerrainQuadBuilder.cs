@@ -96,11 +96,11 @@ internal static class TerrainQuadBuilder
                 int right = OrganicEdgeBend(rightNeighbor, gridX + 1, unityY, true, -1);
                 int top = OrganicEdgeBend(topNeighbor, gridX, unityY + 1, false, -1);
                 int left = OrganicEdgeBend(leftNeighbor, gridX, unityY, true, 1);
-                organicEdges = 1 +
-                    (bottom + 2) +
-                    ((right + 2) * 5) +
-                    ((top + 2) * 25) +
-                    ((left + 2) * 125);
+                organicEdges = TerrainCellGeometry.EncodeOrganicEdges(
+                    bottom,
+                    right,
+                    top,
+                    left);
             }
         }
 
@@ -240,7 +240,8 @@ internal static class TerrainQuadBuilder
         bool isPhysicalMass =
             !isBackground &&
             cellFgType != CellType.Empty &&
-            !foregroundVisuals.IsRoad;
+            !foregroundVisuals.IsRoad &&
+            !foregroundVisuals.IsNonPhysicalMass;
         Vector4 animDataVec = new(
             (float)animType,
             animationSettings.Speed,
@@ -290,6 +291,7 @@ internal static class TerrainQuadBuilder
         // ring-адрес у фонового текселя тот же, и чужой код рельефа въехал бы
         // в соседний слой.
         byte reliefMask = precalc.CellReliefMasks[x, y];
+        byte reliefCornerMask = precalc.CellReliefCornerMasks[x, y];
         // Серверная группа определяет наличие фаски. Без проверки группа 0
         // получает reliefCode=1 и рисует фаску по всем четырём сторонам.
         bool hasRelief = !isBackground &&
@@ -301,7 +303,8 @@ internal static class TerrainQuadBuilder
             isPhysicalMass,
             emissionPower,
             reliefMask,
-            hasRelief);
+            hasRelief,
+            reliefCornerMask);
         bool hasGroundDecalSurface = TerrainDecalCatalog.IsGroundDecalSurface(
             cellType,
             isBackground);

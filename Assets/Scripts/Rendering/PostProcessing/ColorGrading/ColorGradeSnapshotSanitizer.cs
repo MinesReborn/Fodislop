@@ -86,10 +86,10 @@ internal static class ColorGradeSnapshotSanitizer
                 ColorGradeState.OffsetMax,
                 defaults.PrimaryOffset),
             PrimaryMaster = new Vector4(
-                FiniteClamp(snapshot.PrimaryMaster.x, ColorGradeState.OffsetMin, ColorGradeState.OffsetMax, 0f),
-                FiniteClamp(snapshot.PrimaryMaster.y, ColorGradeState.PowerMin, ColorGradeState.PowerMax, 1f),
-                FiniteClamp(snapshot.PrimaryMaster.z, ColorGradeState.SlopeMin, ColorGradeState.SlopeMax, 1f),
-                FiniteClamp(snapshot.PrimaryMaster.w, ColorGradeState.OffsetMin, ColorGradeState.OffsetMax, 0f)),
+                FiniteClamp(snapshot.PrimaryMaster.x, ColorGradeState.OffsetMin, ColorGradeState.OffsetMax, defaults.PrimaryMaster.x),
+                FiniteClamp(snapshot.PrimaryMaster.y, ColorGradeState.PowerMin, ColorGradeState.PowerMax, defaults.PrimaryMaster.y),
+                FiniteClamp(snapshot.PrimaryMaster.z, ColorGradeState.SlopeMin, ColorGradeState.SlopeMax, defaults.PrimaryMaster.z),
+                FiniteClamp(snapshot.PrimaryMaster.w, ColorGradeState.OffsetMin, ColorGradeState.OffsetMax, defaults.PrimaryMaster.w)),
             Vibrance = FiniteClamp(snapshot.Vibrance, -1f, 1f, defaults.Vibrance),
             Saturation = FiniteClamp(
                 snapshot.Saturation,

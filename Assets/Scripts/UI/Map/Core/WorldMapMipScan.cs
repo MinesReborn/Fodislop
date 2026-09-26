@@ -61,7 +61,7 @@ internal sealed class WorldMapMipScan : IDisposable
             heightChunks,
             chunkSize,
             cellColorTable,
-            new Color32(0, 0, 0, 255));
+            MapProjection.UnknownCellColor(0, 0));
         _pendingChunks.Clear();
         IsReady = false;
         _failed = false;
@@ -154,6 +154,11 @@ internal sealed class WorldMapMipScan : IDisposable
             }
 
             cancellationToken.ThrowIfCancellationRequested();
+            if (!IsCurrentScan(scanCancellation, cache, layer))
+            {
+                return;
+            }
+
             cache.CompleteStoredScan();
             foreach (int chunkIndex in layer.GetLoadedChunkIndices())
             {
@@ -176,6 +181,11 @@ internal sealed class WorldMapMipScan : IDisposable
             }
 
             cancellationToken.ThrowIfCancellationRequested();
+            if (!IsCurrentScan(scanCancellation, cache, layer))
+            {
+                return;
+            }
+
             IsReady = true;
             _pendingChunks.Clear();
             _requestRender?.Invoke();
@@ -198,4 +208,12 @@ internal sealed class WorldMapMipScan : IDisposable
             scanCancellation.Dispose();
         }
     }
+
+    private bool IsCurrentScan(
+        CancellationTokenSource scanCancellation,
+        WorldMapMipCache cache,
+        IWorldLayer<CellType> layer) =>
+        ReferenceEquals(_scanCancellation, scanCancellation) &&
+        ReferenceEquals(_cache, cache) &&
+        ReferenceEquals(_cellLayer, layer);
 }

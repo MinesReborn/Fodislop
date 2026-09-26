@@ -8,7 +8,6 @@ internal enum TerrainAnimationProfile : byte
 {
     Default = 0,
     PrismaticCrystal = 1,
-    MoltenSurface = 2,
     FacetedCrystal = 3,
 }
 
@@ -40,13 +39,6 @@ internal static class TerrainAnimationProfileCatalog
                     CellType.XCyan => 5f,
                     _ => throw new System.ArgumentOutOfRangeException(nameof(cellType)),
                 });
-        }
-
-        if (cellType == CellType.Lava)
-        {
-            return new TerrainAnimationSettings(
-                TerrainAnimationProfile.MoltenSurface,
-                TerrainConfigHolder.MoltenSurfaceAnimationSpeed);
         }
 
         if (cellType is

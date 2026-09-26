@@ -36,10 +36,13 @@ internal sealed class WorldMapLayerBinding : IDisposable
     {
         if (_storage != null)
         {
+            _storage.CellChanged -= OnCellChanged;
             _storage.RegionChanged -= OnRegionChanged;
         }
 
         _storage = storage;
+        _storage.CellChanged -= OnCellChanged;
+        _storage.CellChanged += OnCellChanged;
         _storage.RegionChanged -= OnRegionChanged;
         _storage.RegionChanged += OnRegionChanged;
     }
@@ -92,9 +95,24 @@ internal sealed class WorldMapLayerBinding : IDisposable
         BindCellLayer(null);
         if (_storage != null)
         {
+            _storage.CellChanged -= OnCellChanged;
             _storage.RegionChanged -= OnRegionChanged;
             _storage = null;
         }
+    }
+
+    private void OnCellChanged(int serverX, int serverY)
+    {
+        if (serverX < 0 || serverY < 0 || _chunkSize <= 0)
+        {
+            return;
+        }
+
+        int chunkX = serverX / _chunkSize;
+        int chunkY = serverY / _chunkSize;
+        _cellSampler.InvalidateChunk(chunkX * _chunkSize, chunkY * _chunkSize);
+        _mipScan.QueueChunk(chunkX, chunkY);
+        _requestRender();
     }
 
     private void OnChunkLoaded(int serverX, int serverY, int width, int height)

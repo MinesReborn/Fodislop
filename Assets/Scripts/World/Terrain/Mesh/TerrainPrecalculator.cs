@@ -5,6 +5,12 @@ using UnityEngine;
 
 namespace Kern.World.Terrain;
 
+/// <summary>Read-only inputs shared by the geometry and cell-mask stages.</summary>
+public readonly record struct TerrainPrecalculationInput(
+    ITerrainCellDataSource CellData,
+    Vector2Int WindowSize,
+    Vector2Int WorldSize);
+
 public class TerrainPrecalculator
 {
     private readonly TerrainVertexDistortionCalculator _distortion = new();
@@ -17,6 +23,8 @@ public class TerrainPrecalculator
     public TerrainRingGrid<int> CellCornerVariants => _cellMask.CellCornerVariants;
 
     public TerrainRingGrid<byte> CellReliefMasks => _cellMask.CellReliefMasks;
+
+    public TerrainRingGrid<byte> CellReliefCornerMasks => _cellMask.CellReliefCornerMasks;
 
     public TerrainRingGrid<byte> CellSolidBoundaryMasks => _cellMask.CellSolidBoundaryMasks;
 
@@ -38,21 +46,58 @@ public class TerrainPrecalculator
         _cellMask.EnsureCapacity(meshWidth, meshHeight);
     }
 
-    public void PrecalculateFull(ITerrainCellDataSource cellCache, int meshWidth, int meshHeight, int worldWidth, int worldHeight)
+    public void PrecalculateFull(in TerrainPrecalculationInput input)
     {
-        _distortion.PrecalculateFull(cellCache, meshWidth, meshHeight, worldWidth, worldHeight);
-        _cellMask.PrecalculateFull(cellCache, meshWidth, meshHeight);
+        _distortion.PrecalculateFull(
+            input.CellData,
+            input.WindowSize.x,
+            input.WindowSize.y,
+            input.WorldSize.x,
+            input.WorldSize.y);
+        _cellMask.PrecalculateFull(input.CellData, input.WindowSize.x, input.WindowSize.y);
     }
 
-    public void PrecalculateRegion(ITerrainCellDataSource cellCache, int meshWidth, int meshHeight, int startX, int startY, int countX, int countY, int worldWidth, int worldHeight)
+    public void PrecalculateRegion(
+        in TerrainPrecalculationInput input,
+        TerrainWindowCellRegion region)
     {
-        _distortion.PrecalculateRegion(cellCache, meshWidth, meshHeight, startX, startY, countX, countY, worldWidth, worldHeight);
-        _cellMask.PrecalculateRegion(cellCache, meshWidth, meshHeight, startX, startY, countX, countY);
+        _distortion.PrecalculateRegion(
+            input.CellData,
+            input.WindowSize.x,
+            input.WindowSize.y,
+            region.StartX,
+            region.StartY,
+            region.CountX,
+            region.CountY,
+            input.WorldSize.x,
+            input.WorldSize.y);
+        _cellMask.PrecalculateRegion(
+            input.CellData,
+            input.WindowSize.x,
+            input.WindowSize.y,
+            region.StartX,
+            region.StartY,
+            region.CountX,
+            region.CountY);
     }
 
-    public void PrecalculateIncremental(ITerrainCellDataSource cellCache, int meshWidth, int meshHeight, int dx, int dy, int worldWidth, int worldHeight)
+    public void PrecalculateIncremental(
+        in TerrainPrecalculationInput input,
+        Vector2Int scrollDelta)
     {
-        _distortion.PrecalculateIncremental(cellCache, meshWidth, meshHeight, dx, dy, worldWidth, worldHeight);
-        _cellMask.PrecalculateIncremental(cellCache, meshWidth, meshHeight, dx, dy);
+        _distortion.PrecalculateIncremental(
+            input.CellData,
+            input.WindowSize.x,
+            input.WindowSize.y,
+            scrollDelta.x,
+            scrollDelta.y,
+            input.WorldSize.x,
+            input.WorldSize.y);
+        _cellMask.PrecalculateIncremental(
+            input.CellData,
+            input.WindowSize.x,
+            input.WindowSize.y,
+            scrollDelta.x,
+            scrollDelta.y);
     }
 }

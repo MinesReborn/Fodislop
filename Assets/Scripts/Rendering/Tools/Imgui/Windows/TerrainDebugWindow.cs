@@ -55,9 +55,26 @@ public sealed class TerrainDebugWindow : ToolWindow
                 GUILayout.Space(4f);
             }
 
-            ToolChrome.SectionHeader("ВИД");
+            DrawViewRow(TerrainDebugView.Off, active);
+
+            ToolChrome.SectionHeader("ГЕОМЕТРИЯ");
+            bool surfaceSectionStarted = false;
             foreach (TerrainDebugView view in _views)
             {
+                if (view == TerrainDebugView.Off)
+                {
+                    continue;
+                }
+
+                if (TerrainDebugViewState.IsSurfacePipelineView(view))
+                {
+                    if (!surfaceSectionStarted)
+                    {
+                        ToolChrome.SectionHeader("ПОВЕРХНОСТЬ И ЕЁ ЭТАПЫ");
+                        surfaceSectionStarted = true;
+                    }
+                }
+
                 DrawViewRow(view, active);
             }
 

@@ -634,6 +634,7 @@
   "settings.world.section_desc": "Visual parameters of the world surface and distant areas.",
   "hud.bonus": "Bonuses",
   "hud.world_map": "World map",
+  "hud.map_follow_player": "Center on player",
   "hud.map_preparing": "Preparing map…",
   "hud.map_preparing_progress": "Preparing map… {0}%",
   "hud.map_prepare_failed": "Map preparation failed",

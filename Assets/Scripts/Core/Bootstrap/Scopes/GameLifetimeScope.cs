@@ -245,6 +245,7 @@ namespace Kern.Core
             RegisterManager<PlayerHUDView>(builder, "UI");
             RegisterManager<InventoryView>(builder, "UI");
             RegisterManager<PauseMenu>(builder, "UI");
+            MapServiceRegistration.Register(builder);
             RegisterManager<MinimapController>(builder, "UI");
             RegisterManager<WorldMapController>(builder, "UI");
             RegisterManager<WorldMapRenderer>(builder, "UI");

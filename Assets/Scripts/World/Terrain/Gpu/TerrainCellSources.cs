@@ -14,17 +14,9 @@ public readonly record struct TerrainCellSources(
     BackgroundFloodFill FloodFill,
     int WorldWidth,
     int WorldHeight,
-    IReadOnlyList<IAtlasDescriptor> Atlases,
-    IMapDataProvider? MapData,
-    ITextureService? TextureService)
+    IReadOnlyList<IAtlasDescriptor> Atlases)
 {
-    /// <summary>
-    /// Сервисы разрешения типов есть только у главного потока. У фоновой
-    /// сборки их нет: она читает метаданные, разрешённые до её старта.
-    /// </summary>
-    public bool CanResolveMetadata => MapData != null && TextureService != null;
-
-    // Только чтение уже разрешённых типов. Сборка клетки не имеет права
-    // разрешать тип сама: см. TerrainMetadataWarmup.
+    // All cell metadata is resolved before the worker starts. Cell stages only
+    // read this lookup and never call the live map or texture services.
     public ITerrainMetadataLookup MetadataLookup => CellCache.MetadataLookup;
 }

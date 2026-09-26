@@ -10,12 +10,18 @@ public enum TerrainRimFamily : byte
     None = 0,
     Crystal = 1,
     Rock = 2,
+    GreenBlueRock = 3,
 }
 
 public static class TerrainReliefRimCatalog
 {
     public static TerrainRimFamily GetFamily(CellType cellType)
     {
+        if (cellType is CellType.Green or CellType.Blue or CellType.Rock)
+        {
+            return TerrainRimFamily.GreenBlueRock;
+        }
+
         if (cellType == CellType.Unloaded)
         {
             return TerrainRimFamily.None;

@@ -56,6 +56,7 @@
   "menu.loading.phase.ready": "進入氣閘艙",
   "hud.health": "船體完整性",
   "hud.world_map": "世界地圖",
+  "hud.map_follow_player": "定位至玩家",
   "hud.map_preparing": "正在準備地圖…",
   "hud.map_preparing_progress": "正在準備地圖… {0}%",
   "hud.map_prepare_failed": "地圖準備失敗",

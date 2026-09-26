@@ -114,15 +114,24 @@ static float packReliefMask(int reliefMask, int contourFlags, int solidDiagonal)
 // Канонические углы: несмещённая клетка.
 static float rim(float2 p, float packed)
 {
-    return TerrainReliefRimRaw(
-        float4{1,p.x,p.y,0}, float4{0,1,1,0}, float4{0,0,1,1}, packed);
+    TerrainSurfaceInputs surface{};
+    surface.cellSample=p;
+    surface.cornersX=float4{0,1,1,0};
+    surface.cornersY=float4{0,0,1,1};
+    surface.packedContour=packed;
+    return TerrainReliefRim(surface);
 }
 
 // Смещённая клетка: падение обязано растянуться на её реальные границы, а
 // не упереться в дно на всём выступе.
 static float displacedRim(float2 p, float4 xs, float4 ys, float packed)
 {
-    return TerrainReliefRimRaw(float4{1,p.x,p.y,0}, xs, ys, packed);
+    TerrainSurfaceInputs surface{};
+    surface.cellSample=p;
+    surface.cornersX=xs;
+    surface.cornersY=ys;
+    surface.packedContour=packed;
+    return TerrainReliefRim(surface);
 }
 
 // Кайма: три стороны, верх не затемняется никогда, дно падения 0.125, и
@@ -352,7 +361,7 @@ void checkAo()
             TerrainCellVertex vertices[4];
             for(int i=0;i<4;++i)
                 vertices[i]=LoadTerrainCellVertex(
-                    float3{3,3,1},corners[i],_OrganicBendStrength,_OrganicBendPivot);
+                    float3{3,3,1},corners[i]);
             Texture field;
             field.reset(8*density,8*density);
             for(int y=0;y<field.height;++y) for(int x=0;x<field.width;++x)
@@ -382,50 +391,52 @@ void checkAo()
     std::cout << "AO field sampling passed: shape sensitivity, density 8/16/32/64, empty distance and foreground receiver.\n";
 }
 
-void checkAntialiasedFieldSilhouette()
+void checkContinuousFieldSilhouette()
 {
-    const float texelFootprint=1.0f/64.0f;
-    auto checkEdge=[&](float4 xs,float4 ys,float2 midpoint,float2 outwardNormal,
-                       float derivativeFootprint,const char* label)
+    auto checkEdge=[](float4 xs,float4 ys,float2 midpoint,float2 outwardNormal,
+                      float sampleRange,const char* label)
     {
-        _TestFwidth=derivativeFootprint;
         float previous=1.0f;
         int fractionalSamples=0;
         for(int i=0;i<=16;++i)
         {
-            float signedDistance=derivativeFootprint*(1.0f-i/8.0f);
-            float2 p=midpoint-outwardNormal*signedDistance;
-            float actual=TerrainGeometryCoverageForField(p,xs,ys,0);
-            float expected=smoothstep(
-                -derivativeFootprint*.5f,
-                derivativeFootprint*.5f,
-                signedDistance);
+            float signedOffset=sampleRange*(1.0f-i/8.0f);
+            float2 p=midpoint-outwardNormal*signedOffset;
+            float actualDistance=TerrainGeometrySignedDistance(p,xs,ys,0.0f,false);
+            float expectedDistance=oracleSignedDistance(p,xs,ys);
+            if(std::fabs(actualDistance-expectedDistance)>1e-4f)
+                throw std::runtime_error(
+                    std::string("AO ")+label+" distance disagrees with independent polygon oracle");
+
+            float actualExterior=std::max(-actualDistance,0.0f);
+            float expectedExterior=std::max(-expectedDistance,0.0f);
+            float actual=1.0f-smoothstep(0.0f,_TerrainAmbientOcclusionDistance,actualExterior);
+            float expected=1.0f-smoothstep(0.0f,_TerrainAmbientOcclusionDistance,expectedExterior);
             if(std::fabs(actual-expected)>1e-4f)
                 throw std::runtime_error(
-                    std::string("AO ")+label+" coverage disagrees with independent distance oracle");
+                    std::string("AO ")+label+" contact disagrees with independent distance oracle");
             if(actual>previous+1e-5f)
-                throw std::runtime_error(std::string("AO ")+label+" edge is not monotonic");
+                throw std::runtime_error(std::string("AO ")+label+" contact edge is not monotonic");
             if(actual>0.0f && actual<1.0f)
                 ++fractionalSamples;
             previous=actual;
         }
         if(fractionalSamples<2)
-            throw std::runtime_error(std::string("AO ")+label+" edge still has a binary staircase");
+            throw std::runtime_error(std::string("AO ")+label+" contact falloff is not continuous");
     };
 
     float4 squareX={0,1,1,0};
     float4 squareY={0,0,1,1};
     checkEdge(squareX,squareY,float2{1,.5f},float2{1,0},
-        texelFootprint,"axis-aligned");
+        _TerrainAmbientOcclusionDistance*2.0f,"axis-aligned");
 
-    // A diamond side has equal X/Y normal components. Its screen-space
-    // signed-distance derivative is sqrt(2) larger than either axis alone;
-    // max(fwidth(cellSample.x), fwidth(cellSample.y)) under-filters this edge.
+    // A diagonal uses Euclidean signed distance, so its falloff remains
+    // isotropic instead of being stretched by the larger coordinate derivative.
     float4 diamondX={.5f,1,.5f,0};
     float4 diamondY={0,.5f,1,.5f};
-    const float diagonalFootprint=texelFootprint*std::sqrt(2.0f);
     checkEdge(diamondX,diamondY,float2{.75f,.75f},
-        float2{.70710678f,.70710678f},diagonalFootprint,"diagonal");
+        float2{.70710678f,.70710678f},_TerrainAmbientOcclusionDistance*2.0f,
+        "diagonal");
 }
 
 void checkOrganicVerticesUseGeometryGrid()
@@ -439,6 +450,41 @@ void checkOrganicVerticesUseGeometryGrid()
         if(std::fabs(point.x*32.0f-std::round(point.x*32.0f))>1e-5f ||
             std::fabs(point.y*32.0f-std::round(point.y*32.0f))>1e-5f)
             throw std::runtime_error("Organic bend vertex was not quantized before rasterization");
+    }
+}
+
+static bool organicCoverageOracle(float2 sample)
+{
+    const float2 vertices[8] = {
+        {0,0}, {.34375f,.0625f}, {1,0}, {.96875f,.65625f},
+        {1,1}, {.34375f,1.0625f}, {0,1}, {-.0625f,.65625f}
+    };
+    bool inside=false;
+    for(int side=0;side<8;++side)
+    {
+        float2 start=vertices[side];
+        float2 end=vertices[(side+1)&7];
+        if((start.y>sample.y)!=(end.y>sample.y) &&
+            sample.x<start.x+(sample.y-start.y)*(end.x-start.x)/(end.y-start.y))
+            inside=!inside;
+    }
+    return inside;
+}
+
+void checkOrganicGeometryCoverage()
+{
+    float4 xs={0,1,1,0};
+    float4 ys={0,0,1,1};
+    for(int y=-16;y<80;++y)
+    for(int x=-16;x<80;++x)
+    {
+        float2 sample={(x+.37f)/64.0f-.25f,(y+.19f)/64.0f-.25f};
+        bool expected=organicCoverageOracle(sample);
+        bool actual=TerrainOrganicGeometryCoverage(sample,xs,ys,110.0f)>0.5f;
+        if(actual!=expected)
+            throw std::runtime_error(
+                "Organic raster coverage differs from independent octagon at "+
+                std::to_string(sample.x)+","+std::to_string(sample.y));
     }
 }
 
@@ -513,9 +559,9 @@ void checkAoCarrierPadding()
     _TerrainCellGeometryX.data[1]=xs;
     _TerrainCellGeometryY.data[1]=ys;
     TerrainCellVertex lowerLeft=LoadTerrainCellVertex(
-        float3{0,0,1},float2{0,0},_OrganicBendStrength,_OrganicBendPivot);
+        float3{0,0,1},float2{0,0});
     TerrainCellVertex upperRight=LoadTerrainCellVertex(
-        float3{0,0,1},float2{1,1},_OrganicBendStrength,_OrganicBendPivot);
+        float3{0,0,1},float2{1,1});
     if(std::fabs(lowerLeft.packedData.y-.1875f)>1e-6f ||
         std::fabs(lowerLeft.packedData.z-.125f)>1e-6f ||
         std::fabs(upperRight.packedData.y-.8125f)>1e-6f ||
@@ -526,19 +572,26 @@ void checkAoCarrierPadding()
     // expanded carrier. Otherwise the new carrier margin becomes solid AO.
     _TerrainCellMeta.data[1].a=.5f;
     TerrainCellVertex canonicalLowerLeft=LoadTerrainCellVertex(
-        float3{0,0,1},float2{0,0},_OrganicBendStrength,_OrganicBendPivot);
+        float3{0,0,1},float2{0,0});
     TerrainCellVertex canonicalUpperRight=LoadTerrainCellVertex(
-        float3{0,0,1},float2{1,1},_OrganicBendStrength,_OrganicBendPivot);
-    if(std::fabs(canonicalLowerLeft.packedData.y+.0625f)>1e-6f ||
+        float3{0,0,1},float2{1,1});
+    bool escapedCanonicalSilhouette=oracle(
+        float2{-.01f,.5f},
+        canonicalLowerLeft.geometryCornersX,
+        canonicalLowerLeft.geometryCornersY);
+    bool carrierBoundsMismatch=
+        std::fabs(canonicalLowerLeft.packedData.y+.0625f)>1e-6f ||
         std::fabs(canonicalLowerLeft.packedData.z+.125f)>1e-6f ||
         std::fabs(canonicalUpperRight.packedData.y-1.0625f)>1e-6f ||
-        std::fabs(canonicalUpperRight.packedData.z-1.125f)>1e-6f ||
-        TerrainGeometryCoverageForField(
-            float2{-.01f,.5f},
-            canonicalLowerLeft.geometryCornersX,
-            canonicalLowerLeft.geometryCornersY,
-            0.0f)>0.0f)
-        throw std::runtime_error("Expanded unanchored AO carrier escaped its canonical cell silhouette");
+        std::fabs(canonicalUpperRight.packedData.z-1.125f)>1e-6f;
+    if(carrierBoundsMismatch || escapedCanonicalSilhouette)
+        throw std::runtime_error(
+            "Expanded unanchored AO carrier mismatch="+std::to_string(carrierBoundsMismatch)+
+            " escaped="+std::to_string(escapedCanonicalSilhouette)+
+            " lower="+std::to_string(canonicalLowerLeft.geometryCornersX.x)+","+
+            std::to_string(canonicalLowerLeft.geometryCornersY.x)+","+
+            std::to_string(canonicalLowerLeft.geometryCornersX.y)+","+
+            std::to_string(canonicalLowerLeft.geometryCornersY.y));
 
     _TerrainCellMeta.data[1].a=1.0f;
     _TerrainGeometryCarrierPaddingWorld={0,0};
@@ -623,9 +676,9 @@ int runChecks()
         for(int i=0;i<4;++i)
         {
             vertices[i]=LoadTerrainCellVertex(
-                float3{0,0,1},corners[i],_OrganicBendStrength,_OrganicBendPivot);
+                float3{0,0,1},corners[i]);
             auto background=LoadTerrainCellVertex(
-                float3{0,0,0},corners[i],_OrganicBendStrength,_OrganicBendPivot);
+                float3{0,0,0},corners[i]);
             if(background.positionOS.x!=corners[i].x || background.positionOS.y!=corners[i].y)
                 throw std::runtime_error("Background was distorted");
         }
@@ -653,7 +706,7 @@ int runChecks()
         TerrainCellVertex neighbour[4];
         for(int i=0;i<4;++i)
             neighbour[i]=LoadTerrainCellVertex(
-                float3{1,0,1},corners[i],_OrganicBendStrength,_OrganicBendPivot);
+                float3{1,0,1},corners[i]);
         for(int y=32;y<96;++y) for(int x=96;x<160;++x)
         {
             float2 p={(x+.5f)/128,(y+.5f)/128};
@@ -675,7 +728,7 @@ int runChecks()
         TerrainCellVertex above[4];
         for(int i=0;i<4;++i)
             above[i]=LoadTerrainCellVertex(
-                float3{0,1,1},corners[i],_OrganicBendStrength,_OrganicBendPivot);
+                float3{0,1,1},corners[i]);
         for(int y=96;y<160;++y) for(int x=32;x<96;++x)
         {
             float2 p={(x+.5f)/128,(y+.5f)/128};
@@ -687,8 +740,9 @@ int runChecks()
     }
     checkAo();
     checkAoCarrierPadding();
-    checkAntialiasedFieldSilhouette();
+    checkContinuousFieldSilhouette();
     checkOrganicVerticesUseGeometryGrid();
+    checkOrganicGeometryCoverage();
     checkOrganicSignedDistance();
     checkFlatCellDistance();
     checkReliefRim();

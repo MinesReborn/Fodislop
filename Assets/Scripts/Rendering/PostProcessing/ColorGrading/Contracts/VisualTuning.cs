@@ -123,11 +123,8 @@ namespace Kern.World.Terrain
         // Скорости профилей записаны в legacy единицах данных клетки; шейдер
         // сам переводит их в фазу анимации.
         public const float PrismaticCrystalAnimationSpeed = 50f;
-        public const float MoltenSurfaceAnimationSpeed = 10f;
         public const float FacetedCrystalAnimationSpeed = 0.06f;
 
-        // Только контур расплавленного профиля получает усиленное сглаживание.
-        public const float MoltenContourAntialiasScale = 2.5f;
 
         // Ключи классического джиттера задают пространственный рисунок.
         // Диапазон хэша нечётный, чтобы свободный узел центрировался точно.
@@ -173,10 +170,6 @@ namespace Kern.World.Terrain
         // изгиб противоположного знака берёт дополнение до единицы.
         public const float OrganicBendPivot = 0.35f;
 
-        // Диагностический contour rim оценивает соседние рёбра силуэта.
-        public const float ReliefRimDistanceScale = 2f;
-        public const float ReliefRimFalloff = 0.5f;
-
         // 2. Приём геометрии пиксельным проходом: ранний discard.
         public const float AlphaCutoff = 0.05f;
 
@@ -189,7 +182,6 @@ namespace Kern.World.Terrain
 
         // Скорости цветовых фаз и параметры профилей.
         public const float PrismaticPhaseSpeed = 0.05f;
-        public const float MoltenPhaseSpeed = 0.12f;
         public const float RainbowHueDivisor = 255f;
 
         public static Color PrismaticTintA => new(0.2f, 1f, 0.2f, 1f);
@@ -197,17 +189,6 @@ namespace Kern.World.Terrain
         public static Color PrismaticTintC => Color.white;
         public static Color PrismaticTintD => new(0.1f, 1f, 1f, 1f);
         public static Color PrismaticTintE => new(1f, 0f, 0f, 1f);
-
-        public static Vector2 MoltenFlowDirectionA => new(1.9f, -1.3f);
-        public static Vector2 MoltenFlowDirectionB => new(-1.1f, 2.1f);
-        public const float MoltenFlowPhase = 0.7f;
-        public const float MoltenFlowWeightA = 0.3f;
-        public const float MoltenFlowWeightB = 0.2f;
-        public const float MoltenFlowWeightC = 0.5f;
-        public const float MoltenHeatBase = 0.35f;
-        public const float MoltenHeatScale = 0.8f;
-        public static Color MoltenHotColor => new(0.6f, 0.35f, 0.035f, 1f);
-        public const float MoltenSheetScrollSpeed = 0.05f;
 
         // Глинт — ещё одна модификация анимированного цвета до освещения.
         public static Vector2 FacetedGlintDirection => new(0.62f, 0.38f);
@@ -230,6 +211,10 @@ namespace Kern.World.Terrain
         public const float DecalPlacementOffset = 0.5f;
         public const uint GroundDecalPlacementPercent = 24u;
 
+        // Усиление signed-разницы в диагностике вклада декали и призматического
+        // тинта. На сам рендер поверхности этот коэффициент не влияет.
+        public const float TerrainDebugDeltaContrast = 128f;
+
         // 5. Параметры world-surface field публикуются в материал и поле света.
         public const float SurfaceOccupancy = 1f;
         public static Color TransitEmissionColor => Color.white;
@@ -240,18 +225,25 @@ namespace Kern.World.Terrain
         // 6. Контактное затенение: сила контраста и самый тёмный уровень,
         // до которого оно опускает поверхность.
         //
-        // Единица силы сохраняет полный контактный AO, а пол задаёт нижний
-        // уровень яркости поверхности.
+        // Сила слегка усиливает среднюю часть контактной маски; насыщение
+        // остаётся ограничено единицей в KernSampleTerrainAmbientOcclusion.
+        // Пол задаёт нижний уровень яркости поверхности.
         //
         // 0.51 — не подбор на глаз. В оригинале тень на полу это 1 - z² при
         // z = 0.7, то есть ровно 0.51, и глубже пол там не темнеет никогда.
-        public const float AmbientOcclusionStrength = 2f;
+        public const float AmbientOcclusionStrength = 1.1f;
         public const float AmbientOcclusionFloor = 0.51f;
         // Максимальная ширина поля контактного затенения за геометрией, в клетках.
-        public const float AmbientOcclusionDistanceCells = 0.5f;
+        public const float AmbientOcclusionDistanceCells = 0.75f;
 
         // Радиус скруглённого силуэта loose-террейна, в клетках.
         public const float RoundableCornerRadiusCells = 0.51f;
+
+        // Фаска открытых сторон клетки: масштаб расстояния от геометрического
+        // ребра и максимальная доля затемнения у самого ребра.
+        public const bool ReliefRimQuantizationEnabled = true;
+        public const float ReliefRimDistanceScale = 8f;
+        public const float ReliefRimFalloff = 0.5f;
 
         // 7. Выход: premultiplied alpha корректируется после умножения света.
         public const float PremultiplyAlphaFloor = 0.15f;
@@ -403,6 +395,13 @@ namespace Kern.Rendering.PostProcessing
             public const float Saturation = 1f;
 
             public static Color Filter => Color.white;
+
+            public const float ContrastPivot = 0.5f;
+            public const float TonalAdjustment = 0f;
+            public const float CdlSaturation = 1f;
+            public const float Vibrance = 0f;
+            public const float Hue = 0f;
+            public static Vector3 CdlMaster => new(1f, 0f, 1f);
         }
 
         // 3. Nits профиля задают нормализацию входа и предел вывода дисплея.
@@ -434,6 +433,26 @@ namespace Kern.Rendering.PostProcessing
             // Настройки сжатия гамута применяются в display pass.
             public const bool GamutCompressionEnabled = false;
             public const float GamutCompressionStrength = 1f;
+
+            public static Vector3 PrimaryLift => Vector3.zero;
+            public static Vector3 PrimaryGamma => Vector3.one;
+            public static Vector3 PrimaryGain => Vector3.one;
+            public static Vector3 PrimaryOffset => Vector3.zero;
+            public static Vector4 PrimaryMaster => new(0f, 1f, 1f, 0f);
+        }
+
+        // Начальные настройки квалификатора оттенка, насыщенности и яркости.
+        public static class Qualifier
+        {
+            public const float HueCenter = 120f;
+            public const float HueWidth = 30f;
+            public const float HueSoftness = 15f;
+            public const float SaturationCenter = 0.5f;
+            public const float SaturationWidth = 0.5f;
+            public const float SaturationSoftness = 0.1f;
+            public const float LuminanceCenter = 0.5f;
+            public const float LuminanceWidth = 0.5f;
+            public const float LuminanceSoftness = 0.1f;
         }
 
         // 5. Виньетка применяется к уже преобразованному сигналу дисплея.

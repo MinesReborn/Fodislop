@@ -145,6 +145,19 @@
     font-size: var(--size-lg);
 }
 
+.world-map-follow {
+    min-width: 120px;
+    height: 32px;
+    margin-left: auto;
+    margin-right: var(--space-3);
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+    color: var(--accent-cyan-hover);
+    background-color: var(--surface-slate-dense);
+    border-color: var(--border-subtle);
+    border-width: 1px;
+}
+
 .world-map-status {
     position: absolute;
     left: 50%;

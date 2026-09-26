@@ -16,8 +16,8 @@ public static class ProjectRuntimeContracts
         // Половина видимой высоты в клетках. Максимум задаёт и размер области
         // освещения: свет считается на кадр максимального отдаления, чтобы зум
         // не менял сетку каскадов и не перекрашивал сцену.
-        public const float MinimumOrthographicSize = 5f;
-        public const float MaximumOrthographicSize = 30f;
+        public const float MinimumOrthographicSize = 10f;
+        public const float MaximumOrthographicSize = 20f;
     }
 
     public static class Gameplay
@@ -35,7 +35,7 @@ public static class ProjectRuntimeContracts
         // Адрес и порт остаются настоящими — 127.0.0.1:8090 из appsettings.json
         // сервера, ключ Mines3:Port: заглушку выключают одним тумблером, и
         // тогда клиент идёт туда, куда надо, без правки адреса.
-        public const bool DefaultUseDummyConnection = true;
+        public const bool DefaultUseDummyConnection = false;
         public const string DefaultServerHost = "127.0.0.1";
         public const int DefaultServerPort = 8090;
         public const bool DefaultHDREnabled = true;

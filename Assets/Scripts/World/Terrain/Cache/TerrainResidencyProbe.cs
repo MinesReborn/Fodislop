@@ -1,5 +1,7 @@
 #nullable enable
 
+using System;
+using System.Collections.Generic;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using MinesServer.Data;
@@ -17,6 +19,121 @@ namespace Kern.World.Terrain;
 /// соседства).
 public static class TerrainResidencyProbe
 {
+    /// <summary>
+    /// Chunk statuses are stable during one synchronous terrain plan. Reuse
+    /// the first read across candidate windows so overlapping probes touch an
+    /// LRU node only once per frame.
+    ///
+    /// Stable-frame work is one full requested-window probe. A partial advance
+    /// checks at most five additional candidates; worst-case unique reads are
+    /// the union of six chunk rectangles, bounded by six window footprints.
+    /// The dictionary retains its peak capacity on the planner and is cleared
+    /// without per-frame allocation. [TerrainStall] reports probes, unique
+    /// ReadChunk calls, and avoided repeated reads.
+    /// </summary>
+    internal sealed class FrameCache
+    {
+        private readonly Dictionary<int, ChunkReadStatus> _statuses = new(64);
+        private IWorldLayer<CellType>? _layer;
+        private IWorldDataStorage? _storage;
+        private IMapDataProvider? _mapData;
+        private int _worldWidth;
+        private int _worldHeight;
+        private int _chunkSize;
+        private int _windowWidth;
+        private int _windowHeight;
+
+        public FrameCache()
+        {
+            ResidencyCallback = IsWindowResident;
+        }
+
+        public Func<Vector2Int, bool> ResidencyCallback { get; }
+
+        public int ChunkReads { get; private set; }
+
+        public int CacheHits { get; private set; }
+
+        public int ProbeCalls { get; private set; }
+
+        public int LruTouches { get; private set; }
+
+        public void BeginFrame(
+            IWorldDataStorage? storage,
+            IMapDataProvider? mapData,
+            int windowWidth,
+            int windowHeight)
+        {
+            _statuses.Clear();
+            ChunkReads = 0;
+            CacheHits = 0;
+            ProbeCalls = 0;
+            LruTouches = 0;
+            _storage = storage;
+            _mapData = mapData;
+            _windowWidth = windowWidth;
+            _windowHeight = windowHeight;
+        }
+
+        private bool IsWindowResident(Vector2Int position) =>
+            TerrainResidencyProbe.IsWindowResident(
+                storage: _storage,
+                mapData: _mapData,
+                connectionService: null,
+                gridPosition: position,
+                width: _windowWidth,
+                height: _windowHeight,
+                frameCache: this);
+
+        public ChunkReadStatus ReadStatus(
+            IWorldLayer<CellType> layer,
+            int chunkIndex,
+            bool refreshLru = false)
+        {
+            if (_statuses.TryGetValue(chunkIndex, out ChunkReadStatus status))
+            {
+                CacheHits++;
+                if (refreshLru && status == ChunkReadStatus.Available)
+                {
+                    layer.ReadChunk(chunkIndex, touchLru: true);
+                    LruTouches++;
+                }
+
+                return status;
+            }
+
+            status = layer.ReadChunk(chunkIndex, touchLru: true).Status;
+            _statuses.Add(chunkIndex, status);
+            ChunkReads++;
+            if (status == ChunkReadStatus.Available)
+            {
+                LruTouches++;
+            }
+
+            return status;
+        }
+
+        public void PrepareLayer(IWorldLayer<CellType> layer, int worldWidth, int worldHeight)
+        {
+            int chunkSize = layer.ChunkSize;
+            if (ReferenceEquals(_layer, layer) &&
+                _worldWidth == worldWidth &&
+                _worldHeight == worldHeight &&
+                _chunkSize == chunkSize)
+            {
+                return;
+            }
+
+            _statuses.Clear();
+            _layer = layer;
+            _worldWidth = worldWidth;
+            _worldHeight = worldHeight;
+            _chunkSize = chunkSize;
+        }
+
+        public void RecordProbe() => ProbeCalls++;
+    }
+
     /// <summary>
     /// Лежит ли окно в памяти. Ничего не заказывает — этим можно щупать
     /// промежуточные положения окна, не поднимая сетевого трафика.
@@ -41,14 +158,36 @@ public static class TerrainResidencyProbe
         int height) =>
         Probe(storage, mapData, connectionService, gridPosition, width, height);
 
+    internal static bool IsWindowResident(
+        IWorldDataStorage? storage,
+        IMapDataProvider? mapData,
+        IConnectionService? connectionService,
+        Vector2Int gridPosition,
+        int width,
+        int height,
+        FrameCache frameCache) =>
+        Probe(storage, mapData, connectionService, gridPosition, width, height, frameCache);
+
+    internal static void TouchWindow(
+        IWorldDataStorage? storage,
+        IMapDataProvider? mapData,
+        Vector2Int gridPosition,
+        int width,
+        int height,
+        FrameCache frameCache) =>
+        Probe(storage, mapData, null, gridPosition, width, height, frameCache, refreshLru: true);
+
     private static bool Probe(
         IWorldDataStorage? storage,
         IMapDataProvider? mapData,
         IConnectionService? connectionService,
         Vector2Int gridPosition,
         int width,
-        int height)
+        int height,
+        FrameCache? frameCache = null,
+        bool refreshLru = false)
     {
+        frameCache?.RecordProbe();
         if (storage?.CellLayer is not { } layer || mapData == null)
         {
             return false;
@@ -73,6 +212,7 @@ public static class TerrainResidencyProbe
         int lastChunkX = maxX / chunkSize;
         int firstChunkY = serverMinY / chunkSize;
         int lastChunkY = serverMaxY / chunkSize;
+        frameCache?.PrepareLayer(layer, worldWidth, worldHeight);
         bool resident = true;
         bool missing = false;
         for (int chunkX = firstChunkX; chunkX <= lastChunkX; chunkX++)
@@ -81,10 +221,14 @@ public static class TerrainResidencyProbe
             {
                 // Request cold disk chunks as well: TryGetCell only probes
                 // RAM and can wait forever without initiating a load.
-                ChunkReadResult<CellType> result = layer.ReadChunk(
-                    chunkY + (chunkX * layer.HeightChunks), touchLru: true);
-                resident &= result.Status == ChunkReadStatus.Available;
-                missing |= result.Status == ChunkReadStatus.Missing;
+                ChunkReadStatus status = frameCache == null
+                    ? layer.ReadChunk(chunkY + (chunkX * layer.HeightChunks), touchLru: true).Status
+                    : frameCache.ReadStatus(
+                        layer,
+                        chunkY + (chunkX * layer.HeightChunks),
+                        refreshLru);
+                resident &= status == ChunkReadStatus.Available;
+                missing |= status == ChunkReadStatus.Missing;
             }
         }
 

@@ -17,6 +17,14 @@ public readonly record struct TerrainCellGeometry(
 {
     public const int GridSize = TerrainVertexOffset.GridSize;
 
+    // Organic edge data is part of the cell shape contract. The base-5 digits
+    // store bottom, right, top, left bends in [-2, 2]; zero is reserved for a
+    // non-organic cell, so encoded organic values are [1, 625].
+    public const int OrganicEdgeBase = 5;
+    public const int OrganicEdgeCenter = 2;
+    public const int OrganicEdgeMetadataOffset = 128;
+    public const int MaximumOrganicEdgeCode = 625;
+
     public bool IsAnchored =>
         Corner00 != new Vector2(0f, 0f) ||
         Corner10 != new Vector2(1f, 0f) ||
@@ -30,10 +38,48 @@ public readonly record struct TerrainCellGeometry(
         Vector3 offset01)
     {
         return new TerrainCellGeometry(
-            Quantize(new Vector2(offset00.x, offset00.y)),
-            Quantize(new Vector2(1f + offset10.x, offset10.y)),
-            Quantize(new Vector2(1f + offset11.x, 1f + offset11.y)),
-            Quantize(new Vector2(offset01.x, 1f + offset01.y)));
+            new Vector2(offset00.x, offset00.y),
+            new Vector2(1f + offset10.x, offset10.y),
+            new Vector2(1f + offset11.x, 1f + offset11.y),
+            new Vector2(offset01.x, 1f + offset01.y));
+    }
+
+    public static int EncodeOrganicEdges(int bottom, int right, int top, int left)
+    {
+        int code = 1;
+        int multiplier = 1;
+        code += EncodeOrganicBend(bottom) * multiplier;
+        multiplier *= OrganicEdgeBase;
+        code += EncodeOrganicBend(right) * multiplier;
+        multiplier *= OrganicEdgeBase;
+        code += EncodeOrganicBend(top) * multiplier;
+        multiplier *= OrganicEdgeBase;
+        code += EncodeOrganicBend(left) * multiplier;
+        return code;
+    }
+
+    // Meta.b stores the low byte; Meta.a uses 0 for regular, 255 for classic,
+    // and 128 + high bits for organic geometry.
+    public static (byte LowByte, byte HighByte) PackOrganicEdgeMetadata(int code)
+    {
+        if (code < 0 || code > MaximumOrganicEdgeCode)
+        {
+            throw new ArgumentOutOfRangeException(nameof(code));
+        }
+
+        return code == 0
+            ? ((byte)0, (byte)0)
+            : ((byte)(code & 0xFF), (byte)(OrganicEdgeMetadataOffset + (code >> 8)));
+    }
+
+    private static int EncodeOrganicBend(int bend)
+    {
+        if (bend < -2 || bend > 2)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bend));
+        }
+
+        return bend + OrganicEdgeCenter;
     }
 
     public Vector2 GetCorner(int corner)
@@ -47,9 +93,4 @@ public readonly record struct TerrainCellGeometry(
             _ => throw new ArgumentOutOfRangeException(nameof(corner)),
         };
     }
-
-    private static Vector2 Quantize(Vector2 corner) =>
-        new(
-            Mathf.Round(corner.x * GridSize) / GridSize,
-            Mathf.Round(corner.y * GridSize) / GridSize);
 }

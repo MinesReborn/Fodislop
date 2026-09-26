@@ -28,10 +28,4 @@ float3 TerrainResolveFlowSample(
     return result;
 }
 
-// Match the flow-map coordinate correction for moving surface color and decals.
-float2 TerrainAnimationWorldPosition(float4 worldPos, float4 packedData)
-{
-    return worldPos.xy + packedData.yz * float2(1.0, -1.0);
-}
-
 #endif

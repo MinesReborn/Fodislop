@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Стандарт пайплайна террейна — Kern</title>
+  <style>
+    :root { color-scheme: light dark; font: 16px/1.55 system-ui, sans-serif; }
+    body { max-width: 1120px; margin: 0 auto; padding: 32px 22px 64px; }
+    h1, h2, h3 { line-height: 1.2; }
+    h1 { font-size: 2rem; }
+    h2 { margin-top: 2.4em; padding-bottom: .35em; border-bottom: 1px solid #8886; }
+    table { width: 100%; border-collapse: collapse; margin: 1em 0 1.6em; }
+    th, td { border: 1px solid #8886; padding: .55em .7em; text-align: left; vertical-align: top; }
+    th { background: #8882; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    code { overflow-wrap: anywhere; }
+    pre { overflow-x: auto; padding: 1em; background: #8882; border-radius: 6px; }
+    .status { padding: .8em 1em; border-left: 4px solid #d69e2e; background: #8882; }
+    .small { font-size: .92em; opacity: .88; }
+  </style>
+</head>
+<body>
+  <h1>Стандарт пайплайна террейна</h1>
+  <p class="status"><strong>Нормативный целевой контракт.</strong> Он задаёт владельцев, порядок стадий, форматы передачи данных и критерии завершённого рефакторинга. Текущий код описан отдельно от целевого состояния: существующая структура сама по себе не становится стандартом.</p>
+
+  <h2>1. Область действия и правила</h2>
+  <p>Стандарт охватывает весь путь от изменения клетки мира до пикселя на экране: координаты и грязные области, планирование окна, захват источников, асинхронную сборку, геометрию клетки, автотайлинг, GPU-упаковку, материалы и атласы, шейдерные проходы террейна, освещение, отладочные слои и выдачу кадра.</p>
+  <p>Стабильные review IDs: <code>TP-OWN</code> — владельцы и границы модулей; <code>TP-STAGE</code> — порядок стадий и reads/writes; <code>TP-DATA</code> — координаты, единицы и wire format; <code>TP-REV</code> — revision и инвалидация; <code>TP-LIFE</code> — потоки, передача владения и публикация; <code>TP-PERF</code> — стоимость и наблюдаемость; <code>TP-VERIFY</code> — требуемое доказательство; <code>TP-CHANGE</code> — итоговый evidence bundle.</p>
+  <ul>
+    <li>У каждой стадии ровно один владелец данных и ровно один владелец жизненного цикла.</li>
+    <li>Стадия получает явный входной снимок и возвращает явный результат. Она не читает скрытое изменяемое состояние предыдущей стадии.</li>
+    <li>Граница главного потока и фонового построения проходит по снимку данных мира. Рабочий поток не обращается к живому хранилищу, сцене, сервисам Unity или глобальному состоянию шейдера.</li>
+    <li>Публикуется только целиком согласованная версия меша, GPU-данных, материалов, дверной накладки и lighting-снимка.</li>
+    <li>Пиксельный рисунок задаётся геометрией и координатой выборки явно. Фильтрация атласа, поля света, постпроцесса и экранного вывода имеют отдельные настройки и не меняют контракт геометрии.</li>
+    <li>Граница Terrain/Lighting подчиняется <a href="TERRAIN_LIGHTING_STANDARD.md">стандарту Terrain/Lighting</a>. Оркестрация мигрируется только по воротам A–D и в указанном там порядке.</li>
+  </ul>
+
+  <h2>2. Канонический граф стадий (TP-STAGE)</h2>
+  <pre>мир и настройки
+  → координатная граница и журнал изменений
+  → план кадра и активного окна
+  → снимок данных главного потока
+  → чистые CPU-стадии фоновой сборки
+       cache → geometry/topology → background fill → tile/material resolve → mesh/data encode
+  → проверка поколения и атомарная публикация
+  → общая геометрическая реконструкция GPU-клетки
+  → общий TerrainSurface
+       silhouette/coverage → atlas/albedo → animation → decals → relief
+  → независимые выходы проходов
+       visible color | material + emission | AO field
+  → Terrain/Lighting exchange → световые поля и транспорт
+  → выборка опубликованного света в видимом террейне
+  → композит и экранный вывод</pre>
+  <p>Порядок внутри CPU-сборки и shader-представления фиксирован. Пропуск стадии допустим только по явному условию входного снимка; повторная реализация того же преобразования в соседнем модуле запрещена.</p>
+
+  <h2>3. Контракты стадий (TP-OWN, TP-STAGE, TP-DATA, TP-REV, TP-LIFE)</h2>
+  <table>
+    <thead><tr><th>Стадия</th><th>Единственный владелец</th><th>Вход → выход</th><th>Поток и координаты</th><th>Обновление и публикация</th></tr></thead>
+    <tbody>
+      <tr><td>Изменения мира</td><td><code>TerrainWindowChangeJournal</code></td><td>События клеток и текстур → упорядоченные грязные области, причины полной пересборки, обновления метаданных</td><td>Unity-координаты мира; граница server Y-down → Unity Y-up преобразует координаты один раз через установленный проектом converter</td><td>Запись сохраняется до того, как её взял конкретный build request. Изменения во время сборки принадлежат следующему запросу.</td></tr>
+      <tr><td>План кадра</td><td><code>TerrainFramePlanner</code></td><td>камера, окно и residency → <code>TerrainFramePlan</code></td><td>Координаты мира и клетки должны иметь разные типы/имена и явные единицы; прямоугольники полуоткрытые</td><td>Не меняет кэш или ресурсы. Выбирает requested, committed и active window до любых побочных действий.</td></tr>
+      <tr><td>Захват мира</td><td><code>TerrainCellCache</code></td><td>хранилище, карта и атласы → снимок клеток и разрешённых metadata</td><td>Главный поток. Только здесь разрешаются типы через живые сервисы; захваченные данные адресуются локально относительно окна.</td><td>Захват полного окна, прокрутка overlap или точечная область. Грязная область расширяется по максимальному радиусу зависимостей соседей.</td></tr>
+      <tr><td>Геометрия и топология</td><td>Один CPU-контракт геометрии и топологии</td><td>снимок клетки + фиксированное соседство → смещения вершин, side/corner masks, тайловый дескриптор</td><td>Геометрия выражена в cell-local единицах; шаг квантования, порядок углов и рёбер объявлены контрактом и совпадают с GPU-декодером.</td><td>Одна реализация расчёта; полный, региональный и scroll-пути используют одинаковые правила и зависимости.</td></tr>
+      <tr><td>Фон и слои</td><td><code>BackgroundFloodFill</code> и resolver слоёв</td><td>снимок клеток → тип фона и foreground/background роли</td><td>Только данные окна. Соседняя область заранее захвачена; fill-результат не смешивается с live map lookup.</td><td>Инкрементально обновляет область, расширенную на установленное число соседей; полная пересборка имеет named reason.</td></tr>
+      <tr><td>Quad и tile resolve</td><td><code>TerrainCellFillExecutor</code></td><td>снимки, topology masks, fill, metadata → четыре вершины каждого слоя клетки и door index</td><td>Рабочий поток. На выходе зафиксированы attribute channels, corner order, local/world cell coordinate, tile UV и geometry metadata.</td><td>Один алгоритм на полную сборку, грязный прямоугольник и texture refresh; режим не меняет смысл данных.</td></tr>
+      <tr><td>GPU-кодирование</td><td><code>TerrainCellDataPacker</code> и владелец GPU-каналов</td><td>вершинные атрибуты → индексные/data textures и draw mesh</td><td>Wire format версионирован как единый CPU encoder ↔ HLSL decoder контракт. Каналы, точность, адресация, sentinel и пределы перечислены в одном месте.</td><td>Кодирование без повторной логики семантики. Смена формата обновляет CPU, все shader readers и независимую проверку границ одновременно.</td></tr>
+      <tr><td>Принятие и публикация</td><td><code>TerrainWindow</code></td><td>request + result + generation → committed presentation</td><td>Проверки на главном потоке. Worker result считается неподтверждённым до принятия владельцем.</td><td>Проверить отмену, generation, размеры и revision; затем одним кадром commit mesh/data, materials/atlases, doors и lighting exchange. При ошибке старая версия остаётся активной.</td></tr>
+      <tr><td>Общая геометрия GPU</td><td><code>TerrainGeometryContract.hlsl</code> / <code>TerrainGeometry.hlsl</code></td><td>packed geometry + raster sample → canonical cell surface, coverage и signed distance</td><td>Одна cell-local система. Зафиксированы порядок углов BL, BR, TR, TL, направление сторон, grid size, pivot, distortion decode, quantization и границы carrier.</td><td>Visible, material/emission, AO и diagnostic passes используют один decode и один геометрический источник. Локальные копии bend, coverage или contour запрещены.</td></tr>
+      <tr><td>Вид поверхности</td><td>Общий набор shader-функций поверхности</td><td>canonical surface + atlas data → texel, animation, decal и relief-adjusted albedo</td><td>Texture UV, cell-local position и world position передаются раздельно. Ни atlas transform, ни carrier UV не подменяют geometry position.</td><td>Фиксированный порядок: atlas resolve → animation → decal → relief. Любая перестановка объявляется изменением контракта и отражается во всех потребителях.</td></tr>
+      <tr><td>Field passes</td><td>Lighting owns targets; Terrain owns contributions</td><td>тот же mesh/surface inputs → material/albedo+occupancy, emission и AO field в разных каналах/проходах</td><td>Форматы, цветовое пространство, alpha-семантика, фильтр, размер и pixel-center convention заданы для каждого target.</td><td>Три выхода сверяются с видимой геометрией. AO не подменяется occupancy/material; emission не умножается на декоративную фаску без отдельного решения.</td></tr>
+      <tr><td>Свет и кадр</td><td><code>LightingEngine</code> → Terrain presentation</td><td>опубликованные terrain snapshots/changes → опубликованный world-light output</td><td>Обмен только через нейтральный контракт. Полный порядок и ack — <code>TL-API</code>, ворота A–D в отдельном стандарте.</td><td>Видимый Terrain читает только опубликованный output. Terrain не запускает solver и не владеет lighting invalidation.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4. Типы данных и единицы (TP-DATA)</h2>
+  <ul>
+    <li>Мировая клетка: целочисленные координаты Unity мира. Server coordinates не протекают дальше координатной границы; преобразование выполняется один раз через <code>CoordinateUtils</code> и <code>MapManager.WorldHeight</code>.</li>
+    <li>Локальная клетка: нормализованное cell-local пространство. Геометрический grid — целое число делений на клетку; кодирование узла имеет один владелец.</li>
+    <li>Окно/область: полуоткрытый integer rectangle <code>[min, max)</code> с именованным пространством координат. <code>RectInt</code> разрешён только при локальном и явном контракте пространства.</li>
+    <li>Screen pixel, atlas texel и lighting texel никогда не передаются как безымянный <code>Vector2</code>. Для каждой конверсии есть named функция и владелец.</li>
+    <li>Build request — неизменяемый снимок: поколение мира, content revision, origin/size, atlas revision, dirty regions, режим пересборки, worker-safe cell data. Массивы и коллекции не меняются после передачи рабочему потоку.</li>
+    <li>Build result — данные результата и измерения стадий; не содержит ссылки на live Unity objects и не публикуется напрямую.</li>
+    <li>В CPU/GPU wire format указаны диапазон каждого поля, смещение/маска, тип GPU-текстуры, точность, sentinel и правила округления. Encoder и decoder не владеют одинаковой логикой по отдельности: семантика описана один раз, реализации сверяются независимыми ожидаемыми значениями.</li>
+  </ul>
+
+  <h2>5. Инвалидация, владение и конкурентность (TP-REV, TP-LIFE, TP-PERF)</h2>
+  <table>
+    <thead><tr><th>Входное изменение</th><th>Пересчитать</th><th>Не трогать</th><th>Причина и подтверждение</th></tr></thead>
+    <tbody>
+      <tr><td>Содержимое клетки</td><td>область клетки + фактический neighbor dependency halo; topology, fill и квады региона</td><td>не связанные области, atlas upload без изменения атласа</td><td>revision и channel/region сохраняются до принятия опубликованной версии</td></tr>
+      <tr><td>Положение/размер окна</td><td>новая полоса, либо полная сборка при несовместимом overlap/размере</td><td>перекрытие окна, если origin/size и revision позволяют безопасный перенос</td><td>явные requested/committed/active состояния; новая камера не принимает незакоммиченный меш</td></tr>
+      <tr><td>Atlas content/slot layout</td><td>atlas upload и ровно те cell quads, чьи ссылки/метаданные изменились; full cell data при смене slot numbering</td><td>geometry caches, если геометрические входы прежние</td><td>atlas generation передаётся в request и проверяется при publication</td></tr>
+      <tr><td>Distortion settings/profile</td><td>вершинная геометрия и все pass inputs, зависящие от неё</td><td>цвет/lighting transport, если опубликованные geometry/material/emission факты не изменились</td><td>изменение geometry revision после commit; точная область — покрываемая сетка</td></tr>
+      <tr><td>Меш/material/emission/occupancy изменился</td><td>соответствующие geometry field channels и downstream caches по <code>TERRAIN_LIGHTING_STANDARD.md</code></td><td>статические и динамические данные, не зависящие от изменённого канала</td><td>lossless journal, named invalidation reason, consumer acknowledgement</td></tr>
+      <tr><td>Только движение камеры</td><td>plan/presentation и необходимые window bands</td><td>content revision и статический solve, если источник/регион/геометрия не менялись</td><td>frame sequence меняется отдельно от content revision</td></tr>
+    </tbody>
+  </table>
+  <p>Подготовка request, выполнение, принятие результата и публикация — четыре разные фазы. Отмена worker job делает изменённые стадии недействительными до следующего полного восстановления; отменённый partial result не коммитится. Dispose прекращает callback/submission до высвобождения mesh, texture, buffer и worker state.</p>
+
+  <h2>6. Shader-pass контракт (TP-STAGE, TP-DATA)</h2>
+  <table>
+    <thead><tr><th>Потребитель</th><th>Читает</th><th>Пишет</th><th>Обязательное совпадение</th></tr></thead>
+    <tbody>
+      <tr><td>Visible color</td><td>canonical cell, material attributes, atlas, animation/decal data, published light/AO</td><td>camera color/alpha</td><td>геометрия, atlas UV, alpha cutout и distortion совпадают с field passes</td></tr>
+      <tr><td>Material/emission field</td><td>та же canonical cell, atlas, animation/decal and material flags</td><td>material RGB/occupancy и emission target</td><td>field albedo равен albedo visible pass до светового умножения; occupancy — отдельное физическое свойство</td></tr>
+      <tr><td>AO field</td><td>та же canonical cell/coverage и source alpha по объявленному AO контракту</td><td>AO coefficient target</td><td>тот же displaced silhouette; отдельные resolution/filter/kernel semantics указаны в lighting standard</td></tr>
+      <tr><td>Diagnostics</td><td>тот же production surface contract</td><td>диагностический цвет</td><td>отладка наблюдает вход/результат конкретной стадии и не реализует собственную geometry или UV систему</td></tr>
+    </tbody>
+  </table>
+  <p>Ни один pass не копирует decoder клетки или расчёт геометрии. Общие HLSL функции не получают hidden global state, если значение относится к конкретному frame/material input. Global shader values имеют одного владельца, явный срок жизни и сбрасываются при teardown.</p>
+
+  <h2>7. Целевая структура модулей (TP-OWN)</h2>
+  <pre>Terrain.Contracts
+  coordinates, typed regions, geometry/material facts, revision and wire-format schemas
+Terrain.Capture
+  live storage/metadata access, ring cache, dirty journal, atlas snapshot
+Terrain.Build
+  frame plan, immutable request/result, topology, fill, tile resolve, mesh encode
+Terrain.Presentation
+  commit/publish, mesh/material/door views, terrain-owned shader presentation
+Terrain.Shaders
+  geometry contract, surface contract, pass implementations, shader decoders
+Terrain.Diagnostics
+  read-only views of stage inputs/outputs, frame-local counters, debug presentation
+Lighting.Contracts / Lighting implementation
+  remain separated according to the Terrain/Lighting standard
+Composition root
+  constructs owners once and wires lifecycle; no module locates another via scene search</pre>
+  <p>Структура asmdef — поздний шаг: сначала контракт и зависимости должны быть явными в исходниках. Перенос папок или добавление фасада над старым owner graph не считается модульным разделением.</p>
+
+  <h2>8. Срез текущего кода и conformance debt (TP-CHANGE)</h2>
+  <table>
+    <thead><tr><th>Текущий владелец/узел</th><th>Фактическая роль</th><th>Стандартизация до полного рефакторинга</th></tr></thead>
+    <tbody>
+      <tr><td><code>TerrainRenderer</code>, <code>TerrainFramePlanner</code></td><td>Renderer собирает вход кадра и ведёт presentation; planner выбирает окно</td><td><code>TerrainFramePlanningInput</code> теперь группирует вход планировщика. Объединение acceptance, commit и lighting publication в проверяемую транзакцию остаётся debt.</td></tr>
+      <tr><td><code>TerrainWindow</code>, <code>TerrainWindowBuildRequestScheduler</code></td><td>Окно напрямую владеет состоянием lifecycle; scheduler готовит запросы и ставит CPU worker</td><td><code>TerrainWindowBuildLifecycle</code> удалён как лишняя обёртка и пересылающий façade; acceptance/cancel/publish находятся в самом <code>TerrainWindow</code>, разделённом на partial-файлы по concerns. Scheduler не принимает результаты.</td></tr>
+      <tr><td><code>TerrainBuildDriver</code>, <code>TerrainBuildPresentation</code>, <code>TerrainBuildPipeline</code>, <code>TerrainCellBuilder</code></td><td>Driver координирует CPU pipeline; отдельный presentation owner владеет материалами, atlas upload/binding и overlay дверей</td><td><code>TerrainBuildServices</code> удалён: один live <code>TerrainBuildContext</code> содержит сервисы и размер окна; worker получает immutable request и отдельный cell-stage input. Request копирует atlas descriptors в read-only collection, world dirty regions передаются во владение как <code>TerrainWorldCellRegion</code>, затем одним преобразованием получают локальную область окна с явным neighbour halo. Изменяемый <code>HashSet</code> типов заменён value bitset. Driver всё ещё координирует порядок публикации и commit cell-data.</td></tr>
+      <tr><td><code>TerrainPrecalculator</code>, distortion/mask calculators, <code>TerrainQuadBuilder</code></td><td>Геометрия, side masks, autotiling, animation, tile transform, packed vertex</td><td><code>TerrainPrecalculationInput</code> задаёт единый снимок источника и размеров для full/scroll/region. Разделить topology/geometry, appearance resolution и wire encoding; один тип результата каждого этапа, никакого повторного вычисления метаданных.</td></tr>
+      <tr><td><code>TerrainCellDataPacker</code>, data channels, <code>TerrainLightingData</code></td><td>CPU→GPU layout, material flags and shader payload</td><td>Один wire schema с независимым decoder proof; revision/coordinates/units описаны рядом с contract, а не восстановлены из comments в нескольких местах.</td></tr>
+      <tr><td><code>Terrain.shader</code> + includes</td><td>Visible, material/emission и AO passes</td><td>Тонкий shader-файл только объявляет passes и вызывает функции модулей; HLSL включает не владеют повторными копиями surface semantics.</td></tr>
+    </tbody>
+  </table>
+  <p>Уже устранены: изменяемые коллекции из worker request; nullable live services и неявное разделение потоков в <code>TerrainCellSources</code>; длинная позиционная сигнатура <code>TerrainFramePlanner.Plan</code>; параллельные <code>TerrainBuildServices</code>/<code>TerrainBuildContext</code>; безымянное преобразование world dirty rectangles в локальные patch bounds; повторяющиеся позиционные входы предрасчёта для full/scroll/region; forwarding-owner <code>TerrainWindowBuildLifecycle</code>; владение материалами и дверным overlay внутри build driver. Request фиксирует world generation, content revision и atlas revision; публикация отклоняет результат, если atlas set или ожидающие texture refresh уже изменились. Остаточный debt: typed-контракты остальных координатных пространств и областей, атомарная точка принятия/commit, выделение upload/bind стадии из driver, явный wire-schema между C# и HLSL и полное production-path доказательство Gate C.</p>
+
+  <h2>9. Порядок полного рефакторинга (TP-CHANGE)</h2>
+  <ol>
+    <li>Зафиксировать baseline: текущие production inputs, stage timings, field formats, geometry/material snapshots и pixel-space outputs. Unity operation разрешается только прямым запросом пользователя.</li>
+    <li>Ввести типизированные координаты/region, immutable build request/result и явный capture-vs-worker контракт. Сохранить текущий output и существующий Terrain/Lighting exchange.</li>
+    <li>Разделить чистые CPU стадии и определить их вход/выход; убрать дубли между полным, scroll и regional путями через общие stage functions, сохранив разные границы обновления.</li>
+    <li>Зафиксировать geometry/wire schema для C# и HLSL, затем привести все producer/consumer passes к одному contract и independent expected-value coverage.</li>
+    <li>Разделить build acceptance, GPU/data upload, material binding, door presentation и lighting publication по единому commit transaction.</li>
+    <li>Уменьшать shader pass graph только после доказательства одинаковой геометрии, alpha, material, emission и AO inputs. Объединение в один pass допустимо лишь если его outputs, lifetime и invalidation остаются раздельно наблюдаемы.</li>
+    <li>Только после внутренних контрактов переносить файлы, namespace или asmdef; обновить `.meta` и assembly references парно. Orchestration Terrain/Lighting менять только через ворота A–D.</li>
+  </ol>
+
+  <h2>10. Приёмка каждого изменения (TP-VERIFY, TP-PERF, TP-CHANGE)</h2>
+  <ul>
+    <li>Указаны ID применимых требований, владелец, потребитель, этап и compatibility/wire-format impact.</li>
+    <li>Для request/result указаны mutable ownership, coordinate space/units, thread, generation/revision и точка публикации.</li>
+    <li>Для каждого изменённого stage/pass есть reads/writes, размеры, формат, filter/wrap/mips, clear/load, dispatch/draw bounds, invalidation и stable-frame work.</li>
+    <li>Полный, regional, scroll, texture-refresh, cancellation, world-replacement и held-publication пути используют те же семантические правила.</li>
+    <li>CPU encoder/shader decoder проверяются независимыми известными значениями, включая нули, края диапазона, отрицательные/origin координаты и соседние клетки.</li>
+    <li>Визуальные выводы подтверждаются production path: реальные mesh attributes и <code>SV_POSITION</code>, material keywords, data textures, камера и все активные pass bindings. Изолированный helper не является доказательством.</li>
+    <li>Есть frame-local counters по захвату, worker stages, upload, draw/pass и invalidation reason. Производительность не объявляется улучшенной без сравнимых production captures.</li>
+    <li>Обязательные сканы Terrain/Lighting из <code>TERRAIN_LIGHTING_STANDARD.md</code> проверены; <code>git diff --check</code> чистый; архитектурная документация соответствует фактическому графу.</li>
+  </ul>
+  <p class="small">Если требуемый Unity production check не был прямо запрошен или недоступен, он остаётся явно pending. Этот стандарт не даёт разрешение запускать Unity, импортировать ассеты, собирать Player или менять сцены.</p>
+
+  <h2>Связанные документы</h2>
+  <ul>
+    <li><a href="TERRAIN_LIGHTING_STANDARD.md">Terrain/Lighting ownership, stage and migration gates</a></li>
+    <li><a href="LIGHTING_ARCHITECTURE.md">Фактическая архитектура и dataflow lighting</a></li>
+    <li><a href="PIPELINE.md">Краткая карта render pipeline</a></li>
+  </ul>
+</body>
+</html>

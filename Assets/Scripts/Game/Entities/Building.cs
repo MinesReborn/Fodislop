@@ -249,7 +249,8 @@ namespace Kern.Game
                 _buildingBatchHandle ??= _entityBatchRenderer.RegisterSprite(
                     _visualTransform,
                     RenderingConstants.BUILDING_ROOF_SORTING_ORDER,
-                    isStatic: true);
+                    isStatic: true,
+                    emitsLight: true);
             }
 
             if (_clanTransform != null)

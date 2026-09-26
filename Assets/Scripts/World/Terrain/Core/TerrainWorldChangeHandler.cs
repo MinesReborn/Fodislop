@@ -75,8 +75,8 @@ namespace Kern.World.Terrain
         {
             if (TerrainCellTextureName.TryParseCellType(filename, out CellType cellType))
             {
-                _window.Driver.Materials.TerrainShader = _getTerrainShader();
-                _window.Driver.Materials.InitializeShader();
+                _window.Driver.Presentation.SetTerrainShader(_getTerrainShader());
+                _window.Driver.Presentation.InitializeShader();
                 _window.PendingTextureCellTypes.Add(cellType);
                 _contentRevision.RecordLightingVisibleTextureChange();
                 _getLightingFramePublisher().RequestFullReset(
@@ -87,7 +87,7 @@ namespace Kern.World.Terrain
                 ITextureService? textureService = _getTextureService();
                 if (textureService != null)
                 {
-                    _window.Driver.Materials.BindAtlasTextures(
+                    _window.Driver.Presentation.BindAtlasTextures(
                         textureService.GetAllAtlases(), textureService);
                 }
 

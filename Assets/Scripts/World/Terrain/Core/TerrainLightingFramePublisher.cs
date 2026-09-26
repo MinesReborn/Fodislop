@@ -104,7 +104,7 @@ internal sealed class TerrainLightingFramePublisher(ITerrainLightingExchange? ex
             return;
         }
 
-        window.Driver.Materials.ValidateLightingBinding(output);
+        window.Driver.Presentation.ValidateLightingBinding(output);
     }
 
     public void PublishFrameDemand(

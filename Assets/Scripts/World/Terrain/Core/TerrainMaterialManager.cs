@@ -77,7 +77,7 @@ public sealed class TerrainMaterialManager
             material.SetColor(_ShimmerColorPropertyID, config.Terrain.ShimmerColor);
             material.SetColor(_DebugColorPropertyID, config.Terrain.DebugColor);
             material.SetFloat(_DebugModePropertyID, config.Terrain.DebugMode ? 1f : 0f);
-            // Вид поверхности авторский: декали, кайма, глинт, расплав и
+            // Вид поверхности авторский: декали, кайма, глинт и
             // призматик берут числа из TerrainConfigHolder.
             TerrainMaterialTuning.Apply(material);
         }
@@ -228,7 +228,7 @@ public sealed class TerrainMaterialManager
         _materials[index].SetColor(_ShimmerColorPropertyID, clientConfig.Terrain.ShimmerColor);
         _materials[index].SetColor(_DebugColorPropertyID, clientConfig.Terrain.DebugColor);
         _materials[index].SetFloat(_DebugModePropertyID, clientConfig.Terrain.DebugMode ? 1f : 0f);
-        // Вид поверхности авторский: декали, кайма, глинт, расплав и
+        // Вид поверхности авторский: декали, кайма, глинт и
         // призматик берут числа из TerrainConfigHolder.
         TerrainMaterialTuning.Apply(_materials[index]);
 

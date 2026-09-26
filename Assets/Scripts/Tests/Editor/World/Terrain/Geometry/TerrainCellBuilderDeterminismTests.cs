@@ -52,7 +52,8 @@ public sealed class TerrainCellBuilderDeterminismTests
         world.RoadTextureReady = true;
         HashSet<CellType> changedTypes = [CellType.Road];
         cache.RefreshTextureMetadata(changedTypes, world.MapData, world.Textures, world.Atlases);
-        builder.BuildTextureCells(changedTypes, sources, OriginX, OriginY);
+        builder.BuildTextureCells(
+            TerrainCellTypeSet.Capture(changedTypes), sources, OriginX, OriginY);
 
         for (int x = 0; x < Width; x++)
         {
@@ -94,14 +95,16 @@ public sealed class TerrainCellBuilderDeterminismTests
         world.DoorTextureReady = true;
         HashSet<CellType> changedTypes = [CellType.BuildingDoor];
         cache.RefreshTextureMetadata(changedTypes, world.MapData, world.Textures, world.Atlases);
-        builder.BuildTextureCells(changedTypes, sources, OriginX, OriginY);
+        builder.BuildTextureCells(
+            TerrainCellTypeSet.Capture(changedTypes), sources, OriginX, OriginY);
 
         Assert.That(builder.DoorsTouched, Is.True,
             "The driver must rebuild the overlay after its missing texture arrives.");
         builder.BuildDoorOverlay(sources, OriginX, OriginY, vertices, indices);
         Assert.That(vertices.TrueForAll(vertex => vertex.UV1z != 0), Is.True);
 
-        builder.BuildTextureCells(changedTypes, sources, OriginX, OriginY);
+        builder.BuildTextureCells(
+            TerrainCellTypeSet.Capture(changedTypes), sources, OriginX, OriginY);
         Assert.That(builder.DoorsTouched, Is.False,
             "Unchanged door data must not rebuild the overlay repeatedly.");
     }

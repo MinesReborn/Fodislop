@@ -94,7 +94,7 @@ public class TerrainVertexDistortionCalculatorFuzzTests
         var none = new CachedCellData { Distortion = CellDistortionType.Neutral };
         TerrainVertexOffset offset = TerrainVertexDistortionCalculator.ComputeOffset(cause, none, none, none, 10, 10, 100, 100);
         Assert.That(offset.ZSteps, Is.EqualTo(0));
-        int mag = (offset.XSteps * offset.XSteps) + (offset.YSteps * offset.YSteps);
+        float mag = (offset.XSteps * offset.XSteps) + (offset.YSteps * offset.YSteps);
         Assert.That(mag, Is.GreaterThan(0f), "single cause corner should produce non-zero offset");
     }
 

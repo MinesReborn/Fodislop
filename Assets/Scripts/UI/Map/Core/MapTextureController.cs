@@ -54,7 +54,7 @@ internal sealed class MapTextureController
             TexHeight,
             "WorldMapTexture",
             RuntimeTextureColorSpace.Srgb,
-            FilterMode.Bilinear,
+            FilterMode.Point,
             TextureWrapMode.Clamp);
 
         if (mapImage != null)

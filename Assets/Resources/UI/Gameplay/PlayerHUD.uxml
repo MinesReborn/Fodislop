@@ -94,10 +94,11 @@
         </ui:VisualElement>
 
         <!-- ════════════ КАРТА МИРА (WorldMapRenderer) ════════════ -->
-        <ui:VisualElement name="WorldMapOverlay" class="world-map-overlay" picking-mode="Position" style="display: none;">
+        <ui:VisualElement name="WorldMapOverlay" class="world-map-overlay is-hidden" picking-mode="Position">
             <ui:VisualElement name="WorldMapWindow" class="world-map-window">
                 <ui:VisualElement class="world-map-header">
                     <ui:Label class="world-map-title" text="hud.world_map" />
+                    <ui:Button name="WorldMapFollowPlayerButton" class="world-map-follow" text="hud.map_follow_player" />
                     <ui:Button name="WorldMapCloseButton" class="world-map-close" text="×" />
                 </ui:VisualElement>
                 <ui:Label name="WorldMapStatus" class="world-map-status is-hidden" text="hud.map_preparing" picking-mode="Ignore" />

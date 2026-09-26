@@ -1,0 +1,24 @@
+﻿Parameter,Actual dummy source,Interpretation / fill
+PropertiesMask,DummyCellConfigurationUtilities.CreateCellConfigurations → CellConfigProperties,Exact active flag names; None means no bits
+Passable,CellConfigProperties byte,1 = flag enabled; 0 = disabled
+Breakable,CellConfigProperties byte,1 = flag enabled; 0 = disabled
+DropsShadow,CellConfigProperties byte,1 = flag enabled; 0 = disabled
+ReceivesShadow,CellConfigProperties byte,1 = flag enabled; 0 = disabled
+Blending,CellConfigProperties byte,1 = flag enabled; 0 = disabled
+Glowing,CellConfigProperties byte,1 = flag enabled; 0 = disabled
+Distortion,DummyCellConfigurationUtilities.SetConfig / packet defaults,Actual dummy packet value; active non-neutral values are green
+Animation,DummyCellConfigurationUtilities.SetConfig / packet defaults,Actual dummy packet value; active non-neutral values are green
+AnimationSpeed,DummyCellConfigurationUtilities.SetConfig / packet defaults,Actual dummy packet value; active non-neutral values are green
+FrameOffset,DummyCellConfigurationUtilities.SetConfig / packet defaults,Actual dummy packet value; active non-neutral values are green
+ReliefGroup,DummyCellConfigurationUtilities.SetConfig / packet defaults,Actual dummy packet value; active non-neutral values are green
+Color,DummyCellConfigurationUtilities.ApplyMapColors → DummyMapColors → MapBlockColors,Exact source expression for dummy minimap color
+TileGroup,"DummyWorldStartupResponder.SendWorldIdentity WorldInitPacket.TileGroups = [[37,38,106]]",Group index; — means absent from dummy group lists
+MovementCooldown,DummyCellConfigurationUtilities.CreateMovementSpeeds → MovementSpeedPacket,"20 for passable cells, 100 otherwise; — where dummy omits the entry"
+RoundableLoose,CellVisualProtocol.cs → LegacyCellVisualProtocol,1 = explicit client-side hardcode applies; 0 = absent from legacy set
+Road,CellVisualProtocol.cs → LegacyCellVisualProtocol,1 = explicit client-side hardcode applies; 0 = absent from legacy set
+CrystalSheet,CellVisualProtocol.cs → LegacyCellVisualProtocol,1 = explicit client-side hardcode applies; 0 = absent from legacy set
+RockSheet,CellVisualProtocol.cs → LegacyCellVisualProtocol,1 = explicit client-side hardcode applies; 0 = absent from legacy set
+NonPhysicalMass,CellVisualProtocol.cs → LegacyCellVisualProtocol,1 = explicit client-side hardcode applies; 0 = absent from legacy set
+Legend: green,Excel fill,Enabled/non-neutral values and explicit hardcoded traits
+Legend: no fill,Excel fill,Disabled/neutral values or absent legacy trait
+Scope,"Dummy connection configuration, not production server world data",Shows what current in-project dummy connection sends/builds

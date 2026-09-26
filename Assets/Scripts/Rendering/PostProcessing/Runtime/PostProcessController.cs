@@ -253,13 +253,13 @@ namespace Kern.Rendering.PostProcessing
                 throw new InvalidOperationException("PostProcessController requires a runtime VolumeProfile on its serialized Volume.");
             }
 
-            PostProcessDefaults.ValidateVolumeProfile(profile);
+            PostProcessVolumeUtilities.ValidateVolumeProfile(profile);
 
-            PostProcessDefaults.RequireVolumeComponent(ref _bloom, profile);
-            PostProcessDefaults.RequireVolumeComponent(ref _vignette, profile);
-            PostProcessDefaults.RequireVolumeComponent(ref _colorGrading, profile);
+            PostProcessVolumeUtilities.RequireVolumeComponent(ref _bloom, profile);
+            PostProcessVolumeUtilities.RequireVolumeComponent(ref _vignette, profile);
+            PostProcessVolumeUtilities.RequireVolumeComponent(ref _colorGrading, profile);
             _colorGrading.active = true;
-            PostProcessDefaults.RequireVolumeComponent(ref _eigengrau, profile);
+            PostProcessVolumeUtilities.RequireVolumeComponent(ref _eigengrau, profile);
             _volumeSetupCompleted = true;
             ApplyClientConfig();
         }

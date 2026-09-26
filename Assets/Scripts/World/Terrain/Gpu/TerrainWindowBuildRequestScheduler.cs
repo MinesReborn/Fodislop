@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using Kern.Core;
 using Kern.Core.Interfaces;
@@ -72,7 +73,7 @@ internal readonly struct TerrainBuildSchedulingIntent
 
 /// <summary>
 /// Owns terrain build request preparation and worker scheduling. Completion
-/// acceptance and publication remain in TerrainWindowBuildLifecycle.
+/// acceptance and publication remain in <see cref="TerrainWindow"/>.
 /// </summary>
 internal sealed class TerrainWindowBuildRequestScheduler : IDisposable
 {
@@ -118,7 +119,7 @@ internal sealed class TerrainWindowBuildRequestScheduler : IDisposable
     public void Dispose() => _builds.Dispose();
 
     public TerrainBuildSchedulingResult Schedule(
-        in TerrainBuildServices services,
+        in TerrainBuildContext context,
         IClientConfigManager clientConfigManager,
         in TerrainBuildSchedulingIntent intent,
         out Exception? failure,
@@ -127,9 +128,9 @@ internal sealed class TerrainWindowBuildRequestScheduler : IDisposable
         failure = null;
         oldestChangeTimestamp = 0;
         if (!_driver.TryBeginBuild(
-            services,
+            context,
             clientConfigManager,
-            out TerrainBuildContext context,
+            out IReadOnlyList<IAtlasDescriptor> atlases,
             out bool materialsChanged))
         {
             return TerrainBuildSchedulingResult.WaitingForData;
@@ -142,7 +143,7 @@ internal sealed class TerrainWindowBuildRequestScheduler : IDisposable
             // набор не собран целиком.
             if (intent.MeshRenderer != null)
             {
-                intent.MeshRenderer.sharedMaterials = _driver.Materials.CellMaterials;
+                intent.MeshRenderer.sharedMaterials = _driver.Presentation.CellMaterials;
             }
 
             if (_publishedView.CellsCommitted)
@@ -182,6 +183,7 @@ internal sealed class TerrainWindowBuildRequestScheduler : IDisposable
         {
             request = _driver.Prepare(
                 context,
+                atlases,
                 intent.Origin,
                 forceFull,
                 materialsChanged || _changes.RebuildAllCells,

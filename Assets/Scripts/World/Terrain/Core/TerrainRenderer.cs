@@ -193,7 +193,7 @@ namespace Kern.World.Terrain
                 context.EmissionField,
                 context.WorldRect,
                 transform.localToWorldMatrix,
-                _window.Driver.Materials.CellMaterials,
+                _window.Driver.Presentation.CellMaterials,
                 _window.CellIDMesh,
                 _presentation.ViewOffset);
 
@@ -205,7 +205,7 @@ namespace Kern.World.Terrain
                 context.AmbientOcclusionField,
                 context.WorldRect,
                 transform.localToWorldMatrix,
-                _window.Driver.Materials.CellMaterials,
+                _window.Driver.Presentation.CellMaterials,
                 _window.CellIDMesh,
                 _presentation.ViewOffset);
 
@@ -306,28 +306,29 @@ namespace Kern.World.Terrain
             Vector3 focusPosition = holdingView
                 ? _viewTransition!.Destination
                 : _cameraFrame.Camera!.transform.position;
-            TerrainFramePlan framePlan = _planner.Plan(
-                _cameraFrame.Camera!,
-                focusPosition,
-                _cellSize,
-                _viewportPadding,
-                lightingRequirements.RequiredTerrainPaddingCells,
-                lightingRequirements.StableLightingPaddingCells,
-                _window.ProspectiveOrigin,
-                _window.Width,
-                _window.Height,
-                _window.IsInitialized,
-                _window.CellsCommitted,
-                _window.HasCpuBuildInFlight,
-                _cameraFrame.SpeedCellsPerSecond,
-                _window.EstimatedPreparationSeconds,
-                _lightingViewport,
-                allowPartialAdvance: !holdingView,
-                holdingPublishedView: holdingView,
-                _storage,
-                _mapManager,
-                _connectionService,
-                _telemetry);
+            var planningInput = new TerrainFramePlanningInput(
+                Camera: _cameraFrame.Camera!,
+                FocusPosition: focusPosition,
+                CellSize: _cellSize,
+                ViewportPadding: _viewportPadding,
+                RequiredLightingPadding: lightingRequirements.RequiredTerrainPaddingCells,
+                StableRegionPadding: lightingRequirements.StableLightingPaddingCells,
+                CommittedOrigin: _window.ProspectiveOrigin,
+                MeshWidth: _window.Width,
+                MeshHeight: _window.Height,
+                IsInitialized: _window.IsInitialized,
+                CellsCommitted: _window.CellsCommitted,
+                CpuBuildInFlight: _window.HasCpuBuildInFlight,
+                SpeedCellsPerSecond: _cameraFrame.SpeedCellsPerSecond,
+                PreparationLatencySeconds: _window.EstimatedPreparationSeconds,
+                RetainedLightingViewport: _lightingViewport,
+                AllowPartialAdvance: !holdingView,
+                HoldingPublishedView: holdingView,
+                Storage: _storage,
+                MapData: _mapManager,
+                ConnectionService: _connectionService,
+                Telemetry: _telemetry);
+            TerrainFramePlan framePlan = _planner.Plan(planningInput);
             float planMs = TerrainStallReport.ElapsedMs(planStart);
             if (_meshRenderer != null)
             {
@@ -342,6 +343,7 @@ namespace Kern.World.Terrain
                 }
                 LightingFramePublisher.ValidateLightingOutput(hasLightingOutput, lightingOutput, _window);
                 PublishTerrainFrameDemand(framePlan, holdingView);
+                RecordFrameDiagnostics(stallStart, planMs, 0f, 0f, uploadMs, 0, 0);
                 return;
             }
 
@@ -365,12 +367,21 @@ namespace Kern.World.Terrain
                 WorldChanges.RequestedContentRevision,
                 out Exception? failure))
             {
+                float failedProcessMs = publishMs + TerrainStallReport.ElapsedMs(processStart);
                 _fatalBuildError = Diagnostics.ReportBuildFailure(
                     failure,
                     framePlan.ActiveWindow.Origin,
                     _mapManager,
                     _textureService,
                     _storage);
+                RecordFrameDiagnostics(
+                    stallStart,
+                    planMs,
+                    dimensionsMs,
+                    failedProcessMs,
+                    uploadMs,
+                    dirtyRectCount,
+                    dirtyArea);
                 return;
             }
 
@@ -402,6 +413,14 @@ namespace Kern.World.Terrain
                     _viewTransition!);
                 LightingFramePublisher.ValidateLightingOutput(hasLightingOutput, lightingOutput, _window);
                 PublishTerrainFrameDemand(framePlan, holdingView: true);
+                RecordFrameDiagnostics(
+                    stallStart,
+                    planMs,
+                    dimensionsMs,
+                    processMs,
+                    uploadMs,
+                    dirtyRectCount,
+                    dirtyArea);
                 return;
             }
 
@@ -427,6 +446,24 @@ namespace Kern.World.Terrain
             LightingFramePublisher.ValidateLightingOutput(hasLightingOutput, lightingOutput, _window);
             PublishTerrainFrameDemand(framePlan, holdingView: false);
 
+            RecordFrameDiagnostics(
+                stallStart,
+                planMs,
+                dimensionsMs,
+                processMs,
+                uploadMs,
+                dirtyRectCount,
+                dirtyArea);
+        }
+
+        private void RecordFrameDiagnostics(
+            long stallStart,
+            float planMs,
+            float dimensionsMs,
+            float processMs,
+            float uploadMs,
+            int dirtyRectCount,
+            long dirtyArea) =>
             Diagnostics.Record(
                 stallStart,
                 _telemetry,
@@ -436,16 +473,21 @@ namespace Kern.World.Terrain
                     processMs,
                     uploadMs,
                     dirtyRectCount,
-                    dirtyArea));
-        }
+                    dirtyArea,
+                    _planner.LastResidencyProbeCalls,
+                    _planner.LastResidencyChunkReads,
+                    _planner.LastResidencyCacheHits,
+                    _planner.LastResidencyLruTouches));
 
-        private TerrainBuildServices Services =>
+        private TerrainBuildContext Services =>
             new(
                 _storage,
                 _mapManager,
                 _textureService ?? throw new InvalidOperationException(
                     "TerrainRenderer requires ITextureService injection."),
-                _telemetry);
+                _telemetry,
+                _window.Width,
+                _window.Height);
 
         private void InitializeSceneBindings()
         {
@@ -453,8 +495,8 @@ namespace Kern.World.Terrain
             _meshRenderer ??= GetComponent<MeshRenderer>();
             _cameraFrame.SetCameraIfMissing(_gameplayCamera?.Camera);
 
-            _window.Driver.Materials.TerrainShader = _terrainShader;
-            _window.Driver.Materials.InitializeShader();
+            _window.Driver.Presentation.SetTerrainShader(_terrainShader);
+            _window.Driver.Presentation.InitializeShader();
             _window.Attach(
                 transform,
                 _sceneObjects,

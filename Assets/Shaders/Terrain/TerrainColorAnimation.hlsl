@@ -4,7 +4,7 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
 // Числа анимации — свойства материала, а проходы cbuffer сам не подключает до
-// этого места: без него _PrismaticTint*, _Molten* и _FacetedGlint* оказались
+// этого места: без него _PrismaticTint* и _FacetedGlint* оказались
 // бы необъявленными. Вне UnityPerMaterial их объявлять нельзя, поэтому
 // подключаем блок целиком.
 //
@@ -14,12 +14,13 @@
 #include "TerrainAtlasSampling.hlsl"
 #include "TerrainMaterialCBuffer.hlsl"
 #include "TerrainAnimationProfile.hlsl"
+#include "TerrainContour.hlsl"
 
 // Анимация цвета клетки террейна — одна на оба пасса.
 //
 // ЗАЧЕМ ОТДЕЛЬНЫМ ФАЙЛОМ. Раньше анимация жила только в видимом пассе, а поле
-// материалов писало упакованный цвет вершины как есть. Из-за этого мигающая
-// лава светила ровно, радужный блок отдавал в отскок постоянный цвет, и
+// материалов писало упакованный цвет вершины как есть. Из-за этого shimmer
+// не попадал в отскок, и
 // освещение вообще не знало, что текстура анимирована: альбедо получалось
 // статическим при динамической картинке. Копировать код во второй пасс нельзя —
 // две копии разойдутся на первой же правке вида, и разойдутся молча.
@@ -89,8 +90,36 @@ float3 TerrainUnpackRgb24(float packedColor)
         (packed >> 16u) & 0xFFu) / 255.0;
 }
 
+// Фактическая интенсивность faceted-glint. Один расчёт используется видимым
+// цветом и Terrain Debug View, чтобы диагностический слой не расходился с кадром.
+float EvaluateFacetedGlintStrength(
+    float2 localUV,
+    float3 luminanceSource,
+    int animationProfile,
+    float animationSpeed,
+    float animationOffset)
+{
+    if (animationProfile != KERN_TERRAIN_ANIMATION_PROFILE_FACETED_CRYSTAL)
+    {
+        return 0.0;
+    }
+
+    float phase = frac(_Time.y * animationSpeed + animationOffset);
+    float eventEnvelope =
+        smoothstep(0.0, _FacetedGlintRiseEnd, phase) *
+        (1.0 - smoothstep(_FacetedGlintFallStart, _FacetedGlintFallEnd, phase));
+    float sweepProgress = saturate(phase / _FacetedGlintSweepDuration);
+    float sweepCoordinate = dot(localUV, _FacetedGlintDirection.xy);
+    float sweepCenter = lerp(_FacetedGlintSweepStart, _FacetedGlintSweepEnd, sweepProgress);
+    float bandDistance = abs(sweepCoordinate - sweepCenter);
+    float band = 1.0 - smoothstep(_FacetedGlintBandStart, _FacetedGlintBandEnd, bandDistance);
+
+    float luminance = dot(luminanceSource, float3(0.299, 0.587, 0.114));
+    float facetMask = smoothstep(_FacetedGlintMaskStart, _FacetedGlintMaskEnd, luminance);
+    return eventEnvelope * band * facetMask * _FacetedGlintStrength;
+}
+
 #include "TerrainPrismaticCrystal.hlsl"
-#include "TerrainMoltenHeat.hlsl"
 
 // baseColor      — цвет, который анимируется.
 // luminanceSource — по чему считается маска яркости для мерцания. В видимом
@@ -100,7 +129,6 @@ float3 AnimateTerrainColor(
     float3 baseColor,
     float3 luminanceSource,
     float2 localUV,
-    float2 surfacePosition,
     int animationType,
     int animationProfile,
     float animationSpeed,
@@ -127,26 +155,15 @@ float3 AnimateTerrainColor(
     {
         // Each cell receives a deterministic phase from TerrainQuadBuilder.
         // A diagonal sweep brings out facet glints without long dead pauses.
-        float phase = frac(_Time.y * animationSpeed + animationOffset);
-        float eventEnvelope =
-            smoothstep(0.0, _FacetedGlintRiseEnd, phase) *
-            (1.0 - smoothstep(_FacetedGlintFallStart, _FacetedGlintFallEnd, phase));
-        float sweepProgress = saturate(phase / _FacetedGlintSweepDuration);
-        float sweepCoordinate = dot(localUV, _FacetedGlintDirection.xy);
-        float sweepCenter = lerp(_FacetedGlintSweepStart, _FacetedGlintSweepEnd, sweepProgress);
-        float bandDistance = abs(sweepCoordinate - sweepCenter);
-        float band = 1.0 - smoothstep(_FacetedGlintBandStart, _FacetedGlintBandEnd, bandDistance);
-
-        float luminance = dot(luminanceSource, float3(0.299, 0.587, 0.114));
-        float facetMask = smoothstep(_FacetedGlintMaskStart, _FacetedGlintMaskEnd, luminance);
-        float strength = eventEnvelope * band * facetMask * _FacetedGlintStrength;
+        float strength = EvaluateFacetedGlintStrength(
+            localUV,
+            luminanceSource,
+            animationProfile,
+            animationSpeed,
+            animationOffset);
         float3 cellColor = TerrainUnpackRgb24(packedCellColor);
         float3 glintColor = lerp(cellColor, 1.0.xxx, _FacetedGlintMix);
         result = baseColor + glintColor * strength;
-    }
-    else if (animationProfile == KERN_TERRAIN_ANIMATION_PROFILE_MOLTEN_SURFACE)
-    {
-        result = EvaluateMoltenHeat(baseColor, surfacePosition, _Time.y * animationSpeed * _MoltenPhaseSpeed);
     }
     else if (animationType == 1) // Blinking
     {

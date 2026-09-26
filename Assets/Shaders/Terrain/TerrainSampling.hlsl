@@ -2,12 +2,8 @@
 #define KERN_TERRAIN_SAMPLING_INCLUDED
 
 #include "TerrainTileAddressing.hlsl"
+#include "TerrainGeometryContract.hlsl"
 
-// Скорость прокрутки листа расплава — свойство материала, а проходы cbuffer сам
-// до этого места не подключает: без него _MoltenSheetScrollSpeed оказывается
-// необъявленной. Вне UnityPerMaterial его объявлять нельзя, поэтому подключаем
-// блок целиком.
-//
 // Порядок обязателен: cbuffer-файл зовёт TerrainAtlasTexelSize, — сначала идёт
 // выборка атласа. Guard'ы делают повторное включение безопасным.
 #include "TerrainAtlasSampling.hlsl"
@@ -23,7 +19,6 @@ struct TerrainTileUvResult
     float2 tileOffsetUV;
     float2 identityTileOffsetUV;
     float2 identityAvailableTileSize;
-    bool isScrollAnimated;
     float animOffsetUV;
     bool isValid;
 };
@@ -38,6 +33,11 @@ float TerrainUvCross(float2 a, float2 b)
 // autotile variants sample different interior texels when a shared vertex
 // crosses a cell edge. Inverting the cell's bilinear geometry keeps UVs on the
 // authored tile edge while the polygon itself moves.
+float2 TerrainResolveGeometryLocalUv(
+    float2 cellSample,
+    float4 cornersX,
+    float4 cornersY);
+
 float2 TerrainResolveGeometryTileUV(
     float2 carrierUV,
     float2 cellSample,
@@ -54,10 +54,27 @@ float2 TerrainResolveGeometryTileUV(
         return carrierUV;
     }
 
-    float2 p00 = float2(cornersX.x, cornersY.x);
-    float2 p10 = float2(cornersX.y, cornersY.y);
-    float2 p11 = float2(cornersX.z, cornersY.z);
-    float2 p01 = float2(cornersX.w, cornersY.w);
+    float2 cellLocalUv = TerrainResolveGeometryLocalUv(
+        cellSample, cornersX, cornersY);
+
+    uint packedUvs = (uint)round(uvBits);
+    float2 uv00 = float2(packedUvs & 1u, (packedUvs >> 1u) & 1u);
+    float2 uv10 = float2((packedUvs >> 2u) & 1u, (packedUvs >> 3u) & 1u);
+    float2 uv01 = float2((packedUvs >> 6u) & 1u, (packedUvs >> 7u) & 1u);
+    return uv00 + (uv10 - uv00) * cellLocalUv.x + (uv01 - uv00) * cellLocalUv.y;
+}
+
+// Recover the cell-local position from the geometry carrier so atlas
+// autotile flips cannot change the authored tile orientation.
+float2 TerrainResolveGeometryLocalUv(
+    float2 cellSample,
+    float4 cornersX,
+    float4 cornersY)
+{
+    float2 p00 = QuantizeTerrainGeometryPoint(float2(cornersX.x, cornersY.x));
+    float2 p10 = QuantizeTerrainGeometryPoint(float2(cornersX.y, cornersY.y));
+    float2 p11 = QuantizeTerrainGeometryPoint(float2(cornersX.z, cornersY.z));
+    float2 p01 = QuantizeTerrainGeometryPoint(float2(cornersX.w, cornersY.w));
     float2 axisU = p10 - p00;
     float2 axisV = p01 - p00;
     float2 twist = p00 - p10 + p11 - p01;
@@ -71,26 +88,11 @@ float2 TerrainResolveGeometryTileUV(
         float2 tangentU = axisU + twist * local.y;
         float2 tangentV = axisV + twist * local.x;
         float determinant = TerrainUvCross(tangentU, tangentV);
-        if (abs(determinant) < 1.0e-6)
-        {
-            return carrierUV;
-        }
-
         local.x += TerrainUvCross(residual, tangentV) / determinant;
         local.y += TerrainUvCross(tangentU, residual) / determinant;
     }
 
-    // The raster carrier also covers organic edge bends, which can lie beyond
-    // the four corner quad. Clamp in cell space before applying the atlas UV
-    // rotation/reflection; clamping the transformed UV instead can select a
-    // different edge of a rotated autotile and expose a seam at the bend.
-    local = saturate(local);
-
-    uint packedUvs = (uint)round(uvBits);
-    float2 uv00 = float2(packedUvs & 1u, (packedUvs >> 1u) & 1u);
-    float2 uv10 = float2((packedUvs >> 2u) & 1u, (packedUvs >> 3u) & 1u);
-    float2 uv01 = float2((packedUvs >> 6u) & 1u, (packedUvs >> 7u) & 1u);
-    return uv00 + (uv10 - uv00) * local.x + (uv01 - uv00) * local.y;
+    return saturate(local);
 }
 
 void TerrainSetResolvedTileIdentity(
@@ -125,7 +127,6 @@ TerrainTileUvResult ResolveTerrainTileUV(
     res.finalUV = 0.0;
     res.minTileUV = 0.0;
     res.maxTileUV = 0.0;
-    res.isScrollAnimated = false;
     res.animOffsetUV = 0.0;
     res.isValid = false;
 
@@ -152,22 +153,6 @@ TerrainTileUvResult ResolveTerrainTileUV(
 
     float2 tilesCount = ceil(subAtlasSizeUV / tileSizeUV - 0.0001);
     tilesCount = max(tilesCount, 1.0);
-
-    // Molten surfaces scroll one complete authored sheet, never separate cell
-    // tiles. Both raster-carrier and regular quads use the same world position.
-    if ((int)(animData.w + 0.5) == 2)
-    {
-        float2 sheetPosition = float2(worldPos.x, -worldPos.y - 1.0) + geometryCellPosition;
-        sheetPosition.y += timeY * animData.y * _MoltenSheetScrollSpeed;
-        float2 sheetUV = frac(sheetPosition / tilesCount);
-        res.finalUV = baseUV + sheetUV * subAtlasSizeUV;
-        res.finalUV.y += animOffsetUV;
-        res.availableTileSize = subAtlasSizeUV;
-        res.minTileUV = baseUV + atlasTexelSize * 0.5;
-        res.maxTileUV = baseUV + subAtlasSizeUV - atlasTexelSize * 0.5;
-        TerrainSetResolvedTileIdentity(res, baseUV, tileSizeUV);
-        return res;
-    }
 
     // Раскладка упакованных каналов клетки:
     //   w — бит 0: автотайлинг по соседям. Биты выше свободны.
@@ -212,10 +197,6 @@ TerrainTileUvResult ResolveTerrainTileUV(
     float2 tileOffsetUV = wrapped * tileSizeUV;
     float2 availableTileSize = min(tileSizeUV, subAtlasSizeUV - tileOffsetUV);
     float2 quadUV = cornerUV;
-    int animTypeEarly = (int)(animData.x + 0.5);
-    bool isScrollAnimated = animTypeEarly == 4;
-    res.isScrollAnimated = isScrollAnimated;
-
     if (packedData.x > 0.5)
     {
         // Geometry UVs follow the displaced polygon inside this cell. When
@@ -248,11 +229,6 @@ TerrainTileUvResult ResolveTerrainTileUV(
                     tilesCount,
                     tileGroupColumn,
                     0.0);
-                if (isScrollAnimated)
-                {
-                    wrappedTile.y = wrapped.y;
-                }
-
                 tileOffsetUV = wrappedTile * tileSizeUV;
                 availableTileSize = min(tileSizeUV, subAtlasSizeUV - tileOffsetUV);
             }
@@ -268,13 +244,6 @@ TerrainTileUvResult ResolveTerrainTileUV(
     float2 finalUV = baseUV + tileOffsetUV + quadUV * availableTileSize;
     finalUV.y += animOffsetUV;
 
-    if (isScrollAnimated)
-    {
-        float speed = animData.y;
-        float scrollUV = fmod(timeY * speed * tileSizeUV.y * _MoltenSheetScrollSpeed, subAtlasSizeUV.y);
-        finalUV.y = baseUV.y + fmod(finalUV.y - baseUV.y + scrollUV + subAtlasSizeUV.y, subAtlasSizeUV.y);
-    }
-
     res.baseUV = baseUV;
     res.tileOffsetUV = tileOffsetUV;
     res.availableTileSize = availableTileSize;
@@ -287,19 +256,11 @@ TerrainTileUvResult ResolveTerrainTileUV(
 
 float2 ClampTerrainTileUV(float2 uv, TerrainTileUvResult tile)
 {
-    if (!tile.isScrollAnimated)
-    {
-        float2 minTile = tile.minTileUV;
-        float2 maxTile = tile.maxTileUV;
-        minTile.y += tile.animOffsetUV;
-        maxTile.y += tile.animOffsetUV;
-        return clamp(uv, minTile, maxTile);
-    }
-    else
-    {
-        uv.x = clamp(uv.x, tile.minTileUV.x, tile.maxTileUV.x);
-        return uv;
-    }
+    float2 minTile = tile.minTileUV;
+    float2 maxTile = tile.maxTileUV;
+    minTile.y += tile.animOffsetUV;
+    maxTile.y += tile.animOffsetUV;
+    return clamp(uv, minTile, maxTile);
 }
 
 #endif
