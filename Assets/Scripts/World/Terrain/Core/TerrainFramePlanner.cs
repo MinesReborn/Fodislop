@@ -167,8 +167,8 @@ public sealed class TerrainFramePlanner
             input.RetainedLightingViewport,
             isRequestedResident,
             TerrainResidencyProbe.HasAnyResidentData(
-                storage,
-                mapData,
+                input.Storage,
+                input.MapData,
                 requestedWindow.Origin,
                 requestedWindow.Size.x,
                 requestedWindow.Size.y),
