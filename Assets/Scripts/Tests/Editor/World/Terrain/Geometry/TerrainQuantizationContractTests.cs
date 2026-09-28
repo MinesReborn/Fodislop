@@ -175,7 +175,9 @@ public sealed class TerrainQuantizationContractTests
         string textures = ReadRepoFile("Assets", "Scripts", "World", "Terrain", "Gpu", "TerrainCellDataTextures.cs");
 
         Assert.That(CountOccurrences(terrain, "EvaluateTerrainCellCoverage("), Is.EqualTo(2));
-        Assert.That(CountOccurrences(terrain, "clip(cellCoverage - 0.5);"), Is.EqualTo(3));
+        // The production path clips the visible pass, two lighting-debug
+        // views, foreground identity diagnostics, and the regular debug path.
+        Assert.That(CountOccurrences(terrain, "clip(cellCoverage - 0.5);"), Is.EqualTo(5));
         Assert.That(CountOccurrences(contour, "TerrainGeometryCoverage("), Is.EqualTo(1));
         // Geometry owns the polygon and distance rules; the shared contract
         // owns the cell grid quantization used by its corner and bend points.

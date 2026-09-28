@@ -71,6 +71,8 @@ public class ModalWindowHandler : IDisposable
     public void Show(ModalWindowPacket packet)
     {
         EnsureCreated();
+        VisualElement overlay = _overlay ??
+            throw new InvalidOperationException("[ModalWindowHandler] Modal overlay was not created.");
 
         // Контент биндится, а не строится: по пакету меняются только
         // текст и видимость иконки.
@@ -79,8 +81,7 @@ public class ModalWindowHandler : IDisposable
         _desc!.text = packet.Description;
         _okButton!.text = packet.ButtonText;
 
-        UIState.Show(_overlay!);
-        var overlay = _overlay;
+        UIState.Show(overlay);
         overlay.SetEnabled(true);
         overlay.pickingMode = PickingMode.Position;
         WatchKeys(overlay);
@@ -106,6 +107,8 @@ public class ModalWindowHandler : IDisposable
     {
         if (_doc.rootVisualElement.panel == null)
         {
+            // The document may still be detached during scene teardown; the
+            // next show attempt will schedule the watcher after attachment.
             return;
         }
 

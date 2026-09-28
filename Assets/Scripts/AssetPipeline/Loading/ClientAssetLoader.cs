@@ -371,26 +371,40 @@ namespace Kern
             return null;
         }
 
-        private async void OnPacketReceived(ServerPacket obj)
+        private void OnPacketReceived(ServerPacket obj)
         {
-            // Outer try-catch is mandatory: in an async void method, any exception
-            // that escapes all catch blocks is thrown on the SynchronizationContext
-            // and crashes Unity.
+            if (_destroyed)
+            {
+                return;
+            }
+
             try
             {
-                await _dispatcher.HandleAssetPacketAsync(
-                    obj,
-                    _persistentCache,
-                    msg => _connectionService.TriggerDisconnect(msg));
+                _operations.Run(
+                    "asset_packet_processing",
+                    cancellationToken => HandleAssetPacketAsync(obj, cancellationToken));
             }
-            catch (OperationCanceledException)
+            catch (ObjectDisposedException)
             {
-                // Expected during teardown or domain reload.
+                // The supervisor can finish disposing between event dispatch and
+                // this callback during scene teardown.
             }
-            catch (Exception exception)
-            {
-                Debug.LogException(exception);
-            }
+        }
+
+        private async UniTask HandleAssetPacketAsync(
+            ServerPacket packet,
+            CancellationToken supervisorToken)
+        {
+            using CancellationTokenSource linkedCancellation =
+                CancellationTokenSource.CreateLinkedTokenSource(
+                    supervisorToken,
+                    destroyCancellationToken);
+
+            await _dispatcher.HandleAssetPacketAsync(
+                packet,
+                _persistentCache,
+                message => _connectionService.TriggerDisconnect(message),
+                linkedCancellation.Token);
         }
     }
 }

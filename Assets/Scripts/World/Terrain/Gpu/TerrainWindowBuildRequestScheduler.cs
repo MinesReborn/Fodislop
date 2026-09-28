@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Core.Interfaces.Diagnostics;
@@ -103,6 +104,8 @@ internal sealed class TerrainWindowBuildRequestScheduler : IDisposable
     public bool IsBusy => _builds.IsBusy;
 
     public TerrainCpuBuildRequest? ActiveRequest => _builds.ActiveRequest;
+
+    public Task CompletionTask => _builds.CompletionTask;
 
     public bool HasUnpublishedTextureRefresh => _buildRefreshesTextures;
 

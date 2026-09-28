@@ -2,7 +2,6 @@
 
 using Kern.Core.Interfaces.Diagnostics;
 using System;
-using System.Net;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Kern.Networking.Diagnostics;
@@ -62,8 +61,6 @@ namespace Kern.Networking.Connection
         private readonly ReconnectBackoff _reconnectBackoff = new();
 
         [Inject]
-        private IClientConfigManager _clientConfigManager = null!;
-        [Inject]
         private ISceneNavigator _sceneNavigator = null!;
         [Inject]
         private ILocalizationService _loc = null!;
@@ -74,6 +71,8 @@ namespace Kern.Networking.Connection
 
         [Inject]
         private DummyConnection _dummyConnection = null!;
+        [Inject]
+        private ConnectionTransportFactory _transportFactory = null!;
 
         private bool _shouldAutoReconnect;
         private float _reconnectCountdown;
@@ -209,7 +208,7 @@ namespace Kern.Networking.Connection
             }
 
             _useOldClient = oldClient;
-            Connection = CreateConnection();
+            Connection = _transportFactory.Create();
             Connection.OnReceived += OnReceived;
             Connection.OnConnected += OnConnected;
             Connection.OnDisconnected += OnDisconnected;
@@ -217,40 +216,6 @@ namespace Kern.Networking.Connection
 
             _reconnectStatus = _loc.Get("network.connecting");
             OnReconnectStatusChanged?.Invoke(_reconnectStatus);
-        }
-
-        private IServerConnection CreateConnection()
-        {
-            // Config может быть ещё не загружен (ClientConfigManager грузит его в Start).
-            ClientConfig? config = _clientConfigManager.Config;
-            if (config == null)
-            {
-                Debug.LogWarning(
-                    "[Connection] Client config is not initialized yet; using the Bootstrap-registered DummyConnection.");
-                return _dummyConnection;
-            }
-
-            ConnectionSettings connection = config.Connection;
-            if (ConnectionTransportConfig.SelectTransport(connection.UseDummyConnection) == ConnectionTransportKind.Dummy)
-            {
-                Debug.Log(
-                    "[Connection] Transport: DummyConnection (offline stub). Set UseDummyConnection=false in client config for the real server.");
-                return _dummyConnection;
-            }
-
-            if (!ConnectionTransportConfig.TryResolveEndpoint(
-                    connection.ServerHost,
-                    connection.ServerPort,
-                    out IPAddress address,
-                    out int port))
-            {
-                throw new InvalidOperationException(
-                    $"[Connection] Invalid server endpoint '{connection.ServerHost}:{connection.ServerPort}' in client config. " +
-                    "Expected a valid host/IP and a port in [1, 65535].");
-            }
-
-            Debug.Log($"[Connection] Transport: ManagedTcpConnection {address}:{port} (fallback transport, NetCoreServer receive-loop is broken).");
-            return new ManagedTcpConnection(address, port);
         }
 
         public void Disconnect()
@@ -474,22 +439,5 @@ namespace Kern.Networking.Connection
             _inboundPackets.Enqueue(obj);
         }
 
-        private sealed class ReconnectBackoff
-        {
-            private static readonly float[] _Steps = [1f, 2f, 4f, 8f, 16f, 30f];
-
-            private int _attempt;
-            public float CurrentDelay => _Steps[Math.Min(_attempt, _Steps.Length - 1)];
-
-            public void RecordFailure()
-            {
-                _attempt++;
-            }
-
-            public void Reset()
-            {
-                _attempt = 0;
-            }
-        }
     }
 }

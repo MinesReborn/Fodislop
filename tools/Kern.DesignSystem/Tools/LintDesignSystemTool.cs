@@ -277,7 +277,7 @@ internal static class LintDesignSystemTool
             values[m.Groups[1].Value] = m.Groups[2].Value;
         }
 
-        string Resolve(string name)
+        string? Resolve(string name)
         {
             if (values.ContainsKey(name)) return values[name];
             Match m = Regex.Match(text, $@"{Regex.Escape(name)}\s*:\s*var\(\s*(--[a-z0-9-]+)\s*\)");
@@ -286,8 +286,8 @@ internal static class LintDesignSystemTool
 
         foreach (var (fgName, bgName, min, label) in ContrastPairs)
         {
-            string fg = Resolve(fgName);
-            string bg = Resolve(bgName);
+            string? fg = Resolve(fgName);
+            string? bg = Resolve(bgName);
             if (fg == null || bg == null)
             {
                 Report("контраст", $"не удалось разрешить {fgName} или {bgName}");
@@ -466,7 +466,7 @@ internal static class LintDesignSystemTool
                 foreach (Match am in alpha.Matches(text))
                 {
                     var key = (am.Groups[1].Value, am.Groups[2].Value);
-                    if (known.TryGetValue(key, out string token) && token == m.Groups[1].Value)
+                    if (known.TryGetValue(key, out string? token) && token == m.Groups[1].Value)
                     {
                         hint = $" — есть {token}";
                         break;
@@ -504,7 +504,7 @@ internal static class LintDesignSystemTool
                         {
                             string value = Normalize(m.Groups[1].Value);
                             if (allowed.Contains(value)) continue;
-                            if (steps.TryGetValue(value, out string token))
+                            if (steps.TryGetValue(value, out string? token))
                             {
                                 if (responsive.Contains(token))
                                 {
@@ -565,7 +565,9 @@ internal static class LintDesignSystemTool
 
         string gameDictPath = Path.Combine(repo, "Assets", "Resources", "Localization", "ru.json");
         if (!File.Exists(gameDictPath)) return;
-        var gameKeys = new HashSet<string>(JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(gameDictPath)).Keys);
+        var gameKeys = new HashSet<string>(
+            (JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(gameDictPath))
+             ?? new Dictionary<string, string>()).Keys);
 
         foreach (string key in keys)
         {
@@ -604,7 +606,6 @@ internal static class LintDesignSystemTool
                                  && !Path.GetFileName(f).Contains("styleguide")))
         {
             string name = Path.GetFileName(f);
-            string selector = "";
             foreach (Match m in Regex.Matches(File.ReadAllText(f), @"\.([^{]+)\{([^}]*)\}", RegexOptions.Singleline))
             {
                 string sel = m.Groups[1].Value.Trim();
@@ -634,7 +635,8 @@ internal static class LintDesignSystemTool
         foreach (string src in sources)
         {
             if (!File.Exists(src)) continue;
-            foreach (var kv in JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(src)))
+            foreach (var kv in JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(src))
+                         ?? new Dictionary<string, string>())
             {
                 if (seen.Contains(kv.Key) || kv.Value.Length < 3) continue;
                 if (kv.Value == kv.Value.ToUpperInvariant() && Regex.IsMatch(kv.Value, "[A-ZА-Я]{3}"))

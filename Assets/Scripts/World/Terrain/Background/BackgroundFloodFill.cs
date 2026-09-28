@@ -92,14 +92,6 @@ public sealed class BackgroundFloodFill
                 }
             });
 
-        // The seed scan writes only its own cell and appends to its own
-        // column list, so it parallelises cleanly. A full populate remains a
-        // fallback path; ordinary camera movement uses ComputeScrolled.
-        //
-        // Concatenating the column lists in x order reproduces the sequential
-        // frontier exactly, which matters: FBPWPropagate fills each Unloaded
-        // cell from whichever seed reaches it first, so a different frontier
-        // order would be a different background map.
         Parallel.For(
             0,
             w,
@@ -190,9 +182,6 @@ public sealed class BackgroundFloodFill
             SeedResolvedRow(dy > 0 ? row.yMin - 1 : row.yMax, row.xMin, row.width, frontier);
         }
 
-        // Волна заливает только неразрешённые клетки каймы. Раньше она
-        // перезаливала всю связную породу окна: 73% стоимости шага камеры, а
-        // внутренность при этом перещёлкивалась на ничьих ~10% клеток.
         FBPWPropagate(frontier, onlyUnresolved: true);
 
         if (column.width > 0)

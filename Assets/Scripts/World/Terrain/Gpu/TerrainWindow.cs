@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using Cysharp.Threading.Tasks;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Core.Interfaces.Diagnostics;
@@ -39,6 +40,7 @@ public sealed class TerrainWindow
     private long _buildOldestChangeTimestamp;
     private TerrainBuildCompletion<TerrainCpuBuildRequest, TerrainCpuBuildResult>? _heldCompletion;
     private float _preparationLatencySeconds = StreamingPolicy.DefaultPreparationLatencySeconds;
+    private bool _disposeStarted;
 
     public TerrainWindow()
     {
@@ -195,6 +197,30 @@ public sealed class TerrainWindow
 
     public void Dispose()
     {
+        if (_disposeStarted)
+        {
+            return;
+        }
+
+        _disposeStarted = true;
+        DisposeAfterWorkerAsync().Forget();
+    }
+
+    private async UniTask DisposeAfterWorkerAsync()
+    {
+        _requestScheduler.Cancel();
+        try
+        {
+            await _requestScheduler.CompletionTask;
+        }
+        catch (Exception)
+        {
+            // The worker result is no longer publishable during teardown. The
+            // scheduler observes it again in Dispose; teardown must still reach
+            // the main-thread resource release below.
+        }
+
+        await UniTask.SwitchToMainThread();
         _requestScheduler.Dispose();
         _publishedView.Dispose();
         _driver.Dispose();

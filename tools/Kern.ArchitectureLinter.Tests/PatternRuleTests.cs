@@ -57,6 +57,28 @@ public sealed class PatternRuleTests
         }
     }
 
+    [Test]
+    public async Task CameraMainIsForbiddenEvenInsideCameraHelper()
+    {
+        string projectRoot = CreateProjectRoot();
+        try
+        {
+            await WriteSourceAsync(
+                projectRoot,
+                "Assets/Scripts/Core/Rendering/GameplayCamera.cs",
+                "class GameplayCamera { object Resolve() { return Camera.main; } }");
+
+            IReadOnlyList<RuleViolation> violations = await EvaluateAsync(projectRoot);
+
+            Assert.That(violations, Has.Count.EqualTo(1));
+            Assert.That(violations[0].Message, Does.Contain("explicit gameplay-camera contract"));
+        }
+        finally
+        {
+            Directory.Delete(projectRoot, recursive: true);
+        }
+    }
+
     private static string CreateProjectRoot()
     {
         string root = Path.Combine(Path.GetTempPath(), "Kern.ArchitectureLinter.Tests", Guid.NewGuid().ToString("N"));

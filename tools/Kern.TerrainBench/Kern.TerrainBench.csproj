@@ -39,6 +39,7 @@
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainCellGeometry.cs" Link="Game/TerrainCellGeometry.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainPrecalculator.cs" Link="Game/TerrainPrecalculator.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainQuadBuilder.cs" Link="Game/TerrainQuadBuilder.cs" />
+    <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainBackgroundTileResolver.cs" Link="Game/TerrainBackgroundTileResolver.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainQuadSite.cs" Link="Game/TerrainQuadSite.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainQuadUvs.cs" Link="Game/TerrainQuadUvs.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainCellLayers.cs" Link="Game/TerrainCellLayers.cs" />
@@ -61,6 +62,7 @@
     <!-- Маски и искажение читают TerrainCellCache: его заменяет Game/BenchTerrainCellCache.cs. -->
     <Compile Include="../../Assets/Scripts/World/Common/TileBitmaskConverter.cs" Link="Game/TileBitmaskConverter.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainCellMaskCalculator.cs" Link="Game/TerrainCellMaskCalculator.cs" />
+    <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainCellMaskRules.cs" Link="Game/TerrainCellMaskRules.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainVertexDistortionCalculator.cs" Link="Game/TerrainVertexDistortionCalculator.cs" />
     <Compile Include="../../Assets/Scripts/World/Common/Contracts/RenderingConstants.cs" Link="Game/RenderingConstants.cs" />
     <Compile Include="../../Assets/Scripts/World/Common/MapBlockColors.cs" Link="Game/MapBlockColors.cs" />

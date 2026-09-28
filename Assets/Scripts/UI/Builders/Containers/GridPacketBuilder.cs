@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
 using UnityEngine.UIElements;
@@ -121,15 +120,15 @@ public class GridPacketBuilder : PacketUIBuilderBase<GridPacket>
 
     private static int Placement(IGUIComponentPacket packet, string key, int fallback)
     {
-        string? raw = AttachedProperties.Find(packet, key);
-        if (raw == null)
+        if (!AttachedProperties.Has(packet, key))
         {
             return fallback;
         }
 
-        if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value) ||
+        if (!AttachedProperties.TryGetInt(packet, key, out int value) ||
             value < 0)
         {
+            string raw = AttachedProperties.Find(packet, key) ?? string.Empty;
             throw new InvalidOperationException(
                 $"Invalid {key}='{raw}' on {packet.GetType().Name}.");
         }

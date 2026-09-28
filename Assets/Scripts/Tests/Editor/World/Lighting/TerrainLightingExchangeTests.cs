@@ -103,7 +103,7 @@ public sealed class TerrainLightingExchangeTests
         Assert.That(publisherSource.IndexOf(
                 "if (!hasOutput || output.WorldGeneration != _worldGeneration)",
                 System.StringComparison.Ordinal),
-            Is.LessThan(publisherSource.IndexOf("window.Driver.Materials.ValidateLightingBinding(output);", System.StringComparison.Ordinal)));
+            Is.LessThan(publisherSource.IndexOf("window.Driver.Presentation.ValidateLightingBinding(output);", System.StringComparison.Ordinal)));
         Assert.That(publisherSource.IndexOf("exchange.PublishTerrainFrame(frame);", System.StringComparison.Ordinal), Is.GreaterThanOrEqualTo(0));
         int stageChanges = lightingSource.IndexOf("StageTerrainChanges(", System.StringComparison.Ordinal);
         int coordinatorAfterStaging = lightingSource.IndexOf(
@@ -131,8 +131,7 @@ public sealed class TerrainLightingExchangeTests
         string projectRoot = FindProjectRoot();
         string terrainWindowPath = Path.Combine(
             projectRoot, "Assets", "Scripts", "World", "Terrain", "Gpu", "TerrainWindow.cs");
-        string lifecyclePath = Path.Combine(
-            projectRoot, "Assets", "Scripts", "World", "Terrain", "Gpu", "TerrainWindow.BuildLifecycle.cs");
+        string lifecyclePath = terrainWindowPath;
         string schedulingPath = Path.Combine(
             projectRoot, "Assets", "Scripts", "World", "Terrain", "Gpu", "TerrainWindowBuildRequestScheduler.cs");
         string terrainRendererPath = Path.Combine(
@@ -142,16 +141,16 @@ public sealed class TerrainLightingExchangeTests
         string scheduling = File.ReadAllText(schedulingPath);
         string renderer = File.ReadAllText(terrainRendererPath);
 
-        Assert.That(facade.Contains("public sealed class TerrainWindow : IDisposable", System.StringComparison.Ordinal), Is.True);
-        Assert.That(facade.Contains("TryPublishCompleted(services, out failure)", System.StringComparison.Ordinal), Is.True);
-        Assert.That(facade.Contains("_lifecycle.Process(", System.StringComparison.Ordinal), Is.True);
-        Assert.That(facade.Contains("_lifecycle.Commit()", System.StringComparison.Ordinal), Is.True);
+        Assert.That(facade.Contains("public sealed class TerrainWindow", System.StringComparison.Ordinal), Is.True);
+        Assert.That(facade.Contains("TryPublishCompleted(in TerrainBuildContext context, out Exception? failure)", System.StringComparison.Ordinal), Is.True);
+        Assert.That(facade.Contains("_requestScheduler.TryTakeCompleted(", System.StringComparison.Ordinal), Is.True);
+        Assert.That(facade.Contains("_requestScheduler.Schedule(", System.StringComparison.Ordinal), Is.True);
         Assert.That(facade.Contains("partial class TerrainWindow", System.StringComparison.Ordinal), Is.False);
 
         int complete = lifecycle.IndexOf("private bool Complete(", System.StringComparison.Ordinal);
         int generationGuard = lifecycle.IndexOf("request.WorldGeneration != _worldGeneration", complete, System.StringComparison.Ordinal);
         int continueBuild = lifecycle.IndexOf("_driver.TryContinueBuild(", complete, System.StringComparison.Ordinal);
-        int driverPublish = lifecycle.IndexOf("_driver.Publish(context, request, result, latencySeconds * 1000f)", complete, System.StringComparison.Ordinal);
+        int driverPublish = lifecycle.IndexOf("_driver.Publish(context, atlases, request, result, latencySeconds * 1000f)", complete, System.StringComparison.Ordinal);
         int viewPublish = lifecycle.IndexOf("_publishedView.Publish(request)", complete, System.StringComparison.Ordinal);
         int journalPublish = lifecycle.IndexOf("_changes.AddPublishedChangedRegion(", complete, System.StringComparison.Ordinal);
         Assert.That(complete, Is.GreaterThanOrEqualTo(0));
@@ -162,7 +161,7 @@ public sealed class TerrainLightingExchangeTests
         Assert.That(journalPublish, Is.GreaterThan(viewPublish));
         Assert.That(lifecycle.Contains("_requestScheduler.BuildStartElapsedSeconds", System.StringComparison.Ordinal), Is.True);
         Assert.That(lifecycle.Contains("_changes.RestoreOldestChangeTimestamp(_buildOldestChangeTimestamp)", System.StringComparison.Ordinal), Is.True);
-        Assert.That(lifecycle.Contains("BuildState = TerrainBuildState.WaitingForData;\n                return false;", System.StringComparison.Ordinal), Is.True);
+        Assert.That(lifecycle.Contains("BuildState = TerrainBuildState.WaitingForData;", System.StringComparison.Ordinal), Is.True);
 
         int schedulingIntent = lifecycle.IndexOf("new TerrainBuildSchedulingIntent(", System.StringComparison.Ordinal);
         int scheduleCall = lifecycle.IndexOf("_requestScheduler.Schedule(", schedulingIntent, System.StringComparison.Ordinal);

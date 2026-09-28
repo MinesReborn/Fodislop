@@ -8,9 +8,7 @@ namespace Kern.World;
 public sealed class SurfaceGeometryBuilder
 {
     public const float TransitHeight = 2f;
-    public const float PerspectiveHeight = 2f;
     public const float TransitTileWidth = 30f;
-    public const float PerspectiveTileWidth = 30f;
     public const float HorizonWidth = 200f;
     public const float HorizonHeight = 100f;
     public const float BoundaryOverscan = 2f;
@@ -133,20 +131,6 @@ public sealed class SurfaceGeometryBuilder
             tileWidth: TransitTileWidth,
             uvProjectionHeight: TransitHeight,
             uvOffset: 0f,
-            emissionMask: 1f);
-    }
-
-    public void UpdatePerspectiveMesh(Mesh mesh, Rect coverageRect, int worldHeight)
-    {
-        float bottom = worldHeight + TransitHeight;
-        UpdateBandMesh(
-            mesh,
-            coverageRect,
-            bottom,
-            top: bottom + PerspectiveHeight,
-            tileWidth: PerspectiveTileWidth,
-            uvProjectionHeight: PerspectiveHeight,
-            uvOffset: 15f,
             emissionMask: 1f);
     }
 

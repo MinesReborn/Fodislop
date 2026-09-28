@@ -25,6 +25,7 @@ namespace Kern.UI
         [Inject]
         private MapCellSampler _cellSampler = null!;
         private readonly MapInteractionController _interaction = new();
+        private WorldMapPointerBinder _pointerBinder = null!;
         private readonly MapViewportRenderer _viewportRenderer = new();
         private readonly WorldMapMipScan _mipScan = new();
         private WorldMapLayerBinding _layerBinding = null!;
@@ -49,11 +50,8 @@ namespace Kern.UI
         private bool _renderRequested;
         private long _lastRenderedStorageRevision = -1;
         private bool _followPlayer = true;
-        private int _boundWorldWidth;
-        private int _boundWorldHeight;
-        private string _boundWorldCodeName = string.Empty;
+        private readonly WorldMapBounds _bounds = new();
         private bool _initialized;
-        private bool _pointerCallbacksBound;
 
         [Inject]
         private ILocalizationService _localization = null!;
@@ -69,6 +67,7 @@ namespace Kern.UI
             }
 
             _mipScan.SetRequestRenderCallback(RequestRender);
+            _pointerBinder = new WorldMapPointerBinder(_panel);
             _layerBinding = new WorldMapLayerBinding(_cellSampler, _mipScan, RequestRender);
             _playerTracker = new MapPlayerTracker(_localPlayer);
             _playerTracker.OnPlayerSpawned += () => _renderRequested = true;
@@ -143,7 +142,7 @@ namespace Kern.UI
                 return;
             }
 
-            BindPointerCallbacks();
+            _pointerBinder.Bind(OnMapPointerDown, OnMapPointerMove, OnMapPointerUp);
 
             _playerTracker ??= new MapPlayerTracker(_localPlayer);
             _playerTracker.EnsureBinding();
@@ -217,20 +216,6 @@ namespace Kern.UI
                 ClampViewCenter);
         }
 
-        private void BindPointerCallbacks()
-        {
-            Image? image = _panel.Image;
-            if (image == null || _pointerCallbacksBound)
-            {
-                return;
-            }
-
-            image.RegisterCallback<PointerDownEvent>(OnMapPointerDown);
-            image.RegisterCallback<PointerMoveEvent>(OnMapPointerMove);
-            image.RegisterCallback<PointerUpEvent>(OnMapPointerUp);
-            _pointerCallbacksBound = true;
-        }
-
         private void OnMapPointerDown(PointerDownEvent evt) =>
             _interaction.HandlePointerDown(evt, _panel.Image);
 
@@ -253,12 +238,14 @@ namespace Kern.UI
 
         private void ResetWorldViewState(IWorldDataStorage storage)
         {
-            BindWorldDimensions(_manager.WorldWidth, _manager.WorldHeight);
+            _bounds.Bind(_manager, _manager.WorldWidth, _manager.WorldHeight);
             _viewportRenderer.InitColorTable(_manager);
             _layerBinding.BindCellLayer(storage.CellLayer);
             _layerBinding.BindMipScan(_viewportRenderer.CellColorTable);
             _cellsPerPixel = 1f;
-            _maxCellsPerPixel = ComputeMaxZoomOut(_boundWorldWidth, _boundWorldHeight);
+            _maxCellsPerPixel = _bounds.ComputeMaxZoomOut(
+                _textureController.TexWidth,
+                _textureController.TexHeight);
             _cellsPerPixel = Mathf.Min(_cellsPerPixel, _maxCellsPerPixel);
 
             ILocalPlayer? player = _playerTracker.CurrentPlayer;
@@ -269,8 +256,8 @@ namespace Kern.UI
             }
             else
             {
-                _viewCenterX = _boundWorldWidth * 0.5f;
-                _viewCenterY = _boundWorldHeight * 0.5f;
+                _viewCenterX = _bounds.Width * 0.5f;
+                _viewCenterY = _bounds.Height * 0.5f;
             }
 
             _lastRenderedStorageRevision = -1;
@@ -284,13 +271,7 @@ namespace Kern.UI
                 _documentRoot.UnregisterCallback<AttachToPanelEvent>(OnDocumentAttached);
             }
 
-            if (_pointerCallbacksBound && _panel.Image != null)
-            {
-                _panel.Image.UnregisterCallback<PointerDownEvent>(OnMapPointerDown);
-                _panel.Image.UnregisterCallback<PointerMoveEvent>(OnMapPointerMove);
-                _panel.Image.UnregisterCallback<PointerUpEvent>(OnMapPointerUp);
-                _pointerCallbacksBound = false;
-            }
+            _pointerBinder?.Dispose(OnMapPointerDown, OnMapPointerMove, OnMapPointerUp);
 
             _panel.Dispose();
             _textureController.DestroyTexture();
@@ -342,28 +323,6 @@ namespace Kern.UI
                 _localization);
         }
 
-        private void BindWorldDimensions(int worldWidth, int worldHeight)
-        {
-            if (worldWidth <= 0 || worldHeight <= 0)
-            {
-                throw new InvalidOperationException(
-                    $"[WorldMapRenderer] Invalid world dimensions: {worldWidth}x{worldHeight}.");
-            }
-
-            _boundWorldWidth = worldWidth;
-            _boundWorldHeight = worldHeight;
-            MapManager manager = _manager ??
-                throw new InvalidOperationException(
-                    "[WorldMapRenderer] MapManager is required before binding world dimensions.");
-            if (string.IsNullOrWhiteSpace(manager.WorldCodeName))
-            {
-                throw new InvalidOperationException(
-                    "[WorldMapRenderer] World code name is required before binding map state.");
-            }
-
-            _boundWorldCodeName = manager.WorldCodeName;
-        }
-
         protected void Update()
         {
             if (!enabled || !_initialized)
@@ -387,7 +346,9 @@ namespace Kern.UI
             if (_panel.Image != null && _textureController.CheckPanelResize(_panel.Image))
             {
                 InitTexture();
-                _maxCellsPerPixel = ComputeMaxZoomOut(_boundWorldWidth, _boundWorldHeight);
+                _maxCellsPerPixel = _bounds.ComputeMaxZoomOut(
+                    _textureController.TexWidth,
+                    _textureController.TexHeight);
                 _cellsPerPixel = Mathf.Min(_cellsPerPixel, _maxCellsPerPixel);
                 ClampViewCenter();
                 _renderRequested = true;
@@ -471,10 +432,7 @@ namespace Kern.UI
                 _lastRenderedStorageRevision = -1;
             }
 
-            if (_manager != null &&
-                (_manager.WorldWidth != _boundWorldWidth ||
-                 _manager.WorldHeight != _boundWorldHeight ||
-                 !string.Equals(_manager.WorldCodeName, _boundWorldCodeName, StringComparison.Ordinal)))
+            if (_manager != null && !_bounds.Matches(_manager))
             {
                 ResetWorldViewState(storage);
             }
@@ -523,9 +481,6 @@ namespace Kern.UI
             _lastRenderTime = Time.time;
         }
 
-        private float ComputeMaxZoomOut(int worldW, int worldH) =>
-            MapViewportBounds.ComputeMaxZoomOut(_textureController.TexWidth, _textureController.TexHeight, worldW, worldH);
-
         private void ClampViewCenter()
         {
             if (_manager == null)
@@ -533,14 +488,12 @@ namespace Kern.UI
                 return;
             }
 
-            MapViewportBounds.ClampViewCenter(
+            _bounds.Clamp(
                 ref _viewCenterX,
                 ref _viewCenterY,
                 _cellsPerPixel,
                 _textureController.TexWidth,
-                _textureController.TexHeight,
-                _boundWorldWidth,
-                _boundWorldHeight);
+                _textureController.TexHeight);
         }
     }
 }

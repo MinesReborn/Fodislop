@@ -49,6 +49,7 @@ namespace Kern.World.Lighting
         private readonly LightingRuntimeState _runtimeState = new();
         private LightingComposition? _composition;
         private LightingQualityController? _qualityController;
+        private LightingRuntimeControls? _runtimeControls;
         private LightingDiagnosticsReporter? _diagnostics;
         private readonly LightingInvalidationJournal _journal = new();
         private readonly LightingTerrainExchangeState _terrainExchangeState = new();
@@ -73,6 +74,14 @@ namespace Kern.World.Lighting
                 _dynamicLightManager,
                 () => _composition,
                 () => Composition);
+
+        private LightingRuntimeControls RuntimeControls =>
+            _runtimeControls ??= new LightingRuntimeControls(
+                _clientConfig,
+                QualityController,
+                _runtimeState,
+                _dynamicLightManager,
+                PublishTerrainRequirementsIfChanged);
 
         private LightingDiagnosticsReporter Diagnostics =>
             _diagnostics ??= new LightingDiagnosticsReporter(
@@ -328,30 +337,12 @@ namespace Kern.World.Lighting
         }
 
         public void ApplyClientConfig()
-        {
-            ApplyQualitySettings(
-                _clientConfig.Config.GraphicsPreset,
-                _clientConfig.Config.GraphicsQualitySettings);
-            PublishTerrainRequirementsIfChanged();
-            LightingRuntimeInvalidation.ResetFieldAndRadiance(_runtimeState);
-            _dynamicLightManager.IncrementGeneration();
-            _dynamicLightManager.MarkDirty();
-            Debug.Log($"[LightingEngine] Applied client config (Preset={_clientConfig.Config.GraphicsPreset})");
-        }
+            => RuntimeControls.ApplyClientConfig();
 
         public void SetDebugView(DebugView debugView)
         {
-            if (_debugView == debugView)
-            {
-                return;
-            }
-
-            _debugView = debugView;
-            _runtimeState.HasRenderedLightState = false;
-            _runtimeState.HasStaticRadianceState = false;
-            _runtimeState.HasDynamicRadianceState = false;
+            RuntimeControls.SetDebugView(ref _debugView, debugView);
             _runtimeState.CompositeDirty = true;
-            Debug.Log($"[LightingEngine] SetDebugView: {debugView}");
         }
 
         // Пересчитать свет теми же полями. Нужно, когда изменилась величина,
@@ -365,19 +356,11 @@ namespace Kern.World.Lighting
         // текстуры. На каждый кадр перетаскивания ползунка это недопустимо,
         // да и размерность при смене экспозиции та же самая.
         public void InvalidateRadiance()
-        {
-            LightingRuntimeInvalidation.ResetRadiance(_runtimeState);
-        }
+            => RuntimeControls.InvalidateRadiance();
 
 
         public void ResetRuntimeLightingPreferences()
-        {
-            ApplyQualitySettings(
-                _clientConfig.Config.GraphicsPreset,
-                _clientConfig.Config.GraphicsQualitySettings);
-            PublishTerrainRequirementsIfChanged();
-            LightingRuntimeInvalidation.ResetFieldAndRadiance(_runtimeState);
-        }
+            => RuntimeControls.ResetRuntimeLightingPreferences();
 
         private void PublishTerrainRequirementsIfChanged()
         {

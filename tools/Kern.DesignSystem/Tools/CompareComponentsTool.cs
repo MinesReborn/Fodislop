@@ -132,7 +132,7 @@ internal static class CompareComponentsTool
         string resolved = Regex.Replace(value, @"var\(\s*(--[\w-]+)\s*\)", m =>
         {
             string name = m.Groups[1].Value;
-            return palette.TryGetValue(name, out string v) ? v : m.Value;
+            return palette.TryGetValue(name, out string? v) ? v : m.Value;
         });
         return resolved.Replace("rgb(", "rgba(").Trim().ToLowerInvariant();
     }

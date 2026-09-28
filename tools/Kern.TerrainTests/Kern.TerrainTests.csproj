@@ -50,6 +50,7 @@
     <Compile Include="$(Game)/World/Terrain/Mesh/TerrainCellGeometry.cs" Link="Game/TerrainCellGeometry.cs" />
     <Compile Include="$(Game)/World/Terrain/Mesh/TerrainLightingData.cs" Link="Game/TerrainLightingData.cs" />
     <Compile Include="$(Game)/World/Terrain/Mesh/TerrainCellMaskCalculator.cs" Link="Game/TerrainCellMaskCalculator.cs" />
+    <Compile Include="$(Game)/World/Terrain/Mesh/TerrainCellMaskRules.cs" Link="Game/TerrainCellMaskRules.cs" />
     <Compile Include="$(Game)/World/Terrain/Mesh/TerrainVertexDistortionCalculator.cs" Link="Game/TerrainVertexDistortionCalculator.cs" />
     <Compile Include="$(Game)/World/Terrain/Mesh/TerrainPrecalculator.cs" Link="Game/TerrainPrecalculator.cs" />
     <Compile Include="$(Game)/World/Common/Contracts/RenderingConstants.cs" Link="Game/RenderingConstants.cs" />

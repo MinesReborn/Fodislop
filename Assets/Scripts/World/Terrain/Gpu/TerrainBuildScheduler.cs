@@ -44,6 +44,8 @@ public sealed class TerrainBuildScheduler<TRequest, TResult> : IDisposable
 
     public TRequest? ActiveRequest => _active?.Request;
 
+    public Task CompletionTask => _active?.Task ?? Task.CompletedTask;
+
     public void Start(TRequest request)
     {
         if (request == null)

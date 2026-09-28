@@ -1,7 +1,6 @@
 #nullable enable
 
 using System;
-using System.Globalization;
 using Kern.Core.Interfaces;
 using Kern.UI.Builders;
 using MinesServer.Networking.Server.Packets.GUI.Components;
@@ -105,16 +104,16 @@ public class PacketUIBuilder
 
     private static bool TryCanvasValue(IGUIComponentPacket packet, string key, out float value)
     {
-        value = 0f;
-        string? raw = AttachedProperties.Find(packet, key);
-        if (raw == null)
+        if (!AttachedProperties.Has(packet, key))
         {
+            value = 0f;
             return false;
         }
 
-        if (!float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
+        if (!AttachedProperties.TryGetFloat(packet, key, out value) ||
             float.IsNaN(value) || float.IsInfinity(value))
         {
+            string raw = AttachedProperties.Find(packet, key) ?? string.Empty;
             throw new InvalidOperationException(
                 $"Invalid {key}='{raw}' on {packet.GetType().Name}.");
         }

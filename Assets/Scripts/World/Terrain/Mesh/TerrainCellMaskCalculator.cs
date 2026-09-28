@@ -399,25 +399,16 @@ public sealed class TerrainCellMaskCalculator
             reliefMask |= 8;
         }
 
-        if (bottomSame && leftSame && !SameReliefSurface(data, family, bottomLeft))
-        {
-            reliefCornerMask |= 1 << 0;
-        }
-
-        if (bottomSame && rightSame && !SameReliefSurface(data, family, bottomRight))
-        {
-            reliefCornerMask |= 1 << 1;
-        }
-
-        if (topSame && rightSame && !SameReliefSurface(data, family, topRight))
-        {
-            reliefCornerMask |= 1 << 2;
-        }
-
-        if (topSame && leftSame && !SameReliefSurface(data, family, topLeft))
-        {
-            reliefCornerMask |= 1 << 3;
-        }
+        reliefCornerMask = CalculateReliefCornerMask(
+            data,
+            top,
+            left,
+            bottom,
+            right,
+            topLeft,
+            topRight,
+            bottomLeft,
+            bottomRight);
     }
 
     // Вогнутый угол силуэта: обе кардинальные клетки принадлежат поверхности,
@@ -476,47 +467,14 @@ public sealed class TerrainCellMaskCalculator
         CachedCellData bottomLeft,
         CachedCellData bottomRight)
     {
-        byte solidMask = 0;
-        if ((top.Properties & CellConfigProperties.DropsShadow) != 0)
-        {
-            solidMask |= 1;
-        }
-
-        if ((left.Properties & CellConfigProperties.DropsShadow) != 0)
-        {
-            solidMask |= 2;
-        }
-
-        if ((bottom.Properties & CellConfigProperties.DropsShadow) != 0)
-        {
-            solidMask |= 4;
-        }
-
-        if ((right.Properties & CellConfigProperties.DropsShadow) != 0)
-        {
-            solidMask |= 8;
-        }
-
-        if ((topLeft.Properties & CellConfigProperties.DropsShadow) != 0)
-        {
-            solidMask |= 16;
-        }
-
-        if ((topRight.Properties & CellConfigProperties.DropsShadow) != 0)
-        {
-            solidMask |= 32;
-        }
-
-        if ((bottomLeft.Properties & CellConfigProperties.DropsShadow) != 0)
-        {
-            solidMask |= 64;
-        }
-
-        if ((bottomRight.Properties & CellConfigProperties.DropsShadow) != 0)
-        {
-            solidMask |= 128;
-        }
-
-        return solidMask;
+        return TerrainCellMaskRules.CalculateSolidBoundaryMask(
+            top,
+            left,
+            bottom,
+            right,
+            topLeft,
+            topRight,
+            bottomLeft,
+            bottomRight);
     }
 }

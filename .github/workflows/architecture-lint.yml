@@ -1,0 +1,83 @@
+name: Architecture lint
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - codex/**
+
+permissions:
+  contents: read
+
+jobs:
+  architecture-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore linter
+        run: dotnet restore tools/Kern.ArchitectureLinter.Tests/Kern.ArchitectureLinter.Tests.csproj
+
+      - name: Test linter
+        run: dotnet test tools/Kern.ArchitectureLinter.Tests/Kern.ArchitectureLinter.Tests.csproj --no-restore --configuration Release
+
+      - name: Run full architecture scan
+        run: >-
+          dotnet run
+          --project tools/Kern.ArchitectureLinter/Kern.ArchitectureLinter.csproj
+          --no-restore
+          --configuration Release
+          --
+          --project-root .
+          --fail-on Warning
+
+  standalone-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - tools/Kern.DisplayTests/Kern.DisplayTests.csproj
+          - tools/Kern.TerrainTests/Kern.TerrainTests.csproj
+          - tools/Kern.WorldLightingExchangeTests/Kern.WorldLightingExchangeTests.csproj
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Run standalone tests
+        run: dotnet test "${{ matrix.project }}" --configuration Release
+
+  tools-build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - tools/Kern.DesignSystem/Kern.DesignSystem.csproj
+          - tools/Kern.TerrainCrystalTests/GenerateCrystalFixtures/GenerateCrystalFixtures.csproj
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build tool with warnings as errors
+        run: dotnet build "${{ matrix.project }}" --configuration Release --warnaserror

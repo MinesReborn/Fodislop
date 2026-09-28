@@ -52,7 +52,7 @@ internal static class ExtractI18nTool
 
         var gameDictPath = Path.Combine(repo, "Assets", "Resources", "Localization", "ru.json");
         var gameDict = File.Exists(gameDictPath)
-            ? JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(gameDictPath))
+            ? JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(gameDictPath)) ?? new Dictionary<string, string>()
             : new Dictionary<string, string>();
         var byNorm = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var kv in gameDict)
@@ -125,7 +125,7 @@ internal static class ExtractI18nTool
             }
 
             string norm = Normalize(node.Text);
-            if (byNorm.TryGetValue(norm, out string existingKey))
+            if (byNorm.TryGetValue(norm, out string? existingKey))
             {
                 node.Key = existingKey;
                 node.Origin = "игра";
@@ -176,8 +176,8 @@ internal static class ExtractI18nTool
     private static string Namespace(NodeInfo node)
     {
         string id = node.ParentId;
-        if (ModalNs.TryGetValue(id, out string modalNs)) return modalNs;
-        if (ScreenNs.TryGetValue(id, out string screenNs)) return screenNs;
+        if (ModalNs.TryGetValue(id, out string? modalNs)) return modalNs;
+        if (ScreenNs.TryGetValue(id, out string? screenNs)) return screenNs;
         if (node.ParentClass.Contains("modal-overlay") && !string.IsNullOrEmpty(id))
             return ModalNs.GetValueOrDefault(id, "modal");
         return "common";
@@ -239,7 +239,7 @@ internal static class ExtractI18nTool
 
         foreach (var node in skipped)
         {
-            IElement el = node.Element;
+            IElement? el = node.Element;
             if (el == null || seen.Contains(el.GetAttribute("data-i18n") ?? el.Id ?? "")) continue;
             seen.Add(el.GetAttribute("data-i18n") ?? el.Id ?? "");
             el.SetAttribute("translate", "no");
@@ -249,7 +249,7 @@ internal static class ExtractI18nTool
         foreach (var node in minted.Concat(skipped))
         {
             if (node.Keyed) continue;
-            IElement el = node.Element;
+            IElement? el = node.Element;
             if (el == null) continue;
             string id = el.GetAttribute("data-i18n") ?? el.Id ?? Guid.NewGuid().ToString();
             if (seen.Contains(id))
@@ -265,7 +265,7 @@ internal static class ExtractI18nTool
         string indexPath = Path.Combine(root, "index.html");
         File.WriteAllText(indexPath, doc.DocumentElement.OuterHtml);
 
-        var mirror = minted.ToDictionary(n => n.Key, n => n.Text);
+        var mirror = minted.ToDictionary(n => n.Key!, n => n.Text);
         File.WriteAllText(Path.Combine(outDir, "mirror.ru.json"),
             JsonSerializer.Serialize(mirror, new JsonSerializerOptions { WriteIndented = true }));
 
@@ -291,7 +291,7 @@ internal static class ExtractI18nTool
         public string ParentId { get; set; } = "";
         public string ParentClass { get; set; } = "";
         public IElement? Element { get; set; }
-        public string? Key { get; set; }
+        public string Key { get; set; } = "";
         public string Origin { get; set; } = "";
         public int Line { get; set; }
     }

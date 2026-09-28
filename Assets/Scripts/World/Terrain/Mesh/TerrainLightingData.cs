@@ -48,8 +48,6 @@ internal readonly record struct TerrainLightingData(
 
     public int ReliefCode => ((int)MathF.Round(PackedContour) >> ReliefCodeShift) & 0x1F;
 
-    public byte ReliefCornerMask => (byte)(((int)MathF.Round(PackedContour) >> 10) & 0x0F);
-
     public bool IsEmissive => (Flags & TerrainLightingFlags.Emissive) != 0;
 
     public bool IsPhysicalMass => (Flags & TerrainLightingFlags.PhysicalMass) != 0;
