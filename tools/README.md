@@ -24,6 +24,14 @@ dotnet run --project tools/Kern.UIAssets/Kern.UIAssets.csproj -- sidebar-icons
 
 ## Terrain и lighting
 
+Принципы оптимизации, проверяемые сценарии и спецификация единого harness:
+[`TERRAIN_LIGHTING_OPTIMIZATION.html`](../docs/architecture/TERRAIN_LIGHTING_OPTIMIZATION.html).
+Первый слой реализован в `Kern.FrameHarness`: анализ captures и сравнение
+before/after, опциональный JSON-экспорт существующего PlayMode benchmark.
+Полный replay и production/GPU-проверки пока не реализованы.
+
+- [`Kern.FrameHarness`](Kern.FrameHarness/README.md) — проверка captures, счётчиковые
+  правила OPT-1 для S0/S1/S4, отдельные CPU/GPU-бюджеты, PASS/FAIL/INCOMPLETE.
 - `Kern.TerrainBench` — бенчмарки terrain.
 - `Kern.TerrainTests` — standalone terrain tests.
 - `Kern.LightingTests` — lighting harness и fixtures.

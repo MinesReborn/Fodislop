@@ -4,13 +4,14 @@ using System;
 using System.Collections.Generic;
 using Unity.Collections;
 using UnityEngine;
+using Kern.Core;
 
 namespace Kern.World.Terrain;
 
 /// <summary>
 /// Owns the GPU textures and fixed-size staging textures for one terrain cell-data channel.
 /// </summary>
-internal sealed class TerrainCellDataChannel<T>(TextureFormat format, string name)
+internal sealed class TerrainCellDataChannel<T>(TextureFormat format, string name, TerrainTextureUploadCounters uploadCounters)
     where T : struct
 {
     private const int StagingRows = 128;
@@ -37,6 +38,7 @@ internal sealed class TerrainCellDataChannel<T>(TextureFormat format, string nam
         NativeArray<T> pixels = Target!.GetPixelData<T>(0);
         pixels.CopyFrom(Data);
         Target.Apply(false, false);
+        uploadCounters.RecordApply(Target.width, Target.height, BytesPerPixel(format), Time.frameCount);
     }
 
     public void EnsureStagingSlot(int slot)
@@ -73,6 +75,7 @@ internal sealed class TerrainCellDataChannel<T>(TextureFormat format, string nam
 
         long applyStart = System.Diagnostics.Stopwatch.GetTimestamp();
         staging.Apply(false, false);
+        uploadCounters.RecordApply(staging.width, staging.height, BytesPerPixel(format), Time.frameCount);
         ApplyTicks += System.Diagnostics.Stopwatch.GetTimestamp() - applyStart;
     }
 
@@ -86,6 +89,7 @@ internal sealed class TerrainCellDataChannel<T>(TextureFormat format, string nam
             Graphics.CopyTexture(
                 staging, 0, 0, piece.StageX, piece.StageY, target.width, target.height,
                 Target!, 0, 0, target.x, target.y);
+            uploadCounters.RecordCopyTexture(target.width, target.height, BytesPerPixel(format), Time.frameCount);
         }
     }
 
@@ -110,6 +114,14 @@ internal sealed class TerrainCellDataChannel<T>(TextureFormat format, string nam
             wrapMode = TextureWrapMode.Clamp,
             hideFlags = HideFlags.DontSave,
         };
+
+    private static int BytesPerPixel(TextureFormat textureFormat) => textureFormat switch
+    {
+        TextureFormat.RGBA32 => 4,
+        TextureFormat.RGBAHalf => 8,
+        TextureFormat.RGBAFloat => 16,
+        _ => throw new ArgumentOutOfRangeException(nameof(textureFormat), textureFormat, "Terrain texture format has no payload-size contract."),
+    };
 
     private static void DestroyTexture(ref Texture2D? texture)
     {

@@ -20,18 +20,23 @@ float2 GetWorldLightUv(float2 worldPos)
 
 float4 SampleWorldLightColorAtUv(float2 lightUV)
 {
+    float4 lightColor;
     if (_WorldLightDebugView >= 1 && _WorldLightDebugView <= 3)
     {
         int2 debugPixel = clamp(
             int2(lightUV * _WorldLightTextureSize.xy),
             int2(0, 0),
             int2(_WorldLightTextureSize.xy) - 1);
-        return _WorldLightTexture.Load(int3(debugPixel.x, debugPixel.y, 0));
+        lightColor = _WorldLightTexture.Load(int3(debugPixel.x, debugPixel.y, 0));
+    }
+    else
+    {
+        lightColor = _WorldLightTexture.Sample(
+            sampler_WorldLightTexture,
+            lightUV);
     }
 
-    return _WorldLightTexture.Sample(
-        sampler_WorldLightTexture,
-        lightUV);
+    return lightColor;
 }
 
 float4 SampleWorldLightColor(float2 worldPos)

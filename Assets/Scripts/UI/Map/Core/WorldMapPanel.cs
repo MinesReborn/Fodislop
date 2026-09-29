@@ -10,8 +10,11 @@ namespace Kern.UI;
 /// <summary>Owns WorldMap's UI Toolkit bindings and presentation-only panel state.</summary>
 internal sealed class WorldMapPanel : IDisposable
 {
+    private const float PositionWriteEpsilon = 0.5f;
+
     private UIDocument? _document;
     private VisualElement? _overlay;
+    private VisualElement? _playerMarker;
     private Image? _image;
     private Button? _closeButton;
     private Button? _followButton;
@@ -20,6 +23,8 @@ internal sealed class WorldMapPanel : IDisposable
     private Action _closeRequested = null!;
     private Action _followPlayer = null!;
     private bool _bindingFailureReported;
+    private float _lastMarkerLeft = float.MinValue;
+    private float _lastMarkerTop = float.MinValue;
 
     public VisualElement? Overlay => _overlay;
 
@@ -72,6 +77,7 @@ internal sealed class WorldMapPanel : IDisposable
         }
 
         _overlay = overlay;
+        _playerMarker = overlay.Q<VisualElement>("WorldMapPlayerMarker");
         _image = image;
         _closeButton = closeButton;
         _followButton = followButton;
@@ -131,6 +137,63 @@ internal sealed class WorldMapPanel : IDisposable
             : total > 0
                 ? localization.Get("hud.map_preparing_progress", (int)(100f * progress / total))
                 : localization.Get("hud.map_preparing");
+    }
+
+    public void UpdatePlayerMarker(
+        float playerX,
+        float playerY,
+        float viewCenterX,
+        float viewCenterY,
+        float cellsPerPixel,
+        int texWidth,
+        int texHeight,
+        bool blinkVisible)
+    {
+        if (_playerMarker == null)
+        {
+            return;
+        }
+
+        if (!blinkVisible)
+        {
+            UIState.SetHidden(_playerMarker, true);
+            return;
+        }
+
+        float halfW = texWidth * 0.5f * cellsPerPixel;
+        float halfH = texHeight * 0.5f * cellsPerPixel;
+        float leftX = viewCenterX - halfW;
+        float rightX = viewCenterX + halfW;
+        float topServerY = viewCenterY - halfH;
+        float bottomServerY = viewCenterY + halfH;
+
+        if (playerX + 1f < leftX || playerX > rightX ||
+            playerY + 1f < topServerY || playerY > bottomServerY)
+        {
+            UIState.SetHidden(_playerMarker, true);
+            return;
+        }
+
+        UIState.SetHidden(_playerMarker, false);
+
+        float screenX = (playerX + 0.5f - viewCenterX) / cellsPerPixel + texWidth * 0.5f;
+        float screenY = (playerY + 0.5f - viewCenterY) / cellsPerPixel + texHeight * 0.5f;
+
+        if (Mathf.Abs(screenX - _lastMarkerLeft) > PositionWriteEpsilon ||
+            Mathf.Abs(screenY - _lastMarkerTop) > PositionWriteEpsilon)
+        {
+            _playerMarker.transform.position = new Vector3(screenX, screenY, 0f);
+            _lastMarkerLeft = screenX;
+            _lastMarkerTop = screenY;
+        }
+    }
+
+    public void HidePlayerMarker()
+    {
+        if (_playerMarker != null)
+        {
+            UIState.SetHidden(_playerMarker, true);
+        }
     }
 
     public void Dispose()

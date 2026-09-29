@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Kern.UI;
 
-internal sealed class WorldMapMipCache
+internal sealed class WorldMapMipCache : IDisposable
 {
     private const long MaxCacheBytes = 64L * 1024L * 1024L;
 
@@ -16,6 +16,9 @@ internal sealed class WorldMapMipCache
     private readonly Color32[] _cellColorTable;
     private readonly Color32 _unloadedColor;
     private readonly int _chunkSize;
+
+    private Texture2D? _mipTexture;
+    private bool _mipTextureDirty = true;
 
     private int _currentChunkIndex = -1;
     private long _redSum;
@@ -255,18 +258,53 @@ internal sealed class WorldMapMipCache
         return CreateAverage(red, green, blue, alpha, count);
     }
 
+    public Texture2D GetOrCreateMipTexture()
+    {
+        if (_mipTexture == null)
+        {
+            _mipTexture = RuntimeTextureFactory.CreateRGBA32NoMip(
+                WidthChunks,
+                HeightChunks,
+                "WorldMapMipTexture",
+                RuntimeTextureColorSpace.Srgb,
+                FilterMode.Bilinear,
+                TextureWrapMode.Clamp);
+            _mipTextureDirty = true;
+        }
+
+        if (_mipTextureDirty)
+        {
+            _mipTexture.SetPixelData(_levels[0], 0);
+            _mipTexture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
+            _mipTextureDirty = false;
+        }
+
+        return _mipTexture;
+    }
+
+    public void Dispose()
+    {
+        if (_mipTexture != null)
+        {
+            UnityEngine.Object.Destroy(_mipTexture);
+            _mipTexture = null;
+        }
+    }
+
     private void SetLevelPixel(int level, int x, int y, Color32 color)
     {
         _levels[level][y * _levelWidths[level] + x] = color;
+        if (level == 0)
+        {
+            _mipTextureDirty = true;
+        }
     }
 
     private Color32 SampleLevel(int level, float worldX, float worldY)
     {
         float levelScale = _chunkSize * Mathf.Pow(2f, level);
-        float pixelX = (worldX / levelScale) - 0.5f;
-        float pixelY = (worldY / levelScale) - 0.5f;
-        int nearestX = Mathf.RoundToInt(pixelX);
-        int nearestY = Mathf.RoundToInt(pixelY);
+        int nearestX = Mathf.FloorToInt(worldX / levelScale);
+        int nearestY = Mathf.FloorToInt(worldY / levelScale);
         return ReadClamped(level, nearestX, nearestY);
     }
 

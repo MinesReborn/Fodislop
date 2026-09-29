@@ -3,6 +3,7 @@
         <ui:Label name="MinimapCoordinates" class="hud-minimap-coords" />
         <ui:VisualElement class="hud-minimap-container">
             <ui:Image name="MinimapImage" class="hud-minimap-image" />
+            <ui:VisualElement name="MinimapPlayerMarker" class="hud-minimap-player-marker" picking-mode="Ignore" />
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

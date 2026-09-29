@@ -167,6 +167,11 @@ namespace Kern.Audio.Backend
             _backend?.SetBusVolume(type, volume);
         }
 
+        public void StopBus(AudioBusType type, float fadeOut = 0f)
+        {
+            _backend?.StopBus(type, fadeOut > 0f);
+        }
+
         private void TryApplySavedBusVolumes()
         {
             if (_configApplied)

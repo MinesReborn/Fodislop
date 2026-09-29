@@ -101,6 +101,7 @@ public static class ProjectRuntimeContracts
     {
         public const string PrismaticFlowMap = "PrismaticFlowMap";
         public const string WorldLightingCompute = "Shaders/Lighting/WorldLighting";
+        public const string WorldMapCompute = "Shaders/UI/WorldMap";
         public const string PostProcessCompute = "Shaders/PostProcessing/PostProcess";
         public const string ScopesCompute = "Shaders/PostProcessing/Scopes";
 

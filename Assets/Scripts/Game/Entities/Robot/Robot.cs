@@ -124,6 +124,12 @@ namespace Kern.Game
             set => _movement.TargetPosition = value;
         }
 
+        public void SnapTo(Vector3 position, float? angle = null)
+        {
+            transform.position = position;
+            _movement.SnapTo(position, angle ?? transform.eulerAngles.z);
+        }
+
         public float MoveSpeed
         {
             get => _moveSpeed;

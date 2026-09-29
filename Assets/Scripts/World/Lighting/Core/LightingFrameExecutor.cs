@@ -58,6 +58,9 @@ internal sealed class LightingFrameExecutor
         _dynamicLightManager.EnsureCapacity(capacity);
     }
 
+    public bool CanReuseStaticAtlas(Vector2Int regionDelta) =>
+        _staticSolver.CanReuseStaticAtlas(regionDelta);
+
     public int UploadDynamicLights(
         CommandBuffer commandBuffer,
         Vector4 worldRect,

@@ -110,7 +110,188 @@ public static class Suites
         QuadCatalogs(runner, width, height);
         Spatial(runner, width, height);
         SessionPipeline(runner, width, height);
+        GlobalFrame(runner, width, height);
         TimingDiagnostics(runner);
+    }
+
+    // ── Глобальный кадр production terrain pipeline ──────────────────────
+    //
+    // Один sample — это не отдельная функция, а последовательность кадра:
+    // residency probe → сдвиг TerrainCellCache → маски → distortion →
+    // flood-fill → упаковка полос → копирование dirty-областей. Каждый десятый
+    // кадр дополнительно содержит patch после копания. Это CPU-часть полного
+    // terrain transport path; Unity GPU dispatch/upload здесь недоступны.
+    private static void GlobalFrame(BenchRunner runner, int width, int height)
+    {
+        runner.Suite = "global";
+        if (!runner.Wants("глобальный кадр"))
+        {
+            return;
+        }
+
+        const int Steps = 600;
+        const int MinX = 500;
+        const int MinY = 700;
+        const int WorldSize = 4096;
+        const int ChunkSize = 16;
+        const int HeightChunks = WorldSize / ChunkSize;
+        const int WorldWidth = 10016;
+        const int WorldHeight = 40000;
+
+        var layer = new ResidencyLayer(ChunkSize, HeightChunks);
+        for (int chunkX = 0; chunkX < WorldSize / ChunkSize; chunkX++)
+        {
+            for (int chunkY = 0; chunkY < HeightChunks; chunkY++)
+            {
+                layer.AddResident(chunkY + (chunkX * HeightChunks));
+            }
+        }
+
+        var storage = new ResidencyStorage(layer);
+        var map = new ResidencyMap(WorldSize, WorldSize);
+        var residencyCache = new TerrainResidencyProbe.FrameCache();
+        var cache = new TerrainCellCache();
+        cache.FillCaves(width, height, MinX, MinY, Seed);
+        var masks = new TerrainCellMaskCalculator();
+        masks.EnsureCapacity(width, height);
+        masks.PrecalculateFull(cache, width, height);
+        var distortion = new TerrainVertexDistortionCalculator();
+        distortion.EnsureCapacity(width, height);
+        distortion.PrecalculateFull(cache, width, height, WorldWidth, WorldHeight);
+        var provider = new CaveProvider(width, height, Seed) { OriginX = MinX, OriginY = MinY };
+        var fill = new BackgroundFloodFill();
+        fill.Allocate(width, height);
+        fill.ComputeFull(provider);
+        TerrainVertex[] vertices = SyntheticVertices(width, height);
+        var texels = new TexelArrays(width, height);
+        var dirty = new TerrainDirtyRegion();
+        dirty.Reset(width, height);
+        dirty.Clear();
+        var random = new Random(Seed);
+        Vector2Int position = new(MinX, MinY);
+        var samples = new List<double>(Steps);
+        var cpuSamples = new List<double>(Steps);
+        double[] stageTotals = new double[7];
+        long uploadedTexels = 0;
+        int fullRebuilds = 0;
+        int patches = 0;
+        int residencyReads = 0;
+        int residencyTouches = 0;
+        using Process currentProcess = Process.GetCurrentProcess();
+
+        for (int step = 0; step < Steps; step++)
+        {
+            int dx;
+            int dy;
+            do
+            {
+                dx = random.Next(-1, 2);
+                dy = random.Next(-1, 2);
+            }
+            while (dx == 0 && dy == 0);
+
+            position += new Vector2Int(dx, dy);
+            provider.OriginX = position.x;
+            provider.OriginY = position.y;
+            residencyCache.BeginFrame(storage, map, width, height);
+            long start = Stopwatch.GetTimestamp();
+            long cpuStart = currentProcess.TotalProcessorTime.Ticks;
+
+            bool resident = TerrainResidencyProbe.IsWindowResident(
+                storage,
+                map,
+                connectionService: null,
+                position,
+                width,
+                height,
+                residencyCache);
+            if (!resident)
+            {
+                throw new InvalidOperationException("Global benchmark fixture lost terrain residency.");
+            }
+
+            long stage = Lap(stageTotals, 0, start);
+            cache.ScrollTo(position.x, position.y, Seed);
+            stage = Lap(stageTotals, 1, stage);
+            masks.PrecalculateIncremental(cache, width, height, dx, dy);
+            stage = Lap(stageTotals, 2, stage);
+            distortion.PrecalculateIncremental(cache, width, height, dx, dy, WorldWidth, WorldHeight);
+            stage = Lap(stageTotals, 3, stage);
+            fill.ComputeScrolled(dx, dy, provider);
+            stage = Lap(stageTotals, 4, stage);
+
+            TerrainScrollBands bands = TerrainScrollBands.Resolve(width, height, dx, dy, neighbourMargin: 1);
+            PackRect(texels, vertices, dirty, bands.ColumnBand.xMin, bands.ColumnBand.xMax,
+                bands.ColumnBand.yMin, bands.ColumnBand.yMax, position.x, position.y, width, height);
+            PackRect(texels, vertices, dirty, bands.RowBand.xMin, bands.RowBand.xMax,
+                bands.RowBand.yMin, bands.RowBand.yMax, position.x, position.y, width, height);
+            stage = Lap(stageTotals, 5, stage);
+            uploadedTexels += CopyDirty(texels, dirty, width, height);
+            stage = Lap(stageTotals, 6, stage);
+
+            if (step % 10 == 9)
+            {
+                int cx = 10 + random.Next(width - 20);
+                int cy = 10 + random.Next(height - 20);
+                cache.Dig(cx, cy, 3, 3);
+                masks.PrecalculateRegion(cache, width, height, cx - 1, cy - 1, 5, 5);
+                distortion.PrecalculateRegion(cache, width, height, cx - 1, cy - 1, 5, 5, WorldWidth, WorldHeight);
+                fill.UpdateLocalRegion(cx - 1, cy - 1, 5, 5, provider);
+                PackRect(texels, vertices, dirty, cx - 1, cx + 4, cy - 1, cy + 4,
+                    position.x, position.y, width, height);
+                uploadedTexels += CopyDirty(texels, dirty, width, height);
+                patches++;
+            }
+
+            bool fullRebuild = false;
+            if (step == Steps / 2)
+            {
+                // В середине сессии измеряем редкий cold path в том же общем
+                // сценарии, чтобы p95/max не скрывали цену полного rebuild.
+                cache.FillCaves(width, height, position.x, position.y, Seed);
+                masks.PrecalculateFull(cache, width, height);
+                distortion.PrecalculateFull(cache, width, height, WorldWidth, WorldHeight);
+                fill.ComputeFull(provider);
+                PackRect(texels, vertices, dirty, 0, width, 0, height,
+                    position.x, position.y, width, height);
+                uploadedTexels += CopyDirty(texels, dirty, width, height);
+                fullRebuilds++;
+                fullRebuild = true;
+            }
+
+            long now = Stopwatch.GetTimestamp();
+            samples.Add(Stopwatch.GetElapsedTime(start, now).TotalMilliseconds);
+            cpuSamples.Add((currentProcess.TotalProcessorTime.Ticks - cpuStart) /
+                (double)TimeSpan.TicksPerMillisecond);
+            GC.KeepAlive(fullRebuild);
+            residencyReads += residencyCache.ChunkReads;
+            residencyTouches += residencyCache.LruTouches;
+        }
+
+        long allocated = 0;
+        runner.Record("глобальный кадр: terrain transport", samples, allocated, 0, cpuSamples);
+        runner.Metric("глобальный кадр: средняя стадия residency probe",
+            stageTotals[0] / Steps, "мс");
+        runner.Metric("глобальный кадр: средняя стадия cache",
+            stageTotals[1] / Steps, "мс");
+        runner.Metric("глобальный кадр: средняя стадия masks",
+            stageTotals[2] / Steps, "мс");
+        runner.Metric("глобальный кадр: средняя стадия distortion",
+            stageTotals[3] / Steps, "мс");
+        runner.Metric("глобальный кадр: средняя стадия flood-fill",
+            stageTotals[4] / Steps, "мс");
+        runner.Metric("глобальный кадр: средняя стадия pack/upload",
+            (stageTotals[5] + stageTotals[6]) / Steps, "мс");
+        runner.Metric("глобальный кадр: полных rebuild",
+            fullRebuilds, "кадров");
+        runner.Metric("глобальный кадр: patch после копания",
+            patches, "кадров");
+        runner.Metric("глобальный кадр: ReadChunk",
+            (double)residencyReads / Steps, "вызовов/кадр");
+        runner.Metric("глобальный кадр: LRU touch",
+            (double)residencyTouches / Steps, "вызовов/кадр");
+        runner.Metric("глобальный кадр: выгружено текселей",
+            (double)uploadedTexels / Steps, "текселей/кадр");
     }
 
     private static void ResidencyProbe(BenchRunner runner, int windowWidth, int windowHeight)

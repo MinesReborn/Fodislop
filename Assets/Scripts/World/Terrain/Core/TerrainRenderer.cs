@@ -202,6 +202,7 @@ public class TerrainRenderer : MonoBehaviour, Kern.Core.Interfaces.WorldLighting
             _presentation.Dispose();
             _diagnostics?.Dispose();
             _diagnostics = null;
+            (_telemetry as ITerrainTextureUploadTelemetryReceiver)?.BindTerrainTextureUploadTelemetry(null);
             _window.Dispose();
         }
 
@@ -215,6 +216,8 @@ public class TerrainRenderer : MonoBehaviour, Kern.Core.Interfaces.WorldLighting
             using var terrainLateUpdateMarker = _TerrainLateUpdateMarker.Auto();
             using var allocationScope = AllocationLedger.Measure(_AllocationEntry);
             long stallStart = TerrainStallReport.Begin();
+            (_telemetry as ITerrainTextureUploadTelemetryReceiver)?.BindTerrainTextureUploadTelemetry(_window.UploadTelemetry);
+
             _telemetry.ResetFrameTimers();
             if (_mapManager == null || _storage == null || !_storage.IsReady)
             {
@@ -450,11 +453,8 @@ public class TerrainRenderer : MonoBehaviour, Kern.Core.Interfaces.WorldLighting
             _window.Driver.Presentation.SetTerrainShader(_terrainShader);
             _window.Driver.Presentation.InitializeShader();
             _window.Attach(
-                transform,
-                _sceneObjects,
-                _sortingLayerName,
-                _doorOverlaySortingOrder,
-                _cellSize);
+                transform, _sceneObjects, _sortingLayerName,
+                _doorOverlaySortingOrder, _cellSize);
 
             if (_meshRenderer == null)
             {
@@ -478,14 +478,12 @@ public class TerrainRenderer : MonoBehaviour, Kern.Core.Interfaces.WorldLighting
                 return false;
             }
 
-            Diagnostics.Mark(1 << 3,
-                $"[TerrainDiag] camera ok: {_cameraFrame.Camera!.name} at {_cameraFrame.Camera.transform.position}");
+            Diagnostics.Mark(1 << 3, $"[TerrainDiag] camera ok: {_cameraFrame.Camera!.name} at {_cameraFrame.Camera.transform.position}");
             return true;
         }
         private void BeginTerrainWorldGeneration() => WorldChanges.BeginWorldGeneration();
 
-        private void PublishTerrainFrameDemand(TerrainFramePlan framePlan, bool holdingView)
-        {
+        private void PublishTerrainFrameDemand(TerrainFramePlan framePlan, bool holdingView) =>
             LightingFramePublisher.PublishFrameDemand(
                 framePlan,
                 holdingView,
@@ -495,6 +493,5 @@ public class TerrainRenderer : MonoBehaviour, Kern.Core.Interfaces.WorldLighting
                 _meshRenderer,
                 CommittedContentRevision,
                 this);
-        }
     }
 }

@@ -8,7 +8,7 @@ namespace Kern.UI;
 
 internal sealed class MinimapUiController(
     UIDocument document,
-    Texture2D texture,
+    Texture texture,
     Action openMap) : IDisposable
 {
     private MinimapView? _view;

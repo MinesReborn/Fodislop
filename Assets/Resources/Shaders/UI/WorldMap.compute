@@ -1,0 +1,107 @@
+#pragma kernel CSWorldMapRender
+
+RWTexture2D<float4> _Result;
+
+Texture2D<float4> _MipTexture;
+SamplerState sampler_LinearClamp;
+
+StructuredBuffer<float4> _Palette;
+StructuredBuffer<uint> _ChunkData;
+StructuredBuffer<int> _ChunkLookup;
+
+cbuffer MapParams
+{
+    float2 _StartWorld;
+    float2 _TexSize;
+    float _CellsPerPixel;
+    int _WorldWidth;
+    int _WorldHeight;
+    int _UseMip;
+    int _GridMinChunkX;
+    int _GridMinChunkY;
+    int _GridWidth;
+    int _GridHeight;
+};
+
+float3 SRGBToLinear(float3 col)
+{
+    return col <= 0.04045 ? col / 12.92 : pow((col + 0.055) / 1.055, 2.4);
+}
+
+float4 GetUnknownCellColor(int serverX, int serverY, float cellsPerPixel)
+{
+    bool stripe = ((serverX + serverY) & 3) < 2;
+    float3 stripeCol = stripe ? float3(48.0 / 255.0, 43.0 / 255.0, 66.0 / 255.0)
+                              : float3(28.0 / 255.0, 27.0 / 255.0, 39.0 / 255.0);
+    float3 solidCol = float3(38.0 / 255.0, 35.0 / 255.0, 53.0 / 255.0);
+    stripeCol = SRGBToLinear(stripeCol);
+    solidCol = SRGBToLinear(solidCol);
+    float t = saturate(cellsPerPixel - 1.0f);
+    return float4(lerp(stripeCol, solidCol, t), 1.0);
+}
+
+[numthreads(8, 8, 1)]
+void CSWorldMapRender(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)_TexSize.x || id.y >= (uint)_TexSize.y)
+    {
+        return;
+    }
+
+    float worldX = _StartWorld.x + (float)id.x * _CellsPerPixel;
+    float worldY = _StartWorld.y - (float)id.y * _CellsPerPixel;
+
+    int serverX = (int)floor(worldX);
+    int serverY = (int)floor(worldY);
+
+    if (serverX < 0 || serverX >= _WorldWidth || serverY < 0 || serverY >= _WorldHeight)
+    {
+        _Result[id.xy] = float4(0.0, 0.0, 0.0, 1.0);
+        return;
+    }
+
+    if (_UseMip == 1)
+    {
+        float2 uv = float2(
+            (worldX + 0.5f) / (float)_WorldWidth,
+            (worldY + 0.5f) / (float)_WorldHeight);
+        _Result[id.xy] = _MipTexture.SampleLevel(sampler_LinearClamp, uv, 0);
+        return;
+    }
+
+    uint uServerX = (uint)serverX;
+    uint uServerY = (uint)serverY;
+    int chunkX = (int)(uServerX >> 4);
+    int chunkY = (int)(uServerY >> 4);
+    int gridX = chunkX - _GridMinChunkX;
+    int gridY = chunkY - _GridMinChunkY;
+
+    int chunkSlot = -1;
+    if (gridX >= 0 && gridX < _GridWidth && gridY >= 0 && gridY < _GridHeight)
+    {
+        chunkSlot = _ChunkLookup[gridY * _GridWidth + gridX];
+    }
+
+    if (chunkSlot < 0)
+    {
+        _Result[id.xy] = GetUnknownCellColor(serverX, serverY, _CellsPerPixel);
+        return;
+    }
+
+    uint localX = uServerX & 15u;
+    uint localY = uServerY & 15u;
+    uint cellIndex = localY + (localX << 4);
+
+    uint uintIndex = (uint)chunkSlot * 64u + (cellIndex >> 2);
+    uint packedWord = _ChunkData[uintIndex];
+    uint shift = (cellIndex & 3u) << 3;
+    uint cellType = (packedWord >> shift) & 0xFFu;
+
+    if (cellType == 0)
+    {
+        _Result[id.xy] = GetUnknownCellColor(serverX, serverY, _CellsPerPixel);
+        return;
+    }
+
+    _Result[id.xy] = _Palette[cellType];
+}

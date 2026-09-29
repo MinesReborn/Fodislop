@@ -9,13 +9,45 @@ using UnityEngine;
 
 namespace Kern.UI;
 
-internal sealed class MapViewportRenderer
+internal sealed class MapViewportRenderer : IDisposable
 {
-    private readonly Color32 _defaultColor = new(0, 0, 0, 255);
+    private const int ChunkDim = 16;
+    private const int ChunkUints = 64; // 16 * 16 bytes = 256 bytes = 64 uints
+
     private readonly Color32[] _cellColorTable = new Color32[256];
-    private Color32[]? _pixelBuffer;
+    private readonly Vector4[] _paletteArray = new Vector4[256];
+
+    private ComputeShader? _computeShader;
+    private int _kernelHandle = -1;
+
+    private ComputeBuffer? _paletteBuffer;
+    private ComputeBuffer? _chunkDataBuffer;
+    private ComputeBuffer? _chunkLookupBuffer;
+
+    private uint[]? _chunkDataArray;
+    private int[]? _chunkLookupArray;
+    private Texture2D? _dummyMipTexture;
+
+    private int _lastMinChunkX = int.MinValue;
+    private int _lastMaxChunkX = int.MinValue;
+    private int _lastMinChunkY = int.MinValue;
+    private int _lastMaxChunkY = int.MinValue;
+    private int _lastSamplerRevision = -1;
+    private int _lastLoadedChunkCount;
 
     public Color32[] CellColorTable => _cellColorTable;
+
+    public MapViewportRenderer()
+    {
+        for (int i = 0; i < 256; i++)
+        {
+            CellType type = (CellType)i;
+            Color32 c = MapBlockColors.GetColor32(type);
+            _cellColorTable[i] = c;
+            Color cLinear = ((Color)c).linear;
+            _paletteArray[i] = new Vector4(cLinear.r, cLinear.g, cLinear.b, c.a / 255f);
+        }
+    }
 
     public void InitColorTable(MapManager manager)
     {
@@ -26,10 +58,19 @@ internal sealed class MapViewportRenderer
 
         Color32[] colors = MapProjection.BuildCellColorTable(manager);
         Array.Copy(colors, _cellColorTable, colors.Length);
+
+        for (int i = 0; i < 256; i++)
+        {
+            Color c = (Color)_cellColorTable[i];
+            Color cLinear = c.linear;
+            _paletteArray[i] = new Vector4(cLinear.r, cLinear.g, cLinear.b, c.a);
+        }
+
+        _paletteBuffer?.SetData(_paletteArray);
     }
 
-    public void Render(
-        Texture2D? mapTexture,
+    public bool Render(
+        RenderTexture? mapTexture,
         MapManager manager,
         MapCellSampler cellSampler,
         WorldMapMipCache? mipCache,
@@ -37,12 +78,45 @@ internal sealed class MapViewportRenderer
         int texHeight,
         float cellsPerPixel,
         float viewCenterX,
-        float viewCenterY,
-        ILocalPlayer? player,
-        bool playerBlinkState)
+        float viewCenterY)
     {
-        int worldW = manager.WorldWidth;
-        int worldH = manager.WorldHeight;
+        if (manager == null)
+        {
+            return false;
+        }
+
+        return Render(
+            mapTexture,
+            manager.WorldWidth,
+            manager.WorldHeight,
+            cellSampler,
+            mipCache,
+            texWidth,
+            texHeight,
+            cellsPerPixel,
+            viewCenterX,
+            viewCenterY);
+    }
+
+    public bool Render(
+        RenderTexture? mapTexture,
+        int worldWidth,
+        int worldHeight,
+        MapCellSampler cellSampler,
+        WorldMapMipCache? mipCache,
+        int texWidth,
+        int texHeight,
+        float cellsPerPixel,
+        float viewCenterX,
+        float viewCenterY)
+    {
+        if (mapTexture == null)
+        {
+            return false;
+        }
+
+        int worldW = worldWidth;
+        int worldH = worldHeight;
         float cp = cellsPerPixel;
         float cx = viewCenterX;
         float cy = viewCenterY;
@@ -59,111 +133,224 @@ internal sealed class MapViewportRenderer
             throw new ArgumentOutOfRangeException(nameof(cellsPerPixel), "Map scale must be finite and positive.");
         }
 
-        Color32 defaultCol = _defaultColor;
-        if (_pixelBuffer == null || _pixelBuffer.Length != texW * texH)
-        {
-            _pixelBuffer = new Color32[texW * texH];
-        }
+        EnsureComputeResources();
 
         float startWorldX = cx + (0.5f - texW * 0.5f) * cp;
+        float startWorldY = cy + (texH * 0.5f - 0.5f) * cp;
+        bool useMip = mipCache != null && cp >= mipCache.ChunkSize;
 
-        // Sample from screen pixels instead of iterating over every world
-        // cell. When zoomed out, walking the whole world paints the same pixel many times.
-        for (int py = 0; py < texH; py++)
+        int minChunkX = 0;
+        int minChunkY = 0;
+        int gridWidth = 1;
+        int gridHeight = 1;
+        int chunkSlot = 0;
+
+        if (!useMip)
         {
-            int rowStart = py * texW;
+            float minWorldX = startWorldX;
+            float maxWorldX = startWorldX + (texW - 1) * cp;
+            float minWorldY = cy + (0.5f - texH * 0.5f) * cp;
+            float maxWorldY = cy + (texH * 0.5f - 0.5f) * cp;
 
-            // Texture2D row zero is the bottom of the displayed map image.
-            // Server coordinates use a top-left origin, so the bottom texture
-            // row must sample the largest server Y in the viewport.
-            float screenRowFromTop = texH - 0.5f - py;
-            float worldY = cy + (screenRowFromTop - texH * 0.5f) * cp;
-            int serverY = Mathf.FloorToInt(worldY);
+            int maxChunkCoordX = Mathf.Max(0, (worldW + ChunkDim - 1) / ChunkDim - 1);
+            int maxChunkCoordY = Mathf.Max(0, (worldH + ChunkDim - 1) / ChunkDim - 1);
 
-            if (serverY < 0 || serverY >= worldH)
+            minChunkX = Mathf.Clamp(Mathf.FloorToInt(minWorldX / ChunkDim), 0, maxChunkCoordX);
+            int maxChunkX = Mathf.Clamp(Mathf.FloorToInt(maxWorldX / ChunkDim), 0, maxChunkCoordX);
+            minChunkY = Mathf.Clamp(Mathf.FloorToInt(minWorldY / ChunkDim), 0, maxChunkCoordY);
+            int maxChunkY = Mathf.Clamp(Mathf.FloorToInt(maxWorldY / ChunkDim), 0, maxChunkCoordY);
+
+            gridWidth = Mathf.Max(1, maxChunkX - minChunkX + 1);
+            gridHeight = Mathf.Max(1, maxChunkY - minChunkY + 1);
+            int gridArea = gridWidth * gridHeight;
+
+            int heightChunks = cellSampler.HeightChunks;
+            EnsureBuffers(gridArea, 4096);
+
+            bool gridUnchanged = minChunkX == _lastMinChunkX &&
+                                 maxChunkX == _lastMaxChunkX &&
+                                 minChunkY == _lastMinChunkY &&
+                                 maxChunkY == _lastMaxChunkY &&
+                                 cellSampler.Revision == _lastSamplerRevision &&
+                                 _chunkLookupBuffer != null &&
+                                 _chunkLookupBuffer.count >= gridArea;
+
+            if (gridUnchanged)
             {
-                Array.Fill(_pixelBuffer, defaultCol, rowStart, texW);
-                continue;
+                chunkSlot = _lastLoadedChunkCount;
             }
-
-            float worldX = startWorldX;
-            for (int px = 0; px < texW; px++, worldX += cp)
+            else
             {
-                int serverX = Mathf.FloorToInt(worldX);
-                Color32 color;
+                _lastMinChunkX = minChunkX;
+                _lastMaxChunkX = maxChunkX;
+                _lastMinChunkY = minChunkY;
+                _lastMaxChunkY = maxChunkY;
+                _lastSamplerRevision = cellSampler.Revision;
 
-                if (serverX < 0 || serverX >= worldW)
+                if (gridArea <= 4096)
                 {
-                    color = defaultCol;
-                }
-                else if (mipCache != null && cp >= mipCache.ChunkSize)
-                {
-                    color = mipCache.Sample(worldX, worldY, cp);
+                    for (int gy = 0; gy < gridHeight; gy++)
+                    {
+                        int chunkY = minChunkY + gy;
+                        int rowOffset = gy * gridWidth;
+                        for (int gx = 0; gx < gridWidth; gx++)
+                        {
+                            int chunkX = minChunkX + gx;
+                            if (cellSampler.TryGetChunk(chunkX, chunkY, out CellType[]? chunk) && chunk != null && chunkSlot < 4096)
+                            {
+                                _chunkLookupArray![rowOffset + gx] = chunkSlot;
+                                PackChunk(chunk, _chunkDataArray!, chunkSlot);
+                                chunkSlot++;
+                            }
+                            else
+                            {
+                                _chunkLookupArray![rowOffset + gx] = -1;
+                            }
+                        }
+                    }
                 }
                 else
                 {
-                    color = MapProjection.SampleCellColor(
-                        cellSampler,
-                        _cellColorTable,
-                        serverX,
-                        serverY,
-                        worldW,
-                        worldH,
-                        defaultCol,
-                        out _);
-                }
+                    Array.Fill(_chunkLookupArray!, -1, 0, gridArea);
 
-                _pixelBuffer[rowStart + px] = color;
-            }
-        }
-
-        if (player != null && playerBlinkState)
-        {
-            Vector2Int playerPos = player.Position;
-
-            float halfW = texW * 0.5f * cp;
-            float halfH = texH * 0.5f * cp;
-            float leftX = cx - halfW;
-            float rightX = cx + halfW;
-            float topServerY = cy - halfH;
-            float bottomServerY = cy + halfH;
-
-            if (playerPos.x + 1f >= leftX && playerPos.x <= rightX &&
-                playerPos.y + 1f >= topServerY && playerPos.y <= bottomServerY)
-            {
-                Vector2 playerPixel = MapProjection.ServerCellToTexturePixel(
-                    playerPos.x,
-                    playerPos.y,
-                    cx,
-                    cy,
-                    cp,
-                    texW,
-                    texH);
-                float pixelX = playerPixel.x;
-                float pixelY = playerPixel.y;
-                float markerSize = Mathf.Max(1f, 1f / cp);
-
-                int pxStart = Mathf.Clamp(Mathf.RoundToInt(pixelX), 0, texW - 1);
-                int pxEnd = Mathf.Clamp(Mathf.RoundToInt(pixelX + markerSize), 0, texW - 1);
-                int pyStart = Mathf.Clamp(Mathf.RoundToInt(pixelY), 0, texH - 1);
-                int pyEnd = Mathf.Clamp(Mathf.RoundToInt(pixelY + markerSize), 0, texH - 1);
-
-                Color32 playerColor = new Color32(255, 0, 0, 255);
-                for (int py = pyStart; py <= pyEnd; py++)
-                {
-                    int rowStart = py * texW;
-                    for (int px = pxStart; px <= pxEnd; px++)
+                    if (cellSampler.Layer != null && heightChunks > 0)
                     {
-                        _pixelBuffer[rowStart + px] = playerColor;
+                        foreach (int chunkIndex in cellSampler.Layer.GetLoadedChunkIndices())
+                        {
+                            int chunkX = chunkIndex / heightChunks;
+                            int chunkY = chunkIndex % heightChunks;
+
+                            if (chunkX >= minChunkX && chunkX <= maxChunkX &&
+                                chunkY >= minChunkY && chunkY <= maxChunkY)
+                            {
+                                int gx = chunkX - minChunkX;
+                                int gy = chunkY - minChunkY;
+                                if (cellSampler.TryGetChunk(chunkX, chunkY, out CellType[]? chunk) && chunk != null && chunkSlot < 4096)
+                                {
+                                    _chunkLookupArray![gy * gridWidth + gx] = chunkSlot;
+                                    PackChunk(chunk, _chunkDataArray!, chunkSlot);
+                                    chunkSlot++;
+                                }
+                            }
+                        }
                     }
                 }
+
+                _lastLoadedChunkCount = chunkSlot;
+                _chunkLookupBuffer!.SetData(_chunkLookupArray, 0, 0, gridArea);
+                if (chunkSlot > 0)
+                {
+                    _chunkDataBuffer!.SetData(_chunkDataArray, 0, 0, chunkSlot * ChunkUints);
+                }
             }
         }
-
-        if (mapTexture != null)
+        else
         {
-            mapTexture.SetPixelData(_pixelBuffer, 0);
-            mapTexture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
+            EnsureBuffers(1, 1);
+        }
+
+        Texture mipTextureToBind = useMip ? mipCache!.GetOrCreateMipTexture() : GetDummyMipTexture();
+
+        _computeShader!.SetVector("_StartWorld", new Vector4(startWorldX, startWorldY, 0f, 0f));
+        _computeShader.SetVector("_TexSize", new Vector4(texW, texH, 0f, 0f));
+        _computeShader.SetFloat("_CellsPerPixel", cp);
+        _computeShader.SetInt("_WorldWidth", worldW);
+        _computeShader.SetInt("_WorldHeight", worldH);
+        _computeShader.SetInt("_UseMip", useMip ? 1 : 0);
+        _computeShader.SetInt("_GridMinChunkX", minChunkX);
+        _computeShader.SetInt("_GridMinChunkY", minChunkY);
+        _computeShader.SetInt("_GridWidth", gridWidth);
+        _computeShader.SetInt("_GridHeight", gridHeight);
+
+        _computeShader.SetTexture(_kernelHandle, "_Result", mapTexture);
+        _computeShader.SetTexture(_kernelHandle, "_MipTexture", mipTextureToBind);
+        _computeShader.SetBuffer(_kernelHandle, "_Palette", _paletteBuffer);
+        _computeShader.SetBuffer(_kernelHandle, "_ChunkData", _chunkDataBuffer);
+        _computeShader.SetBuffer(_kernelHandle, "_ChunkLookup", _chunkLookupBuffer);
+
+        int groupsX = Mathf.CeilToInt(texW / 8f);
+        int groupsY = Mathf.CeilToInt(texH / 8f);
+        _computeShader.Dispatch(_kernelHandle, groupsX, groupsY, 1);
+        return chunkSlot > 0 || useMip;
+    }
+
+    public void Dispose()
+    {
+        _paletteBuffer?.Release();
+        _paletteBuffer = null;
+
+        _chunkDataBuffer?.Release();
+        _chunkDataBuffer = null;
+
+        _chunkLookupBuffer?.Release();
+        _chunkLookupBuffer = null;
+
+        if (_dummyMipTexture != null)
+        {
+            UnityEngine.Object.Destroy(_dummyMipTexture);
+            _dummyMipTexture = null;
+        }
+    }
+
+    private void EnsureComputeResources()
+    {
+        if (_computeShader == null)
+        {
+            _computeShader = Resources.Load<ComputeShader>(ProjectRuntimeContracts.ResourcePaths.WorldMapCompute) ??
+                throw new InvalidOperationException($"[MapViewportRenderer] Resources/{ProjectRuntimeContracts.ResourcePaths.WorldMapCompute}.compute is missing.");
+            _kernelHandle = _computeShader.FindKernel("CSWorldMapRender");
+        }
+
+        if (_paletteBuffer == null)
+        {
+            _paletteBuffer = new ComputeBuffer(256, sizeof(float) * 4);
+            _paletteBuffer.SetData(_paletteArray);
+        }
+    }
+
+    private void EnsureBuffers(int requiredLookupSize, int requiredChunkSlots)
+    {
+        if (_chunkLookupBuffer == null || _chunkLookupBuffer.count < requiredLookupSize)
+        {
+            _chunkLookupBuffer?.Release();
+            _chunkLookupBuffer = new ComputeBuffer(requiredLookupSize, sizeof(int));
+            _chunkLookupArray = new int[requiredLookupSize];
+        }
+
+        int requiredChunkUints = requiredChunkSlots * ChunkUints;
+        if (_chunkDataBuffer == null || _chunkDataBuffer.count < requiredChunkUints)
+        {
+            _chunkDataBuffer?.Release();
+            _chunkDataBuffer = new ComputeBuffer(requiredChunkUints, sizeof(uint));
+            _chunkDataArray = new uint[requiredChunkUints];
+        }
+    }
+
+    private Texture2D GetDummyMipTexture()
+    {
+        if (_dummyMipTexture == null)
+        {
+            _dummyMipTexture = RuntimeTextureFactory.CreateRGBA32NoMip(1, 1, "WorldMapDummyMipTexture");
+            _dummyMipTexture.filterMode = FilterMode.Point;
+            _dummyMipTexture.wrapMode = TextureWrapMode.Clamp;
+            _dummyMipTexture.SetPixel(0, 0, Color.black);
+            _dummyMipTexture.Apply(false, false);
+        }
+
+        return _dummyMipTexture;
+    }
+
+    private static void PackChunk(CellType[] chunk, uint[] dest, int chunkSlot)
+    {
+        int baseOffset = chunkSlot * ChunkUints;
+        for (int i = 0; i < ChunkUints; i++)
+        {
+            int cellIdx = i * 4;
+            dest[baseOffset + i] =
+                (uint)(byte)chunk[cellIdx] |
+                ((uint)(byte)chunk[cellIdx + 1] << 8) |
+                ((uint)(byte)chunk[cellIdx + 2] << 16) |
+                ((uint)(byte)chunk[cellIdx + 3] << 24);
         }
     }
 }

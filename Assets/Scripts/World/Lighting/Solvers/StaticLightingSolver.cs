@@ -36,6 +36,9 @@ internal sealed class StaticLightingSolver
         _scrollRecorder = new CascadeScrollRecorder(resources, telemetry);
     }
 
+    public bool CanReuseStaticAtlas(Vector2Int regionDelta) =>
+        _scrollRecorder.CanResolveScrollDeltas(regionDelta);
+
     public void RecordTrace(
         CommandBuffer commandBuffer,
         RenderTexture emissionField,

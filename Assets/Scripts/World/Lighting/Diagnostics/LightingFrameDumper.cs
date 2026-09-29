@@ -99,6 +99,7 @@ public static class LightingFrameDumper
         public float terrainFloodFillTimeMs;
         public float terrainGpuUploadTimeMs;
         public float terrainAtlasUploadTimeMs;
+        public TerrainTextureUploadDump? terrainTextureUpload;
         public int streamingPlanKind;
         public int streamingWindowOriginX;
         public int streamingWindowOriginY;
@@ -106,6 +107,27 @@ public static class LightingFrameDumper
         public int streamingWindowHeight;
         public int streamingDeltaX;
         public int streamingDeltaY;
+    }
+
+    [Serializable]
+    public sealed class TerrainTextureUploadDump
+    {
+        public bool available;
+        public long generation;
+        public long? applyCalls;
+        public long? applyPayloadBytes;
+        public long? copyTextureCalls;
+        public long? copyTexturePayloadBytes;
+        public bool hasSourceFrame;
+        public int sourceFrameId;
+        public int observationFrameId;
+        public bool frameDeltaValid;
+        public long? applyCallsFrameDelta;
+        public long? applyPayloadBytesFrameDelta;
+        public long? copyTextureCallsFrameDelta;
+        public long? copyTexturePayloadBytesFrameDelta;
+        public int? frameDeltaStartObservationFrameId;
+        public int? frameDeltaEndObservationFrameId;
     }
 
     public static string DumpCurrentFrame(
@@ -218,6 +240,7 @@ public static class LightingFrameDumper
             terrainFloodFillTimeMs = telemetry.TerrainFloodFillTimeMs,
             terrainGpuUploadTimeMs = telemetry.TerrainGpuUploadTimeMs,
             terrainAtlasUploadTimeMs = telemetry.TerrainAtlasUploadTimeMs,
+            terrainTextureUpload = CreateTerrainTextureUploadDump(telemetry),
             streamingPlanKind = telemetry.StreamingPlanKind,
             streamingWindowOriginX = telemetry.StreamingWindowOriginX,
             streamingWindowOriginY = telemetry.StreamingWindowOriginY,
@@ -248,6 +271,40 @@ public static class LightingFrameDumper
 
         DiagnosticReport.Announce("Дамп кадра света", dir);
         return dir;
+    }
+
+    private static TerrainTextureUploadDump? CreateTerrainTextureUploadDump(IFrameTelemetry telemetry)
+    {
+        if (telemetry is not FrameTelemetry frameTelemetry ||
+            frameTelemetry.TerrainTextureUploadSnapshot is not { } snapshot)
+        {
+            return null;
+        }
+
+        var dump = new TerrainTextureUploadDump
+        {
+            available = snapshot.IsAvailable,
+            generation = snapshot.Generation,
+            applyCalls = snapshot.IsAvailable ? snapshot.ApplyCalls : null,
+            applyPayloadBytes = snapshot.IsAvailable ? snapshot.ApplyPayloadBytes : null,
+            copyTextureCalls = snapshot.IsAvailable ? snapshot.CopyTextureCalls : null,
+            copyTexturePayloadBytes = snapshot.IsAvailable ? snapshot.CopyTexturePayloadBytes : null,
+            hasSourceFrame = snapshot.HasSourceFrame,
+            sourceFrameId = snapshot.SourceFrameId,
+            observationFrameId = snapshot.ObservationFrameId,
+        };
+        if (frameTelemetry.TerrainTextureUploadFrameDelta is { } delta)
+        {
+            dump.frameDeltaValid = true;
+            dump.applyCallsFrameDelta = delta.ApplyCalls;
+            dump.applyPayloadBytesFrameDelta = delta.ApplyPayloadBytes;
+            dump.copyTextureCallsFrameDelta = delta.CopyTextureCalls;
+            dump.copyTexturePayloadBytesFrameDelta = delta.CopyTexturePayloadBytes;
+            dump.frameDeltaStartObservationFrameId = delta.StartObservationFrameId;
+            dump.frameDeltaEndObservationFrameId = delta.EndObservationFrameId;
+        }
+
+        return dump;
     }
 
     private static long EstimateCascadeDispatchThreads(LightingResources resources)

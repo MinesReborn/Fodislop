@@ -33,6 +33,8 @@ public interface ILocalPlayer
 
     void UpdateServerPosition(Vector2Int position);
 
+    void ResetServerPosition();
+
     void ConfirmDigAction(ushort x, ushort y);
 
     void ResetDirection();

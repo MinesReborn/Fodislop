@@ -46,6 +46,7 @@ internal sealed class WorldMapMipScan : IDisposable
     {
         _scanCancellation?.Cancel();
         _scanCancellation = null;
+        _cache?.Dispose();
         _cellLayer = cellLayer;
         int widthChunks = cellLayer?.WidthChunks ?? 0;
         int heightChunks = cellLayer?.HeightChunks ?? 0;
@@ -127,6 +128,8 @@ internal sealed class WorldMapMipScan : IDisposable
         _scanCancellation?.Cancel();
         _scanCancellation?.Dispose();
         _scanCancellation = null;
+        _cache?.Dispose();
+        _cache = null;
     }
 
     private async UniTask PrepareMipCacheAsync(CancellationTokenSource scanCancellation)

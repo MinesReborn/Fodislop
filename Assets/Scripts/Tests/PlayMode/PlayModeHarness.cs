@@ -61,6 +61,12 @@ internal static class PlayModeHarness
             connection.Disconnect();
         }
 
+        if (bootstrap?.Container != null &&
+            bootstrap.Container.TryResolve(out Kern.Core.Interfaces.IAudioSystem audioSystem))
+        {
+            audioSystem.StopBus(Kern.Audio.Core.AudioBusType.Music);
+        }
+
         yield return DestroyPersistentBootstrapIfPresent();
 
         // Последнюю загруженную сцену Unity не выгружает.

@@ -49,6 +49,9 @@ public sealed class TerrainWindow
 
     public TerrainBuildDriver Driver => _driver;
 
+    public ITerrainTextureUploadTelemetry UploadTelemetry =>
+        _driver.Pipeline.CellBuilder.Textures.UploadTelemetry;
+
     public TerrainDirtyTracker Dirty => _changes.Dirty;
 
     public HashSet<CellType> PendingTextureCellTypes => _changes.PendingTextureCellTypes;

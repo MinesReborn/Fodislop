@@ -122,6 +122,33 @@ internal sealed class CascadeScrollRecorder
         return scrollDeltas;
     }
 
+    public bool CanResolveScrollDeltas(Vector2Int regionDelta)
+    {
+        try
+        {
+            for (int cascadeIndex = 0; cascadeIndex < _resources.Cascades.Count; cascadeIndex++)
+            {
+                CascadeLayout cascade = _resources.Cascades[cascadeIndex];
+                LightingComputeBinder.ResolveCascadeScrollDelta(
+                    regionDelta.x,
+                    _resources.FieldWidth,
+                    _resources.CellGridWidth,
+                    cascade.ProbeSpacing);
+                LightingComputeBinder.ResolveCascadeScrollDelta(
+                    regionDelta.y,
+                    _resources.FieldHeight,
+                    _resources.CellGridHeight,
+                    cascade.ProbeSpacing);
+            }
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
     public void RecordCascadeMoveTier(
         CommandBuffer commandBuffer,
         ComputeShader compute,

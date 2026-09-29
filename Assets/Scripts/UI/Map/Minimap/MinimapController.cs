@@ -26,7 +26,7 @@ namespace Kern.UI
         [Inject]
         private ILocalPlayerState _localPlayer = null!;
         private MinimapUiController? _ui;
-        private Texture2D? _minimapTexture;
+        private RenderTexture? _minimapTexture;
 
         private ILocalPlayer? _player;
         [Inject]
@@ -60,20 +60,14 @@ namespace Kern.UI
 
             _textureRenderer = new MinimapTextureRenderer(_uiSize);
 
-            _minimapTexture = RuntimeTextureFactory.CreateRGBA32NoMip(
-                _uiSize,
-                _uiSize,
-                "MinimapTexture",
-                RuntimeTextureColorSpace.Srgb,
-                FilterMode.Point,
-                TextureWrapMode.Clamp);
-
-            var unloaded = new Color32[_uiSize * _uiSize];
-            Array.Fill(unloaded, new Color32(0, 0, 0, 255));
-            _minimapTexture.SetPixelData(unloaded, 0);
-            _minimapTexture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
-
-            DynamicAtlasConfigurator.RegisterRuntimeRedrawn(_minimapTexture);
+            _minimapTexture = new RenderTexture(_uiSize, _uiSize, 0, RenderTextureFormat.ARGB32)
+            {
+                name = "MinimapRenderTexture",
+                enableRandomWrite = true,
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp,
+            };
+            _minimapTexture.Create();
 
             _ui = new MinimapUiController(_doc, _minimapTexture, RequestOpenMap);
             _ui.TryCreate();
@@ -87,7 +81,6 @@ namespace Kern.UI
                 _mapManager.OnWorldInitialized += OnWorldReady;
                 _mapManager.OnWorldDataLoaded += OnWorldReady;
             }
-
             if (IsWorldReady())
             {
                 OnWorldReady();
@@ -110,13 +103,14 @@ namespace Kern.UI
                 return;
             }
 
-            if (_mapManager != null)
+            if (!_ready)
             {
-                _mapManager.OnWorldInitialized -= OnWorldReady;
-                _mapManager.OnWorldDataLoaded -= OnWorldReady;
+                TryInitialize();
             }
-
-            TryInitialize();
+            else
+            {
+                ReinitializeWorldState();
+            }
         }
         private void OnPlayerChanged(ILocalPlayer? player)
         {
@@ -409,6 +403,7 @@ namespace Kern.UI
         private void OnChunkLoaded(int serverX, int serverY, int width, int height)
         {
             _cellInvalidation.OnChunkLoaded(serverX, serverY);
+            _refreshPolicy.NotifyChunkLoaded();
         }
 
         private void OnCellChanged(int serverX, int serverY)
@@ -473,19 +468,23 @@ namespace Kern.UI
                 _subscribedCellLayer = null;
             }
 
+            _textureRenderer?.Dispose();
             _ui?.Dispose();
             _ui = null;
 
             if (_minimapTexture != null)
             {
+                if (_minimapTexture.IsCreated())
+                {
+                    _minimapTexture.Release();
+                }
+
                 Destroy(_minimapTexture);
+                _minimapTexture = null;
             }
         }
 
-        private void SetVisible(bool visible)
-        {
-            _ui?.SetVisible(visible);
-        }
+        private void SetVisible(bool visible) => _ui?.SetVisible(visible);
 
         private void OnMapModeChanged(bool mapModeEnabled)
         {

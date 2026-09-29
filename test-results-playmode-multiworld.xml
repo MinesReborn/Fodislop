@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="1" result="Passed" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-09-29 07:01:37Z" end-time="2026-09-29 07:01:47Z" duration="9.4644979">
+  <test-suite type="TestSuite" id="1077" name="Project Kern" fullname="Project Kern" runstate="Runnable" testcasecount="48" result="Passed" start-time="2026-09-29 07:01:37Z" end-time="2026-09-29 07:01:47Z" duration="9.464498" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="PlayMode" />
+    </properties>
+    <test-suite type="Assembly" id="1069" name="Kern.Tests.PlayMode.dll" fullname="/Users/murasama/Projects/games/Fodislop/Library/ScriptAssemblies/Kern.Tests.PlayMode.dll" runstate="Runnable" testcasecount="48" result="Passed" start-time="2026-09-29 07:01:37Z" end-time="2026-09-29 07:01:47Z" duration="9.459062" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="50698" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="PlayMode" />
+        <property name="EditorOnly" value="False" />
+      </properties>
+      <test-suite type="TestSuite" id="1070" name="Kern" fullname="Kern" runstate="Runnable" testcasecount="48" result="Passed" start-time="2026-09-29 07:01:37Z" end-time="2026-09-29 07:01:47Z" duration="9.458445" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1071" name="Tests" fullname="Kern.Tests" runstate="Runnable" testcasecount="48" result="Passed" start-time="2026-09-29 07:01:37Z" end-time="2026-09-29 07:01:47Z" duration="9.458074" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1072" name="PlayMode" fullname="Kern.Tests.PlayMode" runstate="Runnable" testcasecount="48" result="Passed" start-time="2026-09-29 07:01:37Z" end-time="2026-09-29 07:01:47Z" duration="9.457589" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestFixture" id="1026" name="MultiWorldSwitchPlayModeTests" fullname="Kern.Tests.PlayMode.MultiWorldSwitchPlayModeTests" classname="Kern.Tests.PlayMode.MultiWorldSwitchPlayModeTests" runstate="Runnable" testcasecount="1" result="Passed" start-time="2026-09-29 07:01:37Z" end-time="2026-09-29 07:01:47Z" duration="9.455964" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1027" name="SwitchWorldMidSession_CleansOldStateAndSnapsPlayerToNewWorld" fullname="Kern.Tests.PlayMode.MultiWorldSwitchPlayModeTests.SwitchWorldMidSession_CleansOldStateAndSnapsPlayerToNewWorld" methodname="SwitchWorldMidSession_CleansOldStateAndSnapsPlayerToNewWorld" classname="Kern.Tests.PlayMode.MultiWorldSwitchPlayModeTests" runstate="Runnable" seed="581522783" result="Passed" start-time="2026-09-29 07:01:37Z" end-time="2026-09-29 07:01:47Z" duration="9.345994" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[[ClientConfigManager] Config Loaded (schema 35) at /Users/murasama/Library/Application Support/DefaultCompany/Project Kern/Config/client_config.json; GraphicsPreset=Overdrive
+[HDR] available=False, active=False, changeRequested=False, display=OutputIdentity { Name = Built-in Retina Display, X = 0, Y = 0, Width = 3420, Height = 2148, WindowMode = 3 }, desired=False, phase=Unavailable, attempts=0, error=, environment=OSXEditor, graphicsAPI=Metal, pipelineHDR=True, supported=True, switchable=True, gamut=sRGB, paperWhite=0.0 nits, min=0 nits, max=0 nits.
+[ShaderWarmup] Primed 141 graphics state(s) in 156 ms.
+[Bootstrap] Loading scene 'Gateway'...
+[Gateway] Gateway UI initialized and displayed.
+[Bootstrap] Scene 'Gateway' entered successfully.
+[Bootstrap] Loading scene 'MainMenu'...
+[MainMenu] _loaderShade: texture failed to load from 'Assets/Textures/UI/mm_shade.png'.
+[MainMenu] UI BUILT successfully: children=1
+[Bootstrap] Scene 'MainMenu' entered successfully.
+[Bootstrap] Loading scene 'MainGame'...
+[PostProcessController] ApplyClientConfig: Bloom=True, Vignette=True
+[TerrainRenderer] ApplyClientConfig: distortion=True, distortionStyle=Classic, reliefRim=True
+[PostProcessController] ApplyClientConfig: Bloom=True, Vignette=True
+[LightingUnityQuality] ApplyUnityRenderingSettings: AA=0, RenderScale=1 (запрошено 1)
+[Connection] Transport: DummyConnection (offline stub). Set UseDummyConnection=false in client config for the real server.
+[GameBootstrap] Startup validation PASSED — MainGame contract is ready
+[Auth] Sending ClientHello with token: PRESENT
+[FrameStall] 458.1 мс кадр (обычный 6.7, провисов за 2 с: 1) · мусор 11011 КБ · события: [0] пакет AuthTokenPacket 4.4 мс; [0] декодирована transit.png 480×47
+участки в этом кадре (вложены, не складываются):
+  UniTask Update  169.3 мс  [UniTaskLoopRunnerUpdate]
+  Скрипты движка  75.6 мс  [Update.ScriptRunBehaviourUpdate]
+  UniTask Yield  58.2 мс  [UniTaskLoopRunnerYieldUpdate]
+  сборка мусора  6.5 мс  [GC.Collect]
+  Сеть — разбор очереди  6.5 мс  [Kern.Net.DrainPacketQueue]
+  корутины  6.0 мс  [Update.ScriptRunDelayedDynamicFrameRate]
+  LateUpdate  3.6 мс  [PreLateUpdate.ScriptRunBehaviourLateUpdate]
+  Текстуры — декодирование  1.1 мс  [Kern.Textures.Decode]
+  Сущности мира  1.0 мс  [Kern.WorldEntities.LateUpdate]
+  Загрузка текстуры на GPU  0.8 мс  [Texture.AwakeFromLoad]
+[Diag] Провисы кадра → /Users/murasama/Projects/games/Fodislop/Logs/Diagnostics/Stalls/frame_stalls_20260929_090142.txt
+[RobotManager] Cleared 0 robots, kept local player
+[BuildingManager] Cleared 0 buildings
+[Probe] WorldInit 11.502
+[MapManager] World: Pallada (pallada) [10016x40000]
+[ItemRegistry] No local icon for item type 'Jobs' (searched jobs.png), will use server texture if available
+[ItemRegistry] No local icon for item type 'Levi' (searched levi.png), will use server texture if available
+[ItemRegistry] No local icon for item type 'VulkanGeneration' (searched vulkanGeneration.png), will use server texture if available
+[ItemRegistry] No local icon for item type 'Vulkan' (searched vulkan.png), will use server texture if available
+[ItemRegistry] No local icon for item type 'Sign' (searched sign.png), will use server texture if available
+[ItemRegistry] No local icon for item type 'Observatory' (searched observatory.png), will use server texture if available
+[ItemRegistry] No local icon for item type 'Meteorit' (searched meteorit.png), will use server texture if available
+[ItemRegistry] No local icon for item type 'Mayak' (searched mayak.png), will use server texture if available
+[ItemRegistry] No local icon for item type 'GunBoss1' (searched gunBoss1.png), will use server texture if available
+[ItemRegistry] No local icon for item type 'MineX50' (searched mineX50.png), will use server texture if available
+[ItemRegistry] No local icon for item type 'NPC' (searched nPC.png), will use server texture if available
+[ItemRegistry] No local icon for item type 'CreditPack' (searched creditPack.png), will use server texture if available
+[ItemRegistry] No local icon for item type 'None' (searched none.png), will use server texture if available
+[Lighting] Budget diagnostic captured: estimatedStaticRayWork=190578688, limit=200000000, staticRayBudgetViolation=False, measuredBudgetViolation=True, repeatedStaticSolve=False, repeatedTerrainFullRebuild=False, staticSolves=1, terrainFullPopulates=2.
+[Probe] WorldLoaded 12.700
+[GameManager] Game state changed to: InGame
+[GameManager] World load completed: server position, terrain, shaders and textures are ready. robots=7, pendingAssets=0, queuedAssets=0, pendingCellTextures=0
+[Bootstrap] Scene 'MainGame' entered successfully.
+[RobotManager] Cleared 7 robots, kept local player
+[BuildingManager] Cleared 4 buildings
+[Probe] WorldInit 12.763
+[MapManager] World: Multiverse Alpha (playmode_multiverse_2) [64x64]
+[Probe] Teleport 12.779
+[Probe] WorldLoaded 12.816
+[GameManager] World load completed: server position, terrain, shaders and textures are ready. robots=1, pendingAssets=0, queuedAssets=0, pendingCellTextures=0
+Successfully saved GraphicsStateCollection to Assets/Resources/Rendering/GraphicsStates.graphicsstate
+Successfully loaded GraphicsStateCollection from Assets/Resources/Rendering/GraphicsStates.graphicsstate
+Successfully loaded GraphicsStateCollection from Assets/Resources/Rendering/GraphicsStates.graphicsstate
+[ShaderWarmup] Wrote 141 graphics state(s) to 'Assets/Resources/Rendering/GraphicsStates.graphicsstate'.
+[FrameStall] 2932.4 мс кадр (обычный 4.0, провисов за 2 с: 12) · мусор 920 КБ · события: [-1] террейн: полная выгрузка 51200 текселей
+участки в этом кадре (вложены, не складываются):
+  Цикл игры  2869.3 мс  [PlayerLoop]
+  Загрузка текстуры на GPU  10.6 мс  [Texture.AwakeFromLoad]
+  корутины  9.7 мс  [Update.ScriptRunDelayedDynamicFrameRate]
+[FMOD] Please add an 'FMOD Studio Listener' component to your camera in the scene for correct 3D positioning of sounds.
+[TestMemory] Kern.Tests.PlayMode.MultiWorldSwitchPlayModeTests.SwitchWorldMidSession_CleansOldStateAndSnapsPlayerToNewWorld: процесс вырос на 391 МБ (972 → 1363, пик 1562).
+Saving results to: /Users/murasama/Library/Application Support/DefaultCompany/Project Kern/TestResults.xml
+]]></output>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

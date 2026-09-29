@@ -36,6 +36,21 @@ dotnet run -c Release --project tools/Kern.TerrainBench -- \
   --filter session --sizes 192x128 --out Logs/terrain-bench
 ```
 
+Для одного глобального кадра production terrain transport, включая residency
+probe, сдвиг кэша, маски, искажение, flood-fill, упаковку, upload dirty-полос
+и patch после копания:
+
+```sh
+dotnet run -c Release --project tools/Kern.TerrainBench -- \
+  --filter global --sizes 192x128 --seconds 1 --out Logs/terrain-bench
+```
+
+`global` выдаёт распределение полной CPU-цепочки кадра и разбивку по стадиям.
+Один редкий полный rebuild включён в последовательность, поэтому `max` и
+`p95` показывают его цену отдельно от обычного scroll-кадра. GPU dispatch,
+`Graphics.ExecuteCommandBuffer` и реальный Unity texture upload в этот
+standalone benchmark не входят.
+
 Для пробы резидентности:
 
 ```sh

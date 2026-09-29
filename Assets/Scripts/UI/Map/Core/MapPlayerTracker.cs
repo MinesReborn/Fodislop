@@ -86,9 +86,8 @@ public sealed class MapPlayerTracker
                 {
                     viewCenterX = pos.x;
                     viewCenterY = pos.y;
+                    renderRequested = true;
                 }
-
-                renderRequested = true;
             }
         }
 
@@ -97,7 +96,6 @@ public sealed class MapPlayerTracker
         {
             _playerBlinkTimer = 0f;
             _playerBlinkState = !_playerBlinkState;
-            renderRequested = true;
             OnBlinkFlipped?.Invoke();
         }
     }

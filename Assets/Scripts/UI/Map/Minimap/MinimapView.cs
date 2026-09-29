@@ -32,7 +32,7 @@ internal sealed class MinimapView : IDisposable
 
     public static MinimapView Create(
         UIDocument document,
-        Texture2D texture,
+        Texture texture,
         Action openMap)
     {
         VisualTreeAsset template = Resources.Load<VisualTreeAsset>(

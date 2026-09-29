@@ -29,14 +29,17 @@ Shader "Kern/World Entity"
             "CanUseSpriteAtlas" = "True"
         }
 
-        Cull Off
-        Lighting Off
-        ZWrite Off
-        Blend One OneMinusSrcAlpha
-
         Pass
         {
+            Name "Universal2D"
+            Tags { "LightMode" = "Universal2D" }
+
+            Cull Off
+            ZWrite Off
+            Blend One OneMinusSrcAlpha
+
             HLSLPROGRAM
+            #pragma target 4.5
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile _ KERN_WORLD_LIGHTING
@@ -101,7 +104,7 @@ Shader "Kern/World Entity"
                 half4 color = texColor * input.color * _Color;
                 if (color.a > _SpriteAlphaCull)
                 {
-                    float3 worldLight = GetWorldLightColor(input.worldPos);
+                    float3 worldLight = GetWorldLightColor(input.worldPos).rgb;
                     color.rgb *= worldLight;
                     // Premultiplied output, matching Sprites/Default's blend.
                     color.rgb *= color.a;
@@ -199,5 +202,5 @@ Shader "Kern/World Entity"
         }
     }
 
-    FallBack "Sprites/Default"
+    FallBack Off
 }

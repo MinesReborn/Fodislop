@@ -235,6 +235,13 @@ namespace Kern.Player.Logic
             return PlayerMovementValidator.IsWithinWorldBounds(position, worldWidth, worldHeight);
         }
 
+        public void ResetServerPosition()
+        {
+            HasServerPosition = false;
+            Position = default;
+            _awaitingMoveConfirmation = false;
+        }
+
         public void UpdateServerPosition(Vector2Int position)
         {
             if (_mapDataProvider == null)
@@ -251,6 +258,9 @@ namespace Kern.Player.Logic
                     $"world height is {worldHeight}.");
             }
 
+            bool shouldSnap = !HasServerPosition ||
+                Mathf.Abs(Position.x - position.x) > 1 ||
+                Mathf.Abs(Position.y - position.y) > 1;
             Vector2Int oldPos = Position;
             _awaitingMoveConfirmation = false;
             Position = position;
@@ -259,7 +269,14 @@ namespace Kern.Player.Logic
             transform.position = targetWorldPos;
             if (_robot is not null)
             {
-                _robot.TargetPosition = targetWorldPos;
+                if (shouldSnap)
+                {
+                    _robot.SnapTo(targetWorldPos);
+                }
+                else
+                {
+                    _robot.TargetPosition = targetWorldPos;
+                }
             }
 
             OnPlayerMoved?.Invoke(oldPos, Position);

@@ -26,6 +26,11 @@ internal sealed class LightingUpdateCoordinator
         new("Kern.Lighting.BuildCommands.CPU");
     private static readonly ProfilerMarker _ExecuteCommandsMarker =
         new("Kern.Lighting.ExecuteCommands.CPU");
+    // The scroll kernel copies every entry of every cascade into a scratch
+    // atlas before the strip solve. On the target path that transfer is more
+    // expensive than the dense solve it replaces, so scroll reuse stays an
+    // explicit opt-in until a production GPU trace proves otherwise.
+    private const bool EnableStaticAtlasScrollReuse = false;
 
     private readonly LightingResourceManager _resources;
     private readonly LightingRuntimeState _state;
@@ -181,14 +186,14 @@ internal sealed class LightingUpdateCoordinator
                 Mathf.RoundToInt(lightingRegion.y - previousLightingRegion.y))
             : Vector2Int.zero;
 
-        // ROLLED BACK 2026-09-19: scroll reuse correlated with a heavy FPS
-        // drop in playmode, cause not yet isolated (prime suspects: full-atlas
-        // memmove cost on large fields, or a broken reuse path doing more work
-        // than the full solve it replaces). The scroll/strip machinery in
-        // StaticLightingSolver stays in place but dormant; re-enable by
-        // restoring the condition below once the cause is measured.
-        // Original: regionChanged && !resourcesResized.
-        bool canReuseStaticAtlas = false;
+        // A region reanchor must preserve the already solved overlap. The
+        // solver validates the probe phase for every cascade; incompatible
+        // deltas fall back to a dense solve instead of corrupting the atlas.
+        bool canReuseStaticAtlas = EnableStaticAtlasScrollReuse &&
+            regionChanged &&
+            !resourcesResized &&
+            !float.IsNaN(previousLightingRegion.x) &&
+            _frameExecutor.CanReuseStaticAtlas(regionDelta);
 
         LightingRegionInvalidationPolicy.OnRegionChanged(
             _state,

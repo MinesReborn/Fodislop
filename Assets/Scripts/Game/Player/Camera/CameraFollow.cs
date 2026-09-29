@@ -18,22 +18,15 @@ namespace Kern.Player
         [Header("Follow Settings")]
         public const float DefaultOrthographicSize = 7f;
         public const float DefaultCameraDepthZ = -10f;
-        [SerializeField]
-        private Transform? _target;
-        [SerializeField]
-        private float _smoothSpeed = 5f;
-        [SerializeField]
-        private Vector2 _offset = Vector2.zero;
+        [SerializeField] private Transform? _target;
+        [SerializeField] private float _smoothSpeed = 5f;
+        [SerializeField] private Vector2 _offset = Vector2.zero;
 
         [Header("Zoom Settings")]
-        [SerializeField]
-        private float _zoomSpeed = 300f;
-        [SerializeField]
-        private float _minZoom = 5f;
-        [SerializeField]
-        private float _maxZoom = 30f;
-        [SerializeField]
-        private float _zoomSmoothness = 8f;
+        [SerializeField] private float _zoomSpeed = 300f;
+        [SerializeField] private float _minZoom = 5f;
+        [SerializeField] private float _maxZoom = 30f;
+        [SerializeField] private float _zoomSmoothness = 8f;
 
         private const float ZoomSettleEpsilon = 0.001f;
 
@@ -57,18 +50,12 @@ namespace Kern.Player
         private bool _hasSnappedToServerPosition;
         private bool _localPlayerSpawnSubscription;
         private Vector3 _followVelocity;
-        [Inject]
-        private Camera _injectedCamera = null!;
-        [Inject]
-        private IInputBlocker _inputBlocker = null!;
-        [Inject]
-        private ILocalPlayerState _localPlayer = null!;
-
-        [Inject]
-        private IClientConfigManager? _clientConfig = null;
-
-        [Inject]
-        private WorldViewTransition? _viewTransition = null;
+        [Inject] private Camera _injectedCamera = null!;
+        [Inject] private IInputBlocker _inputBlocker = null!;
+        [Inject] private ILocalPlayerState _localPlayer = null!;
+        [Inject] private IClientConfigManager? _clientConfig = null;
+        [Inject] private WorldViewTransition? _viewTransition = null;
+        [Inject] private IMapDataProvider? _mapDataProvider = null;
 
         private CameraPixelGridAligner? _aligner;
 
@@ -122,6 +109,11 @@ namespace Kern.Player
 
             SnapToTarget();
             InitializeInput();
+            if (_mapDataProvider != null)
+            {
+                _mapDataProvider.OnWorldInitialized -= HandleWorldInitialized;
+                _mapDataProvider.OnWorldInitialized += HandleWorldInitialized;
+            }
         }
 
         protected void OnEnable()
@@ -146,6 +138,11 @@ namespace Kern.Player
 
         protected void OnDestroy()
         {
+            if (_mapDataProvider != null)
+            {
+                _mapDataProvider.OnWorldInitialized -= HandleWorldInitialized;
+            }
+
             if (_subscribedPlayer != null)
             {
                 _subscribedPlayer.OnPlayerMoved -= HandlePlayerMoved;
@@ -174,6 +171,13 @@ namespace Kern.Player
         {
             _scrollAction?.Disable();
             _scrollAction = null;
+        }
+
+        private void HandleWorldInitialized()
+        {
+            _hasSnappedToServerPosition = false;
+            _followVelocity = Vector3.zero;
+            _viewTransition?.Release();
         }
 
         private void HandlePlayerMoved(Vector2Int oldPosition, Vector2Int newPosition)
@@ -437,7 +441,6 @@ namespace Kern.Player
 
         private CameraPixelGridAligner _Aligner =>
             _aligner ??= new CameraPixelGridAligner(_clientConfig);
-
 
         public void SnapToTarget()
         {

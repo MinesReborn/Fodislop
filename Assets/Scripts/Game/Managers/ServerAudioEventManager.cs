@@ -22,6 +22,9 @@ namespace Kern.Game.Managers
 
         private const string MusicEventName = "music/evil_huge";
         private readonly List<ServerAudioEvent> _activeEffects = new();
+        private readonly Dictionary<(global::MinesServer.Data.SFX Effect, ushort Bot, ushort X, ushort Y), float> _lastSfxTimes = new();
+        private IAudioPlaybackHandle? _currentMusicHandle;
+        private bool _isMusicStarting;
 
         [Inject]
         private IVfxService _vfxService = null!;
@@ -47,8 +50,26 @@ namespace Kern.Game.Managers
         {
             if (packet.EffectType == global::MinesServer.Data.SFX.Music)
             {
+                if (_isMusicStarting || (_currentMusicHandle != null && _currentMusicHandle.IsPlaying))
+                {
+                    return;
+                }
+
+                _isMusicStarting = true;
                 _operations.Run("play_server_music", PlayMusicWhenAudioReadyAsync);
                 return;
+            }
+
+            var sfxKey = (packet.EffectType, packet.TargetBotId, packet.X, packet.Y);
+            if (_lastSfxTimes.TryGetValue(sfxKey, out float lastTime) && Time.time - lastTime < 0.04f)
+            {
+                return;
+            }
+
+            _lastSfxTimes[sfxKey] = Time.time;
+            if (_lastSfxTimes.Count > 128)
+            {
+                _lastSfxTimes.Clear();
             }
 
             var vfxType = MapAudioToVFX(packet.EffectType);
@@ -98,10 +119,42 @@ namespace Kern.Game.Managers
 
         private async UniTask PlayMusicWhenAudioReadyAsync(CancellationToken cancellationToken)
         {
-            await _audioSystem.WaitUntilBanksReadyAsync(cancellationToken);
-            if (_audioSystem.Play2D(MusicEventName, AudioLayer.MusicDefault()) == null)
+            try
             {
-                Debug.LogWarning($"{TAG} Музыка '{MusicEventName}' не запустилась.");
+                await _audioSystem.WaitUntilBanksReadyAsync(cancellationToken);
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                if (_currentMusicHandle != null && _currentMusicHandle.IsPlaying)
+                {
+                    return;
+                }
+
+                StopMusic(0f);
+                _currentMusicHandle = _audioSystem.Play2D(MusicEventName, AudioLayer.MusicDefault());
+                if (_currentMusicHandle == null)
+                {
+                    Debug.LogWarning($"{TAG} Музыка '{MusicEventName}' не запустилась.");
+                }
+            }
+            finally
+            {
+                _isMusicStarting = false;
+            }
+        }
+
+        private void StopMusic(float fadeOut = 0.5f)
+        {
+            if (_currentMusicHandle != null)
+            {
+                if (_currentMusicHandle.IsPlaying)
+                {
+                    _currentMusicHandle.Stop(fadeOut);
+                }
+
+                _currentMusicHandle = null;
             }
         }
 
@@ -122,6 +175,7 @@ namespace Kern.Game.Managers
 
         public void ClearAllEffects()
         {
+            StopMusic();
             int count = _activeEffects.Count;
             foreach (var effect in _activeEffects)
             {
@@ -138,6 +192,7 @@ namespace Kern.Game.Managers
         protected void OnDestroy()
         {
             ClearAllEffects();
+            _audioSystem?.StopBus(AudioBusType.Music, 0.2f);
         }
 
         protected void Update()

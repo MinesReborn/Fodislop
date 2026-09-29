@@ -163,6 +163,11 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
     // Причина остановить прогон или null, если память в порядке.
     private string? Violation(int? availablePercent, SwapUsage? swap)
     {
+        if (Environment.GetEnvironmentVariable("KERN_DISABLE_TEST_MEMORY_GUARD") == "1")
+        {
+            return null;
+        }
+
         if (availablePercent is int available && available < MinimumAvailablePercent)
         {
             return $"у системы свободно {available}% памяти (порог {MinimumAvailablePercent}%)";

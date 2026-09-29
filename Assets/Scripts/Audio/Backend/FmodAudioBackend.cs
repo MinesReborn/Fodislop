@@ -13,6 +13,7 @@ public sealed class FmodAudioBackend
 {
     private readonly Dictionary<AudioBusType, FMOD.Studio.Bus> _buses = new();
     private readonly HashSet<string> _reportedMissingEvents = new(StringComparer.OrdinalIgnoreCase);
+    private FMOD.Studio.EventInstance _activeMusicInstance;
     private bool _paused;
     private bool _busesMapped;
     private bool _degraded;
@@ -101,6 +102,14 @@ public sealed class FmodAudioBackend
         }
     }
 
+    public void StopBus(AudioBusType type, bool allowFadeOut = true)
+    {
+        if (_buses.TryGetValue(type, out FMOD.Studio.Bus bus))
+        {
+            bus.stopAllEvents(allowFadeOut ? FMOD.Studio.STOP_MODE.ALLOWFADEOUT : FMOD.Studio.STOP_MODE.IMMEDIATE);
+        }
+    }
+
     // FMOD RuntimeManager живёт дольше Bootstrap. Экземпляры событий
     // отпускаются сразу после старта, поэтому зацикленная музыка и эмбиент
     // играют, пока их не остановят явно, — в том числе после выхода из игры в
@@ -111,6 +120,13 @@ public sealed class FmodAudioBackend
         _paused = false;
         _buses.Clear();
         _busesMapped = false;
+        if (_activeMusicInstance.isValid())
+        {
+            _activeMusicInstance.stop(FMOD.Studio.STOP_MODE.IMMEDIATE);
+            _activeMusicInstance.release();
+            _activeMusicInstance.clearHandle();
+        }
+
         if (!FMODUnity.RuntimeManager.IsInitialized)
         {
             return;
@@ -159,6 +175,15 @@ public sealed class FmodAudioBackend
             return null;
         }
 
+        if (layer.Bus != AudioBusType.Music)
+        {
+            const int maxVoicesPerEvent = 8;
+            if (description.getInstanceCount(out int instanceCount) == FMOD.RESULT.OK && instanceCount >= maxVoicesPerEvent)
+            {
+                return null;
+            }
+        }
+
         if (description.createInstance(out FMOD.Studio.EventInstance instance) != FMOD.RESULT.OK ||
             !instance.isValid())
         {
@@ -182,6 +207,23 @@ public sealed class FmodAudioBackend
                     up = _UpVector,
                 });
             }
+        }
+
+        if (layer.Bus == AudioBusType.Music)
+        {
+            if (_activeMusicInstance.isValid())
+            {
+                _activeMusicInstance.stop(FMOD.Studio.STOP_MODE.IMMEDIATE);
+                _activeMusicInstance.release();
+                _activeMusicInstance.clearHandle();
+            }
+
+            if (_buses.TryGetValue(AudioBusType.Music, out FMOD.Studio.Bus musicBus))
+            {
+                musicBus.stopAllEvents(FMOD.Studio.STOP_MODE.IMMEDIATE);
+            }
+
+            _activeMusicInstance = instance;
         }
 
         instance.setVolume(layer.Volume);

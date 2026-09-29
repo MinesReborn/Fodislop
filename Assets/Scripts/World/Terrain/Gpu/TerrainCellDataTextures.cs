@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
+using Kern.Core;
 using Kern.Core.Interfaces.Diagnostics;
 
 namespace Kern.World.Terrain;
@@ -39,15 +40,16 @@ public sealed class TerrainCellDataTextures : IDisposable
     public static readonly int OriginID = Shader.PropertyToID("_TerrainCellOrigin");
     public static readonly int ViewOffsetID = Shader.PropertyToID("_TerrainCellViewOffset");
 
-    private readonly TerrainCellDataChannel<Color32> _color = new(TextureFormat.RGBA32, "TerrainCellColor");
-    private readonly TerrainCellDataChannel<Color32> _meta = new(TextureFormat.RGBA32, "TerrainCellMeta");
-    private readonly TerrainCellDataChannel<TerrainHalfTexel> _atlasRect = new(TextureFormat.RGBAHalf, "TerrainCellAtlasRect");
-    private readonly TerrainCellDataChannel<TerrainHalfTexel> _tileSize = new(TextureFormat.RGBAHalf, "TerrainCellTileSize");
-    private readonly TerrainCellDataChannel<TerrainHalfTexel> _animation = new(TextureFormat.RGBAHalf, "TerrainCellAnimation");
-    private readonly TerrainCellDataChannel<Vector4> _world = new(TextureFormat.RGBAFloat, "TerrainCellWorld");
-    private readonly TerrainCellDataChannel<Vector4> _glow = new(TextureFormat.RGBAFloat, "TerrainCellGlow");
-    private readonly TerrainCellDataChannel<TerrainHalfTexel> _geometryX = new(TextureFormat.RGBAHalf, "TerrainCellGeometryX");
-    private readonly TerrainCellDataChannel<TerrainHalfTexel> _geometryY = new(TextureFormat.RGBAHalf, "TerrainCellGeometryY");
+    private readonly TerrainTextureUploadCounters _uploadCounters = new();
+    private readonly TerrainCellDataChannel<Color32> _color;
+    private readonly TerrainCellDataChannel<Color32> _meta;
+    private readonly TerrainCellDataChannel<TerrainHalfTexel> _atlasRect;
+    private readonly TerrainCellDataChannel<TerrainHalfTexel> _tileSize;
+    private readonly TerrainCellDataChannel<TerrainHalfTexel> _animation;
+    private readonly TerrainCellDataChannel<Vector4> _world;
+    private readonly TerrainCellDataChannel<Vector4> _glow;
+    private readonly TerrainCellDataChannel<TerrainHalfTexel> _geometryX;
+    private readonly TerrainCellDataChannel<TerrainHalfTexel> _geometryY;
 
     private readonly TerrainDirtyRegion _dirty = new();
     private readonly List<RectInt> _uploadRects = [];
@@ -57,11 +59,26 @@ public sealed class TerrainCellDataTextures : IDisposable
     private readonly List<int> _stagingSlotFrames = [];
     private const int MaximumStagingSlots = 8;
 
+    public TerrainCellDataTextures()
+    {
+        _color = new(TextureFormat.RGBA32, "TerrainCellColor", _uploadCounters);
+        _meta = new(TextureFormat.RGBA32, "TerrainCellMeta", _uploadCounters);
+        _atlasRect = new(TextureFormat.RGBAHalf, "TerrainCellAtlasRect", _uploadCounters);
+        _tileSize = new(TextureFormat.RGBAHalf, "TerrainCellTileSize", _uploadCounters);
+        _animation = new(TextureFormat.RGBAHalf, "TerrainCellAnimation", _uploadCounters);
+        _world = new(TextureFormat.RGBAFloat, "TerrainCellWorld", _uploadCounters);
+        _glow = new(TextureFormat.RGBAFloat, "TerrainCellGlow", _uploadCounters);
+        _geometryX = new(TextureFormat.RGBAHalf, "TerrainCellGeometryX", _uploadCounters);
+        _geometryY = new(TextureFormat.RGBAHalf, "TerrainCellGeometryY", _uploadCounters);
+    }
+
     public int MeshWidth { get; private set; }
 
     public int MeshHeight { get; private set; }
 
     public bool IsAllocated => _color.Target != null;
+
+    public ITerrainTextureUploadTelemetry UploadTelemetry => _uploadCounters;
 
     /// <summary>Чем была последняя выгрузка: сколько прямоугольников и текселей.</summary>
     ///
@@ -132,6 +149,7 @@ public sealed class TerrainCellDataTextures : IDisposable
         _glow.Allocate(meshWidth, height);
         _geometryX.Allocate(meshWidth, height);
         _geometryY.Allocate(meshWidth, height);
+        _uploadCounters.BeginGeneration();
         // Every channel allocated staging slot zero above. Register it now so
         // the first patch reuses that slot instead of reporting a new one.
         _stagingSlotFrames.Add(int.MinValue);
@@ -360,6 +378,7 @@ public sealed class TerrainCellDataTextures : IDisposable
         _glow.Destroy();
         _geometryX.Destroy();
         _geometryY.Destroy();
+        _uploadCounters.EndGeneration();
         _stagingSlotFrames.Clear();
         MeshWidth = 0;
         MeshHeight = 0;

@@ -247,6 +247,10 @@ namespace Kern.World
 
         private void OnWorldInitialized()
         {
+            _hasCachedCoverage = false;
+            _hasLightingMeshes = false;
+            _lastWorldWidth = 0;
+            _lastWorldHeight = 0;
             if (!_initialized)
             {
                 EnsureInitialized();

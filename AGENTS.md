@@ -31,10 +31,8 @@ Code is the source of truth if reference context is stale. Don't read everything
 
 ## Authority boundaries
 
-- Unity CLI is available as `unity`; invoke it only for a specific Unity operation explicitly named in the current user request.
-- Do not launch, open, close, or control Unity Editor/Hub; do not invoke Unity CLI, MCP, Editor API, batch mode, build, tests, import, or read Editor logs unless the current user request explicitly names a specific Unity operation. Do not solicit system permission to act in Unity on your own initiative.
-- Permission extends only to the explicitly named Unity operation. If the verification cannot be completed without Unity, stop and name the specific operation left for the user.
-- Mentioning a Unity operation in acceptance criteria, a Definition of Ready, a plan, a CI table, or a broad request such as “do everything” does not authorize running it. The current user message must directly request the specific action (for example, “run EditMode tests”, “build for macOS”, or “close Unity Editor”). Authorization covers only that named operation, not related Unity actions.
+- Unity CLI is available as `unity`. Invoke it when requested by the user. Requests to run tests (such as “запусти тесты”, “запусти все тесты”, “run tests”, “run EditMode tests”, “run PlayMode tests”) authorize running the corresponding Unity tests.
+- Do not launch, open, close, or control Unity Editor/Hub in GUI mode, and do not execute builds or destructive operations unless requested by the user.
 - Do not perform Git rollback or history rewriting without an explicit request in the current message: `reset`, `restore`, checkout for restoration, `revert`, `clean`, amend, rebase, or force-push. Do not restore files from `HEAD`, stash, or reflog, and do not solicit such permission on your own initiative.
 - NEVER ROLL BACK ANYTHING. This rule is broader than Git: it is forbidden to undo your own edit by any means — neither a `git` command, nor manually reverting file text, nor deleting added code and tests. Rollback is permitted ONLY when the user explicitly requests it in the current message.
 - Do not edit `.prefab`, `.unity`, or `.asset` files as text; modify them only through explicitly permitted Unity Editor API/Inspector. Preserve GUIDs and `.meta` files.
