@@ -36,6 +36,9 @@ internal static class ScopesPassExecutor
         ComputeBuffer waveform = Require(resources.WaveformBuffer, nameof(resources.WaveformBuffer));
         ComputeBuffer vectorscope = Require(resources.VectorscopeBuffer, nameof(resources.VectorscopeBuffer));
         ComputeBuffer stats = Require(resources.StatsBuffer, nameof(resources.StatsBuffer));
+        ComputeBuffer exposureHistogram = Require(
+            resources.ExposureHistogramBuffer,
+            nameof(resources.ExposureHistogramBuffer));
 
         // Прореживание: разбирать каждый пиксель кадра в 4K не нужно и вредно —
         // прибор от этого не точнее, а кадр дороже. Сетки 256x256 выборок
@@ -69,6 +72,7 @@ internal static class ScopesPassExecutor
                 densityNormalization,
                 densityNormalization));
         cmd.SetComputeFloatParam(data.ScopesCS, ScopeSignalScaleID, data.SignalScale);
+        cmd.SetComputeFloatParam(data.ScopesCS, ScopeExposureScaleID, data.ExposureScale);
         cmd.SetComputeIntParam(data.ScopesCS, ScopeHistogramModeID, data.HistogramMode);
         cmd.SetComputeFloatParam(data.ScopesCS, ScopeVectorscopeScaleID, data.VectorscopeScale);
         cmd.SetComputeIntParam(
@@ -78,12 +82,23 @@ internal static class ScopesPassExecutor
         cmd.SetComputeIntParam(data.ScopesCS, ScopeWaveformModeID, data.WaveformMode);
 
         BindBuffers(cmd, data.ScopesCS, data.KernelClear, histogram, waveform, vectorscope, stats);
+        cmd.SetComputeBufferParam(
+            data.ScopesCS,
+            data.KernelClear,
+            ExposureHistogramBufferID,
+            exposureHistogram);
         Dispatch(cmd, data.ScopesCS, data.KernelClear, ScopeResources.Size, ScopeResources.Size);
 
         BindBuffers(cmd, data.ScopesCS, data.KernelGather, histogram, waveform, vectorscope, stats);
         cmd.SetComputeTextureParam(data.ScopesCS, data.KernelGather, ScopeSourceID, data.SourceTexture);
+        cmd.SetComputeBufferParam(
+            data.ScopesCS,
+            data.KernelGather,
+            ExposureHistogramBufferID,
+            exposureHistogram);
         Dispatch(cmd, data.ScopesCS, data.KernelGather, sampledWidth, sampledHeight);
         AsyncGPUReadback.Request(stats, StatsCallback(resources));
+        AsyncGPUReadback.Request(exposureHistogram, ExposureHistogramCallback(resources));
 
         Resolve(cmd, data, data.KernelHistogram, resources.HistogramTexture, histogram, waveform, vectorscope);
         Resolve(cmd, data, data.KernelWaveform, resources.WaveformTexture, histogram, waveform, vectorscope);
@@ -92,6 +107,8 @@ internal static class ScopesPassExecutor
 
     private static ScopeResources? _statsCallbackOwner;
     private static System.Action<AsyncGPUReadbackRequest>? _statsCallback;
+    private static ScopeResources? _exposureHistogramCallbackOwner;
+    private static System.Action<AsyncGPUReadbackRequest>? _exposureHistogramCallback;
 
     // Группа методов превращается в новый делегат при каждом вызове, то есть
     // на каждый кадр с открытыми приборами.
@@ -104,6 +121,17 @@ internal static class ScopesPassExecutor
         }
 
         return _statsCallback;
+    }
+
+    private static System.Action<AsyncGPUReadbackRequest> ExposureHistogramCallback(ScopeResources resources)
+    {
+        if (_exposureHistogramCallback == null || !ReferenceEquals(_exposureHistogramCallbackOwner, resources))
+        {
+            _exposureHistogramCallbackOwner = resources;
+            _exposureHistogramCallback = resources.ApplyExposureHistogram;
+        }
+
+        return _exposureHistogramCallback;
     }
 
     private static void Resolve(

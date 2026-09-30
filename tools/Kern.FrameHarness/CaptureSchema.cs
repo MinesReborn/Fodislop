@@ -102,7 +102,16 @@ public sealed class FrameSample
     public bool CounterResetObserved { get; init; }
     public CounterSnapshot? Cumulative { get; init; } = new();
     public FrameCounterSnapshot? FrameCounters { get; init; } = new();
+    public FrameStageState? StageState { get; init; }
     public TerrainTextureUploadObservation? TerrainCellDataUpload { get; init; }
+}
+
+public sealed class FrameStageState
+{
+    public int? ActiveDynamicLights { get; init; }
+    public int? LastCommandBufferBytes { get; init; }
+    public long? EstimatedCascadeRayWorkUnits { get; init; }
+    public long? EstimatedCascadeDispatchThreads { get; init; }
 }
 
 public sealed class CounterSnapshot
@@ -111,9 +120,19 @@ public sealed class CounterSnapshot
     public long? TerrainFullPopulates { get; init; }
     public long? TerrainDirtyPatches { get; init; }
     public long? TerrainChunkLoads { get; init; }
+    public long? TerrainMeshClears { get; init; }
+    public long? TerrainBuildCancels { get; init; }
     public long? LightingDynamicSolves { get; init; }
     public long? LightingDynamicTraces { get; init; }
     public long? LightingAtlasScrolls { get; init; }
+    public long? LightingStaticDependencyMaskSolves { get; init; }
+    public long? LightingStaticDenseFallbacks { get; init; }
+    public long? LightingRegionInvalidations { get; init; }
+    public long? LightingCascadePartialEntries { get; init; }
+    public long? LightingCascadeFullEntries { get; init; }
+    public long? LightingAtlasReusedEntries { get; init; }
+    public long? LightingAtlasClearedEntries { get; init; }
+    public long? GcCollectionCount { get; init; }
     public long? TerrainCellDataApplyCalls { get; init; }
     public long? TerrainCellDataApplyPayloadBytes { get; init; }
     public long? TerrainCellDataCopyTextureCalls { get; init; }
@@ -133,6 +152,19 @@ public sealed class FrameCounterSnapshot
     public long? TerrainAtlasUploadBytes { get; init; }
     public long? LightingFieldRebuilds { get; init; }
     public long? LightingStaticSolves { get; init; }
+    public long? LightingRegionInvalidations { get; init; }
+    public long? LightingRegionChanges { get; init; }
+    public long? LightingGeometryChanges { get; init; }
+    public long? LightingDdaSegments { get; init; }
+    public long? LightingDdaTexelVisits { get; init; }
+    public long? LightingCascadeMergeSamples { get; init; }
+    public long? LightingDynamicDispatchPixels { get; init; }
+    public long? LightingDynamicComposePixels { get; init; }
+    public long? LightingCompositeDispatchPixels { get; init; }
+    public long? LightingPolarRayWorkUnits { get; init; }
+    public long? LightingCascadePartialEntries { get; init; }
+    public long? LightingCascadeFullEntries { get; init; }
+    public long? GcAllocBytes { get; init; }
     public long? TerrainCellDataApplyCalls { get; init; }
     public long? TerrainCellDataApplyPayloadBytes { get; init; }
     public long? TerrainCellDataCopyTextureCalls { get; init; }

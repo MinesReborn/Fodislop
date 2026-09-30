@@ -33,9 +33,7 @@ namespace Kern.Rendering.PostProcessing
 
         public override void Create()
         {
-            _displayPass?.Dispose();
             _displayPass = null;
-            _pass?.Dispose();
             _pass = null;
             _scopesPass?.Dispose();
             _scopesPass = null;
@@ -58,9 +56,7 @@ namespace Kern.Rendering.PostProcessing
                 return;
             }
 
-            _displayPass?.Dispose();
             _displayPass = null;
-            _pass?.Dispose();
             _pass = null;
             // Ниже scopes создаются заново; старый проход освобождается здесь,
             // иначе при пересоздании он утекал бы вместе со своими буферами.
@@ -117,7 +113,8 @@ namespace Kern.Rendering.PostProcessing
             ref var cameraData = ref renderingData.cameraData;
             if (cameraData.renderType != CameraRenderType.Base ||
                 cameraData.camera.cameraType != CameraType.Game ||
-                cameraData.camera.targetTexture != null)
+                (cameraData.camera.targetTexture != null &&
+                 cameraData.camera != PostProcessRuntimeState.DiagnosticOffscreenCamera))
             {
                 return;
             }
@@ -147,12 +144,14 @@ namespace Kern.Rendering.PostProcessing
             }
 
             bool scopesEnabled = _scopesPass != null && ScopesRenderPass.Enabled;
+            renderer.EnqueuePass(_pass);
             if (scopesEnabled && ScopesRenderPass.SourceMode == ScopesSourceMode.Before)
             {
+                // Capture after Kern's scene-linear bloom pass, but before URP
+                // applies post exposure and tonemapping.
                 renderer.EnqueuePass(_scopesPass!);
             }
 
-            renderer.EnqueuePass(_pass);
             renderer.EnqueuePass(_displayPass!);
             if (scopesEnabled && ScopesRenderPass.SourceMode == ScopesSourceMode.After)
             {
@@ -162,9 +161,7 @@ namespace Kern.Rendering.PostProcessing
 
         protected override void Dispose(bool disposing)
         {
-            _displayPass?.Dispose();
             _displayPass = null;
-            _pass?.Dispose();
             _pass = null;
             _scopesPass?.Dispose();
             _scopesPass = null;

@@ -21,7 +21,7 @@ public sealed class PostProcessRuntimeContractRule : IRule
             "OnDisable",
             [
                 new("Kern.Rendering.PostProcessing.PostProcessRuntimeState", "set_BypassPostProcessEffects", 1),
-                new("Kern.Rendering.PostProcessing.PostProcessRuntimeState", "SetColorGrade", 1),
+                new("Kern.Rendering.PostProcessing.PostProcessRuntimeState", "SetLut", 1),
             ]),
         new(
             "Kern.Rendering.PostProcessing.PostProcessRendererFeature",

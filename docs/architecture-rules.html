@@ -72,8 +72,7 @@ dotnet run --project tools/Kern.ArchitectureLinter -- -p . \
   <h2>Display and IMGUI contracts</h2>
   <h3>KERN-DISPLAY-TRANSFORM</h3>
   <ul>
-    <li>D65-preserving output-gamut matrices and inverse LMS transforms.</li>
-    <li>Norm-based tone curve, neutral ASC CDL behavior, HDR headroom and hue preservation.</li>
+    <li>HDR-normalized LUT lookup: the table domain clamp never flattens highlights above paper white.</li>
     <li>Output-gamut conversion before temporal history and explicit SDR gamma.</li>
     <li>Vignette coordinates, scopes signal scaling, active-color texture descriptors, and debug temporal bypass.</li>
   </ul>

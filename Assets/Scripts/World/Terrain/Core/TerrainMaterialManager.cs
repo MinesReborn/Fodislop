@@ -22,8 +22,6 @@ public sealed class TerrainMaterialManager
     private static readonly int _ShimmerSpeedScalePropertyID = Shader.PropertyToID("_ShimmerSpeedScale");
     private static readonly int _PulseSpeedScalePropertyID = Shader.PropertyToID("_PulseSpeedScale");
     private static readonly int _ShimmerColorPropertyID = Shader.PropertyToID("_ShimmerColor");
-    private static readonly int _DebugColorPropertyID = Shader.PropertyToID("_DebugColor");
-    private static readonly int _DebugModePropertyID = Shader.PropertyToID("_DebugMode");
     private static readonly int _WorldLightTexturePropertyID = Shader.PropertyToID("_WorldLightTexture");
     private static readonly int _WorldLightRectPropertyID = Shader.PropertyToID("_WorldLightRect");
 
@@ -75,8 +73,6 @@ public sealed class TerrainMaterialManager
             material.SetFloat(_ShimmerSpeedScalePropertyID, config.Terrain.ShimmerSpeedScale);
             material.SetFloat(_PulseSpeedScalePropertyID, config.Terrain.PulseSpeedScale);
             material.SetColor(_ShimmerColorPropertyID, config.Terrain.ShimmerColor);
-            material.SetColor(_DebugColorPropertyID, config.Terrain.DebugColor);
-            material.SetFloat(_DebugModePropertyID, config.Terrain.DebugMode ? 1f : 0f);
             // Вид поверхности авторский: декали, кайма, глинт и
             // призматик берут числа из TerrainConfigHolder.
             TerrainMaterialTuning.Apply(material);
@@ -226,8 +222,6 @@ public sealed class TerrainMaterialManager
         _materials[index].SetFloat(_ShimmerSpeedScalePropertyID, clientConfig.Terrain.ShimmerSpeedScale);
         _materials[index].SetFloat(_PulseSpeedScalePropertyID, clientConfig.Terrain.PulseSpeedScale);
         _materials[index].SetColor(_ShimmerColorPropertyID, clientConfig.Terrain.ShimmerColor);
-        _materials[index].SetColor(_DebugColorPropertyID, clientConfig.Terrain.DebugColor);
-        _materials[index].SetFloat(_DebugModePropertyID, clientConfig.Terrain.DebugMode ? 1f : 0f);
         // Вид поверхности авторский: декали, кайма, глинт и
         // призматик берут числа из TerrainConfigHolder.
         TerrainMaterialTuning.Apply(_materials[index]);
@@ -440,8 +434,6 @@ public sealed class TerrainMaterialManager
             "_ShimmerSpeedScale",
             "_PulseSpeedScale",
             "_ShimmerColor",
-            "_DebugColor",
-            "_DebugMode",
         ];
         foreach (string propertyName in requiredProperties)
         {

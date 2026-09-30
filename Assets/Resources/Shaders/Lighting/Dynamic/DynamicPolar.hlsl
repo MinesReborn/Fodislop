@@ -8,9 +8,10 @@
 // MAY: вызывать DDA (TraceDynamicPolar, GatherDynamicSource)
 // MUST NOT: трогать каскады
 
-// Point `pointIndex` of the dynamic light's emission grid, over the texels whose centres
-// lie inside its square and inside the field — the texels TraceLightSegment
-// lets emit. `emits` is false when no such texel exists.
+// Point `pointIndex` of a continuous emission grid over the part of the
+// dynamic light's one-cell source square that intersects the field. Keeping
+// these sample positions in sub-texel coordinates lets the source move smoothly
+// instead of snapping its emitter grid to field-texel centres.
 void DynamicEmitterPoint(
     DynamicLight light,
     int pointIndex,
@@ -21,8 +22,8 @@ void DynamicEmitterPoint(
     float2 worldCellMin = light.positionRadius.xy - 0.5 * _CellSize;
     float2 sourceMin = (worldCellMin - _WorldRect.xy) / _WorldRect.zw * float2(_FieldSize);
     float2 sourceSize = _CellSize / _WorldRect.zw * float2(_FieldSize);
-    float2 emitterMin = max(ceil(sourceMin - 0.5), float2(0.0, 0.0));
-    float2 emitterMax = min(ceil(sourceMin + sourceSize - 0.5), float2(_FieldSize));
+    float2 emitterMin = max(sourceMin, float2(0.0, 0.0));
+    float2 emitterMax = min(sourceMin + sourceSize, float2(_FieldSize));
     float2 emitterSize = max(emitterMax - emitterMin, float2(0.0, 0.0));
     float2 cellsPerPixel = (_WorldRect.zw / _CellSize) / float2(_FieldSize);
     areaCells = emitterSize.x * cellsPerPixel.x * emitterSize.y * cellsPerPixel.y;
@@ -374,10 +375,10 @@ float3 DynamicRadianceFromPolar(float2 origin, DynamicLight light, int sampleCou
         int2 materialPixel = MaterialPixel(centerPixel);
 
         float3 sourceExtinction = SegmentExtinction(saturate(_MaterialField.Load(int3(materialPixel, 0)).a));
-        // The texels TraceLightSegment lets emit: centres inside the square,
-        // inside the field.
-        float2 emitterMin = max(ceil(sourceMin - 0.5), float2(0.0, 0.0));
-        float2 emitterMax = min(ceil(sourceMax - 0.5), float2(_FieldSize));
+        // Match the continuous, field-clipped emitter grid used to trace the
+        // polar rays; the receiver must select the corresponding moving sample.
+        float2 emitterMin = max(sourceMin, float2(0.0, 0.0));
+        float2 emitterMax = min(sourceMax, float2(_FieldSize));
         float2 emitterSize = max(emitterMax - emitterMin, float2(0.0, 0.0));
         float3 radiance = 0.0;
         if (emitterSize.x > 0.0 && emitterSize.y > 0.0)

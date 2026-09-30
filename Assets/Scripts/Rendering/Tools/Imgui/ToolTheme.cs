@@ -32,7 +32,6 @@ public static class ToolTheme
     private static GUIStyle? _segmentedButton;
     private static GUIStyle? _closeButton;
     private static GUIStyle? _warningLabel;
-    private static GUIStyle? _successLabel;
     private static GUIStyle? _errorLabel;
     private static GUIStyle? _card;
     private static GUIStyle? _graph;
@@ -53,7 +52,6 @@ public static class ToolTheme
     public static GUIStyle SegmentedButton => _segmentedButton!;
     public static GUIStyle CloseButton => _closeButton!;
     public static GUIStyle WarningLabel => _warningLabel!;
-    public static GUIStyle SuccessLabel => _successLabel!;
     public static GUIStyle ErrorLabel => _errorLabel!;
     public static GUIStyle Card => _card!;
     public static GUIStyle Graph => _graph!;
@@ -162,7 +160,6 @@ public static class ToolTheme
             normal = { textColor = ToolPalette.Text },
         };
         _warningLabel = CreateSemanticLabel(ToolPalette.Warning);
-        _successLabel = CreateSemanticLabel(ToolPalette.Success);
         _errorLabel = CreateSemanticLabel(ToolPalette.Error);
     }
 
@@ -430,7 +427,6 @@ public static class ToolTheme
         _segmentedButton = null;
         _closeButton = null;
         _warningLabel = null;
-        _successLabel = null;
         _errorLabel = null;
         _card = null;
         _graph = null;

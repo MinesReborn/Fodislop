@@ -209,6 +209,21 @@ int main() {
             throw std::runtime_error("dependency mask differs from full cascade solve");
         ++checks;
         setup(16,16,4);_SolidExtinctionRGB={1600,1600,1600,0};
+        {
+            DynamicLight before={{12.02f,8.5f,0,0},{1,1,1,1}};
+            DynamicLight after={{12.04f,8.5f,0,0},{1,1,1,1}};
+            float2 beforePoint, afterPoint;
+            float beforeArea, afterArea;
+            bool beforeEmits, afterEmits;
+            DynamicEmitterPoint(before,4,beforePoint,beforeArea,beforeEmits);
+            DynamicEmitterPoint(after,4,afterPoint,afterArea,afterEmits);
+            float expectedTexelDelta = (after.positionRadius.x - before.positionRadius.x) *
+                _FieldSize.x / _WorldRect.z;
+            near(afterPoint.x - beforePoint.x, expectedTexelDelta, 1e-5f,
+                "dynamic emitter follows sub-texel source movement");
+            if(!beforeEmits || !afterEmits)
+                throw std::runtime_error("Moving dynamic emitter unexpectedly left the field");
+        }
         DynamicLight light={{12.5f,8.5f,0,0},{16,16,16,1}};
         for(int y=32;y<36;y++)for(int x=48;x<52;x++)_EmissionField.data[y*64+x]={16,16,16,0};
         textureReads=0;solveField(4);long cascadeReads=textureReads;

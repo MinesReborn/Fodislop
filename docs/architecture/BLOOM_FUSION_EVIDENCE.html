@@ -1,0 +1,87 @@
+<!doctype html><html lang="ru"><meta charset="utf-8"><title>Bloom fusion evidence</title>
+<style>body{font:16px system-ui;max-width:1100px;margin:40px auto;line-height:1.5}table{border-collapse:collapse}td,th{border:1px solid #aaa;padding:8px}code{font-size:14px}</style>
+<h1>Bloom: final upsample + scene composite</h1>
+<p>TL-OWN/TL-API: владелец — presentation/PostProcessRenderPass и
+PostProcessPassExecutor. Читается уже опубликованное emission field; нет вызовов
+terrain collection или lighting solve. Контракты terrain/lighting не меняются.
+Bloom остаётся scene-linear до URP exposure/tonemapping. DisplayFinal с LUT,
+виньеткой и eigengrau остаётся после URP; порядок не изменён.</p>
+<table><tr><th>TL-STAGE</th><th>Чтение</th><th>Запись и dispatch</th></tr>
+<tr><td>BloomUpsampleComposite</td><td>Scene _InputTex (point); half-resolution
+prefilter _BaseTex и последняя quarter-resolution реконструкция _SourceTex
+(linear clamp); radius/scatter/intensity</td><td>Full-resolution _OutputTex;
+ceil(W/16) × ceil(H/16) групп, 8×8 threads. Каждый thread пишет до четырёх пикселей;
+полная проверка границ после обязательного shared-memory barrier.</td></tr>
+<tr><td>Предыдущие уровни</td><td>Prefilter/downsample/upsample — прежние
+производственные ресурсы и фильтрация</td><td>Последний half-resolution UAV
+исключён; upsample i&gt;0 не изменены.</td></tr></table>
+<p>TL-DATA: каждая группа строит 8×8 half-resolution texels плюс halo (10×10,
+100 float3 = 1200 shared bytes). Pixel-centre convention — (pixel+.5)/size,
+пределы clamp-to-edge. Половинный размер — floor(full/2), включая нечётные размеры.
+Результаты имитируют формат исключённого UAV: FP16, packed R11G11B10 или FP32.
+Metal filter weights и typed conversion проверяются сравнением настоящих kernels;
+битовая идентичность для FP16/packed не заявляется. Нет нормализации света в 0..1,
+изменения exposure, цветового пространства или собственной кривой.</p>
+<table><tr><th>TL-LIFE / TL-REV input</th><th>Владелец и срок</th><th>Поведение</th></tr>
+<tr><td>Textures / размер / формат</td><td>Render Graph, один frame; handles
+заимствованы executor-ом</td><td>Дескриптор от activeColor; все inputs объявлены
+UseTexture. Выход полностью записывается, clear не требуется. Неизвестный формат
+вызывает ошибку, не скрытый fallback.</td></tr>
+<tr><td>Bloom Volume / стабильный кадр</td><td>VolumeStack → pass data каждого
+frame</td><td>Один fused dispatch каждый активный frame, без cache/timer/skip;
+не инвалидирует terrain или lighting.</td></tr>
+<tr><td>DiagnosticUnfusedBloom</td><td>Явный A/B test selector, default false,
+SubsystemRegistration reset, fixture finally restore</td><td>Выбирает прежние
+производственные kernels и промежуточный UAV только для reference measurement;
+не переключается при отсутствии данных.</td></tr></table>
+<h2>TL-PERF: стоимость до замера</h2>
+<p>3420×2148: 28 890 групп. Старые final upsample + composite — примерно
+9,22 млн dispatched threads, 1 836 540 half-resolution writes, 16,53 млн
+texture sampling calls (без общих scene reads). Fused: 1 848 960 threads,
+2 889 000 реконструкций с halo, 14,45 млн texture sampling calls. Убирается
+один dispatch и half-resolution texture: 14 692 320 байт FP16 или 7 346 160 байт
+packed float. Добавляются shared barrier и округление; физический bandwidth
+не выводится из количества выборок, поскольку bilinear taps и cache отличаются.</p>
+<p>Acceptance: production image reference must remain stable (max delta ≤.002);
+fused camera image max absolute delta ≤.01 display-relative units. Независимый
+known-value HDR oracle проверяет source + (high + low×scatter)×intensity и alpha;
+gradient reference comparison допускает только объявленные ULP формата/FP16
+readback. FPS claim требует чередующихся reference/fused production captures,
+порог сравнимости baseline 10%; недостаточная сравнимость — INCOMPLETE.</p>
+<h2>TL-VERIFY / TL-CHANGE</h2>
+<p>BloomFusionPlayModeTests: FP16/R11G11B10/FP32, чётные и нечётные
+размеры, постоянный HDR, градиент и corner impulse с независимой аналитической
+tent-function oracle. Production kernels, настоящие GPU textures,
+readback; independent constant oracle. Прогон v5 passed. FP32 gradient max error 0;
+FP16 ≤.001953125; packed ≤.060546875 до tonemapping. Packed difference — до одного
+объявленного storage ULP, не обещание побитовой эквивалентности.</p>
+<p>FrameBenchmarkPlayModeTests: настоящие MainGame terrain mesh, material keywords,
+data textures, camera/projection, Render Graph, URP и DisplayFinal; image A/B/A и
+alternating reference/fused timings. Первый image run выявил изменяющиеся reference
+frames (.0146484375); этот провал не считается доказательством эквивалентности.
+Причина изменения reference: HDROutput.ConfigureCamera включает URP dithering;
+PostProcessUtils.ConfigureDithering меняет blue-noise index и random offset каждый
+frame. Image fixture отключает dithering и frame-index eigengrau, останавливает
+scaled time и CameraFollow; finally восстанавливает всё. Timing windows сохраняют
+обычные эффекты и dithering.</p>
+<p>Финальный production run: Logs/Diagnostics/Performance/bloom_final.xml —
+2 tests passed. MainGame image reference drift 0, fused image max delta 0.
+Реальный executor считает dispatch после записи каждого DispatchCompute;
+assertions подтверждают 10 reference против 9 fused при четырёх уровнях.
+Capture JSON содержит frame-local bloomDispatches (null при отсутствии свежего
+наблюдения) и DiagnosticUnfusedBloom в settings snapshot.</p>
+<p>Logs/Diagnostics/Performance/benchmark_20260930_101644.txt:
+reference p50 11.07/10.75/10.83 мс, fused 10.57/10.50/10.41 мс, по 300 кадров.
+Медиана этих окон 10.83 → 10.50 мс (−3.0%); reference span 2.9%, повторный
+postprocess baseline drift 1.3%. Это наблюдаемое улучшение p50 кадра в тестовой
+сцене, не изолированное GPU время и не гарантия среднего FPS/p99: первое fused
+окно имело spike 232.5 мс. Большой прирост или 200 FPS не заявляются.
+Ранее отдельный прогон также дал небольшой p50 delta: 10.34 → 9.99 мс.</p>
+<p>Production validation выполнена на Metal/Apple M3, SDR output, linear Half
+camera target 3420×2148. Физический HDR swapchain и другие API не проверены;
+numeric HDR oracle проверяет значения выше единицы, но не заменяет такую проверку.</p>
+<p>Source boundary scans: оба без совпадений. ArchitectureLinter: 0 errors,
+6 существующих предупреждений вне изменения. FrameHarness: 158 tests passed.
+git diff --check — clean. Документ дополняет
+<a href="POSTPROCESS_BENCHMARK.html">postprocess benchmark</a>; lighting stages
+и LIGHTING_ARCHITECTURE не изменены.</p></html>

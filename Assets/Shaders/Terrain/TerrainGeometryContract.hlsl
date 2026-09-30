@@ -24,6 +24,34 @@ float2 QuantizeTerrainPixelCenter(float2 position)
         KERN_TERRAIN_FACE_GRID_SIZE;
 }
 
+// Cell-data vertex reconstruction and silhouette consumers share this decoder,
+// so its definition lives beside the quantization and packed-shape contract.
+float2 TerrainGeometryRawCorner(float4 cornersX, float4 cornersY, int index)
+{
+    if (index == 0)
+    {
+        return float2(cornersX.x, cornersY.x);
+    }
+
+    if (index == 1)
+    {
+        return float2(cornersX.y, cornersY.y);
+    }
+
+    if (index == 2)
+    {
+        return float2(cornersX.z, cornersY.z);
+    }
+
+    return float2(cornersX.w, cornersY.w);
+}
+
+float2 TerrainGeometryCorner(float4 cornersX, float4 cornersY, int index)
+{
+    return QuantizeTerrainGeometryPoint(
+        TerrainGeometryRawCorner(cornersX, cornersY, index));
+}
+
 // Meta.b contains the low code byte. Meta.a distinguishes regular (0),
 // classic geometry (255), and organic geometry (128 + high code bits).
 float2 DecodeTerrainGeometryMetadata(float4 meta, bool geometryLayer)

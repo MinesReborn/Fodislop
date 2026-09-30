@@ -3,6 +3,7 @@
 using System;
 using Kern.Core;
 using Kern.Core.Interfaces;
+using Kern.Game;
 using Kern.Networking;
 using Kern.Player.Logic;
 using Kern.World.Streaming;
@@ -19,16 +20,33 @@ namespace Kern.Player
         public const float DefaultOrthographicSize = 7f;
         public const float DefaultCameraDepthZ = -10f;
         [SerializeField] private Transform? _target;
-        [SerializeField] private float _smoothSpeed = 5f;
+
+        // Цель камеры уже сглажена ботом (RobotMovement), поэтому своё
+        // сглаживание камеры короткое: оно только гасит дискретные шаги, а не
+        // добавляет второй хвост задержки поверх первого.
+        [SerializeField] private float _followSmoothTime = 0.06f;
         [SerializeField] private Vector2 _offset = Vector2.zero;
 
         [Header("Zoom Settings")]
-        [SerializeField] private float _zoomSpeed = 300f;
+        // Доля масштаба за один щелчок колёсика. Прокрутка приходит уже
+        // нормализованной (Input System, UniformAcrossAllPlatforms): щелчок
+        // мыши — ±1, трекпад — плавные доли. Масштаб меняется в разы, а не на
+        // единицы: одинаковый жест одинаково ощущается на любом отдалении.
+        [SerializeField] private float _zoomStepPerNotch = 0.12f;
         [SerializeField] private float _minZoom = 5f;
         [SerializeField] private float _maxZoom = 30f;
+
+        // Скорость, с которой зум догоняет цель, в 1/с; форма 1 − e^(−k·dt)
+        // не зависит от частоты кадров.
         [SerializeField] private float _zoomSmoothness = 8f;
 
         private const float ZoomSettleEpsilon = 0.001f;
+
+        // Мягкий упор: в последней доле диапазона (в логарифмической шкале)
+        // шаг зума плавно уменьшается к границе. За границы зум не выходит —
+        // освещение рассчитано на кадр не больше MaximumOrthographicSize.
+        private const float ZoomEdgeBand = 0.15f;
+        private const float ZoomEdgeMinimumFactor = 0.25f;
 
         // Сериализованные пределы не выходят за контракт: освещение рассчитано
         // на кадр ProjectRuntimeContracts.Camera.MaximumOrthographicSize.
@@ -50,6 +68,8 @@ namespace Kern.Player
         private bool _hasSnappedToServerPosition;
         private bool _localPlayerSpawnSubscription;
         private Vector3 _followVelocity;
+        private float _pixelZoomNotches;
+        private Robot? _targetRobot;
         [Inject] private Camera _injectedCamera = null!;
         [Inject] private IInputBlocker _inputBlocker = null!;
         [Inject] private ILocalPlayerState _localPlayer = null!;
@@ -75,7 +95,7 @@ namespace Kern.Player
 
             _originalZ = _camera.transform.position.z;
             float initialZoom = (MinimumZoom + MaximumZoom) * 0.5f;
-            _targetZoom = initialZoom;
+            _targetZoom = QuantizeIfPixelPerfect(initialZoom);
             _currentZoom = _targetZoom;
             _lastZoom = _currentZoom;
             ApplyZoom(_currentZoom);
@@ -236,7 +256,7 @@ namespace Kern.Player
 
             if (!Application.isPlaying)
             {
-                ApplyZoom(DefaultOrthographicSize);
+                ApplyZoom(QuantizeIfPixelPerfect(DefaultOrthographicSize));
 
                 var player = _localPlayer?.Current;
                 if (player != null)
@@ -256,46 +276,34 @@ namespace Kern.Player
 
         private void HandleZoom()
         {
-            if (_inputBlocker != null && _inputBlocker.IsInputBlocked)
+            // Блокировка ввода (чат, меню, окно) и выключенная прокрутка
+            // запрещают только новое колёсико. Досглаживание уже начатого зума
+            // к цели продолжается: ранний выход замораживал зум на полпути.
+            bool acceptsInput = _scrollEnabled &&
+                !(_inputBlocker != null && _inputBlocker.IsInputBlocked);
+            float scrollInput = acceptsInput ? ReadScroll() : 0f;
+
+            if (Mathf.Abs(scrollInput) > 0.001f)
             {
-                return;
+                _targetZoom = _Aligner.QuantizesZoom
+                    ? StepPixelPerfectZoom(_targetZoom, scrollInput)
+                    : StepSmoothZoom(_targetZoom, scrollInput);
             }
 
-            if (!_scrollEnabled)
-            {
-                return;
-            }
+            // Режим выборки могли переключить в настройках на ходу: цель
+            // PixelPerfect обязана стоять на целом уровне, иначе зум никогда не
+            // сядет на пиксельную сетку.
+            _targetZoom = QuantizeIfPixelPerfect(_targetZoom);
 
-            float scrollInput = 0f;
-            if (_scrollAction != null && _scrollAction.enabled)
-            {
-                scrollInput = _scrollAction.ReadValue<Vector2>().y;
-            }
-            else if (Mouse.current != null)
-            {
-                scrollInput = Mouse.current.scroll.ReadValue().y;
-            }
-            else
-            {
-                if (!_scrollNullLogged)
-                {
-                    _scrollNullLogged = true;
-                    Debug.LogWarning("[CameraFollow] Scroll action is unavailable; mouse-wheel zoom is disabled.");
-                }
-
-                return;
-            }
-
-            if (Mathf.Abs(scrollInput) > 0.01f)
-            {
-                _targetZoom -= scrollInput * _zoomSpeed * Time.deltaTime;
-                _targetZoom = Mathf.Clamp(_targetZoom, MinimumZoom, MaximumZoom);
-            }
-
-            float nextZoom = Mathf.Lerp(
-                _currentZoom,
-                _targetZoom,
-                _zoomSmoothness * Time.deltaTime);
+            // Сглаживание идёт в логарифмической шкале, как и шаг: скорость
+            // приближения одинакова вблизи и вдали. Во время движения размер
+            // не квантуется, посадка на целый уровень — в конце, когда текущий
+            // размер сходится с квантованной целью.
+            float blend = 1f - Mathf.Exp(-_zoomSmoothness * Time.deltaTime);
+            float nextZoom = Mathf.Exp(Mathf.Lerp(
+                Mathf.Log(_currentZoom),
+                Mathf.Log(_targetZoom),
+                blend));
             if (Mathf.Abs(nextZoom - _targetZoom) <= ZoomSettleEpsilon)
             {
                 nextZoom = _targetZoom;
@@ -309,6 +317,80 @@ namespace Kern.Player
                 _lastZoom = _currentZoom;
                 OnZoomChanged?.Invoke(_currentZoom);
             }
+        }
+
+        private float ReadScroll()
+        {
+            if (_scrollAction != null && _scrollAction.enabled)
+            {
+                return _scrollAction.ReadValue<Vector2>().y;
+            }
+
+            if (Mouse.current != null)
+            {
+                return Mouse.current.scroll.ReadValue().y;
+            }
+
+            if (!_scrollNullLogged)
+            {
+                _scrollNullLogged = true;
+                Debug.LogWarning("[CameraFollow] Scroll action is unavailable; mouse-wheel zoom is disabled.");
+            }
+
+            return 0f;
+        }
+
+        private float StepSmoothZoom(float size, float notches)
+        {
+            float logMinimum = Mathf.Log(MinimumZoom);
+            float logMaximum = Mathf.Log(MaximumZoom);
+            float logSize = Mathf.Log(size);
+
+            // Прокрутка вверх приближает: кадр уменьшается.
+            float delta = -notches * Mathf.Log(1f + _zoomStepPerNotch);
+            float band = (logMaximum - logMinimum) * ZoomEdgeBand;
+            if (band > 0f)
+            {
+                float remaining = delta < 0f ? logSize - logMinimum : logMaximum - logSize;
+                float ease = Mathf.Clamp01(remaining / band);
+                delta *= Mathf.Lerp(ZoomEdgeMinimumFactor, 1f, ease);
+            }
+
+            return Mathf.Exp(Mathf.Clamp(logSize + delta, logMinimum, logMaximum));
+        }
+
+        // В PixelPerfect масштаб — целое число пикселей на тексель, уровней
+        // всего несколько. Трекпад присылает доли щелчка; они копятся, и
+        // каждый целый щелчок ведёт ровно на соседний уровень.
+        private float StepPixelPerfectZoom(float size, float notches)
+        {
+            _pixelZoomNotches += notches;
+            int levels = (int)_pixelZoomNotches;
+            if (levels == 0)
+            {
+                return size;
+            }
+
+            _pixelZoomNotches -= levels;
+            return _Aligner.StepQuantizedSize(size, levels, MinimumZoom, MaximumZoom);
+        }
+
+        private float QuantizeIfPixelPerfect(float size) =>
+            _Aligner.QuantizesZoom
+                ? _Aligner.ResolveOrthographicSize(size, MinimumZoom, MaximumZoom)
+                : size;
+
+        // Камера следует за сглаженной позицией бота без дрожи
+        // (Robot.CameraAnchor), а не за transform: в transform подмешан
+        // случайный тремор и туда же на кадр пишется сырая клетка с сервера.
+        private Vector3 ResolveFollowPoint(Transform target)
+        {
+            if (_targetRobot == null || _targetRobot.transform != target)
+            {
+                _targetRobot = target.TryGetComponent(out Robot robot) ? robot : null;
+            }
+
+            return _targetRobot != null ? _targetRobot.CameraAnchor : target.position;
         }
 
         private void HandleFollow()
@@ -331,7 +413,7 @@ namespace Kern.Player
                 }
             }
 
-            Vector3 targetPosition = _target.position + new Vector3(_offset.x, _offset.y, 0f);
+            Vector3 targetPosition = ResolveFollowPoint(_target) + new Vector3(_offset.x, _offset.y, 0f);
             Vector3 desiredPosition = new Vector3(targetPosition.x, targetPosition.y, _originalZ);
 
             if (HandleViewJump(cameraTransform, desiredPosition))
@@ -341,9 +423,7 @@ namespace Kern.Player
 
             // SmoothDamp is frame-rate independent — unlike Lerp(dt), it handles variable dt
             // without introducing jitter during frame spikes (e.g. terrain mesh rebuilds).
-            // smoothTime ≈ 1 / _smoothSpeed gives equivalent response to the old Lerp, but we
-            // tune it a touch snappier to reduce swimmy lag at high movement speeds.
-            float smoothTime = 1f / Mathf.Max(_smoothSpeed, 0.001f);
+            float smoothTime = Mathf.Max(_followSmoothTime, 0.001f);
             if ((cameraTransform.position - desiredPosition).sqrMagnitude <= FollowSettleEpsilonSquared &&
                 _followVelocity.sqrMagnitude <= FollowSettleEpsilonSquared)
             {
@@ -427,9 +507,11 @@ namespace Kern.Player
             return true;
         }
 
-        private void ApplyZoom(float desiredSize)
+        // Размер применяется как есть. Квантование PixelPerfect делает цель
+        // (QuantizeIfPixelPerfect), а не каждый кадр: иначе переход между
+        // уровнями превращался в скачок, и сглаживание зума было не видно.
+        private void ApplyZoom(float size)
         {
-            float size = _Aligner.ResolveOrthographicSize(desiredSize, _minZoom, _maxZoom);
             if (!Mathf.Approximately(_camera.orthographicSize, size))
             {
                 _camera.orthographicSize = size;
@@ -460,7 +542,7 @@ namespace Kern.Player
 
             if (_target != null && _target != cameraTransform)
             {
-                Vector3 targetPosition = _target.position + new Vector3(_offset.x, _offset.y, 0f);
+                Vector3 targetPosition = ResolveFollowPoint(_target) + new Vector3(_offset.x, _offset.y, 0f);
                 cameraTransform.position = SnapToPixelGrid(
                     new Vector3(targetPosition.x, targetPosition.y, _originalZ));
                 _followVelocity = Vector3.zero;

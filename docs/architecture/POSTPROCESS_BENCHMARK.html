@@ -1,0 +1,51 @@
+<!doctype html><html lang="ru"><meta charset="utf-8"><title>Postprocess benchmark</title>
+<style>body{font:16px system-ui;max-width:960px;margin:40px auto;line-height:1.5}table{border-collapse:collapse}td,th{border:1px solid #aaa;padding:8px}</style>
+<h1>Production postprocess benchmark</h1>
+<p>Владелец — PostProcessRendererFeature/PostProcessRuntimeState. Ранее offscreen
+benchmark исключался фильтром targetTexture и не измерял Kern postprocessing.
+DiagnosticOffscreenCamera — явная заимствованная ссылка только для запрошенного
+теста; она не включает остальные offscreen cameras. Fixture сохраняет ссылку
+и восстанавливает её в finally; SubsystemRegistration сбрасывает состояние.
+MainCamera selection, shaders, render graph ресурсы и порядок не меняются.</p>
+<table><tr><th>Стадия</th><th>Работа/ресурсы</th></tr>
+<tr><td>Scene bloom</td><td>Emission-gated half-resolution prefilter; четыре downsample уровня при большом кадре; final upsample и scene composite объединены до URP. Подробности: <a href="BLOOM_FUSION_EVIDENCE.html">fusion evidence</a>.</td></tr>
+<tr><td>URP</td><td>Exposure и output tonemapping, принадлежат URP.</td></tr>
+<tr><td>DisplayFinal</td><td>LUT, vignette и eigengrau объединены в один full-resolution dispatch после URP; calibration/diagnostics сохраняются.</td></tr></table>
+<p>При 3420×2148 ARGBHalf target занимает 58 769 280 байт. Один full-resolution
+read+write требует минимум 117 538 560 байт payload, без кэширования и дополнительных
+выборок. Benchmark не уменьшает качество/формат/resolution производственных
+эффектов. Uniform-by-frame Diagnostic camera check и два int frame stamps не
+создают texture/dispatch/managed allocation. Scene/display stamps обновляются
+только для зарегистрированной тестовой камеры после passNeeded; assertions
+проверяют запись требуемых production passes.</p>
+<p>Высокоприоритетный временный Volume задаёт только intensity трёх компонентов.
+Остальные параметры наследуются от production Volume stack. Masks: bloom=1,
+vignette=2, eigengrau=4. Измеряются 7,6,5,3,1,2,4,0,7; отдельное окно с mask=0
+и camera.renderPostProcessing=false измеряет URP postprocessing в целом, не
+изолированную tonemapping-функцию. Тестовые Volume/profile/components удаляются
+в finally; scene/assets/config на диске не изменяются. Все переключатели
+возвращаются к исходным значениям.</p>
+<p>Capture сохраняет фактические VolumeStack intensities, camera URP enable и
+runtime bypass/skip рядом с config snapshot. Замеры — 300 кадров после 60 кадров
+прогрева, одинаковая production camera/mesh/data textures на ARGBHalf offscreen
+target. Интервал кадра не называется GPU time. ProfilerRecorder CommandBuffer
+scopes — длительность GPU непроверена; FrameTiming timestamps сохраняются
+отдельно. Нет независимого image oracle и доказательства эквивалентности
+offscreen target физическому HDR дисплею.</p>
+<p>Первый production прогон: mask7 p50 10.86 мс, mask6 8.30 мс, mask5 10.49 мс,
+mask3 10.90 мс, mask0 6.89 мс, mask7 повтор 11.04 мс, mask0/URP off 6.23 мс.
+Последовательные окна — диагностическая разница, не независимые стоимости.
+Изменение исправляет покрытие benchmark; FPS optimization не заявляется.
+TL-LIFE/TL-REV: GPU/cache/invalidation входы production не изменены; профиль
+и camera switches применяются обычным Volume/URP путём. TL-VERIFY/TL-PERF:
+production PlayMode run required; sources и lifecycle проверяются тестом.</p>
+<p>Command: KERN_BENCHMARK_RESOLUTION=3420x2148 unity test . --mode PlayMode
+--filter Kern.Tests.PlayMode.FrameBenchmarkPlayModeTests.MainGame_FrameCostByScenario.
+Artifacts: Logs/Diagnostics/Performance.</p>
+<p>Проверка до bloom fusion: production run прошёл assertions scene/display
+passes; 158 FrameHarness tests прошли; ArchitectureLinter — 0 errors и шесть
+существующих unrelated warnings; git diff --check чистый. Последний прогон имеет
+baseline drift mask7 12.73→17.40 мс: точное распределение стоимости эффектов
+по последовательным окнам не доказано. Текстовый отчёт помечает drift &gt;10%
+как PERFORMANCE INCOMPLETE (порог диагностики, не утверждённый FPS budget).
+Shader math/quality не изменены; визуальная и FPS optimization не заявляется.</p></html>

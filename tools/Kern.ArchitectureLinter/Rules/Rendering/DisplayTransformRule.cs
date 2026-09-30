@@ -82,51 +82,18 @@ public sealed class DisplayTransformRule : IRule
                 "Include guard must close with #endif // KERN_COLOR_GRADING_INCLUDED.");
         }
 
-        Dictionary<string, float[]> matrices = ReadMatrices(source);
-        if (!matrices.TryGetValue("toLms", out float[]? toLms) ||
-            !matrices.TryGetValue("fromLms", out float[]? fromLms))
-        {
-            AddViolation(violations, path, "White balance requires both toLms and fromLms matrices.");
-        }
-        else
-        {
-            float worstDeviation = 0f;
-            for (int row = 0; row < 3; row++)
-            {
-                for (int column = 0; column < 3; column++)
-                {
-                    float value = 0f;
-                    for (int index = 0; index < 3; index++)
-                    {
-                        value += fromLms[(row * 3) + index] * toLms[(index * 3) + column];
-                    }
-
-                    float expected = row == column ? 1f : 0f;
-                    worstDeviation = Math.Max(worstDeviation, Math.Abs(value - expected));
-                }
-            }
-
-            if (worstDeviation > 0.002f)
-            {
-                AddViolation(
-                    violations,
-                    path,
-                    $"toLms and fromLms are not inverses (worst deviation {worstDeviation:F6}).");
-            }
-        }
-
         Require(
             violations,
             path,
             source,
-            @"unitPower\s*=\s*1\.0\s*-\s*step\([^;]*abs\(power\s*-\s*1\.0\)\)",
-            "Neutral ASC CDL power must preserve negative log values.");
+            @"saturate\(\(color\s*/\s*scale\s*-",
+            "LUT lookup must normalize HDR color before the table domain clamp.");
         Require(
             violations,
             path,
             source,
-            @"return\s+lerp\(powered,\s*graded,\s*unitPower\)",
-            "ASC CDL must select the sign-preserving neutral-power path.");
+            @"lutColor\s*\*=\s*scale",
+            "LUT output must restore the HDR scale removed before lookup.");
     }
 
     private void CheckPostProcessShader(
@@ -266,23 +233,6 @@ public sealed class DisplayTransformRule : IRule
                     $"Matrix {matrixName} row {row + 1} sums to {sum:F6} instead of 1.0.");
             }
         }
-    }
-
-    private static Dictionary<string, float[]> ReadMatrices(string source)
-    {
-        var result = new Dictionary<string, float[]>(StringComparer.Ordinal);
-        foreach (Match match in Regex.Matches(
-                     source,
-                     @"const\s+float3x3\s+(\w+)\s*=\s*float3x3\(([^)]*)\)",
-                     Invariant))
-        {
-            if (TryReadFloatList(match.Groups[2].Value, out float[] values) && values.Length == 9)
-            {
-                result[match.Groups[1].Value] = values;
-            }
-        }
-
-        return result;
     }
 
     private static bool TryReadFloatList(string source, out float[] values)

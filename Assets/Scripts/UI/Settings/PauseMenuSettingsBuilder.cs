@@ -112,7 +112,6 @@ internal sealed class PauseMenuSettingsBuilder
         var builder = new PauseMenuInterfaceTabBuilder(
             _doc,
             _clientConfig,
-            _graphicsSettings,
             _refreshers,
             _loc);
         return builder.Build(interfaceScroll);

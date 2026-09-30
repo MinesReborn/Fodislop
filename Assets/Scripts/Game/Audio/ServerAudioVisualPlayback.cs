@@ -8,6 +8,8 @@ using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Effekseer;
 using Kern.World;
+using MinesServer.Data;
+using MinesServer.Networking.Server.Packets.Connection;
 using UnityEngine;
 
 namespace Kern.Game;
@@ -20,6 +22,7 @@ internal sealed class ServerAudioVisualPlayback : IDisposable
     private readonly ushort _sourceY;
     private readonly ushort _targetBotID;
     private readonly IRobotService _robotService;
+    private readonly ILocalPlayerState _localPlayer;
     private readonly IAssetLoader _assetLoader;
     private readonly MapManager _mapManager;
     private readonly IVfxService _vfxPool;
@@ -56,6 +59,7 @@ internal sealed class ServerAudioVisualPlayback : IDisposable
         ServerAudioParameters parsedParams,
         IVfxSlot? slot,
         IRobotService robotService,
+        ILocalPlayerState localPlayer,
         IAssetLoader assetLoader,
         MapManager mapManager,
         IVfxService vfxPool)
@@ -67,6 +71,7 @@ internal sealed class ServerAudioVisualPlayback : IDisposable
         _parsedParams = parsedParams;
         _slot = slot;
         _robotService = robotService;
+        _localPlayer = localPlayer;
         _assetLoader = assetLoader;
         _mapManager = mapManager;
         _vfxPool = vfxPool;
@@ -210,17 +215,17 @@ internal sealed class ServerAudioVisualPlayback : IDisposable
 
         _intendedWorldPosition = pos;
 
+        // Слот приходит из пула с поворотом прошлого эффекта: поворот
+        // ставится всегда, без бота — нулевой.
+        float facing = 0f;
         if (_targetBotID != 0)
         {
             long robotStart = System.Diagnostics.Stopwatch.GetTimestamp();
             _targetBot = _robotService.GetOrCreateRobot(_targetBotID);
             RecordIfSlow("робот-цель", robotStart);
-            if (_targetBot != null && _gameObject != null)
+            if (_targetBot != null)
             {
-                // The dig effect must point the way the bot faces, toward
-                // the cell being dug. The previous +180 offset rendered it
-                // pointing back at the bot's tail.
-                _gameObject.transform.rotation = Quaternion.Euler(0, 0, _targetBot.LogicalFacingAngle);
+                facing = FacingTowardEffectCell(_targetBot);
             }
         }
         else
@@ -228,9 +233,66 @@ internal sealed class ServerAudioVisualPlayback : IDisposable
             _targetBot = null;
         }
 
+        if (_gameObject != null)
+        {
+            _gameObject.transform.rotation = Quaternion.Euler(0, 0, facing);
+        }
+
         _slot?.SetColor(_primaryColor);
         _slot?.SetSprite(null);
     }
+
+    // Эффект копания смотрит от бота на копаемую клетку. Поворота в пакете
+    // нет, поэтому направление восстанавливается, от надёжного к запасному:
+    //
+    // 1. Своё копание: направление, в котором клиент сам копал эту клетку.
+    //    Не зависит ни от лага, ни от шагов после копания.
+    // 2. Чужой бот: от последней позиции, присланной сервером, к клетке.
+    //    Сервер копает от своей позиции бота и сообщает её раньше копания.
+    // 3. Иначе — текущий угол бота. У бота, о котором сервер ещё ничего не
+    //    сообщал, геометрия не считается: его позиция — начало мира.
+    //
+    // Сервер присылает поворот бота раньше эффекта копания, так что в штатном
+    // порядке угол бота уже верный. Шаги 1–2 держат направление и тогда,
+    // когда порядок нарушен: заглушка раньше отвечала на поворот с задержкой,
+    // а пакет эффекта может прийти о боте, про которого клиент не знает.
+    private float FacingTowardEffectCell(IRobotView bot)
+    {
+        ILocalPlayer? local = _localPlayer.Current;
+        if (local != null &&
+            local.BotID == bot.BotID &&
+            local.TryGetDigDirection(_sourceX, _sourceY, out Direction digDirection))
+        {
+            return FacingAngle(digDirection);
+        }
+
+        if (bot.TryGetServerPosition(out Vector3 botPosition))
+        {
+            Vector3 cell = CoordinateUtils.ServerToUnityPos(_sourceX, _sourceY, GetWorldHeight());
+            Vector3 delta = cell - botPosition;
+            float absoluteX = Mathf.Abs(delta.x);
+            float absoluteY = Mathf.Abs(delta.y);
+            if (Mathf.Max(absoluteX, absoluteY) >= 0.5f && Mathf.Abs(absoluteX - absoluteY) >= 0.5f)
+            {
+                // Ось Y Unity смотрит вверх, серверная — вниз.
+                return FacingAngle(absoluteX > absoluteY
+                    ? (delta.x > 0f ? Direction.Right : Direction.Left)
+                    : (delta.y > 0f ? Direction.Up : Direction.Down));
+            }
+        }
+
+        return bot.LogicalFacingAngle;
+    }
+
+    // Логический угол бота (Robot.LogicalFacingAngle) для направления.
+    private static float FacingAngle(Direction direction) => direction switch
+    {
+        Direction.Up => 0f,
+        Direction.Left => 90f,
+        Direction.Down => 180f,
+        Direction.Right => -90f,
+        _ => 0f,
+    };
 
     private async UniTask LoadVisualWithCancellationAsync(
         CancellationToken eventToken,

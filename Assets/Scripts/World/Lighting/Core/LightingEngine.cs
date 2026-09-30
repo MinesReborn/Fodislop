@@ -322,7 +322,9 @@ namespace Kern.World.Lighting
             _dynamicLightManager.SetDynamicLight(id, position, color, intensity);
             if (_dynamicLightManager.IsDirty)
             {
-                _runtimeState.CompositeDirty = true;
+                // Re-evaluate the uploaded set before requesting GPU work. A
+                // changed source may be outside the field or beyond capacity.
+                _runtimeState.HasRenderedLightState = false;
             }
         }
 

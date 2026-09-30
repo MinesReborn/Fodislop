@@ -356,9 +356,7 @@ public static class Program
             typeof(AudioSettings),
             typeof(DisplaySettings),
             typeof(InterfaceSettings),
-            typeof(AccessibilitySettings),
             typeof(ConnectionSettings),
-            typeof(PostProcessSettings),
             typeof(TerrainSettings),
             typeof(EffectSettings),
         ];
@@ -377,9 +375,7 @@ public static class Program
         Run<AudioSettings>();
         Run<DisplaySettings>();
         Run<InterfaceSettings>();
-        Run<AccessibilitySettings>();
         Run<ConnectionSettings>();
-        Run<PostProcessSettings>();
         Run<TerrainSettings>();
         Run<EffectSettings>();
         return;
@@ -458,9 +454,7 @@ public static class Program
         TestSection<AudioSettings>();
         TestSection<DisplaySettings>();
         TestSection<InterfaceSettings>();
-        TestSection<AccessibilitySettings>();
         TestSection<ConnectionSettings>();
-        TestSection<PostProcessSettings>();
         TestSection<TerrainSettings>();
         TestSection<EffectSettings>();
 

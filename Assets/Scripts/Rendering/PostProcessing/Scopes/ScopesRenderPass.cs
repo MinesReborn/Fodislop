@@ -30,7 +30,7 @@ internal sealed class ScopesRenderPass : ScriptableRenderPass2D
     private static bool _showSkinToneLine = true;
 
     // Проход не резолвится контейнером — он принадлежит renderer asset.
-    // Снимки состояния в него ТОЛКАЮТ (SetColorGrade, Enabled), но
+    // Состояние в него ТОЛКАЮТ (Enabled, режимы), но
     // приборы надо ТЯНУТЬ: их считает GPU, а показывает интерфейс. Поэтому
     // живой проход публикует себя здесь. Это не синглтон-точка доступа к
     // логике: наружу видны только три текстуры, и записать сюда нельзя.
@@ -61,6 +61,10 @@ internal sealed class ScopesRenderPass : ScriptableRenderPass2D
     public static uint ClippedBlackSamples => _live?._resources.ClippedBlackSamples ?? 0u;
 
     public static uint ClippedHighlightSamples => _live?._resources.ClippedHighlightSamples ?? 0u;
+
+    public static float MedianExposureStops => _live?._resources.MedianExposureStops ?? float.NaN;
+
+    public static float P95ExposureStops => _live?._resources.P95ExposureStops ?? float.NaN;
 
     public static ScopesSourceMode SourceMode
     {
@@ -144,6 +148,9 @@ internal sealed class ScopesRenderPass : ScriptableRenderPass2D
 
     private void ApplyRenderPassEvent()
     {
+        // After samples Kern's DisplayFinal result. In HDR it is still linear
+        // absolute-nit color; URP's final PQ/scRGB encoding and the physical
+        // display are downstream, so this is a signal meter, not a photometer.
         renderPassEvent = _sourceMode == ScopesSourceMode.Before
             ? RenderPassEvent.BeforeRenderingPostProcessing
             : RenderPassEvent.AfterRenderingPostProcessing;
@@ -240,11 +247,23 @@ internal sealed class ScopesRenderPass : ScriptableRenderPass2D
         if (passData.HDROutput)
         {
             Tonemapping output = VolumeManager.instance.stack.GetComponent<Tonemapping>();
-            passData.SignalScale = 1f / Mathf.Max(1f, output.maxNits.value);
+            float maxNits = Mathf.Max(1f, output.maxNits.value);
+            float paperWhite = Mathf.Max(1f, output.paperWhite.value);
+            float postExposure = Mathf.Pow(2f, VolumeManager.instance.stack
+                .GetComponent<ColorAdjustments>().postExposure.value);
+            passData.SignalScale = _sourceMode == ScopesSourceMode.Before
+                ? paperWhite * postExposure / maxNits
+                : 1f / maxNits;
+            passData.ExposureScale = _sourceMode == ScopesSourceMode.Before
+                ? postExposure
+                : 1f / paperWhite;
         }
         else
         {
-            passData.SignalScale = 1f;
+            float postExposure = Mathf.Pow(2f, VolumeManager.instance.stack
+                .GetComponent<ColorAdjustments>().postExposure.value);
+            passData.SignalScale = _sourceMode == ScopesSourceMode.Before ? postExposure : 1f;
+            passData.ExposureScale = passData.SignalScale;
         }
 
         builder.UseTexture(activeColor, AccessFlags.Read);

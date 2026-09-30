@@ -307,6 +307,12 @@ namespace Kern.Player.Logic
         public void ConfirmDigAction(ushort x, ushort y) =>
             _actionDispatcher?.ConfirmDigAction(x, y);
 
+        public bool TryGetDigDirection(ushort x, ushort y, out Direction direction)
+        {
+            direction = default;
+            return _actionDispatcher != null && _actionDispatcher.TryGetDigDirection(x, y, out direction);
+        }
+
         private void ApplyMovement()
         {
             if (_robot is null || _input is null)
@@ -434,7 +440,7 @@ namespace Kern.Player.Logic
             }
             else if (_autoDig)
             {
-                _actionDispatcher?.NotifyDug(targetPosition);
+                _actionDispatcher?.NotifyDug(targetPosition, packetDirection);
                 _networkService?.Send(new ActionClientPacket(targetServerX, targetServerY, new BzPacket()));
                 _lastMoveTime = Time.time;
             }

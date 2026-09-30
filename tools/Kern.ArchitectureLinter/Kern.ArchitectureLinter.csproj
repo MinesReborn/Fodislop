@@ -56,7 +56,6 @@
     <Compile Include="..\..\Assets\Scripts\Core\Configuration\Contracts\ClientConfig.cs" />
     <Compile Include="..\..\Assets\Scripts\Core\Interfaces\Contracts\Core\IClientConfigManager.cs" />
     <Compile Include="..\..\Assets\Scripts\Core\Interfaces\Contracts\Settings\*.cs" />
-    <Compile Include="..\..\Assets\Scripts\Rendering\PostProcessing\ColorGrading\Contracts\DisplayTransform.cs" />
     <Compile Include="..\..\Assets\Scripts\Rendering\PostProcessing\ColorGrading\Contracts\VisualTuning.cs" />
   </ItemGroup>
 

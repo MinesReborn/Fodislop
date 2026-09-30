@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Core.Localization;
-using Kern.Rendering;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -15,20 +14,17 @@ internal sealed class PauseMenuInterfaceTabBuilder
 {
     private readonly UIDocument _doc;
     private readonly IClientConfigManager _clientConfig;
-    private readonly GraphicsSettingsController _graphicsSettings;
     private readonly ICollection<Action> _refreshers;
     private readonly ILocalizationService _loc;
 
     public PauseMenuInterfaceTabBuilder(
         UIDocument doc,
         IClientConfigManager clientConfig,
-        GraphicsSettingsController graphicsSettings,
         ICollection<Action> refreshers,
         ILocalizationService loc)
     {
         _doc = doc;
         _clientConfig = clientConfig;
-        _graphicsSettings = graphicsSettings;
         _refreshers = refreshers;
         _loc = loc;
     }
@@ -87,34 +83,6 @@ internal sealed class PauseMenuInterfaceTabBuilder
                 _loc.SetLanguage(code);
             }
         });
-        // Colorblind adaptation
-        var colorblindRow = new VisualElement();
-        colorblindRow.AddToClassList("pause-slider-container");
-        var colorblindLabel = new Label(_loc.Get("gateway.onb.colorblind_label"));
-        colorblindLabel.AddToClassList("pause-slider-label");
-        colorblindRow.Add(colorblindLabel);
-
-        var colorblindDropdown = new DropdownField();
-        colorblindDropdown.choices = new List<string>
-        {
-            _loc.Get("gateway.onb.colorblind.none"),
-            _loc.Get("gateway.onb.colorblind.deuteranopia"),
-            _loc.Get("gateway.onb.colorblind.protanopia"),
-            _loc.Get("gateway.onb.colorblind.tritanopia"),
-            _loc.Get("gateway.onb.colorblind.high_contrast"),
-        };
-        colorblindDropdown.index = Mathf.Clamp(_clientConfig.Config.Accessibility.ColorblindMode, 0, 4);
-        colorblindDropdown.RegisterValueChangedCallback(_ =>
-        {
-            _graphicsSettings.UpdateAccessibilitySettings(
-                settings => settings.ColorblindMode = colorblindDropdown.index);
-        });
-        _refreshers.Add(() =>
-        {
-            colorblindDropdown.index = Mathf.Clamp(_clientConfig.Config.Accessibility.ColorblindMode, 0, 4);
-        });
-        colorblindRow.Add(colorblindDropdown);
-        interfaceSection.Add(colorblindRow);
 
         // Control Scheme adaptation
         var controlSchemeRow = new VisualElement();

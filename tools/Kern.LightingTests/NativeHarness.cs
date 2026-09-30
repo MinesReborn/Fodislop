@@ -60,7 +60,7 @@ internal static class NativeHarness
                 string entry = match.Groups[1].Value;
                 ProcessResult result = RunProcess(
                     executable,
-                    ["-D", "-V", "-S", "comp", "-e", entry, "-I", repositoryRoot, computePath, "-o", Path.Combine(temporaryDirectory, entry + ".spv")],
+                    ["-D", "-V", "-S", "comp", "-e", entry, "-I" + repositoryRoot, computePath, "-o", Path.Combine(temporaryDirectory, entry + ".spv")],
                     TimeSpan.FromSeconds(90));
                 if (result.ExitCode != 0)
                 {

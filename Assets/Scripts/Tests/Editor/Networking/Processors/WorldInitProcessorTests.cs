@@ -214,6 +214,11 @@ public class WorldInitProcessorTests
         }
 
         public void ConfirmDigAction(ushort x, ushort y) { }
+        public bool TryGetDigDirection(ushort x, ushort y, out Direction direction)
+        {
+            direction = default;
+            return false;
+        }
         public void ResetDirection() { }
         public void Initialize(uint botID) { }
         public void SetGameplayVisible() { }

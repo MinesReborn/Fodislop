@@ -9,6 +9,12 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Microsoft.CodeAnalysis">
+      <HintPath>$(MSBuildToolsPath)/Roslyn/bincore/Microsoft.CodeAnalysis.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.CodeAnalysis.CSharp">
+      <HintPath>$(MSBuildToolsPath)/Roslyn/bincore/Microsoft.CodeAnalysis.CSharp.dll</HintPath>
+    </Reference>
     <Compile Include="../../Assets/Scripts/World/Common/FrameTelemetry.cs" Link="FrameTelemetry.cs" />
     <Compile Include="../../Assets/Scripts/World/Common/IFrameTelemetryProducerStamp.cs" Link="IFrameTelemetryProducerStamp.cs" />
     <Compile Include="../../Assets/Scripts/World/Common/TerrainTextureUploadCounters.cs" Link="TerrainTextureUploadCounters.cs" />

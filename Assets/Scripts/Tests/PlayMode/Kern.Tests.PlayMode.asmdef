@@ -22,6 +22,8 @@
         "MinesServer.Networking.Connection",
         "MinesServer.Networking.Connection.Client",
         "Unity.InputSystem",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime",
         "FMODUnity",
         "UniTask",
         "VContainer"

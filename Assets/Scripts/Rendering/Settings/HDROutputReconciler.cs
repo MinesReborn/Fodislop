@@ -49,6 +49,13 @@ public sealed class HDROutputReconciler : IStartable, ITickable, IDisposable
         // здесь один раз.
         _tonemapping.paperWhite.Override(PostProcessRuntimeState.DisplayPaperWhiteNits);
         _tonemapping.maxNits.Override(PostProcessRuntimeState.DisplayPeakBrightnessNits);
+
+        // Кадр вдвое ярче сцены. Экспозиция стоит здесь, в том же томе, что и
+        // тонмаппинг: URP применяет её прямо перед своей кривой, и сжатие пиков
+        // остаётся за ней — плечо Neutral в SDR, BT.2390 у пика дисплея в HDR.
+        // Отдельный полноэкранный проход ради одного умножения не нужен.
+        ColorAdjustments colorAdjustments = _profile.Add<ColorAdjustments>(true);
+        colorAdjustments.postExposure.Override(PostProcessLook.Exposure.Stops);
         _volume = _camera.Camera.gameObject.AddComponent<Volume>();
         _volume.isGlobal = true;
         _volume.priority = float.MaxValue;

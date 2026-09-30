@@ -1,6 +1,5 @@
 #nullable enable
 
-using Kern.Game;
 using UnityEngine;
 
 namespace Kern.Core.Interfaces;
@@ -17,7 +16,6 @@ public interface IVfxSlot
 
 public interface IVfxService
 {
-    IVfxSlot? Acquire(VfxType vfxType);
+    IVfxSlot? Acquire();
     void Release(IVfxSlot slot);
-    void Preload(VfxType vfxType, int count);
 }

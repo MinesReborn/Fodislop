@@ -31,6 +31,38 @@ Exit codes: `0` — все применимые проверки выбранн�
 
 ## Реализованный scope
 
+Unity benchmark принимает `KERN_BENCHMARK_RESOLUTION=3420x2148` и проверяет
+фактический camera target размер перед запуском сценариев. Без переменной остаётся
+текущий размер. В batch-прогоне production camera рендерит в явный ARGBHalf
+target нужного размера (depth 24); capture и основной отчёт используют camera
+pixelWidth/pixelHeight. Target создаётся один раз вне окон измерения и
+освобождается после сценариев. Это offscreen rendering workload, без
+доказательства эквивалентности финальному выводу на дисплей. Capture сохраняет
+графические настройки без сетевых токенов.
+Соседний `*.timings.json` содержит уникальные FrameTiming timestamps и доступные
+CPU/GPU значения; задержанные GPU результаты не приписываются произвольным
+frameId. Это оконные наблюдения, а не полноценное покадровое GPU покрытие.
+CommandBuffer ProfilerRecorder scopes не заявляются как доказанные GPU durations.
+Текстовый отчёт показывает покрытие аллокаций и GPU timings для каждого сценария.
+Postprocessing включён для явно зарегистрированной diagnostic offscreen camera;
+остальные offscreen cameras сохраняют прежнюю политику. Окна mask 7/6/5/3/1/2/4/0/7
+проверяют bloom/vignette/eigengrau при авторских intensities; отдельное окно
+отключает весь URP postprocessing при нулевых custom effects. Frame stamps
+проверяют, что необходимые scene/display production passes действительно записаны.
+См. docs/architecture/POSTPROCESS_BENCHMARK.html.
+
+Аллокации выводятся отдельно по steady/cold/reanchor: среднее B/frame,
+p50/p95/p99/max в байтах и decimal MB/s для полной выборки. `gcAllocBytes`
+берётся бенчмарком из собственного `GC Allocated In Frame` recorder за
+завершённый кадр; недоступный counter записывается как null. Это общий счётчик
+кадра, а не атрибуция террейну/свету и не доказательство причины низкого FPS.
+Разница занятой managed heap в AllocationLedger — приблизительное наблюдение,
+её нельзя подменять этим счётчиком. Изменение касается диагностики: стадии,
+ресурсы и invalidation террейна/света не меняются. Счётчик живёт только в окне
+замера и освобождается при завершении/dispose корутины; анализ выполняется
+после capture и не добавляет покадровых объектов. Production-проверка нового
+сбора данных требует запуска Unity benchmark.
+
 - OPT-1 для S0 (неизменный мир), S1 (камера внутри подготовленного окна),
   S4 (изменяется только динамический свет). Это **счётчиковые проверки**,
   а не доказательство правильных пикселей или соответствия каждой позиции света.
@@ -128,7 +160,20 @@ observations. Анализатор обнаруживает несогласов
 в котором **отдельно, явно** запускается existing explicit test
 `MainGame_FrameCostByScenario`. Этот README не даёт разрешения запускать Unity.
 
-После всех четырёх измерительных окон сохраняются JSON-файлы через
+Бенчмарк дополнительно измеряет production terrain draw на максимальном зуме,
+затем на минимальном зуме после максимального (проверка возврата presentation
+mesh к размеру текущего viewport). Затем он снимает диагностическую 2×2
+матрицу `terrain draw × lighting compute`: оба включены, отдельно отключён
+каждый, отключены оба. После каждого перехода выдерживается полный warmup —
+lighting bypass освобождает GPU-ресурсы, поэтому короткая пауза дала бы замер
+переинициализации вперемешку со steady-state. Разности матрицы — атрибуция
+взаимодействий в production-сцене, не аддитивная оценка стоимости draw/pass и
+не доказательство FPS-улучшения. Текстовый отчёт выводит p50-разницы относительно
+all-on и factorial interaction по среднему frame time `оба − только terrain −
+только lighting + all-on`. Окна идут последовательно, не попарно, поэтому
+interaction остаётся диагностикой с возможным временным дрейфом; p50-разницы
+не трактуются как аддитивные. Исходный zoom и debug-флаги восстанавливаются
+даже при ошибке теста. После всех измерительных окон сохраняются JSON-файлы через
 DiagnosticArtifactPaths в `Logs/Diagnostics/Performance/` (Editor) либо
 `persistentDataPath/Diagnostics/Performance/` (player), с обычной retention
 политикой категории (20 записей). Запись объявляется через DiagnosticReport.
@@ -143,12 +188,23 @@ frameDurationMs = Time.unscaledDeltaTime × 1000. FrameTelemetry отдельн�
 проверяется, а не предполагается. Реальное соответствие coroutine/render фаз
 ещё требует production-проверки. Сбросы не «угадываются» по уменьшению счётчика.
 
+В текстовый отчёт добавлены независимые GPU marker scopes уже существующих
+production CommandBuffer стадий: Terrain material/AO field, Lighting material/AO,
+geometry caches, cascade 0–3, dynamic radiance и composite. Для каждой печатается
+среднее по реально полученным marker samples; отсутствующая метка выводится как
+`NO GPU SAMPLES`, а не как ноль. Это оконная диагностика, не frame-correlated
+статистика и не поле JSON capture/CLI comparison. Вложенные scopes намеренно не
+суммируются. Отрисовка видимого Terrain через `MeshRenderer` пока не имеет
+собственного GPU scope, поэтому её bypass-разность остаётся только грубой
+контрфактической оценкой, не стоимостью шейдера.
+
 Эти captures намеренно **INCOMPLETE**: нет детерминированного workload, полного
 набора source revisions/readiness, классификации кадров, эффективного graphics
 profile, aggregate mesh/atlas upload counts/bytes, GPU timing и visual oracle.
 Cell-data texture Apply/CopyTexture counts и payload estimates now экспортируются
-как отдельные optional observational metrics; CaptureAnalyzer пока не проверяет
-эти четыре поля. Сценарии имеют имена
+как отдельные optional observational metrics; CaptureAnalyzer проверяет их для
+S0/S1/S4 при подтверждённых входах, поколении и соответствии observation IDs
+номерам кадров. Отсутствующие данные остаются неизвестными. Сценарии имеют имена
 observational/diagnostic, **не S0/S1/S4**. Bypass-варианты — диагностические
 наблюдения, а не приёмочный before/after. MVIDs не отождествляются с source tree.
 
@@ -167,14 +223,15 @@ Reset-start snapshots помечены `Time.frameCount - 1`, поскольку
 
 Старый замер до upload telemetry: 105/105 тестов и 96-byte managed sample на
 standalone .NET 10 (84 байта до producer stamps); это historical baseline, не
-текущий размер sample. Текущая standalone suite — 116 тестов. Current managed
+текущий размер sample. Проверка 116 тестов относится к предыдущему этапу. Current managed
 sample layout и instrumentation cost в Unity не измерялись. JSON formatting и IO
 создаются после всех окон; standalone проверки не устанавливают стоимость
 наблюдения в production и не дают performance claim.
 
 ## Проверка и ограничения
 
-`dotnet test tools/Kern.FrameHarness.Tests --no-restore` — 116/116 (2026-09-28).
+`dotnet test tools/Kern.FrameHarness.Tests/Kern.FrameHarness.Tests.csproj --no-restore`
+— 156/156 (2026-09-29).
 Standalone NUnit fixtures проверяют анализатор, JSON round-trip и настоящий CLI
 процесс с кодами возврата. Source-linked production FrameTelemetry проверяется
 на initial/reset/skipped-reset/dispose/repeated-dispose/reset-after-dispose.
@@ -183,6 +240,12 @@ allocated-slab and rectangle byte estimates, adjacent/missing/stale frame endpoi
 and strict CaptureJson round-trip through the production capture-field builders;
 Time и ProfilerRecorder заменены узкими тестовыми заглушками. Это не проверка
 Unity runtime, profiler API или шейдеров.
+`LightingInvalidationSourceTests` компилирует настоящий DynamicLightManager,
+coordinator, runtime state, setter и frame executor; границы Unity/GPU заменены
+spies. Проверяет отсечение, capacity, точное движение, цвет/интенсивность,
+вход/выход/удаление, приоритет полного composite и сохранение partial-пути.
+Fault injection воспроизводит прежние лишние отправки команд. Это проверка
+управляющего C#-пути, не shader output и не измерение FPS.
 Unity producer assembly compile, PlayMode exporter execution, scene frames, and
 render were not run; those checks remain pending under the repository's Unity
 authority boundary. The strict standalone round-trip covers the shared production

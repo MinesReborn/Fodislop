@@ -23,7 +23,6 @@ public static class FrameProbeCatalog
         new("· блум, вниз", "Kern.PostProcess.Bloom.Downsample", isDetail: true, gpu: true),
         new("· блум, вверх", "Kern.PostProcess.Bloom.Upsample", isDetail: true, gpu: true),
         new("· возврат в кадр", "Kern.PostProcess.BlitBack", isDetail: true, gpu: true),
-        new("· копия истории", "Kern.PostProcess.HistoryCopy", isDetail: true, gpu: true),
     ];
 
     // Записи рендера этих же участков на процессоре.
@@ -64,7 +63,6 @@ public static class FrameProbeCatalog
         new("· запись композита", "Kern.Lighting.Composite.Record.CPU", isDetail: true),
         new("Поверхность", "Kern.Surface.LateUpdate"),
         new("Сущности мира", "Kern.WorldEntities.LateUpdate"),
-        new("Постпроцесс", "Kern.PostProcess.LateUpdate"),
         new("Сеть — разбор очереди", "Kern.Net.DrainPacketQueue"),
     ];
 

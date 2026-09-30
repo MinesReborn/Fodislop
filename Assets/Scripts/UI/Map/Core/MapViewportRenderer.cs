@@ -330,9 +330,13 @@ internal sealed class MapViewportRenderer : IDisposable
     {
         if (_dummyMipTexture == null)
         {
-            _dummyMipTexture = RuntimeTextureFactory.CreateRGBA32NoMip(1, 1, "WorldMapDummyMipTexture");
-            _dummyMipTexture.filterMode = FilterMode.Point;
-            _dummyMipTexture.wrapMode = TextureWrapMode.Clamp;
+            _dummyMipTexture = RuntimeTextureFactory.CreateRGBA32NoMip(
+                1,
+                1,
+                "WorldMapDummyMipTexture",
+                RuntimeTextureColorSpace.Srgb,
+                FilterMode.Point,
+                TextureWrapMode.Clamp);
             _dummyMipTexture.SetPixel(0, 0, Color.black);
             _dummyMipTexture.Apply(false, false);
         }

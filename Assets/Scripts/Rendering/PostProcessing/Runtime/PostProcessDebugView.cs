@@ -16,11 +16,5 @@ public enum PostProcessDebugView
 
     SaturationOnly = 5,
 
-    QualifierMatte = 6,
-
     RgbParade = 7,
-
-    HighlightClipping = 8,
-
-    ShadowClipping = 9,
 }

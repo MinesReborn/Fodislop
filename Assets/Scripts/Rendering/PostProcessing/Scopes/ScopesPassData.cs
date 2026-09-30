@@ -19,6 +19,7 @@ internal sealed class ScopesPassData
     public int SourceWidth;
     public int SourceHeight;
     public float SignalScale;
+    public float ExposureScale;
     public int HistogramMode;
     public float VectorscopeScale;
     public bool ShowSkinToneLine;

@@ -45,6 +45,8 @@ namespace Kern.Game.Managers
         private VfxPool _vfxPool = null!;
         [Inject]
         private IAsyncOperationSupervisor _operations = null!;
+        [Inject]
+        private ILocalPlayerState _localPlayer = null!;
 
         public void PlayEffect(AudioPacket packet)
         {
@@ -72,21 +74,15 @@ namespace Kern.Game.Managers
                 _lastSfxTimes.Clear();
             }
 
-            var vfxType = MapAudioToVFX(packet.EffectType);
-            long acquireStart = System.Diagnostics.Stopwatch.GetTimestamp();
-            IVfxSlot? slot = _vfxService.Acquire(vfxType);
-            double acquireMilliseconds = (System.Diagnostics.Stopwatch.GetTimestamp() - acquireStart) * 1000.0 /
-                System.Diagnostics.Stopwatch.Frequency;
-            if (acquireMilliseconds >= 2.0)
-            {
-                Kern.Core.Interfaces.Diagnostics.FrameEventLog.Record(
-                    $"звуковое событие: VFX-слот {vfxType} {acquireMilliseconds:F1} мс");
-            }
-
+            // Звуковой пакет — только звук. Визуал приходит своим VFXPacket:
+            // перечисления SFX и VFX в протоколе разные. Раньше звук сам брал
+            // слот и грузил визуал с тем же именем, и копание, на которое
+            // приходят оба пакета, рисовалось двумя наложенными эффектами.
             var effect = new ServerAudioEvent(
                 packet,
-                slot,
+                slot: null,
                 _robotService,
+                _localPlayer,
                 _audioSystem,
                 _assetLoader,
                 _mapManager,
@@ -97,18 +93,13 @@ namespace Kern.Game.Managers
 
         public void PlayEffect(VFXPacket packet)
         {
-            VfxType vfxType = packet.EffectType switch
-            {
-                global::MinesServer.Data.VFX.Bz => VfxType.Bz,
-                global::MinesServer.Data.VFX.Death => VfxType.Death,
-                _ => VfxType.Custom,
-            };
-            IVfxSlot? slot = _vfxService.Acquire(vfxType);
+            IVfxSlot? slot = _vfxService.Acquire();
 
             var effect = new ServerAudioEvent(
                 packet,
                 slot,
                 _robotService,
+                _localPlayer,
                 _audioSystem,
                 _assetLoader,
                 _mapManager,
@@ -156,21 +147,6 @@ namespace Kern.Game.Managers
 
                 _currentMusicHandle = null;
             }
-        }
-
-        private static VfxType MapAudioToVFX(global::MinesServer.Data.SFX audioType)
-        {
-            // Enum is logically fixed on client, but server can extend it at any time.
-            // Unknown values must NOT be silently dropped — they should flow through
-            // as Custom so client can request/display them by numeric id rather than
-            // treating them as "no effect".
-            return audioType switch
-            {
-                global::MinesServer.Data.SFX.Bz => VfxType.Bz,
-                global::MinesServer.Data.SFX.Destroy => VfxType.Destroy,
-                global::MinesServer.Data.SFX.Death => VfxType.Death,
-                _ => VfxType.Custom,
-            };
         }
 
         public void ClearAllEffects()

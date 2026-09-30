@@ -8,13 +8,45 @@ namespace Kern.Rendering.PostProcessing;
 public static class PostProcessRuntimeState
 {
     internal static Camera? MainCamera { get; private set; }
-    private static uint _pipelineGeneration;
+
+    // Borrowed camera for an explicitly requested offscreen production benchmark.
+    // Fixture owns registration and teardown; ordinary offscreen cameras stay excluded.
+    public static Camera? DiagnosticOffscreenCamera { get; set; }
+    // Explicit A/B reference, not a missing-resource fallback. Default production is fused.
+    public static bool DiagnosticUnfusedBloom { get; set; }
+    public static int DiagnosticBloomDispatches { get; private set; }
+    public static int DiagnosticBloomFrame { get; private set; } = -1;
+
+    internal static void RecordBloomDispatches(int dispatches)
+    {
+        if (MainCamera != null && MainCamera == DiagnosticOffscreenCamera)
+        {
+            DiagnosticBloomDispatches = dispatches;
+            DiagnosticBloomFrame = Time.frameCount;
+        }
+    }
+    public static int DiagnosticSceneFrame { get; private set; } = -1;
+    public static int DiagnosticDisplayFrame { get; private set; } = -1;
+
+    internal static void RecordDiagnosticPass(Camera camera, bool displayPass)
+    {
+        if (camera != DiagnosticOffscreenCamera)
+        {
+            return;
+        }
+
+        if (displayPass)
+        {
+            DiagnosticDisplayFrame = Time.frameCount;
+        }
+        else
+        {
+            DiagnosticSceneFrame = Time.frameCount;
+        }
+    }
 
     private static float _displayPaperWhiteNits = DisplaySettings.DefaultPaperWhite;
     private static float _displayPeakBrightnessNits = DisplaySettings.DefaultPeakBrightness;
-    private static ColorGradeSnapshot _colorGrade = ColorGradeSnapshot.FromLook();
-    private static ColorGradeSnapshot _colorGradeSource;
-    private static bool _hasColorGradeSource;
     private static PostProcessDebugView _debugView;
     private static float _compareSplit;
     private static CompareMode _compareMode;
@@ -22,13 +54,17 @@ public static class PostProcessRuntimeState
     private static bool _bypassPostProcessEffects;
     private static bool _temporaryBypass;
 
-    internal static uint PipelineGeneration => _pipelineGeneration;
-
     internal static float DisplayPaperWhiteNits => _displayPaperWhiteNits;
 
     internal static float DisplayPeakBrightnessNits => _displayPeakBrightnessNits;
 
-    internal static ColorGradeSnapshot ColorGrade => _colorGrade;
+    // Цветокоррекция кадра — один LUT. Присылает его сервер как эффект;
+    // владеет объектом тот, кто его передал, и он же его освобождает.
+    internal static ColorGradeCubeLut? Lut { get; private set; }
+
+    internal static float LutIntensity { get; private set; }
+
+    internal static ColorGradeLutColorSpace LutColorSpace { get; private set; }
 
     public static bool BypassPostProcessEffects
     {
@@ -144,12 +180,17 @@ public static class PostProcessRuntimeState
     private static void ResetForDomainReload()
     {
         MainCamera = null;
-        _pipelineGeneration = 0;
+        DiagnosticOffscreenCamera = null;
+        DiagnosticUnfusedBloom = false;
+        DiagnosticBloomDispatches = 0;
+        DiagnosticBloomFrame = -1;
+        DiagnosticSceneFrame = -1;
+        DiagnosticDisplayFrame = -1;
         _displayPaperWhiteNits = DisplaySettings.DefaultPaperWhite;
         _displayPeakBrightnessNits = DisplaySettings.DefaultPeakBrightness;
-        _colorGrade = ColorGradeSnapshot.FromLook();
-        _colorGradeSource = default;
-        _hasColorGradeSource = false;
+        Lut = null;
+        LutIntensity = 0f;
+        LutColorSpace = ColorGradeLutColorSpace.LinearRec709;
         _debugView = PostProcessDebugView.None;
         _compareSplit = 0f;
         _compareMode = CompareMode.Off;
@@ -185,29 +226,19 @@ public static class PostProcessRuntimeState
         _displayPeakBrightnessNits = sanitizedPeakBrightness;
     }
 
-    public static void SetColorGrade(ColorGradeSnapshot grade)
+    // null или нулевая сила выключают LUT; проход вывода тогда не тратит на
+    // него ни чтения.
+    public static void SetLut(
+        ColorGradeCubeLut? lut,
+        float intensity,
+        ColorGradeLutColorSpace colorSpace = ColorGradeLutColorSpace.LinearRec709)
     {
-        // Тот же грейд, что в прошлый раз, — ничего не делать. Сравнение по
-        // содержимому: источники (рабочее место, смешивание зон) отдают
-        // кривые свежими клонами, и сравнение по ссылке не совпадало ни разу —
-        // Sanitized() копировал весь грейд каждый кадр, а поколение конвейера
-        // сбрасывало историю постпроцесса.
-        if (_hasColorGradeSource && _colorGradeSource.ContentEquals(grade))
-        {
-            return;
-        }
-
-        _colorGradeSource = grade;
-        _hasColorGradeSource = true;
-        ColorGradeSnapshot sanitized = _hasColorGradeSource
-            ? grade.SanitizedReusing(_colorGrade)
-            : grade.Sanitized();
-        if (_colorGrade.ContentEquals(sanitized))
-        {
-            return;
-        }
-
-        _colorGrade = sanitized;
+        float sanitized = FiniteClamp(intensity, 0f, 1f, 0f);
+        Lut = sanitized > 0f ? lut : null;
+        LutIntensity = Lut == null ? 0f : sanitized;
+        LutColorSpace = colorSpace is ColorGradeLutColorSpace.LinearRec709 or ColorGradeLutColorSpace.SrgbRec709
+            ? colorSpace
+            : ColorGradeLutColorSpace.LinearRec709;
     }
 
     public static void SetMainCamera(Camera? camera)

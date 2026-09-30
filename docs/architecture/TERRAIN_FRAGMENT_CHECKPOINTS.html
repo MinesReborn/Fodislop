@@ -1,0 +1,53 @@
+<!doctype html><html lang="ru"><meta charset="utf-8"><title>Terrain fragment checkpoints</title>
+<style>body{font:16px system-ui;max-width:960px;margin:40px auto;line-height:1.5}table{border-collapse:collapse}td,th{border:1px solid #aaa;padding:8px}</style>
+<h1>Диагностика стоимости fragment террейна</h1>
+<p>TL-STAGE, TL-LIFE, TL-REV, TL-PERF, TL-VERIFY: владелец — Terrain Universal2D.
+Потребитель — явно запускаемый FrameBenchmarkPlayModeTests. Глобальный integer
+_KernTerrainBenchmarkStage равен 0 в production; тест сохраняет исходное значение
+и восстанавливает в finally. Материальные и AO поля, transport и invalidation
+не изменены. Ненулевые режимы намеренно меняют изображение и не являются оптимизацией.</p>
+<table><tr><th>Режим</th><th>Выполненная работа Universal2D fragment</th></tr>
+<tr><td>0</td><td>Полный production fragment.</td></tr>
+<tr><td>1</td><td>Constant carrier: только raster/vertex, без coverage и выборок fragment.</td></tr>
+<tr><td>2</td><td>Coverage и clip; без UV инверсии и выборок fragment.</td></tr>
+<tr><td>3</td><td>Coverage, UV инверсия, адресация и atlas sample; без анимации цвета, decal, bevel, света/AO.</td></tr>
+<tr><td>4</td><td>До animated color/decal/bevel включительно; без финального света/AO.</td></tr></table>
+<p>Используется реальная камера, production mesh attributes, keywords и data textures.
+Dispatch отсутствует: домен работы — raster fragments production mesh; write —
+camera color target, стандартный SrcAlpha/OneMinusSrcAlpha blend. Clear/load и
+размеры принадлежат camera/URP; кэш не добавлен. На стабильных кадрах остаются
+четыре uniform проверки; на соответствующем checkpoint последующая работа не
+выполняется. Сравнения последовательные: изменения покрытия/alpha и зависимостей
+не позволяют считать разность независимой стоимостью функций.</p>
+<p>До изменения baseline 3420×2148 offscreen: all-on p50 5.92 мс; terrain draw
+bypass 0.78 мс; lighting compute bypass 4.70 мс; terrain build bypass 6.05 мс.
+Приемка диагностики: каждый checkpoint имеет отдельный capture с фактическими
+размерами и номером режима в qualityProfile; production repeat после checkpoints
+возвращает режим 0. GPU FrameTiming сохраняет исходные timestamps отдельно, без
+выдуманной связи с frameId. Изображения изменённых режимов не доказывают визуальную
+корректность production. Перед заявлением FPS fix нужны before/after и независимый
+production image oracle; сейчас FPS fix не заявляется.</p>
+<p>Запуск: KERN_BENCHMARK_RESOLUTION=3420x2148 unity test . --mode PlayMode
+--filter Kern.Tests.PlayMode.FrameBenchmarkPlayModeTests.MainGame_FrameCostByScenario.
+Артефакты — Logs/Diagnostics/Performance; окно — 300 кадров после прогрева.</p>
+<h2>Affine UV fast path</h2>
+<p>Production runs 2026-09-30: checkpoint baseline all-on p50 5.93 мс,
+repeat 6.04 мс; после affine path all-on 5.87 мс, repeat 6.01 мс. Эти различия
+не доказывают устойчивый выигрыш. Новый путь добавляет две zero comparisons и
+uniform-by-cell branch, не добавляет dispatch/texture/buffer; сокращение iterations
+происходит только на клетках с нулевым twist, остальные сохраняют прежнюю работу.
+Общая стоимость fragment остаётся основной измеренной целью. Unity benchmark
+passed; raster oracle passed; git diff --check passed. Независимый production
+image oracle не выполнен.</p>
+<p>TerrainSampling.hlsl, TerrainResolveGeometryLocalUv: при точном нулевом
+bilinear twist (параллелограмм на сетке 1/32) inverse map решается линейно.
+Вместо четырёх Jacobian iterations выполняется один determinant и две компоненты
+решения. Для остальных клеток остаются четыре iterations. Форматы, ресурсы,
+координаты и invalidation не меняются; дополнительная память отсутствует.
+Consumers — Universal2D, LightingMaterialField и LightingAmbientOcclusionField.
+Независимый forward oracle проверяет 1369 известных UV, включая внешний диапазон,
+смещённые и наклонные оси; existing nonlinear seam/raster/AO tests сохраняются.
+CPU shim — только алгоритмическое доказательство. Production benchmark проверяет
+выполнение реальных shader passes, но независимый image oracle ещё не выполнен;
+визуальная gate и заявление FPS fix остаются непроверенными.</p>
+</html>

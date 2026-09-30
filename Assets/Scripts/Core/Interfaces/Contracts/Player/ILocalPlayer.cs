@@ -37,6 +37,9 @@ public interface ILocalPlayer
 
     void ConfirmDigAction(ushort x, ushort y);
 
+    // Направление, в котором клиент сам копал эту клетку последним.
+    bool TryGetDigDirection(ushort x, ushort y, out Direction direction);
+
     void ResetDirection();
 
     void Initialize(uint botID);

@@ -112,6 +112,17 @@ namespace Kern.Game
 
         public float LogicalFacingAngle => _movement.TargetAngle;
 
+        // Точка, за которой следует камера: уже сглаженная позиция без дрожи.
+        // transform.position для этого не годится — в него подмешан случайный
+        // тремор, и туда же PlayerMovementController ставит сырую клетку.
+        public Vector3 CameraAnchor => _movement.SmoothPosition;
+
+        public bool TryGetServerPosition(out Vector3 position)
+        {
+            position = _movement.ServerPosition;
+            return _movement.HasReceivedInitialPosition;
+        }
+
         public float TargetAngle
         {
             get => _movement.TargetAngle - VISUAL_ROTATION_OFFSET;

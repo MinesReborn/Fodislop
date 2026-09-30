@@ -1,6 +1,7 @@
 #nullable enable
 
 using System.Collections.Generic;
+using Kern.Rendering;
 using Kern.Rendering.PostProcessing.Scopes;
 using Kern.Tools.Imgui;
 using UnityEngine;
@@ -39,6 +40,7 @@ internal sealed class GradingScopesWindow : ToolWindow
     private double _clippedBlack = double.NaN;
     private double _clippedHighlight = double.NaN;
     private string _clippedLabel = string.Empty;
+    private readonly ScopesExposureReadout _exposureReadout = new();
 
     public GradingScopesWindow()
         : base("Приборы изображения", new Rect(738f, 16f, 446f, 720f))
@@ -116,18 +118,12 @@ internal sealed class GradingScopesWindow : ToolWindow
                 "красное — пересвет, синее — провал",
             PostProcessDebugView.Clipping =>
                 "красное — упёрлось в потолок, синее — село в пол",
-            PostProcessDebugView.HighlightClipping =>
-                "красное — clipped highlights, исходное изображение сохранено",
-            PostProcessDebugView.ShadowClipping =>
-                "синее — clipped shadows, исходное изображение сохранено",
             PostProcessDebugView.GamutWarning =>
                 "синий — ниже display gamut, магентовый — выше, белый — оба предупреждения",
             PostProcessDebugView.LumaOnly =>
                 "монохромная яркость финального graded output",
             PostProcessDebugView.SaturationOnly =>
                 "чёрный — нейтральный, белый — максимальная насыщенность",
-            PostProcessDebugView.QualifierMatte =>
-                "белое — выбранная qualifier-маска, чёрное — исключённые пиксели",
             PostProcessDebugView.RgbParade => "трети R|G|B монохромом",
             _ => "кадр показывается без отладочной разметки",
         };
@@ -231,6 +227,7 @@ internal sealed class GradingScopesWindow : ToolWindow
         }
 
         GUILayout.Label(ClippedLabel(), MutedLabelStyle);
+        GUILayout.Label(ExposureLabel(), MutedLabelStyle);
         GUILayout.Space(4f);
 
         string waveformTitle = ScopesRenderPass.WaveformMode switch
@@ -403,6 +400,8 @@ internal sealed class GradingScopesWindow : ToolWindow
 
         return _clippedLabel;
     }
+
+    private string ExposureLabel() => _exposureReadout.GetLabel();
 
     private void ApplyPendingChanges()
     {

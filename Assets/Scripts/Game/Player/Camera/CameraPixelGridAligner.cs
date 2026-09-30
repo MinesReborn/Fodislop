@@ -20,6 +20,28 @@ internal sealed class CameraPixelGridAligner
     public PixelSamplingMode Mode =>
         _clientConfig?.Config?.Display?.PixelSampling ?? PixelSamplingMode.SmoothFiltered;
 
+    public bool QuantizesZoom => PixelSamplingRules.QuantizesZoom(Mode);
+
+    // Соседний целый уровень пикселей на тексель. levels > 0 приближает
+    // (больше пикселей на тексель — меньше кадр), levels < 0 отдаляет.
+    // Щелчок колёсика в PixelPerfect ведёт ровно на соседний уровень, а не в
+    // «ближайший к сдвинутому размеру»: иначе мелкая прокрутка то не
+    // срабатывала, то перескакивала через уровень.
+    public float StepQuantizedSize(float size, int levels, float minimumZoom, float maximumZoom)
+    {
+        int height = EffectiveRenderHeight();
+        int current = Mathf.RoundToInt(PixelGrid.PixelsPerTexel(size, height));
+        int next = Mathf.Clamp(
+            current + levels,
+            PixelGrid.MinimumPixelsPerTexel,
+            PixelGrid.MaximumPixelsPerTexel);
+        return PixelGrid.QuantizeOrthographicSize(
+            PixelGrid.OrthographicSizeFor(next, height),
+            height,
+            minimumZoom,
+            maximumZoom);
+    }
+
     public float ResolveOrthographicSize(float desiredSize, float minimumZoom, float maximumZoom)
     {
         return PixelSamplingRules.QuantizesZoom(Mode)

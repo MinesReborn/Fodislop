@@ -196,9 +196,9 @@ internal sealed class LightingFrameExecutor
         // the whole field. Any static, geometry or debug-view change keeps
         // the full path, so debug views stay bit-identical.
         //
-        // CompositeDirty is intentionally NOT a full-path trigger: it is set
-        // on every dynamic light move by LightingEngine.SetDynamicLight, which is
-        // exactly the dynamic-only case this path exists for.
+        // Source edits request upload-set evaluation. DynamicLightsChanged
+        // reflects the resulting GPU inputs; culled-only edits never reach
+        // this recorder. CompositeDirty remains an explicit refresh request.
         //
         // Removing the last source also goes partial: its previous union is
         // retained below, and the cleared area is exactly that union. Any
@@ -225,6 +225,13 @@ internal sealed class LightingFrameExecutor
                 partialRect = _lastDynamicUnion;
                 _lastDynamicUnion = null;
             }
+        }
+
+        // A global refresh must cover pixels outside the dynamic dirty union.
+        // Retain the updated union above for subsequent dynamic-only frames.
+        if (request.CompositeDirty)
+        {
+            partialRect = null;
         }
 
         if (request.DynamicLightsChanged ||

@@ -1,186 +1,90 @@
 #nullable enable
 
-using System;
 using System.Collections.Generic;
-using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Core.Lifecycle;
-using Kern.World;
-using Kern.World.Terrain;
-using MinesServer.Data;
 using UnityEngine;
+using UnityEngine.Serialization;
 using VContainer;
 
 namespace Kern.Game
 {
+    // Один общий пул слотов. Слот — пустой носитель: что в нём нарисовать,
+    // решает имя эффекта из пакета и стриминг ассетов. Раньше пул делился на
+    // клиентские типы (Bz, Destroy, Death, Custom) — урезанный дубль
+    // протокольного VFX, который ничем, кроме имени ведра, не отличался.
     public class VfxPool : MonoBehaviour, IVfxService
     {
-        [Serializable]
-        public struct PoolConfig
-        {
-            [SerializeField]
-            private VfxType _vfxType;
-
-            [SerializeField]
-            private int _initialSize;
-
-            public PoolConfig()
-            {
-                _vfxType = default;
-                _initialSize = 0;
-            }
-
-            public VfxType VfxType => _vfxType;
-
-            public int InitialSize => _initialSize;
-        }
-
         [SerializeField]
-        private PoolConfig[] _configs = Array.Empty<PoolConfig>();
-
-        [SerializeField]
-        private int _defaultInitialSize = 2;
+        [FormerlySerializedAs("_defaultInitialSize")]
+        private int _initialSize = 2;
 
         [SerializeField]
         private float _shrinkDelay = 30f;
 
-        [SerializeField]
-        private int _softMaxPerType = 30;
-
-        private readonly Dictionary<VfxType, SubPool> _pools = new();
-        private readonly List<SubPool> _poolList = new();
-        private int _totalActiveVfxCount;
+        private readonly Queue<PooledSlot> _available = new();
+        private readonly List<PooledSlot> _active = new();
+        private int _targetSize;
+        private float _lastReleaseTime;
+        private bool _initialized;
 
         [Inject]
         private WorldEntityBatchRenderer _entityBatchRenderer = null!;
         [Inject]
         private ISceneObjectFactory _sceneObjects = null!;
 
-        protected void Awake()
-        {
-        }
-
         protected void Start()
         {
             EnsureInitialized();
         }
 
-        private void EnsureInitialized()
-        {
-            if (_pools.Count == 0 && _sceneObjects != null && _entityBatchRenderer != null)
-            {
-                InitializePools();
-            }
-        }
-
         protected void OnDestroy()
         {
-            for (int i = 0; i < _poolList.Count; i++)
+            while (_available.Count > 0)
             {
-                TeardownSubPool(_poolList[i]);
+                DestroyPooledSlot(_available.Dequeue());
             }
 
-            _pools.Clear();
-            _poolList.Clear();
-            _totalActiveVfxCount = 0;
+            foreach (PooledSlot slot in _active)
+            {
+                DestroyPooledSlot(slot);
+            }
+
+            _active.Clear();
+            _initialized = false;
         }
+
         protected void Update()
         {
-            if (_totalActiveVfxCount == 0)
+            // Слот, чей объект уничтожили снаружи (смена сцены), из учёта
+            // убирается, иначе пул держал бы мёртвую ссылку вечно.
+            for (int i = _active.Count - 1; i >= 0; i--)
             {
-                return;
-            }
-
-            var now = Time.realtimeSinceStartup;
-
-            for (int p = 0; p < _poolList.Count; p++)
-            {
-                var pool = _poolList[p];
-                var activeList = pool.Active;
-
-                for (int i = activeList.Count - 1; i >= 0; i--)
+                if (_active[i].GameObject == null)
                 {
-                    var slot = activeList[i];
-
-                    if (slot.GameObject == null)
-                    {
-                        activeList.RemoveAt(i);
-                        _totalActiveVfxCount = Mathf.Max(0, _totalActiveVfxCount - 1);
-                        continue;
-                    }
-
-                    if (slot.IsManagedExternally)
-                    {
-                        continue;
-                    }
-
-                    if ((now - slot.PlayStartTime) > 30f)
-                    {
-                        ReleaseInternal(pool, slot, i);
-                        _totalActiveVfxCount = Mathf.Max(0, _totalActiveVfxCount - 1);
-                    }
+                    _active.RemoveAt(i);
                 }
-
-                ShrinkIfIdle(pool, now);
-            }
-        }
-
-        private void InitializePools()
-        {
-            if (_configs == null)
-            {
-                return;
             }
 
-            foreach (var cfg in _configs)
-            {
-                var pool = GetOrCreateSubPool(cfg.VfxType);
-                pool.TargetSize = Mathf.Max(cfg.InitialSize, 1);
-                SpawnToTargetSize(pool);
-            }
+            ShrinkIfIdle(Time.realtimeSinceStartup);
         }
 
-        private SubPool GetOrCreateSubPool(VfxType vfxType)
+        public IVfxSlot? Acquire()
         {
-            if (!_pools.TryGetValue(vfxType, out var pool))
-            {
-                pool = new SubPool
-                {
-                    VfxType = vfxType,
-                    TargetSize = _defaultInitialSize,
-                    LastReleaseTime = Time.realtimeSinceStartup,
-                };
-                _pools[vfxType] = pool;
-                _poolList.Add(pool);
-            }
-
-            return pool;
-        }
-
-        public void Preload(VfxType vfxType, int count)
-        {
-            var pool = GetOrCreateSubPool(vfxType);
-            pool.TargetSize = Mathf.Max(pool.TargetSize, count);
-            SpawnToTargetSize(pool);
-        }
-
-        public IVfxSlot? Acquire(VfxType vfxType)
-        {
-            var pool = GetOrCreateSubPool(vfxType);
-            var slot = AcquireInternal(pool);
-            if (slot == null)
+            EnsureInitialized();
+            if (_sceneObjects == null || _entityBatchRenderer == null)
             {
                 return null;
             }
 
+            PooledSlot slot = _available.Count > 0 ? _available.Dequeue() : CreatePooledSlot();
+            slot.IsInPool = false;
+            _active.Add(slot);
+            _targetSize = Mathf.Max(_targetSize, _available.Count + _active.Count);
             if (slot.GameObject != null)
             {
                 slot.GameObject.SetActive(true);
             }
-
-            slot.VfxType = vfxType;
-            slot.IsManagedExternally = true;
-            slot.PlayStartTime = Time.realtimeSinceStartup;
 
             return slot;
         }
@@ -192,93 +96,75 @@ namespace Kern.Game
                 return;
             }
 
-            if (!_pools.TryGetValue(pooled.VfxType, out var pool))
+            int index = _active.IndexOf(pooled);
+            if (index < 0)
             {
                 return;
             }
 
-            int idx = pool.Active.IndexOf(pooled);
-            if (idx < 0)
+            pooled.ResetVisual();
+            if (pooled.GameObject != null)
+            {
+                pooled.GameObject.transform.rotation = Quaternion.identity;
+                pooled.GameObject.SetActive(false);
+            }
+
+            pooled.IsInPool = true;
+            _active.RemoveAt(index);
+            _available.Enqueue(pooled);
+            _lastReleaseTime = Time.realtimeSinceStartup;
+        }
+
+        private void EnsureInitialized()
+        {
+            if (_initialized || _sceneObjects == null || _entityBatchRenderer == null)
             {
                 return;
             }
 
-            ReleaseInternal(pool, pooled, idx);
-            _totalActiveVfxCount = Mathf.Max(0, _totalActiveVfxCount - 1);
+            _initialized = true;
+            _targetSize = Mathf.Max(_initialSize, 1);
+            _lastReleaseTime = Time.realtimeSinceStartup;
+            while (_available.Count + _active.Count < _targetSize)
+            {
+                _available.Enqueue(CreatePooledSlot());
+            }
         }
 
-        private PooledSlot AcquireInternal(SubPool pool)
+        private void ShrinkIfIdle(float now)
         {
-            PooledSlot slot;
-            _totalActiveVfxCount++;
-
-            if (pool.Available.Count > 0)
-            {
-                slot = pool.Available.Dequeue();
-                slot.IsInPool = false;
-                pool.Active.Add(slot);
-                return slot;
-            }
-
-            var total = pool.Available.Count + pool.Active.Count;
-
-            if (total < _softMaxPerType)
-            {
-                slot = CreatePooledSlot(pool);
-                slot.IsInPool = false;
-                pool.Active.Add(slot);
-
-                pool.TargetSize = Mathf.Max(pool.TargetSize, total + 1);
-                pool.PeakActiveCount = Mathf.Max(pool.PeakActiveCount, pool.Active.Count);
-
-                return slot;
-            }
-
-            slot = CreatePooledSlot(pool);
-            slot.IsInPool = false;
-            pool.Active.Add(slot);
-
-            pool.TargetSize = Mathf.Max(pool.TargetSize, total + 1);
-            pool.PeakActiveCount = Mathf.Max(pool.PeakActiveCount, pool.Active.Count);
-
-            return slot;
-        }
-
-        private static void ReleaseInternal(SubPool pool, PooledSlot slot, int activeIndex)
-        {
-            if (slot == null)
+            if (_available.Count <= _initialSize || now - _lastReleaseTime < _shrinkDelay)
             {
                 return;
             }
 
-            slot.ResetVisual();
-
-            if (slot.GameObject != null)
+            int excess = _available.Count - Mathf.Max(_targetSize, _initialSize);
+            for (int i = 0; i < excess && _available.Count > 0; i++)
             {
-                slot.GameObject.SetActive(false);
+                DestroyPooledSlot(_available.Dequeue());
             }
 
-            slot.IsManagedExternally = false;
-            slot.IsInPool = true;
-            pool.Active.RemoveAt(activeIndex);
-            pool.Available.Enqueue(slot);
-            pool.LastReleaseTime = Time.realtimeSinceStartup;
+            if (_targetSize > _initialSize)
+            {
+                _targetSize = Mathf.Max(_initialSize, _targetSize - 1);
+            }
         }
 
-        private void TeardownSubPool(SubPool pool)
+        private PooledSlot CreatePooledSlot()
         {
-            while (pool.Available.Count > 0)
-            {
-                var slot = pool.Available.Dequeue();
-                DestroyPooledSlot(slot);
-            }
+            GameObject go = _sceneObjects.Create("PooledVfx", RuntimeOwner.VFX);
+            go.SetActive(false);
 
-            foreach (var slot in pool.Active)
-            {
-                DestroyPooledSlot(slot);
-            }
+            WorldEntityBatchRenderer.SpriteHandle? handle =
+                _entityBatchRenderer?.RegisterSprite(go.transform, -500);
 
-            pool.Active.Clear();
+            return new PooledSlot
+            {
+                GameObject = go,
+                EntityBatchRenderer = _entityBatchRenderer!,
+                BatchHandle = handle!,
+                IsInPool = true,
+            };
         }
 
         private void DestroyPooledSlot(PooledSlot slot)
@@ -294,78 +180,12 @@ namespace Kern.Game
             }
         }
 
-        private PooledSlot CreatePooledSlot(SubPool pool)
-        {
-            GameObject go = _sceneObjects.Create($"PooledVfx_{pool.VfxType}", RuntimeOwner.VFX);
-            go.SetActive(false);
-
-            WorldEntityBatchRenderer.SpriteHandle? handle =
-                _entityBatchRenderer?.RegisterSprite(go.transform, -500);
-
-            return new PooledSlot
-            {
-                VfxType = pool.VfxType,
-                GameObject = go,
-                EntityBatchRenderer = _entityBatchRenderer!,
-                BatchHandle = handle!,
-                PlayStartTime = 0f,
-                IsInPool = true,
-            };
-        }
-
-        private void SpawnToTargetSize(SubPool pool)
-        {
-            if (_sceneObjects == null || _entityBatchRenderer == null)
-            {
-                return;
-            }
-
-            var total = pool.Available.Count + pool.Active.Count;
-            var needed = pool.TargetSize - total;
-
-            for (int i = 0; i < needed; i++)
-            {
-                var slot = CreatePooledSlot(pool);
-                pool.Available.Enqueue(slot);
-            }
-        }
-
-        private void ShrinkIfIdle(SubPool pool, float now)
-        {
-            if (pool.Available.Count <= _defaultInitialSize)
-            {
-                return;
-            }
-
-            if ((now - pool.LastReleaseTime) < _shrinkDelay)
-            {
-                return;
-            }
-
-            var target = Mathf.Max(pool.TargetSize, _defaultInitialSize);
-            var excess = pool.Available.Count - target;
-
-            for (int i = 0; i < excess && pool.Available.Count > 0; i++)
-            {
-                var idle = pool.Available.Dequeue();
-                DestroyPooledSlot(idle);
-            }
-
-            if (pool.TargetSize > _defaultInitialSize)
-            {
-                pool.TargetSize = Mathf.Max(_defaultInitialSize, pool.TargetSize - 1);
-            }
-        }
-
         public sealed class PooledSlot : IVfxSlot
         {
-            public VfxType VfxType;
             public GameObject? GameObject { get; set; }
             public WorldEntityBatchRenderer EntityBatchRenderer = null!;
             public WorldEntityBatchRenderer.SpriteHandle BatchHandle = null!;
-            public float PlayStartTime;
             public bool IsInPool;
-            public bool IsManagedExternally;
 
             public void SetSprite(Sprite? sprite)
             {
@@ -388,16 +208,6 @@ namespace Kern.Game
                 SetColor(Color.white);
                 SetEnabled(false);
             }
-        }
-
-        private sealed class SubPool
-        {
-            public VfxType VfxType;
-            public readonly Queue<PooledSlot> Available = new();
-            public readonly List<PooledSlot> Active = new();
-            public int TargetSize;
-            public float LastReleaseTime;
-            public int PeakActiveCount;
         }
     }
 }

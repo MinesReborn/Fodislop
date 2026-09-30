@@ -79,6 +79,18 @@ float2 TerrainResolveGeometryLocalUv(
     float2 axisV = p01 - p00;
     float2 twist = p00 - p10 + p11 - p01;
 
+    // A parallelogram has no bilinear term. Solve its linear map once instead
+    // of repeating the same Jacobian four times; displaced/rotated axes remain valid.
+    [branch]
+    if (twist.x == 0.0 && twist.y == 0.0)
+    {
+        float2 residual = cellSample - p00;
+        float determinant = TerrainUvCross(axisU, axisV);
+        return saturate(float2(
+            TerrainUvCross(residual, axisV),
+            TerrainUvCross(axisU, residual)) / determinant);
+    }
+
     float2 local = 0.5;
     [unroll]
     for (int iteration = 0; iteration < 4; iteration++)

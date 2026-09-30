@@ -112,19 +112,6 @@ public sealed class GatewayOnboarding
             }
         }
 
-        var colorblind = _root.Q<DropdownField>("OnbColorblind");
-        if (colorblind != null)
-        {
-            colorblind.choices = new List<string>
-            {
-                _loc.Get("gateway.onb.colorblind.none"),
-                _loc.Get("gateway.onb.colorblind.deuteranopia"),
-                _loc.Get("gateway.onb.colorblind.protanopia"),
-                _loc.Get("gateway.onb.colorblind.tritanopia"),
-                _loc.Get("gateway.onb.colorblind.high_contrast"),
-            };
-        }
-
         var controlScheme = _root.Q<DropdownField>("OnbControlScheme");
         if (controlScheme != null)
         {
@@ -152,20 +139,6 @@ public sealed class GatewayOnboarding
             uiScale.choices = labels;
             uiScale.index = IndexOfUIScale(config.Interface.UIScale);
             uiScale.RegisterValueChangedCallback(_ => _onApplyUIScale(ValueOfUIScale(uiScale.index)));
-        }
-
-        var colorblind = _root.Q<DropdownField>("OnbColorblind");
-        if (colorblind != null)
-        {
-            colorblind.choices = new List<string>
-            {
-                _loc.Get("gateway.onb.colorblind.none"),
-                _loc.Get("gateway.onb.colorblind.deuteranopia"),
-                _loc.Get("gateway.onb.colorblind.protanopia"),
-                _loc.Get("gateway.onb.colorblind.tritanopia"),
-                _loc.Get("gateway.onb.colorblind.high_contrast"),
-            };
-            colorblind.index = Mathf.Clamp(config.Accessibility.ColorblindMode, 0, 4);
         }
 
         var frameRate = _root.Q<DropdownField>("OnbFrameRate");
@@ -316,12 +289,6 @@ public sealed class GatewayOnboarding
             if (uiScale != null)
             {
                 config.Interface.UIScale = ValueOfUIScale(uiScale.index);
-            }
-
-            var colorblind = _root.Q<DropdownField>("OnbColorblind");
-            if (colorblind != null && colorblind.index >= 0)
-            {
-                config.Accessibility.ColorblindMode = colorblind.index;
             }
 
             var frameRate = _root.Q<DropdownField>("OnbFrameRate");

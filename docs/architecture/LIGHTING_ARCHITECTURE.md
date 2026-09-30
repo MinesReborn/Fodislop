@@ -209,6 +209,16 @@ internal alpha holes do not yet have a distance-based contact falloff. The cell-
 mask is not combined into AO, so nominal grid directions cannot add shadows at
 locations where displaced geometry no longer touches the receiver.
 
+The lighting material field samples atlas albedo using the same geometry/UV
+resolver and filtering as the visible terrain, but pins animated atlas selection
+to its authored first frame and does not apply color animation (crystal shimmer,
+faceted glints, pulse, or rainbow). Those are presentation effects, not static
+transport inputs: rebuilding a region at another `_Time.y` must not produce a
+different albedo snapshot or shift static indirect lighting. Terrain decals and
+relief remain part of the material-field albedo as spatially stable inputs. The
+same fixed atlas frame supplies AO-field alpha/cutout, so an animated atlas
+cannot make static contact occupancy blink on a field rebuild either.
+
 The displaced silhouette has one geometric predicate in
 `TerrainGeometry.hlsl`: four corner vertices for regular cells, or those corners
 plus four bend vertices for organic cells. Stored corners and derived bend
@@ -356,6 +366,41 @@ geometry currently supplies distance-based contact beyond its visible edge.
 - `ComposeDynamicLighting`.
 
 Dynamic lights are recomputed for every exact source position change. They are not tied to a cell transition and are not throttled by a timer.
+
+Source edits invalidate upload-set evaluation, not the whole composite. After
+reach/capacity filtering, an unchanged uploaded set leaves the GPU result valid;
+the coordinator acknowledges the source state without recording a lighting frame.
+Movement, color/intensity changes, entry and removal that change GPU inputs still
+invalidate dynamic radiance. An explicit `CompositeDirty` refresh always covers
+the full field, even when dynamic movement/removal occurs in the same frame;
+the dynamic union is retained for subsequent partial updates. Managed decision
+tests and remaining production gates are recorded in
+[the invalidation evidence](LIGHTING_DYNAMIC_INVALIDATION_EVIDENCE.html).
+
+The moving one-cell emitter is sampled by a fixed `N×N` grid in the continuous
+source-square bounds clipped to the lighting field. `DynamicEmitterPoint` uses
+the same clipped bounds as `DynamicRadianceFromPolar` when assigning receiver
+rays to emitter samples. Do not round those bounds to field-texel centres: that
+kept emitter samples stationary across sub-texel robot motion, then jumped them
+when an edge crossed a texel. A transport regression checks the expected
+sub-texel displacement against the production HLSL function.
+
+**Dynamic transport stage contract (`TL-STAGE`):** `TraceDynamicPolar` reads
+`_MaterialField`, `_CellSolidMask`, `_DynamicLights`, `_WorldRect`, and
+`_FieldSize`; it writes per-light optical depth to `_DynamicPolar` and maximum
+visible reach to `_DynamicReach`. Its dispatch is
+`ceil(rayFan/64) × DynamicEmitterPointCount × 1`; the polar target is
+`(rayFan+2) × (rayLength×DynamicEmitterPointCount)` ARGBFloat, with two angular
+wrap columns. `SolveDynamicLighting` reads those outputs plus
+`_StaticEmissionField` and writes the per-light ARGBHalf tile, or
+`_DirectTexture` for one light. It dispatches `ceil(rect.width/8) ×
+ceil(rect.height/8) × 1` over the source reach rect. `ComposeDynamicLighting`
+reads cached light tiles and tile descriptors and writes `_DirectTexture` over
+the union rect with the same 8×8 groups. The solver records `LightingDdaSegments`,
+`LightingDdaTexelVisits`, ray work units, and dispatch pixels; stable frames with
+unchanged sources issue no dynamic transport dispatch. Source motion changes only
+the sub-texel emitter coordinates and does not add dispatches, ray samples, or
+buffer/texture storage.
 
 ### Bounce
 

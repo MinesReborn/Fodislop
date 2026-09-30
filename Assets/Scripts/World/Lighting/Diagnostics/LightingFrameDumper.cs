@@ -114,20 +114,20 @@ public static class LightingFrameDumper
     {
         public bool available;
         public long generation;
-        public long? applyCalls;
-        public long? applyPayloadBytes;
-        public long? copyTextureCalls;
-        public long? copyTexturePayloadBytes;
+        public long applyCalls;
+        public long applyPayloadBytes;
+        public long copyTextureCalls;
+        public long copyTexturePayloadBytes;
         public bool hasSourceFrame;
         public int sourceFrameId;
         public int observationFrameId;
         public bool frameDeltaValid;
-        public long? applyCallsFrameDelta;
-        public long? applyPayloadBytesFrameDelta;
-        public long? copyTextureCallsFrameDelta;
-        public long? copyTexturePayloadBytesFrameDelta;
-        public int? frameDeltaStartObservationFrameId;
-        public int? frameDeltaEndObservationFrameId;
+        public long applyCallsFrameDelta;
+        public long applyPayloadBytesFrameDelta;
+        public long copyTextureCallsFrameDelta;
+        public long copyTexturePayloadBytesFrameDelta;
+        public int frameDeltaStartObservationFrameId;
+        public int frameDeltaEndObservationFrameId;
     }
 
     public static string DumpCurrentFrame(
@@ -285,10 +285,10 @@ public static class LightingFrameDumper
         {
             available = snapshot.IsAvailable,
             generation = snapshot.Generation,
-            applyCalls = snapshot.IsAvailable ? snapshot.ApplyCalls : null,
-            applyPayloadBytes = snapshot.IsAvailable ? snapshot.ApplyPayloadBytes : null,
-            copyTextureCalls = snapshot.IsAvailable ? snapshot.CopyTextureCalls : null,
-            copyTexturePayloadBytes = snapshot.IsAvailable ? snapshot.CopyTexturePayloadBytes : null,
+            applyCalls = snapshot.IsAvailable ? snapshot.ApplyCalls : 0L,
+            applyPayloadBytes = snapshot.IsAvailable ? snapshot.ApplyPayloadBytes : 0L,
+            copyTextureCalls = snapshot.IsAvailable ? snapshot.CopyTextureCalls : 0L,
+            copyTexturePayloadBytes = snapshot.IsAvailable ? snapshot.CopyTexturePayloadBytes : 0L,
             hasSourceFrame = snapshot.HasSourceFrame,
             sourceFrameId = snapshot.SourceFrameId,
             observationFrameId = snapshot.ObservationFrameId,

@@ -16,14 +16,12 @@
 #include "TerrainAnimationProfile.hlsl"
 #include "TerrainContour.hlsl"
 
-// Анимация цвета клетки террейна — одна на оба пасса.
+// Анимация цвета клетки террейна для видимого пасса.
 //
-// ЗАЧЕМ ОТДЕЛЬНЫМ ФАЙЛОМ. Раньше анимация жила только в видимом пассе, а поле
-// материалов писало упакованный цвет вершины как есть. Из-за этого shimmer
-// не попадал в отскок, и
-// освещение вообще не знало, что текстура анимирована: альбедо получалось
-// статическим при динамической картинке. Копировать код во второй пасс нельзя —
-// две копии разойдутся на первой же правке вида, и разойдутся молча.
+// Освещение намеренно не включает этот файл: его material field хранит
+// фиксированное базовое альбедо и не меняется от shimmer, переливания
+// кристаллов или времени пересборки окна. Эти эффекты остаются презентацией,
+// а не новым входом статического transport.
 //
 // Выборки текстур здесь нет намеренно: карта потока читается снаружи и
 // приезжает готовым цветом. Пассы объявляют разные наборы текстур, и
@@ -129,6 +127,7 @@ float3 AnimateTerrainColor(
     float3 baseColor,
     float3 luminanceSource,
     float2 localUV,
+    float2 surfacePosition,
     int animationType,
     int animationProfile,
     float animationSpeed,
@@ -164,6 +163,20 @@ float3 AnimateTerrainColor(
         float3 cellColor = TerrainUnpackRgb24(packedCellColor);
         float3 glintColor = lerp(cellColor, 1.0.xxx, _FacetedGlintMix);
         result = baseColor + glintColor * strength;
+    }
+    else if (animationProfile == KERN_TERRAIN_ANIMATION_PROFILE_MOLTEN_SURFACE)
+    {
+        // Stable world-anchored heat flow: adjacent Lava cells share one
+        // continuous pattern, while only the visual albedo changes over time.
+        float2 pixelPosition = (floor(surfacePosition * 32.0) + 0.5) / 32.0;
+        float phase = _Time.y * animationSpeed * 0.12;
+        float broadFlow = sin(dot(pixelPosition, float2(1.9, -1.3)) + phase);
+        float crossFlow = sin(dot(pixelPosition, float2(-1.1, 2.1)) - phase * 0.7);
+        float heat = saturate(0.5 + broadFlow * 0.3 + crossFlow * 0.2);
+        float hot = heat * heat;
+        float material = max(baseColor.r, max(baseColor.g, baseColor.b));
+        result = baseColor * (0.35 + 0.8 * heat)
+            + float3(0.6, 0.35, 0.035) * (hot * material);
     }
     else if (animationType == 1) // Blinking
     {

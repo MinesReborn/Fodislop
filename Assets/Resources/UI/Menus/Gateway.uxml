@@ -148,13 +148,6 @@
                         </ui:VisualElement>
                         <ui:DropdownField name="OnbUIScale" class="onb-select" />
                     </ui:VisualElement>
-                    <ui:VisualElement class="onb-row">
-                        <ui:VisualElement class="onb-row-text">
-                            <ui:Label class="onb-label" text="gateway.onb.colorblind_label" />
-                            <ui:Label class="onb-hint" text="gateway.onb.colorblind_hint" />
-                        </ui:VisualElement>
-                        <ui:DropdownField name="OnbColorblind" class="onb-select" />
-                    </ui:VisualElement>
                 </ui:VisualElement>
 
                 <!-- Шаг 2: Графика -->

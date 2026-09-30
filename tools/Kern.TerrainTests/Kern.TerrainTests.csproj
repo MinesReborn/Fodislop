@@ -43,7 +43,6 @@
     <Compile Include="$(Game)/Core/Configuration/Contracts/SettingAttributes.cs" Link="Game/SettingAttributes.cs" />
     <Compile Include="$(Game)/Core/Interfaces/Contracts/Settings/TerrainSettings.cs" Link="Game/TerrainSettings.cs" />
     <Compile Include="$(Game)/Rendering/PostProcessing/ColorGrading/Contracts/VisualTuning.cs" Link="Game/VisualTuning.cs" />
-    <Compile Include="$(Game)/Rendering/PostProcessing/ColorGrading/Contracts/DisplayTransform.cs" Link="Game/DisplayTransform.cs" />
     <Compile Include="$(Game)/World/Common/TileBitmaskConverter.cs" Link="Game/TileBitmaskConverter.cs" />
     <Compile Include="$(Game)/World/Terrain/Mesh/TerrainVertex.cs" Link="Game/TerrainVertex.cs" />
     <Compile Include="$(Game)/World/Terrain/Mesh/TerrainCellLayers.cs" Link="Game/TerrainCellLayers.cs" />

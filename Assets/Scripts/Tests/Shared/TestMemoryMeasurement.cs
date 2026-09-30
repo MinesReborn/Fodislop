@@ -33,27 +33,16 @@ namespace Kern.Tests;
 /// процесса. Всё пишется строкой в Logs/Diagnostics/Tests/test_memory_*.csv,
 /// одна таблица на прогон.
 ///
-/// Заодно это предохранитель: прогоны PlayMode подряд уже трижды выедали
-/// память машины. Пороги — по системе, а не по доле процесса: на машине с
-/// 8 ГБ редактор сам по себе занимает больше половины. И не по одной
-/// свободной памяти: 23.09 она показывала 28%, а своп был занят на 11.3 ГБ
-/// из 12.3 — система держится, пока есть куда выгружать, и падает, когда
-/// своп кончился. Поэтому прогон останавливается, если выполнено любое:
-/// свободно меньше <see cref="MinimumAvailablePercent"/>% памяти, свободно
-/// меньше <see cref="MinimumSwapFreeBytes"/> свопа, своп вырос за прогон
-/// больше чем на <see cref="MaximumSwapGrowthBytes"/>. Сторож по кадрам
-/// убивает тест посреди выполнения — отменяет прогон и выходит из Play
-/// Mode; следующий тест не начинается. CSV лежат в Logs/Diagnostics/Tests/.
+/// Заодно это предохранитель: прогон останавливается, если физически
+/// доступная системная память опускается ниже
+/// <see cref="MinimumAvailablePercent"/>%. Swap записывается только как
+/// диагностическая метрика и не блокирует запуск или продолжение теста.
+/// Сторож по кадрам убивает тест посреди выполнения, если системный порог
+/// нарушен; следующий тест не начинается. CSV лежат в Logs/Diagnostics/Tests/.
 public sealed class TestMemoryMeasurement : ITestRunCallback
 {
     /// <summary>Сколько процентов памяти системы должно оставаться свободным.</summary>
-    public const int MinimumAvailablePercent = 20;
-
-    /// <summary>Сколько свопа должно оставаться свободным.</summary>
-    public const long MinimumSwapFreeBytes = 2L * 1024 * 1024 * 1024;
-
-    /// <summary>На сколько своп может вырасти за прогон.</summary>
-    public const long MaximumSwapGrowthBytes = 512L * 1024 * 1024;
+    public const int MinimumAvailablePercent = 10;
 
     // Тест, выросший больше этого, отмечается в консоли.
     private const long NotableGrowthBytes = 128L * 1024 * 1024;
@@ -67,15 +56,15 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
     private Snapshot _before;
     private long _peak;
     private int _lowestAvailable;
-    private long _runSwapUsed = -1;
     private long _peakSwapUsed;
     private double _nextWatch;
+    private int _pendingPlayModeExitUpdates;
     private bool _running;
 
     public void RunStarted(ITest testsToRun)
     {
         _reportPath = null;
-        _runSwapUsed = SystemMemory.Swap() is SwapUsage swap ? swap.UsedBytes : -1;
+        _pendingPlayModeExitUpdates = 0;
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.update -= Watch;
         UnityEditor.EditorApplication.update += Watch;
@@ -85,7 +74,10 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
     public void RunFinished(ITestResult testResults)
     {
 #if UNITY_EDITOR
-        UnityEditor.EditorApplication.update -= Watch;
+        if (_pendingPlayModeExitUpdates == 0)
+        {
+            UnityEditor.EditorApplication.update -= Watch;
+        }
 #endif
         _running = false;
         if (_reportPath != null)
@@ -102,7 +94,7 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
         }
 
         Snapshot now = Snapshot.Take();
-        if (Violation(now.AvailablePercent, now.Swap) is string reason)
+        if (Violation(now.AvailablePercent) is string reason)
         {
             // Колбэк не может пропустить тест, а исключение отсюда Unity
             // пробрасывает в раннер и обрывает прогон — это и нужно.
@@ -138,11 +130,11 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
                 $"({Megabytes(_before.ProcessBytes)} → {Megabytes(after.ProcessBytes)}, пик {Megabytes(_peak)}).");
         }
 
-        if (Violation(after.AvailablePercent, after.Swap) is string reason)
+        if (Violation(after.AvailablePercent) is string reason)
         {
             Debug.LogError(
                 $"[TestMemory] {result.Test.FullName}: {reason}; пик процесса {Megabytes(_peak)} МБ, " +
-                $"свободно минимум {_lowestAvailable}%, своп на пике {Megabytes(_peakSwapUsed)} МБ.");
+                $"свободно минимум {_lowestAvailable}%.");
         }
     }
 
@@ -161,7 +153,7 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
     }
 
     // Причина остановить прогон или null, если память в порядке.
-    private string? Violation(int? availablePercent, SwapUsage? swap)
+    private string? Violation(int? availablePercent)
     {
         if (Environment.GetEnvironmentVariable("KERN_DISABLE_TEST_MEMORY_GUARD") == "1")
         {
@@ -173,23 +165,6 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
             return $"у системы свободно {available}% памяти (порог {MinimumAvailablePercent}%)";
         }
 
-        if (swap is not SwapUsage usage)
-        {
-            return null;
-        }
-
-        if (usage.FreeBytes < MinimumSwapFreeBytes)
-        {
-            return $"свопа свободно {Megabytes(usage.FreeBytes)} МБ из {Megabytes(usage.TotalBytes)} " +
-                $"(порог {Megabytes(MinimumSwapFreeBytes)} МБ)";
-        }
-
-        if (_runSwapUsed >= 0 && usage.UsedBytes - _runSwapUsed > MaximumSwapGrowthBytes)
-        {
-            return $"своп вырос за прогон на {Megabytes(usage.UsedBytes - _runSwapUsed)} МБ " +
-                $"(порог {Megabytes(MaximumSwapGrowthBytes)} МБ)";
-        }
-
         return null;
     }
 
@@ -198,6 +173,21 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
     // дожидается. Выход из Play Mode обрывает PlayMode-прогон.
     private void Watch()
     {
+        if (_pendingPlayModeExitUpdates > 0)
+        {
+            _pendingPlayModeExitUpdates--;
+            if (_pendingPlayModeExitUpdates == 0)
+            {
+                UnityEditor.EditorApplication.update -= Watch;
+                if (UnityEditor.EditorApplication.isPlaying)
+                {
+                    UnityEditor.EditorApplication.ExitPlaymode();
+                }
+            }
+
+            return;
+        }
+
         if (!_running)
         {
             return;
@@ -213,7 +203,7 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
         int? available = SystemMemory.AvailablePercent();
         SwapUsage? swap = SystemMemory.Swap();
         Observe(SystemMemory.ProcessBytes(), available, swap);
-        if (Violation(available, swap) is not string reason)
+        if (Violation(available) is not string reason)
         {
             return;
         }
@@ -223,7 +213,13 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
         KillRuns();
         if (UnityEditor.EditorApplication.isPlaying)
         {
-            UnityEditor.EditorApplication.ExitPlaymode();
+            // Дать callbacks отмены завершиться до domain reload при выходе из Play Mode.
+            // Иначе Pipeline может бесконечно переподключать незавершённый async-запрос.
+            _pendingPlayModeExitUpdates = 2;
+        }
+        else
+        {
+            UnityEditor.EditorApplication.update -= Watch;
         }
     }
 

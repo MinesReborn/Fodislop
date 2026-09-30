@@ -66,6 +66,14 @@ namespace Kern.UI
 
         public void Expire() => gameObject.SetActive(false);
 
+        // Подпись создаётся заранее, пока идёт загрузка сцены: иначе её
+        // строил первый же пакет локального чата посреди кадра.
+        public void Prewarm()
+        {
+            _label ??= _labels.Create(WorldLabelKind.ChatBubble);
+            _label.SetVisible(false);
+        }
+
         protected void Update()
         {
             Vector3 target = ResolveTargetPosition();

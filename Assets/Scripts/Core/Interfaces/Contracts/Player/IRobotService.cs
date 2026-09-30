@@ -22,6 +22,10 @@ public interface IRobotView
 
     float LogicalFacingAngle { get; }
 
+    // Последняя позиция, присланная сервером. Ложь, пока сервер о боте
+    // ничего не сообщал: у свежесозданного бота позиция — начало мира.
+    bool TryGetServerPosition(out Vector3 position);
+
     void Initialize(uint botID);
 
     void SetMetadata(int playerID, byte clanID, string nickname, string skinPath, string tailPath);

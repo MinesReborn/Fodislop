@@ -3,6 +3,7 @@
 using System;
 using Kern.Core;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
@@ -18,11 +19,7 @@ namespace Kern.Rendering.PostProcessing
         private readonly int _kernelDownsample;
         private readonly int _kernelUpsample;
         private readonly int _kernelComposite;
-        private readonly int _kernelBakeGradeLut;
-
-        // Совместимость имени: размер читает ещё и исполнитель прохода.
-        public const int BakedGradeLutSize = BakedGradeLutTarget.Size;
-        private readonly BakedGradeLutTarget _gradeLut = new();
+        private readonly int _kernelUpsampleComposite;
         // Размеры берутся из списков имён: две константы, обязанные совпадать,
         // разъезжались бы молча.
         private readonly TextureHandle[] _bloomDownTextures = new TextureHandle[BloomDownNames.Length];
@@ -30,10 +27,7 @@ namespace Kern.Rendering.PostProcessing
         private VolumeStack? _cachedVolumeStack;
         private BloomComponent? _bloom;
         private VignetteComponent? _vignette;
-        private ColorGradingComponent? _colorGrading;
         private EigengrauComponent? _eigengrau;
-
-        private readonly PostProcessPassDataAssembler.GradeScratch _gradeScratch;
 
         private void RefreshVolumeComponents(VolumeStack stack)
         {
@@ -45,7 +39,6 @@ namespace Kern.Rendering.PostProcessing
             _cachedVolumeStack = stack;
             _bloom = stack.GetComponent<BloomComponent>();
             _vignette = stack.GetComponent<VignetteComponent>();
-            _colorGrading = stack.GetComponent<ColorGradingComponent>();
             _eigengrau = stack.GetComponent<EigengrauComponent>();
         }
 
@@ -67,19 +60,8 @@ namespace Kern.Rendering.PostProcessing
             _kernelPrefilter = _postProcessCS.FindKernel("BloomPrefilter");
             _kernelDownsample = _postProcessCS.FindKernel("BloomDownsample");
             _kernelUpsample = _postProcessCS.FindKernel("BloomUpsample");
+            _kernelUpsampleComposite = _postProcessCS.FindKernel("BloomUpsampleComposite");
             _kernelComposite = _postProcessCS.FindKernel(displayPass ? "DisplayFinal" : "CompositeFinal");
-            _kernelBakeGradeLut = displayPass ? -1 : _postProcessCS.FindKernel("BakeGradeLut");
-            _gradeScratch = new PostProcessPassDataAssembler.GradeScratch(
-                new Vector4[ColorGradeCurve.MaxPoints],
-                new Vector4[ColorGradeCurve.MaxPoints],
-                new Vector4[ColorGradeCurve.MaxPoints],
-                new Vector4[ColorGradeCurve.MaxPoints],
-                new Vector4[ColorGradeCurve.MaxPoints],
-                new Vector4[ColorGradeCurve.MaxPoints],
-                new Vector4[ColorGradeCurve.MaxPoints],
-                new Vector4[ColorGradeCurve.MaxPoints],
-                new Vector4[ColorGradeCurve.MaxPoints],
-                new Vector4[ColorGradeQualifier.MaxHueSamples]);
         }
 
         public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
@@ -106,9 +88,6 @@ namespace Kern.Rendering.PostProcessing
             RefreshVolumeComponents(stack);
             BloomComponent bloom = RequireComponent(_bloom, nameof(BloomComponent));
             VignetteComponent vignette = RequireComponent(_vignette, nameof(VignetteComponent));
-            ColorGradingComponent cg = RequireComponent(
-                _colorGrading,
-                nameof(ColorGradingComponent));
             EigengrauComponent eigengrau = RequireComponent(
                 _eigengrau,
                 nameof(EigengrauComponent));
@@ -120,7 +99,6 @@ namespace Kern.Rendering.PostProcessing
             bool bloomActive = !bypass && !_displayPass &&
                 bloom.active && bloom.IsActive();
             bool vignetteActive = !bypass && vignette.active && vignette.IsActive();
-            bool cgActive = !bypass && cg.active && cg.IsActive();
             bool eigengrauActive = !bypass && eigengrau.active && eigengrau.IsActive();
 
             // Досрочного выхода по «ни одного включённого эффекта» здесь нет и
@@ -164,9 +142,7 @@ namespace Kern.Rendering.PostProcessing
             // Проход, который ничего не меняет, не запускается вовсе. Каждый из
             // двух проходов — полноэкранный compute на полном разрешении кадра,
             // и при нулевых эффектах они стоили ~20 fps на 3420×1890 впустую.
-            ColorGradeSnapshot activeGrade = bypass
-                ? ColorGradeSnapshot.Look
-                : PostProcessRuntimeState.ColorGrade;
+            bool lutActive = !bypass && PostProcessRuntimeState.Lut != null;
             bool diagnosticsActive = PostProcessRuntimeState.DebugView != PostProcessDebugView.None ||
                 PostProcessRuntimeState.CompareMode != CompareMode.Off;
             // Глубина пирамиды блума считается ДО раннего выхода: на
@@ -187,14 +163,17 @@ namespace Kern.Rendering.PostProcessing
                 bloomActive = bloomLevels > 0;
             }
 
+            // Сценический проход теперь несёт только блум; LUT, виньетка,
+            // зерно и диагностика живут в проходе вывода.
             bool passNeeded = _displayPass
-                ? diagnosticsActive || vignetteActive || eigengrauActive ||
-                    !activeGrade.IsDisplayNeutral
-                : diagnosticsActive || bloomActive || cgActive || !activeGrade.IsCreativeNeutral;
+                ? diagnosticsActive || vignetteActive || eigengrauActive || lutActive
+                : bloomActive;
             if (!passNeeded)
             {
                 return;
             }
+
+            PostProcessRuntimeState.RecordDiagnosticPass(cameraData.camera, _displayPass);
 
             desc.name = "_PPIntermediateColor";
             desc.filterMode = FilterMode.Point;
@@ -218,7 +197,7 @@ namespace Kern.Rendering.PostProcessing
                     _bloomDownTextures[i] = renderGraph.CreateTexture(bloomDesc);
                 }
 
-                for (int i = 0; i < bloomLevels; i++)
+                for (int i = PostProcessRuntimeState.DiagnosticUnfusedBloom ? 0 : 1; i < bloomLevels; i++)
                 {
                     var bloomUpDesc = desc;
                     bloomUpDesc.width = Mathf.Max(1, bloomUpDesc.width >> (i + 1));
@@ -238,9 +217,16 @@ namespace Kern.Rendering.PostProcessing
                 passData.KernelDownsample = _kernelDownsample;
                 passData.KernelUpsample = _kernelUpsample;
                 passData.KernelComposite = _kernelComposite;
-                passData.KernelBakeGradeLut = _kernelBakeGradeLut;
-                passData.BakedGradeLut = _displayPass ? null : _gradeLut.Ensure();
-                passData.GradeLutCache = _displayPass ? null : _gradeLut.Cache;
+                passData.KernelUpsampleComposite = _kernelUpsampleComposite;
+                passData.UnfusedBloom = PostProcessRuntimeState.DiagnosticUnfusedBloom;
+                passData.BloomStorageFormat = desc.colorFormat switch
+                {
+                    GraphicsFormat.R16G16B16A16_SFloat => 1,
+                    GraphicsFormat.B10G11R11_UFloatPack32 => 2,
+                    GraphicsFormat.R32G32B32A32_SFloat => 0,
+                    _ when !bloomActive => 0,
+                    _ => throw new InvalidOperationException($"Unsupported bloom storage format: {desc.colorFormat}"),
+                };
 
                 passData.ColorTexture = activeColor;
                 passData.IntermediateTexture = intermediateTexture;
@@ -252,33 +238,28 @@ namespace Kern.Rendering.PostProcessing
 
                 passData.IsDisplayPass = _displayPass;
                 passData.DiagnosticsActive = diagnosticsActive;
-                passData.GradeGeneration = PostProcessRuntimeState.PipelineGeneration;
                 passData.ScreenToEmission = screenToEmission;
 
                 PostProcessPassDataAssembler.FillPassComponents(
                     passData,
                     bloom,
                     vignette,
-                    cg,
                     eigengrau,
                     bloomActive,
                     bloomLevels,
                     vignetteActive,
-                    cgActive,
                     eigengrauActive,
                     _displayPass,
                     hdrOutput,
                     hdrGamut,
                     paperWhite,
                     peakNits);
-                ColorGradeSnapshot grade = activeGrade;
                 passData.PostDebugView = _displayPass ? (int)PostProcessRuntimeState.DebugView : 0;
                 passData.CompareSplit = PostProcessRuntimeState.CompareSplit;
                 passData.CompareMode = (int)PostProcessRuntimeState.CompareMode;
                 passData.CompareBefore = PostProcessRuntimeState.CompareBefore;
-                PostProcessPassDataAssembler.FillGradeTransport(passData, grade, _gradeScratch);
+                PostProcessPassDataAssembler.FillLut(passData, lutActive);
 
-                passData.TimeSeconds = Time.time;
                 passData.FrameIndex = Time.frameCount;
                 passData.CalibrationPattern = (int)PostProcessRuntimeState.CalibrationMode;
                 passData.CalibrationValue = PostProcessRuntimeState.CalibrationValue;
@@ -299,7 +280,10 @@ namespace Kern.Rendering.PostProcessing
                     for (int i = 0; i < passData.BloomLevels; i++)
                     {
                         builder.UseTexture(passData.BloomDownTextures[i], AccessFlags.ReadWrite);
-                        builder.UseTexture(passData.BloomUpTextures[i], AccessFlags.ReadWrite);
+                        if (i > 0 || passData.UnfusedBloom)
+                        {
+                            builder.UseTexture(passData.BloomUpTextures[i], AccessFlags.ReadWrite);
+                        }
                     }
                 }
 
@@ -310,15 +294,6 @@ namespace Kern.Rendering.PostProcessing
                     resourceData.cameraColor = intermediateTexture;
                 }
             }
-        }
-
-        // Нейтральность грейда переехала в ColorGradeSnapshot: списки полей
-        // обязаны согласовываться с самим снимком, и держать их врозь значило
-        // держать три копии одного знания.
-
-        public void Dispose()
-        {
-            _gradeLut.Release();
         }
     }
 }

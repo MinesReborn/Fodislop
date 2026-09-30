@@ -64,7 +64,7 @@ half4 SampleTerrainLightingFieldAlbedoTexel(
         worldPos,
         animData,
         packedData,
-        _Time.y,
+        0.0,
         atlasTexelSize.xy);
 
     if (!tileUV.isValid)

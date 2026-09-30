@@ -132,7 +132,8 @@ internal sealed class ClientConfigLoader
 
     private static void MigrateSchema34To35(ClientConfig config)
     {
-        config.Effects.BloomVariant = BloomStyle.Standard;
+        // Схема 35 вводила стиль свечения. Стиль удалён, шаг только поднимает
+        // номер, чтобы цепочка миграций оставалась непрерывной.
         config.SchemaVersion = BloomStyleSchemaVersion;
     }
 
@@ -149,7 +150,6 @@ internal sealed class ClientConfigLoader
             {
                 config.Terrain = new TerrainSettings();
                 config.Effects = new EffectSettings();
-                config.PostProcess = new PostProcessSettings();
             }
             else
             {
@@ -232,8 +232,6 @@ internal sealed class ClientConfigLoader
             ShimmerSpeedScale = legacy.TerrainShimmerSpeedScale,
             PulseSpeedScale = legacy.TerrainPulseSpeedScale,
             ShimmerColor = legacy.TerrainShimmerColor,
-            DebugColor = legacy.TerrainDebugColor,
-            DebugMode = legacy.TerrainDebugMode,
             EnableDistortion = legacy.EnableTerrainDistortion,
             TransitEmissionColor = legacy.TransitEmissionColor,
             TransitEmissionStrength = legacy.TransitEmissionStrength,
@@ -249,7 +247,6 @@ internal sealed class ClientConfigLoader
         };
         SettingSchema.Clamp(config.Terrain);
         SettingSchema.Clamp(config.Effects);
-        SettingSchema.Clamp(config.PostProcess);
     }
 
     [Serializable]
@@ -261,8 +258,6 @@ internal sealed class ClientConfigLoader
         public float TerrainShimmerSpeedScale = default;
         public float TerrainPulseSpeedScale = default;
         public Color TerrainShimmerColor = default;
-        public Color TerrainDebugColor = default;
-        public bool TerrainDebugMode = default;
         public bool EnableTerrainDistortion = default;
         public Color TransitEmissionColor = default;
         public float TransitEmissionStrength = default;

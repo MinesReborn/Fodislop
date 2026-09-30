@@ -16,6 +16,11 @@ namespace Kern.Player.Input
         private Vector2 _moveInput;
         private bool _isGamepadActive;
 
+        // Нажатие ЛКМ, начатое над интерфейсом, не двигает бота до отпускания:
+        // иначе протяжка ползунка или кнопка, съехавшая из-под курсора, гнали
+        // бота, как только указатель покидал элемент.
+        private bool _pointerPressStartedOverUI;
+
         public Vector2 MoveInput => _moveInput;
         public bool IsGamepadActive => _isGamepadActive;
 
@@ -145,9 +150,14 @@ namespace Kern.Player.Input
                 var cfg = _clientConfig != null ? _clientConfig.Config : null;
                 bool isMouseScheme = cfg != null && cfg.Interface.ControlScheme == 1;
                 bool useMousePointer = isMouseScheme || (Mouse.current != null && Mouse.current.leftButton.isPressed);
+                if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+                {
+                    _pointerPressStartedOverUI = IsPointerOverUI(Mouse.current.position.ReadValue());
+                }
+
                 if (useMousePointer && Mouse.current != null)
                 {
-                    if (Mouse.current.leftButton.isPressed)
+                    if (Mouse.current.leftButton.isPressed && !_pointerPressStartedOverUI)
                     {
                         Vector2 mousePos = Mouse.current.position.ReadValue();
                         if (!IsPointerOverUI(mousePos))
@@ -188,28 +198,8 @@ namespace Kern.Player.Input
             }
         }
 
-        private bool IsPointerOverUI(Vector2 mousePos)
-        {
-            if (_inputBlocker != null && _inputBlocker.IsInputBlocked)
-            {
-                return true;
-            }
-
-            var doc = _uiDocument;
-            if (doc == null || !doc.isActiveAndEnabled)
-            {
-                return false;
-            }
-
-            var root = doc.rootVisualElement;
-            if (root?.panel == null)
-            {
-                return false;
-            }
-
-            Vector2 panelPos = RuntimePanelUtils.ScreenToPanel(root.panel, mousePos);
-            VisualElement? picked = root.panel.Pick(panelPos);
-            return picked != null && picked != root && picked is not TemplateContainer;
-        }
+        private bool IsPointerOverUI(Vector2 mousePos) =>
+            (_inputBlocker != null && _inputBlocker.IsInputBlocked) ||
+            UIPointerHitTest.IsOverUI(_uiDocument, mousePos);
     }
 }

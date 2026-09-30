@@ -118,12 +118,13 @@ namespace Kern.World.Terrain
         // 1. Смещение узлов сетки (шаг = 1/32 клетки). Classic умножает
         // детерминированный джиттер 0..6; Organic центрирует шум в диапазоне
         // -OrganicMaximumOffsetSteps/2 .. +OrganicMaximumOffsetSteps/2.
-        public const int ClassicDistortionStrengthSteps = 1;
+        public const int ClassicDistortionStrengthSteps = 2;
         public const int OrganicMaximumOffsetSteps = 4;
 
         // Скорости профилей записаны в legacy единицах данных клетки; шейдер
         // сам переводит их в фазу анимации.
         public const float PrismaticCrystalAnimationSpeed = 50f;
+        public const float MoltenSurfaceAnimationSpeed = 10f;
         public const float FacetedCrystalAnimationSpeed = 0.06f;
 
 
@@ -283,19 +284,15 @@ namespace Kern.World.Lighting
         // величин, а не грейдом на выводе: грейд стоит полноэкранного прохода,
         // а здесь это тот же умножитель, что уже уходит в шейдер.
         //
-        // Единица — исходная авторская калибровка. При ней даже полностью
-        // освещённая поверхность не доходила до белой точки, выше единицы
-        // жили только сами источники, и вся работа вывода — плавное сжатие
-        // пересвета — не начиналась вовсе: сжимать было нечего. Штатные два
-        // поднимают сцену на стоп, после чего освещённое доходит до белого,
-        // а пересвет попадает туда, где SDR его свернёт, а HDR покажет.
-        // Это единственная ручка общей яркости; крутить её и только её.
+        // Значение 1 — нейтральная экспозиция сцены. Большее значение
+        // поднимает свет и эмиссию вместе; это единственная ручка общей
+        // яркости, поэтому менять её и только её.
         //
         // Свойство, а не константа: ручка вынесена в инструменты (F1, окно
         // «Цвет и вывод»), и подбирать экспозицию надо глазом на живой сцене.
         // Значение здесь — штатное; инструмент меняет его на сессию, файл
         // остаётся авторским источником правды.
-        public const float DefaultSceneExposureScale = 2.0f;
+        public const float DefaultSceneExposureScale = 1.0f;
 
         public static float SceneExposureScale { get; set; } = DefaultSceneExposureScale;
 
@@ -366,15 +363,6 @@ namespace Kern.World.Lighting
 
 namespace Kern.Rendering.PostProcessing
 {
-    public enum BloomStyle
-    {
-        [SettingLabel("settings.effects.bloom_variant.standard")]
-        Standard = 0,
-
-        [SettingLabel("settings.effects.bloom_variant.cyberpunk")]
-        Cyberpunk = 1,
-    }
-
     public static class PostProcessLook
     {
         // Переключатели включают соответствующие этапы графа.
@@ -388,36 +376,24 @@ namespace Kern.Rendering.PostProcessing
         // 1. Пирамида блум собирается из HDR-входа до финального композита.
         public static class Bloom
         {
-            public const float Intensity = 0.35f;
-            public const float Threshold = 0.5f;
+            // Значения — те, с которыми блум фактически рисовался: исполнитель
+            // прежде домножал базовые числа на коэффициенты второго стиля для
+            // обоих стилей (0.35·2, 0.5·0.8, 1.5·1.3, рассеяние 0.58).
+            public const float Intensity = 0.7f;
+            public const float Threshold = 0.4f;
             public const float SoftKnee = 0.5f;
-            public const float Radius = 1.5f;
-            public const float Scatter = 0.35f;
-
-            // Общие параметры обоих стилей для прямого сравнения цвета ореола.
-            public const float CyberpunkThresholdScale = 0.8f;
-            public const float CyberpunkRadiusScale = 1.3f;
-            public const float CyberpunkScatter = 0.58f;
-            public const float CyberpunkIntensityScale = 2f;
+            public const float Radius = 1.95f;
+            public const float Scatter = 0.58f;
 
             public static Color Tint => Color.white;
         }
 
-        // 2. Творческий грейд выполняется в композитном проходе.
-        public static class ColorGrading
+        // 2. Кадр вдвое ярче сцены (+1 стоп) до тонмаппинга URP. Пики сжимает
+        // сам URP: в SDR — плавное плечо Neutral, в HDR — BT.2390, который
+        // трогает только то, что подходит к пику дисплея.
+        public static class Exposure
         {
-            public const float Exposure = 0f;
-            public const float Contrast = 0f;
-            public const float Saturation = 1f;
-
-            public static Color Filter => Color.white;
-
-            public const float ContrastPivot = 0.5f;
-            public const float TonalAdjustment = 0f;
-            public const float CdlSaturation = 1f;
-            public const float Vibrance = 0f;
-            public const float Hue = 0f;
-            public static Vector3 CdlMaster => new(1f, 0f, 1f);
+            public const float Stops = 1f;
         }
 
         // 3. Nits профиля задают нормализацию входа и предел вывода дисплея.
@@ -427,51 +403,7 @@ namespace Kern.Rendering.PostProcessing
             public const float PeakBrightnessNits = 1300f;
         }
 
-        // 4. Display transform, LUT и кривые выводят кадр в сигнал дисплея.
-        public static class Grade
-        {
-            public const DisplayTransform Transform = DisplayTransform.None;
-            public const float WhitePoint = 1f;
-            public const float Temperature = 0f;
-            public const float Tint = 0f;
-
-            public static Vector3 Slope => Vector3.one;
-
-            public static Vector3 Offset => Vector3.zero;
-
-            public static Vector3 Power => Vector3.one;
-
-            public const float GreyOut = 0.18f;
-            public const float ShoulderPower = 4f;
-            public const float ToePower = 1.6f;
-            public const float ToeStops = 12f;
-
-            // Настройки сжатия гамута применяются в display pass.
-            public const bool GamutCompressionEnabled = false;
-            public const float GamutCompressionStrength = 1f;
-
-            public static Vector3 PrimaryLift => Vector3.zero;
-            public static Vector3 PrimaryGamma => Vector3.one;
-            public static Vector3 PrimaryGain => Vector3.one;
-            public static Vector3 PrimaryOffset => Vector3.zero;
-            public static Vector4 PrimaryMaster => new(0f, 1f, 1f, 0f);
-        }
-
-        // Начальные настройки квалификатора оттенка, насыщенности и яркости.
-        public static class Qualifier
-        {
-            public const float HueCenter = 120f;
-            public const float HueWidth = 30f;
-            public const float HueSoftness = 15f;
-            public const float SaturationCenter = 0.5f;
-            public const float SaturationWidth = 0.5f;
-            public const float SaturationSoftness = 0.1f;
-            public const float LuminanceCenter = 0.5f;
-            public const float LuminanceWidth = 0.5f;
-            public const float LuminanceSoftness = 0.1f;
-        }
-
-        // 5. Виньетка применяется к уже преобразованному сигналу дисплея.
+        // 4. LUT от сервера и виньетка ложатся на сигнал дисплея после тонмаппинга.
         public static class Vignette
         {
             public const float Intensity = 0.4f;
@@ -482,7 +414,7 @@ namespace Kern.Rendering.PostProcessing
             public static Vector2 Center => new(0.5f, 0.5f);
         }
 
-        // 6. Eigengrau добавляется после виньетки в DisplayFinal.
+        // 5. Eigengrau добавляется после виньетки в DisplayFinal.
         public static class FilmGrain
         {
             public const float Intensity = 1f;

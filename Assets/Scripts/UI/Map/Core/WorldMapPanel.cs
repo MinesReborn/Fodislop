@@ -182,7 +182,8 @@ internal sealed class WorldMapPanel : IDisposable
         if (Mathf.Abs(screenX - _lastMarkerLeft) > PositionWriteEpsilon ||
             Mathf.Abs(screenY - _lastMarkerTop) > PositionWriteEpsilon)
         {
-            _playerMarker.transform.position = new Vector3(screenX, screenY, 0f);
+            _playerMarker.style.left = screenX;
+            _playerMarker.style.top = screenY;
             _lastMarkerLeft = screenX;
             _lastMarkerTop = screenY;
         }

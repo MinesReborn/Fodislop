@@ -33,7 +33,6 @@
     <Compile Include="../../Assets/Scripts/Core/Interfaces/Contracts/Settings/TerrainSettings.cs" Link="Game/TerrainSettings.cs" />
     <Compile Include="../../Assets/Scripts/Core/Configuration/Contracts/SettingAttributes.cs" Link="Game/SettingAttributes.cs" />
     <Compile Include="../../Assets/Scripts/Rendering/PostProcessing/ColorGrading/Contracts/VisualTuning.cs" Link="Game/VisualTuning.cs" />
-    <Compile Include="../../Assets/Scripts/Rendering/PostProcessing/ColorGrading/Contracts/DisplayTransform.cs" Link="Game/DisplayTransform.cs" />
     <Compile Include="../../Assets/Scripts/World/Common/CoordinateUtils.cs" Link="Game/CoordinateUtils.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainVertex.cs" Link="Game/TerrainVertex.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainCellGeometry.cs" Link="Game/TerrainCellGeometry.cs" />

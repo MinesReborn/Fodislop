@@ -128,9 +128,7 @@ internal sealed class ClientConfigRepository
             typeof(AudioSettings),
             typeof(DisplaySettings),
             typeof(InterfaceSettings),
-            typeof(AccessibilitySettings),
             typeof(ConnectionSettings),
-            typeof(PostProcessSettings),
             typeof(TerrainSettings),
             typeof(EffectSettings),
         ];

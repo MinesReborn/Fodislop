@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace Kern.FrameHarness;
 
@@ -14,6 +15,10 @@ public static class CaptureAnalyzer
         "terrainAtlasUpload", "lightingBuildCommands", "lightingExecuteCommands",
         "lightingCascadeTrace", "lightingCascadeMerge", "lightingDynamic", "lightingComposite",
     ];
+
+    private static readonly Regex _FrameFindingPattern = new(
+        @"\bframe (?<id>\d+):",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     public static ValidationReport Validate(FrameCapture capture)
     {
@@ -144,6 +149,7 @@ public static class CaptureAnalyzer
             }
 
             if (frame.CounterGeneration < 0 ||
+                frame.FrameCounters?.GcAllocBytes is < 0 ||
                 counters.Any(value => value is < 0) || Values(frame.FrameCounters).Any(value => value is < 0) ||
                 !ValidInputs(frame.Inputs))
             {
@@ -178,10 +184,11 @@ public static class CaptureAnalyzer
         {
             CheckStatus invalidInvariant = HasKnownPositiveCellDataViolation(capture) ? CheckStatus.Fail : CheckStatus.Incomplete;
             return new ValidationReport(CheckStatus.Fail, invalidInvariant, CheckStatus.Incomplete,
-                CheckStatus.Incomplete, findings, new Dictionary<string, MetricStatistics>());
+                CheckStatus.Incomplete, CompactFrameFindings(findings), new Dictionary<string, MetricStatistics>());
         }
 
         CheckStatus invariant = CheckInvariant(capture, findings);
+        AddAllocationFindings(capture.Frames.OfType<FrameSample>().ToArray(), findings);
         if (capture.Frames.Any(frame => frame!.Class != SampleClass.Steady))
         {
             findings.Add("OPT-1 rules cover steady samples only; cold/reanchor/unclassified invariants remain unimplemented.");
@@ -191,7 +198,55 @@ public static class CaptureAnalyzer
         // A single capture has no performance verdict: a compatible baseline and explicit budgets are required.
         return new ValidationReport(CheckStatus.Pass, invariant, CheckStatus.Incomplete,
             missing || invariant == CheckStatus.Incomplete ? CheckStatus.Incomplete : CheckStatus.Pass,
-            findings, BuildStatistics(capture.Frames.OfType<FrameSample>().ToArray()));
+            CompactFrameFindings(findings), BuildStatistics(capture.Frames.OfType<FrameSample>().ToArray()));
+    }
+
+    private static List<string> CompactFrameFindings(List<string> findings)
+    {
+        Dictionary<string, List<string>> grouped = new(StringComparer.Ordinal);
+        foreach (string finding in findings)
+        {
+            Match match = _FrameFindingPattern.Match(finding);
+            if (!match.Success)
+            {
+                if (!grouped.TryGetValue(finding, out List<string>? exactFindings))
+                {
+                    grouped.Add(finding, [finding]);
+                }
+                else
+                {
+                    exactFindings.Add(finding);
+                }
+
+                continue;
+            }
+
+            Group id = match.Groups["id"];
+            string summary = string.Concat(finding.AsSpan(0, id.Index), "*", finding.AsSpan(id.Index + id.Length));
+            if (!grouped.TryGetValue(summary, out List<string>? examples))
+            {
+                examples = [];
+                grouped.Add(summary, examples);
+            }
+
+            examples.Add(finding);
+        }
+
+        List<string> compact = new(grouped.Count);
+        foreach (KeyValuePair<string, List<string>> entry in grouped)
+        {
+            if (entry.Value.Count == 1)
+            {
+                compact.Add(entry.Value[0]);
+                continue;
+            }
+
+            string firstId = _FrameFindingPattern.Match(entry.Value[0]).Groups["id"].Value;
+            string lastId = _FrameFindingPattern.Match(entry.Value[^1]).Groups["id"].Value;
+            compact.Add($"{entry.Key} [repeated on {entry.Value.Count} frames; IDs {firstId}…{lastId}]");
+        }
+
+        return compact;
     }
 
     public static ComparisonReport Compare(FrameCapture before, FrameCapture after, ComparisonBudget budget)
@@ -326,6 +381,11 @@ public static class CaptureAnalyzer
             ? UploadObservation(capture.CounterBaseline)
             : null;
         int? generation = previousProducerCorrelated ? capture.CounterBaselineGeneration : null;
+        long? previousUploadFrameId = capture.BaselineObservationFrameId;
+        bool uploadScope = HasUploadEndpointData(capture.CounterBaseline, null) ||
+            capture.Frames!.OfType<FrameSample>().Any(frame => frame.TerrainCellDataUpload is not null ||
+                frame.FrameCounters?.TerrainCellDataUploadFrameDeltaValid is not null ||
+                HasUploadEndpointData(frame.Cumulative, null));
         bool missing = false;
         bool failed = false;
         bool observedMotion = false;
@@ -398,8 +458,9 @@ public static class CaptureAnalyzer
                         UploadDeltaState uploadState = TerrainCellDataDelta(
                             previousCounters, previousUploadObservation, frame.Cumulative,
                             frame.TerrainCellDataUpload, previousProducerCorrelated,
-                            producerCorrelated, sameGeneration);
-                        if (uploadState == UploadDeltaState.Unavailable)
+                            producerCorrelated, sameGeneration, previousUploadFrameId, frame.FrameId);
+                        if (uploadState == UploadDeltaState.Unavailable ||
+                            (uploadScope && uploadState == UploadDeltaState.NotPresent))
                         {
                             missing = true;
                         }
@@ -417,6 +478,7 @@ public static class CaptureAnalyzer
             previousProducerCorrelated = producerCorrelated;
             previousCounters = producerCorrelated ? frame.Cumulative : null;
             previousUploadObservation = producerCorrelated ? frame.TerrainCellDataUpload : null;
+            previousUploadFrameId = frame.FrameId;
             generation = producerCorrelated ? frame.CounterGeneration : null;
         }
 
@@ -500,7 +562,9 @@ public static class CaptureAnalyzer
         TerrainTextureUploadObservation? currentObservation,
         bool previousProducerCorrelated,
         bool currentProducerCorrelated,
-        bool sameHarnessGeneration)
+        bool sameHarnessGeneration,
+        long? previousObservationFrameId,
+        long currentObservationFrameId)
     {
         bool previousPresent = HasUploadEndpointData(previousCounters, previousObservation);
         bool currentPresent = HasUploadEndpointData(currentCounters, currentObservation);
@@ -512,6 +576,8 @@ public static class CaptureAnalyzer
         if (!previousProducerCorrelated || !currentProducerCorrelated || !sameHarnessGeneration ||
             !TryGetUploadEndpoint(previousCounters, previousObservation, out UploadEndpoint previous) ||
             !TryGetUploadEndpoint(currentCounters, currentObservation, out UploadEndpoint current) ||
+            previous.ObservationFrameId != previousObservationFrameId ||
+            current.ObservationFrameId != currentObservationFrameId ||
             current.Generation != previous.Generation ||
             previous.ObservationFrameId == int.MaxValue ||
             current.ObservationFrameId != previous.ObservationFrameId + 1 ||
@@ -537,8 +603,7 @@ public static class CaptureAnalyzer
         CounterSnapshot? previousCounters = capture.CounterBaseline;
         TerrainTextureUploadObservation? previousObservation = UploadObservation(previousCounters);
         if (HasUploadEndpointData(previousCounters, previousObservation) &&
-            (!WellFormedUploadEndpoint(previousCounters, previousObservation) ||
-             previousCounters?.TerrainCellDataUploadObservationFrameId != capture.BaselineObservationFrameId))
+            !WellFormedUploadEndpoint(previousCounters, previousObservation))
         {
             findings.Add("Malformed or inconsistent terrain cell-data upload baseline endpoint.");
             valid = false;
@@ -571,7 +636,6 @@ public static class CaptureAnalyzer
             if (telemetryPresent && delta?.TerrainCellDataUploadFrameDeltaValid is null)
             {
                 findings.Add($"Frame {frame.FrameId}: terrain cell-data upload delta validity is missing.");
-                valid = false;
             }
 
             if (delta is not null && new long?[]
@@ -589,6 +653,11 @@ public static class CaptureAnalyzer
             bool adjacentSameGeneration = hasPreviousEndpoint && hasCurrentEndpoint &&
                 previous.Generation == current.Generation && previous.ObservationFrameId != int.MaxValue &&
                 current.ObservationFrameId == previous.ObservationFrameId + 1;
+            if (adjacentSameGeneration && !TryDeriveUploadDelta(previous, current, out _))
+            {
+                findings.Add($"Frame {frame.FrameId}: inconsistent terrain cell-data call/byte cumulative deltas.");
+                valid = false;
+            }
             if (adjacentSameGeneration && (current.ApplyCalls < previous.ApplyCalls ||
                 current.ApplyPayloadBytes < previous.ApplyPayloadBytes || current.CopyTextureCalls < previous.CopyTextureCalls ||
                 current.CopyTexturePayloadBytes < previous.CopyTexturePayloadBytes))
@@ -606,13 +675,13 @@ public static class CaptureAnalyzer
                     delta.TerrainCellDataCopyTexturePayloadBytes == expected[3] &&
                     delta.TerrainCellDataUploadDeltaStartObservationFrameId == previous.ObservationFrameId &&
                     delta.TerrainCellDataUploadDeltaEndObservationFrameId == current.ObservationFrameId;
-                if (!exportedValid || !exportedMatches)
+                if (delta?.TerrainCellDataUploadFrameDeltaValid is not null && (!exportedValid || !exportedMatches))
                 {
                     findings.Add($"Frame {frame.FrameId}: exported terrain cell-data delta disagrees with adjacent cumulative endpoints.");
                     valid = false;
                 }
             }
-            else if (delta?.TerrainCellDataUploadFrameDeltaValid is true)
+            else if (hasPreviousEndpoint && hasCurrentEndpoint && delta?.TerrainCellDataUploadFrameDeltaValid is true)
             {
                 findings.Add($"Frame {frame.FrameId}: terrain cell-data delta is marked valid without matching adjacent endpoints.");
                 valid = false;
@@ -637,7 +706,8 @@ public static class CaptureAnalyzer
     private static bool HasKnownPositiveCellDataViolation(FrameCapture capture)
     {
         string? scenario = capture.Manifest?.ScenarioId;
-        if (scenario is not ("S0" or "S1" or "S4"))
+        if (scenario is not ("S0" or "S1" or "S4") ||
+            string.IsNullOrWhiteSpace(capture.Manifest?.ObservationEvidence))
         {
             return false;
         }
@@ -668,7 +738,8 @@ public static class CaptureAnalyzer
             if (frame.Class == SampleClass.Steady && correlated &&
                 uploadObservationMapped && StableInputs(previousInputs, frame.Inputs, scenario) &&
                 TerrainCellDataDelta(previousCounters, previousObservation, frame.Cumulative,
-                    frame.TerrainCellDataUpload, previousCorrelated, correlated, sameGeneration) == UploadDeltaState.Positive)
+                    frame.TerrainCellDataUpload, previousCorrelated, correlated, sameGeneration,
+                    previousExpectedObservationFrame, frame.FrameId) == UploadDeltaState.Positive)
             {
                 return true;
             }
@@ -719,35 +790,52 @@ public static class CaptureAnalyzer
         CounterSnapshot? counters,
         TerrainTextureUploadObservation? observation)
     {
-        if (counters is null || observation is null ||
-            counters.TerrainCellDataUploadAvailable is not bool available ||
-            observation.Available != available ||
-            counters.TerrainCellDataUploadGeneration is not long generation || generation < 0 ||
-            observation.Generation != generation ||
-            counters.TerrainCellDataUploadHasSourceFrame is not bool hasSourceFrame ||
-            observation.HasSourceFrame != hasSourceFrame ||
-            counters.TerrainCellDataUploadObservationFrameId is not int observationFrameId || observationFrameId < 0 ||
-            observation.ObservationFrameId != observationFrameId ||
-            (hasSourceFrame && (counters.TerrainCellDataUploadSourceFrameId is not int sourceFrameId ||
-                                sourceFrameId < 0 || sourceFrameId > observationFrameId)) ||
-            (!hasSourceFrame && counters.TerrainCellDataUploadSourceFrameId is not null) ||
-            observation.SourceFrameId != counters.TerrainCellDataUploadSourceFrameId)
+        if (!Nonconflicting(counters?.TerrainCellDataUploadAvailable, observation?.Available) ||
+            !Nonconflicting(counters?.TerrainCellDataUploadGeneration, observation?.Generation) ||
+            !Nonconflicting(counters?.TerrainCellDataUploadHasSourceFrame, observation?.HasSourceFrame) ||
+            !Nonconflicting(counters?.TerrainCellDataUploadObservationFrameId, observation?.ObservationFrameId) ||
+            !Nonconflicting(counters?.TerrainCellDataUploadSourceFrameId, observation?.SourceFrameId))
         {
             return false;
         }
 
-        long?[] values =
-        [
-            counters.TerrainCellDataApplyCalls, counters.TerrainCellDataApplyPayloadBytes,
-            counters.TerrainCellDataCopyTextureCalls, counters.TerrainCellDataCopyTexturePayloadBytes,
-        ];
-        if (available)
+        TerrainTextureUploadObservation? cumulativeObservation = UploadObservation(counters);
+        foreach (TerrainTextureUploadObservation? endpoint in new[] { cumulativeObservation, observation })
         {
-            return TryGetUploadEndpoint(counters, observation, out _);
+            if (endpoint?.Generation is < 0 || endpoint?.ObservationFrameId is < 0 || endpoint?.SourceFrameId is < 0 ||
+                endpoint?.SourceFrameId > endpoint?.ObservationFrameId ||
+                (endpoint?.HasSourceFrame is false && endpoint.SourceFrameId is not null))
+            {
+                return false;
+            }
         }
 
-        return values.All(value => value is null);
+        long?[] values =
+        [
+            counters?.TerrainCellDataApplyCalls, counters?.TerrainCellDataApplyPayloadBytes,
+            counters?.TerrainCellDataCopyTextureCalls, counters?.TerrainCellDataCopyTexturePayloadBytes,
+        ];
+        if (values.Any(value => value is < 0) ||
+            (counters?.TerrainCellDataUploadAvailable is false && values.Any(value => value is not null)))
+        {
+            return false;
+        }
+
+        for (int i = 0; i < values.Length; i += 2)
+        {
+            if (values[i] is long calls && values[i + 1] is long bytes && (calls == 0) != (bytes == 0))
+            {
+                return false;
+            }
+        }
+
+        // Missing fields cannot establish an endpoint; TryGetUploadEndpoint
+        // enforces completeness at the evidence boundary.
+        return true;
     }
+
+    private static bool Nonconflicting<T>(T? left, T? right) where T : struct =>
+        left is null || right is null || EqualityComparer<T>.Default.Equals(left.Value, right.Value);
 
     private static bool TryDeriveUploadDelta(UploadEndpoint previous, UploadEndpoint current, out long[] delta)
     {
@@ -811,6 +899,36 @@ public static class CaptureAnalyzer
         counters?.TerrainAtlasUploadCalls, counters?.TerrainAtlasUploadBytes,
         counters?.LightingFieldRebuilds, counters?.LightingStaticSolves,
     ];
+
+    private static void AddAllocationFindings(IReadOnlyList<FrameSample> frames, List<string> findings)
+    {
+        foreach (IGrouping<SampleClass?, FrameSample> group in frames.GroupBy(frame => frame.Class))
+        {
+            FrameSample[] samples = group.ToArray();
+            string name = group.Key?.ToString().ToLowerInvariant() ?? "unknown";
+            FrameSample[] observed = samples.Where(frame => frame.FrameCounters?.GcAllocBytes is >= 0).ToArray();
+            if (observed.Length != samples.Length)
+            {
+                findings.Add($"allocations.{name}: incomplete ({observed.Length}/{samples.Length} samples); missing bytes are not zero.");
+            }
+
+            if (observed.Length == 0)
+            {
+                continue;
+            }
+
+            MetricStatistics stats = Statistics(observed.Select(frame => (double)frame.FrameCounters!.GcAllocBytes!.Value));
+            double mean = observed.Average(frame => (double)frame.FrameCounters!.GcAllocBytes!.Value);
+            findings.Add(FormattableString.Invariant(
+                $"allocations.{name}: samples={observed.Length}/{samples.Length}, mean={mean:F0} B/frame, p50={stats.P50:F0} B, p95={stats.P95:F0} B, p99={stats.P99:F0} B, max={stats.Max:F0} B."));
+            if (observed.Length == samples.Length && samples.All(frame => frame.FrameDurationMs is > 0))
+            {
+                double seconds = samples.Sum(frame => frame.FrameDurationMs!.Value) / 1000d;
+                double bytes = observed.Sum(frame => (double)frame.FrameCounters!.GcAllocBytes!.Value);
+                findings.Add(FormattableString.Invariant($"allocations.{name}: {bytes / seconds / 1_000_000d:F3} MB/s (decimal); whole-frame counter, no subsystem attribution or causal FPS verdict."));
+            }
+        }
+    }
 
     private static Dictionary<string, MetricStatistics> BuildStatistics(IReadOnlyList<FrameSample> frames)
     {

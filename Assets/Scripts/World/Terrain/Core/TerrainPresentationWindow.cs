@@ -23,10 +23,6 @@ public sealed class TerrainPresentationWindow : IDisposable
 
     private readonly TerrainCellIDMesh _mesh = new();
     private Vector4 _viewOffset;
-    private int _visibleWidth;
-    private int _visibleHeight;
-    private int _gridWidth;
-    private int _gridHeight;
 
     public Mesh? Mesh => _mesh.Mesh;
 
@@ -41,25 +37,15 @@ public sealed class TerrainPresentationWindow : IDisposable
         float cellSize,
         MeshFilter? meshFilter)
     {
-        // Размер окна растёт по общей политике governor'а. Это сохраняет
-        // стабильный mesh при движении камеры и не вводит отдельный
-        // terrain-only порог.
-        if (_gridWidth != meshWidth || _gridHeight != meshHeight)
-        {
-            _gridWidth = meshWidth;
-            _gridHeight = meshHeight;
-            _visibleWidth = 0;
-            _visibleHeight = 0;
-        }
-
+        // Backing grid is sized for the maximum supported zoom, while the
+        // presentation mesh must match the current viewport. Retaining a
+        // high-water size here submits off-screen quads forever after zoom-out.
         int wantedWidth = policy.QuantizeDimension(
             cameraViewport.width + (PresentationMarginCells * 2));
         int wantedHeight = policy.QuantizeDimension(
             cameraViewport.height + (PresentationMarginCells * 2));
-        _visibleWidth = Mathf.Clamp(Mathf.Max(_visibleWidth, wantedWidth), 1, meshWidth);
-        _visibleHeight = Mathf.Clamp(Mathf.Max(_visibleHeight, wantedHeight), 1, meshHeight);
-        int width = _visibleWidth;
-        int height = _visibleHeight;
+        int width = Mathf.Clamp(wantedWidth, 1, meshWidth);
+        int height = Mathf.Clamp(wantedHeight, 1, meshHeight);
         int extraWidth = Mathf.Max(0, width - cameraViewport.width - (PresentationMarginCells * 2));
         int extraHeight = Mathf.Max(0, height - cameraViewport.height - (PresentationMarginCells * 2));
         int presentationMinX = cameraViewport.xMin - PresentationMarginCells - (extraWidth / 2);

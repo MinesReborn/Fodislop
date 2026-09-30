@@ -20,8 +20,6 @@ Shader "Universal Render Pipeline/Custom/Terrain"
         [HideInInspector] _ReliefRimDistanceScale ("Relief Rim Distance Scale", Float) = 0
         [HideInInspector] _ReliefRimFalloff ("Relief Rim Falloff", Float) = 0
         [HideInInspector] _ReliefRimQuantizationEnabled ("Relief Rim Quantization Enabled", Float) = 0
-        _DebugColor ("Debug Color", Color) = (0,0,0,0)
-        [ToggleUI] _DebugMode ("Debug Mode", Float) = 0
         // Авторский вид поверхности: значения приезжают из TerrainConfigHolder
         // свойствами материала, дефолт здесь — те же числа.
         _GroundDecalStrength ("Ground Decal Strength", Float) = 0.35
@@ -90,7 +88,6 @@ Shader "Universal Render Pipeline/Custom/Terrain"
             #include "Assets/Shaders/Terrain/TerrainColorAnimation.hlsl"
             #include "TerrainTileAddressing.hlsl"
             #define KERN_TERRAIN_DEBUG_BACKGROUND_TILE_VIEW
-            #include "Assets/Shaders/Terrain/TerrainCellData.hlsl"
             #include "Assets/Shaders/Terrain/TerrainLightingData.hlsl"
             #include "Assets/Shaders/PixelArtFiltering.hlsl"
             #include "Assets/Shaders/World/WorldLightSampling.hlsl"
@@ -98,10 +95,13 @@ Shader "Universal Render Pipeline/Custom/Terrain"
             #include "Assets/Shaders/Terrain/TerrainAtlasSampling.hlsl"
             #include "Assets/Shaders/Terrain/TerrainSampling.hlsl"
             #include "Assets/Shaders/Terrain/TerrainContour.hlsl"
+            #include "Assets/Shaders/Terrain/TerrainCellData.hlsl"
             #include "Assets/Shaders/Terrain/TerrainAmbientOcclusion.hlsl"
             #include "Assets/Shaders/Terrain/TerrainDecals.hlsl"
 
             #define EPS 0.0001
+            // Explicit benchmark-only cumulative fragment checkpoints; zero is production.
+            int _KernTerrainBenchmarkStage;
 
             TEXTURE2D(_BaseMap);
             SAMPLER(sampler_BaseMap);
@@ -187,6 +187,12 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
             half4 frag (Varyings input) : SV_Target
             {
+                [branch]
+                if (_KernTerrainBenchmarkStage == 1)
+                {
+                    return half4(0.5, 0.5, 0.5, 1.0);
+                }
+
                 TerrainSurfaceInputs surface = BuildTerrainSurfaceInputs(
                     input.packedData,
                     input.uv,
@@ -321,6 +327,11 @@ Shader "Universal Render Pipeline/Custom/Terrain"
             #if defined(KERN_TERRAIN_CELLS)
                 clip(cellCoverage - 0.5);
             #endif
+                [branch]
+                if (_KernTerrainBenchmarkStage == 2)
+                {
+                    return half4(0.5, 0.5, 0.5, cellCoverage);
+                }
 
                 if (input.subAtlasRect.z < 0.0001)
                 {
@@ -388,10 +399,17 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                     return half4(0.0, 0.0, 0.0, 0.0);
                 }
 
+                [branch]
+                if (_KernTerrainBenchmarkStage == 3)
+                {
+                    return half4(texColor.rgb, cellCoverage);
+                }
+
                 float3 animatedRGB = AnimateTerrainColor(
                     texColor.rgb,
                     texColor.rgb,
                     terrainTileUv,
+                    TerrainAnimationWorldPosition(input.worldPos, input.packedData),
                     animType,
                     animationProfile,
                     input.animData.y,
@@ -409,6 +427,11 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 // color and decals, before incoming world illumination.
                 float reliefBevel = TerrainReliefBevel(surface);
                 float3 finalRGB = decalRGB * reliefBevel;
+                [branch]
+                if (_KernTerrainBenchmarkStage == 4)
+                {
+                    return half4(finalRGB, cellCoverage);
+                }
                 if (KernTerrainDebugNeedsSurfaceSample())
                 {
                     float glintSignal = 0.0;
@@ -473,26 +496,21 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Assets/Shaders/PixelArtFiltering.hlsl"
-            #include "Assets/Shaders/Terrain/TerrainColorAnimation.hlsl"
-            #include "Assets/Shaders/Terrain/TerrainCellData.hlsl"
             #include "TerrainTileAddressing.hlsl"
             #include "Assets/Shaders/Terrain/TerrainLightingData.hlsl"
             #include "Assets/Shaders/Terrain/TerrainAtlasSampling.hlsl"
             #include "Assets/Shaders/Terrain/TerrainSampling.hlsl"
             #include "Assets/Shaders/Terrain/TerrainContour.hlsl"
+            #include "Assets/Shaders/Terrain/TerrainCellData.hlsl"
             #include "Assets/Shaders/Terrain/TerrainDecals.hlsl"
 
-            TEXTURE2D(_PrismaticFlowMap);
-            SAMPLER(sampler_PrismaticFlowMap);
-            TEXTURE2D(_FlowMap);
-            SAMPLER(sampler_FlowMap);
-
-            // Альбедо поля — из атласа тем же UV-конвейером, что видимый пасс.
+            // Lighting field stores a time-independent albedo snapshot. Visual
+            // crystal/shimmer animation belongs to the screen pass; sampling it
+            // here would make a region rebuild capture a different random phase.
             TEXTURE2D(_BaseMap);
 
             #include "Assets/Shaders/Terrain/TerrainMaterialCBuffer.hlsl"
             #include "Assets/Shaders/Terrain/TerrainPassCommon.hlsl"
-            #include "Assets/Shaders/Terrain/TerrainAnimationSampling.hlsl"
             #include "Assets/Shaders/Terrain/TerrainLightingFieldCommon.hlsl"
 
             struct MaterialFieldOutput
@@ -505,9 +523,10 @@ Shader "Universal Render Pipeline/Custom/Terrain"
             {
                 MaterialFieldOutput output;
 
-                // Тот же разбор вершины, что и в экранном проходе: поле
-                // материалов обязано нести ровно то альбедо, которое видно,
-                // иначе свет отскакивает от цвета, которого в кадре нет.
+                // Keep the same geometry and atlas addressing as the screen
+                // pass, but use the authored base albedo rather than its
+                // time-varying display animation. Static transport must not
+                // change merely because this field was rebuilt at a new time.
                 TerrainSurfaceInputs surface = BuildTerrainSurfaceInputs(
                     input.packedData,
                     input.uv,
@@ -519,8 +538,6 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 float isForeground = input.isForeground;
                 int albedoAtlasSlot = (int)round(input.atlasIndex);
                 float4 atlasTexelSize = TerrainMaterialAtlasTexelSize(albedoAtlasSlot);
-                int albedoAnimationType = (int)(input.animData.x + 0.5);
-                int albedoAnimationProfile = surface.animationProfile;
                 float2 geometryTileUv = TerrainResolveGeometryTileUV(
                     input.uv,
                     input.packedData.yz,
@@ -528,13 +545,6 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                     input.geometryCornersY,
                     input.uvBits,
                     input.packedData.x);
-                float3 flowSample = TerrainResolveFlowSample(
-                    albedoAnimationProfile,
-                    albedoAnimationType,
-                    input.worldPos,
-                    input.packedData,
-                    _FlowScale);
-
                 half4 albedoTexel = SampleTerrainLightingFieldAlbedoTexel(
                     geometryTileUv,
                     input.packedData.yz,
@@ -573,19 +583,6 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 // lighting transport. AO filtering is isolated in its own pass.
                 occupancy *= albedoTexel.a >= _AlphaCutoff ? 1.0 : 0.0;
 
-                surfaceAlbedo = AnimateTerrainColor(
-                    surfaceAlbedo,
-                    surfaceAlbedo,
-                    geometryTileUv,
-                    albedoAnimationType,
-                    albedoAnimationProfile,
-                    input.animData.y,
-                    input.animData.z,
-                    flowSample,
-                    input.glowData.x,
-                    _ShimmerColor.rgb,
-                    _ShimmerSpeedScale,
-                    _PulseSpeedScale);
                 surfaceAlbedo = ApplyTerrainDecal(
                     surfaceAlbedo,
                     geometryTileUv,

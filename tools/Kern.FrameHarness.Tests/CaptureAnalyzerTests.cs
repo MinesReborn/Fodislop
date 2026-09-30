@@ -11,6 +11,36 @@ public sealed class CaptureAnalyzerTests
     private static readonly ComparisonBudget _ZeroBudget = new(0, 0, 0, 0, 0, 0);
 
     [Test]
+    public void AllocationReportUsesBytesAndDoesNotInventMissingSamples()
+    {
+        ValidationReport complete = CaptureAnalyzer.Validate(Capture(root =>
+        {
+            Frame(root, 0)["frameCounters"]!["gcAllocBytes"] = 1000;
+            Frame(root, 1)["frameCounters"]!["gcAllocBytes"] = 3000;
+            Frame(root, 0)["frameDurationMs"] = 10;
+            Frame(root, 1)["frameDurationMs"] = 10;
+        }));
+        Assert.That(complete.Findings, Has.Some.Contains("mean=2000 B/frame"));
+        Assert.That(complete.Findings, Has.Some.Contains("0.200 MB/s"));
+
+        ValidationReport incomplete = CaptureAnalyzer.Validate(Capture(root =>
+        {
+            Frame(root, 0)["frameCounters"]!["gcAllocBytes"] = null;
+            Frame(root, 1)["frameCounters"]!["gcAllocBytes"] = 3000;
+        }));
+        Assert.That(incomplete.Findings, Has.Some.Contains("missing bytes are not zero"));
+        Assert.That(incomplete.Findings.Any(finding => finding.Contains("MB/s")), Is.False);
+    }
+
+    [Test]
+    public void NegativeAllocationObservationFailsInputValidation()
+    {
+        ValidationReport report = CaptureAnalyzer.Validate(Capture(root =>
+            Frame(root, 0)["frameCounters"]!["gcAllocBytes"] = -1));
+        Assert.That(report.InputStatus, Is.EqualTo(CheckStatus.Fail));
+    }
+
+    [Test]
     public void StableWorkHasIndependentInvariantAndPerformanceVerdicts()
     {
         ValidationReport report = CaptureAnalyzer.Validate(Capture());
@@ -18,6 +48,20 @@ public sealed class CaptureAnalyzerTests
         Assert.That(report.InvariantStatus, Is.EqualTo(CheckStatus.Pass));
         Assert.That(report.PerformanceStatus, Is.EqualTo(CheckStatus.Incomplete));
         Assert.That(report.CoverageStatus, Is.EqualTo(CheckStatus.Pass));
+    }
+
+    [Test]
+    public void RepeatedFrameFindingsAreSummarizedWithoutLosingAffectedFrameIds()
+    {
+        FrameCapture capture = Capture(root =>
+        {
+            Frame(root, 0)["class"] = null;
+            Frame(root, 1)["class"] = null;
+        });
+        ValidationReport report = CaptureAnalyzer.Validate(capture);
+
+        Assert.That(report.Findings, Has.Some.Contains("Frame *: sample class is unobserved."));
+        Assert.That(report.Findings.Any(finding => finding.Contains("repeated on 2 frames; IDs 100…101")), Is.True);
     }
 
     [Test]
@@ -571,6 +615,120 @@ public sealed class CaptureAnalyzerTests
         ValidationReport report = CaptureAnalyzer.Validate(Capture(root =>
             Frame(root, 1)["frameCounters"]!["lightingStaticSolves"] = 1));
 
+        Assert.That(report.InvariantStatus, Is.EqualTo(CheckStatus.Fail));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void AdjacentButShiftedUploadObservationsCannotEstablishWork(bool positive)
+    {
+        ValidationReport report = CaptureAnalyzer.Validate(Capture(root =>
+        {
+            EnableUploadTelemetry(root);
+            root["counterBaseline"]!["terrainCellDataUploadObservationFrameId"] = 89;
+            for (int i = 0; i < 2; i++)
+            {
+                SetUploadObservationFrame(root, i, 90 + i);
+                Frame(root, i)["frameCounters"]!["terrainCellDataUploadDeltaStartObservationFrameId"] = 89 + i;
+                Frame(root, i)["frameCounters"]!["terrainCellDataUploadDeltaEndObservationFrameId"] = 90 + i;
+            }
+
+            if (positive)
+            {
+                SetUploadSource(root, 1, true, 91);
+                Frame(root, 1)["cumulative"]!["terrainCellDataApplyCalls"] = 1;
+                Frame(root, 1)["cumulative"]!["terrainCellDataApplyPayloadBytes"] = 64;
+                Frame(root, 1)["frameCounters"]!["terrainCellDataApplyCalls"] = 1;
+                Frame(root, 1)["frameCounters"]!["terrainCellDataApplyPayloadBytes"] = 64;
+            }
+        }));
+        Assert.That(report.InputStatus, Is.EqualTo(CheckStatus.Pass));
+        Assert.That(report.InvariantStatus, Is.EqualTo(CheckStatus.Incomplete));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void NullOrUnavailableExporterSnapshotsAreIncompleteNotMalformed(bool disposed)
+    {
+        ValidationReport report = CaptureAnalyzer.Validate(Capture(root =>
+        {
+            EnableUploadTelemetry(root);
+            JsonObject[] endpoints = [root["counterBaseline"]!.AsObject(),
+                Frame(root, 0)["cumulative"]!.AsObject(), Frame(root, 1)["cumulative"]!.AsObject()];
+            foreach (JsonObject endpoint in endpoints)
+            {
+                foreach (string key in endpoint.Select(pair => pair.Key).Where(key => key.StartsWith("terrainCellData")).ToArray())
+                {
+                    if (!disposed || key.EndsWith("Calls") || key.EndsWith("Bytes"))
+                    {
+                        endpoint[key] = null;
+                    }
+                }
+                if (disposed) { endpoint["terrainCellDataUploadAvailable"] = false; }
+            }
+
+            for (int i = 0; i < 2; i++)
+            {
+                SetUploadDeltaUnavailable(root, i);
+                JsonObject observation = Frame(root, i)["terrainCellDataUpload"]!.AsObject();
+                if (disposed) { observation["available"] = false; }
+                else
+                {
+                    foreach (string key in observation.Select(pair => pair.Key).ToArray()) { observation[key] = null; }
+                }
+            }
+        }));
+        Assert.That(report.InputStatus, Is.EqualTo(CheckStatus.Pass));
+        Assert.That(report.InvariantStatus, Is.EqualTo(CheckStatus.Incomplete));
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void InconsistentCallByteDeltaIsMalformedAndNeverPositive(bool flag)
+    {
+        ValidationReport report = CaptureAnalyzer.Validate(Capture(root =>
+        {
+            EnableUploadTelemetry(root);
+            foreach (JsonObject counters in new[] { root["counterBaseline"]!.AsObject(),
+                Frame(root, 0)["cumulative"]!.AsObject(), Frame(root, 1)["cumulative"]!.AsObject() })
+            {
+                counters["terrainCellDataApplyCalls"] = 1;
+                counters["terrainCellDataApplyPayloadBytes"] = 64;
+            }
+            Frame(root, 1)["cumulative"]!["terrainCellDataApplyCalls"] = 2;
+            if (!flag) { SetUploadDeltaUnavailable(root, 1); }
+        }));
+        Assert.That(report.InputStatus, Is.EqualTo(CheckStatus.Fail));
+        Assert.That(report.InvariantStatus, Is.EqualTo(CheckStatus.Incomplete));
+    }
+
+    [TestCase("S0")]
+    [TestCase("S1")]
+    [TestCase("S4")]
+    public void CellDataViolationSurvivesMissingAggregateAndGpuMetrics(string scenario)
+    {
+        ValidationReport report = CaptureAnalyzer.Validate(Capture(root =>
+        {
+            EnableUploadTelemetry(root);
+            root["manifest"]!["scenarioId"] = scenario;
+            JsonObject frame = Frame(root, 1);
+            if (scenario == "S1") { frame["inputs"]!["cameraX"] = 0.125; }
+            if (scenario == "S4")
+            {
+                frame["inputs"]!["dynamicLightsRevision"] = 2;
+                frame["cumulative"]!["lightingDynamicSolves"] = 11;
+                frame["cumulative"]!["lightingDynamicTraces"] = 11;
+            }
+            frame["gpuFrameMs"] = null;
+            foreach (string key in new[] { "terrainUploadCalls", "terrainUploadBytes", "terrainAtlasUploadCalls", "terrainAtlasUploadBytes" })
+            { frame["frameCounters"]![key] = null; }
+            SetUploadSource(root, 1, true, 101);
+            frame["cumulative"]!["terrainCellDataApplyCalls"] = 1;
+            frame["cumulative"]!["terrainCellDataApplyPayloadBytes"] = 64;
+            frame["frameCounters"]!["terrainCellDataApplyCalls"] = 1;
+            frame["frameCounters"]!["terrainCellDataApplyPayloadBytes"] = 64;
+        }));
+        Assert.That(report.InputStatus, Is.EqualTo(CheckStatus.Pass));
         Assert.That(report.InvariantStatus, Is.EqualTo(CheckStatus.Fail));
     }
 

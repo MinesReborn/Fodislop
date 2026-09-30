@@ -12,38 +12,15 @@ namespace Kern.Rendering.PostProcessing.Workbench;
 
 public sealed class GradingWorkbench : IDisposable
 {
-    private readonly ColorGradeState _state = new();
-    private readonly ColorGradeZones _zones = new();
-    private readonly GradingZonesWindow _zonesWindow;
-    private readonly GradingLayersWindow _layersWindow;
+    private readonly GradingLutWindow _lutWindow = new();
     private readonly GradingScopesWindow _scopesWindow = new();
-    private readonly GradingQualifierWindow _qualifierWindow;
     private readonly List<ToolWindow> _hiddenForWorkspace = [];
 
     private bool _registered;
-    private bool _loaded;
-    private bool _wasApplying;
     private bool _disposed;
     private bool _workspaceActive;
     private bool _scopesWereVisible;
     private int _sessionGeneration = -1;
-
-    public GradingWorkbench()
-    {
-        _zones.Enabled = false;
-        _layersWindow = new GradingLayersWindow(_state, _zones);
-        _zonesWindow = new GradingZonesWindow(_state, _zones);
-        _qualifierWindow = new GradingQualifierWindow(_state);
-    }
-
-    public ColorGradeZones Zones => _zones;
-
-    public ColorGradeState State => _state;
-
-    public bool IsApplying => ToolWindows.Enabled &&
-        (_layersWindow.Visible || _qualifierWindow.Visible || _zonesWindow.Visible);
-
-    public bool StoppedApplying { get; private set; }
 
     public void Tick()
     {
@@ -52,7 +29,6 @@ public sealed class GradingWorkbench : IDisposable
             return;
         }
 
-        ColorGradeScreenSampler.Tick();
         Keyboard? keyboard = Keyboard.current;
         PostProcessRuntimeState.TemporaryBypass =
             ToolWindows.Enabled && keyboard != null && keyboard.backslashKey.isPressed;
@@ -63,27 +39,18 @@ public sealed class GradingWorkbench : IDisposable
         }
 
         if (!_registered ||
-            !ToolWindows.IsRegistered(_layersWindow) ||
-            !ToolWindows.IsRegistered(_scopesWindow) ||
-            !ToolWindows.IsRegistered(_zonesWindow) ||
-            !ToolWindows.IsRegistered(_qualifierWindow))
+            !ToolWindows.IsRegistered(_lutWindow) ||
+            !ToolWindows.IsRegistered(_scopesWindow))
         {
             _registered = true;
-            ToolWindows.Register(_layersWindow);
+            ToolWindows.Register(_lutWindow);
             ToolWindows.Register(_scopesWindow);
-            ToolWindows.Register(_zonesWindow);
-            ToolWindows.Register(_qualifierWindow);
         }
 
         HandleWorkspaceShortcut();
 
-        if (_layersWindow.Visible || _scopesWindow.Visible || _zonesWindow.Visible || _qualifierWindow.Visible)
-        {
-            LoadOnce();
-        }
-
         bool workspaceActive = ToolWindows.Enabled &&
-            (_layersWindow.Visible || _scopesWindow.Visible || _zonesWindow.Visible || _qualifierWindow.Visible);
+            (_lutWindow.Visible || _scopesWindow.Visible);
         if (workspaceActive && !_workspaceActive)
         {
             EnterWorkspace();
@@ -102,16 +69,6 @@ public sealed class GradingWorkbench : IDisposable
         _scopesWereVisible = scopesVisible;
         ScopesRenderPass.Enabled = scopesVisible && _scopesWindow.ScopesRequested;
         HandleCompareDrag(scopesVisible);
-
-        bool applying = IsApplying;
-        _zonesWindow.CaptureEnabled = applying;
-        StoppedApplying = !applying && _wasApplying;
-        if (StoppedApplying)
-        {
-            ResetPreviewTools();
-        }
-
-        _wasApplying = applying;
     }
 
     // Шторку сравнения можно тянуть прямо по кадру. Ползунок в окне приборов
@@ -159,31 +116,10 @@ public sealed class GradingWorkbench : IDisposable
     private void ResetForPlaySession()
     {
         _sessionGeneration = ToolWindows.SessionGeneration;
-        _loaded = false;
-        _wasApplying = false;
-        StoppedApplying = false;
         _workspaceActive = false;
         _scopesWereVisible = false;
-        _zonesWindow.CaptureEnabled = false;
         _hiddenForWorkspace.Clear();
-        _state.ResetToLook();
-        _zones.Clear();
-        _zones.Enabled = false;
         ResetPreviewTools();
-    }
-
-    private void LoadOnce()
-    {
-        if (_loaded)
-        {
-            return;
-        }
-
-        _loaded = true;
-        if (ColorGradeFile.TryLoad(_state, _zones))
-        {
-            Debug.Log($"[ColorGrade] Загружено из {ColorGradeFile.Path}");
-        }
     }
 
     private void HandleWorkspaceShortcut()
@@ -196,12 +132,12 @@ public sealed class GradingWorkbench : IDisposable
             return;
         }
 
-        bool open = !ToolWindows.Enabled || !_layersWindow.Visible;
+        bool open = !ToolWindows.Enabled || !_lutWindow.Visible;
         ToolWindows.Enabled = true;
-        _layersWindow.Visible = open;
+        _lutWindow.Visible = open;
         if (open)
         {
-            ToolWindows.RequestFocus(_layersWindow);
+            ToolWindows.RequestFocus(_lutWindow);
         }
 
         if (!open)
@@ -212,16 +148,10 @@ public sealed class GradingWorkbench : IDisposable
 
     public void Deactivate()
     {
-        ColorGradeScreenSampler.Cancel();
-        _layersWindow.Visible = false;
+        _lutWindow.Visible = false;
         _scopesWindow.Visible = false;
-        _zonesWindow.Visible = false;
-        _qualifierWindow.Visible = false;
-        _zonesWindow.CaptureEnabled = false;
         _scopesWereVisible = false;
         ExitWorkspace();
-        StoppedApplying = _wasApplying;
-        _wasApplying = false;
         ToolWindows.ReleaseInputCapture();
         ResetPreviewTools();
     }
@@ -237,14 +167,10 @@ public sealed class GradingWorkbench : IDisposable
         Deactivate();
         if (_registered)
         {
-            ToolWindows.Unregister(_layersWindow);
+            ToolWindows.Unregister(_lutWindow);
             ToolWindows.Unregister(_scopesWindow);
-            ToolWindows.Unregister(_zonesWindow);
-            ToolWindows.Unregister(_qualifierWindow);
-            _layersWindow.Dispose();
+            _lutWindow.Dispose();
             _scopesWindow.Dispose();
-            _zonesWindow.Dispose();
-            _qualifierWindow.Dispose();
             _registered = false;
         }
     }
@@ -266,10 +192,8 @@ public sealed class GradingWorkbench : IDisposable
         _hiddenForWorkspace.Clear();
         foreach (ToolWindow window in ToolWindows.All)
         {
-            if (ReferenceEquals(window, _layersWindow) ||
+            if (ReferenceEquals(window, _lutWindow) ||
                 ReferenceEquals(window, _scopesWindow) ||
-                ReferenceEquals(window, _zonesWindow) ||
-                ReferenceEquals(window, _qualifierWindow) ||
                 window is ToolbarWindow ||
                 !window.Visible)
             {

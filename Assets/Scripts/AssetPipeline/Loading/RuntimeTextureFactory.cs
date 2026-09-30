@@ -125,28 +125,6 @@ public static class RuntimeTextureFactory
         return texture;
     }
 
-    public static Texture2D CreateRGBAFloatNoMip(
-        int width,
-        int height,
-        string name,
-        RuntimeTextureColorSpace colorSpace,
-        FilterMode filterMode,
-        TextureWrapMode wrapMode)
-    {
-        ValidateDimensions(width, height, name);
-        var texture = new Texture2D(
-            width,
-            height,
-            TextureFormat.RGBAFloat,
-            mipChain: false,
-            linear: colorSpace == RuntimeTextureColorSpace.Linear)
-        {
-            name = name,
-        };
-        ApplySampling(texture, filterMode, wrapMode);
-        return texture;
-    }
-
     // Половинная точность: столько же каналов, вдвое меньше памяти. Нужна для
     // снятия содержимого HDR-целей на CPU (ReadPixels), где RGBA32 обрезал бы
     // всё ярче единицы, а RGBAFloat стоил бы вдвое больше без выигрыша в

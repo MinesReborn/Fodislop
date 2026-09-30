@@ -32,11 +32,7 @@ namespace Kern.Rendering.PostProcessing
         [Tooltip("Color multiplier applied to the glow.")]
         public ColorParameter tint = new(PostProcessLook.Bloom.Tint);
 
-        [Tooltip("Color treatment used by the glow prefilter.")]
-        public EnumParameter<BloomStyle> style = new(BloomStyle.Standard);
-
         public bool IsActive() => intensity.value > 0f;
         public bool IsTileCompatible() => true;
-#pragma warning restore SA1307
     }
 }
