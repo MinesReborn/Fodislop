@@ -176,8 +176,8 @@ public sealed class TerrainQuantizationContractTests
 
         Assert.That(CountOccurrences(terrain, "EvaluateTerrainCellCoverage("), Is.EqualTo(2));
         // The production path clips the visible pass, two lighting-debug
-        // views, foreground identity diagnostics, and the regular debug path.
-        Assert.That(CountOccurrences(terrain, "clip(cellCoverage - 0.5);"), Is.EqualTo(5));
+        // views, foreground identity diagnostics, the regular debug path, and the lighting field pass.
+        Assert.That(CountOccurrences(terrain, "clip(cellCoverage - 0.5);"), Is.EqualTo(6));
         Assert.That(CountOccurrences(contour, "TerrainGeometryCoverage("), Is.EqualTo(1));
         // Geometry owns the polygon and distance rules; the shared contract
         // owns the cell grid quantization used by its corner and bend points.

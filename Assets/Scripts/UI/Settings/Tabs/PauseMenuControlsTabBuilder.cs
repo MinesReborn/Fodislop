@@ -237,7 +237,7 @@ internal sealed class PauseMenuControlsTabBuilder
         keyLabel.AddToClassList("controls-key-value");
         row.Add(keyLabel);
 
-        _keyList.Add(row);
+        _keyList?.Add(row);
     }
 
     // Строка перебиндиваемого действия: клик по кнопке с клавишей запускает
@@ -261,7 +261,7 @@ internal sealed class PauseMenuControlsTabBuilder
         keyButton.clicked += () => BeginCapture(action, keyButton);
         row.Add(keyButton);
 
-        _keyList.Add(row);
+        _keyList?.Add(row);
     }
 
     private static string FormatKey(string keyName)

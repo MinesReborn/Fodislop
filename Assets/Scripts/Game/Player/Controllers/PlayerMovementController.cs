@@ -691,7 +691,7 @@ namespace Kern.Player.Logic
                 // от тумблера автокопания.
                 _networkService?.Send(new ActionClientPacket(targetServerX, targetServerY, new BzPacket()));
                 _lastMoveTime = Time.time;
-                _actionDispatcher?.NotifyDug(targetPosition);
+                _actionDispatcher?.NotifyDug(targetPosition, packetDirection);
             }
         }
 

@@ -198,10 +198,13 @@ public class WorldInitProcessorTests
         public Direction LastDirection => Direction.Down;
         public bool IgnoreCollision { get; set; }
         public bool AutoDig { get; set; }
+        public bool Aggression { get; set; }
         public event Action<Vector2Int, Vector2Int>? OnPlayerMoved { add { } remove { } }
+        public event Action? OnPlayerTeleported { add { } remove { } }
         public event Action<bool>? OnAutoDigChanged { add { } remove { } }
+        public event Action<bool>? OnAggressionChanged { add { } remove { } }
 
-        public void UpdateServerPosition(Vector2Int position)
+        public void UpdateServerPosition(Vector2Int position, bool teleport = false)
         {
             Position = position;
             HasServerPosition = true;
