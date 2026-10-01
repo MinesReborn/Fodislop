@@ -18,33 +18,9 @@ repos:
 
     - repo: local
       hooks:
-          - id: dotnet-build-lint
-            name: C# Roslyn Analyzers
-            entry: ./scripts/pre-commit-lint.sh
+          - id: kern-unified-ci
+            name: Kern Unified CI
+            entry: ./scripts/run-ci.sh
             language: script
             always_run: true
-            pass_filenames: false
-          - id: forbid-anti-patterns
-            name: Enforce Kern architecture, DI/lifecycle and settings-wiring invariants
-            entry: dotnet run --project tools/Kern.ArchitectureLinter --no-build
-            language: system
-            always_run: true
-            pass_filenames: false
-          - id: lighting-shader-transport
-            name: Validate lighting shader HLSL transport and math
-            entry: dotnet run --project tools/Kern.LightingTests/Kern.LightingTests.csproj -- transport
-            language: system
-            always_run: true
-            pass_filenames: false
-          - id: terrain-crystal-math
-            name: X-crystal phase and math checks (CPU)
-            entry: dotnet run --project tools/Kern.TerrainCrystalTests/RunCrystalTests/RunCrystalTests.csproj --no-restore
-            language: system
-            files: ^(Assets/Shaders/Terrain|Assets/Resources/PrismaticFlowMap|tools/Kern.TerrainCrystalTests/|tools/Kern.LightingTests/NativeTransportShim.cpp)
-            pass_filenames: false
-          - id: terrain-raster-regression
-            name: Validate terrain raster coverage and AO geometry
-            entry: dotnet run --project tools/Kern.TerrainRasterTests/RunRasterTests/RunRasterTests.csproj --no-restore
-            language: system
-            files: ^(Assets/Shaders/Terrain|Assets/Scripts/World/Terrain/|tools/Kern.TerrainRasterTests/|tools/Kern.LightingTests/NativeTransportShim.cpp)
             pass_filenames: false

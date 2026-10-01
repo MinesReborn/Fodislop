@@ -69,16 +69,16 @@ float2 max(float2 a,float2 b) { return {max(a.x,b.x),max(a.y,b.y)}; }
 float3 max(float3 a,float3 b) { return {max(a.x,b.x),max(a.y,b.y),max(a.z,b.z)}; }
 float3 min(float3 a,float b) { return {min(a.x,b),min(a.y,b),min(a.z,b)}; }
 float3 max(float3 a,float b) { return {max(a.x,b),max(a.y,b),max(a.z,b)}; }
-float2 abs(float2 a) { return {abs(a.x),abs(a.y)}; }
-float2 floor(float2 a) { return {floor(a.x),floor(a.y)}; }
-float2 round(float2 a) { return {std::round(a.x),std::round(a.y)}; }
-float2 ceil(float2 a) { return {std::ceil(a.x),std::ceil(a.y)}; }
+float2 abs(float2 a) { return {(float)std::fabs(a.x),(float)std::fabs(a.y)}; }
+float2 floor(float2 a) { return {(float)std::floor(a.x),static_cast<float>(std::floor(a.y))}; }
+float2 round(float2 a) { return {(float)std::round(a.x),(float)std::round(a.y)}; }
+float2 ceil(float2 a) { return {(float)std::ceil(a.x),(float)std::ceil(a.y)}; }
 float2 frac(float2 a) { return a-floor(a); }
-float frac(float a) { return a-floor(a); }
-float3 exp(float3 a) { return {exp(a.x),exp(a.y),exp(a.z)}; }
-float3 log(float3 a) { return {log(a.x),log(a.y),log(a.z)}; }
+float frac(float a) { return a-(float)std::floor(a); }
+float3 exp(float3 a) { return {(float)std::exp(a.x),(float)std::exp(a.y),(float)std::exp(a.z)}; }
+float3 log(float3 a) { return {(float)std::log(a.x),(float)std::log(a.y),(float)std::log(a.z)}; }
 float dot(float2 a,float2 b) { return a.x*b.x+a.y*b.y; }
-float length(float2 a) { return std::sqrt(a.x*a.x+a.y*a.y); }
+float length(float2 a) { return (float)std::sqrt(a.x*a.x+a.y*a.y); }
 float2 sign(float2 a) { return {(float)((a.x>0)-(a.x<0)),(float)((a.y>0)-(a.y<0))}; }
 int clamp(int a,int lo,int hi) { return std::clamp(a,lo,hi); }
 int2 clamp(int2 a,int2 lo,int2 hi) { return {clamp(a.x,lo.x,hi.x),clamp(a.y,lo.y,hi.y)}; }
