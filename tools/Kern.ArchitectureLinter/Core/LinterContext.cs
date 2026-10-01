@@ -14,6 +14,7 @@ public sealed class LinterContext
     public string? SarifOutputPath { get; init; }
     public RuleSeverity FailOnSeverity { get; init; } = RuleSeverity.Error;
     public bool Strict { get; init; }
+    public bool SourceOnly { get; init; }
 
     public bool ShouldExclude(string assemblyName)
     {

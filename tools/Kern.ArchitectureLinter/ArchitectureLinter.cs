@@ -12,12 +12,12 @@ public sealed class ArchitectureLinter
     {
         _context = context;
         IReadOnlyList<IRule> discoveredRules = rules ?? CreateDefaultRules();
-        _rules = SelectRules(discoveredRules, context.IncludedRuleIds);
+        _rules = SelectRules(discoveredRules, context.IncludedRuleIds, context.SourceOnly);
     }
 
-    internal static bool SelectedRulesRequireAssemblies(IReadOnlySet<string> includedRuleIds)
+    internal static bool SelectedRulesRequireAssemblies(IReadOnlySet<string> includedRuleIds, bool sourceOnly = false)
     {
-        return SelectRules(CreateDefaultRules(), includedRuleIds)
+        return SelectRules(CreateDefaultRules(), includedRuleIds, sourceOnly)
             .Any(rule => rule.RequiresAssemblies);
     }
 
@@ -170,13 +170,20 @@ public sealed class ArchitectureLinter
 
     private static IReadOnlyList<IRule> SelectRules(
         IReadOnlyList<IRule> rules,
-        IReadOnlySet<string> includedRuleIds)
+        IReadOnlySet<string> includedRuleIds,
+        bool sourceOnly = false)
     {
         ValidateRuleCatalog(rules);
 
+        IEnumerable<IRule> filtered = rules;
+        if (sourceOnly)
+        {
+            filtered = filtered.Where(rule => !rule.RequiresAssemblies);
+        }
+
         if (includedRuleIds.Count == 0)
         {
-            return rules;
+            return filtered.ToArray();
         }
 
         string[] knownIds = rules.Select(rule => rule.Id).ToArray();

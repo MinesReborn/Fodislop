@@ -26,10 +26,12 @@
 
   <ItemGroup>
     <Reference Include="MinesServer.Data">
-      <HintPath>$(ScriptAssemblies)/MinesServer.Data.dll</HintPath>
+      <HintPath Condition="Exists('$(ScriptAssemblies)/MinesServer.Data.dll')">$(ScriptAssemblies)/MinesServer.Data.dll</HintPath>
+      <HintPath Condition="!Exists('$(ScriptAssemblies)/MinesServer.Data.dll')">../lib/MinesServer.Data.dll</HintPath>
     </Reference>
     <Reference Include="MinesServer.Networking">
-      <HintPath>$(ScriptAssemblies)/MinesServer.Networking.dll</HintPath>
+      <HintPath Condition="Exists('$(ScriptAssemblies)/MinesServer.Networking.dll')">$(ScriptAssemblies)/MinesServer.Networking.dll</HintPath>
+      <HintPath Condition="!Exists('$(ScriptAssemblies)/MinesServer.Networking.dll')">../lib/MinesServer.Networking.dll</HintPath>
     </Reference>
   </ItemGroup>
 

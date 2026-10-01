@@ -17,10 +17,12 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="VContainer">
-      <HintPath>../../Library/ScriptAssemblies/VContainer.dll</HintPath>
+      <HintPath Condition="Exists('../../Library/ScriptAssemblies/VContainer.dll')">../../Library/ScriptAssemblies/VContainer.dll</HintPath>
+      <HintPath Condition="!Exists('../../Library/ScriptAssemblies/VContainer.dll')">../lib/VContainer.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
-      <HintPath>/Applications/Unity/Hub/Editor/6000.6.0f1/Unity.app/Contents/Resources/Scripting/Managed/UnityEngine/UnityEngine.CoreModule.dll</HintPath>
+      <HintPath Condition="Exists('../../Library/ScriptAssemblies/UnityEngine.CoreModule.dll')">../../Library/ScriptAssemblies/UnityEngine.CoreModule.dll</HintPath>
+      <HintPath Condition="!Exists('../../Library/ScriptAssemblies/UnityEngine.CoreModule.dll')">../lib/UnityEngine.CoreModule.dll</HintPath>
       <Aliases>UnityEngineRuntime</Aliases>
     </Reference>
   </ItemGroup>
