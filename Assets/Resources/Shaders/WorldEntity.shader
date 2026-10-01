@@ -84,14 +84,15 @@ Shader "Kern/World Entity"
             Varyings vert(Attributes input)
             {
                 Varyings output;
-                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                float3 worldPosition = KernWorldGridVertex(TransformObjectToWorld(input.positionOS.xyz));
+                output.positionCS = KernWorldGridClipPosition(worldPosition);
                 output.uv = input.uv;
                 output.color = input.color;
                 // Batch-mesh vertices are pre-transformed world positions, so
                 // object space equals world space when rendering with identity matrix.
                 // Using TransformObjectToWorld ensures correct light sampling if an entity
                 // or preview is rendered with a non-identity GameObject transform.
-                output.worldPos = TransformObjectToWorld(input.positionOS.xyz).xy;
+                output.worldPos = worldPosition.xy;
                 return output;
             }
 
@@ -141,6 +142,7 @@ Shader "Kern/World Entity"
             #pragma fragment LightingFieldFrag
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Assets/Shaders/World/LightingFieldRaster.hlsl"
 
             struct Attributes
             {
@@ -176,7 +178,7 @@ Shader "Kern/World Entity"
             Varyings LightingFieldVert(Attributes input)
             {
                 Varyings output;
-                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                output.positionCS = KernLightingFieldClipPositionWorld(TransformObjectToWorld(input.positionOS.xyz));
                 output.uv = input.uv;
                 output.color = input.color;
                 return output;

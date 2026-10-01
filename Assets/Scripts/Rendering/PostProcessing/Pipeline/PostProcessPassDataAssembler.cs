@@ -1,5 +1,6 @@
 #nullable enable
 
+using Kern.Core.Interfaces.WorldLighting;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
@@ -65,7 +66,7 @@ namespace Kern.Rendering.PostProcessing
             float offsetX = (camMinX - worldLightRect.x) / worldLightRect.z;
             float offsetY = (camMinY - worldLightRect.y) / worldLightRect.w;
 
-            if (SystemInfo.graphicsUVStartsAtTop)
+            if (LightingFieldOrientation.RowsTopDown)
             {
                 scaleY = -scaleY;
                 offsetY = 1f - offsetY;

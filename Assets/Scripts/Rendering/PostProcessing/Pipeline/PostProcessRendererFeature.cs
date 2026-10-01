@@ -9,7 +9,7 @@ using UnityEngine.Rendering.Universal;
 namespace Kern.Rendering.PostProcessing
 {
     [DisallowMultipleRendererFeature]
-    public class PostProcessRendererFeature : ScriptableRendererFeature
+    public class PostProcessRendererFeature : ScriptableRendererFeature, IRenderer2DWorldGridProvider
     {
         public const string WorldUILayerName = ProjectRuntimeContracts.RequiredLayers.WorldUI;
 
@@ -27,12 +27,50 @@ namespace Kern.Rendering.PostProcessing
         private Settings _settings = new();
 
         private PostProcessRenderPass? _pass;
+        private WorldBloomRenderPass? _worldBloomPass;
         private PostProcessRenderPass? _displayPass;
         private ScopesRenderPass? _scopesPass;
         private Camera? _mainCamera;
 
+        internal bool RendersCamera(Camera camera) => _mainCamera == camera ||
+            (_mainCamera == GameplayCamera.Resolve() && camera == PostProcessRuntimeState.DiagnosticOffscreenCamera);
+        internal PostProcessWorkloadSnapshot? SceneWorkload => PostProcessRuntimeState.DiagnosticLegacyBloom
+            ? _pass?.LatestWorkload : _worldBloomPass?.LatestWorkload;
+        internal PostProcessWorkloadSnapshot? DisplayWorkload => _displayPass?.LatestWorkload;
+
+        public bool TryGetWorldGrid(Camera camera, out Renderer2DWorldGridLayout layout)
+        {
+            layout = default;
+            if (camera == PostProcessRuntimeState.DiagnosticOffscreenCamera &&
+                PostProcessRuntimeState.DiagnosticFullResolutionWorld)
+            {
+                return false;
+            }
+            if (camera.cameraType != CameraType.Game ||
+                (camera != GameplayCamera.Resolve() && camera != PostProcessRuntimeState.DiagnosticOffscreenCamera))
+            {
+                return false;
+            }
+
+            var binding = WorldRenderGridCamera.Capture(camera);
+            var grid = binding.Grid;
+            layout = new Renderer2DWorldGridLayout
+            {
+                Width = grid.Width,
+                Height = grid.Height,
+                View = binding.ViewMatrix,
+                Projection = binding.ProjectionMatrix,
+                ViewportToWorldUv = binding.ViewportToWorldUv,
+                WorldRect = new Vector4((float)grid.WorldMinX, (float)grid.WorldMinY,
+                    (float)grid.WorldWidth, (float)grid.WorldHeight),
+            };
+            return true;
+        }
+
         public override void Create()
         {
+            _worldBloomPass?.Dispose();
+            _worldBloomPass = null;
             _displayPass = null;
             _pass = null;
             _scopesPass?.Dispose();
@@ -47,15 +85,25 @@ namespace Kern.Rendering.PostProcessing
 
         private void EnsurePassCreated(Camera gameplayCamera)
         {
+            // Renderer features outlive a game scope. Rebind the owner even
+            // when the existing passes survive and only a diagnostic camera
+            // renders this frame (the batch production image path).
+            if (_mainCamera != gameplayCamera || PostProcessRuntimeState.MainCamera != gameplayCamera)
+            {
+                _mainCamera = gameplayCamera;
+                PostProcessRuntimeState.SetMainCamera(gameplayCamera);
+            }
             // Живой объект прохода ещё не значит живой шейдер: сборка плеера
             // выгружает несохранённую копию ComputeShader. Без этой проверки
             // постпроцесс в редакторе молча пропадал до перезагрузки домена.
             if (_pass != null && _pass.IsShaderAlive &&
-                _displayPass != null && _displayPass.IsShaderAlive)
+                _displayPass != null && _displayPass.IsShaderAlive && _worldBloomPass is { IsAlive: true })
             {
                 return;
             }
 
+            _worldBloomPass?.Dispose();
+            _worldBloomPass = null;
             _displayPass = null;
             _pass = null;
             // Ниже scopes создаются заново; старый проход освобождается здесь,
@@ -74,6 +122,7 @@ namespace Kern.Rendering.PostProcessing
                     "the renderer feature cannot be disabled silently.");
             }
 
+            _worldBloomPass = new WorldBloomRenderPass();
             _pass = new PostProcessRenderPass(computeShader);
             _pass.ConfigureInput(ScriptableRenderPassInput.Color);
             _displayPass = new PostProcessRenderPass(computeShader, displayPass: true);
@@ -120,19 +169,21 @@ namespace Kern.Rendering.PostProcessing
             }
 
             Camera? targetCamera = GameplayCamera.Resolve();
-            if (targetCamera != null && cameraData.camera != targetCamera)
+            if (targetCamera != null && cameraData.camera != targetCamera &&
+                cameraData.camera != PostProcessRuntimeState.DiagnosticOffscreenCamera)
             {
                 return;
             }
 
-            EnsurePassCreated(cameraData.camera);
+            EnsurePassCreated(targetCamera ?? cameraData.camera);
             if (_pass == null)
             {
                 return;
             }
 
-            if (_mainCamera != cameraData.camera ||
-                PostProcessRuntimeState.MainCamera != cameraData.camera)
+            if (cameraData.camera == targetCamera &&
+                (_mainCamera != cameraData.camera ||
+                 PostProcessRuntimeState.MainCamera != cameraData.camera))
             {
                 _mainCamera = cameraData.camera;
                 PostProcessRuntimeState.SetMainCamera(_mainCamera);
@@ -140,11 +191,20 @@ namespace Kern.Rendering.PostProcessing
 
             if (PostProcessRuntimeState.SkipPasses)
             {
+                // World-grid presentation is required even during an artistic-effect bypass.
+                renderer.EnqueuePass(_displayPass!);
                 return;
             }
 
             bool scopesEnabled = _scopesPass != null && ScopesRenderPass.Enabled;
-            renderer.EnqueuePass(_pass);
+            if (PostProcessRuntimeState.DiagnosticLegacyBloom)
+            {
+                renderer.EnqueuePass(_pass);
+            }
+            else
+            {
+                renderer.EnqueuePass(_worldBloomPass!);
+            }
             if (scopesEnabled && ScopesRenderPass.SourceMode == ScopesSourceMode.Before)
             {
                 // Capture after Kern's scene-linear bloom pass, but before URP
@@ -161,6 +221,8 @@ namespace Kern.Rendering.PostProcessing
 
         protected override void Dispose(bool disposing)
         {
+            _worldBloomPass?.Dispose();
+            _worldBloomPass = null;
             _displayPass = null;
             _pass = null;
             _scopesPass?.Dispose();

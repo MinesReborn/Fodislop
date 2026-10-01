@@ -437,7 +437,12 @@ public sealed class TerrainWindow
             return false;
         }
 
+        RectInt previousCoverage = _publishedView.HasOrigin
+            ? new RectInt(_publishedView.Origin.x - 1, _publishedView.Origin.y - 1,
+                _publishedView.Width + 2, _publishedView.Height + 2)
+            : new RectInt(request.Origin.x, request.Origin.y, 0, 0);
         RectInt lightingBounds = _publishedView.Publish(request);
+        _changes.RecordPublishedCoverageChange(previousCoverage, lightingBounds);
         for (int index = 0; index < changedRegions.Count; index++)
         {
             _changes.AddPublishedChangedRegion(changedRegions[index], lightingBounds);

@@ -5,7 +5,8 @@
 
 Texture2D<float4> _WorldAmbientOcclusionTexture;
 SamplerState sampler_WorldAmbientOcclusionTexture;
-int _WorldAmbientOcclusionYFlip;
+// Row order of every lighting field; owned by LightingFieldOrientation.
+int _KernFieldRowsTopDown;
 float _TerrainAmbientOcclusionStrength;
 float _TerrainAmbientOcclusionFloor;
 
@@ -13,7 +14,7 @@ float KernSampleTerrainAmbientOcclusion(float2 worldPosition, float4 worldLightR
 {
     float2 uv = (worldPosition - worldLightRect.xy) /
         max(worldLightRect.zw, float2(0.0001, 0.0001));
-    if (_WorldAmbientOcclusionYFlip != 0)
+    if (_KernFieldRowsTopDown != 0)
     {
         uv.y = 1.0 - uv.y;
     }

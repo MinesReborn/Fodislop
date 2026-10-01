@@ -5,6 +5,7 @@ using System.IO;
 using Kern.Core;
 using Kern.Rendering.PostProcessing;
 using Kern.World.Lighting.Quality;
+using Kern.World.Lighting;
 using UnityEngine;
 
 namespace Kern.Rendering
@@ -33,10 +34,10 @@ namespace Kern.Rendering
         {
             // Standard keeps contact AO while the radiance transport is off.
             GraphicsQualitySettings withoutLighting = new(
-                lightingPixelsPerCell: 4,
-                lightingMaximumTextureDimension: 1280,
+                lightingPixelsPerCell: LightingConfigHolder.DefaultQuality.CascadeProbePixelsPerCell,
+                lightingMaximumTextureDimension: LightingConfigHolder.MaximumFieldTextureSize,
                 lightingMaximumLightCount: 512,
-                lightingCascadeAtlasLimit: 1280,
+                lightingCascadeAtlasLimit: LightingConfigHolder.CascadeAtlasTextureSize,
                 renderScale: 1f,
                 antiAliasing: 0,
                 lightingQuality: LightingQualityMode.Off);

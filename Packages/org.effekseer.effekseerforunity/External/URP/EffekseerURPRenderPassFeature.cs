@@ -204,6 +204,8 @@ public class EffekseerURPRenderPassFeature : ScriptableRendererFeature
 					builder.UseTexture(passData.depthTexture, AccessFlags.ReadWrite);
 				}
 				PrepareRenderTargetProperty(passData.prop, cameraData.cameraTargetDescriptor, cameraData.requiresDepthTexture, xrRendering);
+				passData.prop.ProjectionMatrixOverride = cameraData.GetProjectionMatrix();
+				passData.prop.ViewMatrixOverride = cameraData.GetViewMatrix();
 
 				builder.AllowPassCulling(false);
 				builder.AllowGlobalStateModification(true);

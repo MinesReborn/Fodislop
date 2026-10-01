@@ -11,6 +11,22 @@ public sealed class CaptureAnalyzerTests
     private static readonly ComparisonBudget _ZeroBudget = new(0, 0, 0, 0, 0, 0);
 
     [Test]
+    public void ProductionBloomDispatchCountIsAcceptedAsAnOptionalObservation()
+    {
+        var capture = Capture(root => Frame(root, 0)["frameCounters"]!["bloomDispatches"] = 9);
+        Assert.That(capture.Frames![0]!.FrameCounters!.BloomDispatches, Is.EqualTo(9));
+        Assert.That(CaptureAnalyzer.Validate(capture).InputStatus, Is.EqualTo(CheckStatus.Pass));
+        Assert.That(CaptureAnalyzer.Validate(Capture()).InputStatus, Is.EqualTo(CheckStatus.Pass));
+    }
+
+    [Test]
+    public void NegativeBloomDispatchCountFailsInputValidation()
+    {
+        var capture = Capture(root => Frame(root, 0)["frameCounters"]!["bloomDispatches"] = -1);
+        Assert.That(CaptureAnalyzer.Validate(capture).InputStatus, Is.EqualTo(CheckStatus.Fail));
+    }
+
+    [Test]
     public void AllocationReportUsesBytesAndDoesNotInventMissingSamples()
     {
         ValidationReport complete = CaptureAnalyzer.Validate(Capture(root =>

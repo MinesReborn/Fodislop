@@ -4,6 +4,7 @@ namespace Kern.World.Lighting;
 
 using System;
 using Kern.Core;
+using Kern.Core.Interfaces.WorldLighting;
 using Kern.Rendering;
 using Kern.World.Lighting.Quality;
 using UnityEngine;
@@ -15,6 +16,21 @@ internal static class LightingComputeBinder
     // detail here so a cell-space policy cannot be mistaken for a dispatch
     // threshold.
     public const int ThreadGroupSize = 8;
+    internal static bool DiagnosticTransportCounters { get; set; }
+    // Explicit differential-test reference; never selected by frame cost.
+    internal static bool DiagnosticTexelTraversalReference { get; set; }
+    internal static bool DiagnosticVectorPolarReference { get; set; }
+
+    // Equal RGB extinction has one exact optical depth. Radiance/source color
+    // remains RGB HDR; only this redundant transport quantity is scalar.
+    private static bool HasNeutralExtinction =>
+        LightingConfigHolder.EmptyExtinctionRGB.r == LightingConfigHolder.EmptyExtinctionRGB.g &&
+        LightingConfigHolder.EmptyExtinctionRGB.r == LightingConfigHolder.EmptyExtinctionRGB.b &&
+        LightingConfigHolder.SolidExtinctionRGB.r == LightingConfigHolder.SolidExtinctionRGB.g &&
+        LightingConfigHolder.SolidExtinctionRGB.r == LightingConfigHolder.SolidExtinctionRGB.b;
+
+    public static bool UsesScalarPolarExtinction => !DiagnosticVectorPolarReference && HasNeutralExtinction;
+    public static bool UsesScalarDynamicRadiance => UsesScalarPolarExtinction;
 
     public static int DispatchGroups(int extent)
     {
@@ -31,6 +47,8 @@ internal static class LightingComputeBinder
     public static readonly int StaticDirectInputID = Shader.PropertyToID("_StaticDirectInput");
     public static readonly int ResultID = Shader.PropertyToID("_Result");
     public static readonly int FieldSizeID = Shader.PropertyToID("_FieldSize");
+    public static readonly int LightSizeID = Shader.PropertyToID("_LightSize");
+    public static readonly int FieldTexelsPerLightTexelID = Shader.PropertyToID("_FieldTexelsPerLightTexel");
     public static readonly int CompositeDispatchOriginID = Shader.PropertyToID("_CompositeDispatchOrigin");
     public static readonly int CompositeDispatchSizeID = Shader.PropertyToID("_CompositeDispatchSize");
     public static readonly int WorldRectID = Shader.PropertyToID("_WorldRect");
@@ -46,9 +64,6 @@ internal static class LightingComputeBinder
         Shader.PropertyToID("_DynamicAngularSampleCount");
     public static readonly int DynamicEmitterPointsPerAxisID =
         Shader.PropertyToID("_DynamicEmitterPointsPerAxis");
-    public static readonly int DynamicReachSlackTexelsID = Shader.PropertyToID("_DynamicReachSlackTexels");
-    public static readonly int DynamicReachSlackCellsID = Shader.PropertyToID("_DynamicReachSlackCells");
-    public static readonly int DynamicPolarMarginID = Shader.PropertyToID("_DynamicPolarMargin");
     public static readonly int SolidOccupancyThresholdID =
         Shader.PropertyToID("_SolidOccupancyThreshold");
     public static readonly int TransportSolidThresholdID =
@@ -83,8 +98,12 @@ internal static class LightingComputeBinder
     public static readonly int CascadeChangedMaskID = Shader.PropertyToID("_CascadeChangedMask");
     public static readonly int CascadeChangedMaskCountID = Shader.PropertyToID("_CascadeChangedMaskCount");
     public static readonly int CascadeMaskEnabledID = Shader.PropertyToID("_CascadeMaskEnabled");
+    public static readonly int CascadeReanchorEnabledID = Shader.PropertyToID("_CascadeReanchorEnabled");
+    public static readonly int CascadePhaseMatchesID = Shader.PropertyToID("_CascadePhaseMatches");
+    public static readonly int ReanchorDeltaTexelsID = Shader.PropertyToID("_ReanchorDeltaTexels");
+    public static readonly int ReanchorFarDeltaProbesID = Shader.PropertyToID("_ReanchorFarDeltaProbes");
+    public static readonly int ReanchorFarPhaseMatchesID = Shader.PropertyToID("_ReanchorFarPhaseMatches");
     public static readonly int DynamicLightsID = Shader.PropertyToID("_DynamicLights");
-    public static readonly int DynamicReachID = Shader.PropertyToID("_DynamicReach");
     public static readonly int DynamicDispatchOriginID = Shader.PropertyToID("_DynamicDispatchOrigin");
     public static readonly int DynamicDispatchSizeID = Shader.PropertyToID("_DynamicDispatchSize");
     public static readonly int DynamicLightIndexID = Shader.PropertyToID("_DynamicLightIndex");
@@ -97,15 +116,20 @@ internal static class LightingComputeBinder
     public static readonly int ComposeOriginID = Shader.PropertyToID("_ComposeOrigin");
     public static readonly int ComposeSizeID = Shader.PropertyToID("_ComposeSize");
     public static readonly int DynamicPolarID = Shader.PropertyToID("_DynamicPolar");
+    public static readonly int DynamicPolarLayerOffsetID = Shader.PropertyToID("_DynamicPolarLayerOffset");
+    public static readonly int DynamicReachIndexID = Shader.PropertyToID("_DynamicReachIndex");
     public static readonly int DynamicPolarInputID = Shader.PropertyToID("_DynamicPolarInput");
     public static readonly int DynamicPolarSizeID = Shader.PropertyToID("_DynamicPolarSize");
     public static readonly int DynamicPolarTextureSizeID = Shader.PropertyToID("_DynamicPolarTextureSize");
+    public static readonly int DynamicPolarScalarExtinctionID = Shader.PropertyToID("_DynamicPolarScalarExtinction");
+    public static readonly int NeutralExtinctionID = Shader.PropertyToID("_NeutralExtinction");
+    public static readonly int DynamicTilesScalarRadianceID = Shader.PropertyToID("_DynamicTilesScalarRadiance");
 
     // Квадрат плотности эмиттера: столько вееров лучей на фонарь, по полосе
     // строк каждый в текстуре полярных лучей.
-    public const int DynamicEmitterPointCount =
-        LightingConfigHolder.DynamicEmitterPointsPerAxis *
-        LightingConfigHolder.DynamicEmitterPointsPerAxis;
+    public static int DynamicEmitterPointCount =>
+        LightingQualityTuningController.DynamicEmitterPointsPerAxis *
+        LightingQualityTuningController.DynamicEmitterPointsPerAxis;
 
     // Must match InvisibleDynamicRadiance in WorldLighting.compute: absolute
     // radiance below which dynamic light cannot move any display level.
@@ -136,6 +160,14 @@ internal static class LightingComputeBinder
 
     public static void BindExtinction(CommandBuffer commandBuffer, ComputeShader compute)
     {
+        commandBuffer.SetComputeIntParam(compute, DynamicPolarScalarExtinctionID,
+            UsesScalarPolarExtinction ? 1 : 0);
+        commandBuffer.SetComputeIntParam(compute, DynamicTilesScalarRadianceID,
+            UsesScalarDynamicRadiance ? 1 : 0);
+        // Mathematical specialization and polar storage have independent
+        // references: a format comparison must run identical attenuation math.
+        commandBuffer.SetComputeIntParam(compute, NeutralExtinctionID,
+            HasNeutralExtinction && !DiagnosticTexelTraversalReference ? 1 : 0);
         commandBuffer.SetComputeVectorParam(
             compute,
             EmptyExtinctionRGBID,
@@ -186,6 +218,8 @@ internal static class LightingComputeBinder
         ComputeShader compute,
         int fieldWidth,
         int fieldHeight,
+        int lightWidth,
+        int lightHeight,
         Vector4 worldRect,
         float cellSize,
         LightingEngine.DebugView debugView,
@@ -197,7 +231,16 @@ internal static class LightingComputeBinder
         int cellGridWidth = 0,
         int cellGridHeight = 0)
     {
+        if (lightWidth <= 0 || lightHeight <= 0 ||
+            fieldWidth % lightWidth != 0 || fieldHeight % lightHeight != 0 ||
+            fieldWidth / lightWidth != fieldHeight / lightHeight)
+        {
+            throw new InvalidOperationException(
+                $"Light lattice {lightWidth}x{lightHeight} must evenly divide field {fieldWidth}x{fieldHeight}.");
+        }
         commandBuffer.SetComputeIntParams(compute, FieldSizeID, fieldWidth, fieldHeight);
+        commandBuffer.SetComputeIntParams(compute, LightSizeID, lightWidth, lightHeight);
+        commandBuffer.SetComputeIntParam(compute, FieldTexelsPerLightTexelID, fieldWidth / lightWidth);
         if (cellGridWidth > 0 && cellGridHeight > 0)
         {
             commandBuffer.SetComputeIntParams(compute, CellGridSizeID, cellGridWidth, cellGridHeight);
@@ -225,28 +268,18 @@ internal static class LightingComputeBinder
         commandBuffer.SetComputeFloatParam(
             compute,
             DynamicNearCellsID,
-            LightingConfigHolder.DynamicNearCells);
+            LightingQualityTuningController.DynamicNearCells);
         commandBuffer.SetComputeIntParam(
             compute,
             DynamicAngularSampleCountID,
-            LightingConfigHolder.DynamicAngularSampleCount);
+            LightingQualityTuningController.DynamicAngularSampleCount);
         commandBuffer.SetComputeIntParam(
             compute,
             DynamicEmitterPointsPerAxisID,
-            LightingConfigHolder.DynamicEmitterPointsPerAxis);
-        commandBuffer.SetComputeFloatParam(
-            compute,
-            DynamicReachSlackTexelsID,
-            LightingConfigHolder.DynamicReachSlackTexels);
-        commandBuffer.SetComputeFloatParam(
-            compute,
-            DynamicReachSlackCellsID,
-            LightingConfigHolder.DynamicReachSlackCells);
-        commandBuffer.SetComputeFloatParam(
-            compute,
-            DynamicPolarMarginID,
-            LightingConfigHolder.DynamicPolarMargin);
+            LightingQualityTuningController.DynamicEmitterPointsPerAxis);
         commandBuffer.SetComputeIntParam(compute, LightingCountersEnabledID, 0);
+        commandBuffer.SetComputeIntParam(compute, "_UniformCellTraversalEnabled",
+            DiagnosticTexelTraversalReference ? 0 : 1);
         commandBuffer.SetComputeFloatParam(compute, CellSizeID, cellSize);
         commandBuffer.SetComputeFloatParam(
             compute,
@@ -256,7 +289,7 @@ internal static class LightingComputeBinder
         commandBuffer.SetComputeIntParam(
             compute,
             MaterialYFlipID,
-            SystemInfo.graphicsUVStartsAtTop ? 1 : 0);
+            LightingFieldOrientation.RowsTopDown ? 1 : 0);
         commandBuffer.SetComputeIntParam(
             compute,
             EnableBilinearFixID,

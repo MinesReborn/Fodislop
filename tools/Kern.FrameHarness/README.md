@@ -31,6 +31,34 @@ Exit codes: `0` — все применимые проверки выбранн�
 
 ## Реализованный scope
 
+Первый этап WorldRenderGrid добавляет renderer-owned контракт покрытия: строго
+32 пикселя на клетку, округление наружу и один защитный пиксель по каждой стороне.
+WorldRenderGridCamera вычисляет view/projection и viewport-to-world UV, сохраняя
+исходную Camera для UI и ввода. Это пока контракт и проверка матриц: Renderer2D
+ещё не использует его для мирового color/depth, GRID-32 production coverage остаётся
+INCOMPLETE. Layout-тесты добавлены в существующий проект тестов харнесса; они не
+являются замером игры или визуальным oracle.
+
+Каждый JSON capture теперь имеет соседний `*.render-work.json` с наблюдениями
+выполненных Kern scene/display RenderGraph passes: реальные width/height,
+dispatch/draw count, логические пиксели, GPU threads, количество созданных
+color targets, их payload bytes и CPU-время записи команд. Для fused kernel
+группа из 64 threads покрывает 16×16 пикселей: пиксели и threads не смешиваются.
+GPU-время в этом файле — null; отдельные GPU recorder windows остаются в текстовом
+отчёте. Bytes не означают пиковую память устройства: импортированные ресурсы,
+pooling, aliasing и драйвер не включены. Незапущенный/устаревший проход — null,
+а не нулевая работа. Объект наблюдений принадлежит экземпляру render pass;
+в production instrumentation нет покадровых managed allocations. Этот sidecar
+пока не участвует в CLI comparison и не расширяет scope schema v1.
+
+Все captures и sidecars одного benchmark run сохраняются под
+`Logs/Diagnostics/Performance/frame_run_<stamp>/`. Каталог использует штатный
+DiagnosticArtifactPaths.CreateDirectory и считается одной retention-записью:
+экспорт поздних сценариев больше не удаляет ранние файлы того же прогона.
+ProfilerRecorder использует WrapAroundWhenCapacityReached; перед чтением все
+recorders остановлены, CopyTo проверяется против capacity. Coroutine disposal
+освобождает recorders и при исключении/прерывании.
+
 Unity benchmark принимает `KERN_BENCHMARK_RESOLUTION=3420x2148` и проверяет
 фактический camera target размер перед запуском сценариев. Без переменной остаётся
 текущий размер. В batch-прогоне production camera рендерит в явный ARGBHalf

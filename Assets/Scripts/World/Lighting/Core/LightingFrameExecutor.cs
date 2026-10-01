@@ -15,6 +15,7 @@ namespace Kern.World.Lighting;
 /// </summary>
 internal sealed class LightingFrameExecutor
 {
+    internal static Action<string, AsyncGPUReadbackRequest>? DiagnosticMaterialReadback { get; set; }
     private readonly LightingResourceManager _resources;
     private readonly GeometryLightingSolver _geometrySolver;
     private readonly StaticLightingSolver _staticSolver;
@@ -56,6 +57,13 @@ internal sealed class LightingFrameExecutor
     public void EnsureDynamicLightCapacity(int capacity)
     {
         _dynamicLightManager.EnsureCapacity(capacity);
+    }
+
+    public void InvalidateDynamicQuality()
+    {
+        _dynamicSolver.Release();
+        _dynamicLightManager.ResetUploadState();
+        _lastDynamicUnion = null;
     }
 
     public bool CanReuseStaticAtlas(Vector2Int regionDelta) =>
@@ -107,6 +115,8 @@ internal sealed class LightingFrameExecutor
             _resources.LightingCompute!,
             _resources.FieldWidth,
             _resources.FieldHeight,
+            _resources.LightWidth,
+            _resources.LightHeight,
             worldRect,
             cellSize,
             debugView,
@@ -131,19 +141,29 @@ internal sealed class LightingFrameExecutor
 
         if (request.RebuildFields)
         {
+            if (request.ReuseStaticAtlas)
+            {
+                _resources.EnsureReanchorFields();
+                commandBuffer.CopyTexture(_resources.MaterialField!, _resources.ReanchorMaterial!);
+                commandBuffer.CopyTexture(_resources.StaticEmissionField!, _resources.ReanchorEmission!);
+            }
+
             _geometrySolver.RecordMaterialField(
                 commandBuffer,
                 terrainGeometry,
                 _geometryRegistry,
                 request.WorldRect);
             _executedStages.Add("MaterialField");
+            RecordMaterialReadback(commandBuffer, "MaterialField");
             _geometrySolver.PrepareCaches(commandBuffer, materialFieldRebuilt: true);
             _executedStages.Add("GeometryCache");
+            RecordMaterialReadback(commandBuffer, "GeometryCache");
             RecordAmbientOcclusionField(
                 commandBuffer,
                 terrainGeometry,
                 request.WorldRect);
             _executedStages.Add("AmbientOcclusionField");
+            RecordMaterialReadback(commandBuffer, "AmbientOcclusionField");
         }
 
         bool staticRadianceChanged = request.StaticRadianceChanged;
@@ -152,7 +172,7 @@ internal sealed class LightingFrameExecutor
         if (request.ClearDynamicRadiance)
         {
             ClearDynamicDirect(commandBuffer);
-            _dynamicSolver.InvalidateTiles();
+            _dynamicSolver.Release();
         }
 
         if (staticRadianceChanged &&
@@ -187,7 +207,8 @@ internal sealed class LightingFrameExecutor
                 staticRadianceChanged || request.RebuildFields,
                 request.DebugView,
                 _telemetry,
-                out dynamicDirtyUnion);
+                out dynamicDirtyUnion,
+                request.DynamicReceiverRect);
             _executedStages.Add("DynamicLighting");
         }
 
@@ -248,12 +269,27 @@ internal sealed class LightingFrameExecutor
             _executedStages.Add("Composite");
         }
 
+        if (request.RebuildFields)
+        {
+            RecordMaterialReadback(commandBuffer, "FrameComplete");
+        }
+
         return new LightingFrameResult(
             invalidations,
             staticRadianceChanged,
             dynamicRadianceNeeded,
             request.ClearDynamicRadiance,
-            _executedStages.ToArray());
+            _executedStages);
+    }
+
+    private void RecordMaterialReadback(CommandBuffer commandBuffer, string stage)
+    {
+        Action<string, AsyncGPUReadbackRequest>? observer = DiagnosticMaterialReadback;
+        if (observer != null)
+        {
+            commandBuffer.RequestAsyncReadback(_resources.MaterialField!,
+                request => observer(stage, request));
+        }
     }
 
     private static LightingInvalidationFlags BuildInvalidations(

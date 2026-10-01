@@ -122,17 +122,22 @@ public static class CascadeLayoutBuilder
         int height,
         long atlasDimension,
         List<CascadeLayout> cascades,
-        int maximumDirections = DefaultMaximumCascadeDirections)
+        int maximumDirections = DefaultMaximumCascadeDirections,
+        int initialProbeSpacing = 1)
     {
+        if (initialProbeSpacing < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(initialProbeSpacing));
+        }
         cascades.Clear();
         float requiredDistance = (float)Math.Sqrt(
             (double)width * width + (double)height * height);
         int maxCascades = GetMaximumCascadeCount(atlasDimension);
         int offset = 0;
-        int spacing = 1;
+        int spacing = initialProbeSpacing;
         int directions = 4;
         float intervalStart = 0f;
-        float intervalEnd = 1f;
+        float intervalEnd = initialProbeSpacing;
 
         while (true)
         {

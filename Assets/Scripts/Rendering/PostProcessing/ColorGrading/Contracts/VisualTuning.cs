@@ -264,6 +264,41 @@ namespace Kern.World.Lighting
 
     public static class LightingConfigHolder
     {
+        // МЕНЯТЬ ЗДЕСЬ: стартовые параметры качества, без зависимости от зума.
+        // В игре: инструменты → «Цена света» → «Качество света» → «Применить».
+        // Кнопка «Копировать в VisualTuning» выдаёт такой же блок для сохранения.
+        public static readonly LightingQualityTuning DefaultQuality = new(
+            FieldPixelsPerCell: 2,               // Перенос: material/albedo/emission, DDA; цена ~ плотность.
+            LightPixelsPerCell: 2,               // Карта света: static/dynamic direct, итог; ≤ FieldPixelsPerCell.
+            CascadeProbePixelsPerCell: 2,         // Пробы статики на клетку; цена ~ плотность².
+            MaximumStaticCascadeDirections: 64,   // Верхний предел углов каскадов; цена ~ углы.
+            DynamicNearCells: 6f,                 // Зона точного DDA вокруг лампы; цена ~ радиус².
+            DynamicAngularSampleCount: 8,         // Выборки на пиксель динамического света.
+            DynamicEmitterPointsPerAxis: 3,       // 3×3 точек источника; цена веера ~ значение².
+            DynamicPolarDirectionCount: 64);      // Углы на точку источника вне ближней зоны.
+
+        // Разрешения в пикселях на одну мировую клетку, независимо от зума.
+        // FieldPixelsPerCell: material/albedo/emission, по которым идёт DDA;
+        // цена лучей растёт с ней только на неоднородных клетках.
+        // LightPixelsPerCell: приёмники static/dynamic direct и итоговая карта
+        // света; цена приёмников ~ плотность². Пробы каскадов — отдельно.
+        // Зум ни одну из плотностей не задаёт.
+
+        // Контактное AO вычисляется сразу на сетке мирового растра 32x32.
+        // Лимит текстур транспорта света эту плотность не уменьшает.
+        public const int AmbientOcclusionPixelsPerCell = 32;
+
+        // Ограничения выделения памяти: максимальная сторона в пикселях.
+        // Плотность геометрии не снижается. Невместившийся регион — ошибка.
+        public const int MaximumFieldTextureSize = 8192;
+        public const int CascadeAtlasTextureSize = 1280;
+
+        // Углы статической трассировки и бюджет полного пересчёта каскадов.
+        // Бюджет НЕ в миллисекундах: это оценка числа шагов лучей.
+        // Порог диагностики; качество он не снижает. Реальные ограничения
+        // памяти проверяются явно, невместившаяся конфигурация даёт ошибку.
+        public const long MaximumStaticCascadeRayWorkUnits = 200_000_000;
+
         public static LightingFeatureFlags EnabledFeatures { get; set; } =
             LightingFeatureFlags.StaticRC |
             LightingFeatureFlags.DynamicLights;
@@ -272,45 +307,13 @@ namespace Kern.World.Lighting
         public const float SolidOccupancyThreshold = 0.5f;
         public const float TransportSolidThreshold = 0.4f;
 
-        // Общая экспозиция сцены. Одно число, на которое умножается весь свет:
-        // и заполняющий, и прямой, и эмиссия. Соотношения между ними не
-        // меняются — меняется только то, где вся картина стоит относительно
-        // белой точки дисплея.
-        //
-        // Яркость нельзя чинить эмиссией. Эмиссия поднимает только источники,
-        // то есть ровно то, что и так лежит выше белого и всё равно будет
-        // сжато выводом: кадр от неё не светлеет, а источники выжигаются.
-        // Темноту двигает экспозиция, и двигать её надо здесь, у источника
-        // величин, а не грейдом на выводе: грейд стоит полноэкранного прохода,
-        // а здесь это тот же умножитель, что уже уходит в шейдер.
-        //
-        // Значение 1 — нейтральная экспозиция сцены. Большее значение
-        // поднимает свет и эмиссию вместе; это единственная ручка общей
-        // яркости, поэтому менять её и только её.
-        //
-        // Свойство, а не константа: ручка вынесена в инструменты (F1, окно
-        // «Цвет и вывод»), и подбирать экспозицию надо глазом на живой сцене.
-        // Значение здесь — штатное; инструмент меняет его на сессию, файл
-        // остаётся авторским источником правды.
-        public const float DefaultSceneExposureScale = 1.0f;
-
-        public static float SceneExposureScale { get; set; } = DefaultSceneExposureScale;
-
-        // 2. Экспозиция и интенсивности источников/заполняющего света.
-        // Базовые величины — авторская калибровка при экспозиции 1. Наружу
-        // отдаются уже помноженными: потребители читают их каждый кадр, и
-        // поворот ручки виден сразу, без пересборки.
-        public const float BaseAmbientIntensity = 0.25f;
-        public const float BaseEmissionScale = 10.0f;
-        public const float BaseDynamicLightIntensity = 1.0f;
-        public const float BaseMaximumLightMultiplier = 8.0f;
-
-        public static float AmbientIntensity => BaseAmbientIntensity * SceneExposureScale;
-        public static float EmissionScale => BaseEmissionScale * SceneExposureScale;
+        // 2. Авторские интенсивности света в scene-linear единицах.
+        // Общую экспозицию применяет штатный URP Volume перед tonemapping.
+        public const float AmbientIntensity = 0f;
+        public const float EmissionScale = 12.0f;
+        public const float DynamicLightIntensity = 1.0f;
         public static readonly Color AmbientColor = Color.white;
         public static bool DynamicLightEnabled => (EnabledFeatures & LightingFeatureFlags.DynamicLights) != 0;
-        public static float DynamicLightIntensity =>
-            BaseDynamicLightIntensity * SceneExposureScale;
         public static readonly Color DynamicLightColor = Color.white;
 
         // Пропускание однородной среды применяется трассировщиком вдоль пути.
@@ -328,21 +331,16 @@ namespace Kern.World.Lighting
         public const float SurfaceReflectionReachCells = 0.5f;
 
         // Ближняя зона динамики использует прямой DDA, дальше — полярный веер.
-        public const float DynamicNearCells = 6.0f;
-
-        // Запас дальности до отсечения по затуханию; это slack, не радиус.
-        public const float DynamicReachSlackTexels = 2f;
-        public const float DynamicReachSlackCells = 1.5f;
-
-        // Маржа входа источника и границы невидимости в полярном веере.
-        public const float DynamicPolarMargin = 1.5f;
 
         // Угловая плотность сэмплов на источник, стоимость растёт линейно.
-        public const int DynamicAngularSampleCount = 8;
 
-        // Плотность сэмплирования эмиттера по оси. Зеркалится в
-        // LightingComputeBinder.DynamicEmitterPointCount — менять только парой.
-        public const int DynamicEmitterPointsPerAxis = 3;
+        // Число слоёв веера вычисляется из этой плотности автоматически.
+
+        // Общий бюджет угловых вееров изменившихся источников. Длина луча
+        // всегда полная; бюджет регулирует число углов, не дальность света.
+        // Fixed angular quality per source, independent of zoom or moving-light count.
+        // Explicit cost guard; exceeding it reports an error, never lowers quality.
+        public const long MaximumDynamicPolarRayWorkUnits = 200_000_000;
 
         // Билинейный фикс при чтении соседних записей атласа каскада.
         public const bool EnableBilinearFix = true;
@@ -352,11 +350,7 @@ namespace Kern.World.Lighting
         // Шкала в стопах від білого: 8.0 = +3 стопи. Контент HDR by design
         // (емісія до EmissionScale), тому стеля 1.0 фарбувала червоним весь
         // робочий HDR-запас.
-        // Масштабируется вместе со сценой: это потолок в тех же величинах,
-        // и без множителя ложная раскраска показывала бы пересвет там, где
-        // его нет.
-        public static float MaximumLightMultiplier =>
-            BaseMaximumLightMultiplier * SceneExposureScale;
+        public const float MaximumLightMultiplier = 8.0f;
 
     }
 }
@@ -369,7 +363,7 @@ namespace Kern.Rendering.PostProcessing
         public static class Effects
         {
             public const bool Bloom = false;
-            public const bool Vignette = false;
+            public const bool Vignette = true;
             public const bool Eigengrau = false;
         }
 

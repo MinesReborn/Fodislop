@@ -21,7 +21,10 @@ internal readonly record struct LightingFrameRequest(
     bool ClearDynamicRadiance,
     bool CompositeDirty,
     LightingQualityMode Quality,
-    LightingEngine.DebugView DebugView);
+    LightingEngine.DebugView DebugView)
+{
+    public RectInt DynamicReceiverRect { get; init; }
+}
 
 internal readonly record struct LightingFrameResult(
     LightingInvalidationFlags Invalidations,

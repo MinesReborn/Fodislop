@@ -159,6 +159,17 @@ namespace Kern.Rendering
             Debug.Log($"[DisplayManager] SetResolution: {width}x{height} @ {refreshRate}Hz (Mode={mode})");
         }
 
+        // Temporary renderer fixtures retain and restore their own dimensions;
+        // they must not persist a benchmark resolution into client settings.
+        internal static void SetTransientResolution(int width, int height, FullScreenMode mode)
+        {
+            if (width <= 0 || height <= 0)
+            {
+                throw new ArgumentOutOfRangeException(width <= 0 ? nameof(width) : nameof(height));
+            }
+            Screen.SetResolution(width, height, NormalizeFullScreenMode(mode));
+        }
+
         public void SetVSync(bool enabled)
         {
             if (_clientConfig?.Config == null)

@@ -434,6 +434,38 @@ public sealed class TerrainLightingExchangeTests
     }
 
     [Test]
+    public void ReanchorTransfersAllOverlappingPendingEditsIntoTheCurrentSolve()
+    {
+        var state = new LightingRuntimeState { FieldDirty = false };
+        state.QueueRegionInvalidation(new RectInt(40, 4, 4, 4));
+        state.QueueRegionInvalidation(new RectInt(80, 4, 4, 4));
+        state.QueueRegionInvalidation(new RectInt(-10, 4, 4, 4));
+        LightingRegionInvalidationPolicy.OnRegionChanged(state, true, true, new Vector4(32, 0, 64, 64));
+        Assert.That(state.ActiveRegionInvalidations, Has.Count.EqualTo(2));
+        Assert.That(state.FieldDirty, Is.True);
+        Assert.That(state.ActivatePendingRegionIfVisible(new RectInt(-20, 0, 128, 32)), Is.False);
+        state.CompleteActiveRegionInvalidation();
+        Assert.That(state.ActiveRegionInvalidations, Is.Empty);
+    }
+
+    [Test]
+    public void FullResetCannotReuseAnAtlasSolvedWithPreviousStaticInputs()
+    {
+        var state = new LightingRuntimeState
+        {
+            FieldDirty = false,
+            HasRenderedLightState = true,
+            HasStaticRadianceState = true,
+            HasDynamicRadianceState = true,
+        };
+        TerrainLightingChangeApplier.Apply(Reset(2, 1), state);
+        Assert.That(state.FieldDirty, Is.True);
+        Assert.That(state.HasStaticRadianceState, Is.False);
+        Assert.That(state.HasDynamicRadianceState, Is.False);
+        Assert.That(state.HasRenderedLightState, Is.False);
+    }
+
+    [Test]
     public void OutOfStableInvalidationIsDiscardedBeforeForcedFullReanchor()
     {
         var state = new LightingRuntimeState

@@ -9,18 +9,8 @@ using UnityEngine;
 
 namespace Kern.Tools.Imgui.Windows;
 
-// Всё, что задаёт яркость и цвет кадра, в одном окне рабочего пространства.
-//
-// Раньше эти ручки были разнесены: экспозиция сцены жила константой в коде и
-// менялась только пересборкой, калибровка дисплея — в паузе среди настроек
-// игрока, узоры калибровки — на отдельном экране, ложная раскраска пересвета —
-// среди видов освещения. Подбирать по ним картину было нельзя: чтобы свести
-// экспозицию с белой точкой, надо видеть обе цифры разом и крутить их на живой
-// сцене, а не через меню паузы, которое эту сцену закрывает.
-//
-// Окно ничего не считает само. Экспозиция уходит в LightingConfigHolder,
-// калибровка — в DisplayManager (он же сохраняет её в конфиг и квантует),
-// узоры — в PostProcessRuntimeState. Здесь только ручки и показания.
+// Калибровка дисплея, тестовые узоры и диагностика пересвета.
+// Калибровкой владеет DisplayManager, узорами — PostProcessRuntimeState.
 public sealed class ColorOutputWindow : ToolWindow
 {
     private readonly IClientConfigManager _clientConfig;
@@ -31,8 +21,6 @@ public sealed class ColorOutputWindow : ToolWindow
 
     // Подписи пересобираются только при смене значения: окно рисуется каждый
     // кадр, а склейка строк в IMGUI — мусор в куче на каждый такой кадр.
-    private float _exposureLabelValue = float.NaN;
-    private string _exposureLabel = string.Empty;
     private float _paperWhiteLabelValue = float.NaN;
     private string _paperWhiteLabel = string.Empty;
     private float _peakLabelValue = float.NaN;
@@ -59,8 +47,6 @@ public sealed class ColorOutputWindow : ToolWindow
     protected override void OnPlaySessionReset()
     {
         _scroll = default;
-        LightingConfigHolder.SceneExposureScale =
-            LightingConfigHolder.DefaultSceneExposureScale;
         PostProcessRuntimeState.SetCalibrationPattern(CalibrationPattern.Off, 0f);
     }
 
@@ -68,75 +54,31 @@ public sealed class ColorOutputWindow : ToolWindow
     {
         using (ToolLayout.ScrollView(ref _scroll))
         {
-            DrawExposure();
+            DrawPostProcessLayers();
+            DrawExposureZebra();
             DrawCalibration();
             DrawPatterns();
             DrawHDRState();
         }
     }
 
-    private void DrawExposure()
+    private static void DrawPostProcessLayers()
     {
-        ToolChrome.SectionHeader("ЭКСПОЗИЦИЯ СЦЕНЫ");
-        GUILayout.Label(
-            "Общая яркость всего света сразу: заполняющего, прямого и эмиссии. " +
-            "Соотношения между ними не меняются — сдвигается вся картина " +
-            "относительно белой точки. Это единственная ручка общей яркости; " +
-            "эмиссией темноту не лечат.",
-            MutedLabelStyle);
-
-        float exposure = LightingConfigHolder.SceneExposureScale;
-        if (_exposureLabelValue != exposure)
-        {
-            _exposureLabelValue = exposure;
-            _exposureLabel = $"×{exposure:0.00}   ({Mathf.Log(exposure, 2f):+0.00;-0.00;0.00} стопа)";
-        }
-
-        GUILayout.Label(_exposureLabel, MetricLabelStyle);
-        float next = GUILayout.HorizontalSlider(exposure, 0.25f, 8f);
-        using (ToolLayout.Horizontal())
-        {
-            if (GUILayout.Button("− ½ стопа", SecondaryButtonStyle))
-            {
-                next = exposure / Mathf.Sqrt(2f);
-            }
-
-            if (GUILayout.Button("+ ½ стопа", SecondaryButtonStyle))
-            {
-                next = exposure * Mathf.Sqrt(2f);
-            }
-        }
-
-        bool changed = GUILayout.Button("Вернуть штатную", SecondaryButtonStyle);
-        if (changed)
-        {
-            next = LightingConfigHolder.DefaultSceneExposureScale;
-        }
-
-        // Присваивание только при расхождении: свойство читают потребители
-        // света каждый кадр, и лишняя запись ничего не стоит, но и смысла
-        // в ней нет.
-        if (!Mathf.Approximately(next, exposure))
-        {
-            LightingConfigHolder.SceneExposureScale = Mathf.Clamp(next, 0.25f, 8f);
-            InvalidateLighting();
-        }
-
-        GUILayout.Label(
-            "Значение живёт до конца сессии. Устраивающее число надо перенести " +
-            "в DefaultSceneExposureScale (VisualTuning.cs) — файл остаётся " +
-            "источником правды.",
-            MutedLabelStyle);
-
-        DrawExposureZebra();
+        ToolChrome.SectionHeader("СЛОИ ПОСТОБРАБОТКИ");
+        DrawPostProcessLayer(PostProcessDebugView.None, "Обычный кадр");
+        DrawPostProcessLayer(PostProcessDebugView.Vignette, "Виньетка");
+        DrawPostProcessLayer(PostProcessDebugView.FilmGrain, "FilmGrain");
+        DrawPostProcessLayer(PostProcessDebugView.Bloom, "Bloom");
     }
 
-    // Свет считается не каждый кадр: трассировка каскадов идёт только когда
-    // изменилась сцена, композит — по своим условиям. Экспозиция входит в оба
-    // прохода, поэтому без сброса кэша поворот ручки не был бы виден вовсе, а
-    // при следующем движении в мире картинка обновилась бы кусками — часть со
-    // старой экспозицией, часть с новой.
-    private void InvalidateLighting() => _lighting?.InvalidateRadiance();
+    private static void DrawPostProcessLayer(PostProcessDebugView view, string label)
+    {
+        bool selected = PostProcessRuntimeState.DebugView == view;
+        if (GUILayout.Toggle(selected, label, ToolTheme.SegmentedButton) && !selected)
+        {
+            PostProcessRuntimeState.DebugView = view;
+        }
+    }
 
     private void DrawExposureZebra()
     {

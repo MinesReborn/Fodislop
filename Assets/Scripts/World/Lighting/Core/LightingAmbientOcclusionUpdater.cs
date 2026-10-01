@@ -78,11 +78,15 @@ internal sealed class LightingAmbientOcclusionUpdater
 
         bool resized = _resources.EnsureAmbientOcclusionOnlyResources(
             Mathf.RoundToInt(region.z),
-            Mathf.RoundToInt(region.w),
-            qualitySettings.LightingMaximumTextureDimension);
+            Mathf.RoundToInt(region.w));
         ulong contributorRevision = _geometryRegistry.GeometryRevision;
+        _state.ActivatePendingRegionIfVisible(new RectInt(
+            Mathf.RoundToInt(region.x) - 1, Mathf.RoundToInt(region.y) - 1,
+            Mathf.RoundToInt(region.z) + 2, Mathf.RoundToInt(region.w) + 2));
         bool geometryChanged =
-            _state.LastTerrainGeometryRevision != terrainGeometry.LightingGeometryRevision ||
+            (_state.LastTerrainGeometryRevision != terrainGeometry.LightingGeometryRevision &&
+                (_state.StagedTerrainGeometryRevision != terrainGeometry.LightingGeometryRevision ||
+                 _state.ActiveRegionInvalidations.Count > 0)) ||
             _state.LastContributorGeometryRevision != contributorRevision;
         if (geometryChanged)
         {
@@ -91,6 +95,7 @@ internal sealed class LightingAmbientOcclusionUpdater
 
         if (!entering && !resized && !regionChanged && !geometryChanged && !_state.FieldDirty)
         {
+            _state.LastTerrainGeometryRevision = terrainGeometry.LightingGeometryRevision;
             return;
         }
 

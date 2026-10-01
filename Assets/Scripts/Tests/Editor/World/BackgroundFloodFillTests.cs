@@ -74,6 +74,45 @@ public sealed class BackgroundFloodFillTests
         Assert.That(fill.Buffer[2, 1], Is.EqualTo(CellType.Empty), "door cell background must be floor");
     }
 
+    // Регрессия: подложку блока выбирало голосование проходимых соседей, и
+    // дорога (покрытие игрока) побеждала, как только серых соседей было
+    // больше. Под блоком на стыке земли и дороги появлялась дорога.
+    [Test]
+    public void ComputeFull_BlockBetweenGroundAndRoad_KeepsGroundBackground()
+    {
+        var fill = new BackgroundFloodFill();
+        fill.Allocate(Width, Height);
+        var cells = new BlockOnRoadEdgeCells();
+
+        fill.ComputeFull(cells);
+
+        // У клеток блока пять соседей-дорог и три соседа-земли.
+        Assert.That(fill.Buffer[3, 2], Is.EqualTo(CellType.Empty), "block background must be ground, not road");
+        Assert.That(fill.Buffer[3, 3], Is.EqualTo(CellType.Empty), "block background must be ground, not road");
+        Assert.That(fill.Buffer[5, 2], Is.EqualTo(CellType.Road), "a road cell keeps its own covering");
+    }
+
+    // x ≤ 2 — земля, x ≥ 3 — дорога, в (3,2) и (3,3) кристалл. Кеш
+    // адресуется со сдвигом на рамку в одну клетку.
+    private sealed class BlockOnRoadEdgeCells : ICachedCellDataProvider
+    {
+        public CachedCellInfo GetCell(int x, int y)
+        {
+            int wx = x - 1;
+            int wy = y - 1;
+            if (wx == 3 && wy is 2 or 3)
+            {
+                return new CachedCellInfo { Type = CellType.XGreen, Properties = 0 };
+            }
+
+            return new CachedCellInfo
+            {
+                Type = wx <= 2 ? CellType.Empty : CellType.Road,
+                Properties = CellConfigProperties.Passable,
+            };
+        }
+    }
+
     private sealed class WallNextToDoorCells : ICachedCellDataProvider
     {
         public CachedCellInfo GetCell(int x, int y)

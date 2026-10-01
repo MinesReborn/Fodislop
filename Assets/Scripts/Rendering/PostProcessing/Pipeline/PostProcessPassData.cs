@@ -8,6 +8,16 @@ namespace Kern.Rendering.PostProcessing;
 
 internal sealed class PostProcessPassData
 {
+    public EntityId CameraId;
+    public PostProcessWorkload Workload = null!;
+    public int CreatedTextureCount;
+    public long CreatedTexturePayloadBytes;
+    public Vector4 DisplaySourceUv = new(1, 1, 0, 0);
+    public bool DisplayLinearFilter;
+    public bool ScalesWorldGrid;
+    public Vector4 WorldGridRect;
+    public Vector4 DisplayWorldToViewportUv = new(1, 1, 0, 0);
+    public float DisplayViewportAspect;
     public ComputeShader PostProcessCS = null!;
     public bool HDROutput;
     public ColorGamut HDRGamut;

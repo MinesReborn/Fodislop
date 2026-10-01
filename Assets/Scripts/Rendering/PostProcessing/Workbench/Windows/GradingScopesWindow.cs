@@ -125,6 +125,9 @@ internal sealed class GradingScopesWindow : ToolWindow
             PostProcessDebugView.SaturationOnly =>
                 "чёрный — нейтральный, белый — максимальная насыщенность",
             PostProcessDebugView.RgbParade => "трети R|G|B монохромом",
+            PostProcessDebugView.Vignette => "маска виньетки: белое — без затемнения, чёрное — полное затемнение",
+            PostProcessDebugView.FilmGrain => "зерно с маской темноты: серое — нулевой вклад, светлое/тёмное — знак шума; амплитуда усилена для просмотра",
+            PostProcessDebugView.Bloom => "только вклад bloom на чёрном, через штатную экспозицию и tonemapping",
             _ => "кадр показывается без отладочной разметки",
         };
         GUILayout.Label(explanation, WrappedLabelStyle);

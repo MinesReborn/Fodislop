@@ -177,10 +177,22 @@ Shader "Universal Render Pipeline/Custom/Terrain"
             #if defined(KERN_TERRAIN_CELLS)
                 TERRAIN_RESOLVE_CELL_VERTEX(input, output)
                 output.worldPosition = TransformObjectToWorld(cell.positionOS);
+                float3 rasterWorldPosition = KernWorldGridVertex(output.worldPosition);
+                if (output.atlasIndex >= 0.0)
+                {
+                    output.positionCS = KernWorldGridClipPosition(rasterWorldPosition);
+                }
+                output.worldPosition = rasterWorldPosition;
                 return output;
             #else
                 TERRAIN_RESOLVE_ATTRIBUTE_VERTEX(input, output)
                 output.worldPosition = TransformObjectToWorld(input.positionOS.xyz);
+                float3 rasterWorldPosition = KernWorldGridVertex(output.worldPosition);
+                if (output.atlasIndex >= 0.0)
+                {
+                    output.positionCS = KernWorldGridClipPosition(rasterWorldPosition);
+                }
+                output.worldPosition = rasterWorldPosition;
                 return output;
             #endif
             }
@@ -519,9 +531,17 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                 half4 emission : SV_Target1;
             };
 
+            int _KernLightingFieldDiagnosticStage;
+
             MaterialFieldOutput MaterialFieldFrag(TerrainLightingFieldVaryings input)
             {
                 MaterialFieldOutput output;
+                if (_KernLightingFieldDiagnosticStage == 1)
+                {
+                    output.material = half4(0.0, 1.0, 0.0, 1.0);
+                    output.emission = 0.0;
+                    return output;
+                }
 
                 // Keep the same geometry and atlas addressing as the screen
                 // pass, but use the authored base albedo rather than its
@@ -555,6 +575,12 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                     input.packedData,
                     albedoAtlasSlot,
                     atlasTexelSize);
+                if (_KernLightingFieldDiagnosticStage == 2)
+                {
+                    output.material = albedoTexel;
+                    output.emission = 0.0;
+                    return output;
+                }
 
                 // Без фолбеков: нет текселя — нет альбедо. Плоский цвет
                 // миникарты сюда больше не попадает ни в каком виде.
@@ -579,6 +605,11 @@ Shader "Universal Render Pipeline/Custom/Terrain"
                     1.0,
                     applyGeometry);
                 float occupancy = isPhysicalMass ? cellCoverage : 0.0;
+                // The carrier encloses the displaced polygon but is not the
+                // material itself. Reject the same absent fragments as the
+                // visible pass before decals or emission can color them.
+                clip(cellCoverage - 0.5);
+                clip(albedoTexel.a - _AlphaCutoff);
                 // Material occupancy is the hard physical-solid input for
                 // lighting transport. AO filtering is isolated in its own pass.
                 occupancy *= albedoTexel.a >= _AlphaCutoff ? 1.0 : 0.0;
@@ -640,6 +671,9 @@ Shader "Universal Render Pipeline/Custom/Terrain"
 
             half4 AmbientOcclusionFieldFrag(TerrainLightingFieldVaryings input) : SV_Target
             {
+                // Evaluate coverage and falloff at the native 1/32-cell sample.
+                // No resampling/quantization pass follows this field calculation.
+                input.packedData.yz = QuantizeTerrainPixelCenter(input.packedData.yz);
                 uint lightingFlags = KernTerrainLightingFlags(input.glowData.y);
                 if (input.isForeground < 0.5 || !KernTerrainIsPhysicalMass(lightingFlags))
                 {

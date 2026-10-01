@@ -1,3 +1,5 @@
+#pragma kernel BuildReanchorChangeRows
+#pragma kernel BuildReanchorChangeColumns
 #pragma kernel SolveCascade
 #pragma kernel ScrollRadianceAtlas
 #pragma kernel ClearCascadeChangedMask
@@ -45,6 +47,12 @@
 // Field Textures
 // ============================================================================
 
+Texture2D<float4> _ReanchorMaterial;
+Texture2D<float4> _ReanchorEmission;
+RWStructuredBuffer<uint> _ReanchorChangeRowsOutput;
+StructuredBuffer<uint> _ReanchorChangeRows;
+RWStructuredBuffer<uint> _ReanchorChangesOutput;
+StructuredBuffer<uint> _ReanchorChanges;
 Texture2D<float4> _MaterialField;
 Texture2D<float4> _EmissionField;
 RWStructuredBuffer<uint3> _RadianceAtlas;
@@ -81,11 +89,18 @@ RWTexture2D<float4> _SurfaceAirCacheOutput;
 
 RWStructuredBuffer<uint> _LightingCounters;
 int _LightingCountersEnabled;
+int _UniformCellTraversalEnabled;
 StructuredBuffer<int4> _DirtyRegions;
 RWStructuredBuffer<uint> _CascadeChangedMask;
 int _CascadeChangedMaskCount;
 int _DirtyRegionCount;
 int _CascadeMaskEnabled;
+// Reanchor state is local to a recorded static solve; zero for ordinary solves.
+int _CascadeReanchorEnabled;
+int _CascadePhaseMatches;
+int2 _ReanchorDeltaTexels;
+int2 _ReanchorFarDeltaProbes;
+int _ReanchorFarPhaseMatches;
 
 // ============================================================================
 // Dynamic Lights
@@ -98,8 +113,8 @@ int2 _DynamicDispatchSize;
 int _DynamicLightIndex;
 int _WriteDynamicDirect;
 int2 _DynamicTileOffset;
-RWTexture2D<float4> _DynamicTiles;
-Texture2D<float4> _DynamicTilesInput;
+RWTexture2DArray<float4> _DynamicTiles;
+Texture2DArray<float4> _DynamicTilesInput;
 
 StructuredBuffer<DynamicTileInfo> _DynamicTileInfos;
 int _DynamicTileCount;
@@ -108,20 +123,26 @@ int2 _ComposeSize;
 
 int2 _DynamicPolarSize;
 int2 _DynamicPolarTextureSize;
-RWTexture2D<float4> _DynamicPolar;
-Texture2D<float4> _DynamicPolarInput;
-
-// Дальность фонаря в текселях поля: самый дальний радиус по всем его лучам,
-// до которого свет ещё может быть видимым. TraceDynamicPolar копит максимум,
-// SolveDynamicLighting не считает пиксели дальше — под землёй это большая
-// часть поля.
-RWStructuredBuffer<uint> _DynamicReach;
+int _DynamicPolarScalarExtinction;
+int _NeutralExtinction;
+int _DynamicTilesScalarRadiance;
+RWTexture2DArray<float4> _DynamicPolar;
+Texture2DArray<float4> _DynamicPolarInput;
+int _DynamicPolarLayerOffset;
+// Persistent source slot: tile layer of SolveDynamicLighting.
+int _DynamicReachIndex;
 
 // ============================================================================
 // Shared Parameters
 // ============================================================================
 
+// Transport lattice: material, emission, DDA, cascade probes and polar fans.
 int2 _FieldSize;
+// Receiver lattice: static/dynamic direct, surface cache and the published
+// lightmap. Same world rect; an integer number of field texels per light
+// texel, so every receiver centre maps to one transport position exactly.
+int2 _LightSize;
+int _FieldTexelsPerLightTexel;
 int2 _CompositeDispatchOrigin;
 int2 _CompositeDispatchSize;
 int2 _CellGridSize;
@@ -146,12 +167,6 @@ int _DynamicAngularSampleCount;
 // Плотность эмиттера по оси: число точек сетки на сторону фонаря. Авторское
 // значение живёт в VisualTuning.cs.
 int _DynamicEmitterPointsPerAxis;
-
-// Запас дальности фонаря до отсечения: в текселях поля и в клетках, плюс
-// маржа входа источника в полярном веере. Авторские значения в VisualTuning.cs.
-float _DynamicReachSlackTexels;
-float _DynamicReachSlackCells;
-float _DynamicPolarMargin;
 
 // Пороги solidity поля материала: авторские значения в VisualTuning.cs.
 float _SolidOccupancyThreshold;
@@ -234,3 +249,56 @@ SamplerState sampler_LinearClamp;
 // ============================================================================
 
 #include "Assets/Resources/Shaders/Lighting/Composite/CompositeLighting.hlsl"
+
+// Exact dependencies of the newly rasterized transport inputs, on the world
+// texel lattice. Two scans form an integral image; each ray-box query is four
+// reads regardless of field size. This runs only on a region reanchor.
+[numthreads(64, 1, 1)]
+void BuildReanchorChangeRows(uint3 id : SV_DispatchThreadID)
+{
+    int y = (int)id.x;
+    if (y >= _FieldSize.y)
+    {
+        return;
+    }
+    uint sum = 0u;
+    for (int x = 0; x < _FieldSize.x; x++)
+    {
+        int2 current = int2(x, y);
+        int2 previous = current + _ReanchorDeltaTexels;
+        bool changed = any(previous < 0) || any(previous >= _FieldSize);
+        if (!changed)
+        {
+            int2 rasterCurrent = current;
+            int2 rasterPrevious = previous;
+            if (_MaterialYFlip != 0)
+            {
+                rasterCurrent.y = _FieldSize.y - 1 - rasterCurrent.y;
+                rasterPrevious.y = _FieldSize.y - 1 - rasterPrevious.y;
+            }
+            changed = any(_MaterialField.Load(int3(rasterCurrent, 0)) !=
+                _ReanchorMaterial.Load(int3(rasterPrevious, 0))) ||
+                any(_EmissionField.Load(int3(rasterCurrent, 0)) !=
+                _ReanchorEmission.Load(int3(rasterPrevious, 0)));
+        }
+        sum += changed ? 1u : 0u;
+        _ReanchorChangeRowsOutput[y * _FieldSize.x + x] = sum;
+    }
+}
+
+[numthreads(64, 1, 1)]
+void BuildReanchorChangeColumns(uint3 id : SV_DispatchThreadID)
+{
+    int x = (int)id.x;
+    if (x >= _FieldSize.x)
+    {
+        return;
+    }
+    uint sum = 0u;
+    for (int y = 0; y < _FieldSize.y; y++)
+    {
+        int index = y * _FieldSize.x + x;
+        sum += _ReanchorChangeRows[index];
+        _ReanchorChangesOutput[index] = sum;
+    }
+}

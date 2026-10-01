@@ -30,6 +30,7 @@
     <Compile Include="$(UnityRoot)/World/Lighting/Core/TerrainLightingChangePump.cs" Link="Production/TerrainLightingChangePump.cs" />
     <Compile Include="$(UnityRoot)/World/Lighting/Core/TerrainLightingFramePump.cs" Link="Production/TerrainLightingFramePump.cs" />
     <Compile Include="$(UnityRoot)/World/Lighting/Core/TerrainLightingChangeApplier.cs" Link="Production/TerrainLightingChangeApplier.cs" />
+    <Compile Include="$(UnityRoot)/World/Lighting/Core/LightingRuntimeInvalidation.cs" Link="Production/LightingRuntimeInvalidation.cs" />
     <Compile Include="$(UnityRoot)/World/Lighting/Core/LightingRuntimeState.cs" Link="Production/LightingRuntimeState.cs" />
     <Compile Include="$(UnityRoot)/World/Lighting/Core/LightingRegionCalculator.cs" Link="Production/LightingRegionCalculator.cs" />
     <Compile Include="$(UnityRoot)/World/Lighting/Core/LightingRegionInvalidationPolicy.cs" Link="Production/LightingRegionInvalidationPolicy.cs" />

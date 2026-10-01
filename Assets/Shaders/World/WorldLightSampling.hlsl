@@ -1,6 +1,8 @@
 #ifndef KERN_WORLD_LIGHT_SAMPLING_INCLUDED
 #define KERN_WORLD_LIGHT_SAMPLING_INCLUDED
 
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/WorldRenderGrid.hlsl"
+
 Texture2D<float4> _WorldLightTexture;
 SamplerState sampler_WorldLightTexture;
 float4 _WorldLightRect;
@@ -10,7 +12,7 @@ int _WorldLightDebugView;
 float2 GetWorldLightUvUnclamped(float2 worldPos)
 {
     float2 rectSize = max(_WorldLightRect.zw, float2(0.0001, 0.0001));
-    return (worldPos - _WorldLightRect.xy) / rectSize;
+    return (KernWorldGridPixelCenter(worldPos) - _WorldLightRect.xy) / rectSize;
 }
 
 float2 GetWorldLightUv(float2 worldPos)

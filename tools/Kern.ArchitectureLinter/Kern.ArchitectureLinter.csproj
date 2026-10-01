@@ -48,6 +48,7 @@
     <Compile Include="..\..\Assets\Scripts\Audio\Core\Contracts\AudioBusRegistry.cs" />
     <Compile Include="..\..\Assets\Scripts\Audio\Core\Contracts\AudioLayer.cs" />
     <Compile Include="..\..\Assets\Scripts\World\Lighting\Quality\Contracts\LightingQualityMode.cs" />
+    <Compile Include="..\..\Assets\Scripts\World\Lighting\Quality\Contracts\LightingQualityTuning.cs" />
     <Compile Include="..\..\Assets\Scripts\Rendering\Settings\Contracts\GraphicsQualitySettings.cs" />
     <Compile Include="..\..\Assets\Scripts\World\Common\Contracts\RenderingConstants.cs" />
     <Compile Include="..\..\Assets\Scripts\World\Common\Contracts\PixelGrid.cs" />

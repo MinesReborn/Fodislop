@@ -151,6 +151,24 @@ public static class RuntimeTextureFactory
         return texture;
     }
 
+    public static Texture2D CreateRGBAFloatNoMip(
+        int width,
+        int height,
+        string name,
+        RuntimeTextureColorSpace colorSpace,
+        FilterMode filterMode,
+        TextureWrapMode wrapMode)
+    {
+        ValidateDimensions(width, height, name);
+        var texture = new Texture2D(width, height, TextureFormat.RGBAFloat,
+            mipChain: false, linear: colorSpace == RuntimeTextureColorSpace.Linear)
+        {
+            name = name,
+        };
+        ApplySampling(texture, filterMode, wrapMode);
+        return texture;
+    }
+
     public static Texture3D CreateRGBAFloat3DNoMip(
         int size,
         string name,

@@ -59,6 +59,8 @@ struct DynamicTileInfo
     int2 fieldOrigin;
     int2 size;
     int2 tileOffset;
+    int reachIndex;
+    int reserved;
 };
 
 #endif // KERN_LIGHTING_TYPES_HLSL

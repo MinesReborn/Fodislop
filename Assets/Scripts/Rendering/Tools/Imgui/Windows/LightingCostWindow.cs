@@ -1,6 +1,7 @@
 #nullable enable
 
 using System.Collections.Generic;
+using System.Globalization;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.World.Lighting;
@@ -41,6 +42,19 @@ public sealed class LightingCostWindow : ToolWindow
     private string _atlasDetail = NoDetail;
     private float _nextUpdate;
     private Vector2 _scroll;
+    private LightingQualityTuning _draft = LightingQualityTuningController.Current;
+    private ulong _draftRevision = LightingQualityTuningController.Revision;
+    private string _applyMessage = string.Empty;
+    private string _dynamicDetail = NoDetail;
+    private string _probeDetail = NoDetail;
+    private static readonly string[] _DensityLabels = ["1", "2", "4", "8", "16", "32"];
+    private static readonly string[] _ProbeLabels = ["1", "2", "4", "8", "16"];
+    private static readonly string[] _StaticAngleLabels = ["4", "8", "16", "32", "64"];
+    private static readonly string[] _SampleLabels = ["1", "2", "4", "8", "16", "32", "64"];
+    private static readonly string[] _EmitterLabels = ["1×1", "2×2", "3×3", "4×4"];
+    private static readonly string[] _PolarLabels = ["4", "8", "16", "32", "64", "128", "256", "512", "1024"];
+    private static readonly string[] _NearLabels = ["0.5", "1", "2", "4", "6", "8"];
+    private static readonly float[] _NearValues = [0.5f, 1f, 2f, 4f, 6f, 8f];
 
     public LightingCostWindow(LightingEngine? lighting, IFrameTelemetry telemetry)
         : base("Цена света", new Rect(292f, 382f, 320f, 340f))
@@ -61,6 +75,11 @@ public sealed class LightingCostWindow : ToolWindow
         }
 
         _nextUpdate = Time.unscaledTime + RefreshInterval;
+        if (_draftRevision != LightingQualityTuningController.Revision)
+        {
+            _draft = LightingQualityTuningController.Current;
+            _draftRevision = LightingQualityTuningController.Revision;
+        }
         RefreshLimits(_lighting);
         if (!_lighting.IsInitialized)
         {
@@ -89,6 +108,11 @@ public sealed class LightingCostWindow : ToolWindow
         _fieldDetail = NoDetail;
         _cascadeDetail = NoDetail;
         _atlasDetail = NoDetail;
+        _draft = LightingQualityTuningController.Current;
+        _draftRevision = LightingQualityTuningController.Revision;
+        _applyMessage = string.Empty;
+        _dynamicDetail = NoDetail;
+        _probeDetail = NoDetail;
     }
 
     private void RefreshLimits(LightingEngine lighting)
@@ -96,9 +120,15 @@ public sealed class LightingCostWindow : ToolWindow
         _fieldLimited = lighting.TextureDimensionLimited;
         _cascadeLimited = lighting.CascadeBudgetLimited;
         _fieldDetail =
-            $"{lighting.FieldWidth}×{lighting.FieldHeight} при {lighting.EffectivePixelsPerCell:F2} пикс/клетку";
+            $"Перенос {lighting.FieldWidth}×{lighting.FieldHeight} при {lighting.EffectivePixelsPerCell:F2} пикс/клетку, " +
+            $"карта света {lighting.LightWidth}×{lighting.LightHeight}";
         _cascadeDetail = $"{lighting.CascadeCount} каскадов, шагов до {lighting.MaximumIntervalSteps}";
         _atlasDetail = $"{lighting.AtlasEntryCount} записей, источников {lighting.DynamicLightCount}";
+        _probeDetail = $"Пробы/клетку: запрос {LightingQualityTuningController.CascadeProbePixelsPerCell}, " +
+            $"фактически {lighting.EffectiveCascadeProbesPerCell:0.##}";
+        _dynamicDetail = $"Последний кадр: {_telemetry.LightingDynamicDispatchPixels:N0} пикселей, " +
+            $"{_telemetry.LightingPolarRayWorkUnits:N0} отсчётов веера. " +
+            "GPU-время отдельных этапов здесь недоступно.";
     }
 
     private void Recalculate()
@@ -141,6 +171,7 @@ public sealed class LightingCostWindow : ToolWindow
 
         using (ToolLayout.ScrollView(ref _scroll))
         {
+            DrawQualityTuning();
             if (_lighting.BypassLightingCompute)
             {
                 ToolChrome.Banner("РАСЧЁТ ОБОЙДЁН", ToolTheme.Error);
@@ -154,8 +185,133 @@ public sealed class LightingCostWindow : ToolWindow
             ToolChrome.SectionHeader("КАСКАДЫ");
             DrawCascadeRows();
             DrawLimits();
+            GUILayout.Label(_probeDetail, MutedLabelStyle);
+            GUILayout.Label(_dynamicDetail, MutedLabelStyle);
             DrawDiagnostics();
         }
+    }
+
+    private void DrawQualityTuning()
+    {
+        ToolChrome.SectionHeader("КАЧЕСТВО СВЕТА · VISUAL TUNING");
+        GUILayout.Label("Мир и AO: 32×32 на клетку. Поля ниже задают отдельную сетку света. " +
+            "Выбери значения и нажми «Применить». Правка действует до конца сессии.", MutedLabelStyle);
+        if (_lighting?.ActiveGraphicsPreset == Kern.Rendering.GraphicsPreset.Standard)
+        {
+            GUILayout.Label("Сейчас «Стандарт»: рассчитывается только AO. Для оценки света выбери Overdrive.",
+                MutedLabelStyle);
+        }
+
+        int field = DrawPowerOfTwo("Перенос: материал и эмиссия · пикс/клетку", _draft.FieldPixelsPerCell, _DensityLabels, 1);
+        _draft = _draft with
+        {
+            FieldPixelsPerCell = field,
+            LightPixelsPerCell = System.Math.Min(field, _draft.LightPixelsPerCell),
+            CascadeProbePixelsPerCell = System.Math.Min(field, _draft.CascadeProbePixelsPerCell),
+        };
+        GUILayout.Label("Сетка, по которой идут лучи: альбедо, эмиссия, силуэты стен. Однородные клетки " +
+            "лучи проходят за один шаг, поэтому цена растёт в основном на краях и светящихся клетках.",
+            MutedLabelStyle);
+        _draft = _draft with
+        {
+            LightPixelsPerCell = System.Math.Min(field,
+                DrawPowerOfTwo("Карта света · пикс/клетку", _draft.LightPixelsPerCell, _DensityLabels, 1)),
+        };
+        GUILayout.Label("Приёмники static/dynamic direct и итоговая карта света; не больше переноса. " +
+            "Уменьшение вдвое сокращает число приёмников в четыре раза.", MutedLabelStyle);
+        _draft = _draft with
+        {
+            CascadeProbePixelsPerCell = System.Math.Min(field,
+                DrawPowerOfTwo("Статика · проб/клетку", _draft.CascadeProbePixelsPerCell, _ProbeLabels, 1)),
+            MaximumStaticCascadeDirections = DrawPowerOfTwo("Статика · предел направлений",
+                _draft.MaximumStaticCascadeDirections, _StaticAngleLabels, 4),
+        };
+        GUILayout.Label("Плотность и направления применяются точно. Если атлас не вмещает запрос, " +
+            "«Применить» покажет причину; автоматического снижения нет.",
+            MutedLabelStyle);
+
+        GUILayout.Label("Динамика · радиус точного DDA, клетки", WrappedLabelStyle);
+        int nearIndex = System.Array.IndexOf(_NearValues, _draft.DynamicNearCells);
+        int nextNear = GUILayout.SelectionGrid(nearIndex, _NearLabels, 3, ToolTheme.SegmentedButton);
+        if (nextNear >= 0)
+        {
+            _draft = _draft with { DynamicNearCells = _NearValues[nextNear] };
+        }
+        GUILayout.Label("Ближняя зона — дорогая трассировка каждого пикселя; за её границей используется веер.",
+            MutedLabelStyle);
+        _draft = _draft with
+        {
+            DynamicAngularSampleCount = DrawPowerOfTwo("Динамика · выборок на пиксель",
+                _draft.DynamicAngularSampleCount, _SampleLabels, 1),
+            DynamicEmitterPointsPerAxis = 1 + DrawEmitterIndex(),
+            DynamicPolarDirectionCount = DrawPowerOfTwo("Динамика · углов веера на точку",
+                _draft.DynamicPolarDirectionCount, _PolarLabels, 4),
+        };
+        GUILayout.Label("Цена веера растёт с числом углов и квадратом числа точек по оси. " +
+            "Длина луча и частота обновления сохраняются.", MutedLabelStyle);
+
+        using (ToolLayout.Horizontal())
+        {
+            if (GUILayout.Button("Применить") && _draft != LightingQualityTuningController.Current)
+            {
+                if (_lighting!.TryApplyQualityTuning(_draft, out string rejection))
+                {
+                    _draftRevision = LightingQualityTuningController.Revision;
+                    _applyMessage = "Применено. Свет пересчитается в следующем мировом кадре.";
+                    _nextUpdate = 0f;
+                }
+                else
+                {
+                    _applyMessage = rejection;
+                }
+            }
+            if (GUILayout.Button("Загрузить текущие"))
+            {
+                _draft = LightingQualityTuningController.Current;
+                _applyMessage = string.Empty;
+            }
+        }
+        if (GUILayout.Button("Копировать в VisualTuning"))
+        {
+            GUIUtility.systemCopyBuffer =
+                "public static readonly LightingQualityTuning DefaultQuality = new(\n" +
+                $"    FieldPixelsPerCell: {_draft.FieldPixelsPerCell},\n" +
+                $"    LightPixelsPerCell: {_draft.LightPixelsPerCell},\n" +
+                $"    CascadeProbePixelsPerCell: {_draft.CascadeProbePixelsPerCell},\n" +
+                $"    MaximumStaticCascadeDirections: {_draft.MaximumStaticCascadeDirections},\n" +
+                $"    DynamicNearCells: {_draft.DynamicNearCells.ToString("0.0###", CultureInfo.InvariantCulture)}f,\n" +
+                $"    DynamicAngularSampleCount: {_draft.DynamicAngularSampleCount},\n" +
+                $"    DynamicEmitterPointsPerAxis: {_draft.DynamicEmitterPointsPerAxis},\n" +
+                $"    DynamicPolarDirectionCount: {_draft.DynamicPolarDirectionCount});";
+            _applyMessage = "Блок скопирован. Вставь вместо DefaultQuality в VisualTuning.cs для сохранения.";
+        }
+        if (_applyMessage.Length > 0)
+        {
+            GUILayout.Label(_applyMessage, MutedLabelStyle);
+        }
+    }
+
+    private int DrawEmitterIndex()
+    {
+        GUILayout.Label("Динамика · точки источника", WrappedLabelStyle);
+        return GUILayout.SelectionGrid(_draft.DynamicEmitterPointsPerAxis - 1,
+            _EmitterLabels, 4, ToolTheme.SegmentedButton);
+    }
+
+    private static int DrawPowerOfTwo(string label, int value, string[] labels, int first)
+    {
+        GUILayout.Label(label, ToolTheme.WrappedLabel);
+        int index = -1;
+        for (int candidate = 0; candidate < labels.Length; candidate++)
+        {
+            if ((first << candidate) == value)
+            {
+                index = candidate;
+                break;
+            }
+        }
+        int selected = GUILayout.SelectionGrid(index, labels, 3, ToolTheme.SegmentedButton);
+        return selected < 0 ? value : first << selected;
     }
 
     private void DrawCascadeRows()

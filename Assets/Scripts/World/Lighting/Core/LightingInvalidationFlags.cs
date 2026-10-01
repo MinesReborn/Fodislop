@@ -16,5 +16,6 @@ public enum LightingInvalidationFlags
     StaticRadianceChanged = 1 << 5,
     DynamicRadianceChanged = 1 << 6,
     CompositeDirty = 1 << 8,
+    ReceiverCoverageChanged = 1 << 9,
     All = ~0,
 }

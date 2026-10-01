@@ -17,6 +17,8 @@
     <Compile Include="FreezeReport.cs" />
     <Compile Include="NativeHarness.cs" />
     <Compile Include="LightingShim.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\Assets\Scripts\World\Lighting\Quality\Contracts\LightingQualityTuning.cs" Link="Game\LightingQualityTuning.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\Assets\Scripts\World\Lighting\Quality\LightingQualityTuningController.cs" Link="Game\LightingQualityTuningController.cs" />
     <Compile Include="ProbeRectTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)..\..\Assets\Scripts\World\Lighting\Cascades\LightingCascadeLayout.cs" Link="Game\LightingCascadeLayout.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)..\..\Assets\Scripts\World\Lighting\Cascades\CascadeLayoutBuilder.cs" Link="Game\CascadeLayoutBuilder.cs" />

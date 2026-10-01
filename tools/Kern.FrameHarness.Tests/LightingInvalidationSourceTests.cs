@@ -63,6 +63,16 @@ public sealed class LightingInvalidationSourceTests
             .GetField("LastPartial")!.GetValue(null), Is.Not.Null);
     }
 
+    [TestCase("outside-journal", 0)]
+    [TestCase("padding-journal", 1)]
+    [TestCase("unjournaled", 1)]
+    public void SpatialJournalScopesTerrainRebuildWithoutIgnoringUnknownRevisions(string scenario, int rebuilds)
+    {
+        int[] result = Run(_production, scenario);
+        Assert.That(result[0], Is.EqualTo(rebuilds));
+        Assert.That(result[2], Is.EqualTo(rebuilds));
+    }
+
     [Test]
     public void RemovalAfterFullRefreshRetainsThePreviousDynamicRegion()
     {
@@ -95,7 +105,7 @@ public sealed class LightingInvalidationSourceTests
         string[] productionFiles =
         [
             "Dynamic/DynamicLightManager.cs", "Core/LightingRuntimeState.cs", "Core/LightingUpdateCoordinator.cs",
-            "Core/LightingFrameTypes.cs", "Core/LightingInvalidationFlags.cs", "Quality/Contracts/LightingQualityMode.cs",
+            "Core/LightingFrameTypes.cs", "Core/LightingInvalidationFlags.cs", "Core/LightingRuntimeInvalidation.cs", "Quality/Contracts/LightingQualityMode.cs",
         ];
         var trees = productionFiles.Select(file => CSharpSyntaxTree.ParseText(
             File.ReadAllText(Path.Combine(lighting, file)), path: file)).ToList();
@@ -162,9 +172,14 @@ public sealed class LightingInvalidationSourceTests
         }
         namespace UnityEngine.Rendering
         {
+            public readonly struct AsyncGPUReadbackRequest { }
             public sealed class CommandBuffer
             {
                 public int sizeInBytes => 0;
+                public void SetComputeBufferParam(object shader, int kernel, string name, ComputeBuffer buffer) { }
+                public void CopyTexture(RenderTexture source, RenderTexture destination) { }
+                public void RequestAsyncReadback(RenderTexture source, Action<AsyncGPUReadbackRequest> callback) =>
+                    throw new InvalidOperationException("GPU readback is outside this CPU decision fixture.");
                 public void Clear() { }
                 public void BeginSample(string s) { }
                 public void EndSample(string s) { }
@@ -199,20 +214,26 @@ public sealed class LightingInvalidationSourceTests
             [Flags] public enum LightingFeatureFlags { StaticRC = 1, DynamicLights = 2 }
             public static class LightingConfigHolder
             { public static float EmissionScale => 1; public static LightingFeatureFlags EnabledFeatures => LightingFeatureFlags.StaticRC | LightingFeatureFlags.DynamicLights; }
+            public static class LightingQualityTuningController { public const int FieldPixelsPerCell = 32; }
             public static class LightingComputeBinder
             {
                 public const float InvisibleDynamicRadiance = 0.001f; public static float ResolveMinimumExtinction() => 1;
-                public static void BindSharedParameters(CommandBuffer c, object shader, int width, int height, Vector4 rect,
+                public static void BindSharedParameters(CommandBuffer c, object shader, int width, int height,
+                    int lightWidth, int lightHeight, Vector4 rect,
                     float cell, LightingEngine.DebugView view, RenderTexture material, RenderTexture emission,
                     int solve, int resolve, int composite, int gridWidth, int gridHeight) { }
             }
             internal sealed class LightingResourceManager
             {
                 public CommandBuffer LightingCommandBuffer = new();
+                public void EnsureReanchorFields() { } public void EnsureReanchorChangeBinding() { }
+                public ComputeBuffer ReanchorChanges = new();
+                public RenderTexture ReanchorMaterial = new();
+                public RenderTexture ReanchorEmission = new();
                 public RenderTexture StaticEmissionField = new(); public RenderTexture StaticDirectTexture = new();
                 public ComputeBuffer DynamicLightBuffer = new(); public RenderTexture DirectTexture = new();
                 public object LightingCompute => new(); public RenderTexture MaterialField => new();
-                public int FieldWidth => 64; public int FieldHeight => 64; public int CellGridWidth => 64; public int CellGridHeight => 64;
+                public int FieldWidth => 64; public int FieldHeight => 64; public int LightWidth => 64; public int LightHeight => 64; public int CellGridWidth => 64; public int CellGridHeight => 64;
                 public int SolveCascadeKernel => 0; public int ResolveDirectKernel => 1; public int CompositeLightingKernel => 2;
                 public long EstimatedCascadeRayWorkUnits => 0; public long EstimatedCascadeDispatchThreads => 0;
             }
@@ -247,7 +268,13 @@ public sealed class LightingInvalidationSourceTests
             {
                 public void Release() { } public void InvalidateTiles() { }
                 public void Record(CommandBuffer c, int count, Vector4 rect, float cell, bool rebuild,
-                    LightingEngine.DebugView v, IFrameTelemetry t, out RectInt dirty) => dirty = new(4,4,8,8);
+                    LightingEngine.DebugView v, IFrameTelemetry t, out RectInt dirty, RectInt receiverRect) => dirty = new(4,4,8,8);
+            }
+            internal static class LightingReceiverCoverage
+            {
+                // This fixture exercises invalidation decisions with fixed coverage;
+                // production GPU tests supply actual camera/world-grid coverage.
+                public static RectInt GetRect(Camera camera, Vector4 rect, int width, int height, float cellSize) => new(0,0,width,height);
             }
             internal sealed class IndirectLightingSolver
             {
@@ -289,16 +316,18 @@ public sealed class LightingInvalidationSourceTests
         public static class DecisionProbe
         {
             private sealed class Geometry : Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor
-            { public ulong LightingGeometryRevision => 1; }
+            { public ulong LightingGeometryRevision { get; set; } = 1; }
             public static int[] Run(string scenario)
             {
                 var lights = new DynamicLightManager(); lights.EnsureCapacity(1);
                 var state = new LightingRuntimeState { FieldDirty = false, CompositeDirty = false, HasRenderedLightState = true,
+                    LastDynamicReceiverRect = new(0,0,64,64),
                     HasStaticRadianceState = true, LastVisibleRegion = new(0,0,64,64), LastTerrainGeometryRevision = 1, LastContributorGeometryRevision = 1 };
                 var engine = new LightingEngine(lights, state);
                 var executor = new LightingFrameExecutor(lights);
+                var geometry = new Geometry();
                 var coordinator = new LightingUpdateCoordinator(new(), state, new(), executor, new(), new(), lights, new FrameTelemetry(), new());
-                void Tick() => coordinator.Update(0,0,64,64,new Camera(),new Geometry(),new(), LightingQualityMode.PerPixel, LightingEngine.DebugView.FinalLighting,false,false);
+                void Tick() => coordinator.Update(0,0,10,10,new Camera(),geometry,new(), LightingQualityMode.PerPixel, LightingEngine.DebugView.FinalLighting,false,false);
                 void Set(int id, float x) => engine.SetDynamicLight(id, new Vector2(x,4),new Color(1,1,1),1);
                 if (scenario is "stable" or "move" or "leave" or "capacity" or "remove" or "zero" or "color" or "intensity" or "refresh-move" or "refresh-remove" or "remove-after-refresh") { Set(1,4); Tick(); }
                 else if (scenario is "enter" or "remove-culled") { Set(1,10000); Tick(); }
@@ -320,6 +349,10 @@ public sealed class LightingInvalidationSourceTests
                     case "refresh-move": state.CompositeDirty = true; Set(1,4.125f); break;
                     case "refresh-remove": state.CompositeDirty = true; lights.RemoveDynamicLight(1); break;
                     case "remove-after-refresh": state.CompositeDirty = true; Set(1,4.125f); Tick(); lights.RemoveDynamicLight(1); break;
+                    case "outside-journal": geometry.LightingGeometryRevision = 2; state.StagedTerrainGeometryRevision = 2; break;
+                    case "padding-journal": geometry.LightingGeometryRevision = 2; state.StagedTerrainGeometryRevision = 2;
+                        state.QueueRegionInvalidation(new RectInt(50,30,1,1)); break;
+                    case "unjournaled": geometry.LightingGeometryRevision = 2; break;
                     default: throw new ArgumentOutOfRangeException(nameof(scenario));
                 }
                 Tick();

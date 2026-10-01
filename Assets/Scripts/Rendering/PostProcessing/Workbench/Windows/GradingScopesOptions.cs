@@ -20,6 +20,9 @@ internal static class GradingScopesOptions
         new("luma", (int)PostProcessDebugView.LumaOnly),
         new("sat", (int)PostProcessDebugView.SaturationOnly),
         new("RGB", (int)PostProcessDebugView.RgbParade),
+        new("виньетка", (int)PostProcessDebugView.Vignette),
+        new("FilmGrain", (int)PostProcessDebugView.FilmGrain),
+        new("bloom", (int)PostProcessDebugView.Bloom),
     ];
 
     internal static readonly Option[] CompareOptions =

@@ -8,11 +8,35 @@
 // MAY: вызывать DDA (TraceRadianceSegment)
 // MUST NOT: писать финальный свет, трогать DynamicLight buffers
 
+uint ReanchorPrefix(int2 position)
+{
+    return any(position < 0) ? 0u :
+        _ReanchorChanges[position.y * _FieldSize.x + position.x];
+}
+
 bool DirtySegmentOverlap(float2 start, float2 end)
 {
     float2 segmentMin = min(start, end);
     float2 segmentMax = max(start, end);
     bool overlap = false;
+    if (_CascadeReanchorEnabled != 0)
+    {
+        // Both exposed and discarded sides change the finite transport domain.
+        // Include a cell of raster/cache support, not only the mathematical ray.
+        float2 guard = float2(_FieldSize) / float2(_CellGridSize) + 2.0;
+        int2 first = clamp(int2(floor(segmentMin - guard)), int2(0, 0), _FieldSize - 1);
+        int2 last = clamp(int2(ceil(segmentMax + guard)), int2(0, 0), _FieldSize - 1);
+        uint changedInputs = ReanchorPrefix(last) + ReanchorPrefix(first - 1) -
+            ReanchorPrefix(int2(first.x - 1, last.y)) -
+            ReanchorPrefix(int2(last.x, first.y - 1));
+        overlap = changedInputs != 0u;
+        float2 overlapMin = max(0.0, -float2(_ReanchorDeltaTexels)) + guard;
+        float2 overlapMax = min(float2(_FieldSize), float2(_FieldSize - _ReanchorDeltaTexels)) - guard;
+        overlap = overlap || (_ReanchorDeltaTexels.x != 0 &&
+            (segmentMin.x <= overlapMin.x || segmentMax.x >= overlapMax.x)) ||
+            (_ReanchorDeltaTexels.y != 0 &&
+            (segmentMin.y <= overlapMin.y || segmentMax.y >= overlapMax.y));
+    }
     [loop]
     for (int dirtyIndex = 0;
         dirtyIndex < _DirtyRegionCount && !overlap;
@@ -52,10 +76,10 @@ bool CascadeEntryMayChange(int2 probe, uint directionIndex)
     float2 intervalEnd = origin + rayDirection * _CascadeInterval.y;
 
     // Single exit: Metal treats early returns as possibly-uninitialized.
-    bool changed = false;
+    bool changed = _CascadeReanchorEnabled != 0 && _CascadePhaseMatches == 0;
     if (_HasFarCascade == 0 || _EnableBilinearFix == 0)
     {
-        changed = DirtySegmentOverlap(intervalStart, intervalEnd);
+        changed = changed || DirtySegmentOverlap(intervalStart, intervalEnd);
     }
 
     if (!changed && _HasFarCascade != 0)
@@ -90,6 +114,16 @@ bool CascadeEntryMayChange(int2 probe, uint directionIndex)
                         _FarCascadeDirectionCount + (int)farDirection;
 
                     bool overlap = false;
+                    if (_CascadeReanchorEnabled != 0)
+                    {
+                        int2 delta = _ReanchorFarDeltaProbes;
+                        int2 oldClamped = clamp(farProbeBase + int2(farX, farY) + delta,
+                            int2(0, 0), _FarCascadeProbeSize - 1);
+                        // Clamping before and after translation can choose different
+                        // world probes even when their stored intervals did not change.
+                        overlap = _ReanchorFarPhaseMatches == 0 ||
+                            any(oldClamped != farProbe + delta);
+                    }
                     if (_EnableBilinearFix != 0)
                     {
                         float farAngle = (float(farDirection) + 0.5) * PI2 /
@@ -101,7 +135,7 @@ bool CascadeEntryMayChange(int2 probe, uint directionIndex)
                             (float2(farProbe) + 0.5) * _FarCascadeProbeSpacing;
                         float2 childIntervalStart = farOrigin +
                             float2(farCosine, farSine) * _FarCascadeInterval.x;
-                        overlap = DirtySegmentOverlap(intervalStart, childIntervalStart);
+                        overlap = overlap || DirtySegmentOverlap(intervalStart, childIntervalStart);
                     }
 
                     if (_CascadeChangedMask[farIndex] != 0 || overlap)
@@ -134,7 +168,8 @@ void SolveCascade(uint3 dispatchId : SV_DispatchThreadID)
     int atlasIndex = _CascadeOffset +
         (probe.y * _CascadeProbeSize.x + probe.x) * _CascadeDirectionCount +
         (int)directionIndex;
-    if (_CascadeMaskEnabled != 0 &&
+    bool newlyAddressed = _CascadeReanchorEnabled != 0 && _CascadeChangedMask[atlasIndex] != 0;
+    if (_CascadeMaskEnabled != 0 && !newlyAddressed &&
         !CascadeEntryMayChange(probe, directionIndex))
     {
         _CascadeChangedMask[atlasIndex] = 0;
@@ -158,10 +193,10 @@ void SolveCascade(uint3 dispatchId : SV_DispatchThreadID)
     // Otherwise a far probe across a wall contributes without crossing it.
     if (_HasFarCascade == 0 || _EnableBilinearFix == 0)
     {
-        TraceRadianceSegment(
-            intervalStart,
-            intervalEnd,
-            true,
+        TraceRadianceProbeSegment(
+            origin,
+            rayDirection * _CascadeInterval.x,
+            rayDirection * _CascadeInterval.y,
             radiance,
             transmittance);
     }
@@ -297,10 +332,10 @@ void SolveCascade(uint3 dispatchId : SV_DispatchThreadID)
                         farDirectionVector * _FarCascadeInterval.x;
                     float3 childNearRadiance;
                     float3 childNearTransmittance;
-                    TraceRadianceSegment(
-                        intervalStart,
-                        childIntervalStart,
-                        true,
+                    TraceRadianceProbeSegment(
+                        origin,
+                        rayDirection * _CascadeInterval.x,
+                        (farOrigin - origin) + farDirectionVector * _FarCascadeInterval.x,
                         childNearRadiance,
                         childNearTransmittance);
                     fixedRadiance += (childNearRadiance +
@@ -323,7 +358,7 @@ void SolveCascade(uint3 dispatchId : SV_DispatchThreadID)
     if (_CascadeMaskEnabled != 0)
     {
         _CascadeChangedMask[atlasIndex] =
-            any(previousPackedInterval != packedInterval) ? 1u : 0u;
+            (newlyAddressed || any(previousPackedInterval != packedInterval)) ? 1u : 0u;
     }
 }
 
@@ -343,10 +378,15 @@ void ScrollRadianceAtlas(uint3 dispatchId : SV_DispatchThreadID)
         probeIndex / (uint)_ScrollProbeSize.x);
     int2 oldProbe = newProbe + _ScrollDeltaProbes;
     int outputIndex = _ScrollCascadeOffset + (int)localIndex;
-    if (any(oldProbe < int2(0, 0)) ||
+    bool phaseMatches = _CascadeReanchorEnabled == 0 || _CascadePhaseMatches != 0;
+    if (!phaseMatches || any(oldProbe < int2(0, 0)) ||
         any(oldProbe >= _ScrollProbeSize))
     {
         _RadianceAtlasOutput[outputIndex] = uint3(0, 0, 0);
+        if (_CascadeReanchorEnabled != 0)
+        {
+            _CascadeChangedMask[outputIndex] = 1u;
+        }
         return;
     }
 
@@ -354,6 +394,10 @@ void ScrollRadianceAtlas(uint3 dispatchId : SV_DispatchThreadID)
         (oldProbe.y * _ScrollProbeSize.x + oldProbe.x) * _ScrollDirectionCount +
         (int)directionIndex;
     _RadianceAtlasOutput[outputIndex] = _RadianceAtlasInput[inputIndex];
+    if (_CascadeReanchorEnabled != 0)
+    {
+        _CascadeChangedMask[outputIndex] = 0u;
+    }
 }
 
 // Debug-only transport pass. Keeping this kernel beside CascadeTrace makes the
@@ -362,13 +406,13 @@ void ScrollRadianceAtlas(uint3 dispatchId : SV_DispatchThreadID)
 [numthreads(8, 8, 1)]
 void ResolveTransmissionDebug(uint3 dispatchId : SV_DispatchThreadID)
 {
-    if (any(dispatchId.xy >= (uint2)_FieldSize))
+    if (any(dispatchId.xy >= (uint2)_LightSize))
     {
         return;
     }
 
     int2 pixel = int2(dispatchId.xy);
-    float2 origin = float2(pixel) + 0.5;
+    float2 origin = LightPxCenterToFieldPx(pixel);
     float2 regionCellCount = _WorldRect.zw / _CellSize;
     float3 localTransmission = 0.0;
 

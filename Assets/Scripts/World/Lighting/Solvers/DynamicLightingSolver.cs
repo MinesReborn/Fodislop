@@ -9,8 +9,6 @@ namespace Kern.World.Lighting;
 
 internal sealed class DynamicLightingSolver
 {
-    private static readonly uint[] _ZeroReach = [0u];
-
     private readonly LightingResourceManager _resources;
     private readonly DynamicLightManager _lightManager;
     private readonly DynamicLightTileCache _tileCache;
@@ -39,6 +37,7 @@ internal sealed class DynamicLightingSolver
     public void Release()
     {
         _tileCache.Release();
+        _previousLightCount = 0;
     }
 
     public void Record(
@@ -49,9 +48,9 @@ internal sealed class DynamicLightingSolver
         bool invalidateDynamicTiles,
         LightingEngine.DebugView debugView,
         IFrameTelemetry telemetry,
-        out RectInt dynamicDirtyUnion)
+        out RectInt dynamicDirtyUnion,
+        RectInt receiverRect)
     {
-        commandBuffer.BeginSample("Kern.Lighting.DynamicRadiance");
         using var dynamicSample = new CommandBufferSampleScope(commandBuffer, "Kern.Lighting.DynamicRadiance");
         long dynamicStart = System.Diagnostics.Stopwatch.GetTimestamp();
 
@@ -89,8 +88,12 @@ internal sealed class DynamicLightingSolver
         long polarRayWorkUnits = 0;
 
         float minimumExtinction = LightingComputeBinder.ResolveMinimumExtinction();
-        float texelsPerWorldX = _resources.FieldWidth / worldRect.z;
-        float texelsPerWorldY = _resources.FieldHeight / worldRect.w;
+        // Receiver rectangles, tiles and the compose union are light-lattice
+        // texels. Polar fans march the transport field, so their lengths are
+        // field texels: one light texel spans fieldPerLight field texels.
+        float texelsPerWorldX = _resources.LightWidth / worldRect.z;
+        float texelsPerWorldY = _resources.LightHeight / worldRect.w;
+        float fieldPerLight = (float)_resources.FieldWidth / _resources.LightWidth;
         int widestRect = 1;
         int tallestRect = 1;
         int composeMinX = int.MaxValue;
@@ -109,8 +112,8 @@ internal sealed class DynamicLightingSolver
             {
                 int minX = 0;
                 int minY = 0;
-                int maxX = _resources.FieldWidth;
-                int maxY = _resources.FieldHeight;
+                int maxX = _resources.LightWidth;
+                int maxY = _resources.LightHeight;
                 if (minimumExtinction > 0f)
                 {
                     float reachCells = Mathf.Max(
@@ -121,23 +124,15 @@ internal sealed class DynamicLightingSolver
                     // One texel of margin against rounding of the rectangle edge.
                     minX = Mathf.Max(0, Mathf.FloorToInt((light.PositionRadius.x - halfExtent - worldRect.x) * texelsPerWorldX) - 1);
                     minY = Mathf.Max(0, Mathf.FloorToInt((light.PositionRadius.y - halfExtent - worldRect.y) * texelsPerWorldY) - 1);
-                    maxX = Mathf.Min(_resources.FieldWidth, Mathf.CeilToInt((light.PositionRadius.x + halfExtent - worldRect.x) * texelsPerWorldX) + 1);
-                    maxY = Mathf.Min(_resources.FieldHeight, Mathf.CeilToInt((light.PositionRadius.y + halfExtent - worldRect.y) * texelsPerWorldY) + 1);
+                    maxX = Mathf.Min(_resources.LightWidth, Mathf.CeilToInt((light.PositionRadius.x + halfExtent - worldRect.x) * texelsPerWorldX) + 1);
+                    maxY = Mathf.Min(_resources.LightHeight, Mathf.CeilToInt((light.PositionRadius.y + halfExtent - worldRect.y) * texelsPerWorldY) + 1);
                 }
 
                 if (maxX > minX && maxY > minY)
                 {
                     rect = new RectInt(minX, minY, maxX - minX, maxY - minY);
-                    widestRect = Mathf.Max(widestRect, rect.width);
-                    tallestRect = Mathf.Max(tallestRect, rect.height);
-                    composeMinX = Mathf.Min(composeMinX, rect.xMin);
-                    composeMinY = Mathf.Min(composeMinY, rect.yMin);
-                    composeMaxX = Mathf.Max(composeMaxX, rect.xMax);
-                    composeMaxY = Mathf.Max(composeMaxY, rect.yMax);
                 }
             }
-
-            _lightRects[lightIndex] = rect;
 
             // Dynamic-centred rays long enough to reach every corner of the
             // rectangle. Angular density is bounded by the complete polar
@@ -158,21 +153,43 @@ internal sealed class DynamicLightingSolver
             }
 
             // Fans start at emitter points anywhere in the dynamic light cell.
-            int rayLength = Mathf.CeilToInt(farthest + (texelsPerWorldX + texelsPerWorldY) * cellSize) + 2;
+            int rayLength = Mathf.CeilToInt(
+                (farthest + (texelsPerWorldX + texelsPerWorldY) * cellSize) * fieldPerLight) + 2;
             int requestedRayFan = Mathf.Max(
                 1,
                 Mathf.CeilToInt(2f * Mathf.PI * rayLength));
             _lightRequestedRayFans[lightIndex] = requestedRayFan;
             _lightRaySizes[lightIndex] = new Vector2Int(1, rayLength);
+            int receiverMinX = Mathf.Max(rect.xMin, receiverRect.xMin);
+            int receiverMinY = Mathf.Max(rect.yMin, receiverRect.yMin);
+            int receiverMaxX = Mathf.Min(rect.xMax, receiverRect.xMax);
+            int receiverMaxY = Mathf.Min(rect.yMax, receiverRect.yMax);
+            RectInt applied = new(receiverMinX, receiverMinY,
+                Mathf.Max(0, receiverMaxX - receiverMinX), Mathf.Max(0, receiverMaxY - receiverMinY));
+            _lightRects[lightIndex] = applied;
+            if (applied.width > 0 && applied.height > 0)
+            {
+                widestRect = Mathf.Max(widestRect, applied.width);
+                tallestRect = Mathf.Max(tallestRect, applied.height);
+                composeMinX = Mathf.Min(composeMinX, applied.xMin);
+                composeMinY = Mathf.Min(composeMinY, applied.yMin);
+                composeMaxX = Mathf.Max(composeMaxX, applied.xMax);
+                composeMaxY = Mathf.Max(composeMaxY, applied.yMax);
+            }
         }
 
-        _tileCache.EnsureLayout(widestRect, tallestRect, count);
+        int longestRequestedRay = DynamicPolarWorkBudget.RequiredRayLength(count, _lightRaySizes);
+        _tileCache.EnsureLayout(widestRect, tallestRect, count,
+            LightingQualityTuningController.DynamicPolarDirectionCount, longestRequestedRay);
         if (invalidateDynamicTiles)
         {
             _tileCache.InvalidateAll();
         }
 
         _tileCache.AssignSlots(lightIDs.Slice(0, count));
+        // Resize before evaluating cache validity: replacing this array loses
+        // every layer's optical depth, including unchanged source slots.
+        _tileCache.EnsurePolar(LightingQualityTuningController.DynamicPolarDirectionCount, longestRequestedRay);
         MarkLightsNeedingTrace(count, lights, lightIDs);
 
         int widestRayFan = DynamicPolarWorkBudget.AllocateRayFans(
@@ -188,8 +205,8 @@ internal sealed class DynamicLightingSolver
             // current light bounds cover the field. Clearing it first only
             // adds a full-field write on the most expensive rebuild frames.
             bool currentCoversField = composeMinX <= 0 && composeMinY <= 0 &&
-                composeMaxX >= _resources.FieldWidth &&
-                composeMaxY >= _resources.FieldHeight;
+                composeMaxX >= _resources.LightWidth &&
+                composeMaxY >= _resources.LightHeight;
             if (!currentCoversField)
             {
                 ClearDynamicDirect(commandBuffer);
@@ -238,7 +255,7 @@ internal sealed class DynamicLightingSolver
             dynamicDirtyUnion = clearRect;
         }
 
-        _tileCache.EnsurePolar(widestRayFan, longestRay * LightingComputeBinder.DynamicEmitterPointCount);
+        _tileCache.EnsurePolar(widestRayFan, longestRay);
 
         ComputeShader compute = _resources.LightingCompute!;
         RenderTexture tiles = _tileCache.Tiles!;
@@ -248,11 +265,9 @@ internal sealed class DynamicLightingSolver
             LightingComputeBinder.DynamicPolarTextureSizeID,
             polarRays.width,
             polarRays.height);
-        ComputeBuffer reachBuffer = _resources.DynamicReachBuffer!;
         int traceKernel = _resources.SolveDynamicLightingKernel;
         BindFieldTextures(commandBuffer, traceKernel, _resources.StaticEmissionField!);
         commandBuffer.SetComputeBufferParam(compute, traceKernel, LightingComputeBinder.DynamicLightsID, _resources.DynamicLightBuffer!);
-        commandBuffer.SetComputeBufferParam(compute, traceKernel, LightingComputeBinder.DynamicReachID, reachBuffer);
         commandBuffer.SetComputeTextureParam(compute, traceKernel, LightingComputeBinder.DynamicTilesID, tiles);
         commandBuffer.SetComputeTextureParam(compute, traceKernel, LightingComputeBinder.DynamicPolarInputID, polarRays);
         commandBuffer.SetComputeTextureParam(
@@ -269,21 +284,19 @@ internal sealed class DynamicLightingSolver
         BindFieldTextures(commandBuffer, rayKernel, _resources.StaticEmissionField!);
         commandBuffer.SetComputeTextureParam(compute, rayKernel, LightingComputeBinder.DynamicPolarID, polarRays);
         commandBuffer.SetComputeBufferParam(compute, rayKernel, LightingComputeBinder.DynamicLightsID, _resources.DynamicLightBuffer!);
-        commandBuffer.SetComputeBufferParam(compute, rayKernel, LightingComputeBinder.DynamicReachID, reachBuffer);
         commandBuffer.SetComputeTextureParam(
             compute,
             rayKernel,
             LightingComputeBinder.CellSolidMaskID,
             _resources.CellSolidMask!);
 
-        bool singleLightDirectWritten = false;
         for (int lightIndex = 0; lightIndex < count; lightIndex++)
         {
             DynamicLightGpuData light = lights[lightIndex];
             RectInt rect = _lightRects[lightIndex];
             int slot = _tileCache.SlotOf(lightIDs[lightIndex]);
-            Vector2Int tileOffset = _tileCache.TileOffset(slot);
-            _lightTileInfos[lightIndex] = new DynamicLightTileCache.TileInfo(rect, tileOffset);
+            Vector2Int tileOffset = Vector2Int.zero;
+            _lightTileInfos[lightIndex] = new DynamicLightTileCache.TileInfo(rect, tileOffset, slot);
             if (rect.width <= 0 ||
                 !_tileCache.NeedsTrace(slot, light.PositionRadius, light.ColorIntensity, rect))
             {
@@ -292,47 +305,59 @@ internal sealed class DynamicLightingSolver
 
             Vector2Int raySize = _lightRaySizes[lightIndex];
             dynamicDispatchPixels += (long)rect.width * rect.height;
-            polarRayWorkUnits += (long)raySize.x *
-                LightingComputeBinder.DynamicEmitterPointCount * raySize.y;
+            bool tracePolar = _tileCache.NeedsPolarTrace(slot, light.PositionRadius, light.ColorIntensity);
+            if (!tracePolar)
+            {
+                raySize = _tileCache.PolarSize(slot);
+            }
             bool writeDynamicDirect = count == 1;
             commandBuffer.SetComputeIntParam(
                 compute,
                 LightingComputeBinder.WriteDynamicDirectID,
                 writeDynamicDirect ? 1 : 0);
-            singleLightDirectWritten |= writeDynamicDirect;
             commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.DynamicPolarSizeID, raySize.x, raySize.y);
             commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicLightIndexID, lightIndex);
+            commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicPolarLayerOffsetID,
+                slot * LightingComputeBinder.DynamicEmitterPointCount);
 
-            // Дальность копится максимумом по всем веерам этого фонаря и
-            // читается сбором ниже: перед первым веером — ноль.
-            commandBuffer.SetBufferData(reachBuffer, _ZeroReach, 0, lightIndex, 1);
-            commandBuffer.DispatchCompute(
-                compute,
-                rayKernel,
-                Mathf.CeilToInt(raySize.x / 64f),
-                LightingComputeBinder.DynamicEmitterPointCount,
-                1);
+            if (tracePolar)
+            {
+                // Slot identity owns cached optical depth. An upload may
+                // reorder light indices without invalidating it.
+                commandBuffer.BeginSample("Kern.Lighting.DynamicPolar");
+                commandBuffer.DispatchCompute(compute, rayKernel,
+                    Mathf.CeilToInt(raySize.x / 64f), LightingComputeBinder.DynamicEmitterPointCount, 1);
+                commandBuffer.EndSample("Kern.Lighting.DynamicPolar");
+                _tileCache.MarkPolarTraced(slot, raySize);
+                polarRayWorkUnits += (long)raySize.x * LightingComputeBinder.DynamicEmitterPointCount * raySize.y;
+            }
+            commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicReachIndexID, slot);
 
             commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.DynamicDispatchOriginID, rect.x, rect.y);
             commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.DynamicDispatchSizeID, rect.width, rect.height);
             commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.DynamicTileOffsetID, tileOffset.x, tileOffset.y);
             commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicLightIndexID, lightIndex);
+            commandBuffer.BeginSample("Kern.Lighting.DynamicReceiverTrace");
             commandBuffer.DispatchCompute(
                 compute,
                 traceKernel,
                 LightingComputeBinder.DispatchGroups(rect.width),
                 LightingComputeBinder.DispatchGroups(rect.height),
                 1);
+            commandBuffer.EndSample("Kern.Lighting.DynamicReceiverTrace");
             _tileCache.MarkTraced(slot, light.PositionRadius, light.ColorIntensity, rect);
             telemetry.LightingDynamicTraceCount++;
         }
 
-        if (!singleLightDirectWritten && composeMaxX > composeMinX && composeMaxY > composeMinY)
+        // With one unchanged light, DirectTexture is already its retained
+        // result. Only multiple-light layouts have radiance tiles to compose.
+        if (count > 1 && composeMaxX > composeMinX && composeMaxY > composeMinY)
         {
             int composeKernel = _resources.ComposeDynamicLightingKernel;
             ComputeBuffer tileInfos = _tileCache.TileInfos!;
             commandBuffer.SetBufferData(tileInfos, _lightTileInfos, 0, 0, count);
             commandBuffer.SetComputeBufferParam(compute, composeKernel, LightingComputeBinder.DynamicTileInfosID, tileInfos);
+            commandBuffer.SetComputeBufferParam(compute, composeKernel, LightingComputeBinder.DynamicLightsID, _resources.DynamicLightBuffer!);
             commandBuffer.SetComputeTextureParam(compute, composeKernel, LightingComputeBinder.DynamicTilesInputID, tiles);
             commandBuffer.SetComputeTextureParam(compute, composeKernel, LightingComputeBinder.DirectTextureID, _resources.DirectTexture!);
             commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicTileCountID, count);
@@ -341,12 +366,14 @@ internal sealed class DynamicLightingSolver
             telemetry.LightingDynamicComposePixels += (long)composeWidth * composeHeight;
             commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.ComposeOriginID, composeMinX, composeMinY);
             commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.ComposeSizeID, composeWidth, composeHeight);
+            commandBuffer.BeginSample("Kern.Lighting.DynamicCompose");
             commandBuffer.DispatchCompute(
                 compute,
                 composeKernel,
                 LightingComputeBinder.DispatchGroups(composeWidth),
                 LightingComputeBinder.DispatchGroups(composeHeight),
                 1);
+            commandBuffer.EndSample("Kern.Lighting.DynamicCompose");
         }
 
         telemetry.LightingDynamicDispatchPixels += dynamicDispatchPixels;
@@ -445,7 +472,8 @@ internal sealed class DynamicLightingSolver
                 slot,
                 lights[lightIndex].PositionRadius,
                 lights[lightIndex].ColorIntensity,
-                _lightRects[lightIndex]);
+                _lightRects[lightIndex]) && _tileCache.NeedsPolarTrace(
+                    slot, lights[lightIndex].PositionRadius, lights[lightIndex].ColorIntensity);
         }
     }
 

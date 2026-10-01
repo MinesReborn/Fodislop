@@ -1,10 +1,12 @@
 #nullable enable
 
 using System.Collections.Generic;
+using Kern.Core;
 using Kern.World.Terrain;
 using Kern.World.Terrain.Background;
 using MinesServer.Data;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace Kern.Tests.World;
 
@@ -21,6 +23,44 @@ public sealed class TerrainCellBuilderDeterminismTests
     private const int Height = 32;
     private const int OriginX = 96;
     private const int OriginY = 64;
+
+    [TestCase(TerrainDistortionStyle.Classic)]
+    [TestCase(TerrainDistortionStyle.Organic)]
+    public void RoadSurfaceDoesNotInheritNeighborDistortion(TerrainDistortionStyle style)
+    {
+        var world = new TerrainTestWorld();
+        var cache = new TerrainCellCache();
+        var precalc = new TerrainPrecalculator { DistortionStyle = style };
+        TerrainCellSources sources = world.BuildSources(cache, precalc, new BackgroundFloodFill(),
+            OriginX, OriginY, Width, Height);
+        var quad = new TerrainVertex[4];
+        int adjacentRoads = 0;
+        for (int y = 0; y < Height; y++)
+        {
+            for (int x = 0; x < Width; x++)
+            {
+                if (cache.GetCellData(x + 1, y + 1).Type != CellType.Road) { continue; }
+                bool movedNeighbor = precalc.GridVertexOffsets[x, y] != TerrainVertexOffset.Zero ||
+                    precalc.GridVertexOffsets[x + 1, y] != TerrainVertexOffset.Zero ||
+                    precalc.GridVertexOffsets[x + 1, y + 1] != TerrainVertexOffset.Zero ||
+                    precalc.GridVertexOffsets[x, y + 1] != TerrainVertexOffset.Zero;
+                if (!movedNeighbor && style == TerrainDistortionStyle.Classic) { continue; }
+                adjacentRoads++;
+                TerrainQuadBuilder.FillQuad(sources,
+                    new TerrainQuadSite(x, y, OriginX + x, OriginY + y, 1f),
+                    TerrainQuadLayer.Foreground, quad);
+                Vector3[] expected = [new(x, y, 0), new(x + 1, y, 0),
+                    new(x + 1, y + 1, 0), new(x, y + 1, 0)];
+                for (int corner = 0; corner < 4; corner++)
+                {
+                    Assert.That(quad[corner].Position, Is.EqualTo(expected[corner]),
+                        $"Road ({x},{y}) corner {corner} follows the neighboring rock distortion.");
+                    Assert.That(quad[corner].UV5x, Is.Zero);
+                }
+            }
+        }
+        Assert.That(adjacentRoads, Is.GreaterThan(0), "Fixture must contain roads bordering displaced rock.");
+    }
 
     [Test]
     public void DoorAtlasChangeInvalidatesOverlayWithoutChangingVertices()

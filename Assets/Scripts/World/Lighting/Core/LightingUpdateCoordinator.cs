@@ -26,11 +26,9 @@ internal sealed class LightingUpdateCoordinator
         new("Kern.Lighting.BuildCommands.CPU");
     private static readonly ProfilerMarker _ExecuteCommandsMarker =
         new("Kern.Lighting.ExecuteCommands.CPU");
-    // The scroll kernel copies every entry of every cascade into a scratch
-    // atlas before the strip solve. On the target path that transfer is more
-    // expensive than the dense solve it replaces, so scroll reuse stays an
-    // explicit opt-in until a production GPU trace proves otherwise.
-    private const bool EnableStaticAtlasScrollReuse = false;
+    // Explicit dense reference for production differential tests. Ordinary
+    // reanchors use the dependency-aware path, never the dormant band solver.
+    internal static bool DiagnosticForceDenseReanchor { get; set; }
 
     private readonly LightingResourceManager _resources;
     private readonly LightingRuntimeState _state;
@@ -154,13 +152,15 @@ internal sealed class LightingUpdateCoordinator
         }
         _state.LastVisibleRegion = lightingRegion;
 
-        const int maxInvalidationAreaPerFrame = 32 * 32 * 2; // Safe per-frame cascade budget
+        // Consume every pending geometry change in this frame. Transport
+        // dependencies reduce work; an area cap would publish stale lighting.
+        const int maxInvalidationAreaPerFrame = int.MaxValue;
         _state.ActivatePendingRegionsBudgeted(
             new RectInt(
-                visibleMinX,
-                visibleMinY,
-                visibleWidth,
-                visibleHeight),
+                Mathf.RoundToInt(lightingRegion.x) - 1,
+                Mathf.RoundToInt(lightingRegion.y) - 1,
+                Mathf.RoundToInt(lightingRegion.z) + 2,
+                Mathf.RoundToInt(lightingRegion.w) + 2),
             maxInvalidationAreaPerFrame);
 
         int gridWidth = Mathf.RoundToInt(lightingRegion.z);
@@ -188,8 +188,10 @@ internal sealed class LightingUpdateCoordinator
 
         // A region reanchor must preserve the already solved overlap. The
         // solver validates the probe phase for every cascade; incompatible
-        // deltas fall back to a dense solve instead of corrupting the atlas.
-        bool canReuseStaticAtlas = EnableStaticAtlasScrollReuse &&
+        // deltas invalidate the corresponding cascade instead of mixing phases.
+        bool canReuseStaticAtlas = !DiagnosticForceDenseReanchor &&
+            _state.HasStaticRadianceState &&
+            _state.LastContributorGeometryRevision == _geometryRegistry.GeometryRevision &&
             regionChanged &&
             !resourcesResized &&
             !float.IsNaN(previousLightingRegion.x) &&
@@ -206,24 +208,29 @@ internal sealed class LightingUpdateCoordinator
         bool contributorGeometryChanged =
             _state.LastContributorGeometryRevision != contributorGeometryRevision;
         bool geometryChanged =
-            _state.LastTerrainGeometryRevision != terrainGeometry.LightingGeometryRevision ||
+            (_state.LastTerrainGeometryRevision != terrainGeometry.LightingGeometryRevision &&
+                (_state.StagedTerrainGeometryRevision != terrainGeometry.LightingGeometryRevision ||
+                 _state.ActiveRegionInvalidations.Count > 0)) ||
             contributorGeometryChanged;
         if (geometryChanged)
         {
             _telemetry.LightingGeometryChangeCount++;
         }
-        if (!_state.FieldDirty && !regionChanged && !dynamicLightsDirty && !geometryChanged &&
-            !_state.CompositeDirty)
-        {
-            return;
-        }
-
         const float cellSize = ProjectRuntimeContracts.World.CellSize;
         Vector4 worldRect = new(
             lightingRegion.x * cellSize,
             lightingRegion.y * cellSize,
             lightingRegion.z * cellSize,
             lightingRegion.w * cellSize);
+        RectInt receiverRect = LightingReceiverCoverage.GetRect(camera, worldRect,
+            _resources.LightWidth, _resources.LightHeight, cellSize);
+        bool receiversChanged = _dynamicLightManager.Count > 0 && !_state.LastDynamicReceiverRect.Equals(receiverRect);
+        if (!_state.FieldDirty && !regionChanged && !dynamicLightsDirty && !geometryChanged &&
+            !_state.CompositeDirty && !receiversChanged)
+        {
+            _state.LastTerrainGeometryRevision = terrainGeometry.LightingGeometryRevision;
+            return;
+        }
         CommandBuffer commandBuffer = _resources.LightingCommandBuffer ??
             throw new InvalidOperationException(
                 "Radiance Cascades command buffer is not initialized.");
@@ -253,7 +260,7 @@ internal sealed class LightingUpdateCoordinator
                     out dynamicLightsChanged);
 
                 if (!rebuildFields && !dynamicLightsChanged &&
-                    !_state.CompositeDirty)
+                    !_state.CompositeDirty && !receiversChanged)
                 {
                     commandBuffer.EndSample("Kern.RadianceCascades");
                     RememberDynamicLightState();
@@ -269,7 +276,7 @@ internal sealed class LightingUpdateCoordinator
                     debugView);
                 bool staticRadianceChanged = rebuildFields || !_state.HasStaticRadianceState;
                 bool dynamicRadianceChanged = dynamicLightCount > 0 &&
-                    (dynamicLightsChanged || staticRadianceChanged || !_state.HasDynamicRadianceState);
+                    (dynamicLightsChanged || staticRadianceChanged || receiversChanged || !_state.HasDynamicRadianceState);
                 LightingInvalidationFlags invalidations = RecordLightingFrame(
                     commandBuffer,
                     worldRect,
@@ -285,7 +292,12 @@ internal sealed class LightingUpdateCoordinator
                     dynamicRadianceChanged,
                     qualityMode,
                     debugView,
-                    terrainGeometry);
+                    terrainGeometry,
+                    receiverRect);
+                if (receiversChanged)
+                {
+                    invalidations |= LightingInvalidationFlags.ReceiverCoverageChanged;
+                }
                 _state.HasStaticRadianceState |= staticRadianceChanged;
                 _state.HasDynamicRadianceState = dynamicLightCount > 0 &&
                     (dynamicRadianceChanged || _state.HasDynamicRadianceState);
@@ -323,7 +335,7 @@ internal sealed class LightingUpdateCoordinator
                     ? (reuseStaticAtlas ? "Region moved (scroll)" : "Geometry or region updated")
                     : dynamicLightsChanged
                         ? "Dynamic lights updated"
-                        : "Lightmap refreshed";
+                        : receiversChanged ? "World receiver coverage changed" : "Lightmap refreshed";
                 _journal.Record(
                     _state.SolveCount,
                     invalidations,
@@ -335,9 +347,16 @@ internal sealed class LightingUpdateCoordinator
                 _state.CompositeDirty = false;
                 _state.LastTerrainGeometryRevision = terrainGeometry.LightingGeometryRevision;
                 _state.LastContributorGeometryRevision = contributorGeometryRevision;
+                _state.LastDynamicReceiverRect = receiverRect;
                 _state.CompleteActiveRegionInvalidation();
                 RememberDynamicLightState();
             }
+        }
+        catch
+        {
+            // A recording/execution failure cannot leave a swapped atlas marked current.
+            LightingRuntimeInvalidation.ResetFieldAndRadiance(_state);
+            throw;
         }
         finally
         {
@@ -351,7 +370,7 @@ internal sealed class LightingUpdateCoordinator
         Camera camera,
         GraphicsQualitySettings qualitySettings)
     {
-        _state.RequestedPixelsPerCell = Mathf.Clamp(qualitySettings.LightingMinimumPixelsPerCell, 1, 16);
+        _state.RequestedPixelsPerCell = LightingQualityTuningController.FieldPixelsPerCell;
         bool textureDimensionLimited;
         bool cascadeBudgetLimited;
         bool resized = _gpuLifecycle.EnsureResources(
@@ -387,7 +406,8 @@ internal sealed class LightingUpdateCoordinator
         bool dynamicRadianceChanged,
         LightingQualityMode qualityMode,
         LightingEngine.DebugView debugView,
-        Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor terrainGeometry)
+        Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor terrainGeometry,
+        RectInt receiverRect)
     {
         LightingFrameResult result = _frameExecutor.Record(
             commandBuffer,
@@ -407,7 +427,10 @@ internal sealed class LightingUpdateCoordinator
                     (dynamicLightsChanged || staticRadianceChanged || _state.HasDynamicRadianceState),
                 _state.CompositeDirty,
                 qualityMode,
-                debugView),
+                debugView)
+            {
+                DynamicReceiverRect = receiverRect,
+            },
             terrainGeometry,
             _resources.StaticEmissionField!,
             _resources.StaticDirectTexture!);

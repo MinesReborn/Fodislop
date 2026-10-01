@@ -74,6 +74,19 @@ public sealed class BackgroundFloodFill
             type != CellType.BuildingDoor;
     }
 
+    // Дорога — покрытие, которое кладёт игрок, а не грунт. Своя клетка
+    // остаётся полом с собственной текстурой, но фоном под соседний блок
+    // дорога не становится: под блоком лежит земля. Иначе голосование
+    // соседей перекрашивало подложку блока в дорогу, как только серых
+    // соседей оказывалось больше.
+    private static bool IsBackgroundSource(CellType type, CellConfigProperties properties)
+    {
+        return IsFloorCell(type, properties) && !IsCovering(type);
+    }
+
+    private static bool IsCovering(CellType type) =>
+        CellVisualProtocolRegistry.Current.Get(type).IsRoad;
+
     public void ComputeFull(ICachedCellDataProvider cellCache)
     {
         int w = _width, h = _height;
@@ -337,7 +350,7 @@ public sealed class BackgroundFloodFill
                 }
 
                 CachedCellInfo n = _sourceCells[nx, ny];
-                if (!IsFloorCell(n.Type, n.Properties))
+                if (!IsBackgroundSource(n.Type, n.Properties))
                 {
                     continue;
                 }
@@ -418,6 +431,13 @@ public sealed class BackgroundFloodFill
             {
                 var (x, y) = current[i];
                 CellType bg = _bgMapBuffer[x, y];
+                // Resolved road floors enter as scroll seeds; they bound the
+                // wave but never spread their covering under blocks.
+                if (IsCovering(bg))
+                {
+                    continue;
+                }
+
                 for (int dy = -1; dy <= 1; dy++)
                 {
                     for (int dx = -1; dx <= 1; dx++)

@@ -9,6 +9,7 @@
 //   worldPos   - World coordinates in meters (float2). _WorldRect = (minX, minY, width, height)
 //   cellCoord  - Integer world grid cell coordinate (int2) [0..N-1]
 //   fieldPx    - Continuous or discrete pixel inside lighting field (float2/int2) [0.._FieldSize-1]
+//   lightPx    - Receiver/output texel (int2) [0.._LightSize-1]; same world rect
 //   fieldUv    - Normalized texture coordinate [0..1]
 //   probeCoord - Probe grid coordinate inside a cascade [0.._CascadeProbeSize-1]
 //
@@ -63,6 +64,18 @@ float2 ProbeToFieldPx(int2 probeCoord, int probeSpacing)
 float2 FieldPxToProbeCoord(float2 fieldPx, int probeSpacing)
 {
     return fieldPx / float(probeSpacing) - 0.5;
+}
+
+// COST: O(1) ALU. Receiver texel centre in transport field pixels.
+float2 LightPxCenterToFieldPx(int2 lightPixel)
+{
+    return (float2(lightPixel) + 0.5) * float(_FieldTexelsPerLightTexel);
+}
+
+// COST: O(1) ALU. Transport texel that contains a receiver texel centre.
+int2 LightPxToFieldTexel(int2 lightPixel)
+{
+    return int2(floor(LightPxCenterToFieldPx(lightPixel)));
 }
 
 #endif // KERN_LIGHTING_COORDINATES_HLSL

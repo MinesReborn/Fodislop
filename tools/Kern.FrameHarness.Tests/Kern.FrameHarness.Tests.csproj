@@ -9,6 +9,11 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../Assets/Scripts/Core/Diagnostics/ProcessMemorySnapshot.cs" Link="ProcessMemorySnapshot.cs" />
+    <Compile Include="../../Assets/Scripts/Core/Diagnostics/MemoryAllocationGuard.cs" Link="MemoryAllocationGuard.cs" />
+    <Compile Include="../../Assets/Scripts/World/Lighting/Resources/LightingAllocationEstimate.cs" Link="LightingAllocationEstimate.cs" />
+    <Compile Include="../../Assets/Scripts/Rendering/Contracts/WorldRenderGrid.cs" Link="WorldRenderGrid.cs" />
+    <Compile Include="../../Assets/Scripts/Rendering/PostProcessing/Pipeline/PostProcessWorkload.cs" Link="PostProcessWorkload.cs" />
     <Reference Include="Microsoft.CodeAnalysis">
       <HintPath>$(MSBuildToolsPath)/Roslyn/bincore/Microsoft.CodeAnalysis.dll</HintPath>
     </Reference>

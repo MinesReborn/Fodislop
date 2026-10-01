@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using Kern.Core;
+using Kern.Core.Diagnostics;
 using Kern.Core.Interfaces;
 using Kern.Rendering;
 using Kern.World.Lighting.Quality;
@@ -12,16 +13,9 @@ using UnityEngine.Rendering;
 namespace Kern.World.Lighting;
 internal sealed class LightingResourceManager
 {
-    // Static solves happen as one frame-sized burst when the lighting region
-    // reanchors. Bound the complete cascade ray-step cost before allocating
-    // the field, then use the largest quality that fits that bound.
-    private const int MaximumStaticCascadeDirections = 64;
-    // A region reanchor records the complete static transport graph in one
-    // command buffer. Keep that burst below the shared conservative DDA
-    // budget; the quality selector lowers pixels-per-cell before it lowers
-    // angular resolution further.
-    private const long MaximumStaticCascadeRayWork =
-        LightingPerformanceBudget.MaximumStaticCascadeRayWorkUnits;
+    // Authored transport quality is independent of field density and camera
+    // coverage. Cost estimates are diagnostics, never an automatic LOD.
+    private static int MaximumStaticCascadeDirections => LightingQualityTuningController.MaximumStaticCascadeDirections;
 
     private readonly CascadeBufferManager _buffers = new();
     private RenderTexture? _materialField;
@@ -32,6 +26,63 @@ internal sealed class LightingResourceManager
     private RenderTexture? _cellSolidMask;
     private RenderTexture? _surfaceAirCache;
     private RenderTexture? _ambientOcclusionField;
+    private GraphicsQualitySettings _allocatedQuality;
+    private int _allocatedMaximumCascadeDirections;
+    private int _allocatedProbePixelsPerCell;
+    private bool _allocatedTextureDimensionLimited;
+    private bool _allocatedCascadeBudgetLimited;
+
+    private RenderTexture? _reanchorMaterial;
+    private RenderTexture? _reanchorEmission;
+    private ComputeBuffer? _reanchorRows;
+    private ComputeBuffer? _reanchorChanges;
+
+    public RenderTexture? ReanchorMaterial => _reanchorMaterial;
+    public RenderTexture? ReanchorEmission => _reanchorEmission;
+    public ComputeBuffer? ReanchorRows => _reanchorRows;
+    public ComputeBuffer? ReanchorChanges => _reanchorChanges;
+
+    // SolveCascade declares this binding even when region reuse is disabled.
+    // An empty change stream needs one zero entry, not full saved fields and
+    // two dense prefix-sum buffers on every dynamic frame.
+    public void EnsureReanchorChangeBinding()
+    {
+        if (_reanchorChanges != null)
+        {
+            return;
+        }
+        _reanchorChanges = new ComputeBuffer(1, sizeof(uint));
+        _reanchorChanges.SetData(new uint[] { 0 });
+    }
+
+    public void EnsureReanchorFields()
+    {
+        if (_reanchorMaterial != null && _reanchorMaterial.width == FieldWidth &&
+            _reanchorMaterial.height == FieldHeight)
+        {
+            return;
+        }
+
+        MemoryAllocationGuard.Require("Lighting reanchor generation",
+            LightingAllocationEstimate.TextureBytes(FieldWidth, FieldHeight, 1, 20));
+        ReleaseReanchorFields();
+        _reanchorMaterial = LightingTexturePool.CreateTexture(FieldWidth, FieldHeight,
+            RenderTextureFormat.ARGB32, false, FilterMode.Point, "Lighting.ReanchorMaterial");
+        _reanchorEmission = LightingTexturePool.CreateTexture(FieldWidth, FieldHeight,
+            RenderTextureFormat.ARGBHalf, false, FilterMode.Point, "Lighting.ReanchorEmission");
+        _reanchorRows = new ComputeBuffer(checked(FieldWidth * FieldHeight), sizeof(uint));
+        _reanchorChanges = new ComputeBuffer(checked(FieldWidth * FieldHeight), sizeof(uint));
+    }
+
+    private void ReleaseReanchorFields()
+    {
+        LightingTexturePool.ReleaseTexture(ref _reanchorMaterial);
+        LightingTexturePool.ReleaseTexture(ref _reanchorEmission);
+        _reanchorRows?.Release();
+        _reanchorRows = null;
+        _reanchorChanges?.Release();
+        _reanchorChanges = null;
+    }
 
     public LightingResources Registry { get; } = new();
     public ComputeShader? LightingCompute { get; private set; }
@@ -46,7 +97,6 @@ internal sealed class LightingResourceManager
     public ComputeBuffer? DirtyRegions => _buffers.DirtyRegions;
     public ComputeBuffer? CascadeChangedMask => _buffers.CascadeChangedMask;
     public ComputeBuffer? DynamicLightBuffer => _buffers.DynamicLightBuffer;
-    public ComputeBuffer? DynamicReachBuffer => _buffers.DynamicReachBuffer;
     public ComputeBuffer? LightingCounters => _buffers.LightingCounters;
 
     // Geometry caches: depend only on the material field and are rebuilt with
@@ -62,6 +112,8 @@ internal sealed class LightingResourceManager
     public int SolveCascadeKernel { get; private set; }
     public int ScrollRadianceAtlasKernel { get; private set; }
     public int ClearCascadeChangedMaskKernel { get; private set; }
+    public int BuildReanchorChangeRowsKernel { get; private set; }
+    public int BuildReanchorChangeColumnsKernel { get; private set; }
     public int SolveDynamicLightingKernel { get; private set; }
     public int ComposeDynamicLightingKernel { get; private set; }
     public int TraceDynamicPolarKernel { get; private set; }
@@ -73,6 +125,9 @@ internal sealed class LightingResourceManager
     public int BuildSurfaceAirCacheKernel { get; private set; }
     public int FieldWidth { get; private set; }
     public int FieldHeight { get; private set; }
+    // Receiver lattice of static/dynamic direct, surface cache and lightmap.
+    public int LightWidth { get; private set; }
+    public int LightHeight { get; private set; }
     public int AmbientOcclusionWidth { get; private set; }
     public int AmbientOcclusionHeight { get; private set; }
     public int AtlasCapacity => _buffers.AtlasCapacity;
@@ -93,6 +148,8 @@ internal sealed class LightingResourceManager
 
         LightingShaderValidator.LoadedLightingCompute loaded = LightingShaderValidator.LoadComputeShader();
         LightingCompute = loaded.Compute;
+        BuildReanchorChangeRowsKernel = loaded.Compute.FindKernel("BuildReanchorChangeRows");
+        BuildReanchorChangeColumnsKernel = loaded.Compute.FindKernel("BuildReanchorChangeColumns");
         SolveCascadeKernel = loaded.SolveCascadeKernel;
         ScrollRadianceAtlasKernel = loaded.ScrollRadianceAtlasKernel;
         ClearCascadeChangedMaskKernel = loaded.ClearCascadeChangedMaskKernel;
@@ -107,6 +164,7 @@ internal sealed class LightingResourceManager
         BuildSurfaceAirCacheKernel = loaded.BuildSurfaceAirCacheKernel;
         LightingShaderValidator.ValidateGpuRequirements();
         LightingShaderValidator.ValidateTerrainFieldPasses(LightingTexturePool.DestroyLightingObject);
+        LightingFieldOrientationValidator.EnsureValidated();
         LightingCommandBuffer ??= new CommandBuffer
         {
             name = "Kern Radiance Cascades",
@@ -125,14 +183,24 @@ internal sealed class LightingResourceManager
         GPUPipelineInitialized = false;
     }
 
+    private static int AmbientOcclusionScale(int gridWidth, int gridHeight)
+    {
+        const int scale = LightingConfigHolder.AmbientOcclusionPixelsPerCell;
+        int width = checked(gridWidth * scale);
+        int height = checked(gridHeight * scale);
+        if (width > SystemInfo.maxTextureSize || height > SystemInfo.maxTextureSize)
+        {
+            throw new InvalidOperationException(
+                $"AO requires {width}x{height} at {scale} pixels/cell; GPU limit is {SystemInfo.maxTextureSize}.");
+        }
+        return scale;
+    }
+
     public bool EnsureAmbientOcclusionOnlyResources(
         int gridWidth,
-        int gridHeight,
-        int maximumTextureDimension)
+        int gridHeight)
     {
-        int scale = Mathf.Max(
-            1,
-            Mathf.Min(maximumTextureDimension / gridWidth, maximumTextureDimension / gridHeight));
+        int scale = AmbientOcclusionScale(gridWidth, gridHeight);
         int width = gridWidth * scale;
         int height = gridHeight * scale;
         if (_materialField == null && _ambientOcclusionField != null &&
@@ -143,6 +211,8 @@ internal sealed class LightingResourceManager
         }
 
         ReleaseResources();
+        // AO-only fields use the same raster transform and the same readers.
+        LightingFieldOrientationValidator.EnsureValidated();
         AmbientOcclusionWidth = width;
         AmbientOcclusionHeight = height;
         CellGridWidth = gridWidth;
@@ -152,7 +222,7 @@ internal sealed class LightingResourceManager
             height,
             RenderTextureFormat.ARGB32,
             randomWrite: false,
-            FilterMode.Bilinear,
+            FilterMode.Point,
             "_LightingAmbientOcclusionField",
             useMipMap: false);
         LightingCommandBuffer ??= new CommandBuffer
@@ -161,6 +231,31 @@ internal sealed class LightingResourceManager
         };
         SyncRegistry();
         return true;
+    }
+
+    public void ValidateRequestedQuality(LightingQualityTuning quality, in GraphicsQualitySettings settings)
+    {
+        if (CellGridWidth <= 0 || CellGridHeight <= 0)
+        {
+            throw new InvalidOperationException("Дождись готовности мирового поля перед применением качества.");
+        }
+        LightingResourceLayout.Validate(CellGridWidth, CellGridHeight, quality, settings, new List<CascadeLayout>());
+    }
+
+    public bool TryApplyQualityTuning(LightingQualityTuning quality, in GraphicsQualitySettings settings, out string rejection)
+    {
+        try
+        {
+            ValidateRequestedQuality(quality, settings);
+            LightingQualityTuningController.Apply(quality);
+            rejection = string.Empty;
+            return true;
+        }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or OverflowException)
+        {
+            rejection = exception.Message;
+            return false;
+        }
     }
 
     public void EnsureResources(
@@ -187,65 +282,64 @@ internal sealed class LightingResourceManager
                 $"orthographicSize={camera.orthographicSize}, aspect={camera.aspect}.");
         }
 
-        int requestedPixelsPerCell = Mathf.Clamp(qualitySettings.LightingMinimumPixelsPerCell, 1, 16);
+        effectivePixelsPerCell = LightingQualityTuningController.FieldPixelsPerCell;
+        // Resource identity depends on coverage and settings, never camera pose.
+        // Cache the selected probe layout as well as textures: repeating the
+        // selector allocates scratch lists and can replace an already budgeted
+        // layout with its unbudgeted candidate on every stable frame.
+        if (CellGridWidth == gridWidth && CellGridHeight == gridHeight &&
+            _allocatedQuality.Equals(qualitySettings) &&
+            FieldWidth == checked(gridWidth * effectivePixelsPerCell) &&
+            FieldHeight == checked(gridHeight * effectivePixelsPerCell) &&
+            LightWidth == checked(gridWidth * LightingQualityTuningController.LightPixelsPerCell) &&
+            LightHeight == checked(gridHeight * LightingQualityTuningController.LightPixelsPerCell) &&
+            _allocatedMaximumCascadeDirections == MaximumStaticCascadeDirections &&
+            _allocatedProbePixelsPerCell == LightingQualityTuningController.CascadeProbePixelsPerCell &&
+            _materialField != null && _ambientOcclusionField != null && RadianceAtlas != null)
+        {
+            textureDimensionLimited = _allocatedTextureDimensionLimited;
+            cascadeBudgetLimited = _allocatedCascadeBudgetLimited;
+            return;
+        }
 
-        int requestedScale = Mathf.Max(1, Mathf.FloorToInt(requestedPixelsPerCell));
-        int scale = CascadeLayoutBuilder.SelectStablePixelsPerCell(
-            gridWidth,
-            gridHeight,
-            requestedScale,
-            qualitySettings.LightingMaximumTextureDimension,
-            qualitySettings.LightingCascadeAtlasLimit,
-            MaximumStaticCascadeDirections,
-            MaximumStaticCascadeRayWork);
+        int probeScale = LightingQualityTuningController.CascadeProbePixelsPerCell;
+        textureDimensionLimited = false;
+        cascadeBudgetLimited = false;
 
-        int maximumTextureScale = Mathf.Max(
-            0,
-            Mathf.Min(
-                qualitySettings.LightingMaximumTextureDimension / gridWidth,
-            qualitySettings.LightingMaximumTextureDimension / gridHeight));
-
-        textureDimensionLimited = maximumTextureScale < requestedScale;
-        cascadeBudgetLimited = scale < Mathf.Min(requestedScale, maximumTextureScale);
-        effectivePixelsPerCell = scale;
-
-        int fieldWidth = gridWidth * scale;
-        int fieldHeight = gridHeight * scale;
-        int ambientOcclusionScale = Mathf.Max(
-            1,
-            Mathf.Min(
-                qualitySettings.LightingMaximumTextureDimension / gridWidth,
-                qualitySettings.LightingMaximumTextureDimension / gridHeight));
+        int fieldWidth = checked(gridWidth * LightingQualityTuningController.FieldPixelsPerCell);
+        int fieldHeight = checked(gridHeight * LightingQualityTuningController.FieldPixelsPerCell);
+        int lightWidth = checked(gridWidth * LightingQualityTuningController.LightPixelsPerCell);
+        int lightHeight = checked(gridHeight * LightingQualityTuningController.LightPixelsPerCell);
+        int ambientOcclusionScale = AmbientOcclusionScale(gridWidth, gridHeight);
         int ambientOcclusionWidth = gridWidth * ambientOcclusionScale;
         int ambientOcclusionHeight = gridHeight * ambientOcclusionScale;
-        int maximumCascadeDirections = CascadeLayoutBuilder.SelectMaximumCascadeDirections(
-            fieldWidth,
-            fieldHeight,
-            qualitySettings.LightingCascadeAtlasLimit,
-            MaximumStaticCascadeDirections,
-            MaximumStaticCascadeRayWork);
 
         const FilterMode lightmapFilterMode = FilterMode.Bilinear;
 
-        if (FieldWidth == fieldWidth && FieldHeight == fieldHeight &&
-            AmbientOcclusionWidth == ambientOcclusionWidth &&
-            AmbientOcclusionHeight == ambientOcclusionHeight &&
-            CellGridWidth == gridWidth && CellGridHeight == gridHeight &&
-            _materialField != null &&
-            _ambientOcclusionField != null &&
-            RadianceAtlas != null)
-        {
-            if (_lightmapTexture != null && _lightmapTexture.filterMode != lightmapFilterMode)
-            {
-                _lightmapTexture.filterMode = lightmapFilterMode;
-            }
-
-            return;
-        }
+        // Keep the requested sparse lattice and angular progression. A dense
+        // geometry grid increases the conservative texel-step estimate; it
+        // must not silently replace 4 probes/cell with 1 probe/cell.
+        // Validate a candidate without mutating the currently published layout.
+        // The same preflight serves the manual tuning panel.
+        var candidate = new List<CascadeLayout>();
+        LightingResourceLayout.Validate(gridWidth, gridHeight, LightingQualityTuningController.Current,
+            qualitySettings, candidate);
+        long candidateEntries = (long)candidate[^1].Offset + candidate[^1].EntryCount;
+        MemoryAllocationGuard.Require("Lighting fields and cascade buffers",
+            LightingAllocationEstimate.FieldBytes(fieldWidth, fieldHeight, lightWidth, lightHeight,
+                ambientOcclusionWidth, ambientOcclusionHeight,
+                gridWidth, gridHeight, candidateEntries, qualitySettings.LightingMaximumLightCount));
+        _allocatedQuality = qualitySettings;
+        _allocatedMaximumCascadeDirections = MaximumStaticCascadeDirections;
+        _allocatedProbePixelsPerCell = probeScale;
+        _allocatedTextureDimensionLimited = textureDimensionLimited;
+        _allocatedCascadeBudgetLimited = cascadeBudgetLimited;
 
         ReleaseFieldTextures();
         FieldWidth = fieldWidth;
         FieldHeight = fieldHeight;
+        LightWidth = lightWidth;
+        LightHeight = lightHeight;
         AmbientOcclusionWidth = ambientOcclusionWidth;
         AmbientOcclusionHeight = ambientOcclusionHeight;
 
@@ -268,22 +362,22 @@ internal sealed class LightingResourceManager
             "_StaticEmissionField",
             useMipMap: false);
         _directTexture = LightingTexturePool.CreateTexture(
-            fieldWidth,
-            fieldHeight,
+            lightWidth,
+            lightHeight,
             RenderTextureFormat.ARGBHalf,
             randomWrite: true,
             FilterMode.Bilinear,
             "_RadianceDirect");
         _staticDirectTexture = LightingTexturePool.CreateTexture(
-            fieldWidth,
-            fieldHeight,
+            lightWidth,
+            lightHeight,
             RenderTextureFormat.ARGBHalf,
             randomWrite: true,
             FilterMode.Bilinear,
             "_RadianceDirectStatic");
         _lightmapTexture = LightingTexturePool.CreateTexture(
-            fieldWidth,
-            fieldHeight,
+            lightWidth,
+            lightHeight,
             RenderTextureFormat.ARGBHalf,
             randomWrite: true,
             lightmapFilterMode,
@@ -298,32 +392,27 @@ internal sealed class LightingResourceManager
             FilterMode.Point,
             "_LightingCellSolidMask");
         _surfaceAirCache = LightingTexturePool.CreateTexture(
-            fieldWidth,
-            fieldHeight,
+            lightWidth,
+            lightHeight,
             RenderTextureFormat.ARGBHalf,
             randomWrite: true,
             FilterMode.Point,
             "_LightingSurfaceAirCache");
-        // AO имеет своё поле геометрии: один тексель освещения на клетку не
-        // умеет ни скруглённый силуэт, ни дырку в текстуре, поэтому это поле
-        // берёт всё пространственное разрешение из бюджета текстур, не
-        // увеличивая работу транспорта.
+        // AO is calculated directly at world raster density and has an
+        // independent lifecycle in the AO-only graphics preset.
         _ambientOcclusionField = LightingTexturePool.CreateTexture(
             ambientOcclusionWidth,
             ambientOcclusionHeight,
             RenderTextureFormat.ARGB32,
             randomWrite: false,
-            FilterMode.Bilinear,
+            FilterMode.Point,
             "_LightingAmbientOcclusionField",
             useMipMap: false);
         GeometryCachesValid = false;
 
-        CascadeLayoutBuilder.BuildCascadeLayouts(
-            fieldWidth,
-            fieldHeight,
-            qualitySettings.LightingCascadeAtlasLimit,
-            Cascades,
-            maximumCascadeDirections);
+        // ReleaseFieldTextures clears the old cascade publication. Commit the
+        // validated candidate only after the replacement fields are acquired.
+        Cascades.AddRange(candidate);
         AtlasEntryCount = Cascades[^1].Offset + Cascades[^1].EntryCount;
         EstimatedCascadeRayWorkUnits = CascadeCostCalculator.EstimateRayWorkUnits(Cascades);
         EstimatedCascadeDispatchThreads = 0;
@@ -339,6 +428,7 @@ internal sealed class LightingResourceManager
 
     public void ReleaseResources()
     {
+        ReleaseReanchorFields();
         _buffers.ReleaseBuffers();
         AtlasEntryCount = 0;
         EstimatedCascadeRayWorkUnits = 0;
@@ -353,6 +443,8 @@ internal sealed class LightingResourceManager
         Registry.CommandBuffer = LightingCommandBuffer;
         Registry.FieldWidth = FieldWidth;
         Registry.FieldHeight = FieldHeight;
+        Registry.LightWidth = LightWidth;
+        Registry.LightHeight = LightHeight;
 
         Registry.Geometry.Material = _materialField;
         Registry.Geometry.StaticEmission = _staticEmissionField;
@@ -380,6 +472,7 @@ internal sealed class LightingResourceManager
 
     public void ReleaseFieldTextures()
     {
+        ReleaseReanchorFields();
         LightingTexturePool.ReleaseTexture(ref _materialField);
         LightingTexturePool.ReleaseTexture(ref _staticEmissionField);
         LightingTexturePool.ReleaseTexture(ref _directTexture);
@@ -393,6 +486,8 @@ internal sealed class LightingResourceManager
         CellGridHeight = 0;
         FieldWidth = 0;
         FieldHeight = 0;
+        LightWidth = 0;
+        LightHeight = 0;
         AmbientOcclusionWidth = 0;
         AmbientOcclusionHeight = 0;
         Cascades.Clear();

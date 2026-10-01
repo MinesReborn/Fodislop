@@ -1,6 +1,9 @@
 #nullable enable
 
 using UnityEngine;
+using System.Diagnostics;
+using Unity.Profiling;
+using Unity.Profiling.LowLevel;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using static Kern.Rendering.PostProcessing.PostProcessShaderConstants;
@@ -9,6 +12,12 @@ namespace Kern.Rendering.PostProcessing;
 
 internal static class PostProcessPassExecutor
 {
+    private static readonly ProfilerMarker _prefilterMarker = new(ProfilerCategory.Render, "Kern.PostProcess.Bloom.Prefilter", MarkerFlags.SampleGPU);
+    private static readonly ProfilerMarker _downsampleMarker = new(ProfilerCategory.Render, "Kern.PostProcess.Bloom.Downsample", MarkerFlags.SampleGPU);
+    private static readonly ProfilerMarker _upsampleMarker = new(ProfilerCategory.Render, "Kern.PostProcess.Bloom.Upsample", MarkerFlags.SampleGPU);
+    private static readonly ProfilerMarker _fusedMarker = new(ProfilerCategory.Render, "Kern.PostProcess.Bloom.UpsampleComposite", MarkerFlags.SampleGPU);
+    private static readonly ProfilerMarker _sceneCompositeMarker = new(ProfilerCategory.Render, "Kern.PostProcess.SceneComposite", MarkerFlags.SampleGPU);
+    private static readonly ProfilerMarker _displayMarker = new(ProfilerCategory.Render, "Kern.PostProcess.DisplayFinal", MarkerFlags.SampleGPU);
     private static Texture3D? _identityLut3D;
 
     // LocalKeyword ищет слово в шейдере по имени; кэшируем вместе со ссылкой
@@ -18,6 +27,8 @@ internal static class PostProcessPassExecutor
 
     public static void Render(PostProcessPassData data, UnsafeGraphContext context)
     {
+        long startedAt = Stopwatch.GetTimestamp();
+        var workload = new PostProcessWorkloadAccumulator();
         HDROutputUtils.ConfigureHDROutput(data.PostProcessCS, data.HDRGamut,
             data.HDROutput ? HDROutputUtils.Operation.ColorConversion : HDROutputUtils.Operation.None);
         var cmd = CommandBufferHelpers.GetNativeCommandBuffer(context.cmd);
@@ -29,7 +40,7 @@ internal static class PostProcessPassExecutor
 
         if (data.BloomActive)
         {
-            bloomDispatches = ExecuteBloom(data, cmd, width, height);
+            bloomDispatches = ExecuteBloom(data, cmd, width, height, ref workload);
         }
         else if (!data.IsDisplayPass)
         {
@@ -43,25 +54,34 @@ internal static class PostProcessPassExecutor
 
         if (data.IsDisplayPass)
         {
-            BindDisplayParameters(data, cmd);
+            BindDisplayParameters(data, cmd, context);
+            if (data.WorldGridRect.z > 0 && PostProcessRuntimeState.DiagnosticWorldImage != null &&
+                PostProcessRuntimeState.DiagnosticOffscreenCamera != null &&
+                data.CameraId == PostProcessRuntimeState.DiagnosticOffscreenCamera.GetEntityId())
+            {
+                RTHandle source = data.ColorTexture;
+                PostProcessRuntimeState.DiagnosticWorldImage(cmd, source.rt, data.WorldGridRect);
+            }
         }
 
         if (!data.BloomActive || data.UnfusedBloom)
         {
-            cmd.BeginSample("Kern.PostProcess.Composite");
+            ProfilerMarker compositeMarker = data.IsDisplayPass ? _displayMarker : _sceneCompositeMarker;
+            cmd.BeginSample(compositeMarker);
             cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelComposite, InputTexID, data.ColorTexture);
             cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelComposite, OutputTexID, data.IntermediateTexture);
             cmd.DispatchCompute(data.PostProcessCS, data.KernelComposite, Mathf.CeilToInt(width / 8f), Mathf.CeilToInt(height / 8f), 1);
+            workload.RecordDispatch(width, height, 8, 8);
             if (data.BloomActive)
             {
                 bloomDispatches++;
             }
-            cmd.EndSample("Kern.PostProcess.Composite");
+            cmd.EndSample(compositeMarker);
         }
 
         if (!data.IsDisplayPass)
         {
-            PostProcessRuntimeState.RecordBloomDispatches(bloomDispatches);
+            PostProcessRuntimeState.RecordBloomDispatches(bloomDispatches, data.CameraId);
         }
 
         if (!data.SwapColor)
@@ -70,6 +90,9 @@ internal static class PostProcessPassExecutor
             Blitter.BlitCameraTexture(cmd, data.IntermediateTexture, data.ColorTexture);
             cmd.EndSample("Kern.PostProcess.BlitBack");
         }
+
+        data.Workload.Publish(workload.Complete(Time.frameCount, width, height,
+            data.SwapColor ? 0 : 1, data.CreatedTextureCount, data.CreatedTexturePayloadBytes, startedAt));
     }
 
     private static void SetDiagnosticsKeyword(PostProcessPassData data, CommandBuffer cmd)
@@ -83,7 +106,8 @@ internal static class PostProcessPassExecutor
         cmd.SetKeyword(data.PostProcessCS, _diagnosticsKeyword, data.DiagnosticsActive);
     }
 
-    private static int ExecuteBloom(PostProcessPassData data, CommandBuffer cmd, int width, int height)
+    private static int ExecuteBloom(PostProcessPassData data, CommandBuffer cmd, int width, int height,
+        ref PostProcessWorkloadAccumulator workload)
     {
         int dispatches = 0;
         int levels = data.BloomLevels;
@@ -131,7 +155,7 @@ internal static class PostProcessPassExecutor
             new Vector4(1f / width, 1f / height, width, height));
         cmd.SetComputeVectorParam(data.PostProcessCS, ScreenToEmissionID, data.ScreenToEmission);
         Texture emissionTex = Shader.GetGlobalTexture(WorldEmissionTextureID) ?? Texture2D.blackTexture;
-        cmd.BeginSample("Kern.PostProcess.Bloom.Prefilter");
+        cmd.BeginSample(_prefilterMarker);
         cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelPrefilter, InputTexID, data.ColorTexture);
         cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelPrefilter, EmissionTexID, emissionTex);
         cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelPrefilter, DestTexID, data.BloomPrefilterTexture);
@@ -141,7 +165,8 @@ internal static class PostProcessPassExecutor
             Mathf.CeilToInt(prefilterWidth / 8f),
             Mathf.CeilToInt(prefilterHeight / 8f),
             1);
-        cmd.EndSample("Kern.PostProcess.Bloom.Prefilter");
+        cmd.EndSample(_prefilterMarker);
+        workload.RecordDispatch(prefilterWidth, prefilterHeight, 8, 8);
         dispatches++;
 
         int downWidth = prefilterWidth;
@@ -149,7 +174,7 @@ internal static class PostProcessPassExecutor
         int sourceWidth = prefilterWidth;
         int sourceHeight = prefilterHeight;
         TextureHandle currentSource = data.BloomPrefilterTexture;
-        cmd.BeginSample("Kern.PostProcess.Bloom.Downsample");
+        cmd.BeginSample(_downsampleMarker);
         for (int i = 0; i < levels; i++)
         {
             downWidth = Mathf.Max(1, downWidth / 2);
@@ -171,17 +196,18 @@ internal static class PostProcessPassExecutor
                 Mathf.CeilToInt(downHeight / 8f),
                 1);
             currentSource = data.BloomDownTextures[i];
+            workload.RecordDispatch(downWidth, downHeight, 8, 8);
             dispatches++;
             sourceWidth = downWidth;
             sourceHeight = downHeight;
         }
 
-        cmd.EndSample("Kern.PostProcess.Bloom.Downsample");
+        cmd.EndSample(_downsampleMarker);
 
         TextureHandle currentUp = data.BloomDownTextures[levels - 1];
         int currentUpWidth = downWidth;
         int currentUpHeight = downHeight;
-        cmd.BeginSample("Kern.PostProcess.Bloom.Upsample");
+        cmd.BeginSample(_upsampleMarker);
         for (int i = levels - 1; i >= (data.UnfusedBloom ? 0 : 1); i--)
         {
             int upWidth = Mathf.Max(1, width >> (i + 1));
@@ -207,12 +233,13 @@ internal static class PostProcessPassExecutor
                 Mathf.CeilToInt(upHeight / 8f),
                 1);
             currentUp = data.BloomUpTextures[i];
+            workload.RecordDispatch(upWidth, upHeight, 8, 8);
             dispatches++;
             currentUpWidth = upWidth;
             currentUpHeight = upHeight;
         }
 
-        cmd.EndSample("Kern.PostProcess.Bloom.Upsample");
+        cmd.EndSample(_upsampleMarker);
 
         if (data.UnfusedBloom)
         {
@@ -221,7 +248,7 @@ internal static class PostProcessPassExecutor
         }
 
         int kernel = data.KernelUpsampleComposite;
-        cmd.BeginSample("Kern.PostProcess.Bloom.UpsampleComposite");
+        cmd.BeginSample(_fusedMarker);
         cmd.SetComputeVectorParam(data.PostProcessCS, ScreenSizeID, new Vector4(width, height, 1f / width, 1f / height));
         cmd.SetComputeVectorParam(data.PostProcessCS, SourceTexelSizeID,
             new Vector4(1f / currentUpWidth, 1f / currentUpHeight, currentUpWidth, currentUpHeight));
@@ -231,14 +258,38 @@ internal static class PostProcessPassExecutor
         cmd.SetComputeTextureParam(data.PostProcessCS, kernel, InputTexID, data.ColorTexture);
         cmd.SetComputeTextureParam(data.PostProcessCS, kernel, OutputTexID, data.IntermediateTexture);
         cmd.DispatchCompute(data.PostProcessCS, kernel, (width + 15) / 16, (height + 15) / 16, 1);
-        cmd.EndSample("Kern.PostProcess.Bloom.UpsampleComposite");
+        workload.RecordDispatch(width, height, 16, 16);
+        cmd.EndSample(_fusedMarker);
         return dispatches + 1;
     }
 
     // Точечные операции вывода: LUT, виньетка, зерно, калибровка, шторка
     // сравнения. Сценическому проходу из этого не нужно ничего.
-    private static void BindDisplayParameters(PostProcessPassData data, CommandBuffer cmd)
+    private static void BindDisplayParameters(PostProcessPassData data, CommandBuffer cmd,
+        UnsafeGraphContext context)
     {
+        Vector4 sourceUv = data.DisplaySourceUv;
+        if (data.ScalesWorldGrid)
+        {
+            // Output pixel coordinates use the destination's origin. Convert
+            // them to Y-up viewport coordinates, then to the source's origin.
+            if (context.GetTextureUVOrigin(data.IntermediateTexture) == TextureUVOrigin.TopLeft)
+            {
+                sourceUv.w += sourceUv.y;
+                sourceUv.y = -sourceUv.y;
+            }
+
+            if (context.GetTextureUVOrigin(data.ColorTexture) == TextureUVOrigin.TopLeft)
+            {
+                sourceUv.w = 1f - sourceUv.w;
+                sourceUv.y = -sourceUv.y;
+            }
+        }
+
+        cmd.SetComputeVectorParam(data.PostProcessCS, "_DisplaySourceUv", sourceUv);
+        cmd.SetComputeVectorParam(data.PostProcessCS, "_DisplayWorldToViewportUv", data.DisplayWorldToViewportUv);
+        cmd.SetComputeFloatParam(data.PostProcessCS, "_DisplayViewportAspect", data.DisplayViewportAspect);
+        cmd.SetComputeIntParam(data.PostProcessCS, "_DisplayLinearFilter", data.DisplayLinearFilter ? 1 : 0);
         cmd.SetComputeFloatParam(data.PostProcessCS, CompareSplitID, data.CompareSplit);
         cmd.SetComputeIntParam(data.PostProcessCS, CompareModeID, data.CompareMode);
         cmd.SetComputeIntParam(data.PostProcessCS, CompareBeforeID, data.CompareBefore ? 1 : 0);

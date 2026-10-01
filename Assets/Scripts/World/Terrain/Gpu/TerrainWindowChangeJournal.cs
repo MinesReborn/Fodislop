@@ -52,6 +52,52 @@ internal sealed class TerrainWindowChangeJournal
 
     public void AddChangedRegion(RectInt region) => _changedRegions.Add(region);
 
+    // Moving the contributor window changes geometry even when world cells
+    // themselves have not been edited. Publish both arriving and departing
+    // coverage so cached transport cannot retain rays through missing cells.
+    public void RecordPublishedCoverageChange(RectInt previous, RectInt current)
+    {
+        if (previous == current)
+        {
+            return;
+        }
+
+        int minX = Math.Min(previous.xMin, current.xMin);
+        int minY = Math.Min(previous.yMin, current.yMin);
+        int maxX = Math.Max(previous.xMax, current.xMax);
+        int maxY = Math.Max(previous.yMax, current.yMax);
+        RectInt bounds = new(minX, minY, maxX - minX, maxY - minY);
+        RecordDifference(previous, current, bounds);
+        RecordDifference(current, previous, bounds);
+    }
+
+    private void RecordDifference(RectInt source, RectInt other, RectInt bounds)
+    {
+        if (source.width <= 0 || source.height <= 0)
+        {
+            return;
+        }
+
+        int left = Math.Max(source.xMin, other.xMin);
+        int right = Math.Min(source.xMax, other.xMax);
+        int bottom = Math.Max(source.yMin, other.yMin);
+        int top = Math.Min(source.yMax, other.yMax);
+        if (right <= left || top <= bottom)
+        {
+            AddPublishedChangedRegion(source, bounds);
+            return;
+        }
+
+        AddPublishedChangedRegion(new RectInt(source.xMin, source.yMin,
+            left - source.xMin, source.height), bounds);
+        AddPublishedChangedRegion(new RectInt(right, source.yMin,
+            source.xMax - right, source.height), bounds);
+        AddPublishedChangedRegion(new RectInt(left, source.yMin,
+            right - left, bottom - source.yMin), bounds);
+        AddPublishedChangedRegion(new RectInt(left, top,
+            right - left, source.yMax - top), bounds);
+    }
+
     public void ClearDirty() => _dirty.Clear();
 
     public void SwapTextureTypes()

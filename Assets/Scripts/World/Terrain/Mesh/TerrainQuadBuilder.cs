@@ -55,6 +55,7 @@ internal static class TerrainQuadBuilder
 
         if (unityY < 0 || unityY >= worldHeight || gridX < 0 || gridX >= worldWidth)
         {
+            quad.Clear();
             return TerrainQuadResult.None;
         }
 
@@ -70,6 +71,7 @@ internal static class TerrainQuadBuilder
 
         if (ccd.State != TerrainCellState.Loaded)
         {
+            quad.Clear();
             return TerrainQuadResult.NoAtlas(isDoor);
         }
 
@@ -119,6 +121,7 @@ internal static class TerrainQuadBuilder
         if (!TerrainCellLayers.TryGetType(
             cellFgType, backgroundType, isBackground, foregroundFillsCell, out CellType cellType))
         {
+            quad.Clear();
             return TerrainQuadResult.NoAtlas(isDoor);
         }
 
@@ -162,10 +165,15 @@ internal static class TerrainQuadBuilder
         float lx = x * cellSize;
         float ly = y * cellSize;
 
-        Vector3 off00 = isBackground ? Vector3.zero : precalc.GridVertexOffsets[x, y].ToVector3();
-        Vector3 off10 = isBackground ? Vector3.zero : precalc.GridVertexOffsets[x + 1, y].ToVector3();
-        Vector3 off01 = isBackground ? Vector3.zero : precalc.GridVertexOffsets[x, y + 1].ToVector3();
-        Vector3 off11 = isBackground ? Vector3.zero : precalc.GridVertexOffsets[x + 1, y + 1].ToVector3();
+        // Shared lattice offsets describe the deformable mass, not every
+        // surface sharing its vertices. Roads/ground can occupy the foreground
+        // layer too; a neighboring Cause must not warp their carrier or UVs.
+        bool applyDistortion = !isBackground && precalc.EnableDistortion &&
+            TerrainVertexDistortionCalculator.IsCause(ccd);
+        Vector3 off00 = applyDistortion ? precalc.GridVertexOffsets[x, y].ToVector3() : Vector3.zero;
+        Vector3 off10 = applyDistortion ? precalc.GridVertexOffsets[x + 1, y].ToVector3() : Vector3.zero;
+        Vector3 off01 = applyDistortion ? precalc.GridVertexOffsets[x, y + 1].ToVector3() : Vector3.zero;
+        Vector3 off11 = applyDistortion ? precalc.GridVertexOffsets[x + 1, y + 1].ToVector3() : Vector3.zero;
 
         TerrainCellGeometry geometry = TerrainCellGeometry.FromOffsets(
             off00,

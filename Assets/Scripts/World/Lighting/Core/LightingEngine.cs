@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using Kern.Core;
 using Kern.Core.Interfaces;
+using Kern.Core.Interfaces.Diagnostics;
 using Kern.Core.Interfaces.WorldLighting;
 using Kern.Rendering;
 using Kern.World.Lighting.Diagnostics;
@@ -35,6 +36,12 @@ namespace Kern.World.Lighting
         private static void ResetForDomainReload()
         {
             Shader.DisableKeyword(LightingPresentation.WorldLightingKeyword);
+            LightingUpdateCoordinator.DiagnosticForceDenseReanchor = false;
+            LightingComputeBinder.DiagnosticTransportCounters = false;
+            LightingComputeBinder.DiagnosticTexelTraversalReference = false;
+            LightingQualityTuningController.Apply(LightingConfigHolder.DefaultQuality);
+            LightingComputeBinder.DiagnosticVectorPolarReference = false;
+            LightingFrameExecutor.DiagnosticMaterialReadback = null;
         }
 
         [Header("Quality")]
@@ -103,6 +110,9 @@ namespace Kern.World.Lighting
         internal bool IsGPUPipelineInitialized => _resources.GPUPipelineInitialized;
 
         internal LightingResources GPUResources => _resources.Registry;
+        // Borrowed for explicit production captures; caller must finish before scope teardown.
+        internal ComputeBuffer DiagnosticTransportCounterBuffer => _resources.LightingCounters
+            ?? throw new InvalidOperationException("Lighting transport counters are not allocated.");
 
         [Inject]
         private LightingGeometryRegistry _lightingGeometryRegistry = null!;
@@ -116,6 +126,7 @@ namespace Kern.World.Lighting
         private ITerrainLightingExchange _terrainLightingExchange = null!;
 
         private bool _initialized;
+        private LightingQualityTuning _appliedTuning = LightingQualityTuningController.Current;
 
         public bool IsInitialized => _initialized;
 
@@ -184,6 +195,16 @@ namespace Kern.World.Lighting
 
         public int FieldHeight => _fieldHeight;
 
+        public int LightWidth => _resources.LightWidth;
+
+        public int LightHeight => _resources.LightHeight;
+
+        /// <summary>Validate a session quality change against this world's resource coverage before publishing it.</summary>
+        public bool TryApplyQualityTuning(LightingQualityTuning quality, out string rejection) =>
+            _resources.TryApplyQualityTuning(quality, QualityController.Settings, out rejection);
+
+        public RectInt DynamicReceiverRect => _runtimeState.LastDynamicReceiverRect;
+
         public float RequestedPixelsPerCell => _runtimeState.RequestedPixelsPerCell;
 
         public float EffectivePixelsPerCell => _runtimeState.EffectivePixelsPerCell;
@@ -191,6 +212,9 @@ namespace Kern.World.Lighting
         public bool TextureDimensionLimited => _runtimeState.TextureDimensionLimited;
 
         public bool CascadeBudgetLimited => _runtimeState.CascadeBudgetLimited;
+
+        public float EffectiveCascadeProbesPerCell => _cascades.Count == 0
+            ? 0f : EffectivePixelsPerCell / _cascades[0].ProbeSpacing;
 
 
 
@@ -210,7 +234,7 @@ namespace Kern.World.Lighting
         private void CaptureBudgetViolationIfNeeded() =>
             Diagnostics.CaptureBudgetViolationIfNeeded(DiagnosticsContext);
 
-        public int MaterialYFlip => SystemInfo.graphicsUVStartsAtTop ? 1 : 0;
+        public int MaterialYFlip => LightingFieldOrientation.RowsTopDown ? 1 : 0;
 
         public float CellSize => ProjectRuntimeContracts.World.CellSize;
 
@@ -437,6 +461,9 @@ namespace Kern.World.Lighting
 
         private void UpdateLightingCoordinator(TerrainLightingFrameSnapshot frame)
         {
+            ApplyVisualTuningIfChanged();
+            GraphicsQualitySettings settings = QualityController.Settings;
+            settings.LightingMinimumPixelsPerCell = LightingQualityTuningController.CascadeProbePixelsPerCell;
             RectInt viewport = frame.LightingViewportCells;
             Composition.UpdateCoordinator.Update(
                 viewport.x,
@@ -445,11 +472,44 @@ namespace Kern.World.Lighting
                 viewport.height,
                 frame.Camera,
                 frame.GeometryContributor,
-                QualityController.Settings,
+                settings,
                 QualityController.QualityMode,
                 _debugView,
                 BypassLightingCompute,
                 QualityController.ActivePreset == GraphicsPreset.Standard);
+        }
+
+        private void ApplyVisualTuningIfChanged()
+        {
+            LightingQualityTuning tuning = LightingQualityTuningController.Current;
+            if (_appliedTuning == tuning)
+            {
+                return;
+            }
+
+            bool staticOrFieldChanged = _appliedTuning.FieldPixelsPerCell != tuning.FieldPixelsPerCell ||
+                _appliedTuning.LightPixelsPerCell != tuning.LightPixelsPerCell ||
+                _appliedTuning.CascadeProbePixelsPerCell != tuning.CascadeProbePixelsPerCell ||
+                _appliedTuning.MaximumStaticCascadeDirections != tuning.MaximumStaticCascadeDirections;
+            if (staticOrFieldChanged)
+            {
+                Composition.Presentation.PublishDisabled();
+                LightingGpuTeardown.ReleaseResources(
+                    _composition, _resources, _dynamicLightManager, _runtimeState);
+                LightingRuntimeInvalidation.ResetFieldAndRadiance(_runtimeState);
+            }
+            else
+            {
+                Composition.FrameExecutor.InvalidateDynamicQuality();
+                _runtimeState.HasRenderedLightState = false;
+                _runtimeState.HasDynamicRadianceState = false;
+                _runtimeState.CompositeDirty = true;
+            }
+
+            FrameEventLog.Record(staticOrFieldChanged
+                ? "свет: VisualTuning изменил поля или статику"
+                : "свет: VisualTuning изменил динамический транспорт");
+            _appliedTuning = tuning;
         }
 
         private RectInt CurrentLightingWorldRectCells()
@@ -467,6 +527,8 @@ namespace Kern.World.Lighting
             bool regionQueued = TerrainLightingChangeApplier.Apply(change, _runtimeState);
             if (change.Kind == TerrainLightingChangeKind.Region && !regionQueued)
             {
+                FrameEventLog.Record($"свет: изменение {change.Sequence}, ревизия {change.TerrainGeometryRevision} " +
+                    $"вне поля транспорта {change.Region}");
                 return;
             }
 

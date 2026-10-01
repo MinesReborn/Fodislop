@@ -146,6 +146,7 @@ public sealed class CounterSnapshot
 
 public sealed class FrameCounterSnapshot
 {
+    public long? BloomDispatches { get; init; }
     public long? TerrainUploadCalls { get; init; }
     public long? TerrainUploadBytes { get; init; }
     public long? TerrainAtlasUploadCalls { get; init; }

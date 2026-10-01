@@ -39,6 +39,9 @@ internal sealed class GeometryLightingSolver
         }
 
         commandBuffer.EndSample("Kern.Lighting.MaterialField");
+        // End the raster attachments before the cache kernels sample them.
+        // Persistent field contents must be stored before compute consumption.
+        commandBuffer.SetRenderTarget(BuiltinRenderTextureType.None);
     }
 
     public void RecordAmbientOcclusionField(
@@ -126,13 +129,18 @@ internal sealed class GeometryLightingSolver
         commandBuffer.SetComputeTextureParam(
             compute,
             buildSurfaceAirKernel,
+            LightingComputeBinder.CellSolidMaskID,
+            cellSolidMask);
+        commandBuffer.SetComputeTextureParam(
+            compute,
+            buildSurfaceAirKernel,
             LightingComputeBinder.SurfaceAirCacheOutputID,
             _resources.SurfaceAirCache!);
         commandBuffer.DispatchCompute(
             compute,
             buildSurfaceAirKernel,
-            LightingComputeBinder.DispatchGroups(_resources.FieldWidth),
-            LightingComputeBinder.DispatchGroups(_resources.FieldHeight),
+            LightingComputeBinder.DispatchGroups(_resources.LightWidth),
+            LightingComputeBinder.DispatchGroups(_resources.LightHeight),
             1);
 
         commandBuffer.EndSample("Kern.Lighting.GeometryCaches");

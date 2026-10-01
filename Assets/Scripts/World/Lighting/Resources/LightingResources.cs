@@ -57,6 +57,8 @@ public sealed class LightingResources
 
     public int FieldWidth { get; internal set; }
     public int FieldHeight { get; internal set; }
+    public int LightWidth { get; internal set; }
+    public int LightHeight { get; internal set; }
 
     /// <summary>
     /// Clears registry references after the resource manager has released the
@@ -91,5 +93,7 @@ public sealed class LightingResources
         CommandBuffer = null;
         FieldWidth = 0;
         FieldHeight = 0;
+        LightWidth = 0;
+        LightHeight = 0;
     }
 }

@@ -43,6 +43,10 @@ float2 _VignetteCenter;
 
 float _DisplayPaperWhiteNits;
 float _DisplayPeakRelative;
+float4 _DisplaySourceUv;
+float4 _DisplayWorldToViewportUv;
+float _DisplayViewportAspect;
+int _DisplayLinearFilter;
 
 // Отладочный вид кадра: 0 обычный, 1 ложный цвет по зонам, 2 отсечка.
 // Устроен как _DebugView в WorldLighting.compute — ранним выходом.
@@ -420,9 +424,12 @@ void DisplayFinal(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= (uint)_ScreenSize.x || id.y >= (uint)_ScreenSize.y) return;
 
-    float2 screenUv = (id.xy + 0.5) * _ScreenSize.zw;
-    float2 uv = screenUv;
-    float4 source = _InputTex.SampleLevel(sampler_PointClamp, uv, 0);
+    float2 worldUv = (id.xy + 0.5) * _ScreenSize.zw;
+    float2 screenUv = worldUv * _DisplayWorldToViewportUv.xy + _DisplayWorldToViewportUv.zw;
+    float2 uv = worldUv * _DisplaySourceUv.xy + _DisplaySourceUv.zw;
+    float4 source = _DisplayLinearFilter != 0
+        ? _InputTex.SampleLevel(sampler_LinearClamp, uv, 0)
+        : _InputTex.SampleLevel(sampler_PointClamp, uv, 0);
     float srcAlpha = source.a;
     // URP supplies display-linear output: absolute nits in HDR, relative
     // white in SDR. Normalize only for the artistic screen effects.
@@ -430,6 +437,14 @@ void DisplayFinal(uint3 id : SV_DispatchThreadID)
     float3 color = source.rgb / paperWhite;
 #if defined(HDR_COLORSPACE_CONVERSION)
     color = RotateOutputSpaceToRec709(color);
+#endif
+#if defined(KERN_POST_DIAGNOSTICS)
+    if (_PostDebugView == 10)
+    {
+        // WorldBloomAdd has isolated the actual bloom contribution before URP.
+        _OutputTex[id.xy] = float4(ToDisplayOutput(color), srcAlpha);
+        return;
+    }
 #endif
     bool showBefore = CompareShowsBefore(screenUv);
 
@@ -448,18 +463,28 @@ void DisplayFinal(uint3 id : SV_DispatchThreadID)
     }
 
     // 5. Vignette
+    float vignetteWeight = 0.0;
     if (_VignetteIntensity > 0.001)
     {
-        float aspect = _ScreenSize.x / max(_ScreenSize.y, 1.0);
+        float aspect = _DisplayViewportAspect;
         // Vignette belongs to the display, not to the refracted scene sample.
         // Using heat-distorted `uv` here made the frame edges visibly breathe.
         float2 centeredUv = (screenUv - _VignetteCenter) * float2(aspect, 1.0);
         float distanceFromCenter = length(centeredUv);
         float feather = max(_VignetteSmoothness, 0.001);
         float edgeMask = smoothstep(0.5 - feather * 0.5, 0.5 + feather * 0.5, distanceFromCenter);
-        color = lerp(color, _VignetteColor.rgb, saturate(edgeMask * _VignetteIntensity));
+        vignetteWeight = saturate(edgeMask * _VignetteIntensity);
+        color = lerp(color, _VignetteColor.rgb, vignetteWeight);
     }
 
+#if defined(KERN_POST_DIAGNOSTICS)
+    if (_PostDebugView == 8)
+    {
+        _OutputTex[id.xy] = float4(ToDisplayOutput((1.0 - vignetteWeight).xxx), srcAlpha);
+        return;
+    }
+    float debugGrain = 0.0;
+#endif
     // 6. Eigengrau — шум зрения в почти полной темноте. Порог задан
     // в perceptual/sRGB, но шум добавляется к display-linear цвету.
     // Постоянный серый пол здесь выглядел как цветокоррекция всего кадра.
@@ -476,9 +501,21 @@ void DisplayFinal(uint3 id : SV_DispatchThreadID)
         float amplitude = Luminance(referenceGrey) *
             saturate(_EigengrauIntensity) * _EigengrauNoiseAmplitude;
         float grain = FilmGrain(id.xy + 0.5);
+#if defined(KERN_POST_DIAGNOSTICS)
+        debugGrain = grain * darkness * saturate(_EigengrauIntensity) *
+            step(1e-8, amplitude);
+#endif
         color = max(color + grain * amplitude * darkness, 0.0);
     }
 
+#if defined(KERN_POST_DIAGNOSTICS)
+    if (_PostDebugView == 9)
+    {
+        float gray = saturate(0.5 + debugGrain * 0.5);
+        _OutputTex[id.xy] = float4(ToDisplayOutput(gray.xxx), srcAlpha);
+        return;
+    }
+#endif
     // Калибровочный узор. Рисуется здесь и только здесь: это единственная
     // точка кадра, где величина задаётся в долях paper white и не будет потом
     // переделана ни кривой вывода, ни грейдом. Узор заменяет кадр целиком —

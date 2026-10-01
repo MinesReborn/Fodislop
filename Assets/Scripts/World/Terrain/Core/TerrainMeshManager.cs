@@ -2,6 +2,7 @@
 
 using System;
 using Kern.Core;
+using Kern.Core.Interfaces.WorldLighting;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -29,6 +30,12 @@ public sealed class TerrainMeshManager
 
     private readonly RenderTargetIdentifier[] _lightingFieldTargets = new RenderTargetIdentifier[2];
     private readonly RenderTargetIdentifier[] _ambientOcclusionTarget = new RenderTargetIdentifier[1];
+    private readonly RenderBufferLoadAction[] _lightingFieldLoads =
+        [RenderBufferLoadAction.DontCare, RenderBufferLoadAction.DontCare];
+    private readonly RenderBufferStoreAction[] _lightingFieldStores =
+        [RenderBufferStoreAction.Store, RenderBufferStoreAction.Store];
+    private readonly RenderBufferLoadAction[] _ambientOcclusionLoads = [RenderBufferLoadAction.DontCare];
+    private readonly RenderBufferStoreAction[] _ambientOcclusionStores = [RenderBufferStoreAction.Store];
 
     public void RenderLightingMaterialFields(
         CommandBuffer commandBuffer,
@@ -49,13 +56,20 @@ public sealed class TerrainMeshManager
 
         _lightingFieldTargets[0] = new RenderTargetIdentifier(materialField);
         _lightingFieldTargets[1] = new RenderTargetIdentifier(emissionField);
-        commandBuffer.SetRenderTarget(
-            _lightingFieldTargets,
-            new RenderTargetIdentifier(BuiltinRenderTextureType.None));
+        commandBuffer.DisableScissorRect();
+        // Anchor the attachment extent to this offscreen target. Builtin None
+        // leaves the raster pass dependent on the preceding camera target.
+        // The field has no depth storage; no extra depth texture is allocated.
+        commandBuffer.SetRenderTarget(new RenderTargetBinding(
+            _lightingFieldTargets, _lightingFieldLoads, _lightingFieldStores,
+            new RenderTargetIdentifier(materialField),
+            RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare));
         commandBuffer.ClearRenderTarget(
             clearDepth: false,
             clearColor: true,
             backgroundColor: Color.clear);
+        commandBuffer.SetViewport(new Rect(0f, 0f, materialField.width, materialField.height));
+        commandBuffer.EnableScissorRect(new Rect(0f, 0f, materialField.width, materialField.height));
 
         DrawLightingField(
             commandBuffer,
@@ -85,13 +99,17 @@ public sealed class TerrainMeshManager
         }
 
         _ambientOcclusionTarget[0] = new RenderTargetIdentifier(ambientOcclusionField);
-        commandBuffer.SetRenderTarget(
-            _ambientOcclusionTarget,
-            new RenderTargetIdentifier(BuiltinRenderTextureType.None));
+        commandBuffer.DisableScissorRect();
+        commandBuffer.SetRenderTarget(new RenderTargetBinding(
+            _ambientOcclusionTarget, _ambientOcclusionLoads, _ambientOcclusionStores,
+            new RenderTargetIdentifier(ambientOcclusionField),
+            RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare));
         commandBuffer.ClearRenderTarget(
             clearDepth: false,
             clearColor: true,
             backgroundColor: Color.clear);
+        commandBuffer.SetViewport(new Rect(0f, 0f, ambientOcclusionField.width, ambientOcclusionField.height));
+        commandBuffer.EnableScissorRect(new Rect(0f, 0f, ambientOcclusionField.width, ambientOcclusionField.height));
 
         DrawLightingField(
             commandBuffer,
@@ -121,16 +139,10 @@ public sealed class TerrainMeshManager
         Vector2 carrierPaddingWorld)
     {
 
-        Matrix4x4 projection = Matrix4x4.Ortho(
-            worldRect.x,
-            worldRect.x + worldRect.z,
-            worldRect.y,
-            worldRect.y + worldRect.w,
-            -100f,
-            100f);
-        commandBuffer.SetViewProjectionMatrices(
-            Matrix4x4.identity,
-            GL.GetGPUProjectionMatrix(projection, renderIntoTexture: true));
+        // Field layout in texture memory has one owner shared with every
+        // reader. Camera matrices are not touched: field vertices read only
+        // these explicit globals, so no implicit API conversion is involved.
+        LightingFieldOrientation.BindRaster(commandBuffer, worldRect, localToWorldMatrix);
 
         int shaderPass = materials[0].FindPass(shaderPassName);
         if (shaderPass < 0)
@@ -161,5 +173,6 @@ public sealed class TerrainMeshManager
         commandBuffer.SetGlobalVector(_geometryCarrierPaddingWorldID, Vector4.zero);
 
         commandBuffer.EndSample(sampleName);
+        commandBuffer.DisableScissorRect();
     }
 }

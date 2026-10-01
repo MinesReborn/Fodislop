@@ -17,4 +17,10 @@ public enum PostProcessDebugView
     SaturationOnly = 5,
 
     RgbParade = 7,
+
+    Vignette = 8,
+
+    FilmGrain = 9,
+
+    Bloom = 10,
 }

@@ -17,6 +17,7 @@ namespace Kern.World.Lighting;
 internal sealed class StaticLightingSolver
 {
     private const int MaximumDispatchGroupsPerDimension = 65535;
+    private static readonly uint[] _zeroTransportCounters = new uint[3];
 
     private static readonly ProfilerMarker _CascadeMarker =
         new("Kern.Lighting.Cascades.Record.CPU");
@@ -37,7 +38,7 @@ internal sealed class StaticLightingSolver
     }
 
     public bool CanReuseStaticAtlas(Vector2Int regionDelta) =>
-        _scrollRecorder.CanResolveScrollDeltas(regionDelta);
+        _scrollRecorder.CanReuseWorldOverlap(regionDelta);
 
     public void RecordTrace(
         CommandBuffer commandBuffer,
@@ -50,10 +51,42 @@ internal sealed class StaticLightingSolver
     {
         using var cascadeMarker = _CascadeMarker.Auto();
         long traceStart = System.Diagnostics.Stopwatch.GetTimestamp();
-        commandBuffer.BeginSample("Kern.Lighting.RadianceCascades");
         using var radianceCascadesSample = new CommandBufferSampleScope(commandBuffer, "Kern.Lighting.RadianceCascades");
         ComputeShader compute = _resources.LightingCompute!;
         int solveKernel = _resources.SolveCascadeKernel;
+        // A reused region expands the change stream and replaces its buffer
+        // after shared-parameter recording; bind that current identity here.
+        _resources.EnsureReanchorChangeBinding();
+        commandBuffer.SetComputeBufferParam(compute, solveKernel,
+            "_ReanchorChanges", _resources.ReanchorChanges!);
+        // Snapshot only this static solve. Dynamic frames must not reset or
+        // overwrite its counters before the diagnostic GPU readback completes.
+        if (LightingComputeBinder.DiagnosticTransportCounters)
+        {
+            commandBuffer.SetBufferData(_resources.LightingCounters!, _zeroTransportCounters);
+            commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.LightingCountersEnabledID, 1);
+        }
+
+        commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.CascadeReanchorEnabledID, 0);
+        if (reuseOverlap)
+        {
+            DirtyRegionGpu[] edits = StaticLightingDirty.ConvertDirtyRegions(dirtyRegions, worldRect,
+                _resources.FieldWidth, _resources.FieldHeight);
+            _resources.EnsureDirtyRegionCapacity(Mathf.Max(1, edits.Length));
+            if (edits.Length > 0)
+            {
+                _resources.DirtyRegions!.SetData(edits);
+            }
+            _telemetry.LightingStaticDependencyMaskSolveCount++;
+            _scrollRecorder.RecordWorldReanchor(commandBuffer, compute, emissionField, regionDelta,
+                edits.Length, RecordCascade);
+            _telemetry.LightingCascadeTraceTimeMs =
+                (float)((System.Diagnostics.Stopwatch.GetTimestamp() - traceStart) *
+                    1000.0 / System.Diagnostics.Stopwatch.Frequency);
+            commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.LightingCountersEnabledID, 0);
+            return;
+        }
+
         bool useDependencyMask = allowDependencyMask &&
             !reuseOverlap &&
             ShouldUseDependencyMask(dirtyRegions, worldRect);
@@ -190,6 +223,7 @@ internal sealed class StaticLightingSolver
             }
         }
 
+        commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.LightingCountersEnabledID, 0);
         _telemetry.LightingCascadeTraceTimeMs =
             (float)((System.Diagnostics.Stopwatch.GetTimestamp() - traceStart) *
                 1000.0 / System.Diagnostics.Stopwatch.Frequency);
@@ -209,6 +243,9 @@ internal sealed class StaticLightingSolver
         int resolveKernel = transmissionDebug
             ? _resources.ResolveTransmissionDebugKernel
             : _resources.ResolveDirectKernel;
+        CascadeLayout first = _resources.Cascades[0];
+        commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.CascadeProbeSpacingID, first.ProbeSpacing);
+        commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.CascadeProbeSizeID, first.ProbeWidth, first.ProbeHeight);
 
         commandBuffer.SetComputeIntParam(
             compute,
@@ -237,8 +274,8 @@ internal sealed class StaticLightingSolver
         commandBuffer.DispatchCompute(
             compute,
             resolveKernel,
-            LightingComputeBinder.DispatchGroups(_resources.FieldWidth),
-            LightingComputeBinder.DispatchGroups(_resources.FieldHeight),
+            LightingComputeBinder.DispatchGroups(_resources.LightWidth),
+            LightingComputeBinder.DispatchGroups(_resources.LightHeight),
             1);
         _telemetry.LightingCascadeMergeTimeMs =
             (float)((System.Diagnostics.Stopwatch.GetTimestamp() - resolveStart) *

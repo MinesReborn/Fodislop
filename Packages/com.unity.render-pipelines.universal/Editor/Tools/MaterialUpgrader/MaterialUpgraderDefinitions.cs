@@ -1,0 +1,566 @@
+using System;
+using System.Runtime.CompilerServices;
+using UnityEditor.Rendering.Universal.ShaderGUI;
+using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
+
+[assembly: InternalsVisibleTo("MaterialPostprocessor")]
+namespace UnityEditor.Rendering.Universal
+{
+    internal interface IBuiltInToURPMaterialUpgrader
+    {
+    }
+
+    internal sealed class MaterialUpgradeUtils
+    {
+        internal static void DisableKeywords(Material material)
+        {
+            // LOD fade is now controlled by the render pipeline, and not the individual material, so disable it.
+            material.DisableKeyword("LOD_FADE_CROSSFADE");
+        }
+    }
+
+    public static class SupportedUpgradeParams
+    {
+        public static UpgradeParams diffuseOpaque = new UpgradeParams()
+        {
+            surfaceType = UpgradeSurfaceType.Opaque,
+            blendMode = UpgradeBlendMode.Alpha,
+            alphaClip = false,
+            specularSource = SpecularSource.NoSpecular,
+            smoothnessSource = SmoothnessSource.BaseAlpha,
+        };
+
+        public static UpgradeParams specularOpaque = new UpgradeParams()
+        {
+            surfaceType = UpgradeSurfaceType.Opaque,
+            blendMode = UpgradeBlendMode.Alpha,
+            alphaClip = false,
+            specularSource = SpecularSource.SpecularTextureAndColor,
+            smoothnessSource = SmoothnessSource.BaseAlpha,
+        };
+
+        public static UpgradeParams diffuseAlpha = new UpgradeParams()
+        {
+            surfaceType = UpgradeSurfaceType.Transparent,
+            blendMode = UpgradeBlendMode.Alpha,
+            alphaClip = false,
+            specularSource = SpecularSource.NoSpecular,
+            smoothnessSource = SmoothnessSource.SpecularAlpha,
+        };
+
+        public static UpgradeParams specularAlpha = new UpgradeParams()
+        {
+            surfaceType = UpgradeSurfaceType.Transparent,
+            blendMode = UpgradeBlendMode.Alpha,
+            alphaClip = false,
+            specularSource = SpecularSource.SpecularTextureAndColor,
+            smoothnessSource = SmoothnessSource.SpecularAlpha,
+        };
+
+        public static UpgradeParams diffuseAlphaCutout = new UpgradeParams()
+        {
+            surfaceType = UpgradeSurfaceType.Opaque,
+            blendMode = UpgradeBlendMode.Alpha,
+            alphaClip = true,
+            specularSource = SpecularSource.NoSpecular,
+            smoothnessSource = SmoothnessSource.SpecularAlpha,
+        };
+
+        public static UpgradeParams specularAlphaCutout = new UpgradeParams()
+        {
+            surfaceType = UpgradeSurfaceType.Opaque,
+            blendMode = UpgradeBlendMode.Alpha,
+            alphaClip = true,
+            specularSource = SpecularSource.SpecularTextureAndColor,
+            smoothnessSource = SmoothnessSource.SpecularAlpha,
+        };
+
+        public static UpgradeParams diffuseCubemap = new UpgradeParams()
+        {
+            surfaceType = UpgradeSurfaceType.Opaque,
+            blendMode = UpgradeBlendMode.Alpha,
+            alphaClip = false,
+            specularSource = SpecularSource.NoSpecular,
+            smoothnessSource = SmoothnessSource.BaseAlpha,
+        };
+
+        public static UpgradeParams specularCubemap = new UpgradeParams()
+        {
+            surfaceType = UpgradeSurfaceType.Opaque,
+            blendMode = UpgradeBlendMode.Alpha,
+            alphaClip = false,
+            specularSource = SpecularSource.SpecularTextureAndColor,
+            smoothnessSource = SmoothnessSource.BaseAlpha,
+        };
+
+        public static UpgradeParams diffuseCubemapAlpha = new UpgradeParams()
+        {
+            surfaceType = UpgradeSurfaceType.Transparent,
+            blendMode = UpgradeBlendMode.Alpha,
+            alphaClip = false,
+            specularSource = SpecularSource.NoSpecular,
+            smoothnessSource = SmoothnessSource.BaseAlpha,
+        };
+
+        public static UpgradeParams specularCubemapAlpha = new UpgradeParams()
+        {
+            surfaceType = UpgradeSurfaceType.Transparent,
+            blendMode = UpgradeBlendMode.Alpha,
+            alphaClip = false,
+            specularSource = SpecularSource.SpecularTextureAndColor,
+            smoothnessSource = SmoothnessSource.BaseAlpha,
+        };
+    }
+
+    public class StandardUpgrader : MaterialUpgrader, IBuiltInToURPMaterialUpgrader
+    {
+        enum LegacyRenderingMode
+        {
+            Opaque,
+            Cutout,
+            Fade,   // Old school alpha-blending mode, fresnel does not affect amount of transparency
+            Transparent // Physically plausible transparency mode, implemented as alpha pre-multiply
+        }
+
+        /// <param name="material">The material to update.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static void UpdateStandardMaterialKeywords(Material material)
+        {
+            if (material == null)
+                throw new ArgumentNullException("material");
+
+            if (material.GetTexture("_MetallicGlossMap"))
+                material.SetFloat("_Smoothness", material.GetFloat("_GlossMapScale"));
+            else
+                material.SetFloat("_Smoothness", material.GetFloat("_Glossiness"));
+
+            if (material.IsKeywordEnabled("_ALPHATEST_ON"))
+            {
+                material.SetFloat("_AlphaClip", 1.0f);
+            }
+
+            material.SetFloat("_WorkflowMode", 1.0f);
+            CoreUtils.SetKeyword(material, "_OCCLUSIONMAP", material.GetTexture("_OcclusionMap"));
+            CoreUtils.SetKeyword(material, "_METALLICSPECGLOSSMAP", material.GetTexture("_MetallicGlossMap"));
+            UpdateSurfaceTypeAndBlendMode(material);
+            UpdateDetailScaleOffset(material);
+            BaseShaderGUI.SetupMaterialBlendMode(material);
+            MaterialUpgradeUtils.DisableKeywords(material);
+        }
+
+        /// <param name="material">The material to update.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static void UpdateStandardSpecularMaterialKeywords(Material material)
+        {
+            if (material == null)
+                throw new ArgumentNullException("material");
+
+            if (material.GetTexture("_SpecGlossMap"))
+                material.SetFloat("_Smoothness", material.GetFloat("_GlossMapScale"));
+            else
+                material.SetFloat("_Smoothness", material.GetFloat("_Glossiness"));
+
+            material.SetFloat("_WorkflowMode", 0.0f);
+            CoreUtils.SetKeyword(material, "_OCCLUSIONMAP", material.GetTexture("_OcclusionMap"));
+            CoreUtils.SetKeyword(material, "_METALLICSPECGLOSSMAP", material.GetTexture("_SpecGlossMap"));
+            CoreUtils.SetKeyword(material, "_SPECULAR_SETUP", true);
+            UpdateSurfaceTypeAndBlendMode(material);
+            UpdateDetailScaleOffset(material);
+            BaseShaderGUI.SetupMaterialBlendMode(material);
+            MaterialUpgradeUtils.DisableKeywords(material);
+        }
+
+        static void UpdateDetailScaleOffset(Material material)
+        {
+            // In URP details tile/offset is multipied with base tile/offset, where in builtin is not
+            // Basically we setup new tile/offset values that in shader they would result in same values as in builtin
+            // This archieved with inverted calculation where scale=detailScale/baseScale and tile=detailOffset-baseOffset*scale
+            var baseScale = material.GetTextureScale("_BaseMap");
+            var baseOffset = material.GetTextureOffset("_BaseMap");
+            var detailScale = material.GetTextureScale("_DetailAlbedoMap");
+            var detailOffset = material.GetTextureOffset("_DetailAlbedoMap");
+            var scale = new Vector2(baseScale.x == 0 ? 0 : detailScale.x / baseScale.x, baseScale.y == 0 ? 0 : detailScale.y / baseScale.y);
+            material.SetTextureScale("_DetailAlbedoMap", scale);
+            material.SetTextureOffset("_DetailAlbedoMap", new Vector2((detailOffset.x - baseOffset.x * scale.x), (detailOffset.y - baseOffset.y * scale.y)));
+        }
+
+        // Converts from legacy RenderingMode to new SurfaceType and BlendMode
+        static void UpdateSurfaceTypeAndBlendMode(Material material)
+        {
+            // Property _Mode is already renamed to _Surface at this point
+            var legacyRenderingMode = (LegacyRenderingMode)material.GetFloat("_Surface");
+            if (legacyRenderingMode == LegacyRenderingMode.Transparent)
+            {
+                material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                material.SetFloat("_Surface", (float)BaseShaderGUI.SurfaceType.Transparent);
+                material.SetFloat("_Blend", (float)BaseShaderGUI.BlendMode.Premultiply);
+            }
+            else if (legacyRenderingMode == LegacyRenderingMode.Fade)
+            {
+                material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                material.SetFloat("_Surface", (float)BaseShaderGUI.SurfaceType.Transparent);
+                material.SetFloat("_Blend", (float)BaseShaderGUI.BlendMode.Alpha);
+            }
+            else
+            {
+                material.DisableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                material.SetFloat("_Surface", (float)BaseShaderGUI.SurfaceType.Opaque);
+            }
+        }
+
+        /// <param name="oldShaderName">The name of the old shader.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        public StandardUpgrader(string oldShaderName)
+        {
+            if (oldShaderName == null)
+                throw new ArgumentNullException("oldShaderName");
+
+            string standardShaderPath = ShaderUtils.GetShaderPath(ShaderPathID.Lit);
+
+            if (oldShaderName.Contains("Specular"))
+            {
+                RenameShader(oldShaderName, standardShaderPath, UpdateStandardSpecularMaterialKeywords);
+            }
+            else
+            {
+                RenameShader(oldShaderName, standardShaderPath, UpdateStandardMaterialKeywords);
+            }
+
+            RenameFloat("_Mode", "_Surface");
+            RenameFloat("_Mode", "_AlphaClip", renderingMode => renderingMode == 1.0f);
+            RenameTexture("_MainTex", "_BaseMap");
+            RenameColor("_Color", "_BaseColor");
+            RenameFloat("_GlossyReflections", "_EnvironmentReflections");
+        }
+    }
+
+    internal class StandardSimpleLightingUpgrader : MaterialUpgrader, IBuiltInToURPMaterialUpgrader
+    {
+        internal StandardSimpleLightingUpgrader(string oldShaderName, UpgradeParams upgradeParams)
+        {
+            if (oldShaderName == null)
+                throw new ArgumentNullException("oldShaderName");
+
+            RenameShader(oldShaderName, ShaderUtils.GetShaderPath(ShaderPathID.SimpleLit), UpdateMaterialKeywords);
+
+            SetFloat("_Surface", (float)upgradeParams.surfaceType);
+            SetFloat("_Blend", (float)upgradeParams.blendMode);
+            SetFloat("_AlphaClip", upgradeParams.alphaClip ? 1 : 0);
+            SetFloat("_SpecularHighlights", (float)upgradeParams.specularSource);
+            SetFloat("_SmoothnessSource", (float)upgradeParams.smoothnessSource);
+
+            RenameTexture("_MainTex", "_BaseMap");
+            RenameColor("_Color", "_BaseColor");
+            RenameFloat("_Shininess", "_Smoothness");
+
+            if (oldShaderName.Contains("Legacy Shaders/Self-Illumin"))
+            {
+                RenameTexture("_Illum", "_EmissionMap");
+                RemoveTexture("_Illum");
+                SetColor("_EmissionColor", Color.white);
+            }
+        }
+
+        internal static void UpdateMaterialKeywords(Material material)
+        {
+            if (material == null)
+                throw new ArgumentNullException("material");
+
+            material.shaderKeywords = null;
+            BaseShaderGUI.SetupMaterialBlendMode(material);
+            UpdateMaterialSpecularSource(material);
+            CoreUtils.SetKeyword(material, "_NORMALMAP", material.GetTexture("_BumpMap"));
+
+            // A material's GI flag internally keeps track of whether emission is enabled at all, it's enabled but has no effect
+            // or is enabled and may be modified at runtime. This state depends on the values of the current flag and emissive color.
+            // The fixup routine makes sure that the material is in the correct state if/when changes are made to the mode or color.
+            MaterialEditor.FixupEmissiveFlag(material);
+            bool shouldEmissionBeEnabled = (material.globalIlluminationFlags & MaterialGlobalIlluminationFlags.AnyEmissive) != 0;
+            CoreUtils.SetKeyword(material, "_EMISSION", shouldEmissionBeEnabled);
+            MaterialUpgradeUtils.DisableKeywords(material);
+        }
+
+        private static void UpdateMaterialSpecularSource(Material material)
+        {
+            SpecularSource specSource = (SpecularSource)material.GetFloat("_SpecSource");
+            if (specSource == SpecularSource.NoSpecular)
+            {
+                CoreUtils.SetKeyword(material, "_SPECGLOSSMAP", false);
+                CoreUtils.SetKeyword(material, "_SPECULAR_COLOR", false);
+                CoreUtils.SetKeyword(material, "_GLOSSINESS_FROM_BASE_ALPHA", false);
+            }
+            else
+            {
+                SmoothnessSource glossSource = (SmoothnessSource)material.GetFloat("_SmoothnessSource");
+                bool hasGlossMap = material.GetTexture("_SpecGlossMap");
+                CoreUtils.SetKeyword(material, "_SPECGLOSSMAP", hasGlossMap);
+                CoreUtils.SetKeyword(material, "_SPECULAR_COLOR", !hasGlossMap);
+                CoreUtils.SetKeyword(material, "_GLOSSINESS_FROM_BASE_ALPHA", glossSource == SmoothnessSource.BaseAlpha);
+            }
+        }
+    }
+
+    public class TerrainUpgrader : MaterialUpgrader, IBuiltInToURPMaterialUpgrader
+    {
+        /// <param name="oldShaderName">The name of the old shader.</param>
+        public TerrainUpgrader(string oldShaderName)
+        {
+            RenameShader(oldShaderName, ShaderUtils.GetShaderPath(ShaderPathID.TerrainLit), MaterialUpgradeUtils.DisableKeywords);
+        }
+
+    }
+
+    internal class SpeedTreeUpgrader : MaterialUpgrader, IBuiltInToURPMaterialUpgrader
+    {
+        internal SpeedTreeUpgrader(string oldShaderName)
+        {
+            RenameShader(oldShaderName, ShaderUtils.GetShaderPath(ShaderPathID.SpeedTree7), MaterialUpgradeUtils.DisableKeywords);
+        }
+    }
+    internal class SpeedTreeBillboardUpgrader : MaterialUpgrader, IBuiltInToURPMaterialUpgrader
+    {
+        internal SpeedTreeBillboardUpgrader(string oldShaderName)
+        {
+            RenameShader(oldShaderName, ShaderUtils.GetShaderPath(ShaderPathID.SpeedTree7Billboard), MaterialUpgradeUtils.DisableKeywords);
+        }
+    }
+
+    public class ParticleUpgrader : MaterialUpgrader, IBuiltInToURPMaterialUpgrader
+    {
+        /// <param name="oldShaderName">The name of the old shader.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        public ParticleUpgrader(string oldShaderName)
+        {
+            if (oldShaderName == null)
+                throw new ArgumentNullException("oldShaderName");
+
+            RenameFloat("_Mode", "_Surface");
+
+            if (oldShaderName.Contains("Unlit"))
+            {
+                RenameShader(oldShaderName, ShaderUtils.GetShaderPath(ShaderPathID.ParticlesUnlit), UpdateUnlit);
+            }
+            else
+            {
+                RenameShader(oldShaderName, ShaderUtils.GetShaderPath(ShaderPathID.ParticlesLit), UpdateStandardSurface);
+                RenameFloat("_Glossiness", "_Smoothness");
+            }
+
+            RenameTexture("_MainTex", "_BaseMap");
+            RenameColor("_Color", "_BaseColor");
+            RenameFloat("_FlipbookMode", "_FlipbookBlending");
+
+            // Forward the _EMISSION keyword state from old shader to new shader
+            TransferKeyword("_EMISSION");
+        }
+
+        /// <param name="material"></param>
+        public static void UpdateStandardSurface(Material material)
+        {
+            UpdateSurfaceBlendModes(material);
+            ParticleGUI.SetupMaterialWithColorMode(material);
+            MaterialUpgradeUtils.DisableKeywords(material);
+            FixEmissiveFlags(material);
+        }
+
+        /// <param name="material"></param>
+        public static void UpdateUnlit(Material material)
+        {
+            UpdateSurfaceBlendModes(material);
+            ParticleGUI.SetupMaterialWithColorMode(material);
+            MaterialUpgradeUtils.DisableKeywords(material);
+            FixEmissiveFlags(material);
+        }
+
+        /// <param name="material">The upgraded material with the new shader.</param>
+        static void FixEmissiveFlags(Material material)
+        {
+            if (material == null)
+                return;
+
+            // If _EMISSION keyword is enabled, ensure globalIlluminationFlags are set correctly
+            if (material.IsKeywordEnabled("_EMISSION"))
+            {
+                LightingSettings lightingSettingsOrDefaultsFallback = Lightmapping.GetLightingSettingsOrDefaultsFallback();
+                MaterialGlobalIlluminationFlags materialGlobalIlluminationFlags =
+                    (lightingSettingsOrDefaultsFallback.realtimeGI ? MaterialGlobalIlluminationFlags.RealtimeEmissive :
+                    (lightingSettingsOrDefaultsFallback.bakedGI ? MaterialGlobalIlluminationFlags.BakedEmissive :
+                    MaterialGlobalIlluminationFlags.None));
+                material.globalIlluminationFlags = materialGlobalIlluminationFlags;
+            }
+
+            // Fix emission checkbox appearing enabled after conversion when it was disabled in BiRP.
+            // BiRP Particles that never had emission toggled in inspector have None flags by default,
+            // but the emission checkbox checks if flags != EmissiveIsBlack (see MaterialEditor.EmissionEnabledProperty).
+            // Set EmissiveIsBlack to match what BiRP Standard does when emission is unchecked.
+            else if (material.globalIlluminationFlags == MaterialGlobalIlluminationFlags.None)
+            {
+                material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.EmissiveIsBlack;
+            }
+        }
+
+        /// <param name="material"></param>
+        public static void UpdateSurfaceBlendModes(Material material)
+        {
+            switch (material.GetFloat("_Mode"))
+            {
+                case 0: // opaque
+                    material.DisableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                    material.SetFloat("_Surface", (int)UpgradeSurfaceType.Opaque);
+                    break;
+                case 1: // cutout > alphatest
+                    material.DisableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                    material.SetFloat("_Surface", (int)UpgradeSurfaceType.Opaque);
+                    material.SetFloat("_AlphaClip", 1);
+                    break;
+                case 2: // fade > alpha
+                    material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                    material.SetFloat("_Surface", (int)UpgradeSurfaceType.Transparent);
+                    material.SetFloat("_Blend", (int)UpgradeBlendMode.Alpha);
+                    break;
+                case 3: // transparent > premul
+                    material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                    material.SetFloat("_Surface", (int)UpgradeSurfaceType.Transparent);
+                    material.SetFloat("_Blend", (int)UpgradeBlendMode.Premultiply);
+                    break;
+                case 4: // add
+                    material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                    material.SetFloat("_Surface", (int)UpgradeSurfaceType.Transparent);
+                    material.SetFloat("_Blend", (int)UpgradeBlendMode.Additive);
+                    break;
+                case 5: // sub > transparent with Subtractive color mode
+                    material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                    material.SetFloat("_Surface", (int)UpgradeSurfaceType.Transparent);
+                    material.SetFloat("_Blend", (int)UpgradeBlendMode.Alpha);
+                    material.SetFloat("_ColorMode", 2f); // ParticleGUI.ColorMode.Subtractive
+                    break;
+                case 6: // mod > multiply
+                    material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                    material.SetFloat("_Surface", (int)UpgradeSurfaceType.Transparent);
+                    material.SetFloat("_Blend", (int)UpgradeBlendMode.Multiply);
+                    break;
+            }
+        }
+    }
+
+    public class AutodeskInteractiveUpgrader : MaterialUpgrader, IBuiltInToURPMaterialUpgrader
+    {
+        enum LegacyRenderingMode
+        {
+            Opaque,
+            Cutout,
+            Fade,   // Old school alpha-blending mode, fresnel does not affect amount of transparency
+            Transparent // Physically plausible transparency mode, implemented as alpha pre-multiply
+        }
+
+        /// <param name="oldShaderName">The name of the old shader.</param>
+        public AutodeskInteractiveUpgrader(string oldShaderName)
+        {
+            RenameShader(oldShaderName, "Universal Render Pipeline/Autodesk Interactive/AutodeskInteractive", MaterialUpgradeUtils.DisableKeywords);
+        }
+
+        private bool TryGetShaderUpgrade(Material material, out Shader shader)
+        {
+            if (material == null)
+            {
+                shader = null;
+                return false;
+            }
+            if (!GraphicsSettings.TryGetRenderPipelineSettings<UniversalRenderPipelineEditorShaders>(out var settings))
+            {
+                shader = null;
+                return false;
+            }
+            shader = null;
+            var legacyRenderingMode = (LegacyRenderingMode)material.GetFloat("_Mode");
+            switch (legacyRenderingMode)
+            {
+                case LegacyRenderingMode.Opaque:
+                    shader = settings.autodeskInteractiveShader;
+                    break;
+                case LegacyRenderingMode.Cutout:
+                    shader = settings.autodeskInteractiveMaskedShader;
+                    break;
+                case LegacyRenderingMode.Fade:
+                    shader = settings.autodeskInteractiveTransparentShader;
+                    break;
+                case LegacyRenderingMode.Transparent:
+                    shader = settings.autodeskInteractiveTransparentShader;
+                    break;
+            }
+            return true;
+        }
+        /// <inheritdoc/>
+        public override void Upgrade(Material material, UpgradeFlags flags)
+        {
+            if (material == null)
+                throw new ArgumentNullException(nameof(material));
+
+            if (!TryGetShaderUpgrade(material, out var shader))
+            {
+                Debug.LogError($"Unable to find destination shader {NewShaderPath} when trying to upgrade {material.name}");
+                return;
+            }
+
+            Material newMaterial;
+            if ((flags & UpgradeFlags.CleanupNonUpgradedProperties) != 0)
+            {
+                newMaterial = new Material(shader);
+            }
+            else
+            {
+                newMaterial = UnityEngine.Object.Instantiate(material) as Material;
+                newMaterial.shader = shader;
+            }
+
+            Convert(material, newMaterial);
+
+            // Material Variants will not change the shader as is a parent only thing
+            if (material.parent == null)
+                material.shader = shader;
+
+            material.CopyPropertiesFromMaterial(newMaterial);
+            UnityEngine.Object.DestroyImmediate(newMaterial);
+
+            Finalizer?.Invoke(material);
+        }
+        /// <inheritdoc/>
+        public override void Convert(Material srcMaterial, Material dstMaterial)
+        {
+            base.Convert(srcMaterial, dstMaterial);
+            dstMaterial.SetFloat("_UseColorMap", srcMaterial.GetTexture("_MainTex") ? 1.0f : .0f);
+            dstMaterial.SetFloat("_UseMetallicMap", srcMaterial.GetTexture("_MetallicGlossMap") ? 1.0f : .0f);
+            dstMaterial.SetFloat("_UseNormalMap", srcMaterial.GetTexture("_BumpMap") ? 1.0f : .0f);
+            dstMaterial.SetFloat("_UseRoughnessMap", srcMaterial.GetTexture("_SpecGlossMap") ? 1.0f : .0f);
+            dstMaterial.SetFloat("_UseEmissiveMap", srcMaterial.GetTexture("_EmissionMap") ? 1.0f : .0f);
+            dstMaterial.SetFloat("_UseAoMap", srcMaterial.GetTexture("_OcclusionMap") ? 1.0f : .0f);
+            dstMaterial.SetVector("_UvOffset", srcMaterial.GetTextureOffset("_MainTex"));
+            dstMaterial.SetVector("_UvTiling", srcMaterial.GetTextureScale("_MainTex"));
+
+            if (!TryGetShaderUpgrade(srcMaterial, out var shader))
+            {
+                return;
+            }
+            var legacyRenderingMode = (LegacyRenderingMode)srcMaterial.GetFloat("_Mode");
+            switch (legacyRenderingMode)
+            {
+                case LegacyRenderingMode.Opaque:
+                    break;
+                case LegacyRenderingMode.Cutout:
+                    dstMaterial.SetFloat("_UseOpacityMap", .0f);
+                    dstMaterial.SetFloat("_OpacityThreshold", srcMaterial.GetFloat("_Cutoff"));
+                    break;
+                case LegacyRenderingMode.Fade:
+                    dstMaterial.SetFloat("_UseOpacityMap", .0f);
+                    dstMaterial.SetFloat("_Opacity", srcMaterial.GetColor("_Color").a);
+                    break;
+                case LegacyRenderingMode.Transparent:
+                    dstMaterial.SetFloat("_UseOpacityMap", .0f);
+                    dstMaterial.SetFloat("_Opacity", srcMaterial.GetColor("_Color").a);
+                    break;
+            }
+        }
+    }
+}

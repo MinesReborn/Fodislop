@@ -2,6 +2,7 @@
 
 using System;
 using Kern.Core;
+using Kern.Core.Interfaces.WorldLighting;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -14,6 +15,12 @@ namespace Kern.Rendering.PostProcessing
     public class PostProcessRenderPass : ScriptableRenderPass2D
     {
         private readonly bool _displayPass;
+        private readonly PostProcessWorkload _workload = new();
+        private readonly PostProcessWorkload _diagnosticWorkload = new();
+        internal PostProcessWorkloadSnapshot? LatestWorkload =>
+            PostProcessRuntimeState.DiagnosticOffscreenCamera != null &&
+            PostProcessRuntimeState.DiagnosticOffscreenCamera != PostProcessRuntimeState.MainCamera
+                ? _diagnosticWorkload.Latest : _workload.Latest;
         private readonly ComputeShader _postProcessCS;
         private readonly int _kernelPrefilter;
         private readonly int _kernelDownsample;
@@ -79,7 +86,8 @@ namespace Kern.Rendering.PostProcessing
             UniversalCameraData cameraData = frameData.Get<UniversalCameraData>();
             if (cameraData.renderType != CameraRenderType.Base ||
                 cameraData.camera.cameraType != CameraType.Game ||
-                cameraData.camera != PostProcessRuntimeState.MainCamera)
+                (cameraData.camera != PostProcessRuntimeState.MainCamera &&
+                 cameraData.camera != PostProcessRuntimeState.DiagnosticOffscreenCamera))
             {
                 return;
             }
@@ -123,6 +131,11 @@ namespace Kern.Rendering.PostProcessing
                 out int width,
                 out int height,
                 out TextureDesc desc);
+            Renderer2DWorldGridData worldGrid = frameData.Get<Renderer2DWorldGridData>();
+            bool scaleWorld = _displayPass && worldGrid.Active;
+            // Display effects execute once per world pixel. The renderer's
+            // existing final blit owns the guarded viewport crop and scaling.
+            // This keeps grain, LUT and vignette on the same lattice as geometry.
 
             Tonemapping output = stack.GetComponent<Tonemapping>();
             bool hdrOutput = cameraData.isHDROutputActive;
@@ -166,7 +179,7 @@ namespace Kern.Rendering.PostProcessing
             // Сценический проход теперь несёт только блум; LUT, виньетка,
             // зерно и диагностика живут в проходе вывода.
             bool passNeeded = _displayPass
-                ? diagnosticsActive || vignetteActive || eigengrauActive || lutActive
+                ? scaleWorld || diagnosticsActive || vignetteActive || eigengrauActive || lutActive
                 : bloomActive;
             if (!passNeeded)
             {
@@ -178,6 +191,8 @@ namespace Kern.Rendering.PostProcessing
             desc.name = "_PPIntermediateColor";
             desc.filterMode = FilterMode.Point;
             TextureHandle intermediateTexture = renderGraph.CreateTexture(desc);
+            int textureCount = 1;
+            long texturePayloadBytes = TexturePayloadBytes(desc);
 
             TextureHandle bloomPrefilterTexture = default;
             if (bloomActive)
@@ -188,6 +203,8 @@ namespace Kern.Rendering.PostProcessing
                 bloomDesc.name = "_PPBloomPrefilter";
                 bloomDesc.filterMode = FilterMode.Bilinear;
                 bloomPrefilterTexture = renderGraph.CreateTexture(bloomDesc);
+                textureCount++;
+                texturePayloadBytes += TexturePayloadBytes(bloomDesc);
 
                 for (int i = 0; i < bloomLevels; i++)
                 {
@@ -195,6 +212,8 @@ namespace Kern.Rendering.PostProcessing
                     bloomDesc.height = Mathf.Max(1, bloomDesc.height / 2);
                     bloomDesc.name = BloomDownNames[i];
                     _bloomDownTextures[i] = renderGraph.CreateTexture(bloomDesc);
+                    textureCount++;
+                    texturePayloadBytes += TexturePayloadBytes(bloomDesc);
                 }
 
                 for (int i = PostProcessRuntimeState.DiagnosticUnfusedBloom ? 0 : 1; i < bloomLevels; i++)
@@ -205,13 +224,53 @@ namespace Kern.Rendering.PostProcessing
                     bloomUpDesc.name = BloomUpNames[i];
                     bloomUpDesc.filterMode = FilterMode.Bilinear;
                     _bloomUpTextures[i] = renderGraph.CreateTexture(bloomUpDesc);
+                    textureCount++;
+                    texturePayloadBytes += TexturePayloadBytes(bloomUpDesc);
                 }
             }
 
             Vector4 screenToEmission = PostProcessPassDataAssembler.ComputeScreenToEmission(cameraData.camera, bloomActive);
+            if (bloomActive && worldGrid.Active)
+            {
+                Vector4 lightRect = Shader.GetGlobalVector(WorldLightRectID);
+                Vector4 rect = worldGrid.Layout.WorldRect;
+                if (lightRect.z <= 0 || lightRect.w <= 0)
+                {
+                    throw new InvalidOperationException("Bloom requires a published world emission field.");
+                }
+
+                screenToEmission = new Vector4(rect.z / lightRect.z, rect.w / lightRect.w,
+                    (rect.x - lightRect.x) / lightRect.z, (rect.y - lightRect.y) / lightRect.w);
+                if (LightingFieldOrientation.RowsTopDown)
+                {
+                    screenToEmission.y = -screenToEmission.y;
+                    screenToEmission.w = 1 - screenToEmission.w;
+                }
+            }
 
             using (var builder = renderGraph.AddUnsafePass<PostProcessPassData>(PassName, out var passData, profilingSampler))
             {
+                passData.CameraId = cameraData.camera.GetEntityId();
+                passData.Workload = cameraData.camera == PostProcessRuntimeState.DiagnosticOffscreenCamera &&
+                    cameraData.camera != PostProcessRuntimeState.MainCamera ? _diagnosticWorkload : _workload;
+                passData.CreatedTextureCount = textureCount;
+                passData.CreatedTexturePayloadBytes = texturePayloadBytes;
+                passData.DisplaySourceUv = new Vector4(1, 1, 0, 0);
+                // Keep the crop in canonical Y-up coordinates. The executor resolves
+                // each resource's RenderGraph orientation, which is independent of
+                // the graphics API's preferred origin (imported camera targets
+                // and compute outputs can have different origins).
+                passData.ScalesWorldGrid = false;
+                passData.WorldGridRect = worldGrid.Active ? worldGrid.Layout.WorldRect : Vector4.zero;
+                if (scaleWorld)
+                {
+                    Vector4 crop = worldGrid.Layout.ViewportToWorldUv;
+                    passData.DisplayWorldToViewportUv = new Vector4(1f / crop.x, 1f / crop.y,
+                        -crop.z / crop.x, -crop.w / crop.y);
+                }
+                passData.DisplayViewportAspect = cameraData.camera.aspect;
+
+                passData.DisplayLinearFilter = false;
                 passData.PostProcessCS = _postProcessCS;
                 passData.KernelPrefilter = _kernelPrefilter;
                 passData.KernelDownsample = _kernelDownsample;
@@ -294,6 +353,11 @@ namespace Kern.Rendering.PostProcessing
                     resourceData.cameraColor = intermediateTexture;
                 }
             }
+        }
+
+        private static long TexturePayloadBytes(TextureDesc desc)
+        {
+            return checked((long)desc.width * desc.height * GraphicsFormatUtility.GetBlockSize(desc.colorFormat));
         }
     }
 }

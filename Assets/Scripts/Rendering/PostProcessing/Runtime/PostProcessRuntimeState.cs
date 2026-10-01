@@ -2,6 +2,7 @@
 
 using System;
 using UnityEngine;
+using UnityEngine.Rendering;
 using Kern.Core;
 
 namespace Kern.Rendering.PostProcessing;
@@ -9,17 +10,32 @@ public static class PostProcessRuntimeState
 {
     internal static Camera? MainCamera { get; private set; }
 
+    // Explicit production-image observation. The test records a GPU readback in
+    // the real pass before its input is discarded. All arguments are borrowed
+    // for this call; the fixture must clear the callback during teardown.
+    internal static Action<CommandBuffer, RenderTexture, Vector4>? DiagnosticWorldImage { get; set; }
+
+    // Observation only: production scene/prefilter/additive targets. The
+    // callback records readbacks into this frame's command buffer and cannot
+    // retain borrowed textures. Null incurs no diagnostic render passes.
+    internal static Action<CommandBuffer, string, RenderTexture, Vector4>? DiagnosticBloomImage { get; set; }
+
     // Borrowed camera for an explicitly requested offscreen production benchmark.
     // Fixture owns registration and teardown; ordinary offscreen cameras stay excluded.
     public static Camera? DiagnosticOffscreenCamera { get; set; }
-    // Explicit A/B reference, not a missing-resource fallback. Default production is fused.
+    // Legacy fusion A/B is available only when DiagnosticLegacyBloom is explicit.
+    // Ordinary production uses the small world-grid bloom pyramid.
     public static bool DiagnosticUnfusedBloom { get; set; }
+    public static bool DiagnosticLegacyBloom { get; set; }
+    // Explicit before/after reference for the registered benchmark camera.
+    // Production cameras always keep the fixed world grid.
+    internal static bool DiagnosticFullResolutionWorld { get; set; }
     public static int DiagnosticBloomDispatches { get; private set; }
     public static int DiagnosticBloomFrame { get; private set; } = -1;
 
-    internal static void RecordBloomDispatches(int dispatches)
+    internal static void RecordBloomDispatches(int dispatches, EntityId cameraId)
     {
-        if (MainCamera != null && MainCamera == DiagnosticOffscreenCamera)
+        if (DiagnosticOffscreenCamera != null && DiagnosticOffscreenCamera.GetEntityId() == cameraId)
         {
             DiagnosticBloomDispatches = dispatches;
             DiagnosticBloomFrame = Time.frameCount;
@@ -181,6 +197,10 @@ public static class PostProcessRuntimeState
     {
         MainCamera = null;
         DiagnosticOffscreenCamera = null;
+        DiagnosticWorldImage = null;
+        DiagnosticBloomImage = null;
+        DiagnosticLegacyBloom = false;
+        DiagnosticFullResolutionWorld = false;
         DiagnosticUnfusedBloom = false;
         DiagnosticBloomDispatches = 0;
         DiagnosticBloomFrame = -1;

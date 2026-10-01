@@ -150,6 +150,7 @@ public static class CaptureAnalyzer
 
             if (frame.CounterGeneration < 0 ||
                 frame.FrameCounters?.GcAllocBytes is < 0 ||
+                frame.FrameCounters?.BloomDispatches is < 0 ||
                 counters.Any(value => value is < 0) || Values(frame.FrameCounters).Any(value => value is < 0) ||
                 !ValidInputs(frame.Inputs))
             {

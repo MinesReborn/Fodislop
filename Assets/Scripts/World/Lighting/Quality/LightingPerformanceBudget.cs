@@ -12,13 +12,10 @@ public static class LightingPerformanceBudget
     public const float CascadeMergeMaxMs = 0.25f;
     public const float DynamicLightingMaxMs = 0.7f;
     public const float CompositeMaxMs = 0.15f;
-    // Перепривязка региона записывает весь статический транспорт в один
-    // командный буфер, и этот всплеск обязан уложиться в кадр. Бюджет задаёт
-    // границу всплеска: до 64 направлений сохраняется, а разрешение поля
-    // понижается до ступени, которая в бюджет влезает. Прежние 1.5e9
-    // пропускали всплеск в 896M единиц (поле 512x512 при 64 направлениях) —
-    // он и давал ожидание команд рендера на перепривязке.
-    public const long MaximumStaticCascadeRayWorkUnits = 200_000_000;
+    // Conservative texel-step estimate for diagnostics. Exhaustively uniform
+    // cells integrate in one cell step; authored quality is never reduced to
+    // fit this estimate. Frame and measured GPU budgets still need proof.
+    public const long MaximumStaticCascadeRayWorkUnits = LightingConfigHolder.MaximumStaticCascadeRayWorkUnits;
 
     public const float MaxAllowedRegressionFactor = 1.20f; // 20% regression threshold
 

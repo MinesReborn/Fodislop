@@ -68,6 +68,8 @@ namespace Effekseer.Internal
 
 	public class RenderTargetProperty
 	{
+		public Matrix4x4? ProjectionMatrixOverride;
+		public Matrix4x4? ViewMatrixOverride;
 		public RenderFeature renderFeature = RenderFeature.PostProcess;
 
 		/// <summary>
