@@ -25,6 +25,8 @@ internal sealed class LightingResourceManager
     private RenderTexture? _lightmapTexture;
     private RenderTexture? _cellSolidMask;
     private RenderTexture? _surfaceAirCache;
+    private ComputeBuffer? _cleanCellRows;
+    private ComputeBuffer? _cleanCellPrefix;
     private RenderTexture? _ambientOcclusionField;
     private GraphicsQualitySettings _allocatedQuality;
     private int _allocatedMaximumCascadeDirections;
@@ -104,6 +106,9 @@ internal sealed class LightingResourceManager
     // textures, which invalidates them.
     public RenderTexture? CellSolidMask => _cellSolidMask;
     public RenderTexture? SurfaceAirCache => _surfaceAirCache;
+    // Summed-area table of cells that are not clean air; scratch rows + result.
+    public ComputeBuffer? CleanCellRows => _cleanCellRows;
+    public ComputeBuffer? CleanCellPrefix => _cleanCellPrefix;
     public RenderTexture? AmbientOcclusionField => _ambientOcclusionField;
     public bool GeometryCachesValid { get; set; }
     public int CellGridWidth { get; private set; }
@@ -123,6 +128,8 @@ internal sealed class LightingResourceManager
     public int CompositeLightingKernel { get; private set; }
     public int BuildCellSolidMaskKernel { get; private set; }
     public int BuildSurfaceAirCacheKernel { get; private set; }
+    public int BuildCleanCellRowsKernel { get; private set; }
+    public int BuildCleanCellColumnsKernel { get; private set; }
     public int FieldWidth { get; private set; }
     public int FieldHeight { get; private set; }
     // Receiver lattice of static/dynamic direct, surface cache and lightmap.
@@ -162,6 +169,8 @@ internal sealed class LightingResourceManager
         CompositeLightingKernel = loaded.CompositeLightingKernel;
         BuildCellSolidMaskKernel = loaded.BuildCellSolidMaskKernel;
         BuildSurfaceAirCacheKernel = loaded.BuildSurfaceAirCacheKernel;
+        BuildCleanCellRowsKernel = loaded.Compute.FindKernel("BuildCleanCellRows");
+        BuildCleanCellColumnsKernel = loaded.Compute.FindKernel("BuildCleanCellColumns");
         LightingShaderValidator.ValidateGpuRequirements();
         LightingShaderValidator.ValidateTerrainFieldPasses(LightingTexturePool.DestroyLightingObject);
         LightingFieldOrientationValidator.EnsureValidated();
@@ -391,6 +400,8 @@ internal sealed class LightingResourceManager
             randomWrite: true,
             FilterMode.Point,
             "_LightingCellSolidMask");
+        _cleanCellRows = new ComputeBuffer(checked(gridWidth * gridHeight), sizeof(uint) * 2, ComputeBufferType.Structured);
+        _cleanCellPrefix = new ComputeBuffer(checked(gridWidth * gridHeight), sizeof(uint) * 2, ComputeBufferType.Structured);
         _surfaceAirCache = LightingTexturePool.CreateTexture(
             lightWidth,
             lightHeight,
@@ -479,6 +490,10 @@ internal sealed class LightingResourceManager
         LightingTexturePool.ReleaseTexture(ref _staticDirectTexture);
         LightingTexturePool.ReleaseTexture(ref _lightmapTexture);
         LightingTexturePool.ReleaseTexture(ref _cellSolidMask);
+        _cleanCellRows?.Release();
+        _cleanCellRows = null;
+        _cleanCellPrefix?.Release();
+        _cleanCellPrefix = null;
         LightingTexturePool.ReleaseTexture(ref _surfaceAirCache);
         LightingTexturePool.ReleaseTexture(ref _ambientOcclusionField);
         GeometryCachesValid = false;

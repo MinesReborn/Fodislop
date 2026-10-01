@@ -271,7 +271,34 @@ namespace Kern.Player
             }
 
             HandleZoom();
+            Vector3 before = _camera.transform.position;
             HandleFollow();
+            ReportCameraJump(before);
+        }
+
+        // Скачок камеры больше JumpReportCells клеток за кадр пишется в лог
+        // вместе с тем, за чем она шла: так видно, кто его вызвал — позиция
+        // с сервера, сглаживание бота или переход вида.
+        private const float JumpReportCells = 2f;
+
+        private void ReportCameraJump(Vector3 before)
+        {
+            Vector3 after = _camera.transform.position;
+            float jump = Vector2.Distance(before, after);
+            if (jump <= JumpReportCells * ProjectRuntimeContracts.World.CellSize)
+            {
+                return;
+            }
+
+            ILocalPlayer? player = _localPlayer?.Current;
+            string robotState = _targetRobot != null
+                ? $"anchor={_targetRobot.CameraAnchor}, target={_targetRobot.TargetPosition}"
+                : "robot=none";
+            Debug.LogWarning(
+                $"[CameraFollow] Camera jumped {jump:F2} from {before} to {after}; {robotState}; " +
+                $"server cell={(player != null ? player.Position.ToString() : "none")}, " +
+                $"hasServerPosition={player?.HasServerPosition}, " +
+                $"holding={_viewTransition?.IsHolding}, frame={Time.frameCount}.");
         }
 
         private void HandleZoom()

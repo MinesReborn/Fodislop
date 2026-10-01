@@ -445,17 +445,34 @@ compares five boundary positions against an independent continuous-square integr
 `ceil(rayFan/64) × DynamicEmitterPointCount × 1`; the polar target is
 `(rayFan+2) × rayLength × (capacity × DynamicEmitterPointCount)` Tex2DArray, with
 one layer per emitter point and two angular wrap columns in each layer.
+`rayLength` rows are receiver (light-lattice) texels: the march visits every
+transport texel but stores one radial depth sample per light texel
+(`_FieldTexelsPerLightTexel` transport texels per row), so a denser material
+field no longer multiplies the polar storage and writes. The far gather blends
+the two neighbouring rays by transmission, not by optical depth
+(`PolarTransmission`): a blocked or sealed ray beside an open one yields a
+penumbra instead of blackening the whole angular gap between them.
 Equal RGB extinction uses RFloat (one exact float32 optical depth); unequal RGB extinction uses ARGBFloat. The lookup replicates the scalar depth before applying RGB source radiance. No half-depth conversion or HDR clamp is used. `DynamicLightTileCache` owns and releases this scratch resource. A quarter-capacity slot shrink also releases the obsolete polar layers. Radius samples
 are never shortened to fit stacked emitters; an unsupported requested length
 fails explicitly. `VisualTuning.MaximumDynamicPolarRayWorkUnits` controls the
 existing shared angular work budget. `SolveDynamicLighting` reads those outputs plus
 `_StaticEmissionField` and writes a per-source Tex2DArray layer, or
 `_DirectTexture` for one light. It dispatches `ceil(rect.width/8) ×
-ceil(rect.height/8) × 1` over the source reach rect. Receivers are bounded only by
-that CPU rect: the analytic air reach (weakest extinction) intersected with the
-camera coverage. There is no per-receiver GPU reach radius; one used to force
-radiance to zero and, whenever its traced reach came out short, cut every source
-off in a hard circle of the near-zone floor radius. `ComposeDynamicLighting`
+ceil(rect.height/8) × 1` over the source reach rect. Receivers come from that CPU rect:
+the analytic air reach (weakest extinction) intersected with the camera coverage.
+Inside it, `TraceDynamicPolar` also writes an angular horizon
+(`_DynamicHorizon`, `[slot][emitter point][direction]`): the radius past which
+that ray's transmitted light, with the source-entry depth and chord-weight bounds
+added back, is below `InvisibleDynamicRadiance`, or where the ray is sealed. Each
+fan thread owns one entry and overwrites it on every trace — no CPU clear and no
+atomics. `SolveDynamicLighting` reads it through the read-only binding
+`_DynamicHorizonInput` and skips a far-zone receiver only when it lies beyond the
+horizon of every ray its gather can blend, over all emitter points (angle widened
+by the emitter-point spread, one radial row of interpolation added); the near zone
+is never skipped. The former scheme — a `SetBufferData` clear of the slot followed
+by `InterlockedMax` from the fan — read back zeros: light ended at the near-zone
+square (and, with the earlier single reach radius, at the 10.5-cell floor circle).
+The buffer lives with the polar texture in `DynamicLightTileCache`. `ComposeDynamicLighting`
 reads cached light layers, 32-byte tile descriptors and source colors and writes
 `_DirectTexture` over
 the union rect with the same 8×8 groups. The solver records `LightingDdaSegments`,
@@ -616,6 +633,35 @@ publication. Geometry, exact source state, generation and field-layout
 invalidation still apply. This removes a duplicate field-sized HDR allocation
 and write for one source; it does not reduce density or full ray distance.
 
+### Incremental composition and receiver blocks
+
+With several sources on a retained atlas, the solver remembers which receiver
+rectangle each source last contributed to `DirectTexture`. A solve recomposes
+only the union of the old and new rectangles of sources that were re-traced,
+changed rectangle, appeared or disappeared; every other pixel's sum is
+unchanged. `ComposeDynamicLighting` writes every pixel of its rectangle, zeros
+included, so a vacated area needs no clear. A solve that changed no rectangle
+skips the composite. A replaced atlas, a static re-solve or a single source
+keeps the full-union path.
+
+`LightingReceiverCoverage` grows the visible receiver rectangle outward to
+blocks of `SnapCells` (8) cells. Sources whose reach crosses a screen edge clip
+their receivers to it; following the camera texel by texel retraced almost
+every source on every frame of walking, now it happens once per block.
+
+### Visibility bound
+
+`InvisibleDynamicRadiance` (uniform `_InvisibleDynamicRadiance`) is derived from
+the active output, published by the display post-process pass through
+`DisplayOutputPrecision`: half the first code above black (8-bit sRGB in SDR,
+10-bit PQ at the calibrated paper white in HDR), divided by the exposure gain,
+the Neutral toe slope (1.07) and the source count rounded up to a power of two.
+It never drops below half the smallest float16 (2.98e-8), where the radiance
+textures store zero. HDR is the finer output: at 350-nit paper white its step at
+black is about 2600× smaller than SDR's, so the bound sits at the float16 floor
+and dynamic reach is longer than in SDR. A changed bound re-culls sources and
+re-traces every ray, horizon and receiver tile.
+
 ## Explicit quality tuning (2026-10-01)
 
 VisualTuning contains the seven quality values and cost/unit comments only. The
@@ -652,7 +698,8 @@ and publishes its candidate cascade list after the old fields are released.
 ## Exact uniform-cell transport and spatial revisions (2026-10-01)
 
 BuildCellSolidMask proves constant occupancy over every mip-zero material texel.
-RGBAHalf contains flags only: R is unused (zero); G proves constant occupancy and no static emission; B proves all texels satisfy
+RGBAHalf contains flags only: R proves clean air (zero occupancy and zero
+emission in every texel); G proves constant occupancy and no static emission; B proves all texels satisfy
 the solid-occupancy threshold; A proves constant occupancy independently of
 emission. Traversal loads original UNorm alpha once per proven cell, avoiding
 half-precision alpha encoding. Static emission collection uses G; dynamic/optical
@@ -662,6 +709,21 @@ closed-corner tests, RGB coefficients, source-square entry/exit and every polar
 radius sample. No new texture, pass, frequency cap or automatic quality step is
 introduced. Geometry owns the proof cache and invalidates it on material/emission
 or field generation/origin changes.
+
+Summed-area tables (`uint2` per cell, `BuildCleanCellRows`/`BuildCleanCellColumns`,
+rebuilt with the mask) count cells that are not clean air (x: mask R) and not
+clean stone (y: mask G and occupancy exactly 1, i.e. full, uniform, emission-free).
+The cascade merge traces up to 16 child paths per entry, from the probe's interval
+start to each neighbouring far probe's interval start. When a four-load query
+(`NonCleanCellCount`) proves the box containing all of them is one clean medium,
+each path is evaluated in closed form (`CleanMediumTransmittance`): zero radiance
+and `exp(-σ · length)` with σ of air or stone, the product DDA would accumulate.
+Space outside the cell grid is air, so a box crossing the grid edge never proves
+stone. Any surface, silhouette edge or emitter in the box keeps the traced path.
+Corner seals cannot fire inside one medium (an L-turn needs air on both sides;
+an exact lattice-point crossing by a child path between arbitrary probe positions
+has measure zero). These merge paths are most of a full static solve; the stone
+proof removes them from probes buried in rock as the air proof does in caverns.
 
 Corner sealing is decided by rasterized geometry on the transport lattice, not by
 cell centres (`CornerSealed`, DDA.hlsl, used by `TraceLightSegmentLocal` and

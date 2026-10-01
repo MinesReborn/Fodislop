@@ -203,6 +203,15 @@ internal sealed class LightingUpdateCoordinator
             canReuseStaticAtlas,
             lightingRegion);
 
+        // The output (SDR/HDR, paper white) or the source count moved the
+        // visibility bound: re-cull sources and re-trace every ray and horizon.
+        if (LightingComputeBinder.UpdateInvisibleDynamicRadiance(_dynamicLightManager.Count))
+        {
+            _dynamicLightManager.MarkDirty();
+            _frameExecutor.InvalidateDynamicTiles();
+            _state.HasDynamicRadianceState = false;
+        }
+
         bool dynamicLightsDirty = !_state.HasRenderedLightState || _dynamicLightManager.IsDirty;
         ulong contributorGeometryRevision = _geometryRegistry.GeometryRevision;
         bool contributorGeometryChanged =

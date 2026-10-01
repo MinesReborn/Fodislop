@@ -22,7 +22,7 @@ internal static class LightingAllocationEstimate
             TextureBytes(width, height, 1, 12) + // Material32 + emission RGBHalf.
             TextureBytes(lightWidth, lightHeight, 1, 32) + // Four RGBHalf receiver textures.
             TextureBytes(aoWidth, aoHeight, 1, 4) +
-            TextureBytes(gridWidth, gridHeight, 1, 8) +
+            TextureBytes(gridWidth, gridHeight, 1, 20) + // Cell proof mask + two uint2 clean-medium tables.
             cascadeEntries * 16 + // Packed RGB radiance + changed mask.
             (long)maximumLights * 32 + 24); // Source buffer, two counter buffers.
 }

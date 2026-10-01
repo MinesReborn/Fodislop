@@ -23,6 +23,8 @@ internal sealed class DummyTeleportManager(
     Func<ushort, ushort, UniTask>? onTeleport = null)
 {
     private List<(ushort X, ushort Y)>? _teleportDestinations;
+    private int _closeElement = -1;
+    private int[] _destinationElements = [];
 
     public bool WindowOpen { get; set; }
 
@@ -67,6 +69,7 @@ internal sealed class DummyTeleportManager(
             };
         }
 
+        var close = CloseButton();
         var scrollViewer = new ScrollViewerPacket
         {
             VerticalScrollBar = ScrollbarVisibility.Auto,
@@ -100,18 +103,15 @@ internal sealed class DummyTeleportManager(
                             Text = "<color=#B2A680>Телепорты</color>",
                             AttachedProperties = [new("DockPanel.Dock", "Left")],
                         },
-                        new TextPacket
-                        {
-                            Text = "<color=#B3B3B3>×</color>",
-                            OnClickContext = "teleport_close",
-                            AttachedProperties = [new("DockPanel.Dock", "Right")],
-                        },
+                        close,
                     ],
                 },
                 scrollViewer,
             ],
         };
 
+        _closeElement = DummyWindowElements.IndexOf(root, close);
+        _destinationElements = rows.Select(row => DummyWindowElements.IndexOf(root, row)).ToArray();
         onReceived.Invoke(new ServerPacket(new OpenWindowPacket("teleport", 400, 300, root)));
         WindowOpen = true;
     }
@@ -122,6 +122,7 @@ internal sealed class DummyTeleportManager(
         {
             Text = "<color=gray>Нет доступных телепортов</color>",
         };
+        var close = CloseButton();
 
         var root = new DockPanelPacket
         {
@@ -149,21 +150,30 @@ internal sealed class DummyTeleportManager(
                             Text = "<color=#B2A680>Телепорты</color>",
                             AttachedProperties = [new("DockPanel.Dock", "Left")],
                         },
-                        new TextPacket
-                        {
-                            Text = "<color=#B3B3B3>×</color>",
-                            OnClickContext = "teleport_close",
-                            AttachedProperties = [new("DockPanel.Dock", "Right")],
-                        },
+                        close,
                     ],
                 },
                 text,
             ],
         };
 
+        _closeElement = DummyWindowElements.IndexOf(root, close);
+        _destinationElements = [];
         onReceived.Invoke(new ServerPacket(new OpenWindowPacket("teleport", 400, 200, root)));
         WindowOpen = true;
     }
+
+    public bool IsCloseElement(int elementIndex) => elementIndex == _closeElement;
+
+    public int DestinationOfElement(int elementIndex) => Array.IndexOf(_destinationElements, elementIndex);
+
+    // "." collects inputs from the button itself: it has none.
+    private static TextPacket CloseButton() => new()
+    {
+        Text = "<color=#B3B3B3>×</color>",
+        OnClickContext = ".",
+        AttachedProperties = [new("DockPanel.Dock", "Right")],
+    };
 
     public void HandleTeleportClick(int index)
     {

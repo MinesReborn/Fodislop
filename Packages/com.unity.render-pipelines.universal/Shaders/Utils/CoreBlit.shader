@@ -12,6 +12,8 @@ Shader "Hidden/Universal/CoreBlit"
         // Color.hlsl for color space conversion
         #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
+        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/WorldGridFinalVignette.hlsl"
+
         float4 _KernFinalWorldUv;
         float _KernFinalWorldGridActive;
 
@@ -25,6 +27,8 @@ Shader "Hidden/Universal/CoreBlit"
             if (_KernFinalWorldGridActive > 0.5)
                 sceneInput.texcoord = input.texcoord * _KernFinalWorldUv.xy + _KernFinalWorldUv.zw;
             half4 color = FragBlit(sceneInput, blitsampler);
+            if (_KernFinalWorldGridActive > 0.5)
+                color.rgb = KernApplyFinalVignette(color.rgb, input.texcoord);
 
             #ifdef _LINEAR_TO_SRGB_CONVERSION
             color = LinearToSRGB(color);

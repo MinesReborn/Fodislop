@@ -54,6 +54,9 @@ internal sealed class PostProcessPassData
     public Vector4 ScreenToEmission;
 
     public bool VignetteActive;
+    // World-grid frames: the vignette is applied per screen pixel by the
+    // final blit; DisplayFinal still computes its mask for the debug view.
+    public bool VignetteInFinalBlit;
     public float VignetteIntensity;
     public Vector4 VignetteColor;
     public float VignetteSmoothness;

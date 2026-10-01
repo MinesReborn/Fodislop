@@ -46,6 +46,9 @@ float _DisplayPeakRelative;
 float4 _DisplaySourceUv;
 float4 _DisplayWorldToViewportUv;
 float _DisplayViewportAspect;
+// 0 when the world-grid final blit applies the vignette per screen pixel;
+// the mask is still computed here for the vignette debug view.
+int _DisplayApplyVignette;
 int _DisplayLinearFilter;
 
 // Отладочный вид кадра: 0 обычный, 1 ложный цвет по зонам, 2 отсечка.
@@ -474,7 +477,10 @@ void DisplayFinal(uint3 id : SV_DispatchThreadID)
         float feather = max(_VignetteSmoothness, 0.001);
         float edgeMask = smoothstep(0.5 - feather * 0.5, 0.5 + feather * 0.5, distanceFromCenter);
         vignetteWeight = saturate(edgeMask * _VignetteIntensity);
-        color = lerp(color, _VignetteColor.rgb, vignetteWeight);
+        if (_DisplayApplyVignette != 0)
+        {
+            color = lerp(color, _VignetteColor.rgb, vignetteWeight);
+        }
     }
 
 #if defined(KERN_POST_DIAGNOSTICS)

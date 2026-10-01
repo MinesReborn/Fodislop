@@ -98,7 +98,6 @@ internal static class Program
             }
             """;
         const string extra = """
-            float2 round(float2 a) { return {std::round(a.x), std::round(a.y)}; }
             float distance(float2 a, float2 b) { return length(a - b); }
             float lerp(float a, float b, float t) { return a + (b-a)*t; }
             float2 lerp(float2 a, float2 b, float2 t) { return a + (b-a)*t; }
@@ -106,11 +105,6 @@ internal static class Program
             float4 make_float4(float a, float2 b, float c) { return {a,b.x,b.y,c}; }
             float _TestFwidth = 0.0f;
             float fwidth(float) { return _TestFwidth; }
-            float smoothstep(float a, float b, float x)
-            {
-              float t = std::clamp((x-a)/(b-a), 0.0f, 1.0f);
-              return t*t*(3.0f-2.0f*t);
-            }
             """;
         const string terrainUniforms = """
             float _OrganicBendStrength = 1.0;

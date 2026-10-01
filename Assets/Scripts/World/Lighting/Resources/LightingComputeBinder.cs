@@ -118,6 +118,14 @@ internal static class LightingComputeBinder
     public static readonly int DynamicPolarID = Shader.PropertyToID("_DynamicPolar");
     public static readonly int DynamicPolarLayerOffsetID = Shader.PropertyToID("_DynamicPolarLayerOffset");
     public static readonly int DynamicReachIndexID = Shader.PropertyToID("_DynamicReachIndex");
+    public static readonly int DynamicHorizonID = Shader.PropertyToID("_DynamicHorizon");
+    public static readonly int DynamicHorizonInputID = Shader.PropertyToID("_DynamicHorizonInput");
+    public static readonly int CleanCellRowsOutputID = Shader.PropertyToID("_CleanCellRowsOutput");
+    public static readonly int CleanCellRowsID = Shader.PropertyToID("_CleanCellRows");
+    public static readonly int CleanCellPrefixOutputID = Shader.PropertyToID("_CleanCellPrefixOutput");
+    public static readonly int CleanCellPrefixID = Shader.PropertyToID("_CleanCellPrefix");
+    public static readonly int DynamicHorizonBaseID = Shader.PropertyToID("_DynamicHorizonBase");
+    public static readonly int DynamicHorizonStrideID = Shader.PropertyToID("_DynamicHorizonStride");
     public static readonly int DynamicPolarInputID = Shader.PropertyToID("_DynamicPolarInput");
     public static readonly int DynamicPolarSizeID = Shader.PropertyToID("_DynamicPolarSize");
     public static readonly int DynamicPolarTextureSizeID = Shader.PropertyToID("_DynamicPolarTextureSize");
@@ -131,9 +139,47 @@ internal static class LightingComputeBinder
         LightingQualityTuningController.DynamicEmitterPointsPerAxis *
         LightingQualityTuningController.DynamicEmitterPointsPerAxis;
 
-    // Must match InvisibleDynamicRadiance in WorldLighting.compute: absolute
-    // radiance below which dynamic light cannot move any display level.
-    public const float InvisibleDynamicRadiance = 1e-6f;
+    // Absolute scene radiance (1.0 = paper white) below which one dynamic
+    // light's contribution cannot move any display level. Derived, never tuned:
+    // half the first code above black of the active output (8-bit sRGB in SDR,
+    // 10-bit PQ at the calibrated paper white in HDR), divided by the exposure
+    // gain, by the Neutral tonemap's toe slope and by the number of sources
+    // (rounded up to a power of two) whose tails may meet in one pixel. Below
+    // half the smallest float16 subnormal the radiance textures store zero, so
+    // tracing further cannot change the frame. Bound to `_InvisibleDynamicRadiance`.
+    public static float InvisibleDynamicRadiance { get; private set; } = ResolveInvisibleDynamicRadiance(1);
+
+    public static readonly int InvisibleDynamicRadianceID = Shader.PropertyToID("_InvisibleDynamicRadiance");
+
+    // d/dx of URP's Neutral curve at black with its white scale applied
+    // (b * (c * f - e) / (d * f^2) * whiteScale^2 = 1.063): near black the
+    // display moves slightly faster than the scene.
+    private const float NeutralToeSlope = 1.07f;
+
+    // Half of 2^-24, the smallest positive float16.
+    private const float HalfFloatRoundsToZero = 2.9802322e-8f;
+
+    // Returns true when the bound changed: rays, horizons and source culling
+    // that used the old bound must be redone.
+    public static bool UpdateInvisibleDynamicRadiance(int sourceCount)
+    {
+        float bound = ResolveInvisibleDynamicRadiance(sourceCount);
+        if (bound.Equals(InvisibleDynamicRadiance))
+        {
+            return false;
+        }
+
+        InvisibleDynamicRadiance = bound;
+        return true;
+    }
+
+    private static float ResolveInvisibleDynamicRadiance(int sourceCount)
+    {
+        float exposureGain = Mathf.Pow(2f, Kern.Rendering.PostProcessing.PostProcessLook.Exposure.Stops);
+        float perSource = DisplayOutputPrecision.HalfStepAtBlack /
+            (exposureGain * NeutralToeSlope * Mathf.NextPowerOfTwo(Mathf.Max(1, sourceCount)));
+        return Mathf.Max(perSource, HalfFloatRoundsToZero);
+    }
     public static readonly int CellGridSizeID = Shader.PropertyToID("_CellGridSize");
     public static readonly int CellSolidMaskID = Shader.PropertyToID("_CellSolidMask");
     public static readonly int CellSolidMaskOutputID = Shader.PropertyToID("_CellSolidMaskOutput");

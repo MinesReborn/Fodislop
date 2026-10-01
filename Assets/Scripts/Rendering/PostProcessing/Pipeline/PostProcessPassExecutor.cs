@@ -294,6 +294,7 @@ internal static class PostProcessPassExecutor
         cmd.SetComputeIntParam(data.PostProcessCS, CompareModeID, data.CompareMode);
         cmd.SetComputeIntParam(data.PostProcessCS, CompareBeforeID, data.CompareBefore ? 1 : 0);
         cmd.SetComputeFloatParam(data.PostProcessCS, VignetteIntensityID, data.VignetteActive ? data.VignetteIntensity : 0f);
+        cmd.SetComputeIntParam(data.PostProcessCS, "_DisplayApplyVignette", data.VignetteInFinalBlit ? 0 : 1);
         if (data.VignetteActive)
         {
             cmd.SetComputeVectorParam(data.PostProcessCS, VignetteColorID, data.VignetteColor);

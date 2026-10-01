@@ -276,6 +276,23 @@ void SolveCascade(uint3 dispatchId : SV_DispatchThreadID)
         float3 fixedRadiance = 0.0;
         float3 fixedTransmittance = 0.0;
 
+        // Every child path below runs from this probe's interval start to a
+        // neighbouring far probe's interval start. If the whole neighbourhood
+        // is one clean medium — air (no occupancy, no emission in any texel)
+        // or stone (full occupancy, no emission, entirely inside the field) —
+        // each path is exactly uniform transport: zero radiance and
+        // closed-form transmittance, the same product DDA would accumulate.
+        // Any surface, silhouette edge or emitter in the box keeps the full
+        // traced path.
+        float childReach = _CascadeInterval.x + 1.5 * 1.41421356 * float(_FarCascadeProbeSpacing) +
+            _FarCascadeInterval.x;
+        float2 texelsPerCell = float2(_FieldSize) / float2(_CellGridSize);
+        float guardTexels = max(texelsPerCell.x, texelsPerCell.y) + 1.0;
+        uint2 nonClean = NonCleanCellCount(
+            origin - (childReach + guardTexels), origin + (childReach + guardTexels));
+        bool cleanNeighbourhood = nonClean.x == 0u || nonClean.y == 0u;
+        float cleanOccupancy = nonClean.x == 0u ? 0.0 : 1.0;
+
         [loop]
         for (uint farDirectionBranch = 0u; farDirectionBranch < directionBranchCount;
             farDirectionBranch++)
@@ -330,14 +347,29 @@ void SolveCascade(uint3 dispatchId : SV_DispatchThreadID)
                         (float2(farProbe) + 0.5) * _FarCascadeProbeSpacing;
                     float2 childIntervalStart = farOrigin +
                         farDirectionVector * _FarCascadeInterval.x;
-                    float3 childNearRadiance;
-                    float3 childNearTransmittance;
-                    TraceRadianceProbeSegment(
-                        origin,
-                        rayDirection * _CascadeInterval.x,
-                        (farOrigin - origin) + farDirectionVector * _FarCascadeInterval.x,
-                        childNearRadiance,
-                        childNearTransmittance);
+                    float2 childStart = rayDirection * _CascadeInterval.x;
+                    float2 childEnd = (farOrigin - origin) + farDirectionVector * _FarCascadeInterval.x;
+                    float3 childNearRadiance = 0.0;
+                    float3 childNearTransmittance = 1.0;
+                    if (cleanNeighbourhood)
+                    {
+                        float2 childSegment = childEnd - childStart;
+                        float childLength = length(childSegment);
+                        if (childLength > 0.0)
+                        {
+                            childNearTransmittance = CleanMediumTransmittance(
+                                cleanOccupancy, childSegment / childLength, childLength);
+                        }
+                    }
+                    else
+                    {
+                        TraceRadianceProbeSegment(
+                            origin,
+                            childStart,
+                            childEnd,
+                            childNearRadiance,
+                            childNearTransmittance);
+                    }
                     fixedRadiance += (childNearRadiance +
                         childNearTransmittance * sampledFarRadiance) * probeWeight;
                     fixedTransmittance +=

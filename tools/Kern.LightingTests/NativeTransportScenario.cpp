@@ -23,6 +23,12 @@ void buildMask() {
     _CellSolidMaskOutput.reset(_CellGridSize.x,_CellGridSize.y);
     for(int y=0;y<_CellGridSize.y;y++)for(int x=0;x<_CellGridSize.x;x++)BuildCellSolidMask(uint3{(uint)x,(uint)y,0});
     _CellSolidMask=_CellSolidMaskOutput;
+    size_t cells=(size_t)_CellGridSize.x*_CellGridSize.y;
+    _CleanCellRowsOutput.assign(cells,make_uint2(0u,0u)); _CleanCellPrefixOutput.assign(cells,make_uint2(0u,0u));
+    for(int y=0;y<_CellGridSize.y;y++)BuildCleanCellRows(uint3{(uint)y,0,0});
+    _CleanCellRows=_CleanCellRowsOutput;
+    for(int x=0;x<_CellGridSize.x;x++)BuildCleanCellColumns(uint3{(uint)x,0,0});
+    _CleanCellPrefix=_CleanCellPrefixOutput;
 }
 // Rebuilds the per-texel surface air cache from the current material fixture,
 // as the engine does whenever the material field is redrawn.
@@ -91,6 +97,7 @@ void solveDynamicLights(bool writeDirect=false,
         // Полярная текстура несёт по одной обёрточной колонке с каждого края
         // (WriteDynamicPolar), поэтому её ширина на две колонки больше числа лучей.
         _DynamicPolar.reset(angles+2,radii,layers); _DynamicPolarSize={angles,radii}; _DynamicPolarTextureSize={angles+2,radii};
+        _DynamicHorizonStride=angles; _DynamicHorizonBase=_DynamicReachIndex*layers*angles;
         for(int point=0;point<_DynamicEmitterPointsPerAxis*_DynamicEmitterPointsPerAxis;point++)
             for(int a=0;a<angles;a++)TraceDynamicPolar(uint3{(uint)a,(uint)point,0});
         _DynamicPolarInput=_DynamicPolar;
@@ -427,9 +434,10 @@ int main() {
         _DirectInput.reset(32,16); _StaticDirectInput.reset(32,16);
         for(int y=0;y<16;y++)for(int x=0;x<12;x++)_StaticDirectInput.data[y*32+x]={(float)y,(float)y,(float)y,0};
         buildAirCache();
-        // At density four the first solid receiver is 1/4 cell from air:
-        // halfway through the half-cell reflection support, with weight 1/2.
-        float faceTransmission=.5f*std::exp(-.2f*.25f);
+        // At density four the first solid texel's centre is half a texel
+        // (1/8 cell) behind the face. Over the half-cell support that is
+        // t = 1/4: weight 1 - (3t^2 - 2t^3) = 27/32, transmission exp(-.2/8).
+        float faceTransmission=(27.f/32.f)*std::exp(-.2f*.125f);
         for(int y: {1,6,13}) {
             near(SurfaceIncidentLighting(int2{12,y},float3{0,0,0}).x,y*faceTransmission,1e-5f,"surface light follows the face per texel");
             near(SurfaceIncidentLighting(int2{15,y},float3{0,0,0}).x,0,0,"receiver outside authored surface depth stays dark");
@@ -442,7 +450,8 @@ int main() {
         buildAirCache();
         float previousReflection=8;
         for(int depth=1;depth<=32;depth++) {
-            double position=depth/32.0;
+            // Texel centre, measured from the face: half a texel in.
+            double position=(depth-.5)/32.0;
             double t=std::min(position/.5,1.0);
             float expected=float(8*(1-3*t*t+2*t*t*t)*std::exp(-.2*position));
             float actual=SurfaceIncidentLighting(int2{63+depth,32},float3{0,0,0}).x;

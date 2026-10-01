@@ -1387,7 +1387,7 @@ public sealed class LightingGPULifecyclePlayModeTests
                     $"tiles={tiles.width}x{tiles.height}; measured={actual:R}; expected={expected:R}");
             }
 
-            // Move the actual viewport by one world texel without moving its
+            // Move the actual viewport by one coverage block without moving its
             // emitter or the stable field. Receiver coverage changes; cached
             // source rays and static transport must survive that change.
             IFrameTelemetry telemetry = PlayModeHarness.RequireInGame<IFrameTelemetry>();
@@ -1396,7 +1396,8 @@ public sealed class LightingGPULifecyclePlayModeTests
             RectInt previousReceivers = lighting.DynamicReceiverRect;
             RenderTexture polar = Resources.FindObjectsOfTypeAll<RenderTexture>()
                 .Single(texture => texture.name == "_DynamicRayDepth");
-            _walkingProbeCamera.transform.position += new Vector3(lighting.CellSize / 32f, 0f, 0f);
+            _walkingProbeCamera.transform.position += new Vector3(
+                LightingReceiverCoverage.SnapCells * lighting.CellSize, 0f, 0f);
             if (_batchLightingCamera != null)
             {
                 _batchLightingCamera.Camera.transform.position = _walkingProbeCamera.transform.position;

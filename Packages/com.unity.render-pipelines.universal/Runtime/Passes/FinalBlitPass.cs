@@ -6,6 +6,8 @@ namespace UnityEngine.Rendering.Universal.Internal
 {
     public partial class FinalBlitPass : ScriptableRenderPass
     {
+        static readonly int s_KernFinalVignetteID = Shader.PropertyToID("_KernFinalVignette");
+
 
         // Use specialed URP fragment shader pass for debug draw support and color space conversion/encoding support.
         // See CoreBlit.shader and BlitHDROverlay.shader
@@ -229,6 +231,9 @@ namespace UnityEngine.Rendering.Universal.Internal
                             data.blitMaterialData.material.SetVector("_KernFinalWorldUv", crop);
                         }
                         ExecutePass(context.cmd, data, data.source, data.destination, data.cameraData, scaleBias);
+                        // Kern's display pass sets the screen vignette for this
+                        // frame only; a frame without that pass must not reuse it.
+                        context.cmd.SetGlobalVector(s_KernFinalVignetteID, Vector4.zero);
                     }
                         
                 });

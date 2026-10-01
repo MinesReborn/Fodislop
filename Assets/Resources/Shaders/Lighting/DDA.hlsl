@@ -92,6 +92,45 @@ bool CornerSealed(
     return sealed;
 }
 
+// COST: 4 loads. Cells inside the field-texel box [minTexel, maxTexel] that
+// are not clean air (x: zero occupancy and emission in every texel) and not
+// clean stone (y: full occupancy, zero emission in every texel). Space
+// outside the cell grid is air, exactly as DDA treats outside-field space:
+// it never breaks the air proof and always breaks the stone proof.
+uint2 CleanCellPrefixAt(int2 cell)
+{
+    return any(cell < 0) ? uint2(0u, 0u) : _CleanCellPrefix[cell.y * _CellGridSize.x + cell.x];
+}
+
+uint2 NonCleanCellCount(float2 minTexel, float2 maxTexel)
+{
+    float2 cellsPerPixel = (_WorldRect.zw / _CellSize) / float2(_FieldSize);
+    int2 firstUnclamped = int2(floor(minTexel * cellsPerPixel));
+    int2 lastUnclamped = int2(floor(maxTexel * cellsPerPixel));
+    int2 first = max(firstUnclamped, int2(0, 0));
+    int2 last = min(lastUnclamped, _CellGridSize - 1);
+    uint2 count = uint2(0u, 0u);
+    if (all(first <= last))
+    {
+        count = CleanCellPrefixAt(last) + CleanCellPrefixAt(first - 1) -
+            CleanCellPrefixAt(int2(first.x - 1, last.y)) -
+            CleanCellPrefixAt(int2(last.x, first.y - 1));
+    }
+    if (any(firstUnclamped != first) || any(lastUnclamped != last))
+    {
+        count.y += 1u;
+    }
+    return count;
+}
+
+// Transmittance of a straight path of `lengthTexels` along `direction`
+// through one uniform medium (occupancy 0 = clean air, 1 = clean stone): what
+// DDA multiplies segment by segment, in one step.
+float3 CleanMediumTransmittance(float occupancy, float2 direction, float lengthTexels)
+{
+    return SegmentTransmission(occupancy, PathLengthInCells(direction, lengthTexels));
+}
+
 // COST: O(1). Пересечение отрезка с полем (slab-тест).
 // Outside-field material is empty air. Static field emission is absent there;
 // a supplied continuous emitter is integrated analytically through those tails.
@@ -314,11 +353,11 @@ void TraceLightSegmentLocal(
         // what any display can show. The rest of the path is bounded by
         // transmittance * source radiance * the largest single-cell emission
         // weight (a cell crossed diagonally, ~1.42 < 1.5). The bound is
-        // absolute radiance, where 1.0 is exposure-0 white: 1e-6 sits two
-        // orders below half an 8-bit sRGB step at black (1.5e-4), so even the
-        // tails of dozens of dynamic lights meeting in one pixel stay below one level.
+        // absolute radiance derived from the active output (SDR or HDR PQ),
+        // exposure and source count, so even the tails of every dynamic light
+        // meeting in one pixel stay below one display level.
         bool tailInvisible = collectEmission && isolateSource &&
-            Max3(transmittance * sourceRadiance) * 1.5 < InvisibleDynamicRadiance;
+            Max3(transmittance * sourceRadiance) * 1.5 < _InvisibleDynamicRadiance;
         if (distance >= exitDistance || distance >= emissionExit || Max3(transmittance) == 0.0 ||
             tailInvisible)
         {

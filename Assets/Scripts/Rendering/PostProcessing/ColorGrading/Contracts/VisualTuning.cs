@@ -14,18 +14,6 @@ namespace Kern.Game
     }
 }
 
-namespace Kern.UI.Backgrounds
-{
-    // Авторские параметры процедурного меню-фона.
-    public static class FractalBackgroundLook
-    {
-        public const float Speed = 1f;
-        public const float FoldFrequency = 32f;
-        public const int Iterations = 50;
-        public static Color Tint => Color.white;
-    }
-}
-
 namespace Kern.UI
 {
     // Авторские параметры процедурного звёздного фона главного меню.
@@ -324,7 +312,7 @@ namespace Kern.World.Lighting
         public static readonly Color EmptyExtinctionRGB = Color.white;
         public static readonly Color SolidExtinctionRGB = Color.white;
         public const float EmptyExtinctionMultiplier = 0.20f;
-        public const float SolidExtinctionMultiplier = 1.0f;
+        public const float SolidExtinctionMultiplier = 1.25f;
 
         // 3. Пространственный бюджет и фильтрация трассировки.
         // Плечо отражения поверхности: путь до лицевой грани, в клетках.

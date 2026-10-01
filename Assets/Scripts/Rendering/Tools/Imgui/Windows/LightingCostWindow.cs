@@ -126,6 +126,15 @@ public sealed class LightingCostWindow : ToolWindow
         _atlasDetail = $"{lighting.AtlasEntryCount} записей, источников {lighting.DynamicLightCount}";
         _probeDetail = $"Пробы/клетку: запрос {LightingQualityTuningController.CascadeProbePixelsPerCell}, " +
             $"фактически {lighting.EffectiveCascadeProbesPerCell:0.##}";
+        int lightDensity = LightingQualityTuningController.LightPixelsPerCell;
+        int probeDensity = LightingQualityTuningController.CascadeProbePixelsPerCell;
+        if (probeDensity < lightDensity)
+        {
+            // Static light is reconstructed between probes; dynamic light is
+            // evaluated at every receiver. Unequal densities give unequal edges.
+            _probeDetail += $". Статика грубее карты света в {lightDensity / probeDensity} раз: " +
+                "тени от светящихся блоков мягче теней от фонарей.";
+        }
         _dynamicDetail = $"Последний кадр: {_telemetry.LightingDynamicDispatchPixels:N0} пикселей, " +
             $"{_telemetry.LightingPolarRayWorkUnits:N0} отсчётов веера. " +
             "GPU-время отдельных этапов здесь недоступно.";

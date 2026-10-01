@@ -69,7 +69,7 @@ bool expectedRendered(float2 p, const TerrainCellVertex* vertices, float4 xs, fl
 // совпадает с оригиналом (1 - z² при z = 0.7).
 static void checkAmbientOcclusionFloor()
 {
-    _WorldAmbientOcclusionYFlip=0;
+    _KernFieldRowsTopDown=0;
     _TerrainAmbientOcclusionStrength=1;
     _TerrainAmbientOcclusionFloor=0.51f;
     Texture solid;
@@ -345,7 +345,7 @@ static void checkReliefRim()
 
 void checkAo()
 {
-    _WorldAmbientOcclusionYFlip=0;
+    _KernFieldRowsTopDown=0;
     _TerrainAmbientOcclusionStrength=1;
     // Тот же пол, что в TerrainLook: множитель обязан останавливаться на нём.
     _TerrainAmbientOcclusionFloor=0.51f;

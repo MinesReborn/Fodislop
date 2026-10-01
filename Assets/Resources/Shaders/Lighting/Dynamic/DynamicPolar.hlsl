@@ -61,6 +61,10 @@ void TraceDynamicPolar(uint3 dispatchId : SV_DispatchThreadID)
     }
 
     int radii = _DynamicPolarSize.y;
+    // One polar row per receiver (light-lattice) texel. The march below still
+    // visits every transport texel; only the stored radial samples are as
+    // dense as the receivers that read them.
+    float rowStep = float(_FieldTexelsPerLightTexel);
     if (_LightingCountersEnabled != 0)
     {
         InterlockedAdd(_LightingCounters[0], 1u);
@@ -76,13 +80,24 @@ void TraceDynamicPolar(uint3 dispatchId : SV_DispatchThreadID)
     DynamicEmitterPoint(_DynamicLights[_DynamicLightIndex], pointIndex, segmentStart, emitterArea, emits);
     float2 cellsPerPixel = (_WorldRect.zw / _CellSize) / float2(_FieldSize);
     float cellsPerDistance = length(direction * cellsPerPixel);
-    float intervalLength = float(radii - 1);
+    float intervalLength = float(radii - 1) * rowStep;
     float3 airExtinction = SegmentExtinction(0.0);
     float3 opticalDepth = 0.0;
     float distance = 0.0;
     WriteDynamicPolar(angleIndex, 0, pointIndex, float4(0.0, 0.0, 0.0, 0.0));
 
     int nextRadius = 1;
+
+    // Angular horizon: the radius along this ray beyond which nothing it
+    // carries can reach any display level. The stored depths are untouched;
+    // receivers beyond the horizon of every ray they blend are skipped
+    // (DynamicHorizonContains), so light is never cut while still visible.
+    DynamicLight horizonLight = _DynamicLights[_DynamicLightIndex];
+    float3 horizonSource = max(horizonLight.colorIntensity.rgb * horizonLight.colorIntensity.a, 0.0) *
+        _EmissionScale * DynamicHorizonWeightMargin;
+    float3 horizonEntryDepth = SegmentExtinction(1.0) * DynamicHorizonSourceDepthCells;
+    float horizon = intervalLength;
+    bool horizonFound = false;
 
     float2 inverseDirection = float2(
         abs(direction.x) > 1e-20 ? 1.0 / direction.x : 1e20,
@@ -97,10 +112,10 @@ void TraceDynamicPolar(uint3 dispatchId : SV_DispatchThreadID)
     {
         // Space outside the field is empty air.
         [loop]
-        while (nextRadius < radii && float(nextRadius) <= entry)
+        while (nextRadius < radii && float(nextRadius) * rowStep <= entry)
         {
             WriteDynamicPolar(angleIndex, nextRadius, pointIndex,
-                float4(airExtinction * float(nextRadius) * cellsPerDistance, 0.0));
+                float4(airExtinction * float(nextRadius) * rowStep * cellsPerDistance, 0.0));
             nextRadius++;
         }
 
@@ -184,21 +199,34 @@ void TraceDynamicPolar(uint3 dispatchId : SV_DispatchThreadID)
                     nextRadius++;
                 }
 
+                if (!horizonFound)
+                {
+                    horizon = distance;
+                    horizonFound = true;
+                }
+
                 break;
             }
 
             float3 extinction = SegmentExtinction(solid);
             [loop]
-            while (nextRadius < radii && float(nextRadius) <= end)
+            while (nextRadius < radii && float(nextRadius) * rowStep <= end)
             {
                 WriteDynamicPolar(angleIndex, nextRadius, pointIndex, float4(
-                    opticalDepth + extinction * (float(nextRadius) - distance) * cellsPerDistance,
+                    opticalDepth + extinction * (float(nextRadius) * rowStep - distance) * cellsPerDistance,
                     0.0));
                 nextRadius++;
             }
 
             opticalDepth += extinction * distanceCells;
             distance = end;
+            if (!horizonFound &&
+                Max3(OpticalDepthTransmission(max(opticalDepth - horizonEntryDepth, 0.0)) * horizonSource) <
+                    _InvisibleDynamicRadiance)
+            {
+                horizon = distance;
+                horizonFound = true;
+            }
 
             if (distance >= exitDistance)
             {
@@ -252,25 +280,64 @@ void TraceDynamicPolar(uint3 dispatchId : SV_DispatchThreadID)
     while (nextRadius < radii)
     {
         WriteDynamicPolar(angleIndex, nextRadius, pointIndex, float4(
-            opticalDepth + airExtinction * (float(nextRadius) - distance) * cellsPerDistance,
+            opticalDepth + airExtinction * (float(nextRadius) * rowStep - distance) * cellsPerDistance,
             0.0));
         nextRadius++;
     }
+
+    // Past the march the ray is air and the stored depth grows linearly: the
+    // invisibility point on that line is closed-form, from the same values.
+    if (!horizonFound)
+    {
+        float3 depthRate = airExtinction * cellsPerDistance;
+        float3 depthNeeded = log(max(horizonSource / _InvisibleDynamicRadiance, 1.0)) +
+            horizonEntryDepth - opticalDepth;
+        bool bounded =
+            (depthNeeded.x <= 0.0 || depthRate.x > 0.0) &&
+            (depthNeeded.y <= 0.0 || depthRate.y > 0.0) &&
+            (depthNeeded.z <= 0.0 || depthRate.z > 0.0);
+        if (bounded)
+        {
+            horizon = min(horizon, distance + max(Max3(depthNeeded / max(depthRate, 1e-30)), 0.0));
+        }
+    }
+
+    _DynamicHorizon[_DynamicHorizonBase + pointIndex * _DynamicHorizonStride + angleIndex] = uint(ceil(horizon));
 }
 
-// Optical depth from emitter point `pointIndex` to `radius` texels along its
-// ray at `angle`, interpolated between neighbouring rays and whole texels.
-float3 PolarOpticalDepth(int pointIndex, float angle, float radius)
+// Optical depth along one stored ray (texture column `column`, wrap columns
+// included) from emitter point `pointIndex` to `radius` transport texels,
+// linear between rows. Rows are one receiver texel apart.
+float3 PolarColumnDepth(int pointIndex, float column, float radius)
 {
-    float radiusIndex = min(max(radius, 0.0), float(_DynamicPolarSize.y - 1));
+    float radiusIndex = min(max(radius / float(_FieldTexelsPerLightTexel), 0.0),
+        float(_DynamicPolarSize.y - 1));
     float2 polarUv = float2(
-        (frac(angle / PI2) * float(_DynamicPolarSize.x) + 1.0) /
-            float(_DynamicPolarTextureSize.x),
-        (radiusIndex + 0.5) /
-            float(_DynamicPolarTextureSize.y));
+        (column + 0.5) / float(_DynamicPolarTextureSize.x),
+        (radiusIndex + 0.5) / float(_DynamicPolarTextureSize.y));
     float3 depth = _DynamicPolarInput.SampleLevel(sampler_LinearClamp,
         float3(polarUv, float(_DynamicPolarLayerOffset + pointIndex)), 0).rgb;
     return _DynamicPolarScalarExtinction != 0 ? depth.rrr : depth;
+}
+
+// Transmission between `nearRadius` and `farRadius` along `angle` from
+// emitter point `pointIndex`. Neighbouring rays are blended by their
+// transmission, not by optical depth: a sealed or wall-blocked ray (huge
+// depth) next to an open one gives a penumbra between them, where blending
+// depths blackened the whole angular gap and drew dark wedges.
+float3 PolarTransmission(int pointIndex, float angle, float farRadius, float nearRadius)
+{
+    // Ray i is stored in column i + 1 at angle (i + 0.5) / N; columns 0 and
+    // N + 1 repeat the last and first rays across the seam.
+    float rayPosition = frac(angle / PI2) * float(_DynamicPolarSize.x) - 0.5;
+    float lowerRay = floor(rayPosition);
+    float blend = rayPosition - lowerRay;
+    float lowerColumn = lowerRay + 1.0;
+    float3 lowerDepth = max(PolarColumnDepth(pointIndex, lowerColumn, farRadius) -
+        PolarColumnDepth(pointIndex, lowerColumn, nearRadius), 0.0);
+    float3 upperDepth = max(PolarColumnDepth(pointIndex, lowerColumn + 1.0, farRadius) -
+        PolarColumnDepth(pointIndex, lowerColumn + 1.0, nearRadius), 0.0);
+    return lerp(OpticalDepthTransmission(lowerDepth), OpticalDepthTransmission(upperDepth), blend);
 }
 
 // Integrate only the angular interval subtended by this emitting cell. All
@@ -453,11 +520,8 @@ float3 DynamicRadianceFromPolar(float2 origin, DynamicLight light, int sampleCou
                     float2 entryPoint = origin + direction * entryDistance;
                     float entryRadius = min(max(dot(entryPoint - emitterPoint, rayDirection), 0.0), receiverRadius);
                     float rayAngle = atan2(toReceiver.y, toReceiver.x);
-                    float3 opticalDepth = max(
-                        PolarOpticalDepth(pointIndex, rayAngle, receiverRadius) -
-                            PolarOpticalDepth(pointIndex, rayAngle, entryRadius),
-                        0.0);
-                    radiance += OpticalDepthTransmission(opticalDepth) * sourceRadiance * emissionWeight;
+                    radiance += PolarTransmission(pointIndex, rayAngle, receiverRadius, entryRadius) *
+                        sourceRadiance * emissionWeight;
                 }
 
                 float nextCosine = rayCosine * stepCosine - raySine * stepSine;

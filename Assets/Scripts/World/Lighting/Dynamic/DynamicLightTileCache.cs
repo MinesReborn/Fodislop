@@ -66,6 +66,10 @@ internal sealed class DynamicLightTileCache
 
     public RenderTexture? Tiles { get; private set; }
 
+    // Increments whenever the tile atlas is replaced: every retained tile and
+    // slot is gone, so a composed result cannot be patched incrementally.
+    public int LayoutGeneration { get; private set; }
+
     public ComputeBuffer? TileInfos { get; private set; }
 
     // Cached optical depth per source: column = ray angle, row = distance in
@@ -73,13 +77,21 @@ internal sealed class DynamicLightTileCache
     // Float preserves depth through rock; layers retain the complete ray length.
     public RenderTexture? Polar { get; private set; }
 
+    // Angular horizon: one radius per source slot, emitter point and polar
+    // direction ([slot][point][direction], stride = directions), written by the
+    // rays and replaced together with them.
+    public ComputeBuffer? Horizon { get; private set; }
+
+    public int HorizonStride { get; private set; }
+
     public void EnsurePolar(int angles, int radii)
     {
         RenderTextureFormat format = LightingComputeBinder.UsesScalarPolarExtinction
             ? RenderTextureFormat.RFloat : RenderTextureFormat.ARGBFloat;
         int layers = checked(Math.Max(1, Capacity) * LightingComputeBinder.DynamicEmitterPointCount);
         if (Polar != null && Polar.format == format &&
-            Polar.width >= angles + 2 && Polar.height >= radii && Polar.volumeDepth >= layers)
+            Polar.width >= angles + 2 && Polar.height >= radii && Polar.volumeDepth >= layers &&
+            Horizon != null && Horizon.count >= layers * HorizonStride)
         {
             return;
         }
@@ -108,7 +120,8 @@ internal sealed class DynamicLightTileCache
         }
         MemoryAllocationGuard.Require("Dynamic optical depth array",
             LightingAllocationEstimate.TextureBytes(width, height, layers,
-                format == RenderTextureFormat.RFloat ? 4 : 16));
+                format == RenderTextureFormat.RFloat ? 4 : 16) +
+            (long)layers * (width - 2) * sizeof(uint));
         ReleasePolar();
         var polar = new RenderTexture(width, height, 0, format, RenderTextureReadWrite.Linear)
         {
@@ -128,6 +141,8 @@ internal sealed class DynamicLightTileCache
         }
 
         Polar = polar;
+        HorizonStride = width - 2;
+        Horizon = new ComputeBuffer(layers * HorizonStride, sizeof(uint), ComputeBufferType.Structured);
         Array.Clear(_slotPolarValid, 0, _slotPolarValid.Length);
     }
 
@@ -139,6 +154,10 @@ internal sealed class DynamicLightTileCache
             DestroyObject(Polar);
             Polar = null;
         }
+
+        Horizon?.Release();
+        Horizon = null;
+        HorizonStride = 0;
     }
 
     public int Capacity { get; private set; }
@@ -267,6 +286,7 @@ internal sealed class DynamicLightTileCache
         _tileWidth = tileWidth;
         _tileHeight = tileHeight;
         _singleLightDirect = singleLightDirect;
+        LayoutGeneration++;
         InvalidateAll();
     }
 

@@ -66,6 +66,14 @@ internal sealed class LightingFrameExecutor
         _lastDynamicUnion = null;
     }
 
+    // Every dynamic ray, horizon and receiver tile is traced again; slots and
+    // their composed rectangles survive, so the next solve refreshes exactly
+    // the area those lights covered and cover.
+    public void InvalidateDynamicTiles()
+    {
+        _dynamicSolver.InvalidateTiles();
+    }
+
     public bool CanReuseStaticAtlas(Vector2Int regionDelta) =>
         _staticSolver.CanReuseStaticAtlas(regionDelta);
 
@@ -196,9 +204,11 @@ internal sealed class LightingFrameExecutor
         }
 
         RectInt dynamicDirtyUnion = default;
+        bool dynamicRecorded = false;
         if (dynamicRadianceNeeded &&
             LightingConfigHolder.EnabledFeatures.HasFlag(LightingFeatureFlags.DynamicLights))
         {
+            dynamicRecorded = true;
             _dynamicSolver.Record(
                 commandBuffer,
                 request.DynamicLightCount,
@@ -255,10 +265,21 @@ internal sealed class LightingFrameExecutor
             partialRect = null;
         }
 
-        if (request.DynamicLightsChanged ||
+        // A dynamic-only solve that changed no DirectTexture pixel (moved
+        // receivers kept every light's rectangle, culled sources changed)
+        // leaves the composite exactly as it is.
+        bool dynamicUnchanged = dynamicRecorded &&
+            _dynamicSolver.LastSolveUnchanged &&
+            !staticRadianceChanged &&
+            !request.RebuildFields &&
+            !request.CompositeDirty &&
+            !request.ClearDynamicRadiance &&
+            request.DebugView == LightingEngine.DebugView.FinalLighting;
+        if (!dynamicUnchanged &&
+            (request.DynamicLightsChanged ||
             request.DynamicRadianceChanged ||
             staticRadianceChanged ||
-            request.CompositeDirty)
+            request.CompositeDirty))
         {
             _indirectSolver.RecordComposite(
                 commandBuffer,

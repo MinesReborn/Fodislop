@@ -62,6 +62,7 @@ float4 make_float4(float3 a,float b) { return {a.x,a.y,a.z,b}; }
 float4 make_float4(float a,float b,float c,float d) { return {a,b,c,d}; }
 float min(float a,float b) { return std::min(a,b); }
 int2 min(int2 a,int2 b) { return {std::min(a.x,b.x),std::min(a.y,b.y)}; }
+int2 max(int2 a,int2 b) { return {std::max(a.x,b.x),std::max(a.y,b.y)}; }
 float max(float a,float b) { return std::max(a,b); }
 float2 min(float2 a,float2 b) { return {min(a.x,b.x),min(a.y,b.y)}; }
 float2 max(float2 a,float2 b) { return {max(a.x,b.x),max(a.y,b.y)}; }
@@ -144,7 +145,7 @@ int2 _LightSize;
 int _FieldTexelsPerLightTexel=1;
 float4 _WorldRect, _EmptyExtinctionRGB, _SolidExtinctionRGB;
 float _CellSize=1, _EmissionScale=1;
-static const float InvisibleDynamicRadiance = 1e-6f;
+float _InvisibleDynamicRadiance = 1e-6f;
 float _SolidOccupancyThreshold = 0.5f;
 float _TransportSolidThreshold = 0.4f;
 int2 _DynamicDispatchOrigin,_DynamicDispatchSize;
@@ -165,9 +166,14 @@ int2 _DynamicPolarSize;
 int2 _DynamicPolarTextureSize;
 int _DynamicPolarLayerOffset = 0;
 int _DynamicReachIndex = 0;
+std::vector<uint> _DynamicHorizon(64 * 16 * 64);
+int _DynamicHorizonStride = 64;
+std::vector<uint>& _DynamicHorizonInput = _DynamicHorizon;
+int _DynamicHorizonBase = 0;
 Texture _DynamicPolar,_DynamicPolarInput;
 Texture _CellSolidMask,_CellSolidMaskOutput;
 Texture _SurfaceAirCache,_SurfaceAirCacheOutput;
+std::vector<uint2> _CleanCellRowsOutput,_CleanCellRows,_CleanCellPrefixOutput,_CleanCellPrefix;
 int2 _CellGridSize;
 bool sameAtlas(const std::vector<uint3>& left,const std::vector<uint3>& right) {
     if(left.size()!=right.size()) return false;

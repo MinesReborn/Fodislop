@@ -88,6 +88,11 @@ internal sealed class GeometryLightingSolver
             _resources.SolveCascadeKernel,
             LightingComputeBinder.CellSolidMaskID,
             cellSolidMask);
+        commandBuffer.SetComputeBufferParam(
+            compute,
+            _resources.SolveCascadeKernel,
+            LightingComputeBinder.CleanCellPrefixID,
+            _resources.CleanCellPrefix!);
         commandBuffer.SetComputeTextureParam(
             compute,
             _resources.SolveDynamicLightingKernel,
@@ -123,6 +128,22 @@ internal sealed class GeometryLightingSolver
             LightingComputeBinder.DispatchGroups(_resources.CellGridWidth),
             LightingComputeBinder.DispatchGroups(_resources.CellGridHeight),
             1);
+
+        // Clean-medium summed-area tables: let the cascade merge prove a
+        // probe's child paths are pure air or pure stone with four loads
+        // (CascadeTrace.hlsl). The stone proof reads the cell's occupancy.
+        int rowsKernel = _resources.BuildCleanCellRowsKernel;
+        int columnsKernel = _resources.BuildCleanCellColumnsKernel;
+        BindFieldTextures(commandBuffer, compute, rowsKernel);
+        commandBuffer.SetComputeTextureParam(compute, rowsKernel, LightingComputeBinder.CellSolidMaskID, cellSolidMask);
+        commandBuffer.SetComputeBufferParam(compute, rowsKernel, LightingComputeBinder.CleanCellRowsOutputID,
+            _resources.CleanCellRows!);
+        commandBuffer.DispatchCompute(compute, rowsKernel, (_resources.CellGridHeight + 63) / 64, 1, 1);
+        commandBuffer.SetComputeBufferParam(compute, columnsKernel, LightingComputeBinder.CleanCellRowsID,
+            _resources.CleanCellRows!);
+        commandBuffer.SetComputeBufferParam(compute, columnsKernel, LightingComputeBinder.CleanCellPrefixOutputID,
+            _resources.CleanCellPrefix!);
+        commandBuffer.DispatchCompute(compute, columnsKernel, (_resources.CellGridWidth + 63) / 64, 1, 1);
 
         int buildSurfaceAirKernel = _resources.BuildSurfaceAirCacheKernel;
         BindFieldTextures(commandBuffer, compute, buildSurfaceAirKernel);

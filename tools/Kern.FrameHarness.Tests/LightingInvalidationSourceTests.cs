@@ -218,6 +218,7 @@ public sealed class LightingInvalidationSourceTests
             public static class LightingComputeBinder
             {
                 public const float InvisibleDynamicRadiance = 0.001f; public static float ResolveMinimumExtinction() => 1;
+                public static bool UpdateInvisibleDynamicRadiance(int sources) => false;
                 public static void BindSharedParameters(CommandBuffer c, object shader, int width, int height,
                     int lightWidth, int lightHeight, Vector4 rect,
                     float cell, LightingEngine.DebugView view, RenderTexture material, RenderTexture emission,
@@ -267,6 +268,7 @@ public sealed class LightingInvalidationSourceTests
             internal sealed class DynamicLightingSolver
             {
                 public void Release() { } public void InvalidateTiles() { }
+                public bool LastSolveUnchanged => false;
                 public void Record(CommandBuffer c, int count, Vector4 rect, float cell, bool rebuild,
                     LightingEngine.DebugView v, IFrameTelemetry t, out RectInt dirty, RectInt receiverRect) => dirty = new(4,4,8,8);
             }
@@ -301,6 +303,7 @@ public sealed class LightingInvalidationSourceTests
                 private readonly ProductionFrameExecutor _production = new(new(), new(), new(), new(), new(), lights, new(), new FrameTelemetry());
                 public int Records, Rebuilds, Changed, Clears;
                 public bool CanReuseStaticAtlas(Vector2Int delta) => throw new InvalidOperationException("Scroll must stay dormant.");
+                public void InvalidateDynamicTiles() { }
                 public int UploadDynamicLights(CommandBuffer cmd, Vector4 rect, float cell, out bool changed) =>
                     lights.UploadDynamicLights(cmd, new ComputeBuffer(), rect, cell, out changed);
                 public void ConfigureSharedComputeParameters(CommandBuffer cmd, Vector4 r, float c, RenderTexture t, LightingQualityMode q, LightingEngine.DebugView v) { }

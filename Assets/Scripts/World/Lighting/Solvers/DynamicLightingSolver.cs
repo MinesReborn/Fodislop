@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using Kern.Core;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -18,6 +19,16 @@ internal sealed class DynamicLightingSolver
     private int[] _lightRequestedRayFans = new int[1];
     private bool[] _lightNeedsTrace = new bool[1];
     private int _previousLightCount;
+
+    // Light ID -> receiver rectangle its tile currently contributes to
+    // DirectTexture. A solve where only some lights changed recomposes just
+    // their old and new rectangles: every other pixel's sum is unchanged.
+    private readonly Dictionary<int, RectInt> _composedRects = new();
+    private readonly HashSet<int> _currentLightIDs = new();
+    private readonly List<int> _goneLightIDs = new();
+
+    // True when the last Record changed no pixel of DirectTexture.
+    public bool LastSolveUnchanged { get; private set; }
 
     public DynamicLightingSolver(
         LightingResourceManager resources,
@@ -38,6 +49,7 @@ internal sealed class DynamicLightingSolver
     {
         _tileCache.Release();
         _previousLightCount = 0;
+        _composedRects.Clear();
     }
 
     public void Record(
@@ -53,6 +65,7 @@ internal sealed class DynamicLightingSolver
     {
         using var dynamicSample = new CommandBufferSampleScope(commandBuffer, "Kern.Lighting.DynamicRadiance");
         long dynamicStart = System.Diagnostics.Stopwatch.GetTimestamp();
+        LastSolveUnchanged = false;
 
         bool hasPreviousRectUnion = TryGetRectUnion(
             _lightRects,
@@ -69,6 +82,7 @@ internal sealed class DynamicLightingSolver
             // The full clear wiped every previous rect: the next frame must
             // not re-clear a stale previous union.
             _previousLightCount = 0;
+            _composedRects.Clear();
             return;
         }
 
@@ -88,12 +102,10 @@ internal sealed class DynamicLightingSolver
         long polarRayWorkUnits = 0;
 
         float minimumExtinction = LightingComputeBinder.ResolveMinimumExtinction();
-        // Receiver rectangles, tiles and the compose union are light-lattice
-        // texels. Polar fans march the transport field, so their lengths are
-        // field texels: one light texel spans fieldPerLight field texels.
+        // Receiver rectangles, tiles, the compose union and polar rows are
+        // light-lattice texels.
         float texelsPerWorldX = _resources.LightWidth / worldRect.z;
         float texelsPerWorldY = _resources.LightHeight / worldRect.w;
-        float fieldPerLight = (float)_resources.FieldWidth / _resources.LightWidth;
         int widestRect = 1;
         int tallestRect = 1;
         int composeMinX = int.MaxValue;
@@ -153,8 +165,9 @@ internal sealed class DynamicLightingSolver
             }
 
             // Fans start at emitter points anywhere in the dynamic light cell.
-            int rayLength = Mathf.CeilToInt(
-                (farthest + (texelsPerWorldX + texelsPerWorldY) * cellSize) * fieldPerLight) + 2;
+            // Rows are receiver texels: TraceDynamicPolar marches every
+            // transport texel but stores one radial sample per light texel.
+            int rayLength = Mathf.CeilToInt(farthest + (texelsPerWorldX + texelsPerWorldY) * cellSize) + 2;
             int requestedRayFan = Mathf.Max(
                 1,
                 Mathf.CeilToInt(2f * Mathf.PI * rayLength));
@@ -179,6 +192,7 @@ internal sealed class DynamicLightingSolver
         }
 
         int longestRequestedRay = DynamicPolarWorkBudget.RequiredRayLength(count, _lightRaySizes);
+        int layoutGeneration = _tileCache.LayoutGeneration;
         _tileCache.EnsureLayout(widestRect, tallestRect, count,
             LightingQualityTuningController.DynamicPolarDirectionCount, longestRequestedRay);
         if (invalidateDynamicTiles)
@@ -199,7 +213,19 @@ internal sealed class DynamicLightingSolver
             _lightRaySizes,
             out int longestRay);
 
-        if (invalidateDynamicTiles)
+        // Several lights on a retained atlas: patch only what changed. One
+        // light writes DirectTexture directly; a replaced atlas or a static
+        // re-solve rebuilds the whole union.
+        bool incremental = count > 1 && !invalidateDynamicTiles &&
+            layoutGeneration == _tileCache.LayoutGeneration;
+        bool hasDirty = false;
+        RectInt dirtyBounds = default;
+        if (incremental)
+        {
+            // Set after the trace loop from the lights that actually changed.
+            dynamicDirtyUnion = default;
+        }
+        else if (invalidateDynamicTiles)
         {
             // The trace/compose pass replaces the whole direct texture when
             // current light bounds cover the field. Clearing it first only
@@ -260,6 +286,8 @@ internal sealed class DynamicLightingSolver
         ComputeShader compute = _resources.LightingCompute!;
         RenderTexture tiles = _tileCache.Tiles!;
         RenderTexture polarRays = _tileCache.Polar!;
+        commandBuffer.SetComputeFloatParam(compute, LightingComputeBinder.InvisibleDynamicRadianceID,
+            LightingComputeBinder.InvisibleDynamicRadiance);
         commandBuffer.SetComputeIntParams(
             compute,
             LightingComputeBinder.DynamicPolarTextureSizeID,
@@ -281,6 +309,11 @@ internal sealed class DynamicLightingSolver
             LightingComputeBinder.CellSolidMaskID,
             _resources.CellSolidMask!);
         int rayKernel = _resources.TraceDynamicPolarKernel;
+        ComputeBuffer horizon = _tileCache.Horizon!;
+        int horizonStride = _tileCache.HorizonStride;
+        commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicHorizonStrideID, horizonStride);
+        commandBuffer.SetComputeBufferParam(compute, traceKernel, LightingComputeBinder.DynamicHorizonInputID, horizon);
+        commandBuffer.SetComputeBufferParam(compute, rayKernel, LightingComputeBinder.DynamicHorizonID, horizon);
         BindFieldTextures(commandBuffer, rayKernel, _resources.StaticEmissionField!);
         commandBuffer.SetComputeTextureParam(compute, rayKernel, LightingComputeBinder.DynamicPolarID, polarRays);
         commandBuffer.SetComputeBufferParam(compute, rayKernel, LightingComputeBinder.DynamicLightsID, _resources.DynamicLightBuffer!);
@@ -290,18 +323,43 @@ internal sealed class DynamicLightingSolver
             LightingComputeBinder.CellSolidMaskID,
             _resources.CellSolidMask!);
 
+        _currentLightIDs.Clear();
         for (int lightIndex = 0; lightIndex < count; lightIndex++)
         {
             DynamicLightGpuData light = lights[lightIndex];
             RectInt rect = _lightRects[lightIndex];
-            int slot = _tileCache.SlotOf(lightIDs[lightIndex]);
+            int lightID = lightIDs[lightIndex];
+            _currentLightIDs.Add(lightID);
+            int slot = _tileCache.SlotOf(lightID);
             Vector2Int tileOffset = Vector2Int.zero;
             _lightTileInfos[lightIndex] = new DynamicLightTileCache.TileInfo(rect, tileOffset, slot);
-            if (rect.width <= 0 ||
-                !_tileCache.NeedsTrace(slot, light.PositionRadius, light.ColorIntensity, rect))
+            bool wasComposed = _composedRects.TryGetValue(lightID, out RectInt composedRect);
+            if (rect.width <= 0 || rect.height <= 0)
             {
+                if (wasComposed)
+                {
+                    AddDirty(ref hasDirty, ref dirtyBounds, composedRect);
+                    _composedRects.Remove(lightID);
+                }
                 continue;
             }
+
+            if (!_tileCache.NeedsTrace(slot, light.PositionRadius, light.ColorIntensity, rect))
+            {
+                if (!wasComposed || !composedRect.Equals(rect))
+                {
+                    AddDirty(ref hasDirty, ref dirtyBounds, rect);
+                    _composedRects[lightID] = rect;
+                }
+                continue;
+            }
+
+            if (wasComposed)
+            {
+                AddDirty(ref hasDirty, ref dirtyBounds, composedRect);
+            }
+            AddDirty(ref hasDirty, ref dirtyBounds, rect);
+            _composedRects[lightID] = rect;
 
             Vector2Int raySize = _lightRaySizes[lightIndex];
             dynamicDispatchPixels += (long)rect.width * rect.height;
@@ -319,11 +377,14 @@ internal sealed class DynamicLightingSolver
             commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicLightIndexID, lightIndex);
             commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicPolarLayerOffsetID,
                 slot * LightingComputeBinder.DynamicEmitterPointCount);
+            commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicHorizonBaseID,
+                slot * LightingComputeBinder.DynamicEmitterPointCount * horizonStride);
 
             if (tracePolar)
             {
-                // Slot identity owns cached optical depth. An upload may
-                // reorder light indices without invalidating it.
+                // Slot identity owns cached optical depth and its horizon. An
+                // upload may reorder light indices without invalidating either.
+                // Every fan thread overwrites its own horizon entry: no clear.
                 commandBuffer.BeginSample("Kern.Lighting.DynamicPolar");
                 commandBuffer.DispatchCompute(compute, rayKernel,
                     Mathf.CeilToInt(raySize.x / 64f), LightingComputeBinder.DynamicEmitterPointCount, 1);
@@ -347,6 +408,33 @@ internal sealed class DynamicLightingSolver
             commandBuffer.EndSample("Kern.Lighting.DynamicReceiverTrace");
             _tileCache.MarkTraced(slot, light.PositionRadius, light.ColorIntensity, rect);
             telemetry.LightingDynamicTraceCount++;
+        }
+
+        // Lights gone since the last solve leave their old area to recompose.
+        _goneLightIDs.Clear();
+        foreach (KeyValuePair<int, RectInt> composed in _composedRects)
+        {
+            if (!_currentLightIDs.Contains(composed.Key))
+            {
+                _goneLightIDs.Add(composed.Key);
+                AddDirty(ref hasDirty, ref dirtyBounds, composed.Value);
+            }
+        }
+        foreach (int goneID in _goneLightIDs)
+        {
+            _composedRects.Remove(goneID);
+        }
+
+        if (incremental)
+        {
+            // Compose writes every pixel of its rectangle, zeros included:
+            // the old area of a moved or removed light needs no clear.
+            composeMinX = dirtyBounds.xMin;
+            composeMinY = dirtyBounds.yMin;
+            composeMaxX = hasDirty ? dirtyBounds.xMax : composeMinX;
+            composeMaxY = hasDirty ? dirtyBounds.yMax : composeMinY;
+            dynamicDirtyUnion = hasDirty ? dirtyBounds : default;
+            LastSolveUnchanged = !hasDirty;
         }
 
         // With one unchanged light, DirectTexture is already its retained
@@ -381,6 +469,17 @@ internal sealed class DynamicLightingSolver
         telemetry.LightingDynamicLightingTimeMs = ElapsedMs(dynamicStart);
 
         _previousLightCount = count;
+    }
+
+    private static void AddDirty(ref bool hasDirty, ref RectInt bounds, RectInt rect)
+    {
+        if (rect.width <= 0 || rect.height <= 0)
+        {
+            return;
+        }
+
+        bounds = hasDirty ? Union(bounds, rect) : rect;
+        hasDirty = true;
     }
 
     private static float ElapsedMs(long startTimestamp)

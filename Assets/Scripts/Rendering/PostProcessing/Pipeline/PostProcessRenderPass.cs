@@ -14,6 +14,9 @@ namespace Kern.Rendering.PostProcessing
 {
     public class PostProcessRenderPass : ScriptableRenderPass2D
     {
+        private static readonly int _finalVignetteID = Shader.PropertyToID("_KernFinalVignette");
+        private static readonly int _finalVignetteColorID = Shader.PropertyToID("_KernFinalVignetteColor");
+        private static readonly int _finalVignetteAspectID = Shader.PropertyToID("_KernFinalVignetteAspect");
         private readonly bool _displayPass;
         private readonly PostProcessWorkload _workload = new();
         private readonly PostProcessWorkload _diagnosticWorkload = new();
@@ -151,6 +154,11 @@ namespace Kern.Rendering.PostProcessing
             float peakNits = hdrOutput
                 ? Mathf.Max(output.maxNits.value, paperWhite)
                 : 0f;
+            if (_displayPass)
+            {
+                // Lighting stops tracing light the encoded output cannot show.
+                DisplayOutputPrecision.Publish(hdrOutput, paperWhite);
+            }
 
             // Проход, который ничего не меняет, не запускается вовсе. Каждый из
             // двух проходов — полноэкранный compute на полном разрешении кадра,
@@ -322,6 +330,21 @@ namespace Kern.Rendering.PostProcessing
                 passData.FrameIndex = Time.frameCount;
                 passData.CalibrationPattern = (int)PostProcessRuntimeState.CalibrationMode;
                 passData.CalibrationValue = PostProcessRuntimeState.CalibrationValue;
+                passData.VignetteInFinalBlit = scaleWorld;
+                if (scaleWorld)
+                {
+                    // The vignette belongs to the display: the final blit draws it
+                    // per screen pixel on the scene sample. Calibration patterns
+                    // and diagnostic views replace the frame and stay unvignetted.
+                    bool screenVignette = passData.VignetteActive && passData.CalibrationPattern == 0 &&
+                        passData.PostDebugView == 0;
+                    Shader.SetGlobalVector(_finalVignetteID, new Vector4(
+                        screenVignette ? passData.VignetteIntensity : 0f, passData.VignetteSmoothness,
+                        passData.VignetteCenter.x, passData.VignetteCenter.y));
+                    Shader.SetGlobalVector(_finalVignetteColorID,
+                        (Vector4)(passData.VignetteColor * Mathf.Max(paperWhite, 1f)));
+                    Shader.SetGlobalFloat(_finalVignetteAspectID, cameraData.camera.aspect);
+                }
 
                 // Готовый кадр лежит в промежуточной текстуре. Если цель камеры —
                 // не экран, копировать его обратно не нужно: промежуточная

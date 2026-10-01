@@ -262,6 +262,15 @@ namespace Kern.Player.Logic
                 Mathf.Abs(Position.x - position.x) > 1 ||
                 Mathf.Abs(Position.y - position.y) > 1;
             Vector2Int oldPos = Position;
+            if (shouldSnap && HasServerPosition)
+            {
+                // Рывок робота (а за ним и камеры): сервер прислал клетку
+                // дальше соседней. Источник ищется по этой строке в логе.
+                Debug.LogWarning(
+                    $"[PlayerMovementController] Server moved the player {oldPos} -> {position} " +
+                    $"(frame {Time.frameCount}).");
+            }
+
             _awaitingMoveConfirmation = false;
             Position = position;
             HasServerPosition = true;

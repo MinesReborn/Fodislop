@@ -4,15 +4,60 @@
 // SolveDynamicLighting и ComposeDynamicLighting: per-light tile tracing и композиция.
 // При одном источнике SolveDynamicLighting может сразу писать DirectTexture.
 //
-// READS: _DynamicPolar, _DynamicLights, _DynamicTileInfos
+// READS: _DynamicPolar, _DynamicLights, _DynamicHorizonInput, _DynamicTileInfos
 // WRITES: _DynamicTiles, _DirectTexture
 // MUST NOT: трогать каскады
 
-// Receivers are bounded only by the analytic air-reach rectangle on the CPU
-// (weakest extinction, so it is conservative). A per-receiver GPU reach
-// radius used to force radiance to zero: whenever the traced reach came out
-// short, the light ended in a hard circle of the near-zone floor radius
-// (1.5 · (near + 1) cells) around every source.
+// Receivers come from the CPU air-reach rectangle (weakest extinction). Inside
+// it, a receiver is skipped only when it lies beyond the angular horizon of
+// every polar ray its far gather can blend. A single per-source reach radius
+// used to cut light in a hard circle; the horizon is per direction, so open
+// corridors keep their full reach while receivers behind walls are skipped.
+//
+// `origin` is a receiver centre in transport texels.
+bool DynamicHorizonContains(float2 origin, DynamicLight light)
+{
+    float2 cellsPerPixel = (_WorldRect.zw / _CellSize) / float2(_FieldSize);
+    float2 texelsPerCell = 1.0 / cellsPerPixel;
+    float2 center = (light.positionRadius.xy - _WorldRect.xy) / _WorldRect.zw * float2(_FieldSize);
+    float2 sourceMin = center - 0.5 * texelsPerCell;
+    float2 sourceMax = center + 0.5 * texelsPerCell;
+    float2 gapCells = abs(origin - min(max(origin, sourceMin), sourceMax)) * cellsPerPixel;
+    bool contains = true;
+    // The near zone is gathered by direct DDA, not by the fan: never skipped.
+    if (max(gapCells.x, gapCells.y) >= _DynamicNearCells)
+    {
+        float2 offset = origin - center;
+        float radius = length(offset);
+        // Emitter points lie anywhere in the source cell: their rays to this
+        // receiver differ from the centre's by this distance and angle.
+        float spread = 0.75 * max(texelsPerCell.x, texelsPerCell.y);
+        float halfWidth = asin(saturate(spread / max(radius, 1e-3)));
+        float angle = atan2(offset.y, offset.x);
+        int directions = _DynamicPolarSize.x;
+        float rayStep = PI2 / float(directions);
+        // PolarTransmission blends ray floor(a/step - 0.5) and the next one.
+        int first = (int)floor((angle - halfWidth) / rayStep - 0.5);
+        int last = (int)floor((angle + halfWidth) / rayStep - 0.5) + 1;
+        uint horizon = 0u;
+        int points = _DynamicEmitterPointsPerAxis * _DynamicEmitterPointsPerAxis;
+        [loop]
+        for (int ray = first; ray <= last; ray++)
+        {
+            // first > -directions: |angle| <= PI and halfWidth <= PI / 2.
+            uint index = (uint)(ray + 2 * directions) % (uint)directions;
+            [loop]
+            for (int emitter = 0; emitter < points; emitter++)
+            {
+                horizon = max(horizon,
+                    _DynamicHorizonInput[_DynamicHorizonBase + emitter * _DynamicHorizonStride + (int)index]);
+            }
+        }
+        // One stored row of radial interpolation beyond the horizon.
+        contains = radius - spread <= float(horizon) + float(_FieldTexelsPerLightTexel);
+    }
+    return contains;
+}
 
 [numthreads(8, 8, 1)]
 void SolveDynamicLighting(uint3 dispatchId : SV_DispatchThreadID)
@@ -40,7 +85,11 @@ void SolveDynamicLighting(uint3 dispatchId : SV_DispatchThreadID)
         float peak = Max3(max(light.colorIntensity.rgb, 0.0));
         light.colorIntensity.rgb = float3(peak, peak, peak);
     }
-    float3 radiance = DynamicRadianceFromPolar(origin, light, _DynamicAngularSampleCount);
+    float3 radiance = 0.0;
+    if (DynamicHorizonContains(origin, light))
+    {
+        radiance = DynamicRadianceFromPolar(origin, light, _DynamicAngularSampleCount);
+    }
 
     if (_WriteDynamicDirect != 0)
     {

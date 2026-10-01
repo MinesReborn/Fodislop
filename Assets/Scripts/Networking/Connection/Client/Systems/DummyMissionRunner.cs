@@ -40,6 +40,9 @@ internal sealed class DummyMissionRunner(Action<ServerPacket> onReceived)
     ];
 
     private bool _persistentMission;
+    private int _closeElement = -1;
+    private int _cancelElement = -1;
+    private int[] _missionElements = [];
 
     public int ActiveMissionID { get; private set; } = -1;
     public long MissionProgress { get; private set; }
@@ -86,6 +89,14 @@ internal sealed class DummyMissionRunner(Action<ServerPacket> onReceived)
             Children = rows.ToArray(),
         };
 
+        // "." collects inputs from the clicked text itself: it has none.
+        var close = new TextPacket
+        {
+            Text = "<color=#B3B3B3>×</color>",
+            OnClickContext = ".",
+            AttachedProperties = [new("DockPanel.Dock", "Right")],
+        };
+        TextPacket? cancel = null;
         var rootChildren = new List<IGUIComponentPacket>
         {
             new DockPanelPacket
@@ -103,12 +114,7 @@ internal sealed class DummyMissionRunner(Action<ServerPacket> onReceived)
                         Text = "<color=#B2A680>Миссии</color>",
                         AttachedProperties = [new("DockPanel.Dock", "Left")],
                     },
-                    new TextPacket
-                    {
-                        Text = "<color=#B3B3B3>×</color>",
-                        OnClickContext = "missions_close",
-                        AttachedProperties = [new("DockPanel.Dock", "Right")],
-                    },
+                    close,
                 ],
             },
             scrollViewer,
@@ -116,10 +122,10 @@ internal sealed class DummyMissionRunner(Action<ServerPacket> onReceived)
 
         if (ActiveMissionID >= 0)
         {
-            rootChildren.Add(new TextPacket
+            cancel = new TextPacket
             {
                 Text = "<color=#B08050>Отменить миссию</color>",
-                OnClickContext = "mission_cancel",
+                OnClickContext = ".",
                 AttachedProperties = [new("DockPanel.Dock", "Bottom")],
                 Style = new GUIStylePacket
                 {
@@ -129,7 +135,8 @@ internal sealed class DummyMissionRunner(Action<ServerPacket> onReceived)
                     Border = System.Drawing.Color.FromArgb(255, 89, 89, 89),
                     BorderWidth = 2,
                 },
-            });
+            };
+            rootChildren.Add(cancel);
         }
 
         var root = new DockPanelPacket
@@ -144,8 +151,17 @@ internal sealed class DummyMissionRunner(Action<ServerPacket> onReceived)
             Children = rootChildren,
         };
 
+        _closeElement = DummyWindowElements.IndexOf(root, close);
+        _cancelElement = cancel == null ? -1 : DummyWindowElements.IndexOf(root, cancel);
+        _missionElements = rows.Select(row => DummyWindowElements.IndexOf(root, row)).ToArray();
         onReceived.Invoke(new ServerPacket(new OpenWindowPacket("missions", 400, 300, root)));
     }
+
+    public bool IsCloseElement(int elementIndex) => elementIndex == _closeElement;
+
+    public bool IsCancelElement(int elementIndex) => _cancelElement >= 0 && elementIndex == _cancelElement;
+
+    public int MissionOfElement(int elementIndex) => Array.IndexOf(_missionElements, elementIndex);
 
     public void StartMission(int missionID, ushort x, ushort y)
     {

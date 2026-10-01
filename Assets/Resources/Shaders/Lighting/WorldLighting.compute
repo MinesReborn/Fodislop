@@ -12,6 +12,8 @@
 #pragma kernel CompositeLighting
 #pragma kernel BuildCellSolidMask
 #pragma kernel BuildSurfaceAirCache
+#pragma kernel BuildCleanCellRows
+#pragma kernel BuildCleanCellColumns
 
 #pragma target 5.0
 
@@ -86,6 +88,13 @@ Texture2D<float4> _CellSolidMask;
 RWTexture2D<float4> _CellSolidMaskOutput;
 Texture2D<float4> _SurfaceAirCache;
 RWTexture2D<float4> _SurfaceAirCacheOutput;
+// Summed-area table over the cell grid counting cells that are not clean air.
+// Summed-area counts per cell: x = cells that are not clean air, y = cells
+// that are not clean stone (BuildCleanCellRows / NonCleanCellCount).
+RWStructuredBuffer<uint2> _CleanCellRowsOutput;
+StructuredBuffer<uint2> _CleanCellRows;
+RWStructuredBuffer<uint2> _CleanCellPrefixOutput;
+StructuredBuffer<uint2> _CleanCellPrefix;
 
 RWStructuredBuffer<uint> _LightingCounters;
 int _LightingCountersEnabled;
@@ -132,6 +141,18 @@ int _DynamicPolarLayerOffset;
 // Persistent source slot: tile layer of SolveDynamicLighting.
 int _DynamicReachIndex;
 
+// Angular horizon per source slot: one radius (transport texels) per polar
+// direction and emitter point, [base + point * stride + direction]. Each fan
+// thread owns exactly one entry and overwrites it on every trace: no CPU clear,
+// no atomics (a SetBufferData clear + InterlockedMax scheme read back zeros and
+// cut every light at the near zone). Written by TraceDynamicPolar through the RW
+// binding; SolveDynamicLighting reads the read-only binding. `_DynamicHorizonBase`
+// = slot * points * stride, `_DynamicHorizonStride` = direction stride.
+RWStructuredBuffer<uint> _DynamicHorizon;
+StructuredBuffer<uint> _DynamicHorizonInput;
+int _DynamicHorizonBase;
+int _DynamicHorizonStride;
+
 // ============================================================================
 // Shared Parameters
 // ============================================================================
@@ -151,6 +172,9 @@ float4 _AmbientColor;
 float4 _EmptyExtinctionRGB;
 float4 _SolidExtinctionRGB;
 float _EmissionScale;
+// One dynamic light below this absolute radiance cannot move any display
+// level of the active output (LightingComputeBinder.InvisibleDynamicRadiance).
+float _InvisibleDynamicRadiance;
 float _MaximumLightMultiplier;
 float _CellSize;
 float _TransmittanceDebugDistanceCells;
