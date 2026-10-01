@@ -364,6 +364,18 @@ namespace Kern.Game
 
         public void SetPosition(ushort x, ushort y) => ApplyServerPosition(x, y);
 
+        // Мгновенный снап визуала робота в текущую TargetPosition (респаун, ТП):
+        // без него сегменты тела "плывут" к точке на скорости обычного движения.
+        public void SnapVisualToTarget()
+        {
+            _movement.TeleportToTarget();
+            transform.position = _movement.SmoothPosition;
+            _visuals.SnapTentacles(_movement.SmoothPosition);
+            _visuals.UpdateMotion(transform.position, 0f, Time.deltaTime, true);
+            _nameplate.UpdatePosition(transform.position, _visuals.SkinSprite, transform, _visuals.ClanTransform);
+            _lighting.Update(_movement.SmoothPosition, _lightingEngine);
+        }
+
         private void ApplyPendingServerPosition()
         {
             if (!_hasPendingServerPosition)

@@ -6,9 +6,10 @@
              список, и полный показываются В НЕЙ ЖЕ, а не в отдельном окне
              посреди экрана. Полоса слева переключает одно на другое.
 
-             Компактный режим — восемь предметов (два столбца по четыре),
-             полный — все держимые предметы. Ячейки генерируются кодом из
-             OrderedTypes модели.
+             Компактный режим — одна колонка из четырёх предметов
+             (FixedRowCount старого клиента), полный — все держимые предметы:
+             полоса-треугольник прячет и раскрывает предметы после четвёртого.
+             Ячейки генерируются кодом из OrderedTypes модели.
 
              InventoryRoot стоит в picking-mode="Ignore", чтобы пустое поле
              экрана не перехватывало клики мира; интерактивные элементы внутри
@@ -16,7 +17,7 @@
              ObserverJoystick.uxml) — иначе Ignore наследуется на всё поддерево
              и панель не получает мышь вовсе. -->
         <ui:VisualElement name="HotbarContainer" class="inv-hotbar" picking-mode="Position">
-            <!-- Короткий список: первые восемь предметов -->
+            <!-- Короткий список: первые четыре предмета -->
             <ui:VisualElement name="HotbarSlots" class="inv-hotbar-slots" picking-mode="Position" />
 
             <!-- Полный список: все предметы, та же раскладка, скрыт по умолчанию -->
@@ -32,8 +33,19 @@
             <ui:VisualElement class="inv-tooltip-header">
                 <ui:Image name="TooltipIcon" class="inv-tooltip-icon" />
                 <ui:VisualElement class="inv-tooltip-meta">
-                    <ui:Label name="TooltipName" class="inv-tooltip-title" text="---" />
                     <ui:Label name="TooltipType" class="sci-fi-badge-gold" text="inventory.material" />
+                </ui:VisualElement>
+                <!-- Подсказки клавиш справа от названия: некликабельные
+                     «кейкапы» (picking-mode=Ignore) с подписью действия. -->
+                <ui:VisualElement name="TooltipKeys" class="inv-tooltip-keys" picking-mode="Ignore">
+                    <ui:VisualElement class="inv-key-hint" picking-mode="Ignore">
+                        <ui:Label class="inv-key-cap inv-key-cap--use" text="ENTER" picking-mode="Ignore" />
+                        <ui:Label class="inv-key-hint-label" text="inventory.key.use" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="inv-key-hint" picking-mode="Ignore">
+                        <ui:Label class="inv-key-cap inv-key-cap--cancel" text="ESC" picking-mode="Ignore" />
+                        <ui:Label class="inv-key-hint-label" text="inventory.key.cancel" picking-mode="Ignore" />
+                    </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>
             <ui:Label name="TooltipDesc" class="inv-tooltip-desc" text="---" />

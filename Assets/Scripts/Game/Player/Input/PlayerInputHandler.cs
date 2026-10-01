@@ -1,9 +1,9 @@
 #nullable enable
 
+using System;
 using Kern.Player.Interfaces;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.UIElements;
 
 namespace Kern.Player.Input
 {
@@ -16,49 +16,69 @@ namespace Kern.Player.Input
         private Vector2 _moveInput;
         private bool _isGamepadActive;
 
-        // Нажатие ЛКМ, начатое над интерфейсом, не двигает бота до отпускания:
-        // иначе протяжка ползунка или кнопка, съехавшая из-под курсора, гнали
-        // бота, как только указатель покидал элемент.
-        private bool _pointerPressStartedOverUI;
-
         public Vector2 MoveInput => _moveInput;
         public bool IsGamepadActive => _isGamepadActive;
 
         public bool WantsToToggleAutoDig =>
-            (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame) ||
-            (Gamepad.current != null && Gamepad.current.buttonNorth.wasPressedThisFrame);
+            !InputIntercepted &&
+            (WasPressedThisFrame(ConfiguredKey(
+                _clientConfig?.Config.Interface.KeyAutoDig, Key.E)) ||
+             (Gamepad.current != null && Gamepad.current.buttonNorth.wasPressedThisFrame));
+
+        // Агрессия - в старом клиенте физическая клавиша L (на русской
+        // раскладке на ней "Д"): "Врубите агрессию [L]".
+        public bool WantsToToggleAggression =>
+            !InputIntercepted &&
+            WasPressedThisFrame(ConfiguredKey(
+                _clientConfig?.Config.Interface.KeyAggression, Key.L));
 
         public bool WantsToGeo =>
-            (Keyboard.current != null && Keyboard.current.gKey.wasPressedThisFrame) ||
-            (Gamepad.current != null && Gamepad.current.dpad.left.wasPressedThisFrame);
+            !InputIntercepted &&
+            (WasPressedThisFrame(ConfiguredKey(
+                _clientConfig?.Config.Interface.KeyGeo, Key.G)) ||
+             (Gamepad.current != null && Gamepad.current.dpad.left.wasPressedThisFrame));
 
         public bool WantsToHeal =>
-            (Keyboard.current != null && Keyboard.current.vKey.wasPressedThisFrame) ||
-            (Gamepad.current != null && Gamepad.current.dpad.right.wasPressedThisFrame);
+            !InputIntercepted &&
+            (WasPressedThisFrame(ConfiguredKey(
+                _clientConfig?.Config.Interface.KeyHeal, Key.V)) ||
+             (Gamepad.current != null && Gamepad.current.dpad.right.wasPressedThisFrame));
 
         public bool IsHealHeld =>
-            (Keyboard.current != null && Keyboard.current.vKey.isPressed) ||
-            (Gamepad.current != null && Gamepad.current.dpad.right.isPressed);
+            !InputIntercepted &&
+            (IsHeld(ConfiguredKey(
+                _clientConfig?.Config.Interface.KeyHeal, Key.V)) ||
+             (Gamepad.current != null && Gamepad.current.dpad.right.isPressed));
 
         public bool WantsToBuildCyan =>
-            (Keyboard.current != null && Keyboard.current.yKey.wasPressedThisFrame) ||
-            (Gamepad.current != null && Gamepad.current.dpad.up.wasPressedThisFrame);
+            !InputIntercepted &&
+            (WasPressedThisFrame(ConfiguredKey(
+                _clientConfig?.Config.Interface.KeyBuildCyan, Key.Y)) ||
+             (Gamepad.current != null && Gamepad.current.dpad.up.wasPressedThisFrame));
 
         public bool WantsToBuildGray =>
-            (Keyboard.current != null && Keyboard.current.hKey.wasPressedThisFrame) ||
-            (Gamepad.current != null && Gamepad.current.dpad.down.wasPressedThisFrame);
+            !InputIntercepted &&
+            (WasPressedThisFrame(ConfiguredKey(
+                _clientConfig?.Config.Interface.KeyBuildGray, Key.H)) ||
+             (Gamepad.current != null && Gamepad.current.dpad.down.wasPressedThisFrame));
 
         public bool WantsToBuildGreen =>
-            (Keyboard.current != null && Keyboard.current.fKey.wasPressedThisFrame) ||
-            (Gamepad.current != null && Gamepad.current.buttonEast.wasPressedThisFrame);
+            !InputIntercepted &&
+            (WasPressedThisFrame(ConfiguredKey(
+                _clientConfig?.Config.Interface.KeyBuildGreen, Key.F)) ||
+             (Gamepad.current != null && Gamepad.current.buttonEast.wasPressedThisFrame));
 
         public bool WantsToBuildWhite =>
-            (Keyboard.current != null && Keyboard.current.jKey.wasPressedThisFrame) ||
-            (Gamepad.current != null && Gamepad.current.buttonWest.wasPressedThisFrame);
+            !InputIntercepted &&
+            (WasPressedThisFrame(ConfiguredKey(
+                _clientConfig?.Config.Interface.KeyBuildWhite, Key.J)) ||
+             (Gamepad.current != null && Gamepad.current.buttonWest.wasPressedThisFrame));
 
         public bool WantsToDig =>
-            (Keyboard.current != null && Keyboard.current.spaceKey.isPressed) ||
-            (Gamepad.current != null && (Gamepad.current.rightTrigger.isPressed || Gamepad.current.buttonSouth.isPressed));
+            !InputIntercepted &&
+            (IsHeld(ConfiguredKey(
+                _clientConfig?.Config.Interface.KeyDig, Key.Space)) ||
+             (Gamepad.current != null && (Gamepad.current.rightTrigger.isPressed || Gamepad.current.buttonSouth.isPressed)));
 
         public bool IsShiftPressed =>
             (Keyboard.current != null && Keyboard.current.shiftKey.isPressed) ||
@@ -74,8 +94,39 @@ namespace Kern.Player.Input
         [VContainer.Inject]
         private Kern.Core.Interfaces.IInputBlocker? _inputBlocker = null;
 
-        [VContainer.Inject]
-        private UIDocument? _uiDocument = null;
+        // Перехват новой клавиши на вкладке «Управление»: пока он идёт,
+        // игровые действия по клавишам молчат — нажатие означает выбор
+        // бинда, а не запуск действия. Флаг живёт в IInputBlocker
+        // (InputBlockState агрегирует состояние UI), чтобы слою Game не
+        // приходилось ссылаться на UI-сборку.
+        private bool InputIntercepted =>
+            _inputBlocker != null && _inputBlocker.IsKeyCaptureInProgress;
+
+        // Клавиша действия из живого конфига (InterfaceSettings). Пустое или
+        // неизвестное имя (правка конфига руками, поле из будущей схемы)
+        // откатывается к дефолту действия.
+        private Key ConfiguredKey(string? configured, Key fallback)
+        {
+            if (string.IsNullOrWhiteSpace(configured))
+            {
+                return fallback;
+            }
+
+            return Enum.TryParse(configured.Trim(), ignoreCase: true, out Key key) &&
+                key != Key.None
+                ? key
+                : fallback;
+        }
+
+        private static bool WasPressedThisFrame(Key key) =>
+            key != Key.None &&
+            Keyboard.current != null &&
+            Keyboard.current[key].wasPressedThisFrame;
+
+        private static bool IsHeld(Key key) =>
+            key != Key.None &&
+            Keyboard.current != null &&
+            Keyboard.current[key].isPressed;
 
         protected void OnEnable()
         {
@@ -105,7 +156,11 @@ namespace Kern.Player.Input
 
         private void ReadInput()
         {
-            if (_inputBlocker != null && _inputBlocker.IsInputBlocked)
+            // Карта мира — оверлей, а не модальное окно: смотреть в неё можно
+            // не переставая идти. Движение и действия блокирует только реальный
+            // UI (окна сервера, фокус чата, пауза, инструменты) — поэтому здесь
+            // ExcludingMapMode, а не полный IsInputBlocked.
+            if (_inputBlocker != null && _inputBlocker.IsInputBlockedExcludingMapMode)
             {
                 _moveInput = Vector2.zero;
                 return;
@@ -146,32 +201,6 @@ namespace Kern.Player.Input
                     }
                 }
 
-                // Mouse pointer scheme: if enabled or left button held, move toward screen center offset
-                var cfg = _clientConfig != null ? _clientConfig.Config : null;
-                bool isMouseScheme = cfg != null && cfg.Interface.ControlScheme == 1;
-                bool useMousePointer = isMouseScheme || (Mouse.current != null && Mouse.current.leftButton.isPressed);
-                if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
-                {
-                    _pointerPressStartedOverUI = IsPointerOverUI(Mouse.current.position.ReadValue());
-                }
-
-                if (useMousePointer && Mouse.current != null)
-                {
-                    if (Mouse.current.leftButton.isPressed && !_pointerPressStartedOverUI)
-                    {
-                        Vector2 mousePos = Mouse.current.position.ReadValue();
-                        if (!IsPointerOverUI(mousePos))
-                        {
-                            Vector2 center = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
-                            Vector2 dir = mousePos - center;
-                            if (dir.sqrMagnitude > 400f) // deadzone 20px
-                            {
-                                _moveInput = dir.normalized;
-                            }
-                        }
-                    }
-                }
-
                 if (Gamepad.current != null)
                 {
                     Vector2 stick = Gamepad.current.leftStick.ReadValue();
@@ -190,6 +219,8 @@ namespace Kern.Player.Input
                         }
                     }
                 }
+
+                ReadMousePointerMovement();
             }
 
             if (_moveInput.sqrMagnitude > 1f)
@@ -198,8 +229,26 @@ namespace Kern.Player.Input
             }
         }
 
-        private bool IsPointerOverUI(Vector2 mousePos) =>
-            (_inputBlocker != null && _inputBlocker.IsInputBlocked) ||
-            UIPointerHitTest.IsOverUI(_uiDocument, mousePos);
+        // Схема «Указатель мыши» (InterfaceSettings.ControlScheme == 1): пока
+        // зажата ПКМ, дрон идёт к указателю от центра экрана — то, что
+        // обещает вкладка «Управление» («ПКМ (удержание)»). ЛКМ остаётся за
+        // клик-маршрутом. Мёртвая зона 20 px гасит дрожь у центра.
+        private void ReadMousePointerMovement()
+        {
+            if (Mouse.current == null ||
+                _clientConfig?.Config.Interface.ControlScheme != 1 ||
+                !Mouse.current.rightButton.isPressed)
+            {
+                return;
+            }
+
+            Vector2 center = new(Screen.width * 0.5f, Screen.height * 0.5f);
+            Vector2 direction = Mouse.current.position.ReadValue() - center;
+            if (direction.sqrMagnitude > 400f)
+            {
+                _moveInput = direction.normalized;
+                _isGamepadActive = false;
+            }
+        }
     }
 }

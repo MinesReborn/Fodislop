@@ -25,6 +25,12 @@ internal sealed class MapCellSampler
 
     public int Revision { get; private set; }
 
+    // Границы мира в клетках кешируются: попиксельный опрос карты обращается к
+    // слою миллионы раз за кадр, и чтение свойств через IWorldLayer на каждом
+    // пикселе стоило дороже всей остальной выборки.
+    private int _worldWidth;
+    private int _worldHeight;
+
     private int _lastChunkIndex = -1;
     private CellType[]? _lastChunk;
 
@@ -43,6 +49,8 @@ internal sealed class MapCellSampler
         _chunkSize = layer?.ChunkSize ?? 0;
         _heightChunks = layer?.HeightChunks ?? 0;
         Revision++;
+        _worldWidth = _chunkSize * (layer?.WidthChunks ?? 0);
+        _worldHeight = _chunkSize * _heightChunks;
     }
 
     public void Invalidate()
@@ -111,7 +119,10 @@ internal sealed class MapCellSampler
     public bool TryGetCell(int serverX, int serverY, out CellType cellType)
     {
         cellType = CellType.Unloaded;
-        if (_chunkSize <= 0 || serverX < 0 || serverY < 0)
+        if (_layer == null || _chunkSize <= 0 || _heightChunks <= 0 ||
+            serverX < 0 || serverY < 0 ||
+            serverX >= _worldWidth ||
+            serverY >= _worldHeight)
         {
             return false;
         }

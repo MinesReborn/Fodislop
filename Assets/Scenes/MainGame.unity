@@ -689,8 +689,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ba330c964bc50d74096579160aa69d19, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kern.Runtime::Kern.UI.WorldMapRenderer
-  _renderInterval: 0.1
-  _dragSpeed: 0.5
+  _renderInterval: 0.02
+  _dragSpeed: 1
 --- !u!1 &1000000000
 GameObject:
   m_ObjectHideFlags: 0

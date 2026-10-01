@@ -14,6 +14,7 @@ internal sealed class WorldMapLayerBinding : IDisposable
     private readonly MapCellSampler _cellSampler;
     private readonly WorldMapMipScan _mipScan;
     private readonly Action _requestRender;
+    private readonly Action _requestFullRender;
     private IWorldDataStorage? _storage;
     private IWorldLayer<CellType>? _subscribedCellLayer;
     private int _chunkSize;
@@ -21,11 +22,13 @@ internal sealed class WorldMapLayerBinding : IDisposable
     public WorldMapLayerBinding(
         MapCellSampler cellSampler,
         WorldMapMipScan mipScan,
-        Action requestRender)
+        Action requestRender,
+        Action requestFullRender)
     {
         _cellSampler = cellSampler ?? throw new ArgumentNullException(nameof(cellSampler));
         _mipScan = mipScan ?? throw new ArgumentNullException(nameof(mipScan));
         _requestRender = requestRender ?? throw new ArgumentNullException(nameof(requestRender));
+        _requestFullRender = requestFullRender ?? throw new ArgumentNullException(nameof(requestFullRender));
     }
 
     public IWorldLayer<CellType>? CellLayer => _subscribedCellLayer;
@@ -112,14 +115,14 @@ internal sealed class WorldMapLayerBinding : IDisposable
         int chunkY = serverY / _chunkSize;
         _cellSampler.InvalidateChunk(chunkX * _chunkSize, chunkY * _chunkSize);
         _mipScan.QueueChunk(chunkX, chunkY);
-        _requestRender();
+        _requestFullRender();
     }
 
     private void OnChunkLoaded(int serverX, int serverY, int width, int height)
     {
         _cellSampler.InvalidateChunk(serverX, serverY);
         _mipScan.QueueChunk(serverX / Mathf.Max(1, _chunkSize), serverY / Mathf.Max(1, _chunkSize));
-        _requestRender();
+        _requestFullRender();
     }
 
     private void OnRegionChanged(int startX, int startY, int width, int height)
@@ -140,6 +143,6 @@ internal sealed class WorldMapLayerBinding : IDisposable
             }
         }
 
-        _requestRender();
+        _requestFullRender();
     }
 }

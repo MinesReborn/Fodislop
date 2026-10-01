@@ -18,6 +18,11 @@ public sealed class UIInputManager
 
     public bool IsProgrammatorOpen { get; set; }
 
+    // Идёт перехват новой клавиши на вкладке «Управление»: игровые хоткеи
+    // (IPlayerInput) и Escape меню паузы на это время молчат, нажатие —
+    // это выбор бинда, а не действие.
+    public bool IsKeyCaptureInProgress { get; set; }
+
     public bool IsModalOpen
     {
         get

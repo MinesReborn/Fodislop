@@ -9,7 +9,8 @@ namespace Kern.UI;
 internal sealed class MinimapUiController(
     UIDocument document,
     Texture texture,
-    Action openMap) : IDisposable
+    Texture pathOverlay,
+    Action<int, int> moveRequested) : IDisposable
 {
     private MinimapView? _view;
 
@@ -29,7 +30,7 @@ internal sealed class MinimapUiController(
             return false;
         }
 
-        _view = MinimapView.Create(document, texture, openMap);
+        _view = MinimapView.Create(document, texture, pathOverlay, moveRequested);
         return true;
     }
 

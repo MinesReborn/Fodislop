@@ -27,11 +27,19 @@ public interface ILocalPlayer
 
     bool AutoDig { get; set; }
 
+    bool Aggression { get; set; }
+
     event Action<Vector2Int, Vector2Int>? OnPlayerMoved;
+
+    // Мгновенное перемещение по решению сервера (респаун, ТП): камера должна
+    // щёлкнуть на место, а не догонять сглаживанием.
+    event Action? OnPlayerTeleported;
 
     event Action<bool>? OnAutoDigChanged;
 
-    void UpdateServerPosition(Vector2Int position);
+    event Action<bool>? OnAggressionChanged;
+
+    void UpdateServerPosition(Vector2Int position, bool teleport = false);
 
     void ResetServerPosition();
 

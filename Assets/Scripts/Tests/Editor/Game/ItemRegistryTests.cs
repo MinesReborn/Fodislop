@@ -37,17 +37,22 @@ public sealed class ItemRegistryTests
     }
 
     [Test]
-    public void GetName_ReturnsEnumName()
+    public void GetName_ReturnsCatalogName_NotEnumName()
     {
         var registry = new ItemRegistry(new StubAssetPaths());
-        Assert.That(registry.GetName(ItemType.Cred), Is.EqualTo("Cred"));
+
+        string name = registry.GetName(ItemType.Cred);
+
+        Assert.That(name, Is.Not.Empty);
+        Assert.That(name, Is.Not.EqualTo(nameof(ItemType.Cred)));
     }
 
     [Test]
-    public void GetDescription_ReturnsEmpty()
+    public void GetDescription_ReturnsCatalogDescription()
     {
         var registry = new ItemRegistry(new StubAssetPaths());
-        Assert.That(registry.GetDescription(ItemType.Cred), Is.Empty);
+
+        Assert.That(registry.GetDescription(ItemType.Cred), Is.Not.Empty);
     }
 
     [Test]

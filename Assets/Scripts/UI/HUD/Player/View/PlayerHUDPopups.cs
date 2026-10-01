@@ -2,6 +2,7 @@
 
 using System;
 using MinesServer.Networking.Client.Packets.Actions;
+using MinesServer.Networking.Client.Packets.GUI;
 using UnityEngine.UIElements;
 
 namespace Kern.UI.HUD.Player.View;
@@ -9,13 +10,14 @@ namespace Kern.UI.HUD.Player.View;
 public sealed class PlayerHUDPopups
 {
     private readonly Action<SuicidePacket> _sendSuicide;
+    private readonly Action<OpenHelpClickPacket> _sendHelpRequest;
     private VisualElement? _respawnPopup;
     private VisualElement? _buildingsPopup;
-    private VisualElement? _faqPopup;
 
-    public PlayerHUDPopups(Action<SuicidePacket> sendSuicide)
+    public PlayerHUDPopups(Action<SuicidePacket> sendSuicide, Action<OpenHelpClickPacket> sendHelpRequest)
     {
         _sendSuicide = sendSuicide;
+        _sendHelpRequest = sendHelpRequest;
     }
 
     public void Initialize(VisualElement root)
@@ -45,13 +47,12 @@ public sealed class PlayerHUDPopups
             throw new InvalidOperationException("[PlayerHUD] BuildingsButton is missing from PlayerHUD.uxml.");
         buildingsButton.clicked += () => _buildingsPopup.style.display = DisplayStyle.Flex;
 
-        _faqPopup = root.Q<VisualElement>("FaqPopup") ??
-            throw new InvalidOperationException("[PlayerHUD] FaqPopup is missing from PlayerHUD.uxml.");
-        Button faqClose = root.Q<Button>("FaqCloseButton") ??
-            throw new InvalidOperationException("[PlayerHUD] FaqCloseButton is missing from PlayerHUD.uxml.");
-        faqClose.clicked += () => _faqPopup.style.display = DisplayStyle.None;
+        // FAQ — серверная страница: кнопка шлёт OpenHelpClickPacket, сервер
+        // (Session.HelpHandler → Settings.FAQWindow) отвечает модальным окном
+        // FAQ через ServerWindowPresenter. Локальный FaqPopup из UXML больше
+        // не используется.
         Button faqButton = root.Q<Button>("FaqButton") ??
             throw new InvalidOperationException("[PlayerHUD] FaqButton is missing from PlayerHUD.uxml.");
-        faqButton.clicked += () => _faqPopup.style.display = DisplayStyle.Flex;
+        faqButton.clicked += () => _sendHelpRequest(new OpenHelpClickPacket());
     }
 }

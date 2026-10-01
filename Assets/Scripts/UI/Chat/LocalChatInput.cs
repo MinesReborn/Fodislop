@@ -122,8 +122,18 @@ internal sealed class LocalChatInput : IDisposable
 
         _isOpen = true;
         _panel.style.display = DisplayStyle.Flex;
-        _field.Focus();
         TakeChatFocus();
+
+        // Фокус откладывается на следующий тик панели: клавиша открытия (T,
+        // "Е" на русской раскладке) уже обработана вводом в этом кадре, и
+        // немедленный Focus() протаскивал бы её символ в текст поля.
+        _field.schedule.Execute(() =>
+        {
+            if (_isOpen && _field != null)
+            {
+                _field.Focus();
+            }
+        }).StartingIn(1);
     }
 
     public void Hide()

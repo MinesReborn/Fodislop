@@ -16,6 +16,7 @@ internal sealed class WorldMapPanel : IDisposable
     private VisualElement? _overlay;
     private VisualElement? _playerMarker;
     private Image? _image;
+    private Image? _pathOverlay;
     private Button? _closeButton;
     private Button? _followButton;
     private Label? _status;
@@ -29,6 +30,9 @@ internal sealed class WorldMapPanel : IDisposable
     public VisualElement? Overlay => _overlay;
 
     public Image? Image => _image;
+
+    /// <summary>Прозрачный слой поверх карты: нить клик-маршрута.</summary>
+    public Image? PathOverlay => _pathOverlay;
 
     public bool IsBound => _overlay != null && _image != null;
 
@@ -83,6 +87,17 @@ internal sealed class WorldMapPanel : IDisposable
         _followButton = followButton;
         _status = status;
         _image.image = null;
+
+        // Прозрачный слой поверх карты: нить клик-маршрута рисуется в отдельной
+        // текстуре, чтобы не вмешиваться в инкрементальный рендер самой карты.
+        _pathOverlay = new Image { name = "WorldMapPathOverlay", pickingMode = PickingMode.Ignore };
+        _pathOverlay.style.position = Position.Absolute;
+        _pathOverlay.style.left = 0f;
+        _pathOverlay.style.top = 0f;
+        _pathOverlay.style.width = Length.Percent(100f);
+        _pathOverlay.style.height = Length.Percent(100f);
+        image.Add(_pathOverlay);
+
         _closeRequested = closeRequested;
         _followPlayer = followPlayer;
         _closeButton.clicked += _closeRequested;
@@ -215,6 +230,9 @@ internal sealed class WorldMapPanel : IDisposable
         {
             _followButton.clicked -= _followPlayer;
         }
+
+        _pathOverlay?.RemoveFromHierarchy();
+        _pathOverlay = null;
     }
 
     private void ReportBindingFailure(string message)

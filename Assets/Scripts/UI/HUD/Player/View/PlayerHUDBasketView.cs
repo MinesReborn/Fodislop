@@ -15,7 +15,9 @@ namespace Kern.UI.HUD.Player.View;
 public sealed class PlayerHUDBasketView
 {
     private readonly List<Texture2D> _crystalTextures = new();
-    private readonly List<Label> _basketCrystalLabels = new();
+    private readonly List<VisualElement> _basketCrystalFills = new();
+    private readonly List<Label> _basketCrystalCounts = new();
+    private readonly List<VisualElement> _basketRows = new();
 
     private VisualElement? _basketContainer;
 
@@ -78,7 +80,9 @@ public sealed class PlayerHUDBasketView
         }
 
         _basketContainer.Clear();
-        _basketCrystalLabels.Clear();
+        _basketCrystalFills.Clear();
+        _basketCrystalCounts.Clear();
+        _basketRows.Clear();
 
         for (int i = 0; i < _crystalTextures.Count; i++)
         {
@@ -94,33 +98,64 @@ public sealed class PlayerHUDBasketView
 
             row.Add(dot);
 
-            var label = new Label("0/0");
-            label.AddToClassList("hud-crystal-label");
-            row.Add(label);
+            // Полоса с тонированным зоной треком и числом внутри по центру:
+            // белый жирный текст с плотной чёрной обводкой читается и на
+            // светлой заливке, и на тёмной части трека.
+            var bar = new VisualElement();
+            bar.AddToClassList("hud-crystal-bar");
 
-            _basketCrystalLabels.Add(label);
+            var fill = new VisualElement();
+            fill.AddToClassList("hud-crystal-fill");
+            bar.Add(fill);
+
+            var count = new Label("0/0");
+            count.AddToClassList("hud-crystal-count");
+            count.pickingMode = PickingMode.Ignore;
+            bar.Add(count);
+            row.Add(bar);
+
+            // Строка создаётся скрытой: появится, только когда Refresh
+            // подтвердит наличие кристаллов этого цвета в корзине.
+            row.style.display = DisplayStyle.None;
+
+            _basketCrystalFills.Add(fill);
+            _basketCrystalCounts.Add(count);
+            _basketRows.Add(row);
             _basketContainer.Add(row);
         }
     }
 
     public void Refresh(PlayerStatsModel stats)
     {
-        if (_widestCrystalLabels.Length != _basketCrystalLabels.Count)
+        for (int i = 0; i < _basketCrystalFills.Count && i < stats.BasketContents.Length; i++)
         {
-            _widestCrystalLabels = new float[_basketCrystalLabels.Count];
-        }
+            // Кристаллов с нулевым количеством в корзине нет - строка скрывается,
+            // чтобы не оставлять пустое пространство.
+            bool show = stats.BasketContents[i] > 0;
+            _basketRows[i].style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!show)
+            {
+                continue;
+            }
 
-        for (int i = 0; i < _basketCrystalLabels.Count && i < stats.BasketContents.Length; i++)
-        {
-            _basketCrystalLabels[i].text = $"{FormatCompact(stats.BasketContents[i])}/{FormatCompact(stats.BasketCapacity)}";
+            long content = stats.BasketContents[i];
+            uint capacity = stats.BasketCapacity;
+            _basketCrystalCounts[i].text = $"{FormatCompact(content)}/{FormatCompact(capacity)}";
 
-            // Журнал раскладки: подписи корзины двигали HUD в пиковых кадрах —
-            // «5/50K» уже, чем «12.5K/50K». Ширина держится на самой широкой.
-            FPSCounter.HoldWidth(_basketCrystalLabels[i], ref _widestCrystalLabels[i]);
+            int percent = capacity > 0 ? (int)(content * 100 / capacity) : 0;
+
+            // Зона красит сразу всю строку: число, трек и заливку.
+            // <100% лайм, 100-114% жёлтый, 114%+ коралл (перегруз).
+            VisualElement row = _basketRows[i];
+            row.EnableInClassList("hud-crystal-row--ok", percent < 100);
+            row.EnableInClassList("hud-crystal-row--warn", percent is >= 100 and <= 114);
+            row.EnableInClassList("hud-crystal-row--over", percent > 114);
+
+            // В перегрузе полоса заполнена целиком, состояние передаёт цвет.
+            VisualElement fill = _basketCrystalFills[i];
+            fill.style.width = new StyleLength(Length.Percent(Mathf.Clamp(percent, 0, 100)));
         }
     }
-
-    private float[] _widestCrystalLabels = [];
 
     private static string FormatCompact(long val)
     {

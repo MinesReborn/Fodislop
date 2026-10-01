@@ -41,6 +41,14 @@
     padding-right: var(--space-11);
 }
 
+/* Главная страница паузы подстраивается под содержимое: фиксированная
+   высота 85% оставляла большую пустоту под четырьмя кнопками. Потолок
+   сохранён, чтобы на низких экранах список снова уходил в скролл. */
+.pause-panel--auto {
+    height: auto;
+    max-height: 85%;
+}
+
 .pause-page {
     align-items: center;
 }
@@ -300,4 +308,43 @@
 
 .pause-btn:hover {
     background-color: var(--accent-cyan-wash);
+}
+
+/* Вкладка «Управление»: строки списка клавиш по текущей схеме. */
+.controls-key-row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom-width: var(--space-1);
+    border-bottom-color: var(--border-subtle);
+    padding: var(--space-2) 0;
+}
+
+.controls-key-value {
+    -unity-font-style: bold;
+    color: var(--accent-gold);
+    white-space: normal;
+    margin-left: var(--space-5);
+}
+
+/* Кнопка замены клавиши: то же значение, но кликабельное. */
+.controls-key-btn {
+    background-color: var(--surface-sunken);
+    border-width: var(--space-1);
+    border-color: var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-5);
+    min-width: 72px;
+    -unity-text-align: middle-center;
+}
+
+.controls-key-btn:hover {
+    border-color: var(--border-cyan);
+}
+
+/* Идёт перехват: ждём новую клавишу (Escape отменяет). */
+.controls-key-btn--listening {
+    background-color: var(--accent-gold-wash);
+    border-color: var(--border-gold);
+    color: var(--accent-gold);
 }

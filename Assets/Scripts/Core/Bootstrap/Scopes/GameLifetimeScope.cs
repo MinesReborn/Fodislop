@@ -14,6 +14,7 @@ using Kern.Networking;
 using Kern.Networking.Connection;
 using Kern.Networking.Processors;
 using Kern.Player;
+using Kern.Player.Input;
 using Kern.Player.Logic;
 using Kern.Rendering;
 using Kern.Rendering.PostProcessing;
@@ -155,6 +156,7 @@ namespace Kern.Core
             builder.RegisterEntryPoint<GameManager>().AsSelf();
             RegisterManager<VfxPool>(builder, "Rendering").AsImplementedInterfaces().AsSelf();
             builder.Register<BuildingManager>(Lifetime.Singleton).AsImplementedInterfaces().AsSelf();
+            builder.RegisterEntryPoint<PackPlacementPreview>().AsSelf();
             builder.Register<RobotManager>(Lifetime.Singleton).AsImplementedInterfaces().AsSelf();
             RegisterManager<WorldEntityBatchRenderer>(builder, "Rendering");
 
@@ -193,6 +195,17 @@ namespace Kern.Core
             }
 
             builder.RegisterComponent(sceneSetup);
+
+            if (_playerMovement.TryGetComponent<PlayerInputHandler>(out PlayerInputHandler? playerInput))
+            {
+                // Same rule as the interaction controller: the authored
+                // Player's PlayerInputHandler carries [Inject]
+                // IClientConfigManager, and without a registration VContainer
+                // never injects it. The handler then silently falls back to
+                // hardcoded default keys, so InterfaceSettings.Key* rebinds
+                // from the controls tab change only the displayed key.
+                builder.RegisterComponent(playerInput);
+            }
 
             builder.Register<ServerConfig>(Lifetime.Singleton).AsImplementedInterfaces().AsSelf();
             RegisterManager<GlobalChatUI>(builder, "UI");

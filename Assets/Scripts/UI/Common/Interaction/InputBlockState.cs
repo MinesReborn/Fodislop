@@ -24,6 +24,8 @@ public sealed class InputBlockState : IInputBlocker
 
     public bool IsInputBlocked => IsInputBlockedExcludingMapMode || _mapMode.IsOpen;
 
+    public bool IsKeyCaptureInProgress => _uiInput.IsKeyCaptureInProgress;
+
     public bool IsInputBlockedExcludingMapMode =>
         _uiInput.IsInputBlocked ||
         _windows.HasOpenWindows ||

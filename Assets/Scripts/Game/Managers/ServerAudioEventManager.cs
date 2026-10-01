@@ -7,6 +7,7 @@ using Cysharp.Threading.Tasks;
 using Kern.Audio.Core;
 using Kern.Core;
 using Kern.Core.Interfaces;
+using Kern.Core.Lifecycle;
 using Kern.Game;
 using Kern.World;
 using Kern.World.Terrain;
@@ -21,7 +22,7 @@ namespace Kern.Game.Managers
         private const string TAG = "[ServerAudioEventManager]";
 
         private const string MusicEventName = "music/evil_huge";
-        private readonly List<ServerAudioEvent> _activeEffects = new();
+        private readonly List<IServerWorldEffect> _activeEffects = new();
         private readonly Dictionary<(global::MinesServer.Data.SFX Effect, ushort Bot, ushort X, ushort Y), float> _lastSfxTimes = new();
         private IAudioPlaybackHandle? _currentMusicHandle;
         private bool _isMusicStarting;
@@ -47,6 +48,10 @@ namespace Kern.Game.Managers
         private IAsyncOperationSupervisor _operations = null!;
         [Inject]
         private ILocalPlayerState _localPlayer = null!;
+        [Inject]
+        private WorldEntityBatchRenderer _entityBatchRenderer = null!;
+        [Inject]
+        private ISceneObjectFactory _sceneObjects = null!;
 
         public void PlayEffect(AudioPacket packet)
         {
@@ -95,16 +100,18 @@ namespace Kern.Game.Managers
         {
             IVfxSlot? slot = _vfxService.Acquire();
 
-            var effect = new ServerAudioEvent(
+            Debug.Log($"{TAG} VFX '{packet.EffectType}' at {packet.X}:{packet.Y} (bot {packet.TargetBotId}).");
+
+            var effect = new ServerVfxEvent(
                 packet,
                 slot,
                 _robotService,
-                _localPlayer,
-                _audioSystem,
                 _assetLoader,
                 _mapManager,
                 _vfxPool,
-                _operations);
+                _operations,
+                _entityBatchRenderer,
+                _sceneObjects);
             _activeEffects.Add(effect);
         }
 

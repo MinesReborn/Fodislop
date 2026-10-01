@@ -30,6 +30,7 @@ public sealed class ServerWindowPresenter : IDisposable
 
     private readonly IAssetLoader _assetLoader;
     private readonly IAsyncOperationSupervisor _operations;
+    private readonly IWebAssetLoader _webAssetLoader;
     private readonly UIInputManager _uiInputManager;
     private readonly INetworkService _networkService;
     private readonly UIDocument _document;
@@ -43,10 +44,12 @@ public sealed class ServerWindowPresenter : IDisposable
         INetworkService networkService,
         UIDocument document,
         WindowCommandStream commands,
-        IAsyncOperationSupervisor operations)
+        IAsyncOperationSupervisor operations,
+        IWebAssetLoader webAssetLoader)
     {
         _assetLoader = assetLoader;
         _operations = operations;
+        _webAssetLoader = webAssetLoader;
         _uiInputManager = uiInputManager;
         _networkService = networkService;
         _document = document;
@@ -128,7 +131,7 @@ public sealed class ServerWindowPresenter : IDisposable
         frame.AddToClassList("packet-window-frame");
         frame.style.width = packet.Width;
         frame.style.height = packet.Height;
-        VisualElement packetRoot = new PacketUIBuilder(_assetLoader, _operations).Build(packet.Content);
+        VisualElement packetRoot = new PacketUIBuilder(_assetLoader, _operations, _webAssetLoader).Build(packet.Content);
         packetRoot.AddToClassList("packet-window-content");
         frame.Add(packetRoot);
         element.Add(frame);
@@ -137,6 +140,10 @@ public sealed class ServerWindowPresenter : IDisposable
         var packetOrder = new List<IGUIComponentPacket>();
         CollectPacketOrder(packet.Content, packetOrder);
         RegisterClickableElements(packetRoot, packetRoot, packet.WindowTag, packetOrder, actionTagWindow);
+        if (actionTagWindow)
+        {
+            AddExitCloseButton(frame, packetOrder);
+        }
 
         _document.rootVisualElement.Add(element);
         _uiInputManager.PushModal(element);
@@ -156,9 +163,10 @@ public sealed class ServerWindowPresenter : IDisposable
             footerStart--;
         }
 
-        for (int index = 0; index < scroll.Children.Count; index++)
+        for (int index = 0; index < scroll.Children.Count;)
         {
             IGUIComponentPacket child = scroll.Children[index];
+
             if (index >= footerStart && child is TextPacket footerButton)
             {
                 bool isExit = footerButton.OnClickContext is "exit" or "exit:0";
@@ -177,6 +185,7 @@ public sealed class ServerWindowPresenter : IDisposable
                             new StringPairPacket("PacketUI.FooterAction", "1"),
                         ],
                 });
+                index++;
                 continue;
             }
 
@@ -189,8 +198,21 @@ public sealed class ServerWindowPresenter : IDisposable
                     [
                         .. title.AttachedProperties,
                         new StringPairPacket("PacketUI.Title", "1"),
+                        new StringPairPacket("Text.Align", "Center"),
                     ],
                 });
+                index++;
+
+                // Полоса вкладок легаси-окна: мост (ProtocolWindow) помечает
+                // вкладки PacketUI.TabAction/TabActive и кладёт их сразу за
+                // заголовком. Собираем их в горизонтальный DockPanel-ряд.
+                int tabCount = CountTabStrip(scroll.Children, index, footerStart);
+                if (tabCount > 0)
+                {
+                    children.Add(BuildTabStrip(scroll.Children, index, tabCount));
+                    index += tabCount;
+                }
+
                 continue;
             }
 
@@ -204,9 +226,54 @@ public sealed class ServerWindowPresenter : IDisposable
             {
                 children.Add(child);
             }
+
+            index++;
         }
 
         return packet with { Content = scroll with { Children = children } };
+    }
+
+    // Вкладка легаси-окна — TextPacket с маркером моста ProtocolWindow.
+    private static bool IsTabPacket(IGUIComponentPacket packet) =>
+        packet is TextPacket text &&
+        (AttachedProperties.Has(text, "PacketUI.TabAction") ||
+         AttachedProperties.Has(text, "PacketUI.TabActive"));
+
+    private static int CountTabStrip(IReadOnlyList<IGUIComponentPacket> children, int start, int limit)
+    {
+        int count = 0;
+        while (start + count < limit && IsTabPacket(children[start + count]))
+        {
+            count++;
+        }
+
+        return count;
+    }
+
+    private static IGUIComponentPacket BuildTabStrip(
+        IReadOnlyList<IGUIComponentPacket> children,
+        int start,
+        int count)
+    {
+        var tabs = new List<IGUIComponentPacket>(count);
+        for (int i = 0; i < count; i++)
+        {
+            var tab = (TextPacket)children[start + i];
+            tabs.Add(tab with
+            {
+                AttachedProperties =
+                [
+                    .. tab.AttachedProperties,
+                    new StringPairPacket("DockPanel.Dock", "Left"),
+                ],
+            });
+        }
+
+        return new DockPanelPacket
+        {
+            Children = tabs,
+            AttachedProperties = [new StringPairPacket("DockPanel.Dock", "Top")],
+        };
     }
 
     private static void ExpandSerializedContent(TextPacket source, List<IGUIComponentPacket> children)
@@ -440,6 +507,50 @@ public sealed class ServerWindowPresenter : IDisposable
         }
 
         return -1;
+    }
+
+    /// <summary>
+    /// Белый крестик в правом верхнем углу рамки — замена футерной кнопки
+    /// «ВЫЙТИ». Клик отправляет ровно тот же ElementClickPacket, что и
+    /// убранная кнопка: окно, как и раньше, закрывает сервер. Индекс
+    /// элемента считается по packetOrder, поэтому контракт с сервером
+    /// не меняется.
+    /// </summary>
+    private void AddExitCloseButton(
+        VisualElement frame,
+        IReadOnlyList<IGUIComponentPacket> packetOrder)
+    {
+        foreach (IGUIComponentPacket candidate in packetOrder)
+        {
+            if (candidate is not TextPacket exit ||
+                !AttachedProperties.Has(exit, "PacketUI.ExitAction") ||
+                string.IsNullOrEmpty(exit.OnClickContext))
+            {
+                continue;
+            }
+
+            var closeButton = new Button { name = "PacketWindowClose" };
+            closeButton.AddToClassList("packet-window-close");
+            closeButton.focusable = false;
+
+            // VisualElement.classes в публичном API Unity 6000.6 нет, классы
+            // добавляются через AddToClassList.
+            var closeBarA = new VisualElement();
+            closeBarA.AddToClassList("packet-window-close-bar");
+            closeBarA.AddToClassList("packet-window-close-bar--a");
+            closeButton.Add(closeBarA);
+            var closeBarB = new VisualElement();
+            closeBarB.AddToClassList("packet-window-close-bar");
+            closeBarB.AddToClassList("packet-window-close-bar--b");
+            closeButton.Add(closeBarB);
+
+            int elementIndex = PacketIndex(packetOrder, exit);
+            string clickContext = exit.OnClickContext;
+            closeButton.clicked += () => _networkService.Send(
+                new ElementClickPacket(clickContext, elementIndex, []));
+            frame.Add(closeButton);
+            return;
+        }
     }
 
     private void HandleElementClick(

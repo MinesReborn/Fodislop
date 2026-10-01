@@ -27,6 +27,15 @@ public class ScrollViewerPacketBuilder : PacketUIBuilderBase<ScrollViewerPacket>
         for (int index = 0; index < packet.Children.Count; index++)
         {
             IGUIComponentPacket child = packet.Children[index];
+            if (AttachedProperties.Has(child, "PacketUI.ExitAction"))
+            {
+                // Футерная кнопка «ВЫЙТИ» больше не строится: вместо неё окно
+                // закрывает белый крестик в углу, который добавляет
+                // ServerWindowPresenter. Пакет остаётся в packetOrder, поэтому
+                // индексы элементов для сервера не сдвигаются.
+                continue;
+            }
+
             if (AttachedProperties.Has(child, "PacketUI.FooterAction"))
             {
                 VisualElement action = builder.Build(child);

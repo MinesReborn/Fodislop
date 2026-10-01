@@ -180,7 +180,19 @@ namespace Kern.UI
 
             // T не открывает этот канал: он принадлежит локальному чату
             // (FloatingChatManager → LocalChatInput). Глобальное окно открывает
-            // только кнопка чата в HUD.
+            // TAB - кнопки чата в HUD больше нет.
+            if (Keyboard.current.tabKey.wasPressedThisFrame)
+            {
+                // При заблокированном вводе (поверх открыты окна/инвентарь) чат
+                // не открываем, но закрыть уже открытый TAB-ом можно всегда.
+                if (!_isOpen || !inputBlocked)
+                {
+                    Toggle();
+                }
+
+                return;
+            }
+
             if (!_isOpen)
             {
                 return;
@@ -199,11 +211,10 @@ namespace Kern.UI
                 return;
             }
 
-            if (Keyboard.current.escapeKey.wasPressedThisFrame)
-            {
-                _uiInput.ConsumeEscape();
-                Hide();
-            }
+            // Escape этот чат не закрывает: TAB — единственная клавиша
+            // открытия/закрытия. Пока поле в фокусе, ESC ничего не делает:
+            // меню паузы не открывается, потому что ввод занят чатом
+            // (IsChatFocused проверяется в PauseMenu.Update).
         }
 
         private void CreateUI()

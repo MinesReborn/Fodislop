@@ -69,6 +69,51 @@
     color: var(--text-primary);
 }
 
+/* Белый крестик закрытия в правом верхнем углу окна. Заменяет футерную
+   кнопку «ВЫЙТИ»: клик уходит на сервер как обычный ElementClickPacket.
+   Крестик собран из двух повёрнутых полосок — вид не зависит от глифов
+   шрифта. */
+.packet-window-close {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 22px;
+    height: 22px;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border-width: 0;
+    border-radius: var(--radius-sm);
+    background-color: transparent;
+}
+
+.packet-window-close:hover {
+    background-color: var(--state-danger-wash);
+}
+
+.packet-window-close:active {
+    background-color: var(--state-danger-glow);
+}
+
+.packet-window-close-bar {
+    position: absolute;
+    left: 5px;
+    top: 10px;
+    width: 12px;
+    height: 2px;
+    border-radius: 1px;
+    background-color: #ffffff;
+}
+
+.packet-window-close-bar--a {
+    rotate: 45deg;
+}
+
+.packet-window-close-bar--b {
+    rotate: -45deg;
+}
+
 .packet-window-action {
     min-height: 30px;
     padding: 4px 8px;
@@ -83,6 +128,19 @@
 .packet-window-action:hover {
     background-color: var(--accent-cyan-wash);
     border-color: var(--border-cyan);
+}
+
+/* Полоса вкладок легаси-окна: кнопки-вкладки идут в строку под заголовком,
+   ширина — по тексту (в отличие от футерных, которые растягиваются). */
+.packet-window-tab {
+    margin-right: var(--space-2);
+}
+
+/* Активная вкладка: текст без действия, подсвечивается золотом. */
+.packet-window-tab-active {
+    color: var(--accent-gold);
+    -unity-font-style: bold;
+    margin-right: var(--space-2);
 }
 
 .packet-window-row {

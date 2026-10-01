@@ -38,11 +38,14 @@
 
 .gchat-panel {
     position: absolute;
-    right: var(--space-5);
-    top: 50%;
-    translate: 0 -50%;
-    width: 340px;
-    height: 420px;
+    /* Широкая полоса лога сразу справа от мини-карты (левая колонка HUD),
+       прижата к низу экрана: от 198px (16 отступ + 174 карта + 8 зазор) до
+       160px от правого края - чтобы не заходить в правый нижний угол, где
+       живёт меню умений. */
+    left: 198px;
+    right: 160px;
+    bottom: var(--space-8);
+    height: 180px;
     background-color: var(--surface-slate-dense);
     border-width: var(--space-1);
     border-color: var(--accent-cyan-deep);
@@ -183,7 +186,7 @@
 .lchat-panel {
     position: absolute;
     left: 50%;
-    bottom: var(--space-11);
+    top: 45%;
     translate: -50% 0;
     width: 420px;
     flex-direction: row;

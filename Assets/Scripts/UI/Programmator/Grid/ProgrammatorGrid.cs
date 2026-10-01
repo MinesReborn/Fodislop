@@ -33,6 +33,9 @@ public sealed class ProgrammatorGrid : IDisposable
 
         private bool _uiBuilt;
 
+        /// <summary>Хранилище программ (имя активной, состояние выполнения) для HUD.</summary>
+        internal ProgrammatorProgramStore? Programs => _programs;
+
         public ProgrammatorGrid(
             UIDocument doc,
             ILocalizationService loc,
@@ -100,6 +103,7 @@ public sealed class ProgrammatorGrid : IDisposable
             _radial = radial;
             _programs = programs;
             _clipboard = clipboard;
+            programs.RunStateChanged += OnProgramRunStateChanged;
 
             if (_view == null)
             {
@@ -308,6 +312,34 @@ public sealed class ProgrammatorGrid : IDisposable
             _view.Popup.style.display = DisplayStyle.None;
         }
 
+        // Запуск программы из окна: окно убирается с экрана, но программа
+        // продолжает работать — ею управляет кнопка ▶/■ в HUD. В отличие от
+        // Hide(), этот путь НЕ останавливает программу.
+        private void OnProgramRunStateChanged(bool running)
+        {
+            if (running)
+            {
+                HideKeepRunning();
+            }
+        }
+
+        private void HideKeepRunning()
+        {
+            if (!_uiBuilt || _view == null)
+            {
+                return;
+            }
+
+            _selection!.ClearSelection();
+            _radial!.HideAll();
+            _isOpen = false;
+            _uiInput.IsProgrammatorOpen = false;
+            _programs!.HideCreateInput();
+            _view.ProgramListPanel.style.display = DisplayStyle.None;
+            _view.Panel.style.display = DisplayStyle.None;
+            _view.Popup.style.display = DisplayStyle.None;
+        }
+
         public void Dispose()
         {
             if (_uiBuilt && _isOpen)
@@ -317,6 +349,11 @@ public sealed class ProgrammatorGrid : IDisposable
 
             _uiInput.IsProgrammatorOpen = false;
             _protocol.OpenRequested -= Show;
+
+            if (_programs != null)
+            {
+                _programs.RunStateChanged -= OnProgramRunStateChanged;
+            }
 
             // Фабрика зарегистрирована в реестре локализации — снимаем её,
             // чтобы смена языка не долетала до мёртвого попапа.

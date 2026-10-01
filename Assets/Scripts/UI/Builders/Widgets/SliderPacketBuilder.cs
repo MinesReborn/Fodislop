@@ -35,6 +35,12 @@ public class SliderPacketBuilder : PacketUIBuilderBase<SliderPacket>
         // Вид гасится правилами .packet-slider в SciFi.uss: сервер прислал
         // свой ползунок, стандартную отрисовку Unity надо убрать из-под него.
         slider.AddToClassList("packet-slider");
+        // Name обязателен: ClickContextResolver.CollectInputValues собирает
+        // значения контролов по element.name и отдаёт их в ElementClickPacket.
+        if (!string.IsNullOrEmpty(packet.Name))
+        {
+            slider.name = packet.Name;
+        }
 
         VisualElement? dragger = slider.Q(className: "unity-base-slider__dragger");
         if (dragger == null)

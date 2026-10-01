@@ -1,7 +1,7 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
     <ui:VisualElement name="ChatPanel" class="gchat-panel">
-        <ui:Label name="ChatHeader" class="gchat-header"  text="" />
-        <ui:VisualElement name="ChatChannels" class="gchat-channel-tabs">
+        <ui:Label name="ChatHeader" class="gchat-header"  text="" style="display: none;" />
+        <ui:VisualElement name="ChatChannels" class="gchat-channel-tabs" style="display: none;">
             <ui:Button name="GlobalChannelButton" class="gchat-channel-button gchat-channel-button--active" text="chat.channel.global" />
         </ui:VisualElement>
         <ui:Label name="ChatMuteStatus" class="gchat-mute-status" style="display: none;" />

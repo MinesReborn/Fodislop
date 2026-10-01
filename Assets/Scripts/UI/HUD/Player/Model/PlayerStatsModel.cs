@@ -200,7 +200,10 @@ public sealed class PlayerStatsModel : IPlayerStats
             }
         }
 
-        BasketMaxPercent = Mathf.Clamp(maxPct, 0, 100);
+        // Перегруз — реальное состояние корзины (содержимое больше базовой
+        // ёмкости): индикатор груза красится зонами 100-114% и выше, поэтому
+        // верхнего клампа нет — отсекаются только отрицательные значения.
+        BasketMaxPercent = maxPct < 0 ? 0 : maxPct;
         OnBasketChanged?.Invoke();
         OnStatsChanged?.Invoke();
     }

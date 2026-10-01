@@ -20,7 +20,8 @@ public sealed class PlayerInfoProcessor(
     IPacketProcessor<TeleportPacket>,
     IPacketProcessor<RobotInfoPacket>,
     IPacketProcessor<RobotPositionPacket>,
-    IPacketProcessor<AutoMineStatePacket>
+    IPacketProcessor<AutoMineStatePacket>,
+    IPacketProcessor<AggressionStatePacket>
 {
     public void Process(PlayerInfoPacket packet)
     {
@@ -51,7 +52,8 @@ public sealed class PlayerInfoProcessor(
             throw new InvalidOperationException("[PlayerInfoProcessor] Teleport received before local player was spawned");
         }
 
-        player.UpdateServerPosition(new Vector2Int(packet.X, packet.Y));
+        // teleport: true - камера щёлкает на новое место мгновенно (респаун, ТП).
+        player.UpdateServerPosition(new Vector2Int(packet.X, packet.Y), teleport: true);
         player.ResetDirection();
     }
 
@@ -82,6 +84,15 @@ public sealed class PlayerInfoProcessor(
         if (player != null)
         {
             player.AutoDig = packet.Enabled;
+        }
+    }
+
+    public void Process(AggressionStatePacket packet)
+    {
+        var player = localPlayer.Current;
+        if (player != null)
+        {
+            player.Aggression = packet.Enabled;
         }
     }
 

@@ -11,6 +11,9 @@ public sealed class MapInteractionController
     private Vector2 _lastMousePos;
     private int _dragPointerId = -1;
 
+    // Между PointerDown и PointerUp был реальный сдвиг (drag), а не клик.
+    public bool WasDragging { get; private set; }
+
     public void HandlePointerDown(
         PointerDownEvent evt,
         Image? mapImage)
@@ -28,6 +31,7 @@ public sealed class MapInteractionController
         }
 
         _isDragging = true;
+        WasDragging = false;
         _dragPointerId = evt.pointerId;
         _lastMousePos = localPosition;
         mapImage.CapturePointer(evt.pointerId);
@@ -56,6 +60,11 @@ public sealed class MapInteractionController
         Vector2 localPosition = new(evt.localPosition.x, evt.localPosition.y);
         Vector2 delta = localPosition - _lastMousePos;
         _lastMousePos = localPosition;
+        if (delta.sqrMagnitude > 0.0001f)
+        {
+            WasDragging = true;
+        }
+
         ApplyDragDelta(
             mapImage,
             delta,
@@ -133,6 +142,16 @@ public sealed class MapInteractionController
         renderRequested = true;
     }
 
+    /// <summary>
+    /// Переводит дельту колеса (UI Toolkit WheelEvent.delta.y) в шаги зума.
+    /// Положительный шаг уменьшает cellsPerPixel, то есть приближает; колесо
+    /// вверх приходит с delta.y &lt; 0 и обязано приближать — как камера
+    /// (CameraFollow: колесо вверх уменьшает orthographicSize), поэтому знак
+    /// инвертируется. Выброс ограничен ±4 шагами за событие.
+    /// </summary>
+    public static float WheelDeltaToZoomSteps(float wheelDelta) =>
+        Mathf.Clamp(-wheelDelta, -4f, 4f);
+
     public void HandleMouseScroll(
         VisualElement? mapOverlay,
         Image? mapImage,
@@ -172,7 +191,7 @@ public sealed class MapInteractionController
             out float cursorWorldX,
             out float cursorWorldY);
 
-        float zoomSteps = Mathf.Clamp(delta, -4f, 4f);
+        float zoomSteps = WheelDeltaToZoomSteps(delta);
         cellsPerPixel = Mathf.Clamp(
             oldCellsPerPixel * Mathf.Pow(0.85f, zoomSteps),
             0.25f,

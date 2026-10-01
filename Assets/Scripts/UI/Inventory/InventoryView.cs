@@ -15,15 +15,19 @@ using VContainer;
 
 namespace Kern.UI.Inventory
 {
+    // Раньше PauseMenu в том же кадре: порядок Update между ними не задан,
+    // и Escape с выбранным предметом успевал открыть меню паузы. Явный
+    // порядок ставит инвентарь раньше меню — ConsumeEscape в его
+    // ESC-ветке успевает отработать до проверки в PauseMenu.
+    [DefaultExecutionOrder(-50)]
     public class InventoryView : MonoBehaviour, ILocalizableUI
     {
 
         private const int ROWCOUNT = 4;
 
-        // Компактный режим — восемь предметов (два столбца по четыре), как
-        // согласовано: старый клиент держал в верхней панели короткий список,
-        // полный раскрывался тем же треугольником.
-        private const int COMPACT_SIZE = 8;
+        // Компактный режим — одна колонка из четырёх предметов (FixedRowCount
+        // старого клиента): полоса-треугольник раскрывает полный список и
+        // прячет обратно все предметы после четвёртого.
 
         // Цифровые клавиши 1–9 выбирают предмет по позиции в OrderedTypes.
         private const int NUM_ORDERED_SELECT_KEYS = 9;
@@ -88,8 +92,8 @@ namespace Kern.UI.Inventory
                 return;
             }
 
-            if (Keyboard.current.tabKey.wasPressedThisFrame ||
-                (Keyboard.current.iKey.wasPressedThisFrame && !_uiInput.IsChatFocused))
+            // TAB отдан глобальному чату (GlobalChatUI); инвентарь открывается на I.
+            if (Keyboard.current.iKey.wasPressedThisFrame && !_uiInput.IsChatFocused)
             {
                 ToggleInventory();
             }
@@ -113,10 +117,11 @@ namespace Kern.UI.Inventory
                 return;
             }
 
-            if (Keyboard.current.escapeKey.wasPressedThisFrame && _model!.HasSelectedItem)
+            if (Keyboard.current.escapeKey.wasPressedThisFrame && !_uiInput.IsChatFocused && _model!.HasSelectedItem)
             {
                 // Escape снимает предмет и не должен заодно открывать меню
                 // паузы — одно нажатие, один владелец (см. UIInputManager).
+                // В открытом чате Escape принадлежит чату: инвентарь молчит.
                 _model.Deselect();
                 _uiInput.ConsumeEscape();
             }
@@ -193,7 +198,7 @@ namespace Kern.UI.Inventory
             }
 
             BuildUI();
-            _tooltipController = new InventoryTooltipController(_doc.rootVisualElement, _loc);
+            _tooltipController = new InventoryTooltipController(_doc.rootVisualElement, _catalog);
 
             _model.OnItemsChanged += RebuildSlots;
             _model.OnSelectedChanged += OnModelSelectedChanged;
@@ -360,16 +365,53 @@ namespace Kern.UI.Inventory
         private void RebuildSlots()
         {
             _cellElements.Clear();
-            FillSlots(_hotbarSlots, COMPACT_SIZE);
+            FillSlots(_hotbarSlots, ROWCOUNT);
             FillSlots(_fullSlots, int.MaxValue);
 
-            if (_inventoryButton != null)
-            {
-                _inventoryButton.style.display = DisplayStyle.Flex;
-            }
+            ApplyToggleButtonVisibility();
+            RefreshTooltipFromSelection();
 
             ApplySelection();
             ApplyInventoryMode();
+        }
+
+        // Название и описание предмета приходят с сервера MinesServer пакетом
+        // SelectItemPacket уже ПОСЛЕ локального выбора: без этой перерисовки
+        // карточка оставалась с пустым описанием до повторного клика.
+        private void RefreshTooltipFromSelection()
+        {
+            if (_model!.SelectedItem is not { } type)
+            {
+                return;
+            }
+
+            ItemData? item = _model.GetItem(type);
+            if (item != null)
+            {
+                _tooltipController?.ShowItemInfo(item, _catalog.GetIcon(type));
+            }
+        }
+
+        // Полоса раскрытия появляется только когда предметов БОЛЬШЕ четырёх:
+        // короткий список из четырёх и меньше помещается целиком, разворачивать
+        // нечего — кнопка не показывается вовсе. При обратном уменьшении панель
+        // сворачивается в компактный режим: без полосы полный режим недостижим
+        // мышью, да и содержимое при ≤4 предметах в обоих режимах одинаково.
+        private void ApplyToggleButtonVisibility()
+        {
+            if (_inventoryButton == null)
+            {
+                return;
+            }
+
+            bool showToggle = _model!.OrderedTypes.Count > ROWCOUNT;
+            _inventoryButton.style.display = showToggle
+                ? DisplayStyle.Flex
+                : DisplayStyle.None;
+            if (!showToggle)
+            {
+                _isInventoryOpen = false;
+            }
         }
 
         private void FillSlots(VisualElement? container, int maxCount)

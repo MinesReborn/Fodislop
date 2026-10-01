@@ -13,6 +13,8 @@ public sealed class Gun : PackBuilding
 
     public override IEnumerable<((int X, int Y) Pos, CellType Cell)> CellsToPlace()
     {
+        // Зеркало сервера (MinesServer: Game/Buildings/Gun.cs): крест из
+        // дорог 5x3 без стен.
         yield return ((0, 0), CellType.BuildingRoad);
         yield return ((1, 0), CellType.BuildingRoad);
         yield return ((2, 0), CellType.BuildingRoad);
@@ -22,9 +24,5 @@ public sealed class Gun : PackBuilding
         yield return ((0, -2), CellType.BuildingRoad);
         yield return ((0, 1), CellType.BuildingRoad);
         yield return ((0, 2), CellType.BuildingRoad);
-        yield return ((1, 1), CellType.BuildingWall);
-        yield return ((-1, 1), CellType.BuildingWall);
-        yield return ((1, -1), CellType.BuildingWall);
-        yield return ((-1, -1), CellType.BuildingWall);
     }
 }

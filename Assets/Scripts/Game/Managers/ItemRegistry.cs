@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using MinesServer.Data;
+using MinesServer.Networking.Connection.Client;
 using Kern.Core.Interfaces;
 using UnityEngine;
 
@@ -15,9 +16,12 @@ public sealed class ItemRegistry(IRuntimeAssetPaths runtimeAssetPaths) : IItemCa
     private readonly Dictionary<ItemType, Texture2D?> _iconCache = new();
     private readonly HashSet<ItemType> _missingIconWarned = new();
 
-    public string GetName(ItemType type) => type.ToString();
+    // Локальный справочник: русское название и описание предмета. Серверные
+    // метаданные (SelectItemPacket) имеют приоритет — этот текст используется,
+    // пока метаданные не пришли или пришли пустыми.
+    public string GetName(ItemType type) => DummyItemInfo.GetItemInfo(type).Name;
 
-    public string GetDescription(ItemType type) => string.Empty;
+    public string GetDescription(ItemType type) => DummyItemInfo.GetItemInfo(type).Desc;
 
     public IEnumerable<ItemType> AllTypes => (ItemType[])System.Enum.GetValues(typeof(ItemType));
 

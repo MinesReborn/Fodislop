@@ -16,22 +16,19 @@
 
         <!-- ════════════ ЕДИНАЯ ПАНЕЛЬ ИГРОКА (hud-panel): статус, валюта, корзина ════════════ -->
         <ui:VisualElement name="PlayerStatusPanel" class="hud-panel">
-            <!-- Верхняя строка: Никнейм, Уровень, Клан -->
+            <!-- Верхняя строка: Никнейм, Клан -->
             <ui:VisualElement class="hud-title-row">
                 <ui:Label name="NicknameLabel" class="hud-nickname" text="---" />
-                <ui:Label name="LevelLabel" class="hud-level"  text="" />
-                <ui:Button name="ClanButton" class="hud-clan-button" tooltip="hud.tooltip.clan" />
+                <ui:Button name="ClanButton" class="hud-clan-button" tooltip="hud.tooltip.clan" picking-mode="Position" />
             </ui:VisualElement>
+            <ui:Label name="LevelLabel" class="hud-level"  text="" />
 
             <ui:VisualElement class="hud-separator" />
 
-            <!-- Прочность (HP) -->
-            <ui:VisualElement class="hud-hp-header">
-                <ui:Label name="HPLabel" class="hud-stat"  text="" />
-                <ui:Label name="HPPercentLabel" class="hud-stat-percent" text="100%" />
-            </ui:VisualElement>
+            <!-- Прочность (HP): счётчик внутри полосы прогресса -->
             <ui:VisualElement class="hud-hp-bar">
                 <ui:VisualElement name="HPBarFill" class="hud-hp-fill" />
+                <ui:Label name="HPCountLabel" class="hud-hp-count" text="-- / --" picking-mode="Ignore" />
             </ui:VisualElement>
 
             <!-- Валюта -->
@@ -39,43 +36,53 @@
             <ui:Label name="CredsLabel" class="hud-creds" text="---" />
             <ui:Label name="GeologyLabel" class="hud-stat"  text="" />
 
-            <ui:VisualElement class="hud-separator" />
+            <ui:VisualElement name="BasketSeparator" class="hud-separator" />
 
             <!-- Корзина -->
             <ui:Label name="BasketPercentLabel" class="hud-basket"  text="" />
             <ui:VisualElement name="BasketContainer" class="hud-basket-container" />
+
+            <!-- Ручка перетаскивания панели -->
+            <ui:VisualElement name="HUDDragHandle" class="hud-drag-handle" tooltip="Перетащить панель">
+                <ui:Label text="✥" picking-mode="Ignore" />
+            </ui:VisualElement>
         </ui:VisualElement>
 
         <!-- ════════════ СТАТУСНЫЕ ЛИНИИ (справа от панели игрока, под кнопкой бонуса) ════════════ -->
         <ui:VisualElement name="StatusPanel" class="hud-status-panel" style="display: none;" />
 
         <!-- ════════════ КНОПКА БОНУСА ════════════ -->
-        <ui:Button name="BonusButton" class="hud-button-accent hud-bonus-button" text="hud.bonus" tooltip="hud.tooltip.bonus" />
+        <ui:Button name="BonusButton" class="hud-button-accent hud-bonus-button" text="hud.bonus" tooltip="hud.tooltip.bonus" picking-mode="Position" />
 
         <!-- ════════════ ПАНЕЛЬ БОНУСОВ ════════════ -->
         <ui:VisualElement name="BonusPanel" class="hud-bonus-panel" style="display: none;">
             <ui:VisualElement class="hud-title-row">
                 <ui:Label class="hud-stat" text="hud.bonus" />
-                <ui:Button name="BonusCloseButton" class="hud-button-close" text="×" />
+                <ui:Button name="BonusCloseButton" class="hud-button-close" text="×" picking-mode="Position" />
             </ui:VisualElement>
             <ui:Label name="BonusStatusLabel" class="hud-stat hud-stat-wrap"  text="" />
-            <ui:Button name="BonusClaimButton" class="hud-button-claim" text="hud.bonus.claim" style="display: none;" />
+            <ui:Button name="BonusClaimButton" class="hud-button-claim" text="hud.bonus.claim" style="display: none;" picking-mode="Position" />
         </ui:VisualElement>
 
         <!-- ════════════ ТУМБЛЕРЫ (снизу слева) ════════════ -->
-        <ui:Button name="AutoDigButton" class="hud-button hud-toggle-btn hud-toggle-auto-dig" tooltip="hud.tooltip.autodig">
-            <ui:VisualElement name="AutoDigIndicator" class="hud-mode-led" picking-mode="Ignore" />
+        <ui:Button name="AggressionButton" class="hud-button hud-toggle-btn hud-toggle-aggression" tooltip="hud.tooltip.aggression" picking-mode="Position">
+            <ui:Label name="AggressionLabel" class="hud-toggle-btn-label"  text="" picking-mode="Ignore" />
+        </ui:Button>
+        <ui:Button name="AutoDigButton" class="hud-button hud-toggle-btn hud-toggle-auto-dig" tooltip="hud.tooltip.autodig" picking-mode="Position">
             <ui:Label name="AutoDigLabel" class="hud-toggle-btn-label"  text="" picking-mode="Ignore" />
         </ui:Button>
 
-        <!-- ════════════ ЧАТ И ПРОГРАММАТОР (снизу слева) ════════════ -->
-        <ui:Button name="ChatButton" class="hud-btn-action hud-chat-button" text="hud.chat" tooltip="hud.tooltip.chat" />
-        <ui:Button name="ProgrammatorButton" class="hud-btn-action hud-programmator-button"  text="" />
+        <!-- ════════════ ПРОГРАММАТОР (снизу слева) ═════════════ -->
+        <!-- Кнопки чата в HUD больше нет: чат открывается и закрывается по TAB
+             (см. GlobalChatUI.Update), панель - широкая полоса справа от
+             мини-карты (см. .gchat-panel в Chat.uss). -->
+        <ui:Button name="ProgrammatorButton" class="hud-btn-action hud-programmator-button"  text="" picking-mode="Position" />
+        <ui:Button name="ProgramRunButton" class="hud-btn-action hud-program-run-btn" text="▶" tooltip="hud.tooltip.program_start" picking-mode="Position" />
 
         <!-- ════════════ КНОПКИ ВЕРХНЕГО РЯДА: РЕСПАВН / ЗДАНИЯ / FAQ ════════════ -->
-        <ui:Button name="RespawnButton" class="hud-btn-action hud-btn-top-row hud-btn-top-row--respawn" text="hud.respawn" />
-        <ui:Button name="BuildingsButton" class="hud-btn-action hud-btn-top-row hud-btn-top-row--buildings" text="hud.buildings" />
-        <ui:Button name="FaqButton" class="hud-btn-action hud-btn-top-row hud-btn-top-row--faq" text="FAQ" />
+        <ui:Button name="RespawnButton" class="hud-btn-action hud-btn-top-row hud-btn-top-row--respawn" text="hud.respawn" picking-mode="Position" />
+        <ui:Button name="BuildingsButton" class="hud-btn-action hud-btn-top-row hud-btn-top-row--buildings" text="hud.buildings" picking-mode="Position" />
+        <ui:Button name="FaqButton" class="hud-btn-action hud-btn-top-row hud-btn-top-row--faq" text="FAQ" picking-mode="Position" />
 
         <!-- ════════════ НАВЫКИ И ПРОГРЕСС (справа снизу) ════════════ -->
         <ui:VisualElement name="SkillContainer" class="hud-skill-container" />

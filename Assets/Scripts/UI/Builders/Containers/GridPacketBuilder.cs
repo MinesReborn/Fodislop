@@ -84,7 +84,9 @@ public class GridPacketBuilder : PacketUIBuilderBase<GridPacket>
             packet.Rows,
             items,
             gridRoot.resolvedStyle.width,
-            gridRoot.resolvedStyle.height);
+            gridRoot.resolvedStyle.height,
+            out _,
+            out float totalHeight);
 
         for (int i = 0; i < elements.Count; i++)
         {
@@ -98,6 +100,13 @@ public class GridPacketBuilder : PacketUIBuilderBase<GridPacket>
             style.width = rects[i].Width;
             style.height = rects[i].Height;
         }
+
+        // Дети переведены в position:absolute и выпали из потока: без резерва
+        // контент-высота грида схлопывается в ноль, и контейнер, сжимающийся по
+        // контенту (например, строка заголовка серверного окна), наезжает на
+        // отрисованное содержимое. minHeight держит высоту дорожек, не мешая
+        // гриду растягиваться в контейнерах побольше (flex-grow).
+        gridRoot.style.minHeight = totalHeight;
     }
 
     // Подпись меряется вместе с полями: перенос строки уже случился внутри

@@ -88,6 +88,13 @@ namespace Kern.UI
                     return;
                 }
 
+                // Перехват клавиши на вкладке «Управление» поглощает Escape:
+                // он отменяет перехват и не должен заодно закрывать меню.
+                if (_uiInput.IsKeyCaptureInProgress)
+                {
+                    return;
+                }
+
                 // Показанное серверное окно — верхний владелец Escape: оно
                 // модальное и держит IInputBlocker.IsInputBlocked, а закрыть его
                 // больше нечем. Escape в паузе не открывает меню поверх
@@ -293,6 +300,7 @@ namespace Kern.UI
                 _networkService,
                 _connectionService,
                 _localPlayer,
+                _uiInput,
                 _settingsRefreshers,
                 CloseMenu,
                 _loc);
@@ -308,6 +316,7 @@ namespace Kern.UI
             _settingsBuilder.BuildGraphicsPage(tabRouter.GraphicsScroll);
             _settingsBuilder.BuildEffectsPage(tabRouter.EffectsScroll);
             _settingsBuilder.BuildInterfacePage(tabRouter.InterfaceScroll);
+            _settingsBuilder.BuildControlsPage(tabRouter.ControlsScroll);
             _settingsBuilder.BuildAdvancedPage(tabRouter.AdvancedScroll);
 
 #if UNITY_EDITOR || UNITY_ENABLE_CHECKS

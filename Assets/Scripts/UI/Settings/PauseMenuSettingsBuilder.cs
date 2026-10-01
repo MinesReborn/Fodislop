@@ -28,6 +28,7 @@ internal sealed class PauseMenuSettingsBuilder
     private readonly INetworkService _networkService;
     private readonly IConnectionService _connectionService;
     private readonly ILocalPlayerState _localPlayer;
+    private readonly UIInputManager _uiInput;
 
     // Shared with PauseMenu: opening the settings page replays every
     // refresher so each control re-reads its live value instead of showing
@@ -54,6 +55,7 @@ internal sealed class PauseMenuSettingsBuilder
         INetworkService networkService,
         IConnectionService connectionService,
         ILocalPlayerState localPlayer,
+        UIInputManager uiInput,
         ICollection<Action> settingsRefreshers,
         Action closeMenu,
         ILocalizationService loc)
@@ -68,6 +70,7 @@ internal sealed class PauseMenuSettingsBuilder
         _networkService = networkService;
         _connectionService = connectionService;
         _localPlayer = localPlayer;
+        _uiInput = uiInput;
         _refreshers = settingsRefreshers;
         _closeMenu = closeMenu;
         _loc = loc;
@@ -115,6 +118,12 @@ internal sealed class PauseMenuSettingsBuilder
             _refreshers,
             _loc);
         return builder.Build(interfaceScroll);
+    }
+
+    public VisualElement BuildControlsPage(ScrollView controlsScroll)
+    {
+        var builder = new PauseMenuControlsTabBuilder(_doc, _clientConfig, _refreshers, _loc, _uiInput);
+        return builder.Build(controlsScroll);
     }
 
     public VisualElement BuildAdvancedPage(ScrollView advancedScroll)

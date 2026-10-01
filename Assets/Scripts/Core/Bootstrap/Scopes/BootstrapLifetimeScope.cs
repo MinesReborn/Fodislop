@@ -370,6 +370,10 @@ namespace Kern.Core
                 .AsSelf()
                 .As<IAsyncOperationSupervisor>();
             builder.Register<PersistentAssetCache>(Lifetime.Singleton).As<IPersistentAssetCache>();
+            // Window images served over http(s): the same AssetCache
+            // machinery as the server asset loader, RAM-only, sourced from
+            // the web client instead of the game connection.
+            builder.Register<WebAssetLoader>(Lifetime.Singleton).As<IWebAssetLoader>();
             builder.Register<RuntimeAssetPaths>(
                 _ => new RuntimeAssetPaths(),
                 Lifetime.Singleton).As<IRuntimeAssetPaths>();

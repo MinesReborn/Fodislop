@@ -1,6 +1,6 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
     <ui:VisualElement name="PauseOverlay" class="pause-overlay ui-overlay">
-        <ui:VisualElement name="MainPage" class="pause-panel pause-page">
+        <ui:VisualElement name="MainPage" class="pause-panel pause-page pause-panel--auto">
             <ui:Label name="PauseTitle"  text="" class="pause-title" />
             <ui:ScrollView name="MainPageScroll" class="pause-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto">
                 <ui:Button name="ResumeButton"  text="" class="pause-btn" />
@@ -19,6 +19,7 @@
                     <ui:Button name="EffectsTab"  text="" class="settings-tab" />
                     <ui:Button name="AudioTab"  text="" class="settings-tab" />
                     <ui:Button name="InterfaceTab"  text="" class="settings-tab" />
+                    <ui:Button name="ControlsTab"  text="" class="settings-tab" />
                     <ui:Button name="AdvancedTab"  text="" class="settings-tab settings-tab--advanced" />
                 </ui:VisualElement>
                 <ui:VisualElement name="SettingsContent" class="settings-content">
@@ -63,6 +64,12 @@
                         <ui:VisualElement name="InterfaceSection" class="settings-section">
                             <ui:Label class="settings-section__title" text="settings.interface.section_title" />
                             <ui:Label class="settings-section__description" text="settings.interface.section_desc" />
+                        </ui:VisualElement>
+                    </ui:ScrollView>
+                    <ui:ScrollView name="ControlsScroll" class="pause-scroll settings-page" mode="Vertical" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto">
+                        <ui:VisualElement name="ControlsSection" class="settings-section">
+                            <ui:Label class="settings-section__title" text="settings.controls.section_title" />
+                            <ui:Label class="settings-section__description" text="settings.controls.section_desc" />
                         </ui:VisualElement>
                     </ui:ScrollView>
                     <ui:ScrollView name="AdvancedScroll" class="pause-scroll settings-page" mode="Vertical" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto">

@@ -24,6 +24,15 @@ internal static class AssetCacheDecoder
 
     public static DecodedTextureResult DecodeTexture(byte[] bytes, string filename)
     {
+        // M3G has no magic bytes, so it can only be recognized by the
+        // extension (URL query strings included, e.g. image.m3g?v=2).
+        if (IsM3g(filename))
+        {
+            Texture2D m3g = M3gImageDecoder.Decode(bytes);
+            m3g.name = $"Cache_M3G_{DateTime.Now.Ticks}";
+            return new DecodedTextureResult(m3g, 0f, 0, 0);
+        }
+
         var containerType = AnimationContainerDecoder.DetectType(bytes);
         if (containerType == AnimationContainerDecoder.ContainerType.GIF)
         {
@@ -65,6 +74,14 @@ internal static class AssetCacheDecoder
             makeNoLongerReadable: makeNoLongerReadable);
 
         return new DecodedTextureResult(staticTex, 0f, 0, 0);
+    }
+
+    private static bool IsM3g(string filename)
+    {
+        string path = Uri.TryCreate(filename, UriKind.Absolute, out Uri? uri)
+            ? uri.AbsolutePath
+            : filename;
+        return path.EndsWith(".m3g", StringComparison.OrdinalIgnoreCase);
     }
 
     public static DecodedAnimationResult DecodeAnimationSprites(byte[] bytes, string filename)

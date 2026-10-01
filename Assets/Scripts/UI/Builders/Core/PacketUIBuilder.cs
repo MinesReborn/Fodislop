@@ -12,18 +12,22 @@ public class PacketUIBuilder
 {
     private readonly IAssetLoader _assetLoader;
     private readonly IAsyncOperationSupervisor _operations;
+    private readonly IWebAssetLoader _webAssetLoader;
     private readonly PacketUIBuilderFactory _builderFactory = new();
 
     public PacketUIBuilder(
         IAssetLoader assetLoader,
-        IAsyncOperationSupervisor operations)
+        IAsyncOperationSupervisor operations,
+        IWebAssetLoader webAssetLoader)
     {
         _assetLoader = assetLoader ?? throw new ArgumentNullException(nameof(assetLoader));
         _operations = operations ?? throw new ArgumentNullException(nameof(operations));
+        _webAssetLoader = webAssetLoader ?? throw new ArgumentNullException(nameof(webAssetLoader));
     }
 
     internal IAssetLoader AssetLoader => _assetLoader;
     internal IAsyncOperationSupervisor Operations => _operations;
+    internal IWebAssetLoader WebAssetLoader => _webAssetLoader;
 
     public VisualElement Build(IGUIComponentPacket packet)
     {

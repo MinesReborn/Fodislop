@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Core.Localization;
@@ -15,8 +16,6 @@ namespace Kern.UI
     public class WorldMapRenderer : MonoBehaviour
     {
         [Header("Rendering")]
-        [SerializeField]
-        private float _renderInterval = 0.02f;
         [SerializeField]
         private float _dragSpeed = 1f;
 
@@ -38,6 +37,12 @@ namespace Kern.UI
         private float _cellsPerPixel = 1f;
         private float _maxCellsPerPixel = 10f;
 
+        // Нить клик-маршрута поверх карты мира: прозрачная текстура-оверлей,
+        // перерисовывается целиком при каждом рендере карты и смене маршрута.
+        private Texture2D? _pathTexture;
+        private IReadOnlyList<Vector2Int>? _clickPath;
+        private IClickPathWalker? _pathWalker;
+
         [Inject]
         private IWorldDataStorage _storage = null!;
         [Inject]
@@ -47,7 +52,6 @@ namespace Kern.UI
         [Inject]
         private ILocalPlayerState _localPlayer = null!;
 
-        private float _lastRenderTime;
         private bool _renderRequested;
         private long _lastRenderedStorageRevision = -1;
         private bool _followPlayer = true;
@@ -71,7 +75,11 @@ namespace Kern.UI
             _pointerBinder = new WorldMapPointerBinder(_panel);
             _inputDispatcher = new WorldMapInputDispatcher(
                 _interaction, _panel, _textureController, ClampViewCenter, RequestRender);
-            _layerBinding = new WorldMapLayerBinding(_cellSampler, _mipScan, RequestRender);
+            _layerBinding = new WorldMapLayerBinding(
+                _cellSampler,
+                _mipScan,
+                RequestRender,
+                RequestFullRender);
             _playerTracker = new MapPlayerTracker(_localPlayer);
             _playerTracker.OnPlayerSpawned += () => _renderRequested = true;
             _playerTracker.OnPlayerMoved += pos =>
@@ -143,7 +151,15 @@ namespace Kern.UI
                 return;
             }
 
-            _pointerBinder.Bind(OnMapPointerDown, OnMapPointerMove, OnMapPointerUp);
+            _pointerBinder.Bind(OnMapPointerDown, OnMapPointerMove, OnMapPointerUp, OnMapClick);
+
+            // Клик-маршрут: подписка на изменения нити и первичный остаток пути.
+            if (_localPlayer.Current is IClickPathWalker walker)
+            {
+                _pathWalker = walker;
+                walker.OnPathChanged += OnWalkerPathChanged;
+                _clickPath = walker.Path;
+            }
 
             _playerTracker ??= new MapPlayerTracker(_localPlayer);
             _playerTracker.EnsureBinding();
@@ -199,8 +215,48 @@ namespace Kern.UI
 
         private void RequestRender() => _renderRequested = true;
 
+        private void RequestFullRender()
+        {
+            _viewportRenderer.InvalidateViewState();
+            _renderRequested = true;
+        }
+
         private void OnWorldMapWheel(WheelEvent evt) =>
             _inputDispatcher.HandleWheel(evt, _maxCellsPerPixel, ref _cellsPerPixel, ref _viewCenterX, ref _viewCenterY);
+
+        // Клик по карте мира (без драга): тексель -> серверная клетка относительно
+        // центра вью -> клик-маршрут, та же логика, что у ЛКМ по миру и миникарты.
+        private void OnMapClick(ClickEvent evt)
+        {
+            Image? image = _panel.Image;
+            if (_interaction.WasDragging || image == null)
+            {
+                return;
+            }
+
+            Rect rect = image.contentRect;
+            Vector2 local = new(evt.localPosition.x, evt.localPosition.y);
+            if (rect.width <= 0f || rect.height <= 0f || !rect.Contains(local))
+            {
+                return;
+            }
+
+            int texWidth = _textureController.TexWidth;
+            int texHeight = _textureController.TexHeight;
+            float pixelX = (local.x - rect.x) / rect.width * texWidth;
+            float pixelY = (local.y - rect.y) / rect.height * texHeight;
+            Vector2 server = MapProjection.MapPixelToServer(
+                pixelX,
+                pixelY,
+                _viewCenterX,
+                _viewCenterY,
+                _cellsPerPixel,
+                texWidth,
+                texHeight);
+            var target = new Vector2Int(Mathf.FloorToInt(server.x), Mathf.FloorToInt(server.y));
+
+            (_localPlayer.Current as IClickPathWalker)?.TryStartPath(target);
+        }
 
         private void OnMapPointerDown(PointerDownEvent evt) =>
             _inputDispatcher.HandlePointerDown(evt);
@@ -215,6 +271,7 @@ namespace Kern.UI
         {
             _bounds.Bind(_manager, _manager.WorldWidth, _manager.WorldHeight);
             _viewportRenderer.InitColorTable(_manager);
+            _viewportRenderer.InvalidateViewState();
             _layerBinding.BindCellLayer(storage.CellLayer);
             _layerBinding.BindMipScan(_viewportRenderer.CellColorTable);
             _cellsPerPixel = 1f;
@@ -246,7 +303,21 @@ namespace Kern.UI
                 _documentRoot.UnregisterCallback<AttachToPanelEvent>(OnDocumentAttached);
             }
 
-            _pointerBinder?.Dispose(OnMapPointerDown, OnMapPointerMove, OnMapPointerUp);
+            _pointerBinder?.Dispose(OnMapPointerDown, OnMapPointerMove, OnMapPointerUp, OnMapClick);
+
+            if (_pathWalker != null)
+            {
+                _pathWalker.OnPathChanged -= OnWalkerPathChanged;
+                _pathWalker = null;
+            }
+
+            _clickPath = null;
+
+            if (_pathTexture != null)
+            {
+                Destroy(_pathTexture);
+                _pathTexture = null;
+            }
 
             _panel.Dispose();
             _textureController.DestroyTexture();
@@ -359,7 +430,6 @@ namespace Kern.UI
             _panel.Show();
 
             enabled = true;
-            _lastRenderTime = -1f;
             _renderRequested = true;
             _lastRenderedStorageRevision = -1;
             _followPlayer = true;
@@ -392,7 +462,155 @@ namespace Kern.UI
         {
             Image viewport = _panel.Image ?? throw new InvalidOperationException(
                 "[WorldMapRenderer] UI must be bound before the map texture.");
+            _viewportRenderer.InvalidateViewState();
             _textureController.InitTexture(viewport, viewport);
+            EnsurePathTexture();
+        }
+
+        // Создаёт/пересоздаёт прозрачную текстуру нити маршрута под размер
+        // текстуры карты и привязывает её к оверлею.
+        private void EnsurePathTexture()
+        {
+            int width = _textureController.TexWidth;
+            int height = _textureController.TexHeight;
+            if (width <= 0 || height <= 0)
+            {
+                return;
+            }
+
+            if (_pathTexture != null &&
+                _pathTexture.width == width &&
+                _pathTexture.height == height)
+            {
+                return;
+            }
+
+            if (_pathTexture != null)
+            {
+                Destroy(_pathTexture);
+            }
+
+            _pathTexture = RuntimeTextureFactory.CreateRGBA32NoMip(
+                width,
+                height,
+                "WorldMapPathTexture",
+                RuntimeTextureColorSpace.Srgb,
+                FilterMode.Point,
+                TextureWrapMode.Clamp);
+            _pathTexture.SetPixelData(new Color32[width * height], 0);
+            _pathTexture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
+            DynamicAtlasConfigurator.RegisterRuntimeRedrawn(_pathTexture);
+
+            if (_panel.PathOverlay != null)
+            {
+                _panel.PathOverlay.image = _pathTexture;
+            }
+        }
+
+        // Перерисовывает нить маршрута в оверлее: прозрачная заливка + жирные
+        // жёлтые тексели клеток остатка пути, цель — белая. Ось Y текстуры
+        // инвертирована относительно serverY: строка 0 — низ карты (наибольший
+        // serverY), что соответствует RenderRegion карты.
+        private void UpdatePathOverlay()
+        {
+            Texture2D? texture = _pathTexture;
+            if (texture == null)
+            {
+                return;
+            }
+
+            int width = texture.width;
+            int height = texture.height;
+            var colors = new Color32[width * height];
+
+            // Остаток маршрута: от следующего шага робота до цели — пройденная
+            // часть нити не отображается.
+            IReadOnlyList<Vector2Int>? path = _pathWalker?.Path;
+            int startIndex = _pathWalker?.PathIndex ?? 0;
+
+            if (path != null && _cellsPerPixel > 0f)
+            {
+                Color32 pathColor = new(255, 214, 0, 255);
+                Color32 targetColor = new(255, 255, 255, 255);
+                int lastIndex = path.Count - 1;
+
+                for (int i = startIndex; i <= lastIndex; i++)
+                {
+                    Vector2Int cell = path[i];
+
+                    // Геометрически точная заливка: закрашиваются только те
+                    // тексели, чьи центры лежат внутри клетки пути. Обратная
+                    // проекция границ клетки, зеркальная формулам RenderRegion:
+                    //   worldX = cx + (px + 0.5 - texW/2) * cp
+                    //   worldY = cy + (texH/2 - 0.5 - py) * cp
+                    float pxLo = (cell.x - _viewCenterX) / _cellsPerPixel + width * 0.5f - 0.5f;
+                    float pxHi = (cell.x + 1f - _viewCenterX) / _cellsPerPixel + width * 0.5f - 0.5f;
+                    float pyHi = height * 0.5f - 0.5f - (cell.y - _viewCenterY) / _cellsPerPixel;
+                    float pyLo = height * 0.5f - 0.5f - (cell.y + 1f - _viewCenterY) / _cellsPerPixel;
+
+                    int x0 = Mathf.CeilToInt(pxLo);
+                    int x1 = Mathf.FloorToInt(pxHi);
+                    int y0 = Mathf.CeilToInt(pyLo);
+                    int y1 = Mathf.FloorToInt(pyHi);
+
+                    // Вырожденная область (граница легла ровно на центр текселя):
+                    // рисуем одиночный тексель по середине диапазона.
+                    if (x1 < x0)
+                    {
+                        x0 = x1 = Mathf.RoundToInt((pxLo + pxHi) * 0.5f);
+                    }
+
+                    if (y1 < y0)
+                    {
+                        y0 = y1 = Mathf.RoundToInt((pyLo + pyHi) * 0.5f);
+                    }
+
+                    Color32 color = i == lastIndex ? targetColor : pathColor;
+                    for (int y = Mathf.Max(y0, 0); y <= Mathf.Min(y1, height - 1); y++)
+                    {
+                        int rowStart = y * width;
+                        for (int x = Mathf.Max(x0, 0); x <= Mathf.Min(x1, width - 1); x++)
+                        {
+                            colors[rowStart + x] = color;
+                        }
+                    }
+                }
+            }
+
+            // Клетка робота в оверлее прозрачна: красный маркер из текстуры карты
+            // всегда преобладает над нитью маршрута.
+            ILocalPlayer? localPlayer = _playerTracker?.CurrentPlayer;
+            if (localPlayer is { HasServerPosition: true })
+            {
+                Vector2Int playerPos = localPlayer.Position;
+                float pxLo = (playerPos.x - _viewCenterX) / _cellsPerPixel + width * 0.5f - 0.5f;
+                float pxHi = (playerPos.x + 1f - _viewCenterX) / _cellsPerPixel + width * 0.5f - 0.5f;
+                float pyHi = height * 0.5f - 0.5f - (playerPos.y - _viewCenterY) / _cellsPerPixel;
+                float pyLo = height * 0.5f - 0.5f - (playerPos.y + 1f - _viewCenterY) / _cellsPerPixel;
+
+                int x0 = Mathf.Max(0, Mathf.CeilToInt(pxLo));
+                int x1 = Mathf.Min(width - 1, Mathf.FloorToInt(pxHi));
+                int y0 = Mathf.Max(0, Mathf.CeilToInt(pyLo));
+                int y1 = Mathf.Min(height - 1, Mathf.FloorToInt(pyHi));
+                for (int y = y0; y <= y1; y++)
+                {
+                    int rowStart = y * width;
+                    for (int x = x0; x <= x1; x++)
+                    {
+                        colors[rowStart + x] = default;
+                    }
+                }
+            }
+
+            texture.SetPixelData(colors, 0);
+            texture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
+            _panel.PathOverlay?.MarkDirtyRepaint();
+        }
+
+        private void OnWalkerPathChanged(IReadOnlyList<Vector2Int>? path)
+        {
+            _clickPath = path;
+            _renderRequested = true;
         }
 
         private void HandleQueuedRender()
@@ -429,14 +647,6 @@ namespace Kern.UI
                 return;
             }
 
-            // The render interval applies to every render, including the first one
-            // after Show(). _lastRenderTime starts at -1f so the first render is
-            // never throttled; subsequent renders respect the interval.
-            if (Time.time - _lastRenderTime < _renderInterval)
-            {
-                return;
-            }
-
             if (_manager == null || _storage == null)
             {
                 return;
@@ -456,7 +666,7 @@ namespace Kern.UI
             _panel.Image?.MarkDirtyRepaint();
             _renderRequested = false;
             _lastRenderedStorageRevision = _storage.Revision;
-            _lastRenderTime = Time.time;
+            UpdatePathOverlay();
         }
 
         private void UpdatePlayerMarker()

@@ -8,7 +8,11 @@ using MinesServer.Networking.Server.Packets.Inventory;
 
 namespace MinesServer.Networking.Connection.Client;
 
-internal static class DummyItemInfo
+// Справочник предметов клиента: русские названия и описания. Используется
+// оффлайн-заглушкой сервера (DummyItemHandler/DummyConnection), а также
+// каталогом предметов (ItemRegistry) как локальным фолбэком, когда сервер
+// прислал пустые метаданные предмета.
+public static class DummyItemInfo
 {
     public static (string Name, string Desc) GetItemInfo(ItemType i) => i switch
     {

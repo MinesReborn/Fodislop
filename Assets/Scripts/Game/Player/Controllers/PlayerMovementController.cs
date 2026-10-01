@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Game;
@@ -22,7 +23,7 @@ namespace Kern.Player.Logic
 {
     [ExecuteAlways]
     [RequireComponent(typeof(Robot))]
-    public class PlayerMovementController : MonoBehaviour, ILocalPlayer
+    public class PlayerMovementController : MonoBehaviour, ILocalPlayer, IClickPathWalker
     {
         [Header("Movement Settings")]
         [SerializeField]
@@ -35,12 +36,82 @@ namespace Kern.Player.Logic
         public Direction LastDirection => _lastSentDirection ?? Direction.Down;
         public event Action<Vector2Int, Vector2Int>? OnPlayerMoved;
 
+        // Телепорт по команде сервера (респаун, ТП-свиток, админ-перенос):
+        // камера подписывается и щёлкает на новое место мгновенно.
+        public event Action? OnPlayerTeleported;
+
+        // ═══ Клик-маршрут (ЛКМ): путь до цели + авто-движение по нему ═══
+        // Остаток пути в серверных координатах (от следующего шага до цели)
+        // и индекс следующей клетки. null - маршрут не активен.
+        private List<Vector2Int>? _clickPath;
+        private int _clickPathIndex;
+        private ClickPathRenderer? _clickPathRenderer;
+
+        public bool IsPathActive => _clickPath != null;
+
+        public IReadOnlyList<Vector2Int>? Path => _clickPath;
+
+        public int PathIndex => _clickPathIndex;
+
+        public event Action<IReadOnlyList<Vector2Int>?>? OnPathChanged;
+
+        public bool TryStartPath(Vector2Int target)
+        {
+            if (!HasServerPosition ||
+                _storage == null || !_storage.IsReady ||
+                _mapDataProvider == null)
+            {
+                return false;
+            }
+
+            List<Vector2Int>? path;
+            try
+            {
+                path = ClickPathfinder.FindPath(_storage, _mapDataProvider, Position, target);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+            if (path == null || path.Count == 0)
+            {
+                return false;
+            }
+
+            _clickPath = path;
+            _clickPathIndex = 0;
+            OnPathChanged?.Invoke(_clickPath);
+            _clickPathRenderer?.EnsureView(_sceneObjects);
+            _clickPathRenderer?.Show(_clickPath, 0, _mapDataProvider, transform.position.z);
+            return true;
+        }
+
+        public void CancelPath()
+        {
+            CancelClickPath();
+        }
+
+        private void CancelClickPath()
+        {
+            if (_clickPath == null)
+            {
+                return;
+            }
+
+            _clickPath = null;
+            _clickPathIndex = 0;
+            OnPathChanged?.Invoke(null);
+            _clickPathRenderer?.Hide();
+        }
+
         private Robot? _robot;
         private IPlayerInput? _input;
         private PlayerActionDispatcher? _actionDispatcher;
         private SpriteRenderer[] _playerRenderers = Array.Empty<SpriteRenderer>();
 
         private bool _autoDig = false;
+        private bool _aggression = false;
         private bool _ignoreCollision = false;
         private float _lastMoveTime;
         private Direction? _lastSentDirection;
@@ -67,6 +138,9 @@ namespace Kern.Player.Logic
         [Inject]
         private IRuntimeDebugSettings _debugSettings = null!;
 
+        [Inject]
+        private Kern.Core.Lifecycle.ISceneObjectFactory _sceneObjects = null!;
+
         public void InitializeEditorPreview(IWorldDataStorage storage, IMapDataProvider mapDataProvider)
         {
             // Editor preview has no DI graph: publish only when a state service
@@ -89,6 +163,12 @@ namespace Kern.Player.Logic
         protected void Awake()
         {
             _robot = GetComponent<Robot>();
+            _clickPathRenderer = GetComponent<ClickPathRenderer>();
+            if (_clickPathRenderer == null)
+            {
+                _clickPathRenderer = gameObject.AddComponent<ClickPathRenderer>();
+            }
+
             if (_robot is not null)
             {
                 _robot.MoveSpeed = _moveSpeed;
@@ -139,14 +219,16 @@ namespace Kern.Player.Logic
             _actionDispatcher?.UpdateAura(
                 _robot,
                 HasServerPosition && (!Application.isPlaying || IsGameplayVisible),
-                _inputBlocker != null && _inputBlocker.IsInputBlocked);
+                _inputBlocker != null && _inputBlocker.IsInputBlockedExcludingMapMode);
 
             if (!HasServerPosition || (Application.isPlaying && !IsGameplayVisible))
             {
                 return;
             }
 
-            if (_input == null || (_inputBlocker != null && _inputBlocker.IsInputBlocked))
+            // Тот же принцип, что и во вводе: открытая карта мира не останавливает
+            // робота — движение и действия работают поверх карты.
+            if (_input == null || (_inputBlocker != null && _inputBlocker.IsInputBlockedExcludingMapMode))
             {
                 return;
             }
@@ -193,6 +275,7 @@ namespace Kern.Player.Logic
             _awaitingMoveConfirmation = false;
             _lastSentDirection = null;
             _lastMoveTime = 0f;
+            CancelClickPath();
             _actionDispatcher?.ResetDigCooldown();
             foreach (SpriteRenderer renderer in _playerRenderers)
             {
@@ -216,6 +299,18 @@ namespace Kern.Player.Logic
         }
 
         public event Action<bool>? OnAutoDigChanged;
+
+        public bool Aggression
+        {
+            get => _aggression;
+            set
+            {
+                _aggression = value;
+                OnAggressionChanged?.Invoke(value);
+            }
+        }
+
+        public event Action<bool>? OnAggressionChanged;
 
         public bool IgnoreCollision
         {
@@ -242,7 +337,7 @@ namespace Kern.Player.Logic
             _awaitingMoveConfirmation = false;
         }
 
-        public void UpdateServerPosition(Vector2Int position)
+        public void UpdateServerPosition(Vector2Int position, bool teleport = false)
         {
             if (_mapDataProvider == null)
             {
@@ -278,9 +373,16 @@ namespace Kern.Player.Logic
             transform.position = targetWorldPos;
             if (_robot is not null)
             {
-                if (shouldSnap)
+                if (shouldSnap || teleport)
                 {
                     _robot.SnapTo(targetWorldPos);
+                    if (teleport)
+                    {
+                        // Телепорт: визуал робота (тело + сегменты-щупальца) снапится
+                        // в точку мгновенно, иначе Robot.Update тянет transform назад
+                        // к сглаженной позиции, и камера медленно "плывёт" за ним.
+                        _robot.SnapVisualToTarget();
+                    }
                 }
                 else
                 {
@@ -289,6 +391,12 @@ namespace Kern.Player.Logic
             }
 
             OnPlayerMoved?.Invoke(oldPos, Position);
+            if (teleport)
+            {
+                // Респаун/ТП: маршрут до старой цели теряет смысл.
+                CancelClickPath();
+                OnPlayerTeleported?.Invoke();
+            }
         }
 
         public void SetGameplayVisible()
@@ -329,7 +437,7 @@ namespace Kern.Player.Logic
                 return;
             }
 
-            if (_inputBlocker != null && _inputBlocker.IsInputBlocked)
+            if (_inputBlocker != null && _inputBlocker.IsInputBlockedExcludingMapMode)
             {
                 return;
             }
@@ -337,7 +445,19 @@ namespace Kern.Player.Logic
             Vector2 moveInput = _input.MoveInput;
             if (_awaitingMoveConfirmation || moveInput == Vector2.zero)
             {
+                // Ручного ввода нет - ведём робота по клик-маршруту (ЛКМ).
+                if (_clickPath != null)
+                {
+                    StepClickPath();
+                }
+
                 return;
+            }
+
+            // Ручной ввод перебивает маршрут.
+            if (_clickPath != null)
+            {
+                CancelClickPath();
             }
 
             Vector2Int direction = PlayerMovementMath.InputToDirection(moveInput);
@@ -452,6 +572,126 @@ namespace Kern.Player.Logic
                 _actionDispatcher?.NotifyDug(targetPosition, packetDirection);
                 _networkService?.Send(new ActionClientPacket(targetServerX, targetServerY, new BzPacket()));
                 _lastMoveTime = Time.time;
+            }
+        }
+
+        // Один тик клик-маршрута: та же механика, что у ручного движения -
+        // поворот (тратит такт), затем шаг MovePacket или бур BzPacket
+        // сплошной клетки. Вызывается из ApplyMovement при нулевом вводе.
+        private void StepClickPath()
+        {
+            if (_robot is null || _clickPath is null)
+            {
+                return;
+            }
+
+            if (_actionDispatcher is { IsDigOnCooldown: true })
+            {
+                return;
+            }
+
+            // Продвигаем индекс мимо уже пройденных клеток: предсказание
+            // клиента и коррекции сервера сходятся здесь.
+            int previousIndex = _clickPathIndex;
+            while (_clickPathIndex < _clickPath.Count && _clickPath[_clickPathIndex] == Position)
+            {
+                _clickPathIndex++;
+            }
+
+            if (_clickPathIndex >= _clickPath.Count)
+            {
+                CancelClickPath();
+                return;
+            }
+
+            // Пройденные клетки гаснут: перерисовываем линию по остатку.
+            if (_clickPathIndex != previousIndex)
+            {
+                _clickPathRenderer?.Show(_clickPath, _clickPathIndex, _mapDataProvider, transform.position.z);
+            }
+
+            Vector2Int next = _clickPath[_clickPathIndex];
+            Vector2Int serverDelta = next - Position;
+            if (Mathf.Abs(serverDelta.x) + Mathf.Abs(serverDelta.y) != 1)
+            {
+                // Робот не рядом с ожидаемой клеткой (коррекция сервера) -
+                // остаток маршрута недействителен.
+                CancelClickPath();
+                return;
+            }
+
+            var storage = _storage;
+            var mapDataProvider = _mapDataProvider;
+            if (storage == null || !storage.IsReady || mapDataProvider == null)
+            {
+                return;
+            }
+
+            ushort currentX = (ushort)Mathf.Clamp(Position.x, 0, ushort.MaxValue);
+            ushort currentServerY = (ushort)Mathf.Clamp(Position.y, 0, ushort.MaxValue);
+            CellType currentCellType = storage.GetCell(currentX, currentServerY);
+
+            float cooldown = PlayerMovementValidator.CalculateMoveCooldown(
+                mapDataProvider,
+                currentCellType,
+                isCtrlPressed: false,
+                _ignoreCollision);
+            if (cooldown > 0)
+            {
+                _robot.MoveSpeed = 1f / cooldown;
+            }
+
+            if (Time.time - _lastMoveTime < cooldown)
+            {
+                return;
+            }
+
+            // Дельта маршрута в серверных координатах -> направление в Unity.
+            Vector2Int direction = new Vector2Int(serverDelta.x, -serverDelta.y);
+            Direction packetDirection = PlayerMovementMath.ToPacketDirection(direction);
+
+            if (_lastSentDirection != packetDirection)
+            {
+                _networkService?.SendAction(new RotatePacket(packetDirection));
+                _lastSentDirection = packetDirection;
+                _lastMoveTime = Time.time;
+                return;
+            }
+
+            _robot.TargetAngle = PlayerMovementMath.DirectionToAngle(direction);
+
+            if (!PlayerMovementValidator.TryEvaluateStep(
+                    Position,
+                    direction,
+                    mapDataProvider,
+                    storage,
+                    out Vector2Int targetPosition,
+                    out CellType targetCellType,
+                    out bool isPassable))
+            {
+                // Клетка маршрута ещё не загружена - ждём данные региона.
+                return;
+            }
+
+            ushort targetServerX = (ushort)targetPosition.x;
+            ushort targetServerY = (ushort)targetPosition.y;
+
+            if (isPassable || _ignoreCollision)
+            {
+                _robot.TargetPosition = CoordinateUtils.ServerToUnityPos(targetServerX, targetServerY, mapDataProvider.WorldHeight, transform.position.z);
+                Vector2Int oldPos = Position;
+                Position = targetPosition;
+                OnPlayerMoved?.Invoke(oldPos, Position);
+                _lastMoveTime = Time.time;
+                _networkService?.SendAction(new MovePacket(targetServerX, targetServerY));
+            }
+            else
+            {
+                // Сплошная клетка на маршруте: клик-путь бурит сам, независимо
+                // от тумблера автокопания.
+                _networkService?.Send(new ActionClientPacket(targetServerX, targetServerY, new BzPacket()));
+                _lastMoveTime = Time.time;
+                _actionDispatcher?.NotifyDug(targetPosition);
             }
         }
 

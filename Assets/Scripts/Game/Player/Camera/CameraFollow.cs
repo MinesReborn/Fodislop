@@ -33,7 +33,7 @@ namespace Kern.Player
         // мыши — ±1, трекпад — плавные доли. Масштаб меняется в разы, а не на
         // единицы: одинаковый жест одинаково ощущается на любом отдалении.
         [SerializeField] private float _zoomStepPerNotch = 0.12f;
-        [SerializeField] private float _minZoom = 5f;
+        [SerializeField] private float _minZoom = 3f;
         [SerializeField] private float _maxZoom = 30f;
 
         // Скорость, с которой зум догоняет цель, в 1/с; форма 1 − e^(−k·dt)
@@ -47,6 +47,10 @@ namespace Kern.Player
         // освещение рассчитано на кадр не больше MaximumOrthographicSize.
         private const float ZoomEdgeBand = 0.15f;
         private const float ZoomEdgeMinimumFactor = 0.25f;
+
+        // Прыжок серверных координат (в клетках), который считается телепортом:
+        // респаун/ТП переносят робота на сотни клеток, обычное движение - на 1-3.
+        private const float TeleportJumpCellsSquared = 400f; // 20×20 клеток
 
         // Сериализованные пределы не выходят за контракт: освещение рассчитано
         // на кадр ProjectRuntimeContracts.Camera.MaximumOrthographicSize.
@@ -166,6 +170,7 @@ namespace Kern.Player
             if (_subscribedPlayer != null)
             {
                 _subscribedPlayer.OnPlayerMoved -= HandlePlayerMoved;
+                _subscribedPlayer.OnPlayerTeleported -= HandlePlayerTeleported;
                 _subscribedPlayer = null;
             }
 
@@ -202,7 +207,18 @@ namespace Kern.Player
 
         private void HandlePlayerMoved(Vector2Int oldPosition, Vector2Int newPosition)
         {
-            if (_hasSnappedToServerPosition || oldPosition == newPosition)
+            if (oldPosition == newPosition)
+            {
+                return;
+            }
+
+            // Респаун/телепорт - прыжок серверных координат через полкарты:
+            // снапим камеру сразу (SnapToTarget), не ждём SmoothDamp.
+            // Мелкие шаги (обычное движение, 1 клетка за тик) - как раньше.
+            int dx = newPosition.x - oldPosition.x;
+            int dy = newPosition.y - oldPosition.y;
+            bool teleport = (dx * dx) + (dy * dy) > TeleportJumpCellsSquared;
+            if (_hasSnappedToServerPosition && !teleport)
             {
                 return;
             }
@@ -238,11 +254,21 @@ namespace Kern.Player
             if (_subscribedPlayer != null)
             {
                 _subscribedPlayer.OnPlayerMoved -= HandlePlayerMoved;
+                _subscribedPlayer.OnPlayerTeleported -= HandlePlayerTeleported;
             }
 
             _subscribedPlayer = player;
             _subscribedPlayer.OnPlayerMoved -= HandlePlayerMoved;
+            _subscribedPlayer.OnPlayerTeleported -= HandlePlayerTeleported;
             _subscribedPlayer.OnPlayerMoved += HandlePlayerMoved;
+            _subscribedPlayer.OnPlayerTeleported += HandlePlayerTeleported;
+        }
+
+        // Телепорт игрока (респаун, ТП-свиток, админ-перенос): камера щёлкает
+        // на новое место мгновенно, без плавного догоняния через полкарты.
+        private void HandlePlayerTeleported()
+        {
+            SnapToTarget();
         }
 
         protected void LateUpdate()

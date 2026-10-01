@@ -25,6 +25,8 @@ internal sealed class ClientConfigLoader
     private const int DistortionStyleSchemaVersion = 33;
     private const int PresetPairSchemaVersion = 34;
     private const int BloomStyleSchemaVersion = 35;
+    private const int KeyBindingsSchemaVersion = 36;
+    private const int AggressionKeySchemaVersion = 37;
 
     private readonly ClientConfigRepository _repository;
     private readonly ClientConfigValidator _validator;
@@ -213,6 +215,22 @@ internal sealed class ClientConfigLoader
         {
             MigrateSchema34To35(config);
             schema = BloomStyleSchemaVersion;
+        }
+
+        // 35 -> 36: перебиндиваемые клавиши InterfaceSettings.Key*. В JSON их
+        // нет, FromJsonOverwrite оставляет дефолты из инициализаторов модели,
+        // поэтому миграция только фиксирует новую версию схемы.
+        if (schema == BloomStyleSchemaVersion)
+        {
+            schema = KeyBindingsSchemaVersion;
+        }
+
+        // 36 -> 37: InterfaceSettings.KeyAggression. Поле аддитивное:
+        // FromJsonOverwrite оставляет дефолт "L" из инициализатора модели,
+        // поэтому миграция только фиксирует новую версию схемы.
+        if (schema == KeyBindingsSchemaVersion)
+        {
+            schema = AggressionKeySchemaVersion;
         }
 
         config.SchemaVersion = schema;

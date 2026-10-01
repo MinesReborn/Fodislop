@@ -37,7 +37,7 @@ public class PlayerStatsModelFuzzTests
     }
 
     [Test]
-    public void BasketMaxPercent_Clamped()
+    public void BasketMaxPercent_OverloadPassesThrough()
     {
         var random = new System.Random(42);
         for (int i = 0; i < 100; i++)
@@ -48,8 +48,13 @@ public class PlayerStatsModelFuzzTests
             var contents = new long[n];
             for (int j = 0; j < n; j++) contents[j] = random.Next(0, (int)cap + 100);
             m.SetBasket(cap, contents);
-            Assert.That(m.BasketMaxPercent, Is.InRange(0, 100), $"i={i}");
+            Assert.That(m.BasketMaxPercent, Is.GreaterThanOrEqualTo(0), $"i={i}");
         }
+
+        // Перегруз не клампится: HUD красит индикатор груза зонами 100-114% и выше.
+        var model = new PlayerStatsModel();
+        model.SetBasket(100, new long[] { 114, 0, 0, 0, 0, 0 });
+        Assert.That(model.BasketMaxPercent, Is.EqualTo(114));
     }
 
     [Test]

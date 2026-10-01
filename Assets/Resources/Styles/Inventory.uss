@@ -211,8 +211,11 @@
 
 /* Узкая вертикальная полоса слева от сетки — как в старом клиенте:
    15 в ширину, 220 в высоту, то есть ровно по высоте четырёх строк. */
-/* В оригинале это не панель, а узкая полоска с маленьким треугольником по
-   центру высоты, справа от сетки. Фона и рамки у неё нет. */
+/* По задумке это узкая полоска с маленьким треугольником по центру высоты,
+   ПРОЗРАЧНАЯ — сквозь неё виден мир. Белая полупрозрачная заливка (0.5)
+   была ошибкой и убрана: видимость даёт только белый треугольник с тёмной
+   тенью, читаемый и на светлом, и на тёмном фоне. При наведении/нажатии —
+   едва заметная белая дымка, чтобы полосу можно было найти мышью. */
 .inv-toggle-btn {
     width: 15px;
     min-width: 15px;
@@ -221,15 +224,27 @@
     padding: 0;
     justify-content: center;
     align-items: center;
-    background-color: rgba(0, 0, 0, 0);
+    background-color: rgba(255, 255, 255, 0);
     border-width: 0;
-    color: rgba(200, 200, 200, 0.8);
+    color: rgb(255, 255, 255);
+    text-shadow: 1px -1px 2px rgba(0, 0, 0, 0.9);
     font-size: var(--size-sm);
 }
 
 .inv-toggle-btn:hover {
-    background-color: rgba(0, 0, 0, 0);
+    background-color: rgba(255, 255, 255, 0.15);
     color: rgb(255, 255, 255);
+}
+
+/* Нажатие и фокус обязаны быть перебиты явно. Без этих правил работает
+   .unity-button:active/:focus из дефолтной темы (unity-theme://default):
+   такое правило специфичнее базового .inv-toggle-btn, и на клике полоса
+   заливается чужим полупрозрачным серым прямоугольником, который к тому
+   же висит, пока кнопка держит фокус. Здесь — та же лёгкая дымка, что и
+   при наведении: полоса остаётся прозрачной, мир за ней виден. */
+.inv-toggle-btn:active,
+.inv-toggle-btn:focus {
+    background-color: rgba(255, 255, 255, 0.25);
 }
 
 .inv-header-left {
@@ -285,10 +300,50 @@
 .inv-tooltip-meta {
     flex-direction: column;
     align-items: flex-start;
+    flex-grow: 1;
 }
 
 .inv-tooltip-meta .sci-fi-badge-gold {
     margin-top: var(--space-1);
+}
+
+/* Подсказки клавиш в шапке плашки: некликабельные «кейкапы» ENTER/ESC
+   (picking-mode=Ignore) с подписью действия. Кейкапы выдержаны в стиле
+   окна: тёмная подложка, тонкая рамка, акцент по цвету действия. */
+.inv-tooltip-keys {
+    flex-direction: column;
+    align-items: flex-end;
+    margin-left: auto;
+}
+
+.inv-key-hint {
+    flex-direction: row;
+    align-items: center;
+    margin-top: var(--space-1);
+}
+
+.inv-key-cap {
+    min-width: 36px;
+    padding: 1px 6px;
+    background-color: var(--surface-raised);
+    border-width: 1px;
+    border-color: var(--border-cyan);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 9px;
+    -unity-text-align: middle-center;
+    -unity-font-style: bold;
+}
+
+.inv-key-cap--cancel {
+    border-color: var(--accent-gold);
+    color: var(--accent-gold);
+}
+
+.inv-key-hint-label {
+    margin-left: var(--space-2);
+    font-size: var(--size-sm);
+    color: var(--text-secondary);
 }
 
 .inv-tooltip-title {

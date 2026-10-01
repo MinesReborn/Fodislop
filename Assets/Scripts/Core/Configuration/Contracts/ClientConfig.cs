@@ -10,8 +10,11 @@ public class ClientConfig
     // 32: TerrainSettings.EnableReliefRim.
     // 33: TerrainSettings.DistortionStyle.
     // 34: две ступени качества (Стандарт/Overdrive) вместо шести, без Custom.
-    // Схемы 31–33 мигрируются штатным загрузчиком с созданием backup.
-    public const int CurrentSchemaVersion = 35;
+    // 35: EffectSettings.BloomVariant.
+    // 36: перебиндиваемые клавиши InterfaceSettings.Key* (вкладка «Управление»).
+    // 37: InterfaceSettings.KeyAggression (агрессия перебиндивается).
+    // Схемы 31–36 мигрируются штатным загрузчиком с созданием backup.
+    public const int CurrentSchemaVersion = 37;
 
     public int SchemaVersion;
     public AudioSettings Audio = new();

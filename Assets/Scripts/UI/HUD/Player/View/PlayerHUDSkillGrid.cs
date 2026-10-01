@@ -7,14 +7,18 @@ using UnityEngine.UIElements;
 
 namespace Kern.UI.HUD.Player.View;
 
+// Сетка умений PlayerHUD (как в старом клиенте): иконка умения, вокруг неё -
+// круговой лаймовый прогресс-бар (SkillProgressRing), над иконкой - "up" при
+// готовности апгрейда (xp >= 100%), прыгающее вверх-вниз для привлечения
+// внимания. Вертикальной полосы больше нет.
 public sealed class PlayerHUDSkillGrid
 {
     private const int SKILL_GRID_COLS = 4;
-    private const float SkillBarHeightPixels = 24f;
+    private const string ReadyText = "up";
+    private const long BounceIntervalMs = 40L;
 
-    private readonly Dictionary<SkillType, (Label arrow, VisualElement barFill)> _skillIcons = new();
+    private readonly Dictionary<SkillType, (Label arrow, SkillProgressRing ring)> _skillIcons = new();
     private readonly Dictionary<SkillType, IVisualElementScheduledItem> _bounceSchedules = new();
-    private readonly Dictionary<SkillType, IVisualElementScheduledItem> _pulseSchedules = new();
 
     private VisualElement? _skillContainer;
     private VisualElement? _currentSkillRow;
@@ -32,25 +36,24 @@ public sealed class PlayerHUDSkillGrid
     {
         if (!_skillIcons.TryGetValue(skill, out var icon))
         {
-            var created = CreateSkillIcon(skill);
-            icon.arrow = created.arrow;
-            icon.barFill = created.barFill;
+            icon = CreateSkillIcon(skill);
         }
 
-        float progress = max > 0 ? (float)current / max : 0f;
+        float progress = max > 0 ? Mathf.Clamp01(current / (float)max) : 0f;
+        bool ready = progress >= 1f;
 
-        icon.barFill.style.backgroundColor = Color.Lerp(Color.green, Color.red, Mathf.Clamp01(progress));
-        icon.arrow.text = progress >= 1f ? "up" : string.Empty;
+        // Кольцо плавно догоняет целевое заполнение - линия движется, пока
+        // умение прокачивается.
+        icon.ring.SetTarget(progress);
 
-        if (progress >= 1f)
+        icon.arrow.text = ready ? ReadyText : string.Empty;
+        if (ready)
         {
-            StopBarPulse(skill);
             StartBounce(skill, icon.arrow);
         }
         else
         {
             StopBounce(skill, icon.arrow);
-            StartBarPulse(skill, icon.barFill, progress);
         }
     }
 
@@ -61,19 +64,30 @@ public sealed class PlayerHUDSkillGrid
             schedule.Pause();
         }
 
-        foreach (var schedule in _pulseSchedules.Values)
-        {
-            schedule.Pause();
-        }
-
         _bounceSchedules.Clear();
-        _pulseSchedules.Clear();
+
+        foreach (var (_, ring) in _skillIcons.Values)
+        {
+            ring.PauseAnimation();
+        }
     }
 
+    // "up" прыгает вверх-вниз (0..-4px), как в старом клиенте.
     private void StartBounce(SkillType skill, Label arrow)
     {
-        StopBounce(skill, arrow);
-        arrow.style.translate = new Translate(0, 0);
+        if (_bounceSchedules.ContainsKey(skill))
+        {
+            return;
+        }
+
+        float elapsed = 0f;
+        IVisualElementScheduledItem schedule = arrow.schedule.Execute(() =>
+        {
+            elapsed += BounceIntervalMs / 1000f;
+            float y = -Mathf.PingPong(elapsed * 10f, 4f);
+            arrow.style.translate = new Translate(0, y);
+        }).Every(BounceIntervalMs);
+        _bounceSchedules[skill] = schedule;
     }
 
     private void StopBounce(SkillType skill, Label arrow)
@@ -85,32 +99,6 @@ public sealed class PlayerHUDSkillGrid
         }
 
         arrow.style.translate = new Translate(0, 0);
-    }
-
-    private void StartBarPulse(SkillType skill, VisualElement barFill, float progress)
-    {
-        StopBarPulse(skill);
-
-        float normalizedProgress = Mathf.Clamp01(progress);
-
-        barFill.style.height = new Length(SkillBarHeightPixels, LengthUnit.Pixel);
-        barFill.style.transformOrigin =
-            new TransformOrigin(Length.Percent(50f), Length.Percent(100f));
-        barFill.style.scale = new Scale(new Vector2(1f, normalizedProgress));
-    }
-
-    private void StopBarPulse(SkillType skill)
-    {
-        if (_pulseSchedules.TryGetValue(skill, out var existing))
-        {
-            existing.Pause();
-            _pulseSchedules.Remove(skill);
-        }
-
-        if (_skillIcons.TryGetValue(skill, out var icon) && icon.barFill != null)
-        {
-            icon.barFill.style.scale = new Scale(Vector2.one);
-        }
     }
 
     private void EnsureSkillRow()
@@ -126,24 +114,19 @@ public sealed class PlayerHUDSkillGrid
         _skillCountInRow = 0;
     }
 
-    private (Label arrow, VisualElement barFill) CreateSkillIcon(SkillType skill)
+    private (Label arrow, SkillProgressRing ring) CreateSkillIcon(SkillType skill)
     {
         EnsureSkillRow();
 
+        // Ячейка: иконка умения, поверх неё - круговой прогресс-бар
+        // (абсолютный слой вокруг иконки), над иконкой - "up".
         var cell = new VisualElement();
         cell.AddToClassList("hud-skill-icon");
-
-        var iconColumn = new VisualElement();
-        iconColumn.AddToClassList("hud-skill-icon-column");
-
-        var arrow = new Label("up");
-        arrow.AddToClassList("hud-skill-arrow");
-        iconColumn.Add(arrow);
 
         var iconImage = new Image();
         iconImage.AddToClassList("hud-skill-icon-image");
 
-        var tex = Resources.Load<Texture2D>($"Skills/{skill}");
+        Texture2D? tex = Resources.Load<Texture2D>($"Skills/{skill}");
         if (tex != null)
         {
             RuntimeTextureFactory.ApplySampling(
@@ -153,22 +136,20 @@ public sealed class PlayerHUDSkillGrid
             iconImage.image = tex;
         }
 
-        iconColumn.Add(iconImage);
-        cell.Add(iconColumn);
+        cell.Add(iconImage);
 
-        var barContainer = new VisualElement();
-        barContainer.AddToClassList("hud-skill-bar-container");
+        var ring = new SkillProgressRing();
+        cell.Add(ring);
 
-        var barFill = new VisualElement();
-        barFill.AddToClassList("hud-skill-bar-fill");
-        barFill.AddToClassList("hud-skill-bar-segment");
-        barContainer.Add(barFill);
-        cell.Add(barContainer);
+        var arrow = new Label(ReadyText);
+        arrow.AddToClassList("hud-skill-arrow");
+        cell.Add(arrow);
 
         _currentSkillRow?.Add(cell);
         _skillCountInRow++;
 
-        _skillIcons[skill] = (arrow, barFill);
-        return (arrow, barFill);
+        var result = (arrow, ring);
+        _skillIcons[skill] = result;
+        return result;
     }
 }

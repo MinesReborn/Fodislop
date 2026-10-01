@@ -30,6 +30,10 @@ namespace Kern.World
         [SerializeField]
         private int _cellTextureSize = RenderingConstants.CELL_SIZE;
 
+        // Скорость покадровой анимации клетки, когда серверный конфиг её не
+        // задал, а текстура — GIF-лента кадров (например, вращение бокса).
+        private const float DefaultCellAnimationFps = 6f;
+
         private WorldAtlasCollection _atlasCollection = null!;
 
         public TextureAtlas _currentAtlas => _atlasCollection.CurrentAtlas;
@@ -158,12 +162,21 @@ namespace Kern.World
 
                     if (speed <= 0)
                     {
-                        throw new InvalidOperationException(
-                            $"Server animation speed for cell type {cellType} must be greater than zero.");
+                        if (_mapManager.GetAnimationFrameHeight(cellType) > 0)
+                        {
+                            // Сервер объявил анимацию, но не задал скорость —
+                            // ошибка конфигурации, а не повод крутить молча.
+                            throw new InvalidOperationException(
+                                $"Server animation speed for cell type {cellType} must be greater than zero.");
+                        }
+
+                        // Анимация выведена из самой текстуры (лента кадров без
+                        // серверного конфига) — крутим дефолтной скоростью.
+                        speed = DefaultCellAnimationFps;
                     }
 
                     frameIndex = (int)(Time.realtimeSinceStartup * speed) % textureInfo.AnimationFrames;
-                    frameHeight = _mapManager.GetAnimationFrameHeight(cellType);
+                    frameHeight = textureInfo.FrameSize;
                 }
 
                 return _atlasCollection.GetWrappedCoordinate(
@@ -210,19 +223,24 @@ namespace Kern.World
         {
             EnsureInitialized();
             MapManager mapManager = _mapManager;
-            if (!mapManager.HasAnimation(cellType))
+            if (mapManager.HasAnimation(cellType))
             {
-                return 0f;
+                byte serverSpeed = mapManager.GetAnimationSpeed(cellType);
+                if (serverSpeed == 0)
+                {
+                    throw new InvalidDataException(
+                        $"Server animation speed for cell type {cellType} must be greater than zero.");
+                }
+
+                return serverSpeed;
             }
 
-            byte serverSpeed = mapManager.GetAnimationSpeed(cellType);
-            if (serverSpeed == 0)
-            {
-                throw new InvalidDataException(
-                    $"Server animation speed for cell type {cellType} must be greater than zero.");
-            }
-
-            return serverSpeed;
+            // Конфиг анимации не объявлен, но текстура клетки — лента кадров
+            // (GIF-ассет без серверного конфига): GPU-террейн получает
+            // дефолтную скорость, иначе шейдер останется на кадре 0.
+            return _textureCache.TryGetTexture(cellType, out var info) && info.AnimationFrames > 1
+                ? DefaultCellAnimationFps
+                : 0f;
         }
 
         public int GetFrameSize(CellType cellType)
@@ -390,6 +408,20 @@ namespace Kern.World
             }
 
             int frameHeight = _mapManager.GetAnimationFrameHeight(cellType);
+
+            // Серверный конфиг анимации пока не заполняется (сервер шлёт
+            // FrameOffset=0 для всех клеток), а GIF-ассеты клеток — например,
+            // бокс Cells/90.gif с кадрами вращения — уже декодируются в
+            // вертикальную ленту кадров. Если конфиг молчит, а текстура — лента
+            // (высота кратна клетке и больше неё), выводим высоту кадра из
+            // самой текстуры: террейн крутит кадры без конфига.
+            if (frameHeight <= 0 &&
+                texture.width == _cellTextureSize &&
+                texture.height > _cellTextureSize &&
+                texture.height % _cellTextureSize == 0)
+            {
+                frameHeight = _cellTextureSize;
+            }
 
             _atlasCollection.ValidateDimensions(
                 cellType,

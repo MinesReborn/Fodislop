@@ -12,7 +12,7 @@ using MinesServer.Networking.Shared.Packets;
 using UnityEngine;
 
 namespace Kern.Game;
-public sealed class ServerAudioEvent : IDisposable
+public sealed class ServerAudioEvent : IDisposable, IServerWorldEffect
 {
     private readonly SFX? _audioEffectType;
     private readonly IAudioSystem _audioSystem;

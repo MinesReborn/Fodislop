@@ -30,6 +30,13 @@ internal sealed class ProgrammatorProgramStore
     private int _activeIndex = -1;
     private bool _isRunning;
 
+    /// <summary>
+    /// Локальное изменение состояния выполнения (Run/Stop/серверный пакет).
+    /// HUD подписывается, чтобы кнопка ▶/■ менялась сразу, а окно
+    /// программатора закрывалось при запуске.
+    /// </summary>
+    public event Action<bool>? RunStateChanged;
+
     public ProgrammatorProgramStore(
         ProgrammatorGridUIFactory view,
         ProgrammatorSelectionModel selection,
@@ -55,6 +62,15 @@ internal sealed class ProgrammatorProgramStore
     public bool IsRunning => _isRunning;
 
     public int ProgramCount => _programItems.Count;
+
+    /// <summary>Активная (открытая в редакторе) программа сменилась или сбросилась.</summary>
+    public event Action? ActiveProgramChanged;
+
+    /// <summary>Имя активной программы или null, если открыт список программ.</summary>
+    public string? ActiveProgramName =>
+        (_activeIndex >= 0 && _activeIndex < _programItems.Count) ? _programItems[_activeIndex].Name : null;
+
+    private void RaiseActiveProgramChanged() => ActiveProgramChanged?.Invoke();
 
     // Invoked (via ProgrammatorRadialController.OnLastCellPlaced) when an
     // operator is placed in the very last cell of the last page.
@@ -144,6 +160,7 @@ internal sealed class ProgrammatorProgramStore
         _view.Panel.style.display = DisplayStyle.None;
         _view.ProgramListPanel.style.display = DisplayStyle.Flex;
         _activeIndex = -1;
+        RaiseActiveProgramChanged();
     }
 
     public void OpenProgram(int index)
@@ -163,6 +180,7 @@ internal sealed class ProgrammatorProgramStore
         _view.ProgramListPanel.style.display = DisplayStyle.None;
         _view.Panel.style.display = DisplayStyle.Flex;
         RefreshAllCells();
+        RaiseActiveProgramChanged();
     }
 
     public void CloseProgram()
@@ -297,14 +315,25 @@ internal sealed class ProgrammatorProgramStore
             return;
         }
 
+        // Канонический запуск в протоколе MinesServer — один пакет Save с
+        // флагом SaveAndRun: сервер атомарно сохраняет программу и стартует её
+        // виртуальную машину. Отдельный StartProgramPacket лишь возобновляет
+        // выполнение ранее загруженной программы, поэтому пара
+        // Save(saveAndRun:false) + Start у реального сервера ничего не
+        // запускала — менялся только локальный визуал.
+        StoreActiveProgram();
         _file.Save(_programItems);
-        _protocol.Save(_activeIndex, false, program, Array.Empty<int>());
-        _protocol.StartProgram();
+
+        // Программы хранятся на сервере в слотах; пока программа не открыта из
+        // списка, активный слот не выбран (_activeIndex = -1) — пишем в слот 0.
+        int programId = _activeIndex >= 0 ? _activeIndex : 0;
+        _protocol.Save(programId, saveAndRun: true, program, Array.Empty<int>());
         _isRunning = true;
         _view.RunBtn.SetEnabled(false);
         _view.StopBtn.SetEnabled(true);
         _view.Panel.AddToClassList("prog-panel--running");
-        Debug.Log("[Programmator] Program running");
+        Debug.Log($"[Programmator] Program running (slot {programId}, {program.Count} instructions)");
+        RunStateChanged?.Invoke(true);
     }
 
     public void StopProgram()
@@ -315,6 +344,7 @@ internal sealed class ProgrammatorProgramStore
         _view.StopBtn.SetEnabled(false);
         _view.Panel.RemoveFromClassList("prog-panel--running");
         Debug.Log("[Programmator] Program stopped");
+        RunStateChanged?.Invoke(false);
     }
 
     public void PauseProgram() => _protocol.PauseProgram();
@@ -352,6 +382,7 @@ internal sealed class ProgrammatorProgramStore
         item.Values = new List<string?>(_data.Values);
         _file.Save(_programItems);
         RefreshAllCells();
+        RaiseActiveProgramChanged();
         Debug.Log($"[Programmator] Server updated program '{packet.DisplayName}'.");
     }
 
@@ -361,6 +392,7 @@ internal sealed class ProgrammatorProgramStore
         _view.RunBtn.SetEnabled(packet.State != ProgramState.Running);
         _view.StopBtn.SetEnabled(packet.State == ProgramState.Running || packet.State == ProgramState.Paused);
         Debug.Log($"[Programmator] Server state: {packet.State}");
+        RunStateChanged?.Invoke(_isRunning);
     }
 
     private static void OnBreakpointHit(BreakpointHitPacket packet)
@@ -381,6 +413,28 @@ internal sealed class ProgrammatorProgramStore
         _protocol.MemoryReceived -= OnMemoryReceived;
     }
 
+    // ProgAction объявлен с базовым типом byte (darkar25.kern.data), а
+    // Enum.IsDefined в рантайме Unity строго требует, чтобы тип boxed-значения
+    // совпадал с базовым типом enum'а: int вместо byte кидает
+    // ArgumentException. Значение приводится к базовому типу; код, не влезающий
+    // в него (OverflowException от ChangeType), заведомо не определён.
+    private static readonly Type ProgActionUnderlyingType =
+        Enum.GetUnderlyingType(typeof(ProgAction));
+
+    private static bool IsDefinedAction(int rawCode)
+    {
+        try
+        {
+            return Enum.IsDefined(
+                typeof(ProgAction),
+                Convert.ChangeType(rawCode, ProgActionUnderlyingType));
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
     private bool TryBuildNetworkProgram(
         out List<(ProgAction Operator, string Label, string Value)> program)
     {
@@ -388,7 +442,7 @@ internal sealed class ProgrammatorProgramStore
         for (int index = 0; index < _data.Codes.Count; index++)
         {
             int rawCode = _data.Codes[index];
-            if (!Enum.IsDefined(typeof(ProgAction), rawCode))
+            if (!IsDefinedAction(rawCode))
             {
                 string message = _loc.Get("programmator.error.invalid_instruction", rawCode, index);
                 _view.ShowProtocolError(message);

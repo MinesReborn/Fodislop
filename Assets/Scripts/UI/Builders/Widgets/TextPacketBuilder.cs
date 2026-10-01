@@ -18,6 +18,11 @@ public class TextPacketBuilder : PacketUIBuilderBase<TextPacket>
         {
             var button = new Button { text = packet.Text };
             button.AddToClassList("packet-window-action");
+            if (AttachedProperties.Has(packet, "PacketUI.TabAction"))
+            {
+                button.AddToClassList("packet-window-tab");
+            }
+
             if (AttachedProperties.Has(packet, "PacketUI.FooterAction"))
             {
                 button.AddToClassList("packet-window-footer-action");
@@ -35,7 +40,20 @@ public class TextPacketBuilder : PacketUIBuilderBase<TextPacket>
         label.AddToClassList(AttachedProperties.Has(packet, "PacketUI.Title")
             ? "sci-fi-text-title"
             : "sci-fi-text-body");
+        // Активная вкладка легаси-окна: подсвечивается золотом и не растягивается.
+        if (AttachedProperties.Has(packet, "PacketUI.TabActive"))
+        {
+            label.AddToClassList("packet-window-tab-active");
+        }
+
         label.AddToClassList("fit-wrap");
+        // Серверное выравнивание текста: по умолчанию Label слева, мост легаси-окон
+        // помечает центрируемый текст attached-свойством "Text.Align"="Center".
+        if (AttachedProperties.Find(packet, "Text.Align") == "Center")
+        {
+            label.style.unityTextAlign = UnityEngine.TextAnchor.MiddleCenter;
+        }
+
         return label;
     }
 }

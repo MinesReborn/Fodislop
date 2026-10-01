@@ -31,8 +31,86 @@ namespace Kern.Player
         [Inject]
         private Kern.Core.Interfaces.ILocalPlayerState _localPlayer = null!;
 
+        // ─── Блок клика в мир, когда ЛКМ съел интерфейс ───
+        // Ручной пересчёт координат (ScreenToPanel + Pick) расходится с
+        // фактической раскладкой панели, а hover-трекинг залипает над пустым
+        // миром (PointerMove туда не приходит). Поэтому нажатие ЛКМ
+        // запоминается, а его судьба решается через пару кадров: к этому
+        // моменту диспетчер UI гарантированно раздал PointerDown, и простое
+        // сравнение кадров точно говорит, съел ли интерфейс этот клик.
+        private VisualElement? _uiEventRoot;
+        private int _uiPointerDownFrame = -1;
+        private bool _hasPendingClick;
+        private Vector2 _pendingClickPos;
+        private int _pendingClickFrame = -1;
+
+        // Нажатие досталось реальному элементу интерфейса? Диспетчер честно
+        // находит верхний пикабельный элемент, но среди них встречаются
+        // невидимые слои на весь экран (подписи мира, слои чата) - они не
+        // рисуются и не интерактивны, клик обязан проходить сквозь них в мир.
+        // Поэтому UI - это интерактивный контрол или элемент с отрисовкой.
+        private bool IsEventTargetUI(object? target)
+        {
+            if (target is not VisualElement element ||
+                element == _uiEventRoot ||
+                element is TemplateContainer)
+            {
+                return false;
+            }
+
+            if (element is Button)
+            {
+                return true;
+            }
+
+            IResolvedStyle style = element.resolvedStyle;
+            return style.backgroundColor.a > 0f ||
+                   style.backgroundImage.texture != null ||
+                   style.backgroundImage.sprite != null ||
+                   style.backgroundImage.vectorImage != null ||
+                   (element is Image image && (image.image != null || image.sprite != null || image.vectorImage != null)) ||
+                   (element is TextElement text && !string.IsNullOrEmpty(text.text));
+        }
+
+        private void OnPanelPointerDown(PointerDownEvent evt)
+        {
+            if (evt.button != 0 || !IsEventTargetUI(evt.target))
+            {
+                return;
+            }
+
+            _uiPointerDownFrame = Time.frameCount;
+        }
+
+        // UIDocument может быть пересоздан (выключение/включение), поэтому
+        // подписка держится актуальной: перезакрепляемся при смене корня.
+        private void EnsureUiEventSubscription()
+        {
+            VisualElement? root = _injectedUIDoc != null && _injectedUIDoc.isActiveAndEnabled
+                ? _injectedUIDoc.rootVisualElement
+                : null;
+            if (root == _uiEventRoot)
+            {
+                return;
+            }
+
+            if (_uiEventRoot != null)
+            {
+                _uiEventRoot.UnregisterCallback<PointerDownEvent>(OnPanelPointerDown, TrickleDown.TrickleDown);
+                _uiEventRoot = null;
+            }
+
+            if (root != null)
+            {
+                _uiEventRoot = root;
+                root.RegisterCallback<PointerDownEvent>(OnPanelPointerDown, TrickleDown.TrickleDown);
+            }
+        }
+
         protected void Update()
         {
+            EnsureUiEventSubscription();
+
             if (_localPlayer is not { Current: { IsGameplayVisible: true } })
             {
                 return;
@@ -49,53 +127,80 @@ namespace Kern.Player
                 return;
             }
 
-            if (_inputBlocker == null || _inputBlocker.IsInputBlocked)
+            // Карта — оверлей: клик-маршруты и действия работают и при ней.
+            // Клик над самой картой съедает ClickGuard (PointerDown над UI).
+            if (_inputBlocker == null || _inputBlocker.IsInputBlockedExcludingMapMode)
+            {
+                _hasPendingClick = false;
+                return;
+            }
+
+            // Нажатие ЛКМ запоминаем и решаем его судьбу парой кадров позже:
+            // к этому моменту диспетчер UI гарантированно раздал PointerDown по
+            // собственным координатам, и совпадение кадров нажатия точно
+            // говорит, съел ли интерфейс именно этот клик. Ручной пересчёт
+            // координат не используется - он расходится с раскладкой панели.
+            if (Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                _pendingClickPos = Mouse.current.position.ReadValue();
+                _pendingClickFrame = Time.frameCount;
+                _hasPendingClick = true;
+                return;
+            }
+
+            if (!_hasPendingClick || Time.frameCount <= _pendingClickFrame + 1)
             {
                 return;
             }
 
-            if (Mouse.current.leftButton.wasPressedThisFrame)
+            _hasPendingClick = false;
+
+            // Кадр нажатия совпал с кадром PointerDown над интерфейсом:
+            // клик принадлежит кнопке/панели, миру он не достаётся.
+            if (_uiPointerDownFrame == _pendingClickFrame)
             {
-                Vector2 mousePos = Mouse.current.position.ReadValue();
-                if (IsPointerOverUI(mousePos))
-                {
-                    return;
-                }
+                // Клик принадлежит кнопке/панели, миру он не достаётся.
+                return;
+            }
 
-                Vector3 worldPos = _mainCamera.ScreenToWorldPoint(new Vector3(mousePos.x, mousePos.y, -_mainCamera.transform.position.z));
+            Vector2 mousePos = _pendingClickPos;
+            Vector3 worldPos = _mainCamera.ScreenToWorldPoint(new Vector3(mousePos.x, mousePos.y, -_mainCamera.transform.position.z));
 
-                if (_mapManager.WorldWidth <= 0 || _mapManager.WorldHeight <= 0)
-                {
-                    return;
-                }
+            if (_mapManager.WorldWidth <= 0 || _mapManager.WorldHeight <= 0)
+            {
+                return;
+            }
 
-                Vector2Int serverPosition;
-                try
-                {
-                    serverPosition = CoordinateUtils.UnityToServerPos(worldPos, _mapManager.WorldHeight);
-                }
-                catch (ArgumentOutOfRangeException)
-                {
-                    return;
-                }
+            Vector2Int serverPosition;
+            try
+            {
+                serverPosition = CoordinateUtils.UnityToServerPos(worldPos, _mapManager.WorldHeight);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                return;
+            }
 
-                if (!PlayerMovementController.IsWithinWorldBounds(
-                        serverPosition,
-                        _mapManager.WorldWidth,
-                        _mapManager.WorldHeight))
-                {
-                    return;
-                }
+            if (!PlayerMovementController.IsWithinWorldBounds(
+                    serverPosition,
+                    _mapManager.WorldWidth,
+                    _mapManager.WorldHeight))
+            {
+                return;
+            }
 
-                _networkService.SendAction(new ClickCellPacket(
-                    (ushort)serverPosition.x,
-                    (ushort)serverPosition.y));
+            // ЛКМ по миру: строим клик-маршрут и ведём робота до цели
+            // (пунктирная линия рисуется рендерером маршрута).
+            if (_localPlayer.Current is IClickPathWalker walker)
+            {
+                walker.TryStartPath(serverPosition);
             }
         }
 
-        // Клик по миру шлётся только если под указателем нет видимого интерфейса.
-        private bool IsPointerOverUI(Vector2 mousePos) =>
-            Kern.Player.Input.UIPointerHitTest.IsOverUI(_injectedUIDoc, mousePos);
+        // Защита «клик по UI не должен проваливаться в мир» переехала на
+        // PointerDown-маркер диспетчера UI Toolkit (см. OnPanelPointerDown):
+        // ручной пересчёт ScreenToPanel/Pick расходился с фактической
+        // раскладкой панели и промахивался мимо кнопок.
 
         private void HandleKeyboardInput()
         {
@@ -105,7 +210,7 @@ namespace Kern.Player
                 return;
             }
 
-            if (_inputBlocker == null || _inputBlocker.IsInputBlocked)
+            if (_inputBlocker == null || _inputBlocker.IsInputBlockedExcludingMapMode)
             {
                 return;
             }

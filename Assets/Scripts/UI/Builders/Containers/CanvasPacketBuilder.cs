@@ -1,6 +1,8 @@
 #nullable enable
 
 using System;
+using System.Globalization;
+using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
 using UnityEngine.UIElements;
 
@@ -24,6 +26,25 @@ public class CanvasPacketBuilder : PacketUIBuilderBase<CanvasPacket>
         }
 
         builder.AddChildren(element, packet);
+
+        // Дети канваса позиционируются абсолютно (Canvas.X/Y) и выпадают из
+        // потока: без резерва высоты контейнер схлопывается и контент после
+        // него наезжает. Держим minHeight по самому нижнему элементу.
+        float bottom = 0f;
+        foreach (IGUIComponentPacket child in packet.Children)
+        {
+            if (AttachedProperties.TryGetFloat(child, "Canvas.Y", out float y))
+            {
+                float childHeight = AttachedProperties.TryGetFloat(child, "Canvas.Height", out float h) ? h : 20f;
+                bottom = Math.Max(bottom, y + childHeight);
+            }
+        }
+
+        if (bottom > 0f)
+        {
+            element.style.minHeight = bottom;
+        }
+
         return element;
     }
 }

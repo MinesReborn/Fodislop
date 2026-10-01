@@ -24,6 +24,8 @@ internal sealed class PauseMenuTabRouter
             throw new InvalidOperationException("[PauseMenu] AudioScroll is missing from PauseMenu.uxml.");
         var interfaceScroll = menuTree.Q<ScrollView>("InterfaceScroll") ??
             throw new InvalidOperationException("[PauseMenu] InterfaceScroll is missing from PauseMenu.uxml.");
+        var controlsScroll = menuTree.Q<ScrollView>("ControlsScroll") ??
+            throw new InvalidOperationException("[PauseMenu] ControlsScroll is missing from PauseMenu.uxml.");
         var advancedScroll = menuTree.Q<ScrollView>("AdvancedScroll") ??
             throw new InvalidOperationException("[PauseMenu] AdvancedScroll is missing from PauseMenu.uxml.");
 
@@ -52,6 +54,10 @@ internal sealed class PauseMenuTabRouter
             throw new InvalidOperationException("[PauseMenu] InterfaceTab is missing from PauseMenu.uxml.");
         interfaceTab.text = loc.Get("pause.tab.interface");
 
+        var controlsTab = menuTree.Q<Button>("ControlsTab") ??
+            throw new InvalidOperationException("[PauseMenu] ControlsTab is missing from PauseMenu.uxml.");
+        controlsTab.text = loc.Get("pause.tab.controls");
+
         var advancedTab = menuTree.Q<Button>("AdvancedTab") ??
             throw new InvalidOperationException("[PauseMenu] AdvancedTab is missing from PauseMenu.uxml.");
         advancedTab.text = loc.Get("pause.tab.advanced");
@@ -63,6 +69,7 @@ internal sealed class PauseMenuTabRouter
             effectsScroll,
             audioScroll,
             interfaceScroll,
+            controlsScroll,
             advancedScroll,
         ];
         _tabs =
@@ -72,6 +79,7 @@ internal sealed class PauseMenuTabRouter
             effectsTab,
             audioTab,
             interfaceTab,
+            controlsTab,
             advancedTab,
         ];
 
@@ -80,7 +88,8 @@ internal sealed class PauseMenuTabRouter
         effectsTab.clicked += () => ShowTab(2);
         audioTab.clicked += () => ShowTab(3);
         interfaceTab.clicked += () => ShowTab(4);
-        advancedTab.clicked += () => ShowTab(5);
+        controlsTab.clicked += () => ShowTab(5);
+        advancedTab.clicked += () => ShowTab(6);
     }
 
     public ScrollView GraphicsScroll => _pages[0];
@@ -93,7 +102,9 @@ internal sealed class PauseMenuTabRouter
 
     public ScrollView InterfaceScroll => _pages[4];
 
-    public ScrollView AdvancedScroll => _pages[5];
+    public ScrollView ControlsScroll => _pages[5];
+
+    public ScrollView AdvancedScroll => _pages[6];
 
     public int ActiveTab => _activeTab;
 

@@ -69,6 +69,17 @@ internal sealed class MapViewportRenderer : IDisposable
         _paletteBuffer?.SetData(_paletteArray);
     }
 
+    // The next render re-uploads the visible chunk grid even when its bounds
+    // and the sampler revision are unchanged (texture or world replaced).
+    public void InvalidateViewState()
+    {
+        _lastMinChunkX = int.MinValue;
+        _lastMaxChunkX = int.MinValue;
+        _lastMinChunkY = int.MinValue;
+        _lastMaxChunkY = int.MinValue;
+        _lastSamplerRevision = -1;
+    }
+
     public bool Render(
         RenderTexture? mapTexture,
         MapManager manager,

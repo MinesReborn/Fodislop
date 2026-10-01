@@ -15,7 +15,9 @@ public static class PacketGridLayout
         IReadOnlyList<byte> rows,
         IReadOnlyList<GridItem> items,
         float availableWidth,
-        float availableHeight)
+        float availableHeight,
+        out float totalWidth,
+        out float totalHeight)
     {
         float[] columnTracks = Tracks(
             columns, items, availableWidth,
@@ -26,6 +28,9 @@ public static class PacketGridLayout
 
         float[] columnStarts = Starts(columnTracks);
         float[] rowStarts = Starts(rowTracks);
+
+        totalWidth = columnStarts[^1];
+        totalHeight = rowStarts[^1];
 
         var rects = new GridRect[items.Count];
         for (int i = 0; i < items.Count; i++)

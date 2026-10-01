@@ -79,6 +79,13 @@ internal sealed class PlayerActionDispatcher
 
     public void HandleDig(Vector2Int position, Direction direction, IMapDataProvider? mapDataProvider)
     {
+        // Движение в приоритете: пока зажаты WASD/стрелки (или стик), копание
+        // не отправляется - иначе кулдаун после BZ блокировал бы старт движения.
+        if (_input.MoveInput != Vector2.zero)
+        {
+            return;
+        }
+
         if (!_input.WantsToDig || IsDigOnCooldown || IsDigAwaitingConfirmation)
         {
             return;
@@ -104,6 +111,11 @@ internal sealed class PlayerActionDispatcher
         if (_input.WantsToToggleAutoDig)
         {
             _networkService?.SendAction(new ToggleAutoDigPacket());
+        }
+
+        if (_input.WantsToToggleAggression)
+        {
+            _networkService?.SendAction(new ToggleAgressionPacket());
         }
 
         if (_input.WantsToGeo)

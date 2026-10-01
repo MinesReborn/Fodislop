@@ -67,7 +67,7 @@ public sealed class ApplicationBootstrap : IStartable
 
             string shaderPhase = _localization.Get("bootstrap.loading.shaders");
             _loadingScreen.ShowDirect($"{shaderPhase} (0%)");
-            await UniTask.Yield(PlayerLoopTiming.Update, scopeToken);
+            await UniTask.Yield(Cysharp.Threading.Tasks.PlayerLoopTiming.Update, scopeToken);
 
             await _shaderWarmup.WarmupAsync(
                 (_, progress) =>
