@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Buffers;
 
 namespace Kern;
 
@@ -9,14 +10,17 @@ namespace Kern;
 /// MinesServer.M3G reference implementation. Out-of-data reads are rejected
 /// the same way as the reference so decode behavior stays identical.
 /// </summary>
-internal sealed class SmartBuffer
+internal sealed class SmartBuffer : IDisposable
 {
     private readonly byte[] _buffer;
+    private readonly bool _fromPool;
     private int _length;
+    private bool _disposed;
 
-    public SmartBuffer(int maxLength)
+    public SmartBuffer(int maxLength, bool usePool = false)
     {
-        _buffer = new byte[maxLength];
+        _fromPool = usePool;
+        _buffer = usePool ? ArrayPool<byte>.Shared.Rent(maxLength) : new byte[maxLength];
         _length = 0;
     }
 
@@ -26,7 +30,7 @@ internal sealed class SmartBuffer
     {
         get
         {
-            if (index > _length)
+            if ((uint)index >= (uint)_length)
             {
                 throw new IndexOutOfRangeException("SmartBuffer index out of range.");
             }
@@ -35,15 +39,18 @@ internal sealed class SmartBuffer
         }
     }
 
+    public ReadOnlySpan<byte> Span => _buffer.AsSpan(0, _length);
+
     public int CopyFromArray(byte[] copyFrom, int offset = 0)
     {
-        if (copyFrom.Length - offset > _buffer.Length)
+        int count = copyFrom.Length - offset;
+        if (count > _buffer.Length)
         {
             throw new InvalidOperationException("SmartBuffer cannot copy: source is longer than the buffer.");
         }
 
-        Array.Copy(copyFrom, offset, _buffer, 0, copyFrom.Length - offset);
-        _length = copyFrom.Length - offset;
+        Array.Copy(copyFrom, offset, _buffer, 0, count);
+        _length = count;
         return _length;
     }
 
@@ -61,5 +68,17 @@ internal sealed class SmartBuffer
 
         _buffer[_length] = value;
         _length++;
+    }
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            _disposed = true;
+            if (_fromPool)
+            {
+                ArrayPool<byte>.Shared.Return(_buffer);
+            }
+        }
     }
 }

@@ -27,8 +27,8 @@ public sealed class M3Decompressor
     private const int MinSourceLength = 15;
     private const int MaximumDecodedBytes = 64 * 1024 * 1024;
 
-    private SmartBuffer _inBuffer = new(DefaultBufferSize);
-    private SmartBuffer _outBuffer = new(DefaultBufferSize);
+    private SmartBuffer _inBuffer = null!;
+    private SmartBuffer _outBuffer = null!;
     private readonly M3Operation[] _operations = new M3Operation[OperationCount];
     private readonly int[] _dictionary = new int[256];
 
@@ -48,44 +48,50 @@ public sealed class M3Decompressor
         }
 
         int pixelBufferBytes = (int)pixelBytes;
-        if (pixelBufferBytes > DefaultBufferSize)
-        {
-            _inBuffer = new SmartBuffer(pixelBufferBytes);
-            _outBuffer = new SmartBuffer(pixelBufferBytes);
-        }
+        int requiredBufferSize = Math.Max(DefaultBufferSize, pixelBufferBytes);
+        _inBuffer = new SmartBuffer(requiredBufferSize, usePool: true);
+        _outBuffer = new SmartBuffer(requiredBufferSize, usePool: true);
 
-        for (int index = 0; index < OperationCount; index++)
+        try
         {
-            _operations[index] = (M3Operation)source[OperationsOffset + index];
-        }
-
-        _inBuffer.CopyFromArray(source, HeaderSize);
-
-        foreach (M3Operation operation in _operations)
-        {
-            switch (operation)
+            for (int index = 0; index < OperationCount; index++)
             {
-                case M3Operation.Delta:
-                    UnDelta();
-                    SwapBuffers();
-                    break;
-                case M3Operation.Ngramm:
-                    UnNgramm();
-                    SwapBuffers();
-                    break;
-                case M3Operation.RLE:
-                    UnRLE();
-                    SwapBuffers();
-                    break;
-                case M3Operation.PackInterleaved:
-                case M3Operation.PackPlanar:
-                    return CreateImage(width, height, operation);
-                case M3Operation.None:
-                    break;
+                _operations[index] = (M3Operation)source[OperationsOffset + index];
             }
-        }
 
-        throw new InvalidOperationException("M3G image has no pixel packing operation.");
+            _inBuffer.CopyFromArray(source, HeaderSize);
+
+            foreach (M3Operation operation in _operations)
+            {
+                switch (operation)
+                {
+                    case M3Operation.Delta:
+                        UnDelta();
+                        SwapBuffers();
+                        break;
+                    case M3Operation.Ngramm:
+                        UnNgramm();
+                        SwapBuffers();
+                        break;
+                    case M3Operation.RLE:
+                        UnRLE();
+                        SwapBuffers();
+                        break;
+                    case M3Operation.PackInterleaved:
+                    case M3Operation.PackPlanar:
+                        return CreateImage(width, height, operation);
+                    case M3Operation.None:
+                        break;
+                }
+            }
+
+            throw new InvalidOperationException("M3G image has no pixel packing operation.");
+        }
+        finally
+        {
+            _inBuffer.Dispose();
+            _outBuffer.Dispose();
+        }
     }
 
     private void SwapBuffers()

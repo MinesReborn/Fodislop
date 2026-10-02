@@ -34,21 +34,6 @@ internal static class AssetCacheDecoder
         }
 
         var containerType = AnimationContainerDecoder.DetectType(bytes);
-        if (containerType == AnimationContainerDecoder.ContainerType.GIF)
-        {
-            var decoded = AnimationContainerDecoder.DecodeGif(bytes);
-            if (decoded.Atlas != null)
-            {
-                decoded.Atlas.name = $"Cache_GIF_{DateTime.Now.Ticks}";
-                RuntimeTextureFactory.ApplySampling(
-                    decoded.Atlas,
-                    FilterMode.Point,
-                    TextureWrapMode.Clamp);
-            }
-
-            return new DecodedTextureResult(decoded.Atlas, decoded.FPS, decoded.FrameHeight, decoded.FrameCount);
-        }
-
         if (containerType == AnimationContainerDecoder.ContainerType.WebP)
         {
             var decoded = AnimationContainerDecoder.DecodeWebP(bytes);
@@ -87,20 +72,10 @@ internal static class AssetCacheDecoder
     public static DecodedAnimationResult DecodeAnimationSprites(byte[] bytes, string filename)
     {
         var containerType = AnimationContainerDecoder.DetectType(bytes);
-        AnimationContainerDecoder.DecodedAnimation anim;
-
-        if (containerType == AnimationContainerDecoder.ContainerType.GIF)
-        {
-            anim = AnimationContainerDecoder.DecodeGif(bytes);
-        }
-        else if (containerType == AnimationContainerDecoder.ContainerType.WebP)
-        {
-            anim = AnimationContainerDecoder.DecodeWebP(bytes);
-        }
-        else
-        {
-            anim = default;
-        }
+        AnimationContainerDecoder.DecodedAnimation anim =
+            containerType == AnimationContainerDecoder.ContainerType.WebP
+                ? AnimationContainerDecoder.DecodeWebP(bytes)
+                : default;
 
         if (anim.Atlas != null && anim.FrameCount > 0)
         {

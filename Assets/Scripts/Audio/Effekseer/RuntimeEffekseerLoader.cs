@@ -159,14 +159,11 @@ public static class RuntimeEffekseerLoader
                 $"Effect texture '{serverPath}' was not returned by the asset loader.");
         }
 
-        // Detect & decode animated container (GIF/WebP) or plain PNG
+        // Detect & decode animated container (WebP) or plain PNG
         var type = AnimationContainerDecoder.DetectType(bytes);
-        if (type == AnimationContainerDecoder.ContainerType.GIF ||
-            type == AnimationContainerDecoder.ContainerType.WebP)
+        if (type == AnimationContainerDecoder.ContainerType.WebP)
         {
-            var decoded = type == AnimationContainerDecoder.ContainerType.GIF
-                ? AnimationContainerDecoder.DecodeGif(bytes)
-                : AnimationContainerDecoder.DecodeWebP(bytes);
+            var decoded = AnimationContainerDecoder.DecodeWebP(bytes);
 
             if (decoded.Atlas != null)
             {

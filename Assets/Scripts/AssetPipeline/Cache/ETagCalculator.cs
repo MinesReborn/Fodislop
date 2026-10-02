@@ -14,19 +14,7 @@ public static class ETagCalculator
             return null;
         }
 
-        using var md5 = MD5.Create();
-        byte[] hash = md5.ComputeHash(data);
-
-        return string.Create(32, hash, static (span, hashBytes) =>
-        {
-            const string hex = "0123456789abcdef";
-            for (int i = 0; i < 16; i++)
-            {
-                byte b = hashBytes[i];
-                span[i * 2] = hex[b >> 4];
-                span[i * 2 + 1] = hex[b & 0x0F];
-            }
-        });
+        return Calculate((ReadOnlySpan<byte>)data);
     }
 
     public static string? Calculate(ReadOnlySpan<byte> data)
@@ -36,6 +24,23 @@ public static class ETagCalculator
             return null;
         }
 
-        return Calculate(data.ToArray());
+        Span<byte> hashBytes = stackalloc byte[16];
+        using var incrementalHash = IncrementalHash.CreateHash(HashAlgorithmName.MD5);
+        incrementalHash.AppendData(data);
+        if (!incrementalHash.TryGetHashAndReset(hashBytes, out int written) || written != 16)
+        {
+            return null;
+        }
+
+        const string hex = "0123456789abcdef";
+        Span<char> hexChars = stackalloc char[32];
+        for (int i = 0; i < 16; i++)
+        {
+            byte b = hashBytes[i];
+            hexChars[i * 2] = hex[b >> 4];
+            hexChars[i * 2 + 1] = hex[b & 0x0F];
+        }
+
+        return new string(hexChars);
     }
 }

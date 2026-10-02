@@ -116,13 +116,10 @@ namespace Kern.AssetPipeline
         {
             AnimationContainerDecoder.ContainerType containerType =
                 AnimationContainerDecoder.DetectType(data);
-            if (containerType == AnimationContainerDecoder.ContainerType.GIF ||
-                containerType == AnimationContainerDecoder.ContainerType.WebP)
+            if (containerType == AnimationContainerDecoder.ContainerType.WebP)
             {
                 AnimationContainerDecoder.DecodedAnimation animation =
-                    containerType == AnimationContainerDecoder.ContainerType.GIF
-                        ? AnimationContainerDecoder.DecodeGif(data)
-                        : AnimationContainerDecoder.DecodeWebP(data);
+                    AnimationContainerDecoder.DecodeWebP(data);
                 return animation.Atlas ?? throw new InvalidDataException(
                     $"Texture '{filename}' produced no animation atlas.");
             }

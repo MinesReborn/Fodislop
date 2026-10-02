@@ -53,8 +53,7 @@ internal sealed class ServerAudioVisualLoader
 
         AnimationContainerDecoder.ContainerType containerType =
             AnimationContainerDecoder.DetectType(bytes);
-        if (containerType is AnimationContainerDecoder.ContainerType.GIF or
-            AnimationContainerDecoder.ContainerType.WebP)
+        if (containerType is AnimationContainerDecoder.ContainerType.WebP)
         {
             AnimatedSpriteData animData = await _assetLoader.GetAnimatedSpritesAsync(filename, token);
             if (token.IsCancellationRequested)

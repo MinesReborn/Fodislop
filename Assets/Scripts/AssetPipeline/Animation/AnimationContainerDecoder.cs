@@ -13,7 +13,6 @@ public static class AnimationContainerDecoder
     {
         None,
         PNG,
-        GIF,
         WebP,
     }
 
@@ -27,11 +26,6 @@ public static class AnimationContainerDecoder
         if (data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47)
         {
             return ContainerType.PNG;
-        }
-
-        if (data[0] == 0x47 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x38)
-        {
-            return ContainerType.GIF;
         }
 
         if (data[0] == 0x52 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x46 &&
@@ -85,8 +79,8 @@ public static class AnimationContainerDecoder
             int x = (i % framesPerRow) * width;
             int y = (i / framesPerRow) * height;
 
-            // DecodeGif/DecodeWebP place frame zero at the bottom of the
-            // Unity texture and append later frames upwards. Re-inverting Y
+            // DecodeWebP places frame zero at the bottom of the
+            // Unity texture and appends later frames upwards. Re-inverting Y
             // here returned the animation in reverse order.
             frames[i] = Sprite.Create(
                 atlas,
@@ -96,11 +90,6 @@ public static class AnimationContainerDecoder
         }
 
         return frames;
-    }
-
-    public static DecodedAnimation DecodeGif(byte[] data)
-    {
-        return GifAnimationDecoder.Decode(data);
     }
 
     public static DecodedAnimation DecodeWebP(byte[] data)
