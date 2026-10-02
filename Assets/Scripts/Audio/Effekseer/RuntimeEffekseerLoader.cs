@@ -159,28 +159,7 @@ public static class RuntimeEffekseerLoader
                 $"Effect texture '{serverPath}' was not returned by the asset loader.");
         }
 
-        // Detect & decode animated container (WebP) or plain PNG
-        var type = AnimationContainerDecoder.DetectType(bytes);
-        if (type == AnimationContainerDecoder.ContainerType.WebP)
-        {
-            var decoded = AnimationContainerDecoder.DecodeWebP(bytes);
-
-            if (decoded.Atlas != null)
-            {
-                decoded.Atlas.name = $"EffekseerTex_{serverPath}";
-                RuntimeTextureFactory.ApplySampling(
-                    decoded.Atlas,
-                    FilterMode.Point,
-                    TextureWrapMode.Repeat);
-                return decoded.Atlas;
-            }
-
-            throw new InvalidDataException(
-                $"Animated effect texture '{serverPath}' contains no decodable frames.");
-        }
-
-        // Single-frame images are normalized to the same explicit runtime
-        // format as terrain and UI textures.
+        // Effect textures are decoded as standard RGBA32 images with Repeat wrap.
         return RuntimeTextureFactory.DecodeEncodedImageToRGBA32NoMip(
             bytes,
             $"EffekseerTex_{serverPath}",

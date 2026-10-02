@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.IO;
 using Kern.Core;
 using Kern.World;
 using UnityEngine;
@@ -33,22 +34,6 @@ internal static class AssetCacheDecoder
             return new DecodedTextureResult(m3g, 0f, 0, 0);
         }
 
-        var containerType = AnimationContainerDecoder.DetectType(bytes);
-        if (containerType == AnimationContainerDecoder.ContainerType.WebP)
-        {
-            var decoded = AnimationContainerDecoder.DecodeWebP(bytes);
-            if (decoded.Atlas != null)
-            {
-                decoded.Atlas.name = $"Cache_WebP_{DateTime.Now.Ticks}";
-                RuntimeTextureFactory.ApplySampling(
-                    decoded.Atlas,
-                    FilterMode.Point,
-                    TextureWrapMode.Clamp);
-            }
-
-            return new DecodedTextureResult(decoded.Atlas, decoded.FPS, decoded.FrameHeight, decoded.FrameCount);
-        }
-
         bool makeNoLongerReadable = RuntimeTextureFactory.SupportsTexture2DGpuCopy;
         Texture2D? staticTex = RuntimeTextureFactory.DecodeEncodedImageToRGBA32NoMip(
             bytes,
@@ -58,7 +43,26 @@ internal static class AssetCacheDecoder
             TextureWrapMode.Clamp,
             makeNoLongerReadable: makeNoLongerReadable);
 
-        return new DecodedTextureResult(staticTex, 0f, 0, 0);
+        int frameHeight = 0;
+        int frameCount = 0;
+        float fps = 0f;
+        if (staticTex != null &&
+            AnimationContainerDecoder.TryGetAnimationConfig(
+                filename,
+                staticTex.width,
+                staticTex.height,
+                out _,
+                out int fh,
+                out int fc,
+                out float fFps) &&
+            fc > 1)
+        {
+            frameHeight = fh;
+            frameCount = fc;
+            fps = fFps;
+        }
+
+        return new DecodedTextureResult(staticTex, fps, frameHeight, frameCount);
     }
 
     private static bool IsM3g(string filename)
@@ -71,25 +75,35 @@ internal static class AssetCacheDecoder
 
     public static DecodedAnimationResult DecodeAnimationSprites(byte[] bytes, string filename)
     {
-        var containerType = AnimationContainerDecoder.DetectType(bytes);
-        AnimationContainerDecoder.DecodedAnimation anim =
-            containerType == AnimationContainerDecoder.ContainerType.WebP
-                ? AnimationContainerDecoder.DecodeWebP(bytes)
-                : default;
+        Texture2D? atlas = RuntimeTextureFactory.DecodeEncodedImageToRGBA32NoMip(
+            bytes,
+            $"Cache_Animation_{DateTime.Now.Ticks}",
+            RuntimeTextureColorSpace.Srgb,
+            FilterMode.Point,
+            TextureWrapMode.Clamp,
+            makeNoLongerReadable: false);
 
-        if (anim.Atlas != null && anim.FrameCount > 0)
+        if (atlas == null)
         {
-            anim.Atlas.name = $"Cache_Animation_{DateTime.Now.Ticks}";
-            RuntimeTextureFactory.ApplySampling(
-                anim.Atlas,
-                FilterMode.Point,
-                TextureWrapMode.Clamp);
-            Sprite[] sprites = AnimationContainerDecoder.Decode(
-                anim.Atlas, anim.Atlas.width, anim.FrameHeight, anim.FrameCount);
-            return new DecodedAnimationResult(sprites, anim.Atlas, anim.FPS, anim.FrameHeight, anim.FrameCount);
+            throw new InvalidDataException($"Failed to decode image data for animation '{filename}'.");
         }
 
-        throw new InvalidOperationException($"Unknown or empty animation container for '{filename}'.");
+        if (!AnimationContainerDecoder.TryGetAnimationConfig(
+                filename,
+                atlas.width,
+                atlas.height,
+                out int frameWidth,
+                out int frameHeight,
+                out int frameCount,
+                out float fps) ||
+            frameCount <= 0)
+        {
+            throw new InvalidOperationException($"Could not determine animation frame layout for '{filename}'.");
+        }
+
+        Sprite[] sprites = AnimationContainerDecoder.Decode(
+            atlas, frameWidth, frameHeight, frameCount);
+        return new DecodedAnimationResult(sprites, atlas, fps, frameHeight, frameCount);
     }
 
     public static Sprite[] SliceAnimationFromTexture(Texture2D texture, int frameHeight, int frameCount)

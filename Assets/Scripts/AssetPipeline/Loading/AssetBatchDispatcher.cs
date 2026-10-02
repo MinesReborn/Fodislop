@@ -312,15 +312,9 @@ public sealed class AssetBatchDispatcher : IDisposable
             return false;
         }
 
-        if (filename.EndsWith(".webp.bytes", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
         string ext = Path.GetExtension(filename).ToLowerInvariant();
         return string.IsNullOrEmpty(ext) || ext == ".png" || ext == ".jpg" ||
-            ext == ".jpeg" || ext == ".webp" || ext == ".gif" ||
-            ext == ".exr";
+            ext == ".jpeg" || ext == ".exr";
     }
 
     public static bool IsAudioBank(string filename)

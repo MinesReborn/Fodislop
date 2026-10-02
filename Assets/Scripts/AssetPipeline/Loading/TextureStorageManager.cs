@@ -114,16 +114,6 @@ namespace Kern.AssetPipeline
 
         private static Texture2D DecodeTexture(string filename, byte[] data)
         {
-            AnimationContainerDecoder.ContainerType containerType =
-                AnimationContainerDecoder.DetectType(data);
-            if (containerType == AnimationContainerDecoder.ContainerType.WebP)
-            {
-                AnimationContainerDecoder.DecodedAnimation animation =
-                    AnimationContainerDecoder.DecodeWebP(data);
-                return animation.Atlas ?? throw new InvalidDataException(
-                    $"Texture '{filename}' produced no animation atlas.");
-            }
-
             bool makeNoLongerReadable = RuntimeTextureFactory.SupportsTexture2DGpuCopy;
             return RuntimeTextureFactory.DecodeEncodedImageToRGBA32NoMip(
                 data,
@@ -135,7 +125,7 @@ namespace Kern.AssetPipeline
         }
 
         /// <param name="filename">The texture filename.</param>
-        /// <returns>PNG/WEBP bytes, or null if not found.</returns>
+        /// <returns>Image bytes, or null if not found.</returns>
         public async UniTask<byte[]?> GetTextureData(string filename, CancellationToken cancellationToken = default)
         {
             var data = await LoadTextureFromStorage(filename, cancellationToken);

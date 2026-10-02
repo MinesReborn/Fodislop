@@ -202,18 +202,11 @@ public sealed class RuntimeAssetPaths : IRuntimeAssetPaths
 
     private static int TextureFilePriority(string path)
     {
-        if (path.EndsWith(".webp.bytes", StringComparison.OrdinalIgnoreCase))
-        {
-            return 0;
-        }
-
         return Path.GetExtension(path).ToLowerInvariant() switch
         {
-            ".webp" => 0,
-            ".gif" => 1,
-            ".png" => 2,
-            ".jpg" or ".jpeg" => 3,
-            ".exr" => 4,
+            ".png" => 0,
+            ".jpg" or ".jpeg" => 1,
+            ".exr" => 2,
             _ => int.MaxValue,
         };
     }

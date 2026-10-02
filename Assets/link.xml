@@ -14,5 +14,4 @@
   <assembly fullname="FMODUnity" preserve="all"/>
   <assembly fullname="Effekseer" preserve="all"/>
   <assembly fullname="Effekseer.URP" preserve="all"/>
-  <assembly fullname="unity.webp" preserve="all"/>
 </linker>
