@@ -20,7 +20,7 @@ public sealed class RobotManager(
     private readonly HashSet<uint> _overwriteWarningsLogged = [];
     private readonly List<uint> _keysToRemove = [];
 
-    public uint LocalPlayerBotID { get; private set; }
+    public uint LocalPlayerBotId { get; private set; }
 
     public int RobotCount => _robots.Count;
 
@@ -36,7 +36,7 @@ public sealed class RobotManager(
         uint? staleKey = null;
         foreach (var kvp in _robots)
         {
-            if (ReferenceEquals(kvp.Value, robot) && kvp.Key != robot.BotID)
+            if (ReferenceEquals(kvp.Value, robot) && kvp.Key != robot.BotId)
             {
                 staleKey = kvp.Key;
                 break;
@@ -48,7 +48,7 @@ public sealed class RobotManager(
             _robots.Remove(staleKey.Value);
         }
 
-        if (_robots.TryGetValue(robot.BotID, out var existing))
+        if (_robots.TryGetValue(robot.BotId, out var existing))
         {
             if (ReferenceEquals(existing, robot))
             {
@@ -58,23 +58,23 @@ public sealed class RobotManager(
             // Server resends can target a bot whose stale instance is still
             // registered. Warn once per bot id so a resend storm cannot
             // flood the console.
-            if (_overwriteWarningsLogged.Add(robot.BotID))
+            if (_overwriteWarningsLogged.Add(robot.BotId))
             {
-                Debug.LogWarning($"{TAG} Robot {robot.BotID} already registered, overwriting");
+                Debug.LogWarning($"{TAG} Robot {robot.BotId} already registered, overwriting");
             }
         }
 
-        _robots[robot.BotID] = concrete;
+        _robots[robot.BotId] = concrete;
     }
 
-    public IRobotView GetOrCreateRobot(uint botID)
+    public IRobotView GetOrCreateRobot(uint botId)
     {
-        if (_robots.TryGetValue(botID, out var robot))
+        if (_robots.TryGetValue(botId, out var robot))
         {
             return robot;
         }
 
-        if (botID != 0 && botID == LocalPlayerBotID)
+        if (botId != 0 && botId == LocalPlayerBotId)
         {
             var pmc = localPlayer.Current;
             var playerObj = pmc != null ? pmc.gameObject : null;
@@ -83,23 +83,23 @@ public sealed class RobotManager(
                 robot = playerObj.GetComponent<Robot>();
                 if (robot != null)
                 {
-                    robot.Initialize(botID);
-                    _robots[botID] = robot;
+                    robot.Initialize(botId);
+                    _robots[botId] = robot;
                     return robot;
                 }
             }
         }
 
-        robot = sceneObjects.Create<Robot>($"Robot_{botID}", RuntimeOwner.Robots);
+        robot = sceneObjects.Create<Robot>($"Robot_{botId}", RuntimeOwner.Robots);
 
-        robot.Initialize(botID);
-        _robots[botID] = robot;
+        robot.Initialize(botId);
+        _robots[botId] = robot;
         return robot;
     }
 
-    public bool TryGetRobot(uint botID, out IRobotView? robot)
+    public bool TryGetRobot(uint botId, out IRobotView? robot)
     {
-        if (_robots.TryGetValue(botID, out var existing))
+        if (_robots.TryGetValue(botId, out var existing))
         {
             robot = existing;
             return true;
@@ -109,38 +109,38 @@ public sealed class RobotManager(
         return false;
     }
 
-    public void UpdateRobotPosition(uint botID, ushort x, ushort y, byte rotation)
+    public void UpdateRobotPosition(uint botId, ushort x, ushort y, byte rotation)
     {
-        var robot = GetOrCreateRobot(botID);
+        var robot = GetOrCreateRobot(botId);
         robot.SetPosition(x, y);
         robot.SetRotation(rotation);
-        _lastSeenAt[botID] = Time.unscaledTime;
+        _lastSeenAt[botId] = Time.unscaledTime;
     }
 
-    public void UpdateRobotMetadata(uint botID, RobotMetadata metadata)
+    public void UpdateRobotMetadata(uint botId, RobotMetadata metadata)
     {
-        var robot = GetOrCreateRobot(botID);
-        robot.SetMetadata(metadata.PlayerID, metadata.ClanID, metadata.Nickname, metadata.SkinPath, metadata.TailPath);
-        _lastSeenAt[botID] = Time.unscaledTime;
+        var robot = GetOrCreateRobot(botId);
+        robot.SetMetadata(metadata.PlayerId, metadata.ClanId, metadata.Nickname, metadata.SkinPath, metadata.TailPath);
+        _lastSeenAt[botId] = Time.unscaledTime;
     }
 
-    public void SetLocalPlayerBotID(uint botID)
+    public void SetLocalPlayerBotId(uint botId)
     {
-        LocalPlayerBotID = botID;
+        LocalPlayerBotId = botId;
 
         // Если фабричный бот под этим id был создан до того, как сервер
-        // сообщил наш BotID (PlayerInfoPacket), — заменяем его игровым
+        // сообщил наш BotId (PlayerInfoPacket), — заменяем его игровым
         // объектом локального игрока, иначе метаданные/визуалы навсегда
         // достанутся фабричному боту и world-readiness gate не сойдётся.
         var pmc = localPlayer.Current;
         var playerRobot = pmc != null ? pmc.GetComponent<Robot>() : null;
-        if (playerRobot != null && _robots.TryGetValue(botID, out var existing) &&
+        if (playerRobot != null && _robots.TryGetValue(botId, out var existing) &&
             !ReferenceEquals(existing, playerRobot))
         {
             Object.Destroy(existing.gameObject);
-            _robots.Remove(botID);
-            _lastSeenAt.Remove(botID);
-            Debug.Log($"{TAG} Replaced factory bot {botID} with local player robot");
+            _robots.Remove(botId);
+            _lastSeenAt.Remove(botId);
+            Debug.Log($"{TAG} Replaced factory bot {botId} with local player robot");
         }
     }
 
@@ -151,7 +151,7 @@ public sealed class RobotManager(
         _keysToRemove.Clear();
         foreach (var kvp in _robots)
         {
-            if (kvp.Key == LocalPlayerBotID || (kvp.Value != null && kvp.Value.gameObject.CompareTag("Player")))
+            if (kvp.Key == LocalPlayerBotId || (kvp.Value != null && kvp.Value.gameObject.CompareTag("Player")))
             {
                 continue;
             }
@@ -171,7 +171,7 @@ public sealed class RobotManager(
             cleared++;
         }
 
-        Debug.Log($"{TAG} Cleared {cleared} robots, kept {(_robots.ContainsKey(LocalPlayerBotID) ? "local player" : "none")}");
+        Debug.Log($"{TAG} Cleared {cleared} robots, kept {(_robots.ContainsKey(LocalPlayerBotId) ? "local player" : "none")}");
     }
 
     public void PruneStaleRobots(float timeoutSeconds = 2.5f)
@@ -180,7 +180,7 @@ public sealed class RobotManager(
         _keysToRemove.Clear();
         foreach (var pair in _lastSeenAt)
         {
-            if (pair.Key == LocalPlayerBotID || now - pair.Value <= timeoutSeconds)
+            if (pair.Key == LocalPlayerBotId || now - pair.Value <= timeoutSeconds)
             {
                 continue;
             }
@@ -200,10 +200,10 @@ public sealed class RobotManager(
         }
     }
 
-    public void UnregisterRobot(uint botID)
+    public void UnregisterRobot(uint botId)
     {
-        _robots.Remove(botID);
-        _lastSeenAt.Remove(botID);
-        _overwriteWarningsLogged.Remove(botID);
+        _robots.Remove(botId);
+        _lastSeenAt.Remove(botId);
+        _overwriteWarningsLogged.Remove(botId);
     }
 }

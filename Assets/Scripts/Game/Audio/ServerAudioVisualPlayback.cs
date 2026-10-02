@@ -20,7 +20,7 @@ internal sealed class ServerAudioVisualPlayback : IDisposable
     private readonly string _visualEffectName;
     private readonly ushort _sourceX;
     private readonly ushort _sourceY;
-    private readonly ushort _targetBotID;
+    private readonly ushort _targetBotId;
     private readonly IRobotService _robotService;
     private readonly ILocalPlayerState _localPlayer;
     private readonly IAssetLoader _assetLoader;
@@ -67,7 +67,7 @@ internal sealed class ServerAudioVisualPlayback : IDisposable
         _visualEffectName = visualEffectName;
         _sourceX = sourceX;
         _sourceY = sourceY;
-        _targetBotID = targetBotId;
+        _targetBotId = targetBotId;
         _parsedParams = parsedParams;
         _slot = slot;
         _robotService = robotService;
@@ -196,7 +196,7 @@ internal sealed class ServerAudioVisualPlayback : IDisposable
         if (_parsedParams.HasSourceBot)
         {
             long robotStart = System.Diagnostics.Stopwatch.GetTimestamp();
-            _sourceBot = _robotService.GetOrCreateRobot(_parsedParams.SourceBotID);
+            _sourceBot = _robotService.GetOrCreateRobot(_parsedParams.SourceBotId);
             RecordIfSlow("робот-источник", robotStart);
             pos = _sourceBot != null
                 ? _sourceBot.transform.position
@@ -218,10 +218,12 @@ internal sealed class ServerAudioVisualPlayback : IDisposable
         // Слот приходит из пула с поворотом прошлого эффекта: поворот
         // ставится всегда, без бота — нулевой.
         float facing = 0f;
-        if (_targetBotID != 0)
+        // An audio-only event has no visual to rotate. Resolving or creating
+        // a target robot here would load scene/visual resources inside AudioPacket.
+        if (_targetBotId != 0 && _gameObject != null)
         {
             long robotStart = System.Diagnostics.Stopwatch.GetTimestamp();
-            _targetBot = _robotService.GetOrCreateRobot(_targetBotID);
+            _targetBot = _robotService.GetOrCreateRobot(_targetBotId);
             RecordIfSlow("робот-цель", robotStart);
             if (_targetBot != null)
             {
@@ -260,7 +262,7 @@ internal sealed class ServerAudioVisualPlayback : IDisposable
     {
         ILocalPlayer? local = _localPlayer.Current;
         if (local != null &&
-            local.BotID == bot.BotID &&
+            local.BotId == bot.BotId &&
             local.TryGetDigDirection(_sourceX, _sourceY, out Direction digDirection))
         {
             return FacingAngle(digDirection);
@@ -398,9 +400,9 @@ internal sealed class ServerAudioVisualPlayback : IDisposable
                 }
             }
 
-            if (_targetBotID != 0)
+            if (_targetBotId != 0)
             {
-                var targetBot = _robotService.GetOrCreateRobot(_targetBotID);
+                var targetBot = _robotService.GetOrCreateRobot(_targetBotId);
                 if (targetBot != null)
                 {
                     _effekseerHandle.SetTargetLocation(targetBot.transform.position);

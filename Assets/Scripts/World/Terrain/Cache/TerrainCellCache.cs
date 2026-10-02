@@ -44,7 +44,7 @@ public class TerrainCellCache : ITerrainCellDataSource
     private int _pendingDeltaX;
     private int _pendingDeltaY;
 
-    private static CachedCellData _UnloadedCellData => new()
+    private static CachedCellData UnloadedCellData => new()
     {
         State = TerrainCellState.Unloaded,
         Type = CellType.Unloaded,
@@ -396,7 +396,7 @@ public class TerrainCellCache : ITerrainCellDataSource
     {
         if (type == CellType.Unloaded)
         {
-            return _UnloadedCellData;
+            return UnloadedCellData;
         }
 
         if (!_metadataCache.TryGet(type, out CellMetadata metadata))
@@ -433,7 +433,7 @@ public class TerrainCellCache : ITerrainCellDataSource
 
         if (chunkIndex != lastChunkIndex)
         {
-            ChunkReadResult<CellType> result = layer.ReadChunk(chunkIndex, touchLru: true);
+            ChunkReadResult<CellType> result = layer.ReadChunk(chunkIndex, touchLRU: true);
             currentChunk = result.Status == ChunkReadStatus.Available
                 ? result.Data
                 : null;

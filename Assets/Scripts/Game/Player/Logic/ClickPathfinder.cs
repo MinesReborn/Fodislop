@@ -38,6 +38,13 @@ public static class ClickPathfinder
     private const int MaxExpandedNodes = 24000;
     private const int MaxPathLength = 2048;
 
+    [System.ThreadStatic]
+    private static Dictionary<int, int>? s_cachedCameFrom;
+    [System.ThreadStatic]
+    private static Dictionary<int, int>? s_cachedCostSoFar;
+    [System.ThreadStatic]
+    private static MinHeap? s_cachedOpen;
+
     // Возвращает клетки маршрута в серверных координатах БЕЗ стартовой клетки:
     // от первого шага до цели включительно. null - путь не найден.
     public static List<Vector2Int>? FindPath(
@@ -83,9 +90,13 @@ public static class ClickPathfinder
         int startIndex = start.y * width + start.x;
         int targetIndex = target.y * width + target.x;
 
-        var cameFrom = new Dictionary<int, int>(1 << 10);
-        var costSoFar = new Dictionary<int, int>(1 << 10);
-        var open = new MinHeap();
+        var cameFrom = s_cachedCameFrom ??= new Dictionary<int, int>(1 << 10);
+        var costSoFar = s_cachedCostSoFar ??= new Dictionary<int, int>(1 << 10);
+        var open = s_cachedOpen ??= new MinHeap();
+
+        cameFrom.Clear();
+        costSoFar.Clear();
+        open.Clear();
 
         cameFrom[startIndex] = -1;
         costSoFar[startIndex] = 0;
@@ -296,6 +307,7 @@ public static class ClickPathfinder
         private readonly List<(int F, int G, int Index)> _items = new();
 
         public int Count => _items.Count;
+        public void Clear() => _items.Clear();
 
         public void Push(int f, int g, int index)
         {

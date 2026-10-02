@@ -14,7 +14,7 @@ namespace Kern.UI;
 
 // Калибровка дисплея. Отдельный экран, а не два ползунка во вкладке, по одной
 // причине: данные, которые дисплей сообщает о своей яркости, врут, поэтому
-// detectPaperWhite и detectBrightnessLimits выключены (HDROutputReconciler), и
+// detectPaperWhite и detectBrightnessLimits выключены (HdrOutputReconciler), и
 // единственный достоверный источник этих двух чисел — глаз человека перед
 // узором с известной яркостью.
 //

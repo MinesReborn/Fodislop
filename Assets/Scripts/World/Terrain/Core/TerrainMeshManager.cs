@@ -10,7 +10,7 @@ namespace Kern.World.Terrain;
 
 public sealed class TerrainMeshManager
 {
-    private static readonly int _geometryCarrierPaddingWorldID =
+    private static readonly int s_geometryCarrierPaddingWorldId =
         Shader.PropertyToID("_TerrainGeometryCarrierPaddingWorld");
 
     // Раскладка вершины осталась только у накладки дверей: сам террейн
@@ -29,13 +29,10 @@ public sealed class TerrainMeshManager
     ];
 
     private readonly RenderTargetIdentifier[] _lightingFieldTargets = new RenderTargetIdentifier[2];
-    private readonly RenderTargetIdentifier[] _ambientOcclusionTarget = new RenderTargetIdentifier[1];
     private readonly RenderBufferLoadAction[] _lightingFieldLoads =
         [RenderBufferLoadAction.DontCare, RenderBufferLoadAction.DontCare];
     private readonly RenderBufferStoreAction[] _lightingFieldStores =
         [RenderBufferStoreAction.Store, RenderBufferStoreAction.Store];
-    private readonly RenderBufferLoadAction[] _ambientOcclusionLoads = [RenderBufferLoadAction.DontCare];
-    private readonly RenderBufferStoreAction[] _ambientOcclusionStores = [RenderBufferStoreAction.Store];
 
     public void RenderLightingMaterialFields(
         CommandBuffer commandBuffer,
@@ -90,7 +87,8 @@ public sealed class TerrainMeshManager
         Matrix4x4 localToWorldMatrix,
         Material[] materials,
         Mesh? mesh,
-        Vector4 screenViewOffset)
+        Vector4 screenViewOffset,
+        RectInt? rasterRect = null)
     {
         if (mesh == null || materials.Length == 0 || !ambientOcclusionField.IsCreated())
         {
@@ -98,18 +96,10 @@ public sealed class TerrainMeshManager
                 "Terrain AO field cannot be rendered before the terrain mesh and target are ready.");
         }
 
-        _ambientOcclusionTarget[0] = new RenderTargetIdentifier(ambientOcclusionField);
-        commandBuffer.DisableScissorRect();
-        commandBuffer.SetRenderTarget(new RenderTargetBinding(
-            _ambientOcclusionTarget, _ambientOcclusionLoads, _ambientOcclusionStores,
-            new RenderTargetIdentifier(ambientOcclusionField),
-            RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare));
-        commandBuffer.ClearRenderTarget(
-            clearDepth: false,
-            clearColor: true,
-            backgroundColor: Color.clear);
+        // Lighting owns attachment binding and clearing; retained pixels are preserved.
         commandBuffer.SetViewport(new Rect(0f, 0f, ambientOcclusionField.width, ambientOcclusionField.height));
-        commandBuffer.EnableScissorRect(new Rect(0f, 0f, ambientOcclusionField.width, ambientOcclusionField.height));
+        RectInt rect = rasterRect ?? new RectInt(0, 0, ambientOcclusionField.width, ambientOcclusionField.height);
+        commandBuffer.EnableScissorRect(new Rect(rect.x, rect.y, rect.width, rect.height));
 
         DrawLightingField(
             commandBuffer,
@@ -156,21 +146,18 @@ public sealed class TerrainMeshManager
         // Каждый вызов рисует свою целевую семантику отдельным проходом одного
         // материала; AO-проход читает альфа атласа, material-проход — его RGB.
         //
-        // Частичная перерисовка по прямоугольникам отсюда убрана: очистка под
-        // ножницами на Metal чистит ЦЕЛЬ, а не прямоугольник, поэтому каждый
-        // патч стирал поле полностью и дорисовывал только свой кусок. В игре это
-        // выглядело так, что свет пропадал, появлялся частями и уезжал при
-        // движении. Возвращать эту оптимизацию можно только вместе со способом
-        // чистить прямоугольник, которому можно доверять на всех бэкендах.
+        // Material/emission fields are cleared and drawn in full. AO may use
+        // a scissor rectangle: its owner clears that rectangle by rasterization,
+        // because ClearRenderTarget ignores scissor on Metal.
         // Поля покрывают всю сетку со смещением ноль; экранное смещение
         // возвращается сразу после, чтобы кадр камеры не съехал.
-        commandBuffer.SetGlobalVector(TerrainCellDataTextures.ViewOffsetID, Vector4.zero);
+        commandBuffer.SetGlobalVector(TerrainCellDataTextures.ViewOffsetId, Vector4.zero);
         commandBuffer.SetGlobalVector(
-            _geometryCarrierPaddingWorldID,
+            s_geometryCarrierPaddingWorldId,
             new Vector4(carrierPaddingWorld.x, carrierPaddingWorld.y, 0f, 0f));
         commandBuffer.DrawMesh(mesh, localToWorldMatrix, materials[0], 0, shaderPass);
-        commandBuffer.SetGlobalVector(TerrainCellDataTextures.ViewOffsetID, screenViewOffset);
-        commandBuffer.SetGlobalVector(_geometryCarrierPaddingWorldID, Vector4.zero);
+        commandBuffer.SetGlobalVector(TerrainCellDataTextures.ViewOffsetId, screenViewOffset);
+        commandBuffer.SetGlobalVector(s_geometryCarrierPaddingWorldId, Vector4.zero);
 
         commandBuffer.EndSample(sampleName);
         commandBuffer.DisableScissorRect();

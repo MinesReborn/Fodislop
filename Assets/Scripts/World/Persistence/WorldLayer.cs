@@ -25,7 +25,7 @@ public sealed class WorldLayer<T> : IWorldLayer<T>, IStoredChunkSource<T>
     private readonly string _filePath;
 
     private readonly WorldLayerLifetime _lifetime = new();
-    private readonly ChunkLruCache<T> _cache;
+    private readonly ChunkLRUCache<T> _cache;
     private readonly WorldLayerFile<T> _file;
     private readonly WorldLayerChunkLoader<T> _loader;
     private readonly WorldLayerRegionWriter<T> _regionWriter;
@@ -106,7 +106,7 @@ public sealed class WorldLayer<T> : IWorldLayer<T>, IStoredChunkSource<T>
         _maxChunksInMemory = maxRamChunks;
 
         int chunkArea = CHUNK_SIZE * CHUNK_SIZE;
-        _cache = new ChunkLruCache<T>(
+        _cache = new ChunkLRUCache<T>(
             maxRamChunks,
             allowDirtyEviction: false);
         _file = new WorldLayerFile<T>(
@@ -151,7 +151,7 @@ public sealed class WorldLayer<T> : IWorldLayer<T>, IStoredChunkSource<T>
     public T this[int x, int y]
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => GetCell(x, y, touchLru: true);
+        get => GetCell(x, y, touchLRU: true);
         set => SetCell(x, y, value);
     }
 
@@ -177,7 +177,7 @@ public sealed class WorldLayer<T> : IWorldLayer<T>, IStoredChunkSource<T>
     public bool HasDirtyChunks => _cache.HasDirtyChunks;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public T GetCell(int x, int y, bool touchLru = true)
+    public T GetCell(int x, int y, bool touchLRU = true)
     {
         if (!GetChunkIndexAndLocal(x, y, out int chunkIndex, out int localIndex))
         {
@@ -186,12 +186,12 @@ public sealed class WorldLayer<T> : IWorldLayer<T>, IStoredChunkSource<T>
                 $"Cell coordinate ({x}, {y}) is outside the world layer bounds.");
         }
 
-        T[] chunk = _loader.GetOrCreateChunk(chunkIndex, touchLru);
+        T[] chunk = _loader.GetOrCreateChunk(chunkIndex, touchLRU);
 
         return chunk[localIndex];
     }
 
-    public T GetCellSync(int x, int y, bool touchLru = true)
+    public T GetCellSync(int x, int y, bool touchLRU = true)
     {
         if (!GetChunkIndexAndLocal(x, y, out int chunkIndex, out int localIndex))
         {
@@ -200,7 +200,7 @@ public sealed class WorldLayer<T> : IWorldLayer<T>, IStoredChunkSource<T>
                 $"Cell coordinate ({x}, {y}) is outside the world layer bounds.");
         }
 
-        T[] chunk = _loader.GetOrCreateChunk(chunkIndex, touchLru);
+        T[] chunk = _loader.GetOrCreateChunk(chunkIndex, touchLRU);
 
         return chunk[localIndex];
     }
@@ -231,7 +231,7 @@ public sealed class WorldLayer<T> : IWorldLayer<T>, IStoredChunkSource<T>
                 $"Cell coordinate ({x}, {y}) is outside the world layer bounds.");
         }
 
-        T[] chunk = _loader.GetOrCreateChunk(chunkIndex, touchLru: true);
+        T[] chunk = _loader.GetOrCreateChunk(chunkIndex, touchLRU: true);
 
         if (!EqualityComparer<T>.Default.Equals(chunk[localIndex], value))
         {
@@ -304,11 +304,11 @@ public sealed class WorldLayer<T> : IWorldLayer<T>, IStoredChunkSource<T>
         return changedCount;
     }
 
-    public T[] GetOrCreateChunk(int chunkIndex, bool touchLru = true) =>
-        _loader.GetOrCreateChunk(chunkIndex, touchLru);
+    public T[] GetOrCreateChunk(int chunkIndex, bool touchLRU = true) =>
+        _loader.GetOrCreateChunk(chunkIndex, touchLRU);
 
-    public ChunkReadResult<T> ReadChunk(int chunkIndex, bool touchLru = true) =>
-        _loader.ReadChunk(chunkIndex, touchLru);
+    public ChunkReadResult<T> ReadChunk(int chunkIndex, bool touchLRU = true) =>
+        _loader.ReadChunk(chunkIndex, touchLRU);
 
     public UniTask VisitStoredChunkRunsAsync(
         Action<int, T, int> runVisitor,

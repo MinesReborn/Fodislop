@@ -15,11 +15,11 @@ namespace Kern.Core.Interfaces.WorldLighting;
 public static class LightingFieldOrientation
 {
     /// <summary>Global int: 1 when memory row 0 holds the top edge of the field's world rect.</summary>
-    public static readonly int RowsTopDownID = Shader.PropertyToID("_KernFieldRowsTopDown");
+    public static readonly int RowsTopDownId = Shader.PropertyToID("_KernFieldRowsTopDown");
 
-    private static readonly int _viewID = Shader.PropertyToID("_KernLightingFieldView");
-    private static readonly int _projectionID = Shader.PropertyToID("_KernLightingFieldProjection");
-    private static readonly int _objectToWorldID = Shader.PropertyToID("_KernLightingFieldObjectToWorld");
+    private static readonly int s_viewId = Shader.PropertyToID("_KernLightingFieldView");
+    private static readonly int s_projectionId = Shader.PropertyToID("_KernLightingFieldProjection");
+    private static readonly int s_objectToWorldId = Shader.PropertyToID("_KernLightingFieldObjectToWorld");
 
     // Field meshes lie at z 0..0.1 (background quads at 0.1). There is no depth
     // buffer and ZTest is Always; the range only has to contain that slab.
@@ -47,13 +47,13 @@ public static class LightingFieldOrientation
     /// </summary>
     public static void BindRaster(CommandBuffer commandBuffer, Vector4 worldRect, Matrix4x4 objectToWorld)
     {
-        commandBuffer.SetGlobalMatrix(_viewID, View(worldRect));
-        commandBuffer.SetGlobalMatrix(_projectionID, Projection(worldRect));
-        commandBuffer.SetGlobalMatrix(_objectToWorldID, objectToWorld);
+        commandBuffer.SetGlobalMatrix(s_viewId, View(worldRect));
+        commandBuffer.SetGlobalMatrix(s_projectionId, Projection(worldRect));
+        commandBuffer.SetGlobalMatrix(s_objectToWorldId, objectToWorld);
     }
 
     /// <summary>Publishes the row order for shaders that sample fields by UV.</summary>
-    public static void PublishGlobals() => Shader.SetGlobalInteger(RowsTopDownID, RowsTopDown ? 1 : 0);
+    public static void PublishGlobals() => Shader.SetGlobalInteger(RowsTopDownId, RowsTopDown ? 1 : 0);
 
     public static Matrix4x4 View(Vector4 worldRect) => Matrix4x4.Translate(new Vector3(
         -(worldRect.x + worldRect.z * 0.5f),

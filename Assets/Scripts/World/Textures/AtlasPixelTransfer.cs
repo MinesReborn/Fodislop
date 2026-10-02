@@ -25,11 +25,11 @@ internal sealed class AtlasPixelTransfer
         Texture2D atlasTexture,
         List<(CellType type, Texture2D texture, Rectangle rect)> dirtyTextures)
     {
-        if (dirtyTextures.Count > 0 && RuntimeTextureFactory.SupportsTexture2DGpuCopy)
+        if (dirtyTextures.Count > 0 && RuntimeTextureFactory.SupportsTexture2DGPUCopy)
         {
             foreach (var (_, texture, rect) in dirtyTextures)
             {
-                UploadGpuTexture(atlasTexture, texture, rect);
+                UploadGPUTexture(atlasTexture, texture, rect);
             }
         }
         else if (dirtyTextures.Count > 0)
@@ -54,14 +54,14 @@ internal sealed class AtlasPixelTransfer
         Texture2D? atlasTexture,
         List<(Texture2D texture, Rectangle rect)> textures)
     {
-        if (RuntimeTextureFactory.SupportsTexture2DGpuCopy)
+        if (RuntimeTextureFactory.SupportsTexture2DGPUCopy)
         {
             await UniTask.SwitchToMainThread();
             if (atlasTexture != null)
             {
                 foreach (var (texture, rect) in textures)
                 {
-                    UploadGpuTexture(atlasTexture, texture, rect);
+                    UploadGPUTexture(atlasTexture, texture, rect);
                 }
             }
 
@@ -170,9 +170,9 @@ internal sealed class AtlasPixelTransfer
         }
     }
 
-    private void UploadGpuTexture(Texture2D atlasTexture, Texture2D source, Rectangle destination)
+    private void UploadGPUTexture(Texture2D atlasTexture, Texture2D source, Rectangle destination)
     {
-        ValidateGpuCopySource(atlasTexture, source, destination);
+        ValidateGPUCopySource(atlasTexture, source, destination);
         Graphics.CopyTexture(
             source, 0, 0, 0, 0, source.width, source.height,
             atlasTexture, 0, 0, destination.X, destination.Y);
@@ -229,7 +229,7 @@ internal sealed class AtlasPixelTransfer
         }
     }
 
-    private static void ValidateGpuCopySource(
+    private static void ValidateGPUCopySource(
         Texture2D atlasTexture,
         Texture2D source,
         Rectangle destination)

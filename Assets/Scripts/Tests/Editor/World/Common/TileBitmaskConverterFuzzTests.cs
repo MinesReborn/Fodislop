@@ -19,7 +19,7 @@ public class TileBitmaskConverterFuzzTests
     [TestCase((byte)0x40, (byte)0x41)]
     [TestCase((byte)0x80, (byte)0x00)]
     [TestCase((byte)0xFF, (byte)0x0D)]
-    public void GetDescriptor_LutBoundaryMasks(byte mask, byte expected)
+    public void GetDescriptor_LUTBoundaryMasks(byte mask, byte expected)
     {
         Assert.That(TileBitmaskConverter.GetDescriptor(mask), Is.EqualTo(expected), $"mask=0x{mask:X2}");
     }

@@ -18,13 +18,13 @@ namespace Kern.World.Lighting;
 /// </summary>
 internal sealed class LightingUpdateCoordinator
 {
-    private static readonly ProfilerMarker _UpdateMarker =
+    private static readonly ProfilerMarker s_updateMarker =
         new("Kern.Lighting.UpdateLighting.CPU");
-    private static readonly AllocationLedger.Entry _AllocationEntry =
+    private static readonly AllocationLedger.Entry s_allocationEntry =
         AllocationLedger.Register("Свет — обновление");
-    private static readonly ProfilerMarker _BuildCommandsMarker =
+    private static readonly ProfilerMarker s_buildCommandsMarker =
         new("Kern.Lighting.BuildCommands.CPU");
-    private static readonly ProfilerMarker _ExecuteCommandsMarker =
+    private static readonly ProfilerMarker s_executeCommandsMarker =
         new("Kern.Lighting.ExecuteCommands.CPU");
     // Explicit dense reference for production differential tests. Ordinary
     // reanchors use the dependency-aware path, never the dormant band solver.
@@ -86,8 +86,8 @@ internal sealed class LightingUpdateCoordinator
         bool bypassLightingCompute,
         bool ambientOcclusionOnly)
     {
-        using var updateMarker = _UpdateMarker.Auto();
-        using var allocationScope = AllocationLedger.Measure(_AllocationEntry);
+        using var updateMarker = s_updateMarker.Auto();
+        using var allocationScope = AllocationLedger.Measure(s_allocationEntry);
         if (terrainGeometry == null ||
             (terrainGeometry is UnityEngine.Object unityObject && unityObject == null))
         {
@@ -155,6 +155,7 @@ internal sealed class LightingUpdateCoordinator
         // Consume every pending geometry change in this frame. Transport
         // dependencies reduce work; an area cap would publish stale lighting.
         const int maxInvalidationAreaPerFrame = int.MaxValue;
+        bool fieldWasDirty = _state.FieldDirty;
         _state.ActivatePendingRegionsBudgeted(
             new RectInt(
                 Mathf.RoundToInt(lightingRegion.x) - 1,
@@ -259,7 +260,7 @@ internal sealed class LightingUpdateCoordinator
         try
         {
             long buildStart = System.Diagnostics.Stopwatch.GetTimestamp();
-            using (_BuildCommandsMarker.Auto())
+            using (s_buildCommandsMarker.Auto())
             {
                 commandBuffer.BeginSample("Kern.RadianceCascades");
                 dynamicLightCount = _frameExecutor.UploadDynamicLights(
@@ -298,6 +299,9 @@ internal sealed class LightingUpdateCoordinator
                     regionDelta,
                     _state.ActiveRegionInvalidations,
                     allowStaticDependencyMask,
+                    LightingAmbientOcclusionUpdatePolicy.CanUpdatePartially(
+                        _state, terrainGeometry.LightingGeometryRevision, fieldWasDirty,
+                        resourcesResized, regionChanged, contributorGeometryChanged),
                     dynamicRadianceChanged,
                     qualityMode,
                     debugView,
@@ -328,7 +332,7 @@ internal sealed class LightingUpdateCoordinator
                 _telemetry.LightingCommandBufferBytes = commandBuffer.sizeInBytes;
                 _telemetry.ActiveDynamicLights = dynamicLightCount;
                 long executeStart = System.Diagnostics.Stopwatch.GetTimestamp();
-                using (_ExecuteCommandsMarker.Auto())
+                using (s_executeCommandsMarker.Auto())
                 {
                     Graphics.ExecuteCommandBuffer(commandBuffer);
                 }
@@ -412,6 +416,7 @@ internal sealed class LightingUpdateCoordinator
         Vector2Int regionDelta,
         IReadOnlyList<RectInt> dirtyRegions,
         bool allowStaticDependencyMask,
+        bool allowPartialAmbientOcclusion,
         bool dynamicRadianceChanged,
         LightingQualityMode qualityMode,
         LightingEngine.DebugView debugView,
@@ -439,6 +444,7 @@ internal sealed class LightingUpdateCoordinator
                 debugView)
             {
                 DynamicReceiverRect = receiverRect,
+                AllowPartialAmbientOcclusion = allowPartialAmbientOcclusion,
             },
             terrainGeometry,
             _resources.StaticEmissionField!,

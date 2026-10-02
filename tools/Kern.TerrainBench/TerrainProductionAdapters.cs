@@ -42,7 +42,7 @@ public sealed class BenchTerrainMetadataLookup : ITerrainMetadataLookup
             {
                 Properties = 0,
                 HasTileGroup = index % 5 == 0,
-                TileGroupID = index % 4,
+                TileGroupId = index % 4,
                 MinimapColor = new UnityEngine.Color32(128, 128, 128, 255),
                 AtlasRect = new UnityEngine.Vector4(0f, 0f, 0.0625f, 0.0625f),
                 AtlasIndex = 0,

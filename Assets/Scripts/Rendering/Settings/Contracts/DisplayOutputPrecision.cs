@@ -16,9 +16,9 @@ public static class DisplayOutputPrecision
     private const double SdrFirstStep = 1.0 / 255.0 / 12.92;
 
     // HDR10: 10-bit full-range PQ (SMPTE ST 2084) code 1, in nits.
-    private static readonly double _pqFirstStepNits = PqToNits(1.0 / 1023.0);
+    private static readonly double s_pqFirstStepNits = PqToNits(1.0 / 1023.0);
 
-    public static bool HdrOutput { get; private set; }
+    public static bool HDROutput { get; private set; }
 
     public static float PaperWhiteNits { get; private set; } = 1f;
 
@@ -26,19 +26,19 @@ public static class DisplayOutputPrecision
     public static int Revision { get; private set; }
 
     /// <summary>Half of the first display code above black, relative to paper white.</summary>
-    public static float HalfStepAtBlack => (float)(0.5 * (HdrOutput
-        ? _pqFirstStepNits / Math.Max(PaperWhiteNits, 1f)
+    public static float HalfStepAtBlack => (float)(0.5 * (HDROutput
+        ? s_pqFirstStepNits / Math.Max(PaperWhiteNits, 1f)
         : SdrFirstStep));
 
-    public static void Publish(bool hdrOutput, float paperWhiteNits)
+    public static void Publish(bool HDR, float paperWhiteNits)
     {
-        float paperWhite = hdrOutput ? Math.Max(paperWhiteNits, 1f) : 1f;
-        if (hdrOutput == HdrOutput && paperWhite.Equals(PaperWhiteNits))
+        float paperWhite = HDR ? Math.Max(paperWhiteNits, 1f) : 1f;
+        if (HDR == HDROutput && paperWhite.Equals(PaperWhiteNits))
         {
             return;
         }
 
-        HdrOutput = hdrOutput;
+        HDROutput = HDR;
         PaperWhiteNits = paperWhite;
         Revision++;
     }

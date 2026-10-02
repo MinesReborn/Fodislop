@@ -113,7 +113,7 @@ internal sealed class WorldMapMipScan : IDisposable
         for (int index = 0; index < pendingCount; index++)
         {
             int chunkIndex = _pendingChunkBatch[index];
-            ChunkReadResult<CellType> result = _cellLayer.ReadChunk(chunkIndex, touchLru: false);
+            ChunkReadResult<CellType> result = _cellLayer.ReadChunk(chunkIndex, touchLRU: false);
             if (result.Status == ChunkReadStatus.Available && result.Data != null)
             {
                 _cache.SetChunkCells(chunkIndex, result.Data);
@@ -166,7 +166,7 @@ internal sealed class WorldMapMipScan : IDisposable
             foreach (int chunkIndex in layer.GetLoadedChunkIndices())
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                ChunkReadResult<CellType> result = layer.ReadChunk(chunkIndex, touchLru: false);
+                ChunkReadResult<CellType> result = layer.ReadChunk(chunkIndex, touchLRU: false);
                 if (result.Status == ChunkReadStatus.Available && result.Data != null)
                 {
                     cache.SetChunkCells(chunkIndex, result.Data);
@@ -176,7 +176,7 @@ internal sealed class WorldMapMipScan : IDisposable
             foreach (int chunkIndex in _pendingChunks)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                ChunkReadResult<CellType> result = layer.ReadChunk(chunkIndex, touchLru: false);
+                ChunkReadResult<CellType> result = layer.ReadChunk(chunkIndex, touchLRU: false);
                 if (result.Status == ChunkReadStatus.Available && result.Data != null)
                 {
                     cache.SetChunkCells(chunkIndex, result.Data);

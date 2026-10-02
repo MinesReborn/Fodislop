@@ -29,7 +29,7 @@ namespace Kern.Player.Logic
         [SerializeField]
         private float _moveSpeed = ProjectRuntimeContracts.Movement.RobotMoveSpeed;
 
-        public uint BotID { get; private set; }
+        public uint BotId { get; private set; }
         public Vector2Int Position { get; private set; }
         public bool HasServerPosition { get; private set; }
         public bool IsGameplayVisible { get; private set; }
@@ -267,9 +267,9 @@ namespace Kern.Player.Logic
             _actionDispatcher?.DispatchHotkeys();
         }
 
-        public void Initialize(uint botID)
+        public void Initialize(uint botId)
         {
-            BotID = botID;
+            BotId = botId;
             HasServerPosition = false;
             IsGameplayVisible = false;
             _awaitingMoveConfirmation = false;
@@ -284,7 +284,7 @@ namespace Kern.Player.Logic
 
             if (_robot != null)
             {
-                _robot.Initialize(botID);
+                _robot.Initialize(botId);
             }
         }
 

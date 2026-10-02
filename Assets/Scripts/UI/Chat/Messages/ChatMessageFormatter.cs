@@ -9,7 +9,7 @@ namespace Kern.UI;
 
 internal static class ChatMessageFormatter
 {
-    private static bool _invalidMuteExpiryLogged;
+    private static bool s_invalidMuteExpiryLogged;
 
     public static string FormatGlobal(ChatMessagePacket msg, DateTime now)
     {
@@ -46,12 +46,12 @@ internal static class ChatMessageFormatter
         {
             // Серверный ввод не должен ронять клиент: битый timestamp в пакете
             // мута — это данные, а не контрактная ошибка. Отображаем как есть.
-            if (_invalidMuteExpiryLogged)
+            if (s_invalidMuteExpiryLogged)
             {
                 return unixMilliseconds.ToString();
             }
 
-            _invalidMuteExpiryLogged = true;
+            s_invalidMuteExpiryLogged = true;
             Debug.LogWarning(
                 $"[GlobalChat] Mute packet contains invalid expiry timestamp: {unixMilliseconds}");
             return unixMilliseconds.ToString();

@@ -184,7 +184,7 @@ internal sealed class PauseMenuSettingsBuilder
                 $"DynamicLights={_lightingEngine.DynamicLightCount} " +
                 $"Uploaded={_lightingEngine.UploadedDynamicLightCount} " +
                 $"Dropped={_lightingEngine.DroppedDynamicLightCount} " +
-                $"DroppedIds=[{string.Join(",", _lightingEngine.DroppedDynamicLightIDs)}]\n" +
+                $"DroppedIds=[{string.Join(",", _lightingEngine.DroppedDynamicLightIds)}]\n" +
                 $"ComputeAmbient={_lightingEngine.ComputeAmbientColor} " +
                 $"ComputeEmptyExtinction={_lightingEngine.ComputeEmptyExtinction} " +
                 $"ComputeSolidExtinction={_lightingEngine.ComputeSolidExtinction}\n" +

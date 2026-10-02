@@ -97,13 +97,13 @@ public sealed class RuntimeAssetPathsTests
         Assert.That(settings.IgnoreCollision, Is.False);
         Assert.That(settings.BypassLightingCompute, Is.False);
         Assert.That(settings.BypassTerrainDraw, Is.False);
-        Assert.That(settings.BypassCpuMeshRebuild, Is.False);
+        Assert.That(settings.BypassCPUMeshRebuild, Is.False);
         Assert.That(settings.ShowRobotDebugVisuals, Is.False);
         Assert.That(settings.BypassGameUI, Is.False);
     }
 
     [Test]
-    public void PostProcessRuntimeState_SetLutRejectsNonFiniteAndClampsIntensity()
+    public void PostProcessRuntimeState_SetLUTRejectsNonFiniteAndClampsIntensity()
     {
         string path = Path.Combine(Path.GetTempPath(), $"kern-lut-{Guid.NewGuid():N}.cube");
         File.WriteAllText(
@@ -111,27 +111,27 @@ public sealed class RuntimeAssetPathsTests
             "LUT_3D_SIZE 2\n" +
             "0 0 0\n1 0 0\n0 1 0\n1 1 0\n" +
             "0 0 1\n1 0 1\n0 1 1\n1 1 1\n");
-        ColorGradeCubeLut? lut = null;
+        ColorGradeCubeLUT? lut = null;
         try
         {
-            Assert.That(ColorGradeCubeLut.TryLoad(path, out lut, out string error), Is.True, error);
+            Assert.That(ColorGradeCubeLUT.TryLoad(path, out lut, out string error), Is.True, error);
 
-            PostProcessRuntimeState.SetLut(lut, float.NaN);
-            Assert.That(PostProcessRuntimeState.Lut, Is.Null);
-            Assert.That(PostProcessRuntimeState.LutIntensity, Is.Zero);
+            PostProcessRuntimeState.SetLUT(lut, float.NaN);
+            Assert.That(PostProcessRuntimeState.LUT, Is.Null);
+            Assert.That(PostProcessRuntimeState.LUTIntensity, Is.Zero);
 
-            PostProcessRuntimeState.SetLut(lut, 2f, ColorGradeLutColorSpace.SrgbRec709);
-            Assert.That(PostProcessRuntimeState.Lut, Is.SameAs(lut));
-            Assert.That(PostProcessRuntimeState.LutIntensity, Is.EqualTo(1f));
-            Assert.That(PostProcessRuntimeState.LutColorSpace, Is.EqualTo(ColorGradeLutColorSpace.SrgbRec709));
+            PostProcessRuntimeState.SetLUT(lut, 2f, ColorGradeLUTColorSpace.SrgbRec709);
+            Assert.That(PostProcessRuntimeState.LUT, Is.SameAs(lut));
+            Assert.That(PostProcessRuntimeState.LUTIntensity, Is.EqualTo(1f));
+            Assert.That(PostProcessRuntimeState.LUTColorSpace, Is.EqualTo(ColorGradeLUTColorSpace.SrgbRec709));
 
-            PostProcessRuntimeState.SetLut(null, 1f);
-            Assert.That(PostProcessRuntimeState.Lut, Is.Null);
-            Assert.That(PostProcessRuntimeState.LutIntensity, Is.Zero);
+            PostProcessRuntimeState.SetLUT(null, 1f);
+            Assert.That(PostProcessRuntimeState.LUT, Is.Null);
+            Assert.That(PostProcessRuntimeState.LUTIntensity, Is.Zero);
         }
         finally
         {
-            PostProcessRuntimeState.SetLut(null, 0f);
+            PostProcessRuntimeState.SetLUT(null, 0f);
             lut?.Dispose();
             File.Delete(path);
         }

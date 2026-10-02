@@ -46,7 +46,7 @@ namespace Kern.World.Lighting
                 (_resources.GPUPipelineInitialized || _resources.AmbientOcclusionField != null))
             {
                 _getComposition().Presentation.PublishDisabled();
-                LightingGpuTeardown.ReleaseResources(
+                LightingGPUTeardown.ReleaseResources(
                     _existingComposition(),
                     _resources,
                     _dynamicLightManager,
@@ -68,7 +68,7 @@ namespace Kern.World.Lighting
             }
             else if (resolvedQuality == LightingQualityMode.Off)
             {
-                DisableGpuLighting();
+                DisableGPULighting();
             }
             else
             {
@@ -98,9 +98,9 @@ namespace Kern.World.Lighting
             LightingRuntimeInvalidation.ResetFieldAndRadiance(_runtimeState);
         }
 
-        public void DisableGpuLighting()
+        public void DisableGPULighting()
         {
-            LightingGpuTeardown.ReleasePipeline(
+            LightingGPUTeardown.ReleasePipeline(
                 _existingComposition(),
                 _resources,
                 _dynamicLightManager);

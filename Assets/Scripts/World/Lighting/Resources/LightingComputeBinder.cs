@@ -37,101 +37,101 @@ internal static class LightingComputeBinder
         return (extent + ThreadGroupSize - 1) / ThreadGroupSize;
     }
 
-    public static readonly int MaterialFieldID = Shader.PropertyToID("_MaterialField");
-    public static readonly int EmissionFieldID = Shader.PropertyToID("_EmissionField");
-    public static readonly int RadianceAtlasID = Shader.PropertyToID("_RadianceAtlas");
-    public static readonly int RadianceAtlasInputID = Shader.PropertyToID("_RadianceAtlasInput");
-    public static readonly int RadianceAtlasOutputID = Shader.PropertyToID("_RadianceAtlasOutput");
-    public static readonly int DirectTextureID = Shader.PropertyToID("_DirectTexture");
-    public static readonly int DirectInputID = Shader.PropertyToID("_DirectInput");
-    public static readonly int StaticDirectInputID = Shader.PropertyToID("_StaticDirectInput");
-    public static readonly int ResultID = Shader.PropertyToID("_Result");
-    public static readonly int FieldSizeID = Shader.PropertyToID("_FieldSize");
-    public static readonly int LightSizeID = Shader.PropertyToID("_LightSize");
-    public static readonly int FieldTexelsPerLightTexelID = Shader.PropertyToID("_FieldTexelsPerLightTexel");
-    public static readonly int CompositeDispatchOriginID = Shader.PropertyToID("_CompositeDispatchOrigin");
-    public static readonly int CompositeDispatchSizeID = Shader.PropertyToID("_CompositeDispatchSize");
-    public static readonly int WorldRectID = Shader.PropertyToID("_WorldRect");
-    public static readonly int AmbientColorID = Shader.PropertyToID("_AmbientColor");
-    public static readonly int EmptyExtinctionRGBID = Shader.PropertyToID("_EmptyExtinctionRGB");
-    public static readonly int SolidExtinctionRGBID = Shader.PropertyToID("_SolidExtinctionRGB");
-    public static readonly int EmissionScaleID = Shader.PropertyToID("_EmissionScale");
-    public static readonly int MaximumLightMultiplierID = Shader.PropertyToID("_MaximumLightMultiplier");
-    public static readonly int SurfaceReflectionReachID =
+    public static readonly int MaterialFieldId = Shader.PropertyToID("_MaterialField");
+    public static readonly int EmissionFieldId = Shader.PropertyToID("_EmissionField");
+    public static readonly int RadianceAtlasId = Shader.PropertyToID("_RadianceAtlas");
+    public static readonly int RadianceAtlasInputId = Shader.PropertyToID("_RadianceAtlasInput");
+    public static readonly int RadianceAtlasOutputId = Shader.PropertyToID("_RadianceAtlasOutput");
+    public static readonly int DirectTextureId = Shader.PropertyToID("_DirectTexture");
+    public static readonly int DirectInputId = Shader.PropertyToID("_DirectInput");
+    public static readonly int StaticDirectInputId = Shader.PropertyToID("_StaticDirectInput");
+    public static readonly int ResultId = Shader.PropertyToID("_Result");
+    public static readonly int FieldSizeId = Shader.PropertyToID("_FieldSize");
+    public static readonly int LightSizeId = Shader.PropertyToID("_LightSize");
+    public static readonly int FieldTexelsPerLightTexelId = Shader.PropertyToID("_FieldTexelsPerLightTexel");
+    public static readonly int CompositeDispatchOriginId = Shader.PropertyToID("_CompositeDispatchOrigin");
+    public static readonly int CompositeDispatchSizeId = Shader.PropertyToID("_CompositeDispatchSize");
+    public static readonly int WorldRectId = Shader.PropertyToID("_WorldRect");
+    public static readonly int AmbientColorId = Shader.PropertyToID("_AmbientColor");
+    public static readonly int EmptyExtinctionRGBId = Shader.PropertyToID("_EmptyExtinctionRGB");
+    public static readonly int SolidExtinctionRGBId = Shader.PropertyToID("_SolidExtinctionRGB");
+    public static readonly int EmissionScaleId = Shader.PropertyToID("_EmissionScale");
+    public static readonly int MaximumLightMultiplierId = Shader.PropertyToID("_MaximumLightMultiplier");
+    public static readonly int SurfaceReflectionReachId =
         Shader.PropertyToID("_SurfaceReflectionReachCells");
-    public static readonly int DynamicNearCellsID = Shader.PropertyToID("_DynamicNearCells");
-    public static readonly int DynamicAngularSampleCountID =
+    public static readonly int DynamicNearCellsId = Shader.PropertyToID("_DynamicNearCells");
+    public static readonly int DynamicAngularSampleCountId =
         Shader.PropertyToID("_DynamicAngularSampleCount");
-    public static readonly int DynamicEmitterPointsPerAxisID =
+    public static readonly int DynamicEmitterPointsPerAxisId =
         Shader.PropertyToID("_DynamicEmitterPointsPerAxis");
-    public static readonly int SolidOccupancyThresholdID =
+    public static readonly int SolidOccupancyThresholdId =
         Shader.PropertyToID("_SolidOccupancyThreshold");
-    public static readonly int TransportSolidThresholdID =
+    public static readonly int TransportSolidThresholdId =
         Shader.PropertyToID("_TransportSolidThreshold");
-    public static readonly int CellSizeID = Shader.PropertyToID("_CellSize");
-    public static readonly int TransmittanceDebugDistanceCellsID = Shader.PropertyToID("_TransmittanceDebugDistanceCells");
-    public static readonly int DebugViewID = Shader.PropertyToID("_DebugView");
-    public static readonly int MaterialYFlipID = Shader.PropertyToID("_MaterialYFlip");
-    public static readonly int EnableBilinearFixID = Shader.PropertyToID("_EnableBilinearFix");
-    public static readonly int CascadeOffsetID = Shader.PropertyToID("_CascadeOffset");
-    public static readonly int CascadeProbeSizeID = Shader.PropertyToID("_CascadeProbeSize");
-    public static readonly int CascadeProbeSpacingID = Shader.PropertyToID("_CascadeProbeSpacing");
-    public static readonly int CascadeDirectionCountID = Shader.PropertyToID("_CascadeDirectionCount");
-    public static readonly int CascadeIntervalID = Shader.PropertyToID("_CascadeInterval");
-    public static readonly int FarCascadeOffsetID = Shader.PropertyToID("_FarCascadeOffset");
-    public static readonly int FarCascadeProbeSizeID = Shader.PropertyToID("_FarCascadeProbeSize");
-    public static readonly int FarCascadeProbeSpacingID = Shader.PropertyToID("_FarCascadeProbeSpacing");
-    public static readonly int FarCascadeDirectionCountID = Shader.PropertyToID("_FarCascadeDirectionCount");
-    public static readonly int FarCascadeIntervalID = Shader.PropertyToID("_FarCascadeInterval");
-    public static readonly int HasFarCascadeID = Shader.PropertyToID("_HasFarCascade");
-    public static readonly int CascadeEntryCountID = Shader.PropertyToID("_CascadeEntryCount");
-    public static readonly int CascadeDispatchRowWidthID = Shader.PropertyToID("_CascadeDispatchRowWidth");
-    public static readonly int CascadeDispatchOriginID = Shader.PropertyToID("_CascadeDispatchOrigin");
-    public static readonly int CascadeDispatchSizeID = Shader.PropertyToID("_CascadeDispatchSize");
-    public static readonly int ScrollCascadeOffsetID = Shader.PropertyToID("_ScrollCascadeOffset");
-    public static readonly int ScrollCascadeEntryCountID = Shader.PropertyToID("_ScrollCascadeEntryCount");
-    public static readonly int ScrollProbeSizeID = Shader.PropertyToID("_ScrollProbeSize");
-    public static readonly int ScrollDirectionCountID = Shader.PropertyToID("_ScrollDirectionCount");
-    public static readonly int ScrollDeltaProbesID = Shader.PropertyToID("_ScrollDeltaProbes");
-    public static readonly int DirtyRegionsID = Shader.PropertyToID("_DirtyRegions");
-    public static readonly int DirtyRegionCountID = Shader.PropertyToID("_DirtyRegionCount");
-    public static readonly int CascadeChangedMaskID = Shader.PropertyToID("_CascadeChangedMask");
-    public static readonly int CascadeChangedMaskCountID = Shader.PropertyToID("_CascadeChangedMaskCount");
-    public static readonly int CascadeMaskEnabledID = Shader.PropertyToID("_CascadeMaskEnabled");
-    public static readonly int CascadeReanchorEnabledID = Shader.PropertyToID("_CascadeReanchorEnabled");
-    public static readonly int CascadePhaseMatchesID = Shader.PropertyToID("_CascadePhaseMatches");
-    public static readonly int ReanchorDeltaTexelsID = Shader.PropertyToID("_ReanchorDeltaTexels");
-    public static readonly int ReanchorFarDeltaProbesID = Shader.PropertyToID("_ReanchorFarDeltaProbes");
-    public static readonly int ReanchorFarPhaseMatchesID = Shader.PropertyToID("_ReanchorFarPhaseMatches");
-    public static readonly int DynamicLightsID = Shader.PropertyToID("_DynamicLights");
-    public static readonly int DynamicDispatchOriginID = Shader.PropertyToID("_DynamicDispatchOrigin");
-    public static readonly int DynamicDispatchSizeID = Shader.PropertyToID("_DynamicDispatchSize");
-    public static readonly int DynamicLightIndexID = Shader.PropertyToID("_DynamicLightIndex");
-    public static readonly int WriteDynamicDirectID = Shader.PropertyToID("_WriteDynamicDirect");
-    public static readonly int DynamicTileOffsetID = Shader.PropertyToID("_DynamicTileOffset");
-    public static readonly int DynamicTilesID = Shader.PropertyToID("_DynamicTiles");
-    public static readonly int DynamicTilesInputID = Shader.PropertyToID("_DynamicTilesInput");
-    public static readonly int DynamicTileInfosID = Shader.PropertyToID("_DynamicTileInfos");
-    public static readonly int DynamicTileCountID = Shader.PropertyToID("_DynamicTileCount");
-    public static readonly int ComposeOriginID = Shader.PropertyToID("_ComposeOrigin");
-    public static readonly int ComposeSizeID = Shader.PropertyToID("_ComposeSize");
-    public static readonly int DynamicPolarID = Shader.PropertyToID("_DynamicPolar");
-    public static readonly int DynamicPolarLayerOffsetID = Shader.PropertyToID("_DynamicPolarLayerOffset");
-    public static readonly int DynamicReachIndexID = Shader.PropertyToID("_DynamicReachIndex");
-    public static readonly int DynamicHorizonID = Shader.PropertyToID("_DynamicHorizon");
-    public static readonly int DynamicHorizonInputID = Shader.PropertyToID("_DynamicHorizonInput");
-    public static readonly int CleanCellRowsOutputID = Shader.PropertyToID("_CleanCellRowsOutput");
-    public static readonly int CleanCellRowsID = Shader.PropertyToID("_CleanCellRows");
-    public static readonly int CleanCellPrefixOutputID = Shader.PropertyToID("_CleanCellPrefixOutput");
-    public static readonly int CleanCellPrefixID = Shader.PropertyToID("_CleanCellPrefix");
-    public static readonly int DynamicHorizonBaseID = Shader.PropertyToID("_DynamicHorizonBase");
-    public static readonly int DynamicHorizonStrideID = Shader.PropertyToID("_DynamicHorizonStride");
-    public static readonly int DynamicPolarInputID = Shader.PropertyToID("_DynamicPolarInput");
-    public static readonly int DynamicPolarSizeID = Shader.PropertyToID("_DynamicPolarSize");
-    public static readonly int DynamicPolarTextureSizeID = Shader.PropertyToID("_DynamicPolarTextureSize");
-    public static readonly int DynamicPolarScalarExtinctionID = Shader.PropertyToID("_DynamicPolarScalarExtinction");
-    public static readonly int NeutralExtinctionID = Shader.PropertyToID("_NeutralExtinction");
-    public static readonly int DynamicTilesScalarRadianceID = Shader.PropertyToID("_DynamicTilesScalarRadiance");
+    public static readonly int CellSizeId = Shader.PropertyToID("_CellSize");
+    public static readonly int TransmittanceDebugDistanceCellsId = Shader.PropertyToID("_TransmittanceDebugDistanceCells");
+    public static readonly int DebugViewId = Shader.PropertyToID("_DebugView");
+    public static readonly int MaterialYFlipId = Shader.PropertyToID("_MaterialYFlip");
+    public static readonly int EnableBilinearFixId = Shader.PropertyToID("_EnableBilinearFix");
+    public static readonly int CascadeOffsetId = Shader.PropertyToID("_CascadeOffset");
+    public static readonly int CascadeProbeSizeId = Shader.PropertyToID("_CascadeProbeSize");
+    public static readonly int CascadeProbeSpacingId = Shader.PropertyToID("_CascadeProbeSpacing");
+    public static readonly int CascadeDirectionCountId = Shader.PropertyToID("_CascadeDirectionCount");
+    public static readonly int CascadeIntervalId = Shader.PropertyToID("_CascadeInterval");
+    public static readonly int FarCascadeOffsetId = Shader.PropertyToID("_FarCascadeOffset");
+    public static readonly int FarCascadeProbeSizeId = Shader.PropertyToID("_FarCascadeProbeSize");
+    public static readonly int FarCascadeProbeSpacingId = Shader.PropertyToID("_FarCascadeProbeSpacing");
+    public static readonly int FarCascadeDirectionCountId = Shader.PropertyToID("_FarCascadeDirectionCount");
+    public static readonly int FarCascadeIntervalId = Shader.PropertyToID("_FarCascadeInterval");
+    public static readonly int HasFarCascadeId = Shader.PropertyToID("_HasFarCascade");
+    public static readonly int CascadeEntryCountId = Shader.PropertyToID("_CascadeEntryCount");
+    public static readonly int CascadeDispatchRowWidthId = Shader.PropertyToID("_CascadeDispatchRowWidth");
+    public static readonly int CascadeDispatchOriginId = Shader.PropertyToID("_CascadeDispatchOrigin");
+    public static readonly int CascadeDispatchSizeId = Shader.PropertyToID("_CascadeDispatchSize");
+    public static readonly int ScrollCascadeOffsetId = Shader.PropertyToID("_ScrollCascadeOffset");
+    public static readonly int ScrollCascadeEntryCountId = Shader.PropertyToID("_ScrollCascadeEntryCount");
+    public static readonly int ScrollProbeSizeId = Shader.PropertyToID("_ScrollProbeSize");
+    public static readonly int ScrollDirectionCountId = Shader.PropertyToID("_ScrollDirectionCount");
+    public static readonly int ScrollDeltaProbesId = Shader.PropertyToID("_ScrollDeltaProbes");
+    public static readonly int DirtyRegionsId = Shader.PropertyToID("_DirtyRegions");
+    public static readonly int DirtyRegionCountId = Shader.PropertyToID("_DirtyRegionCount");
+    public static readonly int CascadeChangedMaskId = Shader.PropertyToID("_CascadeChangedMask");
+    public static readonly int CascadeChangedMaskCountId = Shader.PropertyToID("_CascadeChangedMaskCount");
+    public static readonly int CascadeMaskEnabledId = Shader.PropertyToID("_CascadeMaskEnabled");
+    public static readonly int CascadeReanchorEnabledId = Shader.PropertyToID("_CascadeReanchorEnabled");
+    public static readonly int CascadePhaseMatchesId = Shader.PropertyToID("_CascadePhaseMatches");
+    public static readonly int ReanchorDeltaTexelsId = Shader.PropertyToID("_ReanchorDeltaTexels");
+    public static readonly int ReanchorFarDeltaProbesId = Shader.PropertyToID("_ReanchorFarDeltaProbes");
+    public static readonly int ReanchorFarPhaseMatchesId = Shader.PropertyToID("_ReanchorFarPhaseMatches");
+    public static readonly int DynamicLightsId = Shader.PropertyToID("_DynamicLights");
+    public static readonly int DynamicDispatchOriginId = Shader.PropertyToID("_DynamicDispatchOrigin");
+    public static readonly int DynamicDispatchSizeId = Shader.PropertyToID("_DynamicDispatchSize");
+    public static readonly int DynamicLightIndexId = Shader.PropertyToID("_DynamicLightIndex");
+    public static readonly int WriteDynamicDirectId = Shader.PropertyToID("_WriteDynamicDirect");
+    public static readonly int DynamicTileOffsetId = Shader.PropertyToID("_DynamicTileOffset");
+    public static readonly int DynamicTilesId = Shader.PropertyToID("_DynamicTiles");
+    public static readonly int DynamicTilesInputId = Shader.PropertyToID("_DynamicTilesInput");
+    public static readonly int DynamicTileInfosId = Shader.PropertyToID("_DynamicTileInfos");
+    public static readonly int DynamicTileCountId = Shader.PropertyToID("_DynamicTileCount");
+    public static readonly int ComposeOriginId = Shader.PropertyToID("_ComposeOrigin");
+    public static readonly int ComposeSizeId = Shader.PropertyToID("_ComposeSize");
+    public static readonly int DynamicPolarId = Shader.PropertyToID("_DynamicPolar");
+    public static readonly int DynamicPolarLayerOffsetId = Shader.PropertyToID("_DynamicPolarLayerOffset");
+    public static readonly int DynamicReachIndexId = Shader.PropertyToID("_DynamicReachIndex");
+    public static readonly int DynamicHorizonId = Shader.PropertyToID("_DynamicHorizon");
+    public static readonly int DynamicHorizonInputId = Shader.PropertyToID("_DynamicHorizonInput");
+    public static readonly int CleanCellRowsOutputId = Shader.PropertyToID("_CleanCellRowsOutput");
+    public static readonly int CleanCellRowsId = Shader.PropertyToID("_CleanCellRows");
+    public static readonly int CleanCellPrefixOutputId = Shader.PropertyToID("_CleanCellPrefixOutput");
+    public static readonly int CleanCellPrefixId = Shader.PropertyToID("_CleanCellPrefix");
+    public static readonly int DynamicHorizonBaseId = Shader.PropertyToID("_DynamicHorizonBase");
+    public static readonly int DynamicHorizonStrideId = Shader.PropertyToID("_DynamicHorizonStride");
+    public static readonly int DynamicPolarInputId = Shader.PropertyToID("_DynamicPolarInput");
+    public static readonly int DynamicPolarSizeId = Shader.PropertyToID("_DynamicPolarSize");
+    public static readonly int DynamicPolarTextureSizeId = Shader.PropertyToID("_DynamicPolarTextureSize");
+    public static readonly int DynamicPolarScalarExtinctionId = Shader.PropertyToID("_DynamicPolarScalarExtinction");
+    public static readonly int NeutralExtinctionId = Shader.PropertyToID("_NeutralExtinction");
+    public static readonly int DynamicTilesScalarRadianceId = Shader.PropertyToID("_DynamicTilesScalarRadiance");
 
     // Квадрат плотности эмиттера: столько вееров лучей на фонарь, по полосе
     // строк каждый в текстуре полярных лучей.
@@ -149,7 +149,7 @@ internal static class LightingComputeBinder
     // tracing further cannot change the frame. Bound to `_InvisibleDynamicRadiance`.
     public static float InvisibleDynamicRadiance { get; private set; } = ResolveInvisibleDynamicRadiance(1);
 
-    public static readonly int InvisibleDynamicRadianceID = Shader.PropertyToID("_InvisibleDynamicRadiance");
+    public static readonly int InvisibleDynamicRadianceId = Shader.PropertyToID("_InvisibleDynamicRadiance");
 
     // d/dx of URP's Neutral curve at black with its white scale applied
     // (b * (c * f - e) / (d * f^2) * whiteScale^2 = 1.063): near black the
@@ -180,13 +180,13 @@ internal static class LightingComputeBinder
             (exposureGain * NeutralToeSlope * Mathf.NextPowerOfTwo(Mathf.Max(1, sourceCount)));
         return Mathf.Max(perSource, HalfFloatRoundsToZero);
     }
-    public static readonly int CellGridSizeID = Shader.PropertyToID("_CellGridSize");
-    public static readonly int CellSolidMaskID = Shader.PropertyToID("_CellSolidMask");
-    public static readonly int CellSolidMaskOutputID = Shader.PropertyToID("_CellSolidMaskOutput");
-    public static readonly int SurfaceAirCacheID = Shader.PropertyToID("_SurfaceAirCache");
-    public static readonly int SurfaceAirCacheOutputID = Shader.PropertyToID("_SurfaceAirCacheOutput");
-    public static readonly int LightingCountersID = Shader.PropertyToID("_LightingCounters");
-    public static readonly int LightingCountersEnabledID = Shader.PropertyToID("_LightingCountersEnabled");
+    public static readonly int CellGridSizeId = Shader.PropertyToID("_CellGridSize");
+    public static readonly int CellSolidMaskId = Shader.PropertyToID("_CellSolidMask");
+    public static readonly int CellSolidMaskOutputId = Shader.PropertyToID("_CellSolidMaskOutput");
+    public static readonly int SurfaceAirCacheId = Shader.PropertyToID("_SurfaceAirCache");
+    public static readonly int SurfaceAirCacheOutputId = Shader.PropertyToID("_SurfaceAirCacheOutput");
+    public static readonly int LightingCountersId = Shader.PropertyToID("_LightingCounters");
+    public static readonly int LightingCountersEnabledId = Shader.PropertyToID("_LightingCountersEnabled");
 
     public static void BindLightingCounters(
         CommandBuffer commandBuffer,
@@ -194,7 +194,7 @@ internal static class LightingComputeBinder
         int kernel,
         ComputeBuffer counters)
     {
-        commandBuffer.SetComputeBufferParam(compute, kernel, LightingCountersID, counters);
+        commandBuffer.SetComputeBufferParam(compute, kernel, LightingCountersId, counters);
     }
 
     public static float ResolveTransmittanceDebugDistance()
@@ -206,21 +206,21 @@ internal static class LightingComputeBinder
 
     public static void BindExtinction(CommandBuffer commandBuffer, ComputeShader compute)
     {
-        commandBuffer.SetComputeIntParam(compute, DynamicPolarScalarExtinctionID,
+        commandBuffer.SetComputeIntParam(compute, DynamicPolarScalarExtinctionId,
             UsesScalarPolarExtinction ? 1 : 0);
-        commandBuffer.SetComputeIntParam(compute, DynamicTilesScalarRadianceID,
+        commandBuffer.SetComputeIntParam(compute, DynamicTilesScalarRadianceId,
             UsesScalarDynamicRadiance ? 1 : 0);
         // Mathematical specialization and polar storage have independent
         // references: a format comparison must run identical attenuation math.
-        commandBuffer.SetComputeIntParam(compute, NeutralExtinctionID,
+        commandBuffer.SetComputeIntParam(compute, NeutralExtinctionId,
             HasNeutralExtinction && !DiagnosticTexelTraversalReference ? 1 : 0);
         commandBuffer.SetComputeVectorParam(
             compute,
-            EmptyExtinctionRGBID,
+            EmptyExtinctionRGBId,
             LightingConfigHolder.EmptyExtinctionRGB * LightingConfigHolder.EmptyExtinctionMultiplier);
         commandBuffer.SetComputeVectorParam(
             compute,
-            SolidExtinctionRGBID,
+            SolidExtinctionRGBId,
             LightingConfigHolder.SolidExtinctionRGB * LightingConfigHolder.SolidExtinctionMultiplier);
     }
 
@@ -246,12 +246,12 @@ internal static class LightingComputeBinder
         commandBuffer.SetComputeTextureParam(
             compute,
             kernel,
-            MaterialFieldID,
+            MaterialFieldId,
             materialField);
         commandBuffer.SetComputeTextureParam(
             compute,
             kernel,
-            EmissionFieldID,
+            EmissionFieldId,
             emissionField);
         if (lightingCounters != null)
         {
@@ -284,61 +284,61 @@ internal static class LightingComputeBinder
             throw new InvalidOperationException(
                 $"Light lattice {lightWidth}x{lightHeight} must evenly divide field {fieldWidth}x{fieldHeight}.");
         }
-        commandBuffer.SetComputeIntParams(compute, FieldSizeID, fieldWidth, fieldHeight);
-        commandBuffer.SetComputeIntParams(compute, LightSizeID, lightWidth, lightHeight);
-        commandBuffer.SetComputeIntParam(compute, FieldTexelsPerLightTexelID, fieldWidth / lightWidth);
+        commandBuffer.SetComputeIntParams(compute, FieldSizeId, fieldWidth, fieldHeight);
+        commandBuffer.SetComputeIntParams(compute, LightSizeId, lightWidth, lightHeight);
+        commandBuffer.SetComputeIntParam(compute, FieldTexelsPerLightTexelId, fieldWidth / lightWidth);
         if (cellGridWidth > 0 && cellGridHeight > 0)
         {
-            commandBuffer.SetComputeIntParams(compute, CellGridSizeID, cellGridWidth, cellGridHeight);
+            commandBuffer.SetComputeIntParams(compute, CellGridSizeId, cellGridWidth, cellGridHeight);
         }
-        commandBuffer.SetComputeVectorParam(compute, WorldRectID, worldRect);
+        commandBuffer.SetComputeVectorParam(compute, WorldRectId, worldRect);
         commandBuffer.SetComputeVectorParam(
             compute,
-            AmbientColorID,
+            AmbientColorId,
             LightingConfigHolder.AmbientColor * LightingConfigHolder.AmbientIntensity);
         BindExtinction(commandBuffer, compute);
         commandBuffer.SetComputeFloatParam(
             compute,
-            SolidOccupancyThresholdID,
+            SolidOccupancyThresholdId,
             LightingConfigHolder.SolidOccupancyThreshold);
         commandBuffer.SetComputeFloatParam(
             compute,
-            TransportSolidThresholdID,
+            TransportSolidThresholdId,
             LightingConfigHolder.TransportSolidThreshold);
-        commandBuffer.SetComputeFloatParam(compute, EmissionScaleID, LightingConfigHolder.EmissionScale);
-        commandBuffer.SetComputeFloatParam(compute, MaximumLightMultiplierID, LightingConfigHolder.MaximumLightMultiplier);
+        commandBuffer.SetComputeFloatParam(compute, EmissionScaleId, LightingConfigHolder.EmissionScale);
+        commandBuffer.SetComputeFloatParam(compute, MaximumLightMultiplierId, LightingConfigHolder.MaximumLightMultiplier);
         commandBuffer.SetComputeFloatParam(
             compute,
-            SurfaceReflectionReachID,
+            SurfaceReflectionReachId,
             LightingConfigHolder.SurfaceReflectionReachCells);
         commandBuffer.SetComputeFloatParam(
             compute,
-            DynamicNearCellsID,
+            DynamicNearCellsId,
             LightingQualityTuningController.DynamicNearCells);
         commandBuffer.SetComputeIntParam(
             compute,
-            DynamicAngularSampleCountID,
+            DynamicAngularSampleCountId,
             LightingQualityTuningController.DynamicAngularSampleCount);
         commandBuffer.SetComputeIntParam(
             compute,
-            DynamicEmitterPointsPerAxisID,
+            DynamicEmitterPointsPerAxisId,
             LightingQualityTuningController.DynamicEmitterPointsPerAxis);
-        commandBuffer.SetComputeIntParam(compute, LightingCountersEnabledID, 0);
+        commandBuffer.SetComputeIntParam(compute, LightingCountersEnabledId, 0);
         commandBuffer.SetComputeIntParam(compute, "_UniformCellTraversalEnabled",
             DiagnosticTexelTraversalReference ? 0 : 1);
-        commandBuffer.SetComputeFloatParam(compute, CellSizeID, cellSize);
+        commandBuffer.SetComputeFloatParam(compute, CellSizeId, cellSize);
         commandBuffer.SetComputeFloatParam(
             compute,
-            TransmittanceDebugDistanceCellsID,
+            TransmittanceDebugDistanceCellsId,
             ResolveTransmittanceDebugDistance());
-        commandBuffer.SetComputeIntParam(compute, DebugViewID, (int)debugView);
+        commandBuffer.SetComputeIntParam(compute, DebugViewId, (int)debugView);
         commandBuffer.SetComputeIntParam(
             compute,
-            MaterialYFlipID,
+            MaterialYFlipId,
             LightingFieldOrientation.RowsTopDown ? 1 : 0);
         commandBuffer.SetComputeIntParam(
             compute,
-            EnableBilinearFixID,
+            EnableBilinearFixId,
             LightingConfigHolder.EnableBilinearFix ? 1 : 0);
 
         BindFieldTextures(commandBuffer, compute, solveCascadeKernel, materialField, emissionField);
@@ -369,47 +369,47 @@ internal static class LightingComputeBinder
         CascadeLayout farCascade,
         bool hasFarCascade)
     {
-        commandBuffer.SetComputeIntParam(compute, CascadeOffsetID, cascade.Offset);
+        commandBuffer.SetComputeIntParam(compute, CascadeOffsetId, cascade.Offset);
         commandBuffer.SetComputeIntParams(
             compute,
-            CascadeProbeSizeID,
+            CascadeProbeSizeId,
             cascade.ProbeWidth,
             cascade.ProbeHeight);
         commandBuffer.SetComputeIntParam(
             compute,
-            CascadeProbeSpacingID,
+            CascadeProbeSpacingId,
             cascade.ProbeSpacing);
         commandBuffer.SetComputeIntParam(
             compute,
-            CascadeDirectionCountID,
+            CascadeDirectionCountId,
             cascade.DirectionCount);
         commandBuffer.SetComputeVectorParam(
             compute,
-            CascadeIntervalID,
+            CascadeIntervalId,
             new Vector4(cascade.IntervalStart, cascade.IntervalEnd, 0f, 0f));
-        commandBuffer.SetComputeIntParam(compute, FarCascadeOffsetID, farCascade.Offset);
+        commandBuffer.SetComputeIntParam(compute, FarCascadeOffsetId, farCascade.Offset);
         commandBuffer.SetComputeIntParams(
             compute,
-            FarCascadeProbeSizeID,
+            FarCascadeProbeSizeId,
             farCascade.ProbeWidth,
             farCascade.ProbeHeight);
         commandBuffer.SetComputeIntParam(
             compute,
-            FarCascadeProbeSpacingID,
+            FarCascadeProbeSpacingId,
             farCascade.ProbeSpacing);
         commandBuffer.SetComputeIntParam(
             compute,
-            FarCascadeDirectionCountID,
+            FarCascadeDirectionCountId,
             farCascade.DirectionCount);
         commandBuffer.SetComputeVectorParam(
             compute,
-            FarCascadeIntervalID,
+            FarCascadeIntervalId,
             new Vector4(
                 farCascade.IntervalStart,
                 farCascade.IntervalEnd,
                 0f,
                 0f));
-        commandBuffer.SetComputeIntParam(compute, HasFarCascadeID, hasFarCascade ? 1 : 0);
+        commandBuffer.SetComputeIntParam(compute, HasFarCascadeId, hasFarCascade ? 1 : 0);
     }
 
     public static void BindCascadeDispatch(
@@ -423,21 +423,21 @@ internal static class LightingComputeBinder
     {
         commandBuffer.SetComputeIntParams(
             compute,
-            CascadeDispatchOriginID,
+            CascadeDispatchOriginId,
             originX,
             originY);
         commandBuffer.SetComputeIntParams(
             compute,
-            CascadeDispatchSizeID,
+            CascadeDispatchSizeId,
             width,
             height);
         commandBuffer.SetComputeIntParam(
             compute,
-            CascadeEntryCountID,
+            CascadeEntryCountId,
             checked(width * height * directionCount));
         commandBuffer.SetComputeIntParam(
             compute,
-            CascadeDispatchRowWidthID,
+            CascadeDispatchRowWidthId,
             checked(width * directionCount));
     }
 }

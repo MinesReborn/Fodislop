@@ -70,7 +70,7 @@ public sealed class ServerVfxEvent : IServerWorldEffect
     private readonly VFX _effectType;
     private readonly ushort _sourceX;
     private readonly ushort _sourceY;
-    private readonly ushort _targetBotID;
+    private readonly ushort _targetBotId;
     private readonly IRobotService _robotService;
     private readonly IAssetLoader _assetLoader;
     private readonly MapManager _mapManager;
@@ -137,7 +137,7 @@ public sealed class ServerVfxEvent : IServerWorldEffect
         _effectType = packet.EffectType;
         _sourceX = packet.X;
         _sourceY = packet.Y;
-        _targetBotID = packet.TargetBotId;
+        _targetBotId = packet.TargetBotId;
         _slot = slot;
         _robotService = robotService;
         _assetLoader = assetLoader;
@@ -489,7 +489,7 @@ public sealed class ServerVfxEvent : IServerWorldEffect
         _flightMode = true;
         _maxLifetime = FlightDurationSeconds + LabelLingerSeconds + 1f;
 
-        Debug.Log($"[ServerVfxEvent] Crystal flight: cell {_sourceX}:{_sourceY}, bot {_targetBotID}, " +
+        Debug.Log($"[ServerVfxEvent] Crystal flight: cell {_sourceX}:{_sourceY}, bot {_targetBotId}, " +
                   $"sprite '{(sprite.texture != null ? sprite.texture.name : "?")}', amount {_parsedParams.CrystalCount}, " +
                   $"crystalScale {CrystalScale}.");
 
@@ -807,9 +807,9 @@ public sealed class ServerVfxEvent : IServerWorldEffect
                 }
             }
 
-            if (_targetBotID != 0)
+            if (_targetBotId != 0)
             {
-                var targetBot = _robotService.GetOrCreateRobot(_targetBotID);
+                var targetBot = _robotService.GetOrCreateRobot(_targetBotId);
                 if (targetBot != null)
                 {
                     _effekseerHandle.SetTargetLocation(targetBot.transform.position);
@@ -846,7 +846,7 @@ public sealed class ServerVfxEvent : IServerWorldEffect
 
         if (_parsedParams.HasSourceBot)
         {
-            _sourceBot = _robotService.GetOrCreateRobot(_parsedParams.SourceBotID);
+            _sourceBot = _robotService.GetOrCreateRobot(_parsedParams.SourceBotId);
             pos = _sourceBot != null
                 ? _sourceBot.transform.position
                 : CoordinateUtils.ServerToUnityPos(_sourceX, _sourceY, GetWorldHeight());
@@ -864,9 +864,9 @@ public sealed class ServerVfxEvent : IServerWorldEffect
 
         _intendedWorldPosition = pos;
 
-        if (_targetBotID != 0)
+        if (_targetBotId != 0)
         {
-            _targetBot = _robotService.GetOrCreateRobot(_targetBotID);
+            _targetBot = _robotService.GetOrCreateRobot(_targetBotId);
             if (_targetBot != null && _gameObject != null)
             {
                 // Направленные эффекты разворачиваются по направлению взгляда

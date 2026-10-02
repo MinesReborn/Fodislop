@@ -26,7 +26,7 @@ namespace Kern.UI
         private IInputBlocker _inputBlocker = null!;
         [Inject]
         private ILocalPlayerState _localPlayer = null!;
-        private MinimapUiController? _ui;
+        private MinimapUIController? _ui;
         private RenderTexture? _minimapTexture;
 
         private ILocalPlayer? _player;
@@ -74,7 +74,7 @@ namespace Kern.UI
             };
             _minimapTexture.Create();
 
-            _ui = new MinimapUiController(_doc, _minimapTexture, _textureRenderer.PathOverlay, RequestMinimapMove);
+            _ui = new MinimapUIController(_doc, _minimapTexture, _textureRenderer.PathOverlay, RequestMinimapMove);
             _ui.TryCreate();
             _mapModeState.Changed += OnMapModeChanged;
             SubscribeToLocalPlayerChanges();

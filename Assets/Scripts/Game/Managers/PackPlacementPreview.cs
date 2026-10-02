@@ -43,7 +43,7 @@ public sealed class PackPlacementPreview(
 
     // Лаймовый призрак легаси-клиента, заметно прозрачный: фон читается
     // сквозь подсветку. Порог отсечки батча — 0.003, запас большой.
-    private static readonly Color Tint = new(0.35f, 1f, 0.15f, 0.2f);
+    private static readonly Color s_tint = new(0.35f, 1f, 0.15f, 0.2f);
 
     private readonly List<WorldEntityBatchRenderer.SpriteHandle> _cells = [];
     private readonly List<(int Dx, int Dy)> _footprint = [];
@@ -95,7 +95,7 @@ public sealed class PackPlacementPreview(
 
             WorldEntityBatchRenderer.SpriteHandle cell = _cells[used++];
             cell.Transform.position = CoordinateUtils.ServerToUnityPos(x, y, worldHeight);
-            cell.SetColor(Tint);
+            cell.SetColor(s_tint);
             cell.SetEnabled(true);
         }
 

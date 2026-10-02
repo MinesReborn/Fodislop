@@ -57,7 +57,7 @@ public sealed class FrameBenchmarkPlayModeTests
     private const int MeasuredFrames = 300;
     private const string TestDummyToken = "playmode-benchmark-token";
 
-    private static readonly string[] _Markers =
+    private static readonly string[] s_markers =
     [
         "PlayerLoop",
         "Kern.Terrain.LateUpdate.CPU",
@@ -75,7 +75,7 @@ public sealed class FrameBenchmarkPlayModeTests
     // These are existing production CommandBuffer GPU scopes, not CPU helpers.
     // Each marker is reported independently: several scopes are nested and must
     // not be summed into a fictitious total.
-    private static readonly string[] _GpuStageMarkers =
+    private static readonly string[] s_GPUStageMarkers =
     [
         "Kern.Terrain.RenderMaterialFields",
         "Kern.Terrain.RenderAmbientOcclusionField",
@@ -101,10 +101,10 @@ public sealed class FrameBenchmarkPlayModeTests
         "Kern.PostProcess.Bloom.Add",
     ];
 
-    private static readonly FrameTiming[] _FrameTimingBuffer = new FrameTiming[1];
+    private static readonly FrameTiming[] s_frameTimingBuffer = new FrameTiming[1];
 
     private sealed class RecorderLifetime(
-        List<(string Name, bool IsGpuStage, ProfilerRecorder Recorder)> cpu,
+        List<(string Name, bool IsGPUStage, ProfilerRecorder Recorder)> cpu,
         List<(string Name, ProfilerRecorder Recorder)> gpu) : IDisposable
     {
         public void Dispose()
@@ -148,7 +148,7 @@ public sealed class FrameBenchmarkPlayModeTests
         public readonly float TerrainMesh = telemetry.TerrainMeshTimeMs;
         public readonly float TerrainCache = telemetry.TerrainCacheTimeMs;
         public readonly float TerrainFloodFill = telemetry.TerrainFloodFillTimeMs;
-        public readonly float TerrainGpuUpload = telemetry.TerrainGpuUploadTimeMs;
+        public readonly float TerrainGPUUpload = telemetry.TerrainGPUUploadTimeMs;
         public readonly float TerrainAtlasUpload = telemetry.TerrainAtlasUploadTimeMs;
         public readonly float LightingBuildCommands = telemetry.LightingBuildCommandsTimeMs;
         public readonly float LightingExecuteCommands = telemetry.LightingExecuteCommandsTimeMs;
@@ -280,7 +280,7 @@ public sealed class FrameBenchmarkPlayModeTests
                 terrainMesh = TerrainMesh,
                 terrainCache = TerrainCache,
                 terrainFloodFill = TerrainFloodFill,
-                terrainGpuUpload = TerrainGpuUpload,
+                terrainGPUUpload = TerrainGPUUpload,
                 terrainAtlasUpload = TerrainAtlasUpload,
                 lightingBuildCommands = LightingBuildCommands,
                 lightingExecuteCommands = LightingExecuteCommands,
@@ -299,8 +299,8 @@ public sealed class FrameBenchmarkPlayModeTests
         public readonly string CapturedAtUtc = DateTime.UtcNow.ToString("O");
         public readonly int Width = (renderingCamera ?? ResolveInScene<IGameplayCamera>(SceneManager.GetSceneByName("MainGame")).Camera).pixelWidth;
         public readonly int Height = (renderingCamera ?? ResolveInScene<IGameplayCamera>(SceneManager.GetSceneByName("MainGame")).Camera).pixelHeight;
-        public readonly int NativeUiWidth = Screen.width;
-        public readonly int NativeUiHeight = Screen.height;
+        public readonly int NativeUIWidth = Screen.width;
+        public readonly int NativeUIHeight = Screen.height;
         public readonly CaptureSample[] Samples = new CaptureSample[count];
         public readonly FrameTiming[] TimingObservations = new FrameTiming[count];
         public int TimingObservationCount;
@@ -345,7 +345,7 @@ public sealed class FrameBenchmarkPlayModeTests
                         height = Height,
                         qualityProfile = QualityProfile,
                     },
-                    observationEvidence = $"Coroutine observes previous frame before Terrain.LateUpdate; producer reset frame stamp and lifecycle validity exported; stamp alignment alone does not establish output commit/readiness or timing precision. Production output {Width}x{Height}; native UI {NativeUiWidth}x{NativeUiHeight}.",
+                    observationEvidence = $"Coroutine observes previous frame before Terrain.LateUpdate; producer reset frame stamp and lifecycle validity exported; stamp alignment alone does not establish output commit/readiness or timing precision. Production output {Width}x{Height}; native UI {NativeUIWidth}x{NativeUIHeight}.",
                     visualCoverage = (bool?)null,
                     visualEvidence = (string?)null,
                 unavailableMetrics = new Dictionary<string, string>
@@ -416,23 +416,23 @@ public sealed class FrameBenchmarkPlayModeTests
         public readonly double P95Ms;
         public readonly double P99Ms;
         public readonly double MaxMs;
-        public readonly double CpuFrameP50Ms;
-        public readonly double CpuMainThreadP50Ms;
-        public readonly double CpuRenderThreadP50Ms;
+        public readonly double CPUFrameP50Ms;
+        public readonly double CPUMainThreadP50Ms;
+        public readonly double CPURenderThreadP50Ms;
         public readonly int FrameTimingSampleCount;
-        public readonly double GpuP50Ms;
-        public readonly int GpuSampleCount;
+        public readonly double GPUP50Ms;
+        public readonly int GPUSampleCount;
         public readonly Dictionary<string, double> Markers;
-        public readonly Dictionary<string, double> GpuStageMarkers;
-        public readonly Dictionary<string, int> GpuStageMarkerSampleCounts;
-        public readonly Dictionary<string, double> PostprocessGpuTimes;
-        public readonly Dictionary<string, int> PostprocessGpuCounts;
+        public readonly Dictionary<string, double> GPUStageMarkers;
+        public readonly Dictionary<string, int> GPUStageMarkerSampleCounts;
+        public readonly Dictionary<string, double> PostprocessGPUTimes;
+        public readonly Dictionary<string, int> PostprocessGPUCounts;
 
         public Result(string scenario, double meanMs, double p50Ms, double p95Ms, double p99Ms, double maxMs,
             double cpuFrameP50Ms, double cpuMainThreadP50Ms, double cpuRenderThreadP50Ms,
             int frameTimingSampleCount, double gpuP50Ms, int gpuSampleCount, Dictionary<string, double> markers,
             Dictionary<string, double> gpuStageMarkers, Dictionary<string, int> gpuStageMarkerSampleCounts,
-            Dictionary<string, double> postprocessGpuTimes, Dictionary<string, int> postprocessGpuCounts)
+            Dictionary<string, double> postprocessGPUTimes, Dictionary<string, int> postprocessGPUCounts)
         {
             Scenario = scenario;
             MeanMs = meanMs;
@@ -440,17 +440,17 @@ public sealed class FrameBenchmarkPlayModeTests
             P95Ms = p95Ms;
             P99Ms = p99Ms;
             MaxMs = maxMs;
-            CpuFrameP50Ms = cpuFrameP50Ms;
-            CpuMainThreadP50Ms = cpuMainThreadP50Ms;
-            CpuRenderThreadP50Ms = cpuRenderThreadP50Ms;
+            CPUFrameP50Ms = cpuFrameP50Ms;
+            CPUMainThreadP50Ms = cpuMainThreadP50Ms;
+            CPURenderThreadP50Ms = cpuRenderThreadP50Ms;
             FrameTimingSampleCount = frameTimingSampleCount;
-            GpuP50Ms = gpuP50Ms;
-            GpuSampleCount = gpuSampleCount;
+            GPUP50Ms = gpuP50Ms;
+            GPUSampleCount = gpuSampleCount;
             Markers = markers;
-            GpuStageMarkers = gpuStageMarkers;
-            GpuStageMarkerSampleCounts = gpuStageMarkerSampleCounts;
-            PostprocessGpuTimes = postprocessGpuTimes;
-            PostprocessGpuCounts = postprocessGpuCounts;
+            GPUStageMarkers = gpuStageMarkers;
+            GPUStageMarkerSampleCounts = gpuStageMarkerSampleCounts;
+            PostprocessGPUTimes = postprocessGPUTimes;
+            PostprocessGPUCounts = postprocessGPUCounts;
         }
     }
 
@@ -546,7 +546,6 @@ public sealed class FrameBenchmarkPlayModeTests
         bool originalFollow = follow.enabled;
         bool originalDither = data.dithering;
         bool originalBypass = PostProcessRuntimeState.BypassPostProcessEffects;
-        bool originalLegacy = PostProcessRuntimeState.DiagnosticLegacyBloom;
         PostProcessDebugView originalDebugView = PostProcessRuntimeState.DebugView;
         float originalZoom = camera.orthographicSize;
         float originalAspect = camera.aspect;
@@ -639,7 +638,6 @@ public sealed class FrameBenchmarkPlayModeTests
             Time.timeScale = 0f;
             PostProcessRuntimeState.DiagnosticOffscreenCamera = camera;
             PostProcessRuntimeState.BypassPostProcessEffects = false;
-            PostProcessRuntimeState.DiagnosticLegacyBloom = false;
             yield return Skip(30);
             float[] originalEmission = [];
             bool emissionRead = false;
@@ -864,7 +862,6 @@ public sealed class FrameBenchmarkPlayModeTests
             Time.timeScale = originalTime;
             PostProcessRuntimeState.DiagnosticOffscreenCamera = originalDiagnostic;
             PostProcessRuntimeState.BypassPostProcessEffects = originalBypass;
-            PostProcessRuntimeState.DiagnosticLegacyBloom = originalLegacy;
             screenCamera.cullingMask = screenMask;
             Object.Destroy(diagnosticObject);
             Object.Destroy(fixture);
@@ -942,7 +939,6 @@ public sealed class FrameBenchmarkPlayModeTests
         RenderTexture? originalTarget = camera.targetTexture;
         Camera? originalDiagnostic = PostProcessRuntimeState.DiagnosticOffscreenCamera;
         bool originalFollow = follow.enabled;
-        bool originalLegacy = PostProcessRuntimeState.DiagnosticLegacyBloom;
         bool originalFull = PostProcessRuntimeState.DiagnosticFullResolutionWorld;
         bool originalDense = LightingUpdateCoordinator.DiagnosticForceDenseReanchor;
         bool originalBypass = PostProcessRuntimeState.BypassPostProcessEffects;
@@ -1015,7 +1011,6 @@ public sealed class FrameBenchmarkPlayModeTests
                             {
                                 bool reference = (order + repetition) % 2 == 0;
                                 PostProcessRuntimeState.DiagnosticFullResolutionWorld = reference;
-                                PostProcessRuntimeState.DiagnosticLegacyBloom = reference;
                                 LightingUpdateCoordinator.DiagnosticForceDenseReanchor = reference;
                                 post.BloomIntensity = 1f;
                                 camera.transform.position = origin;
@@ -1044,7 +1039,6 @@ public sealed class FrameBenchmarkPlayModeTests
                 }
                 // Same normal-zoom stationary dense scene, bloom off/on cost.
                 PostProcessRuntimeState.DiagnosticFullResolutionWorld = false;
-                PostProcessRuntimeState.DiagnosticLegacyBloom = false;
                 LightingUpdateCoordinator.DiagnosticForceDenseReanchor = false;
                 camera.orthographicSize = originalZoom;
                 camera.transform.position = origin;
@@ -1074,7 +1068,6 @@ public sealed class FrameBenchmarkPlayModeTests
             follow.enabled = originalFollow;
             post.BloomIntensity = originalBloom;
             PostProcessRuntimeState.DiagnosticOffscreenCamera = originalDiagnostic;
-            PostProcessRuntimeState.DiagnosticLegacyBloom = originalLegacy;
             PostProcessRuntimeState.DiagnosticFullResolutionWorld = originalFull;
             PostProcessRuntimeState.BypassPostProcessEffects = originalBypass;
             LightingUpdateCoordinator.DiagnosticForceDenseReanchor = originalDense;
@@ -1445,7 +1438,6 @@ public sealed class FrameBenchmarkPlayModeTests
             Assert.That(artisticBlockError, Is.LessThanOrEqualTo(0.002f), "Artistic post processing breaks the world lattice.");
             PostProcessRendererFeature feature = Resources.FindObjectsOfTypeAll<PostProcessRendererFeature>()
                 .Single(item => item.RendersCamera(camera));
-            Assert.That(PostProcessRuntimeState.DiagnosticLegacyBloom, Is.False, "Oracle must use production bloom.");
             PostProcessWorkloadSnapshot work = feature.SceneWorkload
                 ?? throw new InvalidOperationException("Production bloom did not publish its workload.");
             Assert.That(work.FrameId, Is.GreaterThanOrEqualTo(Time.frameCount - 2));
@@ -2105,8 +2097,8 @@ public sealed class FrameBenchmarkPlayModeTests
                 scope = "Production world/lighting/postprocess transport comparison; native UI is measured separately",
                 outputWidth = outputCamera.pixelWidth,
                 outputHeight = outputCamera.pixelHeight,
-                nativeUiWidth = Screen.width,
-                nativeUiHeight = Screen.height,
+                nativeUIWidth = Screen.width,
+                nativeUIHeight = Screen.height,
                 warmupFrames = WarmupFrames,
                 measuredFrames = MeasuredFrames,
                 sourceCount,
@@ -2204,7 +2196,7 @@ public sealed class FrameBenchmarkPlayModeTests
         IRuntimeDebugSettings debug = ResolveInScene<IRuntimeDebugSettings>(game);
         bool originalLightingBypass = debug.BypassLightingCompute;
         bool originalTerrainDrawBypass = debug.BypassTerrainDraw;
-        bool originalCpuMeshRebuildBypass = debug.BypassCpuMeshRebuild;
+        bool originalCPUMeshRebuildBypass = debug.BypassCPUMeshRebuild;
         var results = new List<Result>();
         IFrameTelemetry telemetry = ResolveInScene<IFrameTelemetry>(game);
         var captures = new List<CaptureWindow>();
@@ -2216,7 +2208,7 @@ public sealed class FrameBenchmarkPlayModeTests
             Shader.SetGlobalInt(benchmarkStageId, 0);
             debug.BypassLightingCompute = false;
             debug.BypassTerrainDraw = false;
-            debug.BypassCpuMeshRebuild = false;
+            debug.BypassCPUMeshRebuild = false;
             yield return Skip(WarmupFrames);
             yield return Measure("всё включено", results, telemetry, captures, "observational/all-enabled");
             yield return MeasurePostProcessing(camera, cameraFollow, telemetry, results, captures);
@@ -2303,7 +2295,7 @@ public sealed class FrameBenchmarkPlayModeTests
             yield return Skip(WarmupFrames);
             yield return Measure("всё включено (повтор)", results, telemetry, captures, "observational/all-enabled-repeat");
 
-            debug.BypassCpuMeshRebuild = true;
+            debug.BypassCPUMeshRebuild = true;
             yield return Skip(30);
             yield return Measure("без пересборки террейна", results, telemetry, captures, "diagnostic/terrain-build-bypass");
 
@@ -2330,7 +2322,7 @@ public sealed class FrameBenchmarkPlayModeTests
             cameraFollow.enabled = cameraFollowWasEnabled;
             debug.BypassLightingCompute = originalLightingBypass;
             debug.BypassTerrainDraw = originalTerrainDrawBypass;
-            debug.BypassCpuMeshRebuild = originalCpuMeshRebuildBypass;
+            debug.BypassCPUMeshRebuild = originalCPUMeshRebuildBypass;
         }
     }
 
@@ -2342,8 +2334,6 @@ public sealed class FrameBenchmarkPlayModeTests
         bool originalBypass = PostProcessRuntimeState.BypassPostProcessEffects;
         bool originalSkip = PostProcessRuntimeState.SkipPasses;
         bool originalTemporary = PostProcessRuntimeState.TemporaryBypass;
-        bool originalUnfusedBloom = PostProcessRuntimeState.DiagnosticUnfusedBloom;
-        bool originalLegacyBloom = PostProcessRuntimeState.DiagnosticLegacyBloom;
         GameObject fixture = ResolveInScene<ISceneObjectFactory>(SceneManager.GetSceneByName("MainGame"))
             .Create("FrameBenchmarkPostProcessOverrides");
         int mask = cameraData.volumeLayerMask.value;
@@ -2380,29 +2370,6 @@ public sealed class FrameBenchmarkPlayModeTests
             vignette.intensity.value = PostProcessLook.Vignette.Intensity;
             eigengrau.intensity.value = PostProcessLook.FilmGrain.Intensity;
             cameraData.renderPostProcessing = true;
-            PostProcessRuntimeState.DiagnosticLegacyBloom = true;
-            yield return VerifyBloomCameraImage(camera, cameraFollow, eigengrau);
-            int bloomLevels = 0;
-            int smallestSide = Mathf.Min(camera.pixelWidth, camera.pixelHeight) / 2;
-            while (bloomLevels < 4 && (smallestSide >> (bloomLevels + 1)) >= 8)
-            {
-                bloomLevels++;
-            }
-
-            foreach (bool unfused in new[] { true, false, false, true, true, false })
-            {
-                PostProcessRuntimeState.DiagnosticUnfusedBloom = unfused;
-                yield return Skip(60);
-                Assert.That(PostProcessRuntimeState.DiagnosticBloomFrame,
-                    Is.GreaterThanOrEqualTo(Time.frameCount - 2));
-                Assert.That(PostProcessRuntimeState.DiagnosticBloomDispatches, Is.EqualTo(2 * bloomLevels + (unfused ? 2 : 1)),
-                    "Unexpected bloom dispatch count at benchmark resolution.");
-                yield return Measure($"bloom fusion: {(unfused ? "reference" : "fused")}",
-                    results, telemetry, captures, unfused ? "diagnostic/bloom-reference" : "diagnostic/bloom-fused");
-            }
-
-            PostProcessRuntimeState.DiagnosticUnfusedBloom = false;
-            PostProcessRuntimeState.DiagnosticLegacyBloom = false;
             // Author intensities, fixed between windows; all other settings are inherited.
             foreach (int effects in new[] { 7, 6, 5, 3, 1, 2, 4, 0, 7 })
             {
@@ -2441,8 +2408,6 @@ public sealed class FrameBenchmarkPlayModeTests
             PostProcessRuntimeState.BypassPostProcessEffects = originalBypass;
             PostProcessRuntimeState.SkipPasses = originalSkip;
             PostProcessRuntimeState.TemporaryBypass = originalTemporary;
-            PostProcessRuntimeState.DiagnosticUnfusedBloom = originalUnfusedBloom;
-            PostProcessRuntimeState.DiagnosticLegacyBloom = originalLegacyBloom;
             Object.Destroy(fixture);
             foreach (VolumeComponent component in profile.components)
             {
@@ -2455,112 +2420,7 @@ public sealed class FrameBenchmarkPlayModeTests
         yield return Skip(60);
     }
 
-    private static IEnumerator VerifyBloomCameraImage(Camera camera, CameraFollow follow, EigengrauComponent eigengrau)
-    {
-        using var diagnosticCamera = new DiagnosticCameraScope(camera,
-            ResolveInScene<ISceneObjectFactory>(SceneManager.GetSceneByName("MainGame")));
-        camera = diagnosticCamera.Camera;
-        RenderTexture? originalTarget = camera.targetTexture;
-        RenderTexture? ownedTarget = null;
-        if (originalTarget == null)
-        {
-            ownedTarget = new RenderTexture(camera.pixelWidth, camera.pixelHeight, 24, RenderTextureFormat.ARGBHalf)
-            {
-                name = "BloomProductionImageOracleTarget",
-            };
-            Assert.That(ownedTarget.Create(), Is.True);
-            camera.targetTexture = ownedTarget;
-            camera.enabled = true;
-        }
 
-        RenderTexture target = camera.targetTexture;
-        float originalTimeScale = Time.timeScale;
-        float originalEigengrau = eigengrau.intensity.value;
-        bool originalReference = PostProcessRuntimeState.DiagnosticUnfusedBloom;
-        UniversalAdditionalCameraData cameraData = camera.GetUniversalAdditionalCameraData();
-        bool originalDithering = cameraData.dithering;
-        bool originalFollowEnabled = follow.enabled;
-        Vector3 originalCameraPosition = camera.transform.position;
-        Texture2D readback = RuntimeTextureFactory.CreateRGBAHalfNoMip(target.width, target.height,
-            "BloomProductionCameraReadback", RuntimeTextureColorSpace.Linear, FilterMode.Point, TextureWrapMode.Clamp);
-        try
-        {
-            // Freeze animation inputs, not lighting execution. Frame-index grain must
-            // be disabled only for the image oracle; timing windows keep it enabled.
-            Time.timeScale = 0f;
-            follow.enabled = false;
-            eigengrau.intensity.value = 0f;
-            // ConfigureCamera enables URP blue-noise dithering; its texture/index
-            // and random offset change even when Time.time is frozen. Disable it
-            // only for the deterministic image comparison, never timing windows.
-            cameraData.dithering = false;
-            Color[][] images = new Color[3][];
-            for (int pass = 0; pass < images.Length; pass++)
-            {
-                PostProcessRuntimeState.DiagnosticUnfusedBloom = pass != 1;
-                yield return Skip(30);
-                Assert.That(cameraData.dithering, Is.False, "Image oracle dithering was re-enabled.");
-                Assert.That(PostProcessRuntimeState.DiagnosticSceneFrame,
-                    Is.GreaterThanOrEqualTo(Time.frameCount - 2));
-                RenderTexture previous = RenderTexture.active;
-                try
-                {
-                    RenderTexture.active = target;
-                    readback.ReadPixels(new Rect(0, 0, target.width, target.height), 0, 0);
-                    readback.Apply();
-                    images[pass] = readback.GetPixels();
-                }
-                finally
-                {
-                    RenderTexture.active = previous;
-                }
-            }
-
-            float baselineDifference = 0f;
-            float fusionDifference = 0f;
-            int baselinePixel = 0;
-            int baselineChannel = 0;
-            for (int pixel = 0; pixel < images[0].Length; pixel++)
-            {
-                for (int channel = 0; channel < 4; channel++)
-                {
-                    float reference = images[0][pixel][channel];
-                    float fused = images[1][pixel][channel];
-                    if (float.IsNaN(fused) || float.IsInfinity(fused))
-                    {
-                        Assert.Fail($"Non-finite bloom camera pixel {pixel}, channel {channel}");
-                    }
-                    float delta = Mathf.Abs(reference - images[2][pixel][channel]);
-                    if (delta > baselineDifference)
-                    {
-                        baselineDifference = delta;
-                        baselinePixel = pixel;
-                        baselineChannel = channel;
-                    }
-                    fusionDifference = Mathf.Max(fusionDifference, Mathf.Abs(reference - fused));
-                }
-            }
-
-            TestContext.WriteLine($"Production bloom image: baseline max difference={baselineDifference:R}, fusion={fusionDifference:R}, baseline coordinate=({baselinePixel % target.width},{baselinePixel / target.width}), channel={baselineChannel}, camera delta={(camera.transform.position - originalCameraPosition).magnitude:R}, shaderTime={Shader.GetGlobalVector("_Time").y:R}, time={Time.time:R}");
-            Assert.That(baselineDifference, Is.LessThanOrEqualTo(0.002f), "Image oracle inputs changed between reference frames.");
-            Assert.That(fusionDifference, Is.LessThanOrEqualTo(0.01f), "Bloom fusion changed the production camera image.");
-        }
-        finally
-        {
-            Time.timeScale = originalTimeScale;
-            follow.enabled = originalFollowEnabled;
-            cameraData.dithering = originalDithering;
-            eigengrau.intensity.value = originalEigengrau;
-            PostProcessRuntimeState.DiagnosticUnfusedBloom = originalReference;
-            Object.Destroy(readback);
-            if (ownedTarget != null)
-            {
-                camera.targetTexture = originalTarget;
-                ownedTarget.Release();
-                Object.Destroy(ownedTarget);
-            }
-        }
-    }
 
     private static IEnumerator MeasureBypassCombination(
         string scenario,
@@ -2592,17 +2452,17 @@ public sealed class FrameBenchmarkPlayModeTests
         // LastValue observes the completed frame, like CaptureSample.FrameId.
         using var allocationRecorder = ProfilerRecorder.StartNew(
             ProfilerCategory.Memory, "GC Allocated In Frame");
-        var recorders = new List<(string Name, bool IsGpuStage, ProfilerRecorder Recorder)>();
+        var recorders = new List<(string Name, bool IsGPUStage, ProfilerRecorder Recorder)>();
         var gpuRecorders = new List<(string Name, ProfilerRecorder Recorder)>();
         using var recorderLifetime = new RecorderLifetime(recorders, gpuRecorders);
-        foreach (string marker in _GpuStageMarkers)
+        foreach (string marker in s_GPUStageMarkers)
         {
             gpuRecorders.Add((marker, new ProfilerRecorder(ProfilerCategory.Render, marker, MeasuredFrames,
                 ProfilerRecorderOptions.StartImmediately | ProfilerRecorderOptions.SumAllSamplesInFrame |
                 ProfilerRecorderOptions.WrapAroundWhenCapacityReached | ProfilerRecorderOptions.GpuRecorder)));
         }
-        foreach ((string marker, bool isGpuStage) in _Markers.Select(name => (name, false))
-                     .Concat(_GpuStageMarkers.Select(name => (name, true))))
+        foreach ((string marker, bool isGPUStage) in s_markers.Select(name => (name, false))
+                     .Concat(s_GPUStageMarkers.Select(name => (name, true))))
         {
             // Маркеры из разных категорий: конструктор по имени ищет во всех.
             var recorder = new ProfilerRecorder(
@@ -2610,7 +2470,7 @@ public sealed class FrameBenchmarkPlayModeTests
                 MeasuredFrames,
                 ProfilerRecorderOptions.StartImmediately | ProfilerRecorderOptions.SumAllSamplesInFrame |
                 ProfilerRecorderOptions.WrapAroundWhenCapacityReached);
-            recorders.Add((marker, isGpuStage, recorder));
+            recorders.Add((marker, isGPUStage, recorder));
         }
 
         var frameMs = new double[MeasuredFrames];
@@ -2624,9 +2484,9 @@ public sealed class FrameBenchmarkPlayModeTests
         if (gpuTimingSupported)
         {
             FrameTimingManager.CaptureFrameTimings();
-            if (FrameTimingManager.GetLatestTimings(1, _FrameTimingBuffer) > 0)
+            if (FrameTimingManager.GetLatestTimings(1, s_frameTimingBuffer) > 0)
             {
-                lastFrameTimingTimestamp = _FrameTimingBuffer[0].frameStartTimestamp;
+                lastFrameTimingTimestamp = s_frameTimingBuffer[0].frameStartTimestamp;
                 hasFrameTimingTimestamp = true;
             }
         }
@@ -2661,8 +2521,6 @@ public sealed class FrameBenchmarkPlayModeTests
                     eigengrauIntensity = VolumeManager.instance.stack.GetComponent<EigengrauComponent>().intensity.value,
                     PostProcessRuntimeState.SkipPasses,
                     PostProcessRuntimeState.BypassPostProcessEffects,
-                    PostProcessRuntimeState.DiagnosticUnfusedBloom,
-                    PostProcessRuntimeState.DiagnosticLegacyBloom,
                     PostProcessRuntimeState.DiagnosticFullResolutionWorld,
                 },
             });
@@ -2675,9 +2533,9 @@ public sealed class FrameBenchmarkPlayModeTests
             if (gpuTimingSupported)
             {
                 FrameTimingManager.CaptureFrameTimings();
-                if (FrameTimingManager.GetLatestTimings(1, _FrameTimingBuffer) > 0)
+                if (FrameTimingManager.GetLatestTimings(1, s_frameTimingBuffer) > 0)
                 {
-                    FrameTiming timing = _FrameTimingBuffer[0];
+                    FrameTiming timing = s_frameTimingBuffer[0];
                     if (!hasFrameTimingTimestamp || timing.frameStartTimestamp != lastFrameTimingTimestamp)
                     {
                         if (capture is not null)
@@ -2741,8 +2599,8 @@ public sealed class FrameBenchmarkPlayModeTests
         }
 
         var markers = new Dictionary<string, double>();
-        var postprocessGpuTimes = new Dictionary<string, double>();
-        var postprocessGpuCounts = new Dictionary<string, int>();
+        var postprocessGPUTimes = new Dictionary<string, double>();
+        var postprocessGPUCounts = new Dictionary<string, int>();
         foreach ((string name, ProfilerRecorder recorder) in gpuRecorders)
         {
             var measured = new List<double>();
@@ -2764,15 +2622,15 @@ public sealed class FrameBenchmarkPlayModeTests
             if (measured.Count > 0)
             {
                 measured.Sort();
-                postprocessGpuTimes[name] = measured[measured.Count / 2];
-                postprocessGpuCounts[name] = measured.Count;
+                postprocessGPUTimes[name] = measured[measured.Count / 2];
+                postprocessGPUCounts[name] = measured.Count;
             }
 
             recorder.Dispose();
         }
         var gpuStageMarkers = new Dictionary<string, double>();
         var gpuStageMarkerSampleCounts = new Dictionary<string, int>();
-        foreach ((string name, bool isGpuStage, ProfilerRecorder recorder) in recorders)
+        foreach ((string name, bool isGPUStage, ProfilerRecorder recorder) in recorders)
         {
             if (recorder.Valid)
             {
@@ -2786,7 +2644,7 @@ public sealed class FrameBenchmarkPlayModeTests
                     sum += observation.Value;
                 }
 
-                if (observations.Count > 0 && isGpuStage)
+                if (observations.Count > 0 && isGPUStage)
                 {
                     gpuStageMarkers[name] = sum / observations.Count * 1e-6;
                     gpuStageMarkerSampleCounts[name] = observations.Count;
@@ -2801,10 +2659,10 @@ public sealed class FrameBenchmarkPlayModeTests
         }
 
         double[] sorted = frameMs.OrderBy(value => value).ToArray();
-        double[] sortedCpuFrame = cpuFrameMs.OrderBy(value => value).ToArray();
-        double[] sortedCpuMainThread = cpuMainThreadMs.OrderBy(value => value).ToArray();
-        double[] sortedCpuRenderThread = cpuRenderThreadMs.OrderBy(value => value).ToArray();
-        double[] sortedGpu = gpuFrameMs.OrderBy(value => value).ToArray();
+        double[] sortedCPUFrame = cpuFrameMs.OrderBy(value => value).ToArray();
+        double[] sortedCPUMainThread = cpuMainThreadMs.OrderBy(value => value).ToArray();
+        double[] sortedCPURenderThread = cpuRenderThreadMs.OrderBy(value => value).ToArray();
+        double[] sortedGPU = gpuFrameMs.OrderBy(value => value).ToArray();
         results.Add(new Result(
             scenario,
             frameMs.Average(),
@@ -2812,17 +2670,17 @@ public sealed class FrameBenchmarkPlayModeTests
             Percentile(sorted, 0.95),
             Percentile(sorted, 0.99),
             sorted[^1],
-            sortedCpuFrame.Length > 0 ? Percentile(sortedCpuFrame, 0.50) : 0,
-            sortedCpuMainThread.Length > 0 ? Percentile(sortedCpuMainThread, 0.50) : 0,
-            sortedCpuRenderThread.Length > 0 ? Percentile(sortedCpuRenderThread, 0.50) : 0,
-            sortedCpuFrame.Length,
-            sortedGpu.Length > 0 ? Percentile(sortedGpu, 0.50) : 0,
-            sortedGpu.Length,
+            sortedCPUFrame.Length > 0 ? Percentile(sortedCPUFrame, 0.50) : 0,
+            sortedCPUMainThread.Length > 0 ? Percentile(sortedCPUMainThread, 0.50) : 0,
+            sortedCPURenderThread.Length > 0 ? Percentile(sortedCPURenderThread, 0.50) : 0,
+            sortedCPUFrame.Length,
+            sortedGPU.Length > 0 ? Percentile(sortedGPU, 0.50) : 0,
+            sortedGPU.Length,
             markers,
             gpuStageMarkers,
             gpuStageMarkerSampleCounts,
-            postprocessGpuTimes,
-            postprocessGpuCounts));
+            postprocessGPUTimes,
+            postprocessGPUCounts));
     }
 
     private static PostProcessWorkloadSnapshot? CorrelatedWork(PostProcessWorkloadSnapshot? snapshot)
@@ -2856,7 +2714,7 @@ public sealed class FrameBenchmarkPlayModeTests
             dispatchedThreads = work.DispatchedThreads,
             textureCount = work.TextureCount,
             texturePayloadBytes = work.TexturePayloadBytes,
-            cpuRecordingMs = work.CpuRecordingMs,
+            cpuRecordingMs = work.CPURecordingMs,
             gpuMs = (double?)null,
         };
     }
@@ -2868,7 +2726,7 @@ public sealed class FrameBenchmarkPlayModeTests
             .Append(", render ").Append(captures[0].Width).Append('×').Append(captures[0].Height)
             .Append(", ").Append(SystemInfo.graphicsDeviceType)
             .Append(Application.isEditor ? ", редактор" : ", сборка").AppendLine()
-            .Append("Native UI: ").Append(captures[0].NativeUiWidth).Append('×').Append(captures[0].NativeUiHeight).AppendLine()
+            .Append("Native UI: ").Append(captures[0].NativeUIWidth).Append('×').Append(captures[0].NativeUIHeight).AppendLine()
             .Append("Окно: ").Append(MeasuredFrames).AppendLine(" кадров на сценарий").AppendLine();
 
         foreach (Result result in results)
@@ -2881,14 +2739,14 @@ public sealed class FrameBenchmarkPlayModeTests
                 .Append(result.MaxMs.ToString("F2"));
             if (result.FrameTimingSampleCount > 0)
             {
-                report.Append(", FrameTiming p50 CPU ").Append(result.CpuFrameP50Ms.ToString("F2"))
-                    .Append(" мс (main ").Append(result.CpuMainThreadP50Ms.ToString("F2"))
-                    .Append(", render ").Append(result.CpuRenderThreadP50Ms.ToString("F2"))
+                report.Append(", FrameTiming p50 CPU ").Append(result.CPUFrameP50Ms.ToString("F2"))
+                    .Append(" мс (main ").Append(result.CPUMainThreadP50Ms.ToString("F2"))
+                    .Append(", render ").Append(result.CPURenderThreadP50Ms.ToString("F2"))
                     .Append("), GPU ");
-                if (result.GpuSampleCount > 0)
+                if (result.GPUSampleCount > 0)
                 {
-                    report.Append("p50 ").Append(result.GpuP50Ms.ToString("F2"))
-                        .Append(" мс (уникальных кадров ").Append(result.GpuSampleCount).Append(')');
+                    report.Append("p50 ").Append(result.GPUP50Ms.ToString("F2"))
+                        .Append(" мс (уникальных кадров ").Append(result.GPUSampleCount).Append(')');
                 }
                 else
                 {
@@ -2909,12 +2767,12 @@ public sealed class FrameBenchmarkPlayModeTests
             }
 
             report.AppendLine("GPU recorder timings (production scopes; delayed window samples, not frame-correlated):");
-            foreach (string stage in _GpuStageMarkers)
+            foreach (string stage in s_GPUStageMarkers)
             {
-                if (result.PostprocessGpuTimes.TryGetValue(stage, out double time))
+                if (result.PostprocessGPUTimes.TryGetValue(stage, out double time))
                 {
                     report.Append("  ").Append(time.ToString("F3")).Append(" ms GPU p50, ")
-                        .Append(result.PostprocessGpuCounts[stage]).Append(" observations  ").AppendLine(stage);
+                        .Append(result.PostprocessGPUCounts[stage]).Append(" observations  ").AppendLine(stage);
                 }
                 else
                 {
@@ -2923,12 +2781,12 @@ public sealed class FrameBenchmarkPlayModeTests
             }
 
             report.AppendLine("Command-buffer profiler scopes (CPU observations; nested values are not additive):");
-            foreach (string stage in _GpuStageMarkers)
+            foreach (string stage in s_GPUStageMarkers)
             {
-                if (result.GpuStageMarkers.TryGetValue(stage, out double stageMs))
+                if (result.GPUStageMarkers.TryGetValue(stage, out double stageMs))
                 {
                     report.Append("  ").Append(stageMs.ToString("F3")).Append(" ms average over ")
-                        .Append(result.GpuStageMarkerSampleCounts[stage]).Append(" marker samples  ")
+                        .Append(result.GPUStageMarkerSampleCounts[stage]).Append(" marker samples  ")
                         .AppendLine(stage);
                 }
                 else

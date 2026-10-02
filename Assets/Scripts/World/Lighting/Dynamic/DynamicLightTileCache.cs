@@ -49,8 +49,8 @@ internal sealed class DynamicLightTileCache
     // does not reallocate the atlas.
     private const int TileQuantum = 64;
 
-    private readonly Dictionary<int, int> _slotByLightID = new();
-    private int[] _lightIDBySlot = Array.Empty<int>();
+    private readonly Dictionary<int, int> _slotByLightId = new();
+    private int[] _lightIdBySlot = Array.Empty<int>();
     private bool[] _slotInUse = Array.Empty<bool>();
     private int[] _slotSeenFrame = Array.Empty<int>();
     private bool[] _slotValid = Array.Empty<bool>();
@@ -235,7 +235,7 @@ internal sealed class DynamicLightTileCache
         // Validate tiles and the immediately following ray allocation together.
         // Old GPU generations may still be resident; do not subtract them.
         MemoryAllocationGuard.Require("Dynamic light cache generation", checked(tileBytes + polarBytes));
-        ReleaseGpuResources();
+        ReleaseGPUResources();
         if (capacity < Capacity)
         {
             // A quarter-capacity shrink already invalidates/remaps every
@@ -267,8 +267,8 @@ internal sealed class DynamicLightTileCache
         // The old ID -> slot map is invalid as well: a shrink can remove slots
         // that were still referenced by the dictionary, and the next solve
         // would index the newly smaller arrays with those stale values.
-        _slotByLightID.Clear();
-        Array.Resize(ref _lightIDBySlot, capacity);
+        _slotByLightId.Clear();
+        Array.Resize(ref _lightIdBySlot, capacity);
         Array.Resize(ref _slotInUse, capacity);
         Array.Resize(ref _slotSeenFrame, capacity);
         Array.Resize(ref _slotValid, capacity);
@@ -277,7 +277,7 @@ internal sealed class DynamicLightTileCache
         Array.Resize(ref _slotPosition, capacity);
         Array.Resize(ref _slotColor, capacity);
         Array.Resize(ref _slotRect, capacity);
-        Array.Clear(_lightIDBySlot, 0, _lightIDBySlot.Length);
+        Array.Clear(_lightIdBySlot, 0, _lightIdBySlot.Length);
         Array.Clear(_slotInUse, 0, _slotInUse.Length);
         Array.Clear(_slotSeenFrame, 0, _slotSeenFrame.Length);
         Array.Clear(_slotValid, 0, _slotValid.Length);
@@ -303,12 +303,12 @@ internal sealed class DynamicLightTileCache
 
     // Keeps the slots of dynamic lights still present, frees those of dynamic lights gone, and
     // gives new dynamic lights free slots. Call once per solve, before SlotOf.
-    public void AssignSlots(ReadOnlySpan<int> lightIDs)
+    public void AssignSlots(ReadOnlySpan<int> lightIds)
     {
         _frame++;
-        for (int i = 0; i < lightIDs.Length; i++)
+        for (int i = 0; i < lightIds.Length; i++)
         {
-            if (_slotByLightID.TryGetValue(lightIDs[i], out int slot))
+            if (_slotByLightId.TryGetValue(lightIds[i], out int slot))
             {
                 _slotSeenFrame[slot] = _frame;
             }
@@ -318,7 +318,7 @@ internal sealed class DynamicLightTileCache
         {
             if (_slotInUse[slot] && _slotSeenFrame[slot] != _frame)
             {
-                _slotByLightID.Remove(_lightIDBySlot[slot]);
+                _slotByLightId.Remove(_lightIdBySlot[slot]);
                 _slotInUse[slot] = false;
                 _slotValid[slot] = false;
                 _slotPolarValid[slot] = false;
@@ -326,9 +326,9 @@ internal sealed class DynamicLightTileCache
         }
 
         int freeSearch = 0;
-        for (int i = 0; i < lightIDs.Length; i++)
+        for (int i = 0; i < lightIds.Length; i++)
         {
-            if (_slotByLightID.ContainsKey(lightIDs[i]))
+            if (_slotByLightId.ContainsKey(lightIds[i]))
             {
                 continue;
             }
@@ -342,12 +342,12 @@ internal sealed class DynamicLightTileCache
             _slotValid[freeSearch] = false;
             _slotPolarValid[freeSearch] = false;
             _slotSeenFrame[freeSearch] = _frame;
-            _lightIDBySlot[freeSearch] = lightIDs[i];
-            _slotByLightID.Add(lightIDs[i], freeSearch);
+            _lightIdBySlot[freeSearch] = lightIds[i];
+            _slotByLightId.Add(lightIds[i], freeSearch);
         }
     }
 
-    public int SlotOf(int lightID) => _slotByLightID[lightID];
+    public int SlotOf(int lightId) => _slotByLightId[lightId];
 
     public bool NeedsTrace(int slot, Vector4 position, Vector4 color, RectInt fieldRect) =>
         !_slotValid[slot] ||
@@ -376,10 +376,10 @@ internal sealed class DynamicLightTileCache
 
     public void Release()
     {
-        ReleaseGpuResources();
+        ReleaseGPUResources();
         ReleasePolar();
-        _slotByLightID.Clear();
-        _lightIDBySlot = Array.Empty<int>();
+        _slotByLightId.Clear();
+        _lightIdBySlot = Array.Empty<int>();
         _slotInUse = Array.Empty<bool>();
         _slotSeenFrame = Array.Empty<int>();
         _slotValid = Array.Empty<bool>();
@@ -394,7 +394,7 @@ internal sealed class DynamicLightTileCache
         _singleLightDirect = false;
     }
 
-    private void ReleaseGpuResources()
+    private void ReleaseGPUResources()
     {
         if (Tiles != null)
         {

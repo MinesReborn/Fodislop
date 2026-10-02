@@ -21,7 +21,7 @@ internal static class TerrainQuadBuilder
         int AnimationFrameCount,
         float FrameHeightTiles,
         bool HasTileGroup,
-        int TileGroupID,
+        int TileGroupId,
         CellConfigProperties Properties,
         Color32 MinimapColor,
         int AtlasIndex);
@@ -196,7 +196,7 @@ internal static class TerrainQuadBuilder
                 x,
                 y,
                 renderProps.HasTileGroup,
-                renderProps.TileGroupID)
+                renderProps.TileGroupId)
             : precalc.CellTilingDescriptors[x, y];
         int cornerSideMask = precalc.CellCornerVariants[x, y];
         bool useNeighborVariants =
@@ -472,7 +472,7 @@ internal static class TerrainQuadBuilder
                 ccd.AnimationFrameCount,
                 ccd.FrameHeightTiles,
                 ccd.HasTileGroup,
-                ccd.TileGroupID,
+                ccd.TileGroupId,
                 ccd.Properties,
                 ccd.MinimapColor,
                 ccd.AtlasIndex);
@@ -495,7 +495,7 @@ internal static class TerrainQuadBuilder
             meta.AnimationFrameCount,
             meta.FrameHeightTiles,
             meta.HasTileGroup,
-            meta.TileGroupID,
+            meta.TileGroupId,
             meta.Properties,
             meta.MinimapColor,
             meta.AtlasIndex);

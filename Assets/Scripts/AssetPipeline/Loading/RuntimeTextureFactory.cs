@@ -25,14 +25,14 @@ public static class RuntimeTextureFactory
         public bool FullyOpaque { get; }
     }
 
-    private static readonly ConditionalWeakTable<Texture2D, TextureOpacity> _decodedOpacity = new();
+    private static readonly ConditionalWeakTable<Texture2D, TextureOpacity> s_decodedOpacity = new();
 
-    public static bool SupportsTexture2DGpuCopy =>
+    public static bool SupportsTexture2DGPUCopy =>
         (SystemInfo.copyTextureSupport & CopyTextureSupport.Basic) != 0;
 
     public static bool TryGetDecodedOpacity(Texture2D texture, out bool fullyOpaque)
     {
-        if (_decodedOpacity.TryGetValue(texture, out TextureOpacity opacity))
+        if (s_decodedOpacity.TryGetValue(texture, out TextureOpacity opacity))
         {
             fullyOpaque = opacity.FullyOpaque;
             return true;
@@ -280,7 +280,7 @@ public static class RuntimeTextureFactory
             result.Apply(
                 updateMipmaps: false,
                 makeNoLongerReadable: makeNoLongerReadable);
-            _decodedOpacity.Add(result, new TextureOpacity(fullyOpaque));
+            s_decodedOpacity.Add(result, new TextureOpacity(fullyOpaque));
             return result;
         }
         catch

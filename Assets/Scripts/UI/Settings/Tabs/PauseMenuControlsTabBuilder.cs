@@ -30,7 +30,7 @@ internal sealed class PauseMenuControlsTabBuilder
         Action<InterfaceSettings, string> Set,
         string DefaultKey);
 
-    private static readonly KeyAction[] KeyActions =
+    private static readonly KeyAction[] s_keyActions =
     [
         new(
             "settings.controls.key_dig",
@@ -188,7 +188,7 @@ internal sealed class PauseMenuControlsTabBuilder
                     settings =>
                     {
                         settings.ControlScheme = InterfaceSettings.DefaultControlScheme;
-                        foreach (KeyAction action in KeyActions)
+                        foreach (KeyAction action in s_keyActions)
                         {
                             action.Set(settings, action.DefaultKey);
                         }
@@ -218,7 +218,7 @@ internal sealed class PauseMenuControlsTabBuilder
         }
 
         AddKeyRow(_loc.Get("settings.controls.key_move"), "W A S D / ← ↑ ↓ →");
-        foreach (KeyAction action in KeyActions)
+        foreach (KeyAction action in s_keyActions)
         {
             AddRebindableRow(action);
         }
@@ -358,7 +358,7 @@ internal sealed class PauseMenuControlsTabBuilder
                 // Конфликт разрешается в пользу назначаемого действия:
                 // прежний владелец клавиши возвращается к своей дефолтной,
                 // поэтому дубли клавиш невозможны.
-                foreach (KeyAction other in KeyActions)
+                foreach (KeyAction other in s_keyActions)
                 {
                     if (other.LabelKey != action.LabelKey &&
                         string.Equals(

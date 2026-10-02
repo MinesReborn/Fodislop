@@ -26,7 +26,7 @@ public sealed class SettingConsumerTargetRule : IRule
 
     private static readonly HashSet<string> KnownExternals = new()
     {
-        "Screen", "QualitySettings", "Application", "HDROutput", "Math", "Mathf", "Shader"
+        "Screen", "QualitySettings", "Application", "HdrOutput", "Math", "Mathf", "Shader"
     };
 
     public Task<IReadOnlyList<RuleViolation>> EvaluateAsync(

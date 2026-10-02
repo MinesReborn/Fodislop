@@ -12,7 +12,7 @@ public sealed class DummyClockContractTests
 {
     // Файловый ввод-вывод карты и покадровая подкачка мира не относятся к
     // сценарию: их паузы — повторная попытка открыть файл и бюджет кадра.
-    private static readonly string[] _Exempt =
+    private static readonly string[] s_exempt =
     [
         "Simulation/DummyClock.cs",
         "Simulation/DummyWorldMapArchive.cs",
@@ -21,7 +21,7 @@ public sealed class DummyClockContractTests
         "Systems/DummyMapStreamer.cs",
     ];
 
-    private static readonly Regex _AmbientTimeOrRandomness = new(
+    private static readonly Regex s_ambientTimeOrRandomness = new(
         @"UniTask\.(Delay|Yield)\(|DateTime(Offset)?\.(Utc)?Now|System\.Random|UnityEngine\.Random|new Random\(|Guid\.NewGuid",
         RegexOptions.CultureInvariant);
 
@@ -32,8 +32,8 @@ public sealed class DummyClockContractTests
         string[] offenders = Directory
             .EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
             .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
-            .Where(relative => !_Exempt.Contains(relative))
-            .Where(relative => _AmbientTimeOrRandomness.IsMatch(File.ReadAllText(Path.Combine(root, relative))))
+            .Where(relative => !s_exempt.Contains(relative))
+            .Where(relative => s_ambientTimeOrRandomness.IsMatch(File.ReadAllText(Path.Combine(root, relative))))
             .ToArray();
 
         Assert.That(

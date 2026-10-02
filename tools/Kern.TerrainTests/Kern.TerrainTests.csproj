@@ -64,10 +64,10 @@
     <!-- TerrainCellMaskCalculator трогает оба каталога: без них CPU-набор не собирался. -->
     <Compile Include="$(Game)/World/Terrain/Mesh/TerrainSheetCatalog.cs" Link="Game/TerrainSheetCatalog.cs" />
     <Compile Include="$(Game)/World/Terrain/Mesh/TerrainReliefRimCatalog.cs" Link="Game/TerrainReliefRimCatalog.cs" />
-    <Compile Include="$(Game)/World/Terrain/Gpu/TerrainCellDataPacker.cs" Link="Game/TerrainCellDataPacker.cs" />
-    <Compile Include="$(Game)/World/Terrain/Gpu/TerrainCellTextureIndex.cs" Link="Game/TerrainCellTextureIndex.cs" />
-    <Compile Include="$(Game)/World/Terrain/Gpu/TerrainCellTypeSet.cs" Link="Game/TerrainCellTypeSet.cs" />
-    <Compile Include="$(Game)/World/Terrain/Gpu/TerrainDirtyRegion.cs" Link="Game/TerrainDirtyRegion.cs" />
+    <Compile Include="$(Game)/World/Terrain/GPU/TerrainCellDataPacker.cs" Link="Game/TerrainCellDataPacker.cs" />
+    <Compile Include="$(Game)/World/Terrain/GPU/TerrainCellTextureIndex.cs" Link="Game/TerrainCellTextureIndex.cs" />
+    <Compile Include="$(Game)/World/Terrain/GPU/TerrainCellTypeSet.cs" Link="Game/TerrainCellTypeSet.cs" />
+    <Compile Include="$(Game)/World/Terrain/GPU/TerrainDirtyRegion.cs" Link="Game/TerrainDirtyRegion.cs" />
     <Compile Include="$(Game)/World/Terrain/Cache/CellTypeSpatialIndex.cs" Link="Game/CellTypeSpatialIndex.cs" />
     <Compile Include="$(Game)/World/Terrain/Cache/TerrainScrollBands.cs" Link="Game/TerrainScrollBands.cs" />
     <Compile Include="$(Game)/World/Terrain/Cache/TerrainCellRegion.cs" Link="Game/TerrainCellRegion.cs" />
@@ -75,11 +75,11 @@
     <Compile Include="$(Game)/World/Common/CoordinateUtils.cs" Link="Game/CoordinateUtils.cs" />
     <Compile Include="$(Game)/World/Terrain/Cache/TerrainRebuildCostModel.cs" Link="Game/TerrainRebuildCostModel.cs" />
     <Compile Include="$(Game)/World/Terrain/Cache/TerrainDirtyTracker.cs" Link="Game/TerrainDirtyTracker.cs" />
-    <Compile Include="$(Game)/World/Terrain/Gpu/TerrainWindowChangeJournal.cs" Link="Game/TerrainWindowChangeJournal.cs" />
-    <Compile Include="$(Game)/World/Terrain/Gpu/TerrainUploadStrips.cs" Link="Game/TerrainUploadStrips.cs" />
-    <Compile Include="$(Game)/World/Terrain/Gpu/TerrainStagingPacker.cs" Link="Game/TerrainStagingPacker.cs" />
-    <Compile Include="$(Game)/World/Terrain/Gpu/TerrainBuildScheduler.cs" Link="Game/TerrainBuildScheduler.cs" />
-    <Compile Include="$(Game)/World/Terrain/Gpu/TerrainMemoryEstimate.cs" Link="Game/TerrainMemoryEstimate.cs" />
+    <Compile Include="$(Game)/World/Terrain/GPU/TerrainWindowChangeJournal.cs" Link="Game/TerrainWindowChangeJournal.cs" />
+    <Compile Include="$(Game)/World/Terrain/GPU/TerrainUploadStrips.cs" Link="Game/TerrainUploadStrips.cs" />
+    <Compile Include="$(Game)/World/Terrain/GPU/TerrainStagingPacker.cs" Link="Game/TerrainStagingPacker.cs" />
+    <Compile Include="$(Game)/World/Terrain/GPU/TerrainBuildScheduler.cs" Link="Game/TerrainBuildScheduler.cs" />
+    <Compile Include="$(Game)/World/Terrain/GPU/TerrainMemoryEstimate.cs" Link="Game/TerrainMemoryEstimate.cs" />
     <Compile Include="$(Game)/Networking/Connection/PacketAdmissionBudget.cs" Link="Game/PacketAdmissionBudget.cs" />
     <Compile Include="$(Game)/World/Terrain/Cache/DirtyRectSet.cs" Link="Game/DirtyRectSet.cs" />
     <Compile Include="$(Game)/World/Terrain/Cache/TerrainRingGrid.cs" Link="Game/TerrainRingGrid.cs" />
@@ -93,14 +93,14 @@
     <Compile Include="$(Game)/World/Lighting/Core/LightingRuntimeState.cs" Link="Game/LightingRuntimeState.cs" />
     <Compile Include="$(Game)/UI/Map/Minimap/MinimapRefreshPolicy.cs" Link="Game/MinimapRefreshPolicy.cs" />
     <!-- Кодек чанков: чистый BCL, ни Unity, ни UniTask. -->
-    <Compile Include="$(Game)/World/Persistence/WorldChunkRleCodec.cs" Link="Game/WorldChunkRleCodec.cs" />
+    <Compile Include="$(Game)/World/Persistence/WorldChunkRLECodec.cs" Link="Game/WorldChunkRLECodec.cs" />
 
     <!-- Тесты из Assets: те же, что гоняет Unity. -->
     <Compile Include="$(Game)/Tests/Editor/World/BackgroundFloodFill*.cs" LinkBase="Tests" />
     <!-- Эти тесты требуют полного Unity/GPU production builder и гоняются в Unity EditMode:
          фоновая сборка террейна (TerrainBuildPipelineWorkerTests) держит GPU-текстуры каналов. -->
     <Compile Include="$(Game)/Tests/Editor/World/Terrain/Geometry/*.cs"
-             Exclude="$(Game)/Tests/Editor/World/Terrain/Geometry/TerrainCellBuilderDeterminismTests.cs;$(Game)/Tests/Editor/World/Terrain/Geometry/TerrainIncrementalScrollDifferentialTests.cs;$(Game)/Tests/Editor/World/Terrain/Geometry/TerrainBuildPipelineWorkerTests.cs"
+             Exclude="$(Game)/Tests/Editor/World/Terrain/Geometry/TerrainCellBuilderDeterminismTests.cs;$(Game)/Tests/Editor/World/Terrain/Geometry/TerrainIncrementalScrollDifferentialTests.cs;$(Game)/Tests/Editor/World/Terrain/Geometry/TerrainBuildPipelineWorkerTests.cs;$(Game)/Tests/Editor/World/Terrain/Geometry/TerrainCellIdMeshTests.cs"
              LinkBase="Tests/Geometry" />
     <Compile Include="$(Game)/Tests/Shared/TerrainQuantizationOracle.cs" Link="Tests/Shared/TerrainQuantizationOracle.cs" />
     <Compile Include="$(Game)/Tests/Editor/World/Lighting/LightingRegionCalculator*.cs" LinkBase="Tests/Lighting" />
@@ -112,6 +112,6 @@
     <Compile Include="$(Game)/Tests/Editor/UI/Gameplay/MinimapRefreshPolicy*.cs" LinkBase="Tests/UI" />
     <!-- Тесты кодека чанков: те же файлы, что гоняет Unity, но проверяются
          здесь за секунды и без редактора. -->
-    <Compile Include="$(Game)/Tests/Editor/World/Persistence/WorldChunkRLECodec*.cs" LinkBase="Tests/Persistence" />
+    <Compile Include="$(Game)/Tests/Editor/World/Persistence/WorldChunkRleCodec*.cs" LinkBase="Tests/Persistence" />
   </ItemGroup>
 </Project>

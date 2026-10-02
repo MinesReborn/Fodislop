@@ -93,8 +93,8 @@ public sealed class FrameSample
     public bool? ProducerLifecycleValid { get; init; }
     public SampleClass? Class { get; init; }
     public double? FrameDurationMs { get; init; }
-    public Dictionary<string, double?>? CpuMs { get; init; } = new(StringComparer.Ordinal);
-    public double? GpuFrameMs { get; init; }
+    public Dictionary<string, double?>? CPUMs { get; init; } = new(StringComparer.Ordinal);
+    public double? GPUFrameMs { get; init; }
     public FrameInputObservation? Inputs { get; init; }
     [JsonRequired]
     public int CounterGeneration { get; init; }
@@ -200,12 +200,12 @@ public sealed record ValidationReport(
 }
 
 public sealed record ComparisonBudget(
-    double MaxCpuP95RegressionMs,
-    double MaxCpuP99RegressionMs,
-    double MaxCpuMaxRegressionMs,
-    double MaxGpuP95RegressionMs,
-    double MaxGpuP99RegressionMs,
-    double MaxGpuMaxRegressionMs);
+    [property: System.Text.Json.Serialization.JsonPropertyName("maxCpuP95RegressionMs")] double MaxCPUP95RegressionMs,
+    [property: System.Text.Json.Serialization.JsonPropertyName("maxCpuP99RegressionMs")] double MaxCPUP99RegressionMs,
+    [property: System.Text.Json.Serialization.JsonPropertyName("maxCpuMaxRegressionMs")] double MaxCPUMaxRegressionMs,
+    [property: System.Text.Json.Serialization.JsonPropertyName("maxGpuP95RegressionMs")] double MaxGPUP95RegressionMs,
+    [property: System.Text.Json.Serialization.JsonPropertyName("maxGpuP99RegressionMs")] double MaxGPUP99RegressionMs,
+    [property: System.Text.Json.Serialization.JsonPropertyName("maxGpuMaxRegressionMs")] double MaxGPUMaxRegressionMs);
 
 public sealed record ComparisonReport(
     CheckStatus CompatibilityStatus,

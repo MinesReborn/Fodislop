@@ -47,9 +47,9 @@ public sealed class MapCellConfigCatalog
                     continue;
                 }
 
-                foreach (byte cellID in tileGroups[i])
+                foreach (byte cellId in tileGroups[i])
                 {
-                    _cellToTileGroup[(CellType)cellID] = i;
+                    _cellToTileGroup[(CellType)cellId] = i;
                 }
             }
         }
@@ -102,9 +102,9 @@ public sealed class MapCellConfigCatalog
         return _cellConfigurations[(int)type];
     }
 
-    public bool TryGetTileGroup(CellType type, out int groupID)
+    public bool TryGetTileGroup(CellType type, out int groupId)
     {
-        return _cellToTileGroup.TryGetValue(type, out groupID);
+        return _cellToTileGroup.TryGetValue(type, out groupId);
     }
 
     /// <summary>

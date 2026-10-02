@@ -52,7 +52,7 @@ namespace Kern.UI.HUD.Player.View
         private Label? _hpCountLabel;
         private VisualElement? _hpBarFill;
         private Label? _moneyLabel;
-        private Label? _credsLabel;
+        private Label? _creditsLabel;
         private Label? _geologyLabel;
         private Label? _basketPercentLabel;
         private VisualElement? _basketSeparator;
@@ -332,8 +332,8 @@ namespace Kern.UI.HUD.Player.View
 
             _moneyLabel = tree.Q<Label>("MoneyLabel") ??
                 throw new InvalidOperationException("[PlayerHUD] MoneyLabel is missing from PlayerHUD.uxml.");
-            _credsLabel = tree.Q<Label>("CredsLabel") ??
-                throw new InvalidOperationException("[PlayerHUD] CredsLabel is missing from PlayerHUD.uxml.");
+            _creditsLabel = tree.Q<Label>("CreditsLabel") ??
+                throw new InvalidOperationException("[PlayerHUD] CreditsLabel is missing from PlayerHUD.uxml.");
             _basketPercentLabel = tree.Q<Label>("BasketPercentLabel") ??
                 throw new InvalidOperationException("[PlayerHUD] BasketPercentLabel is missing from PlayerHUD.uxml.");
             _basketSeparator = tree.Q<VisualElement>("BasketSeparator") ??
@@ -346,7 +346,7 @@ namespace Kern.UI.HUD.Player.View
             _skeletonPulse.Register(_hpCountLabel);
             _skeletonPulse.Register(_hpBarFill);
             _skeletonPulse.Register(_moneyLabel);
-            _skeletonPulse.Register(_credsLabel);
+            _skeletonPulse.Register(_creditsLabel);
             _skeletonPulse.Register(_geologyLabel);
             _skeletonPulse.Register(_basketPercentLabel);
 
@@ -564,9 +564,9 @@ namespace Kern.UI.HUD.Player.View
                 _moneyLabel.text = _isLoaded ? $"<color=lime>${stats.Money:N0}</color>" : "---";
             }
 
-            if (_credsLabel != null)
+            if (_creditsLabel != null)
             {
-                _credsLabel.text = _isLoaded ? $"<color=yellow>C {stats.Creds:N0}</color>" : "---";
+                _creditsLabel.text = _isLoaded ? $"<color=yellow>C {stats.Credits:N0}</color>" : "---";
             }
 
             if (_geologyLabel != null)

@@ -35,9 +35,9 @@ public static class AudioBusRegistry
         public void Write(AudioSettings audio, float volume) => VolumeField.SetValue(audio, volume);
     }
 
-    private static readonly Lazy<BusBinding[]> _LazyBuses = new(Build);
+    private static readonly Lazy<BusBinding[]> s_lazyBuses = new(Build);
 
-    public static IReadOnlyList<BusBinding> Buses => _LazyBuses.Value;
+    public static IReadOnlyList<BusBinding> Buses => s_lazyBuses.Value;
 
     public static BusBinding For(AudioBusType bus)
     {

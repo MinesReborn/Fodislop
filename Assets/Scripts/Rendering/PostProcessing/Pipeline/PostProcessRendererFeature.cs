@@ -26,7 +26,6 @@ namespace Kern.Rendering.PostProcessing
         [SerializeField]
         private Settings _settings = new();
 
-        private PostProcessRenderPass? _pass;
         private WorldBloomRenderPass? _worldBloomPass;
         private PostProcessRenderPass? _displayPass;
         private ScopesRenderPass? _scopesPass;
@@ -34,8 +33,7 @@ namespace Kern.Rendering.PostProcessing
 
         internal bool RendersCamera(Camera camera) => _mainCamera == camera ||
             (_mainCamera == GameplayCamera.Resolve() && camera == PostProcessRuntimeState.DiagnosticOffscreenCamera);
-        internal PostProcessWorkloadSnapshot? SceneWorkload => PostProcessRuntimeState.DiagnosticLegacyBloom
-            ? _pass?.LatestWorkload : _worldBloomPass?.LatestWorkload;
+        internal PostProcessWorkloadSnapshot? SceneWorkload => _worldBloomPass?.LatestWorkload;
         internal PostProcessWorkloadSnapshot? DisplayWorkload => _displayPass?.LatestWorkload;
 
         public bool TryGetWorldGrid(Camera camera, out Renderer2DWorldGridLayout layout)
@@ -72,7 +70,6 @@ namespace Kern.Rendering.PostProcessing
             _worldBloomPass?.Dispose();
             _worldBloomPass = null;
             _displayPass = null;
-            _pass = null;
             _scopesPass?.Dispose();
             _scopesPass = null;
             if (PostProcessRuntimeState.MainCamera == _mainCamera)
@@ -96,8 +93,7 @@ namespace Kern.Rendering.PostProcessing
             // Живой объект прохода ещё не значит живой шейдер: сборка плеера
             // выгружает несохранённую копию ComputeShader. Без этой проверки
             // постпроцесс в редакторе молча пропадал до перезагрузки домена.
-            if (_pass != null && _pass.IsShaderAlive &&
-                _displayPass != null && _displayPass.IsShaderAlive && _worldBloomPass is { IsAlive: true })
+            if (_displayPass != null && _displayPass.IsShaderAlive && _worldBloomPass is { IsAlive: true })
             {
                 return;
             }
@@ -105,7 +101,6 @@ namespace Kern.Rendering.PostProcessing
             _worldBloomPass?.Dispose();
             _worldBloomPass = null;
             _displayPass = null;
-            _pass = null;
             // Ниже scopes создаются заново; старый проход освобождается здесь,
             // иначе при пересоздании он утекал бы вместе со своими буферами.
             _scopesPass?.Dispose();
@@ -123,9 +118,7 @@ namespace Kern.Rendering.PostProcessing
             }
 
             _worldBloomPass = new WorldBloomRenderPass();
-            _pass = new PostProcessRenderPass(computeShader);
-            _pass.ConfigureInput(ScriptableRenderPassInput.Color);
-            _displayPass = new PostProcessRenderPass(computeShader, displayPass: true);
+            _displayPass = new PostProcessRenderPass(computeShader);
             _displayPass.ConfigureInput(ScriptableRenderPassInput.Color);
 
             ComputeShader? scopesShader = Resources.Load<ComputeShader>(
@@ -176,7 +169,7 @@ namespace Kern.Rendering.PostProcessing
             }
 
             EnsurePassCreated(targetCamera ?? cameraData.camera);
-            if (_pass == null)
+            if (_displayPass == null || _worldBloomPass == null)
             {
                 return;
             }
@@ -197,14 +190,7 @@ namespace Kern.Rendering.PostProcessing
             }
 
             bool scopesEnabled = _scopesPass != null && ScopesRenderPass.Enabled;
-            if (PostProcessRuntimeState.DiagnosticLegacyBloom)
-            {
-                renderer.EnqueuePass(_pass);
-            }
-            else
-            {
-                renderer.EnqueuePass(_worldBloomPass!);
-            }
+            renderer.EnqueuePass(_worldBloomPass);
             if (scopesEnabled && ScopesRenderPass.SourceMode == ScopesSourceMode.Before)
             {
                 // Capture after Kern's scene-linear bloom pass, but before URP
@@ -224,7 +210,6 @@ namespace Kern.Rendering.PostProcessing
             _worldBloomPass?.Dispose();
             _worldBloomPass = null;
             _displayPass = null;
-            _pass = null;
             _scopesPass?.Dispose();
             _scopesPass = null;
             if (PostProcessRuntimeState.MainCamera == _mainCamera)

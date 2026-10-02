@@ -24,6 +24,8 @@ internal readonly record struct LightingFrameRequest(
     LightingEngine.DebugView DebugView)
 {
     public RectInt DynamicReceiverRect { get; init; }
+
+    public bool AllowPartialAmbientOcclusion { get; init; }
 }
 
 internal readonly record struct LightingFrameResult(

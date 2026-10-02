@@ -19,26 +19,26 @@ public sealed class TerrainTextureAnimationPlayModeTests
     private readonly List<Object> _ownedObjects = [];
     private readonly int[] _textureGlobalIds =
     [
-        TerrainCellDataTextures.ColorID,
-        TerrainCellDataTextures.MetaID,
-        TerrainCellDataTextures.AtlasRectID,
-        TerrainCellDataTextures.TileSizeID,
-        TerrainCellDataTextures.AnimationID,
-        TerrainCellDataTextures.WorldID,
-        TerrainCellDataTextures.GlowID,
-        TerrainCellDataTextures.GeometryXID,
-        TerrainCellDataTextures.GeometryYID,
+        TerrainCellDataTextures.ColorId,
+        TerrainCellDataTextures.MetaId,
+        TerrainCellDataTextures.AtlasRectId,
+        TerrainCellDataTextures.TileSizeId,
+        TerrainCellDataTextures.AnimationId,
+        TerrainCellDataTextures.WorldId,
+        TerrainCellDataTextures.GlowId,
+        TerrainCellDataTextures.GeometryXId,
+        TerrainCellDataTextures.GeometryYId,
     ];
     private Texture?[] _previousGlobalTextures = null!;
     private readonly int[] _vectorGlobalIds =
     [
-        TerrainCellDataTextures.GridSizeID,
-        TerrainCellDataTextures.OriginID,
-        TerrainCellDataTextures.ViewOffsetID,
+        TerrainCellDataTextures.GridSizeId,
+        TerrainCellDataTextures.OriginId,
+        TerrainCellDataTextures.ViewOffsetId,
     ];
-    private static readonly int _terrainDebugViewId = Shader.PropertyToID("_TerrainDebugView");
-    private static readonly int _worldLightDebugViewId = Shader.PropertyToID("_WorldLightDebugView");
-    private static readonly int _pixelArtFilteringId = Shader.PropertyToID("_PixelArtFiltering");
+    private static readonly int s_terrainDebugViewId = Shader.PropertyToID("_TerrainDebugView");
+    private static readonly int s_worldLightDebugViewId = Shader.PropertyToID("_WorldLightDebugView");
+    private static readonly int s_pixelArtFilteringId = Shader.PropertyToID("_PixelArtFiltering");
     private Vector4[] _previousGlobalVectors = null!;
     private int _previousTerrainDebugView;
     private int _previousWorldLightDebugView;
@@ -63,12 +63,12 @@ public sealed class TerrainTextureAnimationPlayModeTests
             _previousGlobalVectors[index] = Shader.GetGlobalVector(_vectorGlobalIds[index]);
         }
 
-        _previousTerrainDebugView = Shader.GetGlobalInteger(_terrainDebugViewId);
-        _previousWorldLightDebugView = Shader.GetGlobalInteger(_worldLightDebugViewId);
-        _previousPixelArtFiltering = Shader.GetGlobalFloat(_pixelArtFilteringId);
-        Shader.SetGlobalInteger(_terrainDebugViewId, 0);
-        Shader.SetGlobalInteger(_worldLightDebugViewId, 0);
-        Shader.SetGlobalFloat(_pixelArtFilteringId, 0f);
+        _previousTerrainDebugView = Shader.GetGlobalInteger(s_terrainDebugViewId);
+        _previousWorldLightDebugView = Shader.GetGlobalInteger(s_worldLightDebugViewId);
+        _previousPixelArtFiltering = Shader.GetGlobalFloat(s_pixelArtFilteringId);
+        Shader.SetGlobalInteger(s_terrainDebugViewId, 0);
+        Shader.SetGlobalInteger(s_worldLightDebugViewId, 0);
+        Shader.SetGlobalFloat(s_pixelArtFilteringId, 0f);
         _previousTimeScale = Time.timeScale;
         _worldLightingKeywordWasEnabled = Shader.IsKeywordEnabled("KERN_WORLD_LIGHTING");
         Shader.DisableKeyword("KERN_WORLD_LIGHTING");
@@ -99,9 +99,9 @@ public sealed class TerrainTextureAnimationPlayModeTests
             Shader.SetGlobalVector(_vectorGlobalIds[index], _previousGlobalVectors[index]);
         }
 
-        Shader.SetGlobalInteger(_terrainDebugViewId, _previousTerrainDebugView);
-        Shader.SetGlobalInteger(_worldLightDebugViewId, _previousWorldLightDebugView);
-        Shader.SetGlobalFloat(_pixelArtFilteringId, _previousPixelArtFiltering);
+        Shader.SetGlobalInteger(s_terrainDebugViewId, _previousTerrainDebugView);
+        Shader.SetGlobalInteger(s_worldLightDebugViewId, _previousWorldLightDebugView);
+        Shader.SetGlobalFloat(s_pixelArtFilteringId, _previousPixelArtFiltering);
         _cellData?.Dispose();
         foreach (Object ownedObject in _ownedObjects)
         {
@@ -156,7 +156,7 @@ public sealed class TerrainTextureAnimationPlayModeTests
         _cellData.MarkAllDirty();
         _cellData.Apply();
         _cellData.BindGlobals(cellSize: 2f, originX: 0, originY: 0);
-        Shader.SetGlobalVector(TerrainCellDataTextures.ViewOffsetID, Vector4.zero);
+        Shader.SetGlobalVector(TerrainCellDataTextures.ViewOffsetId, Vector4.zero);
         RenderTexture target = Own(new RenderTexture(32, 32, 0, RenderTextureFormat.ARGB32)
         {
             name = "TerrainAnimationRegressionTarget",
@@ -234,7 +234,7 @@ public sealed class TerrainTextureAnimationPlayModeTests
         _cellData.MarkAllDirty();
         _cellData.Apply();
         _cellData.BindGlobals(cellSize: 2f, originX: 0, originY: 0);
-        Shader.SetGlobalVector(TerrainCellDataTextures.ViewOffsetID, Vector4.zero);
+        Shader.SetGlobalVector(TerrainCellDataTextures.ViewOffsetId, Vector4.zero);
 
         RenderTexture target = Own(new RenderTexture(32, 32, 0, RenderTextureFormat.ARGB32)
         {

@@ -15,7 +15,7 @@ public static class AnimationContainerDecoder
         PNG,
     }
 
-    private static readonly Dictionary<string, (int frameWidth, int frameHeight, int frameCount, float fps)> KnownAnimations =
+    private static readonly Dictionary<string, (int frameWidth, int frameHeight, int frameCount, float fps)> s_knownAnimations =
         new(StringComparer.OrdinalIgnoreCase)
         {
             { "vfx/bz", (16, 32, 15, 15f) },
@@ -60,7 +60,7 @@ public static class AnimationContainerDecoder
         }
 
         string normalized = NormalizeAnimationName(filename);
-        if (KnownAnimations.TryGetValue(normalized, out var config))
+        if (s_knownAnimations.TryGetValue(normalized, out var config))
         {
             frameWidth = config.frameWidth;
             frameHeight = config.frameHeight;
@@ -160,7 +160,7 @@ public static class AnimationContainerDecoder
         int width,
         int height)
     {
-        bool useGpuCopy = RuntimeTextureFactory.SupportsTexture2DGpuCopy;
+        bool useGPUCopy = RuntimeTextureFactory.SupportsTexture2DGPUCopy;
         for (int i = 0; i < frameTextures.Count; i++)
         {
             Texture2D frame = frameTextures[i];
@@ -171,7 +171,7 @@ public static class AnimationContainerDecoder
                     $"expected {width}x{height}.");
             }
 
-            if (useGpuCopy)
+            if (useGPUCopy)
             {
                 if (frame.graphicsFormat != atlas.graphicsFormat)
                 {
@@ -206,7 +206,7 @@ public static class AnimationContainerDecoder
             }
         }
 
-        if (!useGpuCopy)
+        if (!useGPUCopy)
         {
             atlas.Apply(updateMipmaps: false, makeNoLongerReadable: false);
         }
@@ -227,7 +227,7 @@ public static class AnimationContainerDecoder
         textures.Clear();
     }
 
-    public static float GetAnimationFps(
+    public static float GetAnimationFPS(
         float averageDelay,
         int frameCount,
         string containerName)

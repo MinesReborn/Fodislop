@@ -38,7 +38,7 @@ internal static class PlayModeHarness
         yield return WaitUntil(
             () => bootstrap.CurrentSceneName == ProjectRuntimeContracts.SceneNames.Gateway &&
                 SceneManager.GetSceneByName(ProjectRuntimeContracts.SceneNames.Gateway).isLoaded &&
-                HasNamedUiElement(SceneManager.GetSceneByName(ProjectRuntimeContracts.SceneNames.Gateway), "GatewayRoot"),
+                HasNamedUIElement(SceneManager.GetSceneByName(ProjectRuntimeContracts.SceneNames.Gateway), "GatewayRoot"),
             UITimeoutSeconds,
             "ApplicationBootstrap did not finish Bootstrap -> Gateway with ready UI.");
     }
@@ -79,14 +79,14 @@ internal static class PlayModeHarness
         for (int index = SceneManager.sceneCount - 1; index >= 0; index--)
         {
             Scene scene = SceneManager.GetSceneAt(index);
-            if (scene.isLoaded && _ProjectSceneNames.Contains(scene.name))
+            if (scene.isLoaded && s_projectSceneNames.Contains(scene.name))
             {
                 yield return SceneManager.UnloadSceneAsync(scene);
             }
         }
     }
 
-    private static readonly HashSet<string> _ProjectSceneNames =
+    private static readonly HashSet<string> s_projectSceneNames =
     [
         ProjectRuntimeContracts.SceneNames.Bootstrap,
         ProjectRuntimeContracts.SceneNames.Gateway,
@@ -163,7 +163,7 @@ internal static class PlayModeHarness
         where T : class =>
         ResolveInGame<T>() ?? throw new AssertionException($"MainGame container does not provide {typeof(T).Name}.");
 
-    public static bool HasNamedUiElement(Scene scene, string elementName)
+    public static bool HasNamedUIElement(Scene scene, string elementName)
     {
         UIDocument? document = FindComponentInScene<UIDocument>(scene);
         return document != null && document.isActiveAndEnabled &&

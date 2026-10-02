@@ -10,7 +10,7 @@ using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
 namespace Kern.UI.Builders;
 public class PacketUIBuilderFactory
 {
-    private static readonly IReadOnlyDictionary<Type, PacketUIBuilderBase> _Builders =
+    private static readonly IReadOnlyDictionary<Type, PacketUIBuilderBase> s_builders =
         new Dictionary<Type, PacketUIBuilderBase>
         {
             [typeof(TextPacket)] = new TextPacketBuilder(),
@@ -30,7 +30,7 @@ public class PacketUIBuilderFactory
 
     public PacketUIBuilderBase? CreateBuilder(IGUIComponentPacket packet)
     {
-        return _Builders.TryGetValue(packet.GetType(), out PacketUIBuilderBase? builder)
+        return s_builders.TryGetValue(packet.GetType(), out PacketUIBuilderBase? builder)
             ? builder
             : null;
     }

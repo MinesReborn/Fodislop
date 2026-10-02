@@ -21,37 +21,14 @@ internal sealed class PostProcessPassData
     public ComputeShader PostProcessCS = null!;
     public bool HDROutput;
     public ColorGamut HDRGamut;
-    public int KernelPrefilter;
-    public int KernelDownsample;
-    public int KernelUpsample;
     public int KernelComposite;
-    public int KernelUpsampleComposite;
-    public int BloomStorageFormat;
-    public bool UnfusedBloom;
 
     public TextureHandle ColorTexture;
     public TextureHandle IntermediateTexture;
-    public TextureHandle BloomPrefilterTexture;
-    public TextureHandle[] BloomDownTextures = null!;
-    public TextureHandle[] BloomUpTextures = null!;
     public int Width;
     public int Height;
 
-    // Проход дисплея и сценический проход грузят разные наборы параметров.
-    public bool IsDisplayPass;
     public bool DiagnosticsActive;
-
-    public bool BloomActive;
-    // Фактическое число уровней пирамиды в этом кадре: на малом окне нижние
-    // уровни вырождаются в один пиксель и считать их незачем.
-    public int BloomLevels;
-    public float BloomThreshold;
-    public float BloomSoftKnee;
-    public float BloomRadius;
-    public float BloomScatter;
-    public Vector4 BloomTint;
-    public float BloomIntensity;
-    public Vector4 ScreenToEmission;
 
     public bool VignetteActive;
     // World-grid frames: the vignette is applied per screen pixel by the
@@ -69,11 +46,11 @@ internal sealed class PostProcessPassData
     public int CompareMode;
     public bool CompareBefore;
 
-    public Texture3D? Lut3D;
-    public float LutIntensity;
-    public int LutColorSpace;
-    public Vector3 LutDomainMin;
-    public Vector3 LutDomainMax;
+    public Texture3D? LUT3D;
+    public float LUTIntensity;
+    public int LUTColorSpace;
+    public Vector3 LUTDomainMin;
+    public Vector3 LUTDomainMax;
 
     public bool EigengrauActive;
     public float EigengrauIntensity;

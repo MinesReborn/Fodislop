@@ -27,29 +27,29 @@ namespace Kern.UI
         private Vector3? _anchor;
         private float _expiresAt;
 
-        public int OwnerID { get; private set; }
+        public int OwnerId { get; private set; }
 
-        public void Init(int ownerID, string text, Transform target)
+        public void Init(int ownerId, string text, Transform target)
         {
             _target = target;
             _anchor = null;
-            Show(ownerID, text);
+            Show(ownerId, text);
         }
 
         /// <summary>
         /// Якорь в мировых координатах для отправителя, чей робот клиенту неизвестен:
         /// сервер кладёт в пакет свои X/Y на момент отправки именно для этого случая.
         /// </summary>
-        public void Init(int ownerID, string text, Vector3 anchor)
+        public void Init(int ownerId, string text, Vector3 anchor)
         {
             _target = null;
             _anchor = new Vector3(anchor.x, anchor.y + CellTopOffset, anchor.z);
-            Show(ownerID, text);
+            Show(ownerId, text);
         }
 
-        private void Show(int ownerID, string text)
+        private void Show(int ownerId, string text)
         {
-            OwnerID = ownerID;
+            OwnerId = ownerId;
             _expiresAt = Time.unscaledTime + Lifetime;
 
             _label ??= _labels.Create(WorldLabelKind.ChatBubble);

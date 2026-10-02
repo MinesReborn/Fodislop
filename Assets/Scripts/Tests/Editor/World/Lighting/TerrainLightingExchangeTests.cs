@@ -130,10 +130,10 @@ public sealed class TerrainLightingExchangeTests
     {
         string projectRoot = FindProjectRoot();
         string terrainWindowPath = Path.Combine(
-            projectRoot, "Assets", "Scripts", "World", "Terrain", "Gpu", "TerrainWindow.cs");
+            projectRoot, "Assets", "Scripts", "World", "Terrain", "GPU", "TerrainWindow.cs");
         string lifecyclePath = terrainWindowPath;
         string schedulingPath = Path.Combine(
-            projectRoot, "Assets", "Scripts", "World", "Terrain", "Gpu", "TerrainWindowBuildRequestScheduler.cs");
+            projectRoot, "Assets", "Scripts", "World", "Terrain", "GPU", "TerrainWindowBuildRequestScheduler.cs");
         string terrainRendererPath = Path.Combine(
             projectRoot, "Assets", "Scripts", "World", "Terrain", "Core", "TerrainRenderer.cs");
         string facade = File.ReadAllText(terrainWindowPath);

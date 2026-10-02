@@ -14,7 +14,7 @@ internal sealed class DummyPathFinder
 {
     private readonly Action<ServerPacket> _onReceived;
     private readonly Func<CellType, CellConfigurationPacket?> _getCellConfig;
-    private static readonly (int dx, int dy)[] _s_dirs = new[] { (0, -1), (0, 1), (-1, 0), (1, 0) };
+    private static readonly (int dx, int dy)[] s_s_dirs = new[] { (0, -1), (0, 1), (-1, 0), (1, 0) };
 
     public DummyPathFinder(
         Action<ServerPacket> onReceived,
@@ -57,9 +57,9 @@ internal sealed class DummyPathFinder
                 break;
             }
 
-            for (int d = 0; d < _s_dirs.Length; d++)
+            for (int d = 0; d < s_s_dirs.Length; d++)
             {
-                var (dx, dy) = _s_dirs[d];
+                var (dx, dy) = s_s_dirs[d];
                 int nx = cur.X + dx;
                 int ny = cur.Y + dy;
                 if (nx < 0 || ny < 0 || nx > ushort.MaxValue || ny > ushort.MaxValue)

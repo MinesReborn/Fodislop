@@ -13,21 +13,21 @@ using UnityEngine.Rendering.Universal;
 
 public static class HDROutput
 {
-    private static HDRDiagnosticState _lastDiagnosticState;
-    private static bool _hasDiagnosticState;
-    private static string? _lastReadError;
-    private static HDROutputController _controller = new(new UnityHDROutputBackend());
+    private static HDRDiagnosticState s_lastDiagnosticState;
+    private static bool s_hasDiagnosticState;
+    private static string? s_lastReadError;
+    private static HDROutputController s_controller = new(new UnityHDROutputBackend());
 
-    public static bool Enabled => _controller.DesiredHDR;
+    public static bool Enabled => s_controller.DesiredHDR;
 
-    public static bool Active => _controller.Current.RenderingHDR;
-    public static HDROutputController.Phase Status => _controller.Status;
-    public static bool RuntimeSwitchable => _controller.Current.Switchable;
-    public static bool CanSwitch => _controller.Current.CanSwitch &&
-        _controller.Status is not HDROutputController.Phase.Pending and not HDROutputController.Phase.Uninitialized &&
-        !_controller.HasReadFailure;
+    public static bool Active => s_controller.Current.RenderingHDR;
+    public static HDROutputController.Phase Status => s_controller.Status;
+    public static bool RuntimeSwitchable => s_controller.Current.Switchable;
+    public static bool CanSwitch => s_controller.Current.CanSwitch &&
+        s_controller.Status is not HDROutputController.Phase.Pending and not HDROutputController.Phase.Uninitialized &&
+        !s_controller.HasReadFailure;
 
-    public static bool CanRetryRead => _controller.HasReadFailure;
+    public static bool CanRetryRead => s_controller.HasReadFailure;
 
     // Ключ дедупликации строится по решениям, а не по снимку целиком.
     // Снимок несёт paperWhiteNits дробным числом от системы: оно дрожит в
@@ -67,9 +67,9 @@ public static class HDROutput
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetDiagnostics()
     {
-        _lastDiagnosticState = default;
-        _hasDiagnosticState = false;
-        _controller = new HDROutputController(new UnityHDROutputBackend());
+        s_lastDiagnosticState = default;
+        s_hasDiagnosticState = false;
+        s_controller = new HDROutputController(new UnityHDROutputBackend());
     }
 
     public enum ApplyRequestResult
@@ -90,7 +90,7 @@ public static class HDROutput
 
     public static void AutoDetectDisplayCapabilities(DisplaySettings display)
     {
-        HDROutputController.Snapshot output = _controller.Current;
+        HDROutputController.Snapshot output = s_controller.Current;
         if (output.Available)
         {
             if (display.PaperWhiteNits <= 10f && output.PaperWhiteNits > 10f)
@@ -115,20 +115,20 @@ public static class HDROutput
 
     public static ApplyRequestResult SetEnabled(bool enabled)
     {
-        _controller.SetPreference(enabled);
+        s_controller.SetPreference(enabled);
 
         return ApplyPreference();
     }
 
     public static void RetryRead()
     {
-        _controller.RetryRead();
+        s_controller.RetryRead();
         Reconcile();
     }
 
     public static void Retry()
     {
-        _controller.NotifyEnvironmentChanged();
+        s_controller.NotifyEnvironmentChanged();
         Reconcile();
     }
 
@@ -139,13 +139,13 @@ public static class HDROutput
 
     private static ApplyRequestResult ApplyPreference()
     {
-        int attempts = _controller.Attempts;
-        _controller.Update(Time.realtimeSinceStartupAsDouble);
+        int attempts = s_controller.Attempts;
+        s_controller.Update(Time.realtimeSinceStartupAsDouble);
         LogDiagnostics();
-        return _controller.Status switch
+        return s_controller.Status switch
         {
             HDROutputController.Phase.HDR or HDROutputController.Phase.SDR => ApplyRequestResult.Applied,
-            HDROutputController.Phase.Pending => _controller.Attempts > attempts
+            HDROutputController.Phase.Pending => s_controller.Attempts > attempts
                 ? ApplyRequestResult.Requested : ApplyRequestResult.AlreadyPending,
             HDROutputController.Phase.NotSwitchable => ApplyRequestResult.RejectedNotSwitchable,
             HDROutputController.Phase.Retrying => ApplyRequestResult.Retrying,
@@ -158,7 +158,7 @@ public static class HDROutput
     {
         // Пока предпочтение не задано, докладывать не о чем: контроллер
         // прочитал вывод, но ни одного решения не принял. Такое состояние
-        // существует ровно между стартом HDROutputReconciler и применением
+        // существует ровно между стартом HdrOutputReconciler и применением
         // настроек дисплея — порядок IStartable не определён, и оба пути
         // проходят здесь. Строка про desired=False/Uninitialized в этом окне
         // не отчёт, а внутренний порядок запуска, вынесенный в лог: читается
@@ -168,37 +168,37 @@ public static class HDROutput
             return;
         }
 
-        HDROutputController.Snapshot output = _controller.Current;
+        HDROutputController.Snapshot output = s_controller.Current;
         HDRDiagnosticState state = HDRDiagnosticState.From(
-            output, Enabled, Status, _controller.Attempts, _controller.Error);
-        string? readError = _controller.Error;
+            output, Enabled, Status, s_controller.Attempts, s_controller.Error);
+        string? readError = s_controller.Error;
 
         // A read failure is terminal until the user retries it. The same
         // failure recurs every reconcile/tick while it stands, and the two
         // startup paths (DisplayManager.ApplyInitialSettings vs
-        // HDROutputReconciler.Start) initialize with different DesiredHDR, so
+        // HdrOutputReconciler.Start) initialize with different DesiredHDR, so
         // the state differs and the warning would otherwise fire twice.
         if (readError != null)
         {
-            if (readError == _lastReadError)
+            if (readError == s_lastReadError)
             {
                 return;
             }
 
-            _lastReadError = readError;
+            s_lastReadError = readError;
         }
         else
         {
-            _lastReadError = null;
+            s_lastReadError = null;
         }
 
-        if (_hasDiagnosticState && state == _lastDiagnosticState)
+        if (s_hasDiagnosticState && state == s_lastDiagnosticState)
         {
             return;
         }
 
-        _lastDiagnosticState = state;
-        _hasDiagnosticState = true;
+        s_lastDiagnosticState = state;
+        s_hasDiagnosticState = true;
         string message =
             "[HDR] " +
             $"available={output.Available}, active={output.Active}, " +
@@ -229,15 +229,15 @@ public static class HDROutput
             throw new ArgumentNullException(nameof(builder));
         }
 
-        HDROutputController.Snapshot output = _controller.Current;
+        HDROutputController.Snapshot output = s_controller.Current;
         string status = Status.ToString();
         builder.Append("<b>[HDR: ").Append(status).Append("]</b>\n")
             .Append("Window display: ").Append(output.Identity.Name)
             .Append(" | Environment: ").Append(Application.platform)
             .Append(" | Graphics API: ").Append(SystemInfo.graphicsDeviceType).Append('\n')
             .Append("Enabled in settings: ").Append(Enabled).Append('\n')
-            .Append("Attempts: ").Append(_controller.Attempts)
-            .Append(" | Error: ").Append(_controller.Error ?? "none").Append('\n')
+            .Append("Attempts: ").Append(s_controller.Attempts)
+            .Append(" | Error: ").Append(s_controller.Error ?? "none").Append('\n')
             .Append("Available: ").Append(output.Available)
             .Append(" | Active: ").Append(output.Active)
             .Append(" | Requested: ").Append(output.Pending).Append('\n')

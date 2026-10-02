@@ -27,14 +27,14 @@ internal static class AssetCacheDecoder
     {
         // M3G has no magic bytes, so it can only be recognized by the
         // extension (URL query strings included, e.g. image.m3g?v=2).
-        if (IsM3g(filename))
+        if (IsM3G(filename))
         {
-            Texture2D m3g = M3gImageDecoder.Decode(bytes);
+            Texture2D m3g = M3GImageDecoder.Decode(bytes);
             m3g.name = $"Cache_M3G_{DateTime.Now.Ticks}";
             return new DecodedTextureResult(m3g, 0f, 0, 0);
         }
 
-        bool makeNoLongerReadable = RuntimeTextureFactory.SupportsTexture2DGpuCopy;
+        bool makeNoLongerReadable = RuntimeTextureFactory.SupportsTexture2DGPUCopy;
         Texture2D? staticTex = RuntimeTextureFactory.DecodeEncodedImageToRGBA32NoMip(
             bytes,
             $"Cache_Tex_{DateTime.Now.Ticks}",
@@ -54,18 +54,18 @@ internal static class AssetCacheDecoder
                 out _,
                 out int fh,
                 out int fc,
-                out float fFps) &&
+                out float fFPS) &&
             fc > 1)
         {
             frameHeight = fh;
             frameCount = fc;
-            fps = fFps;
+            fps = fFPS;
         }
 
         return new DecodedTextureResult(staticTex, fps, frameHeight, frameCount);
     }
 
-    private static bool IsM3g(string filename)
+    private static bool IsM3G(string filename)
     {
         string path = Uri.TryCreate(filename, UriKind.Absolute, out Uri? uri)
             ? uri.AbsolutePath

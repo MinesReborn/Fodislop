@@ -21,7 +21,7 @@ public sealed class TerrainPresentationWindow : IDisposable
 {
     private const int PresentationMarginCells = 4;
 
-    private readonly TerrainCellIDMesh _mesh = new();
+    private readonly TerrainCellIdMesh _mesh = new();
     private Vector4 _viewOffset;
 
     public Mesh? Mesh => _mesh.Mesh;
@@ -58,13 +58,13 @@ public sealed class TerrainPresentationWindow : IDisposable
         if (offset != _viewOffset)
         {
             _viewOffset = offset;
-            Shader.SetGlobalVector(TerrainCellDataTextures.ViewOffsetID, offset);
+            Shader.SetGlobalVector(TerrainCellDataTextures.ViewOffsetId, offset);
         }
 
         if (meshFilter != null && meshFilter.sharedMesh != _mesh.Mesh)
         {
             meshFilter.sharedMesh = _mesh.Mesh;
-            Shader.SetGlobalVector(TerrainCellDataTextures.ViewOffsetID, _viewOffset);
+            Shader.SetGlobalVector(TerrainCellDataTextures.ViewOffsetId, _viewOffset);
         }
     }
 

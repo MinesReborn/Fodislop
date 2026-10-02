@@ -13,17 +13,17 @@ namespace Kern.World.Terrain;
 
 public sealed class TerrainMaterialManager
 {
-    private static readonly int _BaseMapPropertyID = Shader.PropertyToID("_BaseMap");
-    private static readonly int _PrismaticFlowMapPropertyID = Shader.PropertyToID("_PrismaticFlowMap");
-    private static readonly int _FlowMapPropertyID = Shader.PropertyToID("_FlowMap");
-    private static readonly int _TerrainDecalAtlasPropertyID = Shader.PropertyToID("_TerrainDecalAtlas");
-    private static readonly int _TerrainDecalStoneAtlasPropertyID = Shader.PropertyToID("_TerrainDecalStoneAtlas");
-    private static readonly int _FlowScalePropertyID = Shader.PropertyToID("_FlowScale");
-    private static readonly int _ShimmerSpeedScalePropertyID = Shader.PropertyToID("_ShimmerSpeedScale");
-    private static readonly int _PulseSpeedScalePropertyID = Shader.PropertyToID("_PulseSpeedScale");
-    private static readonly int _ShimmerColorPropertyID = Shader.PropertyToID("_ShimmerColor");
-    private static readonly int _WorldLightTexturePropertyID = Shader.PropertyToID("_WorldLightTexture");
-    private static readonly int _WorldLightRectPropertyID = Shader.PropertyToID("_WorldLightRect");
+    private static readonly int s_baseMapPropertyId = Shader.PropertyToID("_BaseMap");
+    private static readonly int s_prismaticFlowMapPropertyId = Shader.PropertyToID("_PrismaticFlowMap");
+    private static readonly int s_flowMapPropertyId = Shader.PropertyToID("_FlowMap");
+    private static readonly int s_terrainDecalAtlasPropertyId = Shader.PropertyToID("_TerrainDecalAtlas");
+    private static readonly int s_terrainDecalStoneAtlasPropertyId = Shader.PropertyToID("_TerrainDecalStoneAtlas");
+    private static readonly int s_flowScalePropertyId = Shader.PropertyToID("_FlowScale");
+    private static readonly int s_shimmerSpeedScalePropertyId = Shader.PropertyToID("_ShimmerSpeedScale");
+    private static readonly int s_pulseSpeedScalePropertyId = Shader.PropertyToID("_PulseSpeedScale");
+    private static readonly int s_shimmerColorPropertyId = Shader.PropertyToID("_ShimmerColor");
+    private static readonly int s_worldLightTexturePropertyId = Shader.PropertyToID("_WorldLightTexture");
+    private static readonly int s_worldLightRectPropertyId = Shader.PropertyToID("_WorldLightRect");
 
     private Material[] _materials = [];
     private Material[] _overlayMaterials = [];
@@ -69,10 +69,10 @@ public sealed class TerrainMaterialManager
 
         foreach (Material material in AllMaterials())
         {
-            material.SetVector(_FlowScalePropertyID, config.Terrain.FlowScale);
-            material.SetFloat(_ShimmerSpeedScalePropertyID, config.Terrain.ShimmerSpeedScale);
-            material.SetFloat(_PulseSpeedScalePropertyID, config.Terrain.PulseSpeedScale);
-            material.SetColor(_ShimmerColorPropertyID, config.Terrain.ShimmerColor);
+            material.SetVector(s_flowScalePropertyId, config.Terrain.FlowScale);
+            material.SetFloat(s_shimmerSpeedScalePropertyId, config.Terrain.ShimmerSpeedScale);
+            material.SetFloat(s_pulseSpeedScalePropertyId, config.Terrain.PulseSpeedScale);
+            material.SetColor(s_shimmerColorPropertyId, config.Terrain.ShimmerColor);
             // Вид поверхности авторский: декали, кайма, глинт и
             // призматик берут числа из TerrainConfigHolder.
             TerrainMaterialTuning.Apply(material);
@@ -99,10 +99,10 @@ public sealed class TerrainMaterialManager
         // Проверка стоит ДО обеих веток. Раньше она была только в ветке полной
         // пересборки, а набор атласов растёт добавлением в конец — то есть до
         // неё дело не доходило никогда, и девятый атлас проезжал молча.
-        if (atlases.Count > _TerrainAtlasPropertyIDs.Length)
+        if (atlases.Count > s_terrainAtlasPropertyIds.Length)
         {
             throw new InvalidOperationException(
-                $"Terrain cell material holds {_TerrainAtlasPropertyIDs.Length} atlases, got {atlases.Count}.");
+                $"Terrain cell material holds {s_terrainAtlasPropertyIds.Length} atlases, got {atlases.Count}.");
         }
 
         IClientConfigManager cfgManager = clientConfigManager ??
@@ -218,10 +218,10 @@ public sealed class TerrainMaterialManager
             hideFlags = HideFlags.HideAndDontSave,
         };
         RequireShaderProperties(_materials[index]);
-        _materials[index].SetVector(_FlowScalePropertyID, clientConfig.Terrain.FlowScale);
-        _materials[index].SetFloat(_ShimmerSpeedScalePropertyID, clientConfig.Terrain.ShimmerSpeedScale);
-        _materials[index].SetFloat(_PulseSpeedScalePropertyID, clientConfig.Terrain.PulseSpeedScale);
-        _materials[index].SetColor(_ShimmerColorPropertyID, clientConfig.Terrain.ShimmerColor);
+        _materials[index].SetVector(s_flowScalePropertyId, clientConfig.Terrain.FlowScale);
+        _materials[index].SetFloat(s_shimmerSpeedScalePropertyId, clientConfig.Terrain.ShimmerSpeedScale);
+        _materials[index].SetFloat(s_pulseSpeedScalePropertyId, clientConfig.Terrain.PulseSpeedScale);
+        _materials[index].SetColor(s_shimmerColorPropertyId, clientConfig.Terrain.ShimmerColor);
         // Вид поверхности авторский: декали, кайма, глинт и
         // призматик берут числа из TerrainConfigHolder.
         TerrainMaterialTuning.Apply(_materials[index]);
@@ -264,10 +264,10 @@ public sealed class TerrainMaterialManager
                 textureService.PrismaticFlowMapTexture,
                 textureService.TerrainDecalAtlasTexture,
                 textureService.TerrainDecalStoneAtlasTexture);
-            if (_cellMaterials.Length > 0 && i < _TerrainAtlasPropertyIDs.Length &&
-                _cellMaterials[0].GetTexture(_TerrainAtlasPropertyIDs[i]) != atlases[i].Texture)
+            if (_cellMaterials.Length > 0 && i < s_terrainAtlasPropertyIds.Length &&
+                _cellMaterials[0].GetTexture(s_terrainAtlasPropertyIds[i]) != atlases[i].Texture)
             {
-                _cellMaterials[0].SetTexture(_TerrainAtlasPropertyIDs[i], atlases[i].Texture);
+                _cellMaterials[0].SetTexture(s_terrainAtlasPropertyIds[i], atlases[i].Texture);
             }
         }
 
@@ -293,29 +293,29 @@ public sealed class TerrainMaterialManager
         Texture? terrainDecalAtlas,
         Texture? terrainDecalStoneAtlas)
     {
-        if (material.GetTexture(_BaseMapPropertyID) != atlas)
+        if (material.GetTexture(s_baseMapPropertyId) != atlas)
         {
-            material.SetTexture(_BaseMapPropertyID, atlas);
+            material.SetTexture(s_baseMapPropertyId, atlas);
         }
 
-        if (material.GetTexture(_FlowMapPropertyID) != flowMap)
+        if (material.GetTexture(s_flowMapPropertyId) != flowMap)
         {
-            material.SetTexture(_FlowMapPropertyID, flowMap);
+            material.SetTexture(s_flowMapPropertyId, flowMap);
         }
 
-        if (material.GetTexture(_PrismaticFlowMapPropertyID) != prismaticFlowMap)
+        if (material.GetTexture(s_prismaticFlowMapPropertyId) != prismaticFlowMap)
         {
-            material.SetTexture(_PrismaticFlowMapPropertyID, prismaticFlowMap);
+            material.SetTexture(s_prismaticFlowMapPropertyId, prismaticFlowMap);
         }
 
-        if (material.GetTexture(_TerrainDecalAtlasPropertyID) != terrainDecalAtlas)
+        if (material.GetTexture(s_terrainDecalAtlasPropertyId) != terrainDecalAtlas)
         {
-            material.SetTexture(_TerrainDecalAtlasPropertyID, terrainDecalAtlas);
+            material.SetTexture(s_terrainDecalAtlasPropertyId, terrainDecalAtlas);
         }
 
-        if (material.GetTexture(_TerrainDecalStoneAtlasPropertyID) != terrainDecalStoneAtlas)
+        if (material.GetTexture(s_terrainDecalStoneAtlasPropertyId) != terrainDecalStoneAtlas)
         {
-            material.SetTexture(_TerrainDecalStoneAtlasPropertyID, terrainDecalStoneAtlas);
+            material.SetTexture(s_terrainDecalStoneAtlasPropertyId, terrainDecalStoneAtlas);
         }
     }
 
@@ -337,7 +337,7 @@ public sealed class TerrainMaterialManager
         }
     }
 
-    private static readonly int[] _TerrainAtlasPropertyIDs =
+    private static readonly int[] s_terrainAtlasPropertyIds =
     [
         Shader.PropertyToID("_TerrainAtlas0"),
         Shader.PropertyToID("_TerrainAtlas1"),
@@ -377,8 +377,8 @@ public sealed class TerrainMaterialManager
             }
         }
 
-        Texture globalTexture = Shader.GetGlobalTexture(_WorldLightTexturePropertyID);
-        Vector4 globalRect = Shader.GetGlobalVector(_WorldLightRectPropertyID);
+        Texture globalTexture = Shader.GetGlobalTexture(s_worldLightTexturePropertyId);
+        Vector4 globalRect = Shader.GetGlobalVector(s_worldLightRectPropertyId);
         if (globalTexture == null || globalRect.z <= 0f || globalRect.w <= 0f)
         {
             throw new InvalidOperationException(

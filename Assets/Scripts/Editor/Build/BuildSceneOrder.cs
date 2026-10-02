@@ -12,7 +12,7 @@ namespace Kern.Editor;
 // Settings, а не молча чинится кодом.
 public static class BuildSceneOrder
 {
-    private static readonly string[] _RequiredScenePaths =
+    private static readonly string[] s_requiredScenePaths =
     [
         ScenePath(ProjectRuntimeContracts.SceneNames.Bootstrap),
         ScenePath(ProjectRuntimeContracts.SceneNames.Gateway),
@@ -25,16 +25,16 @@ public static class BuildSceneOrder
     public static void Validate()
     {
         EditorBuildSettingsScene[] scenes = EditorBuildSettings.scenes;
-        if (scenes.Length < _RequiredScenePaths.Length)
+        if (scenes.Length < s_requiredScenePaths.Length)
         {
             throw new InvalidOperationException(
                 $"Build Settings contain {scenes.Length} scene(s); " +
-                $"at least {_RequiredScenePaths.Length} production scenes are required.");
+                $"at least {s_requiredScenePaths.Length} production scenes are required.");
         }
 
-        for (int index = 0; index < _RequiredScenePaths.Length; index++)
+        for (int index = 0; index < s_requiredScenePaths.Length; index++)
         {
-            string requiredPath = _RequiredScenePaths[index];
+            string requiredPath = s_requiredScenePaths[index];
             if (!File.Exists(requiredPath))
             {
                 throw new FileNotFoundException("Required production scene is missing.", requiredPath);

@@ -14,7 +14,7 @@ namespace Kern.World.Terrain;
 internal sealed class TerrainLightingFramePublisher(ITerrainLightingExchange? exchange)
 {
 #if UNITY_EDITOR
-    private static readonly LightingTerrainRequirements _EditorPreviewRequirements = new(1, 3, 16);
+    private static readonly LightingTerrainRequirements s_editorPreviewRequirements = new(1, 3, 16);
 #endif
 
     private ulong _worldGeneration;
@@ -51,7 +51,7 @@ internal sealed class TerrainLightingFramePublisher(ITerrainLightingExchange? ex
 #if UNITY_EDITOR
         if (!Application.isPlaying)
         {
-            return _EditorPreviewRequirements;
+            return s_editorPreviewRequirements;
         }
 #endif
 

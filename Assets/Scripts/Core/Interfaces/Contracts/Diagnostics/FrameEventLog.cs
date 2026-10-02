@@ -26,50 +26,50 @@ public static class FrameEventLog
 {
     private const int Capacity = 64;
 
-    private static readonly int[] _frames = new int[Capacity];
-    private static readonly string?[] _texts = new string?[Capacity];
-    private static readonly List<IFrameEventSource> _sources = [];
-    private static readonly object _gate = new();
-    private static int _next;
+    private static readonly int[] s_frames = new int[Capacity];
+    private static readonly string?[] s_texts = new string?[Capacity];
+    private static readonly List<IFrameEventSource> s_sources = [];
+    private static readonly object s_gate = new();
+    private static int s_next;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetForPlaySession()
     {
-        lock (_gate)
+        lock (s_gate)
         {
-            System.Array.Clear(_texts, 0, Capacity);
-            _next = 0;
-            _sources.Clear();
+            System.Array.Clear(s_texts, 0, Capacity);
+            s_next = 0;
+            s_sources.Clear();
         }
     }
 
     public static void Record(string text)
     {
         int frame = Time.frameCount;
-        lock (_gate)
+        lock (s_gate)
         {
-            _frames[_next] = frame;
-            _texts[_next] = text;
-            _next = (_next + 1) % Capacity;
+            s_frames[s_next] = frame;
+            s_texts[s_next] = text;
+            s_next = (s_next + 1) % Capacity;
         }
     }
 
     public static void AddSource(IFrameEventSource source)
     {
-        lock (_gate)
+        lock (s_gate)
         {
-            if (!_sources.Contains(source))
+            if (!s_sources.Contains(source))
             {
-                _sources.Add(source);
+                s_sources.Add(source);
             }
         }
     }
 
     public static void RemoveSource(IFrameEventSource source)
     {
-        lock (_gate)
+        lock (s_gate)
         {
-            _sources.Remove(source);
+            s_sources.Remove(source);
         }
     }
 
@@ -82,13 +82,13 @@ public static class FrameEventLog
     public static int AppendRange(StringBuilder text, int firstFrame, int lastFrame)
     {
         int count = 0;
-        lock (_gate)
+        lock (s_gate)
         {
             for (int offset = 0; offset < Capacity; offset++)
             {
-                int index = (_next + offset) % Capacity;
-                string? entry = _texts[index];
-                int frame = _frames[index];
+                int index = (s_next + offset) % Capacity;
+                string? entry = s_texts[index];
+                int frame = s_frames[index];
                 if (entry == null || frame < firstFrame || frame > lastFrame)
                 {
                     continue;
@@ -98,7 +98,7 @@ public static class FrameEventLog
                 count++;
             }
 
-            foreach (IFrameEventSource source in _sources)
+            foreach (IFrameEventSource source in s_sources)
             {
                 count += source.AppendRange(text, firstFrame, lastFrame, count);
             }

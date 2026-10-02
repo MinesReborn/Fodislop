@@ -33,7 +33,7 @@ internal readonly struct PostProcessWorkloadSnapshot(int frameId, int width, int
     public long DispatchedThreads { get; } = dispatchedThreads;
     public int TextureCount { get; } = textureCount;
     public long TexturePayloadBytes { get; } = texturePayloadBytes;
-    public double CpuRecordingMs { get; } = cpuRecordingMs;
+    public double CPURecordingMs { get; } = cpuRecordingMs;
 }
 
 internal struct PostProcessWorkloadAccumulator

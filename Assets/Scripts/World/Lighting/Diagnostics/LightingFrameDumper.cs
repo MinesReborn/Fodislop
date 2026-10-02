@@ -97,7 +97,8 @@ public static class LightingFrameDumper
         public float terrainMeshTimeMs;
         public float terrainCacheTimeMs;
         public float terrainFloodFillTimeMs;
-        public float terrainGpuUploadTimeMs;
+        [UnityEngine.Serialization.FormerlySerializedAs("terrainGpuUploadTimeMs")]
+        public float terrainGPUUploadTimeMs;
         public float terrainAtlasUploadTimeMs;
         public TerrainTextureUploadDump? terrainTextureUpload;
         public int streamingPlanKind;
@@ -238,7 +239,7 @@ public static class LightingFrameDumper
             terrainMeshTimeMs = telemetry.TerrainMeshTimeMs,
             terrainCacheTimeMs = telemetry.TerrainCacheTimeMs,
             terrainFloodFillTimeMs = telemetry.TerrainFloodFillTimeMs,
-            terrainGpuUploadTimeMs = telemetry.TerrainGpuUploadTimeMs,
+            terrainGPUUploadTimeMs = telemetry.TerrainGPUUploadTimeMs,
             terrainAtlasUploadTimeMs = telemetry.TerrainAtlasUploadTimeMs,
             terrainTextureUpload = CreateTerrainTextureUploadDump(telemetry),
             streamingPlanKind = telemetry.StreamingPlanKind,
@@ -251,7 +252,7 @@ public static class LightingFrameDumper
         };
         if (includeTextures)
         {
-            TryReadGpuCounters(lightingCounters, counters);
+            TryReadGPUCounters(lightingCounters, counters);
         }
         File.WriteAllText(Path.Combine(dir, "counters.json"), JsonUtility.ToJson(counters, true));
 
@@ -318,7 +319,7 @@ public static class LightingFrameDumper
         return total;
     }
 
-    private static void TryReadGpuCounters(ComputeBuffer? lightingCounters, CountersDump counters)
+    private static void TryReadGPUCounters(ComputeBuffer? lightingCounters, CountersDump counters)
     {
         if (lightingCounters == null)
         {

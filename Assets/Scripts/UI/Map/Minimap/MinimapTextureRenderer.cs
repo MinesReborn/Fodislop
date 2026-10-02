@@ -9,8 +9,8 @@ namespace Kern.UI;
 
 internal sealed class MinimapTextureRenderer : IDisposable
 {
-    private static readonly Color32 _PathColor = new(255, 214, 0, 255);
-    private static readonly Color32 _PathTargetColor = new(255, 255, 255, 255);
+    private static readonly Color32 s_pathColor = new(255, 214, 0, 255);
+    private static readonly Color32 s_pathTargetColor = new(255, 255, 255, 255);
 
     private readonly MapViewportRenderer _viewportRenderer = new();
     private readonly int _uiSize;
@@ -98,7 +98,7 @@ internal sealed class MinimapTextureRenderer : IDisposable
                 continue;
             }
 
-            _pathPixels[(pixel.y * _uiSize) + pixel.x] = i == count - 1 ? _PathTargetColor : _PathColor;
+            _pathPixels[(pixel.y * _uiSize) + pixel.x] = i == count - 1 ? s_pathTargetColor : s_pathColor;
             _drawnPathPixels++;
         }
 

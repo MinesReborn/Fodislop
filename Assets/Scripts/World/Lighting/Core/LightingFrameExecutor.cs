@@ -103,12 +103,14 @@ internal sealed class LightingFrameExecutor
     public void RecordAmbientOcclusionField(
         CommandBuffer commandBuffer,
         Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor terrainGeometry,
-        Vector4 worldRect) =>
+        Vector4 worldRect,
+        RectInt? rasterRect = null) =>
         _geometrySolver.RecordAmbientOcclusionField(
             commandBuffer,
             terrainGeometry,
             _geometryRegistry,
-            worldRect);
+            worldRect,
+            rasterRect);
 
     public void ConfigureSharedComputeParameters(
         CommandBuffer commandBuffer,
@@ -166,10 +168,21 @@ internal sealed class LightingFrameExecutor
             _geometrySolver.PrepareCaches(commandBuffer, materialFieldRebuilt: true);
             _executedStages.Add("GeometryCache");
             RecordMaterialReadback(commandBuffer, "GeometryCache");
+            RectInt? aoRasterRect = request.AllowPartialAmbientOcclusion
+                ? LightingAmbientOcclusionUpdatePolicy.ResolveRasterRect(
+                    request.DirtyRegions,
+                    new RectInt(
+                        Mathf.RoundToInt(request.WorldRect.x / request.CellSize),
+                        Mathf.RoundToInt(request.WorldRect.y / request.CellSize),
+                        Mathf.RoundToInt(request.WorldRect.z / request.CellSize),
+                        Mathf.RoundToInt(request.WorldRect.w / request.CellSize)),
+                    LightingConfigHolder.AmbientOcclusionPixelsPerCell)
+                : null;
             RecordAmbientOcclusionField(
                 commandBuffer,
                 terrainGeometry,
-                request.WorldRect);
+                request.WorldRect,
+                aoRasterRect);
             _executedStages.Add("AmbientOcclusionField");
             RecordMaterialReadback(commandBuffer, "AmbientOcclusionField");
         }

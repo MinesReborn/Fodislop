@@ -43,6 +43,7 @@ Shader "Kern/World Entity"
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile _ KERN_WORLD_LIGHTING
+            #pragma multi_compile _ KERN_GPU_INSTANCING
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
@@ -79,11 +80,35 @@ Shader "Kern/World Entity"
             float _SpriteAlphaCull;
             float _EmissiveFieldThreshold;
 
+            #if defined(KERN_GPU_INSTANCING)
+            struct EntityGpuInstance
+            {
+                float4 positionAndScale;
+                float4 uvRect;
+                float4 color;
+                float4 rotationAndPivot;
+            };
+
+            StructuredBuffer<EntityGpuInstance> _EntityInstances;
+            #endif
+
             #include "Assets/Shaders/World/WorldLightSampling.hlsl"
 
-            Varyings vert(Attributes input)
+            Varyings vert(Attributes input, uint instanceID : SV_InstanceID)
             {
                 Varyings output;
+#if defined(KERN_GPU_INSTANCING)
+                EntityGpuInstance inst = _EntityInstances[instanceID];
+                float2 localPos = (input.positionOS.xy - inst.rotationAndPivot.zw) * inst.positionAndScale.zw;
+                float2 rotatedPos = float2(
+                    localPos.x * inst.rotationAndPivot.x - localPos.y * inst.rotationAndPivot.y,
+                    localPos.x * inst.rotationAndPivot.y + localPos.y * inst.rotationAndPivot.x);
+                float3 worldPosition = KernWorldGridVertex(float3(rotatedPos + inst.positionAndScale.xy, input.positionOS.z));
+                output.positionCS = KernWorldGridClipPosition(worldPosition);
+                output.uv = lerp(inst.uvRect.xy, inst.uvRect.zw, input.uv);
+                output.color = inst.color;
+                output.worldPos = worldPosition.xy;
+#else
                 float3 worldPosition = KernWorldGridVertex(TransformObjectToWorld(input.positionOS.xyz));
                 output.positionCS = KernWorldGridClipPosition(worldPosition);
                 output.uv = input.uv;
@@ -93,6 +118,7 @@ Shader "Kern/World Entity"
                 // Using TransformObjectToWorld ensures correct light sampling if an entity
                 // or preview is rendered with a non-identity GameObject transform.
                 output.worldPos = worldPosition.xy;
+#endif
                 return output;
             }
 
@@ -141,6 +167,8 @@ Shader "Kern/World Entity"
             #pragma vertex LightingFieldVert
             #pragma fragment LightingFieldFrag
 
+            #pragma multi_compile _ KERN_GPU_INSTANCING
+
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Assets/Shaders/World/LightingFieldRaster.hlsl"
 
@@ -175,12 +203,36 @@ Shader "Kern/World Entity"
             float _SpriteAlphaCull;
             float _EmissiveFieldThreshold;
 
-            Varyings LightingFieldVert(Attributes input)
+            #if defined(KERN_GPU_INSTANCING)
+            struct EntityGpuInstance
+            {
+                float4 positionAndScale;
+                float4 uvRect;
+                float4 color;
+                float4 rotationAndPivot;
+            };
+
+            StructuredBuffer<EntityGpuInstance> _EntityInstances;
+            #endif
+
+            Varyings LightingFieldVert(Attributes input, uint instanceID : SV_InstanceID)
             {
                 Varyings output;
+#if defined(KERN_GPU_INSTANCING)
+                EntityGpuInstance inst = _EntityInstances[instanceID];
+                float2 localPos = (input.positionOS.xy - inst.rotationAndPivot.zw) * inst.positionAndScale.zw;
+                float2 rotatedPos = float2(
+                    localPos.x * inst.rotationAndPivot.x - localPos.y * inst.rotationAndPivot.y,
+                    localPos.x * inst.rotationAndPivot.y + localPos.y * inst.rotationAndPivot.x);
+                float3 worldPosition = float3(rotatedPos + inst.positionAndScale.xy, input.positionOS.z);
+                output.positionCS = KernLightingFieldClipPositionWorld(worldPosition);
+                output.uv = lerp(inst.uvRect.xy, inst.uvRect.zw, input.uv);
+                output.color = inst.color;
+#else
                 output.positionCS = KernLightingFieldClipPositionWorld(TransformObjectToWorld(input.positionOS.xyz));
                 output.uv = input.uv;
                 output.color = input.color;
+#endif
                 return output;
             }
 

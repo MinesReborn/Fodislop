@@ -43,7 +43,7 @@ internal sealed class PauseMenuDisplayTabBuilder
     {
         VisualElement displaySection = displayScroll.Q<VisualElement>("DisplaySection") ??
             throw new InvalidOperationException("[PauseMenu] DisplaySection is missing from PauseMenu.uxml.");
-        VisualElement hdrOutputGroup =
+        VisualElement HDROutputGroup =
             displayScroll.Q<VisualElement>("HDROutputGroup") ??
             throw new InvalidOperationException(
                 "[PauseMenu] HDROutputGroup is missing from PauseMenu.uxml.");
@@ -216,16 +216,16 @@ internal sealed class PauseMenuDisplayTabBuilder
         syncContext.text = _loc.Get("settings.display.sync_editor");
         UIState.SetHidden(syncContext, !Application.isEditor);
 
-        Toggle hdrToggle = hdrOutputGroup.Q<Toggle>("HDRToggle") ??
+        Toggle HDRToggle = HDROutputGroup.Q<Toggle>("HDRToggle") ??
             throw new InvalidOperationException("[PauseMenu] HDRToggle is missing from PauseMenu.uxml.");
-        hdrToggle.label = _loc.Get("menu.settings.hdr");
-        hdrToggle.RegisterValueChangedCallback(evt => RequestHDR(hdrToggle, evt.newValue));
-        Label hdrStatus = hdrOutputGroup.Q<Label>("HDRStatus") ??
+        HDRToggle.label = _loc.Get("menu.settings.hdr");
+        HDRToggle.RegisterValueChangedCallback(evt => RequestHDR(HDRToggle, evt.newValue));
+        Label HDRStatus = HDROutputGroup.Q<Label>("HDRStatus") ??
             throw new InvalidOperationException("[PauseMenu] HDRStatus is missing from PauseMenu.uxml.");
-        Button hdrRetry = hdrOutputGroup.Q<Button>("HDRRetry") ??
+        Button HDRRetry = HDROutputGroup.Q<Button>("HDRRetry") ??
             throw new InvalidOperationException("[PauseMenu] HDRRetry is missing from PauseMenu.uxml.");
-        hdrRetry.text = _loc.Get("settings.display.hdr_retry");
-        hdrRetry.clicked += () => HDROutput.RetryRead();
+        HDRRetry.text = _loc.Get("settings.display.hdr_retry");
+        HDRRetry.clicked += () => HDROutput.RetryRead();
 
         VisualElement paperWhiteSlider = PauseMenuUIFactory.CreateBoundSlider<DisplaySettings>(
             nameof(DisplaySettings.PaperWhiteNits),
@@ -234,7 +234,7 @@ internal sealed class PauseMenuDisplayTabBuilder
             value => _displayManager.SetPaperWhiteNits(value),
             _refreshers,
             DisplaySettings.BrightnessStepNits);
-        hdrOutputGroup.Add(paperWhiteSlider);
+        HDROutputGroup.Add(paperWhiteSlider);
 
         VisualElement peakBrightnessSlider = PauseMenuUIFactory.CreateBoundSlider<DisplaySettings>(
             nameof(DisplaySettings.PeakBrightnessNits),
@@ -243,27 +243,27 @@ internal sealed class PauseMenuDisplayTabBuilder
             value => _displayManager.SetPeakBrightnessNits(value),
             _refreshers,
             DisplaySettings.BrightnessStepNits);
-        hdrOutputGroup.Add(peakBrightnessSlider);
+        HDROutputGroup.Add(peakBrightnessSlider);
 
         var calibrationButton = new Button(() =>
             new HDRCalibrationScreen(_doc, _clientConfig, _displayManager, _loc).Open());
         calibrationButton.text = _loc.Get("settings.display.calibration_open");
         calibrationButton.AddToClassList("pause-btn");
-        hdrOutputGroup.Add(calibrationButton);
+        HDROutputGroup.Add(calibrationButton);
 
         void UpdateHDRSlidersState()
         {
-            bool hdrOn = HDROutput.Active;
-            hdrToggle.SetEnabled(HDROutput.CanSwitch);
-            hdrToggle.SetValueWithoutNotify(hdrOn);
-            hdrStatus.text = _loc.Get(HDROutput.Status switch
+            bool HDROn = HDROutput.Active;
+            HDRToggle.SetEnabled(HDROutput.CanSwitch);
+            HDRToggle.SetValueWithoutNotify(HDROn);
+            HDRStatus.text = _loc.Get(HDROutput.Status switch
             {
                 HDROutputController.Phase.Pending => "settings.display.hdr_pending",
                 HDROutputController.Phase.Retrying => "settings.display.hdr_retrying",
                 HDROutputController.Phase.Failed => "settings.display.hdr_failed",
                 HDROutputController.Phase.Unsupported => "settings.display.hdr_unsupported",
                 HDROutputController.Phase.Unavailable => "settings.display.hdr_unavailable",
-                HDROutputController.Phase.NotSwitchable => hdrOn
+                HDROutputController.Phase.NotSwitchable => HDROn
                     ? "settings.display.hdr_fixed_on" : "settings.display.hdr_fixed_off",
                 HDROutputController.Phase.HDR => HDROutput.RuntimeSwitchable
                     ? "settings.display.hdr_active" : "settings.display.hdr_fixed_on",
@@ -271,15 +271,15 @@ internal sealed class PauseMenuDisplayTabBuilder
                     ? "settings.display.hdr_inactive" : "settings.display.hdr_fixed_off",
                 _ => "settings.display.hdr_pending",
             });
-            hdrRetry.SetEnabled(HDROutput.Status == HDROutputController.Phase.Failed || HDROutput.CanRetryRead);
-            UIState.SetHidden(hdrRetry, HDROutput.Status != HDROutputController.Phase.Failed && !HDROutput.CanRetryRead);
-            paperWhiteSlider.SetEnabled(hdrOn);
-            peakBrightnessSlider.SetEnabled(hdrOn);
-            calibrationButton.SetEnabled(hdrOn);
+            HDRRetry.SetEnabled(HDROutput.Status == HDROutputController.Phase.Failed || HDROutput.CanRetryRead);
+            UIState.SetHidden(HDRRetry, HDROutput.Status != HDROutputController.Phase.Failed && !HDROutput.CanRetryRead);
+            paperWhiteSlider.SetEnabled(HDROn);
+            peakBrightnessSlider.SetEnabled(HDROn);
+            calibrationButton.SetEnabled(HDROn);
         }
 
         _refreshers.Add(UpdateHDRSlidersState);
-        hdrOutputGroup.schedule.Execute(UpdateHDRSlidersState).Every(250);
+        HDROutputGroup.schedule.Execute(UpdateHDRSlidersState).Every(250);
         UpdateHDRSlidersState();
 
         return displayScroll;

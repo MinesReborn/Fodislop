@@ -5,7 +5,7 @@
 
 // Квад террейна из текстур данных клетки (TerrainCellDataTextures).
 //
-// Меш идентификаторов (TerrainCellIdMesh) несёт в POSITION адрес квада
+// Меш идентификаторов (TerrainCellIDMesh) несёт в POSITION адрес квада
 // (x, y, слой), а в TEXCOORD0 угол. Здесь восстанавливаются ровно те
 // атрибуты, что TerrainQuadBuilder писал в вершину: раскладка текселей
 // описана в TerrainCellDataPacker.

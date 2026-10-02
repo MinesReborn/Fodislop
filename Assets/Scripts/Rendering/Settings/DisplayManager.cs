@@ -133,11 +133,11 @@ namespace Kern.Rendering
         private static void ApplyPixelSampling(PixelSamplingMode mode)
         {
             Shader.SetGlobalFloat(
-                _PixelArtFilteringProperty,
+                s_pixelArtFilteringProperty,
                 PixelSamplingRules.FiltersTexelEdges(mode) ? 1f : 0f);
         }
 
-        private static readonly int _PixelArtFilteringProperty = Shader.PropertyToID("_PixelArtFiltering");
+        private static readonly int s_pixelArtFilteringProperty = Shader.PropertyToID("_PixelArtFiltering");
 
         public void SetResolution(int width, int height, FullScreenMode mode, int refreshRate = 60)
         {
@@ -213,7 +213,7 @@ namespace Kern.Rendering
             {
                 Debug.LogWarning(
                     "[HDR] No HDR-capable display is reported yet; the preference is kept " +
-                    "and applied by HDROutputReconciler once one appears.");
+                    "and applied by HdrOutputReconciler once one appears.");
             }
 
             HDROutput.ConfigureCamera(_gameplayCamera.Camera);

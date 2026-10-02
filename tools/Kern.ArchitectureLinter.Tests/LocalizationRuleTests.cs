@@ -17,9 +17,9 @@ public sealed class LocalizationRuleTests
         try
         {
             string localizationDirectory = Path.Combine(projectRoot, "Assets/Resources/Localization");
-            string nestedUiDirectory = Path.Combine(projectRoot, "Assets/Resources/UI/Menus");
+            string nestedUIDirectory = Path.Combine(projectRoot, "Assets/Resources/UI/Menus");
             Directory.CreateDirectory(localizationDirectory);
-            Directory.CreateDirectory(nestedUiDirectory);
+            Directory.CreateDirectory(nestedUIDirectory);
 
             const string key = "mainmenu.settings_lighting";
             await File.WriteAllTextAsync(
@@ -29,7 +29,7 @@ public sealed class LocalizationRuleTests
                 Path.Combine(localizationDirectory, "ru.json"),
                 "{ \"mainmenu.settings_lighting\": \"Освещение\" }");
             await File.WriteAllTextAsync(
-                Path.Combine(nestedUiDirectory, "MainMenu.uxml"),
+                Path.Combine(nestedUIDirectory, "MainMenu.uxml"),
                 "<ui:Label text=\"mainmenu.settings_lighting\" />");
 
             IReadOnlyList<RuleViolation> violations = await EvaluateAsync(projectRoot);

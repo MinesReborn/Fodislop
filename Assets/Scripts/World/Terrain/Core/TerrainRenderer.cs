@@ -60,10 +60,10 @@ public class TerrainRenderer : MonoBehaviour, Kern.Core.Interfaces.WorldLighting
         [Inject]
         private ISceneObjectFactory _sceneObjects = null!;
 
-        private static readonly ProfilerMarker _TerrainLateUpdateMarker =
+        private static readonly ProfilerMarker s_terrainLateUpdateMarker =
             new("Kern.Terrain.LateUpdate.CPU");
 
-        private static readonly AllocationLedger.Entry _AllocationEntry =
+        private static readonly AllocationLedger.Entry s_allocationEntry =
             AllocationLedger.Register("Террейн — LateUpdate");
 
         private readonly TerrainWindow _window = new();
@@ -87,10 +87,10 @@ public class TerrainRenderer : MonoBehaviour, Kern.Core.Interfaces.WorldLighting
         private TerrainLightingFramePublisher LightingFramePublisher =>
             _lightingFramePublisher ??= new(_terrainLightingExchange);
 
-        public bool BypassCpuMeshRebuild
+        public bool BypassCPUMeshRebuild
         {
-            get => _debugSettings.BypassCpuMeshRebuild;
-            set => _debugSettings.BypassCpuMeshRebuild = value;
+            get => _debugSettings.BypassCPUMeshRebuild;
+            set => _debugSettings.BypassCPUMeshRebuild = value;
         }
 
         public bool BypassTerrainDraw
@@ -173,7 +173,7 @@ public class TerrainRenderer : MonoBehaviour, Kern.Core.Interfaces.WorldLighting
                 context.WorldRect,
                 transform.localToWorldMatrix,
                 _window.Driver.Presentation.CellMaterials,
-                _window.CellIDMesh,
+                _window.CellIdMesh,
                 _presentation.ViewOffset);
 
         public void RenderAmbientOcclusionField(
@@ -185,8 +185,9 @@ public class TerrainRenderer : MonoBehaviour, Kern.Core.Interfaces.WorldLighting
                 context.WorldRect,
                 transform.localToWorldMatrix,
                 _window.Driver.Presentation.CellMaterials,
-                _window.CellIDMesh,
-                _presentation.ViewOffset);
+                _window.CellIdMesh,
+                _presentation.ViewOffset,
+                context.RasterRect);
 
         protected void Awake()
         {
@@ -213,8 +214,8 @@ public class TerrainRenderer : MonoBehaviour, Kern.Core.Interfaces.WorldLighting
                 return;
             }
 
-            using var terrainLateUpdateMarker = _TerrainLateUpdateMarker.Auto();
-            using var allocationScope = AllocationLedger.Measure(_AllocationEntry);
+            using var terrainLateUpdateMarker = s_terrainLateUpdateMarker.Auto();
+            using var allocationScope = AllocationLedger.Measure(s_allocationEntry);
             long stallStart = TerrainStallReport.Begin();
             (_telemetry as ITerrainTextureUploadTelemetryReceiver)?.BindTerrainTextureUploadTelemetry(_window.UploadTelemetry);
 
@@ -273,7 +274,7 @@ public class TerrainRenderer : MonoBehaviour, Kern.Core.Interfaces.WorldLighting
             float uploadMs = _window.Commit();
             if (uploadMs > 0f)
             {
-                _telemetry.TerrainGpuUploadTimeMs = uploadMs;
+                _telemetry.TerrainGPUUploadTimeMs = uploadMs;
             }
 
             long planStart = TerrainStallReport.Begin();
@@ -292,7 +293,7 @@ public class TerrainRenderer : MonoBehaviour, Kern.Core.Interfaces.WorldLighting
                 MeshHeight: _window.Height,
                 IsInitialized: _window.IsInitialized,
                 CellsCommitted: _window.CellsCommitted,
-                CpuBuildInFlight: _window.HasCpuBuildInFlight,
+                CPUBuildInFlight: _window.HasCPUBuildInFlight,
                 SpeedCellsPerSecond: _cameraFrame.SpeedCellsPerSecond,
                 PreparationLatencySeconds: _window.EstimatedPreparationSeconds,
                 RetainedLightingViewport: _lightingViewport,
@@ -334,7 +335,7 @@ public class TerrainRenderer : MonoBehaviour, Kern.Core.Interfaces.WorldLighting
                 _clientConfigManager,
                 framePlan.ActiveWindow.Origin,
                 framePlan.DimensionsChanged,
-                BypassCpuMeshRebuild,
+                BypassCPUMeshRebuild,
                 _meshRenderer,
                 WorldChanges.RequestedContentRevision,
                 out Exception? failure))

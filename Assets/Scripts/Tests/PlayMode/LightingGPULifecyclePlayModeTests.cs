@@ -28,10 +28,10 @@ public sealed class LightingGPULifecyclePlayModeTests
 {
     private const string TestDummyToken = "playmode-lighting-gpu-token";
     private const int WalkingProbeLightId = int.MinValue + 317;
-    private static int _dynamicLightUpdateSequence;
+    private static int s_dynamicLightUpdateSequence;
 
     // Имена целей освещения из LightingResourceManager.CreateTexture.
-    private static readonly HashSet<string> _LightingTargetNames =
+    private static readonly HashSet<string> s_lightingTargetNames =
     [
         "_LightingMaterialField",
         "_StaticEmissionField",
@@ -87,7 +87,7 @@ public sealed class LightingGPULifecyclePlayModeTests
             or nameof(VisualTuning_RebuildsFieldsAndRetainsStationarySources)
             or nameof(StationarySource_ReanchorMatchesFreshTransport)
             or nameof(OutsideFieldSource_KeepsCompleteEmitter)
-            or nameof(PolarDepth_EqualExtinctionPreservesColoredHdrRadiance))
+            or nameof(PolarDepth_EqualExtinctionPreservesColoredHDRRadiance))
         {
 #if UNITY_EDITOR
             // An interactive Editor owns a Game View window. Batch mode uses
@@ -398,7 +398,7 @@ public sealed class LightingGPULifecyclePlayModeTests
 
     [UnityTest]
     [Timeout(120_000)]
-    public IEnumerator PolarDepth_EqualExtinctionPreservesColoredHdrRadiance()
+    public IEnumerator PolarDepth_EqualExtinctionPreservesColoredHDRRadiance()
     {
         _walkingProbeLighting = PlayModeHarness.RequireInGame<LightingEngine>();
         _walkingProbeDebugView = _walkingProbeLighting.ActiveDebugView;
@@ -552,7 +552,7 @@ public sealed class LightingGPULifecyclePlayModeTests
                 lighting.SetDynamicLight(WalkingProbeLightId, source, new Color(1f, 0.5f, 0.25f), 8f);
                 yield return PlayModeHarness.Frames(4);
                 Assert.That(lighting.WorldRect, Is.EqualTo(rect));
-                Assert.That(lighting.DroppedDynamicLightIDs, Has.No.Member(WalkingProbeLightId));
+                Assert.That(lighting.DroppedDynamicLightIds, Has.No.Member(WalkingProbeLightId));
                 ushort[] values = null!;
                 yield return ReadHalfRegion(direct, px, py, 1, 1, data => values = data);
                 for (int channel = 0; channel < 3; channel++)
@@ -886,7 +886,7 @@ public sealed class LightingGPULifecyclePlayModeTests
             Assert.That(ao.width, Is.EqualTo(Mathf.RoundToInt(rect.z * 32)));
             Assert.That(ao.height, Is.EqualTo(Mathf.RoundToInt(rect.w * 32)));
             Assert.That(lighting.UploadedDynamicLightCount, Is.GreaterThan(0));
-            Assert.That(lighting.DroppedDynamicLightIDs, Has.No.Member(WalkingProbeLightId));
+            Assert.That(lighting.DroppedDynamicLightIds, Has.No.Member(WalkingProbeLightId));
             Assert.That(LiveLightingTargets().Values.All(count => count == 1), Is.True);
             RenderTexture direct = lighting.GPUResources.Direct.Dynamic!;
             int px = Mathf.FloorToInt((source.x - rect.x) / rect.z * direct.width);
@@ -932,7 +932,7 @@ public sealed class LightingGPULifecyclePlayModeTests
         Assert.That(polar.volumeDepth, Is.EqualTo(Mathf.NextPowerOfTwo(lighting.UploadedDynamicLightCount) * 4),
             "Two points per axis require exactly four emitter layers per newly allocated source slot.");
         Assert.That(lighting.UploadedDynamicLightCount, Is.GreaterThan(0));
-        Assert.That(lighting.DroppedDynamicLightIDs, Has.No.Member(WalkingProbeLightId));
+        Assert.That(lighting.DroppedDynamicLightIds, Has.No.Member(WalkingProbeLightId));
         ulong stableSolve = lighting.SolveCount;
         LightingQualityTuningController.Apply(LightingQualityTuningController.Current);
         yield return PlayModeHarness.Frames(10);
@@ -1047,7 +1047,7 @@ public sealed class LightingGPULifecyclePlayModeTests
             Is.GreaterThan(0.05f), "FinalLighting left the stationary production robot unlit.");
         yield return PlayModeHarness.Frames(30);
         Assert.That(player.transform.position, Is.EqualTo(robotPosition));
-        Assert.That(_walkingProbeLighting.DroppedDynamicLightIDs, Has.No.Member(WalkingProbeLightId));
+        Assert.That(_walkingProbeLighting.DroppedDynamicLightIds, Has.No.Member(WalkingProbeLightId));
         var finalStationary = new ScreenProbe();
         yield return CaptureWorldProbe(_walkingProbeCamera, robotProbe, finalStationary, radius: 5);
         Vector3 finalDelta = new(
@@ -1203,7 +1203,7 @@ public sealed class LightingGPULifecyclePlayModeTests
             yield return PlayModeHarness.WaitUntil(() => lighting.SolveCount > before, 10f, "Subcell source did not solve.");
             yield return PlayModeHarness.Frames(2);
             Assert.That(lighting.GPUResources.Direct.Dynamic, Is.SameAs(direct));
-            Assert.That(lighting.DroppedDynamicLightIDs, Has.No.Member(WalkingProbeLightId));
+            Assert.That(lighting.DroppedDynamicLightIds, Has.No.Member(WalkingProbeLightId));
             RenderTexture polar = Resources.FindObjectsOfTypeAll<RenderTexture>()
                 .Single(texture => texture.name == "_DynamicRayDepth");
             Assert.That(polar.dimension, Is.EqualTo(TextureDimension.Tex2DArray));
@@ -1223,10 +1223,10 @@ public sealed class LightingGPULifecyclePlayModeTests
                     "One source must retain radiance in the direct field without a duplicate full-field tile.");
                 Assert.That(tiles.height, Is.EqualTo(1));
             }
-            var gpuLights = new DynamicLightGpuData[lighting.UploadedDynamicLightCount];
+            var gpuLights = new DynamicLightGPUData[lighting.UploadedDynamicLightCount];
             lighting.GPUResources.Direct.DynamicLightsBuffer!.GetData(gpuLights, 0, 0, gpuLights.Length);
             TestContext.WriteLine($"field={direct.width}x{direct.height}; rect={rect}; receiver={receiver}; pixel={px},{py}; baseline={baseline}; count={gpuLights.Length}");
-            foreach (DynamicLightGpuData gpuLight in gpuLights)
+            foreach (DynamicLightGPUData gpuLight in gpuLights)
             {
                 if (gpuLight.ColorIntensity.y == 0f && gpuLight.ColorIntensity.z == 0f)
                 {
@@ -1568,7 +1568,7 @@ public sealed class LightingGPULifecyclePlayModeTests
     private static IEnumerator AssertUpdatesAfterDynamicLightChange(LightingEngine lighting, string failureMessage)
     {
         ulong solves = lighting.SolveCount;
-        int sequence = ++_dynamicLightUpdateSequence;
+        int sequence = ++s_dynamicLightUpdateSequence;
         lighting.SetDynamicLight(
             -2048,
             new Vector2(10f + sequence, 10f),
@@ -2154,7 +2154,7 @@ public sealed class LightingGPULifecyclePlayModeTests
 
     private static Dictionary<string, int> LiveLightingTargets() =>
         Resources.FindObjectsOfTypeAll<RenderTexture>()
-            .Where(texture => texture != null && _LightingTargetNames.Contains(texture.name))
+            .Where(texture => texture != null && s_lightingTargetNames.Contains(texture.name))
             .GroupBy(texture => texture.name)
             .ToDictionary(group => group.Key, group => group.Count());
 }

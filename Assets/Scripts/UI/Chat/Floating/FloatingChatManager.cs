@@ -209,12 +209,12 @@ namespace Kern.UI
             return CoordinateUtils.ServerToUnityPos(packet.FallbackX, packet.FallbackY, worldHeight);
         }
 
-        private void ExpireBubbleOf(int ownerID)
+        private void ExpireBubbleOf(int ownerId)
         {
             for (int i = _activeBubbles.Count - 1; i >= 0; i--)
             {
                 FloatingChatBubble bubble = _activeBubbles[i];
-                if (bubble != null && bubble.OwnerID == ownerID)
+                if (bubble != null && bubble.OwnerId == ownerId)
                 {
                     bubble.Expire();
                 }

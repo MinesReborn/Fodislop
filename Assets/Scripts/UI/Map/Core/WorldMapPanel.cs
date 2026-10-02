@@ -191,8 +191,16 @@ internal sealed class WorldMapPanel : IDisposable
 
         UIState.SetHidden(_playerMarker, false);
 
-        float screenX = (playerX + 0.5f - viewCenterX) / cellsPerPixel + texWidth * 0.5f;
-        float screenY = (playerY + 0.5f - viewCenterY) / cellsPerPixel + texHeight * 0.5f;
+        // The map RenderTexture is capped (MapViewportBounds) and the Image scales
+        // it to the panel, so texture pixels must be mapped to panel pixels.
+        float texLeft = (playerX + 0.5f - viewCenterX) / cellsPerPixel + texWidth * 0.5f;
+        float texTop = (playerY + 0.5f - viewCenterY) / cellsPerPixel + texHeight * 0.5f;
+
+        Rect imageRect = _image?.layout ?? new Rect(0f, 0f, texWidth, texHeight);
+        float scaleX = imageRect.width > 0f && texWidth > 0 ? imageRect.width / texWidth : 1f;
+        float scaleY = imageRect.height > 0f && texHeight > 0 ? imageRect.height / texHeight : 1f;
+        float screenX = imageRect.x + (texLeft * scaleX);
+        float screenY = imageRect.y + (texTop * scaleY);
 
         if (Mathf.Abs(screenX - _lastMarkerLeft) > PositionWriteEpsilon ||
             Mathf.Abs(screenY - _lastMarkerTop) > PositionWriteEpsilon)

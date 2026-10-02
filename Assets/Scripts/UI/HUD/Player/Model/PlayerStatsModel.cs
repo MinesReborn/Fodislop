@@ -59,7 +59,7 @@ public sealed class PlayerStatsModel : IPlayerStats
     public int MaxHealth { get; private set; }
     public float HealthPercent => MaxHealth > 0 ? (float)Health / MaxHealth : 0f;
     public long Money { get; private set; }
-    public long Creds { get; private set; }
+    public long Credits { get; private set; }
     public int GeologyCurrent { get; private set; }
     public int GeologyMax { get; private set; }
     public string GeologyText { get; private set; } = string.Empty;
@@ -68,7 +68,7 @@ public sealed class PlayerStatsModel : IPlayerStats
     public int BasketMaxPercent { get; private set; }
     public int OnlinePlayers { get; private set; }
     public int OnlineProgrammator { get; private set; }
-    public int ClanID { get; private set; }
+    public int ClanId { get; private set; }
     public int MaxDepth { get; private set; }
     public int CurrentDepth { get; private set; }
 
@@ -144,15 +144,15 @@ public sealed class PlayerStatsModel : IPlayerStats
         OnStatsChanged?.Invoke();
     }
 
-    public void SetCurrency(long money, long creds)
+    public void SetCurrency(long money, long credits)
     {
-        if (Money == money && Creds == creds)
+        if (Money == money && Credits == credits)
         {
             return;
         }
 
         Money = money;
-        Creds = creds;
+        Credits = credits;
         OnCurrencyChanged?.Invoke();
         OnStatsChanged?.Invoke();
     }
@@ -225,14 +225,14 @@ public sealed class PlayerStatsModel : IPlayerStats
         OnStatsChanged?.Invoke();
     }
 
-    public void SetClanID(int clanID)
+    public void SetClanId(int clanId)
     {
-        if (ClanID == clanID)
+        if (ClanId == clanId)
         {
             return;
         }
 
-        ClanID = clanID;
+        ClanId = clanId;
         OnStatsChanged?.Invoke();
     }
 

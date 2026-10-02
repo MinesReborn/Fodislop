@@ -187,7 +187,7 @@ namespace Kern.World.Lighting
 
         public int DroppedDynamicLightCount => _dynamicLightManager.DroppedCount;
 
-        public IReadOnlyList<int> DroppedDynamicLightIDs => _dynamicLightManager.DroppedLightIDs;
+        public IReadOnlyList<int> DroppedDynamicLightIds => _dynamicLightManager.DroppedLightIds;
 
         public ulong SolveCount => _runtimeState.SolveCount;
 
@@ -267,13 +267,13 @@ namespace Kern.World.Lighting
             // explicit PostStart resolution below performs the authoritative
             // initialization; do not throw every frame while that hand-off is
             // still pending.
-            if (_DependenciesReady)
+            if (DependenciesReady)
             {
                 TryInitialize();
             }
         }
 
-        private bool _DependenciesReady =>
+        private bool DependenciesReady =>
             _clientConfig?.Config != null &&
             _lightingGeometryRegistry != null;
 
@@ -284,7 +284,7 @@ namespace Kern.World.Lighting
                 return;
             }
 
-            if (!_DependenciesReady)
+            if (!DependenciesReady)
             {
                 throw new InvalidOperationException(
                     "LightingEngine requires all DI dependencies before initialization.");
@@ -318,7 +318,7 @@ namespace Kern.World.Lighting
         private void OnDestroy()
         {
 
-            LightingGpuTeardown.ReleasePipeline(
+            LightingGPUTeardown.ReleasePipeline(
                 _composition, _resources, _dynamicLightManager);
             Shader.DisableKeyword(LightingPresentation.WorldLightingKeyword);
         }
@@ -327,7 +327,7 @@ namespace Kern.World.Lighting
         {
             if (!_initialized)
             {
-                if (_DependenciesReady)
+                if (DependenciesReady)
                 {
                     TryInitialize();
                 }
@@ -494,7 +494,7 @@ namespace Kern.World.Lighting
             if (staticOrFieldChanged)
             {
                 Composition.Presentation.PublishDisabled();
-                LightingGpuTeardown.ReleaseResources(
+                LightingGPUTeardown.ReleaseResources(
                     _composition, _resources, _dynamicLightManager, _runtimeState);
                 LightingRuntimeInvalidation.ResetFieldAndRadiance(_runtimeState);
             }
@@ -541,7 +541,7 @@ namespace Kern.World.Lighting
 
         private void DisableGPULighting()
         {
-            QualityController.DisableGpuLighting();
+            QualityController.DisableGPULighting();
         }
 
         private void ApplyQualitySettings(

@@ -58,15 +58,15 @@ internal sealed class CascadeScrollRecorder
         _resources.EnsureScratchAtlas();
         _telemetry.LightingAtlasScrollCount++;
         cmd.BeginSample("Kern.Lighting.AtlasReanchor");
-        cmd.SetComputeIntParam(compute, LightingComputeBinder.CascadeReanchorEnabledID, 1);
-        cmd.SetComputeIntParams(compute, LightingComputeBinder.ReanchorDeltaTexelsID, texelDelta.x, texelDelta.y);
+        cmd.SetComputeIntParam(compute, LightingComputeBinder.CascadeReanchorEnabledId, 1);
+        cmd.SetComputeIntParams(compute, LightingComputeBinder.ReanchorDeltaTexelsId, texelDelta.x, texelDelta.y);
         cmd.BeginSample("Kern.Lighting.ReanchorFieldDependencies");
         int rowsKernel = _resources.BuildReanchorChangeRowsKernel;
         int columnsKernel = _resources.BuildReanchorChangeColumnsKernel;
         cmd.SetComputeTextureParam(compute, rowsKernel, "_ReanchorMaterial", _resources.ReanchorMaterial!);
         cmd.SetComputeTextureParam(compute, rowsKernel, "_ReanchorEmission", _resources.ReanchorEmission!);
-        cmd.SetComputeTextureParam(compute, rowsKernel, LightingComputeBinder.MaterialFieldID, _resources.MaterialField!);
-        cmd.SetComputeTextureParam(compute, rowsKernel, LightingComputeBinder.EmissionFieldID, emission);
+        cmd.SetComputeTextureParam(compute, rowsKernel, LightingComputeBinder.MaterialFieldId, _resources.MaterialField!);
+        cmd.SetComputeTextureParam(compute, rowsKernel, LightingComputeBinder.EmissionFieldId, emission);
         cmd.SetComputeBufferParam(compute, rowsKernel, "_ReanchorChangeRowsOutput", _resources.ReanchorRows!);
         cmd.DispatchCompute(compute, rowsKernel, (_resources.FieldHeight + 63) / 64, 1, 1);
         cmd.SetComputeBufferParam(compute, columnsKernel, "_ReanchorChangeRows", _resources.ReanchorRows!);
@@ -75,9 +75,9 @@ internal sealed class CascadeScrollRecorder
         cmd.SetComputeBufferParam(compute, _resources.SolveCascadeKernel, "_ReanchorChanges", _resources.ReanchorChanges!);
         cmd.EndSample("Kern.Lighting.ReanchorFieldDependencies");
         int copyKernel = _resources.ScrollRadianceAtlasKernel;
-        cmd.SetComputeBufferParam(compute, copyKernel, LightingComputeBinder.RadianceAtlasInputID, _resources.RadianceAtlas!);
-        cmd.SetComputeBufferParam(compute, copyKernel, LightingComputeBinder.RadianceAtlasOutputID, _resources.RadianceScratchAtlas!);
-        cmd.SetComputeBufferParam(compute, copyKernel, LightingComputeBinder.CascadeChangedMaskID, _resources.CascadeChangedMask!);
+        cmd.SetComputeBufferParam(compute, copyKernel, LightingComputeBinder.RadianceAtlasInputId, _resources.RadianceAtlas!);
+        cmd.SetComputeBufferParam(compute, copyKernel, LightingComputeBinder.RadianceAtlasOutputId, _resources.RadianceScratchAtlas!);
+        cmd.SetComputeBufferParam(compute, copyKernel, LightingComputeBinder.CascadeChangedMaskId, _resources.CascadeChangedMask!);
         foreach (CascadeLayout cascade in _resources.Cascades)
         {
             bool samePhase = texelDelta.x % cascade.ProbeSpacing == 0 && texelDelta.y % cascade.ProbeSpacing == 0;
@@ -89,36 +89,36 @@ internal sealed class CascadeScrollRecorder
                 : 0;
             _telemetry.LightingAtlasReusedEntries += copied;
             _telemetry.LightingAtlasClearedEntries += cascade.EntryCount - copied;
-            cmd.SetComputeIntParam(compute, LightingComputeBinder.CascadePhaseMatchesID, samePhase ? 1 : 0);
-            cmd.SetComputeIntParam(compute, LightingComputeBinder.ScrollCascadeOffsetID, cascade.Offset);
-            cmd.SetComputeIntParam(compute, LightingComputeBinder.ScrollCascadeEntryCountID, cascade.EntryCount);
-            cmd.SetComputeIntParams(compute, LightingComputeBinder.ScrollProbeSizeID, cascade.ProbeWidth, cascade.ProbeHeight);
-            cmd.SetComputeIntParam(compute, LightingComputeBinder.ScrollDirectionCountID, cascade.DirectionCount);
-            cmd.SetComputeIntParams(compute, LightingComputeBinder.ScrollDeltaProbesID, deltaX, deltaY);
+            cmd.SetComputeIntParam(compute, LightingComputeBinder.CascadePhaseMatchesId, samePhase ? 1 : 0);
+            cmd.SetComputeIntParam(compute, LightingComputeBinder.ScrollCascadeOffsetId, cascade.Offset);
+            cmd.SetComputeIntParam(compute, LightingComputeBinder.ScrollCascadeEntryCountId, cascade.EntryCount);
+            cmd.SetComputeIntParams(compute, LightingComputeBinder.ScrollProbeSizeId, cascade.ProbeWidth, cascade.ProbeHeight);
+            cmd.SetComputeIntParam(compute, LightingComputeBinder.ScrollDirectionCountId, cascade.DirectionCount);
+            cmd.SetComputeIntParams(compute, LightingComputeBinder.ScrollDeltaProbesId, deltaX, deltaY);
             int groups = (cascade.EntryCount + 63) / 64;
             int x = Mathf.Min(MaximumDispatchGroupsPerDimension, groups);
-            cmd.SetComputeIntParam(compute, LightingComputeBinder.CascadeDispatchRowWidthID, x * 64);
+            cmd.SetComputeIntParam(compute, LightingComputeBinder.CascadeDispatchRowWidthId, x * 64);
             cmd.DispatchCompute(compute, copyKernel, x, (groups + x - 1) / x, 1);
         }
         _resources.SwapRadianceAtlases();
         cmd.SetComputeBufferParam(compute, _resources.SolveCascadeKernel,
-            LightingComputeBinder.RadianceAtlasID, _resources.RadianceAtlas!);
+            LightingComputeBinder.RadianceAtlasId, _resources.RadianceAtlas!);
         cmd.SetComputeTextureParam(compute, _resources.SolveCascadeKernel,
-            LightingComputeBinder.CellSolidMaskID, _resources.CellSolidMask!);
+            LightingComputeBinder.CellSolidMaskId, _resources.CellSolidMask!);
         for (int i = _resources.Cascades.Count - 1; i >= 0; i--)
         {
             CascadeLayout cascade = _resources.Cascades[i];
             bool samePhase = texelDelta.x % cascade.ProbeSpacing == 0 && texelDelta.y % cascade.ProbeSpacing == 0;
-            cmd.SetComputeIntParam(compute, LightingComputeBinder.CascadePhaseMatchesID, samePhase ? 1 : 0);
+            cmd.SetComputeIntParam(compute, LightingComputeBinder.CascadePhaseMatchesId, samePhase ? 1 : 0);
             CascadeLayout far = i + 1 < _resources.Cascades.Count ? _resources.Cascades[i + 1] : cascade;
             bool farPhase = texelDelta.x % far.ProbeSpacing == 0 && texelDelta.y % far.ProbeSpacing == 0;
-            cmd.SetComputeIntParam(compute, LightingComputeBinder.ReanchorFarPhaseMatchesID, farPhase ? 1 : 0);
-            cmd.SetComputeIntParams(compute, LightingComputeBinder.ReanchorFarDeltaProbesID,
+            cmd.SetComputeIntParam(compute, LightingComputeBinder.ReanchorFarPhaseMatchesId, farPhase ? 1 : 0);
+            cmd.SetComputeIntParams(compute, LightingComputeBinder.ReanchorFarDeltaProbesId,
                 texelDelta.x / far.ProbeSpacing, texelDelta.y / far.ProbeSpacing);
             recordCascade(cmd, compute, _resources.SolveCascadeKernel, i, emission,
                 new RectInt(0, 0, cascade.ProbeWidth, cascade.ProbeHeight), true, dirtyRegionCount);
         }
-        cmd.SetComputeIntParam(compute, LightingComputeBinder.CascadeReanchorEnabledID, 0);
+        cmd.SetComputeIntParam(compute, LightingComputeBinder.CascadeReanchorEnabledId, 0);
         cmd.EndSample("Kern.Lighting.AtlasReanchor");
     }
 
@@ -134,12 +134,12 @@ internal sealed class CascadeScrollRecorder
         commandBuffer.SetComputeBufferParam(
             compute,
             _resources.ScrollRadianceAtlasKernel,
-            LightingComputeBinder.RadianceAtlasInputID,
+            LightingComputeBinder.RadianceAtlasInputId,
             input);
         commandBuffer.SetComputeBufferParam(
             compute,
             _resources.ScrollRadianceAtlasKernel,
-            LightingComputeBinder.RadianceAtlasOutputID,
+            LightingComputeBinder.RadianceAtlasOutputId,
             output);
 
         foreach (CascadeLayout cascade in _resources.Cascades)
@@ -155,24 +155,24 @@ internal sealed class CascadeScrollRecorder
             _telemetry.LightingAtlasClearedEntries += cascade.EntryCount - reusedEntries;
             commandBuffer.SetComputeIntParam(
                 compute,
-                LightingComputeBinder.ScrollCascadeOffsetID,
+                LightingComputeBinder.ScrollCascadeOffsetId,
                 cascade.Offset);
             commandBuffer.SetComputeIntParam(
                 compute,
-                LightingComputeBinder.ScrollCascadeEntryCountID,
+                LightingComputeBinder.ScrollCascadeEntryCountId,
                 cascade.EntryCount);
             commandBuffer.SetComputeIntParams(
                 compute,
-                LightingComputeBinder.ScrollProbeSizeID,
+                LightingComputeBinder.ScrollProbeSizeId,
                 cascade.ProbeWidth,
                 cascade.ProbeHeight);
             commandBuffer.SetComputeIntParam(
                 compute,
-                LightingComputeBinder.ScrollDirectionCountID,
+                LightingComputeBinder.ScrollDirectionCountId,
                 cascade.DirectionCount);
             commandBuffer.SetComputeIntParams(
                 compute,
-                LightingComputeBinder.ScrollDeltaProbesID,
+                LightingComputeBinder.ScrollDeltaProbesId,
                 deltaX,
                 deltaY);
 
@@ -180,7 +180,7 @@ internal sealed class CascadeScrollRecorder
             int groupCountX = Mathf.Min(MaximumDispatchGroupsPerDimension, groups);
             commandBuffer.SetComputeIntParam(
                 compute,
-                LightingComputeBinder.CascadeDispatchRowWidthID,
+                LightingComputeBinder.CascadeDispatchRowWidthId,
                 groupCountX * 64);
             commandBuffer.DispatchCompute(
                 compute,

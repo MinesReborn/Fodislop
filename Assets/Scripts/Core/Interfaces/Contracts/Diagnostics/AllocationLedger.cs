@@ -78,13 +78,13 @@ public static class AllocationLedger
 
     private const double AverageWeight = 0.05;
 
-    private static readonly List<Entry> _Entries = [];
-    private static readonly Dictionary<string, Entry> _ByName = new(StringComparer.Ordinal);
-    private static int _frame = -1;
+    private static readonly List<Entry> s_entries = [];
+    private static readonly Dictionary<string, Entry> s_byName = new(StringComparer.Ordinal);
+    private static int s_frame = -1;
 
     public static bool Enabled { get; set; }
 
-    public static IReadOnlyList<Entry> Entries => _Entries;
+    public static IReadOnlyList<Entry> Entries => s_entries;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetForPlaySession()
@@ -93,16 +93,16 @@ public static class AllocationLedger
         // классов, а без перезагрузки домена эти поля переживают Play Mode.
         Enabled = false;
         Reset();
-        _frame = -1;
+        s_frame = -1;
     }
 
     public static Entry Register(string name)
     {
-        if (!_ByName.TryGetValue(name, out Entry? entry))
+        if (!s_byName.TryGetValue(name, out Entry? entry))
         {
             entry = new Entry(name);
-            _ByName[name] = entry;
-            _Entries.Add(entry);
+            s_byName[name] = entry;
+            s_entries.Add(entry);
         }
 
         return entry;
@@ -112,7 +112,7 @@ public static class AllocationLedger
 
     public static void Reset()
     {
-        foreach (Entry entry in _Entries)
+        foreach (Entry entry in s_entries)
         {
             entry.LastFrameBytes = 0;
             entry.LastFrameCalls = 0;
@@ -129,14 +129,14 @@ public static class AllocationLedger
     private static void Roll()
     {
         int frame = Time.frameCount;
-        if (frame == _frame)
+        if (frame == s_frame)
         {
             return;
         }
 
-        bool closePrevious = _frame >= 0;
-        _frame = frame;
-        foreach (Entry entry in _Entries)
+        bool closePrevious = s_frame >= 0;
+        s_frame = frame;
+        foreach (Entry entry in s_entries)
         {
             if (closePrevious)
             {

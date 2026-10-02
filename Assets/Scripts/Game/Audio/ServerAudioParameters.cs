@@ -9,7 +9,7 @@ namespace Kern.Game;
 
 internal sealed class ServerAudioParameters
 {
-    public uint SourceBotID { get; private set; }
+    public uint SourceBotId { get; private set; }
     public bool HasSourceBot { get; private set; }
     public ushort AttractorX { get; private set; }
     public ushort AttractorY { get; private set; }
@@ -39,9 +39,9 @@ internal sealed class ServerAudioParameters
             switch (param.Key.ToLowerInvariant())
             {
                 case "sourcebotid":
-                    if (uint.TryParse(param.Value, out var srcBotID))
+                    if (uint.TryParse(param.Value, out var srcBotId))
                     {
-                        result.SourceBotID = srcBotID;
+                        result.SourceBotId = srcBotId;
                         result.HasSourceBot = true;
                     }
 

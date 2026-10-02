@@ -18,29 +18,29 @@ public static class TerrainSurfaceShaderGlobals
     // 0.51 — не подбор на глаз. В оригинале тень на полу это 1 - z² при
     // z = 0.7, то есть ровно 0.51, и глубже пол там не темнеет никогда.
     // Обе величины живут в TerrainConfigHolder.
-    private static readonly int _AmbientOcclusionStrengthID =
+    private static readonly int s_ambientOcclusionStrengthId =
         Shader.PropertyToID("_TerrainAmbientOcclusionStrength");
 
-    private static readonly int _AmbientOcclusionFloorID =
+    private static readonly int s_ambientOcclusionFloorId =
         Shader.PropertyToID("_TerrainAmbientOcclusionFloor");
 
-    private static readonly int _AmbientOcclusionDistanceID =
+    private static readonly int s_ambientOcclusionDistanceId =
         Shader.PropertyToID("_TerrainAmbientOcclusionDistance");
 
     // Кайма включена по умолчанию. Публикуется на старте, потому что
     // глобаль живёт в нативной части: до первого ApplyClientConfig она
     // была бы нулём, и кайма молча не рисовалась бы.
-    private static readonly int _ReliefRimEnabledID =
+    private static readonly int s_reliefRimEnabledId =
         Shader.PropertyToID("_TerrainReliefRimEnabled");
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     public static void ApplyShaderGlobals()
     {
-        Shader.SetGlobalFloat(_AmbientOcclusionStrengthID, TerrainConfigHolder.AmbientOcclusionStrength);
-        Shader.SetGlobalFloat(_AmbientOcclusionFloorID, TerrainConfigHolder.AmbientOcclusionFloor);
+        Shader.SetGlobalFloat(s_ambientOcclusionStrengthId, TerrainConfigHolder.AmbientOcclusionStrength);
+        Shader.SetGlobalFloat(s_ambientOcclusionFloorId, TerrainConfigHolder.AmbientOcclusionFloor);
         Shader.SetGlobalFloat(
-            _AmbientOcclusionDistanceID,
+            s_ambientOcclusionDistanceId,
             TerrainConfigHolder.AmbientOcclusionDistanceCells);
-        Shader.SetGlobalFloat(_ReliefRimEnabledID, 1f);
+        Shader.SetGlobalFloat(s_reliefRimEnabledId, 1f);
     }
 }

@@ -592,7 +592,7 @@ public static class Program
                     string className = match.Groups[1].Value;
                     string memberName = match.Groups[2].Value;
 
-                    if (className is "Screen" or "QualitySettings" or "Application" or "HDROutput" or "UniversalRenderPipelineAsset" or "Math" or "Mathf" or "Shader")
+                    if (className is "Screen" or "QualitySettings" or "Application" or "HdrOutput" or "UniversalRenderPipelineAsset" or "Math" or "Mathf" or "Shader")
                     {
                         continue;
                     }

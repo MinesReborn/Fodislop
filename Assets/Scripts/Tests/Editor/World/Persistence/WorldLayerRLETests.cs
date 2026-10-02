@@ -12,7 +12,7 @@ using UnityEngine.TestTools;
 namespace Kern.Tests.World;
 
 [TestFixture]
-public class WorldLayerRleTests
+public class WorldLayerRLETests
 {
     private string _tempFilePath = null!;
     private AsyncOperationSupervisor _operations = null!;

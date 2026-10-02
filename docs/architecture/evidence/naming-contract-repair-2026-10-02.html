@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="ru"><meta charset="utf-8"><title>Проверка контрактов после переименования</title>
+<style>body{max-width:960px;margin:40px auto;padding:0 24px;font:16px/1.6 system-ui;color:#18212b}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccd3da;padding:10px;text-align:left}code{background:#eef1f4;padding:2px 4px}</style>
+<h1>Проверка контрактов после переименования · 2026-10-02</h1>
+<p>Область: несовпадающие C#-имена, внешний Unity API и путь HDROutput.hlsl, сериализованное поле незавершённого HDR-переключения, именование private static-полей и неизвестные операции M3G.</p>
+<table><tr><th>Требование</th><th>Доказательство и применимость</th></tr>
+<tr><td>TL-OWN / TL-CHANGE</td><td>TerrainCellIDMesh остаётся во владении Terrain: обновлены ссылки двух потребителей и тестов. В ChunkLruCache переименован private static EmptySnapshot в s_emptySnapshot; владелец Persistence. Междоменные зависимости, жизненный цикл и владение не изменены.</td></tr>
+<tr><td>TL-REV / TL-STAGE / TL-PERF</td><td>Изменения имён не меняют ревизии, инвалидирование, кадры, диспетчеризацию, размеры ресурсов или CPU/GPU-работу. Проверка HDR-include исправлена в линтере, shader-проходы не изменены этим исправлением.</td></tr>
+<tr><td>TL-VERIFY</td><td>Terrain suite: 1212 passed; WorldLightingExchange: 48 passed; FrameHarness: 185 passed; Display: 3 passed; ArchitectureLinter: 17 passed, включая 6 новых регрессионных случаев.</td></tr>
+<tr><td>TL-API / TL-LIFE / TL-DATA</td><td>Новые terrain/lighting-контракты, borrowed handles, поля GPU-данных или жизненные циклы не добавлены. Миграция orchestration A–D этим исправлением не выполняется.</td></tr>
+</table>
+<p>Source-only architecture linter: 0 ошибок, 32 предупреждения; Naming, DisplayTransform и SwitchDefault прошли. Предупреждения не подавлялись. git diff --check прошёл.</p>
+<p>Дополнительная C#-проверка в disposable-проектах Temp/naming-validation и Temp/naming-validation-tests: 683 runtime-файла и ещё 177 editor/test-файлов, реальные Unity 6000.6/package DLL и source generators; 0 C#-ошибок, 3 предупреждения MSB3277 о конфликте версий ссылок временного проекта. Это объединённая проверка исходников, а не доказательство компиляции отдельных Unity asmdef.</p>
+<p>Production M3G decoder в disposable console: две упаковки 1×1 RGBA дают ожидаемые независимые байты; неизвестные операции 6, 127 и 255 отклонены до упаковки.</p>
+<p>Сериализация: DisplaySettings.HdrSwitchPending имеет FormerlySerializedAs("HDRSwitchPending"), проверка полноты принимает только текущее имя или объявленное прежнее имя. Unity repository regression cases проверяют true/false, повторное сохранение, сохранность иных настроек и отказ при отсутствии обоих имён.</p>
+<p><strong>Не выполнено:</strong> выполнение JsonUtility-тестов внутри Unity, production GPU/visual checks, компиляция отдельных Unity asmdef. Editor не управлялся. Визуальные и runtime-результаты не заявляются проверенными.</p>
+</html>

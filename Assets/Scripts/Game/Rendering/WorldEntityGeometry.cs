@@ -1,12 +1,92 @@
 #nullable enable
 
 using System;
+using System.Runtime.InteropServices;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Kern.Game;
 
+[StructLayout(LayoutKind.Sequential)]
+public struct WorldEntityVertex
+{
+    public Vector3 Position;
+    public Color32 Color;
+    public Vector2 UV;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct WorldEntityGPUInstance
+{
+    public Vector4 PositionAndScale; // xy: world pos, zw: scale (width, height)
+    public Vector4 UvRect;           // xy: min uv, zw: max uv
+    public Color32 Color;            // tint color
+    public Vector4 RotationAndPivot; // x: cos, y: sin, z: pivot.x, w: pivot.y
+}
+
 internal static class WorldEntityGeometry
 {
+    public static readonly VertexAttributeDescriptor[] VertexLayout =
+    [
+        new(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
+        new(VertexAttribute.Color, VertexAttributeFormat.UNorm8, 4),
+        new(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2),
+    ];
+
+    public static void WriteSpriteInterleaved(
+        Span<WorldEntityVertex> verts,
+        WorldEntityBatchRenderer.SpriteHandle handle,
+        Rect atlasRect,
+        int vertexOffset)
+    {
+        Sprite sprite = handle.Sprite ?? throw new InvalidOperationException(
+            "An enabled batched sprite requires a Sprite.");
+        Rect source = sprite.rect;
+        float pixelsPerUnit = sprite.pixelsPerUnit;
+        Vector2 pivot = new(
+            sprite.pivot.x / source.width,
+            sprite.pivot.y / source.height);
+        float width = source.width / pixelsPerUnit;
+        float height = source.height / pixelsPerUnit;
+        float left = -pivot.x * width;
+        float right = left + width;
+        float bottom = -pivot.y * height;
+        float top = bottom + height;
+
+        Matrix4x4 localToWorld = handle.FrameLocalToWorld;
+
+        float uMin = atlasRect.xMin + ((source.xMin / sprite.texture.width) * atlasRect.width);
+        float uMax = atlasRect.xMin + ((source.xMax / sprite.texture.width) * atlasRect.width);
+        float vMin = atlasRect.yMin + ((source.yMin / sprite.texture.height) * atlasRect.height);
+        float vMax = atlasRect.yMin + ((source.yMax / sprite.texture.height) * atlasRect.height);
+
+        Color32 color = handle.Color;
+
+        verts[vertexOffset] = new WorldEntityVertex
+        {
+            Position = localToWorld.MultiplyPoint3x4(new Vector3(left, bottom, 0f)),
+            Color = color,
+            UV = new Vector2(uMin, vMin),
+        };
+        verts[vertexOffset + 1] = new WorldEntityVertex
+        {
+            Position = localToWorld.MultiplyPoint3x4(new Vector3(left, top, 0f)),
+            Color = color,
+            UV = new Vector2(uMin, vMax),
+        };
+        verts[vertexOffset + 2] = new WorldEntityVertex
+        {
+            Position = localToWorld.MultiplyPoint3x4(new Vector3(right, bottom, 0f)),
+            Color = color,
+            UV = new Vector2(uMax, vMin),
+        };
+        verts[vertexOffset + 3] = new WorldEntityVertex
+        {
+            Position = localToWorld.MultiplyPoint3x4(new Vector3(right, top, 0f)),
+            Color = color,
+            UV = new Vector2(uMax, vMax),
+        };
+    }
     public static void WriteSprite(
         Vector3[] verts,
         Vector2[] uvs,

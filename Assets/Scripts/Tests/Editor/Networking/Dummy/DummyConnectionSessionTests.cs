@@ -115,11 +115,11 @@ public sealed class DummyConnectionSessionTests
     }
 
     [Test]
-    public void StableUserID_IsDeterministicAndInsideOfflineRange()
+    public void StableUserId_IsDeterministicAndInsideOfflineRange()
     {
-        long first = DummyAuthSession.StableUserID("device-a");
-        long repeated = DummyAuthSession.StableUserID("device-a");
-        long other = DummyAuthSession.StableUserID("device-b");
+        long first = DummyAuthSession.StableUserId("device-a");
+        long repeated = DummyAuthSession.StableUserId("device-a");
+        long other = DummyAuthSession.StableUserId("device-b");
 
         Assert.That(repeated, Is.EqualTo(first));
         Assert.That(other, Is.Not.EqualTo(first));

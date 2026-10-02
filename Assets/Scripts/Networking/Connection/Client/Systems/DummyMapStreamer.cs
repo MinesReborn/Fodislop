@@ -16,7 +16,7 @@ namespace MinesServer.Networking.Connection.Client;
 
 internal static class DummyMapStreamer
 {
-    private static readonly StreamingGovernor _governor =
+    private static readonly StreamingGovernor s_governor =
         new(StreamingPolicy.Default);
 
     public static bool NeedsStreaming(
@@ -59,7 +59,7 @@ internal static class DummyMapStreamer
             serverY,
             worldLayer.WidthChunks * worldLayer.ChunkSize,
             worldLayer.HeightChunks * worldLayer.ChunkSize);
-        StreamingPlan plan = _governor.Plan(
+        StreamingPlan plan = s_governor.Plan(
             currentWindow,
             targetWindow.Origin,
             targetWindow.Size,
@@ -87,6 +87,30 @@ internal static class DummyMapStreamer
         int maximumChunkY = Math.Min(
             worldLayer.HeightChunks - 1,
             (window.Origin.y + window.Size.y - 1) / worldLayer.ChunkSize);
+        bool hasMissing = false;
+        for (int chunkX = minimumChunkX; chunkX <= maximumChunkX; chunkX++)
+        {
+            for (int chunkY = minimumChunkY; chunkY <= maximumChunkY; chunkY++)
+            {
+                int chunkIndex = chunkY + (chunkX * worldLayer.HeightChunks);
+                if (!sentMapChunks.Contains(chunkIndex))
+                {
+                    hasMissing = true;
+                    break;
+                }
+            }
+
+            if (hasMissing)
+            {
+                break;
+            }
+        }
+
+        if (!hasMissing)
+        {
+            return;
+        }
+
         var pendingRegions = new List<IHBPacket>();
         var pendingChunkIndices = new List<int>();
 
@@ -100,7 +124,7 @@ internal static class DummyMapStreamer
                 int chunkIndex = chunkY + chunkX * worldLayer.HeightChunks;
                 if (!sentMapChunks.Contains(chunkIndex))
                 {
-                    worldLayer.ReadChunk(chunkIndex, touchLru: true);
+                    worldLayer.ReadChunk(chunkIndex, touchLRU: true);
                 }
             }
         }
@@ -116,11 +140,11 @@ internal static class DummyMapStreamer
                     continue;
                 }
 
-                ChunkReadResult<CellType> result = worldLayer.ReadChunk(chunkIndex, touchLru: true);
+                ChunkReadResult<CellType> result = worldLayer.ReadChunk(chunkIndex, touchLRU: true);
                 while (result.Status == ChunkReadStatus.Loading)
                 {
                     await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
-                    result = worldLayer.ReadChunk(chunkIndex, touchLru: true);
+                    result = worldLayer.ReadChunk(chunkIndex, touchLRU: true);
                 }
 
                 if (result.Status == ChunkReadStatus.Failed)
@@ -161,7 +185,7 @@ internal static class DummyMapStreamer
         int worldWidth,
         int worldHeight)
     {
-        StreamingPolicy policy = _governor.Policy;
+        StreamingPolicy policy = s_governor.Policy;
         int requestedDimension = StreamingPolicy.DefaultMapWindowDimensionCells;
         int windowDimension = policy.QuantizeDimensionWithHeadroom(requestedDimension);
         windowDimension = Math.Min(windowDimension, Math.Min(worldWidth, worldHeight));
@@ -178,7 +202,7 @@ internal static class DummyMapStreamer
                 new Vector2Int(windowDimension, windowDimension));
         }
 
-        Vector2Int targetOrigin = _governor.SelectTargetOrigin(
+        Vector2Int targetOrigin = s_governor.SelectTargetOrigin(
             currentWindow.Origin,
             centeredOrigin,
             player,

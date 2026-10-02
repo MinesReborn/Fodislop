@@ -3,8 +3,8 @@
 using System;
 using System.Collections.Generic;
 using Kern.Rendering.PostProcessing.Scopes;
-using Kern.Tools.Imgui;
-using Kern.Tools.Imgui.Windows;
+using Kern.Tools.ImGui;
+using Kern.Tools.ImGui.Windows;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -12,7 +12,7 @@ namespace Kern.Rendering.PostProcessing.Workbench;
 
 public sealed class GradingWorkbench : IDisposable
 {
-    private readonly GradingLutWindow _lutWindow = new();
+    private readonly GradingLUTWindow _lutWindow = new();
     private readonly GradingScopesWindow _scopesWindow = new();
     private readonly List<ToolWindow> _hiddenForWorkspace = [];
 

@@ -20,28 +20,30 @@ namespace Kern.Rendering.PostProcessing
     /// </summary>
     internal sealed class WorldBloomRenderPass : ScriptableRenderPass2D, IDisposable
     {
-        private static readonly int _sceneId = Shader.PropertyToID("_Scene");
-        private static readonly int _emissionId = Shader.PropertyToID("_Emission");
-        private static readonly int _sourceId = Shader.PropertyToID("_Source");
-        private static readonly int _baseId = Shader.PropertyToID("_Base");
-        private static readonly int _outputId = Shader.PropertyToID("_Output");
-        private static readonly int _sizeId = Shader.PropertyToID("_OutputSize");
-        private static readonly int _sourceUvId = Shader.PropertyToID("_SourceUv");
-        private static readonly int _texelId = Shader.PropertyToID("_SourceTexelSize");
-        private static readonly int _emissionUvId = Shader.PropertyToID("_EmissionUv");
-        private static readonly int _thresholdId = Shader.PropertyToID("_Threshold");
-        private static readonly int _kneeId = Shader.PropertyToID("_SoftKnee");
-        private static readonly int _radiusId = Shader.PropertyToID("_Radius");
-        private static readonly int _scatterId = Shader.PropertyToID("_Scatter");
-        private static readonly int _tintId = Shader.PropertyToID("_Tint");
-        private static readonly int _sceneBlendId = Shader.PropertyToID("_WorldBloomSceneBlend");
-        private static readonly int _intensityId = Shader.PropertyToID("_WorldBloomIntensity");
-        private static readonly ProfilerMarker _prefilter = new(ProfilerCategory.Render, "Kern.PostProcess.Bloom.Prefilter", MarkerFlags.SampleGPU);
-        private static readonly ProfilerMarker _downsample = new(ProfilerCategory.Render, "Kern.PostProcess.Bloom.Downsample", MarkerFlags.SampleGPU);
-        private static readonly ProfilerMarker _upsample = new(ProfilerCategory.Render, "Kern.PostProcess.Bloom.Upsample", MarkerFlags.SampleGPU);
-        private static readonly ProfilerMarker _add = new(ProfilerCategory.Render, "Kern.PostProcess.Bloom.Add", MarkerFlags.SampleGPU);
-        private static readonly string[] _downNames = ["_WorldBloom0", "_WorldBloom1", "_WorldBloom2", "_WorldBloom3"];
-        private static readonly string[] _upNames = ["_WorldBloomUp0", "_WorldBloomUp1", "_WorldBloomUp2"];
+        private static readonly int s_worldLightRectId = Shader.PropertyToID("_WorldLightRect");
+        private static readonly int s_worldEmissionTextureId = Shader.PropertyToID("_WorldEmissionTexture");
+        private static readonly int s_sceneId = Shader.PropertyToID("_Scene");
+        private static readonly int s_emissionId = Shader.PropertyToID("_Emission");
+        private static readonly int s_sourceId = Shader.PropertyToID("_Source");
+        private static readonly int s_baseId = Shader.PropertyToID("_Base");
+        private static readonly int s_outputId = Shader.PropertyToID("_Output");
+        private static readonly int s_sizeId = Shader.PropertyToID("_OutputSize");
+        private static readonly int s_sourceUvId = Shader.PropertyToID("_SourceUv");
+        private static readonly int s_texelId = Shader.PropertyToID("_SourceTexelSize");
+        private static readonly int s_emissionUvId = Shader.PropertyToID("_EmissionUv");
+        private static readonly int s_thresholdId = Shader.PropertyToID("_Threshold");
+        private static readonly int s_kneeId = Shader.PropertyToID("_SoftKnee");
+        private static readonly int s_radiusId = Shader.PropertyToID("_Radius");
+        private static readonly int s_scatterId = Shader.PropertyToID("_Scatter");
+        private static readonly int s_tintId = Shader.PropertyToID("_Tint");
+        private static readonly int s_sceneBlendId = Shader.PropertyToID("_WorldBloomSceneBlend");
+        private static readonly int s_intensityId = Shader.PropertyToID("_WorldBloomIntensity");
+        private static readonly ProfilerMarker s_prefilter = new(ProfilerCategory.Render, "Kern.PostProcess.Bloom.Prefilter", MarkerFlags.SampleGPU);
+        private static readonly ProfilerMarker s_downsample = new(ProfilerCategory.Render, "Kern.PostProcess.Bloom.Downsample", MarkerFlags.SampleGPU);
+        private static readonly ProfilerMarker s_upsample = new(ProfilerCategory.Render, "Kern.PostProcess.Bloom.Upsample", MarkerFlags.SampleGPU);
+        private static readonly ProfilerMarker s_add = new(ProfilerCategory.Render, "Kern.PostProcess.Bloom.Add", MarkerFlags.SampleGPU);
+        private static readonly string[] s_downNames = ["_WorldBloom0", "_WorldBloom1", "_WorldBloom2", "_WorldBloom3"];
+        private static readonly string[] s_upNames = ["_WorldBloomUp0", "_WorldBloomUp1", "_WorldBloomUp2"];
         private readonly WorldBloomLevel[] _levels = new WorldBloomLevel[4];
         private readonly TextureHandle[] _down = new TextureHandle[4];
         private readonly TextureHandle[] _up = new TextureHandle[3];
@@ -99,7 +101,7 @@ namespace Kern.Rendering.PostProcessing
             public long TextureBytes;
             public PostProcessWorkload Workload = null!;
             public PostProcessWorkloadAccumulator Accumulator;
-            public long ComputeCpuTicks;
+            public long ComputeCPUTicks;
         }
 
         private sealed class Observation
@@ -177,20 +179,20 @@ namespace Kern.Rendering.PostProcessing
             {
                 descriptor.width = _levels[i].Width;
                 descriptor.height = _levels[i].Height;
-                descriptor.name = _downNames[i];
+                descriptor.name = s_downNames[i];
                 _down[i] = graph.CreateTexture(descriptor);
                 textureCount++;
                 bytes += (long)descriptor.width * descriptor.height * 8;
                 if (i < count - 1)
                 {
-                    descriptor.name = _upNames[i];
+                    descriptor.name = s_upNames[i];
                     _up[i] = graph.CreateTexture(descriptor);
                     textureCount++;
                     bytes += (long)descriptor.width * descriptor.height * 8;
                 }
             }
 
-            Vector4 lightRect = Shader.GetGlobalVector(PostProcessShaderConstants.WorldLightRectID);
+            Vector4 lightRect = Shader.GetGlobalVector(s_worldLightRectId);
             if (lightRect.z <= 0 || lightRect.w <= 0)
             {
                 throw new InvalidOperationException("World bloom requires a coherent emission world rectangle.");
@@ -208,7 +210,7 @@ namespace Kern.Rendering.PostProcessing
             using (var builder = graph.AddUnsafePass<Frame>("World bloom pyramid", out frame))
             {
                 frame.Accumulator = default;
-                frame.ComputeCpuTicks = 0;
+                frame.ComputeCPUTicks = 0;
                 frame.Shader = _shader;
                 frame.Material = _material;
                 frame.Scene = scene;
@@ -282,15 +284,15 @@ namespace Kern.Rendering.PostProcessing
 
         private static void SetupLevel(CommandBuffer cmd, Frame data, WorldBloomLevel destination, WorldBloomLevel source)
         {
-            cmd.SetComputeVectorParam(data.Shader, _sizeId, new Vector4(destination.Width, destination.Height,
+            cmd.SetComputeVectorParam(data.Shader, s_sizeId, new Vector4(destination.Width, destination.Height,
                 1f / destination.Width, 1f / destination.Height));
-            cmd.SetComputeVectorParam(data.Shader, _texelId, new Vector4(1f / source.Width, 1f / source.Height, source.Width, source.Height));
-            cmd.SetComputeVectorParam(data.Shader, _sourceUvId, Mapping(destination, source));
+            cmd.SetComputeVectorParam(data.Shader, s_texelId, new Vector4(1f / source.Width, 1f / source.Height, source.Width, source.Height));
+            cmd.SetComputeVectorParam(data.Shader, s_sourceUvId, Mapping(destination, source));
         }
 
         private static void Dispatch(CommandBuffer cmd, Frame data, int kernel, WorldBloomLevel level, TextureHandle target)
         {
-            cmd.SetComputeTextureParam(data.Shader, kernel, _outputId, target);
+            cmd.SetComputeTextureParam(data.Shader, kernel, s_outputId, target);
             cmd.DispatchCompute(data.Shader, kernel, (level.Width + 7) / 8, (level.Height + 7) / 8, 1);
             data.Accumulator.RecordDispatch(level.Width, level.Height, 8, 8);
         }
@@ -301,49 +303,49 @@ namespace Kern.Rendering.PostProcessing
             CommandBuffer cmd = CommandBufferHelpers.GetNativeCommandBuffer(context.cmd);
             // This field is produced outside RenderGraph, before camera rendering.
             // Borrow it for this recording call; never cache a texture/RTHandle.
-            Texture emission = Shader.GetGlobalTexture(PostProcessShaderConstants.WorldEmissionTextureID)
+            Texture emission = Shader.GetGlobalTexture(s_worldEmissionTextureId)
                 ?? throw new InvalidOperationException("World emission publication is missing.");
             Observe(cmd, "before", data.SceneColor, data.Scene, data.CameraId);
-            cmd.SetComputeFloatParam(data.Shader, _thresholdId, data.Threshold);
-            cmd.SetComputeFloatParam(data.Shader, _kneeId, data.Knee);
-            cmd.SetComputeFloatParam(data.Shader, _radiusId, data.Radius);
-            cmd.SetComputeFloatParam(data.Shader, _scatterId, data.Scatter);
-            cmd.SetComputeVectorParam(data.Shader, _tintId, data.Tint);
-            cmd.SetComputeVectorParam(data.Shader, _emissionUvId, data.EmissionUv);
+            cmd.SetComputeFloatParam(data.Shader, s_thresholdId, data.Threshold);
+            cmd.SetComputeFloatParam(data.Shader, s_kneeId, data.Knee);
+            cmd.SetComputeFloatParam(data.Shader, s_radiusId, data.Radius);
+            cmd.SetComputeFloatParam(data.Shader, s_scatterId, data.Scatter);
+            cmd.SetComputeVectorParam(data.Shader, s_tintId, data.Tint);
+            cmd.SetComputeVectorParam(data.Shader, s_emissionUvId, data.EmissionUv);
             SetupLevel(cmd, data, data.Levels[0], data.Scene);
-            cmd.SetComputeTextureParam(data.Shader, data.PrefilterKernel, _sceneId, data.SceneColor);
-            cmd.SetComputeTextureParam(data.Shader, data.PrefilterKernel, _emissionId, emission);
-            cmd.BeginSample(_prefilter);
+            cmd.SetComputeTextureParam(data.Shader, data.PrefilterKernel, s_sceneId, data.SceneColor);
+            cmd.SetComputeTextureParam(data.Shader, data.PrefilterKernel, s_emissionId, emission);
+            cmd.BeginSample(s_prefilter);
             Dispatch(cmd, data, data.PrefilterKernel, data.Levels[0], data.Down[0]);
-            cmd.EndSample(_prefilter);
+            cmd.EndSample(s_prefilter);
             Observe(cmd, "prefilter", data.Down[0], data.Levels[0], data.CameraId);
-            cmd.BeginSample(_downsample);
+            cmd.BeginSample(s_downsample);
             for (int i = 1; i < data.Count; i++)
             {
                 SetupLevel(cmd, data, data.Levels[i], data.Levels[i - 1]);
-                cmd.SetComputeTextureParam(data.Shader, data.DownKernel, _sourceId, data.Down[i - 1]);
+                cmd.SetComputeTextureParam(data.Shader, data.DownKernel, s_sourceId, data.Down[i - 1]);
                 Dispatch(cmd, data, data.DownKernel, data.Levels[i], data.Down[i]);
             }
-            cmd.EndSample(_downsample);
+            cmd.EndSample(s_downsample);
             TextureHandle current = data.Down[data.Count - 1];
-            cmd.BeginSample(_upsample);
+            cmd.BeginSample(s_upsample);
             for (int i = data.Count - 2; i >= 0; i--)
             {
                 SetupLevel(cmd, data, data.Levels[i], data.Levels[i + 1]);
-                cmd.SetComputeTextureParam(data.Shader, data.UpKernel, _sourceId, current);
-                cmd.SetComputeTextureParam(data.Shader, data.UpKernel, _baseId, data.Down[i]);
+                cmd.SetComputeTextureParam(data.Shader, data.UpKernel, s_sourceId, current);
+                cmd.SetComputeTextureParam(data.Shader, data.UpKernel, s_baseId, data.Down[i]);
                 Dispatch(cmd, data, data.UpKernel, data.Levels[i], data.Up[i]);
                 current = data.Up[i];
             }
-            cmd.EndSample(_upsample);
-            data.ComputeCpuTicks = Stopwatch.GetTimestamp() - started;
+            cmd.EndSample(s_upsample);
+            data.ComputeCPUTicks = Stopwatch.GetTimestamp() - started;
             PostProcessRuntimeState.RecordBloomDispatches(2 * data.Count - 1, data.CameraId);
         }
 
         private static void RecordBlend(BlendFrame blend, RasterGraphContext context)
         {
             Frame data = blend.Compute;
-            long started = Stopwatch.GetTimestamp() - data.ComputeCpuTicks;
+            long started = Stopwatch.GetTimestamp() - data.ComputeCPUTicks;
             float energy = 0f;
             float weight = 1f;
             for (int i = 0; i < data.Count; i++)
@@ -351,12 +353,12 @@ namespace Kern.Rendering.PostProcessing
                 energy += weight;
                 weight *= data.Scatter;
             }
-            data.Material.SetFloat(_sceneBlendId, (float)(data.DebugBloom ? BlendMode.Zero : BlendMode.One));
-            data.Material.SetFloat(_intensityId, data.Intensity / Mathf.Max(energy, 1e-4f));
+            data.Material.SetFloat(s_sceneBlendId, (float)(data.DebugBloom ? BlendMode.Zero : BlendMode.One));
+            data.Material.SetFloat(s_intensityId, data.Intensity / Mathf.Max(energy, 1e-4f));
             Vector4 mapping = Mapping(data.Scene, data.Levels[0]);
-            context.cmd.BeginSample(_add);
+            context.cmd.BeginSample(s_add);
             Blitter.BlitTexture(context.cmd, blend.Bloom, mapping, data.Material, 0);
-            context.cmd.EndSample(_add);
+            context.cmd.EndSample(s_add);
             data.Accumulator.RecordRaster(data.Scene.Width, data.Scene.Height);
             data.Workload.Publish(data.Accumulator.Complete(Time.frameCount, data.Scene.Width, data.Scene.Height,
                 1, data.TextureCount, data.TextureBytes, started));

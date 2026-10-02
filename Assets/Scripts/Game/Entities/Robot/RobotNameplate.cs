@@ -16,7 +16,7 @@ public sealed class RobotNameplate
 
     public void Initialize(
         Transform robotTransform,
-        uint botID,
+        uint botId,
         string nickname,
         bool isLocalPlayer,
         ISceneObjectFactory sceneObjects,

@@ -18,7 +18,7 @@ public sealed class CommandLineTests
     }
 
     [Test]
-    public void InvariantFailureExitsNonzeroEvenWithMissingGpu()
+    public void InvariantFailureExitsNonzeroEvenWithMissingGPU()
     {
         var result = RunComparison(after =>
         {
@@ -30,7 +30,7 @@ public sealed class CommandLineTests
     }
 
     [Test]
-    public void UnknownGpuExitsIncomplete()
+    public void UnknownGPUExitsIncomplete()
     {
         var result = RunComparison(after => after["frames"]![1]!["gpuFrameMs"] = null);
         Assert.That(result.ExitCode, Is.EqualTo(3), result.Output);
@@ -52,7 +52,7 @@ public sealed class CommandLineTests
     }
 
     [Test]
-    public void StaleProducerDoesNotHideIndependentGpuRegression()
+    public void StaleProducerDoesNotHideIndependentGPURegression()
     {
         var result = RunComparison(after =>
         {
@@ -64,7 +64,7 @@ public sealed class CommandLineTests
     }
 
     [Test]
-    public void GpuRegressionExitsFailure()
+    public void GPURegressionExitsFailure()
     {
         var result = RunComparison(after => after["frames"]![1]!["gpuFrameMs"] = 9);
         Assert.That(result.ExitCode, Is.EqualTo(1), result.Output);

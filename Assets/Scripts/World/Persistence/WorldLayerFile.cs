@@ -121,7 +121,7 @@ internal sealed class WorldLayerFile<T>
 
             _fileStream.Seek(offset, SeekOrigin.Begin);
             _reader ??= new BinaryReader(_fileStream, System.Text.Encoding.UTF8, leaveOpen: true);
-            return WorldChunkRleCodec.DecodeChunk<T>(_reader, chunkArea);
+            return WorldChunkRLECodec.DecodeChunk<T>(_reader, chunkArea);
         }
     }
 
@@ -152,7 +152,7 @@ internal sealed class WorldLayerFile<T>
 
             _fileStream.Seek(offset, SeekOrigin.Begin);
             _reader ??= new BinaryReader(_fileStream, System.Text.Encoding.UTF8, leaveOpen: true);
-            WorldChunkRleCodec.VisitChunkRuns(_reader, chunkArea, index, visitor);
+            WorldChunkRLECodec.VisitChunkRuns(_reader, chunkArea, index, visitor);
             return true;
         }
     }
@@ -214,7 +214,7 @@ internal sealed class WorldLayerFile<T>
             long newOffset = _fileStream.Position;
 
             using var writer = new BinaryWriter(_fileStream, System.Text.Encoding.UTF8, true);
-            WorldChunkRleCodec.EncodeChunk(writer, chunk, chunkArea);
+            WorldChunkRLECodec.EncodeChunk(writer, chunk, chunkArea);
 
             _chunkOffsets[index] = newOffset;
             WorldLayerFileHeader.WriteChunkOffset(_fileStream, index, newOffset);

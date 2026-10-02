@@ -36,7 +36,7 @@ public sealed class LocalChatSpamDoesNotStickInputPlayModeTests
     private UIDocument _document = null!;
     private MapModeState? _map;
     private VirtualKeyboard? _keyboard;
-    private VirtualKeyboard _Keyboard => _keyboard ?? throw new AssertionException("Virtual keyboard is not set up.");
+    private VirtualKeyboard Keyboard => _keyboard ?? throw new AssertionException("Virtual keyboard is not set up.");
     private TextField? _field;
 
     [UnitySetUp]
@@ -67,7 +67,7 @@ public sealed class LocalChatSpamDoesNotStickInputPlayModeTests
 
         for (int i = 0; i < Iterations; i++)
         {
-            yield return _Keyboard.Tap(Key.T);
+            yield return Keyboard.Tap(Key.T);
             yield return null;
 
             _field = _document.rootVisualElement.Q<TextField>(className: "lchat-input");
@@ -76,7 +76,7 @@ public sealed class LocalChatSpamDoesNotStickInputPlayModeTests
                 _field.value = "спам " + i;
             }
 
-            yield return _Keyboard.Tap(Key.Enter);
+            yield return Keyboard.Tap(Key.Enter);
             yield return null;
 
             if (_blocker.IsInputBlocked != baseline)
@@ -86,7 +86,7 @@ public sealed class LocalChatSpamDoesNotStickInputPlayModeTests
                 // Ввод обязан вернуться по Escape. Модалка от троттлинга
                 // приходит пустой и нулевого размера, её не видно и нечем
                 // закрыть мышью, поэтому единственный выход — клавиатура.
-                yield return _Keyboard.Tap(Key.Escape);
+                yield return Keyboard.Tap(Key.Escape);
                 yield return null;
                 yield return null;
 
@@ -102,7 +102,7 @@ public sealed class LocalChatSpamDoesNotStickInputPlayModeTests
         Debug.Log($"[Spam] survived {Iterations} iterations, blocked={_blocker.IsInputBlocked}");
 
         // T обязан работать после всей серии.
-        yield return _Keyboard.Tap(Key.T);
+        yield return Keyboard.Tap(Key.T);
         yield return null;
         Assert.That(
             _uiInput.IsChatFocused,

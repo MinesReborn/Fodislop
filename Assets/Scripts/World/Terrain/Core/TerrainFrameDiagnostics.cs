@@ -20,7 +20,7 @@ public readonly record struct TerrainFrameTimings(
     int ResidencyProbeCalls,
     int ResidencyChunkReads,
     int ResidencyCacheHits,
-    int ResidencyLruTouches);
+    int ResidencyLRUTouches);
 
 /// <summary>
 /// Наблюдение за кадром террейна и разбор отказа сборки.
@@ -79,8 +79,8 @@ public sealed class TerrainFrameDiagnostics : IDisposable
                 timings.ResidencyProbeCalls,
                 timings.ResidencyChunkReads,
                 timings.ResidencyCacheHits,
-                timings.ResidencyLruTouches,
-                new TerrainStallBuildState(_window.BuildState, _window.HasCpuBuildInFlight),
+                timings.ResidencyLRUTouches,
+                new TerrainStallBuildState(_window.BuildState, _window.HasCPUBuildInFlight),
                 pipeline.LastWorkerCost));
     }
 

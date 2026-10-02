@@ -33,6 +33,8 @@ public sealed class DisplayTransformRule : IRule
 
         CheckFile(violations, Path.Combine(shaderRoot, "ColorGrading.hlsl"), CheckColorGrading);
         CheckFile(violations, Path.Combine(shaderRoot, "PostProcess.compute"), CheckPostProcessShader);
+        CheckFile(violations, Path.Combine(shaderRoot, "WorldBloom.compute"), CheckWorldBloomShader);
+        CheckFile(violations, Path.Combine(shaderRoot, "WorldBloomAdd.shader"), CheckWorldBloomAddShader);
         CheckFile(violations, Path.Combine(shaderRoot, "Scopes.compute"), CheckScopesShader);
         CheckFile(
             violations,
@@ -106,7 +108,10 @@ public sealed class DisplayTransformRule : IRule
         {
             AddViolation(violations, path, "Use Color.hlsl Luminance; a local definition conflicts on Metal.");
         }
-        Require(violations, path, source, @"void\s+CompositeFinal", "Scene-linear artistic pass is required.");
+        if (Regex.IsMatch(source, @"void\s+(?:CompositeFinal|BloomPrefilter|BloomUpsampleComposite)\b", Invariant))
+        {
+            AddViolation(violations, path, "Display shader must not contain the retired screen-space bloom kernels.");
+        }
         Require(violations, path, source, @"void\s+DisplayFinal", "Display effects must be separated from the scene pass.");
         Require(
             violations,
@@ -121,6 +126,21 @@ public sealed class DisplayTransformRule : IRule
         {
             AddViolation(violations, path, "Custom effects must not perform tone mapping or own display gamut conversion.");
         }
+    }
+
+    private void CheckWorldBloomShader(ICollection<RuleViolation> violations, string path, string source)
+    {
+        foreach (string kernel in new[] { "Prefilter", "Downsample", "Upsample" })
+        {
+            Require(violations, path, source, @"void\s+" + kernel + @"\b",
+                "World-grid bloom requires production kernel " + kernel + ".");
+        }
+    }
+
+    private void CheckWorldBloomAddShader(ICollection<RuleViolation> violations, string path, string source)
+    {
+        Require(violations, path, source, @"float4\s+AddBloom\b", "World-grid bloom requires scene-linear additive composition.");
+        Require(violations, path, source, @"Blend\s+One\s+\[_WorldBloomSceneBlend\]", "Bloom must preserve its production scene blend contract.");
     }
 
     private void CheckScopesShader(
@@ -158,8 +178,8 @@ public sealed class DisplayTransformRule : IRule
     {
         int common = source.IndexOf("#include \"Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl\"", StringComparison.Ordinal);
         int color = source.IndexOf("#include \"Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl\"", StringComparison.Ordinal);
-        int hdr = source.IndexOf("#include \"Packages/com.unity.render-pipelines.core/ShaderLibrary/HDROutput.hlsl\"", StringComparison.Ordinal);
-        if (common < 0 || color <= common || hdr <= color)
+        int HDR = source.IndexOf("#include \"Packages/com.unity.render-pipelines.core/ShaderLibrary/HDROutput.hlsl\"", StringComparison.Ordinal);
+        if (common < 0 || color <= common || HDR <= color)
         {
             AddViolation(violations, path, "HDR helpers require Common.hlsl and Color.hlsl (including ACES) before HDROutput.hlsl.");
         }
@@ -171,8 +191,10 @@ public sealed class DisplayTransformRule : IRule
         string source)
     {
         CheckHDRDisplayAccess(violations, path, source);
-        Require(violations, path, source, @"displayPass\s*\?\s*RenderPassEvent.AfterRenderingPostProcessing",
+        Require(violations, path, source, @"renderPassEvent\s*=\s*RenderPassEvent\.AfterRenderingPostProcessing\s*;",
             "Display effects must execute after URP tone mapping.");
+        Require(violations, path, source, @"renderPassEvent2D\s*=\s*RenderPassEvent2D\.AfterRenderingPostProcessing\s*;",
+            "2D display effects must execute after URP tone mapping.");
         Require(violations, path, source, @"output.paperWhite.value",
             "Effect calibration must use the same VolumeStack paper white as URP.");
         Require(
@@ -198,7 +220,7 @@ public sealed class DisplayTransformRule : IRule
         {
             if (line.Contains("cameraData.hdrDisplayColorGamut", StringComparison.Ordinal) &&
                 !Regex.IsMatch(line,
-                    @"(?:hdrOutput|passData\.HDROutput)\s*\?\s*cameraData\.hdrDisplayColorGamut\s*:\s*ColorGamut\.sRGB",
+                    @"(?:hdrOutput|HDROutput|passData\.(?:HdrOutput|HDROutput))\s*\?\s*cameraData\.hdrDisplayColorGamut\s*:\s*ColorGamut\.sRGB",
                     Invariant))
             {
                 AddViolation(violations, path, "Read HDR display gamut only when HDR output is active; SDR must use sRGB without querying HDR display information.");

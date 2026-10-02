@@ -15,7 +15,7 @@ namespace Kern.Tests.Networking;
 [TestFixture]
 public class InventoryProcessorTests
 {
-    private static readonly ItemType[] KnownTypes =
+    private static readonly ItemType[] s_knownTypes =
     [
         ItemType.Rem,
         ItemType.Battery,
@@ -29,7 +29,7 @@ public class InventoryProcessorTests
     public void SetUp()
     {
         _model = new InventoryModel();
-        _processor = new InventoryProcessor(_model, new StubItemCatalog(KnownTypes));
+        _processor = new InventoryProcessor(_model, new StubItemCatalog(s_knownTypes));
     }
 
     [Test]

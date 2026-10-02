@@ -34,6 +34,8 @@
     <Compile Include="$(UnityRoot)/World/Lighting/Core/TerrainLightingChangeApplier.cs" Link="Production/TerrainLightingChangeApplier.cs" />
     <Compile Include="$(UnityRoot)/World/Lighting/Core/LightingRuntimeInvalidation.cs" Link="Production/LightingRuntimeInvalidation.cs" />
     <Compile Include="$(UnityRoot)/World/Lighting/Core/LightingRuntimeState.cs" Link="Production/LightingRuntimeState.cs" />
+    <Compile Include="$(UnityRoot)/World/Lighting/Core/LightingAmbientOcclusionUpdatePolicy.cs" Link="Production/LightingAmbientOcclusionUpdatePolicy.cs" />
+    <Compile Include="$(UnityRoot)/Tests/Editor/World/Lighting/LightingAmbientOcclusionUpdatePolicyTests.cs" Link="Tests/LightingAmbientOcclusionUpdatePolicyTests.cs" />
     <Compile Include="$(UnityRoot)/World/Lighting/Core/LightingRegionCalculator.cs" Link="Production/LightingRegionCalculator.cs" />
     <Compile Include="$(UnityRoot)/World/Lighting/Core/LightingRegionInvalidationPolicy.cs" Link="Production/LightingRegionInvalidationPolicy.cs" />
     <Compile Include="$(UnityRoot)/World/Lighting/Core/LightingQualityTransitionPolicy.cs" Link="Production/LightingQualityTransitionPolicy.cs" />

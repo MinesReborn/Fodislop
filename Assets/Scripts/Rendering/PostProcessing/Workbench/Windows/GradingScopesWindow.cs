@@ -3,7 +3,7 @@
 using System.Collections.Generic;
 using Kern.Rendering;
 using Kern.Rendering.PostProcessing.Scopes;
-using Kern.Tools.Imgui;
+using Kern.Tools.ImGui;
 using UnityEngine;
 
 namespace Kern.Rendering.PostProcessing.Workbench;
@@ -18,8 +18,8 @@ internal sealed class GradingScopesWindow : ToolWindow
     private const float TwoColumnMinWidth = 700f;
     private const float ColumnGap = 8f;
 
-    private static readonly GUIContent _MeasureContent = new();
-    private static readonly GUILayoutOption[] ExpandWidth = [GUILayout.ExpandWidth(true)];
+    private static readonly GUIContent s_measureContent = new();
+    private static readonly GUILayoutOption[] s_expandWidth = [GUILayout.ExpandWidth(true)];
 
     private readonly Dictionary<string, float> _buttonWidths = [];
 
@@ -323,7 +323,7 @@ internal sealed class GradingScopesWindow : ToolWindow
 
                     used += width;
                     bool selected = option.Value == current;
-                    if (GUILayout.Toggle(selected, option.Label, SegmentedButtonStyle, ExpandWidth) && !selected)
+                    if (GUILayout.Toggle(selected, option.Label, SegmentedButtonStyle, s_expandWidth) && !selected)
                     {
                         picked = option.Value;
                     }
@@ -342,8 +342,8 @@ internal sealed class GradingScopesWindow : ToolWindow
         if (!_buttonWidths.TryGetValue(label, out float width))
         {
             GUIStyle style = SegmentedButtonStyle;
-            _MeasureContent.text = label;
-            width = style.CalcSize(_MeasureContent).x + style.margin.horizontal;
+            s_measureContent.text = label;
+            width = style.CalcSize(s_measureContent).x + style.margin.horizontal;
             _buttonWidths[label] = width;
         }
 
@@ -432,7 +432,7 @@ internal sealed class GradingScopesWindow : ToolWindow
         {
             GUILayout.Label(title, ToolTheme.SectionLabel);
 
-            Rect rect = GUILayoutUtility.GetRect(width, height, ExpandWidth);
+            Rect rect = GUILayoutUtility.GetRect(width, height, s_expandWidth);
             if (Event.current.type != EventType.Repaint)
             {
                 return;

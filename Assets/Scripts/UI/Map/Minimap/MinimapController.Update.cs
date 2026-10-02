@@ -13,7 +13,7 @@ internal sealed class MinimapRefreshLoop
 {
     public void Process(
         UIDocument document,
-        MinimapUiController? ui,
+        MinimapUIController? ui,
         MapModeState mapModeState,
         MapStorage mapStorage,
         IWorldLayer<CellType>? cellLayer,
@@ -29,9 +29,9 @@ internal sealed class MinimapRefreshLoop
         Action<int, int, bool> refreshTexture,
         Action<bool> setVisible)
     {
-        bool hadUi = ui?.IsCreated == true;
+        bool hadUI = ui?.IsCreated == true;
         ui?.TryCreate();
-        if (!hadUi && ui?.IsCreated == true && ready)
+        if (!hadUI && ui?.IsCreated == true && ready)
         {
             setVisible(!mapModeState.IsOpen);
         }

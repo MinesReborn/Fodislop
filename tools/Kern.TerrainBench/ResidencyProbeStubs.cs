@@ -21,7 +21,7 @@ namespace Kern
 
         int HeightChunks { get; }
 
-        ChunkReadResult<T> ReadChunk(int chunkIndex, bool touchLru = true);
+        ChunkReadResult<T> ReadChunk(int chunkIndex, bool touchLRU = true);
     }
 }
 

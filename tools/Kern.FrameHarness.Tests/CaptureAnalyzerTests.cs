@@ -11,6 +11,24 @@ public sealed class CaptureAnalyzerTests
     private static readonly ComparisonBudget _ZeroBudget = new(0, 0, 0, 0, 0, 0);
 
     [Test]
+    public void AcronymRenamesPreserveBudgetJsonPropertyNames()
+    {
+        using JsonDocument document = JsonDocument.Parse(CaptureJson.WriteReport(
+            new ComparisonBudget(1, 2, 3, 4, 5, 6)));
+        string[] keys =
+        [
+            "maxCpuP95RegressionMs", "maxCpuP99RegressionMs", "maxCpuMaxRegressionMs",
+            "maxGpuP95RegressionMs", "maxGpuP99RegressionMs", "maxGpuMaxRegressionMs",
+        ];
+        Assert.That(document.RootElement.EnumerateObject().Select(property => property.Name),
+            Is.EquivalentTo(keys));
+        for (int index = 0; index < keys.Length; index++)
+        {
+            Assert.That(document.RootElement.GetProperty(keys[index]).GetDouble(), Is.EqualTo(index + 1));
+        }
+    }
+
+    [Test]
     public void ProductionBloomDispatchCountIsAcceptedAsAnOptionalObservation()
     {
         var capture = Capture(root => Frame(root, 0)["frameCounters"]!["bloomDispatches"] = 9);
@@ -81,7 +99,7 @@ public sealed class CaptureAnalyzerTests
     }
 
     [Test]
-    public void MissingGpuDoesNotHideStaticSolveViolation()
+    public void MissingGPUDoesNotHideStaticSolveViolation()
     {
         FrameCapture capture = Capture(root =>
         {
@@ -192,7 +210,7 @@ public sealed class CaptureAnalyzerTests
     }
 
     [Test]
-    public void StaleCpuSampleIsExcludedFromDescriptiveStatisticsAndComparison()
+    public void StaleCPUSampleIsExcludedFromDescriptiveStatisticsAndComparison()
     {
         FrameCapture before = Capture();
         FrameCapture after = Capture(root =>
@@ -215,7 +233,7 @@ public sealed class CaptureAnalyzerTests
     [TestCase(true, 1)]
     [TestCase(false, 0)]
     [TestCase(false, 1)]
-    public void MissingCpuCorrelationCannotCompareSparseDistributions(bool staleBefore, int staleIndex)
+    public void MissingCPUCorrelationCannotCompareSparseDistributions(bool staleBefore, int staleIndex)
     {
         FrameCapture MakeCapture(bool candidate) => Capture(root =>
         {
@@ -301,7 +319,7 @@ public sealed class CaptureAnalyzerTests
     }
 
     [Test]
-    public void ZeroCpuUploadTimerIsNotEvidenceOfZeroUploads()
+    public void ZeroCPUUploadTimerIsNotEvidenceOfZeroUploads()
     {
         ValidationReport report = CaptureAnalyzer.Validate(Capture(root =>
             Frame(root, 0)["frameCounters"]!["terrainUploadCalls"] = null));
@@ -487,7 +505,7 @@ public sealed class CaptureAnalyzerTests
     [TestCase("terrainCellDataApplyCalls", "terrainCellDataApplyPayloadBytes", 1, 4096)]
     [TestCase("terrainCellDataApplyCalls", "terrainCellDataApplyPayloadBytes", 9, 36864)]
     [TestCase("terrainCellDataCopyTextureCalls", "terrainCellDataCopyTexturePayloadBytes", 9, 9216)]
-    public void PositiveCellDataUploadFailsSteadyOpt1EvenWhenGpuIsMissing(
+    public void PositiveCellDataUploadFailsSteadyOpt1EvenWhenGPUIsMissing(
         string callsMetric, string bytesMetric, long calls, long bytes)
     {
         ValidationReport report = CaptureAnalyzer.Validate(Capture(root =>
@@ -721,7 +739,7 @@ public sealed class CaptureAnalyzerTests
     [TestCase("S0")]
     [TestCase("S1")]
     [TestCase("S4")]
-    public void CellDataViolationSurvivesMissingAggregateAndGpuMetrics(string scenario)
+    public void CellDataViolationSurvivesMissingAggregateAndGPUMetrics(string scenario)
     {
         ValidationReport report = CaptureAnalyzer.Validate(Capture(root =>
         {
@@ -749,7 +767,7 @@ public sealed class CaptureAnalyzerTests
     }
 
     [Test]
-    public void CpuImprovementCannotMaskGpuRegression()
+    public void CPUImprovementCannotMaskGPURegression()
     {
         ComparisonReport report = Compare(root =>
         {
@@ -768,7 +786,7 @@ public sealed class CaptureAnalyzerTests
     }
 
     [Test]
-    public void KnownTimingRegressionSurvivesMissingGpu()
+    public void KnownTimingRegressionSurvivesMissingGPU()
     {
         Assert.That(Compare(root =>
         {
@@ -952,7 +970,7 @@ public sealed class CaptureAnalyzerTests
     {
         FrameCapture capture = Capture(root => Frame(root, 0)["gpuFrameMs"] = null);
         FrameCapture roundTrip = CaptureJson.Parse(CaptureJson.Write(capture));
-        Assert.That(roundTrip.Frames![0]!.GpuFrameMs, Is.Null);
+        Assert.That(roundTrip.Frames![0]!.GPUFrameMs, Is.Null);
         Assert.That(CaptureAnalyzer.Validate(roundTrip).CoverageStatus, Is.EqualTo(CheckStatus.Incomplete));
     }
 

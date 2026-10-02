@@ -23,10 +23,6 @@ public static class PostProcessRuntimeState
     // Borrowed camera for an explicitly requested offscreen production benchmark.
     // Fixture owns registration and teardown; ordinary offscreen cameras stay excluded.
     public static Camera? DiagnosticOffscreenCamera { get; set; }
-    // Legacy fusion A/B is available only when DiagnosticLegacyBloom is explicit.
-    // Ordinary production uses the small world-grid bloom pyramid.
-    public static bool DiagnosticUnfusedBloom { get; set; }
-    public static bool DiagnosticLegacyBloom { get; set; }
     // Explicit before/after reference for the registered benchmark camera.
     // Production cameras always keep the fixed world grid.
     internal static bool DiagnosticFullResolutionWorld { get; set; }
@@ -61,38 +57,38 @@ public static class PostProcessRuntimeState
         }
     }
 
-    private static float _displayPaperWhiteNits = DisplaySettings.DefaultPaperWhite;
-    private static float _displayPeakBrightnessNits = DisplaySettings.DefaultPeakBrightness;
-    private static PostProcessDebugView _debugView;
-    private static float _compareSplit;
-    private static CompareMode _compareMode;
-    private static bool _compareBefore;
-    private static bool _bypassPostProcessEffects;
-    private static bool _temporaryBypass;
+    private static float s_displayPaperWhiteNits = DisplaySettings.DefaultPaperWhite;
+    private static float s_displayPeakBrightnessNits = DisplaySettings.DefaultPeakBrightness;
+    private static PostProcessDebugView s_debugView;
+    private static float s_compareSplit;
+    private static CompareMode s_compareMode;
+    private static bool s_compareBefore;
+    private static bool s_bypassPostProcessEffects;
+    private static bool s_temporaryBypass;
 
-    internal static float DisplayPaperWhiteNits => _displayPaperWhiteNits;
+    internal static float DisplayPaperWhiteNits => s_displayPaperWhiteNits;
 
-    internal static float DisplayPeakBrightnessNits => _displayPeakBrightnessNits;
+    internal static float DisplayPeakBrightnessNits => s_displayPeakBrightnessNits;
 
     // Цветокоррекция кадра — один LUT. Присылает его сервер как эффект;
     // владеет объектом тот, кто его передал, и он же его освобождает.
-    internal static ColorGradeCubeLut? Lut { get; private set; }
+    internal static ColorGradeCubeLUT? LUT { get; private set; }
 
-    internal static float LutIntensity { get; private set; }
+    internal static float LUTIntensity { get; private set; }
 
-    internal static ColorGradeLutColorSpace LutColorSpace { get; private set; }
+    internal static ColorGradeLUTColorSpace LUTColorSpace { get; private set; }
 
     public static bool BypassPostProcessEffects
     {
-        get => _bypassPostProcessEffects;
+        get => s_bypassPostProcessEffects;
         set
         {
-            if (_bypassPostProcessEffects == value)
+            if (s_bypassPostProcessEffects == value)
             {
                 return;
             }
 
-            _bypassPostProcessEffects = value;
+            s_bypassPostProcessEffects = value;
         }
     }
 
@@ -115,80 +111,80 @@ public static class PostProcessRuntimeState
 
     public static bool TemporaryBypass
     {
-        get => _temporaryBypass;
+        get => s_temporaryBypass;
         set
         {
-            if (_temporaryBypass == value)
+            if (s_temporaryBypass == value)
             {
                 return;
             }
 
-            _temporaryBypass = value;
+            s_temporaryBypass = value;
         }
     }
 
     public static PostProcessDebugView DebugView
     {
-        get => _debugView;
+        get => s_debugView;
         set
         {
             PostProcessDebugView sanitized = Enum.IsDefined(typeof(PostProcessDebugView), value)
                 ? value
                 : PostProcessDebugView.None;
-            if (_debugView == sanitized)
+            if (s_debugView == sanitized)
             {
                 return;
             }
 
-            _debugView = sanitized;
+            s_debugView = sanitized;
         }
     }
 
     public static float CompareSplit
     {
-        get => _compareSplit;
+        get => s_compareSplit;
         set
         {
             float sanitized = float.IsNaN(value) || float.IsInfinity(value)
                 ? 0f
                 : Mathf.Clamp01(value);
-            if (Mathf.Approximately(_compareSplit, sanitized))
+            if (Mathf.Approximately(s_compareSplit, sanitized))
             {
                 return;
             }
 
-            _compareSplit = sanitized;
+            s_compareSplit = sanitized;
         }
     }
 
     public static CompareMode CompareMode
     {
-        get => _compareMode;
+        get => s_compareMode;
         set
         {
             CompareMode sanitized = Enum.IsDefined(typeof(CompareMode), value)
                 ? value
                 : CompareMode.Off;
-            if (_compareMode == sanitized)
+            if (s_compareMode == sanitized)
             {
                 return;
             }
 
-            _compareMode = sanitized;
+            s_compareMode = sanitized;
         }
     }
 
     public static bool CompareBefore
     {
-        get => _compareBefore;
+        get => s_compareBefore;
         set
         {
-            if (_compareBefore == value)
+            if (s_compareBefore == value)
             {
                 return;
             }
 
-            _compareBefore = value;
+            s_compareBefore = value;
         }
     }
 
@@ -199,24 +195,22 @@ public static class PostProcessRuntimeState
         DiagnosticOffscreenCamera = null;
         DiagnosticWorldImage = null;
         DiagnosticBloomImage = null;
-        DiagnosticLegacyBloom = false;
         DiagnosticFullResolutionWorld = false;
-        DiagnosticUnfusedBloom = false;
         DiagnosticBloomDispatches = 0;
         DiagnosticBloomFrame = -1;
         DiagnosticSceneFrame = -1;
         DiagnosticDisplayFrame = -1;
-        _displayPaperWhiteNits = DisplaySettings.DefaultPaperWhite;
-        _displayPeakBrightnessNits = DisplaySettings.DefaultPeakBrightness;
-        Lut = null;
-        LutIntensity = 0f;
-        LutColorSpace = ColorGradeLutColorSpace.LinearRec709;
-        _debugView = PostProcessDebugView.None;
-        _compareSplit = 0f;
-        _compareMode = CompareMode.Off;
-        _compareBefore = false;
-        _bypassPostProcessEffects = false;
-        _temporaryBypass = false;
+        s_displayPaperWhiteNits = DisplaySettings.DefaultPaperWhite;
+        s_displayPeakBrightnessNits = DisplaySettings.DefaultPeakBrightness;
+        LUT = null;
+        LUTIntensity = 0f;
+        LUTColorSpace = ColorGradeLUTColorSpace.LinearRec709;
+        s_debugView = PostProcessDebugView.None;
+        s_compareSplit = 0f;
+        s_compareMode = CompareMode.Off;
+        s_compareBefore = false;
+        s_bypassPostProcessEffects = false;
+        s_temporaryBypass = false;
         SkipPasses = false;
         CalibrationMode = CalibrationPattern.Off;
         CalibrationValue = 0f;
@@ -236,29 +230,29 @@ public static class PostProcessRuntimeState
                 DisplaySettings.PeakBrightnessMin,
                 DisplaySettings.PeakBrightnessMax,
                 DisplaySettings.DefaultPeakBrightness));
-        if (Mathf.Approximately(_displayPaperWhiteNits, sanitizedPaperWhite) &&
-            Mathf.Approximately(_displayPeakBrightnessNits, sanitizedPeakBrightness))
+        if (Mathf.Approximately(s_displayPaperWhiteNits, sanitizedPaperWhite) &&
+            Mathf.Approximately(s_displayPeakBrightnessNits, sanitizedPeakBrightness))
         {
             return;
         }
 
-        _displayPaperWhiteNits = sanitizedPaperWhite;
-        _displayPeakBrightnessNits = sanitizedPeakBrightness;
+        s_displayPaperWhiteNits = sanitizedPaperWhite;
+        s_displayPeakBrightnessNits = sanitizedPeakBrightness;
     }
 
     // null или нулевая сила выключают LUT; проход вывода тогда не тратит на
     // него ни чтения.
-    public static void SetLut(
-        ColorGradeCubeLut? lut,
+    public static void SetLUT(
+        ColorGradeCubeLUT? lut,
         float intensity,
-        ColorGradeLutColorSpace colorSpace = ColorGradeLutColorSpace.LinearRec709)
+        ColorGradeLUTColorSpace colorSpace = ColorGradeLUTColorSpace.LinearRec709)
     {
         float sanitized = FiniteClamp(intensity, 0f, 1f, 0f);
-        Lut = sanitized > 0f ? lut : null;
-        LutIntensity = Lut == null ? 0f : sanitized;
-        LutColorSpace = colorSpace is ColorGradeLutColorSpace.LinearRec709 or ColorGradeLutColorSpace.SrgbRec709
+        LUT = sanitized > 0f ? lut : null;
+        LUTIntensity = LUT == null ? 0f : sanitized;
+        LUTColorSpace = colorSpace is ColorGradeLUTColorSpace.LinearRec709 or ColorGradeLUTColorSpace.SrgbRec709
             ? colorSpace
-            : ColorGradeLutColorSpace.LinearRec709;
+            : ColorGradeLUTColorSpace.LinearRec709;
     }
 
     public static void SetMainCamera(Camera? camera)

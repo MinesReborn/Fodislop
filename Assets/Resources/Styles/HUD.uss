@@ -398,7 +398,7 @@
     margin: 0;
 }
 
-.hud-panel .hud-creds {
+.hud-panel .hud-credits {
     -unity-font-style: bold;
     font-size: var(--size-md);
     color: var(--accent-gold);
@@ -447,9 +447,8 @@
     color: rgb(255, 255, 255);
     letter-spacing: 1px;
 
-    /* Вместо жёсткой обводки - мягкое тёмное хало вокруг цифр + короткая
-     * тень снизу: читается и на лайме, и на тёмной части полосы. */
-    text-shadow: 0 0 6px rgba(0, 0, 0, 0.9), 0 1px 2px rgba(0, 0, 0, 0.7);
+    /* Мягкое тёмное хало вокруг цифр на светлой заливке и тёмном треке. */
+    text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
     translate: 0 -2px;
     padding: 0;
 }
@@ -668,13 +667,9 @@
     font-size: 15px;
     color: rgb(255, 255, 255);
     letter-spacing: 0.5px;
-    text-shadow: 2px 0 0 rgba(0,0,0,0.95), -2px 0 0 rgba(0,0,0,0.95),
-                 0 2px 0 rgba(0,0,0,0.95), 0 -2px 0 rgba(0,0,0,0.95),
-                 2px 2px 0 rgba(0,0,0,0.9), -2px -2px 0 rgba(0,0,0,0.9),
-                 2px -2px 0 rgba(0,0,0,0.9), -2px 2px 0 rgba(0,0,0,0.9),
-                 1px 0 0 rgba(0,0,0,0.95), -1px 0 0 rgba(0,0,0,0.95),
-                 0 1px 0 rgba(0,0,0,0.95), 0 -1px 0 rgba(0,0,0,0.95),
-                 0 0 6px rgba(0,0,0,0.85);
+    -unity-text-outline-width: 2px;
+    -unity-text-outline-color: rgba(0, 0, 0, 0.95);
+    text-shadow: 0 0 6px rgba(0, 0, 0, 0.85);
     translate: 0 -1px;
     padding: 0;
 }

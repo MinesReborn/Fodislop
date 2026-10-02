@@ -26,7 +26,7 @@ public static class DynamicAtlasConfigurator
 
     public const int TargetMaxAtlasSize = 4096;
 
-    private static readonly HashSet<string> _runtimeRedrawnTextures = new();
+    private static readonly HashSet<string> s_runtimeRedrawnTextures = new();
 
     /// <summary>
     /// Исключает текстуру из динамического атласа. Вызывать сразу после создания:
@@ -39,11 +39,11 @@ public static class DynamicAtlasConfigurator
             return;
         }
 
-        _runtimeRedrawnTextures.Add(texture.name);
+        s_runtimeRedrawnTextures.Add(texture.name);
     }
 
     public static bool IsRuntimeRedrawn(Texture2D texture) =>
-        texture != null && _runtimeRedrawnTextures.Contains(texture.name);
+        texture != null && s_runtimeRedrawnTextures.Contains(texture.name);
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     public static void Initialize()

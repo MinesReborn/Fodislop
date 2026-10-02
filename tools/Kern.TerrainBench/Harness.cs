@@ -27,13 +27,13 @@ public sealed record BenchResult(
 {
     public string Key => $"{Suite}/{Name}/{Grid}";
 
-    public double CpuP50Ms { get; init; }
+    public double CPUP50Ms { get; init; }
 
-    public double CpuP95Ms { get; init; }
+    public double CPUP95Ms { get; init; }
 
-    public double CpuMaxMs { get; init; }
+    public double CPUMaxMs { get; init; }
 
-    public double CpuAtMaxWallMs { get; init; }
+    public double CPUAtMaxWallMs { get; init; }
 }
 
 // Показатель качества, а не времени: доля выгрузки, размер, число расхождений.
@@ -140,7 +140,7 @@ public sealed class BenchRunner(BenchOptions options)
         }
 
         double[] sorted = samples.OrderBy(s => s).ToArray();
-        double[]? sortedCpu = cpuSamples?.OrderBy(s => s).ToArray();
+        double[]? sortedCPU = cpuSamples?.OrderBy(s => s).ToArray();
         double mean = sorted.Average();
         double variance = sorted.Sum(s => (s - mean) * (s - mean)) / sorted.Length;
         int slowestWallSample = 0;
@@ -157,16 +157,16 @@ public sealed class BenchRunner(BenchOptions options)
             Percentile(sorted, 0.50), Percentile(sorted, 0.95), sorted[^1],
             Math.Sqrt(variance), allocatedBytes / sorted.Length, gen0)
         {
-            CpuP50Ms = sortedCpu == null ? 0 : Percentile(sortedCpu, 0.50),
-            CpuP95Ms = sortedCpu == null ? 0 : Percentile(sortedCpu, 0.95),
-            CpuMaxMs = sortedCpu == null ? 0 : sortedCpu[^1],
-            CpuAtMaxWallMs = cpuSamples == null ? 0 : cpuSamples[slowestWallSample],
+            CPUP50Ms = sortedCPU == null ? 0 : Percentile(sortedCPU, 0.50),
+            CPUP95Ms = sortedCPU == null ? 0 : Percentile(sortedCPU, 0.95),
+            CPUMaxMs = sortedCPU == null ? 0 : sortedCPU[^1],
+            CPUAtMaxWallMs = cpuSamples == null ? 0 : cpuSamples[slowestWallSample],
         };
         _results.Add(result);
         Console.WriteLine(
             $"  {name,-62} {mean,9:F4} мс  p50 {result.P50Ms,9:F4}  p95 {result.P95Ms,9:F4}  " +
             $"p99 {Percentile(sorted, 0.99),9:F4}  max {result.MaxMs,9:F3}  " +
-            FormatCpu(result) +
+            FormatCPU(result) +
             $"{result.AllocatedBytesPerIteration,8} Б  gen0 {gen0,3}  ×{sorted.Length}");
     }
 
@@ -241,7 +241,7 @@ public sealed class BenchRunner(BenchOptions options)
         GCSettings.LatencyMode = GCLatencyMode.Interactive;
 
         double[] sorted = samples.OrderBy(s => s).ToArray();
-        double[] sortedCpu = cpuSamples.OrderBy(s => s).ToArray();
+        double[] sortedCPU = cpuSamples.OrderBy(s => s).ToArray();
         double mean = sorted.Average();
         double variance = sorted.Sum(s => (s - mean) * (s - mean)) / sorted.Length;
         var result = new BenchResult(
@@ -257,16 +257,16 @@ public sealed class BenchRunner(BenchOptions options)
             allocated / sorted.Length,
             gen0)
         {
-            CpuP50Ms = Percentile(sortedCpu, 0.50),
-            CpuP95Ms = Percentile(sortedCpu, 0.95),
-            CpuMaxMs = sortedCpu[^1],
-            CpuAtMaxWallMs = cpuSamples[slowestWallSample],
+            CPUP50Ms = Percentile(sortedCPU, 0.50),
+            CPUP95Ms = Percentile(sortedCPU, 0.95),
+            CPUMaxMs = sortedCPU[^1],
+            CPUAtMaxWallMs = cpuSamples[slowestWallSample],
         };
         _results.Add(result);
         Console.WriteLine(
             $"  {name,-62} {mean,9:F4} мс  p50 {result.P50Ms,9:F4}  p95 {result.P95Ms,9:F4}  " +
-            $"max {result.MaxMs,9:F3}  cpu p50 {result.CpuP50Ms,7:F3}  cpu p95 {result.CpuP95Ms,7:F3}  " +
-            $"cpu max {result.CpuMaxMs,7:F3} / max-wall {result.CpuAtMaxWallMs,7:F3}  " +
+            $"max {result.MaxMs,9:F3}  cpu p50 {result.CPUP50Ms,7:F3}  cpu p95 {result.CPUP95Ms,7:F3}  " +
+            $"cpu max {result.CPUMaxMs,7:F3} / max-wall {result.CPUAtMaxWallMs,7:F3}  " +
             $"±{result.StdDevMs,7:F4}  {result.AllocatedBytesPerIteration,8} Б  gen0 {gen0,3}  ×{sorted.Length}");
     }
 
@@ -286,8 +286,8 @@ public sealed class BenchRunner(BenchOptions options)
 
         var firstWall = new List<double>();
         var secondWall = new List<double>();
-        var firstCpu = new List<double>();
-        var secondCpu = new List<double>();
+        var firstCPU = new List<double>();
+        var secondCPU = new List<double>();
         using Process currentProcess = Process.GetCurrentProcess();
         long firstAllocated = 0;
         long secondAllocated = 0;
@@ -300,13 +300,13 @@ public sealed class BenchRunner(BenchOptions options)
         {
             if (firstOrder)
             {
-                Measure(firstAction, firstWall, firstCpu, ref firstAllocated);
-                Measure(secondAction, secondWall, secondCpu, ref secondAllocated);
+                Measure(firstAction, firstWall, firstCPU, ref firstAllocated);
+                Measure(secondAction, secondWall, secondCPU, ref secondAllocated);
             }
             else
             {
-                Measure(secondAction, secondWall, secondCpu, ref secondAllocated);
-                Measure(firstAction, firstWall, firstCpu, ref firstAllocated);
+                Measure(secondAction, secondWall, secondCPU, ref secondAllocated);
+                Measure(firstAction, firstWall, firstCPU, ref firstAllocated);
             }
 
             firstOrder = !firstOrder;
@@ -314,8 +314,8 @@ public sealed class BenchRunner(BenchOptions options)
 
         int gen0 = GC.CollectionCount(0) - gen0Before;
         GCSettings.LatencyMode = GCLatencyMode.Interactive;
-        Record(firstName, firstWall, firstAllocated, gen0, firstCpu);
-        Record(secondName, secondWall, secondAllocated, gen0, secondCpu);
+        Record(firstName, firstWall, firstAllocated, gen0, firstCPU);
+        Record(secondName, secondWall, secondAllocated, gen0, secondCPU);
 
         void Measure(Action action, List<double> wallSamples, List<double> cpuSamples, ref long allocated)
         {
@@ -331,10 +331,10 @@ public sealed class BenchRunner(BenchOptions options)
         }
     }
 
-    private static string FormatCpu(BenchResult result) => result.CpuP50Ms == 0 && result.CpuP95Ms == 0
+    private static string FormatCPU(BenchResult result) => result.CPUP50Ms == 0 && result.CPUP95Ms == 0
         ? string.Empty
-        : $"cpu p50 {result.CpuP50Ms,7:F3}  cpu p95 {result.CpuP95Ms,7:F3}  " +
-          $"cpu max {result.CpuMaxMs,7:F3} / max-wall {result.CpuAtMaxWallMs,7:F3}  ";
+        : $"cpu p50 {result.CPUP50Ms,7:F3}  cpu p95 {result.CPUP95Ms,7:F3}  " +
+          $"cpu max {result.CPUMaxMs,7:F3} / max-wall {result.CPUAtMaxWallMs,7:F3}  ";
 
     private static double Percentile(double[] sorted, double fraction) =>
         sorted[Math.Clamp((int)Math.Round(fraction * (sorted.Length - 1)), 0, sorted.Length - 1)];
@@ -362,12 +362,12 @@ public static class BenchReport
                 .AppendLine("|---|---|---:|---:|---:|---:|---:|---:|");
             foreach (BenchResult r in grid)
             {
-                string cpu = r.CpuP50Ms == 0 && r.CpuP95Ms == 0
+                string cpu = r.CPUP50Ms == 0 && r.CPUP95Ms == 0
                     ? "—"
-                    : $"{r.CpuP50Ms:F3}/{r.CpuP95Ms:F3}";
-                string cpuMax = r.CpuMaxMs == 0 && r.CpuAtMaxWallMs == 0
+                    : $"{r.CPUP50Ms:F3}/{r.CPUP95Ms:F3}";
+                string cpuMax = r.CPUMaxMs == 0 && r.CPUAtMaxWallMs == 0
                     ? "—"
-                    : $"{r.CpuMaxMs:F3}/{r.CpuAtMaxWallMs:F3}";
+                    : $"{r.CPUMaxMs:F3}/{r.CPUAtMaxWallMs:F3}";
                 text.AppendLine($"| {r.Suite} | {r.Name} | {r.P50Ms:F4} | {r.P95Ms:F4} | {r.MaxMs:F3} | {cpu} | {cpuMax} | {r.AllocatedBytesPerIteration} |");
             }
 

@@ -11,7 +11,7 @@ internal sealed class ScopesExposureReadout
     private float _median = float.NaN;
     private float _p95 = float.NaN;
     private ScopesSourceMode _sourceMode;
-    private bool _hdr;
+    private bool _HDR;
     private float _paperWhiteNits = float.NaN;
     private CalibrationPattern _calibrationMode;
     private float _calibrationValue = float.NaN;
@@ -22,7 +22,7 @@ internal sealed class ScopesExposureReadout
         float median = ScopesRenderPass.MedianExposureStops;
         float p95 = ScopesRenderPass.P95ExposureStops;
         ScopesSourceMode sourceMode = ScopesRenderPass.SourceMode;
-        bool hdr = HDROutput.Active;
+        bool HDR = HDROutput.Active;
         float paperWhiteNits = Mathf.Max(1f, PostProcessRuntimeState.DisplayPaperWhiteNits);
         CalibrationPattern calibrationMode = PostProcessRuntimeState.CalibrationMode;
         float calibrationValue = PostProcessRuntimeState.CalibrationValue;
@@ -30,7 +30,7 @@ internal sealed class ScopesExposureReadout
             !median.Equals(_median) ||
             !p95.Equals(_p95) ||
             sourceMode != _sourceMode ||
-            hdr != _hdr ||
+            HDR != _HDR ||
             !paperWhiteNits.Equals(_paperWhiteNits) ||
             calibrationMode != _calibrationMode ||
             !calibrationValue.Equals(_calibrationValue))
@@ -38,11 +38,11 @@ internal sealed class ScopesExposureReadout
             _median = median;
             _p95 = p95;
             _sourceMode = sourceMode;
-            _hdr = hdr;
+            _HDR = HDR;
             _paperWhiteNits = paperWhiteNits;
             _calibrationMode = calibrationMode;
             _calibrationValue = calibrationValue;
-            _label = BuildLabel(median, p95, sourceMode, hdr, paperWhiteNits, calibrationMode, calibrationValue);
+            _label = BuildLabel(median, p95, sourceMode, HDR, paperWhiteNits, calibrationMode, calibrationValue);
         }
 
         return _label;
@@ -52,7 +52,7 @@ internal sealed class ScopesExposureReadout
         float median,
         float p95,
         ScopesSourceMode sourceMode,
-        bool hdr,
+        bool HDR,
         float paperWhiteNits,
         CalibrationPattern calibrationMode,
         float calibrationValue)
@@ -71,7 +71,7 @@ internal sealed class ScopesExposureReadout
             return "Экспозиция: ожидание выборки";
         }
 
-        return hdr
+        return HDR
             ? $"Яркость {sourceLabel}: медиана {FormatExposure(median, paperWhiteNits, nitUnit)} · " +
               $"P95 {FormatExposure(p95, paperWhiteNits, nitUnit)} " +
               $"(0 EV = paper white; сигнал рендера, не фотометр панели; диапазон ±12 EV).{calibrationNote}"

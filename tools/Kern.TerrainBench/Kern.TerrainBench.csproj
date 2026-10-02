@@ -45,9 +45,9 @@
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainQuadUvs.cs" Link="Game/TerrainQuadUvs.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainCellLayers.cs" Link="Game/TerrainCellLayers.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainLightingData.cs" Link="Game/TerrainLightingData.cs" />
-    <Compile Include="../../Assets/Scripts/World/Terrain/Gpu/TerrainCellDataPacker.cs" Link="Game/TerrainCellDataPacker.cs" />
-    <Compile Include="../../Assets/Scripts/World/Terrain/Gpu/TerrainCellTypeSet.cs" Link="Game/TerrainCellTypeSet.cs" />
-    <Compile Include="../../Assets/Scripts/World/Terrain/Gpu/TerrainDirtyRegion.cs" Link="Game/TerrainDirtyRegion.cs" />
+    <Compile Include="../../Assets/Scripts/World/Terrain/GPU/TerrainCellDataPacker.cs" Link="Game/TerrainCellDataPacker.cs" />
+    <Compile Include="../../Assets/Scripts/World/Terrain/GPU/TerrainCellTypeSet.cs" Link="Game/TerrainCellTypeSet.cs" />
+    <Compile Include="../../Assets/Scripts/World/Terrain/GPU/TerrainDirtyRegion.cs" Link="Game/TerrainDirtyRegion.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Cache/DirtyRectSet.cs" Link="Game/DirtyRectSet.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Cache/TerrainCellRegion.cs" Link="Game/TerrainCellRegion.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Cache/TerrainRingGrid.cs" Link="Game/TerrainRingGrid.cs" />

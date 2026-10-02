@@ -24,7 +24,14 @@ description: >-
 
 - Allman braces, mandatory `{}`, SA1513/SA1508.
 - Trailing comma in multi-line initializers.
-- Private fields — `_camelCase`; public members and types — `PascalCase`.
+- Non-public instance fields — `_camelCase`; non-public static fields — `s_camelCase`; constants (including local constants), public fields, types, namespaces, methods, properties, events, enum members, delegates, and local functions — `PascalCase`.
+- Interfaces — `I` + `PascalCase`; generic type parameters — `T` + `PascalCase`; locals and parameters — `camelCase`.
+- Use `Is`/`Has`/`Can` for boolean meaning, `Count` for quantities, `Index` for positions, and `Id` for identity. Use meaningful plural collection names and `ById` for identity lookup.
+- Async operations use the `Async` suffix; event handlers use `Handle` + event name. Use `Id`, `Uv`, and `Ms`; keep `CPU`, `LUT`, `FPS`, `M3G`, `GPU`, `LRU`, and `RLE` uppercase in compound identifiers; retain names required by external APIs and contracts.
+- Use `Credits` rather than `Creds` for project-owned currency identifiers. Keep immutable external packet/API names at the integration boundary.
+- Include units when otherwise ambiguous (`durationSeconds`, `gpuTimeMs`, `radiusPixels`, `distanceMeters`).
+- Prefer private `[SerializeField]` fields with public properties. Preserve Unity callback names and shader parameter contracts exactly. When renaming serialized fields, preserve values with `[FormerlySerializedAs]`; migrate existing symbols by subsystem rather than mass replacement.
+- `.editorconfig` enforces naming at warning severity. Shader and asset names follow their domain contracts; C# naming rules do not rename shader bindings or assets.
 - Unity script file name must match the class name.
 
 ## DI / VContainer

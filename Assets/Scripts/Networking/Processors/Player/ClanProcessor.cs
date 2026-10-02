@@ -10,7 +10,7 @@ public sealed class ClanProcessor(IPlayerStats stats) :
     IPacketProcessor<ShowClanPacket>,
     IPacketProcessor<HideClanPacket>
 {
-    public void Process(ShowClanPacket packet) => stats.SetClanID(packet.ClanId);
+    public void Process(ShowClanPacket packet) => stats.SetClanId(packet.ClanId);
 
-    public void Process(HideClanPacket packet) => stats.SetClanID(0);
+    public void Process(HideClanPacket packet) => stats.SetClanId(0);
 }

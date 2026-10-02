@@ -37,8 +37,8 @@ public enum TerrainDebugView
 
 public static class TerrainDebugViewState
 {
-    private static readonly int _terrainDebugViewID = Shader.PropertyToID("_TerrainDebugView");
-    private static readonly int _terrainDebugBackgroundTileIdentityID =
+    private static readonly int s_terrainDebugViewId = Shader.PropertyToID("_TerrainDebugView");
+    private static readonly int s_terrainDebugBackgroundTileIdentityId =
         Shader.PropertyToID("_TerrainDebugBackgroundTileIdentity");
 
     // Глобаль шейдера живёт в нативной части и переживает доменную
@@ -169,9 +169,9 @@ public static class TerrainDebugViewState
     // публикуют заново, а не полагаются на прошлое значение.
     public static void Publish()
     {
-        Shader.SetGlobalInteger(_terrainDebugViewID, (int)Active);
+        Shader.SetGlobalInteger(s_terrainDebugViewId, (int)Active);
         Shader.SetGlobalInteger(
-            _terrainDebugBackgroundTileIdentityID,
+            s_terrainDebugBackgroundTileIdentityId,
             Active == TerrainDebugView.BackgroundTileIdentity ? 1 : 0);
     }
 

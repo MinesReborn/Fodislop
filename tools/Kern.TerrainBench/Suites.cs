@@ -52,7 +52,7 @@ public static class Suites
             TouchCount = 0;
         }
 
-        public ChunkReadResult<CellType> ReadChunk(int chunkIndex, bool touchLru = true)
+        public ChunkReadResult<CellType> ReadChunk(int chunkIndex, bool touchLRU = true)
         {
             ReadCount++;
             if (!_resident.Contains(chunkIndex))
@@ -60,7 +60,7 @@ public static class Suites
                 return new ChunkReadResult<CellType>(ChunkReadStatus.Missing, null, null);
             }
 
-            if (touchLru)
+            if (touchLRU)
             {
                 LinkedListNode<int> node = _nodes[chunkIndex];
                 _lru.Remove(node);
@@ -265,7 +265,7 @@ public static class Suites
                 (double)TimeSpan.TicksPerMillisecond);
             GC.KeepAlive(fullRebuild);
             residencyReads += residencyCache.ChunkReads;
-            residencyTouches += residencyCache.LruTouches;
+            residencyTouches += residencyCache.LRUTouches;
         }
 
         long allocated = 0;

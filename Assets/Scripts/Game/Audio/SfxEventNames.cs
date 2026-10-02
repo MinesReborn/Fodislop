@@ -15,11 +15,11 @@ namespace Kern.Game;
 // жизненному циклу события отношения не имеет.
 internal static class SfxEventNames
 {
-    private static readonly Dictionary<SFX, string> _Cache = new();
+    private static readonly Dictionary<SFX, string> s_cache = new();
 
     public static string Get(SFX sfx)
     {
-        if (_Cache.TryGetValue(sfx, out string? cachedName))
+        if (s_cache.TryGetValue(sfx, out string? cachedName))
         {
             return cachedName;
         }
@@ -45,7 +45,7 @@ internal static class SfxEventNames
         }
 
         string result = builder.ToString();
-        _Cache[sfx] = result;
+        s_cache[sfx] = result;
         return result;
     }
 }

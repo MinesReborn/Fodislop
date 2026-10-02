@@ -48,9 +48,8 @@ namespace Kern.Player
         private const float ZoomEdgeBand = 0.15f;
         private const float ZoomEdgeMinimumFactor = 0.25f;
 
-        // Прыжок серверных координат (в клетках), который считается телепортом:
-        // респаун/ТП переносят робота на сотни клеток, обычное движение - на 1-3.
-        private const float TeleportJumpCellsSquared = 400f; // 20×20 клеток
+        // Teleport detection uses the reference viewport, independent of zoom.
+        private const float TeleportViewportHalfHeight = ProjectRuntimeContracts.Camera.ReferenceOrthographicSize;
 
         // Сериализованные пределы не выходят за контракт: освещение рассчитано
         // на кадр ProjectRuntimeContracts.Camera.MaximumOrthographicSize.
@@ -212,19 +211,14 @@ namespace Kern.Player
                 return;
             }
 
-            // Респаун/телепорт - прыжок серверных координат через полкарты:
-            // снапим камеру сразу (SnapToTarget), не ждём SmoothDamp.
-            // Мелкие шаги (обычное движение, 1 клетка за тик) - как раньше.
-            int dx = newPosition.x - oldPosition.x;
-            int dy = newPosition.y - oldPosition.y;
-            bool teleport = (dx * dx) + (dy * dy) > TeleportJumpCellsSquared;
-            if (_hasSnappedToServerPosition && !teleport)
+            if (!_hasSnappedToServerPosition)
             {
+                _hasSnappedToServerPosition = true;
+                SnapToTarget();
                 return;
             }
 
-            _hasSnappedToServerPosition = true;
-            SnapToTarget();
+            SnapIfOutsideTeleportViewport();
         }
 
         private void HandleLocalPlayerChanged(ILocalPlayer? player)
@@ -264,11 +258,22 @@ namespace Kern.Player
             _subscribedPlayer.OnPlayerTeleported += HandlePlayerTeleported;
         }
 
-        // Телепорт игрока (респаун, ТП-свиток, админ-перенос): камера щёлкает
-        // на новое место мгновенно, без плавного догоняния через полкарты.
+        // Only teleports outside the fixed reference viewport snap the camera.
         private void HandlePlayerTeleported()
         {
-            SnapToTarget();
+            SnapIfOutsideTeleportViewport();
+        }
+
+        private void SnapIfOutsideTeleportViewport()
+        {
+            if (_camera == null || _target == null || _target == _camera.transform)
+            {
+                return;
+            }
+
+            Vector3 point = ResolveFollowPoint(_target);
+            Vector3 desired = new(point.x + _offset.x, point.y + _offset.y, _originalZ);
+            HandleViewJump(_camera.transform, desired);
         }
 
         protected void LateUpdate()
@@ -298,8 +303,9 @@ namespace Kern.Player
 
             HandleZoom();
             Vector3 before = _camera.transform.position;
-            HandleFollow();
-            ReportCameraJump(before);
+            Vector3 velocityBefore = _followVelocity;
+            HandleFollow(out bool usedViewTransition);
+            ReportCameraJump(before, velocityBefore, usedViewTransition);
         }
 
         // Скачок камеры больше JumpReportCells клеток за кадр пишется в лог
@@ -307,7 +313,7 @@ namespace Kern.Player
         // с сервера, сглаживание бота или переход вида.
         private const float JumpReportCells = 2f;
 
-        private void ReportCameraJump(Vector3 before)
+        private void ReportCameraJump(Vector3 before, Vector3 velocityBefore, bool usedViewTransition)
         {
             Vector3 after = _camera.transform.position;
             float jump = Vector2.Distance(before, after);
@@ -324,7 +330,9 @@ namespace Kern.Player
                 $"[CameraFollow] Camera jumped {jump:F2} from {before} to {after}; {robotState}; " +
                 $"server cell={(player != null ? player.Position.ToString() : "none")}, " +
                 $"hasServerPosition={player?.HasServerPosition}, " +
-                $"holding={_viewTransition?.IsHolding}, frame={Time.frameCount}.");
+                $"holding={_viewTransition?.IsHolding}, viewTransition={usedViewTransition}, " +
+                $"dt={Time.deltaTime:F6}s, smoothTime={_followSmoothTime:F6}s, " +
+                $"velocityBefore={velocityBefore}, velocityAfter={_followVelocity}, frame={Time.frameCount}.");
         }
 
         private void HandleZoom()
@@ -338,7 +346,7 @@ namespace Kern.Player
 
             if (Mathf.Abs(scrollInput) > 0.001f)
             {
-                _targetZoom = _Aligner.QuantizesZoom
+                _targetZoom = Aligner.QuantizesZoom
                     ? StepPixelPerfectZoom(_targetZoom, scrollInput)
                     : StepSmoothZoom(_targetZoom, scrollInput);
             }
@@ -425,12 +433,12 @@ namespace Kern.Player
             }
 
             _pixelZoomNotches -= levels;
-            return _Aligner.StepQuantizedSize(size, levels, MinimumZoom, MaximumZoom);
+            return Aligner.StepQuantizedSize(size, levels, MinimumZoom, MaximumZoom);
         }
 
         private float QuantizeIfPixelPerfect(float size) =>
-            _Aligner.QuantizesZoom
-                ? _Aligner.ResolveOrthographicSize(size, MinimumZoom, MaximumZoom)
+            Aligner.QuantizesZoom
+                ? Aligner.ResolveOrthographicSize(size, MinimumZoom, MaximumZoom)
                 : size;
 
         // Камера следует за сглаженной позицией бота без дрожи
@@ -446,8 +454,9 @@ namespace Kern.Player
             return _targetRobot != null ? _targetRobot.CameraAnchor : target.position;
         }
 
-        private void HandleFollow()
+        private void HandleFollow(out bool usedViewTransition)
         {
+            usedViewTransition = false;
             if (_localPlayer?.Current is { HasServerPosition: false })
             {
                 return;
@@ -471,6 +480,7 @@ namespace Kern.Player
 
             if (HandleViewJump(cameraTransform, desiredPosition))
             {
+                usedViewTransition = true;
                 return;
             }
 
@@ -499,66 +509,26 @@ namespace Kern.Player
             cameraTransform.position = SnapToPixelGrid(smoothed);
         }
 
-        /// <summary>
-        /// Прыжок цели дальше кадра камеры (телепорт) не догоняется
-        /// сглаживанием: камера пролетела бы через всю карту, и игрок увидел бы
-        /// прогрузку по дороге. Камера держит старый вид, пока террейн готовит
-        /// место назначения, и переставляется одним кадром.
-        /// </summary>
-        /// <returns>true, если позицию камеры в этом кадре решил переход.</returns>
+        // The teleport viewport is fixed at the project's reference size.
+        // Terrain readiness and the user's current zoom do not delay a snap.
         private bool HandleViewJump(Transform cameraTransform, Vector3 desiredPosition)
         {
-            float halfHeight = _camera.orthographicSize;
-            float halfWidth = halfHeight * _camera.aspect;
-            if (_viewTransition is { IsHolding: true } holding)
-            {
-                holding.Hold(desiredPosition);
-                float cellSize = ProjectRuntimeContracts.World.CellSize;
-                bool ready = holding.IsReadyFor(
-                    desiredPosition,
-                    halfWidth / cellSize,
-                    halfHeight / cellSize,
-                    cellSize);
-                bool expired = holding.HoldSeconds >= WorldViewTransition.MaximumHoldSeconds;
-                if (!ready && !expired)
-                {
-                    return true;
-                }
-
-                if (!ready)
-                {
-                    Debug.LogWarning(
-                        $"[CameraFollow] Teleport destination {desiredPosition} was not ready after " +
-                        $"{WorldViewTransition.MaximumHoldSeconds:F0}s; releasing the view.");
-                }
-
-                Kern.Core.Interfaces.Diagnostics.FrameEventLog.Record(
-                    $"телепорт: вид переставлен через {holding.HoldSeconds:F2} с");
-                cameraTransform.position = SnapToPixelGrid(desiredPosition);
-                _followVelocity = Vector3.zero;
-                holding.Release();
-                return true;
-            }
-
             Vector3 offset = desiredPosition - cameraTransform.position;
-            bool beyondView = Mathf.Abs(offset.x) > halfWidth || Mathf.Abs(offset.y) > halfHeight;
-            if (!beyondView)
+            if (!IsOutsideTeleportViewport(offset, _camera.aspect))
             {
                 return false;
             }
 
-            if (_viewTransition is { CanHold: true } transition)
-            {
-                transition.Hold(desiredPosition);
-                return true;
-            }
-
-            // Показывать нечего (мир ещё грузится под экраном загрузки):
-            // переставить сразу, без полёта через карту.
             cameraTransform.position = SnapToPixelGrid(desiredPosition);
+            _hasSnappedToServerPosition = true;
             _followVelocity = Vector3.zero;
+            _viewTransition?.Release();
             return true;
         }
+
+        internal static bool IsOutsideTeleportViewport(Vector3 offset, float aspect) =>
+            Mathf.Abs(offset.x) > TeleportViewportHalfHeight * aspect ||
+            Mathf.Abs(offset.y) > TeleportViewportHalfHeight;
 
         // Размер применяется как есть. Квантование PixelPerfect делает цель
         // (QuantizeIfPixelPerfect), а не каждый кадр: иначе переход между
@@ -572,9 +542,9 @@ namespace Kern.Player
         }
 
         private Vector3 SnapToPixelGrid(Vector3 position) =>
-            _Aligner.SnapPosition(position, _camera.orthographicSize);
+            Aligner.SnapPosition(position, _camera.orthographicSize);
 
-        private CameraPixelGridAligner _Aligner =>
+        private CameraPixelGridAligner Aligner =>
             _aligner ??= new CameraPixelGridAligner(_clientConfig);
 
         public void SnapToTarget()
@@ -598,6 +568,7 @@ namespace Kern.Player
                 Vector3 targetPosition = ResolveFollowPoint(_target) + new Vector3(_offset.x, _offset.y, 0f);
                 cameraTransform.position = SnapToPixelGrid(
                     new Vector3(targetPosition.x, targetPosition.y, _originalZ));
+                _hasSnappedToServerPosition = true;
                 _followVelocity = Vector3.zero;
                 _viewTransition?.Release();
             }

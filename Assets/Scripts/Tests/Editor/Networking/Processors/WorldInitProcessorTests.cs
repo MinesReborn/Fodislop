@@ -102,9 +102,9 @@ public class WorldInitProcessorTests
         public bool IsStandaloneMode => false;
         public float GetMoveCooldown(CellType cellType) => 0f;
         public CellConfigurationPacket GetCellConfig(CellType type) => default;
-        public bool TryGetTileGroup(CellType type, out int groupID)
+        public bool TryGetTileGroup(CellType type, out int groupId)
         {
-            groupID = 0;
+            groupId = 0;
             return false;
         }
 
@@ -130,7 +130,7 @@ public class WorldInitProcessorTests
     private sealed class StubRobotService : IRobotService
     {
         public bool ClearAllRobotsCalled { get; private set; }
-        public uint LocalPlayerBotID => 1;
+        public uint LocalPlayerBotId => 1;
         public int RobotCount => 0;
 
         public void ClearAllRobots()
@@ -138,22 +138,22 @@ public class WorldInitProcessorTests
             ClearAllRobotsCalled = true;
         }
 
-        public void SetLocalPlayerBotID(uint botID) { }
+        public void SetLocalPlayerBotId(uint botId) { }
         public void RegisterRobot(IRobotView robot) { }
         public void UnregisterRobot(IRobotView robot) { }
-        public void UnregisterRobot(uint botID) { }
-        public IRobotView GetOrCreateRobot(uint botID) => null!;
-        public bool TryGetRobot(uint botID, out IRobotView? robot)
+        public void UnregisterRobot(uint botId) { }
+        public IRobotView GetOrCreateRobot(uint botId) => null!;
+        public bool TryGetRobot(uint botId, out IRobotView? robot)
         {
             robot = null;
             return false;
         }
 
-        public void UpdateRobotMetadata(uint botID, RobotMetadata metadata) { }
-        public void UpdateRobotPosition(uint botID, ushort x, ushort y, float rotation) { }
-        public void UpdateRobotPosition(uint botID, ushort x, ushort y, byte rotation) { }
+        public void UpdateRobotMetadata(uint botId, RobotMetadata metadata) { }
+        public void UpdateRobotPosition(uint botId, ushort x, ushort y, float rotation) { }
+        public void UpdateRobotPosition(uint botId, ushort x, ushort y, byte rotation) { }
         public void PruneStaleRobots(float timeoutSeconds = 2.5f) { }
-        public void ReplaceFactoryBotWithPlayer(uint botID, IRobotView playerRobot) { }
+        public void ReplaceFactoryBotWithPlayer(uint botId, IRobotView playerRobot) { }
     }
 
     private sealed class StubBuildingService : IBuildingService
@@ -191,7 +191,7 @@ public class WorldInitProcessorTests
         public GameObject gameObject => null!;
         public Transform transform => null!;
         public bool isActiveAndEnabled => true;
-        public uint BotID => 1;
+        public uint BotId => 1;
         public Vector2Int Position { get; private set; }
         public bool HasServerPosition { get; private set; }
         public bool IsGameplayVisible => true;
@@ -223,7 +223,7 @@ public class WorldInitProcessorTests
             return false;
         }
         public void ResetDirection() { }
-        public void Initialize(uint botID) { }
+        public void Initialize(uint botId) { }
         public void SetGameplayVisible() { }
         public T GetComponent<T>() => default!;
         public bool TryGetComponent<T>(out T component)

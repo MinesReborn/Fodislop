@@ -9,119 +9,119 @@ namespace Kern.World.Terrain;
 // в двух местах TerrainMaterialManager — теперь он один и лежит рядом.
 internal static class TerrainMaterialTuning
 {
-    private static readonly int _OrganicBendStrengthPropertyID =
+    private static readonly int s_organicBendStrengthPropertyId =
         Shader.PropertyToID("_OrganicBendStrength");
-    private static readonly int _OrganicBendPivotPropertyID =
+    private static readonly int s_organicBendPivotPropertyId =
         Shader.PropertyToID("_OrganicBendPivot");
-    private static readonly int _RoundableCornerRadiusPropertyID =
+    private static readonly int s_roundableCornerRadiusPropertyId =
         Shader.PropertyToID("_RoundableCornerRadius");
-    private static readonly int _ReliefRimDistanceScalePropertyID =
+    private static readonly int s_reliefRimDistanceScalePropertyId =
         Shader.PropertyToID("_ReliefRimDistanceScale");
-    private static readonly int _ReliefRimQuantizationEnabledPropertyID =
+    private static readonly int s_reliefRimQuantizationEnabledPropertyId =
         Shader.PropertyToID("_ReliefRimQuantizationEnabled");
-    private static readonly int _ReliefRimFalloffPropertyID =
+    private static readonly int s_reliefRimFalloffPropertyId =
         Shader.PropertyToID("_ReliefRimFalloff");
-    private static readonly int _GroundDecalStrengthPropertyID =
+    private static readonly int s_groundDecalStrengthPropertyId =
         Shader.PropertyToID("_GroundDecalStrength");
-    private static readonly int _StoneDecalStrengthPropertyID =
+    private static readonly int s_stoneDecalStrengthPropertyId =
         Shader.PropertyToID("_StoneDecalStrength");
-    private static readonly int _DecalPlacementOffsetPropertyID =
+    private static readonly int s_decalPlacementOffsetPropertyId =
         Shader.PropertyToID("_DecalPlacementOffset");
-    private static readonly int _TerrainDebugDeltaContrastPropertyID =
+    private static readonly int s_terrainDebugDeltaContrastPropertyId =
         Shader.PropertyToID("_TerrainDebugDeltaContrast");
-    private static readonly int _FacetedGlintDirectionPropertyID =
+    private static readonly int s_facetedGlintDirectionPropertyId =
         Shader.PropertyToID("_FacetedGlintDirection");
-    private static readonly int _FacetedGlintSweepStartPropertyID =
+    private static readonly int s_facetedGlintSweepStartPropertyId =
         Shader.PropertyToID("_FacetedGlintSweepStart");
-    private static readonly int _FacetedGlintSweepEndPropertyID =
+    private static readonly int s_facetedGlintSweepEndPropertyId =
         Shader.PropertyToID("_FacetedGlintSweepEnd");
-    private static readonly int _FacetedGlintBandStartPropertyID =
+    private static readonly int s_facetedGlintBandStartPropertyId =
         Shader.PropertyToID("_FacetedGlintBandStart");
-    private static readonly int _FacetedGlintBandEndPropertyID =
+    private static readonly int s_facetedGlintBandEndPropertyId =
         Shader.PropertyToID("_FacetedGlintBandEnd");
-    private static readonly int _FacetedGlintMaskStartPropertyID =
+    private static readonly int s_facetedGlintMaskStartPropertyId =
         Shader.PropertyToID("_FacetedGlintMaskStart");
-    private static readonly int _FacetedGlintMaskEndPropertyID =
+    private static readonly int s_facetedGlintMaskEndPropertyId =
         Shader.PropertyToID("_FacetedGlintMaskEnd");
-    private static readonly int _FacetedGlintStrengthPropertyID =
+    private static readonly int s_facetedGlintStrengthPropertyId =
         Shader.PropertyToID("_FacetedGlintStrength");
-    private static readonly int _FacetedGlintMixPropertyID =
+    private static readonly int s_facetedGlintMixPropertyId =
         Shader.PropertyToID("_FacetedGlintMix");
-    private static readonly int _FacetedGlintRiseEndPropertyID =
+    private static readonly int s_facetedGlintRiseEndPropertyId =
         Shader.PropertyToID("_FacetedGlintRiseEnd");
-    private static readonly int _FacetedGlintFallStartPropertyID =
+    private static readonly int s_facetedGlintFallStartPropertyId =
         Shader.PropertyToID("_FacetedGlintFallStart");
-    private static readonly int _FacetedGlintFallEndPropertyID =
+    private static readonly int s_facetedGlintFallEndPropertyId =
         Shader.PropertyToID("_FacetedGlintFallEnd");
-    private static readonly int _FacetedGlintSweepDurationPropertyID =
+    private static readonly int s_facetedGlintSweepDurationPropertyId =
         Shader.PropertyToID("_FacetedGlintSweepDuration");
-    private static readonly int _ShimmerChromaFloorPropertyID =
+    private static readonly int s_shimmerChromaFloorPropertyId =
         Shader.PropertyToID("_ShimmerChromaFloor");
-    private static readonly int _PrismaticPhaseSpeedPropertyID =
+    private static readonly int s_prismaticPhaseSpeedPropertyId =
         Shader.PropertyToID("_PrismaticPhaseSpeed");
-    private static readonly int _RainbowHueDivisorPropertyID =
+    private static readonly int s_rainbowHueDivisorPropertyId =
         Shader.PropertyToID("_RainbowHueDivisor");
-    private static readonly int _PrismaticTintAPropertyID =
+    private static readonly int s_prismaticTintAPropertyId =
         Shader.PropertyToID("_PrismaticTintA");
-    private static readonly int _PrismaticTintBPropertyID =
+    private static readonly int s_prismaticTintBPropertyId =
         Shader.PropertyToID("_PrismaticTintB");
-    private static readonly int _PrismaticTintCPropertyID =
+    private static readonly int s_prismaticTintCPropertyId =
         Shader.PropertyToID("_PrismaticTintC");
-    private static readonly int _PrismaticTintDPropertyID =
+    private static readonly int s_prismaticTintDPropertyId =
         Shader.PropertyToID("_PrismaticTintD");
-    private static readonly int _PrismaticTintEPropertyID =
+    private static readonly int s_prismaticTintEPropertyId =
         Shader.PropertyToID("_PrismaticTintE");
-    private static readonly int _PremultiplyAlphaFloorPropertyID =
+    private static readonly int s_premultiplyAlphaFloorPropertyId =
         Shader.PropertyToID("_PremultiplyAlphaFloor");
-    private static readonly int _AlphaCutoffPropertyID =
+    private static readonly int s_alphaCutoffPropertyId =
         Shader.PropertyToID("_AlphaCutoff");
 
     // Форму органического искажения задаёт авторский файл, а не настройка
     // игрока: ручки лежат в TerrainConfigHolder.
     public static void Apply(Material material)
     {
-        material.SetFloat(_OrganicBendStrengthPropertyID, TerrainConfigHolder.OrganicBendStrength);
-        material.SetFloat(_OrganicBendPivotPropertyID, TerrainConfigHolder.OrganicBendPivot);
+        material.SetFloat(s_organicBendStrengthPropertyId, TerrainConfigHolder.OrganicBendStrength);
+        material.SetFloat(s_organicBendPivotPropertyId, TerrainConfigHolder.OrganicBendPivot);
         material.SetFloat(
-            _RoundableCornerRadiusPropertyID,
+            s_roundableCornerRadiusPropertyId,
             TerrainConfigHolder.RoundableCornerRadiusCells);
         material.SetFloat(
-            _ReliefRimDistanceScalePropertyID,
+            s_reliefRimDistanceScalePropertyId,
             TerrainConfigHolder.ReliefRimDistanceScale);
         material.SetFloat(
-            _ReliefRimQuantizationEnabledPropertyID,
+            s_reliefRimQuantizationEnabledPropertyId,
             TerrainConfigHolder.ReliefRimQuantizationEnabled ? 1f : 0f);
         material.SetFloat(
-            _ReliefRimFalloffPropertyID,
+            s_reliefRimFalloffPropertyId,
             TerrainConfigHolder.ReliefRimFalloff);
-        material.SetFloat(_GroundDecalStrengthPropertyID, TerrainConfigHolder.GroundDecalStrength);
-        material.SetFloat(_StoneDecalStrengthPropertyID, TerrainConfigHolder.StoneDecalStrength);
-        material.SetFloat(_DecalPlacementOffsetPropertyID, TerrainConfigHolder.DecalPlacementOffset);
+        material.SetFloat(s_groundDecalStrengthPropertyId, TerrainConfigHolder.GroundDecalStrength);
+        material.SetFloat(s_stoneDecalStrengthPropertyId, TerrainConfigHolder.StoneDecalStrength);
+        material.SetFloat(s_decalPlacementOffsetPropertyId, TerrainConfigHolder.DecalPlacementOffset);
         material.SetFloat(
-            _TerrainDebugDeltaContrastPropertyID,
+            s_terrainDebugDeltaContrastPropertyId,
             TerrainConfigHolder.TerrainDebugDeltaContrast);
-        material.SetVector(_FacetedGlintDirectionPropertyID, TerrainConfigHolder.FacetedGlintDirection);
-        material.SetFloat(_FacetedGlintSweepStartPropertyID, TerrainConfigHolder.FacetedGlintSweepStart);
-        material.SetFloat(_FacetedGlintSweepEndPropertyID, TerrainConfigHolder.FacetedGlintSweepEnd);
-        material.SetFloat(_FacetedGlintBandStartPropertyID, TerrainConfigHolder.FacetedGlintBandStart);
-        material.SetFloat(_FacetedGlintBandEndPropertyID, TerrainConfigHolder.FacetedGlintBandEnd);
-        material.SetFloat(_FacetedGlintMaskStartPropertyID, TerrainConfigHolder.FacetedGlintMaskStart);
-        material.SetFloat(_FacetedGlintMaskEndPropertyID, TerrainConfigHolder.FacetedGlintMaskEnd);
-        material.SetFloat(_FacetedGlintStrengthPropertyID, TerrainConfigHolder.FacetedGlintStrength);
-        material.SetFloat(_FacetedGlintMixPropertyID, TerrainConfigHolder.FacetedGlintMix);
-        material.SetFloat(_FacetedGlintRiseEndPropertyID, TerrainConfigHolder.FacetedGlintRiseEnd);
-        material.SetFloat(_FacetedGlintFallStartPropertyID, TerrainConfigHolder.FacetedGlintFallStart);
-        material.SetFloat(_FacetedGlintFallEndPropertyID, TerrainConfigHolder.FacetedGlintFallEnd);
-        material.SetFloat(_FacetedGlintSweepDurationPropertyID, TerrainConfigHolder.FacetedGlintSweepDuration);
-        material.SetFloat(_ShimmerChromaFloorPropertyID, TerrainConfigHolder.ShimmerChromaFloor);
-        material.SetFloat(_PrismaticPhaseSpeedPropertyID, TerrainConfigHolder.PrismaticPhaseSpeed);
-        material.SetFloat(_RainbowHueDivisorPropertyID, TerrainConfigHolder.RainbowHueDivisor);
-        material.SetColor(_PrismaticTintAPropertyID, TerrainConfigHolder.PrismaticTintA);
-        material.SetColor(_PrismaticTintBPropertyID, TerrainConfigHolder.PrismaticTintB);
-        material.SetColor(_PrismaticTintCPropertyID, TerrainConfigHolder.PrismaticTintC);
-        material.SetColor(_PrismaticTintDPropertyID, TerrainConfigHolder.PrismaticTintD);
-        material.SetColor(_PrismaticTintEPropertyID, TerrainConfigHolder.PrismaticTintE);
-        material.SetFloat(_PremultiplyAlphaFloorPropertyID, TerrainConfigHolder.PremultiplyAlphaFloor);
-        material.SetFloat(_AlphaCutoffPropertyID, TerrainConfigHolder.AlphaCutoff);
+        material.SetVector(s_facetedGlintDirectionPropertyId, TerrainConfigHolder.FacetedGlintDirection);
+        material.SetFloat(s_facetedGlintSweepStartPropertyId, TerrainConfigHolder.FacetedGlintSweepStart);
+        material.SetFloat(s_facetedGlintSweepEndPropertyId, TerrainConfigHolder.FacetedGlintSweepEnd);
+        material.SetFloat(s_facetedGlintBandStartPropertyId, TerrainConfigHolder.FacetedGlintBandStart);
+        material.SetFloat(s_facetedGlintBandEndPropertyId, TerrainConfigHolder.FacetedGlintBandEnd);
+        material.SetFloat(s_facetedGlintMaskStartPropertyId, TerrainConfigHolder.FacetedGlintMaskStart);
+        material.SetFloat(s_facetedGlintMaskEndPropertyId, TerrainConfigHolder.FacetedGlintMaskEnd);
+        material.SetFloat(s_facetedGlintStrengthPropertyId, TerrainConfigHolder.FacetedGlintStrength);
+        material.SetFloat(s_facetedGlintMixPropertyId, TerrainConfigHolder.FacetedGlintMix);
+        material.SetFloat(s_facetedGlintRiseEndPropertyId, TerrainConfigHolder.FacetedGlintRiseEnd);
+        material.SetFloat(s_facetedGlintFallStartPropertyId, TerrainConfigHolder.FacetedGlintFallStart);
+        material.SetFloat(s_facetedGlintFallEndPropertyId, TerrainConfigHolder.FacetedGlintFallEnd);
+        material.SetFloat(s_facetedGlintSweepDurationPropertyId, TerrainConfigHolder.FacetedGlintSweepDuration);
+        material.SetFloat(s_shimmerChromaFloorPropertyId, TerrainConfigHolder.ShimmerChromaFloor);
+        material.SetFloat(s_prismaticPhaseSpeedPropertyId, TerrainConfigHolder.PrismaticPhaseSpeed);
+        material.SetFloat(s_rainbowHueDivisorPropertyId, TerrainConfigHolder.RainbowHueDivisor);
+        material.SetColor(s_prismaticTintAPropertyId, TerrainConfigHolder.PrismaticTintA);
+        material.SetColor(s_prismaticTintBPropertyId, TerrainConfigHolder.PrismaticTintB);
+        material.SetColor(s_prismaticTintCPropertyId, TerrainConfigHolder.PrismaticTintC);
+        material.SetColor(s_prismaticTintDPropertyId, TerrainConfigHolder.PrismaticTintD);
+        material.SetColor(s_prismaticTintEPropertyId, TerrainConfigHolder.PrismaticTintE);
+        material.SetFloat(s_premultiplyAlphaFloorPropertyId, TerrainConfigHolder.PremultiplyAlphaFloor);
+        material.SetFloat(s_alphaCutoffPropertyId, TerrainConfigHolder.AlphaCutoff);
     }
 }

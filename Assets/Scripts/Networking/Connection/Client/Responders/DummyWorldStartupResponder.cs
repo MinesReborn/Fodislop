@@ -41,10 +41,10 @@ internal sealed class DummyWorldStartupResponder(
         string playerName,
         long level,
         long currency,
-        ushort playerBotID)
+        ushort playerBotId)
     {
         DummyWorldDescriptor world = await worldState.OpenAsync(worldCodeName);
-        SendWorldIdentity(worldCodeName, world, playerName, playerBotID);
+        SendWorldIdentity(worldCodeName, world, playerName, playerBotId);
 
         playerState.SetPosition(25, 50);
         StartBotSimulation(lifecycleVersion);
@@ -117,7 +117,7 @@ internal sealed class DummyWorldStartupResponder(
         string worldCodeName,
         DummyWorldDescriptor world,
         string playerName,
-        ushort playerBotID)
+        ushort playerBotId)
     {
         sendPacket(new ServerPacket(new WorldInitPacket(
             worldCodeName,
@@ -126,16 +126,16 @@ internal sealed class DummyWorldStartupResponder(
             (ushort)world.Height,
             world.CellConfigurations,
             [[37, 38, 106]])));
-        sendPacket(new ServerPacket(new PlayerInfoPacket(999, playerBotID, playerName)));
+        sendPacket(new ServerPacket(new PlayerInfoPacket(999, playerBotId, playerName)));
         sendPacket(new ServerPacket(new RobotInfoPacket(
-            playerBotID,
+            playerBotId,
             999,
             1,
             "Skin/bee.png",
             "Tail/default.png",
             string.Empty)));
         sendPacket(new ServerPacket(new HBPacket([
-            new RobotPositionPacket(playerBotID, 25, 50, 0),
+            new RobotPositionPacket(playerBotId, 25, 50, 0),
         ])));
     }
 

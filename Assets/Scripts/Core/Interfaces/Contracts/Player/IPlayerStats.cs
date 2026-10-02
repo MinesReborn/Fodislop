@@ -16,7 +16,7 @@ public interface IPlayerStats
     string Nickname { get; }
     long Level { get; }
     long Money { get; }
-    long Creds { get; }
+    long Credits { get; }
     int GeologyCurrent { get; }
     int GeologyMax { get; }
     string GeologyText { get; }
@@ -27,7 +27,7 @@ public interface IPlayerStats
     IReadOnlyDictionary<string, StatusLineEntry> StatusLines { get; }
     int OnlinePlayers { get; }
     int OnlineProgrammator { get; }
-    int ClanID { get; }
+    int ClanId { get; }
     int MaxDepth { get; }
     int CurrentDepth { get; }
     bool IsMissionActive { get; }
@@ -39,10 +39,10 @@ public interface IPlayerStats
 
     void SetLevel(long level);
     void SetHealth(int current, int max);
-    void SetCurrency(long money, long creds);
+    void SetCurrency(long money, long credits);
     void SetGeology(int current, int max, CellType cell, string text);
     void SetNickname(string nickname);
-    void SetClanID(int clanID);
+    void SetClanId(int clanId);
     void SetMaxDepth(int depth);
     void SetDailyBonusAvailable(bool available);
     void SetSkillProgress(SkillType skill, long current, long max);

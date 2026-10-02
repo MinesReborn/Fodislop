@@ -25,10 +25,10 @@ namespace Kern.Networking.Connection
 {
     public class ConnectionManager : MonoBehaviour, IConnectionService, IWorldRegionRequester
     {
-        private static readonly ProfilerMarker _PacketDrainMarker =
+        private static readonly ProfilerMarker s_packetDrainMarker =
             new("Kern.Net.DrainPacketQueue");
 
-        private static readonly AllocationLedger.Entry _AllocationEntry =
+        private static readonly AllocationLedger.Entry s_allocationEntry =
             AllocationLedger.Register("Сеть — разбор очереди");
 
         // Бюджет на обработку входящих пакетов — доля времени КАДРА, а не стены часов.
@@ -102,8 +102,8 @@ namespace Kern.Networking.Connection
 
         private void DrainPacketQueue()
         {
-            using var marker = _PacketDrainMarker.Auto();
-            using var allocationScope = AllocationLedger.Measure(_AllocationEntry);
+            using var marker = s_packetDrainMarker.Auto();
+            using var allocationScope = AllocationLedger.Measure(s_allocationEntry);
             float budgetSeconds = Mathf.Min(
                 Time.unscaledDeltaTime * PacketDrainBudgetFractionOfFrame,
                 PacketDrainBudgetMaximumSeconds);

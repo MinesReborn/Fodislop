@@ -26,7 +26,7 @@ public sealed class DiskFailurePlayModeTests
     private const string WorldCode = "disk_failure";
     private const int WorldWidth = 64;
     private const int WorldHeight = 64;
-    private static readonly CellType _After = CellType.DeepObsidianRock;
+    private static readonly CellType s_after = CellType.DeepObsidianRock;
 
     private string _dataRoot = null!;
     private AsyncOperationSupervisor _operations = null!;
@@ -56,12 +56,12 @@ public sealed class DiskFailurePlayModeTests
         var storage = Open(disk);
         try
         {
-            storage.SetCell(1, 1, _After);
+            storage.SetCell(1, 1, s_after);
             disk.FailWrites = true;
 
             Assert.Throws<IOException>(() => storage.Flush(durable: true));
             Assert.That(storage.HasDirtyChunks, Is.True, "A failed write dropped the dirty chunk.");
-            Assert.That(storage.GetCell(1, 1), Is.EqualTo(_After), "A failed write rolled back the change in memory.");
+            Assert.That(storage.GetCell(1, 1), Is.EqualTo(s_after), "A failed write rolled back the change in memory.");
 
             disk.FailWrites = false;
             storage.Flush(durable: true);
@@ -72,7 +72,7 @@ public sealed class DiskFailurePlayModeTests
             storage.Dispose();
         }
 
-        Assert.That(ReadCell(1, 1), Is.EqualTo(_After));
+        Assert.That(ReadCell(1, 1), Is.EqualTo(s_after));
     }
 
     [UnityTest]
@@ -82,7 +82,7 @@ public sealed class DiskFailurePlayModeTests
         var storage = Open(disk);
         try
         {
-            storage.SetCell(2, 2, _After);
+            storage.SetCell(2, 2, s_after);
             disk.FailWrites = true;
 
             UniTask failed = storage.FlushAsync(durable: false).Preserve();
@@ -99,7 +99,7 @@ public sealed class DiskFailurePlayModeTests
             storage.Dispose();
         }
 
-        Assert.That(ReadCell(2, 2), Is.EqualTo(_After));
+        Assert.That(ReadCell(2, 2), Is.EqualTo(s_after));
     }
 
     // Выход из игры (MapManager.OnApplicationQuit) делает синхронный Flush,
@@ -113,11 +113,11 @@ public sealed class DiskFailurePlayModeTests
         var storage = Open(disk);
         try
         {
-            storage.SetCell(6, 6, _After);
+            storage.SetCell(6, 6, s_after);
             disk.WriteDelayMilliseconds = 200;
             UniTask background = storage.FlushAsync(durable: false).Preserve();
 
-            storage.SetCell(7, 7, _After);
+            storage.SetCell(7, 7, s_after);
             storage.Flush(durable: true);
 
             yield return PlayModeHarness.Await(background, 10f);
@@ -129,8 +129,8 @@ public sealed class DiskFailurePlayModeTests
             storage.Dispose();
         }
 
-        Assert.That(ReadCell(6, 6), Is.EqualTo(_After));
-        Assert.That(ReadCell(7, 7), Is.EqualTo(_After));
+        Assert.That(ReadCell(6, 6), Is.EqualTo(s_after));
+        Assert.That(ReadCell(7, 7), Is.EqualTo(s_after));
     }
 
     [Test]
@@ -140,12 +140,12 @@ public sealed class DiskFailurePlayModeTests
         var storage = Open(disk);
         try
         {
-            storage.SetCell(3, 3, _After);
+            storage.SetCell(3, 3, s_after);
             storage.Flush(durable: true);
 
             // Диск отказывает посреди записи следующего чанка: часть байтов
             // уже в файле, таблица смещений ещё старая.
-            storage.SetCell(40, 40, _After);
+            storage.SetCell(40, 40, s_after);
             disk.FailAfterBytes = 7;
             Assert.Throws<IOException>(() => storage.Flush(durable: true));
 
@@ -157,8 +157,8 @@ public sealed class DiskFailurePlayModeTests
             storage.Dispose();
         }
 
-        Assert.That(ReadCell(3, 3), Is.EqualTo(_After));
-        Assert.That(ReadCell(40, 40), Is.EqualTo(_After));
+        Assert.That(ReadCell(3, 3), Is.EqualTo(s_after));
+        Assert.That(ReadCell(40, 40), Is.EqualTo(s_after));
     }
 
     [Test]
@@ -166,17 +166,17 @@ public sealed class DiskFailurePlayModeTests
     {
         var disk = new FaultyDisk();
         var storage = Open(disk);
-        storage.SetCell(4, 4, _After);
+        storage.SetCell(4, 4, s_after);
         storage.Flush(durable: true);
-        storage.SetCell(5, 5, _After);
+        storage.SetCell(5, 5, s_after);
         disk.FailWrites = true;
 
         // Закрытие не может записать последнюю правку: об этом обязано быть
         // исключение, а не тихая потеря.
         Assert.Throws<IOException>(() => storage.Dispose());
 
-        Assert.That(ReadCell(4, 4), Is.EqualTo(_After), "The failing shutdown corrupted already saved data.");
-        Assert.That(ReadCell(5, 5), Is.Not.EqualTo(_After));
+        Assert.That(ReadCell(4, 4), Is.EqualTo(s_after), "The failing shutdown corrupted already saved data.");
+        Assert.That(ReadCell(5, 5), Is.Not.EqualTo(s_after));
     }
 
     [Test]

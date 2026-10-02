@@ -18,17 +18,17 @@ public sealed class SurfaceMaterialManager
     private const string HorizonKeyword = "KERN_SURFACE_HORIZON";
     private const float PerspectiveReferencePixelsPerCell = 30f;
 
-    private static readonly int _BaseMapID = Shader.PropertyToID("_BaseMap");
-    private static readonly int _EmissionColorID = Shader.PropertyToID("_EmissionColor");
-    private static readonly int _EmissionStrengthID = Shader.PropertyToID("_EmissionStrength");
-    private static readonly int _OccupancyID = Shader.PropertyToID("_Occupancy");
-    private static readonly int _BaseMapTileCountID = Shader.PropertyToID("_BaseMapTileCount");
-    private static readonly int _WorldSizeID = Shader.PropertyToID("_WorldSize");
-    private static readonly int _SurfaceProjectionID = Shader.PropertyToID("_SurfaceProjection");
-    private static readonly int _SkyColorID = Shader.PropertyToID("_SkyColor");
-    private static readonly int _SurfaceFieldThresholdID = Shader.PropertyToID("_SurfaceFieldThreshold");
+    private static readonly int s_baseMapId = Shader.PropertyToID("_BaseMap");
+    private static readonly int s_emissionColorId = Shader.PropertyToID("_EmissionColor");
+    private static readonly int s_emissionStrengthId = Shader.PropertyToID("_EmissionStrength");
+    private static readonly int s_occupancyId = Shader.PropertyToID("_Occupancy");
+    private static readonly int s_baseMapTileCountId = Shader.PropertyToID("_BaseMapTileCount");
+    private static readonly int s_worldSizeId = Shader.PropertyToID("_WorldSize");
+    private static readonly int s_surfaceProjectionId = Shader.PropertyToID("_SurfaceProjection");
+    private static readonly int s_skyColorId = Shader.PropertyToID("_SkyColor");
+    private static readonly int s_surfaceFieldThresholdId = Shader.PropertyToID("_SurfaceFieldThreshold");
 
-    private static bool _surfaceFieldThresholdApplied;
+    private static bool s_surfaceFieldThresholdApplied;
 
     public enum SurfaceKind
     {
@@ -62,15 +62,15 @@ public sealed class SurfaceMaterialManager
         };
         RequireShaderProperties(material);
         ApplySurfaceFieldThreshold();
-        material.SetTexture(_BaseMapID, texture);
-        material.SetColor(_EmissionColorID, emissionColor);
-        material.SetFloat(_EmissionStrengthID, emissionStrength);
-        material.SetFloat(_OccupancyID, occupancy);
+        material.SetTexture(s_baseMapId, texture);
+        material.SetColor(s_emissionColorId, emissionColor);
+        material.SetFloat(s_emissionStrengthId, emissionStrength);
+        material.SetFloat(s_occupancyId, occupancy);
         material.SetVector(
-            _BaseMapTileCountID,
+            s_baseMapTileCountId,
             new Vector4(baseMapTileCount.x, baseMapTileCount.y, 0f, 0f));
         material.SetVector(
-            _WorldSizeID,
+            s_worldSizeId,
             new Vector4(worldSize.x, worldSize.y, 0f, 0f));
         material.EnableKeyword(kind switch
         {
@@ -87,12 +87,12 @@ public sealed class SurfaceMaterialManager
     {
         float width = Mathf.Max(1f, camera.pixelWidth * (2f / PerspectiveReferencePixelsPerCell));
         material.SetVector(
-            _SurfaceProjectionID,
+            s_surfaceProjectionId,
             new Vector4(camera.transform.position.x, 1f / width, 0f, 0f));
     }
 
     public void SetHorizonSkyColor(Material material, Color skyColor) =>
-        material.SetColor(_SkyColorID, skyColor);
+        material.SetColor(s_skyColorId, skyColor);
 
     public void ApplyMaterialConfig(
         Material material,
@@ -100,9 +100,9 @@ public sealed class SurfaceMaterialManager
         float emissionStrength,
         float occupancy)
     {
-        material.SetColor(_EmissionColorID, emissionColor);
-        material.SetFloat(_EmissionStrengthID, emissionStrength);
-        material.SetFloat(_OccupancyID, occupancy);
+        material.SetColor(s_emissionColorId, emissionColor);
+        material.SetFloat(s_emissionStrengthId, emissionStrength);
+        material.SetFloat(s_occupancyId, occupancy);
     }
 
     public void SetMaterialWorldSize(
@@ -118,9 +118,9 @@ public sealed class SurfaceMaterialManager
         }
 
         Vector4 worldSize = new(worldWidth, worldHeight, 0f, 0f);
-        transitMaterial.SetVector(_WorldSizeID, worldSize);
-        perspectiveMaterial.SetVector(_WorldSizeID, worldSize);
-        redRockMaterial.SetVector(_WorldSizeID, worldSize);
+        transitMaterial.SetVector(s_worldSizeId, worldSize);
+        perspectiveMaterial.SetVector(s_worldSizeId, worldSize);
+        redRockMaterial.SetVector(s_worldSizeId, worldSize);
     }
 
     public Vector2 GetTerrainSheetTileCount(Texture2D texture)
@@ -166,12 +166,12 @@ public sealed class SurfaceMaterialManager
     // глобальная юниформа, а не свойство материала: кладём её один раз.
     private static void ApplySurfaceFieldThreshold()
     {
-        if (_surfaceFieldThresholdApplied)
+        if (s_surfaceFieldThresholdApplied)
         {
             return;
         }
 
-        Shader.SetGlobalFloat(_SurfaceFieldThresholdID, WorldRenderConfigHolder.SurfaceFieldThreshold);
-        _surfaceFieldThresholdApplied = true;
+        Shader.SetGlobalFloat(s_surfaceFieldThresholdId, WorldRenderConfigHolder.SurfaceFieldThreshold);
+        s_surfaceFieldThresholdApplied = true;
     }
 }

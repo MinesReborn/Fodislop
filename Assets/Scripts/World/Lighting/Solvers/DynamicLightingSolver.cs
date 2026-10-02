@@ -24,8 +24,8 @@ internal sealed class DynamicLightingSolver
     // DirectTexture. A solve where only some lights changed recomposes just
     // their old and new rectangles: every other pixel's sum is unchanged.
     private readonly Dictionary<int, RectInt> _composedRects = new();
-    private readonly HashSet<int> _currentLightIDs = new();
-    private readonly List<int> _goneLightIDs = new();
+    private readonly HashSet<int> _currentLightIds = new();
+    private readonly List<int> _goneLightIds = new();
 
     // True when the last Record changed no pixel of DirectTexture.
     public bool LastSolveUnchanged { get; private set; }
@@ -86,8 +86,8 @@ internal sealed class DynamicLightingSolver
             return;
         }
 
-        System.ReadOnlySpan<DynamicLightGpuData> lights = _lightManager.UploadedLights;
-        System.ReadOnlySpan<int> lightIDs = _lightManager.UploadedLightIDs;
+        System.ReadOnlySpan<DynamicLightGPUData> lights = _lightManager.UploadedLights;
+        System.ReadOnlySpan<int> lightIds = _lightManager.UploadedLightIds;
         int count = Mathf.Min(lightCount, lights.Length);
         if (_lightRects.Length < count)
         {
@@ -114,7 +114,7 @@ internal sealed class DynamicLightingSolver
         int composeMaxY = int.MinValue;
         for (int lightIndex = 0; lightIndex < count; lightIndex++)
         {
-            DynamicLightGpuData light = lights[lightIndex];
+            DynamicLightGPUData light = lights[lightIndex];
             float brightest = Mathf.Max(
                 0f,
                 Mathf.Max(light.ColorIntensity.x, Mathf.Max(light.ColorIntensity.y, light.ColorIntensity.z)) *
@@ -200,11 +200,11 @@ internal sealed class DynamicLightingSolver
             _tileCache.InvalidateAll();
         }
 
-        _tileCache.AssignSlots(lightIDs.Slice(0, count));
+        _tileCache.AssignSlots(lightIds.Slice(0, count));
         // Resize before evaluating cache validity: replacing this array loses
         // every layer's optical depth, including unchanged source slots.
         _tileCache.EnsurePolar(LightingQualityTuningController.DynamicPolarDirectionCount, longestRequestedRay);
-        MarkLightsNeedingTrace(count, lights, lightIDs);
+        MarkLightsNeedingTrace(count, lights, lightIds);
 
         int widestRayFan = DynamicPolarWorkBudget.AllocateRayFans(
             count,
@@ -286,60 +286,60 @@ internal sealed class DynamicLightingSolver
         ComputeShader compute = _resources.LightingCompute!;
         RenderTexture tiles = _tileCache.Tiles!;
         RenderTexture polarRays = _tileCache.Polar!;
-        commandBuffer.SetComputeFloatParam(compute, LightingComputeBinder.InvisibleDynamicRadianceID,
+        commandBuffer.SetComputeFloatParam(compute, LightingComputeBinder.InvisibleDynamicRadianceId,
             LightingComputeBinder.InvisibleDynamicRadiance);
         commandBuffer.SetComputeIntParams(
             compute,
-            LightingComputeBinder.DynamicPolarTextureSizeID,
+            LightingComputeBinder.DynamicPolarTextureSizeId,
             polarRays.width,
             polarRays.height);
         int traceKernel = _resources.SolveDynamicLightingKernel;
         BindFieldTextures(commandBuffer, traceKernel, _resources.StaticEmissionField!);
-        commandBuffer.SetComputeBufferParam(compute, traceKernel, LightingComputeBinder.DynamicLightsID, _resources.DynamicLightBuffer!);
-        commandBuffer.SetComputeTextureParam(compute, traceKernel, LightingComputeBinder.DynamicTilesID, tiles);
-        commandBuffer.SetComputeTextureParam(compute, traceKernel, LightingComputeBinder.DynamicPolarInputID, polarRays);
+        commandBuffer.SetComputeBufferParam(compute, traceKernel, LightingComputeBinder.DynamicLightsId, _resources.DynamicLightBuffer!);
+        commandBuffer.SetComputeTextureParam(compute, traceKernel, LightingComputeBinder.DynamicTilesId, tiles);
+        commandBuffer.SetComputeTextureParam(compute, traceKernel, LightingComputeBinder.DynamicPolarInputId, polarRays);
         commandBuffer.SetComputeTextureParam(
             compute,
             traceKernel,
-            LightingComputeBinder.DirectTextureID,
+            LightingComputeBinder.DirectTextureId,
             _resources.DirectTexture!);
         commandBuffer.SetComputeTextureParam(
             compute,
             traceKernel,
-            LightingComputeBinder.CellSolidMaskID,
+            LightingComputeBinder.CellSolidMaskId,
             _resources.CellSolidMask!);
         int rayKernel = _resources.TraceDynamicPolarKernel;
         ComputeBuffer horizon = _tileCache.Horizon!;
         int horizonStride = _tileCache.HorizonStride;
-        commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicHorizonStrideID, horizonStride);
-        commandBuffer.SetComputeBufferParam(compute, traceKernel, LightingComputeBinder.DynamicHorizonInputID, horizon);
-        commandBuffer.SetComputeBufferParam(compute, rayKernel, LightingComputeBinder.DynamicHorizonID, horizon);
+        commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicHorizonStrideId, horizonStride);
+        commandBuffer.SetComputeBufferParam(compute, traceKernel, LightingComputeBinder.DynamicHorizonInputId, horizon);
+        commandBuffer.SetComputeBufferParam(compute, rayKernel, LightingComputeBinder.DynamicHorizonId, horizon);
         BindFieldTextures(commandBuffer, rayKernel, _resources.StaticEmissionField!);
-        commandBuffer.SetComputeTextureParam(compute, rayKernel, LightingComputeBinder.DynamicPolarID, polarRays);
-        commandBuffer.SetComputeBufferParam(compute, rayKernel, LightingComputeBinder.DynamicLightsID, _resources.DynamicLightBuffer!);
+        commandBuffer.SetComputeTextureParam(compute, rayKernel, LightingComputeBinder.DynamicPolarId, polarRays);
+        commandBuffer.SetComputeBufferParam(compute, rayKernel, LightingComputeBinder.DynamicLightsId, _resources.DynamicLightBuffer!);
         commandBuffer.SetComputeTextureParam(
             compute,
             rayKernel,
-            LightingComputeBinder.CellSolidMaskID,
+            LightingComputeBinder.CellSolidMaskId,
             _resources.CellSolidMask!);
 
-        _currentLightIDs.Clear();
+        _currentLightIds.Clear();
         for (int lightIndex = 0; lightIndex < count; lightIndex++)
         {
-            DynamicLightGpuData light = lights[lightIndex];
+            DynamicLightGPUData light = lights[lightIndex];
             RectInt rect = _lightRects[lightIndex];
-            int lightID = lightIDs[lightIndex];
-            _currentLightIDs.Add(lightID);
-            int slot = _tileCache.SlotOf(lightID);
+            int lightId = lightIds[lightIndex];
+            _currentLightIds.Add(lightId);
+            int slot = _tileCache.SlotOf(lightId);
             Vector2Int tileOffset = Vector2Int.zero;
             _lightTileInfos[lightIndex] = new DynamicLightTileCache.TileInfo(rect, tileOffset, slot);
-            bool wasComposed = _composedRects.TryGetValue(lightID, out RectInt composedRect);
+            bool wasComposed = _composedRects.TryGetValue(lightId, out RectInt composedRect);
             if (rect.width <= 0 || rect.height <= 0)
             {
                 if (wasComposed)
                 {
                     AddDirty(ref hasDirty, ref dirtyBounds, composedRect);
-                    _composedRects.Remove(lightID);
+                    _composedRects.Remove(lightId);
                 }
                 continue;
             }
@@ -349,7 +349,7 @@ internal sealed class DynamicLightingSolver
                 if (!wasComposed || !composedRect.Equals(rect))
                 {
                     AddDirty(ref hasDirty, ref dirtyBounds, rect);
-                    _composedRects[lightID] = rect;
+                    _composedRects[lightId] = rect;
                 }
                 continue;
             }
@@ -359,7 +359,7 @@ internal sealed class DynamicLightingSolver
                 AddDirty(ref hasDirty, ref dirtyBounds, composedRect);
             }
             AddDirty(ref hasDirty, ref dirtyBounds, rect);
-            _composedRects[lightID] = rect;
+            _composedRects[lightId] = rect;
 
             Vector2Int raySize = _lightRaySizes[lightIndex];
             dynamicDispatchPixels += (long)rect.width * rect.height;
@@ -371,13 +371,13 @@ internal sealed class DynamicLightingSolver
             bool writeDynamicDirect = count == 1;
             commandBuffer.SetComputeIntParam(
                 compute,
-                LightingComputeBinder.WriteDynamicDirectID,
+                LightingComputeBinder.WriteDynamicDirectId,
                 writeDynamicDirect ? 1 : 0);
-            commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.DynamicPolarSizeID, raySize.x, raySize.y);
-            commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicLightIndexID, lightIndex);
-            commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicPolarLayerOffsetID,
+            commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.DynamicPolarSizeId, raySize.x, raySize.y);
+            commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicLightIndexId, lightIndex);
+            commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicPolarLayerOffsetId,
                 slot * LightingComputeBinder.DynamicEmitterPointCount);
-            commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicHorizonBaseID,
+            commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicHorizonBaseId,
                 slot * LightingComputeBinder.DynamicEmitterPointCount * horizonStride);
 
             if (tracePolar)
@@ -392,12 +392,12 @@ internal sealed class DynamicLightingSolver
                 _tileCache.MarkPolarTraced(slot, raySize);
                 polarRayWorkUnits += (long)raySize.x * LightingComputeBinder.DynamicEmitterPointCount * raySize.y;
             }
-            commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicReachIndexID, slot);
+            commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicReachIndexId, slot);
 
-            commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.DynamicDispatchOriginID, rect.x, rect.y);
-            commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.DynamicDispatchSizeID, rect.width, rect.height);
-            commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.DynamicTileOffsetID, tileOffset.x, tileOffset.y);
-            commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicLightIndexID, lightIndex);
+            commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.DynamicDispatchOriginId, rect.x, rect.y);
+            commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.DynamicDispatchSizeId, rect.width, rect.height);
+            commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.DynamicTileOffsetId, tileOffset.x, tileOffset.y);
+            commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicLightIndexId, lightIndex);
             commandBuffer.BeginSample("Kern.Lighting.DynamicReceiverTrace");
             commandBuffer.DispatchCompute(
                 compute,
@@ -411,18 +411,18 @@ internal sealed class DynamicLightingSolver
         }
 
         // Lights gone since the last solve leave their old area to recompose.
-        _goneLightIDs.Clear();
+        _goneLightIds.Clear();
         foreach (KeyValuePair<int, RectInt> composed in _composedRects)
         {
-            if (!_currentLightIDs.Contains(composed.Key))
+            if (!_currentLightIds.Contains(composed.Key))
             {
-                _goneLightIDs.Add(composed.Key);
+                _goneLightIds.Add(composed.Key);
                 AddDirty(ref hasDirty, ref dirtyBounds, composed.Value);
             }
         }
-        foreach (int goneID in _goneLightIDs)
+        foreach (int goneId in _goneLightIds)
         {
-            _composedRects.Remove(goneID);
+            _composedRects.Remove(goneId);
         }
 
         if (incremental)
@@ -444,16 +444,16 @@ internal sealed class DynamicLightingSolver
             int composeKernel = _resources.ComposeDynamicLightingKernel;
             ComputeBuffer tileInfos = _tileCache.TileInfos!;
             commandBuffer.SetBufferData(tileInfos, _lightTileInfos, 0, 0, count);
-            commandBuffer.SetComputeBufferParam(compute, composeKernel, LightingComputeBinder.DynamicTileInfosID, tileInfos);
-            commandBuffer.SetComputeBufferParam(compute, composeKernel, LightingComputeBinder.DynamicLightsID, _resources.DynamicLightBuffer!);
-            commandBuffer.SetComputeTextureParam(compute, composeKernel, LightingComputeBinder.DynamicTilesInputID, tiles);
-            commandBuffer.SetComputeTextureParam(compute, composeKernel, LightingComputeBinder.DirectTextureID, _resources.DirectTexture!);
-            commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicTileCountID, count);
+            commandBuffer.SetComputeBufferParam(compute, composeKernel, LightingComputeBinder.DynamicTileInfosId, tileInfos);
+            commandBuffer.SetComputeBufferParam(compute, composeKernel, LightingComputeBinder.DynamicLightsId, _resources.DynamicLightBuffer!);
+            commandBuffer.SetComputeTextureParam(compute, composeKernel, LightingComputeBinder.DynamicTilesInputId, tiles);
+            commandBuffer.SetComputeTextureParam(compute, composeKernel, LightingComputeBinder.DirectTextureId, _resources.DirectTexture!);
+            commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.DynamicTileCountId, count);
             int composeWidth = composeMaxX - composeMinX;
             int composeHeight = composeMaxY - composeMinY;
             telemetry.LightingDynamicComposePixels += (long)composeWidth * composeHeight;
-            commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.ComposeOriginID, composeMinX, composeMinY);
-            commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.ComposeSizeID, composeWidth, composeHeight);
+            commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.ComposeOriginId, composeMinX, composeMinY);
+            commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.ComposeSizeId, composeWidth, composeHeight);
             commandBuffer.BeginSample("Kern.Lighting.DynamicCompose");
             commandBuffer.DispatchCompute(
                 compute,
@@ -504,16 +504,16 @@ internal sealed class DynamicLightingSolver
         commandBuffer.SetComputeTextureParam(
             compute,
             kernel,
-            LightingComputeBinder.DirectTextureID,
+            LightingComputeBinder.DirectTextureId,
             _resources.DirectTexture!);
         commandBuffer.SetComputeIntParams(
             compute,
-            LightingComputeBinder.DynamicDispatchOriginID,
+            LightingComputeBinder.DynamicDispatchOriginId,
             rect.x,
             rect.y);
         commandBuffer.SetComputeIntParams(
             compute,
-            LightingComputeBinder.DynamicDispatchSizeID,
+            LightingComputeBinder.DynamicDispatchSizeId,
             rect.width,
             rect.height);
         commandBuffer.DispatchCompute(
@@ -561,12 +561,12 @@ internal sealed class DynamicLightingSolver
     // the budget would starve the one moving light of angular density.
     private void MarkLightsNeedingTrace(
         int count,
-        System.ReadOnlySpan<DynamicLightGpuData> lights,
-        System.ReadOnlySpan<int> lightIDs)
+        System.ReadOnlySpan<DynamicLightGPUData> lights,
+        System.ReadOnlySpan<int> lightIds)
     {
         for (int lightIndex = 0; lightIndex < count; lightIndex++)
         {
-            int slot = _tileCache.SlotOf(lightIDs[lightIndex]);
+            int slot = _tileCache.SlotOf(lightIds[lightIndex]);
             _lightNeedsTrace[lightIndex] = _tileCache.NeedsTrace(
                 slot,
                 lights[lightIndex].PositionRadius,

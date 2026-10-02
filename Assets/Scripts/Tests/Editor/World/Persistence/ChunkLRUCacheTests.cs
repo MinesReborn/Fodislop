@@ -8,12 +8,12 @@ using Kern.Persistence;
 using NUnit.Framework;
 
 [TestFixture]
-public class ChunkLruCacheTests
+public class ChunkLRUCacheTests
 {
     [Test]
     public void AddAndGet_SingleChunk_StoresAndRetrieves()
     {
-        var cache = new ChunkLruCache<int>(maxCapacity: 10);
+        var cache = new ChunkLRUCache<int>(maxCapacity: 10);
         int[] chunk = [1, 2, 3];
 
         cache.AddOrUpdate(5, chunk);
@@ -27,7 +27,7 @@ public class ChunkLruCacheTests
     [Test]
     public void Add_ExceedingCapacity_EvictsOldestChunk()
     {
-        var cache = new ChunkLruCache<int>(maxCapacity: 2);
+        var cache = new ChunkLRUCache<int>(maxCapacity: 2);
         int[] c1 = [1];
         int[] c2 = [2];
         int[] c3 = [3];
@@ -43,9 +43,9 @@ public class ChunkLruCacheTests
     }
 
     [Test]
-    public void Touch_RefreshesLruOrder_EvictsOldestInstead()
+    public void Touch_RefreshesLRUOrder_EvictsOldestInstead()
     {
-        var cache = new ChunkLruCache<int>(maxCapacity: 2);
+        var cache = new ChunkLRUCache<int>(maxCapacity: 2);
         int[] c1 = [1];
         int[] c2 = [2];
         int[] c3 = [3];
@@ -69,7 +69,7 @@ public class ChunkLruCacheTests
     public void EvictDirty_InvokesCallbackAndClearsDirty()
     {
         var evicted = new List<(int Index, int[] Chunk)>();
-        var cache = new ChunkLruCache<int>(
+        var cache = new ChunkLRUCache<int>(
             maxCapacity: 1,
             onEvictDirty: (index, data) => evicted.Add((index, data)));
 
@@ -92,7 +92,7 @@ public class ChunkLruCacheTests
     [Test]
     public void Clear_EmptiesAllLoadedAndDirtyState()
     {
-        var cache = new ChunkLruCache<int>(maxCapacity: 5);
+        var cache = new ChunkLRUCache<int>(maxCapacity: 5);
         cache.AddOrUpdate(1, [1]);
         cache.AddOrUpdate(2, [2]);
         cache.MarkDirty(1);
@@ -110,19 +110,19 @@ public class ChunkLruCacheTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>
         {
-            _ = new ChunkLruCache<int>(0);
+            _ = new ChunkLRUCache<int>(0);
         });
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
         {
-            _ = new ChunkLruCache<int>(-5);
+            _ = new ChunkLRUCache<int>(-5);
         });
     }
 
     [Test]
     public void AddOrUpdate_NullChunk_ThrowsArgumentNullException()
     {
-        var cache = new ChunkLruCache<int>(5);
+        var cache = new ChunkLRUCache<int>(5);
         Assert.Throws<ArgumentNullException>(() =>
         {
             cache.AddOrUpdate(1, null!);
@@ -132,7 +132,7 @@ public class ChunkLruCacheTests
     [Test]
     public void DirtyOverflow_ShrinksBackToCapacityOnceWritten()
     {
-        var cache = new ChunkLruCache<int>(maxCapacity: 2, allowDirtyEviction: false);
+        var cache = new ChunkLRUCache<int>(maxCapacity: 2, allowDirtyEviction: false);
         for (int index = 0; index < 5; index++)
         {
             cache.AddOrUpdate(index, [index]);
@@ -158,7 +158,7 @@ public class ChunkLruCacheTests
     [Test]
     public void DirtyChunksAreNeverEvictedAndTheCacheGrowsPastCapacity()
     {
-        var cache = new ChunkLruCache<int>(maxCapacity: 4, allowDirtyEviction: false);
+        var cache = new ChunkLRUCache<int>(maxCapacity: 4, allowDirtyEviction: false);
 
         for (int index = 0; index < 32; index++)
         {
@@ -176,7 +176,7 @@ public class ChunkLruCacheTests
     [Test]
     public void EvictionResumesOnceTheDirtySetIsCleared()
     {
-        var cache = new ChunkLruCache<int>(maxCapacity: 4, allowDirtyEviction: false);
+        var cache = new ChunkLRUCache<int>(maxCapacity: 4, allowDirtyEviction: false);
         for (int index = 0; index < 8; index++)
         {
             cache.AddOrUpdate(index, [index]);
@@ -193,7 +193,7 @@ public class ChunkLruCacheTests
     [Test]
     public void ADetachedChunkIsNotEvictedUntilItsWriteCompletes()
     {
-        var cache = new ChunkLruCache<int>(maxCapacity: 2, allowDirtyEviction: false);
+        var cache = new ChunkLRUCache<int>(maxCapacity: 2, allowDirtyEviction: false);
         cache.AddOrUpdate(1, [1]);
         cache.MarkDirty(1);
         List<(int Index, int[] Chunk)> snapshot = cache.DetachDirtySnapshot();
@@ -214,7 +214,7 @@ public class ChunkLruCacheTests
     [Test]
     public void CompletingAnOlderSnapshotKeepsTheNewerSnapshotDetached()
     {
-        var cache = new ChunkLruCache<int>(maxCapacity: 4, allowDirtyEviction: false);
+        var cache = new ChunkLRUCache<int>(maxCapacity: 4, allowDirtyEviction: false);
         cache.AddOrUpdate(1, [1]);
         cache.MarkDirty(1);
         List<(int Index, int[] Chunk)> first = cache.DetachDirtySnapshot();
@@ -236,7 +236,7 @@ public class ChunkLruCacheTests
     [Test]
     public void RestoringAFailedSnapshotMarksTheChunkDirtyAgain()
     {
-        var cache = new ChunkLruCache<int>(maxCapacity: 4, allowDirtyEviction: false);
+        var cache = new ChunkLRUCache<int>(maxCapacity: 4, allowDirtyEviction: false);
         cache.AddOrUpdate(1, [1]);
         cache.MarkDirty(1);
         List<(int Index, int[] Chunk)> snapshot = cache.DetachDirtySnapshot();

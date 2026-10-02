@@ -235,7 +235,7 @@ public sealed class RobotVisuals
 
     public void TickAura(float deltaTime) => _aura?.Tick(deltaTime);
 
-    public Transform EnsureClanIcon(ISceneObjectFactory sceneObjects, uint botID)
+    public Transform EnsureClanIcon(ISceneObjectFactory sceneObjects, uint botId)
     {
         if (_clanTransform == null)
         {
@@ -245,7 +245,7 @@ public sealed class RobotVisuals
                 : (sceneObjects != null
                     ? sceneObjects.Create("ClanIcon", RuntimeOwner.Robots)
                     : throw new System.InvalidOperationException(
-                        $"[Robot] ISceneObjectFactory was not injected before creating ClanIcon for bot {botID}."));
+                        $"[Robot] ISceneObjectFactory was not injected before creating ClanIcon for bot {botId}."));
             clanGo.transform.SetParent(_transform, worldPositionStays: false);
             _clanTransform = clanGo.transform;
             _clanTransform.localScale = Vector3.one * 0.8f;

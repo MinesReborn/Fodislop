@@ -106,7 +106,7 @@ internal sealed class MapCellSampler
             return chunk != null;
         }
 
-        ChunkReadResult<CellType> result = _layer.ReadChunk(chunkIndex, touchLru: false);
+        ChunkReadResult<CellType> result = _layer.ReadChunk(chunkIndex, touchLRU: false);
         chunk = (result.Status == ChunkReadStatus.Available) ? result.Data : null;
         _chunks[chunkIndex] = chunk;
         _chunkOrder.Enqueue(chunkIndex);

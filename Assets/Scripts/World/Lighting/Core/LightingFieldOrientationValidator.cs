@@ -17,18 +17,18 @@ internal static class LightingFieldOrientationValidator
     private const int ProbeSize = 4;
     private const string ProbeShaderPath = "Shaders/Lighting/LightingFieldOrientationProbe";
 
-    private static readonly int _probeFieldID = Shader.PropertyToID("_ProbeField");
-    private static readonly int _probeRowsID = Shader.PropertyToID("_ProbeRows");
-    private static readonly int _probeRowCountID = Shader.PropertyToID("_ProbeRowCount");
+    private static readonly int s_probeFieldId = Shader.PropertyToID("_ProbeField");
+    private static readonly int s_probeRowsId = Shader.PropertyToID("_ProbeRows");
+    private static readonly int s_probeRowCountId = Shader.PropertyToID("_ProbeRowCount");
 
-    private static bool _validated;
+    private static bool s_validated;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void ResetForDomainReload() => _validated = false;
+    private static void ResetForDomainReload() => s_validated = false;
 
     public static void EnsureValidated()
     {
-        if (_validated)
+        if (s_validated)
         {
             return;
         }
@@ -75,9 +75,9 @@ internal static class LightingFieldOrientationValidator
             commandBuffer.DrawMesh(mesh, Matrix4x4.identity, material, 0, 0);
 
             int kernel = compute.FindKernel("ReadProbeRows");
-            commandBuffer.SetComputeTextureParam(compute, kernel, _probeFieldID, target);
-            commandBuffer.SetComputeBufferParam(compute, kernel, _probeRowsID, rows);
-            commandBuffer.SetComputeIntParam(compute, _probeRowCountID, ProbeSize);
+            commandBuffer.SetComputeTextureParam(compute, kernel, s_probeFieldId, target);
+            commandBuffer.SetComputeBufferParam(compute, kernel, s_probeRowsId, rows);
+            commandBuffer.SetComputeIntParam(compute, s_probeRowCountId, ProbeSize);
             commandBuffer.DispatchCompute(compute, kernel, 1, 1, 1);
             Graphics.ExecuteCommandBuffer(commandBuffer);
 
@@ -96,7 +96,7 @@ internal static class LightingFieldOrientationValidator
                 }
             }
 
-            _validated = true;
+            s_validated = true;
         }
         finally
         {

@@ -34,12 +34,12 @@ public static class GameplayCamera
     // - exactly the per-frame O(heap) pattern this project's conventions ban
     // outright. The steady-state gameplay camera does not change frame to
     // frame, so the bound reference remains an O(1) field read.
-    private static Camera? _cachedCamera;
+    private static Camera? s_cachedCamera;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetForDomainReload()
     {
-        _cachedCamera = null;
+        s_cachedCamera = null;
     }
 
     public static void BindPersistent(Camera camera)
@@ -49,7 +49,7 @@ public static class GameplayCamera
             throw new System.ArgumentNullException(nameof(camera));
         }
 
-        _cachedCamera = camera;
+        s_cachedCamera = camera;
     }
 
     // Returns null rather than guessing when no gameplay camera exists yet -
@@ -57,9 +57,9 @@ public static class GameplayCamera
     // expected to retry.
     public static Camera? Resolve()
     {
-        if (_cachedCamera != null && _cachedCamera.isActiveAndEnabled)
+        if (s_cachedCamera != null && s_cachedCamera.isActiveAndEnabled)
         {
-            return _cachedCamera;
+            return s_cachedCamera;
         }
 
         // The application camera is authored and bound by Bootstrap. Do not

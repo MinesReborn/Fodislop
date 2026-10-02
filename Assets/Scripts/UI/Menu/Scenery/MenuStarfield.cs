@@ -26,19 +26,19 @@ namespace Kern.UI
     [ExecuteAlways]
     public sealed class MenuStarfield : MonoBehaviour
     {
-        private static readonly int _ShaderTimeID = Shader.PropertyToID("_ShaderTime");
-        private static readonly int _AspectID = Shader.PropertyToID("_Aspect");
-        private static readonly int _ParallaxOffsetID = Shader.PropertyToID("_ParallaxOffset");
-        private static readonly int _DensityID = Shader.PropertyToID("_Density");
-        private static readonly int _BrightnessID = Shader.PropertyToID("_Brightness");
-        private static readonly int _CoreSizeID = Shader.PropertyToID("_CoreSize");
-        private static readonly int _GlowSizeID = Shader.PropertyToID("_GlowSize");
-        private static readonly int _TwinkleAmountID = Shader.PropertyToID("_TwinkleAmount");
-        private static readonly int _TwinkleSpeedID = Shader.PropertyToID("_TwinkleSpeed");
-        private static readonly int _SkyColorID = Shader.PropertyToID("_SkyColor");
-        private static readonly int _NebulaIntensityID = Shader.PropertyToID("_NebulaIntensity");
-        private static readonly int _NebulaColor1ID = Shader.PropertyToID("_NebulaColor1");
-        private static readonly int _NebulaColor2ID = Shader.PropertyToID("_NebulaColor2");
+        private static readonly int s_shaderTimeId = Shader.PropertyToID("_ShaderTime");
+        private static readonly int s_aspectId = Shader.PropertyToID("_Aspect");
+        private static readonly int s_parallaxOffsetId = Shader.PropertyToID("_ParallaxOffset");
+        private static readonly int s_densityId = Shader.PropertyToID("_Density");
+        private static readonly int s_brightnessId = Shader.PropertyToID("_Brightness");
+        private static readonly int s_coreSizeId = Shader.PropertyToID("_CoreSize");
+        private static readonly int s_glowSizeId = Shader.PropertyToID("_GlowSize");
+        private static readonly int s_twinkleAmountId = Shader.PropertyToID("_TwinkleAmount");
+        private static readonly int s_twinkleSpeedId = Shader.PropertyToID("_TwinkleSpeed");
+        private static readonly int s_skyColorId = Shader.PropertyToID("_SkyColor");
+        private static readonly int s_nebulaIntensityId = Shader.PropertyToID("_NebulaIntensity");
+        private static readonly int s_nebulaColor1Id = Shader.PropertyToID("_NebulaColor1");
+        private static readonly int s_nebulaColor2Id = Shader.PropertyToID("_NebulaColor2");
 
         [SerializeField]
         private Material? _starfieldMaterial = null;
@@ -116,9 +116,9 @@ namespace Kern.UI
                 return;
             }
 
-            _runtimeMaterial.SetFloat(_ShaderTimeID, 0f);
-            _runtimeMaterial.SetFloat(_AspectID, (float)_texture.width / Mathf.Max(_texture.height, 1));
-            _runtimeMaterial.SetVector(_ParallaxOffsetID, Vector4.zero);
+            _runtimeMaterial.SetFloat(s_shaderTimeId, 0f);
+            _runtimeMaterial.SetFloat(s_aspectId, (float)_texture.width / Mathf.Max(_texture.height, 1));
+            _runtimeMaterial.SetVector(s_parallaxOffsetId, Vector4.zero);
             Graphics.Blit(Texture2D.whiteTexture, _texture, _runtimeMaterial);
             _isDirty = false;
         }
@@ -202,16 +202,16 @@ namespace Kern.UI
                 name = $"{_starfieldMaterial.name} (Runtime)",
                 hideFlags = HideFlags.HideAndDontSave,
             };
-            _runtimeMaterial.SetFloat(_DensityID, MenuStarfieldLook.Density);
-            _runtimeMaterial.SetFloat(_BrightnessID, MenuStarfieldLook.Brightness);
-            _runtimeMaterial.SetFloat(_CoreSizeID, MenuStarfieldLook.CoreSize);
-            _runtimeMaterial.SetFloat(_GlowSizeID, MenuStarfieldLook.GlowSize);
-            _runtimeMaterial.SetFloat(_TwinkleAmountID, MenuStarfieldLook.TwinkleAmount);
-            _runtimeMaterial.SetFloat(_TwinkleSpeedID, MenuStarfieldLook.TwinkleSpeed);
-            _runtimeMaterial.SetColor(_SkyColorID, MenuStarfieldLook.SkyColor);
-            _runtimeMaterial.SetFloat(_NebulaIntensityID, MenuStarfieldLook.NebulaIntensity);
-            _runtimeMaterial.SetColor(_NebulaColor1ID, MenuStarfieldLook.NebulaColor1);
-            _runtimeMaterial.SetColor(_NebulaColor2ID, MenuStarfieldLook.NebulaColor2);
+            _runtimeMaterial.SetFloat(s_densityId, MenuStarfieldLook.Density);
+            _runtimeMaterial.SetFloat(s_brightnessId, MenuStarfieldLook.Brightness);
+            _runtimeMaterial.SetFloat(s_coreSizeId, MenuStarfieldLook.CoreSize);
+            _runtimeMaterial.SetFloat(s_glowSizeId, MenuStarfieldLook.GlowSize);
+            _runtimeMaterial.SetFloat(s_twinkleAmountId, MenuStarfieldLook.TwinkleAmount);
+            _runtimeMaterial.SetFloat(s_twinkleSpeedId, MenuStarfieldLook.TwinkleSpeed);
+            _runtimeMaterial.SetColor(s_skyColorId, MenuStarfieldLook.SkyColor);
+            _runtimeMaterial.SetFloat(s_nebulaIntensityId, MenuStarfieldLook.NebulaIntensity);
+            _runtimeMaterial.SetColor(s_nebulaColor1Id, MenuStarfieldLook.NebulaColor1);
+            _runtimeMaterial.SetColor(s_nebulaColor2Id, MenuStarfieldLook.NebulaColor2);
             _runtimeMaterial.SetFloat("_NebulaFbmStartAmplitude", MenuStarfieldLook.NebulaFbmStartAmplitude);
             _runtimeMaterial.SetFloat("_NebulaFbmFrequencyScale", MenuStarfieldLook.NebulaFbmFrequencyScale);
             _runtimeMaterial.SetFloat("_NebulaFbmAmplitudeDecay", MenuStarfieldLook.NebulaFbmAmplitudeDecay);

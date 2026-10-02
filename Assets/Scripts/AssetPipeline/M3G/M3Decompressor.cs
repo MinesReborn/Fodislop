@@ -82,6 +82,8 @@ public sealed class M3Decompressor
                         return CreateImage(width, height, operation);
                     case M3Operation.None:
                         break;
+                    default:
+                        throw new InvalidOperationException($"Unknown M3G operation {(byte)operation}.");
                 }
             }
 

@@ -14,14 +14,14 @@ namespace Kern.World.Lighting;
 internal static class StaticLightingDirty
 {
     [StructLayout(LayoutKind.Sequential)]
-    internal readonly struct DirtyRegionGpu
+    internal readonly struct DirtyRegionGPU
     {
         public readonly int MinX;
         public readonly int MinY;
         public readonly int MaxX;
         public readonly int MaxY;
 
-        public DirtyRegionGpu(int minX, int minY, int maxX, int maxY)
+        public DirtyRegionGPU(int minX, int minY, int maxX, int maxY)
         {
             MinX = minX;
             MinY = minY;
@@ -30,7 +30,7 @@ internal static class StaticLightingDirty
         }
     }
 
-    internal static DirtyRegionGpu[] ConvertDirtyRegions(
+    internal static DirtyRegionGPU[] ConvertDirtyRegions(
         IReadOnlyList<RectInt> dirtyRegions,
         Vector4 worldRect,
         int fieldWidth,
@@ -43,7 +43,7 @@ internal static class StaticLightingDirty
         float cellsHeight = worldRect.w / cellSize;
         float pixelsPerCellX = fieldWidth / Mathf.Max(1f, cellsWidth);
         float pixelsPerCellY = fieldHeight / Mathf.Max(1f, cellsHeight);
-        var result = new DirtyRegionGpu[dirtyRegions.Count];
+        var result = new DirtyRegionGPU[dirtyRegions.Count];
         for (int index = 0; index < dirtyRegions.Count; index++)
         {
             RectInt region = dirtyRegions[index];
@@ -51,7 +51,7 @@ internal static class StaticLightingDirty
             int minY = Mathf.FloorToInt((region.yMin - worldOriginY) * pixelsPerCellY) - 2;
             int maxX = Mathf.CeilToInt((region.xMax - worldOriginX) * pixelsPerCellX) + 2;
             int maxY = Mathf.CeilToInt((region.yMax - worldOriginY) * pixelsPerCellY) + 2;
-            result[index] = new DirtyRegionGpu(
+            result[index] = new DirtyRegionGPU(
                 Mathf.Clamp(minX, 0, fieldWidth),
                 Mathf.Clamp(minY, 0, fieldHeight),
                 Mathf.Clamp(maxX, 0, fieldWidth),
@@ -63,7 +63,7 @@ internal static class StaticLightingDirty
 
     internal static ProbeRect TightProbeRect(
         CascadeLayout cascade,
-        DirtyRegionGpu[] dirtyFieldRegions,
+        DirtyRegionGPU[] dirtyFieldRegions,
         Vector4 worldRect,
         int fieldWidth,
         int fieldHeight)
@@ -72,7 +72,7 @@ internal static class StaticLightingDirty
         int minY = int.MaxValue;
         int maxX = int.MinValue;
         int maxY = int.MinValue;
-        foreach (DirtyRegionGpu region in dirtyFieldRegions)
+        foreach (DirtyRegionGPU region in dirtyFieldRegions)
         {
             if (region.MinX < minX)
                 minX = region.MinX;

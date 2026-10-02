@@ -9,15 +9,15 @@ namespace Kern.World;
 public static class KernGizmos
 {
 #if UNITY_EDITOR
-    private static GUIStyle? _labelStyle;
+    private static GUIStyle? s_labelStyle;
 
     private static GUIStyle LabelStyle
     {
         get
         {
-            if (_labelStyle == null)
+            if (s_labelStyle == null)
             {
-                _labelStyle = new GUIStyle
+                s_labelStyle = new GUIStyle
                 {
                     fontSize = 12,
                     fontStyle = FontStyle.Bold,
@@ -25,7 +25,7 @@ public static class KernGizmos
                 };
             }
 
-            return _labelStyle;
+            return s_labelStyle;
         }
     }
 #endif

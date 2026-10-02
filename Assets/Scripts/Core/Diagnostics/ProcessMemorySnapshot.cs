@@ -71,8 +71,8 @@ public readonly struct ProcessMemorySnapshot(long physicalBytes, long processByt
 
     private static class MacMemory
     {
-        private static readonly object _sync = new();
-        private static readonly byte[] _rusage = new byte[96];
+        private static readonly object s_sync = new();
+        private static readonly byte[] s_rusage = new byte[96];
 
         [DllImport("libSystem.dylib", EntryPoint = "getpid")]
         private static extern int GetPid();
@@ -88,18 +88,18 @@ public readonly struct ProcessMemorySnapshot(long physicalBytes, long processByt
 
         public static ProcessMemorySnapshot Capture()
         {
-            lock (_sync)
+            lock (s_sync)
             {
                 var totalLength = (IntPtr)sizeof(long);
                 var availableLength = (IntPtr)sizeof(int);
                 if (ReadInt64("hw.memsize", out long total, ref totalLength, IntPtr.Zero, IntPtr.Zero) != 0 ||
                     ReadInt32("kern.memorystatus_level", out int available, ref availableLength, IntPtr.Zero, IntPtr.Zero) != 0 ||
-                    ReadProcessUsage(GetPid(), 0, _rusage) != 0)
+                    ReadProcessUsage(GetPid(), 0, s_rusage) != 0)
                 {
                     return default;
                 }
                 // rusage_info_v0. WorkingSet64 does not report the macOS physical footprint.
-                return new ProcessMemorySnapshot(total, checked((long)BitConverter.ToUInt64(_rusage, 72)), available);
+                return new ProcessMemorySnapshot(total, checked((long)BitConverter.ToUInt64(s_rusage, 72)), available);
             }
         }
     }

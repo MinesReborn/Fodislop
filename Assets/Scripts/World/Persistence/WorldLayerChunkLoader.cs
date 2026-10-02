@@ -27,7 +27,7 @@ internal sealed class WorldLayerChunkLoader<T>
     // pass and flood the console within seconds.
     private const int MaxLoggedChunkDiskFailures = 8;
 
-    private readonly ChunkLruCache<T> _cache;
+    private readonly ChunkLRUCache<T> _cache;
     private readonly WorldLayerFile<T> _file;
     private readonly WorldLayerLifetime _lifetime;
     private readonly IAsyncOperationSupervisor _operations;
@@ -46,7 +46,7 @@ internal sealed class WorldLayerChunkLoader<T>
     private readonly List<RectInt> _batchedChunkRegions = new(8);
 
     public WorldLayerChunkLoader(
-        ChunkLruCache<T> cache,
+        ChunkLRUCache<T> cache,
         WorldLayerFile<T> file,
         WorldLayerLifetime lifetime,
         IAsyncOperationSupervisor operations,
@@ -144,7 +144,7 @@ internal sealed class WorldLayerChunkLoader<T>
         }
     }
 
-    public ChunkReadResult<T> ReadChunk(int chunkIndex, bool touchLru = true)
+    public ChunkReadResult<T> ReadChunk(int chunkIndex, bool touchLRU = true)
     {
         if (_lifetime.Disposed)
         {
@@ -158,7 +158,7 @@ internal sealed class WorldLayerChunkLoader<T>
 
         if (_cache.TryGet(chunkIndex, out T[]? chunk) && chunk != null)
         {
-            if (touchLru)
+            if (touchLRU)
             {
                 _cache.Touch(chunkIndex);
             }
@@ -202,7 +202,7 @@ internal sealed class WorldLayerChunkLoader<T>
         return new ChunkReadResult<T>(ChunkReadStatus.Loading, null, null);
     }
 
-    public T[] GetOrCreateChunk(int chunkIndex, bool touchLru = true)
+    public T[] GetOrCreateChunk(int chunkIndex, bool touchLRU = true)
     {
         if (_lifetime.Disposed)
         {
@@ -216,7 +216,7 @@ internal sealed class WorldLayerChunkLoader<T>
 
         if (_cache.TryGet(chunkIndex, out T[]? chunk) && chunk != null)
         {
-            if (touchLru)
+            if (touchLRU)
             {
                 _cache.Touch(chunkIndex);
             }

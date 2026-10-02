@@ -32,7 +32,7 @@ Done by URP, not us: `HDROutputReconciler` holds a runtime Volume with `Tonemapp
 
 ## Frame order (`PostProcess.compute`)
 
-scene → bloom (`CompositeFinal`) → URP: `ColorAdjustments.postExposure` (+1 stop, `PostProcessLook.Exposure`) and Neutral tonemapping → `DisplayFinal`: divide by paper white → server LUT (`ApplyCubeLut`, HDR-normalized) → vignette → eigengrau → multiply by paper white in `ToDisplayOutput` → PQ/scRGB encoding done by URP.
+scene → world-grid bloom (`WorldBloom.compute` + `WorldBloomAdd.shader`) → URP: `ColorAdjustments.postExposure` (+1 stop, `PostProcessLook.Exposure`) and Neutral tonemapping → `DisplayFinal`: divide by paper white → server LUT (`ApplyCubeLut`, HDR-normalized) → vignette → eigengrau → multiply by paper white in `ToDisplayOutput` → PQ/scRGB encoding done by URP.
 
 With the world render grid active, `DisplayFinal` runs per world pixel: eigengrau stays on that lattice, but the vignette is applied by the URP final blit per screen pixel on the scene sample (`WorldGridFinalVignette.hlsl`), before UI composition; `DisplayFinal` only computes its mask for the debug view.
 

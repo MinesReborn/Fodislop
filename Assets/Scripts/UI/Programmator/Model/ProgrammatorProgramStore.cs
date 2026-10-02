@@ -418,7 +418,7 @@ internal sealed class ProgrammatorProgramStore
     // совпадал с базовым типом enum'а: int вместо byte кидает
     // ArgumentException. Значение приводится к базовому типу; код, не влезающий
     // в него (OverflowException от ChangeType), заведомо не определён.
-    private static readonly Type ProgActionUnderlyingType =
+    private static readonly Type s_progActionUnderlyingType =
         Enum.GetUnderlyingType(typeof(ProgAction));
 
     private static bool IsDefinedAction(int rawCode)
@@ -427,7 +427,7 @@ internal sealed class ProgrammatorProgramStore
         {
             return Enum.IsDefined(
                 typeof(ProgAction),
-                Convert.ChangeType(rawCode, ProgActionUnderlyingType));
+                Convert.ChangeType(rawCode, s_progActionUnderlyingType));
         }
         catch (OverflowException)
         {

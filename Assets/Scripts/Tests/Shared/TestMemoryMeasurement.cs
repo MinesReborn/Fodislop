@@ -52,7 +52,7 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
     // Сторож смотрит на память не чаще, чем раз в столько секунд.
     private const double WatchIntervalSeconds = 0.25;
 
-    private static readonly UTF8Encoding _Utf8 = new(false);
+    private static readonly UTF8Encoding s_utf8 = new(false);
 
     private string? _reportPath;
     private Snapshot _before;
@@ -219,7 +219,7 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
         {
             if (_abortReportPath != null)
             {
-                File.WriteAllText(_abortReportPath, $"[TestMemory] Batch stopped: {reason}\n", _Utf8);
+                File.WriteAllText(_abortReportPath, $"[TestMemory] Batch stopped: {reason}\n", s_utf8);
             }
         }
         catch (IOException) { /* Exit still protects memory if the report cannot be written. */ }
@@ -335,7 +335,7 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
                     "test;result;seconds;process_before_mb;process_after_mb;process_peak_mb;" +
                     "system_free_before_pct;system_free_lowest_pct;swap_used_before_mb;swap_used_peak_mb;" +
                     "native_before_mb;native_after_mb;managed_before_mb;managed_after_mb;gfx_before_mb;gfx_after_mb\n",
-                    _Utf8);
+                    s_utf8);
             }
 
             var line = new StringBuilder(256);
@@ -355,7 +355,7 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
                 .Append(Megabytes(after.ManagedBytes)).Append(';')
                 .Append(Megabytes(_before.GraphicsBytes)).Append(';')
                 .Append(Megabytes(after.GraphicsBytes)).Append('\n');
-            File.AppendAllText(_reportPath, line.ToString(), _Utf8);
+            File.AppendAllText(_reportPath, line.ToString(), s_utf8);
         }
         catch (IOException exception)
         {
@@ -431,7 +431,7 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
         // struct xsw_usage: total, avail, used (uint64), pagesize, encrypted.
         private const int SwapUsageSize = 32;
 
-        private static readonly byte[] _SwapBuffer = new byte[SwapUsageSize];
+        private static readonly byte[] s_swapBuffer = new byte[SwapUsageSize];
 
         [System.Runtime.InteropServices.DllImport("libSystem.dylib", EntryPoint = "sysctlbyname")]
         private static extern int sysctlbynameBytes(string name, byte[] value, ref IntPtr length, IntPtr newValue, IntPtr newLength);
@@ -439,14 +439,14 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
         public static SwapUsage? Swap()
         {
             var length = (IntPtr)SwapUsageSize;
-            if (sysctlbynameBytes("vm.swapusage", _SwapBuffer, ref length, IntPtr.Zero, IntPtr.Zero) != 0)
+            if (sysctlbynameBytes("vm.swapusage", s_swapBuffer, ref length, IntPtr.Zero, IntPtr.Zero) != 0)
             {
                 return null;
             }
 
-            long total = (long)BitConverter.ToUInt64(_SwapBuffer, 0);
-            long free = (long)BitConverter.ToUInt64(_SwapBuffer, 8);
-            long used = (long)BitConverter.ToUInt64(_SwapBuffer, 16);
+            long total = (long)BitConverter.ToUInt64(s_swapBuffer, 0);
+            long free = (long)BitConverter.ToUInt64(s_swapBuffer, 8);
+            long used = (long)BitConverter.ToUInt64(s_swapBuffer, 16);
             return new SwapUsage(total, used, free);
         }
 #else

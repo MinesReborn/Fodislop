@@ -11,11 +11,11 @@ internal static class DummyCellConfigurationUtilities
 {
     private const byte GreenBlueRockReliefGroup = 6;
 
-    private static readonly HashSet<CellType> _ConfiguredTypes = [];
+    private static readonly HashSet<CellType> s_configuredTypes = [];
 
     public static CellConfigurationPacket[] CreateCellConfigurations()
     {
-        _ConfiguredTypes.Clear();
+        s_configuredTypes.Clear();
         var configs = new CellConfigurationPacket[256];
         for (int i = 0; i < 256; i++)
         {
@@ -133,9 +133,9 @@ internal static class DummyCellConfigurationUtilities
 
     private static void ApplyMapColors(CellConfigurationPacket[] configs)
     {
-        for (int cellID = 0; cellID < configs.Length; cellID++)
+        for (int cellId = 0; cellId < configs.Length; cellId++)
         {
-            configs[cellID] = configs[cellID] with { Color = DummyMapColors.Get(cellID) };
+            configs[cellId] = configs[cellId] with { Color = DummyMapColors.Get(cellId) };
         }
     }
 
@@ -188,7 +188,7 @@ internal static class DummyCellConfigurationUtilities
         byte frameOffset = 0,
         CellDistortionType distortion = (CellDistortionType)0)
     {
-        _ConfiguredTypes.Add(type);
+        s_configuredTypes.Add(type);
         configs[(int)type] = new CellConfigurationPacket
         {
             Properties = props,
@@ -200,7 +200,7 @@ internal static class DummyCellConfigurationUtilities
         };
     }
 
-    private static readonly CellType[] _KnownUnconfiguredTypes =
+    private static readonly CellType[] s_knownUnconfiguredTypes =
     [
         CellType.Unloaded,
         CellType.Pregener,
@@ -214,7 +214,7 @@ internal static class DummyCellConfigurationUtilities
         var missing = new List<CellType>();
         foreach (CellType type in Enum.GetValues(typeof(CellType)))
         {
-            if (!_ConfiguredTypes.Contains(type) && Array.IndexOf(_KnownUnconfiguredTypes, type) < 0)
+            if (!s_configuredTypes.Contains(type) && Array.IndexOf(s_knownUnconfiguredTypes, type) < 0)
             {
                 missing.Add(type);
             }
@@ -231,7 +231,7 @@ internal static class DummyCellConfigurationUtilities
             UnityEngine.Debug.LogError(
                 "[DummyCellConfiguration] Эти типы клеток отрисуются нейтральной серой " +
                 "заглушкой, потому что конфигурация им не задана: " + string.Join(", ", missing) +
-                ". Добавьте строку SetConfig либо внесите тип в _KnownUnconfiguredTypes с причиной.");
+                ". Добавьте строку SetConfig либо внесите тип в s_knownUnconfiguredTypes с причиной.");
         }
     }
 

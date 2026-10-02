@@ -6,7 +6,7 @@ using MinesServer.Data;
 namespace Kern.Networking.Buildings;
 public static class BuildingTemplates
 {
-    private static readonly Dictionary<PackType, PackBuilding> _templates = new()
+    private static readonly Dictionary<PackType, PackBuilding> s_templates = new()
     {
         [PackType.Teleport] = new Teleport(),
         [PackType.Resp] = new RespawnStation(),
@@ -21,7 +21,7 @@ public static class BuildingTemplates
     };
 
     public static bool TryGet(PackType type, out PackBuilding? building) =>
-        _templates.TryGetValue(type, out building);
+        s_templates.TryGetValue(type, out building);
 
     /// <summary>
     /// Шаблон пака для выбранного предмета инвентаря. Соответствие повторяет

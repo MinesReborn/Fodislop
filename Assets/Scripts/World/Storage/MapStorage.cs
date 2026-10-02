@@ -51,7 +51,7 @@ public class MapStorage : IWorldDataStorage, IWorldPersistence, IRegionBatchStor
         _openMapFile = openMapFile ?? WorldLayer<CellType>.OpenMapFile;
     }
 
-    private string _DataRoot => _dataRoot ?? Application.persistentDataPath;
+    private string DataRoot => _dataRoot ?? Application.persistentDataPath;
 
     private bool _isInitialized;
     private string _worldCodeName = string.Empty;
@@ -64,7 +64,7 @@ public class MapStorage : IWorldDataStorage, IWorldPersistence, IRegionBatchStor
     public string MapFilePath => _mapFilePath ?? throw new InvalidOperationException("[MapStorage] Map file path is not initialized");
 
     public string BackupMapFilePath => _isInitialized
-        ? Path.Combine(_DataRoot, _worldCodeName + BackupMapSuffix)
+        ? Path.Combine(DataRoot, _worldCodeName + BackupMapSuffix)
         : throw new InvalidOperationException("[MapStorage] Map file path is not initialized");
 
     public bool IsReady => _isInitialized && _cellLayer != null;
@@ -125,8 +125,8 @@ public class MapStorage : IWorldDataStorage, IWorldPersistence, IRegionBatchStor
             throw new ArgumentOutOfRangeException($"[MapStorage] Invalid chunk calculation: {widthChunks}x{heightChunks}");
         }
 
-        string path = Path.Combine(_DataRoot, worldCodeName + MapExtension);
-        string backupPath = Path.Combine(_DataRoot, worldCodeName + BackupMapSuffix);
+        string path = Path.Combine(DataRoot, worldCodeName + MapExtension);
+        string backupPath = Path.Combine(DataRoot, worldCodeName + BackupMapSuffix);
         try
         {
             _cellLayer = MapStorageDiskWriter.OpenWorldLayer(
@@ -168,7 +168,7 @@ public class MapStorage : IWorldDataStorage, IWorldPersistence, IRegionBatchStor
                 $"Cell coordinate ({x}, {y}) is outside the world bounds {_worldWidth}x{_worldHeight}.");
         }
 
-        return _cellLayer.GetCell(x, y, touchLru: true);
+        return _cellLayer.GetCell(x, y, touchLRU: true);
     }
 
     public bool TryGetCell(int x, int y, out CellType cellType)

@@ -36,8 +36,8 @@ public class TerrainCellMaskCalculatorTests
     [Test]
     public void CalculateTilingDescriptor_WithoutTileGroup_ReturnsZero()
     {
-        var empty = new CachedCellData { HasTileGroup = false, TileGroupID = 0 };
-        var neighbor = new CachedCellData { HasTileGroup = true, TileGroupID = 1 };
+        var empty = new CachedCellData { HasTileGroup = false, TileGroupId = 0 };
+        var neighbor = new CachedCellData { HasTileGroup = true, TileGroupId = 1 };
 
         int descriptor = TerrainCellMaskCalculator.CalculateTilingDescriptor(
             empty, neighbor, neighbor, neighbor, neighbor, neighbor, neighbor, neighbor, neighbor);

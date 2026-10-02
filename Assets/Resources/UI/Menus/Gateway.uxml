@@ -43,7 +43,7 @@
                 <ui:Label class="auth-brand-title" text="KERN" />
                 <ui:Label class="auth-brand-subtitle" text="DEEP SUBSURFACE EXPEDITION // MINES PROTOCOL v7" />
                 <ui:VisualElement class="auth-systems">
-                    <ui:Label name="AuthStatusGpu" class="auth-system-chip" text="[GPU] OK" />
+                    <ui:Label name="AuthStatusGPU" class="auth-system-chip" text="[GPU] OK" />
                     <ui:Label name="AuthStatusAudio" class="auth-system-chip" text="[FMOD] SYNCED" />
                     <ui:Label name="AuthStatusWorld" class="auth-system-chip" text="[WORLD] MOUNTED" />
                 </ui:VisualElement>

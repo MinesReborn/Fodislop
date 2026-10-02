@@ -28,7 +28,7 @@ public sealed class LightingInvalidationSourceTests
     [TestCase("remove-culled", 0, 0, 0)]
     [TestCase("color", 1, 1, 0)]
     [TestCase("intensity", 1, 1, 0)]
-    public void OnlyChangedGpuInputsOrExplicitRefreshSubmit(
+    public void OnlyChangedGPUInputsOrExplicitRefreshSubmit(
         string scenario, int submissions, int changedInputs, int clears)
     {
         int[] result = Run(_production, scenario);
@@ -105,7 +105,8 @@ public sealed class LightingInvalidationSourceTests
         string[] productionFiles =
         [
             "Dynamic/DynamicLightManager.cs", "Core/LightingRuntimeState.cs", "Core/LightingUpdateCoordinator.cs",
-            "Core/LightingFrameTypes.cs", "Core/LightingInvalidationFlags.cs", "Core/LightingRuntimeInvalidation.cs", "Quality/Contracts/LightingQualityMode.cs",
+            "Core/LightingFrameTypes.cs", "Core/LightingInvalidationFlags.cs", "Core/LightingRuntimeInvalidation.cs",
+            "Core/LightingAmbientOcclusionUpdatePolicy.cs", "Quality/Contracts/LightingQualityMode.cs",
         ];
         var trees = productionFiles.Select(file => CSharpSyntaxTree.ParseText(
             File.ReadAllText(Path.Combine(lighting, file)), path: file)).ToList();
@@ -213,7 +214,7 @@ public sealed class LightingInvalidationSourceTests
         {
             [Flags] public enum LightingFeatureFlags { StaticRC = 1, DynamicLights = 2 }
             public static class LightingConfigHolder
-            { public static float EmissionScale => 1; public static LightingFeatureFlags EnabledFeatures => LightingFeatureFlags.StaticRC | LightingFeatureFlags.DynamicLights; }
+            { public static float EmissionScale => 1; public static LightingFeatureFlags EnabledFeatures => LightingFeatureFlags.StaticRC | LightingFeatureFlags.DynamicLights; public static int AmbientOcclusionPixelsPerCell => 8; }
             public static class LightingQualityTuningController { public const int FieldPixelsPerCell = 32; }
             public static class LightingComputeBinder
             {
@@ -255,7 +256,7 @@ public sealed class LightingInvalidationSourceTests
             internal sealed class LightingGeometryRegistry { public ulong GeometryRevision => 1; }
             internal sealed class GeometryLightingSolver
             {
-                public void RecordAmbientOcclusionField(CommandBuffer c, Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor g, LightingGeometryRegistry r, Vector4 rect) { }
+                public void RecordAmbientOcclusionField(CommandBuffer c, Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor g, LightingGeometryRegistry r, Vector4 rect, RectInt? rasterRect = null) { }
                 public void RecordMaterialField(CommandBuffer c, Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor g, LightingGeometryRegistry r, Vector4 rect) { }
                 public void PrepareCaches(CommandBuffer c, bool materialFieldRebuilt) { }
             }

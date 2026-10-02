@@ -28,12 +28,12 @@ public sealed class UIBoundSettingsRule : IRule
         CancellationToken cancellationToken = default)
     {
         var violations = new List<RuleViolation>();
-        var settingsUiDir = Path.Combine(context.ProjectRoot, "Assets", "Scripts", "UI", "Settings");
+        var settingsUIDir = Path.Combine(context.ProjectRoot, "Assets", "Scripts", "UI", "Settings");
 
-        if (!Directory.Exists(settingsUiDir))
+        if (!Directory.Exists(settingsUIDir))
             return Task.FromResult<IReadOnlyList<RuleViolation>>(violations);
 
-        foreach (var file in Directory.EnumerateFiles(settingsUiDir, "*.cs"))
+        foreach (var file in Directory.EnumerateFiles(settingsUIDir, "*.cs"))
         {
             var name = Path.GetFileName(file);
             if (name == "PauseMenuUIFactory.cs") continue;

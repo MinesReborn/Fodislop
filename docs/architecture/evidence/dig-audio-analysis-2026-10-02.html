@@ -1,0 +1,20 @@
+<!doctype html><html lang="ru"><meta charset="utf-8"><title>Dig audio analysis — 2026-10-02</title><style>body{max-width:950px;margin:32px auto;padding:0 20px;font:16px/1.5 system-ui;color:#20242b}code,pre{background:#edf0f5}pre{padding:12px;white-space:pre-wrap}.pending{background:#fff0cb;padding:14px}</style>
+<h1>Звук копания: проверка кода и существующих логов</h1>
+<p>Область: AudioPacket → ServerAudioEventManager → ServerAudioEvent.PlayAudio → AudioSystem.PlayAt → FmodAudioBackend.CreateVoice. Все эти вызовы выполняются синхронно внутри обработки сетевого пакета на основном потоке. Это не означает, что FMOD синхронно читает все сэмплы: автоматическая загрузка данных createInstance асинхронная, но время самого вызова и остальных native API входит в обработчик.</p>
+<h2>Доказательства</h2>
+<p>Logs/Diagnostics/Stalls/frame_stalls_20261001_234738.txt:57: sfx/bz 13,0 мс; робот-цель 2,7 мс; AudioPacket 78,0 мс. Замеры вложены и не складываются. Это предыдущий сеанс, подтверждающий вклад аудио и лишнего поиска робота, а не измерение нынешних 274,9 мс.</p>
+<p>Assets/Plugins/FMOD/Resources/FMODStudioSettings.asset:473: AutomaticSampleLoading: 0. Ранее WaitUntilReadyAsync проверял HaveAllBanksLoaded и отсутствие AnySampleDataLoading, не инициируя sample load. Поэтому готовность могла быть опубликована с незагруженными сэмплами. FMOD загружает metadata отдельно от sample data; preload позволяет начать playback сразу: <a href="https://www.fmod.com/docs/2.03/api/studio-api-bank.html">официальный Bank.loadSampleData</a>. Создание первого instance может инициировать асинхронную загрузку: <a href="https://qa.fmod.com/t/loading-delay-exceeded-warning-when-using-programmer-instrument-and-audio-table/15737/2">объяснение FMOD</a>.</p>
+<p>ServerAudioVisualPlayback.SetupSlotPosition вызывал GetOrCreateRobot для targetBot даже при slot == null. Для звука target нужен не для позиции, а для поворота отсутствующего визуала. RobotManager.GetOrCreateRobot при отсутствии робота создаёт его через scene factory. Это подтверждённая ненужная синхронная работа в AudioPacket.</p>
+<h2>Изменения</h2>
+<p>FmodAudioBackend запускает EventDescription.loadSampleData для event:/sfx/bz при ожидании startup-ready, один раз за жизнь backend. Опрашивает getSampleLoadingState до LOADED с UniTask.Yield и поддерживает прежнее ожидание прочих банков. Новых flushCommands / flushSampleLoading / spin wait нет. Ошибки запуска preload не скрываются. Две существующие startup-подписки не увеличивают native reference count повторно. StopAll снимает ровно одну preload-ссылку и сбрасывает состояние. Сэмплы удерживаются между one-shot событиями. Стоимость: sample memory одного события до teardown; фактический native memory delta без runtime не измерен. В кадре копания не добавлен loadSampleData.</p>
+<p>Target robot разрешается только при существующем visual GameObject. Source position и визуальные события со слотом сохраняют прежнюю семантику.</p>
+<p>getEvent, getInstanceCount, createInstance и start теперь отдельно записывают длительность в существующий FrameEventLog, если вызов занял хотя бы 2 мс. Это уточняет уже измеренный общий sfx/bz, не является самостоятельным исправлением. На обычном событии — восемь timestamp-чтений, без новых строк/аллокаций; строки появляются только при медленном вызове.</p>
+<p>AGENTS.md: короткий вопрос/жалоба во время задачи больше не требует остановки; ответ сопровождается продолжением уже разрешённого расследования. Ограничение на управление Unity сохранено.</p>
+<h2>Проверки</h2>
+<pre>Direct Roslyn compile using disposable copies of existing Unity response files:
+Kern.Contracts: exit 0 (existing CS1701 reference warning).
+Kern.Infrastructure: exit 0.
+Kern.Application: exit 0.
+Kern.Tests.Editor: exit 0.
+git diff --check: exit 0.</pre>
+<p class="pending">Unity и native runtime не запускались. Исчезновение 13 мс, 60 мс или 274,9 мс не подтверждено. Нет покомпонентного native timing для уже прошедшего кадра: нельзя назвать конкретный FMOD вызов виновником всех 13 мс. Недостаток preload и лишнее создание робота исправлены по коду; весь фриз не объявляется устранённым.</p></html>

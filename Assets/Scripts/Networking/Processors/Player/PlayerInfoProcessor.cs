@@ -25,7 +25,7 @@ public sealed class PlayerInfoProcessor(
 {
     public void Process(PlayerInfoPacket packet)
     {
-        robotManager.SetLocalPlayerBotID(packet.BotId);
+        robotManager.SetLocalPlayerBotId(packet.BotId);
         playerStats.SetNickname(packet.Nickname);
 
         var player = localPlayer.Current;
@@ -72,7 +72,7 @@ public sealed class PlayerInfoProcessor(
     {
         robotManager.UpdateRobotPosition(packet.BotId, packet.X, packet.Y, packet.Rotation);
         robotManager.PruneStaleRobots();
-        if (packet.BotId != 0 && packet.BotId == robotManager.LocalPlayerBotID)
+        if (packet.BotId != 0 && packet.BotId == robotManager.LocalPlayerBotId)
         {
             localPlayer.Current?.UpdateServerPosition(new Vector2Int(packet.X, packet.Y));
         }

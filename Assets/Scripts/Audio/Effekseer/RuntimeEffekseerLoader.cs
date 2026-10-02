@@ -17,7 +17,7 @@ using UnityEngine;
 namespace Kern.Effekseer;
 public static class RuntimeEffekseerLoader
 {
-    private static readonly HashSet<EntityId> _activeRuntimeEffectIDs = new();
+    private static readonly HashSet<EntityId> s_activeRuntimeEffectIds = new();
 
     /// <param name="efkBytes">Raw .efk file data (SKFE format).</param>
     /// <param name="effectName">Name for the effect asset (used for logging and native registration).</param>
@@ -108,7 +108,7 @@ public static class RuntimeEffekseerLoader
             // LoadEffect is intentionally called exactly once. Calling asset.LoadEffect()
             // after this repeats the native resource reload for the same asset.
             EffekseerSystem.Instance.LoadEffect(asset);
-            _activeRuntimeEffectIDs.Add(asset.GetEntityId());
+            s_activeRuntimeEffectIds.Add(asset.GetEntityId());
             return asset;
         }
         catch
@@ -127,7 +127,7 @@ public static class RuntimeEffekseerLoader
             return;
         }
 
-        _activeRuntimeEffectIDs.Remove(asset.GetEntityId());
+        s_activeRuntimeEffectIds.Remove(asset.GetEntityId());
 
         var resources = asset.textureResources;
         if (resources != null)

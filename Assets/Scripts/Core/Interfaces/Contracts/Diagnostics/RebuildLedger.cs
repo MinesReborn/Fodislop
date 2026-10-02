@@ -33,16 +33,16 @@ public static class RebuildLedger
         internal int CurrentSecond = -1;
     }
 
-    private static readonly List<Entry> _Entries = [];
-    private static readonly Dictionary<string, Entry> _ByName = new(StringComparer.Ordinal);
+    private static readonly List<Entry> s_entries = [];
+    private static readonly Dictionary<string, Entry> s_byName = new(StringComparer.Ordinal);
 
-    public static IReadOnlyList<Entry> Entries => _Entries;
+    public static IReadOnlyList<Entry> Entries => s_entries;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetForPlaySession()
     {
         // Записи не удаляются: на них держат ссылки статические поля.
-        foreach (Entry entry in _Entries)
+        foreach (Entry entry in s_entries)
         {
             entry.Total = 0;
             entry.LastSecond = 0;
@@ -54,11 +54,11 @@ public static class RebuildLedger
 
     public static Entry Register(string name)
     {
-        if (!_ByName.TryGetValue(name, out Entry? entry))
+        if (!s_byName.TryGetValue(name, out Entry? entry))
         {
             entry = new Entry(name);
-            _ByName[name] = entry;
-            _Entries.Add(entry);
+            s_byName[name] = entry;
+            s_entries.Add(entry);
         }
 
         return entry;

@@ -36,7 +36,7 @@ public class ObserverJoystick
     public event System.Action<ProgAction>? OnOperatorSelected;
 
     // Direction button click → absolute Cell* (compass directions, N→clockwise)
-    private static readonly ProgAction[] _DirClickOps =
+    private static readonly ProgAction[] s_dirClickOps =
     {
         ProgAction.CellUp,        // 0  N
         ProgAction.CellUpRight,   // 1  NE
@@ -49,7 +49,7 @@ public class ObserverJoystick
     };
 
     // Direction button drag → absolute Shift* (compass directions)
-    private static readonly ProgAction[] _DirDragOps =
+    private static readonly ProgAction[] s_dirDragOps =
     {
         ProgAction.ShiftUp,        // 0  N
         ProgAction.ShiftRight,     // 1  NE
@@ -62,7 +62,7 @@ public class ObserverJoystick
     };
 
     // Center drag toward direction → (short=Cell* relative, long=Shift*)
-    private static readonly (ProgAction cell, ProgAction shift)[] _CenterDragOps =
+    private static readonly (ProgAction cell, ProgAction shift)[] s_centerDragOps =
     {
         (ProgAction.CellRighthand, ProgAction.ShiftRighthand),   // 0  N    → Righthand (swapped)
         (ProgAction.Cell,          ProgAction.ShiftUp),           // 1  NE   → ShiftUp
@@ -74,9 +74,9 @@ public class ObserverJoystick
         (ProgAction.Cell,          ProgAction.ShiftLeft),        // 7  NW   → ShiftLeft
     };
 
-    private static readonly ProgAction _CenterClickOp = ProgAction.Cell;
+    private static readonly ProgAction s_centerClickOp = ProgAction.Cell;
 
-    private static readonly string[] _DirLabels =
+    private static readonly string[] s_dirLabels =
     {
         "\u2191", "\u2197", "\u2192", "\u2198", "\u2193", "\u2199", "\u2190", "\u2196",
     };
@@ -84,7 +84,7 @@ public class ObserverJoystick
     // Atan2 round value → our direction index lookup
     // raw: 0=E,1=NE,2=N,3=NW,4=W,5=SW,6=S,7=SE
     // ours: 0=N,1=NE,2=E,3=SE,4=S,5=SW,6=W,7=NW
-    private static readonly int[] _atan2ToDir = { 2, 1, 0, 7, 6, 5, 4, 3 };
+    private static readonly int[] s_atan2ToDir = { 2, 1, 0, 7, 6, 5, 4, 3 };
 
     public VisualElement Root => _root;
     public bool IsShown => _root.parent != null;
@@ -99,13 +99,13 @@ public class ObserverJoystick
         // Pre-load all textures
         for (int i = 0; i < 8; i++)
         {
-            _dirClickTex[i] = textures.GetTexture(_DirClickOps[i]);
-            _dirDragTex[i] = textures.GetTexture(_DirDragOps[i]);
-            _centerDragCellTex[i] = textures.GetTexture(_CenterDragOps[i].cell);
-            _centerDragShiftTex[i] = textures.GetTexture(_CenterDragOps[i].shift);
+            _dirClickTex[i] = textures.GetTexture(s_dirClickOps[i]);
+            _dirDragTex[i] = textures.GetTexture(s_dirDragOps[i]);
+            _centerDragCellTex[i] = textures.GetTexture(s_centerDragOps[i].cell);
+            _centerDragShiftTex[i] = textures.GetTexture(s_centerDragOps[i].shift);
         }
 
-        _centerTex = textures.GetTexture(_CenterClickOp);
+        _centerTex = textures.GetTexture(s_centerClickOp);
 
         // Статический скелет (рут, 8 кнопок направлений, центральная кнопка)
         // живёт в ObserverJoystick.uxml, геометрия — в .prog-joy-item--* / .prog-joy-center
@@ -133,7 +133,7 @@ public class ObserverJoystick
             _dirLabels[idx] = label;
 
             // Set initial icon (click operator)
-            SetItemIcon(item, label, _dirClickTex[idx], _DirLabels[idx]);
+            SetItemIcon(item, label, _dirClickTex[idx], s_dirLabels[idx]);
 
             item.RegisterCallback<PointerDownEvent>(evt =>
             {
@@ -191,15 +191,15 @@ public class ObserverJoystick
                     }
 
                     int raw = (int)Mathf.Round(a / (Mathf.PI / 4f)) % 8;
-                    _dragTargetDir = _atan2ToDir[raw];
+                    _dragTargetDir = s_atan2ToDir[raw];
 
-                    var ops = _CenterDragOps[_dragTargetDir];
+                    var ops = s_centerDragOps[_dragTargetDir];
                     Texture2D? previewTex;
                     if (dist >= NearFarThresh && ops.shift != ProgAction.Cell)
                     {
                         previewTex = _centerDragShiftTex[_dragTargetDir];
                     }
-                    else if (ops.cell != ProgAction.Cell && ops.cell != _CenterClickOp)
+                    else if (ops.cell != ProgAction.Cell && ops.cell != s_centerClickOp)
                     {
                         previewTex = _centerDragCellTex[_dragTargetDir];
                     }
@@ -217,7 +217,7 @@ public class ObserverJoystick
                 // Shows Cell* near start, Shift* far — reverts when cursor returns
                 SetItemIcon(_dirItems[_activeSource], _dirLabels[_activeSource],
                     dist >= DragThresh ? _dirDragTex[_activeSource] : _dirClickTex[_activeSource],
-                    _DirLabels[_activeSource]);
+                    s_dirLabels[_activeSource]);
             }
         });
 
@@ -236,36 +236,36 @@ public class ObserverJoystick
                 if (_isDragging && _dragTargetDir >= 0)
                 {
                     float dist = Vector2.Distance(evt.position, _pointerStart);
-                    var ops = _CenterDragOps[_dragTargetDir];
+                    var ops = s_centerDragOps[_dragTargetDir];
 
                     if (dist >= NearFarThresh && ops.shift != ProgAction.Cell)
                     {
                         OnOperatorSelected?.Invoke(ops.shift);
                     }
-                    else if (ops.cell != ProgAction.Cell && ops.cell != _CenterClickOp)
+                    else if (ops.cell != ProgAction.Cell && ops.cell != s_centerClickOp)
                     {
                         OnOperatorSelected?.Invoke(ops.cell);
                     }
                 }
                 else
                 {
-                    OnOperatorSelected?.Invoke(_CenterClickOp);
+                    OnOperatorSelected?.Invoke(s_centerClickOp);
                 }
             }
             else if (_activeSource >= 0 && _activeSource < 8)
             {
                 if (_isDragging)
                 {
-                    OnOperatorSelected?.Invoke(_DirDragOps[_activeSource]);
+                    OnOperatorSelected?.Invoke(s_dirDragOps[_activeSource]);
                 }
                 else
                 {
-                    OnOperatorSelected?.Invoke(_DirClickOps[_activeSource]);
+                    OnOperatorSelected?.Invoke(s_dirClickOps[_activeSource]);
                 }
 
                 // Restore direction icon to click operator
                 SetItemIcon(_dirItems[_activeSource], _dirLabels[_activeSource],
-                    _dirClickTex[_activeSource], _DirLabels[_activeSource]);
+                    _dirClickTex[_activeSource], s_dirLabels[_activeSource]);
             }
 
             Reset();
@@ -281,7 +281,7 @@ public class ObserverJoystick
                 // Restore all icons
                 for (int i = 0; i < 8; i++)
                 {
-                    SetItemIcon(_dirItems[i], _dirLabels[i], _dirClickTex[i], _DirLabels[i]);
+                    SetItemIcon(_dirItems[i], _dirLabels[i], _dirClickTex[i], s_dirLabels[i]);
                 }
 
                 SetItemIcon(_centerItem, _centerLabel, _centerTex, "\u25CB");
@@ -348,7 +348,7 @@ public class ObserverJoystick
         // Restore default icons
         for (int i = 0; i < 8; i++)
         {
-            SetItemIcon(_dirItems[i], _dirLabels[i], _dirClickTex[i], _DirLabels[i]);
+            SetItemIcon(_dirItems[i], _dirLabels[i], _dirClickTex[i], s_dirLabels[i]);
         }
 
         SetItemIcon(_centerItem, _centerLabel, _centerTex, "\u25CB");

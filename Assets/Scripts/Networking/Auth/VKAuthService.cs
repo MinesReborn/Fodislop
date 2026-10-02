@@ -12,17 +12,17 @@ namespace Kern.Networking.Auth;
 public readonly struct VKSession
 {
     public string AccessToken { get; init; }
-    public long UserID { get; init; }
+    public long UserId { get; init; }
     public string FirstName { get; init; }
     public string LastName { get; init; }
     public string AvatarURL { get; init; }
     public long ExpiresAtUnix { get; init; }
 
     public string DisplayName => string.IsNullOrEmpty(FirstName)
-        ? $"id{UserID}"
+        ? $"id{UserId}"
         : string.IsNullOrEmpty(LastName) ? FirstName : $"{FirstName} {LastName}";
 
-    public bool IsValid => UserID > 0 && ExpiresAtUnix > DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+    public bool IsValid => UserId > 0 && ExpiresAtUnix > DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 }
 
 public readonly record struct VKAuthResult(
@@ -79,11 +79,11 @@ public sealed class AuthenticationService : IAuthenticationService
 
 public sealed class VKIdentityProvider
 {
-    public const string DefaultClientID = "";
+    public const string DefaultClientId = "";
 
-    private const string DeviceIDKey = "VK.DeviceId";
+    private const string DeviceIdKey = "VK.DeviceId";
     private const string AccessTokenKey = "VK.AccessToken";
-    private const string UserIDKey = "VK.UserID";
+    private const string UserIdKey = "VK.UserID";
     private const string UserNameKey = "VK.UserName";
     private const string AvatarKey = "VK.AvatarUrl";
     private const string ExpiresAtKey = "VK.ExpiresAt";
@@ -99,7 +99,7 @@ public sealed class VKIdentityProvider
         return new VKSession
         {
             AccessToken = PlayerPrefs.GetString(AccessTokenKey, string.Empty),
-            UserID = long.TryParse(PlayerPrefs.GetString(UserIDKey, "0"), out long userID) ? userID : 0,
+            UserId = long.TryParse(PlayerPrefs.GetString(UserIdKey, "0"), out long userId) ? userId : 0,
             FirstName = PlayerPrefs.GetString(UserNameKey, string.Empty),
             LastName = string.Empty,
             AvatarURL = PlayerPrefs.GetString(AvatarKey, string.Empty),
@@ -109,16 +109,16 @@ public sealed class VKIdentityProvider
 
     public async UniTask<VKAuthResult> LoginAsync()
     {
-        string clientID = ResolveClientID();
+        string clientId = ResolveClientId();
         string backendURL = ProjectRuntimeContracts.Authentication.VKBackendURL;
-        if (string.IsNullOrWhiteSpace(clientID) ||
+        if (string.IsNullOrWhiteSpace(clientId) ||
             !Uri.TryCreate(backendURL, UriKind.Absolute, out Uri backendUri) ||
             !string.Equals(backendUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
         {
             return Error("gateway.auth.vk_not_configured");
         }
 
-        string deviceID = LoadOrCreateDeviceID();
+        string deviceId = LoadOrCreateDeviceId();
         string state = RandomToken(16);
         string codeVerifier = RandomToken(64);
         string codeChallenge = Base64URL(Sha256(codeVerifier));
@@ -127,8 +127,8 @@ public sealed class VKIdentityProvider
         {
             // Шаг 1: получить user_confirm_link + device_code.
             var authorizeForm = new WWWForm();
-            authorizeForm.AddField("client_id", clientID);
-            authorizeForm.AddField("device_id", deviceID);
+            authorizeForm.AddField("client_id", clientId);
+            authorizeForm.AddField("device_id", deviceId);
             authorizeForm.AddField("scope", "phone");
             authorizeForm.AddField("state", state);
             authorizeForm.AddField("code_challenge", codeChallenge);
@@ -156,8 +156,8 @@ public sealed class VKIdentityProvider
                 await UniTask.Delay(interval * 1000);
 
                 var tokenForm = new WWWForm();
-                tokenForm.AddField("client_id", clientID);
-                tokenForm.AddField("device_id", deviceID);
+                tokenForm.AddField("client_id", clientId);
+                tokenForm.AddField("device_id", deviceId);
                 tokenForm.AddField("device_code", authorize.device_code);
                 tokenForm.AddField("state", state);
                 tokenForm.AddField("code_verifier", codeVerifier);
@@ -166,7 +166,7 @@ public sealed class VKIdentityProvider
                 var token = JsonUtility.FromJson<DeviceTokenResponse>(tokenJson);
                 if (!string.IsNullOrEmpty(token.access_token))
                 {
-                    return await ExchangeWithBackendAsync(token.access_token, clientID, deviceID, backendURL);
+                    return await ExchangeWithBackendAsync(token.access_token, clientId, deviceId, backendURL);
                 }
 
                 switch (token.error)
@@ -193,22 +193,22 @@ public sealed class VKIdentityProvider
         }
     }
 
-    public static string ResolveClientID()
+    public static string ResolveClientId()
     {
-        string configured = ProjectRuntimeContracts.Authentication.VKClientID;
-        return string.IsNullOrWhiteSpace(configured) ? DefaultClientID : configured;
+        string configured = ProjectRuntimeContracts.Authentication.VKClientId;
+        return string.IsNullOrWhiteSpace(configured) ? DefaultClientId : configured;
     }
 
     private static async UniTask<VKAuthResult> ExchangeWithBackendAsync(
         string accessToken,
-        string clientID,
-        string deviceID,
+        string clientId,
+        string deviceId,
         string backendURL)
     {
         var form = new WWWForm();
         form.AddField("access_token", accessToken);
-        form.AddField("client_id", clientID);
-        form.AddField("device_id", deviceID);
+        form.AddField("client_id", clientId);
+        form.AddField("device_id", deviceId);
         string json = await PostJsonAsync(backendURL, form);
         var response = JsonUtility.FromJson<BackendExchangeResponse>(json);
         if (response == null || string.IsNullOrWhiteSpace(response.game_token) || response.user_id <= 0)
@@ -219,14 +219,14 @@ public sealed class VKIdentityProvider
         var session = new VKSession
         {
             AccessToken = string.Empty,
-            UserID = response.user_id,
+            UserId = response.user_id,
             FirstName = response.first_name ?? string.Empty,
             LastName = response.last_name ?? string.Empty,
             AvatarURL = response.avatar_url ?? string.Empty,
             ExpiresAtUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + Math.Max(response.expires_in, 60),
         };
 
-        PlayerPrefs.SetString(UserIDKey, session.UserID.ToString());
+        PlayerPrefs.SetString(UserIdKey, session.UserId.ToString());
         PlayerPrefs.SetString(UserNameKey, session.FirstName);
         PlayerPrefs.SetString(AvatarKey, session.AvatarURL);
         PlayerPrefs.SetString(ExpiresAtKey, session.ExpiresAtUnix.ToString());
@@ -252,16 +252,16 @@ public sealed class VKIdentityProvider
         return request.downloadHandler.text;
     }
 
-    private static string LoadOrCreateDeviceID()
+    private static string LoadOrCreateDeviceId()
     {
-        string existing = PlayerPrefs.GetString(DeviceIDKey, string.Empty);
+        string existing = PlayerPrefs.GetString(DeviceIdKey, string.Empty);
         if (!string.IsNullOrEmpty(existing))
         {
             return existing;
         }
 
         string created = Guid.NewGuid().ToString("N");
-        PlayerPrefs.SetString(DeviceIDKey, created);
+        PlayerPrefs.SetString(DeviceIdKey, created);
         PlayerPrefs.Save();
         return created;
     }

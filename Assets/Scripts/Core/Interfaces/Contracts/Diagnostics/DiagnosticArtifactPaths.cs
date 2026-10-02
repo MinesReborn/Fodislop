@@ -24,7 +24,7 @@ public static class DiagnosticArtifactPaths
 
     // Одна метка на процесс: файлы, которые дописываются весь сеанс, делят её
     // и лежат рядом по имени.
-    private static readonly string _SessionStamp = DateTime.Now.ToString(StampFormat);
+    private static readonly string s_sessionStamp = DateTime.Now.ToString(StampFormat);
 
     public static string RootDirectory => Application.isEditor
         ? Path.Combine(Path.GetDirectoryName(Application.dataPath) ?? ".", EditorDirectoryName, ArtifactDirectoryName)
@@ -59,7 +59,7 @@ public static class DiagnosticArtifactPaths
     public static string SessionPath(string category, string name, string extension, int retained = DefaultRetained)
     {
         string directory = GetDirectory(category);
-        string path = Path.Combine(directory, $"{name}_{_SessionStamp}.{extension}");
+        string path = Path.Combine(directory, $"{name}_{s_sessionStamp}.{extension}");
         if (!File.Exists(path))
         {
             Prune(directory, retained - 1);

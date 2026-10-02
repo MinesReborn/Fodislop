@@ -56,6 +56,6 @@ internal static class TerrainBackgroundTileResolver
                 $"Terrain background metadata for cell type '{background}' was not warmed before tile-group resolution.");
         }
 
-        return metadata.HasTileGroup && metadata.TileGroupID == tileGroupId;
+        return metadata.HasTileGroup && metadata.TileGroupId == tileGroupId;
     }
 }

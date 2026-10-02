@@ -239,7 +239,7 @@ namespace Kern.Core
 
             // Единственный фоновый отчёт о провисе кадра: живёт со сценой игры,
             // а не внутри компонента, который случайно тикает каждый кадр.
-            builder.RegisterEntryPoint<Kern.Tools.Imgui.Profiling.FrameStallMonitor>();
+            builder.RegisterEntryPoint<Kern.Tools.ImGui.Profiling.FrameStallMonitor>();
             builder.Register<GameInfrastructureStartup>(Lifetime.Singleton);
             builder.Register<GamePresentationStartup>(Lifetime.Singleton);
             builder.Register<GameStartupPipeline>(Lifetime.Singleton);

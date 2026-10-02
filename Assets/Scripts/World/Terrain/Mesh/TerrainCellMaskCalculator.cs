@@ -10,7 +10,7 @@ public sealed class TerrainCellMaskCalculator
 {
     // A/B runs on a 192×128 window show lower aggregate process CPU with four
     // workers; wall-time throughput varies slightly against the full count.
-    private static readonly System.Threading.Tasks.ParallelOptions _FullPassParallelOptions = new()
+    private static readonly System.Threading.Tasks.ParallelOptions s_fullPassParallelOptions = new()
     {
         MaxDegreeOfParallelism = System.Math.Min(4, System.Environment.ProcessorCount),
     };
@@ -41,7 +41,7 @@ public sealed class TerrainCellMaskCalculator
     {
         EnsureCapacity(meshWidth, meshHeight);
 
-        System.Threading.Tasks.Parallel.For(0, meshWidth, _FullPassParallelOptions, x =>
+        System.Threading.Tasks.Parallel.For(0, meshWidth, s_fullPassParallelOptions, x =>
         {
             CalculateColumn(cellCache, x, 0, meshHeight);
         });
@@ -192,42 +192,42 @@ public sealed class TerrainCellMaskCalculator
         }
 
         byte m = 0;
-        if (left.HasTileGroup && left.TileGroupID == data.TileGroupID)
+        if (left.HasTileGroup && left.TileGroupId == data.TileGroupId)
         {
             m |= 1 << 0;
         }
 
-        if (bottomLeft.HasTileGroup && bottomLeft.TileGroupID == data.TileGroupID)
+        if (bottomLeft.HasTileGroup && bottomLeft.TileGroupId == data.TileGroupId)
         {
             m |= 1 << 1;
         }
 
-        if (bottom.HasTileGroup && bottom.TileGroupID == data.TileGroupID)
+        if (bottom.HasTileGroup && bottom.TileGroupId == data.TileGroupId)
         {
             m |= 1 << 2;
         }
 
-        if (bottomRight.HasTileGroup && bottomRight.TileGroupID == data.TileGroupID)
+        if (bottomRight.HasTileGroup && bottomRight.TileGroupId == data.TileGroupId)
         {
             m |= 1 << 3;
         }
 
-        if (right.HasTileGroup && right.TileGroupID == data.TileGroupID)
+        if (right.HasTileGroup && right.TileGroupId == data.TileGroupId)
         {
             m |= 1 << 4;
         }
 
-        if (topRight.HasTileGroup && topRight.TileGroupID == data.TileGroupID)
+        if (topRight.HasTileGroup && topRight.TileGroupId == data.TileGroupId)
         {
             m |= 1 << 5;
         }
 
-        if (top.HasTileGroup && top.TileGroupID == data.TileGroupID)
+        if (top.HasTileGroup && top.TileGroupId == data.TileGroupId)
         {
             m |= 1 << 6;
         }
 
-        if (topLeft.HasTileGroup && topLeft.TileGroupID == data.TileGroupID)
+        if (topLeft.HasTileGroup && topLeft.TileGroupId == data.TileGroupId)
         {
             m |= 1 << 7;
         }

@@ -28,6 +28,7 @@ internal sealed class LightingResourceManager
     private ComputeBuffer? _cleanCellRows;
     private ComputeBuffer? _cleanCellPrefix;
     private RenderTexture? _ambientOcclusionField;
+    private Material? _ambientOcclusionClearMaterial;
     private GraphicsQualitySettings _allocatedQuality;
     private int _allocatedMaximumCascadeDirections;
     private int _allocatedProbePixelsPerCell;
@@ -110,6 +111,30 @@ internal sealed class LightingResourceManager
     public ComputeBuffer? CleanCellRows => _cleanCellRows;
     public ComputeBuffer? CleanCellPrefix => _cleanCellPrefix;
     public RenderTexture? AmbientOcclusionField => _ambientOcclusionField;
+    public Material AmbientOcclusionClearMaterial => _ambientOcclusionClearMaterial ??
+        throw new InvalidOperationException("AO rectangle clear material has not been initialized.");
+
+    private void EnsureAmbientOcclusionClearMaterial()
+    {
+        if (_ambientOcclusionClearMaterial != null)
+        {
+            return;
+        }
+
+        Shader shader = Resources.Load<Shader>("Shaders/Lighting/LightingFieldRectClear") ??
+            throw new InvalidOperationException("Required LightingFieldRectClear shader is missing.");
+        if (!shader.isSupported)
+        {
+            throw new InvalidOperationException("AO rectangle clear shader is unsupported.");
+        }
+
+        _ambientOcclusionClearMaterial = new Material(shader)
+        {
+            name = "Lighting.AmbientOcclusionRectClear",
+            hideFlags = HideFlags.HideAndDontSave,
+        };
+    }
+
     public bool GeometryCachesValid { get; set; }
     public int CellGridWidth { get; private set; }
     public int CellGridHeight { get; private set; }
@@ -171,7 +196,7 @@ internal sealed class LightingResourceManager
         BuildSurfaceAirCacheKernel = loaded.BuildSurfaceAirCacheKernel;
         BuildCleanCellRowsKernel = loaded.Compute.FindKernel("BuildCleanCellRows");
         BuildCleanCellColumnsKernel = loaded.Compute.FindKernel("BuildCleanCellColumns");
-        LightingShaderValidator.ValidateGpuRequirements();
+        LightingShaderValidator.ValidateGPURequirements();
         LightingShaderValidator.ValidateTerrainFieldPasses(LightingTexturePool.DestroyLightingObject);
         LightingFieldOrientationValidator.EnsureValidated();
         LightingCommandBuffer ??= new CommandBuffer
@@ -222,6 +247,7 @@ internal sealed class LightingResourceManager
         ReleaseResources();
         // AO-only fields use the same raster transform and the same readers.
         LightingFieldOrientationValidator.EnsureValidated();
+        EnsureAmbientOcclusionClearMaterial();
         AmbientOcclusionWidth = width;
         AmbientOcclusionHeight = height;
         CellGridWidth = gridWidth;
@@ -292,6 +318,7 @@ internal sealed class LightingResourceManager
         }
 
         effectivePixelsPerCell = LightingQualityTuningController.FieldPixelsPerCell;
+        EnsureAmbientOcclusionClearMaterial();
         // Resource identity depends on coverage and settings, never camera pose.
         // Cache the selected probe layout as well as textures: repeating the
         // selector allocates scratch lists and can replace an already budgeted
@@ -439,6 +466,12 @@ internal sealed class LightingResourceManager
 
     public void ReleaseResources()
     {
+        if (_ambientOcclusionClearMaterial != null)
+        {
+            LightingTexturePool.DestroyLightingObject(_ambientOcclusionClearMaterial);
+            _ambientOcclusionClearMaterial = null;
+        }
+
         ReleaseReanchorFields();
         _buffers.ReleaseBuffers();
         AtlasEntryCount = 0;

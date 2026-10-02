@@ -13,7 +13,7 @@ namespace Kern.Tests.World.Lighting;
 [TestFixture]
 public sealed class ShaderContractTests
 {
-    private static readonly string _shaderDirectory = Path.Combine(
+    private static readonly string s_shaderDirectory = Path.Combine(
         Application.dataPath,
         "Resources/Shaders/Lighting");
 
@@ -22,9 +22,9 @@ public sealed class ShaderContractTests
     {
         string[] forbiddenStageFiles =
         {
-            Path.Combine(_shaderDirectory, "Cascades/CascadeResolve.hlsl"),
-            Path.Combine(_shaderDirectory, "Dynamic/DynamicLightTrace.hlsl"),
-            Path.Combine(_shaderDirectory, "Composite/CompositeLighting.hlsl"),
+            Path.Combine(s_shaderDirectory, "Cascades/CascadeResolve.hlsl"),
+            Path.Combine(s_shaderDirectory, "Dynamic/DynamicLightTrace.hlsl"),
+            Path.Combine(s_shaderDirectory, "Composite/CompositeLighting.hlsl"),
         };
 
         Regex ddaCallPattern = new(@"\b(TraceLightSegment|TraceRadianceSegment)\s*\(", RegexOptions.Compiled);
@@ -43,18 +43,18 @@ public sealed class ShaderContractTests
     }
 
     [Test]
-    public void DynamicLightGpuData_StrideMatchesShaderExpectation()
+    public void DynamicLightGPUData_StrideMatchesShaderExpectation()
     {
         // Shaders/Lighting/LightingTypes.hlsl defines DynamicLight as:
         // float4 positionRadius (16 bytes) + float4 colorIntensity (16 bytes) = 32 bytes
-        int actualSize = UnsafeUtility.SizeOf<DynamicLightGpuData>();
-        Assert.AreEqual(32, actualSize, "DynamicLightGpuData must be exactly 32 bytes to match HLSL struct.");
+        int actualSize = UnsafeUtility.SizeOf<DynamicLightGPUData>();
+        Assert.AreEqual(32, actualSize, "DynamicLightGPUData must be exactly 32 bytes to match HLSL struct.");
     }
 
     [Test]
     public void ComputeBinderProperties_AllDeclaredInComputeShader()
     {
-        string computeFile = Path.Combine(_shaderDirectory, "WorldLighting.compute");
+        string computeFile = Path.Combine(s_shaderDirectory, "WorldLighting.compute");
         Assert.That(File.Exists(computeFile), Is.True);
 
         string allShaderText = LoadShaderWithIncludes(computeFile);

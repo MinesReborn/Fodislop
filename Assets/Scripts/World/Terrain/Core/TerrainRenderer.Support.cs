@@ -62,5 +62,5 @@ internal static class TerrainRendererSupport
                 planner.LastResidencyProbeCalls,
                 planner.LastResidencyChunkReads,
                 planner.LastResidencyCacheHits,
-                planner.LastResidencyLruTouches));
+                planner.LastResidencyLRUTouches));
 }

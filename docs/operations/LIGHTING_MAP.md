@@ -19,8 +19,8 @@
 | Governor и quantum | `Assets/Scripts/World/Streaming/StreamingGovernor.cs` | `SelectTargetOrigin`, `Plan` |
 | Политика quantum/padding | `Assets/Scripts/World/Streaming/StreamingPolicy.cs` | `Default`, `ResolvePrefetchMarginCells` |
 | Ring cache scroll | `Assets/Scripts/World/Terrain/Cache/TerrainCellCache.cs` | `ScrollAndFill` |
-| Incremental mesh band | `Assets/Scripts/World/Terrain/Gpu/TerrainCellBuilder.cs` | `ScrollAndBuildBand` |
-| Texture upload | `Assets/Scripts/World/Terrain/Gpu/TerrainCellDataTextures.cs` | `Apply`, `ApplyPatch` |
+| Incremental mesh band | `Assets/Scripts/World/Terrain/GPU/TerrainCellBuilder.cs` | `ScrollAndBuildBand` |
+| Texture upload | `Assets/Scripts/World/Terrain/GPU/TerrainCellDataTextures.cs` | `Apply`, `ApplyPatch` |
 | Terrain dirty patch | `Assets/Scripts/World/Terrain/Core/TerrainRenderer.cs` | `UpdateDirtyCells`, `CoalesceOversizedDirtyRects` |
 | Global light texture/origin | `Assets/Scripts/World/Lighting/Core/LightingPresentation.cs` | `Publish` |
 | Frame counters | `Assets/Scripts/World/Common/FrameTelemetry.cs` | reset/accumulate semantics |

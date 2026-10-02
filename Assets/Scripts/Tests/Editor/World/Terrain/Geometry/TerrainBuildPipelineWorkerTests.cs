@@ -30,7 +30,7 @@ public sealed class TerrainBuildPipelineWorkerTests
     private const int StartX = 96;
     private const int StartY = 80;
 
-    private static readonly Vector2Int[] _Walk =
+    private static readonly Vector2Int[] s_walk =
     [
         new(1, 0), new(0, 1), new(1, 1), new(-1, 0), new(0, -1),
         new(3, 2), new(-2, -3), new(5, 0), new(0, 7), new(-4, 6),
@@ -53,9 +53,9 @@ public sealed class TerrainBuildPipelineWorkerTests
             dirty, noTextures, contentRevision: 1, worldGeneration: 0));
 
         ulong revision = 1;
-        for (int index = 0; index < _Walk.Length; index++)
+        for (int index = 0; index < s_walk.Length; index++)
         {
-            origin += _Walk[index];
+            origin += s_walk[index];
             dirty.Clear();
 
             // Каждый третий шаг несёт заплатку: мир детерминирован, поэтому
@@ -78,7 +78,7 @@ public sealed class TerrainBuildPipelineWorkerTests
                 textures = new HashSet<CellType> { CellType.BuildingDoor };
             }
 
-            TerrainCpuBuildRequest request = incremental.Prepare(
+            TerrainCPUBuildRequest request = incremental.Prepare(
                 Context(world, telemetry), world.Atlases, origin,
                 forceFull: false, rebuildAllCells: false,
                 dirty, textures, ++revision, worldGeneration: 0);
@@ -109,7 +109,7 @@ public sealed class TerrainBuildPipelineWorkerTests
         using var telemetry = new FrameTelemetry();
         using var pipeline = new TerrainBuildPipeline();
         pipeline.EnsureCapacity(Width, Height, 1f);
-        TerrainCpuBuildRequest request = pipeline.Prepare(
+        TerrainCPUBuildRequest request = pipeline.Prepare(
             Context(world, telemetry), world.Atlases, new Vector2Int(StartX, StartY), forceFull: true,
             rebuildAllCells: false, new DirtyRectSet(), new HashSet<CellType>(),
             contentRevision: 1, worldGeneration: 0);
@@ -125,11 +125,11 @@ public sealed class TerrainBuildPipelineWorkerTests
     private static TerrainBuildContext Context(TerrainTestWorld world, IFrameTelemetry telemetry) =>
         new(world.Storage, world.MapData, world.Textures, telemetry, Width, Height);
 
-    private static void RunOnWorker(TerrainBuildPipeline pipeline, TerrainCpuBuildRequest request)
+    private static void RunOnWorker(TerrainBuildPipeline pipeline, TerrainCPUBuildRequest request)
     {
         int mainThread = Environment.CurrentManagedThreadId;
         int workerThread = mainThread;
-        Task<TerrainCpuBuildResult> task = Task.Run(() =>
+        Task<TerrainCPUBuildResult> task = Task.Run(() =>
         {
             workerThread = Environment.CurrentManagedThreadId;
             return pipeline.Execute(request, CancellationToken.None);

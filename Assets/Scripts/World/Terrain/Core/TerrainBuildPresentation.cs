@@ -110,8 +110,8 @@ internal sealed class TerrainBuildPresentation : IDisposable
     public void Publish(
         IReadOnlyList<IAtlasDescriptor> atlases,
         in TerrainBuildContext context,
-        TerrainCpuBuildRequest request,
-        TerrainCpuBuildResult result,
+        TerrainCPUBuildRequest request,
+        TerrainCPUBuildResult result,
         TerrainCellBuilder cellBuilder,
         in TerrainCellSources sources,
         bool lastBuildScrolled,
@@ -143,7 +143,7 @@ internal sealed class TerrainBuildPresentation : IDisposable
     private void RebuildDoorOverlay(
         TerrainCellBuilder cellBuilder,
         in TerrainCellSources sources,
-        TerrainCpuBuildRequest request)
+        TerrainCPUBuildRequest request)
     {
         if (_parent == null || _sceneObjects == null)
         {

@@ -2,6 +2,7 @@
 
 using System;
 using Kern.Rendering.PostProcessing;
+using UnityEngine.Serialization;
 
 namespace Kern.Core;
 
@@ -50,7 +51,7 @@ public sealed class DisplaySettings
 
     [SettingUnbounded("Тумблер HDR-вывода.")]
     [SettingLabel("menu.settings.hdr")]
-    [SettingConsumer(SettingConsumerTarget.DisplayManager, "DisplayManager.SetHDREnabled / HDROutput")]
+    [SettingConsumer(SettingConsumerTarget.DisplayManager, "DisplayManager.SetHDREnabled / HdrOutput")]
     public bool HDREnabled = ProjectRuntimeContracts.ClientConfiguration.DefaultHDREnabled;
 
     // Безопасный старт. Ставится перед переключением режима вывода и
@@ -61,6 +62,7 @@ public sealed class DisplaySettings
     // в рабочую картинку, а не в чёрный экран по кругу.
     [SettingUnbounded("Метка незавершённого переключения режима вывода.")]
     [SettingConsumer(SettingConsumerTarget.DisplayManager, "DisplayManager.SetHDREnabled / DisplayManager.ApplyInitialSettings")]
+    [FormerlySerializedAs("HDRSwitchPending")]
     public bool HDRSwitchPending;
 
     // −1 означает «без ограничения». Отрезком это не выражается.

@@ -21,7 +21,7 @@ namespace Kern
         private bool _batchLoopStarted;
         private bool _destroyed;
 
-        private AssetCache _Cache => _cache ??
+        private AssetCache Cache => _cache ??
             throw new ObjectDisposedException(nameof(ClientAssetLoader));
 
         public int PendingAssetCount => _dispatcher.PendingCount;
@@ -39,12 +39,12 @@ namespace Kern
         [Inject]
         private IPersistentAssetCache _persistentCache = null!;
 
-        private IConnectionService _ConnectionService =>
+        private IConnectionService ConnectionService =>
             _connectionService ??
             throw new InvalidOperationException(
                 "ClientAssetLoader requires IConnectionService before loading assets.");
 
-        private ITextureStorageService _TextureStorage => _textureStorage;
+        private ITextureStorageService TextureStorage => _textureStorage;
 
         private bool _assetSubscriptionEstablished;
         private IConnectionService? _subscribedConnection;
@@ -81,7 +81,7 @@ namespace Kern
             _batchLoopStarted = true;
             _operations.Run(
                 "asset_request_batch_loop",
-                token => _dispatcher.ProcessBatchLoop(token, () => _ConnectionService));
+                token => _dispatcher.ProcessBatchLoop(token, () => ConnectionService));
         }
 
         protected void OnDestroy()
@@ -159,7 +159,7 @@ namespace Kern
                 return null;
             }
 
-            return await _Cache.GetBytesAsync(
+            return await Cache.GetBytesAsync(
                 cleanFilename,
                 linkedCancellation.Token,
                 timeoutSeconds);
@@ -204,7 +204,7 @@ namespace Kern
                 CancellationTokenSource.CreateLinkedTokenSource(
                     cancellationToken,
                     destroyCancellationToken);
-            Texture2D? texture = await _Cache.GetTextureAsync(
+            Texture2D? texture = await Cache.GetTextureAsync(
                 filename,
                 linkedCancellation.Token);
             return texture ?? throw new FileNotFoundException(
@@ -219,7 +219,7 @@ namespace Kern
                 CancellationTokenSource.CreateLinkedTokenSource(
                     cancellationToken,
                     destroyCancellationToken);
-            return await _Cache.GetAudioAsync(filename, linkedCancellation.Token);
+            return await Cache.GetAudioAsync(filename, linkedCancellation.Token);
         }
 
         public async UniTask<Sprite[]?> GetSpritesAsync(string filename, CancellationToken cancellationToken = default)
@@ -229,7 +229,7 @@ namespace Kern
                 CancellationTokenSource.CreateLinkedTokenSource(
                     cancellationToken,
                     destroyCancellationToken);
-            return await _Cache.GetSpritesAsync(filename, linkedCancellation.Token);
+            return await Cache.GetSpritesAsync(filename, linkedCancellation.Token);
         }
 
         public async UniTask<AnimatedSpriteData> GetAnimatedSpritesAsync(
@@ -241,7 +241,7 @@ namespace Kern
                 CancellationTokenSource.CreateLinkedTokenSource(
                     cancellationToken,
                     destroyCancellationToken);
-            return await _Cache.GetAnimatedSpritesAsync(filename, linkedCancellation.Token);
+            return await Cache.GetAnimatedSpritesAsync(filename, linkedCancellation.Token);
         }
 
         private void ThrowIfDestroyed(CancellationToken cancellationToken)
@@ -268,7 +268,7 @@ namespace Kern
             filename = filename.TrimStart('/').ToLowerInvariant();
 
             // 1. Check local RAM/disk cache first when offline
-            var connectionService = _ConnectionService;
+            var connectionService = ConnectionService;
             var isConnected = connectionService.IsConnected;
 
             if (!isConnected)
@@ -283,7 +283,7 @@ namespace Kern
             // 2. Check local TextureStorageManager if available
             if (AssetBatchDispatcher.IsTextureFile(filename))
             {
-                var tsm = _TextureStorage;
+                var tsm = TextureStorage;
                 bool tsmHas = tsm != null && tsm.HasTexture(filename);
                 if (tsmHas && tsm != null)
                 {
@@ -310,8 +310,8 @@ namespace Kern
                         filename,
                         etag ?? string.Empty,
                         cts.Token,
-                        () => _ConnectionService,
-                        () => _TextureStorage);
+                        () => ConnectionService,
+                        () => TextureStorage);
 
                     if (result != null && result.Length > 0)
                     {
@@ -350,7 +350,7 @@ namespace Kern
 
             if (AssetBatchDispatcher.IsTextureFile(filename))
             {
-                var tsm = _TextureStorage;
+                var tsm = TextureStorage;
                 if (tsm != null)
                 {
                     var localData = await tsm.GetTextureData(filename);

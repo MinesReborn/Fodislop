@@ -37,7 +37,7 @@ public sealed class RobotAssetLoader
     public void LoadMetadataAssets(
         string skinPath,
         string tailPath,
-        byte clanID,
+        byte clanId,
         bool isLocalPlayer,
         Action<Sprite?> onSkinLoaded,
         Action<Texture2D?> onTailLoaded,
@@ -52,7 +52,7 @@ public sealed class RobotAssetLoader
             supervisorToken => LoadMetadataAssetsAsync(
                 skinPath,
                 tailPath,
-                clanID,
+                clanId,
                 isLocalPlayer,
                 onSkinLoaded,
                 onTailLoaded,
@@ -64,7 +64,7 @@ public sealed class RobotAssetLoader
     private async UniTask LoadMetadataAssetsAsync(
         string skinPath,
         string tailPath,
-        byte clanID,
+        byte clanId,
         bool isLocalPlayer,
         Action<Sprite?> onSkinLoaded,
         Action<Texture2D?> onTailLoaded,
@@ -78,7 +78,7 @@ public sealed class RobotAssetLoader
         CancellationToken token = linkedCancellation.Token;
         UniTask clanTask = isLocalPlayer
             ? UniTask.CompletedTask
-            : LoadClanAsync(clanID, onClanLoaded, token);
+            : LoadClanAsync(clanId, onClanLoaded, token);
 
         await UniTask.WhenAll(
             LoadSkinAsync(skinPath, onSkinLoaded, token),
@@ -148,16 +148,16 @@ public sealed class RobotAssetLoader
     }
 
     private async UniTask LoadClanAsync(
-        byte clanID,
+        byte clanId,
         Action<Sprite?> onClanLoaded,
         CancellationToken token)
     {
-        if (clanID == 0)
+        if (clanId == 0)
         {
             return;
         }
 
-        string clanPath = $"/Clan/{clanID}";
+        string clanPath = $"/Clan/{clanId}";
         Texture2D? clanTexture = await TryLoadOptionalTextureAsync(_assetLoader, clanPath, token);
         if (token.IsCancellationRequested || clanTexture == null)
         {

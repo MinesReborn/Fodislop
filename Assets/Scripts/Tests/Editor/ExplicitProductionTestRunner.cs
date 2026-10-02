@@ -14,14 +14,14 @@ namespace Kern.Tests;
 /// <summary>Exact-name batch selection for the existing explicit production harness.</summary>
 public static class ExplicitProductionTestRunner
 {
-    private static readonly Observer _observer = new();
+    private static readonly Observer s_observer = new();
 
     [InitializeOnLoadMethod]
     private static void ObserveDomainReload()
     {
         if (Application.isBatchMode && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("KERN_PRODUCTION_TEST_NAMES")))
         {
-            TestRunnerApi.RegisterTestCallback(_observer);
+            TestRunnerApi.RegisterTestCallback(s_observer);
         }
     }
 
@@ -38,7 +38,7 @@ public static class ExplicitProductionTestRunner
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         // Reject a memory-unsafe run before the test API starts any fixture.
         MemoryAllocationGuard.BeginTestRun();
-        TestRunnerApi.RegisterTestCallback(_observer);
+        TestRunnerApi.RegisterTestCallback(s_observer);
         var api = ScriptableObject.CreateInstance<TestRunnerApi>();
         api.Execute(new ExecutionSettings(new Filter
         {

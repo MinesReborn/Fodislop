@@ -123,8 +123,14 @@ public sealed class LightingGeometryRegistry
         CommandBuffer commandBuffer,
         RenderTexture ambientOcclusionField,
         Vector4 worldRect,
-        bool clearField = true)
+        bool clearField = true,
+        RectInt? rasterRect = null)
     {
+        if (clearField && rasterRect.HasValue)
+        {
+            throw new ArgumentException("Partial AO clearing is owned by the geometry solver.", nameof(clearField));
+        }
+
         if (commandBuffer == null)
         {
             throw new ArgumentNullException(nameof(commandBuffer));
@@ -159,9 +165,13 @@ public sealed class LightingGeometryRegistry
         // each draw call. Camera matrices are not used by field passes.
         LightingFieldOrientation.BindRaster(commandBuffer, worldRect, Matrix4x4.identity);
 
-        var context = new LightingAmbientOcclusionContext(ambientOcclusionField, worldRect);
+        var context = new LightingAmbientOcclusionContext(ambientOcclusionField, worldRect)
+        {
+            RasterRect = rasterRect,
+        };
         commandBuffer.SetViewport(new Rect(0f, 0f, ambientOcclusionField.width, ambientOcclusionField.height));
-        commandBuffer.EnableScissorRect(new Rect(0f, 0f, ambientOcclusionField.width, ambientOcclusionField.height));
+        RectInt rect = rasterRect ?? new RectInt(0, 0, ambientOcclusionField.width, ambientOcclusionField.height);
+        commandBuffer.EnableScissorRect(new Rect(rect.x, rect.y, rect.width, rect.height));
         foreach (Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor contributor in _contributors)
         {
             contributor.RenderAmbientOcclusionField(commandBuffer, context);

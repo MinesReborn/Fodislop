@@ -11,7 +11,7 @@ public static class MemoryAllocationGuard
     public const int MinimumAvailablePercent = 20;
     public const long MaximumTestProcessBytes = 3L * 1024 * 1024 * 1024;
     private const long MinimumReserveBytes = 512L * 1024 * 1024;
-    private static long _testProcessLimit;
+    private static long s_testProcessLimit;
 
     // Set for the whole test run, including gaps between cases; no environment bypass.
     public static void BeginTestRun()
@@ -22,14 +22,14 @@ public static class MemoryAllocationGuard
         {
             throw new InvalidOperationException($"[MemoryGuard] test run: {reason}");
         }
-        Interlocked.Exchange(ref _testProcessLimit, limit);
+        Interlocked.Exchange(ref s_testProcessLimit, limit);
     }
 
-    public static void EndTestRun() => Interlocked.Exchange(ref _testProcessLimit, 0);
+    public static void EndTestRun() => Interlocked.Exchange(ref s_testProcessLimit, 0);
 
     public static void Require(string owner, long allocationBytes)
     {
-        long limit = Interlocked.Read(ref _testProcessLimit);
+        long limit = Interlocked.Read(ref s_testProcessLimit);
         if (limit == 0) { return; }
         ProcessMemorySnapshot memory = ProcessMemorySnapshot.Capture();
         if (Rejection(memory, allocationBytes, limit) is string reason)
@@ -64,7 +64,7 @@ public static class MemoryAllocationGuard
 
     public static string? TestRunRejection(ProcessMemorySnapshot memory)
     {
-        long limit = Interlocked.Read(ref _testProcessLimit);
+        long limit = Interlocked.Read(ref s_testProcessLimit);
         return limit == 0 ? null : Rejection(memory, 0, limit);
     }
 

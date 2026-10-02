@@ -112,7 +112,7 @@ namespace Kern.Rendering.PostProcessing
             _gradingWorkbench.Deactivate();
             PostProcessRuntimeState.BypassPostProcessEffects = false;
             PostProcessRuntimeState.TemporaryBypass = false;
-            PostProcessRuntimeState.SetLut(null, 0f);
+            PostProcessRuntimeState.SetLUT(null, 0f);
             PostProcessRuntimeState.DebugView = PostProcessDebugView.None;
             PostProcessRuntimeState.CompareSplit = 0f;
             PostProcessRuntimeState.CompareMode = CompareMode.Off;

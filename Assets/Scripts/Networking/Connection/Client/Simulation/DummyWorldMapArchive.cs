@@ -21,7 +21,7 @@ internal static class DummyWorldMapArchive
     private const string StampSuffix = ".stamp";
     private const string TempSuffix = ".tmp";
     private const long FreeSpaceMarginBytes = 64L * 1024 * 1024;
-    private static readonly TimeSpan _AbandonedTempAge = TimeSpan.FromHours(1);
+    private static readonly TimeSpan s_abandonedTempAge = TimeSpan.FromHours(1);
 
     public static async UniTask<string> ResolveMapFileAsync(string worldCodeName, CancellationToken cancellationToken)
     {
@@ -383,7 +383,7 @@ internal static class DummyWorldMapArchive
 
     private static void DeleteAbandonedTempFiles(string cacheDirectory)
     {
-        DateTime threshold = DateTime.UtcNow - _AbandonedTempAge;
+        DateTime threshold = DateTime.UtcNow - s_abandonedTempAge;
         foreach (string tempPath in Directory.GetFiles(cacheDirectory, "*" + TempSuffix))
         {
             // Свежий временный файл может дописывать соседний процесс.

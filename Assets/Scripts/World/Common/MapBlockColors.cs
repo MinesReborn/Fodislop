@@ -34,30 +34,30 @@ public static class MapBlockColors
     /// <summary>Заглушка для типа клетки, которому сервер цвет не прислал и палитра неизвестна.</summary>
     public static readonly Color32 MissingServerColor = new(77, 77, 77, 255);
 
-    private static readonly Color32[] _palette = new Color32[256];
-    private static readonly bool[] _authored = new bool[256];
+    private static readonly Color32[] s_palette = new Color32[256];
+    private static readonly bool[] s_authored = new bool[256];
 
     static MapBlockColors()
     {
-        Array.Fill(_palette, UnknownColor);
+        Array.Fill(s_palette, UnknownColor);
         BuildPalette();
     }
 
     /// <summary>Палитра описывает этот тип клетки и является для него источником правды.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool IsAuthored(CellType cellType) => _authored[(byte)cellType];
+    public static bool IsAuthored(CellType cellType) => s_authored[(byte)cellType];
 
     /// <summary>Цвет типа клетки в виде точных байтов.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Color32 GetColor32(CellType cellType) => _palette[(byte)cellType];
+    public static Color32 GetColor32(CellType cellType) => s_palette[(byte)cellType];
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Color GetColor(CellType cellType) => _palette[(byte)cellType];
+    public static Color GetColor(CellType cellType) => s_palette[(byte)cellType];
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int GetPackedColor(CellType cellType)
     {
-        Color32 bytes = _palette[(byte)cellType];
+        Color32 bytes = s_palette[(byte)cellType];
         return unchecked((int)(((uint)bytes.a << 24) |
             ((uint)bytes.r << 16) |
             ((uint)bytes.g << 8) |
@@ -180,7 +180,7 @@ public static class MapBlockColors
 
     private static void Set(int cellId, byte r, byte g, byte b, byte a)
     {
-        _palette[cellId] = new Color32(r, g, b, a);
-        _authored[cellId] = true;
+        s_palette[cellId] = new Color32(r, g, b, a);
+        s_authored[cellId] = true;
     }
 }

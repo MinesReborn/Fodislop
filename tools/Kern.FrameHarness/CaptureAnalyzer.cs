@@ -9,7 +9,7 @@ public static class CaptureAnalyzer
     public const int CurrentSchemaVersion = 1;
     public const string CurrentHarnessVersion = "1";
 
-    private static readonly string[] _RequiredCpuMetrics =
+    private static readonly string[] _RequiredCPUMetrics =
     [
         "terrainMesh", "terrainCache", "terrainFloodFill", "terrainGpuUpload",
         "terrainAtlasUpload", "lightingBuildCommands", "lightingExecuteCommands",
@@ -124,18 +124,18 @@ public static class CaptureAnalyzer
                 invalid = true;
             }
 
-            bool missingCorrelatedCpu = correlated && (frame.CpuMs is null ||
-                _RequiredCpuMetrics.Any(key => frame.CpuMs is null ||
-                    !frame.CpuMs.TryGetValue(key, out double? value) || value is null));
-            if (frame.FrameDurationMs is null || frame.GpuFrameMs is null || missingCorrelatedCpu)
+            bool missingCorrelatedCPU = correlated && (frame.CPUMs is null ||
+                _RequiredCPUMetrics.Any(key => frame.CPUMs is null ||
+                    !frame.CPUMs.TryGetValue(key, out double? value) || value is null));
+            if (frame.FrameDurationMs is null || frame.GPUFrameMs is null || missingCorrelatedCPU)
             {
                 findings.Add($"Frame {frame.FrameId}: frame/GPU or correlated CPU timings are incomplete.");
                 missing = true;
             }
 
             if (frame.FrameDurationMs is <= 0 || !ValidMetric(frame.FrameDurationMs) ||
-                !ValidMetric(frame.GpuFrameMs) ||
-                (frame.CpuMs is not null && frame.CpuMs.Values.Any(value => !ValidMetric(value))))
+                !ValidMetric(frame.GPUFrameMs) ||
+                (frame.CPUMs is not null && frame.CPUMs.Values.Any(value => !ValidMetric(value))))
             {
                 findings.Add($"Frame {frame.FrameId}: non-finite or invalid timing.");
                 invalid = true;
@@ -273,8 +273,8 @@ public static class CaptureAnalyzer
 
         double[] budgets =
         [
-            budget.MaxCpuP95RegressionMs, budget.MaxCpuP99RegressionMs, budget.MaxCpuMaxRegressionMs,
-            budget.MaxGpuP95RegressionMs, budget.MaxGpuP99RegressionMs, budget.MaxGpuMaxRegressionMs,
+            budget.MaxCPUP95RegressionMs, budget.MaxCPUP99RegressionMs, budget.MaxCPUMaxRegressionMs,
+            budget.MaxGPUP95RegressionMs, budget.MaxGPUP99RegressionMs, budget.MaxGPUMaxRegressionMs,
         ];
         if (budgets.Any(value => !FiniteNonNegative(value)))
         {
@@ -351,9 +351,9 @@ public static class CaptureAnalyzer
                 MetricStatistics newStats = Statistics(newValues.Select(value => value!.Value));
                 stats[name] = new MetricComparison(oldStats, newStats);
                 bool gpu = metric == "gpuFrameMs";
-                if (newStats.P95 - oldStats.P95 > (gpu ? budget.MaxGpuP95RegressionMs : budget.MaxCpuP95RegressionMs) ||
-                    newStats.P99 - oldStats.P99 > (gpu ? budget.MaxGpuP99RegressionMs : budget.MaxCpuP99RegressionMs) ||
-                    newStats.Max - oldStats.Max > (gpu ? budget.MaxGpuMaxRegressionMs : budget.MaxCpuMaxRegressionMs))
+                if (newStats.P95 - oldStats.P95 > (gpu ? budget.MaxGPUP95RegressionMs : budget.MaxCPUP95RegressionMs) ||
+                    newStats.P99 - oldStats.P99 > (gpu ? budget.MaxGPUP99RegressionMs : budget.MaxCPUP99RegressionMs) ||
+                    newStats.Max - oldStats.Max > (gpu ? budget.MaxGPUMaxRegressionMs : budget.MaxCPUMaxRegressionMs))
                 {
                     findings.Add($"{name}: regression exceeds explicit p95/p99/max budget.");
                     regression = true;
@@ -952,8 +952,8 @@ public static class CaptureAnalyzer
 
     private static IEnumerable<string> MetricNames(IEnumerable<FrameSample> frames) =>
         new[] { "frameDurationMs", "gpuFrameMs" }
-            .Concat(_RequiredCpuMetrics.Select(name => $"cpu.{name}"))
-            .Concat(frames.SelectMany(frame => frame.CpuMs?.Keys.AsEnumerable() ?? [])
+            .Concat(_RequiredCPUMetrics.Select(name => $"cpu.{name}"))
+            .Concat(frames.SelectMany(frame => frame.CPUMs?.Keys.AsEnumerable() ?? [])
                 .Select(name => $"cpu.{name}"))
             .Distinct(StringComparer.Ordinal);
 
@@ -967,8 +967,8 @@ public static class CaptureAnalyzer
         return name switch
         {
             "frameDurationMs" => frame.FrameDurationMs,
-            "gpuFrameMs" => frame.GpuFrameMs,
-            _ => frame.CpuMs is not null && frame.CpuMs.TryGetValue(name[4..], out double? value) ? value : null,
+            "gpuFrameMs" => frame.GPUFrameMs,
+            _ => frame.CPUMs is not null && frame.CPUMs.TryGetValue(name[4..], out double? value) ? value : null,
         };
     }
 

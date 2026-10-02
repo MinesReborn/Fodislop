@@ -20,7 +20,7 @@ public struct CachedCellData
     public byte ReliefGroup;
     public CellDistortionType Distortion;
     public bool HasTileGroup;
-    public int TileGroupID;
+    public int TileGroupId;
     public Color32 MinimapColor; // was Color (16 bytes) — Color32 (4 bytes) sufficient for minimap
     public CellAnimationType Animation;
     public float AnimationSpeed;
@@ -38,7 +38,7 @@ public struct CellMetadata
     public byte ReliefGroup;
     public CellDistortionType Distortion;
     public bool HasTileGroup;
-    public int TileGroupID;
+    public int TileGroupId;
     public Color32 MinimapColor; // was Color (16 bytes) — Color32 (4 bytes) sufficient for minimap
     public CellAnimationType Animation;
     public float AnimationSpeed;

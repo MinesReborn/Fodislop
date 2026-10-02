@@ -7,7 +7,7 @@ namespace Kern.FrameHarness.Tests;
 public sealed class PostProcessWorkloadTests
 {
     [Test]
-    public void LogicalPixelsAndGpuThreadsAreDifferentForOddSizesAndFusedKernel()
+    public void LogicalPixelsAndGPUThreadsAreDifferentForOddSizesAndFusedKernel()
     {
         var work = new PostProcessWorkloadAccumulator();
         work.RecordDispatch(17, 9, 8, 8);
@@ -17,7 +17,7 @@ public sealed class PostProcessWorkloadTests
         Assert.That(snapshot.LogicalPixels, Is.EqualTo(306));
         Assert.That(snapshot.DispatchedThreads, Is.EqualTo(384 + 128));
         Assert.That(snapshot.TexturePayloadBytes, Is.EqualTo(1224));
-        Assert.That(snapshot.CpuRecordingMs, Is.GreaterThanOrEqualTo(0));
+        Assert.That(snapshot.CPURecordingMs, Is.GreaterThanOrEqualTo(0));
     }
 
     [Test]

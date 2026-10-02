@@ -13,7 +13,7 @@ public interface ILocalPlayer
 
     bool isActiveAndEnabled { get; }
 
-    uint BotID { get; }
+    uint BotId { get; }
 
     Vector2Int Position { get; }
 
@@ -50,7 +50,7 @@ public interface ILocalPlayer
 
     void ResetDirection();
 
-    void Initialize(uint botID);
+    void Initialize(uint botId);
 
     void SetGameplayVisible();
 

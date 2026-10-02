@@ -298,7 +298,7 @@ carrier construction, raster coverage, relief, AO, and crystal sampling on the
 same cell-local geometry convention.
 
 **AO stage contract (`TL-STAGE`):** `GeometryLightingSolver.RecordAmbientOcclusionField`
-records a full `DrawMesh` through `TerrainMeshManager.RenderLightingAmbientOcclusionField`
+records a `DrawMesh` through `TerrainMeshManager.RenderLightingAmbientOcclusionField`
 into one target using the dedicated `LightingAmbientOcclusionField` pass
 (`Terrain.shader`). Shared vertex decoding and field-atlas alpha sampling live
 in `TerrainLightingFieldCommon.hlsl`; AO owns only the occupancy fragment and
@@ -331,13 +331,26 @@ the perspective texture only below the computed ridge and exponentially fades
 the sky with altitude. The field is sized from the lighting cell grid and AO
 texture-dimension limit; there is no scratch target, compute kernel, dispatch,
 or mip generation. The target is
-cleared to transparent before the full mesh draw. `GeometryLightingSolver` owns
-the field; terrain geometry revision or lighting-region/resource change triggers
-its rebuild, and a stable frame reuses the published field. `LightingPresentation`
+cleared to transparent before a full rebuild. For committed journaled terrain
+regions with an unchanged field rect, resource layout and contributor revision,
+Lighting retains the attachment with explicit Load/Store, clears only the dirty
+support rectangle using `LightingFieldRectClear.shader`, and scissors the
+production AO draws to that rectangle. `ClearRenderTarget` is never used for
+partial clearing because Metal ignores scissor for attachment clears. The
+rectangle is the clipped union of changed world cells expanded by three cells
+(neighbour-dependent geometry plus displacement and contact support), mapped
+to bottom-left render-target pixels. Contributors receive the borrowed
+`LightingAmbientOcclusionContext.RasterRect` and must preserve existing contents.
+A dirty field before region activation, an unjournaled revision, contributor
+change, entering the mode, resource recreation or region movement requires a full
+rebuild. Activation's own `FieldDirty` does not disable regional updates.
+The Standard AO-only updater and full lighting coordinator use the same policy.
+`GeometryLightingSolver` owns the field; a stable frame reuses the published field. `LightingPresentation`
 publishes the field and world mapping. The
 visible terrain fragment in `Terrain.shader` samples mip zero at
 `TransformObjectToWorld(cell.positionOS)` and applies receiver floor/strength.
-Cost is one full field raster on rebuild, 4 bytes per AO texel, signed-distance
+Cost is one full or scissored field raster on rebuild, with one additional alpha-only
+clear triangle for regional updates, 4 bytes per AO texel, signed-distance
 contact falloff for physical field fragments, and one bilinear sample per
 receiving screen fragment; stable frames do not
 rasterize the field. Standard-preset rebuilds also write their dimensions and
@@ -347,6 +360,21 @@ The half-cell carrier expansion grows a regular cell's field footprint from
 one cell square to at most four cell squares on an invalidating rebuild; the
 `Kern.Terrain.RenderAmbientOcclusionField` marker exposes that draw. AO field
 storage remains four bytes per texel, with no additional texture or dispatch.
+A full rebuild additionally issues the same production regional-clear draw into
+one already-cleared pixel of the actual AO target before geometry. It costs
+three procedural vertices and one alpha write, adds no attachment or dispatch,
+and exercises this pipeline before any regional update can first need it.
+This matters when the recorded graphics-state collection predates the new clear
+shader: previously its first draw was deferred to digging. The shipped recorded
+collection now includes the observed clear state with no vertex streams, one
+color attachment, one sample and no depth attachment; the warmup contract test
+checks that the procedural state is present. The initial draw complements the
+recorded collection without synthesizing a pipeline descriptor.
+`Kern.Lighting.AmbientOcclusionField.Full` and `.Partial` expose the two recording
+paths; `PrimeClearPipeline` marks the full-rebuild initialization draw; `FrameEventLog` records rectangle dimensions, pixel area and full target
+size. Scissoring reduces fragment coverage; mesh vertex work and target
+load/store bandwidth remain. Runtime correctness and timing are pending:
+[regional AO evidence](evidence/ao-regional-update-2026-10-02.html).
 The surface pass preserves its existing hard physical occupancy; only terrain
 geometry currently supplies distance-based contact beyond its visible edge.
 

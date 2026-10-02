@@ -16,6 +16,35 @@ namespace Kern.Tests.Core;
 public sealed class ShaderWarmupContractTests
 {
     [Test]
+    public void RecordedAmbientOcclusionClearStates_HaveProceduralVertexInputs()
+    {
+        GraphicsStateCollection collection = Resources.Load<GraphicsStateCollection>(
+            ProjectRuntimeContracts.ResourcePaths.GraphicsStateCollection);
+        Shader shader = Resources.Load<Shader>("Shaders/Lighting/LightingFieldRectClear");
+        Assert.That(collection, Is.Not.Null);
+        Assert.That(shader, Is.Not.Null);
+        var variants = new List<GraphicsStateCollection.ShaderVariant>();
+        collection.GetVariants(variants);
+        GraphicsStateCollection.ShaderVariant[] recorded = variants
+            .Where(variant => variant.shader == shader &&
+                variant.passId.SubshaderIndex == 0 && variant.passId.PassIndex == 0)
+            .ToArray();
+        Assert.That(recorded, Is.Not.Empty, "Regional AO clear must be in the shipped warmup trace.");
+        var states = new List<GraphicsStateCollection.GraphicsState>();
+        foreach (GraphicsStateCollection.ShaderVariant variant in recorded)
+        {
+            states.Clear();
+            collection.GetGraphicsStatesForVariant(variant, states);
+            Assert.That(states, Is.Not.Empty);
+            foreach (GraphicsStateCollection.GraphicsState state in states)
+            {
+                Assert.That(state.vertexAttributes, Is.Empty,
+                    "Production clear uses SV_VertexID; a mesh vertex layout warms a different pipeline.");
+            }
+        }
+    }
+
+    [Test]
     public void RecordedWorldSurfaceStates_HaveLightingVertexInputs()
     {
         GraphicsStateCollection collection = Resources.Load<GraphicsStateCollection>(
@@ -106,7 +135,7 @@ public sealed class ShaderWarmupContractTests
     }
 #endif
 
-    private static readonly string[] _RequiredShaders =
+    private static readonly string[] s_requiredShaders =
     [
         ProjectRuntimeContracts.ShaderNames.Terrain,
         ProjectRuntimeContracts.ShaderNames.WorldSurface,
@@ -117,7 +146,7 @@ public sealed class ShaderWarmupContractTests
         ProjectRuntimeContracts.ShaderNames.MissionVirtualRing,
     ];
 
-    private static readonly string[] _RequiredLightingKernels =
+    private static readonly string[] s_requiredLightingKernels =
     [
         "SolveCascade",
         "ScrollRadianceAtlas",
@@ -134,9 +163,9 @@ public sealed class ShaderWarmupContractTests
     [Test]
     public void RequiredShaders_AreFoundAndSupported()
     {
-        for (int i = 0; i < _RequiredShaders.Length; i++)
+        for (int i = 0; i < s_requiredShaders.Length; i++)
         {
-            string shaderName = _RequiredShaders[i];
+            string shaderName = s_requiredShaders[i];
             Shader? shader = shaderName == ProjectRuntimeContracts.ShaderNames.MissionVirtualRing
                 ? Resources.Load<Shader>(ProjectRuntimeContracts.ResourcePaths.MissionVirtualRingShader)
                 : Shader.Find(shaderName);
@@ -151,9 +180,9 @@ public sealed class ShaderWarmupContractTests
         var compute = Resources.Load<ComputeShader>(ProjectRuntimeContracts.ResourcePaths.WorldLightingCompute);
         Assert.That(compute, Is.Not.Null, "WorldLighting.compute resource was not found.");
 
-        for (int i = 0; i < _RequiredLightingKernels.Length; i++)
+        for (int i = 0; i < s_requiredLightingKernels.Length; i++)
         {
-            string kernelName = _RequiredLightingKernels[i];
+            string kernelName = s_requiredLightingKernels[i];
             Assert.That(compute.HasKernel(kernelName), Is.True, $"Kernel '{kernelName}' missing in WorldLighting.compute.");
         }
     }

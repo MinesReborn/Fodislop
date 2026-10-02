@@ -39,7 +39,7 @@ public sealed class AnimationContainerDecoderTests
         int expectedFrameWidth,
         int expectedFrameHeight,
         int expectedFrameCount,
-        float expectedFps)
+        float expectedFPS)
     {
         bool success = AnimationContainerDecoder.TryGetAnimationConfig(
             filename,
@@ -54,7 +54,7 @@ public sealed class AnimationContainerDecoderTests
         Assert.That(frameWidth, Is.EqualTo(expectedFrameWidth));
         Assert.That(frameHeight, Is.EqualTo(expectedFrameHeight));
         Assert.That(frameCount, Is.EqualTo(expectedFrameCount));
-        Assert.That(fps, Is.EqualTo(expectedFps));
+        Assert.That(fps, Is.EqualTo(expectedFPS));
     }
 
     [Test]

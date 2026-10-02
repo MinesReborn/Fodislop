@@ -11,9 +11,9 @@ namespace Kern.Game;
 
 public sealed class RobotLighting
 {
-    private static int _nextDynamicLightID;
+    private static int s_nextDynamicLightId;
 
-    private readonly int _dynamicLightID;
+    private readonly int _dynamicLightId;
     private float _dynamicLightIntensity;
     private Color _dynamicLightColor;
     private bool _hasSubmittedDynamicLight;
@@ -26,7 +26,7 @@ public sealed class RobotLighting
 
     public RobotLighting()
     {
-        _dynamicLightID = Interlocked.Increment(ref _nextDynamicLightID);
+        _dynamicLightId = Interlocked.Increment(ref s_nextDynamicLightId);
         _dynamicLightIntensity = LightingConfigHolder.DynamicLightIntensity;
         _dynamicLightColor = LightingConfigHolder.DynamicLightColor;
     }
@@ -71,7 +71,7 @@ public sealed class RobotLighting
         {
             if (_hasSubmittedDynamicLight)
             {
-                lighting?.RemoveDynamicLight(_dynamicLightID);
+                lighting?.RemoveDynamicLight(_dynamicLightId);
             }
 
             _hasSubmittedDynamicLight = false;
@@ -98,7 +98,7 @@ public sealed class RobotLighting
         }
 
         lighting.SetDynamicLight(
-            _dynamicLightID,
+            _dynamicLightId,
             pos2D,
             _dynamicLightColor,
             _dynamicLightIntensity);
@@ -114,7 +114,7 @@ public sealed class RobotLighting
     {
         if (_hasSubmittedDynamicLight && lighting != null)
         {
-            lighting.RemoveDynamicLight(_dynamicLightID);
+            lighting.RemoveDynamicLight(_dynamicLightId);
             _hasSubmittedDynamicLight = false;
         }
     }

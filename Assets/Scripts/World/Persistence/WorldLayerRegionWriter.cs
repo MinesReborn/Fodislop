@@ -17,14 +17,14 @@ namespace Kern.Persistence;
 internal sealed class WorldLayerRegionWriter<T>
     where T : unmanaged
 {
-    private readonly ChunkLruCache<T> _cache;
+    private readonly ChunkLRUCache<T> _cache;
     private readonly WorldLayerChunkLoader<T> _loader;
     private readonly int _chunkSize;
     private readonly int _chunkArea;
     private readonly int _heightChunks;
 
     public WorldLayerRegionWriter(
-        ChunkLruCache<T> cache,
+        ChunkLRUCache<T> cache,
         WorldLayerChunkLoader<T> loader,
         int chunkSize,
         int chunkArea,
@@ -87,7 +87,7 @@ internal sealed class WorldLayerRegionWriter<T>
                 }
                 else
                 {
-                    chunk = _loader.GetOrCreateChunk(chunkIndex, touchLru: true);
+                    chunk = _loader.GetOrCreateChunk(chunkIndex, touchLRU: true);
                 }
 
                 bool chunkChanged = false;

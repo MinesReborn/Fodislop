@@ -35,14 +35,14 @@ internal sealed class RobotAura
 
     private const int AuraSortingOrder = 50;
 
-    private static readonly Color[] _WispTints =
+    private static readonly Color[] s_wispTints =
     [
         new(0.55f, 0.80f, 1.00f, 1f),
         new(0.76f, 0.62f, 1.00f, 1f),
         new(0.90f, 0.95f, 1.00f, 1f),
     ];
 
-    private static Sprite? _sharedSegmentSprite;
+    private static Sprite? s_sharedSegmentSprite;
 
     private readonly Transform _robotTransform;
     private readonly Wisp[] _wisps = new Wisp[WispCount];
@@ -63,7 +63,7 @@ internal sealed class RobotAura
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetForDomainReload()
     {
-        _sharedSegmentSprite = null;
+        s_sharedSegmentSprite = null;
     }
 
     public void SetWanted(bool wanted, WorldEntityBatchRenderer? batchRenderer, ISceneObjectFactory? sceneObjects)
@@ -260,7 +260,7 @@ internal sealed class RobotAura
                 RadiusScale = 1f + ((NextUnit(random) - 0.5f) * 2f * RadiusJitter),
                 PulseSpeed = 1.6f + (NextUnit(random) * 2.4f),
                 PulsePhase = NextUnit(random) * Mathf.PI * 2f,
-                Tint = _WispTints[i % _WispTints.Length],
+                Tint = s_wispTints[i % s_wispTints.Length],
             };
         }
     }
@@ -269,9 +269,9 @@ internal sealed class RobotAura
 
     private static Sprite EnsureSegmentSprite()
     {
-        if (_sharedSegmentSprite != null)
+        if (s_sharedSegmentSprite != null)
         {
-            return _sharedSegmentSprite;
+            return s_sharedSegmentSprite;
         }
 
         // Сглаживание размыло бы отрезок в пять пикселей, повтор по краям
@@ -299,13 +299,13 @@ internal sealed class RobotAura
 
         texture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
 
-        _sharedSegmentSprite = Sprite.Create(
+        s_sharedSegmentSprite = Sprite.Create(
             texture,
             new Rect(0f, 0f, SegmentLengthPixels, SegmentThicknessPixels),
             new Vector2(0.5f, 0.5f),
             RenderingConstants.PIXELS_PER_UNIT);
-        _sharedSegmentSprite.name = "RobotAuraWisp";
-        return _sharedSegmentSprite;
+        s_sharedSegmentSprite.name = "RobotAuraWisp";
+        return s_sharedSegmentSprite;
     }
 
     private struct Segment

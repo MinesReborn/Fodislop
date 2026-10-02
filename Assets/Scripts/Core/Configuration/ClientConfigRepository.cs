@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Kern.Core.Interfaces;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Kern.Core;
 
@@ -145,9 +146,12 @@ internal sealed class ClientConfigRepository
         }
     }
 
-    // Имя поля — только нынешнее. Старые имена не признаются: легаси запрещено.
+    // Explicit rename contracts must match the names accepted by JsonUtility.
+    // A genuinely missing field still fails current-schema validation.
     private static bool HasSerializedName(string json, FieldInfo field) =>
-        JsonHasKey(json, field.Name);
+        JsonHasKey(json, field.Name) ||
+        field.GetCustomAttributes<FormerlySerializedAsAttribute>()
+            .Any(attribute => JsonHasKey(json, attribute.oldName));
 
     private static bool JsonHasKey(string json, string key) =>
         Regex.IsMatch(

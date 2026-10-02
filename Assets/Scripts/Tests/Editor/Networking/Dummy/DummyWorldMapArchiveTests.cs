@@ -39,21 +39,21 @@ public sealed class DummyWorldMapArchiveTests
     {
         string archive = CreateArchive($"{World}_cells.mapb", ValidMap());
 
-        string map = DummyWorldMapArchive.ExtractIfStale(archive, _CacheDirectory, World, "v1");
+        string map = DummyWorldMapArchive.ExtractIfStale(archive, CacheDirectory, World, "v1");
 
         Assert.That(File.ReadAllBytes(map), Is.EqualTo(ValidMap()));
         Assert.That(DummyWorldMapArchive.IsCacheCurrent(map, "v1"), Is.True);
-        Assert.That(Directory.GetFiles(_CacheDirectory, "*.tmp"), Is.Empty);
+        Assert.That(Directory.GetFiles(CacheDirectory, "*.tmp"), Is.Empty);
     }
 
     [Test]
     public void SameStamp_KeepsExistingCache()
     {
         string archive = CreateArchive($"{World}_cells.mapb", ValidMap());
-        string map = DummyWorldMapArchive.ExtractIfStale(archive, _CacheDirectory, World, "v1");
+        string map = DummyWorldMapArchive.ExtractIfStale(archive, CacheDirectory, World, "v1");
         File.WriteAllBytes(map, Marker);
 
-        DummyWorldMapArchive.ExtractIfStale(archive, _CacheDirectory, World, "v1");
+        DummyWorldMapArchive.ExtractIfStale(archive, CacheDirectory, World, "v1");
 
         Assert.That(File.ReadAllBytes(map), Is.EqualTo(Marker));
     }
@@ -62,10 +62,10 @@ public sealed class DummyWorldMapArchiveTests
     public void ChangedStamp_ExtractsAgain()
     {
         string archive = CreateArchive($"{World}_cells.mapb", ValidMap());
-        string map = DummyWorldMapArchive.ExtractIfStale(archive, _CacheDirectory, World, "v1");
+        string map = DummyWorldMapArchive.ExtractIfStale(archive, CacheDirectory, World, "v1");
         File.WriteAllBytes(map, Marker);
 
-        DummyWorldMapArchive.ExtractIfStale(archive, _CacheDirectory, World, "v2");
+        DummyWorldMapArchive.ExtractIfStale(archive, CacheDirectory, World, "v2");
 
         Assert.That(File.ReadAllBytes(map), Is.EqualTo(ValidMap()));
         Assert.That(DummyWorldMapArchive.IsCacheCurrent(map, "v1"), Is.False);
@@ -76,11 +76,11 @@ public sealed class DummyWorldMapArchiveTests
     {
         // Сбой между заменой карты и записью отметки.
         string archive = CreateArchive($"{World}_cells.mapb", ValidMap());
-        string map = DummyWorldMapArchive.ExtractIfStale(archive, _CacheDirectory, World, "v1");
+        string map = DummyWorldMapArchive.ExtractIfStale(archive, CacheDirectory, World, "v1");
         File.Delete(map + ".stamp");
         File.WriteAllBytes(map, Marker);
 
-        DummyWorldMapArchive.ExtractIfStale(archive, _CacheDirectory, World, "v1");
+        DummyWorldMapArchive.ExtractIfStale(archive, CacheDirectory, World, "v1");
 
         Assert.That(File.ReadAllBytes(map), Is.EqualTo(ValidMap()));
     }
@@ -88,15 +88,15 @@ public sealed class DummyWorldMapArchiveTests
     [Test]
     public void AbandonedTempFiles_AreRemoved_FreshOnesKept()
     {
-        Directory.CreateDirectory(_CacheDirectory);
-        string abandoned = Path.Combine(_CacheDirectory, "abandoned.tmp");
-        string fresh = Path.Combine(_CacheDirectory, "fresh.tmp");
+        Directory.CreateDirectory(CacheDirectory);
+        string abandoned = Path.Combine(CacheDirectory, "abandoned.tmp");
+        string fresh = Path.Combine(CacheDirectory, "fresh.tmp");
         File.WriteAllBytes(abandoned, Marker);
         File.WriteAllBytes(fresh, Marker);
         File.SetLastWriteTimeUtc(abandoned, DateTime.UtcNow.AddHours(-2));
         string archive = CreateArchive($"{World}_cells.mapb", ValidMap());
 
-        DummyWorldMapArchive.ExtractIfStale(archive, _CacheDirectory, World, "v1");
+        DummyWorldMapArchive.ExtractIfStale(archive, CacheDirectory, World, "v1");
 
         Assert.That(File.Exists(abandoned), Is.False);
         Assert.That(File.Exists(fresh), Is.True);
@@ -108,10 +108,10 @@ public sealed class DummyWorldMapArchiveTests
         string archive = CreateArchive("unrelated.bin", ValidMap());
 
         Assert.Throws<InvalidDataException>(
-            () => DummyWorldMapArchive.ExtractIfStale(archive, _CacheDirectory, World, "v1"));
+            () => DummyWorldMapArchive.ExtractIfStale(archive, CacheDirectory, World, "v1"));
 
-        Assert.That(File.Exists(Path.Combine(_CacheDirectory, $"{World}_cells.mapb")), Is.False);
-        Assert.That(Directory.GetFiles(_CacheDirectory, "*.tmp"), Is.Empty);
+        Assert.That(File.Exists(Path.Combine(CacheDirectory, $"{World}_cells.mapb")), Is.False);
+        Assert.That(Directory.GetFiles(CacheDirectory, "*.tmp"), Is.Empty);
     }
 
     [Test]
@@ -121,7 +121,7 @@ public sealed class DummyWorldMapArchiveTests
         File.WriteAllBytes(archive, Marker);
 
         Assert.Throws<InvalidDataException>(
-            () => DummyWorldMapArchive.ExtractIfStale(archive, _CacheDirectory, World, "v1"));
+            () => DummyWorldMapArchive.ExtractIfStale(archive, CacheDirectory, World, "v1"));
     }
 
     [Test]
@@ -167,7 +167,7 @@ public sealed class DummyWorldMapArchiveTests
         throw new AssertionException("Preparation of a missing world must fail.");
     }
 
-    private string _CacheDirectory => Path.Combine(_root, "cache");
+    private string CacheDirectory => Path.Combine(_root, "cache");
 
     private static byte[] Marker => [1, 2, 3];
 
