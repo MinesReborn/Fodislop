@@ -67,6 +67,40 @@ public class MapStorage : IWorldDataStorage, IWorldPersistence, IRegionBatchStor
         ? Path.Combine(DataRoot, _worldCodeName + BackupMapSuffix)
         : throw new InvalidOperationException("[MapStorage] Map file path is not initialized");
 
+    public static async UniTask PrepareWorldCacheAsync(
+        string worldCodeName,
+        int widthChunks,
+        int heightChunks,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(worldCodeName))
+        {
+            throw new ArgumentException("World code name is required.", nameof(worldCodeName));
+        }
+
+        if (widthChunks <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(widthChunks));
+        }
+
+        if (heightChunks <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(heightChunks));
+        }
+
+        string safeWorldCodeName = MapStorageDiskWriter.SanitizeWorldCodeName(worldCodeName);
+        string mapPath = Path.Combine(Application.persistentDataPath, safeWorldCodeName + MapExtension);
+        string backupPath = Path.Combine(Application.persistentDataPath, safeWorldCodeName + BackupMapSuffix);
+        await MapStorageDiskWriter.PrepareWorldLayerFileAsync(
+            mapPath,
+            widthChunks,
+            heightChunks,
+            ProjectRuntimeContracts.World.ChunkSize,
+            backupPath,
+            cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+
     public bool IsReady => _isInitialized && _cellLayer != null;
     public bool HasDirtyChunks => _cellLayer?.HasDirtyChunks == true;
 

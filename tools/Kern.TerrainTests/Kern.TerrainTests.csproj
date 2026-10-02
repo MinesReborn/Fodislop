@@ -33,6 +33,9 @@
       <HintPath Condition="Exists('$(ScriptAssemblies)/MinesServer.Networking.dll')">$(ScriptAssemblies)/MinesServer.Networking.dll</HintPath>
       <HintPath Condition="!Exists('$(ScriptAssemblies)/MinesServer.Networking.dll')">../lib/MinesServer.Networking.dll</HintPath>
     </Reference>
+    <Reference Include="K4os.Compression.LZ4">
+      <HintPath>../../Assets/Plugins/K4os.Compression.LZ4.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>
@@ -94,6 +97,8 @@
     <Compile Include="$(Game)/UI/Map/Minimap/MinimapRefreshPolicy.cs" Link="Game/MinimapRefreshPolicy.cs" />
     <!-- Кодек чанков: чистый BCL, ни Unity, ни UniTask. -->
     <Compile Include="$(Game)/World/Persistence/WorldChunkRLECodec.cs" Link="Game/WorldChunkRLECodec.cs" />
+    <Compile Include="$(Game)/World/Persistence/WorldLayerFileHeader.cs" Link="Game/WorldLayerFileHeader.cs" />
+    <Compile Include="$(Game)/World/Persistence/WorldChunkV2Codec.cs" Link="Game/WorldChunkV2Codec.cs" />
 
     <!-- Тесты из Assets: те же, что гоняет Unity. -->
     <Compile Include="$(Game)/Tests/Editor/World/BackgroundFloodFill*.cs" LinkBase="Tests" />
@@ -113,5 +118,6 @@
     <!-- Тесты кодека чанков: те же файлы, что гоняет Unity, но проверяются
          здесь за секунды и без редактора. -->
     <Compile Include="$(Game)/Tests/Editor/World/Persistence/WorldChunkRleCodec*.cs" LinkBase="Tests/Persistence" />
+    <Compile Include="$(Game)/Tests/Editor/World/Persistence/WorldChunkV2CodecTests.cs" Link="Tests/Persistence/WorldChunkV2CodecTests.cs" />
   </ItemGroup>
 </Project>

@@ -62,7 +62,7 @@ public sealed class DisplaySettings
     // в рабочую картинку, а не в чёрный экран по кругу.
     [SettingUnbounded("Метка незавершённого переключения режима вывода.")]
     [SettingConsumer(SettingConsumerTarget.DisplayManager, "DisplayManager.SetHDREnabled / DisplayManager.ApplyInitialSettings")]
-    [FormerlySerializedAs("HDRSwitchPending")]
+    [FormerlySerializedAs("HdrSwitchPending")]
     public bool HDRSwitchPending;
 
     // −1 означает «без ограничения». Отрезком это не выражается.

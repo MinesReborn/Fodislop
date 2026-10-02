@@ -3,6 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Persistence;
@@ -50,13 +52,13 @@ internal static class MapStorageDiskWriter
             Directory.CreateDirectory(directory);
         }
 
-        RestoreBackupWhenPrimaryHeaderIsDamaged(
+        PrepareWorldLayerFile(
             path,
-            backupMapFilePath,
             widthChunks,
             heightChunks,
-            ProjectRuntimeContracts.World.ChunkSize);
-        CreateBackup(path, backupMapFilePath);
+            ProjectRuntimeContracts.World.ChunkSize,
+            backupMapFilePath);
+
         try
         {
             return new WorldLayer<CellType>(
@@ -76,6 +78,36 @@ internal static class MapStorageDiskWriter
         {
             throw new UnauthorizedAccessException($"[MapStorage] Access denied for map file '{path}': {authEx.Message}", authEx);
         }
+    }
+
+    internal static UniTask PrepareWorldLayerFileAsync(
+        string path,
+        int widthChunks,
+        int heightChunks,
+        int chunkSize,
+        string backupMapFilePath,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return UniTask.RunOnThreadPool(
+            () => PrepareWorldLayerFile(path, widthChunks, heightChunks, chunkSize, backupMapFilePath));
+    }
+
+    private static void PrepareWorldLayerFile(
+        string path,
+        int widthChunks,
+        int heightChunks,
+        int chunkSize,
+        string backupMapFilePath)
+    {
+        RestoreBackupWhenPrimaryHeaderIsDamaged(
+            path,
+            backupMapFilePath,
+            widthChunks,
+            heightChunks,
+            chunkSize);
+        CreateBackup(path, backupMapFilePath);
+        WorldLayer<CellType>.MigrateLegacyFileIfRequired(path, widthChunks, heightChunks, chunkSize);
     }
 
     private static void RestoreBackupWhenPrimaryHeaderIsDamaged(
@@ -101,6 +133,14 @@ internal static class MapStorageDiskWriter
         {
             // Version zero has an explicit migration path. Let that migration
             // preserve the source instead of replacing it from an older backup.
+            return;
+        }
+
+        if (primaryFormatVersion == WorldLayerFileHeader.LegacyRLEFormatVersion &&
+            HasRecoverableHeader(mapPath, widthChunks, heightChunks, chunkSize))
+        {
+            // A valid v1 header has an explicit payload converter. Keep its
+            // data as the migration source instead of replacing it with backup.
             return;
         }
 
@@ -193,7 +233,8 @@ internal static class MapStorageDiskWriter
             }
 
             long tableLength = (long)widthChunks * heightChunks * sizeof(long);
-            return formatVersion == WorldLayerFileHeader.CurrentFormatVersion &&
+            return (formatVersion == WorldLayerFileHeader.LegacyRLEFormatVersion ||
+                formatVersion == WorldLayerFileHeader.CurrentFormatVersion) &&
                 stream.Length >= WorldLayerFileHeader.HeaderSize + tableLength;
         }
         catch (IOException)

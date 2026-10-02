@@ -125,7 +125,7 @@ public class LocalizationService : ILocalizationService
 
         try
         {
-            var dict = ParseSimpleJsonDictionary(asset.text);
+            Dictionary<string, string> dict = LocalizationDictionaryJson.Parse(asset.text);
             foreach (var kv in dict)
             {
                 targetDict[kv.Key] = kv.Value;
@@ -137,63 +137,4 @@ public class LocalizationService : ILocalizationService
         }
     }
 
-    private static Dictionary<string, string> ParseSimpleJsonDictionary(string json)
-    {
-        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        // High performance token-based flat JSON parser for Unity compatibility
-        int index = 0;
-        while (index < json.Length)
-        {
-            int quoteKeyStart = json.IndexOf('"', index);
-            if (quoteKeyStart == -1)
-            {
-                break;
-            }
-
-            int quoteKeyEnd = json.IndexOf('"', quoteKeyStart + 1);
-            if (quoteKeyEnd == -1)
-            {
-                break;
-            }
-
-            string key = json.Substring(quoteKeyStart + 1, quoteKeyEnd - quoteKeyStart - 1);
-
-            int colon = json.IndexOf(':', quoteKeyEnd);
-            if (colon == -1)
-            {
-                break;
-            }
-
-            int quoteValStart = json.IndexOf('"', colon);
-            if (quoteValStart == -1)
-            {
-                break;
-            }
-
-            int quoteValEnd = quoteValStart + 1;
-            while (quoteValEnd < json.Length)
-            {
-                if (json[quoteValEnd] == '"' && json[quoteValEnd - 1] != '\\')
-                {
-                    break;
-                }
-
-                quoteValEnd++;
-            }
-
-            if (quoteValEnd >= json.Length)
-            {
-                break;
-            }
-
-            string val = json.Substring(quoteValStart + 1, quoteValEnd - quoteValStart - 1)
-                .Replace("\\\"", "\"")
-                .Replace("\\n", "\n");
-
-            result[key] = val;
-            index = quoteValEnd + 1;
-        }
-
-        return result;
-    }
 }

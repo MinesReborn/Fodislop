@@ -226,7 +226,12 @@ internal sealed class WorldLayerChunkLoader<T>
 
         try
         {
-            chunk = _file.TryLoad(chunkIndex, _chunkArea);
+            chunk = _file.TryLoad(chunkIndex, _chunkArea, out bool corrupted);
+            if (corrupted)
+            {
+                LogCorruptChunk(chunkIndex);
+            }
+
             if (chunk == null)
             {
                 // Sparse layers are expected while the server streams
@@ -287,13 +292,18 @@ internal sealed class WorldLayerChunkLoader<T>
     private async UniTask LoadChunkAsync(int chunkIndex)
     {
         T[]? chunk = null;
+        bool corrupted = false;
         Exception? failure = null;
         try
         {
             try
             {
-                chunk = await UniTask.RunOnThreadPool(
-                    () => _file.TryLoad(chunkIndex, _chunkArea));
+                (chunk, corrupted) = await UniTask.RunOnThreadPool(
+                    () =>
+                    {
+                        T[]? loadedChunk = _file.TryLoad(chunkIndex, _chunkArea, out bool wasCorrupted);
+                        return (loadedChunk, wasCorrupted);
+                    });
             }
             catch (IOException ioEx)
             {
@@ -335,6 +345,11 @@ internal sealed class WorldLayerChunkLoader<T>
                     chunkIndex,
                     $"[WorldLayer] Failed to load chunk {chunkIndex}: {failure.Message}");
                 return;
+            }
+
+            if (corrupted)
+            {
+                LogCorruptChunk(chunkIndex);
             }
 
             // A synchronous request may have filled this slot while the disk
@@ -393,5 +408,13 @@ internal sealed class WorldLayerChunkLoader<T>
             Debug.LogWarning(
                 "[WorldLayer] Further per-chunk disk failure warnings are suppressed for this session.");
         }
+    }
+
+    private void LogCorruptChunk(int chunkIndex)
+    {
+        LogChunkDiskFailure(
+            _loggedChunkLoadFailures,
+            chunkIndex,
+            $"[WorldLayer] Chunk {chunkIndex} is corrupt; loading it as an all-zero chunk.");
     }
 }

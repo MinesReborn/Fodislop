@@ -6,7 +6,7 @@ using System.IO;
 namespace Kern.Persistence;
 
 /// <summary>
-/// Файл слоя мира: заголовок, таблица смещений и RLE-чанки.
+/// Файл слоя мира: заголовок, таблица смещений и framed v2-чанки.
 /// </summary>
 ///
 /// У потока, читателя и таблицы смещений здесь ровно один хозяин. Замок взят
@@ -99,8 +99,9 @@ internal sealed class WorldLayerFile<T>
         }
     }
 
-    public T[]? TryLoad(int index, int chunkArea)
+    public T[]? TryLoad(int index, int chunkArea, out bool corrupted)
     {
+        corrupted = false;
         if (index < 0 || index >= _chunkOffsets.Length)
         {
             return null;
@@ -121,12 +122,21 @@ internal sealed class WorldLayerFile<T>
 
             _fileStream.Seek(offset, SeekOrigin.Begin);
             _reader ??= new BinaryReader(_fileStream, System.Text.Encoding.UTF8, leaveOpen: true);
-            return WorldChunkRLECodec.DecodeChunk<T>(_reader, chunkArea);
+            try
+            {
+                return WorldChunkV2Codec.DecodeChunk<T>(_reader, chunkArea);
+            }
+            catch (InvalidDataException)
+            {
+                corrupted = true;
+                return new T[chunkArea];
+            }
         }
     }
 
-    public bool VisitChunkRuns(int index, int chunkArea, Action<int, T, int> visitor)
+    public bool VisitChunkRuns(int index, int chunkArea, Action<int, T, int> visitor, out bool corrupted)
     {
+        corrupted = false;
         if (index < 0 || index >= _chunkOffsets.Length)
         {
             return false;
@@ -152,7 +162,16 @@ internal sealed class WorldLayerFile<T>
 
             _fileStream.Seek(offset, SeekOrigin.Begin);
             _reader ??= new BinaryReader(_fileStream, System.Text.Encoding.UTF8, leaveOpen: true);
-            WorldChunkRLECodec.VisitChunkRuns(_reader, chunkArea, index, visitor);
+            try
+            {
+                WorldChunkV2Codec.VisitChunkRuns(_reader, chunkArea, index, visitor);
+            }
+            catch (InvalidDataException)
+            {
+                corrupted = true;
+                visitor(index, default, chunkArea);
+            }
+
             return true;
         }
     }
@@ -214,7 +233,7 @@ internal sealed class WorldLayerFile<T>
             long newOffset = _fileStream.Position;
 
             using var writer = new BinaryWriter(_fileStream, System.Text.Encoding.UTF8, true);
-            WorldChunkRLECodec.EncodeChunk(writer, chunk, chunkArea);
+            WorldChunkV2Codec.EncodeChunk(writer, chunk, chunkArea);
 
             _chunkOffsets[index] = newOffset;
             WorldLayerFileHeader.WriteChunkOffset(_fileStream, index, newOffset);

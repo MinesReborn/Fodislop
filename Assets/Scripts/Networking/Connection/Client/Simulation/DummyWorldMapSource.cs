@@ -60,6 +60,10 @@ public sealed class DummyWorldMapSource : IDummyWorldMapSource
         try
         {
             string mapPath = await DummyWorldMapArchive.ResolveMapFileAsync(worldCodeName, CancellationToken.None);
+            await DummyWorldMapLoader.PrepareMapFileAsync(
+                worldCodeName,
+                mapPath,
+                CancellationToken.None);
             preparation.TrySetResult(mapPath);
         }
         catch (Exception exception)

@@ -30,6 +30,45 @@ public sealed class WorldLayer<T> : IWorldLayer<T>, IStoredChunkSource<T>
     private readonly WorldLayerChunkLoader<T> _loader;
     private readonly WorldLayerRegionWriter<T> _regionWriter;
     private readonly WorldLayerDirtyWriter<T> _dirtyWriter;
+    private readonly HashSet<int> _reportedCorruptChunks = new();
+    private readonly object _corruptChunkLogLock = new();
+
+    /// <summary>
+    /// Converts legacy layer files away from Unity's main thread before opening
+    /// them in a scene transition or other latency-sensitive path.
+    /// </summary>
+    public static async UniTask MigrateLegacyFileAsync(
+        string filePath,
+        int widthChunks,
+        int heightChunks,
+        int chunkSize = ProjectRuntimeContracts.World.ChunkSize,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            throw new ArgumentException("World layer file path is required.", nameof(filePath));
+        }
+
+        if (widthChunks <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(widthChunks));
+        }
+
+        if (heightChunks <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(heightChunks));
+        }
+
+        if (chunkSize <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(chunkSize));
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        await UniTask.RunOnThreadPool(
+            () => MigrateLegacyFileIfRequired(filePath, widthChunks, heightChunks, chunkSize));
+        cancellationToken.ThrowIfCancellationRequested();
+    }
 
     public WorldLayer(
         string filePath,
@@ -125,8 +164,37 @@ public sealed class WorldLayer<T> : IWorldLayer<T>, IStoredChunkSource<T>
             _cache, _loader, CHUNK_SIZE, chunkArea, HEIGHT_CHUNKS);
         _dirtyWriter = new WorldLayerDirtyWriter<T>(_cache, _file, chunkArea);
 
-        WorldLayerFileHeader.MigrateLegacyFormatIfRequired(_filePath, _widthChunks, _heightChunks, _chunkSize);
+        MigrateLegacyFileIfRequired(_filePath, _widthChunks, _heightChunks, _chunkSize);
+
         _file.Initialize();
+    }
+
+    internal static void MigrateLegacyFileIfRequired(
+        string filePath,
+        int widthChunks,
+        int heightChunks,
+        int chunkSize)
+    {
+        WorldLayerFileHeader.MigrateLegacyFormatIfRequired(
+            filePath,
+            widthChunks,
+            heightChunks,
+            chunkSize);
+        if (!File.Exists(filePath))
+        {
+            return;
+        }
+
+        int? fileVersion;
+        using (var versionStream = File.OpenRead(filePath))
+        {
+            fileVersion = WorldLayerFileHeader.TryReadFormatVersion(versionStream);
+        }
+
+        if (fileVersion == WorldLayerFileHeader.LegacyRLEFormatVersion)
+        {
+            WorldChunkV2Codec.MigrateV1ToV2<T>(filePath, widthChunks, heightChunks, chunkSize);
+        }
     }
 
     public int ChunkSize => _chunkSize;
@@ -339,10 +407,15 @@ public sealed class WorldLayer<T> : IWorldLayer<T>, IStoredChunkSource<T>
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         int chunkIndex = chunkIndices[i];
-                        _file.VisitChunkRuns(
+                        bool found = _file.VisitChunkRuns(
                             chunkIndex,
                             _chunkSize * _chunkSize,
-                            runVisitor);
+                            runVisitor,
+                            out bool corrupted);
+                        if (found && corrupted)
+                        {
+                            LogCorruptStoredChunk(chunkIndex);
+                        }
                     }
 
                     nextIndex = batchEndIndex;
@@ -350,6 +423,20 @@ public sealed class WorldLayer<T> : IWorldLayer<T>, IStoredChunkSource<T>
                 }
             },
             cancellationToken: cancellationToken);
+    }
+
+    private void LogCorruptStoredChunk(int chunkIndex)
+    {
+        lock (_corruptChunkLogLock)
+        {
+            if (!_reportedCorruptChunks.Add(chunkIndex))
+            {
+                return;
+            }
+        }
+
+        UnityEngine.Debug.LogWarning(
+            $"[WorldLayer] Chunk {chunkIndex} is corrupt; scanning it as an all-zero chunk.");
     }
 
     public void Flush(bool flushToDisk = false) => _dirtyWriter.Flush(flushToDisk);

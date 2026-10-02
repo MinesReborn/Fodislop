@@ -43,6 +43,7 @@ public sealed class ClientConfigRepositoryTests
                 ServerPort = 4242,
             },
         };
+        config.Display.HDRSwitchPending = true;
 
         repository.Save(config);
         ClientConfig loaded = repository.Load().Config;
@@ -50,6 +51,7 @@ public sealed class ClientConfigRepositoryTests
         Assert.That(loaded.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
         Assert.That(loaded.Connection.ServerHost, Is.EqualTo("example.test"));
         Assert.That(loaded.Connection.ServerPort, Is.EqualTo(4242));
+        Assert.That(loaded.Display.HDRSwitchPending, Is.True);
         Assert.That(File.Exists(_configPath + ".tmp"), Is.False);
     }
 
