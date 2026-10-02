@@ -1,7 +1,7 @@
 #nullable enable
 
 using Kern.Core.Interfaces;
-using Kern.Tools.Imgui;
+using Kern.Tools.ImGui;
 using UnityEngine.InputSystem;
 
 namespace Kern.UI;

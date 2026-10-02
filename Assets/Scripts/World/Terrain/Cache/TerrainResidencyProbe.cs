@@ -57,7 +57,7 @@ public static class TerrainResidencyProbe
 
         public int ProbeCalls { get; private set; }
 
-        public int LruTouches { get; private set; }
+        public int LRUTouches { get; private set; }
 
         public void BeginFrame(
             IWorldDataStorage? storage,
@@ -69,7 +69,7 @@ public static class TerrainResidencyProbe
             ChunkReads = 0;
             CacheHits = 0;
             ProbeCalls = 0;
-            LruTouches = 0;
+            LRUTouches = 0;
             _storage = storage;
             _mapData = mapData;
             _windowWidth = windowWidth;
@@ -89,26 +89,26 @@ public static class TerrainResidencyProbe
         public ChunkReadStatus ReadStatus(
             IWorldLayer<CellType> layer,
             int chunkIndex,
-            bool refreshLru = false)
+            bool refreshLRU = false)
         {
             if (_statuses.TryGetValue(chunkIndex, out ChunkReadStatus status))
             {
                 CacheHits++;
-                if (refreshLru && status == ChunkReadStatus.Available)
+                if (refreshLRU && status == ChunkReadStatus.Available)
                 {
-                    layer.ReadChunk(chunkIndex, touchLru: true);
-                    LruTouches++;
+                    layer.ReadChunk(chunkIndex, touchLRU: true);
+                    LRUTouches++;
                 }
 
                 return status;
             }
 
-            status = layer.ReadChunk(chunkIndex, touchLru: true).Status;
+            status = layer.ReadChunk(chunkIndex, touchLRU: true).Status;
             _statuses.Add(chunkIndex, status);
             ChunkReads++;
             if (status == ChunkReadStatus.Available)
             {
-                LruTouches++;
+                LRUTouches++;
             }
 
             return status;
@@ -176,7 +176,7 @@ public static class TerrainResidencyProbe
         int width,
         int height,
         FrameCache frameCache) =>
-        Probe(storage, mapData, null, gridPosition, width, height, frameCache, refreshLru: true);
+        Probe(storage, mapData, null, gridPosition, width, height, frameCache, refreshLRU: true);
 
     /// <summary>
     /// Есть ли в окне хоть один доступный чанк. Ничего не заказывает.
@@ -208,7 +208,7 @@ public static class TerrainResidencyProbe
         {
             for (int chunkY = geom.FirstChunkY; chunkY <= geom.LastChunkY; chunkY++)
             {
-                if (geom.ReadChunk(chunkX, chunkY, touchLru: true).Status == ChunkReadStatus.Available)
+                if (geom.ReadChunk(chunkX, chunkY, touchLRU: true).Status == ChunkReadStatus.Available)
                 {
                     return true;
                 }
@@ -226,7 +226,7 @@ public static class TerrainResidencyProbe
         int width,
         int height,
         FrameCache? frameCache = null,
-        bool refreshLru = false)
+        bool refreshLRU = false)
     {
         frameCache?.RecordProbe();
         WindowChunkGeom geom = WindowChunkGeom.Compute(storage, mapData, gridPosition, width, height);
@@ -249,8 +249,8 @@ public static class TerrainResidencyProbe
             {
                 int chunkIndex = chunkY + (chunkX * geom.Layer.HeightChunks);
                 ChunkReadStatus status = frameCache == null
-                    ? geom.ReadChunk(chunkX, chunkY, touchLru: true).Status
-                    : frameCache.ReadStatus(geom.Layer, chunkIndex, refreshLru);
+                    ? geom.ReadChunk(chunkX, chunkY, touchLRU: true).Status
+                    : frameCache.ReadStatus(geom.Layer, chunkIndex, refreshLRU);
                 resident &= status == ChunkReadStatus.Available;
                 missing |= status == ChunkReadStatus.Missing;
             }
@@ -356,7 +356,7 @@ public static class TerrainResidencyProbe
                 serverMaxY / chunkSize);
         }
 
-        public ChunkReadResult<CellType> ReadChunk(int chunkX, int chunkY, bool touchLru) =>
-            Layer!.ReadChunk(chunkY + (chunkX * Layer.HeightChunks), touchLru);
+        public ChunkReadResult<CellType> ReadChunk(int chunkX, int chunkY, bool touchLRU) =>
+            Layer!.ReadChunk(chunkY + (chunkX * Layer.HeightChunks), touchLRU);
     }
 }

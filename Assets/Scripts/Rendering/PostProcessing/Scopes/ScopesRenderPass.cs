@@ -4,12 +4,12 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
-using static Kern.Rendering.PostProcessing.Scopes.ScopeShaderConstants;
 
 namespace Kern.Rendering.PostProcessing.Scopes;
 
 internal sealed class ScopesRenderPass : ScriptableRenderPass2D
 {
+    private const string PassName = "ComputeScopesPass";
     private const float CaptureIntervalSeconds = 0.2f;
 
     private readonly ComputeShader _scopesCS;
@@ -22,19 +22,19 @@ internal sealed class ScopesRenderPass : ScriptableRenderPass2D
     private float _nextCaptureTime;
     private string? _failure;
 
-    private static bool _enabled;
-    private static ScopesSourceMode _sourceMode = ScopesSourceMode.After;
-    private static ScopeWaveformMode _waveformMode = ScopeWaveformMode.Overlay;
-    private static int _histogramMode;
-    private static float _vectorscopeScale = 1f;
-    private static bool _showSkinToneLine = true;
+    private static bool s_enabled;
+    private static ScopesSourceMode s_sourceMode = ScopesSourceMode.After;
+    private static ScopeWaveformMode s_waveformMode = ScopeWaveformMode.Overlay;
+    private static int s_histogramMode;
+    private static float s_vectorscopeScale = 1f;
+    private static bool s_showSkinToneLine = true;
 
     // Проход не резолвится контейнером — он принадлежит renderer asset.
-    // Снимки состояния в него ТОЛКАЮТ (SetColorGrade, Enabled), но
+    // Состояние в него ТОЛКАЮТ (Enabled, режимы), но
     // приборы надо ТЯНУТЬ: их считает GPU, а показывает интерфейс. Поэтому
     // живой проход публикует себя здесь. Это не синглтон-точка доступа к
     // логике: наружу видны только три текстуры, и записать сюда нельзя.
-    private static ScopesRenderPass? _live;
+    private static ScopesRenderPass? s_live;
 
     public ScopesRenderPass(ComputeShader scopesCS)
     {
@@ -45,116 +45,123 @@ internal sealed class ScopesRenderPass : ScriptableRenderPass2D
         _kernelHistogram = _scopesCS.FindKernel("HistogramResolve");
         _kernelWaveform = _scopesCS.FindKernel("WaveformResolve");
         _kernelVectorscope = _scopesCS.FindKernel("VectorscopeResolve");
-        _live = this;
+        s_live = this;
     }
 
-    public static RenderTexture? LiveHistogram => _live?._resources.HistogramTexture;
+    public static RenderTexture? LiveHistogram => s_live?._resources.HistogramTexture;
 
-    public static RenderTexture? LiveWaveform => _live?._resources.WaveformTexture;
+    public static RenderTexture? LiveWaveform => s_live?._resources.WaveformTexture;
 
-    public static RenderTexture? LiveVectorscope => _live?._resources.VectorscopeTexture;
+    public static RenderTexture? LiveVectorscope => s_live?._resources.VectorscopeTexture;
 
-    public static bool Available => _live != null && _live._failure == null;
+    public static bool Available => s_live != null && s_live._failure == null;
 
-    public static string? FailureMessage => _live?._failure;
+    public static string? FailureMessage => s_live?._failure;
 
-    public static uint ClippedBlackSamples => _live?._resources.ClippedBlackSamples ?? 0u;
+    public static uint ClippedBlackSamples => s_live?._resources.ClippedBlackSamples ?? 0u;
 
-    public static uint ClippedHighlightSamples => _live?._resources.ClippedHighlightSamples ?? 0u;
+    public static uint ClippedHighlightSamples => s_live?._resources.ClippedHighlightSamples ?? 0u;
+
+    public static float MedianExposureStops => s_live?._resources.MedianExposureStops ?? float.NaN;
+
+    public static float P95ExposureStops => s_live?._resources.P95ExposureStops ?? float.NaN;
 
     public static ScopesSourceMode SourceMode
     {
-        get => _sourceMode;
+        get => s_sourceMode;
         set
         {
-            _sourceMode = value is ScopesSourceMode.Before or ScopesSourceMode.After
+            s_sourceMode = value is ScopesSourceMode.Before or ScopesSourceMode.After
                 ? value
                 : ScopesSourceMode.After;
-            _live?.ApplyRenderPassEvent();
+            s_live?.ApplyRenderPassEvent();
         }
     }
 
     public static ScopeWaveformMode WaveformMode
     {
-        get => _waveformMode;
-        set => _waveformMode = value is ScopeWaveformMode.Overlay or ScopeWaveformMode.Parade or ScopeWaveformMode.Luma
+        get => s_waveformMode;
+        set => s_waveformMode = value is ScopeWaveformMode.Overlay or ScopeWaveformMode.Parade or ScopeWaveformMode.Luma
             ? value
             : ScopeWaveformMode.Overlay;
     }
 
     public static int HistogramMode
     {
-        get => _histogramMode;
-        set => _histogramMode = Mathf.Clamp(value, 0, 2);
+        get => s_histogramMode;
+        set => s_histogramMode = Mathf.Clamp(value, 0, 2);
     }
 
     public static float VectorscopeScale
     {
-        get => _vectorscopeScale;
-        set => _vectorscopeScale = Mathf.Clamp(value, 0.5f, 2f);
+        get => s_vectorscopeScale;
+        set => s_vectorscopeScale = Mathf.Clamp(value, 0.5f, 2f);
     }
 
     public static bool ShowSkinToneLine
     {
-        get => _showSkinToneLine;
-        set => _showSkinToneLine = value;
+        get => s_showSkinToneLine;
+        set => s_showSkinToneLine = value;
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetForPlaySession()
     {
-        _enabled = false;
-        _sourceMode = ScopesSourceMode.After;
-        _waveformMode = ScopeWaveformMode.Overlay;
-        _histogramMode = 0;
-        _vectorscopeScale = 1f;
-        _showSkinToneLine = true;
-        if (_live != null)
+        s_enabled = false;
+        s_sourceMode = ScopesSourceMode.After;
+        s_waveformMode = ScopeWaveformMode.Overlay;
+        s_histogramMode = 0;
+        s_vectorscopeScale = 1f;
+        s_showSkinToneLine = true;
+        if (s_live != null)
         {
-            _live._failure = null;
-            _live._nextCaptureTime = 0f;
-            _live._resources.Dispose();
+            s_live._failure = null;
+            s_live._nextCaptureTime = 0f;
+            s_live._resources.Dispose();
         }
 
-        _live = null;
+        s_live = null;
     }
 
     public static bool Enabled
     {
-        get => _enabled;
+        get => s_enabled;
         set
         {
-            if (_enabled == value)
+            if (s_enabled == value)
             {
                 return;
             }
 
-            _enabled = value;
-            if (value && _live != null)
+            s_enabled = value;
+            if (value && s_live != null)
             {
-                _live._failure = null;
-                _live._nextCaptureTime = 0f;
+                s_live._failure = null;
+                s_live._nextCaptureTime = 0f;
             }
-            else if (!value && _live != null)
+            else if (!value && s_live != null)
             {
-                _live._resources.Dispose();
+                s_live._resources.Dispose();
             }
         }
     }
 
     private void ApplyRenderPassEvent()
     {
-        renderPassEvent = _sourceMode == ScopesSourceMode.Before
+        // After samples Kern's DisplayFinal result. In HDR it is still linear
+        // absolute-nit color; URP's final PQ/scRGB encoding and the physical
+        // display are downstream, so this is a signal meter, not a photometer.
+        renderPassEvent = s_sourceMode == ScopesSourceMode.Before
             ? RenderPassEvent.BeforeRenderingPostProcessing
             : RenderPassEvent.AfterRenderingPostProcessing;
-        renderPassEvent2D = _sourceMode == ScopesSourceMode.Before
+        renderPassEvent2D = s_sourceMode == ScopesSourceMode.Before
             ? RenderPassEvent2D.BeforeRenderingPostProcessing
             : RenderPassEvent2D.AfterRenderingPostProcessing;
     }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
     {
-        if (!_enabled)
+        if (!s_enabled)
         {
             return;
         }
@@ -163,7 +170,7 @@ internal sealed class ScopesRenderPass : ScriptableRenderPass2D
         // SubsystemRegistration, а экземпляр renderer feature может
         // пережить вход в Play Mode. Возвращаем живую ссылку до чтения
         // текстур интерфейсом.
-        _live = this;
+        s_live = this;
         if (_failure != null)
         {
             return;
@@ -219,10 +226,10 @@ internal sealed class ScopesRenderPass : ScriptableRenderPass2D
         passData.KernelVectorscope = _kernelVectorscope;
         passData.Resources = _resources;
         passData.SourceTexture = activeColor;
-        passData.WaveformMode = (int)_waveformMode;
-        passData.HistogramMode = _histogramMode;
-        passData.VectorscopeScale = _vectorscopeScale;
-        passData.ShowSkinToneLine = _showSkinToneLine;
+        passData.WaveformMode = (int)s_waveformMode;
+        passData.HistogramMode = s_histogramMode;
+        passData.VectorscopeScale = s_vectorscopeScale;
+        passData.ShowSkinToneLine = s_showSkinToneLine;
         passData.HDROutput = cameraData.isHDROutputActive;
         passData.HDRGamut = passData.HDROutput ? cameraData.hdrDisplayColorGamut : ColorGamut.sRGB;
         TextureDesc sourceDescriptor = activeColor.GetDescriptor(renderGraph);
@@ -240,11 +247,23 @@ internal sealed class ScopesRenderPass : ScriptableRenderPass2D
         if (passData.HDROutput)
         {
             Tonemapping output = VolumeManager.instance.stack.GetComponent<Tonemapping>();
-            passData.SignalScale = 1f / Mathf.Max(1f, output.maxNits.value);
+            float maxNits = Mathf.Max(1f, output.maxNits.value);
+            float paperWhite = Mathf.Max(1f, output.paperWhite.value);
+            float postExposure = Mathf.Pow(2f, VolumeManager.instance.stack
+                .GetComponent<ColorAdjustments>().postExposure.value);
+            passData.SignalScale = s_sourceMode == ScopesSourceMode.Before
+                ? paperWhite * postExposure / maxNits
+                : 1f / maxNits;
+            passData.ExposureScale = s_sourceMode == ScopesSourceMode.Before
+                ? postExposure
+                : 1f / paperWhite;
         }
         else
         {
-            passData.SignalScale = 1f;
+            float postExposure = Mathf.Pow(2f, VolumeManager.instance.stack
+                .GetComponent<ColorAdjustments>().postExposure.value);
+            passData.SignalScale = s_sourceMode == ScopesSourceMode.Before ? postExposure : 1f;
+            passData.ExposureScale = passData.SignalScale;
         }
 
         builder.UseTexture(activeColor, AccessFlags.Read);
@@ -256,9 +275,9 @@ internal sealed class ScopesRenderPass : ScriptableRenderPass2D
 
     public void Dispose()
     {
-        if (ReferenceEquals(_live, this))
+        if (ReferenceEquals(s_live, this))
         {
-            _live = null;
+            s_live = null;
         }
 
         _resources.Dispose();

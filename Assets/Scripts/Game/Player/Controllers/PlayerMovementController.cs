@@ -29,7 +29,7 @@ namespace Kern.Player.Logic
         [SerializeField]
         private float _moveSpeed = ProjectRuntimeContracts.Movement.RobotMoveSpeed;
 
-        public uint BotID { get; private set; }
+        public uint BotId { get; private set; }
         public Vector2Int Position { get; private set; }
         public bool HasServerPosition { get; private set; }
         public bool IsGameplayVisible { get; private set; }
@@ -82,6 +82,7 @@ namespace Kern.Player.Logic
             _clickPath = path;
             _clickPathIndex = 0;
             OnPathChanged?.Invoke(_clickPath);
+            _clickPathRenderer?.EnsureView(_sceneObjects);
             _clickPathRenderer?.Show(_clickPath, 0, _mapDataProvider, transform.position.z);
             return true;
         }
@@ -136,6 +137,9 @@ namespace Kern.Player.Logic
 
         [Inject]
         private IRuntimeDebugSettings _debugSettings = null!;
+
+        [Inject]
+        private Kern.Core.Lifecycle.ISceneObjectFactory _sceneObjects = null!;
 
         public void InitializeEditorPreview(IWorldDataStorage storage, IMapDataProvider mapDataProvider)
         {
@@ -263,9 +267,9 @@ namespace Kern.Player.Logic
             _actionDispatcher?.DispatchHotkeys();
         }
 
-        public void Initialize(uint botID)
+        public void Initialize(uint botId)
         {
-            BotID = botID;
+            BotId = botId;
             HasServerPosition = false;
             IsGameplayVisible = false;
             _awaitingMoveConfirmation = false;
@@ -280,7 +284,7 @@ namespace Kern.Player.Logic
 
             if (_robot != null)
             {
-                _robot.Initialize(botID);
+                _robot.Initialize(botId);
             }
         }
 
@@ -326,6 +330,13 @@ namespace Kern.Player.Logic
             return PlayerMovementValidator.IsWithinWorldBounds(position, worldWidth, worldHeight);
         }
 
+        public void ResetServerPosition()
+        {
+            HasServerPosition = false;
+            Position = default;
+            _awaitingMoveConfirmation = false;
+        }
+
         public void UpdateServerPosition(Vector2Int position, bool teleport = false)
         {
             if (_mapDataProvider == null)
@@ -342,7 +353,19 @@ namespace Kern.Player.Logic
                     $"world height is {worldHeight}.");
             }
 
+            bool shouldSnap = !HasServerPosition ||
+                Mathf.Abs(Position.x - position.x) > 1 ||
+                Mathf.Abs(Position.y - position.y) > 1;
             Vector2Int oldPos = Position;
+            if (shouldSnap && HasServerPosition)
+            {
+                // Рывок робота (а за ним и камеры): сервер прислал клетку
+                // дальше соседней. Источник ищется по этой строке в логе.
+                Debug.LogWarning(
+                    $"[PlayerMovementController] Server moved the player {oldPos} -> {position} " +
+                    $"(frame {Time.frameCount}).");
+            }
+
             _awaitingMoveConfirmation = false;
             Position = position;
             HasServerPosition = true;
@@ -350,13 +373,20 @@ namespace Kern.Player.Logic
             transform.position = targetWorldPos;
             if (_robot is not null)
             {
-                _robot.TargetPosition = targetWorldPos;
-                if (teleport)
+                if (shouldSnap || teleport)
                 {
-                    // Телепорт: визуал робота (тело + сегменты-щупальца) снапится
-                    // в точку мгновенно, иначе Robot.Update тянет transform назад
-                    // к сглаженной позиции, и камера медленно "плывёт" за ним.
-                    _robot.SnapVisualToTarget();
+                    _robot.SnapTo(targetWorldPos);
+                    if (teleport)
+                    {
+                        // Телепорт: визуал робота (тело + сегменты-щупальца) снапится
+                        // в точку мгновенно, иначе Robot.Update тянет transform назад
+                        // к сглаженной позиции, и камера медленно "плывёт" за ним.
+                        _robot.SnapVisualToTarget();
+                    }
+                }
+                else
+                {
+                    _robot.TargetPosition = targetWorldPos;
                 }
             }
 
@@ -393,6 +423,12 @@ namespace Kern.Player.Logic
 
         public void ConfirmDigAction(ushort x, ushort y) =>
             _actionDispatcher?.ConfirmDigAction(x, y);
+
+        public bool TryGetDigDirection(ushort x, ushort y, out Direction direction)
+        {
+            direction = default;
+            return _actionDispatcher != null && _actionDispatcher.TryGetDigDirection(x, y, out direction);
+        }
 
         private void ApplyMovement()
         {
@@ -533,7 +569,7 @@ namespace Kern.Player.Logic
             }
             else if (_autoDig)
             {
-                _actionDispatcher?.NotifyDug(targetPosition);
+                _actionDispatcher?.NotifyDug(targetPosition, packetDirection);
                 _networkService?.Send(new ActionClientPacket(targetServerX, targetServerY, new BzPacket()));
                 _lastMoveTime = Time.time;
             }
@@ -655,7 +691,7 @@ namespace Kern.Player.Logic
                 // от тумблера автокопания.
                 _networkService?.Send(new ActionClientPacket(targetServerX, targetServerY, new BzPacket()));
                 _lastMoveTime = Time.time;
-                _actionDispatcher?.NotifyDug(targetPosition);
+                _actionDispatcher?.NotifyDug(targetPosition, packetDirection);
             }
         }
 

@@ -1588,10 +1588,6 @@
       <HintPath>Library/ScriptAssemblies/FMODUnity.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="unity.webp">
-      <HintPath>Library/ScriptAssemblies/unity.webp.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="UnityEditor.UI">
       <HintPath>Library/ScriptAssemblies/UnityEditor.UI.dll</HintPath>
       <Private>False</Private>

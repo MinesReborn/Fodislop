@@ -1,8 +1,9 @@
 #nullable enable
 
 using System.Collections.Generic;
+using Kern.Rendering;
 using Kern.Rendering.PostProcessing.Scopes;
-using Kern.Tools.Imgui;
+using Kern.Tools.ImGui;
 using UnityEngine;
 
 namespace Kern.Rendering.PostProcessing.Workbench;
@@ -17,8 +18,8 @@ internal sealed class GradingScopesWindow : ToolWindow
     private const float TwoColumnMinWidth = 700f;
     private const float ColumnGap = 8f;
 
-    private static readonly GUIContent _MeasureContent = new();
-    private static readonly GUILayoutOption[] ExpandWidth = [GUILayout.ExpandWidth(true)];
+    private static readonly GUIContent s_measureContent = new();
+    private static readonly GUILayoutOption[] s_expandWidth = [GUILayout.ExpandWidth(true)];
 
     private readonly Dictionary<string, float> _buttonWidths = [];
 
@@ -39,6 +40,7 @@ internal sealed class GradingScopesWindow : ToolWindow
     private double _clippedBlack = double.NaN;
     private double _clippedHighlight = double.NaN;
     private string _clippedLabel = string.Empty;
+    private readonly ScopesExposureReadout _exposureReadout = new();
 
     public GradingScopesWindow()
         : base("Приборы изображения", new Rect(738f, 16f, 446f, 720f))
@@ -116,19 +118,16 @@ internal sealed class GradingScopesWindow : ToolWindow
                 "красное — пересвет, синее — провал",
             PostProcessDebugView.Clipping =>
                 "красное — упёрлось в потолок, синее — село в пол",
-            PostProcessDebugView.HighlightClipping =>
-                "красное — clipped highlights, исходное изображение сохранено",
-            PostProcessDebugView.ShadowClipping =>
-                "синее — clipped shadows, исходное изображение сохранено",
             PostProcessDebugView.GamutWarning =>
                 "синий — ниже display gamut, магентовый — выше, белый — оба предупреждения",
             PostProcessDebugView.LumaOnly =>
                 "монохромная яркость финального graded output",
             PostProcessDebugView.SaturationOnly =>
                 "чёрный — нейтральный, белый — максимальная насыщенность",
-            PostProcessDebugView.QualifierMatte =>
-                "белое — выбранная qualifier-маска, чёрное — исключённые пиксели",
             PostProcessDebugView.RgbParade => "трети R|G|B монохромом",
+            PostProcessDebugView.Vignette => "маска виньетки: белое — без затемнения, чёрное — полное затемнение",
+            PostProcessDebugView.FilmGrain => "зерно с маской темноты: серое — нулевой вклад, светлое/тёмное — знак шума; амплитуда усилена для просмотра",
+            PostProcessDebugView.Bloom => "только вклад bloom на чёрном, через штатную экспозицию и tonemapping",
             _ => "кадр показывается без отладочной разметки",
         };
         GUILayout.Label(explanation, WrappedLabelStyle);
@@ -231,6 +230,7 @@ internal sealed class GradingScopesWindow : ToolWindow
         }
 
         GUILayout.Label(ClippedLabel(), MutedLabelStyle);
+        GUILayout.Label(ExposureLabel(), MutedLabelStyle);
         GUILayout.Space(4f);
 
         string waveformTitle = ScopesRenderPass.WaveformMode switch
@@ -323,7 +323,7 @@ internal sealed class GradingScopesWindow : ToolWindow
 
                     used += width;
                     bool selected = option.Value == current;
-                    if (GUILayout.Toggle(selected, option.Label, SegmentedButtonStyle, ExpandWidth) && !selected)
+                    if (GUILayout.Toggle(selected, option.Label, SegmentedButtonStyle, s_expandWidth) && !selected)
                     {
                         picked = option.Value;
                     }
@@ -342,8 +342,8 @@ internal sealed class GradingScopesWindow : ToolWindow
         if (!_buttonWidths.TryGetValue(label, out float width))
         {
             GUIStyle style = SegmentedButtonStyle;
-            _MeasureContent.text = label;
-            width = style.CalcSize(_MeasureContent).x + style.margin.horizontal;
+            s_measureContent.text = label;
+            width = style.CalcSize(s_measureContent).x + style.margin.horizontal;
             _buttonWidths[label] = width;
         }
 
@@ -404,6 +404,8 @@ internal sealed class GradingScopesWindow : ToolWindow
         return _clippedLabel;
     }
 
+    private string ExposureLabel() => _exposureReadout.GetLabel();
+
     private void ApplyPendingChanges()
     {
         if (_scopesEnabledRequested.HasValue)
@@ -430,7 +432,7 @@ internal sealed class GradingScopesWindow : ToolWindow
         {
             GUILayout.Label(title, ToolTheme.SectionLabel);
 
-            Rect rect = GUILayoutUtility.GetRect(width, height, ExpandWidth);
+            Rect rect = GUILayoutUtility.GetRect(width, height, s_expandWidth);
             if (Event.current.type != EventType.Repaint)
             {
                 return;

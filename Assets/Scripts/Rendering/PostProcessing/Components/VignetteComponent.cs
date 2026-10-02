@@ -27,6 +27,5 @@ namespace Kern.Rendering.PostProcessing
 
         public bool IsActive() => intensity.value > 0f;
         public bool IsTileCompatible() => true;
-#pragma warning restore SA1307
     }
 }

@@ -14,7 +14,7 @@ public static class BuildScript
     private const string ProductName = "Kern";
     private const string DevArg = "-kernDev";
 
-    private static string[] _EnabledScenes =>
+    private static string[] EnabledScenes =>
         EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
 
     [MenuItem("Kern/Build/macOS (Apple Silicon)")]
@@ -53,7 +53,7 @@ public static class BuildScript
     {
         BuildSceneOrder.Validate();
 
-        var scenes = _EnabledScenes;
+        var scenes = EnabledScenes;
         if (scenes.Length == 0)
         {
             Fail("No enabled scenes in EditorBuildSettings — nothing to build.");

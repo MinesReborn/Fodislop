@@ -12,24 +12,27 @@ internal static class NativeHarness
 {
     private static readonly string[] FunctionNames =
     [
-        "SegmentExtinction", "SegmentTransmission", "Max3", "OutputUv", "MaterialUv",
-        "MaterialPixel", "IsSolidOccupancy",
-        "SampleOccupancy", "PathLengthInCells", "SampleCellSolid", "CheckCellSolid",
+        "SegmentExtinction", "OpticalDepthTransmission", "SegmentTransmission", "Max3",
+        "MaterialPixel", "LightPxCenterToFieldPx", "LightPxToFieldTexel", "IsSolidOccupancy",
+        "TransportSolidTexel", "TransportSolidOccupancy", "NearSideTexel", "FarSideTexel", "CornerSealed",
+        "PathLengthInCells",
+        "CleanCellPrefixAt", "NonCleanCellCount", "CleanMediumTransmittance", "CellFirstTexel",
         "ClipSegmentToField", "EmissiveBoxExit", "CellOfTexel",
-        "BuildCellSolidMask", "BuildSurfaceAirCache", "CheckDiagonalStepOccluded", "DirtySegmentOverlap",
-        "CascadeEntryMayChange", "AbsorbedFraction", "CellEmissionWeight", "TraceLightSegment",
-        "TraceRadianceSegment", "GatherDynamicSource", "DynamicEmitterPoint", "WriteDynamicPolar", "TraceDynamicPolar",
-        "PolarOpticalDepth", "DynamicRadianceFromPolar", "SolveDynamicLighting", "ComposeDynamicLighting",
+        "BuildCellSolidMask", "BuildCleanCellRows", "BuildCleanCellColumns", "BuildSurfaceAirCache", "ReanchorPrefix", "DirtySegmentOverlap",
+        "CascadeEntryMayChange", "AbsorbedFraction", "CellEmissionWeight", "MediumEmissionWeight", "TraceLightSegmentLocal", "TraceLightSegment",
+        "TraceRadianceProbeSegment", "TraceRadianceSegment", "GatherDynamicSource", "DynamicEmitterPoint", "WriteDynamicPolar", "TraceDynamicPolar",
+        "PolarColumnDepth", "PolarTransmission", "DynamicRadianceFromPolar", "DynamicHorizonContains", "SolveDynamicLighting", "ComposeDynamicLighting",
         "PackRadiance", "UnpackRadiance", "PackInterval", "UnpackTransmittance", "SolveCascade",
-        "InterleavedGradientNoise", "SurfaceReflection",
+        "InterleavedGradientNoise", "SurfaceIncidentLighting",
     ];
 
     // Функции, без которых прогон transport ничего не проверяет. Список
     // намеренно короткий: это ядро переноса света, а не всё подряд.
     private static readonly string[] RequiredTransportFunctions =
     [
-        "TraceLightSegment", "TraceRadianceSegment", "CheckDiagonalStepOccluded",
-        "CheckCellSolid", "SegmentExtinction", "SegmentTransmission", "CellEmissionWeight",
+        "TraceLightSegment", "TraceRadianceSegment", "CornerSealed",
+        "TransportSolidTexel", "SegmentExtinction", "SegmentTransmission", "CellEmissionWeight",
+        "OpticalDepthTransmission", "MediumEmissionWeight",
     ];
 
     public static int RunTransport(string repositoryRoot)
@@ -60,7 +63,7 @@ internal static class NativeHarness
                 string entry = match.Groups[1].Value;
                 ProcessResult result = RunProcess(
                     executable,
-                    ["-D", "-V", "-S", "comp", "-e", entry, "-I", repositoryRoot, computePath, "-o", Path.Combine(temporaryDirectory, entry + ".spv")],
+                    ["-D", "-V", "-S", "comp", "-e", entry, "-I" + repositoryRoot, computePath, "-o", Path.Combine(temporaryDirectory, entry + ".spv")],
                     TimeSpan.FromSeconds(90));
                 if (result.ExitCode != 0)
                 {
@@ -152,7 +155,7 @@ internal static class NativeHarness
         {
             Match match = Regex.Match(
                 shader,
-                $"^(?:bool|float[234]?|uint[23]|int[234]?|void) {Regex.Escape(name)}\\(",
+                $"^(?:bool|float[234]?|uint[23]?|int[234]?|void) {Regex.Escape(name)}\\(",
                 RegexOptions.Multiline | RegexOptions.CultureInvariant);
             if (!match.Success)
             {
@@ -189,12 +192,14 @@ internal static class NativeHarness
         }
 
         string code = string.Join(Environment.NewLine, functions);
+        code = Regex.Replace(code, @"\batan2\(", "hlslAtan2(");
         code = Regex.Replace(code, @"\bout (float[234]?|bool) (\w+)", "$1& $2");
         code = Regex.Replace(code, @"\[(?:loop|unroll)\]", string.Empty);
         code = code.Replace(" : SV_DispatchThreadID", String.Empty, StringComparison.Ordinal);
         code = code.Replace("(uint2)_FieldSize", "__builtin_convertvector(_FieldSize, uint2)", StringComparison.Ordinal)
+            .Replace("(uint2)_LightSize", "__builtin_convertvector(_LightSize, uint2)", StringComparison.Ordinal)
             .Replace("(uint2)_CellGridSize", "__builtin_convertvector(_CellGridSize, uint2)", StringComparison.Ordinal);
-        return Regex.Replace(code, @"\b(float[234]|int[23]|uint[23])\(", "make_$1(");
+        return Regex.Replace(code, @"\b(float[234]|int[234]|uint[23])\(", "make_$1(");
     }
 
     private static int CompileAndRun(string source, string name, TimeSpan timeout)

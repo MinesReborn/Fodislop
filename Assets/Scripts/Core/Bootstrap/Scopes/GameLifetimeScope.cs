@@ -65,43 +65,6 @@ namespace Kern.Core
             {
                 _ownScene = gameObject.scene;
                 base.Awake();
-                // VContainer injects registered components lazily on first
-                // resolve. Nothing resolves the local player's Robot from the
-                // graph (RobotManager GetComponents it instead), so inject it
-                // explicitly now — before Robot.Start fires this same frame and
-                // dereferences its [Inject] fields (IAssetLoader etc.).
-                if (Container != null && _playerMovement != null)
-                {
-                    if (_playerMovement.TryGetComponent<Robot>(out Robot? playerRobot))
-                    {
-                        Container.Inject(playerRobot);
-                    }
-
-                    // The authored local player is published only by the editor
-                    // preview path today; at runtime nothing ever called
-                    // Publish(this), so ILocalPlayerState.Current stays null and
-                    // GameManager's world-readiness gate never converges. Publish
-                    // it here (after DI, before auth) so PlayerInfoProcessor can
-                    // initialize it from PlayerInfoPacket and GameManager can
-                    // finally release WorldReady.
-                    ILocalPlayerState localPlayer = Container.Resolve<ILocalPlayerState>();
-                    localPlayer.Publish(_playerMovement);
-                }
-
-                // SceneSetup не входит в контракт ManagerBinding, и контейнер сам
-                // его не внедряет. Без этого [Inject] ITextureStorageService пуст,
-                // TryStartSurfaceRendererSetup молча ничего не делает, текстуры
-                // поверхности не назначаются, и готовность мира вечно стоит на
-                // surface=false. SceneSetup.Update повторяет попытку, пока
-                // внедрение не придёт, так что порядок Start/Update не важен.
-                //
-                // Ищется под этим scope, а не по корням сцены: все объекты сцены
-                // лежат под composition root (ValidateSingleRoot).
-                SceneSetup? sceneSetup = GetComponentInChildren<SceneSetup>(includeInactive: true);
-                if (Container != null && sceneSetup != null)
-                {
-                    Container.Inject(sceneSetup);
-                }
             }
             catch (Exception exception)
             {
@@ -224,6 +187,15 @@ namespace Kern.Core
                 builder.RegisterComponent(playerInteraction);
             }
 
+            SceneSetup? sceneSetup = GetComponentInChildren<SceneSetup>(includeInactive: true);
+            if (sceneSetup == null)
+            {
+                throw new SceneContractException(
+                    "MainGame scene must contain an authored SceneSetup component.");
+            }
+
+            builder.RegisterComponent(sceneSetup);
+
             if (_playerMovement.TryGetComponent<PlayerInputHandler>(out PlayerInputHandler? playerInput))
             {
                 // Same rule as the interaction controller: the authored
@@ -267,7 +239,7 @@ namespace Kern.Core
 
             // Единственный фоновый отчёт о провисе кадра: живёт со сценой игры,
             // а не внутри компонента, который случайно тикает каждый кадр.
-            builder.RegisterEntryPoint<Kern.Tools.Imgui.Profiling.FrameStallMonitor>();
+            builder.RegisterEntryPoint<Kern.Tools.ImGui.Profiling.FrameStallMonitor>();
             builder.Register<GameInfrastructureStartup>(Lifetime.Singleton);
             builder.Register<GamePresentationStartup>(Lifetime.Singleton);
             builder.Register<GameStartupPipeline>(Lifetime.Singleton);

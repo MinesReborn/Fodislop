@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ru"><meta charset="utf-8"><title>Regional AO — evidence 2026-10-02</title>
+<style>body{max-width:1100px;margin:32px auto;padding:0 20px;font:16px/1.5 system-ui;color:#20242b}table{border-collapse:collapse;width:100%;margin:20px 0}td,th{border:1px solid #bac1cb;padding:10px;text-align:left}code,pre{background:#edf0f5;padding:3px}pre{white-space:pre-wrap}.pending{background:#fff0cb;padding:16px}h2{margin-top:30px}</style>
+<h1>Частичное обновление AO при копании</h1>
+<p class="pending">Статус: код и локальные проверки завершены; production GPU-проверка и измерения времени не выполнены. Изменение не проходит все обязательные merge gates TL-VERIFY / TL-PERF. Устранение фриза 60 мс не подтверждено.</p>
+<h2>TL-CHANGE / TL-OWN / TL-API: проблема и границы</h2>
+<p>Пользователь сообщил фриз до 60 мс при копании — это принятый факт. Код ранее очищал и растеризовал всё поле AO при изменении одной клетки. Для окна 192×128 клеток при 32 пикселях на клетку это 6144×4096, 25 165 824 пикселя и 96 MiB ARGB32. Это подтверждённый избыточный объём работы; его доля в 60 мс без GPU-capture не установлена. Material/emission, geometry caches и транспорт освещения по-прежнему могут перестраиваться.</p>
+<p>Lighting владеет областью обновления, attachment binding, очисткой, ресурсами и политикой инвалидации. Terrain получает нейтральный borrowed LightingAmbientOcclusionContext.RasterRect из Kern.Contracts и рисует существующим production AO pass. Новый init-only член сохраняет существующий positional конструктор; null означает полное поле. Контракт явно требует сохранения содержимого. Координаты: half-open пиксели render target, начало снизу слева; world rect — Unity world units. Вызов на основном потоке в фазе записи CommandBuffer; handles нельзя удерживать.</p>
+<h2>TL-LIFE: ресурсы</h2>
+<table><tr><th>Ресурс</th><th>Создание / владелец</th><th>Использование</th><th>Освобождение</th></tr>
+<tr><td>AO target ARGB32</td><td>LightingResourceManager; прежние размеры, формат и mip policy</td><td>Полная очистка либо Load/Store и частичная alpha-очистка</td><td>Прежний ReleaseFieldTextures / ReleaseResources</td></tr>
+<tr><td>LightingFieldRectClear material</td><td>LightingResourceManager; EnsureResources и EnsureAmbientOcclusionOnlyResources; обязательный supported shader, ошибка при отсутствии</td><td>Один alpha-only raster draw на непустую частичную область; новых текстур/буферов нет</td><td>ReleaseResources уничтожает материал и обнуляет ссылку</td></tr>
+<tr><td>RasterRect</td><td>Lighting вычисляет value per recording</td><td>Borrowed контекст, не хранится Terrain</td><td>Время одного вызова; состояние viewport/scissor восстанавливается после записи</td></tr></table>
+<h2>TL-REV: входы и инвалидация</h2>
+<table><tr><th>Вход</th><th>AO</th></tr>
+<tr><td>Полностью перенесённый журнал регионов; неизменные target/region/contributors, сохранённое валидное поле</td><td>Union регионов + halo 3 клетки, clip к полю, scale 32 px/cell; стирается и перерисовывается эта область</td></tr>
+<tr><td>FieldDirty до активации регионов; full reset; неполный журнал; изменение contributor revision</td><td>Полное обновление</td></tr>
+<tr><td>Смена региона, вход в режим, пересоздание ресурсов</td><td>Полное обновление</td></tr>
+<tr><td>Активация локальных регионов выставила FieldDirty</td><td>Не отменяет частичный проход; решение использует флаг до активации</td></tr>
+<tr><td>Неизменный кадр</td><td>Переиспользование опубликованного поля, без AO raster</td></tr></table>
+<p>Оба режима используют одну LightingAmbientOcclusionUpdatePolicy. Журнал и acknowledgement не менялись: успешное выполнение команд предшествует завершению инвалидации. Политика не меняет частоту обновления света, static/dynamic split или качество.</p>
+<h2>TL-STAGE / TL-DATA: проход</h2>
+<table><tr><th>Стадия</th><th>Вход</th><th>Выход / bounds</th><th>Наблюдение</th></tr>
+<tr><td>AO regional clear</td><td>Сохранённый attachment, RasterRect</td><td>Blend Off, ColorMask A, zero alpha; triangle в patch viewport; ClearRenderTarget не используется, поскольку Metal игнорирует scissor при очистке</td><td>AmbientOcclusionField.Partial</td></tr>
+<tr><td>AO geometry raster</td><td>Прежние mesh/material/atlas и explicit field projection</td><td>Полный viewport + scissor; прежний occupancy/contact alpha и Max blend, без изменения radiance/color math</td><td>Kern.Terrain.RenderAmbientOcclusionField</td></tr>
+<tr><td>AO full rebuild</td><td>Прежние production contributions</td><td>DontCare / Store, прозрачная полная очистка, полная область</td><td>AmbientOcclusionField.Full</td></tr></table>
+<p>Halo 3: зависимости соседних клеток (1) + displacement &lt; 0.5 + AO support 0.75, округление вверх. Политика включает старую геометрию, которую необходимо стереть. Клип выполняется в world-cell пространстве до перевода в bottom-left raster coordinates. Shader sampling/readback orientation продолжает принадлежать LightingFieldOrientation.</p>
+<h2>TL-PERF: расчёт работы и ограничения</h2>
+<p>Для единственной записи 1×1 вдали от края область 7×7 клеток = 224×224 = 50 176 пикселей. Это граница покрытия фрагментов, а не измеренный выигрыш GPU: mesh vertex work сохраняется; Load/Store может требовать bandwidth всего target, особенно на tile GPU. Журнал может содержать более широкие регионы. Худший случай union покрывает всё поле плюс один clear draw. Стабильный кадр не добавляет AO draw. Новая память: один Material, ноль textures/buffers. Размер и формат AO не уменьшались.</p>
+<p>CPU marker Kern.Lighting.AmbientOcclusion.Record.CPU; GPU markers Kern.Lighting.AmbientOcclusionField.Full / .Partial; FrameEventLog записывает размеры области, число пикселей и размеры поля. Существующие field rebuild reasons и счётчики сохранены.</p>
+<p>Baseline runtime: пользовательские 60 мс при копании. После: не измерено. Для performance gate нужны одинаковые сцена/input/resolution/preset до и после: stable frame и одиночное копание, frame-local CPU/GPU stages и pixel coverage. Acceptance: частичный результат совпадает с полным и ни один texel вне области не меняется; уменьшение времени invalidating frame должно превышать разброс повторных замеров при отсутствии роста stable-frame cost. Числовую цель ускорения без baseline capture не заявляем.</p>
+<h2>Продолжение: зарегистрирован провис 274,9 мс</h2>
+<p>В Logs/Editor.log:10477 перед сеансом прогрето 194 состояния; первый Bz при копании и частичное AO предшествуют провису 274,9 мс (10582–10587). После него в журнале идут ещё 14 Bz подряд без повторения этого конкретного отчёта. В 10694 сохранено 195 состояний. В текущей записанной коллекции новое состояние — Hidden/Kern/LightingFieldRectClear, GUID 23cae0a6a7b414e7fb16c48d891463dc, pass 0/0, без vertex streams, один attachment, один sample, без depth. Коллекция не изменялась агентом: эти данные записал пользовательский сеанс.</p>
+<p>Подтверждённый дефект добавленного пути: shader загружался при создании ресурсов, но его первый draw выполнялся только при первой частичной инвалидации. Resources.Load и создание Material не создают готовый graphics pipeline. Исправление выполняет тот же production clear draw в viewport 1×1 настоящего AO attachment при каждом полном построении, перед геометрией. Пиксель уже очищен, поэтому результат AO не меняется. Полное построение предшествует любому частичному. Дополнительная стоимость: 1 draw, 3 вершины, 1 alpha-write на full rebuild; ноль новых attachments/dispatches. На partial frame эта поправка не добавляет работы.</p>
+<p>C# Kern.Contracts, Kern.World, Kern.Tests.Editor и Kern.Tests.PlayMode после поправки компилируются (exit 0, без управления Unity; существующие CS1701 в зависимостях Contracts/PlayMode остаются). ArchitectureLinter --source-only: exit 0, 37 repository violations; обязательные boundary scans: пусто. Новый ShaderWarmupContractTests.RecordedAmbientOcclusionClearStates_HaveProceduralVertexInputs проверяет наличие production pass в привезённой трассе и отсутствие mesh vertex inputs. Load/Store регионального обновления всё ещё могут переносить всё поле: для текущего 4096×4096 ARGB32 это 64 MiB attachment, потенциально 64 MiB load + 64 MiB store, а не только 50 176 texels. Scissor не отменяет эту стоимость. Точная доля построения pipeline и attachment bandwidth в 274,9 мс не измерена: имеющийся отчёт показывает PlayerLoop 273 мс, а не время компилятора. Поэтому причинная интерпретация cold pipeline остаётся сильной гипотезой на основании добавленного first-use и трассы, а не замером всей задержки.</p>
+<p class="pending">После этой дополнительной поправки пользовательский runtime не запускался; исчезновение провиса 274,9 мс и первоначальных 60 мс не подтверждено. Более поздние отчёты 95,3 / 37,7 / 125,0 мс также не объявляются решёнными этим изменением.</p>
+<h2>TL-VERIFY: выполнено</h2>
+<pre>dotnet test tools/Kern.WorldLightingExchangeTests/Kern.WorldLightingExchangeTests.csproj --no-restore
+Passed: 48; Failed: 0; Skipped: 0.
+Negative origin, field edges, separated edits, outside support, invalid rectangles,
+activation FieldDirty, full reset/resource/region/contributor/revision conditions, stable frame.
+
+dotnet csc.dll @temporary-response-file
+Production Kern.Contracts and Kern.World: compile exit 0.
+Compiler response files copied from Library/Bee/artifacts/200b0aE.dag;
+output/refout and dependent references redirected into disposable temporary folder.
+Contracts compile reports CS1701 for existing netstandard/System.Collections.Immutable references.
+New Editor and PlayMode test sources separately compile exit 0 against rebuilt references.
+Whole Editor test compilation previously failed in SurfaceRendererDecompositionContractTests.cs.
+The reported missing namespace was fixed by adding using Kern.World; whole Editor compilation then passed.
+
+dotnet run --project tools/Kern.ArchitectureLinter -- --source-only --project-root .
+Exit 0; repository warnings remain; not equivalent to GPU validation.
+
+git diff --check
+Exit 0.</pre>
+<h2>TL-API: mandatory dependency scans</h2>
+<pre>rg -n '\b(LightingEngine|LightingComposition|LightingUpdateCoordinator|LightingFrameExecutor|GeometryLightingSolver|StaticLightingSolver|DynamicLightingSolver|IndirectLightingSolver|LightingGeometryRegistry|LightingResourceManager|LightingTexturePool|LightingPresentation|LightingRuntimeState|LightingInvalidationFlags)\b' Assets/Scripts/World/Terrain --glob '*.cs'
+Output: empty; exit 1 (no matches).
+
+rg -n '\b(TerrainRenderer|TerrainViewportCalculator|TerrainCellCache|TerrainCellBuilder|TerrainCellDataTextures|TerrainMeshManager|TerrainMaterialManager|TerrainLook)\b|Kern\.World\.Terrain' Assets/Scripts/World/Lighting --glob '*.cs'
+Output: empty; exit 1 (no matches).</pre>
+<p>Changed calls reference only Kern.Contracts; no new concrete cross-domain references, service lookup, reflection or event indirection. Existing exchange migration remains separate; no forwarding facade introduced. Concurrent working-tree changes are outside this AO change.</p>
+<h2 class="pending">Обязательные проверки, которые не выполнены</h2>
+<p>Авторизован только анализ кода и существующих логов; Unity не запускалась и не управлялась. Новый LightingAmbientOcclusionRasterPlayModeTests авторизован как исходный код, но не выполнен: настоящий World Surface AO pass, реальные mesh/UV/material keyword/texture, production GeometryLightingSolver, удаление верхней клетки, сохранение нижней и сравнение partial с независимым полным redraw. Это проверка production clear/surface raster, а не end-to-end Terrain digging.</p>
+<p>Для полного production gate остаются shader compilation/runtime, реальное копание Terrain в Standard и full-lighting режимах, границы поля и отрицательные координаты, old/new contour support и сравнение AO readback с полным проходом, а также GPU before/after capture. Эти результаты pending; локальные CPU тесты не заменяют их. Изменение не объявляется завершённым runtime/FPS исправлением.</p>
+</html>

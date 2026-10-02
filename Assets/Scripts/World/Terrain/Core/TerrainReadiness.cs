@@ -10,7 +10,7 @@ namespace Kern.World.Terrain
     {
         public static bool IsReadyForGameplay(TerrainWindow window, ITextureService textureService) =>
             window.IsInitialized &&
-            window.CellIDMesh != null &&
+            window.CellIdMesh != null &&
             window.CellsCommitted &&
             window.Driver.Presentation.HasMaterials &&
             window.PendingTextureCellTypes.Count == 0 &&
@@ -29,7 +29,7 @@ namespace Kern.World.Terrain
             Kern.World.Streaming.WorldViewTransition transition)
         {
             bool ready =
-                !window.HasCpuBuildInFlight &&
+                !window.HasCPUBuildInFlight &&
                 !window.NeedsRefresh &&
                 window.PendingTextureCellTypes.Count == 0 &&
                 !window.HasUnpublishedTextureRefresh &&

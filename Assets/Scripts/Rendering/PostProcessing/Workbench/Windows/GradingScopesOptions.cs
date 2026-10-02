@@ -16,13 +16,13 @@ internal static class GradingScopesOptions
         new("обычный", (int)PostProcessDebugView.None),
         new("ложный цвет", (int)PostProcessDebugView.FalseColor),
         new("отсечка", (int)PostProcessDebugView.Clipping),
-        new("highlights", (int)PostProcessDebugView.HighlightClipping),
-        new("shadows", (int)PostProcessDebugView.ShadowClipping),
         new("gamut warning", (int)PostProcessDebugView.GamutWarning),
         new("luma", (int)PostProcessDebugView.LumaOnly),
         new("sat", (int)PostProcessDebugView.SaturationOnly),
-        new("matte", (int)PostProcessDebugView.QualifierMatte),
         new("RGB", (int)PostProcessDebugView.RgbParade),
+        new("виньетка", (int)PostProcessDebugView.Vignette),
+        new("FilmGrain", (int)PostProcessDebugView.FilmGrain),
+        new("bloom", (int)PostProcessDebugView.Bloom),
     ];
 
     internal static readonly Option[] CompareOptions =
@@ -36,8 +36,8 @@ internal static class GradingScopesOptions
 
     internal static readonly Option[] SourceModeOptions =
     [
-        new("После", (int)ScopesSourceMode.After),
-        new("До", (int)ScopesSourceMode.Before),
+        new("Выходной сигнал", (int)ScopesSourceMode.After),
+        new("Сцена до тонмаппинга", (int)ScopesSourceMode.Before),
     ];
 
     internal static readonly Option[] WaveformOptions =

@@ -13,13 +13,13 @@ public class CanvasPacketBuilder : PacketUIBuilderBase<CanvasPacket>
     {
         var element = new VisualElement();
         element.AddToClassList("rel");
-        string? height = AttachedProperties.Find(packet, "PacketUI.CanvasHeight");
-        if (height != null)
+        const string heightKey = "PacketUI.CanvasHeight";
+        if (AttachedProperties.Has(packet, heightKey))
         {
-            if (!float.TryParse(height, NumberStyles.Integer, CultureInfo.InvariantCulture, out float parsed) ||
-                parsed <= 0f)
+            if (!AttachedProperties.TryGetFloat(packet, heightKey, out float parsed) || parsed <= 0f)
             {
-                throw new InvalidOperationException($"[PacketUI] Invalid canvas height '{height}'.");
+                string raw = AttachedProperties.Find(packet, heightKey) ?? string.Empty;
+                throw new InvalidOperationException($"[PacketUI] Invalid canvas height '{raw}'.");
             }
 
             element.style.height = parsed;

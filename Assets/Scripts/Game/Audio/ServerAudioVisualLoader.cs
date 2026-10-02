@@ -51,10 +51,7 @@ internal sealed class ServerAudioVisualLoader
             return default;
         }
 
-        AnimationContainerDecoder.ContainerType containerType =
-            AnimationContainerDecoder.DetectType(bytes);
-        if (containerType is AnimationContainerDecoder.ContainerType.GIF or
-            AnimationContainerDecoder.ContainerType.WebP)
+        try
         {
             AnimatedSpriteData animData = await _assetLoader.GetAnimatedSpritesAsync(filename, token);
             if (token.IsCancellationRequested)
@@ -70,6 +67,14 @@ internal sealed class ServerAudioVisualLoader
                     FrameDuration = animData.FrameDuration,
                 };
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            // Fall through to static texture or Effekseer payload.
         }
 
         try

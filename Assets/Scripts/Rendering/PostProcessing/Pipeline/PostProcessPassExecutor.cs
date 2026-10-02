@@ -1,6 +1,9 @@
 #nullable enable
 
 using UnityEngine;
+using System.Diagnostics;
+using Unity.Profiling;
+using Unity.Profiling.LowLevel;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using static Kern.Rendering.PostProcessing.PostProcessShaderConstants;
@@ -9,16 +12,18 @@ namespace Kern.Rendering.PostProcessing;
 
 internal static class PostProcessPassExecutor
 {
-    private static Texture2D? _identityLut1D;
-    private static Texture3D? _identityLut3D;
+    private static readonly ProfilerMarker s_displayMarker = new(ProfilerCategory.Render, "Kern.PostProcess.DisplayFinal", MarkerFlags.SampleGPU);
+    private static Texture3D? s_identityLUT3D;
 
     // LocalKeyword ищет слово в шейдере по имени; кэшируем вместе со ссылкой
     // на сам шейдер, чтобы не искать его дважды за кадр.
-    private static ComputeShader? _keywordShader;
-    private static LocalKeyword _diagnosticsKeyword;
+    private static ComputeShader? s_keywordShader;
+    private static LocalKeyword s_diagnosticsKeyword;
 
     public static void Render(PostProcessPassData data, UnsafeGraphContext context)
     {
+        long startedAt = Stopwatch.GetTimestamp();
+        var workload = new PostProcessWorkloadAccumulator();
         HDROutputUtils.ConfigureHDROutput(data.PostProcessCS, data.HDRGamut,
             data.HDROutput ? HDROutputUtils.Operation.ColorConversion : HDROutputUtils.Operation.None);
         var cmd = CommandBufferHelpers.GetNativeCommandBuffer(context.cmd);
@@ -26,54 +31,23 @@ internal static class PostProcessPassExecutor
         int height = data.Height;
 
         SetDiagnosticsKeyword(data, cmd);
+        // DisplayFinal uses the dimensions of its input world-grid texture.
+        cmd.SetComputeVectorParam(data.PostProcessCS, ScreenSizeId, new Vector4(width, height, 1f / width, 1f / height));
 
-        if (data.BloomActive)
+        BindDisplayParameters(data, cmd, context);
+        if (data.WorldGridRect.z > 0 && PostProcessRuntimeState.DiagnosticWorldImage != null &&
+            PostProcessRuntimeState.DiagnosticOffscreenCamera != null &&
+            data.CameraId == PostProcessRuntimeState.DiagnosticOffscreenCamera.GetEntityId())
         {
-            ExecuteBloom(data, cmd, width, height);
+            RTHandle source = data.ColorTexture;
+            PostProcessRuntimeState.DiagnosticWorldImage(cmd, source.rt, data.WorldGridRect);
         }
-        else if (!data.IsDisplayPass)
-        {
-            cmd.SetComputeFloatParam(data.PostProcessCS, BloomIntensityID, 0f);
-            cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelComposite, BloomTexID, Texture2D.blackTexture);
-        }
-
-        // Один раз на проход. Блум оставляет здесь размер своего последнего
-        // уровня, поэтому композиту размер кадра ставится после него, а не до.
-        cmd.SetComputeVectorParam(data.PostProcessCS, ScreenSizeID, new Vector4(width, height, 1f / width, 1f / height));
-
-        BindSharedParameters(data, cmd);
-        if (data.IsDisplayPass)
-        {
-            BindDisplayParameters(data, cmd);
-        }
-        else
-        {
-            BindCreativeParameters(data, cmd);
-        }
-
-        if (data.KernelBakeGradeLut >= 0 && data.BakedGradeLut != null)
-        {
-            if (data.GradeLutCache == null || !data.GradeLutCache.Matches(data))
-            {
-                // Ключ сохраняется при исполнении прохода после записи
-                // dispatch, а не при построении потенциально неисполненного графа.
-                cmd.BeginSample("Kern.PostProcess.BakeGradeLut");
-                int groups = Mathf.CeilToInt(PostProcessRenderPass.BakedGradeLutSize / 4f);
-                cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelBakeGradeLut, BakedGradeLutID, data.BakedGradeLut);
-                cmd.DispatchCompute(data.PostProcessCS, data.KernelBakeGradeLut, groups, groups, groups);
-                cmd.EndSample("Kern.PostProcess.BakeGradeLut");
-                data.GradeLutCache?.Store(data);
-            }
-
-            // Привязка нужна и в кадрах, использующих уже готовую таблицу.
-            cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelComposite, BakedGradeLutTexID, data.BakedGradeLut);
-        }
-
-        cmd.BeginSample("Kern.PostProcess.Composite");
-        cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelComposite, InputTexID, data.ColorTexture);
-        cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelComposite, OutputTexID, data.IntermediateTexture);
-        cmd.DispatchCompute(data.PostProcessCS, data.KernelComposite, Mathf.CeilToInt(width / 8f), Mathf.CeilToInt(height / 8f), 1);
-        cmd.EndSample("Kern.PostProcess.Composite");
+        cmd.BeginSample(s_displayMarker);
+        cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelComposite, InputTexId, data.ColorTexture);
+        cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelComposite, OutputTexId, data.IntermediateTexture);
+        cmd.DispatchCompute(data.PostProcessCS, data.KernelComposite, (width + 7) / 8, (height + 7) / 8, 1);
+        workload.RecordDispatch(width, height, 8, 8);
+        cmd.EndSample(s_displayMarker);
 
         if (!data.SwapColor)
         {
@@ -81,361 +55,128 @@ internal static class PostProcessPassExecutor
             Blitter.BlitCameraTexture(cmd, data.IntermediateTexture, data.ColorTexture);
             cmd.EndSample("Kern.PostProcess.BlitBack");
         }
+
+        data.Workload.Publish(workload.Complete(Time.frameCount, width, height,
+            data.SwapColor ? 0 : 1, data.CreatedTextureCount, data.CreatedTexturePayloadBytes, startedAt));
     }
 
     private static void SetDiagnosticsKeyword(PostProcessPassData data, CommandBuffer cmd)
     {
-        if (!ReferenceEquals(_keywordShader, data.PostProcessCS))
+        if (!ReferenceEquals(s_keywordShader, data.PostProcessCS))
         {
-            _keywordShader = data.PostProcessCS;
-            _diagnosticsKeyword = new LocalKeyword(data.PostProcessCS, DiagnosticsKeyword);
+            s_keywordShader = data.PostProcessCS;
+            s_diagnosticsKeyword = new LocalKeyword(data.PostProcessCS, DiagnosticsKeyword);
         }
 
-        cmd.SetKeyword(data.PostProcessCS, _diagnosticsKeyword, data.DiagnosticsActive);
+        cmd.SetKeyword(data.PostProcessCS, s_diagnosticsKeyword, data.DiagnosticsActive);
     }
 
-    private static void ExecuteBloom(PostProcessPassData data, CommandBuffer cmd, int width, int height)
+    // Точечные операции вывода: LUT, виньетка, зерно, калибровка, шторка
+    // сравнения. Сценическому проходу из этого не нужно ничего.
+    private static void BindDisplayParameters(PostProcessPassData data, CommandBuffer cmd,
+        UnsafeGraphContext context)
     {
-        int levels = data.BloomLevels;
-        bool cyberpunk = data.BloomVariant == BloomStyle.Cyberpunk;
-        // Оба стиля используют одну пирамиду и одинаковую энергию.
-        // Переключатель стиля меняет только цвет пикселей в BloomPrefilter.
-        float threshold = data.BloomThreshold * PostProcessLook.Bloom.CyberpunkThresholdScale;
-        float radius = data.BloomRadius * PostProcessLook.Bloom.CyberpunkRadiusScale;
-        float scatter = data.BloomScatter *
-            (PostProcessLook.Bloom.CyberpunkScatter / PostProcessLook.Bloom.Scatter);
-
-        cmd.SetComputeFloatParam(data.PostProcessCS, BloomThresholdID, threshold);
-        cmd.SetComputeFloatParam(data.PostProcessCS, BloomSoftKneeID, data.BloomSoftKnee);
-        cmd.SetComputeFloatParam(data.PostProcessCS, BloomRadiusID, radius);
-        cmd.SetComputeFloatParam(data.PostProcessCS, BloomScatterID, scatter);
-        cmd.SetComputeVectorParam(data.PostProcessCS, BloomTintID, data.BloomTint);
-        cmd.SetComputeIntParam(data.PostProcessCS, BloomStyleID, cyberpunk ? 1 : 0);
-
-        // Яркость подъёма нормируется по глубине пирамиды.
-        //
-        // Подъём складывает `highRes + lowRes * scatter` на каждом уровне,
-        // поэтому суммарный вес равен 1 + s + s^2 + ... + s^levels. Без
-        // нормировки добавление уровня само по себе делало блум ярче, и
-        // «интенсивность» означала разное при разной глубине. Теперь она
-        // означает долю добавленного света и не зависит от числа уровней.
-        float energy = 0f;
-        float term = 1f;
-        for (int i = 0; i <= levels; i++)
+        Vector4 sourceUv = data.DisplaySourceUv;
+        if (data.ScalesWorldGrid)
         {
-            energy += term;
-            term *= Mathf.Max(scatter, 0f);
+            // Output pixel coordinates use the destination's origin. Convert
+            // them to Y-up viewport coordinates, then to the source's origin.
+            if (context.GetTextureUVOrigin(data.IntermediateTexture) == TextureUVOrigin.TopLeft)
+            {
+                sourceUv.w += sourceUv.y;
+                sourceUv.y = -sourceUv.y;
+            }
+
+            if (context.GetTextureUVOrigin(data.ColorTexture) == TextureUVOrigin.TopLeft)
+            {
+                sourceUv.w = 1f - sourceUv.w;
+                sourceUv.y = -sourceUv.y;
+            }
         }
 
-        cmd.SetComputeFloatParam(
-            data.PostProcessCS,
-            BloomIntensityID,
-            data.BloomIntensity * PostProcessLook.Bloom.CyberpunkIntensityScale /
-            Mathf.Max(energy, 1e-4f));
-
-        int prefilterWidth = Mathf.Max(1, width / 2);
-        int prefilterHeight = Mathf.Max(1, height / 2);
-        cmd.SetComputeVectorParam(
-            data.PostProcessCS,
-            ScreenSizeID,
-            new Vector4(
-                prefilterWidth,
-                prefilterHeight,
-                1f / prefilterWidth,
-                1f / prefilterHeight));
-        cmd.SetComputeVectorParam(
-            data.PostProcessCS,
-            SourceTexelSizeID,
-            new Vector4(1f / width, 1f / height, width, height));
-        cmd.SetComputeVectorParam(data.PostProcessCS, ScreenToEmissionID, data.ScreenToEmission);
-        Texture emissionTex = Shader.GetGlobalTexture(WorldEmissionTextureID) ?? Texture2D.blackTexture;
-        cmd.BeginSample("Kern.PostProcess.Bloom.Prefilter");
-        cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelPrefilter, InputTexID, data.ColorTexture);
-        cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelPrefilter, EmissionTexID, emissionTex);
-        cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelPrefilter, DestTexID, data.BloomPrefilterTexture);
-        cmd.DispatchCompute(
-            data.PostProcessCS,
-            data.KernelPrefilter,
-            Mathf.CeilToInt(prefilterWidth / 8f),
-            Mathf.CeilToInt(prefilterHeight / 8f),
-            1);
-        cmd.EndSample("Kern.PostProcess.Bloom.Prefilter");
-
-        int downWidth = prefilterWidth;
-        int downHeight = prefilterHeight;
-        int sourceWidth = prefilterWidth;
-        int sourceHeight = prefilterHeight;
-        TextureHandle currentSource = data.BloomPrefilterTexture;
-        cmd.BeginSample("Kern.PostProcess.Bloom.Downsample");
-        for (int i = 0; i < levels; i++)
-        {
-            downWidth = Mathf.Max(1, downWidth / 2);
-            downHeight = Mathf.Max(1, downHeight / 2);
-            cmd.SetComputeVectorParam(
-                data.PostProcessCS,
-                ScreenSizeID,
-                new Vector4(downWidth, downHeight, 1f / downWidth, 1f / downHeight));
-            cmd.SetComputeVectorParam(
-                data.PostProcessCS,
-                SourceTexelSizeID,
-                new Vector4(1f / sourceWidth, 1f / sourceHeight, sourceWidth, sourceHeight));
-            cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelDownsample, SourceTexID, currentSource);
-            cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelDownsample, DestTexID, data.BloomDownTextures[i]);
-            cmd.DispatchCompute(
-                data.PostProcessCS,
-                data.KernelDownsample,
-                Mathf.CeilToInt(downWidth / 8f),
-                Mathf.CeilToInt(downHeight / 8f),
-                1);
-            currentSource = data.BloomDownTextures[i];
-            sourceWidth = downWidth;
-            sourceHeight = downHeight;
-        }
-
-        cmd.EndSample("Kern.PostProcess.Bloom.Downsample");
-
-        TextureHandle currentUp = data.BloomDownTextures[levels - 1];
-        int currentUpWidth = downWidth;
-        int currentUpHeight = downHeight;
-        cmd.BeginSample("Kern.PostProcess.Bloom.Upsample");
-        for (int i = levels - 1; i >= 0; i--)
-        {
-            int upWidth = Mathf.Max(1, width >> (i + 1));
-            int upHeight = Mathf.Max(1, height >> (i + 1));
-            TextureHandle baseTexture = i == 0
-                ? data.BloomPrefilterTexture
-                : data.BloomDownTextures[i - 1];
-            cmd.SetComputeVectorParam(
-                data.PostProcessCS,
-                ScreenSizeID,
-                new Vector4(upWidth, upHeight, 1f / upWidth, 1f / upHeight));
-            cmd.SetComputeVectorParam(
-                data.PostProcessCS,
-                SourceTexelSizeID,
-                new Vector4(1f / currentUpWidth, 1f / currentUpHeight, currentUpWidth, currentUpHeight));
-            cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelUpsample, SourceTexID, currentUp);
-            cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelUpsample, BaseTexID, baseTexture);
-            cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelUpsample, DestTexID, data.BloomUpTextures[i]);
-            cmd.DispatchCompute(
-                data.PostProcessCS,
-                data.KernelUpsample,
-                Mathf.CeilToInt(upWidth / 8f),
-                Mathf.CeilToInt(upHeight / 8f),
-                1);
-            currentUp = data.BloomUpTextures[i];
-            currentUpWidth = upWidth;
-            currentUpHeight = upHeight;
-        }
-
-        cmd.EndSample("Kern.PostProcess.Bloom.Upsample");
-
-        cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelComposite, BloomTexID, currentUp);
-    }
-
-    // Читается обоими ядрами: CompositeFinal тоже спрашивает шторку сравнения.
-    private static void BindSharedParameters(PostProcessPassData data, CommandBuffer cmd)
-    {
-        cmd.SetComputeFloatParam(data.PostProcessCS, CompareSplitID, data.CompareSplit);
-        cmd.SetComputeIntParam(data.PostProcessCS, CompareModeID, data.CompareMode);
-        cmd.SetComputeIntParam(data.PostProcessCS, CompareBeforeID, data.CompareBefore ? 1 : 0);
-        cmd.SetComputeIntParam(data.PostProcessCS, CurveInterpolationID, data.CurveInterpolation);
-    }
-
-    // Входы запекаемой таблицы. Ядру дисплея ничего из этого не нужно: к нему
-    // творческий грейд приходит уже готовой таблицей.
-    private static void BindCreativeParameters(PostProcessPassData data, CommandBuffer cmd)
-    {
-        cmd.SetComputeFloatParam(data.PostProcessCS, ExposureID, data.CgActive ? data.Exposure : 0f);
-        cmd.SetComputeVectorParam(data.PostProcessCS, ColorFilterID, data.CgActive ? data.ColorFilter : Color.white);
-        cmd.SetComputeFloatParam(data.PostProcessCS, ContrastID, data.CgActive ? data.Contrast : 0f);
-        cmd.SetComputeFloatParam(data.PostProcessCS, SaturationID, data.CgActive ? data.Saturation : 1f);
-        cmd.SetComputeFloatParam(data.PostProcessCS, CdlSaturationID, data.CdlSaturation);
-        cmd.SetComputeVectorParam(data.PostProcessCS, WhiteBalanceID, data.WhiteBalance);
-        cmd.SetComputeVectorParam(data.PostProcessCS, CdlSlopeID, data.CdlSlope);
-        cmd.SetComputeVectorParam(data.PostProcessCS, CdlOffsetID, data.CdlOffset);
-        cmd.SetComputeVectorParam(data.PostProcessCS, CdlPowerID, data.CdlPower);
-        cmd.SetComputeVectorParam(data.PostProcessCS, CdlMasterID, data.CdlMaster);
-        cmd.SetComputeVectorParam(data.PostProcessCS, PrimaryLiftID, data.PrimaryLift);
-        cmd.SetComputeVectorParam(data.PostProcessCS, PrimaryGammaID, data.PrimaryGamma);
-        cmd.SetComputeVectorParam(data.PostProcessCS, PrimaryGainID, data.PrimaryGain);
-        cmd.SetComputeVectorParam(data.PostProcessCS, PrimaryOffsetID, data.PrimaryOffset);
-        cmd.SetComputeVectorParam(data.PostProcessCS, PrimaryMasterID, data.PrimaryMaster);
-        cmd.SetComputeFloatParam(data.PostProcessCS, VibranceID, data.Vibrance);
-        cmd.SetComputeFloatParam(data.PostProcessCS, HueID, data.Hue);
-        cmd.SetComputeVectorParam(data.PostProcessCS, ContrastControlsID, data.ContrastControls);
-        cmd.SetComputeVectorParam(data.PostProcessCS, ContrastControls2ID, data.ContrastControls2);
-        cmd.SetComputeVectorArrayParam(
-            data.PostProcessCS,
-            HueVsHueCurveID,
-            data.HueVsHueCurvePoints);
-        cmd.SetComputeVectorArrayParam(
-            data.PostProcessCS,
-            HueVsSaturationCurveID,
-            data.HueVsSaturationCurvePoints);
-        cmd.SetComputeVectorArrayParam(
-            data.PostProcessCS,
-            HueVsLuminanceCurveID,
-            data.HueVsLuminanceCurvePoints);
-        cmd.SetComputeVectorArrayParam(
-            data.PostProcessCS,
-            LuminanceVsSaturationCurveID,
-            data.LuminanceVsSaturationCurvePoints);
-        cmd.SetComputeVectorArrayParam(
-            data.PostProcessCS,
-            SaturationVsSaturationCurveID,
-            data.SaturationVsSaturationCurvePoints);
-        cmd.SetComputeIntParam(
-            data.PostProcessCS,
-            HueVsHueCurvePointCountID,
-            data.HueVsHueCurvePointCount);
-        cmd.SetComputeIntParam(
-            data.PostProcessCS,
-            HueVsSaturationCurvePointCountID,
-            data.HueVsSaturationCurvePointCount);
-        cmd.SetComputeIntParam(
-            data.PostProcessCS,
-            HueVsLuminanceCurvePointCountID,
-            data.HueVsLuminanceCurvePointCount);
-        cmd.SetComputeIntParam(
-            data.PostProcessCS,
-            LuminanceVsSaturationCurvePointCountID,
-            data.LuminanceVsSaturationCurvePointCount);
-        cmd.SetComputeIntParam(
-            data.PostProcessCS,
-            SaturationVsSaturationCurvePointCountID,
-            data.SaturationVsSaturationCurvePointCount);
-        cmd.SetComputeVectorParam(data.PostProcessCS, Qualifier0ID, data.Qualifier0);
-        cmd.SetComputeVectorParam(data.PostProcessCS, Qualifier1ID, data.Qualifier1);
-        cmd.SetComputeVectorParam(data.PostProcessCS, Qualifier2ID, data.Qualifier2);
-        cmd.SetComputeVectorParam(data.PostProcessCS, Qualifier3ID, data.Qualifier3);
-        cmd.SetComputeVectorParam(data.PostProcessCS, Qualifier4ID, data.Qualifier4);
-        cmd.SetComputeVectorParam(data.PostProcessCS, Qualifier5ID, data.Qualifier5);
-        cmd.SetComputeVectorParam(data.PostProcessCS, Qualifier6ID, data.Qualifier6);
-        cmd.SetComputeVectorArrayParam(
-            data.PostProcessCS,
-            QualifierHueSamplesID,
-            data.QualifierHueSamples);
-        cmd.SetComputeIntParam(
-            data.PostProcessCS,
-            QualifierHueSampleCountID,
-            data.QualifierHueSampleCount);
-    }
-
-    // Точечные операции вывода: кривая дисплея, куб-LUT, виньетка, зерно,
-    // калибровка.
-    private static void BindDisplayParameters(PostProcessPassData data, CommandBuffer cmd)
-    {
-        cmd.SetComputeFloatParam(data.PostProcessCS, VignetteIntensityID, data.VignetteActive ? data.VignetteIntensity : 0f);
+        cmd.SetComputeVectorParam(data.PostProcessCS, "_DisplaySourceUv", sourceUv);
+        cmd.SetComputeVectorParam(data.PostProcessCS, "_DisplayWorldToViewportUv", data.DisplayWorldToViewportUv);
+        cmd.SetComputeFloatParam(data.PostProcessCS, "_DisplayViewportAspect", data.DisplayViewportAspect);
+        cmd.SetComputeIntParam(data.PostProcessCS, "_DisplayLinearFilter", data.DisplayLinearFilter ? 1 : 0);
+        cmd.SetComputeFloatParam(data.PostProcessCS, CompareSplitId, data.CompareSplit);
+        cmd.SetComputeIntParam(data.PostProcessCS, CompareModeId, data.CompareMode);
+        cmd.SetComputeIntParam(data.PostProcessCS, CompareBeforeId, data.CompareBefore ? 1 : 0);
+        cmd.SetComputeFloatParam(data.PostProcessCS, VignetteIntensityId, data.VignetteActive ? data.VignetteIntensity : 0f);
+        cmd.SetComputeIntParam(data.PostProcessCS, "_DisplayApplyVignette", data.VignetteInFinalBlit ? 0 : 1);
         if (data.VignetteActive)
         {
-            cmd.SetComputeVectorParam(data.PostProcessCS, VignetteColorID, data.VignetteColor);
-            cmd.SetComputeFloatParam(data.PostProcessCS, VignetteSmoothnessID, data.VignetteSmoothness);
-            cmd.SetComputeVectorParam(data.PostProcessCS, VignetteCenterID, data.VignetteCenter);
+            cmd.SetComputeVectorParam(data.PostProcessCS, VignetteColorId, data.VignetteColor);
+            cmd.SetComputeFloatParam(data.PostProcessCS, VignetteSmoothnessId, data.VignetteSmoothness);
+            cmd.SetComputeVectorParam(data.PostProcessCS, VignetteCenterId, data.VignetteCenter);
         }
 
         // Keep the shader finite even if a stale/partially initialized HDR
         // output profile reaches the pass before display reconciliation.
         cmd.SetComputeFloatParam(
             data.PostProcessCS,
-            DisplayPaperWhiteNitsID,
+            DisplayPaperWhiteNitsId,
             Mathf.Max(data.DisplayPaperWhiteNits, 1f));
         cmd.SetComputeFloatParam(
             data.PostProcessCS,
-            DisplayPeakRelativeID,
+            DisplayPeakRelativeId,
             data.DisplayPeakRelative);
-        cmd.SetComputeIntParam(data.PostProcessCS, PostDebugViewID, data.PostDebugView);
-        cmd.SetComputeVectorParam(data.PostProcessCS, DisplayGrade0ID, data.DisplayGrade0);
-        cmd.SetComputeVectorParam(data.PostProcessCS, DisplayGrade1ID, data.DisplayGrade1);
-        cmd.SetComputeFloatParam(data.PostProcessCS, GamutCompressionID, data.GamutCompression);
-        cmd.SetComputeVectorArrayParam(data.PostProcessCS, MasterCurveID, data.MasterCurvePoints);
-        cmd.SetComputeVectorArrayParam(data.PostProcessCS, RedCurveID, data.RedCurvePoints);
-        cmd.SetComputeVectorArrayParam(data.PostProcessCS, GreenCurveID, data.GreenCurvePoints);
-        cmd.SetComputeVectorArrayParam(data.PostProcessCS, BlueCurveID, data.BlueCurvePoints);
-        cmd.SetComputeIntParam(data.PostProcessCS, MasterCurvePointCountID, data.MasterCurvePointCount);
-        cmd.SetComputeIntParam(data.PostProcessCS, RedCurvePointCountID, data.RedCurvePointCount);
-        cmd.SetComputeIntParam(data.PostProcessCS, GreenCurvePointCountID, data.GreenCurvePointCount);
-        cmd.SetComputeIntParam(data.PostProcessCS, BlueCurvePointCountID, data.BlueCurvePointCount);
+        cmd.SetComputeIntParam(data.PostProcessCS, PostDebugViewId, data.PostDebugView);
         cmd.SetComputeVectorParam(
             data.PostProcessCS,
-            LutParamsID,
+            LUTParamsId,
             new Vector4(
-                data.LutIntensity,
-                data.LutType,
-                data.LutColorSpace,
-                data.Lut1D != null ? data.Lut1D.width : data.Lut3D != null ? data.Lut3D.width : 0f));
-        cmd.SetComputeVectorParam(data.PostProcessCS, LutDomainMinID, data.LutDomainMin);
-        cmd.SetComputeVectorParam(data.PostProcessCS, LutDomainMaxID, data.LutDomainMax);
+                data.LUTIntensity,
+                data.LUTColorSpace,
+                data.LUT3D != null ? data.LUT3D.width : 0f,
+                0f));
+        cmd.SetComputeVectorParam(data.PostProcessCS, LUTDomainMinId, data.LUTDomainMin);
+        cmd.SetComputeVectorParam(data.PostProcessCS, LUTDomainMaxId, data.LUTDomainMax);
         // Metal validates every resource declared by a compute kernel, even when
-        // the Lut branch is disabled by intensity/type. Bind explicit identity
-        // LUTs so neutral grading remains mathematically unchanged.
+        // the LUT branch is disabled by intensity. Bind an explicit identity
+        // LUT so the neutral frame remains mathematically unchanged.
         cmd.SetComputeTextureParam(
             data.PostProcessCS,
             data.KernelComposite,
-            Lut1DID,
-            data.Lut1D ?? GetIdentityLut1D());
-        cmd.SetComputeTextureParam(
-            data.PostProcessCS,
-            data.KernelComposite,
-            Lut3DID,
-            data.Lut3D ?? GetIdentityLut3D());
-        cmd.SetComputeFloatParam(data.PostProcessCS, EigengrauIntensityID, data.EigengrauActive ? data.EigengrauIntensity : 0f);
+            LUT3DId,
+            data.LUT3D ?? GetIdentityLUT3D());
+        cmd.SetComputeFloatParam(data.PostProcessCS, EigengrauIntensityId, data.EigengrauActive ? data.EigengrauIntensity : 0f);
         if (data.EigengrauActive)
         {
-            cmd.SetComputeVectorParam(data.PostProcessCS, EigengrauColorID, data.EigengrauColor);
-            cmd.SetComputeFloatParam(data.PostProcessCS, EigengrauDarknessThresholdID, data.EigengrauDarknessThreshold);
-            cmd.SetComputeFloatParam(data.PostProcessCS, EigengrauNoiseScaleID, data.EigengrauNoiseScale);
-            cmd.SetComputeFloatParam(data.PostProcessCS, EigengrauNoiseAmplitudeID, data.EigengrauNoiseAmplitude);
+            cmd.SetComputeVectorParam(data.PostProcessCS, EigengrauColorId, data.EigengrauColor);
+            cmd.SetComputeFloatParam(data.PostProcessCS, EigengrauDarknessThresholdId, data.EigengrauDarknessThreshold);
+            cmd.SetComputeFloatParam(data.PostProcessCS, EigengrauNoiseScaleId, data.EigengrauNoiseScale);
+            cmd.SetComputeFloatParam(data.PostProcessCS, EigengrauNoiseAmplitudeId, data.EigengrauNoiseAmplitude);
         }
 
-        cmd.SetComputeFloatParam(data.PostProcessCS, TimeID, data.TimeSeconds);
-        cmd.SetComputeFloatParam(data.PostProcessCS, FrameIndexID, data.FrameIndex);
-        cmd.SetComputeFloatParam(data.PostProcessCS, CalibrationPatternID, data.CalibrationPattern);
-        cmd.SetComputeFloatParam(data.PostProcessCS, CalibrationValueID, data.CalibrationValue);
+        cmd.SetComputeFloatParam(data.PostProcessCS, FrameIndexId, data.FrameIndex);
+        cmd.SetComputeFloatParam(data.PostProcessCS, CalibrationPatternId, data.CalibrationPattern);
+        cmd.SetComputeFloatParam(data.PostProcessCS, CalibrationValueId, data.CalibrationValue);
     }
 
-    private static Texture2D GetIdentityLut1D()
+    private static Texture3D GetIdentityLUT3D()
     {
-        if (_identityLut1D != null)
+        if (s_identityLUT3D != null)
         {
-            return _identityLut1D;
+            return s_identityLUT3D;
         }
 
-        _identityLut1D = RuntimeTextureFactory.CreateRGBAFloatNoMip(
+        s_identityLUT3D = RuntimeTextureFactory.CreateRGBAFloat3DNoMip(
             2,
-            1,
-            "PostProcess_IdentityLut1D",
-            RuntimeTextureColorSpace.Linear,
+            "PostProcess_IdentityLUT3D",
             FilterMode.Bilinear,
             TextureWrapMode.Clamp);
-        _identityLut1D.SetPixels([Color.black, Color.white]);
-        _identityLut1D.Apply(false, true);
-        return _identityLut1D;
-    }
-
-    private static Texture3D GetIdentityLut3D()
-    {
-        if (_identityLut3D != null)
-        {
-            return _identityLut3D;
-        }
-
-        _identityLut3D = RuntimeTextureFactory.CreateRGBAFloat3DNoMip(
-            2,
-            "PostProcess_IdentityLut3D",
-            FilterMode.Bilinear,
-            TextureWrapMode.Clamp);
-        _identityLut3D.SetPixels(
+        s_identityLUT3D.SetPixels(
         [
             Color.black,
             new Color(1f, 0f, 0f, 1f),
             new Color(0f, 1f, 0f, 1f),
-            Color.white,
+            new Color(1f, 1f, 0f, 1f),
             new Color(0f, 0f, 1f, 1f),
             new Color(1f, 0f, 1f, 1f),
             new Color(0f, 1f, 1f, 1f),
             Color.white,
         ]);
-        _identityLut3D.Apply(false, true);
-        return _identityLut3D;
+        s_identityLUT3D.Apply(false, true);
+        return s_identityLUT3D;
     }
 }

@@ -16,7 +16,7 @@ internal sealed class MapTextureController
 
     public int TexHeight { get; private set; }
 
-    public Texture2D? MapTexture { get; private set; }
+    public RenderTexture? MapTexture { get; private set; }
 
     public bool CheckPanelResize(VisualElement? mapViewport)
     {
@@ -49,25 +49,14 @@ internal sealed class MapTextureController
 
         DestroyTexture();
 
-        MapTexture = RuntimeTextureFactory.CreateRGBA32NoMip(
-            TexWidth,
-            TexHeight,
-            "WorldMapTexture",
-            RuntimeTextureColorSpace.Srgb,
-            FilterMode.Point,
-            TextureWrapMode.Clamp);
-
-        // new Texture2D не инициализирует пиксели, и до первого Render панель
-        // показала бы неинициализированную память. Заливаем цветом незагруженной
-        // клетки: карта без данных обязана быть чёрной, а не мусором.
-        var unloaded = new Color32[TexWidth * TexHeight];
-        Array.Fill(unloaded, new Color32(0, 0, 0, 255));
-        MapTexture.SetPixelData(unloaded, 0);
-        MapTexture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
-
-        // Текстура переписывается на каждом кадре рендера, поэтому динамический
-        // атлас UI Toolkit обязан её исключить.
-        DynamicAtlasConfigurator.RegisterRuntimeRedrawn(MapTexture);
+        MapTexture = new RenderTexture(TexWidth, TexHeight, 0, RenderTextureFormat.ARGB32)
+        {
+            name = "WorldMapRenderTexture",
+            enableRandomWrite = true,
+            filterMode = FilterMode.Bilinear,
+            wrapMode = TextureWrapMode.Clamp,
+        };
+        MapTexture.Create();
 
         if (mapImage != null)
         {
@@ -79,6 +68,11 @@ internal sealed class MapTextureController
     {
         if (MapTexture != null)
         {
+            if (MapTexture.IsCreated())
+            {
+                MapTexture.Release();
+            }
+
             UnityEngine.Object.Destroy(MapTexture);
             MapTexture = null;
         }

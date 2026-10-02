@@ -69,7 +69,7 @@ bool expectedRendered(float2 p, const TerrainCellVertex* vertices, float4 xs, fl
 // совпадает с оригиналом (1 - z² при z = 0.7).
 static void checkAmbientOcclusionFloor()
 {
-    _WorldAmbientOcclusionYFlip=0;
+    _KernFieldRowsTopDown=0;
     _TerrainAmbientOcclusionStrength=1;
     _TerrainAmbientOcclusionFloor=0.51f;
     Texture solid;
@@ -345,7 +345,7 @@ static void checkReliefRim()
 
 void checkAo()
 {
-    _WorldAmbientOcclusionYFlip=0;
+    _KernFieldRowsTopDown=0;
     _TerrainAmbientOcclusionStrength=1;
     // Тот же пол, что в TerrainLook: множитель обязан останавливаться на нём.
     _TerrainAmbientOcclusionFloor=0.51f;
@@ -627,8 +627,31 @@ static void checkDistortedAutotileUvSeam()
     }
 }
 
+static void checkAffineGeometryUv()
+{
+    // Independent forward construction from known UVs; non-axis-aligned,
+    // displaced parallelogram corners lie exactly on the production 1/32 grid.
+    float2 origin{-0.125f, 0.0625f};
+    float2 u{1.0f, 0.125f};
+    float2 v{0.0625f, 1.0f};
+    float4 xs{origin.x, origin.x+u.x, origin.x+u.x+v.x, origin.x+v.x};
+    float4 ys{origin.y, origin.y+u.y, origin.y+u.y+v.y, origin.y+v.y};
+    for (int y=-2; y<=34; ++y)
+    for (int x=-2; x<=34; ++x)
+    {
+        float2 known{float(x)/32.0f, float(y)/32.0f};
+        float2 point=origin+u*known.x+v*known.y;
+        float2 actual=TerrainResolveGeometryLocalUv(point,xs,ys);
+        float expectedX=std::clamp(known.x,0.0f,1.0f);
+        float expectedY=std::clamp(known.y,0.0f,1.0f);
+        if(std::fabs(actual.x-expectedX)>1e-5f || std::fabs(actual.y-expectedY)>1e-5f)
+            throw std::runtime_error("Affine terrain UV inversion changed authored coordinates");
+    }
+}
+
 int runChecks()
 {
+    checkAffineGeometryUv();
     checkDistortedAutotileUvSeam();
     Texture* channels[] = {&_TerrainCellColor, &_TerrainCellMeta,
         &_TerrainCellAtlasRect, &_TerrainCellTileSize, &_TerrainCellWorld,
@@ -638,6 +661,21 @@ int runChecks()
     _TerrainCellGridSize = {1,1,1,0};
     _TerrainCellOrigin = {0,0,0,0};
     _TerrainCellViewOffset = {0,0,0,0};
+    _TerrainCellMeta.data[1] = {1.f/255,228.f/255,0,0};
+    textureReads = 0;
+    LoadTerrainCellVertex(float3{0,0,1},float2{0,0});
+    long flatCellTextureReads = textureReads;
+    _TerrainCellMeta.data[1].w = 1;
+    _TerrainCellGeometryX.data[1] = {0,1,1,0};
+    _TerrainCellGeometryY.data[1] = {0,0,1,1};
+    textureReads = 0;
+    LoadTerrainCellVertex(float3{0,0,1},float2{0,0});
+    long anchoredCellTextureReads = textureReads;
+    if(flatCellTextureReads != 7 || anchoredCellTextureReads != 9)
+        throw std::runtime_error(
+            "Flat terrain cells must skip both geometry texture loads: flat=" +
+            std::to_string(flatCellTextureReads) + " anchored=" +
+            std::to_string(anchoredCellTextureReads));
     _TerrainCellMeta.data[1] = {1.f/255,228.f/255,0,1};
     _TerrainCellMeta.data[0] = {1.f/255,228.f/255,0,1}; // stale anchor must not move background
     std::mt19937 rng(0x32AABB);

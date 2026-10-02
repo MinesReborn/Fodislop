@@ -22,14 +22,14 @@ internal sealed class DummyChatSimulator(
 {
     // Имена берём из DummyBotRunner.BotNames — единый источник: чат-«игроки»
     // всегда те же, кого видно на карте, и дубль списка не расходится.
-    private static readonly string[] _messages =
+    private static readonly string[] s_messages =
     [
         "gg", "welcome!", "как дела?", "lol", "nice",
         "gl hf", "куда бежать?", "фармим)", "👋", "подскажите кто знает",
     ];
 
     // Реакции на действия игрока — мир ощущается живым.
-    private static readonly string[] _miningReactions =
+    private static readonly string[] s_miningReactions =
     [
         "кто-то копает рядом!",
         "красиво копает 🎉",
@@ -53,7 +53,7 @@ internal sealed class DummyChatSimulator(
                 break;
             }
 
-            SendChatLine(DummyBotRunner.BotNames[clock.Random.Next(DummyBotRunner.BotNames.Length)], _messages[clock.Random.Next(_messages.Length)]);
+            SendChatLine(DummyBotRunner.BotNames[clock.Random.Next(DummyBotRunner.BotNames.Length)], s_messages[clock.Random.Next(s_messages.Length)]);
         }
     }
 
@@ -64,7 +64,7 @@ internal sealed class DummyChatSimulator(
             return;
         }
 
-        SendChatLine(DummyBotRunner.BotNames[clock.Random.Next(DummyBotRunner.BotNames.Length)], _miningReactions[clock.Random.Next(_miningReactions.Length)]);
+        SendChatLine(DummyBotRunner.BotNames[clock.Random.Next(DummyBotRunner.BotNames.Length)], s_miningReactions[clock.Random.Next(s_miningReactions.Length)]);
     }
 
     private void SendChatLine(string name, string message)

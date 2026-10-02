@@ -52,6 +52,7 @@ public sealed class RobotMovement
 
     public void SnapTo(Vector3 position, float angle)
     {
+        _hasReceivedInitialPosition = true;
         _targetPosition = position;
         _serverPosition = position;
         _smoothPosition = position;

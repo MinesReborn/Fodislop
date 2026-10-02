@@ -170,15 +170,15 @@ public sealed class TerrainTestWorld
 
         public float GetMoveCooldown(CellType cellType) => 0f;
 
-        public bool TryGetTileGroup(CellType type, out int groupID)
+        public bool TryGetTileGroup(CellType type, out int groupId)
         {
             if (type == CellType.Rock)
             {
-                groupID = 1;
+                groupId = 1;
                 return true;
             }
 
-            groupID = 0;
+            groupId = 0;
             return false;
         }
 
@@ -370,7 +370,7 @@ public sealed class TerrainTestWorld
             return true;
         }
 
-        public ChunkReadResult<CellType> ReadChunk(int chunkIndex, bool touchLru = true)
+        public ChunkReadResult<CellType> ReadChunk(int chunkIndex, bool touchLRU = true)
         {
             if (chunkIndex < 0)
             {
@@ -398,9 +398,9 @@ public sealed class TerrainTestWorld
             return new ChunkReadResult<CellType>(ChunkReadStatus.Available, chunk, null);
         }
 
-        public CellType GetCell(int x, int y, bool touchLru = true) => CellAt(x, y);
+        public CellType GetCell(int x, int y, bool touchLRU = true) => CellAt(x, y);
 
-        public CellType GetCellSync(int x, int y, bool touchLru = true) => CellAt(x, y);
+        public CellType GetCellSync(int x, int y, bool touchLRU = true) => CellAt(x, y);
 
         public bool TryGetCell(int x, int y, out CellType value)
         {
@@ -408,8 +408,8 @@ public sealed class TerrainTestWorld
             return value != CellType.Unloaded;
         }
 
-        public CellType[] GetOrCreateChunk(int chunkIndex, bool touchLru = true) =>
-            ReadChunk(chunkIndex, touchLru).Data!;
+        public CellType[] GetOrCreateChunk(int chunkIndex, bool touchLRU = true) =>
+            ReadChunk(chunkIndex, touchLRU).Data!;
 
         public IEnumerable<int> GetLoadedChunkIndices() => _chunks.Keys;
 

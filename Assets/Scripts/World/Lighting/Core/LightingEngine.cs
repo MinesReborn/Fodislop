@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using Kern.Core;
 using Kern.Core.Interfaces;
+using Kern.Core.Interfaces.Diagnostics;
 using Kern.Core.Interfaces.WorldLighting;
 using Kern.Rendering;
 using Kern.World.Lighting.Diagnostics;
@@ -35,6 +36,12 @@ namespace Kern.World.Lighting
         private static void ResetForDomainReload()
         {
             Shader.DisableKeyword(LightingPresentation.WorldLightingKeyword);
+            LightingUpdateCoordinator.DiagnosticForceDenseReanchor = false;
+            LightingComputeBinder.DiagnosticTransportCounters = false;
+            LightingComputeBinder.DiagnosticTexelTraversalReference = false;
+            LightingQualityTuningController.Apply(LightingConfigHolder.DefaultQuality);
+            LightingComputeBinder.DiagnosticVectorPolarReference = false;
+            LightingFrameExecutor.DiagnosticMaterialReadback = null;
         }
 
         [Header("Quality")]
@@ -49,6 +56,7 @@ namespace Kern.World.Lighting
         private readonly LightingRuntimeState _runtimeState = new();
         private LightingComposition? _composition;
         private LightingQualityController? _qualityController;
+        private LightingRuntimeControls? _runtimeControls;
         private LightingDiagnosticsReporter? _diagnostics;
         private readonly LightingInvalidationJournal _journal = new();
         private readonly LightingTerrainExchangeState _terrainExchangeState = new();
@@ -74,6 +82,14 @@ namespace Kern.World.Lighting
                 () => _composition,
                 () => Composition);
 
+        private LightingRuntimeControls RuntimeControls =>
+            _runtimeControls ??= new LightingRuntimeControls(
+                _clientConfig,
+                QualityController,
+                _runtimeState,
+                _dynamicLightManager,
+                PublishTerrainRequirementsIfChanged);
+
         private LightingDiagnosticsReporter Diagnostics =>
             _diagnostics ??= new LightingDiagnosticsReporter(
                 _resources, _runtimeState, _telemetry);
@@ -94,6 +110,9 @@ namespace Kern.World.Lighting
         internal bool IsGPUPipelineInitialized => _resources.GPUPipelineInitialized;
 
         internal LightingResources GPUResources => _resources.Registry;
+        // Borrowed for explicit production captures; caller must finish before scope teardown.
+        internal ComputeBuffer DiagnosticTransportCounterBuffer => _resources.LightingCounters
+            ?? throw new InvalidOperationException("Lighting transport counters are not allocated.");
 
         [Inject]
         private LightingGeometryRegistry _lightingGeometryRegistry = null!;
@@ -107,6 +126,7 @@ namespace Kern.World.Lighting
         private ITerrainLightingExchange _terrainLightingExchange = null!;
 
         private bool _initialized;
+        private LightingQualityTuning _appliedTuning = LightingQualityTuningController.Current;
 
         public bool IsInitialized => _initialized;
 
@@ -167,13 +187,23 @@ namespace Kern.World.Lighting
 
         public int DroppedDynamicLightCount => _dynamicLightManager.DroppedCount;
 
-        public IReadOnlyList<int> DroppedDynamicLightIDs => _dynamicLightManager.DroppedLightIDs;
+        public IReadOnlyList<int> DroppedDynamicLightIds => _dynamicLightManager.DroppedLightIds;
 
         public ulong SolveCount => _runtimeState.SolveCount;
 
         public int FieldWidth => _fieldWidth;
 
         public int FieldHeight => _fieldHeight;
+
+        public int LightWidth => _resources.LightWidth;
+
+        public int LightHeight => _resources.LightHeight;
+
+        /// <summary>Validate a session quality change against this world's resource coverage before publishing it.</summary>
+        public bool TryApplyQualityTuning(LightingQualityTuning quality, out string rejection) =>
+            _resources.TryApplyQualityTuning(quality, QualityController.Settings, out rejection);
+
+        public RectInt DynamicReceiverRect => _runtimeState.LastDynamicReceiverRect;
 
         public float RequestedPixelsPerCell => _runtimeState.RequestedPixelsPerCell;
 
@@ -182,6 +212,9 @@ namespace Kern.World.Lighting
         public bool TextureDimensionLimited => _runtimeState.TextureDimensionLimited;
 
         public bool CascadeBudgetLimited => _runtimeState.CascadeBudgetLimited;
+
+        public float EffectiveCascadeProbesPerCell => _cascades.Count == 0
+            ? 0f : EffectivePixelsPerCell / _cascades[0].ProbeSpacing;
 
 
 
@@ -201,7 +234,7 @@ namespace Kern.World.Lighting
         private void CaptureBudgetViolationIfNeeded() =>
             Diagnostics.CaptureBudgetViolationIfNeeded(DiagnosticsContext);
 
-        public int MaterialYFlip => SystemInfo.graphicsUVStartsAtTop ? 1 : 0;
+        public int MaterialYFlip => LightingFieldOrientation.RowsTopDown ? 1 : 0;
 
         public float CellSize => ProjectRuntimeContracts.World.CellSize;
 
@@ -234,13 +267,13 @@ namespace Kern.World.Lighting
             // explicit PostStart resolution below performs the authoritative
             // initialization; do not throw every frame while that hand-off is
             // still pending.
-            if (_DependenciesReady)
+            if (DependenciesReady)
             {
                 TryInitialize();
             }
         }
 
-        private bool _DependenciesReady =>
+        private bool DependenciesReady =>
             _clientConfig?.Config != null &&
             _lightingGeometryRegistry != null;
 
@@ -251,7 +284,7 @@ namespace Kern.World.Lighting
                 return;
             }
 
-            if (!_DependenciesReady)
+            if (!DependenciesReady)
             {
                 throw new InvalidOperationException(
                     "LightingEngine requires all DI dependencies before initialization.");
@@ -285,7 +318,7 @@ namespace Kern.World.Lighting
         private void OnDestroy()
         {
 
-            LightingGpuTeardown.ReleasePipeline(
+            LightingGPUTeardown.ReleasePipeline(
                 _composition, _resources, _dynamicLightManager);
             Shader.DisableKeyword(LightingPresentation.WorldLightingKeyword);
         }
@@ -294,7 +327,7 @@ namespace Kern.World.Lighting
         {
             if (!_initialized)
             {
-                if (_DependenciesReady)
+                if (DependenciesReady)
                 {
                     TryInitialize();
                 }
@@ -313,7 +346,9 @@ namespace Kern.World.Lighting
             _dynamicLightManager.SetDynamicLight(id, position, color, intensity);
             if (_dynamicLightManager.IsDirty)
             {
-                _runtimeState.CompositeDirty = true;
+                // Re-evaluate the uploaded set before requesting GPU work. A
+                // changed source may be outside the field or beyond capacity.
+                _runtimeState.HasRenderedLightState = false;
             }
         }
 
@@ -328,30 +363,12 @@ namespace Kern.World.Lighting
         }
 
         public void ApplyClientConfig()
-        {
-            ApplyQualitySettings(
-                _clientConfig.Config.GraphicsPreset,
-                _clientConfig.Config.GraphicsQualitySettings);
-            PublishTerrainRequirementsIfChanged();
-            LightingRuntimeInvalidation.ResetFieldAndRadiance(_runtimeState);
-            _dynamicLightManager.IncrementGeneration();
-            _dynamicLightManager.MarkDirty();
-            Debug.Log($"[LightingEngine] Applied client config (Preset={_clientConfig.Config.GraphicsPreset})");
-        }
+            => RuntimeControls.ApplyClientConfig();
 
         public void SetDebugView(DebugView debugView)
         {
-            if (_debugView == debugView)
-            {
-                return;
-            }
-
-            _debugView = debugView;
-            _runtimeState.HasRenderedLightState = false;
-            _runtimeState.HasStaticRadianceState = false;
-            _runtimeState.HasDynamicRadianceState = false;
+            RuntimeControls.SetDebugView(ref _debugView, debugView);
             _runtimeState.CompositeDirty = true;
-            Debug.Log($"[LightingEngine] SetDebugView: {debugView}");
         }
 
         // Пересчитать свет теми же полями. Нужно, когда изменилась величина,
@@ -365,19 +382,11 @@ namespace Kern.World.Lighting
         // текстуры. На каждый кадр перетаскивания ползунка это недопустимо,
         // да и размерность при смене экспозиции та же самая.
         public void InvalidateRadiance()
-        {
-            LightingRuntimeInvalidation.ResetRadiance(_runtimeState);
-        }
+            => RuntimeControls.InvalidateRadiance();
 
 
         public void ResetRuntimeLightingPreferences()
-        {
-            ApplyQualitySettings(
-                _clientConfig.Config.GraphicsPreset,
-                _clientConfig.Config.GraphicsQualitySettings);
-            PublishTerrainRequirementsIfChanged();
-            LightingRuntimeInvalidation.ResetFieldAndRadiance(_runtimeState);
-        }
+            => RuntimeControls.ResetRuntimeLightingPreferences();
 
         private void PublishTerrainRequirementsIfChanged()
         {
@@ -452,6 +461,9 @@ namespace Kern.World.Lighting
 
         private void UpdateLightingCoordinator(TerrainLightingFrameSnapshot frame)
         {
+            ApplyVisualTuningIfChanged();
+            GraphicsQualitySettings settings = QualityController.Settings;
+            settings.LightingMinimumPixelsPerCell = LightingQualityTuningController.CascadeProbePixelsPerCell;
             RectInt viewport = frame.LightingViewportCells;
             Composition.UpdateCoordinator.Update(
                 viewport.x,
@@ -460,11 +472,44 @@ namespace Kern.World.Lighting
                 viewport.height,
                 frame.Camera,
                 frame.GeometryContributor,
-                QualityController.Settings,
+                settings,
                 QualityController.QualityMode,
                 _debugView,
                 BypassLightingCompute,
                 QualityController.ActivePreset == GraphicsPreset.Standard);
+        }
+
+        private void ApplyVisualTuningIfChanged()
+        {
+            LightingQualityTuning tuning = LightingQualityTuningController.Current;
+            if (_appliedTuning == tuning)
+            {
+                return;
+            }
+
+            bool staticOrFieldChanged = _appliedTuning.FieldPixelsPerCell != tuning.FieldPixelsPerCell ||
+                _appliedTuning.LightPixelsPerCell != tuning.LightPixelsPerCell ||
+                _appliedTuning.CascadeProbePixelsPerCell != tuning.CascadeProbePixelsPerCell ||
+                _appliedTuning.MaximumStaticCascadeDirections != tuning.MaximumStaticCascadeDirections;
+            if (staticOrFieldChanged)
+            {
+                Composition.Presentation.PublishDisabled();
+                LightingGPUTeardown.ReleaseResources(
+                    _composition, _resources, _dynamicLightManager, _runtimeState);
+                LightingRuntimeInvalidation.ResetFieldAndRadiance(_runtimeState);
+            }
+            else
+            {
+                Composition.FrameExecutor.InvalidateDynamicQuality();
+                _runtimeState.HasRenderedLightState = false;
+                _runtimeState.HasDynamicRadianceState = false;
+                _runtimeState.CompositeDirty = true;
+            }
+
+            FrameEventLog.Record(staticOrFieldChanged
+                ? "свет: VisualTuning изменил поля или статику"
+                : "свет: VisualTuning изменил динамический транспорт");
+            _appliedTuning = tuning;
         }
 
         private RectInt CurrentLightingWorldRectCells()
@@ -482,6 +527,8 @@ namespace Kern.World.Lighting
             bool regionQueued = TerrainLightingChangeApplier.Apply(change, _runtimeState);
             if (change.Kind == TerrainLightingChangeKind.Region && !regionQueued)
             {
+                FrameEventLog.Record($"свет: изменение {change.Sequence}, ревизия {change.TerrainGeometryRevision} " +
+                    $"вне поля транспорта {change.Region}");
                 return;
             }
 
@@ -494,7 +541,7 @@ namespace Kern.World.Lighting
 
         private void DisableGPULighting()
         {
-            QualityController.DisableGpuLighting();
+            QualityController.DisableGPULighting();
         }
 
         private void ApplyQualitySettings(

@@ -41,6 +41,7 @@ public static class Program
         bool sarif = false;
         RuleSeverity failOn = RuleSeverity.Error;
         bool strict = false;
+        bool sourceOnly = false;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -94,6 +95,9 @@ public static class Program
                 case "--strict":
                     strict = true;
                     break;
+                case "--source-only":
+                    sourceOnly = true;
+                    break;
                 default:
                     if (arg.StartsWith("-", StringComparison.Ordinal))
                     {
@@ -112,7 +116,7 @@ public static class Program
             failOn = RuleSeverity.Warning;
         }
 
-        bool requiresAssemblies = ArchitectureLinter.SelectedRulesRequireAssemblies(includedRuleIds);
+        bool requiresAssemblies = ArchitectureLinter.SelectedRulesRequireAssemblies(includedRuleIds, sourceOnly);
         if (requiresAssemblies && assemblyPaths.Count == 0)
         {
             assemblyPaths.AddRange(DiscoverAssemblies(projectRoot));
@@ -131,6 +135,7 @@ public static class Program
             SarifOutputPath = sarifPath ?? Path.Combine(projectRoot, "architecture-lint.sarif"),
             FailOnSeverity = failOn,
             Strict = strict,
+            SourceOnly = sourceOnly,
         };
     }
 

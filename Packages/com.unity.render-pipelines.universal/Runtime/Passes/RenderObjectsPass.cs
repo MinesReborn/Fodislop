@@ -1,0 +1,324 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine.Rendering.RenderGraphModule;
+using UnityEngine.Scripting.APIUpdating;
+
+namespace UnityEngine.Rendering.Universal
+{
+    [MovedFrom(true, "UnityEngine.Experimental.Rendering.Universal")]
+    public partial class RenderObjectsPass : ScriptableRenderPass
+    {
+        RenderQueueType renderQueueType;
+        FilteringSettings m_FilteringSettings;
+        RenderObjects.CustomCameraSettings m_CameraSettings;
+
+        public Material overrideMaterial { get; set; }
+
+        public int overrideMaterialPassIndex { get; set; }
+
+        public Shader overrideShader { get; set; }
+
+        public int overrideShaderPassIndex { get; set; }
+
+        List<ShaderTagId> m_ShaderTagIdList = new List<ShaderTagId>();
+        private PassData m_PassData;
+
+        private bool m_DepthInputAttachment;
+
+        /// <param name="writeEnabled">Sets whether it should write to depth or not.</param>
+        /// <param name="function">The depth comparison function to use.</param>
+        [Obsolete("Use SetDepthState instead. #from(2023.1) #breakingFrom(2023.1)", true)]
+        public void SetDetphState(bool writeEnabled, CompareFunction function = CompareFunction.Less)
+        {
+            SetDepthState(writeEnabled, function);
+        }
+
+        /// <param name="writeEnabled">Sets whether it should write to depth or not.</param>
+        /// <param name="function">The depth comparison function to use.</param>
+        public void SetDepthState(bool writeEnabled, CompareFunction function = CompareFunction.Less)
+        {
+            m_RenderStateBlock.mask |= RenderStateMask.Depth;
+            m_RenderStateBlock.depthState = new DepthState(writeEnabled, function);
+        }
+
+        /// <param name="enable">True to enable depth input attachment</param>
+        internal void SetDepthInputAttachment(bool enable)
+        {
+            // The shader stripping relies on knowing about the feature, not the pass. So this can't correctly work if the pass is not added by the RenderObject feature.
+            m_DepthInputAttachment = enable;
+        }
+
+        /// <param name="reference">The stencil reference value.</param>
+        /// <param name="compareFunction">The comparison function to use.</param>
+        /// <param name="passOp">The stencil operation to use when the stencil test passes.</param>
+        /// <param name="failOp">The stencil operation to use when the stencil test fails.</param>
+        /// <param name="zFailOp">The stencil operation to use when the stencil test fails because of depth.</param>
+        public void SetStencilState(int reference, CompareFunction compareFunction, StencilOp passOp, StencilOp failOp, StencilOp zFailOp)
+        {
+            StencilState stencilState = StencilState.defaultValue;
+            stencilState.enabled = true;
+            stencilState.SetCompareFunction(compareFunction);
+            stencilState.SetPassOperation(passOp);
+            stencilState.SetFailOperation(failOp);
+            stencilState.SetZFailOperation(zFailOp);
+
+            m_RenderStateBlock.mask |= RenderStateMask.Stencil;
+            m_RenderStateBlock.stencilReference = reference;
+            m_RenderStateBlock.stencilState = stencilState;
+        }
+
+        RenderStateBlock m_RenderStateBlock;
+
+        /// <param name="profilerTag">The profiler tag used with the pass.</param>
+        /// <param name="renderPassEvent">Controls when the render pass executes.</param>
+        /// <param name="shaderTags">List of shader tags to render with.</param>
+        /// <param name="renderQueueType">The queue type for the objects to render.</param>
+        /// <param name="layerMask">The layer mask to use for creating filtering settings that control what objects get rendered.</param>
+        /// <param name="cameraSettings">The settings for custom cameras values.</param>
+        public RenderObjectsPass(string profilerTag, RenderPassEvent renderPassEvent, string[] shaderTags, RenderQueueType renderQueueType, int layerMask, RenderObjects.CustomCameraSettings cameraSettings)
+        {
+            profilingSampler = new ProfilingSampler(profilerTag);
+            Init(renderPassEvent, shaderTags, renderQueueType, layerMask, cameraSettings);
+        }
+
+        internal void Init(RenderPassEvent renderPassEvent, string[] shaderTags, RenderQueueType renderQueueType, int layerMask, RenderObjects.CustomCameraSettings cameraSettings)
+        {
+            m_PassData = new PassData();
+
+            this.renderPassEvent = renderPassEvent;
+            this.renderQueueType = renderQueueType;
+            this.overrideMaterial = null;
+            this.overrideMaterialPassIndex = 0;
+            this.overrideShader = null;
+            this.overrideShaderPassIndex = 0;
+            RenderQueueRange renderQueueRange = (renderQueueType == RenderQueueType.Transparent)
+                ? RenderQueueRange.transparent
+                : RenderQueueRange.opaque;
+            m_FilteringSettings = new FilteringSettings(renderQueueRange, layerMask);
+
+            if (shaderTags != null && shaderTags.Length > 0)
+            {
+                foreach (var tag in shaderTags)
+                    m_ShaderTagIdList.Add(new ShaderTagId(tag));
+            }
+            else
+            {
+                m_ShaderTagIdList.Add(new ShaderTagId("SRPDefaultUnlit"));
+                m_ShaderTagIdList.Add(new ShaderTagId("UniversalForward"));
+                m_ShaderTagIdList.Add(new ShaderTagId("UniversalForwardOnly"));
+            }
+
+            m_RenderStateBlock = new RenderStateBlock(RenderStateMask.Nothing);
+            m_CameraSettings = cameraSettings;
+        }
+
+        private static void ExecutePass(PassData passData, RasterCommandBuffer cmd, RendererList rendererList, bool isYFlipped)
+        {
+            Camera camera = passData.cameraData.camera;
+
+            if (passData.cameraData.xr.enabled && passData.isActiveTargetBackBuffer)
+            {
+                cmd.SetViewport(passData.cameraData.xr.GetViewport());
+            }
+
+            // In case of camera stacking we need to take the viewport rect from base camera
+            Rect pixelRect = passData.cameraData.pixelRect;
+            float cameraAspect = (float)pixelRect.width / (float)pixelRect.height;
+
+            if (passData.cameraSettings.overrideCamera)
+            {
+                if (passData.cameraData.xr.enabled)
+                {
+                    Debug.LogWarning("RenderObjects pass is configured to override camera matrices. While rendering in stereo camera matrices cannot be overridden.");
+                }
+                else
+                {
+                    Matrix4x4 projectionMatrix = Matrix4x4.Perspective(passData.cameraSettings.cameraFieldOfView, cameraAspect,
+                        camera.nearClipPlane, camera.farClipPlane);
+                    projectionMatrix = GL.GetGPUProjectionMatrix(projectionMatrix, isYFlipped);
+
+                    Matrix4x4 viewMatrix = passData.cameraData.GetViewMatrix();
+                    Vector4 cameraTranslation = viewMatrix.GetColumn(3);
+                    viewMatrix.SetColumn(3, cameraTranslation + passData.cameraSettings.offset);
+
+                    RenderingUtils.SetViewAndProjectionMatrices(cmd, viewMatrix, projectionMatrix, false);
+                }
+            }
+
+            var activeDebugHandler = GetActiveDebugHandler(passData.cameraData);
+            if (activeDebugHandler != null)
+            {
+                passData.debugRendererLists.DrawWithRendererList(cmd);
+            }
+            else
+            {
+                cmd.DrawRendererList(rendererList);
+            }
+
+            if (passData.cameraSettings.overrideCamera && passData.cameraSettings.restoreCamera && !passData.cameraData.xr.enabled)
+            {
+                RenderingUtils.SetViewAndProjectionMatrices(cmd, passData.cameraData.GetViewMatrix(), GL.GetGPUProjectionMatrix(passData.cameraData.GetProjectionMatrix(0), isYFlipped), false);
+            }
+        }
+
+        private class PassData
+        {
+            internal RenderObjects.CustomCameraSettings cameraSettings;
+            internal RenderPassEvent renderPassEvent;
+
+            internal TextureHandle color;
+            internal RendererListHandle rendererListHdl;
+            internal DebugRendererLists debugRendererLists;
+
+            internal UniversalCameraData cameraData;
+
+            // Required for code sharing purpose between RG and non-RG.
+            internal RendererList rendererList;
+
+            internal bool depthInputAttachment;
+            internal bool isActiveTargetBackBuffer;
+        }
+
+        private void InitPassData(UniversalCameraData cameraData, ref PassData passData, bool isActiveTargetBackBuffer = false)
+        {
+            passData.cameraSettings = m_CameraSettings;
+            passData.renderPassEvent = renderPassEvent;
+            passData.cameraData = cameraData;
+            passData.isActiveTargetBackBuffer = isActiveTargetBackBuffer;
+        }
+
+        private void InitRendererLists(UniversalRenderingData renderingData, UniversalLightData lightData,
+            ref PassData passData, RenderGraph renderGraph)
+        {
+            SortingCriteria sortingCriteria = (renderQueueType == RenderQueueType.Transparent)
+                ? SortingCriteria.CommonTransparent
+                : passData.cameraData.defaultOpaqueSortFlags;
+            DrawingSettings drawingSettings = RenderingUtils.CreateDrawingSettings(m_ShaderTagIdList, renderingData,
+                passData.cameraData, lightData, sortingCriteria);
+            drawingSettings.overrideMaterial = overrideMaterial;
+            drawingSettings.overrideMaterialPassIndex = overrideMaterialPassIndex;
+            drawingSettings.overrideShader = overrideShader;
+            drawingSettings.overrideShaderPassIndex = overrideShaderPassIndex;
+
+            var activeDebugHandler = GetActiveDebugHandler(passData.cameraData);
+            if (activeDebugHandler != null)
+            {
+                passData.debugRendererLists = activeDebugHandler.CreateRendererListsWithDebugRenderState(renderGraph,
+                    ref renderingData.cullResults, ref drawingSettings, ref m_FilteringSettings, ref m_RenderStateBlock);
+            }
+            else
+            {
+                RenderingUtils.CreateRendererListWithRenderStateBlock(renderGraph, ref renderingData.cullResults, drawingSettings,
+                    m_FilteringSettings, m_RenderStateBlock, ref passData.rendererListHdl);
+            }
+        }
+
+        /// <inheritdoc />
+        public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
+        {
+            UniversalCameraData cameraData = frameData.Get<UniversalCameraData>();
+            UniversalRenderingData renderingData = frameData.Get<UniversalRenderingData>();
+            UniversalLightData lightData = frameData.Get<UniversalLightData>();
+
+            using (var builder = renderGraph.AddRasterRenderPass<PassData>(passName, out var passData, profilingSampler))
+            {
+                UniversalResourceData resourceData = frameData.Get<UniversalResourceData>();
+
+                InitPassData(cameraData, ref passData, resourceData.isActiveTargetBackBuffer);
+
+                passData.color = resourceData.activeColorTexture;
+                builder.SetRenderAttachment(resourceData.activeColorTexture, 0, AccessFlags.Write);
+
+                // Configure depth attachment based on input attachment setting
+                if (m_DepthInputAttachment && SystemInfo.supportsDepthAttachmentAsInputAttachment)
+                {
+                    // Input attachment mode: depth is read-only, accessed from tile memory
+                    builder.SetExtendedFeatureFlags(ExtendedFeatureFlags.DepthAttachmentAsInputAttachment);
+                    builder.SetInputAttachment(resourceData.activeDepthTexture, 0, AccessFlags.Read);
+                    passData.depthInputAttachment = true;
+                }
+                else if (cameraData.imageScalingMode != ImageScalingMode.Upscaling || passData.renderPassEvent != RenderPassEvent.AfterRenderingPostProcessing)
+                {
+                    builder.SetRenderAttachmentDepth(resourceData.activeDepthTexture, AccessFlags.ReadWrite);
+                    passData.depthInputAttachment = false;
+                }
+
+                TextureHandle mainShadowsTexture = resourceData.mainShadowsTexture;
+                TextureHandle additionalShadowsTexture = resourceData.additionalShadowsTexture;
+
+                if (mainShadowsTexture.IsValid())
+                    builder.UseTexture(mainShadowsTexture, AccessFlags.Read);
+
+                if (additionalShadowsTexture.IsValid())
+                    builder.UseTexture(additionalShadowsTexture, AccessFlags.Read);
+
+                TextureHandle[] dBufferHandles = resourceData.dBuffer;
+                for (int i = 0; i < dBufferHandles.Length; ++i)
+                {
+                    TextureHandle dBuffer = dBufferHandles[i];
+                    if (dBuffer.IsValid())
+                        builder.UseTexture(dBuffer, AccessFlags.Read);
+                }
+
+                TextureHandle ssaoTexture = resourceData.ssaoTexture;
+                if (ssaoTexture.IsValid())
+                    builder.UseTexture(ssaoTexture, AccessFlags.Read);
+
+                InitRendererLists(renderingData, lightData, ref passData, renderGraph);
+                var activeDebugHandler = GetActiveDebugHandler(passData.cameraData);
+                if (activeDebugHandler != null)
+                {
+                    passData.debugRendererLists.PrepareRendererListForRasterPass(builder);
+                }
+                else
+                {
+                    builder.UseRendererList(passData.rendererListHdl);
+                }
+
+                builder.AllowGlobalStateModification(true);
+                if (cameraData.xr.enabled)
+                {
+                    bool passSupportsFoveation = cameraData.xrUniversal.canFoveateIntermediatePasses || resourceData.isActiveTargetBackBuffer;
+                    builder.EnableFoveatedRasterization(cameraData.xr.supportsFoveatedRendering && passSupportsFoveation);
+                    // Multiview render regions are incompatible with the inner (foveal) pass in Quad View
+                    if (!cameraData.xr.isQuadViewInnerPass)
+                    {
+                        builder.SetExtendedFeatureFlags(ExtendedFeatureFlags.MultiviewRenderRegionsCompatible);
+                    }
+                }
+
+                builder.SetRenderFunc(static (PassData data, RasterGraphContext rgContext) =>
+                {
+                    var isYFlipped = RenderingUtils.IsHandleYFlipped(rgContext, in data.color);
+
+                    // Set shader keywords for depth input attachment
+                    if (data.depthInputAttachment)
+                    {
+                        switch (data.cameraData.cameraTargetDescriptor.msaaSamples)
+                        {
+                            case 8:
+                            case 4:
+                            case 2:
+                                rgContext.cmd.SetKeyword(ShaderGlobalKeywords.DEPTH_AS_INPUT_ATTACHMENT, false);
+                                rgContext.cmd.SetKeyword(ShaderGlobalKeywords.DEPTH_AS_INPUT_ATTACHMENT_MSAA, true);
+                                break;
+                            // MSAA disabled
+                            default:
+                                rgContext.cmd.SetKeyword(ShaderGlobalKeywords.DEPTH_AS_INPUT_ATTACHMENT, true);
+                                rgContext.cmd.SetKeyword(ShaderGlobalKeywords.DEPTH_AS_INPUT_ATTACHMENT_MSAA, false);
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        // Ensure keywords are disabled
+                        rgContext.cmd.SetKeyword(ShaderGlobalKeywords.DEPTH_AS_INPUT_ATTACHMENT, false);
+                        rgContext.cmd.SetKeyword(ShaderGlobalKeywords.DEPTH_AS_INPUT_ATTACHMENT_MSAA, false);
+                    }
+
+                    ExecutePass(data, rgContext.cmd, data.rendererListHdl, isYFlipped);
+                });
+            }
+        }
+    }
+}

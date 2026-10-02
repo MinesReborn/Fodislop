@@ -141,7 +141,7 @@ public class TerrainCellCache : ITerrainCellDataSource
             ReliefGroup = (byte)(solid ? 1 + (noise % 3) : 0),
             Distortion = solid && noise % 7 == 0 ? (CellDistortionType)1 : 0,
             HasTileGroup = solid && noise % 5 == 0,
-            TileGroupID = solid ? noise % 4 : 0,
+            TileGroupId = solid ? noise % 4 : 0,
             AtlasIndex = 0,
             IsTextureReady = true,
         };

@@ -21,7 +21,7 @@ internal static class TerrainQuadBuilder
         int AnimationFrameCount,
         float FrameHeightTiles,
         bool HasTileGroup,
-        int TileGroupID,
+        int TileGroupId,
         CellConfigProperties Properties,
         Color32 MinimapColor,
         int AtlasIndex);
@@ -55,6 +55,7 @@ internal static class TerrainQuadBuilder
 
         if (unityY < 0 || unityY >= worldHeight || gridX < 0 || gridX >= worldWidth)
         {
+            quad.Clear();
             return TerrainQuadResult.None;
         }
 
@@ -70,6 +71,7 @@ internal static class TerrainQuadBuilder
 
         if (ccd.State != TerrainCellState.Loaded)
         {
+            quad.Clear();
             return TerrainQuadResult.NoAtlas(isDoor);
         }
 
@@ -119,10 +121,9 @@ internal static class TerrainQuadBuilder
         if (!TerrainCellLayers.TryGetType(
             cellFgType, backgroundType, isBackground, foregroundFillsCell, out CellType cellType))
         {
+            quad.Clear();
             return TerrainQuadResult.NoAtlas(isDoor);
         }
-
-        CellVisualProperties cellVisuals = MapCellConfigCatalog.GetVisualProperties(cellType);
 
         bool isSameCell = !isBackground || cellType == cellFgType;
 
@@ -164,10 +165,15 @@ internal static class TerrainQuadBuilder
         float lx = x * cellSize;
         float ly = y * cellSize;
 
-        Vector3 off00 = isBackground ? Vector3.zero : precalc.GridVertexOffsets[x, y].ToVector3();
-        Vector3 off10 = isBackground ? Vector3.zero : precalc.GridVertexOffsets[x + 1, y].ToVector3();
-        Vector3 off01 = isBackground ? Vector3.zero : precalc.GridVertexOffsets[x, y + 1].ToVector3();
-        Vector3 off11 = isBackground ? Vector3.zero : precalc.GridVertexOffsets[x + 1, y + 1].ToVector3();
+        // Shared lattice offsets describe the deformable mass, not every
+        // surface sharing its vertices. Roads/ground can occupy the foreground
+        // layer too; a neighboring Cause must not warp their carrier or UVs.
+        bool applyDistortion = !isBackground && precalc.EnableDistortion &&
+            TerrainVertexDistortionCalculator.IsCause(ccd);
+        Vector3 off00 = applyDistortion ? precalc.GridVertexOffsets[x, y].ToVector3() : Vector3.zero;
+        Vector3 off10 = applyDistortion ? precalc.GridVertexOffsets[x + 1, y].ToVector3() : Vector3.zero;
+        Vector3 off01 = applyDistortion ? precalc.GridVertexOffsets[x, y + 1].ToVector3() : Vector3.zero;
+        Vector3 off11 = applyDistortion ? precalc.GridVertexOffsets[x + 1, y + 1].ToVector3() : Vector3.zero;
 
         TerrainCellGeometry geometry = TerrainCellGeometry.FromOffsets(
             off00,
@@ -185,12 +191,12 @@ internal static class TerrainQuadBuilder
         // foreground descriptor (or zero when the types differ) assigns the
         // wrong autotile variant under exposed edges and organic underlays.
         int descriptor = isBackground
-            ? ResolveBackgroundTilingDescriptor(
+            ? TerrainBackgroundTileResolver.ResolveDescriptor(
                 sources,
                 x,
                 y,
                 renderProps.HasTileGroup,
-                renderProps.TileGroupID)
+                renderProps.TileGroupId)
             : precalc.CellTilingDescriptors[x, y];
         int cornerSideMask = precalc.CellCornerVariants[x, y];
         bool useNeighborVariants =
@@ -253,7 +259,7 @@ internal static class TerrainQuadBuilder
         // больше 1.5 уже означает «отбросить», и Terrain.shader вместе с
         // TerrainCellBuilder выкидывали по нему всю породу и все кристаллы.
         int packedColumn = descriptor & 0x1F;
-        if (cellVisuals.IsContinuousSheet)
+        if (TerrainSheetCatalog.IsContinuousSheet(cellType))
         {
             packedColumn |= 32;
         }
@@ -362,88 +368,6 @@ internal static class TerrainQuadBuilder
             : Math.Min(Math.Abs(bend), 1) * inwardSign;
     }
 
-    private static int ResolveBackgroundTilingDescriptor(
-        in TerrainCellSources sources,
-        int x,
-        int y,
-        bool hasTileGroup,
-        int tileGroupId)
-    {
-        if (!hasTileGroup)
-        {
-            return 0;
-        }
-
-        byte mask = 0;
-        if (BackgroundCellMatchesTileGroup(sources, x - 1, y, tileGroupId))
-        {
-            mask |= 1 << 0;
-        }
-
-        if (BackgroundCellMatchesTileGroup(sources, x - 1, y - 1, tileGroupId))
-        {
-            mask |= 1 << 1;
-        }
-
-        if (BackgroundCellMatchesTileGroup(sources, x, y - 1, tileGroupId))
-        {
-            mask |= 1 << 2;
-        }
-
-        if (BackgroundCellMatchesTileGroup(sources, x + 1, y - 1, tileGroupId))
-        {
-            mask |= 1 << 3;
-        }
-
-        if (BackgroundCellMatchesTileGroup(sources, x + 1, y, tileGroupId))
-        {
-            mask |= 1 << 4;
-        }
-
-        if (BackgroundCellMatchesTileGroup(sources, x + 1, y + 1, tileGroupId))
-        {
-            mask |= 1 << 5;
-        }
-
-        if (BackgroundCellMatchesTileGroup(sources, x, y + 1, tileGroupId))
-        {
-            mask |= 1 << 6;
-        }
-
-        if (BackgroundCellMatchesTileGroup(sources, x - 1, y + 1, tileGroupId))
-        {
-            mask |= 1 << 7;
-        }
-
-        return TileBitmaskConverter.GetDescriptor(mask);
-    }
-
-    private static bool BackgroundCellMatchesTileGroup(
-        in TerrainCellSources sources,
-        int x,
-        int y,
-        int tileGroupId)
-    {
-        var floodFill = sources.FloodFill.Buffer;
-        if ((uint)x >= (uint)floodFill.Width || (uint)y >= (uint)floodFill.Height)
-        {
-            return false;
-        }
-
-        CachedCellData foreground = sources.CellCache.GetCellData(x + 1, y + 1);
-        CellType background = TerrainCellLayers.ResolveBackground(
-            foreground.Type,
-            floodFill[x, y],
-            foreground.Properties);
-        if (!sources.MetadataLookup.TryGet(background, out CellMetadata metadata))
-        {
-            throw new InvalidOperationException(
-                $"Terrain background metadata for cell type '{background}' was not warmed before tile-group resolution.");
-        }
-
-        return metadata.HasTileGroup && metadata.TileGroupID == tileGroupId;
-    }
-
     private static bool IsOrganicEmptyEdge(CachedCellData neighbor) =>
         neighbor.State == TerrainCellState.Loaded &&
         neighbor.Type == CellType.Empty &&
@@ -548,7 +472,7 @@ internal static class TerrainQuadBuilder
                 ccd.AnimationFrameCount,
                 ccd.FrameHeightTiles,
                 ccd.HasTileGroup,
-                ccd.TileGroupID,
+                ccd.TileGroupId,
                 ccd.Properties,
                 ccd.MinimapColor,
                 ccd.AtlasIndex);
@@ -571,7 +495,7 @@ internal static class TerrainQuadBuilder
             meta.AnimationFrameCount,
             meta.FrameHeightTiles,
             meta.HasTileGroup,
-            meta.TileGroupID,
+            meta.TileGroupId,
             meta.Properties,
             meta.MinimapColor,
             meta.AtlasIndex);

@@ -9,7 +9,7 @@ namespace Kern.Tests.UI;
 [TestFixture]
 public sealed class MainMenuUxmlContractTests
 {
-    private static readonly string[] _RequiredLoaderElements =
+    private static readonly string[] s_requiredLoaderElements =
     [
         "LoaderContainer",
         "LoaderContent",
@@ -21,13 +21,13 @@ public sealed class MainMenuUxmlContractTests
     ];
 
     [Test]
-    public void MainMenuResourceContainsCompleteLoadingUi()
+    public void MainMenuResourceContainsCompleteLoadingUI()
     {
         VisualTreeAsset asset = Resources.Load<VisualTreeAsset>("UI/Menus/MainMenu");
         Assert.That(asset, Is.Not.Null);
 
         TemplateContainer tree = asset.CloneTree();
-        foreach (string elementName in _RequiredLoaderElements)
+        foreach (string elementName in s_requiredLoaderElements)
         {
             Assert.That(tree.Q(elementName), Is.Not.Null, $"Missing #{elementName}");
         }

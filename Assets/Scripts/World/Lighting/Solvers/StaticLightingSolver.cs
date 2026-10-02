@@ -17,10 +17,11 @@ namespace Kern.World.Lighting;
 internal sealed class StaticLightingSolver
 {
     private const int MaximumDispatchGroupsPerDimension = 65535;
+    private static readonly uint[] s_zeroTransportCounters = new uint[3];
 
-    private static readonly ProfilerMarker _CascadeMarker =
+    private static readonly ProfilerMarker s_cascadeMarker =
         new("Kern.Lighting.Cascades.Record.CPU");
-    private static readonly ProfilerMarker _ResolveMarker =
+    private static readonly ProfilerMarker s_resolveMarker =
         new("Kern.Lighting.Resolve.Record.CPU");
 
     private readonly LightingResourceManager _resources;
@@ -36,6 +37,9 @@ internal sealed class StaticLightingSolver
         _scrollRecorder = new CascadeScrollRecorder(resources, telemetry);
     }
 
+    public bool CanReuseStaticAtlas(Vector2Int regionDelta) =>
+        _scrollRecorder.CanReuseWorldOverlap(regionDelta);
+
     public void RecordTrace(
         CommandBuffer commandBuffer,
         RenderTexture emissionField,
@@ -45,12 +49,44 @@ internal sealed class StaticLightingSolver
         bool allowDependencyMask,
         Vector4 worldRect)
     {
-        using var cascadeMarker = _CascadeMarker.Auto();
+        using var cascadeMarker = s_cascadeMarker.Auto();
         long traceStart = System.Diagnostics.Stopwatch.GetTimestamp();
-        commandBuffer.BeginSample("Kern.Lighting.RadianceCascades");
         using var radianceCascadesSample = new CommandBufferSampleScope(commandBuffer, "Kern.Lighting.RadianceCascades");
         ComputeShader compute = _resources.LightingCompute!;
         int solveKernel = _resources.SolveCascadeKernel;
+        // A reused region expands the change stream and replaces its buffer
+        // after shared-parameter recording; bind that current identity here.
+        _resources.EnsureReanchorChangeBinding();
+        commandBuffer.SetComputeBufferParam(compute, solveKernel,
+            "_ReanchorChanges", _resources.ReanchorChanges!);
+        // Snapshot only this static solve. Dynamic frames must not reset or
+        // overwrite its counters before the diagnostic GPU readback completes.
+        if (LightingComputeBinder.DiagnosticTransportCounters)
+        {
+            commandBuffer.SetBufferData(_resources.LightingCounters!, s_zeroTransportCounters);
+            commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.LightingCountersEnabledId, 1);
+        }
+
+        commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.CascadeReanchorEnabledId, 0);
+        if (reuseOverlap)
+        {
+            DirtyRegionGPU[] edits = StaticLightingDirty.ConvertDirtyRegions(dirtyRegions, worldRect,
+                _resources.FieldWidth, _resources.FieldHeight);
+            _resources.EnsureDirtyRegionCapacity(Mathf.Max(1, edits.Length));
+            if (edits.Length > 0)
+            {
+                _resources.DirtyRegions!.SetData(edits);
+            }
+            _telemetry.LightingStaticDependencyMaskSolveCount++;
+            _scrollRecorder.RecordWorldReanchor(commandBuffer, compute, emissionField, regionDelta,
+                edits.Length, RecordCascade);
+            _telemetry.LightingCascadeTraceTimeMs =
+                (float)((System.Diagnostics.Stopwatch.GetTimestamp() - traceStart) *
+                    1000.0 / System.Diagnostics.Stopwatch.Frequency);
+            commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.LightingCountersEnabledId, 0);
+            return;
+        }
+
         bool useDependencyMask = allowDependencyMask &&
             !reuseOverlap &&
             ShouldUseDependencyMask(dirtyRegions, worldRect);
@@ -69,13 +105,13 @@ internal sealed class StaticLightingSolver
         }
         bool needDirtyRegions = useDependencyMask ||
             (scrollDeltas != null && dirtyRegions.Count > 0);
-        DirtyRegionGpu[] dirtyFieldRegions = needDirtyRegions
+        DirtyRegionGPU[] dirtyFieldRegions = needDirtyRegions
             ? StaticLightingDirty.ConvertDirtyRegions(
                 dirtyRegions,
                 worldRect,
                 _resources.FieldWidth,
                 _resources.FieldHeight)
-            : Array.Empty<DirtyRegionGpu>();
+            : Array.Empty<DirtyRegionGPU>();
         _resources.EnsureDirtyRegionCapacity(Mathf.Max(1, dirtyFieldRegions.Length));
         if (useDependencyMask)
         {
@@ -92,15 +128,15 @@ internal sealed class StaticLightingSolver
             commandBuffer.SetComputeBufferParam(
                 maskCompute,
                 clearMaskKernel,
-                LightingComputeBinder.CascadeChangedMaskID,
+                LightingComputeBinder.CascadeChangedMaskId,
                 _resources.CascadeChangedMask);
             commandBuffer.SetComputeIntParam(
                 maskCompute,
-                LightingComputeBinder.CascadeChangedMaskCountID,
+                LightingComputeBinder.CascadeChangedMaskCountId,
                 maskCount);
             commandBuffer.SetComputeIntParam(
                 maskCompute,
-                LightingComputeBinder.CascadeDispatchRowWidthID,
+                LightingComputeBinder.CascadeDispatchRowWidthId,
                 maskGroupsX * 64);
             commandBuffer.DispatchCompute(
                 maskCompute,
@@ -117,9 +153,9 @@ internal sealed class StaticLightingSolver
         }
 
         commandBuffer.SetComputeBufferParam(compute, solveKernel,
-            LightingComputeBinder.RadianceAtlasID, _resources.RadianceAtlas!);
+            LightingComputeBinder.RadianceAtlasId, _resources.RadianceAtlas!);
         commandBuffer.SetComputeTextureParam(compute, solveKernel,
-            LightingComputeBinder.CellSolidMaskID, _resources.CellSolidMask!);
+            LightingComputeBinder.CellSolidMaskId, _resources.CellSolidMask!);
 
         for (int cascadeIndex = _resources.Cascades.Count - 1;
              cascadeIndex >= 0;
@@ -187,6 +223,7 @@ internal sealed class StaticLightingSolver
             }
         }
 
+        commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.LightingCountersEnabledId, 0);
         _telemetry.LightingCascadeTraceTimeMs =
             (float)((System.Diagnostics.Stopwatch.GetTimestamp() - traceStart) *
                 1000.0 / System.Diagnostics.Stopwatch.Frequency);
@@ -199,27 +236,30 @@ internal sealed class StaticLightingSolver
         RenderTexture emissionField,
         RenderTexture directTarget)
     {
-        using var resolveMarker = _ResolveMarker.Auto();
+        using var resolveMarker = s_resolveMarker.Auto();
         long resolveStart = System.Diagnostics.Stopwatch.GetTimestamp();
         ComputeShader compute = _resources.LightingCompute!;
         bool transmissionDebug = debugView == LightingEngine.DebugView.Transmission;
         int resolveKernel = transmissionDebug
             ? _resources.ResolveTransmissionDebugKernel
             : _resources.ResolveDirectKernel;
+        CascadeLayout first = _resources.Cascades[0];
+        commandBuffer.SetComputeIntParam(compute, LightingComputeBinder.CascadeProbeSpacingId, first.ProbeSpacing);
+        commandBuffer.SetComputeIntParams(compute, LightingComputeBinder.CascadeProbeSizeId, first.ProbeWidth, first.ProbeHeight);
 
         commandBuffer.SetComputeIntParam(
             compute,
-            LightingComputeBinder.CascadeOffsetID,
+            LightingComputeBinder.CascadeOffsetId,
             _resources.Cascades[0].Offset);
         commandBuffer.SetComputeBufferParam(
             compute,
             resolveKernel,
-            LightingComputeBinder.RadianceAtlasID,
+            LightingComputeBinder.RadianceAtlasId,
             _resources.RadianceAtlas!);
         commandBuffer.SetComputeTextureParam(
             compute,
             resolveKernel,
-            LightingComputeBinder.DirectTextureID,
+            LightingComputeBinder.DirectTextureId,
             directTarget);
         if (transmissionDebug)
         {
@@ -227,15 +267,15 @@ internal sealed class StaticLightingSolver
             commandBuffer.SetComputeTextureParam(
                 compute,
                 resolveKernel,
-                LightingComputeBinder.CellSolidMaskID,
+                LightingComputeBinder.CellSolidMaskId,
                 _resources.CellSolidMask!);
         }
 
         commandBuffer.DispatchCompute(
             compute,
             resolveKernel,
-            LightingComputeBinder.DispatchGroups(_resources.FieldWidth),
-            LightingComputeBinder.DispatchGroups(_resources.FieldHeight),
+            LightingComputeBinder.DispatchGroups(_resources.LightWidth),
+            LightingComputeBinder.DispatchGroups(_resources.LightHeight),
             1);
         _telemetry.LightingCascadeMergeTimeMs =
             (float)((System.Diagnostics.Stopwatch.GetTimestamp() - resolveStart) *
@@ -275,20 +315,20 @@ internal sealed class StaticLightingSolver
         commandBuffer.SetComputeBufferParam(
             compute,
             solveKernel,
-            LightingComputeBinder.DirtyRegionsID,
+            LightingComputeBinder.DirtyRegionsId,
             _resources.DirtyRegions!);
         commandBuffer.SetComputeBufferParam(
             compute,
             solveKernel,
-            LightingComputeBinder.CascadeChangedMaskID,
+            LightingComputeBinder.CascadeChangedMaskId,
             _resources.CascadeChangedMask!);
         commandBuffer.SetComputeIntParam(
             compute,
-            LightingComputeBinder.DirtyRegionCountID,
+            LightingComputeBinder.DirtyRegionCountId,
             dirtyRegionCount);
         commandBuffer.SetComputeIntParam(
             compute,
-            LightingComputeBinder.CascadeMaskEnabledID,
+            LightingComputeBinder.CascadeMaskEnabledId,
             useDependencyMask ? 1 : 0);
 
         LightingComputeBinder.BindCascadeDispatch(
@@ -308,7 +348,7 @@ internal sealed class StaticLightingSolver
         int groupCountY = Mathf.CeilToInt(totalGroupCount / (float)groupCountX);
         commandBuffer.SetComputeIntParam(
             compute,
-            LightingComputeBinder.CascadeDispatchRowWidthID,
+            LightingComputeBinder.CascadeDispatchRowWidthId,
             groupCountX * 64);
         commandBuffer.DispatchCompute(compute, solveKernel, groupCountX, groupCountY, 1);
         long dispatchEntries = (long)probeRect.width * probeRect.height * cascade.DirectionCount;

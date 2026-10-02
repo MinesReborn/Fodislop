@@ -23,6 +23,9 @@ namespace Kern.Game.Managers
 
         private const string MusicEventName = "music/evil_huge";
         private readonly List<IServerWorldEffect> _activeEffects = new();
+        private readonly Dictionary<(global::MinesServer.Data.SFX Effect, ushort Bot, ushort X, ushort Y), float> _lastSfxTimes = new();
+        private IAudioPlaybackHandle? _currentMusicHandle;
+        private bool _isMusicStarting;
 
         [Inject]
         private IVfxService _vfxService = null!;
@@ -44,6 +47,8 @@ namespace Kern.Game.Managers
         [Inject]
         private IAsyncOperationSupervisor _operations = null!;
         [Inject]
+        private ILocalPlayerState _localPlayer = null!;
+        [Inject]
         private WorldEntityBatchRenderer _entityBatchRenderer = null!;
         [Inject]
         private ISceneObjectFactory _sceneObjects = null!;
@@ -52,25 +57,37 @@ namespace Kern.Game.Managers
         {
             if (packet.EffectType == global::MinesServer.Data.SFX.Music)
             {
+                if (_isMusicStarting || (_currentMusicHandle != null && _currentMusicHandle.IsPlaying))
+                {
+                    return;
+                }
+
+                _isMusicStarting = true;
                 _operations.Run("play_server_music", PlayMusicWhenAudioReadyAsync);
                 return;
             }
 
-            var vfxType = MapAudioToVFX(packet.EffectType);
-            long acquireStart = System.Diagnostics.Stopwatch.GetTimestamp();
-            IVfxSlot? slot = _vfxService.Acquire(vfxType);
-            double acquireMilliseconds = (System.Diagnostics.Stopwatch.GetTimestamp() - acquireStart) * 1000.0 /
-                System.Diagnostics.Stopwatch.Frequency;
-            if (acquireMilliseconds >= 2.0)
+            var sfxKey = (packet.EffectType, packet.TargetBotId, packet.X, packet.Y);
+            if (_lastSfxTimes.TryGetValue(sfxKey, out float lastTime) && Time.time - lastTime < 0.04f)
             {
-                Kern.Core.Interfaces.Diagnostics.FrameEventLog.Record(
-                    $"звуковое событие: VFX-слот {vfxType} {acquireMilliseconds:F1} мс");
+                return;
             }
 
+            _lastSfxTimes[sfxKey] = Time.time;
+            if (_lastSfxTimes.Count > 128)
+            {
+                _lastSfxTimes.Clear();
+            }
+
+            // Звуковой пакет — только звук. Визуал приходит своим VFXPacket:
+            // перечисления SFX и VFX в протоколе разные. Раньше звук сам брал
+            // слот и грузил визуал с тем же именем, и копание, на которое
+            // приходят оба пакета, рисовалось двумя наложенными эффектами.
             var effect = new ServerAudioEvent(
                 packet,
-                slot,
+                slot: null,
                 _robotService,
+                _localPlayer,
                 _audioSystem,
                 _assetLoader,
                 _mapManager,
@@ -81,8 +98,7 @@ namespace Kern.Game.Managers
 
         public void PlayEffect(VFXPacket packet)
         {
-            var vfxType = MapVfxToPool(packet.EffectType);
-            IVfxSlot? slot = _vfxService.Acquire(vfxType);
+            IVfxSlot? slot = _vfxService.Acquire();
 
             Debug.Log($"{TAG} VFX '{packet.EffectType}' at {packet.X}:{packet.Y} (bot {packet.TargetBotId}).");
 
@@ -99,45 +115,50 @@ namespace Kern.Game.Managers
             _activeEffects.Add(effect);
         }
 
-        private static VfxType MapVfxToPool(global::MinesServer.Data.VFX vfx)
-        {
-            // VFX-пакет — чистая визуальность. Из переиспользуемых пулов есть
-            // только Bz и Death; остальное идёт через Custom (слот без авторского
-            // ассета), визуал рисует ServerVfxEvent.
-            return vfx switch
-            {
-                global::MinesServer.Data.VFX.Bz => VfxType.Bz,
-                global::MinesServer.Data.VFX.Death => VfxType.Death,
-                _ => VfxType.Custom,
-            };
-        }
-
         private async UniTask PlayMusicWhenAudioReadyAsync(CancellationToken cancellationToken)
         {
-            await _audioSystem.WaitUntilBanksReadyAsync(cancellationToken);
-            if (_audioSystem.Play2D(MusicEventName, AudioLayer.MusicDefault()) == null)
+            try
             {
-                Debug.LogWarning($"{TAG} Музыка '{MusicEventName}' не запустилась.");
+                await _audioSystem.WaitUntilBanksReadyAsync(cancellationToken);
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                if (_currentMusicHandle != null && _currentMusicHandle.IsPlaying)
+                {
+                    return;
+                }
+
+                StopMusic(0f);
+                _currentMusicHandle = _audioSystem.Play2D(MusicEventName, AudioLayer.MusicDefault());
+                if (_currentMusicHandle == null)
+                {
+                    Debug.LogWarning($"{TAG} Музыка '{MusicEventName}' не запустилась.");
+                }
+            }
+            finally
+            {
+                _isMusicStarting = false;
             }
         }
 
-        private static VfxType MapAudioToVFX(global::MinesServer.Data.SFX audioType)
+        private void StopMusic(float fadeOut = 0.5f)
         {
-            // Enum is logically fixed on client, but server can extend it at any time.
-            // Unknown values must NOT be silently dropped — they should flow through
-            // as Custom so client can request/display them by numeric id rather than
-            // treating them as "no effect".
-            return audioType switch
+            if (_currentMusicHandle != null)
             {
-                global::MinesServer.Data.SFX.Bz => VfxType.Bz,
-                global::MinesServer.Data.SFX.Destroy => VfxType.Destroy,
-                global::MinesServer.Data.SFX.Death => VfxType.Death,
-                _ => VfxType.Custom,
-            };
+                if (_currentMusicHandle.IsPlaying)
+                {
+                    _currentMusicHandle.Stop(fadeOut);
+                }
+
+                _currentMusicHandle = null;
+            }
         }
 
         public void ClearAllEffects()
         {
+            StopMusic();
             int count = _activeEffects.Count;
             foreach (var effect in _activeEffects)
             {
@@ -154,6 +175,7 @@ namespace Kern.Game.Managers
         protected void OnDestroy()
         {
             ClearAllEffects();
+            _audioSystem?.StopBus(AudioBusType.Music, 0.2f);
         }
 
         protected void Update()

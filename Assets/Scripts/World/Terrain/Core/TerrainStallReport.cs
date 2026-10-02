@@ -34,7 +34,7 @@ public readonly record struct TerrainStallFrame(
     int ResidencyProbeCalls,
     int ResidencyChunkReads,
     int ResidencyCacheHits,
-    int ResidencyLruTouches,
+    int ResidencyLRUTouches,
     TerrainStallBuildState State,
     TerrainWorkerCost Worker);
 
@@ -170,7 +170,7 @@ public sealed class TerrainStallReport : IFrameEventSource
             $"план {frame.PlanMs:F1} · размеры {frame.DimensionsMs:F1} · " +
             $"резидентность {frame.ResidencyProbeCalls} проб (1 цель + поиск) / " +
             $"{frame.ResidencyChunkReads} уникальных статусов в поиске / " +
-            $"{frame.ResidencyLruTouches} LRU touch / " +
+            $"{frame.ResidencyLRUTouches} LRU touch / " +
             $"{frame.ResidencyCacheHits} попаданий · " +
             $"процесс {frame.ProcessMs:F1} (кэш {totals.CacheMs:F1} · атласы {totals.AtlasMs:F1}) · " +
             $"выгрузка {frame.UploadMs:F1} · прочее {totalMs - accounted:F1} · " +

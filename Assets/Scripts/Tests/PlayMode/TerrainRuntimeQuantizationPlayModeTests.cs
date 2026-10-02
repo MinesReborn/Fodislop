@@ -51,7 +51,7 @@ public sealed class TerrainRuntimeQuantizationPlayModeTests
         MeshFilter meshFilter = terrain.GetComponent<MeshFilter>();
         MeshRenderer meshRenderer = terrain.GetComponent<MeshRenderer>();
         Assert.That(meshFilter.sharedMesh, Is.Not.Null);
-        Assert.That(meshFilter.sharedMesh!.name, Is.EqualTo("TerrainCellIDMesh"),
+        Assert.That(meshFilter.sharedMesh!.name, Is.EqualTo("TerrainCellIdMesh"),
             "Gameplay must use the address mesh consumed by TerrainCellData.hlsl.");
         Assert.That(meshRenderer.sharedMaterials, Has.Length.EqualTo(1));
 
@@ -61,7 +61,7 @@ public sealed class TerrainRuntimeQuantizationPlayModeTests
             Is.EqualTo(ProjectRuntimeContracts.ShaderNames.Terrain));
         Assert.That(cellMaterial.IsKeywordEnabled("KERN_TERRAIN_CELLS"), Is.True,
             "The live terrain renderer is drawing without the cell-data shader path.");
-        Assert.That(terrain.BypassCpuMeshRebuild, Is.False,
+        Assert.That(terrain.BypassCPUMeshRebuild, Is.False,
             "The production test must observe the real builder, not a debug bypass.");
         Assert.That(terrain.LastFullBuildAnchoredForegroundCellCount, Is.GreaterThan(0),
             "The real map produced no anchored foreground geometry; a hand-filled GPU test would miss this.");

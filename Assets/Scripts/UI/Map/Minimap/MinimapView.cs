@@ -32,7 +32,8 @@ internal sealed class MinimapView : IDisposable
 
     public static MinimapView Create(
         UIDocument document,
-        Texture2D texture,
+        Texture texture,
+        Texture pathOverlay,
         Action<int, int> moveRequested)
     {
         VisualTreeAsset template = Resources.Load<VisualTreeAsset>(
@@ -50,6 +51,22 @@ internal sealed class MinimapView : IDisposable
             throw new InvalidOperationException("[Minimap] MinimapImage is missing from Minimap.uxml.");
         image.image = texture;
 
+        // Остаток клик-маршрута поверх клеток: прозрачная текстура того же
+        // размера, растянутая на картинку. Клики проходят сквозь неё.
+        var pathImage = new Image
+        {
+            name = "MinimapPathOverlay",
+            image = pathOverlay,
+            pickingMode = PickingMode.Ignore,
+            scaleMode = ScaleMode.StretchToFill,
+        };
+        pathImage.style.position = Position.Absolute;
+        pathImage.style.left = 0;
+        pathImage.style.top = 0;
+        pathImage.style.right = 0;
+        pathImage.style.bottom = 0;
+        image.Add(pathImage);
+
         // Клик по блоку миникарты — движение к этому блоку (та же логика, что
         // у ЛКМ по миру). Здесь вычисляется только пиксель текстуры; конвертацию
         // в серверную клетку относительно центра (робота) делает контроллер.
@@ -61,9 +78,7 @@ internal sealed class MinimapView : IDisposable
                 return;
             }
 
-            // localPosition — позиция указателя в системе координат картинки;
-            // evt.position при этом приходит в координатах панели, поэтому
-            // прямое деление на размер картинки давало неверный тайл.
+            // localPosition — позиция указателя в системе координат картинки.
             Vector2 local = evt.localPosition;
             float relX = local.x / bound.width;
             float relY = local.y / bound.height;
@@ -80,10 +95,7 @@ internal sealed class MinimapView : IDisposable
             moveRequested(texX, texY);
             evt.StopPropagation();
         });
-        root.RegisterCallback<ClickEvent>(evt =>
-        {
-            evt.StopPropagation();
-        });
+        root.RegisterCallback<ClickEvent>(evt => evt.StopPropagation());
         document.rootVisualElement.Add(tree);
         var view = new MinimapView(tree, root, coordinates, image);
         view.SetVisible(false);
@@ -94,7 +106,14 @@ internal sealed class MinimapView : IDisposable
     /// Просит перерисовать текстуру миникарты. Текстура пишется на месте, без
     /// смены ссылки, поэтому элемент нужно явно пометить грязным.
     /// </summary>
-    public void MarkDirty() => _image.MarkDirtyRepaint();
+    public void MarkDirty()
+    {
+        _image.MarkDirtyRepaint();
+        foreach (VisualElement child in _image.Children())
+        {
+            child.MarkDirtyRepaint();
+        }
+    }
 
     public void UpdateCoordinates(int x, int y)
     {

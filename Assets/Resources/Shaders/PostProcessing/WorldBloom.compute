@@ -1,0 +1,86 @@
+#pragma kernel Prefilter
+#pragma kernel Downsample
+#pragma kernel Upsample
+
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
+
+Texture2D<float4> _Scene;
+Texture2D<float4> _Emission;
+Texture2D<float4> _Source;
+Texture2D<float4> _Base;
+RWTexture2D<float4> _Output;
+SamplerState sampler_LinearClamp;
+float4 _OutputSize;
+float4 _SourceUv;
+float4 _SourceTexelSize;
+float4 _EmissionUv;
+float _Threshold;
+float _SoftKnee;
+float _Radius;
+float _Scatter;
+float4 _Tint;
+
+float3 PrefilterTap(float2 sceneUv)
+{
+    float2 emissionUv = sceneUv * _EmissionUv.xy + _EmissionUv.zw;
+    float3 result = 0.0;
+    bool inBounds = all(sceneUv >= 0.0) && all(sceneUv <= 1.0) &&
+        all(emissionUv >= 0.0) && all(emissionUv <= 1.0);
+    if (inBounds)
+    {
+        float4 emission = _Emission.SampleLevel(sampler_LinearClamp, emissionUv, 0);
+        // Empty publication can be opaque black; alpha alone is not emission.
+        if (emission.a > 0.001 && any(emission.rgb > 0.0))
+        {
+            float3 color = _Scene.SampleLevel(sampler_LinearClamp, sceneUv, 0).rgb;
+            float luminance = Luminance(color);
+            float knee = max(_Threshold * _SoftKnee, 1e-4);
+            float soft = clamp(luminance - _Threshold + knee, 0.0, 2.0 * knee);
+            soft = soft * soft / (4.0 * knee + 1e-4);
+            float contribution = max(soft, luminance - _Threshold) / max(luminance, 1e-4);
+            result = color * max(contribution, 0.0);
+        }
+    }
+    return result;
+}
+
+[numthreads(8, 8, 1)]
+void Prefilter(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)_OutputSize.xy)) return;
+    float2 uv = ((id.xy + 0.5) * _OutputSize.zw) * _SourceUv.xy + _SourceUv.zw;
+    // Four bilinear samples cover the sixteen scene pixels in a quarter-size
+    // footprint. Each scene tap has its own matching emission sample.
+    float2 d = _SourceTexelSize.xy;
+    float3 color = PrefilterTap(uv + float2(-d.x, -d.y)) +
+        PrefilterTap(uv + float2(d.x, -d.y)) +
+        PrefilterTap(uv + float2(-d.x, d.y)) +
+        PrefilterTap(uv + float2(d.x, d.y));
+    _Output[id.xy] = float4(color * 0.25 * _Tint.rgb, 0.0);
+}
+
+float3 Kawase(float2 uv)
+{
+    float2 d = _SourceTexelSize.xy * _Radius;
+    return 0.25 * (_Source.SampleLevel(sampler_LinearClamp, uv + float2(-d.x, -d.y), 0).rgb +
+        _Source.SampleLevel(sampler_LinearClamp, uv + float2(d.x, -d.y), 0).rgb +
+        _Source.SampleLevel(sampler_LinearClamp, uv + float2(-d.x, d.y), 0).rgb +
+        _Source.SampleLevel(sampler_LinearClamp, uv + float2(d.x, d.y), 0).rgb);
+}
+
+[numthreads(8, 8, 1)]
+void Downsample(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)_OutputSize.xy)) return;
+    float2 uv = (id.xy + 0.5) * _OutputSize.zw;
+    _Output[id.xy] = float4(Kawase(uv * _SourceUv.xy + _SourceUv.zw), 0.0);
+}
+
+[numthreads(8, 8, 1)]
+void Upsample(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)_OutputSize.xy)) return;
+    float2 uv = (id.xy + 0.5) * _OutputSize.zw;
+    float3 local = _Base.SampleLevel(sampler_LinearClamp, uv, 0).rgb;
+    _Output[id.xy] = float4(local + _Scatter * Kawase(uv * _SourceUv.xy + _SourceUv.zw), 0.0);
+}

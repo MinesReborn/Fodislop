@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>WorldRenderGrid — evidence первого этапа</title>
+<style>
+body{font:16px/1.6 system-ui,sans-serif;margin:40px auto;max-width:1080px;padding:0 24px;color:#20252b;background:#fafafa}table{border-collapse:collapse;width:100%;margin:20px 0}th,td{border:1px solid #ccd2d8;padding:9px;text-align:left;vertical-align:top}code{background:#e9edf0;padding:2px 5px}pre{white-space:pre-wrap;background:#e9edf0;padding:16px}.pending{color:#8b4300}
+</style>
+<h1>WorldRenderGrid — текущее состояние реализации</h1>
+<p>2026-09-30. Renderer2D растеризует мир непосредственно в 32 пикселя/клетку.
+Перестройка всего плана пока не завершена; производительность и полный HDR/UI lifecycle gate не подтверждены.</p>
+<h2>Контракт изменений и владельцы</h2>
+<p>Rendering владеет WorldRenderGrid, camera binding, контекстом Renderer2D, color/depth и postprocessing.
+Видимые terrain/entity/surface и стандартные URP sprite/mask vertex shaders потребляют одну плотность;
+Effekseer использует Unity backend и те же vertex helpers. Вершины округляются при растеризации,
+угол робота не округляется. Lighting владеет своей опубликованной текстурой/rect; presentation читает её,
+Пробы каскадов остаются редкими; поля геометрии, материалов, эмиссии и применения света теперь имеют 32×32 текселя на клетку.</p>
+<p>Последовательность: world color/depth → WorldBloom.compute → RGB additive WorldBloomAdd → native URP exposure/tonemapping
+→ DisplayFinal на мировом разрешении → существующий FinalBlit: crop/point enlargement или bilinear reduction,
+native output encoding и полноразмерный UI. DisplayFinal перенесён на сетку мира согласно уточнению пользователя:
+все его эффекты должны вычисляться на той же сетке. Camera projection для ввода/UI не изменяется.</p>
+<h2>TL-LIFE и TL-REV</h2>
+<table><tr><th>Владелец / ресурс</th><th>Создание / публикация / освобождение</th><th>Изменение входов</th></tr>
+<tr><td>Renderer2D: world color/depth</td><td>Штатные RTHandles, дескриптор grid; renderer dispose. Frame context сбрасывается каждый кадр.</td><td>Origin меняет projection/crop; RTHandle перераспределяется только при изменении дескриптора размеров. Скрытого снижения плотности нет.</td></tr>
+<tr><td>Renderer feature: WorldBloomRenderPass/material</td><td>EnsurePassCreated; Create/Dispose уничтожают собственный material. Нет retained borrowed Lighting RTHandle.</td><td>Активность/настройки эффекта обновляются каждый кадр.</td></tr>
+<tr><td>RenderGraph: bloom pyramid</td><td>До четырёх down и трёх up Half targets, graph lifetime; RGB additive сохраняет scene alpha.</td><td>Пирамида привязана к абсолютной мировой решётке stride 4/8/16/32, а не фазе камеры.</td></tr>
+<tr><td>Lighting publication</td><td>Borrowed texture только во время записи команды; world rect — frame value. Нет передачи command ownership Terrain.</td><td>Положение камеры не изменяет static input revisions. Reanchor использует phase/dependency-aware world probe reuse; correctness oracle описан ниже.</td></tr>
+<tr><td>DiagnosticWorldImage</td><td>Null в production; тест регистрирует one-shot readback и очищает callback в finally.</td><td>Никаких дополнительных production draw/dispatch.</td></tr></table>
+<h2>TL-STAGE и стоимость</h2>
+<table><tr><th>Проход</th><th>Reads → writes; размеры / bounds</th><th>Stable-frame работа</th></tr>
+<tr><td>Prefilter</td><td>Четыре bilinear scene taps и четыре matching emission taps → quarter-grid Half; dispatch ceil(size/8), bounds guard.</td><td>Один dispatch при активном bloom.</td></tr>
+<tr><td>Downsample / Upsample</td><td>Четыре Kawase taps; reconstruction читает отдельный finer base; Half targets, bilinear/clamp, без mip/shared-memory/manual format rounding.</td><td>До трёх down и трёх up, остановка перед стороной &lt;8.</td></tr>
+<tr><td>WorldBloomAdd</td><td>Одна bilinear bloom выборка → существующий HDR scene attachment; Blend One One, ColorMask RGB, ReadWrite load.</td><td>Один raster draw в мировом разрешении, без scene-color sample или полноразмерного HDR composite.</td></tr>
+<tr><td>DisplayFinal / FinalBlit</td><td>LUT/vignette/eigengrau — world target; crop и масштабирование — native output pass.</td><td>Display compute один раз на world pixel; штатный output draw.</td></tr></table>
+<p>Счётчики: SceneWorkload/DisplayWorkload включают фактические dimensions, dispatch/draw,
+logical pixels, threads, texture payload bytes и CPU recording duration. Accumulator явно сбрасывается
+при повторном использовании pooled RenderGraph pass data. Per-pass GPU unavailable остаётся null.
+На world 1786×1122 quarter pyramid требует примерно 2,7 MB small-target payload вместо прежних 22,7 MB;
+это расчёт стоимости, а не измеренное ускорение.</p>
+<h2>Production доказательства</h2>
+<p>MainGame_WorldGridZoomImage использует реальную сцену, camera, terrain/entity materials/meshes,
+lighting textures и production Renderer2D. Независимый oracle: zoom 8/16/8, literal central overlap,
+2×2 screen blocks; заморожено время анимаций, освещение не ограничено по частоте.</p>
+<p>Первопричина ранее наблюдавшегося мерцания: precombined VP терял дробную точность при world Y≈40000.
+После разделения view subtraction и projection в видимых шейдерах capture
+world_grid_zoom_20260930_123106: blockError=0, roundTripError=0, overlapError=0, artisticBlockError=0.
+Повторение world_grid_zoom_20260930_130537 также прошло; само по себе оно не доказывает bloom, который
+оказался выключенным пользовательскими настройками. Тест теперь явно включает bloom и проверяет реальные workload counters.</p>
+<p class="pending">Не закрыты: одиночный HDR pixel/edge/odd/no-emission oracle для нового bloom,
+production VFX distortion image, native SDR/HDR UI white/exposure oracle, resize/world replacement/scope resource leak proof,
+три сопоставимых pinned before/after performance repetitions и полная проверка phase mismatch.
+5 ms и 30% p50 improvement не заявляются. Полный TL-CHANGE gate пока не пройден.</p>
+<h2>Проверка готового блока, 13:11–13:13</h2>
+<p>Production MainGame_WorldGridZoomImage passed (6,90 s): capture world_grid_zoom_20260930_131127,
+block/round-trip/overlap/artistic error = 0. Bloom явно включён через production controller:
+world/display 514×514, семь dispatch, один additive draw, семь small targets, payload 361184 bytes.</p>
+<p>MainGame_FrameCostByScenario passed (54,67 s), 28 сценариев по 300 кадров;
+frame_run_20260930_131257 и benchmark_20260930_131258.txt. Всё включено: wall p50 4,62 ms,
+p95 5,62 ms; GPU window p50 12,59 ms только по трём уникальным observations, без per-pass correlation.
+Настройки основного окна не фиксируют bloom on; сравнение выполняется отдельно в postprocess-mask-7/6.
+Поэтому этот прогон не доказывает достижение 5 ms GPU или требуемое ускорение.</p>
+<p>dotnet FrameHarness.Tests: 172 passed. Оба обязательных Terrain/Lighting source scans: empty (exit 1).
+C# compilation completed, failed=false. В WorldBloom Prefilter исправлена причина shader warning:
+явно инициализирован выход, без подавления warning.</p>
+<h2>Перенос статического атласа — TL-OWN / TL-API / TL-REV / TL-STAGE / TL-DATA</h2>
+<p>Lighting владеет копией предыдущих transport inputs, scratch interval atlas, картой зависимостей
+и переносом проб. Terrain публикует через существующий нейтральный exchange симметрическую разность
+старого и нового contributor coverage, включая исчезнувшие полосы. Новых прямых зависимостей доменов нет.
+Поле переносится только при сохранённых static/contributor generations и integer texel scale.
+Каждый каскад отдельно проверяет фазу проб; несовпадающая фаза инвалидирует весь каскад.</p>
+<p>Порядок reanchor: копии старых material/emission → production raster новых полей → geometry caches
+→ GPU exact input comparison → горизонтальный/вертикальный prefix scan → перенос соответствующих world probes
+→ far-to-near dependency solve → native resolve/composite → публикация. Ray-box query учитывает изменённые
+входы, оба края конечного transport domain, поддержку выборки, child intervals и изменившееся clamping topology.
+Изменения static field не зависят от движения динамического источника. На новом регионе все пересекающиеся
+pending edits переходят в этот solve; дневной/кадровой квоты на площадь правок нет.</p>
+<p>Static DDA принимает точные integer probe anchors и относительные floating offsets.
+Сдвиг начала поля поэтому не округляет endpoints перед вычитанием. Dynamic path сохраняет точное положение
+источника. Нет округления радианса, ограничения DDA, пропуска кадров или повторного tonemapping.</p>
+<h3>TL-LIFE / TL-PERF: ресурсы и фактическая работа</h3>
+<table><tr><th>Ресурс / стадия</th><th>Стоимость / освобождение</th></tr>
+<tr><td>Previous material/emission</td><td>4 + 8 bytes/field texel. ResourceManager owns persistent targets;
+copy only on reanchor. Destroy on field resize, quality change, scope disposal.</td></tr>
+<tr><td>Row/change prefix buffers</td><td>4 + 4 bytes/field texel. Two scan dispatches, one row/column per active thread.
+Two linear scans; each candidate segment reads four integral-image entries. No GPU readback in production.</td></tr>
+<tr><td>Atlas scratch/copy</td><td>12 bytes/entry scratch, 12 read + 12 interval write + 4 mask write per copy.
+One copy dispatch/cascade followed by one candidate solve/cascade. All candidate entries are dispatched;
+only unaffected DDA traversal is omitted. Scratch created on first reanchor and released by buffer owner.</td></tr>
+<tr><td>160×128 field / 266240 interval entries</td><td>409600 bytes extra input/prefix storage;
+3194880 bytes scratch; 7454720 bytes atlas-copy traffic, excluding dependency checks and solves.
+Stable frame does not copy, dispatch static work, or allocate in these paths.</td></tr>
+</table>
+<h3>TL-VERIFY: production differential oracle</h3>
+<p>MainGame_StaticAtlasReanchorImage passed in 19.32 s: static_atlas_reanchor_20260930_141029.
+Eight horizontal, vertical and diagonal moves through negative X and large world Y; odd camera target 513×511.
+Real terrain/contributor fields, production camera/color/shaders, native atlas and direct target are compared with
+an explicit full solve at the identical region. For all eight moves: worldError=0, fieldError=0,
+atlasChangedWords=0. Literal float/uint comparison is independent of production transport helpers.</p>
+<p>Earlier failures are retained in Logs: 134912/140112 exposed missing coverage dependencies;
+140331 retained a direct-field discrepancy; 140743 reduced it to floating translation error.
+Tolerance was not widened; integer anchored DDA fixed the remaining packed differences.</p>
+<p class="pending">141029 DDA figures are not performance evidence: that diagnostic still reset counters
+on dynamic frames. The corrected snapshot scopes counting to the actual static solve and is being rerun.
+GPU times remain unavailable here; CPU record time is not substituted for GPU time.
+The three repeated 300-frame pinned before/after acceptance benchmark remains required.</p>
+<h3>Повторная проверка после исправления counter lifecycle</h3>
+<p>static_atlas_reanchor_20260930_141934 passed (12.97 s); все восемь world/direct/packed errors = 0.
+Счётчики теперь сохраняют фактический static solve, не последующий dynamic frame.
+DDA/texel visits по каждому перемещению записаны в oracle.txt. Это счётчик выполненной работы,
+а не GPU latency. LightingGPULifecyclePlayModeTests: 5/5 passed (13.32 s): Standard/Overdrive resource cycling,
+enter/leave, stationary robot receiving light, camera boundary with stationary world source.</p>
+<p>TL-API source scans: оба empty, exit 1. TL-VERIFY compilation: completed, failed=false.
+Local exchange tests: 34/34 passed. FrameHarness.Tests: 172/172 passed after updating the disposable Roslyn fixture for the new production resource bindings. Полный performance gate всего плана всё ещё открыт.</p>
+<p>Восьми перемещениям 141934 соответствуют 99 358 683 DDA texel visits вместо 146 768 852
+у dense reference (−32,3%); по отдельным перемещениям снижение 6,38–58,04%.
+Это сравнение работы static transport, не frame p50/p95 или GPU latency.</p>
+<p>MainGame_WorldGridZoomImage passed (4.64 s), world_grid_zoom_20260930_142046:
+сетка 32 px/cell, point enlargement, зум туда/обратно, world overlap и DisplayFinal production path.
+TerrainWindowAdvanceTests: 12/12 passed, включая пять независимых coverage checks
+для прибывших/исчезнувших клеток и одноразовой публикации.</p>
+<h2>Архив первого этапа</h2>
+<p>Следующие записи относятся к исходному этапу до Renderer2D integration и сохранены как baseline/history;
+их утверждения о невыполненной интеграции описывают тот этап, а не текущие файлы.</p>
+<h1>WorldRenderGrid: контракт и фактическая работа</h1>
+<p>Дата: 2026-09-30. <strong class="pending">Перестройка рендера не завершена.</strong>
+Этот diff вводит контракт первого этапа и instrumentation существующего постпроцессинга.
+Он не переводит мировую растеризацию в 32 пикселя на клетку и не заявляет FPS-улучшение.
+Renderer2D integration, новая bloom-пирамида, revision/atlas reuse и полный production
+visual oracle остаются невыполненными. Merge всего плана заблокирован.</p>
+<h2>Change contract — TL-OWN, TL-API, TL-DATA, TL-PERF, TL-CHANGE</h2>
+<p>Владелец: Presentation/rendering. WorldRenderGrid — неизменяемое значение покрытия;
+WorldRenderGridCamera — binding исходной ортографической камеры. Потребитель следующего
+этапа — Renderer2D. Плотность фиксирована: 32; bounds half-open, Unity Y-up, units — клетки;
+центры пикселей имеют смещение 0.5/32. UV bottom-left, platform flip принадлежит renderer.
+Camera, targetTexture, UI-проекция и lighting transport не меняются. Недопустимые входы,
+переполнение и default layout отклоняются; автоматического LOD/fallback нет.</p>
+<p>PostProcessWorkload принадлежит одному PostProcessRenderPass. Он публикует наблюдение
+только после успешной записи команд. GPU completion не выводится из этого события.
+Consumer — существующий FrameBenchmarkPlayModeTests; предыдущий frame stamp проверяется
+перед экспортом. Внутренние поля feature доступны тестам через существующий friend assembly.</p>
+<h2>Lifecycle — TL-LIFE</h2>
+<table><tr><th>Owner</th><th>Переход / метод</th><th>Ресурсы / публикация</th></tr>
+<tr><td>WorldRenderGrid / Camera binding</td><td>invalid default → ready: Create / Capture</td><td>Value types; unmanaged resources/subscriptions отсутствуют. Dispose не применим. Исходная Camera borrowed на время Capture.</td></tr>
+<tr><td>PostProcessWorkload</td><td>uninitialized → ready: PostProcessRenderPass constructor</td><td>Один managed объект на экземпляр pass; Latest отсутствует.</td></tr>
+<tr><td>PostProcessWorkload</td><td>ready → active: executor Render; Publish после записи</td><td>Snapshot и accumulator — value types. GPU textures по-прежнему принадлежат RenderGraph/URP. Ошибка не публикует новую выборку.</td></tr>
+<tr><td>PostProcessWorkload</td><td>active → disposed: feature Create / EnsurePassCreated / Dispose</td><td>Feature освобождает ссылки на pass; graph data удерживает borrowed reference до выполнения. Собственных native ресурсов/callbacks нет.</td></tr>
+<tr><td>Benchmark recorders</td><td>ready → active: Measure; active → stopped: после 300 кадров; → disposed: RecorderLifetime.Dispose</td><td>Все recorders остановлены до CopyTo. using lifetime покрывает coroutine exception/disposal. Capture/export и file IO находятся вне измерительного цикла.</td></tr></table>
+<h2>Invalidation — TL-REV</h2>
+<table><tr><th>Вход</th><th>Результат</th><th>Untouched</th></tr>
+<tr><td>Положение камеры</td><td>Grid origin/UV/projection меняются; HasSameTargetSize сравнивает только размеры. Ресурсы ещё не создаются по grid.</td><td>Terrain/light source revisions и shader resources</td></tr>
+<tr><td>Zoom/aspect</td><td>Новое расчётное покрытие; увеличение цели сверх display разрешено, плотность не снижается.</td><td>Lighting transport density</td></tr>
+<tr><td>Записанный postprocess pass</td><td>Новый frame-local snapshot; пропущенный pass даёт stale stamp, exporter записывает null.</td><td>Все существующие invalidation и solver operations</td></tr></table>
+<h2>Stage / cost — TL-STAGE, TL-PERF</h2>
+<p>Shader kernels, bindings, clear/load semantics, форматы, stage order и dispatch dimensions
+сохранены. Добавлено наблюдение существующих вызовов DispatchCompute и BlitCameraTexture.
+Логические пиксели: сумма width×height по выполненным dispatch. Threads: произведение числа
+групп на 64; у fused kernel coverage 16×16 при numthreads 8×8. Texture bytes: реальные
+CreateTexture descriptor dimensions × format block size; imported scene color не включён.
+Это color payload, не физическая пиковая VRAM. CPU duration: Stopwatch вокруг записи
+всего pass; GPU duration отдельно и недоступность не подменяется CPU duration.</p>
+<p>Steady cost instrumentation: один value accumulator, O(dispatch count) integer arithmetic,
+два timestamp reads на выполненный pass; O(created texture count) byte accounting при
+записи graph. Новых GPU dispatch/draw/texture resources нет. Managed allocations в новых
+production observation paths отсутствуют. Export snapshots/JSON выделяют память только
+в бенчмарке после измерительного окна.</p>
+<p>Из production observation до перестройки: scene 3420×2148, 9 dispatch, 10,394,028
+logical pixels, 4,931,072 GPU threads, 9 color targets, 83,152,224 payload bytes.
+GPU timings по отдельным Kern postprocess стадиям: unavailable. Эти числа описывают
+существующий рендер и не являются after-результатом оптимизации.</p>
+<h2>Dependency evidence — TL-API, TL-VERIFY</h2>
+<pre>rg -n '\b(LightingEngine|LightingComposition|LightingUpdateCoordinator|LightingFrameExecutor|GeometryLightingSolver|StaticLightingSolver|DynamicLightingSolver|IndirectLightingSolver|LightingGeometryRegistry|LightingResourceManager|LightingTexturePool|LightingPresentation|LightingRuntimeState|LightingInvalidationFlags)\b' Assets/Scripts/World/Terrain --glob '*.cs'
+Output: empty; exit 1 (no matches).
+
+rg -n '\b(TerrainRenderer|TerrainViewportCalculator|TerrainCellCache|TerrainCellBuilder|TerrainCellDataTextures|TerrainMaterialManager|TerrainMeshManager|TerrainLook)\b|Kern\.World\.Terrain' Assets/Scripts/World/Lighting --glob '*.cs'
+Output: empty; exit 1 (no matches).</pre>
+<p>Changed-line review: нет обращений между реализациями Terrain/Lighting, service lookup,
+DI изменений или регистраций. Поиск renderer feature существует только в benchmark fixture,
+вне 300-frame sample loop. Orchestration migration не выполняется, gates A–D не перескакиваются.</p>
+<h2>Verification — TL-VERIFY</h2>
+<table><tr><th>Проверка</th><th>Результат</th></tr>
+<tr><td>dotnet test tools/Kern.FrameHarness.Tests --verbosity minimal</td><td>172 passed: независимые layout expectations, negative bounds, guard crop, overflow, target-size reuse, odd dimensions, fused thread counts, optional bloomDispatches producer/schema parity и negative counter rejection.</td></tr>
+<tr><td>Unity CLI recompile / recompile_status</td><td>Unity 6000.6.0f1: compilation completed, failed=false.</td></tr>
+<tr><td>unity command run_tests --mode EditMode --filter Kern.Tests.WorldRenderGridCameraTests --async_tests true</td><td>1 passed: реальные Unity camera matrices сохраняют исходную projection/targetTexture и дают ожидаемые viewport координаты. Это не visual oracle.</td></tr>
+<tr><td>unity command run_tests --mode PlayMode --filter Kern.Tests.PlayMode.FrameBenchmarkPlayModeTests.MainGame_FrameCostByScenario --include_explicit true --async_tests true</td><td>3/3 passed. Duration 164.03 / 202.03 / 212.33 s; 28 сценариев на повторение, 120-frame основной warmup, 300 samples на сценарий. В каждом каталоге 84 файла. Основной all-enabled сценарий: 300/300 scene и display frame stamps; независимые размеры пирамиды дали ожидаемые pixels/threads/bytes для всех 900 наблюдений.</td></tr>
+<tr><td>dotnet run --project tools/Kern.FrameHarness -- validate &lt;all-enabled-capture.json&gt; --json</td><td>Exit 3: input PASS; invariant/performance/coverage INCOMPLETE. Producer ранее экспортировал bloomDispatches без schema member; это исправлено без удаления producer-поля. Source observations, sample class, pinned workload, production-content identity и visual evidence всё ещё отсутствуют.</td></tr>
+<tr><td>Production visual + SDR/HDR + leak proof</td><td class="pending">INCOMPLETE. Нет production Renderer2D integration и независимого image oracle. Offscreen benchmark не доказывает final output/UI.</td></tr>
+<tr><td>Performance acceptance</td><td class="pending">INCOMPLETE. Не выполнено сопоставление before/after одинакового детерминированного workload; 30% p50 / p95 и 5 ms не заявлены.</td></tr></table>
+<h2>Диагностические повторения исходного пути</h2>
+<table><tr><th>Повторение / capture directory</th><th>Frame p50 / p95, ms</th><th>Доказательство</th></tr>
+<tr><td><a href="../../Logs/Diagnostics/Performance/frame_run_20260930_111512/">frame_run_20260930_111512</a></td><td>11.59 / 21.48</td><td><a href="../../Logs/Diagnostics/Performance/benchmark_20260930_111514.txt">Report</a>; 300 CPU FrameTiming observations, 3 оконных GPU observations.</td></tr>
+<tr><td><a href="../../Logs/Diagnostics/Performance/frame_run_20260930_111908/">frame_run_20260930_111908</a></td><td>15.53 / 35.87</td><td><a href="../../Logs/Diagnostics/Performance/benchmark_20260930_111910.txt">Report</a>; 300 CPU FrameTiming observations, 10 оконных GPU observations.</td></tr>
+<tr><td><a href="../../Logs/Diagnostics/Performance/frame_run_20260930_112309/">frame_run_20260930_112309</a></td><td>16.11 / 34.48</td><td><a href="../../Logs/Diagnostics/Performance/benchmark_20260930_112312.txt">Report</a>; 300 CPU FrameTiming observations, 5 оконных GPU observations.</td></tr></table>
+<p>Это три повторения одного текущего кода, не before/after. Offscreen ARGBHalf target:
+3420×2148, Metal / Apple M3, Unity 6000.6.0f1. Workload не закреплён; source observations
+не позволяют доказать эквивалентность входов. Разницу времени нельзя приписывать
+оптимизации, instrumentation или отдельной подсистеме. GPU observations оконные,
+без frameId correlation; per-pass GPU duration отсутствует. Scope/resize leak proof и
+финальный HDR/UI path не выполнены. Полный performance gate остаётся заблокированным.</p>
+<h2>Review gates</h2>
+<p>Контракт, владельцы, coordinate units, source scans и layout tests приложены.
+Shader/color/lighting поведение не изменено. <strong class="pending">Весь план не проходит
+TL-CHANGE до production implementation и обязательных visual/performance captures.</strong>
+Предыдущие пользовательские изменения executor/benchmark сохранены. Unity tests автоматически
+изменили GraphicsStates.graphicsstate; файл не откатывался.</p>
+<h2>Production bloom и exposure, 16:59</h2>
+<p><code>MainGame_WorldBloomImage</code> прошёл (18,54 s). Capture:
+<code>Logs/Diagnostics/Performance/world_bloom_image_20260930_165933</code>.
+Реальные World Surface material/mesh, contributor material/emission fields, Renderer2D,
+WorldBloom prefilter/pyramid/additive и native URP grading; наблюдение до DisplayFinal.</p>
+<table><tr><th>Вход</th><th>Измеренное доказательство</th></tr>
+<tr><td>Один HDR pixel RGB=64</td><td>Scene peak 64; prefilter RGB energy 11,25 (независимое ожидаемое значение 3×(64/4−1)/4); additive energy 166,8527.</td></tr>
+<tr><td>Источник на левой границе viewport</td><td>Scene 263×260 / quarter 67×66; prefilter energy 11,25; additive energy 120,368256.</td></tr>
+<tr><td>Нет эмиссии</td><td>Scene peak остаётся 64; prefilter/additive energy точно 0.</td></tr>
+<tr><td>Несколько цветных источников</td><td>Prefilter energy 17,338623; additive energy 233,57663.</td></tr>
+<tr><td>Альфа</td><td>Ошибка всех четырёх сценариев точно 0; финитные RGB и additive не уменьшают scene radiance.</td></tr>
+<tr><td>Exposure +1 stop и Neutral</td><td>Входы 0,25 и 0,5 дают 0,416259766 и 0,629394531. Независимая буквальная Neutral curve для 0,5 и 1,0 совпадает с точностью 0,005. Повторная exposure/curve не проходит oracle.</td></tr></table>
+<p>Исходный тест ошибочно ожидал отсутствие tonemapping и использовал конфликтующий runtime Volume.
+Проверка исправлена: fixture сохраняет штатные Neutral и +1 stop. Production HDR ownership не изменялся.
+Readbacks работают только при явном diagnostic callback; production дополнительных проходов не получает.</p>
+<p><code>dotnet test tools/Kern.FrameHarness.Tests --no-restore --verbosity minimal</code>: 172/172;
+<code>dotnet test tools/Kern.WorldLightingExchangeTests --no-restore --verbosity minimal</code>: 34/34.
+<code>git diff --check</code> clean; оба TL-API source scans empty (exit 1).</p>
+<p>Сейчас выполняется <code>MainGame_RenderPathBeforeAfter</code>: 78 окон ×300 кадров,
+120 кадров прогрева на окно; 3420×2148, три зума, две плотности, движение/стояние, три повторения,
+отдельно bloom off/on. Reference явно включает full-resolution Renderer2D, retained legacy bloom
+и dense static reanchor; это текущий тестовый эталон, не восстановленный исторический executable.
+Производительность до завершения и анализа всех окон не считается подтверждённой.</p>
+<h2>Исправление способа замера: штатный экранный вывод</h2>
+<p>Offscreen прогон <code>render_path_ab_20260930_170029</code> прерван на 58/78 окон.
+Назначение gameplay camera.targetTexture оставляло display без scene clear, тогда как UI Toolkit
+продолжал рисовать overlay на display. Наблюдение пользователя: шлейфы world labels и
+«No cameras rendering». Этот прогон исключён из performance acceptance; progress сохранён.</p>
+<p>Benchmark теперь владеет только временной fixed-resolution Game View entry 3420×2148;
+игровая камера остаётся с targetTexture=null. Вывод, UI clear/composition и native HDR/SDR
+контекст сохраняются. Entry и предыдущий размер освобождаются/восстанавливаются через IDisposable.
+Capture и results.json пишутся после каждого измерительного окна, вне измеряемого цикла.
+Production renderer, UI и exposure для этой коррекции не менялись.</p>
+<h2>2026-09-30: авторские плотности полей и native AO 32×32</h2>
+<p>Владелец: Lighting, allocation/geometry field stage. VisualTuning содержит
+FieldPixelsPerCell (общая сетка static/dynamic direct, material/albedo, emission,
+bounce), MaximumFieldTextureSize, CascadeAtlasTextureSize, MaximumStaticCascadeDirections
+и MaximumStaticCascadeRayWorkUnits. После обнаружения поблокового света общая
+плотность полей исправлена на 32, maximum field 8192, atlas 1280. Отдельный
+CascadeProbePixelsPerCell = 4 задаёт только редкие пробы статического транспорта;
+бюджет 200000000 ограничивает их число/направления, но не плотность геометрии,
+альбедо, эмиссии и прямого/выходного света. ResolveDirect интерполирует четыре
+соседние пробы на каждый из 32×32 выходных текселей. DDA читает настоящее плотное
+поле материала. Новый код ещё не получил завершённого production image proof.</p>
+<p>AO выделяется сразу в region cells × 32, независимо от transport texture limit,
+и вычисляется существующим LightingAmbientOcclusionField pass. Предикат геометрии
+и falloff используют центры клеточной сетки 1/32 внутри production fragment shader.
+Сэмплирование point; дополнительного dispatch/draw для квантования нет.
+Превышение аппаратного maxTextureSize явно останавливает allocation, без снижения
+плотности. Изменение AO dimensions входит в resource invalidation.</p>
+<p>TL-OWN / TL-STAGE / TL-REV / TL-LIFE: allocation остаётся в Lighting;
+Terrain получает прежний declared AO context, без новых concrete ссылок.
+Два направления source scan concrete Terrain–Lighting зависимостей пусты;
+git diff --check прошёл. Unity recompile completed, errors=[].</p>
+<p>Production verification: PlayMode
+LightingGPULifecyclePlayModeTests.CyclingPresets_RecreatesTargetsWithoutLeakingThem:
+Исторический результат до разделения полей и проб: 1 passed, 0 failed, 12.93 s. Четыре переключения Standard/Overdrive проверяют
+AO dimensions = опубликованный мировой region × 32, point filtering и отсутствие
+дубликатов owned targets. Это доказательство размеров/жизненного цикла;
+визуальная неизменность деталей при произвольном зуме и GPU стоимость нового
+AO пока не подтверждены. Полный performance acceptance остаётся открытым.</p>
+<h2>Dense fields / sparse cascade repair: incomplete verification</h2>
+<p>TL-OWN / TL-STAGE: LightingResourceManager owns dense geometry, material/albedo,
+emission, static/dynamic direct, surface cache and output targets. Dimensions are
+region cells × 32. Cascades retain sparse probes with spacing measured in dense
+field texels. ResolveDirect interpolates four spatial probes × four directions
+per receiver, without DDA. The existing dynamic DDA integrates continuous source
+box intersections instead of rounding emission bounds; no extra quantization pass.</p>
+<p>TL-REV / TL-LIFE: unchanged coverage/settings reuse textures and the selected
+budgeted probe layout, without allocation selection on stable frames. Replacing
+a material resource invalidates lighting even at identical dimensions. Release
+remains owned by Lighting. Terrain–Lighting concrete scans are empty;
+git diff --check passes. HDR radiance targets retain ARGBHalf and linear units.</p>
+<p>Reanchor snapshots and prefix buffers are now created only when static region reuse actually needs them. A non-reanchor static solve binds an explicit empty change stream. At 4096×4096 this defers 320 MiB (material 64, emission 128, two prefix buffers 128) until reuse. Dynamic-only frames allocate no reanchor data.</p>
+<p>Cost: for W×H region cells each dense target has W×H×1024 texels.
+Compared with the previous budget-selected density 2, this increases field texels
+256×. Static probes remain sparse; DDA traverses dense geometry. Static resolve
+now reads sixteen atlas entries/output texel versus four. This is a quality repair;
+no performance acceptance or 5 ms result is claimed. Memory, GPU timings and
+production image gates remain open.</p>
+<p>Verification: Unity compilation passes; local FrameHarness 172/172 and exchange
+34/34 pass. The subcell-source GPU test initially read zero instead of expected
+emission. GPU buffer readback confirmed source coordinates and registration.
+Subsequent runs were aborted by the unchanged TestMemory guard. A native-format
+cropped GPU readback is being checked; neither those aborted runs nor local tests
+prove visual correctness. Previous image captures predate this density change.</p>
+<h2>Per-texel surface reflection and source-center repair</h2>
+<p>TL-OWN / TL-STAGE: Lighting owns both changes. GeometryCache builds the
+first-air distances; Composite only reads those distances and direct radiance.
+The previous cache searched one entire cell despite the authored 0.5-cell
+reflection reach. Composite then applied a constant attenuation at every depth,
+copying the same exposed-face intensity through the wall cell. The cache now
+searches the authored reach, and each receiver weights face light by its actual
+distance with a smooth fade to zero at that reach. Static/dynamic transport
+extinction and direct radiance remain separate from this surface presentation.</p>
+<table><thead><tr><th>Stage and dispatch</th><th>Reads / writes</th><th>Invalidation and stable frame</th></tr></thead><tbody>
+<tr><td>BuildSurfaceAirCache, GeometryLightingSolver.PrepareCaches;
+ceil(FieldWidth/8) × ceil(FieldHeight/8), bounds check against FieldSize</td>
+<td>Reads MaterialField with MaterialYFlip; overwrites all SurfaceAirCache
+receivers, including zero for air/no exposed face</td><td>Geometry/material
+rebuild or field/layout replacement. No dispatch on unchanged input.</td></tr>
+<tr><td>SurfaceReflection in CompositeLighting,
+IndirectLightingSolver.RecordComposite; full field or expanded dynamic union</td>
+<td>Reads SurfaceAirCache and static/dynamic direct; writes LightmapTexture.
+Every dispatched receiver is overwritten; no DDA, added texture or pass.</td>
+<td>Source changes refresh dynamic composition; geometry/region/resource/debug
+changes refresh the full composite. Dirty support uses the same authored reach
+plus two texels. Stable frames retain the published output.</td></tr>
+<tr><td>GatherDynamicSource in existing dynamic transport</td><td>Reads dense
+material and exact continuous source bounds. Internal receivers use a fixed
+full-circle phase; external receivers retain angular bounds directed at the source.</td>
+<td>Exact source state and material/layout invalidation are unchanged.
+No additional dispatch, frame skipping, angle quantization or source removal.</td></tr>
+</tbody></table>
+<p>TL-DATA: an internal receiver at the exact source center previously evaluated
+atan2(0,0), whose HLSL result is unspecified at the origin
+(<a href="https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-atan2">Microsoft HLSL reference</a>).
+That operation is now outside the full-circle branch. The subsequent Metal
+production test confirms that this change resolves the center failure: red delta
+6.786812 versus independent expected 6.7912529144. The earlier near-zero result
+0.0000247955322 remains recorded as a historical failure.</p>
+<p>TL-PERF: at density 32 / reach 0.5 the cache scans at most 4 × 16 = 64
+material neighbors per solid receiver, versus 4 × 32 = 128. The composite adds
+per-direction distance/fade/attenuation arithmetic and retains four cache values
+and up to eight direct-light reads. Targets, formats, dispatch count and HDR units
+are unchanged. GPU cost, p50/p95 and total-frame acceptance remain unmeasured.</p>
+<p>TL-VERIFY: local Roslyn compilation of Core, Contracts, World and PlayMode
+passes with no errors. glslang compilation passes all 14 production compute
+entry points. The existing native float32 HLSL fixture passes 3160 checks,
+including an independent depth profile at 32 texels/cell, source-center HDR and
+nine continuous subcell phases. The fixture deliberately returns NaN for
+atan2(0,0), so the C++ library's defined zero cannot conceal an HLSL singularity.
+These are supplementary arithmetic/compile checks, not GPU/image proof.</p>
+<p>The existing stationary-robot production screenshot test now covers
+FinalLighting after its DynamicDirect phase. Native-camera subcell GPU testing
+completed through Unity CLI batch mode on Metal: 1 passed, 0 failed, 19.07 s.
+The source-center red delta is 6.786812 against independent expected 6.7912529144;
+all five subcell phases and retained results after settling passed. The previous
+near-zero result is resolved by the full-circle phase change. Current corridor/zoom
+images, dense-field resource cost and required performance captures remain pending.
+No completed visual or performance acceptance is claimed.</p>
+<h2>Full dynamic ray range in emitter layers</h2>
+<p>TL-OWN / TL-LIFE / TL-DATA: DynamicLightTileCache now owns an ARGBFloat
+Tex2DArray scratch with width = rayFan + two wrap columns, height = complete
+rayLength, and one layer per emitter point. The previous 2D row packing divided
+the hardware height limit by nine and silently shortened rays. The new allocator
+validates the full requested distance against the texture limit and reports an
+error instead of clipping transport. Each layer retains bilinear angle/distance
+sampling; emitter layers do not interpolate into each other.</p>
+<p>TL-STAGE / TL-REV: TraceDynamicPolar writes (angle, radius, emitter) and
+PolarOpticalDepth samples the same layer. Dispatch remains ceil(rayFan/64) × 9,
+and the existing trace/solve/compose order and exact-source/material invalidations
+are preserved. Stable cached lights retain their tiles. MaximumDynamicPolarRayWorkUnits
+is now authored in VisualTuning; it controls the existing angular allocation,
+while ray distance is always complete.</p>
+<p>TL-PERF: scratch storage is 16 × (rayFan+2) × rayLength × 9 bytes. At the
+tested 4096×4096 field the actual scratch reached 73×3539×9 (about 35.5 MiB).
+Compared with the old truncated radius, the extra distance samples and DDA
+visits are necessary correctness work. A changed-light frame can now cost more;
+no performance gain is claimed. The dense per-light tile atlas and dense field
+memory remain unresolved cost risks, including large source counts.</p>
+<p>TL-VERIFY: production Metal subcell test after the array change passed,
+1/1 in 18.17 s; the real texture reports Tex2DArray, nine layers, and 3539
+radius samples, exceeding the independently required 2897-corner-radius lower
+bound. Numeric center/subcell/retained-light results pass unchanged. Local
+native HLSL tests pass 3160 checks with real array addressing and an independent
+oracle; all 14 glslang kernels and Unity compilation pass. This confirms
+production binding/layout and the near-source results, not a full distant-shadow
+image comparison. The graphics-preset lifecycle test before the array change
+passed 1/1 in 10.15 s with dense32 fields. The first post-array lifecycle run
+was stopped by TestMemory and produced no verdict. A subsequent lifecycle run
+passed 1/1 in 16.38 s, covering both array resources and preset/scope release.
+This fixture now starts with its first tested Standard preset, avoiding an
+unrelated transport allocation before the preset sequence. Its Overdrive
+assertions still require density 32, the same native camera coverage and complete
+resource release; no guard or quality requirement was weakened.</p>
+<p>The current world-grid zoom image run did not produce a verdict: the
+unchanged TestMemory guard stopped it during MainGame initialization. It is
+recorded as incomplete, not passed. No guard was disabled. The 32-density fields
+and cached radiance tiles materially increase project-owned resource cost;
+the full image/performance acceptance gates remain open.</p>
+<h2>Retained single-source direct field</h2>
+<p>TL-OWN / TL-LIFE: Lighting owns DynamicLightTileCache and the output field.
+A single source previously wrote identical radiance into both DirectTexture and
+an equally large cached tile. The existing direct-write path now retains only
+the DirectTexture result. Its shared compute kernel receives a one-texel tile
+UAV binding and never writes it. Multiple-source layouts continue to own full
+radiance tiles for additive composition.</p>
+<p>TL-STAGE / TL-REV: SolveDynamicLighting writes either the direct field or a
+radiance tile. A stable single source issues neither trace nor tile composition;
+the retained direct result is the source cache. Switching between single and
+multiple sources replaces the tile layout, clears the ID-to-slot map and
+invalidates all current slots, so every active source is traced before the new
+result is published. Source removal refreshes the old/current dirty union.
+Position, color, material, generation and field-layout dependencies are unchanged.</p>
+<p>TL-PERF: one-source tile storage changes from eight bytes per allocated
+receiver to eight bytes total; at 4096×4096 this removes approximately 128 MiB.
+A changed single source writes one HDR result instead of two: 16,777,216 duplicate
+stores are eliminated at that size. A stable single source also avoids the
+previous full-union composition dispatch and texture copy. No radiance format,
+receiver density, angular samples, ray distance or update rate changes.
+Multiple-source memory and total GPU frame cost remain open issues.</p>
+<p>TL-VERIFY: all 14 glslang production kernels compile. Native float32 HLSL
+checks pass 3161 assertions, including equality of tile/composed versus direct
+radiance and no writes to the one-texel binding. Those assertions supplement
+production testing. The real FinalLighting robot-image run after the emitter
+array change passed 1/1 in 26.54 s, including 30 stationary frames; its native
+World Entity shader, real terrain and Renderer2D projection were used.
+The subsequent preset lifecycle run passed 1/1 in 16.38 s after the direct-field
+optimization. The production Metal source test subsequently passed 1/1 in 10.78 s.
+It covers the original five subcell phases and a 1 → 2 → 1 source-count
+transition through real game lighting. The one-source tile binding is 1×1 in
+both single phases; the two-source atlas is 8192×4096. HDR red readbacks are
+6.7890625, 10.1796875, 6.7890625 versus independent expectations
+6.7912529144, 10.1868793716, 6.7912529144, within 0.02. Each phase waits ten
+frames, verifying retained output as well as transition invalidation. Robot
+Update components are paused only during that isolated source-count phase and
+restored in finally; their renderer/materials and terrain remain present.</p>
+<p>Current evidence files are under
+<code>Logs/Diagnostics/Tests/world-grid-subcell-array-batch-results.xml</code>,
+<code>Logs/Diagnostics/Tests/world-grid-subcell-direct-batch-results.xml</code>,
+<code>Logs/Diagnostics/Tests/world-grid-robot-batch-results.xml</code>, and
+<code>Logs/Diagnostics/Tests/world-grid-lifecycle-direct-batch-results.xml</code>.
+The current corridor image, zoom invariance, distant shadow image, physical HDR
+output and repeated 300-frame before/after measurements remain required open
+acceptance gates. This evidence does not claim the full render plan complete.</p>
+<h2>2026-10-01: качество света и передача ручного управления</h2>
+<p>TL-OWN / TL-API: VisualTuning хранит только стартовые значения семи параметров.
+DTO LightingQualityTuning — неизменяемые данные в Kern.Contracts. Проверка,
+revision и session state принадлежат LightingQualityTuningController в Kern.World.
+LightingEngine применяет новое значение по следующему committed frame demand.
+Существующее окно «Цена света» редактирует локальный черновик и применяет его
+одной кнопкой; «Копировать в VisualTuning» копирует только инициализатор данных.
+Новые concrete вызовы Terrain–Lighting, callbacks или scene lookup не добавлены.</p>
+<table><tr><th>TL-REV: вход</th><th>Владелец / выход / lifecycle</th><th>Цена и единицы</th></tr>
+<tr><td>FieldPixelsPerCell: 1/2/4/8/16/32</td><td>Lighting: material/albedo, emission, static/dynamic direct, surface cache, итоговый lightmap на общей сетке. Engine отключает старую публикацию, освобождает ресурсы и пересчитывает перед новой публикацией. Мир и AO остаются 32×32.</td><td>Пиксели/клетку; площадь поля W×H×density². Material ARGB32, радианс Half; форматы сохраняются.</td></tr>
+<tr><td>CascadeProbePixelsPerCell, MaximumStaticCascadeDirections</td><td>Смена раскладки сбрасывает все ресурсы и cached static/dynamic state. Запрошенные пробы передаются в текущий кадр независимо от старого ClientConfig preset.</td><td>Пробы/клетку, направления; фактические параметры и ограничения существующего бюджета показаны в окне.</td></tr>
+<tr><td>DynamicNearCells, DynamicAngularSampleCount</td><td>Сброс только dynamic caches и composite; material/static transport сохраняются. Зарегистрированные источники не удаляются.</td><td>Клетки, выборки/приёмник. Ближняя зона DDA растёт по площади; выборки линейно.</td></tr>
+<tr><td>DynamicEmitterPointsPerAxis, DynamicPolarDirectionCount</td><td>Новое поколение dynamic array: слои = capacity×points²; shader uniform, dispatch и layer addressing вычисляются из одного значения. Длина луча и частота обновления сохраняются.</td><td>Точки/ось, углы/точку; ARGBFloat, (angles+2)×rayHeight×layers×16 байт без overhead.</td></tr>
+<tr><td>Равное значение / конец scope</td><td>Равное значение не меняет revision или GPU resources. Scope teardown освобождает ресурсы штатным owner; session overrides загружаются из исходных defaults при следующем Play session.</td><td>Stable frame: сравнение value snapshot и копирование settings, без новых allocation/pass/dispatch. Новых GPU ресурсов или shader kernels не добавлено.</td></tr></table>
+<p>TL-STAGE / TL-DATA: порядок Geometry → static → dynamic → composite и HDR
+форматы сохранены. Меняются размеры существующих целей, shader-константы и
+число групп существующих dispatch. Все координаты поля остаются в том же world
+rect; material flip и нативная camera/Renderer2D проекция сохраняются. Input AO
+растеризуется непосредственно при 32 текселях/клетку, без второго quantize pass.</p>
+<p>TL-VERIFY: scripts/check-compile.sh Kern.Contracts Kern.World Kern.Presentation
+Kern.Tests.Editor Kern.Tests.PlayMode: 0 ошибок; существующие предупреждения 1/0/0/0/2.
+Unity Editor unit tests LightingQualityTuningTests: 11/11; значения и revision
+не изменяются при невалидном вводе, равная правка не инвалидирует состояние.
+FrameHarness: 172/172; WorldLightingExchange: 34/34. Production Metal test
+VisualTuning_RebuildsFieldsAndRetainsStationarySources: 1/1 за 8.11 с, включая
+assertion точного числа emitter layers.
+Readbacks: density 16 → field 1536², 8 → 768², 32 → 3072²; AO всегда 3072²;
+HDR red соответственно 54.3125 / 54.28125 / 54.3125. Источник сохранился во всех
+переходах. Dynamic-only near1/samples4/emitters2/angles32 создал 34×2880×4 polar
+array, сохранил material/static resources и не отправлял повторную работу в
+10 стабильных кадрах. Это проверка bindings, lifecycle и сохранения радианса,
+а не доказательство одинакового изображения при разном качестве.</p>
+<p>Результаты: Logs/Diagnostics/Tests/lighting-quality-tuning-editor-results.xml и
+Logs/Diagnostics/Tests/lighting-quality-tuning-production-final-results.xml.
+Оба обязательных TL-API rg scan дали пустой вывод; changed-line review не нашёл
+переходов через concrete Terrain–Lighting реализации или references из Contracts
+на implementation. git diff --check проходит.</p>
+<p class="pending">TL-PERF: FPS-исправление этим изменением не заявляется.
+MainGame_LightingTraversalBeforeAfter завершился timeout 300 с после частичного
+набора окон; это провал замера, а не performance acceptance. Полученные окна
+Logs/Diagnostics/Performance/lighting_traversal_ab_20261001_091818 не являются
+полным сравнением 3×300. Цели 5 мс и −30% p50 остаются открыты. Независимые
+visual oracle для полного набора shadows/region moves, physical HDR и полный
+план также остаются открыты. Существующее автоматическое ограничение статических
+проб/направлений по бюджету явно показано, но остаётся conformance debt и не
+принято как исполнение запрета автоматического LOD.</p>
+
+<h2>2026-10-01: исправление плотности, транспорта и spatial invalidation</h2>
+<p>Это новая проверка текущего дерева после сообщения о 7–8 FPS и неверном
+освещении. Снимок lighting_frame_20261001_095001 подтверждал: поле 4096²,
+но первая ступень имела 1 пробу/клетку и всего 4 направления на каждой ступени
+при запросе 4 проб/клетку и потолке 64. Production allocator больше не применяет
+автоматическое снижение по conservative DDA estimate. Пределы размера текстуры
+и числа atlas entries проверяются явно; невместившееся значение — ошибка.</p>
+<table><tr><th>Требование / владелец</th><th>Состояния, входы и инвалидирование</th><th>Выход / стоимость / доказательство</th></tr>
+<tr><td>TL-OWN / TL-LIFE: LightingResourceManager, LightingEngine</td><td>Ready → allocating при смене field/probe/direction settings или coverage;
+validate dimensions/layout → acquire fields/atlas → record → execute → publish.
+Disposing прекращает submission и освобождает поля через штатный lifecycle.
+Смена камеры внутри coverage не меняет сетку проб.</td><td>Авторские 4 пробы и angular progression 4/16/64/64 при field density 8,16,32.
+Production tuning test проверяет фактические значения, а не только размеры целей.
+У field3072² atlas entry count 1916928; ранее quality estimate скрыто снижал его.</td></tr>
+<tr><td>TL-STAGE / TL-DATA: GeometryCache.BuildCellSolidMask</td><td>Чтение mip-zero material/emission; запись одного RGBAHalf flag texel на клетку;
+8×8 groups over cell grid. Инвалидируется при изменении material/emission,
+world origin, field dimensions/generation; stable frame не запускается.</td><td>R — closed corner, G — constant occupancy плюс zero emission, B — all-solid,
+A — constant occupancy. Оригинальная UNorm alpha читается traverser, не кодируется
+в Half. До 1024 alpha loads/клетку на rebuild; новый проход/ресурс не добавлен.</td></tr>
+<tr><td>TL-STAGE: DDA / DynamicPolar transport</td><td>Чтение flags и исходной alpha один раз на доказанную однородную клетку.
+Статика с эмиссией требует G; изолированный источник и optical depth используют A.
+Mixed silhouette / одна emissive точка / partial cell сохраняют base-texel traversal.</td><td>Точный Beer–Lambert integral на cell interval; closed corner и continuous source
+entry/exit сохраняются. Worst case прежний base-texel traversal. Native independent
+checks: 3179, включая 1 blocker из 1024, дробную UNorm alpha, RGB coefficients и
+cell/texel equality. Все 14 production kernels проходят glslang compilation.</td></tr>
+<tr><td>TL-DATA / TL-LIFE: DynamicLightTileCache</td><td>При равных R/G/B extinction выбирается RFloat optical depth, иначе ARGBFloat.
+Радианс остаётся RGB Half. Смена формата пересоздаёт массив и инвалидирует ray cache;
+quarter-capacity slot shrink освобождает прежние лишние polar layers.</td><td>4 байта вместо 16 на sample при равном extinction, float32 точность, те же углы,
+радиусы и emitters. 66×2880×9: 6.53 MiB вместо 26.10 MiB payload. Production Metal
+сравнение 200704 receivers: maximumError=0; coloredPixels=198763; HDR maximum=54.3125.</td></tr>
+<tr><td>TL-REV / TL-API: Lighting staged journal</td><td>Все contiguously staged записи сохраняют spatial identity; matching source revision
+использует регионы. Unknown revision — полный rebuild. Активируются правки всего
+stable field плюс 1-cell halo, включая невидимый padding. Outside records записываются
+в FrameEventLog до acknowledgement. AO использует то же правило.</td><td>Outside matching journal не пересчитывает поля. Padding/unknown inputs пересчитывают.
+FrameHarness production decision path: 175/175; exchange: 34/34. Reanchor сравнивает
+старые/новые материал и эмиссию и ray dependencies against common world domain.</td></tr>
+<tr><td>TL-VERIFY: реальные shaders, mesh, camera и material inputs</td><td>SubcellSource, parked World Entity robot, scalar/reference image, authored tuning,
+WorldGrid zoom и StaticAtlas reanchor через существующий global harness.</td><td>Authored quality + parked robot: 2/2. Scalar/source/tuning: 3/3.
+Zoom и reanchor: 2/2; восемь move directions через отрицательные X/границы:
+worldError=0, fieldError=0, atlasChangedWords=0. Zoom block/roundtrip/overlap errors=0;
+artistic output остаётся на world lattice. Shadow/surface test наблюдал 3139 wall texels
+и 5 глубин с независимым half-cell falloff oracle.</td></tr></table>
+<p>Результаты: lighting-authored-quality-production-results.xml,
+lighting-scalar-uniform-production-results.xml,
+lighting-static-zoom-production-verification-results.xml в Logs/Diagnostics/Tests.
+Предыдущие failed/aborted прогоны сохранены; они не считаются pass.
+Static image fixture теперь замораживает Robot.Update: серверные pose updates раньше
+меняли динамическую часть между двумя static references. При этом настоящий terrain,
+renderer, shaders и зарегистрированные источники сохраняются. Это не proof движущейся
+толпы; её стоимость и кадры рассматриваются отдельно.</p>
+<p>Batch exact-name runner расширяет только запуск существующих Explicit production
+тестов. Встроенный CLI group filter пропускал Explicit fixture; теперь пустой/skipped
+прогон возвращает failure. Batch target 3420×2148 выполняет реальные world-grid,
+URP и DisplayFinal passes. Native UI в batch имеет размер 640×480: такой запуск
+не доказывает полный native-display/UI frame на 3420×2148. GPU stage data, если
+недоступны, остаются отсутствующими.</p>
+<p class="pending">TL-PERF: повторённые окна production transport ещё измеряются.
+5 ms whole frame и полный acceptance matrix SDR/physical HDR/zoom/emission/resize
+пока не закрыты. Ограничение фиксированной плотности: при дальнем зуме мировой
+render target может быть больше display; автоматического уменьшения нет.</p>
+
+<h2>2026-10-01: текущий динамический транспорт и кэш</h2>
+<p>TL-CHANGE / TL-OWN: Lighting владеет DynamicLightTileCache, DynamicLightingSolver,
+DDA и DynamicPolar; Terrain API, ownership и source revisions не меняются.
+Проверяется текущее дерево после сообщений о неверном свете и его высокой цене.
+Исходная яркость EmissionScale=12, качество field32/probes4/directions64/near6/
+angular8/emitter3/polar64 и URP exposure +1 сохраняются. Bloom в авторских настройках выключен.</p>
+<table><tr><th>Дефект и доказательство</th><th>Исправление и инвариант</th><th>TL-VERIFY</th></tr>
+<tr><td>Неподвижный источник после reanchor сохранял optical depth от старого origin/material.</td><td>InvalidateAll сбрасывает validity и receiver, и polar. Изменение только receiver coverage сохраняет лучи. Остановка не удаляет источник.</td><td>StationarySource_ReanchorMatchesFreshTransport: 4 перехода между field origins; раскрытая полоса 32×128 действительно освещена; совпадение retained/fresh=0.</td></tr>
+<tr><td>Emitter обрезался границей material field. Независимый integral: фактический 0.289398 вместо 0.859473.</td><td>Полный непрерывный square источник; outside-field материал — воздух. DDA интегрирует внешнюю часть до входа/после полного выхода, без дополнительных лучей.</td><td>OutsideFieldSource_KeepsCompleteEmitter: offsets −0.75/−0.25/0/0.25/0.75; независимый angular integral, реальные World Surface/UV0/UV1/material/camera/shaders. Native RGB extinction oracle также проверяет каналы с разным поглощением.</td></tr>
+<tr><td>Три одинаковых exp и emission integrals в интервалах с нулевой эмиссией.</td><td>Равные extinction RGB используют один float32 exp. При нулевой эмиссии её integral отсутствует, transmission всё ещё вычисляется. Math flag отдельно от storage flag, поэтому сравнение форматов не меняет математический путь.</td><td>Scalar/vector polar production distribution: maxError=0; independent double exp/expm1 и квадратный источник. Не ослаблен исходный нулевой oracle для storage.</td></tr>
+<tr><td>Для каждого источника RGBHalf tile занимал почти весь viewport; compose загружал заведомо нулевые области.</td><td>В нейтральной среде один RFloat коэффициент brightest-channel; RGB восстанавливается цветом источника. Композиция пропускает только точный нулевой domain writer. Unequal RGB и explicit vector reference сохраняют RGBHalf.</td><td>Три независимых цветных HDR источника; сумма каждого канала &gt;1; RFloat и ARGBHalf против аналитического интеграла. ID reorder сохраняет cache slots и проверяет reachIndex независимо от source-list index.</td></tr>
+<tr><td>2D packing умножал viewport width на ceil(sqrt(capacity)); при zoom мог превысить maxTextureSize.</td><td>Tex2DArray, persistent slot = layer. Размер слоя roundUp64(receiver bounds). CPU/HLSL TileInfo stride 32 байта; reachIndex адресует layer и reach. Array/format/размер/layer limits проверяются до release.</td><td>Native 3389 checks; 14 kernels compile. Production array/layer/цвет/ID reorder и полный image pack проверяются текущим запуском; результаты ниже дополняются после завершения.</td></tr>
+<tr><td>Тестовая World Surface геометрия записала PSO без TexCoord1; следующий warmup сообщил Missing vertex input.</td><td>Fixture передаёт реальный UV1. Через явный Editor API заменён один повреждённый recorded layout на уже записанный совместимый layout того же shader variant, остальные render states сохранены.</td><td>RecordedWorldSurfaceStates_HaveLightingVertexInputs и actual ShaderWarmupService проверяются отдельно. Коллекция не очищена; отключения shader checks нет.</td></tr></table>
+<table><tr><th>TL-STAGE</th><th>Reads → writes / dispatch</th><th>TL-REV / TL-LIFE</th></tr>
+<tr><td>TraceDynamicPolar / DDA</td><td>Material, CellSolidMask, DynamicLights, world/field constants → Polar Tex2DArray + DynamicReach. ceil(angles/64)×points². Линейный float32 optical depth; bilinear clamp, no mip.</td><td>Pose/color/material/origin/quality/layout → rays + receivers; геометрия/static только при собственных изменениях. Same source inputs retain cache.</td></tr>
+<tr><td>SolveDynamicLighting</td><td>Material/emission/geometry, polar + source + reach → source layer или Direct для одного источника. ceil(rect.width/8)×ceil(rect.height/8), bounds checks. Point linear tiles, no mip; каждый active texel overwritten.</td><td>Slot owner DynamicLightTileCache; ID changes map slots, layout invalidates все slots, teardown Release уничтожает arrays/buffers. Новый layer descriptor не публикуется до создания.</td></tr>
+<tr><td>ComposeDynamicLighting</td><td>DynamicLights/Reach/TileInfos/Tiles → Direct ARGBHalf, union 8×8. Reach bounds до Load, без DDA, scene-referred HDR; вне старой/новой union явный clear.</td><td>Суммируется актуальный source list; слой читается persistent slot. Stable unchanged frame не записывает dynamic dispatch.</td></tr></table>
+<p>TL-PERF cost: для capacity64 и слоя 1856×1152 RGBHalf payload был
+1,094,713,344 байт, scalar RFloat — 547,356,672 байт. Array меняет адресование,
+не texel count. Polar scalar RFloat использует четверть payload от ARGBFloat при
+том же количестве направлений/радиусов/слоёв. Compose worst case остаётся
+receiverPixels×sourceCount reads; нулевой domain уменьшает фактические чтения,
+не cadence/качество. Existing scopes DynamicPolar/DynamicReceiverTrace/DynamicCompose,
+DDA segments/visits и dispatch pixels остаются. Новых passes нет.</p>
+<table><tr><th>Production 3×300, warmup120: whole-frame p50 / p95, мс</th><th>Результат</th></tr>
+<tr><td>lighting_traversal_ab_20261001_153558</td><td>Строгий acceptance failed: одна реплика дала только 25.77% p50. Failed artifact сохранён, не считается pass.</td></tr>
+<tr><td>lighting_traversal_ab_20261001_161017: reference p50 57.190/59.203/55.249 → optimized 26.628/27.102/25.295; p95 60.89/65.00/64.13 → 30.06/30.21/30.05</td><td>Каждая реплика ≥30% p50, без p95 регрессии. World image maxError=.001953125, referenceDrift=0.</td></tr>
+<tr><td>lighting_traversal_ab_20261001_162336: reference p50 40.9786/40.8943/44.3306 → optimized 21.7153/21.9897/22.2356; p95 43.3154/43.4941/49.6388 → 24.3665/24.5919/27.0721</td><td>После удаления zero-emission integral: strict acceptance pass, снижение p50 46–50%. Одна движущаяся лампа, реальные terrain/world/URP/output; static/geometry rebuilds=0 в измеряемом окне.</td></tr></table>
+<p class="pending">Это whole-frame время одной контролируемой лампы, не GPU время света
+и не проверка реальной толпы. GPU stage data отсутствуют; CPU recording ~0.05–0.13 мс
+не подставляется вместо GPU. Batch production output3420×2148, native UI640×480;
+полноразмерный UI, physical HDR/paper-white и полный zoom/emission/bloom matrix
+остаются открыты. Все измерения p50&gt;5 мс. Возврат света к0.5 мс и полный план
+не заявляются. Текущий 44-source production comparison и array regression pack
+добавляются после фактического завершения, без выдачи pending за pass.</p>
+
+<h2>2026-10-01: защита от OOM после остановки нагрузочного прогона</h2>
+<p>TL-CHANGE: пользователь потребовал вернуть защиту от OOM. Прогон 44 sources
+не завершился и не считается performance pass. Ни тяжёлый Unity-прогон, ни
+GPU stress test после этого не запускались. Ни причина состояния ОС после
+перезагрузки, ни устранение FPS-регрессии этим изменением не заявляются.</p>
+<p>Дефект защиты: исходный TestMemoryMeasurement проверял только свободную
+память из EditorApplication.update и позволял полностью отключить проверку
+через KERN_DISABLE_TEST_MEMORY_GUARD. Заблокированный аллокацией кадр не
+вызывал такой сторож. Dynamic tile/ray allocations не имели byte preflight.</p>
+<table><tr><th>TL-OWN / TL-LIFE: владелец</th><th>Правило и lifecycle</th><th>Проверка / цена</th></tr>
+<tr><td>Core: ProcessMemorySnapshot, MemoryAllocationGuard</td><td>Защита действует только между BeginTestRun и EndTestRun. macOS: phys_footprint и kern.memorystatus_level; Windows: physical RAM из MEMORYSTATUSEX; Linux: MemAvailable. Swap не считается запасом. Неизвестное измерение запрещает тестовую аллокацию. Тестовый cap: min(3 GiB, 35% RAM); системный резерв max(512 MiB, 20% RAM). К payload добавляются 25% overhead; старые GPU поколения не вычитаются из текущей памяти. Обычная игра не получает memory cap.</td><td>Вне тестового scope Require возвращается до чтения памяти и оценки бюджета; TestRunRejection также не применяет политику. Во время теста: O(1) native snapshot при аллокации; Linux читает meminfo. Проверены native reader на текущей macOS и Windows ABI offsets/64-byte size.</td></tr>
+<tr><td>Tests.Shared: TestMemoryMeasurement</td><td>Test run устанавливает budget, TestStarted восстанавливает сторож после domain reload. Timer 250 ms читает память независимо от кадра, без Unity API. Нарушение завершает только batch test process с exit1 и abort report; GUI ветка передаёт причину main-thread cancellation. RunFinished отключает timer и снимает test budget. Начальный отказ имеет отдельный abort path, потому что framework может перехватить callback exception.</td><td>4 малых native snapshots/с только во время теста. Переменная окружения больше не отключает защиту. Реальный worker проверен в маленьком дочернем .NET процессе с synthetic one-byte cap и заблокированным main thread; actual large allocation отсутствует.</td></tr>
+<tr><td>Lighting: ResourceManager, TexturePool, CascadeBufferManager, DynamicLightTileCache</td><td>Только при активном тестовом scope: полная generation fields + cascade buffers проверяется до release и смены layout metadata. Tiles + необходимые polar layers проверяются вместе до release. Отдельные textures, buffers, scratch и reanchor generations также защищены. Форматы, число направлений, density и shader math не меняются; тестовый отказ сообщает MemoryGuard error.</td><td>Field payload: fieldPixels×44 + aoPixels×4 + cellPixels×8 + cascadeEntries×16 + maxLights×36 + counters24 bytes. Source tiles: width×height×capacity×formatBytes + infos32×capacity. Polar: width×height×capacity×points²×formatBytes. Ни дополнительных GPU passes, ни скрытого LOD нет.</td></tr></table>
+<p>TL-REV / TL-STAGE / TL-DATA: при неизменной конфигурации resource reuse
+выходит до preflight. Изменение dimensions/format/capacity рассчитывает новую
+аллокацию; отказ происходит до уничтожения прежних ресурсов. Статическая и
+динамическая invalidation, каденс, world addressing, HDR units и packed encoders
+сохраняются. Maximum ray length вынесен в существующий DynamicPolarWorkBudget;
+он получает те же размеры, без изменения числа лучей. Terrain/Lighting API и
+composition-root registrations не менялись.</p>
+<p>TL-VERIFY: <code>dotnet test tools/Kern.FrameHarness.Tests --no-restore</code>:
+184/184, включая 9 проверок памяти. Независимый byte oracle:
+4096×2560×64×8 = 5 GiB; такой cache отклонён без его создания. Проверены driver
+headroom, reserve, arithmetic overflow, неизвестное измерение и неработающий
+старый environment bypass. Результат: <code>Logs/Diagnostics/Tests/oom-guard-full-frame-harness.txt</code>.</p>
+<p>Production watchdog negative proof: маленький дочерний процесс исполняет
+настоящий CheckMemoryOutsideFrame из собранного TestMemoryMeasurement; cap1 byte,
+main-thread sleep1.5s. Batch exit1 + abort file; GUI flag cancellation + exit0;
+Editor не запускался и не завершался. Результат:
+<code>Logs/Diagnostics/Tests/oom-guard-worker-final.txt</code>.</p>
+<p>Компиляция Core, World, Tests.Shared, Tests.Editor и Tests.PlayMode с актуальными
+source и assembly references проверяется через
+<code>python3 Logs/Diagnostics/Tests/oom-guard-compile-current-references.py</code>.
+Проверка читает Tests.Shared asmdef и подставляет DLL зависимостей из того же
+запуска, без игнорирования ошибок. Лог: <code>oom-guard-compile-verified.txt</code>. Mandatory boundary scans:
+<code>oom-guard-boundary-scans.txt</code>, оба пусты. Linter: 0 errors, 15 existing
+warnings; новых warnings в защите памяти нет. Shader/visual/GPU стоимость этим
+CPU allocation/cancellation proof не подтверждается.</p>
+<p class="pending">Полный исходный render plan, 5 ms бюджет, real crowd comparison
+и HDR/display acceptance остаются открыты. Защита проверена безопасными negative
+тестами; OOM stress с реальным заполнением RAM намеренно не запускался.</p>
+
+<h2>2026-10-01: исправление области действия OOM-защиты</h2>
+<p>TL-CHANGE: пользователь получил MemoryGuard exception при обычном создании
+освещения: 27% свободной RAM, 1025 MiB запланированного payload с overhead,
+резерв 1638 MiB. Причина: Require применял политику даже при нулевом тестовом
+лимите. Теперь нулевой лимит означает отсутствие тестового scope; Require
+возвращается до OS snapshot и проверок. TestRunRejection также возвращает null
+вне scope. Политика min(3 GiB, 35% RAM) и независимый сторож остаются у тестов.</p>
+<p>TL-OWN / TL-LIFE / TL-REV / TL-STAGE: scope устанавливают только тестовые
+runner/callback, RunFinished снимает budget. Изменение касается допуска CPU
+аллокаций; layout, качество, GPU passes, invalidation и Terrain/Lighting exchange
+не изменены. Scope regression проверяет Require с long.MaxValue вне прогона,
+отказ в активном прогоне и отсутствие отказа после EndTestRun; больших
+ресурсов этот тест не создаёт.</p>
+<p>TL-VERIFY: <code>dotnet test tools/Kern.FrameHarness.Tests</code>: 185/185,
+включая 10 bounded memory tests, 0 skipped. Лог:
+<code>Logs/Diagnostics/Tests/oom-guard-test-scope-tests.txt</code>.
+<code>scripts/check-compile.sh Kern.Core Kern.World Kern.Tests.Shared Kern.Tests.Editor Kern.Tests.PlayMode</code>:
+5/5 assembly checks, 0 errors; существующие compiler warnings: Core 1,
+PlayMode 2. Повторная проверка текущих assembly references также 5/5,
+<code>oom-guard-compile-verified.txt</code>. Architecture linter: 0 errors,
+15 existing warnings, <code>oom-guard-test-scope-architecture.txt</code>.
+Обычный Unity gameplay и GPU stress для этого CPU scope fix не запускались;
+визуальный результат и FPS этим подтверждением не заявляются.</p>
+
+<h2>2026-10-01: исправление окраски поверхности в композите</h2>
+<p>TL-CHANGE / TL-OWN / TL-STAGE: CompositeLighting (Lighting) возвращал
+centerIncident + solid × SurfaceReflection(centerIncident, albedo).
+SurfaceReflection начинал с centerIncident и умножал его на albedo;
+видимый Terrain.shader затем снова умножал lightmap на свой albedo.
+Теперь SurfaceIncidentLighting возвращает incident estimate без альбедо,
+а composite интерполирует center/face incident вместо повторного сложения.
+Consumer остаётся видимый материал; terrain применяет альбедо один раз.</p>
+<p>TL-DATA: независимый известный пример, без дополнительных источников на
+гранях: incident=(2,2,2), solid=1, albedo=(0.2,0.5,0.8). Прежняя формула
+давала видимый RGB=(0.48,1.5,2.88); incident × albedo должен дать
+(0.4,1,1.6). HDR не ограничивается; exposure, output transform и авторские
+интенсивности не изменены. Это разбор формулы, а не production GPU proof.</p>
+<p>TL-OWN / TL-REV / TL-LIFE: Terrain material/emission fragment теперь
+отбрасывает absent coverage и atlas alpha до декалей. Carrier не записывает
+RGB за контуром и не превращает decal на отсутствующем texel в эмиссию.
+Geometry/fields сохраняют прежние resource owners и revision invalidation.
+Composite получает исправленные поля на следующей обычной пересборке.</p>
+<p>TL-PERF: число passes, dispatches, texture loads, targets и их размеры
+не увеличено. Composite убирает повторное умножение на RGB albedo;
+material pass добавляет два fragment clip predicates. FPS/GPU-time после
+изменения не измерены. TL-VERIFY: существующие native caller/extractor
+обновлены под SurfaceIncidentLighting; их прежние проверки с белым альбедо
+и нулевым center incident не проверяли двойную окраску финального композита.</p>
+<p class="pending">Production image/data validation и shader compile после
+этой правки не запускались: пользователь потребовал сейчас читать и править
+код без тестовых прогонов. Правки внесены; визуальная корректность полного
+кадра и устранение всех артефактов ещё не подтверждены.</p>
+</html>

@@ -43,7 +43,7 @@ public sealed class PackPlacementPreview(
 
     // Лаймовый призрак легаси-клиента, заметно прозрачный: фон читается
     // сквозь подсветку. Порог отсечки батча — 0.003, запас большой.
-    private static readonly Color Tint = new(0.35f, 1f, 0.15f, 0.2f);
+    private static readonly Color s_tint = new(0.35f, 1f, 0.15f, 0.2f);
 
     private readonly List<WorldEntityBatchRenderer.SpriteHandle> _cells = [];
     private readonly List<(int Dx, int Dy)> _footprint = [];
@@ -95,7 +95,7 @@ public sealed class PackPlacementPreview(
 
             WorldEntityBatchRenderer.SpriteHandle cell = _cells[used++];
             cell.Transform.position = CoordinateUtils.ServerToUnityPos(x, y, worldHeight);
-            cell.SetColor(Tint);
+            cell.SetColor(s_tint);
             cell.SetEnabled(true);
         }
 
@@ -186,12 +186,13 @@ public sealed class PackPlacementPreview(
         // клетки задаётся на трансформе (CellUnits - CellInset). Формат —
         // RGBA32 в sRGB (linear: false): атлас проверяет graphicsFormat и
         // требует тот же, что у себя (R8G8B8A8_SRGB).
-        var texture = new Texture2D(4, 4, TextureFormat.RGBA32, mipChain: false, linear: false)
-        {
-            name = "PackPreviewCell",
-            filterMode = FilterMode.Point,
-            wrapMode = TextureWrapMode.Clamp,
-        };
+        Texture2D texture = RuntimeTextureFactory.CreateRGBA32NoMip(
+            4,
+            4,
+            "PackPreviewCell",
+            RuntimeTextureColorSpace.Srgb,
+            FilterMode.Point,
+            TextureWrapMode.Clamp);
         var pixels = new Color32[4 * 4];
         for (int i = 0; i < pixels.Length; i++)
         {

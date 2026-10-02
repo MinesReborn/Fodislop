@@ -5,7 +5,7 @@
 
 // Квад террейна из текстур данных клетки (TerrainCellDataTextures).
 //
-// Меш идентификаторов (TerrainCellIdMesh) несёт в POSITION адрес квада
+// Меш идентификаторов (TerrainCellIDMesh) несёт в POSITION адрес квада
 // (x, y, слой), а в TEXCOORD0 угол. Здесь восстанавливаются ровно те
 // атрибуты, что TerrainQuadBuilder писал в вершину: раскладка текселей
 // описана в TerrainCellDataPacker.
@@ -107,8 +107,6 @@ TerrainCellVertex LoadTerrainCellVertex(
     v.animData = _TerrainCellAnimation.Load(texel);
     v.glowData = _TerrainCellGlow.Load(texel);
 
-    float4 geometryX = _TerrainCellGeometryX.Load(texel);
-    float4 geometryY = _TerrainCellGeometryY.Load(texel);
     // Geometry is a foreground-only contract.  Background texels can share
     // the same ring address and must never inherit a stale anchor bit from a
     // previous cell upload.
@@ -116,6 +114,12 @@ TerrainCellVertex LoadTerrainCellVertex(
     bool anchored = geometryMetadata.x > 0.5;
     bool organic = geometryMetadata.y > 0.5;
     float organicEdges = geometryMetadata.y;
+    // Most terrain cells are axis-aligned. Their canonical corners are already
+    // known, so do not fetch two geometry textures for every vertex of those
+    // cells. Keep the data-texture reads inside the existing anchored branch;
+    // all four vertices of a cell take the same branch.
+    float4 geometryX = float4(0.0, 1.0, 1.0, 0.0);
+    float4 geometryY = float4(0.0, 0.0, 1.0, 1.0);
     // Rasterize a carrier enclosing the ENTIRE pixel silhouette. Rasterizing
     // the displaced polygon first loses fragments on the outward half of every
     // staircase; fragment clipping cannot bring those fragments back.
@@ -124,6 +128,8 @@ TerrainCellVertex LoadTerrainCellVertex(
     float2 carrierMax = float2(1.0, 1.0);
     if (anchored)
     {
+        geometryX = _TerrainCellGeometryX.Load(texel);
+        geometryY = _TerrainCellGeometryY.Load(texel);
         float2 firstCorner = TerrainGeometryCorner(geometryX, geometryY, 0);
         float2 boundsMin = firstCorner;
         float2 boundsMax = firstCorner;

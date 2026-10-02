@@ -19,7 +19,7 @@ public static class SettingSchema
         public string Name => Field.Name;
     }
 
-    private static readonly Dictionary<Type, SettingField[]> _FieldCache = [];
+    private static readonly Dictionary<Type, SettingField[]> s_fieldCache = [];
 
     private static class Cache<TSection>
         where TSection : class, new()
@@ -34,9 +34,9 @@ public static class SettingSchema
             throw new ArgumentNullException(nameof(sectionType));
         }
 
-        lock (_FieldCache)
+        lock (s_fieldCache)
         {
-            if (_FieldCache.TryGetValue(sectionType, out SettingField[]? cached))
+            if (s_fieldCache.TryGetValue(sectionType, out SettingField[]? cached))
             {
                 return cached;
             }
@@ -49,7 +49,7 @@ public static class SettingSchema
                     ResolveRange(field),
                     field.GetCustomAttribute<SettingLabelAttribute>()))
                 .ToArray();
-            _FieldCache[sectionType] = fields;
+            s_fieldCache[sectionType] = fields;
             return fields;
         }
     }

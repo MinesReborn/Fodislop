@@ -312,6 +312,9 @@ MonoBehaviour:
   tint:
     m_OverrideState: 1
     m_Value: {r: 1, g: 1, b: 1, a: 1}
+  style:
+    m_OverrideState: 0
+    m_Value: 0
 --- !u!114 &-4244528812422069689
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -393,6 +396,9 @@ MonoBehaviour:
   tint:
     m_OverrideState: 1
     m_Value: {r: 1, g: 1, b: 1, a: 1}
+  style:
+    m_OverrideState: 0
+    m_Value: 0
 --- !u!114 &-3502402503355023550
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -697,7 +703,6 @@ MonoBehaviour:
   components:
   - {fileID: -1083910812058648046}
   - {fileID: 589368484139133588}
-  - {fileID: 4119909782479700770}
   - {fileID: -6165366111512881764}
   - {fileID: 2620290625453124485}
   - {fileID: -1629418828966726489}
@@ -840,34 +845,6 @@ MonoBehaviour:
     m_OverrideState: 1
     m_Value: 0.18
   noiseScale:
-    m_OverrideState: 1
-    m_Value: 1
-  animationSpeed:
-    m_OverrideState: 1
-    m_Value: 18
---- !u!114 &4119909782479700770
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2fa40d9b75c3f4178a67936681d8c115, type: 3}
-  m_Name: ColorGradingComponent
-  m_EditorClassIdentifier: Assembly-CSharp::Kern.Rendering.PostProcessing.ColorGradingComponent
-  active: 1
-  exposure:
-    m_OverrideState: 1
-    m_Value: 0
-  colorFilter:
-    m_OverrideState: 1
-    m_Value: {r: 1, g: 1, b: 1, a: 1}
-  contrast:
-    m_OverrideState: 1
-    m_Value: 0
-  saturation:
     m_OverrideState: 1
     m_Value: 1
 --- !u!114 &6867689974412642954

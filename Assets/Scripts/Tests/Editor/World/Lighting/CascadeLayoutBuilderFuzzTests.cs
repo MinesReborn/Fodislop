@@ -12,11 +12,11 @@ public class CascadeLayoutBuilderFuzzTests
 {
     private const string OverflowMessage = "Radiance cascade atlas exceeds the supported buffer size.";
 
-    private static readonly int[] _Seeds = [1, 7, 42, 1337, 90210, 2147483, 8675309];
+    private static readonly int[] s_seeds = [1, 7, 42, 1337, 90210, 2147483, 8675309];
 
-    private static readonly int[] _HostileDimensions = [0, 1, 2, 255, 256, 257, 1000, 1_000_000];
+    private static readonly int[] s_hostileDimensions = [0, 1, 2, 255, 256, 257, 1000, 1_000_000];
 
-    private static readonly long[] _HostileAtlases = [0L, 1L, 64L, 256L, 257L, 1024L, 4096L];
+    private static readonly long[] s_hostileAtlases = [0L, 1L, 64L, 256L, 257L, 1024L, 4096L];
 
     // Не record struct: primary constructor record-типа требует
     // System.Runtime.CompilerServices.IsExternalInit (для init-сеттеров),
@@ -37,7 +37,7 @@ public class CascadeLayoutBuilderFuzzTests
     }
 
     [Test]
-    public void RandomWorldsKeepOffsetsCumulativeAndNonOverlapping([ValueSource(nameof(_Seeds))] int seed)
+    public void RandomWorldsKeepOffsetsCumulativeAndNonOverlapping([ValueSource(nameof(s_seeds))] int seed)
     {
         var random = new System.Random(seed);
 
@@ -68,7 +68,7 @@ public class CascadeLayoutBuilderFuzzTests
     }
 
     [Test]
-    public void TheIndependentEntryCounterAgreesForEveryRandomWorld([ValueSource(nameof(_Seeds))] int seed)
+    public void TheIndependentEntryCounterAgreesForEveryRandomWorld([ValueSource(nameof(s_seeds))] int seed)
     {
         var random = new System.Random(seed);
 
@@ -96,7 +96,7 @@ public class CascadeLayoutBuilderFuzzTests
     }
 
     [Test]
-    public void RealisticRandomWorldsNeverThrow([ValueSource(nameof(_Seeds))] int seed)
+    public void RealisticRandomWorldsNeverThrow([ValueSource(nameof(s_seeds))] int seed)
     {
         var random = new System.Random(seed);
 
@@ -127,7 +127,7 @@ public class CascadeLayoutBuilderFuzzTests
     }
 
     [Test]
-    public void HugeWorldsFailWithOnlyTheDocumentedMessage([ValueSource(nameof(_Seeds))] int seed)
+    public void HugeWorldsFailWithOnlyTheDocumentedMessage([ValueSource(nameof(s_seeds))] int seed)
     {
         var random = new System.Random(seed);
 
@@ -135,7 +135,7 @@ public class CascadeLayoutBuilderFuzzTests
         {
             int width = Pick(random, 1_000_000, 1_000_000, 2_000_000, 100_000, 10_000);
             int height = random.Next(1, 2_000_000);
-            long atlas = Pick(random, _HostileAtlases);
+            long atlas = Pick(random, s_hostileAtlases);
 
             var cascades = new List<CascadeLayout>();
             try
@@ -162,7 +162,7 @@ public class CascadeLayoutBuilderFuzzTests
     }
 
     [Test]
-    public void IntervalsStayContiguousAndDirectionsStayCapped([ValueSource(nameof(_Seeds))] int seed)
+    public void IntervalsStayContiguousAndDirectionsStayCapped([ValueSource(nameof(s_seeds))] int seed)
     {
         var random = new System.Random(seed);
 
@@ -210,9 +210,9 @@ public class CascadeLayoutBuilderFuzzTests
         if (random.Next(4) == 0)
         {
             return new WorldSpec(
-                Pick(random, _HostileDimensions),
-                Pick(random, _HostileDimensions),
-                Pick(random, _HostileAtlases));
+                Pick(random, s_hostileDimensions),
+                Pick(random, s_hostileDimensions),
+                Pick(random, s_hostileAtlases));
         }
 
         return new WorldSpec(

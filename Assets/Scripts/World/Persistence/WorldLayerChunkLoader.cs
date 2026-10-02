@@ -27,7 +27,7 @@ internal sealed class WorldLayerChunkLoader<T>
     // pass and flood the console within seconds.
     private const int MaxLoggedChunkDiskFailures = 8;
 
-    private readonly ChunkLruCache<T> _cache;
+    private readonly ChunkLRUCache<T> _cache;
     private readonly WorldLayerFile<T> _file;
     private readonly WorldLayerLifetime _lifetime;
     private readonly IAsyncOperationSupervisor _operations;
@@ -46,7 +46,7 @@ internal sealed class WorldLayerChunkLoader<T>
     private readonly List<RectInt> _batchedChunkRegions = new(8);
 
     public WorldLayerChunkLoader(
-        ChunkLruCache<T> cache,
+        ChunkLRUCache<T> cache,
         WorldLayerFile<T> file,
         WorldLayerLifetime lifetime,
         IAsyncOperationSupervisor operations,
@@ -144,7 +144,7 @@ internal sealed class WorldLayerChunkLoader<T>
         }
     }
 
-    public ChunkReadResult<T> ReadChunk(int chunkIndex, bool touchLru = true)
+    public ChunkReadResult<T> ReadChunk(int chunkIndex, bool touchLRU = true)
     {
         if (_lifetime.Disposed)
         {
@@ -158,7 +158,7 @@ internal sealed class WorldLayerChunkLoader<T>
 
         if (_cache.TryGet(chunkIndex, out T[]? chunk) && chunk != null)
         {
-            if (touchLru)
+            if (touchLRU)
             {
                 _cache.Touch(chunkIndex);
             }
@@ -202,7 +202,7 @@ internal sealed class WorldLayerChunkLoader<T>
         return new ChunkReadResult<T>(ChunkReadStatus.Loading, null, null);
     }
 
-    public T[] GetOrCreateChunk(int chunkIndex, bool touchLru = true)
+    public T[] GetOrCreateChunk(int chunkIndex, bool touchLRU = true)
     {
         if (_lifetime.Disposed)
         {
@@ -216,7 +216,7 @@ internal sealed class WorldLayerChunkLoader<T>
 
         if (_cache.TryGet(chunkIndex, out T[]? chunk) && chunk != null)
         {
-            if (touchLru)
+            if (touchLRU)
             {
                 _cache.Touch(chunkIndex);
             }
@@ -226,7 +226,12 @@ internal sealed class WorldLayerChunkLoader<T>
 
         try
         {
-            chunk = _file.TryLoad(chunkIndex, _chunkArea);
+            chunk = _file.TryLoad(chunkIndex, _chunkArea, out bool corrupted);
+            if (corrupted)
+            {
+                LogCorruptChunk(chunkIndex);
+            }
+
             if (chunk == null)
             {
                 // Sparse layers are expected while the server streams
@@ -287,13 +292,18 @@ internal sealed class WorldLayerChunkLoader<T>
     private async UniTask LoadChunkAsync(int chunkIndex)
     {
         T[]? chunk = null;
+        bool corrupted = false;
         Exception? failure = null;
         try
         {
             try
             {
-                chunk = await UniTask.RunOnThreadPool(
-                    () => _file.TryLoad(chunkIndex, _chunkArea));
+                (chunk, corrupted) = await UniTask.RunOnThreadPool(
+                    () =>
+                    {
+                        T[]? loadedChunk = _file.TryLoad(chunkIndex, _chunkArea, out bool wasCorrupted);
+                        return (loadedChunk, wasCorrupted);
+                    });
             }
             catch (IOException ioEx)
             {
@@ -335,6 +345,11 @@ internal sealed class WorldLayerChunkLoader<T>
                     chunkIndex,
                     $"[WorldLayer] Failed to load chunk {chunkIndex}: {failure.Message}");
                 return;
+            }
+
+            if (corrupted)
+            {
+                LogCorruptChunk(chunkIndex);
             }
 
             // A synchronous request may have filled this slot while the disk
@@ -393,5 +408,13 @@ internal sealed class WorldLayerChunkLoader<T>
             Debug.LogWarning(
                 "[WorldLayer] Further per-chunk disk failure warnings are suppressed for this session.");
         }
+    }
+
+    private void LogCorruptChunk(int chunkIndex)
+    {
+        LogChunkDiskFailure(
+            _loggedChunkLoadFailures,
+            chunkIndex,
+            $"[WorldLayer] Chunk {chunkIndex} is corrupt; loading it as an all-zero chunk.");
     }
 }

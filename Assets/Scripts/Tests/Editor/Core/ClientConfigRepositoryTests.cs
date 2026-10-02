@@ -43,6 +43,7 @@ public sealed class ClientConfigRepositoryTests
                 ServerPort = 4242,
             },
         };
+        config.Display.HDRSwitchPending = true;
 
         repository.Save(config);
         ClientConfig loaded = repository.Load().Config;
@@ -50,6 +51,7 @@ public sealed class ClientConfigRepositoryTests
         Assert.That(loaded.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
         Assert.That(loaded.Connection.ServerHost, Is.EqualTo("example.test"));
         Assert.That(loaded.Connection.ServerPort, Is.EqualTo(4242));
+        Assert.That(loaded.Display.HDRSwitchPending, Is.True);
         Assert.That(File.Exists(_configPath + ".tmp"), Is.False);
     }
 
@@ -67,6 +69,48 @@ public sealed class ClientConfigRepositoryTests
 
         Assert.That(exception.Message, Does.Contain("missing field(s)"));
         Assert.That(exception.Message, Does.Contain(nameof(AudioSettings.SfxVolume)));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void Load_RenamedHDRSwitchFlag_PreservesSavedValue(bool pending)
+    {
+        var repository = new ClientConfigRepository(_configPath);
+        var config = new ClientConfig { SchemaVersion = ClientConfig.CurrentSchemaVersion };
+        config.Display.HDRSwitchPending = pending;
+        config.Connection.ServerPort = 4242;
+        repository.Save(config);
+        string historicalJson = File.ReadAllText(_configPath)
+            .Replace("\"HdrSwitchPending\"", "\"HDRSwitchPending\"");
+        File.WriteAllText(_configPath, historicalJson);
+
+        ClientConfig loaded = repository.Load().Config;
+
+        Assert.That(loaded.Display.HDRSwitchPending, Is.EqualTo(pending));
+        Assert.That(loaded.Connection.ServerPort, Is.EqualTo(4242));
+        Assert.That(File.ReadAllText(_configPath), Is.EqualTo(historicalJson));
+        repository.Save(loaded);
+        Assert.That(File.ReadAllText(_configPath), Does.Contain("\"HdrSwitchPending\""));
+        Assert.That(repository.Load().Config.Display.HDRSwitchPending, Is.EqualTo(pending));
+    }
+
+    [Test]
+    public void Load_MissingHDRSwitchFlag_StillRejectsIncompleteCurrentSchema()
+    {
+        var repository = new ClientConfigRepository(_configPath);
+        var config = new ClientConfig { SchemaVersion = ClientConfig.CurrentSchemaVersion };
+        repository.Save(config);
+        string json = File.ReadAllText(_configPath);
+        json = System.Text.RegularExpressions.Regex.Replace(
+            json, "\"HdrSwitchPending\"\\s*:\\s*(true|false)\\s*,", "");
+        Assert.That(json, Does.Not.Contain("\"HdrSwitchPending\""));
+        File.WriteAllText(_configPath, json);
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(
+            () => repository.Load())!;
+
+        Assert.That(exception.Message, Does.Contain(nameof(DisplaySettings.HDRSwitchPending)));
+        Assert.That(File.ReadAllText(_configPath), Is.EqualTo(json));
     }
 
     [Test]

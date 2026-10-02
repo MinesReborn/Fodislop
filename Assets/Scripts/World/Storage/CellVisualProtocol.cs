@@ -63,13 +63,13 @@ public interface ICellVisualProtocol
 /// </summary>
 public static class CellVisualProtocolRegistry
 {
-    private static ICellVisualProtocol _current = new LegacyCellVisualProtocol();
+    private static ICellVisualProtocol s_current = new LegacyCellVisualProtocol();
 
-    public static ICellVisualProtocol Current => _current;
+    public static ICellVisualProtocol Current => s_current;
 
     public static void Replace(ICellVisualProtocol protocol)
     {
-        _current = protocol ?? throw new ArgumentNullException(nameof(protocol));
+        s_current = protocol ?? throw new ArgumentNullException(nameof(protocol));
     }
 }
 
@@ -82,7 +82,7 @@ public sealed class LegacyCellVisualProtocol : ICellVisualProtocol
 {
     // Временная карта старого клиента. Например, Lava строит собственный
     // клеточный контур вместо общего смещения вершин.
-    private static readonly HashSet<CellType> _roundableLooseTypes = new()
+    private static readonly HashSet<CellType> s_roundableLooseTypes = new()
     {
         CellType.WhiteSand, CellType.DarkWhiteSand,
         CellType.RustySand, CellType.DarkRustySand,
@@ -96,19 +96,19 @@ public sealed class LegacyCellVisualProtocol : ICellVisualProtocol
 
     // Road и GoldenRoad не являются природной твёрдой породой для
     // terrain-освещения.
-    private static readonly HashSet<CellType> _roadTypes = new()
+    private static readonly HashSet<CellType> s_roadTypes = new()
     {
         CellType.Road, CellType.GoldenRoad, CellType.BuildingRoad, CellType.PolymerRoad,
     };
 
     // Lava — прозрачная иллюстрация вулкана. Она рисуется поверх подложки,
     // но не должна затенять её и участвовать в переносе света как блок.
-    private static readonly HashSet<CellType> _nonPhysicalMassTypes = new()
+    private static readonly HashSet<CellType> s_nonPhysicalMassTypes = new()
     {
         CellType.Lava,
     };
 
-    private static readonly HashSet<CellType> _crystalSheetTypes = new()
+    private static readonly HashSet<CellType> s_crystalSheetTypes = new()
     {
         CellType.XGreen, CellType.XBlue, CellType.XRed, CellType.XCyan, CellType.XViolet,
         CellType.Green, CellType.Red, CellType.Blue, CellType.Violet, CellType.White, CellType.Cyan,
@@ -118,14 +118,14 @@ public sealed class LegacyCellVisualProtocol : ICellVisualProtocol
         CellType.DeepTurquoiseRock, CellType.DeepRainbowRock, CellType.DeepLazuriteSand,
     };
 
-    private static readonly HashSet<CellType> _rockSheetTypes = new()
+    private static readonly HashSet<CellType> s_rockSheetTypes = new()
     {
         CellType.Rock, CellType.HeavyRock, CellType.DeepRock, CellType.GRock,
         CellType.GoldenRock, CellType.DeepObsidianRock, CellType.DeepStripedRock,
         CellType.RedRock, CellType.BlackRock, CellType.LivingBlackRock,
     };
 
-    private static readonly CellVisualProperties[] _properties = BuildProperties();
+    private static readonly CellVisualProperties[] s_properties = BuildProperties();
 
     public LegacyCellVisualProtocol()
     {
@@ -133,7 +133,7 @@ public sealed class LegacyCellVisualProtocol : ICellVisualProtocol
 
     public CellVisualProperties Get(CellType type)
     {
-        return _properties[(byte)type];
+        return s_properties[(byte)type];
     }
 
     private static CellVisualProperties[] BuildProperties()
@@ -143,27 +143,27 @@ public sealed class LegacyCellVisualProtocol : ICellVisualProtocol
         {
             CellType type = (CellType)index;
             CellVisualFlags flags = CellVisualFlags.None;
-            if (_roundableLooseTypes.Contains(type))
+            if (s_roundableLooseTypes.Contains(type))
             {
                 flags |= CellVisualFlags.RoundableLoose;
             }
 
-            if (_roadTypes.Contains(type))
+            if (s_roadTypes.Contains(type))
             {
                 flags |= CellVisualFlags.Road;
             }
 
-            if (_nonPhysicalMassTypes.Contains(type))
+            if (s_nonPhysicalMassTypes.Contains(type))
             {
                 flags |= CellVisualFlags.NonPhysicalMass;
             }
 
-            if (_crystalSheetTypes.Contains(type))
+            if (s_crystalSheetTypes.Contains(type))
             {
                 flags |= CellVisualFlags.CrystalSheet;
             }
 
-            if (_rockSheetTypes.Contains(type))
+            if (s_rockSheetTypes.Contains(type))
             {
                 flags |= CellVisualFlags.RockSheet;
             }

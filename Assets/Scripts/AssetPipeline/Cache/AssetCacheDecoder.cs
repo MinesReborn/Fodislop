@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.IO;
 using Kern.Core;
 using Kern.World;
 using UnityEngine;
@@ -26,45 +27,14 @@ internal static class AssetCacheDecoder
     {
         // M3G has no magic bytes, so it can only be recognized by the
         // extension (URL query strings included, e.g. image.m3g?v=2).
-        if (IsM3g(filename))
+        if (IsM3G(filename))
         {
-            Texture2D m3g = M3gImageDecoder.Decode(bytes);
+            Texture2D m3g = M3GImageDecoder.Decode(bytes);
             m3g.name = $"Cache_M3G_{DateTime.Now.Ticks}";
             return new DecodedTextureResult(m3g, 0f, 0, 0);
         }
 
-        var containerType = AnimationContainerDecoder.DetectType(bytes);
-        if (containerType == AnimationContainerDecoder.ContainerType.GIF)
-        {
-            var decoded = AnimationContainerDecoder.DecodeGif(bytes);
-            if (decoded.Atlas != null)
-            {
-                decoded.Atlas.name = $"Cache_GIF_{DateTime.Now.Ticks}";
-                RuntimeTextureFactory.ApplySampling(
-                    decoded.Atlas,
-                    FilterMode.Point,
-                    TextureWrapMode.Clamp);
-            }
-
-            return new DecodedTextureResult(decoded.Atlas, decoded.FPS, decoded.FrameHeight, decoded.FrameCount);
-        }
-
-        if (containerType == AnimationContainerDecoder.ContainerType.WebP)
-        {
-            var decoded = AnimationContainerDecoder.DecodeWebP(bytes);
-            if (decoded.Atlas != null)
-            {
-                decoded.Atlas.name = $"Cache_WebP_{DateTime.Now.Ticks}";
-                RuntimeTextureFactory.ApplySampling(
-                    decoded.Atlas,
-                    FilterMode.Point,
-                    TextureWrapMode.Clamp);
-            }
-
-            return new DecodedTextureResult(decoded.Atlas, decoded.FPS, decoded.FrameHeight, decoded.FrameCount);
-        }
-
-        bool makeNoLongerReadable = RuntimeTextureFactory.SupportsTexture2DGpuCopy;
+        bool makeNoLongerReadable = RuntimeTextureFactory.SupportsTexture2DGPUCopy;
         Texture2D? staticTex = RuntimeTextureFactory.DecodeEncodedImageToRGBA32NoMip(
             bytes,
             $"Cache_Tex_{DateTime.Now.Ticks}",
@@ -73,10 +43,29 @@ internal static class AssetCacheDecoder
             TextureWrapMode.Clamp,
             makeNoLongerReadable: makeNoLongerReadable);
 
-        return new DecodedTextureResult(staticTex, 0f, 0, 0);
+        int frameHeight = 0;
+        int frameCount = 0;
+        float fps = 0f;
+        if (staticTex != null &&
+            AnimationContainerDecoder.TryGetAnimationConfig(
+                filename,
+                staticTex.width,
+                staticTex.height,
+                out _,
+                out int fh,
+                out int fc,
+                out float fFPS) &&
+            fc > 1)
+        {
+            frameHeight = fh;
+            frameCount = fc;
+            fps = fFPS;
+        }
+
+        return new DecodedTextureResult(staticTex, fps, frameHeight, frameCount);
     }
 
-    private static bool IsM3g(string filename)
+    private static bool IsM3G(string filename)
     {
         string path = Uri.TryCreate(filename, UriKind.Absolute, out Uri? uri)
             ? uri.AbsolutePath
@@ -86,35 +75,35 @@ internal static class AssetCacheDecoder
 
     public static DecodedAnimationResult DecodeAnimationSprites(byte[] bytes, string filename)
     {
-        var containerType = AnimationContainerDecoder.DetectType(bytes);
-        AnimationContainerDecoder.DecodedAnimation anim;
+        Texture2D? atlas = RuntimeTextureFactory.DecodeEncodedImageToRGBA32NoMip(
+            bytes,
+            $"Cache_Animation_{DateTime.Now.Ticks}",
+            RuntimeTextureColorSpace.Srgb,
+            FilterMode.Point,
+            TextureWrapMode.Clamp,
+            makeNoLongerReadable: false);
 
-        if (containerType == AnimationContainerDecoder.ContainerType.GIF)
+        if (atlas == null)
         {
-            anim = AnimationContainerDecoder.DecodeGif(bytes);
-        }
-        else if (containerType == AnimationContainerDecoder.ContainerType.WebP)
-        {
-            anim = AnimationContainerDecoder.DecodeWebP(bytes);
-        }
-        else
-        {
-            anim = default;
+            throw new InvalidDataException($"Failed to decode image data for animation '{filename}'.");
         }
 
-        if (anim.Atlas != null && anim.FrameCount > 0)
+        if (!AnimationContainerDecoder.TryGetAnimationConfig(
+                filename,
+                atlas.width,
+                atlas.height,
+                out int frameWidth,
+                out int frameHeight,
+                out int frameCount,
+                out float fps) ||
+            frameCount <= 0)
         {
-            anim.Atlas.name = $"Cache_Animation_{DateTime.Now.Ticks}";
-            RuntimeTextureFactory.ApplySampling(
-                anim.Atlas,
-                FilterMode.Point,
-                TextureWrapMode.Clamp);
-            Sprite[] sprites = AnimationContainerDecoder.Decode(
-                anim.Atlas, anim.Atlas.width, anim.FrameHeight, anim.FrameCount);
-            return new DecodedAnimationResult(sprites, anim.Atlas, anim.FPS, anim.FrameHeight, anim.FrameCount);
+            throw new InvalidOperationException($"Could not determine animation frame layout for '{filename}'.");
         }
 
-        throw new InvalidOperationException($"Unknown or empty animation container for '{filename}'.");
+        Sprite[] sprites = AnimationContainerDecoder.Decode(
+            atlas, frameWidth, frameHeight, frameCount);
+        return new DecodedAnimationResult(sprites, atlas, fps, frameHeight, frameCount);
     }
 
     public static Sprite[] SliceAnimationFromTexture(Texture2D texture, int frameHeight, int frameCount)

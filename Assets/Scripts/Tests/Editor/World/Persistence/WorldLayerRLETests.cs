@@ -12,7 +12,7 @@ using UnityEngine.TestTools;
 namespace Kern.Tests.World;
 
 [TestFixture]
-public class WorldLayerRleTests
+public class WorldLayerRLETests
 {
     private string _tempFilePath = null!;
     private AsyncOperationSupervisor _operations = null!;
@@ -42,7 +42,10 @@ public class WorldLayerRleTests
         }
 
         DeleteIfPresent(_tempFilePath + ".v0.backup");
+        DeleteIfPresent(_tempFilePath + ".v1.backup");
+        DeleteIfPresent(_tempFilePath + ".v1.backup.tmp");
         DeleteIfPresent(_tempFilePath + ".migrate.tmp");
+        DeleteIfPresent(_tempFilePath + ".v2.migrate.tmp");
     }
 
     [Test]
@@ -138,7 +141,7 @@ public class WorldLayerRleTests
     }
 
     [Test]
-    public void FlushAndReopen_PersistsRLEEncodedData()
+    public void FlushAndReopen_PersistsAdaptiveEncodedData()
     {
         const ushort tileTypeA = 101;
         const ushort tileTypeB = 202;
@@ -282,25 +285,21 @@ public class WorldLayerRleTests
     public void LegacyV0Header_IsMigratedAtomicallyAndBackedUp()
     {
         const ushort expected = 77;
-        using (var layer = new WorldLayer<ushort>(
-            _tempFilePath,
-            WIDTH_CHUNKS: 1,
-            HEIGHT_CHUNKS: 1,
-            operations: _operations,
-            CHUNK_SIZE: 32))
+        const int chunkSize = 32;
+        ushort[] cells = new ushort[chunkSize * chunkSize];
+        cells[4 + (3 * chunkSize)] = expected;
+        using (var stream = new FileStream(_tempFilePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
         {
-            layer.SetCell(3, 4, expected);
-        }
-
-        using (var stream = new FileStream(
-            _tempFilePath,
-            FileMode.Open,
-            FileAccess.Write,
-            FileShare.None))
-        using (var writer = new BinaryWriter(stream))
-        {
-            stream.Seek(sizeof(int) * 3, SeekOrigin.Begin);
+            using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
+            writer.Write(1);
+            writer.Write(1);
+            writer.Write(chunkSize);
             writer.Write(0);
+            writer.Write(24L);
+            stream.Position = 24;
+            WorldChunkRLECodec.EncodeChunk(writer, cells, cells.Length);
+            writer.Flush();
+            stream.Flush(true);
         }
 
         using (var migrated = new WorldLayer<ushort>(
@@ -315,9 +314,119 @@ public class WorldLayerRleTests
 
         Assert.That(File.Exists(_tempFilePath + ".v0.backup"), Is.True);
 
-        using var header = new BinaryReader(File.OpenRead(_tempFilePath));
-        header.BaseStream.Seek(sizeof(int) * 3, SeekOrigin.Begin);
-        Assert.That(header.ReadInt32(), Is.EqualTo(1));
+        using var header = File.OpenRead(_tempFilePath);
+        Assert.That(
+            WorldLayerFileHeader.TryReadFormatVersion(header),
+            Is.EqualTo(WorldLayerFileHeader.CurrentFormatVersion));
+    }
+
+    [UnityTest]
+    public IEnumerator MigrateLegacyFileAsync_ConvertsV0RLEFile()
+    {
+        const int widthChunks = 1;
+        const int heightChunks = 1;
+        const int chunkSize = 4;
+        byte[] expected = [2, 2, 4, 7, 7, 7, 1, 3, 3, 3, 3, 8, 5, 5, 5, 5];
+        try
+        {
+            using (var stream = new FileStream(
+                       _tempFilePath,
+                       FileMode.Create,
+                       FileAccess.ReadWrite,
+                       FileShare.None))
+            {
+                using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
+                writer.Write(widthChunks);
+                writer.Write(heightChunks);
+                writer.Write(chunkSize);
+                writer.Write(0);
+                writer.Write(24L);
+                stream.Position = 24;
+                WorldChunkRLECodec.EncodeChunk(writer, expected, expected.Length);
+                writer.Flush();
+                stream.Flush(true);
+            }
+
+            yield return WorldLayer<byte>.MigrateLegacyFileAsync(
+                _tempFilePath,
+                widthChunks,
+                heightChunks,
+                chunkSize).ToCoroutine();
+
+            using var migrated = new FileStream(_tempFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            long[] offsets = new long[1];
+            Assert.That(
+                WorldLayerFileHeader.TryReadFormatVersion(migrated),
+                Is.EqualTo(WorldLayerFileHeader.CurrentFormatVersion));
+            Assert.That(
+                WorldLayerFileHeader.TryReadHeader(migrated, widthChunks, heightChunks, chunkSize, offsets),
+                Is.True);
+            migrated.Position = offsets[0];
+            using var reader = new BinaryReader(migrated, System.Text.Encoding.UTF8, leaveOpen: true);
+            CollectionAssert.AreEqual(
+                expected,
+                WorldChunkV2Codec.DecodeChunk<byte>(reader, expected.Length));
+        }
+        finally
+        {
+            DeleteIfPresent(_tempFilePath + ".v0.backup");
+            DeleteIfPresent(_tempFilePath + ".v1.backup");
+            DeleteIfPresent(_tempFilePath + ".v1.backup.tmp");
+            DeleteIfPresent(_tempFilePath + ".migrate.tmp");
+            DeleteIfPresent(_tempFilePath + ".v2.migrate.tmp");
+            DeleteIfPresent(_tempFilePath);
+        }
+    }
+
+    [UnityTest]
+    public IEnumerator CorruptChunk_LoadsAndScansAsZeroes()
+    {
+        const int chunkSize = 4;
+        const int chunkArea = chunkSize * chunkSize;
+        long chunkOffset;
+        using (var layer = new WorldLayer<ushort>(
+                   _tempFilePath,
+                   WIDTH_CHUNKS: 1,
+                   HEIGHT_CHUNKS: 1,
+                   operations: _operations,
+                   CHUNK_SIZE: chunkSize))
+        {
+            layer.SetCell(0, 0, 123);
+            layer.Flush(flushToDisk: true);
+            chunkOffset = layer.GetChunkOffsets()[0];
+        }
+
+        using (var stream = new FileStream(_tempFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            stream.Position = chunkOffset + 16;
+            int checksumByte = stream.ReadByte();
+            stream.Position--;
+            stream.WriteByte((byte)(checksumByte ^ 0x80));
+            stream.Flush(true);
+        }
+
+        using var reopenedLayer = new WorldLayer<ushort>(
+            _tempFilePath,
+            WIDTH_CHUNKS: 1,
+            HEIGHT_CHUNKS: 1,
+            operations: _operations,
+            CHUNK_SIZE: chunkSize);
+        Assert.That(reopenedLayer.GetCellSync(0, 0), Is.Zero);
+
+        int visitedRuns = 0;
+        ushort visitedValue = ushort.MaxValue;
+        int visitedCellCount = 0;
+        yield return reopenedLayer.VisitStoredChunkRunsAsync(
+            (_, value, count) =>
+            {
+                visitedValue = value;
+                visitedCellCount = count;
+                visitedRuns++;
+            },
+            progress: null).ToCoroutine();
+        Assert.That(visitedRuns, Is.EqualTo(1));
+        Assert.That(visitedValue, Is.Zero);
+        Assert.That(visitedCellCount, Is.EqualTo(chunkArea));
     }
 
     private static void DeleteIfPresent(string path)

@@ -43,13 +43,13 @@ public class PlayerStatsProcessorTests
     }
 
     [Test]
-    public void Process_CurrencyPacket_UpdatesMoneyAndCreds()
+    public void Process_CurrencyPacket_UpdatesMoneyAndCredits()
     {
         var packet = new CurrencyPacket(1500, 250);
         _processor.Process(packet);
 
         Assert.AreEqual(1500, _stats.Money);
-        Assert.AreEqual(250, _stats.Creds);
+        Assert.AreEqual(250, _stats.Credits);
     }
 
     [Test]

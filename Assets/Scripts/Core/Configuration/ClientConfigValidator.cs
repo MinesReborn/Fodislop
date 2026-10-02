@@ -30,9 +30,7 @@ internal sealed class ClientConfigValidator(GraphicsQualityProfile graphicsQuali
         SettingSchema.Validate(config.Audio);
         SettingSchema.Validate(config.Display);
         SettingSchema.Validate(config.Interface);
-        SettingSchema.Validate(config.Accessibility);
         SettingSchema.Validate(config.Connection);
-        SettingSchema.Validate(config.PostProcess);
         SettingSchema.Validate(config.Terrain);
         SettingSchema.Validate(config.Effects);
 
@@ -49,12 +47,6 @@ internal sealed class ClientConfigValidator(GraphicsQualityProfile graphicsQuali
         {
             throw new InvalidDataException(
                 $"Unknown terrain distortion style '{config.Terrain.DistortionStyle}'.");
-        }
-
-        if (!Enum.IsDefined(typeof(BloomStyle), config.Effects.BloomVariant))
-        {
-            throw new InvalidDataException(
-                $"Unknown bloom style '{config.Effects.BloomVariant}'.");
         }
 
         if (interfaceSettings.Language is not ("ru" or "en" or "zh" or "zh-hant"))

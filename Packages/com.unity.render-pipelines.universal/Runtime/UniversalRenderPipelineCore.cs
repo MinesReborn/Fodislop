@@ -1,0 +1,1622 @@
+using System;
+using System.Collections.Generic;
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
+using UnityEngine.Assertions;
+using UnityEngine.Experimental.GlobalIllumination;
+using UnityEngine.Experimental.Rendering;
+using UnityEngine.Rendering.RenderGraphModule;
+using static UnityEngine.Rendering.Universal.UniversalRenderPipeline.Profiling.Pipeline;
+using Lightmapping = UnityEngine.Experimental.GlobalIllumination.Lightmapping;
+
+namespace UnityEngine.Rendering.Universal
+{
+    static class NativeArrayExtensions
+    {
+        public static unsafe ref T UnsafeElementAt<T>(this NativeArray<T> array, int index) where T : struct
+        {
+            return ref UnsafeUtility.ArrayElementAsRef<T>(array.GetUnsafeReadOnlyPtr(), index);
+        }
+
+        public static unsafe ref T UnsafeElementAtMutable<T>(this NativeArray<T> array, int index) where T : struct
+        {
+            return ref UnsafeUtility.ArrayElementAsRef<T>(array.GetUnsafePtr(), index);
+        }
+    }
+
+    public enum MixedLightingSetup
+    {
+        None,
+
+        ShadowMask,
+
+        Subtractive,
+    };
+
+    internal enum ImageScalingMode
+    {
+        /// No scaling
+        None,
+
+        /// Upscaling to a larger image
+        Upscaling,
+
+        /// Downscaling to a smaller image
+        Downscaling
+    }
+
+    ///
+#if ENABLE_UPSCALER_FRAMEWORK
+    [Obsolete("ImageUpscalingFilter is no longer used #from(6000.3)")]
+#endif
+    internal enum ImageUpscalingFilter
+    {
+        /// Bilinear filtering
+        Linear,
+
+        /// Nearest-Neighbor filtering
+        Point,
+
+        /// FidelityFX Super Resolution
+        FSR,
+
+        /// Spatial-Temporal Post-Processing
+        STP,
+
+#if ENABLE_UPSCALER_FRAMEWORK
+        IUpscaler
+#endif
+    }
+
+    public struct RenderingData
+    {
+        internal ContextContainer frameData;
+
+        internal RenderingData(ContextContainer frameData)
+        {
+            this.frameData = frameData;
+            cameraData = new CameraData(frameData);
+            lightData = new LightData(frameData);
+            shadowData = new ShadowData(frameData);
+            postProcessingData = new PostProcessingData(frameData);
+        }
+
+        internal UniversalRenderingData universalRenderingData => frameData.Get<UniversalRenderingData>();
+
+        public ref CullingResults cullResults => ref frameData.Get<UniversalRenderingData>().cullResults;
+
+        public CameraData cameraData;
+
+        public LightData lightData;
+
+        public ShadowData shadowData;
+
+        public PostProcessingData postProcessingData;
+
+        [Obsolete("supportsDynamicBatching is obsolete.", true)]
+        public ref bool supportsDynamicBatching => ref frameData.Get<UniversalRenderingData>().supportsDynamicBatching;
+
+        public ref PerObjectData perObjectData => ref frameData.Get<UniversalRenderingData>().perObjectData;
+
+        public ref bool postProcessingEnabled => ref frameData.Get<UniversalPostProcessingData>().isEnabled;
+    }
+
+    public struct LightData
+    {
+        ContextContainer frameData;
+
+        internal LightData(ContextContainer frameData)
+        {
+            this.frameData = frameData;
+        }
+
+        internal UniversalLightData universalLightData => frameData.Get<UniversalLightData>();
+
+        public ref int mainLightIndex => ref frameData.Get<UniversalLightData>().mainLightIndex;
+
+        public ref int additionalLightsCount => ref frameData.Get<UniversalLightData>().additionalLightsCount;
+
+        public ref int maxPerObjectAdditionalLightsCount => ref frameData.Get<UniversalLightData>().maxPerObjectAdditionalLightsCount;
+
+        public ref NativeArray<VisibleLight> visibleLights => ref frameData.Get<UniversalLightData>().visibleLights;
+
+        public ref bool shadeAdditionalLightsPerVertex => ref frameData.Get<UniversalLightData>().shadeAdditionalLightsPerVertex;
+
+        public ref bool supportsMixedLighting => ref frameData.Get<UniversalLightData>().supportsMixedLighting;
+
+        public ref bool reflectionProbeBoxProjection => ref frameData.Get<UniversalLightData>().reflectionProbeBoxProjection;
+
+        public ref bool reflectionProbeBlending => ref frameData.Get<UniversalLightData>().reflectionProbeBlending;
+
+        public ref bool reflectionProbeAtlas => ref frameData.Get<UniversalLightData>().reflectionProbeAtlas;
+
+        public ref bool supportsLightLayers => ref frameData.Get<UniversalLightData>().supportsLightLayers;
+
+        public ref bool supportsAdditionalLights => ref frameData.Get<UniversalLightData>().supportsAdditionalLights;
+    }
+
+
+    public partial struct CameraData
+    {
+        ContextContainer frameData;
+
+        internal CameraData(ContextContainer frameData)
+        {
+            this.frameData = frameData;
+        }
+
+        internal UniversalCameraData universalCameraData => frameData.Get<UniversalCameraData>();
+
+        internal void SetViewAndProjectionMatrix(Matrix4x4 viewMatrix, Matrix4x4 projectionMatrix)
+        {
+            frameData.Get<UniversalCameraData>().SetViewAndProjectionMatrix(viewMatrix, projectionMatrix);
+        }
+
+        internal void SetViewProjectionAndJitterMatrix(Matrix4x4 viewMatrix, Matrix4x4 projectionMatrix, Matrix4x4 jitterMatrix)
+        {
+            frameData.Get<UniversalCameraData>().SetViewProjectionAndJitterMatrix(viewMatrix, projectionMatrix, jitterMatrix);
+        }
+        // Helper function to populate builtin stereo matricies as well as URP stereo matricies
+        internal void PushBuiltinShaderConstantsXR(RasterCommandBuffer cmd, bool renderIntoTexture)
+        {
+            frameData.Get<UniversalCameraData>().PushBuiltinShaderConstantsXR(cmd, renderIntoTexture);
+        }
+
+        /// <param name="viewIndex"> View index in case of stereo rendering. By default <c>viewIndex</c> is set to 0. </param>
+        /// <returns> The camera view matrix. </returns>
+        public Matrix4x4 GetViewMatrix(int viewIndex = 0)
+        {
+            return frameData.Get<UniversalCameraData>().GetViewMatrix(viewIndex);
+        }
+
+        /// <param name="viewIndex"> View index in case of stereo rendering. By default <c>viewIndex</c> is set to 0. </param>
+        /// <returns> The camera projection matrix. </returns>
+        public Matrix4x4 GetProjectionMatrix(int viewIndex = 0)
+        {
+            return frameData.Get<UniversalCameraData>().GetProjectionMatrix(viewIndex);
+        }
+
+        internal Matrix4x4 GetProjectionMatrixNoJitter(int viewIndex = 0)
+        {
+            return frameData.Get<UniversalCameraData>().GetProjectionMatrixNoJitter(viewIndex);
+        }
+
+        internal Matrix4x4 GetGPUProjectionMatrix(bool renderIntoTexture, int viewIndex = 0)
+        {
+            return frameData.Get<UniversalCameraData>().GetGPUProjectionMatrix(renderIntoTexture, viewIndex);
+        }
+
+        public ref Camera camera => ref frameData.Get<UniversalCameraData>().camera;
+
+        /// <seealso cref="ScriptableRenderPass"/>
+        public ref UniversalCameraHistory historyManager => ref frameData.Get<UniversalCameraData>().m_HistoryManager;
+
+        public ref CameraRenderType renderType => ref frameData.Get<UniversalCameraData>().renderType;
+
+        public ref RenderTexture targetTexture => ref frameData.Get<UniversalCameraData>().targetTexture;
+
+        public ref RenderTextureDescriptor cameraTargetDescriptor => ref frameData.Get<UniversalCameraData>().cameraTargetDescriptor;
+        internal ref Rect pixelRect => ref frameData.Get<UniversalCameraData>().pixelRect;
+        internal ref bool useScreenCoordOverride => ref frameData.Get<UniversalCameraData>().useScreenCoordOverride;
+        internal ref Vector4 screenSizeOverride => ref frameData.Get<UniversalCameraData>().screenSizeOverride;
+        internal ref Vector4 screenCoordScaleBias => ref frameData.Get<UniversalCameraData>().screenCoordScaleBias;
+        internal ref int pixelWidth => ref frameData.Get<UniversalCameraData>().pixelWidth;
+        internal ref int pixelHeight => ref frameData.Get<UniversalCameraData>().pixelHeight;
+        internal ref float aspectRatio => ref frameData.Get<UniversalCameraData>().aspectRatio;
+
+        public ref float renderScale => ref frameData.Get<UniversalCameraData>().renderScale;
+        internal ref ImageScalingMode imageScalingMode => ref frameData.Get<UniversalCameraData>().imageScalingMode;
+#if ENABLE_UPSCALER_FRAMEWORK
+        [Obsolete("upscalingFilter is no longer used #from(6000.3)")]
+#endif
+        internal ref ImageUpscalingFilter upscalingFilter => ref frameData.Get<UniversalCameraData>().upscalingFilter;
+        internal ref bool fsrOverrideSharpness => ref frameData.Get<UniversalCameraData>().fsrOverrideSharpness;
+        internal ref float fsrSharpness => ref frameData.Get<UniversalCameraData>().fsrSharpness;
+        internal ref HDRColorBufferPrecision hdrColorBufferPrecision => ref frameData.Get<UniversalCameraData>().hdrColorBufferPrecision;
+
+        public ref bool clearDepth => ref frameData.Get<UniversalCameraData>().clearDepth;
+
+        public ref CameraType cameraType => ref frameData.Get<UniversalCameraData>().cameraType;
+
+        public ref bool isDefaultViewport => ref frameData.Get<UniversalCameraData>().isDefaultViewport;
+
+        public ref bool isHdrEnabled => ref frameData.Get<UniversalCameraData>().isHdrEnabled;
+
+        public ref bool allowHDROutput => ref frameData.Get<UniversalCameraData>().allowHDROutput;
+
+        public ref bool isAlphaOutputEnabled => ref frameData.Get<UniversalCameraData>().isAlphaOutputEnabled;
+
+        public ref bool requiresDepthTexture => ref frameData.Get<UniversalCameraData>().requiresDepthTexture;
+
+        public ref bool requiresOpaqueTexture => ref frameData.Get<UniversalCameraData>().requiresOpaqueTexture;
+
+        public ref bool postProcessingRequiresDepthTexture => ref frameData.Get<UniversalCameraData>().postProcessingRequiresDepthTexture;
+
+        public ref bool xrRendering => ref frameData.Get<UniversalCameraData>().xrRendering;
+
+        internal bool requireSrgbConversion => frameData.Get<UniversalCameraData>().requireSrgbConversion;
+
+        public bool isSceneViewCamera => frameData.Get<UniversalCameraData>().isSceneViewCamera;
+
+        public bool isPreviewCamera => frameData.Get<UniversalCameraData>().isPreviewCamera;
+
+        internal bool isRenderPassSupportedCamera => frameData.Get<UniversalCameraData>().isRenderPassSupportedCamera;
+
+        internal bool resolveToScreen => frameData.Get<UniversalCameraData>().resolveToScreen;
+
+        public bool isHDROutputActive => frameData.Get<UniversalCameraData>().isHDROutputActive;
+
+        public HDROutputUtils.HDRDisplayInformation hdrDisplayInformation => frameData.Get<UniversalCameraData>().hdrDisplayInformation;
+
+        public ColorGamut hdrDisplayColorGamut => frameData.Get<UniversalCameraData>().hdrDisplayColorGamut;
+
+        public bool rendersOverlayUI => frameData.Get<UniversalCameraData>().rendersOverlayUI;
+
+        /// <param name="handle">Handle to check the flipped status on.</param>
+        /// <returns>True is the content is flipped in y.</returns>
+        public bool IsHandleYFlipped(RTHandle handle)
+        {
+            return frameData.Get<UniversalCameraData>().IsHandleYFlipped(handle);
+        }
+
+        /// <param name="color">Color render target to check whether the matrix is flipped.</param>
+        /// <param name="depth">Depth render target which is used if color is null. By default <c>depth</c> is set to null.</param>
+        /// <returns> True if the render target's projection matrix is flipped. </returns>
+        public bool IsRenderTargetProjectionMatrixFlipped(RTHandle color, RTHandle depth = null)
+        {
+            return frameData.Get<UniversalCameraData>().IsRenderTargetProjectionMatrixFlipped(color, depth);
+        }
+
+        internal bool IsTemporalAAEnabled()
+        {
+            return frameData.Get<UniversalCameraData>().IsTemporalAAEnabled();
+        }
+
+        /// <seealso cref="SortingCriteria"/>
+        public ref SortingCriteria defaultOpaqueSortFlags => ref frameData.Get<UniversalCameraData>().defaultOpaqueSortFlags;
+
+        public XRPass xr
+        {
+            get => frameData.Get<UniversalCameraData>().xr;
+            internal set => frameData.Get<UniversalCameraData>().xr = value;
+        }
+
+        internal XRPassUniversal xrUniversal => frameData.Get<UniversalCameraData>().xrUniversal;
+
+        public ref float maxShadowDistance => ref frameData.Get<UniversalCameraData>().maxShadowDistance;
+
+        public ref bool postProcessEnabled => ref frameData.Get<UniversalCameraData>().postProcessEnabled;
+
+        public ref IEnumerator<Action<RenderTargetIdentifier, CommandBuffer>> captureActions => ref frameData.Get<UniversalCameraData>().captureActions;
+
+        public ref LayerMask volumeLayerMask => ref frameData.Get<UniversalCameraData>().volumeLayerMask;
+
+        public ref Transform volumeTrigger => ref frameData.Get<UniversalCameraData>().volumeTrigger;
+
+        public ref bool isStopNaNEnabled => ref frameData.Get<UniversalCameraData>().isStopNaNEnabled;
+
+        public ref bool isDitheringEnabled => ref frameData.Get<UniversalCameraData>().isDitheringEnabled;
+
+        public ref AntialiasingMode antialiasing => ref frameData.Get<UniversalCameraData>().antialiasing;
+
+        public ref AntialiasingQuality antialiasingQuality => ref frameData.Get<UniversalCameraData>().antialiasingQuality;
+
+        public ref ScriptableRenderer renderer => ref frameData.Get<UniversalCameraData>().renderer;
+
+        public ref bool resolveFinalTarget => ref frameData.Get<UniversalCameraData>().resolveFinalTarget;
+
+        public ref Vector3 worldSpaceCameraPos => ref frameData.Get<UniversalCameraData>().worldSpaceCameraPos;
+
+        public ref Color backgroundColor => ref frameData.Get<UniversalCameraData>().backgroundColor;
+
+        internal ref TaaHistory taaHistory => ref frameData.Get<UniversalCameraData>().taaHistory;
+
+        // TAA settings.
+        internal ref TemporalAA.Settings taaSettings => ref frameData.Get<UniversalCameraData>().taaSettings;
+
+        // Post-process history reset has been triggered for this camera.
+        internal bool resetHistory => frameData.Get<UniversalCameraData>().resetHistory;
+
+        public ref Camera baseCamera => ref frameData.Get<UniversalCameraData>().baseCamera;
+    }
+
+    public struct ShadowData
+    {
+        ContextContainer frameData;
+
+        internal ShadowData(ContextContainer frameData)
+        {
+            this.frameData = frameData;
+        }
+
+        internal UniversalShadowData universalShadowData => frameData.Get<UniversalShadowData>();
+
+        public ref bool supportsMainLightShadows => ref frameData.Get<UniversalShadowData>().supportsMainLightShadows;
+
+        internal ref bool mainLightShadowsEnabled => ref frameData.Get<UniversalShadowData>().mainLightShadowsEnabled;
+
+        public ref int mainLightShadowmapWidth => ref frameData.Get<UniversalShadowData>().mainLightShadowmapWidth;
+
+        public ref int mainLightShadowmapHeight => ref frameData.Get<UniversalShadowData>().mainLightShadowmapHeight;
+
+        public ref int mainLightShadowCascadesCount => ref frameData.Get<UniversalShadowData>().mainLightShadowCascadesCount;
+
+        public ref Vector3 mainLightShadowCascadesSplit => ref frameData.Get<UniversalShadowData>().mainLightShadowCascadesSplit;
+
+        public ref float mainLightShadowCascadeBorder => ref frameData.Get<UniversalShadowData>().mainLightShadowCascadeBorder;
+
+        public ref bool supportsAdditionalLightShadows => ref frameData.Get<UniversalShadowData>().supportsAdditionalLightShadows;
+
+        internal ref bool additionalLightShadowsEnabled => ref frameData.Get<UniversalShadowData>().additionalLightShadowsEnabled;
+
+        public ref int additionalLightsShadowmapWidth => ref frameData.Get<UniversalShadowData>().additionalLightsShadowmapWidth;
+
+        public ref int additionalLightsShadowmapHeight => ref frameData.Get<UniversalShadowData>().additionalLightsShadowmapHeight;
+
+        public ref bool supportsSoftShadows => ref frameData.Get<UniversalShadowData>().supportsSoftShadows;
+
+        public ref int shadowmapDepthBufferBits => ref frameData.Get<UniversalShadowData>().shadowmapDepthBufferBits;
+
+        public ref List<Vector4> bias => ref frameData.Get<UniversalShadowData>().bias;
+
+        public ref List<int> resolution => ref frameData.Get<UniversalShadowData>().resolution;
+
+        internal ref bool isKeywordAdditionalLightShadowsEnabled => ref frameData.Get<UniversalShadowData>().isKeywordAdditionalLightShadowsEnabled;
+        internal ref bool isKeywordSoftShadowsEnabled => ref frameData.Get<UniversalShadowData>().isKeywordSoftShadowsEnabled;
+        internal ref int mainLightShadowResolution => ref frameData.Get<UniversalShadowData>().mainLightShadowResolution;
+        internal ref int mainLightRenderTargetWidth => ref frameData.Get<UniversalShadowData>().mainLightRenderTargetWidth;
+        internal ref int mainLightRenderTargetHeight => ref frameData.Get<UniversalShadowData>().mainLightRenderTargetHeight;
+
+        internal ref NativeArray<URPLightShadowCullingInfos> visibleLightsShadowCullingInfos => ref frameData.Get<UniversalShadowData>().visibleLightsShadowCullingInfos;
+        internal ref AdditionalLightsShadowAtlasLayout shadowAtlasLayout => ref frameData.Get<UniversalShadowData>().shadowAtlasLayout;
+    }
+
+    public struct PreTile
+    {
+        public Unity.Mathematics.float4 planeLeft;
+
+        public Unity.Mathematics.float4 planeRight;
+
+        public Unity.Mathematics.float4 planeBottom;
+
+        public Unity.Mathematics.float4 planeTop;
+    }
+
+    public struct TileData
+    {
+        public uint tileID;         // 2x 16 bits
+
+        public uint listBitMask;    // 32 bits
+
+        public uint relLightOffset; // 16 bits is enough
+
+        public uint unused;
+    }
+
+    public struct PunctualLightData
+    {
+        public Vector3 wsPos;
+
+        public float radius; // TODO remove? included in attenuation
+
+        public Vector4 color;
+
+        public Vector4 attenuation; // .xy are used by DistanceAttenuation - .zw are used by AngleAttenuation (for SpotLights)
+
+        public Vector3 spotDirection;   // for spotLights
+
+        public int flags;
+
+        public Vector4 occlusionProbeInfo;
+
+        public uint layerMask;
+    }
+
+    internal static class ShaderPropertyId
+    {
+        public static readonly int glossyEnvironmentColor = Shader.PropertyToID("_GlossyEnvironmentColor");
+        public static readonly int subtractiveShadowColor = Shader.PropertyToID("_SubtractiveShadowColor");
+
+        public static readonly int glossyEnvironmentCubeMap = Shader.PropertyToID("_GlossyEnvironmentCubeMap");
+        public static readonly int glossyEnvironmentCubeMapHDR = Shader.PropertyToID("_GlossyEnvironmentCubeMap_HDR");
+
+        public static readonly int ambientSkyColor = Shader.PropertyToID("unity_AmbientSky");
+        public static readonly int ambientEquatorColor = Shader.PropertyToID("unity_AmbientEquator");
+        public static readonly int ambientGroundColor = Shader.PropertyToID("unity_AmbientGround");
+
+        public static readonly int time = Shader.PropertyToID("_Time");
+        public static readonly int sinTime = Shader.PropertyToID("_SinTime");
+        public static readonly int cosTime = Shader.PropertyToID("_CosTime");
+        public static readonly int deltaTime = Shader.PropertyToID("unity_DeltaTime");
+        public static readonly int timeParameters = Shader.PropertyToID("_TimeParameters");
+        public static readonly int lastTimeParameters = Shader.PropertyToID("_LastTimeParameters");
+
+        public static readonly int scaledScreenParams = Shader.PropertyToID("_ScaledScreenParams");
+        public static readonly int worldSpaceCameraPos = Shader.PropertyToID("_WorldSpaceCameraPos");
+        public static readonly int screenParams = Shader.PropertyToID("_ScreenParams");
+        public static readonly int alphaToMaskAvailable = Shader.PropertyToID("_AlphaToMaskAvailable");
+        public static readonly int projectionParams = Shader.PropertyToID("_ProjectionParams");
+        public static readonly int zBufferParams = Shader.PropertyToID("_ZBufferParams");
+        public static readonly int orthoParams = Shader.PropertyToID("unity_OrthoParams");
+        public static readonly int globalMipBias = Shader.PropertyToID("_GlobalMipBias");
+
+        public static readonly int screenSize = Shader.PropertyToID("_ScreenSize");
+        public static readonly int screenCoordScaleBias = Shader.PropertyToID("_ScreenCoordScaleBias");
+        public static readonly int screenSizeOverride = Shader.PropertyToID("_ScreenSizeOverride");
+
+        public static readonly int viewMatrix = Shader.PropertyToID("unity_MatrixV");
+        public static readonly int projectionMatrix = Shader.PropertyToID("glstate_matrix_projection");
+        public static readonly int viewAndProjectionMatrix = Shader.PropertyToID("unity_MatrixVP");
+
+        public static readonly int inverseViewMatrix = Shader.PropertyToID("unity_MatrixInvV");
+        public static readonly int inverseProjectionMatrix = Shader.PropertyToID("unity_MatrixInvP");
+        public static readonly int inverseViewAndProjectionMatrix = Shader.PropertyToID("unity_MatrixInvVP");
+
+        public static readonly int cameraProjectionMatrix = Shader.PropertyToID("unity_CameraProjection");
+        public static readonly int inverseCameraProjectionMatrix = Shader.PropertyToID("unity_CameraInvProjection");
+        public static readonly int worldToCameraMatrix = Shader.PropertyToID("unity_WorldToCamera");
+        public static readonly int cameraToWorldMatrix = Shader.PropertyToID("unity_CameraToWorld");
+
+        public static readonly int shadowBias = Shader.PropertyToID("_ShadowBias");
+        public static readonly int lightDirection = Shader.PropertyToID("_LightDirection");
+        public static readonly int lightPosition = Shader.PropertyToID("_LightPosition");
+
+        public static readonly int cameraWorldClipPlanes = Shader.PropertyToID("unity_CameraWorldClipPlanes");
+
+        public static readonly int billboardNormal = Shader.PropertyToID("unity_BillboardNormal");
+        public static readonly int billboardTangent = Shader.PropertyToID("unity_BillboardTangent");
+        public static readonly int billboardCameraParams = Shader.PropertyToID("unity_BillboardCameraParams");
+
+        public static readonly int previousViewProjectionNoJitter = Shader.PropertyToID("_PrevViewProjMatrix");
+        public static readonly int viewProjectionNoJitter = Shader.PropertyToID("_NonJitteredViewProjMatrix");
+#if ENABLE_VR && ENABLE_XR_MODULE
+        public static readonly int previousViewProjectionNoJitterStereo = Shader.PropertyToID("_PrevViewProjMatrixStereo");
+        public static readonly int viewProjectionNoJitterStereo = Shader.PropertyToID("_NonJitteredViewProjMatrixStereo");
+#endif
+
+        public static readonly int blitTexture = Shader.PropertyToID("_BlitTexture");
+        public static readonly int blitScaleBias = Shader.PropertyToID("_BlitScaleBias");
+        public static readonly int sourceTex = Shader.PropertyToID("_SourceTex");
+        public static readonly int scaleBias = Shader.PropertyToID("_ScaleBias");
+        public static readonly int scaleBiasRt = Shader.PropertyToID("_ScaleBiasRt");
+
+        // This uniform is specific to the RTHandle system
+        public static readonly int rtHandleScale = Shader.PropertyToID("_RTHandleScale");
+
+        // Required for 2D Unlit Shadergraph master node as it doesn't currently support hidden properties.
+        public static readonly int rendererColor = Shader.PropertyToID("_RendererColor");
+
+        public static readonly int ditheringTexture = Shader.PropertyToID("_DitheringTexture");
+        public static readonly int ditheringTextureInvSize = Shader.PropertyToID("_DitheringTextureInvSize");
+
+        public static readonly int renderingLayerMaxInt = Shader.PropertyToID("_RenderingLayerMaxInt");
+
+        public static readonly int overlayUITexture = Shader.PropertyToID("_OverlayUITexture");
+        public static readonly int hdrOutputLuminanceParams = Shader.PropertyToID("_HDROutputLuminanceParams");
+        public static readonly int hdrOutputGradingParams = Shader.PropertyToID("_HDROutputGradingParams");
+        public static readonly int offscreenUIViewportParams = Shader.PropertyToID("_OffscreenUIViewportParams");
+        public static readonly int screenSpaceIrradiance = Shader.PropertyToID("_ScreenSpaceIrradiance");
+#if URP_SCREEN_SPACE_REFLECTION
+        public static readonly int screenSpaceReflection = Shader.PropertyToID("_ScreenSpaceReflectionTexture");
+#endif
+    }
+
+    public struct PostProcessingData
+    {
+        ContextContainer frameData;
+
+        internal PostProcessingData(ContextContainer frameData)
+        {
+            this.frameData = frameData;
+        }
+
+        internal UniversalPostProcessingData universalPostProcessingData => frameData.Get<UniversalPostProcessingData>();
+
+        /// <seealso cref="ColorGradingMode"/>
+        public ref ColorGradingMode gradingMode => ref frameData.Get<UniversalPostProcessingData>().gradingMode;
+
+        public ref int lutSize => ref frameData.Get<UniversalPostProcessingData>().lutSize;
+
+        public ref bool useFastSRGBLinearConversion => ref frameData.Get<UniversalPostProcessingData>().useFastSRGBLinearConversion;
+
+        public ref bool supportScreenSpaceLensFlare => ref frameData.Get<UniversalPostProcessingData>().supportScreenSpaceLensFlare;
+
+        public ref bool supportDataDrivenLensFlare => ref frameData.Get<UniversalPostProcessingData>().supportDataDrivenLensFlare;
+    }
+
+    internal static class ShaderGlobalKeywords
+    {
+        public static readonly GlobalKeyword MainLightShadows = GlobalKeyword.Create(ShaderKeywordStrings.MainLightShadows);
+        public static readonly GlobalKeyword MainLightShadowCascades = GlobalKeyword.Create(ShaderKeywordStrings.MainLightShadowCascades);
+        public static readonly GlobalKeyword MainLightShadowScreen = GlobalKeyword.Create(ShaderKeywordStrings.MainLightShadowScreen);
+        public static readonly GlobalKeyword CastingPunctualLightShadow = GlobalKeyword.Create(ShaderKeywordStrings.CastingPunctualLightShadow);
+        public static readonly GlobalKeyword AdditionalLightsVertex = GlobalKeyword.Create(ShaderKeywordStrings.AdditionalLightsVertex);
+        public static readonly GlobalKeyword AdditionalLightsPixel = GlobalKeyword.Create(ShaderKeywordStrings.AdditionalLightsPixel);
+        public static readonly GlobalKeyword ClusterLightLoop = GlobalKeyword.Create(ShaderKeywordStrings.ClusterLightLoop);
+        public static readonly GlobalKeyword AdditionalLightShadows = GlobalKeyword.Create(ShaderKeywordStrings.AdditionalLightShadows);
+        public static readonly GlobalKeyword ReflectionProbeBoxProjection = GlobalKeyword.Create(ShaderKeywordStrings.ReflectionProbeBoxProjection);
+        public static readonly GlobalKeyword ReflectionProbeBlending = GlobalKeyword.Create(ShaderKeywordStrings.ReflectionProbeBlending);
+        public static readonly GlobalKeyword ReflectionProbeAtlas = GlobalKeyword.Create(ShaderKeywordStrings.ReflectionProbeAtlas);
+        public static readonly GlobalKeyword ReflectionProbeRotation = GlobalKeyword.Create(ShaderKeywordStrings.ReflectionProbeRotation);
+        public static readonly GlobalKeyword ScreenSpaceReflection = GlobalKeyword.Create(ShaderKeywordStrings.ScreenSpaceReflection);
+        public static readonly GlobalKeyword SoftShadows = GlobalKeyword.Create(ShaderKeywordStrings.SoftShadows);
+        public static readonly GlobalKeyword SoftShadowsLow = GlobalKeyword.Create(ShaderKeywordStrings.SoftShadowsLow);
+        public static readonly GlobalKeyword SoftShadowsMedium = GlobalKeyword.Create(ShaderKeywordStrings.SoftShadowsMedium);
+        public static readonly GlobalKeyword SoftShadowsHigh = GlobalKeyword.Create(ShaderKeywordStrings.SoftShadowsHigh);
+        public static readonly GlobalKeyword MixedLightingSubtractive = GlobalKeyword.Create(ShaderKeywordStrings.MixedLightingSubtractive); // Backward compatibility
+        public static readonly GlobalKeyword LightmapShadowMixing = GlobalKeyword.Create(ShaderKeywordStrings.LightmapShadowMixing);
+        public static readonly GlobalKeyword ShadowsShadowMask = GlobalKeyword.Create(ShaderKeywordStrings.ShadowsShadowMask);
+        public static readonly GlobalKeyword LightLayers = GlobalKeyword.Create(ShaderKeywordStrings.LightLayers);
+        public static readonly GlobalKeyword RenderPassEnabled = GlobalKeyword.Create(ShaderKeywordStrings.RenderPassEnabled);
+        public static readonly GlobalKeyword BillboardFaceCameraPos = GlobalKeyword.Create(ShaderKeywordStrings.BillboardFaceCameraPos);
+        public static readonly GlobalKeyword LightCookies = GlobalKeyword.Create(ShaderKeywordStrings.LightCookies);
+        public static readonly GlobalKeyword DepthNoMsaa = GlobalKeyword.Create(ShaderKeywordStrings.DepthNoMsaa);
+        public static readonly GlobalKeyword DepthMsaa2 = GlobalKeyword.Create(ShaderKeywordStrings.DepthMsaa2);
+        public static readonly GlobalKeyword DepthMsaa4 = GlobalKeyword.Create(ShaderKeywordStrings.DepthMsaa4);
+        public static readonly GlobalKeyword DepthMsaa8 = GlobalKeyword.Create(ShaderKeywordStrings.DepthMsaa8);
+        public static readonly GlobalKeyword DBufferMRT1 = GlobalKeyword.Create(ShaderKeywordStrings.DBufferMRT1);
+        public static readonly GlobalKeyword DBufferMRT2 = GlobalKeyword.Create(ShaderKeywordStrings.DBufferMRT2);
+        public static readonly GlobalKeyword DBufferMRT3 = GlobalKeyword.Create(ShaderKeywordStrings.DBufferMRT3);
+        public static readonly GlobalKeyword DecalNormalBlendLow = GlobalKeyword.Create(ShaderKeywordStrings.DecalNormalBlendLow);
+        public static readonly GlobalKeyword DecalNormalBlendMedium = GlobalKeyword.Create(ShaderKeywordStrings.DecalNormalBlendMedium);
+        public static readonly GlobalKeyword DecalNormalBlendHigh = GlobalKeyword.Create(ShaderKeywordStrings.DecalNormalBlendHigh);
+        public static readonly GlobalKeyword DecalLayers = GlobalKeyword.Create(ShaderKeywordStrings.DecalLayers);
+        public static readonly GlobalKeyword WriteRenderingLayers = GlobalKeyword.Create(ShaderKeywordStrings.WriteRenderingLayers);
+        public static readonly GlobalKeyword WriteSmoothness = GlobalKeyword.Create(ShaderKeywordStrings.WriteSmoothness);
+        public static readonly GlobalKeyword ScreenSpaceOcclusion = GlobalKeyword.Create(ShaderKeywordStrings.ScreenSpaceOcclusion);
+        public static readonly GlobalKeyword ScreenSpaceIrradiance = GlobalKeyword.Create(ShaderKeywordStrings.ScreenSpaceIrradiance);
+        public static readonly GlobalKeyword _SPOT = GlobalKeyword.Create(ShaderKeywordStrings._SPOT);
+        public static readonly GlobalKeyword _DIRECTIONAL = GlobalKeyword.Create(ShaderKeywordStrings._DIRECTIONAL);
+        public static readonly GlobalKeyword _POINT = GlobalKeyword.Create(ShaderKeywordStrings._POINT);
+        public static readonly GlobalKeyword _DEFERRED_STENCIL = GlobalKeyword.Create(ShaderKeywordStrings._DEFERRED_STENCIL);
+        public static readonly GlobalKeyword _DEFERRED_FIRST_LIGHT = GlobalKeyword.Create(ShaderKeywordStrings._DEFERRED_FIRST_LIGHT);
+        public static readonly GlobalKeyword _DEFERRED_MAIN_LIGHT = GlobalKeyword.Create(ShaderKeywordStrings._DEFERRED_MAIN_LIGHT);
+        public static readonly GlobalKeyword _GBUFFER_NORMALS_OCT = GlobalKeyword.Create(ShaderKeywordStrings._GBUFFER_NORMALS_OCT);
+        public static readonly GlobalKeyword _DEFERRED_MIXED_LIGHTING = GlobalKeyword.Create(ShaderKeywordStrings._DEFERRED_MIXED_LIGHTING);
+        public static readonly GlobalKeyword LIGHTMAP_ON = GlobalKeyword.Create(ShaderKeywordStrings.LIGHTMAP_ON);
+        public static readonly GlobalKeyword DYNAMICLIGHTMAP_ON = GlobalKeyword.Create(ShaderKeywordStrings.DYNAMICLIGHTMAP_ON);
+        public static readonly GlobalKeyword _ALPHATEST_ON = GlobalKeyword.Create(ShaderKeywordStrings._ALPHATEST_ON);
+        public static readonly GlobalKeyword DIRLIGHTMAP_COMBINED = GlobalKeyword.Create(ShaderKeywordStrings.DIRLIGHTMAP_COMBINED);
+        public static readonly GlobalKeyword _DETAIL_MULX2 = GlobalKeyword.Create(ShaderKeywordStrings._DETAIL_MULX2);
+        public static readonly GlobalKeyword _DETAIL_SCALED = GlobalKeyword.Create(ShaderKeywordStrings._DETAIL_SCALED);
+        public static readonly GlobalKeyword _CLEARCOAT = GlobalKeyword.Create(ShaderKeywordStrings._CLEARCOAT);
+        public static readonly GlobalKeyword _CLEARCOATMAP = GlobalKeyword.Create(ShaderKeywordStrings._CLEARCOATMAP);
+        public static readonly GlobalKeyword DEBUG_DISPLAY = GlobalKeyword.Create(ShaderKeywordStrings.DEBUG_DISPLAY);
+        public static readonly GlobalKeyword LOD_FADE_CROSSFADE = GlobalKeyword.Create(ShaderKeywordStrings.LOD_FADE_CROSSFADE);
+        public static readonly GlobalKeyword USE_UNITY_CROSSFADE = GlobalKeyword.Create(ShaderKeywordStrings.USE_UNITY_CROSSFADE);
+        public static readonly GlobalKeyword _EMISSION = GlobalKeyword.Create(ShaderKeywordStrings._EMISSION);
+        public static readonly GlobalKeyword _RECEIVE_SHADOWS_OFF = GlobalKeyword.Create(ShaderKeywordStrings._RECEIVE_SHADOWS_OFF);
+        public static readonly GlobalKeyword _SURFACE_TYPE_TRANSPARENT = GlobalKeyword.Create(ShaderKeywordStrings._SURFACE_TYPE_TRANSPARENT);
+        public static readonly GlobalKeyword _ALPHAPREMULTIPLY_ON = GlobalKeyword.Create(ShaderKeywordStrings._ALPHAPREMULTIPLY_ON);
+        public static readonly GlobalKeyword _ALPHAMODULATE_ON = GlobalKeyword.Create(ShaderKeywordStrings._ALPHAMODULATE_ON);
+        public static readonly GlobalKeyword _NORMALMAP = GlobalKeyword.Create(ShaderKeywordStrings._NORMALMAP);
+        public static readonly GlobalKeyword _ADD_PRECOMPUTED_VELOCITY = GlobalKeyword.Create(ShaderKeywordStrings._ADD_PRECOMPUTED_VELOCITY);
+        public static readonly GlobalKeyword EDITOR_VISUALIZATION = GlobalKeyword.Create(ShaderKeywordStrings.EDITOR_VISUALIZATION);
+        public static readonly GlobalKeyword FoveatedRenderingNonUniformRaster = GlobalKeyword.Create(ShaderKeywordStrings.FoveatedRenderingNonUniformRaster);
+        public static readonly GlobalKeyword DisableTexture2DXArray = GlobalKeyword.Create(ShaderKeywordStrings.DisableTexture2DXArray);
+        public static readonly GlobalKeyword BlitSingleSlice = GlobalKeyword.Create(ShaderKeywordStrings.BlitSingleSlice);
+        public static readonly GlobalKeyword XROcclusionMeshCombined = GlobalKeyword.Create(ShaderKeywordStrings.XROcclusionMeshCombined);
+        public static readonly GlobalKeyword SCREEN_COORD_OVERRIDE = GlobalKeyword.Create(ShaderKeywordStrings.SCREEN_COORD_OVERRIDE);
+        public static readonly GlobalKeyword DOWNSAMPLING_SIZE_2 = GlobalKeyword.Create(ShaderKeywordStrings.DOWNSAMPLING_SIZE_2);
+        public static readonly GlobalKeyword DOWNSAMPLING_SIZE_4 = GlobalKeyword.Create(ShaderKeywordStrings.DOWNSAMPLING_SIZE_4);
+        public static readonly GlobalKeyword DOWNSAMPLING_SIZE_8 = GlobalKeyword.Create(ShaderKeywordStrings.DOWNSAMPLING_SIZE_8);
+        public static readonly GlobalKeyword DOWNSAMPLING_SIZE_16 = GlobalKeyword.Create(ShaderKeywordStrings.DOWNSAMPLING_SIZE_16);
+        public static readonly GlobalKeyword EVALUATE_SH_MIXED = GlobalKeyword.Create(ShaderKeywordStrings.EVALUATE_SH_MIXED);
+        public static readonly GlobalKeyword EVALUATE_SH_VERTEX = GlobalKeyword.Create(ShaderKeywordStrings.EVALUATE_SH_VERTEX);
+        public static readonly GlobalKeyword ProbeVolumeL1 = GlobalKeyword.Create(ShaderKeywordStrings.ProbeVolumeL1);
+        public static readonly GlobalKeyword ProbeVolumeL2 = GlobalKeyword.Create(ShaderKeywordStrings.ProbeVolumeL2);
+        public static readonly GlobalKeyword LIGHTMAP_BICUBIC_SAMPLING = GlobalKeyword.Create(ShaderKeywordStrings.LIGHTMAP_BICUBIC_SAMPLING);
+        public static readonly GlobalKeyword _OUTPUT_DEPTH = GlobalKeyword.Create(ShaderKeywordStrings._OUTPUT_DEPTH);
+        public static readonly GlobalKeyword LinearToSRGBConversion = GlobalKeyword.Create(ShaderKeywordStrings.LinearToSRGBConversion);
+        public static readonly GlobalKeyword _ENABLE_ALPHA_OUTPUT = GlobalKeyword.Create(ShaderKeywordStrings._ENABLE_ALPHA_OUTPUT);
+        public static readonly GlobalKeyword ForwardPlus = GlobalKeyword.Create(ShaderKeywordStrings.ForwardPlus); // Backward compatibility. Deprecated in 6.1.
+#if (UNITY_META_QUEST)
+        public static readonly GlobalKeyword META_QUEST_ORTHO_PROJ = GlobalKeyword.Create(ShaderKeywordStrings.META_QUEST_ORTHO_PROJ);
+        public static readonly GlobalKeyword META_QUEST_LIGHTUNROLL = GlobalKeyword.Create(ShaderKeywordStrings.META_QUEST_LIGHTUNROLL);
+        public static readonly GlobalKeyword META_QUEST_NO_SPOTLIGHTS_LIGHT_LOOP = GlobalKeyword.Create(ShaderKeywordStrings.META_QUEST_NO_SPOTLIGHTS_LIGHT_LOOP);
+#endif
+        public static readonly GlobalKeyword APPLICATION_SPACE_WARP_MOTION_TRANSPARENT = GlobalKeyword.Create(ShaderKeywordStrings.APPLICATION_SPACE_WARP_MOTION_TRANSPARENT);
+        public static readonly GlobalKeyword DEPTH_AS_INPUT_ATTACHMENT = GlobalKeyword.Create(ShaderKeywordStrings.DEPTH_AS_INPUT_ATTACHMENT);
+        public static readonly GlobalKeyword DEPTH_AS_INPUT_ATTACHMENT_MSAA = GlobalKeyword.Create(ShaderKeywordStrings.DEPTH_AS_INPUT_ATTACHMENT_MSAA);
+
+        // TODO: Move following keywords to Local keywords?
+        // https://docs.unity3d.com/ScriptReference/Rendering.LocalKeyword.html
+        //public static readonly GlobalKeyword TonemapACES;
+        //public static readonly GlobalKeyword TonemapNeutral;
+        //public static readonly GlobalKeyword UseFastSRGBLinearConversion;
+        //public static readonly GlobalKeyword SmaaLow;
+        //public static readonly GlobalKeyword SmaaMedium;
+        //public static readonly GlobalKeyword SmaaHigh;
+        //public static readonly GlobalKeyword PaniniGeneric;
+        //public static readonly GlobalKeyword PaniniUnitDistance;
+        //public static readonly GlobalKeyword HighQualitySampling;
+        //public static readonly GlobalKeyword BloomLQ;
+        //public static readonly GlobalKeyword BloomHQ;
+        //public static readonly GlobalKeyword BloomLQDirt;
+        //public static readonly GlobalKeyword BloomHQDirt;
+        //public static readonly GlobalKeyword UseRGBM;
+        //public static readonly GlobalKeyword Distortion;
+        //public static readonly GlobalKeyword ChromaticAberration;
+        //public static readonly GlobalKeyword HDRGrading;
+        //public static readonly GlobalKeyword FilmGrain;
+        //public static readonly GlobalKeyword Fxaa;
+        //public static readonly GlobalKeyword Dithering;
+        //public static readonly GlobalKeyword Rcas;
+        //public static readonly GlobalKeyword EasuRcasAndHDRInput;
+        //public static readonly GlobalKeyword Gamma20;
+        //public static readonly GlobalKeyword Gamma20AndHDRInput;
+        //public static readonly GlobalKeyword PointSampling;
+
+        // Explicit class constructor required to ensure static field initializers when calling InitializeShaderGlobalKeywords
+        static ShaderGlobalKeywords() { }
+
+        public static void InitializeShaderGlobalKeywords()
+        {
+            // Keeping and calling this empty static function from pipeline creation ensures the static fields are
+            // initialized at that point, instead of happening on the first frame, potentially causing a hitch.
+        }
+
+    }
+
+    public static class ShaderKeywordStrings
+    {
+        /// <summary> Keyword used for shadows without cascades. </summary>
+        public const string MainLightShadows = "_MAIN_LIGHT_SHADOWS";
+
+        /// <summary> Keyword used for shadows with cascades. </summary>
+        public const string MainLightShadowCascades = "_MAIN_LIGHT_SHADOWS_CASCADE";
+
+        /// <summary> Keyword used for screen space shadows. </summary>
+        public const string MainLightShadowScreen = "_MAIN_LIGHT_SHADOWS_SCREEN";
+
+        /// <summary> Keyword used during shadow map generation to differentiate between directional and punctual light shadows, as they use different formulas to apply Normal Bias. </summary>
+        public const string CastingPunctualLightShadow = "_CASTING_PUNCTUAL_LIGHT_SHADOW";
+
+        /// <summary> Keyword used for per vertex additional lights. </summary>
+        public const string AdditionalLightsVertex = "_ADDITIONAL_LIGHTS_VERTEX";
+
+        /// <summary> Keyword used for per pixel additional lights. </summary>
+        public const string AdditionalLightsPixel = "_ADDITIONAL_LIGHTS";
+
+        /// <summary> Keyword used for Forward+ & Deferred+. </summary>
+        internal const string ClusterLightLoop = "_CLUSTER_LIGHT_LOOP";
+
+        /// <summary> Keyword used for shadows on additional lights. </summary>
+        public const string AdditionalLightShadows = "_ADDITIONAL_LIGHT_SHADOWS";
+
+        /// <summary> Keyword used for Box Projection with Reflection Probes. </summary>
+        public const string ReflectionProbeBoxProjection = "_REFLECTION_PROBE_BOX_PROJECTION";
+
+        /// <summary> Keyword used for Reflection probe blending. </summary>
+        public const string ReflectionProbeBlending = "_REFLECTION_PROBE_BLENDING";
+
+        /// <summary> Keyword used for Reflection probe atlas. </summary>
+        public const string ReflectionProbeAtlas = "_REFLECTION_PROBE_ATLAS";
+
+        /// <summary> Keyword used for ReflectionProbe rotation. </summary>
+        public const string ReflectionProbeRotation = "REFLECTION_PROBE_ROTATION";
+
+        /// <summary> Keyword used for Screen Space Reflection (SSR). </summary>
+        public const string ScreenSpaceReflection = "_SCREEN_SPACE_REFLECTION";
+
+        /// <summary> Keyword used for soft shadows. </summary>
+        public const string SoftShadows = "_SHADOWS_SOFT";
+
+        /// <summary> Keyword used for low quality soft shadows. </summary>
+        public const string SoftShadowsLow = "_SHADOWS_SOFT_LOW";
+
+        /// <summary> Keyword used for medium quality soft shadows. </summary>
+        public const string SoftShadowsMedium = "_SHADOWS_SOFT_MEDIUM";
+
+        /// <summary> Keyword used for high quality soft shadows. </summary>
+        public const string SoftShadowsHigh = "_SHADOWS_SOFT_HIGH";
+
+        /// <summary> Keyword used for Mixed Lights in Subtractive lighting mode. </summary>
+        public const string MixedLightingSubtractive = "_MIXED_LIGHTING_SUBTRACTIVE"; // Backward compatibility
+
+        /// <summary> Keyword used for mixing lightmap shadows. </summary>
+        public const string LightmapShadowMixing = "LIGHTMAP_SHADOW_MIXING";
+
+        /// <summary> Keyword used for Shadowmask. </summary>
+        public const string ShadowsShadowMask = "SHADOWS_SHADOWMASK";
+
+        /// <summary> Keyword used for Light Layers. </summary>
+        public const string LightLayers = "_LIGHT_LAYERS";
+
+        /// <summary> Keyword used for RenderPass. </summary>
+        public const string RenderPassEnabled = "_RENDER_PASS_ENABLED";
+
+        /// <summary> Keyword used for Billboard cameras. </summary>
+        public const string BillboardFaceCameraPos = "BILLBOARD_FACE_CAMERA_POS";
+
+        /// <summary> Keyword used for Light Cookies. </summary>
+        public const string LightCookies = "_LIGHT_COOKIES";
+
+        /// <summary> Keyword used for no Multi Sampling Anti-Aliasing (MSAA). </summary>
+        public const string DepthNoMsaa = "_DEPTH_NO_MSAA";
+
+        /// <summary> Keyword used for Multi Sampling Anti-Aliasing (MSAA) with 2 per pixel sample count. </summary>
+        public const string DepthMsaa2 = "_DEPTH_MSAA_2";
+
+        /// <summary> Keyword used for Multi Sampling Anti-Aliasing (MSAA) with 4 per pixel sample count. </summary>
+        public const string DepthMsaa4 = "_DEPTH_MSAA_4";
+
+        /// <summary> Keyword used for Multi Sampling Anti-Aliasing (MSAA) with 8 per pixel sample count. </summary>
+        public const string DepthMsaa8 = "_DEPTH_MSAA_8";
+
+        /// <summary> Keyword used for Linear to SRGB conversions. </summary>
+        public const string LinearToSRGBConversion = "_LINEAR_TO_SRGB_CONVERSION";
+
+        /// <summary> Keyword used for less expensive Linear to SRGB conversions. </summary>
+        internal const string UseFastSRGBLinearConversion = "_USE_FAST_SRGB_LINEAR_CONVERSION";
+
+        /// <summary> Keyword used for first target in the DBuffer. </summary>
+        public const string DBufferMRT1 = "_DBUFFER_MRT1";
+
+        /// <summary> Keyword used for second target in the DBuffer. </summary>
+        public const string DBufferMRT2 = "_DBUFFER_MRT2";
+
+        /// <summary> Keyword used for third target in the DBuffer. </summary>
+        public const string DBufferMRT3 = "_DBUFFER_MRT3";
+
+        /// <summary> Keyword used for low quality normal reconstruction in Decals. </summary>
+        public const string DecalNormalBlendLow = "_DECAL_NORMAL_BLEND_LOW";
+
+        /// <summary> Keyword used for medium quality normal reconstruction in Decals. </summary>
+        public const string DecalNormalBlendMedium = "_DECAL_NORMAL_BLEND_MEDIUM";
+
+        /// <summary> Keyword used for high quality normal reconstruction in Decals. </summary>
+        public const string DecalNormalBlendHigh = "_DECAL_NORMAL_BLEND_HIGH";
+
+        /// <summary> Keyword used for Decal Layers. </summary>
+        public const string DecalLayers = "_DECAL_LAYERS";
+
+        /// <summary> Keyword used for writing Rendering Layers. </summary>
+        public const string WriteRenderingLayers = "_WRITE_RENDERING_LAYERS";
+
+        /// <summary> Keyword used for writing roughness to alpha channel of normals texture. </summary>
+        public const string WriteSmoothness = "_WRITE_SMOOTHNESS";
+
+        /// <summary> Keyword used for low quality Subpixel Morphological Anti-aliasing (SMAA). </summary>
+        public const string SmaaLow = "_SMAA_PRESET_LOW";
+
+        /// <summary> Keyword used for medium quality Subpixel Morphological Anti-aliasing (SMAA). </summary>
+        public const string SmaaMedium = "_SMAA_PRESET_MEDIUM";
+
+        /// <summary> Keyword used for high quality Subpixel Morphological Anti-aliasing (SMAA). </summary>
+        public const string SmaaHigh = "_SMAA_PRESET_HIGH";
+
+        /// <summary> Keyword used for generic Panini Projection. </summary>
+        public const string PaniniGeneric = "_GENERIC";
+
+        /// <summary> Keyword used for unit distance Panini Projection. </summary>
+        public const string PaniniUnitDistance = "_UNIT_DISTANCE";
+
+        /// <summary> Keyword used for low quality Bloom. </summary>
+        public const string BloomLQ = "_BLOOM_LQ";
+
+        /// <summary> Keyword used for high quality Bloom. </summary>
+        public const string BloomHQ = "_BLOOM_HQ";
+
+        /// <summary> Keyword used for low quality Bloom dirt. </summary>
+        public const string BloomLQDirt = "_BLOOM_LQ_DIRT";
+
+        /// <summary> Keyword used for high quality Bloom dirt. </summary>
+        public const string BloomHQDirt = "_BLOOM_HQ_DIRT";
+
+        /// <summary> Keyword used for Distortion. </summary>
+        public const string Distortion = "_DISTORTION";
+
+        /// <summary> Keyword used for Chromatic Aberration. </summary>
+        public const string ChromaticAberration = "_CHROMATIC_ABERRATION";
+
+        /// <summary> Keyword used for HDR Color Grading. </summary>
+        public const string HDRGrading = "_HDR_GRADING";
+
+        /// <summary> Keyword used for HDR UI Overlay compositing. </summary>
+        public const string HDROverlay = "_HDR_OVERLAY";
+
+        /// <summary> Keyword used for ACES Tonemapping. </summary>
+        public const string TonemapACES = "_TONEMAP_ACES";
+
+        /// <summary> Keyword used for Neutral Tonemapping. </summary>
+        public const string TonemapNeutral = "_TONEMAP_NEUTRAL";
+
+        /// <summary> Keyword used for Film Grain. </summary>
+        public const string FilmGrain = "_FILM_GRAIN";
+
+        /// <summary> Keyword used for Fast Approximate Anti-aliasing (FXAA). </summary>
+        public const string Fxaa = "_FXAA";
+
+        /// <summary> Keyword used for Dithering. </summary>
+        public const string Dithering = "_DITHERING";
+
+        /// <summary> Keyword used for Screen Space Occlusion, such as Screen Space Ambient Occlusion (SSAO). </summary>
+        public const string ScreenSpaceOcclusion = "_SCREEN_SPACE_OCCLUSION";
+
+        /// <summary> Keyword used for Screen Space Global Illumination. </summary>
+        public const string ScreenSpaceIrradiance = "_SCREEN_SPACE_IRRADIANCE";
+
+        /// <summary> Keyword used for Point sampling when doing upsampling. </summary>
+        public const string PointSampling = "_POINT_SAMPLING";
+
+        /// <summary> Keyword used for Robust Contrast-Adaptive Sharpening (RCAS) when doing upsampling. </summary>
+        public const string Rcas = "_RCAS";
+
+        /// <summary> Keyword used for Robust Contrast-Adaptive Sharpening (RCAS) when doing upsampling, after EASU has ran and with HDR Dsiplay output. </summary>
+        public const string EasuRcasAndHDRInput = "_EASU_RCAS_AND_HDR_INPUT";
+
+        /// <summary> Keyword used for Gamma 2.0. </summary>
+        public const string Gamma20 = "_GAMMA_20";
+
+        /// <summary> Keyword used for Gamma 2.0 with HDR_INPUT. </summary>
+        public const string Gamma20AndHDRInput = "_GAMMA_20_AND_HDR_INPUT";
+
+        /// <summary> Keyword used for high quality sampling for Depth Of Field. </summary>
+        public const string HighQualitySampling = "_HIGH_QUALITY_SAMPLING";
+
+        /// <summary> Keyword used for Spot lights. </summary>
+        public const string _SPOT = "_SPOT";
+
+        /// <summary> Keyword used for Directional lights. </summary>
+        public const string _DIRECTIONAL = "_DIRECTIONAL";
+
+        /// <summary> Keyword used for Point lights. </summary>
+        public const string _POINT = "_POINT";
+
+        /// <summary> Keyword used for stencils when rendering with the Deferred rendering path. </summary>
+        public const string _DEFERRED_STENCIL = "_DEFERRED_STENCIL";
+
+        /// <summary> Keyword used for the first light when rendering with the Deferred rendering path. </summary>
+        public const string _DEFERRED_FIRST_LIGHT = "_DEFERRED_FIRST_LIGHT";
+
+        /// <summary> Keyword used for the main light when rendering with the Deferred rendering path. </summary>
+        public const string _DEFERRED_MAIN_LIGHT = "_DEFERRED_MAIN_LIGHT";
+
+        /// <summary> Keyword used for Accurate G-buffer normals when rendering with the Deferred rendering path. </summary>
+        public const string _GBUFFER_NORMALS_OCT = "_GBUFFER_NORMALS_OCT";
+
+        /// <summary> Keyword used for Mixed Lighting when rendering with the Deferred rendering path. </summary>
+        public const string _DEFERRED_MIXED_LIGHTING = "_DEFERRED_MIXED_LIGHTING";
+
+        /// <summary> Keyword used for Lightmaps. </summary>
+        public const string LIGHTMAP_ON = "LIGHTMAP_ON";
+
+        /// <summary> Keyword used for dynamic Lightmaps. </summary>
+        public const string DYNAMICLIGHTMAP_ON = "DYNAMICLIGHTMAP_ON";
+
+        /// <summary> Keyword used for Alpha testing. </summary>
+        public const string _ALPHATEST_ON = "_ALPHATEST_ON";
+
+        /// <summary> Keyword used for combined directional Lightmaps. </summary>
+        public const string DIRLIGHTMAP_COMBINED = "DIRLIGHTMAP_COMBINED";
+
+        /// <summary> Keyword used for 2x detail mapping. </summary>
+        public const string _DETAIL_MULX2 = "_DETAIL_MULX2";
+
+        /// <summary> Keyword used for scaled detail mapping. </summary>
+        public const string _DETAIL_SCALED = "_DETAIL_SCALED";
+
+        /// <summary> Keyword used for Clear Coat. </summary>
+        public const string _CLEARCOAT = "_CLEARCOAT";
+
+        /// <summary> Keyword used for Clear Coat maps. </summary>
+        public const string _CLEARCOATMAP = "_CLEARCOATMAP";
+
+        /// <summary> Keyword used for Debug Display. </summary>
+        public const string DEBUG_DISPLAY = "DEBUG_DISPLAY";
+
+        /// <summary> Keyword used for LOD Crossfade. </summary>
+        public const string LOD_FADE_CROSSFADE = "LOD_FADE_CROSSFADE";
+
+        /// <summary> Keyword used for LOD Crossfade with ShaderGraph shaders. </summary>
+        public const string USE_UNITY_CROSSFADE = "USE_UNITY_CROSSFADE";
+
+        /// <summary> Keyword used for Emission. </summary>
+        public const string _EMISSION = "_EMISSION";
+
+        /// <summary> Keyword used for receiving shadows. </summary>
+        public const string _RECEIVE_SHADOWS_OFF = "_RECEIVE_SHADOWS_OFF";
+
+        /// <summary> Keyword used for opaque or transparent surface types. </summary>
+        public const string _SURFACE_TYPE_TRANSPARENT = "_SURFACE_TYPE_TRANSPARENT";
+
+        /// <summary> Keyword used for Alpha premultiply. </summary>
+        public const string _ALPHAPREMULTIPLY_ON = "_ALPHAPREMULTIPLY_ON";
+
+        /// <summary> Keyword used for Alpha modulate. </summary>
+        public const string _ALPHAMODULATE_ON = "_ALPHAMODULATE_ON";
+
+        /// <summary> Keyword used for Normal maps. </summary>
+        public const string _NORMALMAP = "_NORMALMAP";
+
+        /// <summary> Keyword used for Alembic precomputed velocity. </summary>
+        public const string _ADD_PRECOMPUTED_VELOCITY = "_ADD_PRECOMPUTED_VELOCITY";
+
+        /// <summary> Keyword used for editor visualization. </summary>
+        public const string EDITOR_VISUALIZATION = "EDITOR_VISUALIZATION";
+
+        /// <summary> Keyword used for foveated rendering. </summary>
+        public const string FoveatedRenderingNonUniformRaster = "_FOVEATED_RENDERING_NON_UNIFORM_RASTER";
+
+        /// <summary> Keyword used for disabling Texture 2D Arrays. </summary>
+        public const string DisableTexture2DXArray = "DISABLE_TEXTURE2D_X_ARRAY";
+
+        /// <summary> Keyword used for Single Slice Blits. </summary>
+        public const string BlitSingleSlice = "BLIT_SINGLE_SLICE";
+
+        /// <summary> Keyword used for rendering a combined mesh for XR. </summary>
+        public const string XROcclusionMeshCombined = "XR_OCCLUSION_MESH_COMBINED";
+
+        /// <summary> Keyword used for applying scale and bias. </summary>
+        public const string SCREEN_COORD_OVERRIDE = "SCREEN_COORD_OVERRIDE";
+
+        /// <summary> Keyword used for half size downsampling. </summary>
+        public const string DOWNSAMPLING_SIZE_2 = "DOWNSAMPLING_SIZE_2";
+
+        /// <summary> Keyword used for quarter size downsampling. </summary>
+        public const string DOWNSAMPLING_SIZE_4 = "DOWNSAMPLING_SIZE_4";
+
+        /// <summary> Keyword used for eighth size downsampling. </summary>
+        public const string DOWNSAMPLING_SIZE_8 = "DOWNSAMPLING_SIZE_8";
+
+        /// <summary> Keyword used for sixteenth size downsampling. </summary>
+        public const string DOWNSAMPLING_SIZE_16 = "DOWNSAMPLING_SIZE_16";
+
+        /// <summary> Keyword used for mixed Spherical Harmonic (SH) evaluation in URP Lit shaders.</summary>
+        public const string EVALUATE_SH_MIXED = "EVALUATE_SH_MIXED";
+
+        /// <summary> Keyword used for vertex Spherical Harmonic (SH) evaluation in URP Lit shaders.</summary>
+        public const string EVALUATE_SH_VERTEX = "EVALUATE_SH_VERTEX";
+
+        /// <summary> Keyword used for APV with SH L1 </summary>
+        public const string ProbeVolumeL1 = "PROBE_VOLUMES_L1";
+
+        /// <summary> Keyword used for APV with SH L2 </summary>
+        public const string ProbeVolumeL2 = "PROBE_VOLUMES_L2";
+
+        /// <summary> Keyword used for bicubic sampling of lightmaps. </summary>
+        public const string LIGHTMAP_BICUBIC_SAMPLING = "LIGHTMAP_BICUBIC_SAMPLING";
+
+        /// <summary> Keyword used for opting out of lightmap texture arrays, when using BatchRendererGroup. </summary>
+        public const string USE_LEGACY_LIGHTMAPS = "USE_LEGACY_LIGHTMAPS";
+
+        /// <summary> Keyword used for CopyDepth pass. </summary>
+        public const string _OUTPUT_DEPTH = "_OUTPUT_DEPTH";
+
+        /// <summary> Keyword used for enable alpha output. Used in post processing. </summary>
+        public const string _ENABLE_ALPHA_OUTPUT = "_ENABLE_ALPHA_OUTPUT";
+
+        /// <summary> Deprecated keyword. Use ClusterLightLoop instead. </summary>
+        internal const string ForwardPlus = "_FORWARD_PLUS"; // Backward compatibility. Deprecated in 6.1.
+
+#if (UNITY_META_QUEST)
+        /// <summary> Used to statically branch when checking for projection type on Meta Quest device. </summary>
+        internal const string META_QUEST_ORTHO_PROJ = "META_QUEST_ORTHO_PROJ";
+
+        /// <summary> Unroll light loop if there is only one additional light on Meta Quest device. </summary>
+        internal const string META_QUEST_LIGHTUNROLL = "META_QUEST_LIGHTUNROLL";
+
+        /// <summary> Use light loop optimized for point lights only on Meta Quest device, the evaluation of whether this optimization can be enabled is performed per batch. </summary>
+        internal const string META_QUEST_NO_SPOTLIGHTS_LIGHT_LOOP = "META_QUEST_NO_SPOTLIGHTS_LIGHT_LOOP";
+#endif
+
+        /// <summary> Keyword used for transparency spacewarp-related code </summary>
+        internal const string APPLICATION_SPACE_WARP_MOTION_TRANSPARENT = "APPLICATION_SPACE_WARP_MOTION_TRANSPARENT";
+
+        /// <summary> Keyword used for Multi Sampling Anti-Aliasing (MSAA) with 2 per pixel sample count. </summary>
+        public const string Msaa2 = "_MSAA_2";
+
+        /// <summary> Keyword used for Multi Sampling Anti-Aliasing (MSAA) with 4 per pixel sample count. </summary>
+        public const string Msaa4 = "_MSAA_4";
+
+        /// <summary> Keyword used for depth as input attachment. </summary>
+        public const string DEPTH_AS_INPUT_ATTACHMENT = "_DEPTH_AS_INPUT_ATTACHMENT";
+
+        /// <summary> Keyword used for depth as input attachment MSAA. </summary>
+        public const string DEPTH_AS_INPUT_ATTACHMENT_MSAA = "_DEPTH_AS_INPUT_ATTACHMENT_MSAA";
+    }
+
+    public sealed partial class UniversalRenderPipeline
+    {
+        // Holds light direction for directional lights or position for punctual lights.
+        // When w is set to 1.0, it means it's a punctual light.
+        static readonly Vector4 k_DefaultLightPosition = new Vector4(0.0f, 0.0f, 1.0f, 0.0f);
+        static readonly Vector4 k_DefaultLightColor = Color.black;
+
+        // Default light attenuation is setup in a particular way that it causes
+        // directional lights to return 1.0 for both distance and angle attenuation
+        static readonly Vector4 k_DefaultLightAttenuation = new Vector4(0.0f, 1.0f, 0.0f, 1.0f);
+        static readonly Vector4 k_DefaultLightSpotDirection = new Vector4(0.0f, 0.0f, 1.0f, 0.0f);
+        static readonly Vector4 k_DefaultLightsProbeChannel = new Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+
+        // Note: No need to clear static lists on entering play mode as they are always cleared at the start of CreateShadowData()
+        static readonly List<Vector4> s_ShadowBiasData = new List<Vector4>();
+        static readonly List<int> s_ShadowResolutionData = new List<int>();
+
+        /// <param name="camera">Camera to check state from.</param>
+        /// <returns>true if given camera is a game camera, false otherwise.</returns>
+        public static bool IsGameCamera(Camera camera)
+        {
+            if (camera == null)
+                throw new ArgumentNullException("camera");
+
+            return camera.cameraType == CameraType.Game || camera.cameraType == CameraType.VR;
+        }
+
+        public static UniversalRenderPipelineAsset asset
+        {
+            get => GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset;
+        }
+
+        Comparison<Camera> cameraComparison = (camera1, camera2) => { return (int)camera1.depth - (int)camera2.depth; };
+#if UNITY_2021_1_OR_NEWER
+        void SortCameras(List<Camera> cameras)
+        {
+            if (cameras.Count > 1)
+                cameras.Sort(cameraComparison);
+        }
+
+#else
+        void SortCameras(Camera[] cameras)
+        {
+            if (cameras.Length > 1)
+                Array.Sort(cameras, cameraComparison);
+        }
+
+#endif
+
+        private int GetLastBaseCameraIndex(List<Camera> cameras)
+        {
+            int lastBaseCameraIndex = 0;
+            for (int i = 0; i < cameras.Count; i++)
+            {
+                // Assume a camera is a base camera if no UniversalAdditionalCameraData is available (e.g., for cameras created at runtime).
+                cameras[i].TryGetComponent<UniversalAdditionalCameraData>(out var baseCameraAdditionalData);
+                if (baseCameraAdditionalData == null || baseCameraAdditionalData.renderType == CameraRenderType.Base)
+                    lastBaseCameraIndex = i;
+            }
+            return lastBaseCameraIndex;
+        }
+
+        internal static GraphicsFormat MakeRenderTextureGraphicsFormat(bool isHdrEnabled, HDRColorBufferPrecision requestHDRColorBufferPrecision, bool needsAlpha)
+        {
+            if (isHdrEnabled)
+            {
+                // TODO: we need a proper format scoring system. Score formats, sort, pick first or pick first supported (if not in score).
+                // UUM-41070: We require `Linear | Render` but with the deprecated FormatUsage this was checking `Blend`
+                // For now, we keep checking for `Blend` until the performance hit of doing the correct checks is evaluated
+                if (!needsAlpha && requestHDRColorBufferPrecision != HDRColorBufferPrecision._64Bits && SystemInfo.IsFormatSupported(GraphicsFormat.B10G11R11_UFloatPack32, GraphicsFormatUsage.Blend))
+                    return GraphicsFormat.B10G11R11_UFloatPack32;
+                if (SystemInfo.IsFormatSupported(GraphicsFormat.R16G16B16A16_SFloat, GraphicsFormatUsage.Blend))
+                    return GraphicsFormat.R16G16B16A16_SFloat;
+                return SystemInfo.GetGraphicsFormat(DefaultFormat.HDR); // This might actually be a LDR format on old devices.
+            }
+
+            return SystemInfo.GetGraphicsFormat(DefaultFormat.LDR);
+        }
+
+        // Returns a UNORM based render texture format
+        // When supported by the device, this function will prefer formats with higher precision, but the same bit-depth
+        // NOTE: This function does not guarantee that the returned format will contain an alpha channel.
+        internal static GraphicsFormat MakeUnormRenderTextureGraphicsFormat()
+        {
+            // UUM-41070: We require `Linear | Render` but with the deprecated FormatUsage this was checking `Blend`
+            // For now, we keep checking for `Blend` until the performance hit of doing the correct checks is evaluated
+            if (SystemInfo.IsFormatSupported(GraphicsFormat.A2B10G10R10_UNormPack32, GraphicsFormatUsage.Blend))
+                return GraphicsFormat.A2B10G10R10_UNormPack32;
+            else
+                return GraphicsFormat.R8G8B8A8_UNorm;
+        }
+
+        // Populates cameraData.backbufferColor/backbufferDepth for screen and targetTexture paths.
+        // XR overrides these later in UpdateCameraData with the XR eye texture properties.
+        internal static void CreateBackbufferInfo(Camera camera, UniversalCameraData cameraData, bool needsAlpha)
+        {
+            var colorFormatProxy = MakeRenderTextureGraphicsFormat(cameraData.isHdrEnabled, cameraData.hdrColorBufferPrecision, needsAlpha);
+            var depthStencilFormat = SystemInfo.GetGraphicsFormat(DefaultFormat.DepthStencil);
+
+            if (camera.targetTexture == null)
+            {
+                // Describe the real backbuffer's live MSAA. UpdateCameraData later overrides this
+                // with the XR eye texture properties when an XR pass is actually active.
+                cameraData.backbufferColor = new RenderTargetInfo
+                {
+                    width = Screen.width,
+                    height = Screen.height,
+                    volumeDepth = 1,
+                    msaaSamples = Screen.currentBackbufferMSAASamples,
+                    format = colorFormatProxy,
+                };
+                cameraData.backbufferDepth = cameraData.backbufferColor;
+                cameraData.backbufferDepth.format = depthStencilFormat;
+            }
+            else
+            {
+                cameraData.backbufferColor = new RenderTargetInfo
+                {
+                    width = camera.targetTexture.width,
+                    height = camera.targetTexture.height,
+                    volumeDepth = camera.targetTexture.volumeDepth,
+                    msaaSamples = SystemInfo.GetRenderTextureSupportedMSAASampleCount(camera.targetTexture.descriptor),
+                    format = camera.targetTexture.graphicsFormat,
+                };
+                cameraData.backbufferDepth = cameraData.backbufferColor;
+                cameraData.backbufferDepth.format = camera.targetTexture.depthStencilFormat;
+                if (cameraData.backbufferDepth.format == GraphicsFormat.None)
+                {
+                    cameraData.backbufferDepth.format = depthStencilFormat;
+                    Debug.LogWarning("In the render graph API, the output Render Texture must have a depth buffer. When you select a Render Texture in any camera's Output Texture property, the Depth Stencil Format property of the texture must be set to a value other than None.");
+                }
+            }
+        }
+        internal static int GetIntermediateTexturesMSAA(UniversalCameraData cameraData, ScriptableRenderer renderer)
+        {
+            bool rendererSupportsMSAA = renderer != null && renderer.supportedRenderingFeatures.msaa;
+            var camera = cameraData.camera;
+
+            int msaaSamples = 1;
+
+            if (rendererSupportsMSAA && camera.allowMSAA)
+            {
+                if (camera.targetTexture == null)
+                {  
+                    msaaSamples = asset.msaaSampleCount;                    
+                }
+                else
+                {
+                    msaaSamples = camera.targetTexture.antiAliasing;
+                }
+            }
+
+            // In tile-only mode the backbuffer and intermediates share a native render pass,
+            // so their MSAA counts must match the live backbuffer value.
+            // TODO: warn the user when this overrides camera.allowMSAA or asset.msaaSampleCount.
+            // TODO: deferred rendering doesn't support MSAA but will soon support tile-only mode.
+            // When multiple cameras share the same backbuffer with mixed renderers (forward + deferred),
+            // the deferred camera can't match backbuffer MSAA in tile-only mode. Needs a strategy for
+            // forcing intermediates or disabling backbuffer MSAA when deferred is in the mix.
+            bool tileOnlyMode = renderer is UniversalRenderer { useTileOnlyMode: true };
+            msaaSamples = (tileOnlyMode) ? cameraData.backbufferColor.msaaSamples : msaaSamples;
+
+            return msaaSamples;
+        }
+
+        // Creates the descriptor for URP's intermediate render textures (cameraColor, cameraDepth).
+        // Shares most properties with the backbuffer (format, depth format) but uses render-scaled
+        // dimensions and independently configured MSAA. Stored as cameraData.cameraTargetDescriptor
+        // for external users; internal code should use TextureDesc from renderGraph.GetDescriptor().
+        internal static RenderTextureDescriptor CreateRenderTextureDescriptor(Camera camera, UniversalCameraData cameraData,
+            int msaaSamples)
+        {
+            RenderTextureDescriptor desc;
+
+            if (camera.targetTexture == null)
+            {
+                desc = new RenderTextureDescriptor(cameraData.scaledWidth, cameraData.scaledHeight);           
+            }
+            else
+            {
+                // Note: the intermediate color buffer inherits the external texture's format instead of using the
+                // configured internal rendering format. This is incorrect but kept for backward compatibility.
+                // Ideally we'd use the internal format throughout and blit to the external texture at the end.
+                desc = camera.targetTexture.descriptor;
+                
+                desc.width = cameraData.scaledWidth;
+                desc.height = cameraData.scaledHeight;
+            }
+
+            desc.graphicsFormat = cameraData.backbufferColor.format;
+            if (camera.cameraType == CameraType.SceneView && !cameraData.isHdrEnabled)
+                desc.graphicsFormat = SystemInfo.GetGraphicsFormat(DefaultFormat.LDR);
+            desc.depthStencilFormat = cameraData.backbufferDepth.format;
+            desc.msaaSamples = msaaSamples;
+            desc.enableRandomWrite = false;
+            desc.bindMS = false;
+            desc.useDynamicScale = camera.allowDynamicResolution;
+
+            // Check that the requested MSAA samples count is supported by the current platform. If it's not supported,
+            // replace the requested desc.msaaSamples value with the actual value the engine falls back to.
+            // NOTE: this uses a different validation path than backbuffer MSAA (per-format kUsageMSAANx flags
+            // vs hardware-level sample count support). In tile-only mode the caller sets msaaSamples to
+            // currentBackbufferMSAASamples, but this clamp could reduce it below the backbuffer value
+            // (e.g. Mali-G78 doesn't support 2x for RTs while the GPU handles 2x in tile memory).
+            desc.msaaSamples = SystemInfo.GetRenderTextureSupportedMSAASampleCount(desc);
+
+            return desc;
+        }
+
+        private static readonly Lightmapping.RequestLightsDelegate s_LightsDelegate = (Light[] requests, NativeArray<LightDataGI> lightsOutput) =>
+        {
+            LightDataGI lightData = new LightDataGI();
+
+            // URP uses a game like lambertian response for punctual lights, they are off by a factor PI.
+            // Since LightBaker expects its punctual lights to be expressed in standard radiometric units, the intensity is pre-multiplied by PI here to counteract this.
+            // This ensures that the baked punctual light intensity matches realtime intensity. (See GFXLIGHT-1755)
+            const float piCorrection = Mathf.PI;
+
+#if UNITY_EDITOR
+            // Always extract lights in the Editor.
+            for (int i = 0; i < requests.Length; i++)
+            {
+                Light light = requests[i];
+                var additionalLightData = light.GetUniversalAdditionalLightData();
+
+                LightmapperUtils.Extract(light, out Cookie cookie);
+
+                switch (light.type)
+                {
+                    case LightType.Directional:
+                        DirectionalLight directionalLight = new DirectionalLight();
+                        LightmapperUtils.Extract(light, ref directionalLight);
+                        directionalLight.color.intensity *= piCorrection;
+                        directionalLight.indirectColor.intensity *= piCorrection;
+
+                        if (light.cookie != null)
+                        {
+                            // Size == 1 / Scale
+                            cookie.sizes = additionalLightData.lightCookieSize;
+                            // Offset, Map cookie UV offset to light position on along local axes.
+                            if (additionalLightData.lightCookieOffset != Vector2.zero)
+                            {
+                                var r = light.transform.right * additionalLightData.lightCookieOffset.x;
+                                var u = light.transform.up * additionalLightData.lightCookieOffset.y;
+                                var offset = r + u;
+
+                                directionalLight.position += offset;
+                            }
+                        }
+
+                        lightData.Init(ref directionalLight, ref cookie);
+                        break;
+                    case LightType.Point:
+                        PointLight pointLight = new PointLight();
+                        LightmapperUtils.Extract(light, ref pointLight);
+                        pointLight.color.intensity *= piCorrection;
+                        pointLight.indirectColor.intensity *= piCorrection;
+                        lightData.Init(ref pointLight, ref cookie);
+                        break;
+                    case LightType.Spot:
+                        SpotLight spotLight = new SpotLight();
+                        LightmapperUtils.Extract(light, ref spotLight);
+                        spotLight.color.intensity *= piCorrection;
+                        spotLight.indirectColor.intensity *= piCorrection;
+                        spotLight.innerConeAngle = light.innerSpotAngle * Mathf.Deg2Rad;
+                        spotLight.angularFalloff = AngularFalloffType.AnalyticAndInnerAngle;
+                        lightData.Init(ref spotLight, ref cookie);
+                        break;
+                    case LightType.Rectangle:
+                        RectangleLight rectangleLight = new RectangleLight();
+                        LightmapperUtils.Extract(light, ref rectangleLight);
+                        rectangleLight.mode = LightMode.Baked;
+                        lightData.Init(ref rectangleLight);
+                        break;
+                    case LightType.Disc:
+                        DiscLight discLight = new DiscLight();
+                        LightmapperUtils.Extract(light, ref discLight);
+                        discLight.mode = LightMode.Baked;
+                        lightData.Init(ref discLight);
+                        break;
+                    default:
+                        lightData.InitNoBake(light.GetEntityId());
+                        break;
+                }
+
+                lightData.falloff = FalloffType.InverseSquared;
+                lightsOutput[i] = lightData;
+            }
+#else
+            // If Enlighten realtime GI isn't active, we don't extract lights.
+            if (SupportedRenderingFeatures.active.enlighten == false || ((int)SupportedRenderingFeatures.active.lightmapBakeTypes & (int)LightmapBakeType.Realtime) == 0)
+            {
+                for (int i = 0; i < requests.Length; i++)
+                {
+                    Light light = requests[i];
+                    lightData.InitNoBake(light.GetEntityId());
+                    lightsOutput[i] = lightData;
+                }
+            }
+            else
+            {
+                for (int i = 0; i < requests.Length; i++)
+                {
+                    Light light = requests[i];
+                    switch (light.type)
+                    {
+                        case LightType.Directional:
+                            DirectionalLight directionalLight = new DirectionalLight();
+                            LightmapperUtils.Extract(light, ref directionalLight);
+                            directionalLight.color.intensity *= piCorrection;
+                            directionalLight.indirectColor.intensity *= piCorrection;
+                            lightData.Init(ref directionalLight);
+                            break;
+                        case LightType.Point:
+                            PointLight pointLight = new PointLight();
+                            LightmapperUtils.Extract(light, ref pointLight);
+                            pointLight.color.intensity *= piCorrection;
+                            pointLight.indirectColor.intensity *= piCorrection;
+                            lightData.Init(ref pointLight);
+                            break;
+                        case LightType.Spot:
+                            SpotLight spotLight = new SpotLight();
+                            LightmapperUtils.Extract(light, ref spotLight);
+                            spotLight.color.intensity *= piCorrection;
+                            spotLight.indirectColor.intensity *= piCorrection;
+                            spotLight.innerConeAngle = light.innerSpotAngle * Mathf.Deg2Rad;
+                            spotLight.angularFalloff = AngularFalloffType.AnalyticAndInnerAngle;
+                            lightData.Init(ref spotLight);
+                            break;
+                        case LightType.Rectangle:
+                            // Rect area light is baked only in URP.
+                            lightData.InitNoBake(light.GetEntityId());
+                            break;
+                        case LightType.Disc:
+                            // Disc light is baked only.
+                            lightData.InitNoBake(light.GetEntityId());
+                            break;
+                        default:
+                            lightData.InitNoBake(light.GetEntityId());
+                            break;
+                    }
+                    lightData.falloff = FalloffType.InverseSquared;
+                    lightsOutput[i] = lightData;
+                }
+            }
+#endif
+        };
+
+        // Called from DeferredLights.cs too
+        /// <param name="lightType">The type of light.</param>
+        /// <param name="lightRange">The range of the light.</param>
+        /// <param name="lightLocalToWorldMatrix">The local to world light matrix.</param>
+        /// <param name="spotAngle">The spotlight angle.</param>
+        /// <param name="innerSpotAngle">The spotlight inner angle.</param>
+        /// <param name="lightAttenuation">The light attenuation.</param>
+        /// <param name="lightSpotDir">The spot light direction.</param>
+        public static void GetLightAttenuationAndSpotDirection(
+            LightType lightType, float lightRange, Matrix4x4 lightLocalToWorldMatrix,
+            float spotAngle, float? innerSpotAngle,
+            out Vector4 lightAttenuation, out Vector4 lightSpotDir)
+        {
+            // Default is directional
+            lightAttenuation = k_DefaultLightAttenuation;
+            lightSpotDir = k_DefaultLightSpotDirection;
+
+            if (lightType != LightType.Directional)
+            {
+                GetPunctualLightDistanceAttenuation(lightRange, ref lightAttenuation);
+
+                if (lightType == LightType.Spot)
+                {
+                    GetSpotDirection(ref lightLocalToWorldMatrix, out lightSpotDir);
+                    GetSpotAngleAttenuation(spotAngle, innerSpotAngle, ref lightAttenuation);
+                }
+            }
+        }
+
+        internal static void GetPunctualLightDistanceAttenuation(float lightRange, ref Vector4 lightAttenuation)
+        {
+            // Light attenuation in universal matches the unity vanilla one (HINT_NICE_QUALITY).
+            // attenuation = 1.0 / distanceToLightSqr
+            // The smoothing factor makes sure that the light intensity is zero at the light range limit.
+            // (We used to offer two different smoothing factors.)
+
+            // The current smoothing factor matches the one used in the Unity lightmapper.
+            // smoothFactor = (1.0 - saturate((distanceSqr * 1.0 / lightRangeSqr)^2))^2
+            float lightRangeSqr = lightRange * lightRange;
+            float fadeStartDistanceSqr = 0.8f * 0.8f * lightRangeSqr;
+            float fadeRangeSqr = (fadeStartDistanceSqr - lightRangeSqr);
+            float lightRangeSqrOverFadeRangeSqr = -lightRangeSqr / fadeRangeSqr;
+            float oneOverLightRangeSqr = 1.0f / Mathf.Max(0.0001f, lightRangeSqr);
+
+            // On all devices: Use the smoothing factor that matches the GI.
+            lightAttenuation.x = oneOverLightRangeSqr;
+            lightAttenuation.y = lightRangeSqrOverFadeRangeSqr;
+        }
+
+        internal static void GetSpotAngleAttenuation(
+            float spotAngle, float? innerSpotAngle,
+            ref Vector4 lightAttenuation)
+        {
+            // UUM-104997: AngleAttenuation() function isn't precise enough for small spot angles on platforms using float16 registers
+            if (spotAngle < 2.6)
+            {
+                spotAngle = 2.6f;
+                if (innerSpotAngle.HasValue)
+                    innerSpotAngle = Mathf.Min(innerSpotAngle.Value, 2.6f);
+            }
+
+            // Spot Attenuation with a linear falloff can be defined as
+            // (SdotL - cosOuterAngle) / (cosInnerAngle - cosOuterAngle)
+            // This can be rewritten as
+            // invAngleRange = 1.0 / (cosInnerAngle - cosOuterAngle)
+            // SdotL * invAngleRange + (-cosOuterAngle * invAngleRange)
+            // If we precompute the terms in a MAD instruction
+            float cosOuterAngle = Mathf.Cos(Mathf.Deg2Rad * spotAngle * 0.5f);
+            // We need to do a null check for particle lights
+            // This should be changed in the future
+            // Particle lights will use an inline function
+            float cosInnerAngle;
+            if (innerSpotAngle.HasValue)
+                cosInnerAngle = Mathf.Cos(innerSpotAngle.Value * Mathf.Deg2Rad * 0.5f);
+            else
+                cosInnerAngle = Mathf.Cos((2.0f * Mathf.Atan(Mathf.Tan(spotAngle * 0.5f * Mathf.Deg2Rad) * (64.0f - 18.0f) / 64.0f)) * 0.5f);
+            float smoothAngleRange = Mathf.Max(0.001f, cosInnerAngle - cosOuterAngle);
+            float invAngleRange = 1.0f / smoothAngleRange;
+            float add = -cosOuterAngle * invAngleRange;
+
+            lightAttenuation.z = invAngleRange;
+            lightAttenuation.w = add;
+        }
+
+        internal static void GetSpotDirection(ref Matrix4x4 lightLocalToWorldMatrix, out Vector4 lightSpotDir)
+        {
+            Vector4 dir = lightLocalToWorldMatrix.GetColumn(2);
+            lightSpotDir = new Vector4(-dir.x, -dir.y, -dir.z, 0.0f);
+        }
+
+        /// <param name="lights">List of lights to iterate.</param>
+        /// <param name="lightIndex">The index of the light.</param>
+        /// <param name="lightPos">The position of the light.</param>
+        /// <param name="lightColor">The color of the light.</param>
+        /// <param name="lightAttenuation">The attenuation of the light.</param>
+        /// <param name="lightSpotDir">The direction of the light.</param>
+        /// <param name="lightOcclusionProbeChannel">The occlusion probe channel for the light.</param>
+        public static void InitializeLightConstants_Common(NativeArray<VisibleLight> lights, int lightIndex, out Vector4 lightPos, out Vector4 lightColor, out Vector4 lightAttenuation, out Vector4 lightSpotDir, out Vector4 lightOcclusionProbeChannel)
+        {
+            lightPos = k_DefaultLightPosition;
+            lightColor = k_DefaultLightColor;
+            lightOcclusionProbeChannel = k_DefaultLightsProbeChannel;
+            lightAttenuation = k_DefaultLightAttenuation;  // Directional by default.
+            lightSpotDir = k_DefaultLightSpotDirection;
+
+            // When no lights are visible, main light will be set to -1.
+            // In this case we initialize it to default values and return
+            if (lightIndex < 0)
+                return;
+
+            // Avoid memcpys. Pass by ref and locals for multiple uses.
+            ref VisibleLight lightData = ref lights.UnsafeElementAtMutable(lightIndex);
+            var light = lightData.light;
+            var lightLocalToWorld = lightData.localToWorldMatrix;
+            var lightType = lightData.lightType;
+
+            if (lightType == LightType.Directional)
+            {
+                Vector4 dir = -lightLocalToWorld.GetColumn(2);
+                lightPos = new Vector4(dir.x, dir.y, dir.z, 0.0f);
+            }
+            else
+            {
+                Vector4 pos = lightLocalToWorld.GetColumn(3);
+                lightPos = new Vector4(pos.x, pos.y, pos.z, 1.0f);
+
+                GetPunctualLightDistanceAttenuation(lightData.range, ref lightAttenuation);
+
+                if (lightType == LightType.Spot)
+                {
+                    GetSpotAngleAttenuation(lightData.spotAngle, light?.innerSpotAngle, ref lightAttenuation);
+                    GetSpotDirection(ref lightLocalToWorld, out lightSpotDir);
+                }
+            }
+
+            // VisibleLight.finalColor already returns color in active color space
+            lightColor = lightData.finalColor;
+
+            if (light != null && light.bakingOutput.lightmapBakeType == LightmapBakeType.Mixed &&
+                0 <= light.bakingOutput.occlusionMaskChannel &&
+                light.bakingOutput.occlusionMaskChannel < 4)
+            {
+                lightOcclusionProbeChannel[light.bakingOutput.occlusionMaskChannel] = 1.0f;
+            }
+        }
+    }
+
+    [System.Obsolete("Use URPProfilingSamplers static fields instead.")]
+    internal enum URPProfileId
+    {
+        UniversalRenderTotal,
+        DrawOpaqueObjects,
+        RecordRenderGraph,
+    }
+
+    // Internal class to detect and cache runtime platform information.
+    // TODO: refine the logic to provide platform abstraction. Eg, we should divide platforms based on capabilities and perf budget.
+    // TODO: isXRMobile is a bad category. Alignment and refactor needed.
+    // TODO: Compress all the query data into "isXRMobile" style booleans and enums.
+    internal static class PlatformAutoDetect
+    {
+        private sealed class PlatformDetectionCache
+        {
+            public readonly bool isXRMobile;
+            public readonly bool isShaderAPIMobileDefined;
+            public readonly bool isSwitch;
+            public readonly bool isSwitch2;
+            public readonly bool isRunningOnPowerVRGPU;
+            public readonly bool hasRenderToR32F;
+            public readonly int maxSupportedShadowAtlasResolution;
+
+            public PlatformDetectionCache()
+            {
+                bool isRunningMobile = false;
+                #if ENABLE_VR && ENABLE_XR_MODULE
+                    #if PLATFORM_WINRT || PLATFORM_ANDROID
+                        isRunningMobile = IsRunningXRMobile();
+                    #endif
+                #endif
+
+                isXRMobile = isRunningMobile;
+                isShaderAPIMobileDefined = GraphicsSettings.HasShaderDefine(BuiltinShaderDefine.SHADER_API_MOBILE);
+                isSwitch = Application.platform == RuntimePlatform.Switch;
+                isSwitch2 = Application.platform == RuntimePlatform.Switch2;
+                isRunningOnPowerVRGPU = SystemInfo.graphicsDeviceName.Contains("PowerVR");
+                hasRenderToR32F = SystemInfo.IsFormatSupported(GraphicsFormat.R32_SFloat, GraphicsFormatUsage.Render);
+
+                // Calculate and cache maximum shadow atlas resolution graphics device support
+                int maxTextureSize = SystemInfo.maxTextureSize;
+                int powerOfTwo = Mathf.ClosestPowerOfTwo(maxTextureSize);
+                maxSupportedShadowAtlasResolution = powerOfTwo > maxTextureSize ? powerOfTwo >> 1 : powerOfTwo;
+            }
+        }
+
+        private static readonly Lazy<PlatformDetectionCache> platformCache = new(() => new PlatformDetectionCache(), true);
+
+        internal static void Initialize()
+        {
+            _ = platformCache.Value;
+        }
+
+#if ENABLE_VR && ENABLE_XR_MODULE
+    #if PLATFORM_WINRT || PLATFORM_ANDROID
+        // XR mobile platforms are not treated as dedicated mobile platforms in Core. Handle them specially here. (Quest and HL).
+        // Note: No need to clear static list on entering playmode, because it is always overwritten by SubsystemManager.GetSubsystems before usage
+        private static readonly List<XR.XRDisplaySubsystem> s_DisplaySubsystemList = new List<XR.XRDisplaySubsystem>();
+        private static bool IsRunningXRMobile()
+        {
+            var platform = Application.platform;
+            if (platform == RuntimePlatform.WSAPlayerX86 || platform == RuntimePlatform.WSAPlayerARM || platform == RuntimePlatform.WSAPlayerX64 || platform == RuntimePlatform.Android)
+            {
+                XR.XRDisplaySubsystem display = null;
+                SubsystemManager.GetSubsystems(s_DisplaySubsystemList);
+
+                if (s_DisplaySubsystemList.Count > 0)
+                    display = s_DisplaySubsystemList[0];
+
+                if (display != null)
+                    return true;
+            }
+            return false;
+        }
+    #endif
+#endif
+
+        internal static bool isXRMobile => platformCache.Value.isXRMobile;
+
+        internal static bool isShaderAPIMobileDefined => platformCache.Value.isShaderAPIMobileDefined;
+
+        internal static bool isSwitch => platformCache.Value.isSwitch;
+
+        internal static bool isSwitch2 => platformCache.Value.isSwitch2;
+
+        internal static bool isRunningOnPowerVRGPU => platformCache.Value.isRunningOnPowerVRGPU;
+
+        internal static bool hasRenderToR32F => platformCache.Value.hasRenderToR32F;
+
+        internal static int maxSupportedShadowAtlasResolution => platformCache.Value.maxSupportedShadowAtlasResolution;
+
+        /// <param name="mode">The current SH evaluation mode.</param>
+        /// <returns>Returns the SH evaluation mode to use.</returns>
+        internal static ShEvalMode ShAutoDetect(ShEvalMode mode)
+        {
+            if (mode == ShEvalMode.Auto)
+            {
+                if (isXRMobile || isShaderAPIMobileDefined || isSwitch || isSwitch2)
+                    return ShEvalMode.PerVertex;
+                else
+                    return ShEvalMode.PerPixel;
+            }
+
+            return mode;
+        }
+    }
+}

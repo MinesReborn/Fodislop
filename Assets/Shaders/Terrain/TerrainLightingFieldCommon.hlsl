@@ -1,6 +1,8 @@
 #ifndef KERN_TERRAIN_LIGHTING_FIELD_COMMON_INCLUDED
 #define KERN_TERRAIN_LIGHTING_FIELD_COMMON_INCLUDED
 
+#include "Assets/Shaders/World/LightingFieldRaster.hlsl"
+
 struct TerrainLightingFieldVaryings
 {
     float4 positionCS   : SV_POSITION;
@@ -31,8 +33,12 @@ TerrainLightingFieldVaryings TerrainLightingFieldVert(TerrainVertexInput input)
     }
 
     TERRAIN_RESOLVE_CELL_VERTEX(input, output)
+    output.positionCS = cell.atlasIndex >= 0.0
+        ? KernLightingFieldClipPosition(cell.positionOS)
+        : TerrainCulledPosition();
 #else
     TERRAIN_RESOLVE_ATTRIBUTE_VERTEX(input, output)
+    output.positionCS = KernLightingFieldClipPosition(input.positionOS.xyz);
 #endif
 #if defined(KERN_TERRAIN_AO_FIELD)
     // A non-physical foreground cell cannot contribute contact occlusion.
@@ -64,7 +70,7 @@ half4 SampleTerrainLightingFieldAlbedoTexel(
         worldPos,
         animData,
         packedData,
-        _Time.y,
+        0.0,
         atlasTexelSize.xy);
 
     if (!tileUV.isValid)

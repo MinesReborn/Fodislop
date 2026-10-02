@@ -49,7 +49,7 @@ public sealed class TerrainTexturePrefetch
 
                 // Без касания LRU: предзаказ не должен продлевать жизнь чанку,
                 // который окну пока не нужен.
-                ChunkReadResult<CellType> chunk = layer.ReadChunk(chunkIndex, touchLru: false);
+                ChunkReadResult<CellType> chunk = layer.ReadChunk(chunkIndex, touchLRU: false);
                 if (chunk.Status != ChunkReadStatus.Available || chunk.Data == null)
                 {
                     continue;

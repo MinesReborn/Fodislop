@@ -10,6 +10,7 @@ internal static class TerrainLightingChangeApplier
 {
     public static bool Apply(TerrainLightingChange change, LightingRuntimeState state)
     {
+        state.StagedTerrainGeometryRevision = change.TerrainGeometryRevision;
         if (change.Kind == TerrainLightingChangeKind.FullReset)
         {
             if (change.FullResetReason == TerrainLightingFullResetReason.WorldReplaced)
@@ -17,7 +18,7 @@ internal static class TerrainLightingChangeApplier
                 state.ClearPendingRegionInvalidation();
             }
 
-            state.FieldDirty = true;
+            LightingRuntimeInvalidation.ResetFieldAndRadiance(state);
             return false;
         }
 

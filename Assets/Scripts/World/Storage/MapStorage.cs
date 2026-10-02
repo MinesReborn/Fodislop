@@ -51,7 +51,7 @@ public class MapStorage : IWorldDataStorage, IWorldPersistence, IRegionBatchStor
         _openMapFile = openMapFile ?? WorldLayer<CellType>.OpenMapFile;
     }
 
-    private string _DataRoot => _dataRoot ?? Application.persistentDataPath;
+    private string DataRoot => _dataRoot ?? Application.persistentDataPath;
 
     private bool _isInitialized;
     private string _worldCodeName = string.Empty;
@@ -64,8 +64,42 @@ public class MapStorage : IWorldDataStorage, IWorldPersistence, IRegionBatchStor
     public string MapFilePath => _mapFilePath ?? throw new InvalidOperationException("[MapStorage] Map file path is not initialized");
 
     public string BackupMapFilePath => _isInitialized
-        ? Path.Combine(_DataRoot, _worldCodeName + BackupMapSuffix)
+        ? Path.Combine(DataRoot, _worldCodeName + BackupMapSuffix)
         : throw new InvalidOperationException("[MapStorage] Map file path is not initialized");
+
+    public static async UniTask PrepareWorldCacheAsync(
+        string worldCodeName,
+        int widthChunks,
+        int heightChunks,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(worldCodeName))
+        {
+            throw new ArgumentException("World code name is required.", nameof(worldCodeName));
+        }
+
+        if (widthChunks <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(widthChunks));
+        }
+
+        if (heightChunks <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(heightChunks));
+        }
+
+        string safeWorldCodeName = MapStorageDiskWriter.SanitizeWorldCodeName(worldCodeName);
+        string mapPath = Path.Combine(Application.persistentDataPath, safeWorldCodeName + MapExtension);
+        string backupPath = Path.Combine(Application.persistentDataPath, safeWorldCodeName + BackupMapSuffix);
+        await MapStorageDiskWriter.PrepareWorldLayerFileAsync(
+            mapPath,
+            widthChunks,
+            heightChunks,
+            ProjectRuntimeContracts.World.ChunkSize,
+            backupPath,
+            cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+    }
 
     public bool IsReady => _isInitialized && _cellLayer != null;
     public bool HasDirtyChunks => _cellLayer?.HasDirtyChunks == true;
@@ -125,8 +159,8 @@ public class MapStorage : IWorldDataStorage, IWorldPersistence, IRegionBatchStor
             throw new ArgumentOutOfRangeException($"[MapStorage] Invalid chunk calculation: {widthChunks}x{heightChunks}");
         }
 
-        string path = Path.Combine(_DataRoot, worldCodeName + MapExtension);
-        string backupPath = Path.Combine(_DataRoot, worldCodeName + BackupMapSuffix);
+        string path = Path.Combine(DataRoot, worldCodeName + MapExtension);
+        string backupPath = Path.Combine(DataRoot, worldCodeName + BackupMapSuffix);
         try
         {
             _cellLayer = MapStorageDiskWriter.OpenWorldLayer(
@@ -168,7 +202,7 @@ public class MapStorage : IWorldDataStorage, IWorldPersistence, IRegionBatchStor
                 $"Cell coordinate ({x}, {y}) is outside the world bounds {_worldWidth}x{_worldHeight}.");
         }
 
-        return _cellLayer.GetCell(x, y, touchLru: true);
+        return _cellLayer.GetCell(x, y, touchLRU: true);
     }
 
     public bool TryGetCell(int x, int y, out CellType cellType)

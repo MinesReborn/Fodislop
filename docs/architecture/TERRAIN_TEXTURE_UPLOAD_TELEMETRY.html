@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Terrain texture upload telemetry</title>
+  <style>
+    :root { color-scheme: light dark; font: 16px/1.55 system-ui, sans-serif; }
+    body { max-width: 960px; margin: 2rem auto; padding: 0 1rem; }
+    h1, h2 { line-height: 1.2; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0 2rem; }
+    th, td { padding: .55rem; border: 1px solid #8888; text-align: left; vertical-align: top; }
+    code { font-family: ui-monospace, monospace; }
+    .note { border-left: .25rem solid #888; padding: .5rem 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Terrain texture upload telemetry</h1>
+  <p>This capability belongs to <code>TerrainCellDataTextures</code>, which owns the nine cell-data channels and their staging textures. A caller may read its <code>UploadTelemetry</code> capability; no mandatory member was added to the general frame telemetry contract.</p>
+  <p class="note">Payload bytes are estimates of the texture data addressed by Unity API calls. They are not GPU bandwidth, bus traffic, compression-aware transfer size, or measured device work. The existing measured CPU upload durations remain available; only aggregate upload counts and bytes stay unknown because mesh and atlas upload producers are not covered.</p>
+
+  <h2>Producer audit</h2>
+  <table>
+    <thead><tr><th>Path</th><th>Producer callsite</th><th>Accounting rule</th><th>Per-channel scope</th></tr></thead>
+    <tbody>
+      <tr><td>Full upload</td><td><code>TerrainCellDataTextures.Apply</code> → <code>TerrainCellDataChannel.UploadAll</code> → <code>Target.Apply(false, false)</code></td><td>One Apply call; allocated target width × height × bytes per pixel of its format.</td><td>Nine target textures: two RGBA32, five RGBAHalf, two RGBAFloat.</td></tr>
+      <tr><td>Staged upload</td><td><code>TerrainCellDataTextures.Apply</code> → <code>TerrainCellDataChannel.Stage</code> → <code>staging.Apply(false, false)</code></td><td>One Apply call per channel and staging batch; allocated staging width × height × format bytes per pixel.</td><td>Nine staging textures per batch; includes unused staging texels because Apply addresses the allocated texture.</td></tr>
+      <tr><td>Staged copy</td><td><code>TerrainCellDataChannel.CopyStaged</code> → <code>Graphics.CopyTexture</code></td><td>One call per channel and packed piece; piece width × height × channel format bytes per pixel.</td><td>Nine copies per packed piece.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Ownership and lifecycle — TL-OWN, TL-LIFE</h2>
+  <p><code>TerrainCellDataTextures</code> owns one <code>TerrainTextureUploadCounters</code> instance for its lifetime. Each successful texture allocation starts a monotonically numbered generation after any old resources have been destroyed. The generation counter survives resize/reallocation; the four operation totals remain cumulative and checked for overflow. Starting a generation clears only the source-frame stamp and generation-local delta baseline; cumulative totals are not reset.</p>
+  <table>
+    <thead><tr><th>Transition</th><th>Entry and resource action</th><th>Telemetry state</th></tr></thead>
+    <tbody>
+      <tr><td>uninitialized → ready</td><td><code>EnsureCapacity</code> allocates all channel targets and staging slot zero.</td><td><code>BeginGeneration</code> increments generation and sets capability availability. No source frame exists until an API call is observed; counters are not presented as a measured zero.</td></tr>
+      <tr><td>ready → active</td><td><code>Apply</code> executes full or staged uploads.</td><td>Successful API calls add estimated payload and call count; <code>sourceFrameId</code> is the frame of the last counted operation in the current generation. It is not the frame when a cumulative value was sampled.</td></tr>
+      <tr><td>active → disposing</td><td><code>Dispose</code> destroys all channel targets and staging textures.</td><td><code>EndGeneration</code> marks the capability unavailable; cumulative values and last source frame remain inspectable.</td></tr>
+      <tr><td>disposing → disposed</td><td>Texture destruction completes in the existing owner call.</td><td>No second generation or upload can be recorded until a later <code>EnsureCapacity</code>.</td></tr>
+      <tr><td>Telemetry unbound → bound → unbound</td><td><code>TerrainRenderer.LateUpdate</code> binds the borrowed texture telemetry source before <code>ResetFrameTimers</code>; <code>TerrainRenderer.OnDestroy</code> unbinds before window disposal; <code>FrameTelemetry.Dispose</code> clears any remaining source reference.</td><td>Binding changes clear the observation baseline. A disposed FrameTelemetry returns no snapshot and cannot expose stale source data.</td></tr>
+    </tbody>
+  </table>
+  <p><code>FrameTelemetry.ResetFrameTimers</code> runs at the start of Terrain <code>LateUpdate</code>. Its upload snapshot is labelled with <code>Time.frameCount - 1</code>, because it observes cumulative calls completed before the current frame's terrain upload. The frame benchmark samples the live source when its coroutine observes the previous frame and records that observation frame separately. A frame delta is valid only when both snapshots are available, belong to the same texture generation, have adjacent observation-frame IDs, and cumulative values have not regressed. The delta may validly be zero on a stable frame. An initial sample, resize/generation change, disposal, missing reset/frame gap, stale endpoint, or regression yields an invalid delta; consumers must not infer zero. The source-frame stamp remains the most recent counted operation in the current generation and is never used as the observation endpoint.</p>
+  <p>The frame benchmark keeps the cell-data Apply and CopyTexture counts/bytes separate from legacy upload totals; those uncovered aggregate count/byte fields remain JSON <code>null</code>. Existing measured <code>terrainGpuUploadTimeMs</code> and <code>terrainAtlasUploadTimeMs</code> durations remain numeric and unchanged.</p>
+
+  <h2>Performance scope — TL-PERF</h2>
+  <p>Each existing Apply call adds Unity texture <code>width</code>/<code>height</code> property reads, a configured format lookup, one <code>Time.frameCount</code> read, checked integer arithmetic, and counter writes. For staged Apply these Unity properties read the allocated staging texture dimensions, including the unused area in the final slab; the dirty rectangle is not used for Apply bytes. Each CopyTexture call adds the source rectangle width/height and configured format lookup, one <code>Time.frameCount</code> read, checked arithmetic, and counter writes. <code>ResetFrameTimers</code> adds one value snapshot and constant-size delta validation/subtraction work: O(1). There is one small counter object per texture owner and no per-frame counter allocation. No textures, GPU resources, passes, dispatches, or new callbacks are added. No-upload stable frames can report a valid zero delta between adjacent valid endpoints. These counters do not establish runtime cost or a performance improvement.</p>
+
+  <h2>Verification — TL-VERIFY</h2>
+  <p>The standalone tests link the production counter source directly. They check capability availability, generation changes, cumulative lifetime, source-frame behavior, allocated-dimension Apply estimates, rectangle CopyTexture estimates, and invalid dimensions. Unity production-path upload behavior was not run; these tests verify the accounting contract, not Unity or GPU behavior.</p>
+  <p>The standalone capture analyzer also checks these optional metrics for OPT-1 S0/S1/S4 samples when adjacent available cumulative endpoints exist in the same texture generation. It derives the delta from observation frame IDs, validates the duplicated observation and exported delta fields, and treats the last-upload source frame as a separate stamp. Positive Apply or CopyTexture deltas fail the stable-frame invariant independently of aggregate upload counters or GPU timing. Missing legacy fields are outside this conditional check and are not interpreted as zero; generation changes, unavailable endpoints, and observation gaps leave the check incomplete.</p>
+  <p>2026-09-29: endpoint observation IDs must also match the enclosing frame or baseline, not merely each other. Shifted adjacent samples and partial/unavailable endpoints cannot prove stable work. Contradictory call/byte deltas fail input validation; missing GPU/aggregate metrics cannot hide an independently established cell-data violation. The standalone suite passes 155 tests, including the lighting decision fixtures; this is not a Unity production capture.</p>
+  <p>The separate <code>LightingFrameDumper</code> uses Unity-serializable primitive fields: <code>available</code> and <code>frameDeltaValid</code> govern their validity. Numeric defaults when either flag is false are not measured zero. The strict benchmark JSON continues to use nullable metrics and must not be confused with this diagnostic dump format.</p>
+</body>
+</html>

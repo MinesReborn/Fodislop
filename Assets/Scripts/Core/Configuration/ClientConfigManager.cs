@@ -16,7 +16,7 @@ namespace Kern.Core
         private const string ConfigDirectory = "Config";
 
         public ClientConfig Config { get; private set; } = null!;
-        public string ConfigFilePath => _Repository.ConfigPath;
+        public string ConfigFilePath => Repository.ConfigPath;
         public GraphicsPreset SelectedGraphicsPreset => Config.GraphicsPreset;
 
         private bool _initialized;
@@ -32,13 +32,13 @@ namespace Kern.Core
             return Path.Combine(Application.persistentDataPath, ConfigDirectory, ConfigFileName);
         }
 
-        private ClientConfigRepository _Repository =>
+        private ClientConfigRepository Repository =>
             _repository ??= new ClientConfigRepository(GetConfigPath());
 
-        private ClientConfigValidator _Validator =>
+        private ClientConfigValidator Validator =>
             _validator ??= new ClientConfigValidator(_graphicsQualityProfile);
 
-        private ConfigSaveScheduler _SaveScheduler =>
+        private ConfigSaveScheduler SaveScheduler =>
             _saveScheduler ??= new ConfigSaveScheduler(this);
 
         public void EnsureInitialized()
@@ -65,12 +65,12 @@ namespace Kern.Core
 
         private void Update()
         {
-            _SaveScheduler.TryFlush(Time.unscaledTime);
+            SaveScheduler.TryFlush(Time.unscaledTime);
         }
 
         private void OnApplicationQuit()
         {
-            _SaveScheduler.Flush();
+            SaveScheduler.Flush();
         }
 
         // Свёрнутое приложение система вправе завершить без OnApplicationQuit.
@@ -78,7 +78,7 @@ namespace Kern.Core
         {
             if (paused)
             {
-                _SaveScheduler.Flush();
+                SaveScheduler.Flush();
             }
         }
 
@@ -87,17 +87,17 @@ namespace Kern.Core
             // Выход из Play Mode в редакторе OnApplicationQuit не вызывает.
             // Без этого правка, сделанная в последнюю четверть секунды, не
             // доехала бы до диска.
-            _SaveScheduler.Flush();
+            SaveScheduler.Flush();
         }
 
         public void Load()
         {
             ClientConfigLoader.Result result =
-                new ClientConfigLoader(_Repository, _graphicsQualityProfile).LoadOrCreate();
+                new ClientConfigLoader(Repository, _graphicsQualityProfile).LoadOrCreate();
             Config = result.Config;
             Debug.Log(
                 $"[ClientConfigManager] Config {result.Outcome} (schema {result.SourceSchemaVersion}) " +
-                $"at {_Repository.ConfigPath}; GraphicsPreset={Config.GraphicsPreset}");
+                $"at {Repository.ConfigPath}; GraphicsPreset={Config.GraphicsPreset}");
         }
 
         public void SelectGraphicsPreset(GraphicsPreset preset)
@@ -156,9 +156,9 @@ namespace Kern.Core
 
         public void Save()
         {
-            _Validator.Validate(Config);
-            _Repository.Save(Config, _Repository.BackupPath);
-            Debug.Log($"[ClientConfigManager] Saved config directly to {_Repository.ConfigPath}");
+            Validator.Validate(Config);
+            Repository.Save(Config, Repository.BackupPath);
+            Debug.Log($"[ClientConfigManager] Saved config directly to {Repository.ConfigPath}");
         }
 
         public void SaveDeferred()
@@ -166,8 +166,8 @@ namespace Kern.Core
             // Проверка немедленная, откладывается только диск. Иначе неверное
             // значение всплывало бы исключением на выходе из игры — позже
             // правки, которая его внесла, и без всякой связи с ней.
-            _Validator.Validate(Config);
-            _SaveScheduler.Queue();
+            Validator.Validate(Config);
+            SaveScheduler.Queue();
             Debug.Log("[ClientConfigManager] Queued deferred config save");
         }
     }

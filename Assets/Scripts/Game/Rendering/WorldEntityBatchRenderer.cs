@@ -26,22 +26,22 @@ namespace Kern.Game
         private const int BATCH_SORTING_ORDER = -1;
         private const int OVERLAY_BATCH_SORTING_ORDER = 600;
         private const int TENTACLE_SORTING_ORDER = -1;
-        private static readonly float _visibilityPrefetchMargin =
+        private static readonly float s_visibilityPrefetchMargin =
             StreamingPolicy.Default.AllocationQuantumCells;
 
-        private static readonly ProfilerMarker _LateUpdateMarker =
+        private static readonly ProfilerMarker s_lateUpdateMarker =
             new("Kern.WorldEntities.LateUpdate");
 
-        private static readonly AllocationLedger.Entry _AllocationEntry =
+        private static readonly AllocationLedger.Entry s_allocationEntry =
             AllocationLedger.Register("Сущности мира — LateUpdate");
 
-        private static readonly int _SpriteAlphaCullID =
+        private static readonly int s_spriteAlphaCullId =
             Shader.PropertyToID("_SpriteAlphaCull");
 
-        private static readonly int _EmissiveFieldThresholdID =
+        private static readonly int s_emissiveFieldThresholdId =
             Shader.PropertyToID("_EmissiveFieldThreshold");
 
-        private static bool _tuningGlobalsApplied;
+        private static bool s_tuningGlobalsApplied;
 
         private readonly List<Tentacle> _tentacles = [];
         private readonly List<SpriteHandle> _sprites = [];
@@ -77,7 +77,7 @@ namespace Kern.Game
 
         public WorldEntityBatchRenderer()
         {
-            _visibility = new WorldEntityVisibility(_spatialGrid, _visibilityPrefetchMargin);
+            _visibility = new WorldEntityVisibility(_spatialGrid, s_visibilityPrefetchMargin);
             _lightingEmitter = new WorldEntityLightingEmitter(_sprites, () => _batchMaterial, GetAtlasRect);
         }
 
@@ -175,8 +175,8 @@ namespace Kern.Game
 
         protected void LateUpdate()
         {
-            using var marker = _LateUpdateMarker.Auto();
-            using var allocationScope = AllocationLedger.Measure(_AllocationEntry);
+            using var marker = s_lateUpdateMarker.Auto();
+            using var allocationScope = AllocationLedger.Measure(s_allocationEntry);
             for (int i = 0; i < _sprites.Count; i++)
             {
                 SpriteHandle handle = _sprites[i];
@@ -262,16 +262,16 @@ namespace Kern.Game
         // уходят глобальными юниформами, а не в каждый материал по отдельности.
         private static void ApplyTuningGlobals()
         {
-            if (_tuningGlobalsApplied)
+            if (s_tuningGlobalsApplied)
             {
                 return;
             }
 
-            Shader.SetGlobalFloat(_SpriteAlphaCullID, WorldRenderConfigHolder.SpriteAlphaCull);
+            Shader.SetGlobalFloat(s_spriteAlphaCullId, WorldRenderConfigHolder.SpriteAlphaCull);
             Shader.SetGlobalFloat(
-                _EmissiveFieldThresholdID,
+                s_emissiveFieldThresholdId,
                 WorldRenderConfigHolder.EmissiveFieldThreshold);
-            _tuningGlobalsApplied = true;
+            s_tuningGlobalsApplied = true;
         }
 
         private void EnsureTextureInAtlas(Texture2D texture)

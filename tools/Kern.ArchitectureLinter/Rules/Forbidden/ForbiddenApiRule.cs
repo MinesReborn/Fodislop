@@ -85,8 +85,6 @@ public sealed class ForbiddenApiRule : IRule
         ["Assets/Scripts/Core/Interfaces/Contracts/Settings/DisplaySettings.cs"] = new[] {
             "Application.targetFrameRate", "Screen.SetResolution", "QualitySettings.vSyncCount"
         },
-        // GameplayCamera wraps Camera.main
-        ["Assets/Scripts/Core/Rendering/GameplayCamera.cs"] = new[] { "Camera.main" },
         // SceneObjectFactory creates GameObjects
         ["Assets/Scripts/Core/Lifecycle/SceneObjectFactory.cs"] = new[] {
             "new GameObject", "IObjectResolver"
@@ -127,7 +125,7 @@ public sealed class ForbiddenApiRule : IRule
             foreach (var type in assembly.MainModule.Types)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                ScanType(type, violations);
+                ScanType(type, violations, context);
             }
         }
 
@@ -201,8 +199,21 @@ public sealed class ForbiddenApiRule : IRule
         return false;
     }
 
-    private void ScanType(TypeDefinition type, List<RuleViolation> violations)
+    private void ScanType(
+        TypeDefinition type,
+        List<RuleViolation> violations,
+        LinterContext context)
     {
+        // GameplayCamera is intentionally source-authoritative. Unity can
+        // leave Library/ScriptAssemblies/Kern.Core.dll stale after a source
+        // edit, and reporting bytecode from that old assembly would contradict
+        // the current source check below. The source pattern still rejects a
+        // newly reintroduced Camera.main call.
+        if (IsSourceAuthoritativeGameplayCamera(type, context))
+        {
+            return;
+        }
+
         foreach (var method in type.Methods)
         {
             if (!method.HasBody)
@@ -231,7 +242,32 @@ public sealed class ForbiddenApiRule : IRule
         }
 
         foreach (var nested in type.NestedTypes)
-            ScanType(nested, violations);
+            ScanType(nested, violations, context);
+    }
+
+    private static bool IsSourceAuthoritativeGameplayCamera(
+        TypeDefinition type,
+        LinterContext context)
+    {
+        if (type.FullName != "Kern.Core.GameplayCamera")
+        {
+            return false;
+        }
+
+        string path = Path.Combine(
+            context.ProjectRoot,
+            "Assets",
+            "Scripts",
+            "Core",
+            "Rendering",
+            "GameplayCamera.cs");
+        if (!File.Exists(path))
+        {
+            return false;
+        }
+
+        string source = SourceScanner.StripComments(File.ReadAllText(path));
+        return !source.Contains("Camera.main", StringComparison.Ordinal);
     }
 
     private static bool IsAllowedOwner(
@@ -239,13 +275,6 @@ public sealed class ForbiddenApiRule : IRule
         string forbiddenDeclaringType,
         string forbiddenMethodName)
     {
-        if (forbiddenDeclaringType == "UnityEngine.Camera" &&
-            forbiddenMethodName == "get_main" &&
-            type.FullName == "Kern.Core.GameplayCamera")
-        {
-            return true;
-        }
-
         return forbiddenDeclaringType == "UnityEngine.Texture2D" &&
                forbiddenMethodName == ".ctor" &&
                type.FullName == "Kern.RuntimeTextureFactory";

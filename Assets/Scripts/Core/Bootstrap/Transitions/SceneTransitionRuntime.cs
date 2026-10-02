@@ -11,14 +11,14 @@ namespace Kern.Core;
 
 internal static class SceneTransitionRuntime
 {
-    private static readonly TimeSpan _PreviousSceneCleanupTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan s_previousSceneCleanupTimeout = TimeSpan.FromSeconds(10);
 
     public static async UniTask<Exception?> TryCleanupPreviousSceneAsync(
         Scene previousScene,
         Func<Scene, UniTask> prepareForUnload,
         TimeSpan? cleanupTimeout = null)
     {
-        TimeSpan effectiveTimeout = cleanupTimeout ?? _PreviousSceneCleanupTimeout;
+        TimeSpan effectiveTimeout = cleanupTimeout ?? s_previousSceneCleanupTimeout;
         if (effectiveTimeout <= TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(

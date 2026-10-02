@@ -253,7 +253,7 @@ public sealed class ShaderWarmupService : IShaderWarmupService, IDisposable
         string assetPath = UnityEditor.AssetDatabase.GetAssetPath(collection);
         if (!string.IsNullOrEmpty(assetPath) && collection.SaveToFile(assetPath))
         {
-            UnityEditor.AssetDatabase.ImportAsset(assetPath);
+            ImportWhenEditing(assetPath);
             Debug.Log(
                 $"[ShaderWarmup] Wrote {collection.totalGraphicsStateCount} " +
                 $"graphics state(s) to '{assetPath}'.");
@@ -265,6 +265,23 @@ public sealed class ShaderWarmupService : IShaderWarmupService, IDisposable
     // Путь собирается из того же контракта, по которому ассет потом грузится:
     // разъехаться им нельзя.
     private const string CollectionAssetRoot = "Assets/Resources";
+
+    // Close срабатывает, когда редактор выходит из Play Mode. Импорт в этот
+    // момент заставлял AssetDatabase подхватить все изменения на диске, включая
+    // правленые скрипты: перекомпиляция и перезагрузка домена шли посреди
+    // выхода из игры, и сценарий Play Mode ловил «Mismatched state in
+    // DefaultScenario, was Stopping but expected Idle». Файл пишется сразу,
+    // а импорт ждёт режима редактирования.
+    private static void ImportWhenEditing(string assetPath)
+    {
+        if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            UnityEditor.EditorApplication.delayCall += () => ImportWhenEditing(assetPath);
+            return;
+        }
+
+        UnityEditor.AssetDatabase.ImportAsset(assetPath);
+    }
 
     private void BootstrapCollectionAsset()
     {
@@ -297,7 +314,7 @@ public sealed class ShaderWarmupService : IShaderWarmupService, IDisposable
             return;
         }
 
-        UnityEditor.AssetDatabase.ImportAsset(assetPath);
+        ImportWhenEditing(assetPath);
         Debug.Log(
             $"[ShaderWarmup] Created the graphics state collection at '{assetPath}' " +
             $"with {trace.totalGraphicsStateCount} state(s) from this session.");

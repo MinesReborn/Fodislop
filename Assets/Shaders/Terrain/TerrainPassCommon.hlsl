@@ -10,7 +10,7 @@
 float4 TerrainVertexClipPosition(float atlasIndex, float3 positionOS)
 {
     return atlasIndex >= 0.0
-        ? TransformObjectToHClip(positionOS)
+        ? mul(UNITY_MATRIX_P, float4(TransformWorldToView(TransformObjectToWorld(positionOS)), 1.0))
         : TerrainCulledPosition();
 }
 
@@ -65,7 +65,7 @@ struct TerrainVertexInput
 // становится (1,1) на каждом фрагменте: оверлей дверей рисовался плоским
 // прямоугольником в 1/8 яркости.
 #define TERRAIN_RESOLVE_ATTRIBUTE_VERTEX(input, output) \
-    output.positionCS = TransformObjectToHClip(input.positionOS.xyz); \
+    output.positionCS = mul(UNITY_MATRIX_P, float4(TransformWorldToView(TransformObjectToWorld(input.positionOS.xyz)), 1.0)); \
     output.uv = input.uv; \
     output.color = input.color; \
     output.subAtlasRect = input.subAtlasRect; \

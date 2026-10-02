@@ -17,6 +17,7 @@ internal readonly struct CommandBufferSampleScope : IDisposable
     {
         _commandBuffer = commandBuffer;
         _sampleName = sampleName;
+        _commandBuffer.BeginSample(_sampleName);
     }
 
     public void Dispose()

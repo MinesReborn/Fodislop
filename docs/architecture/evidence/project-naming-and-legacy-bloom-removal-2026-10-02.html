@@ -1,0 +1,31 @@
+<!doctype html><html lang="ru"><meta charset="utf-8"><title>Именование и удаление legacy bloom</title>
+<style>body{font:16px/1.5 system-ui;max-width:1050px;margin:32px auto;padding:0 20px;color:#18202b}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:8px;text-align:left}code,pre{background:#f0f2f5}pre{padding:12px;white-space:pre-wrap}</style>
+<h1>Именование и удаление legacy bloom — 2026-10-02</h1>
+<p>Требование пользователя: Id, LUT, FPS, M3G, GPU, CPU, LRU, RLE, Credits; соответствующие собственные C#-символы, файлы и GPU-папки согласованы. Внешние Unity API, поле CurrencyPacket.Creds, имена шейдерных bindings и старые сериализационные ключи сохранены. Case-only пути закреплены через git mv; коммит и push не выполнялись.</p>
+<h2>TL-CHANGE / TL-OWN / TL-API</h2>
+<table><tr><th>Владелец и потребитель</th><th>Изменение</th><th>Совместимость</th></tr>
+<tr><td>Terrain: mesh, CPU build; Lighting: binder, teardown, telemetry; Game/UI/Networking: собственные идентификаторы</td><td>Переименованы объявления и обращения. Владение и границы модулей не менялись.</td><td>GUID и meta сохранены. Бинарные потребители собственных типов требуют перекомпиляции.</td></tr>
+<tr><td>Rendering: PostProcessRendererFeature → WorldBloomRenderPass / PostProcessRenderPass</td><td>Удалены DiagnosticLegacyBloom и DiagnosticUnfusedBloom, старый сценический pass, его pyramid/executor/data и пять kernels. PostProcess.compute теперь содержит только DisplayFinal.</td><td>Современный production bloom остаётся в WorldBloom.compute и WorldBloomAdd.shader. Benchmark reference сохраняет только full-resolution world и dense reanchor; legacy fusion A/B удалён.</td></tr>
+<tr><td>Scopes: ScopeShaderProperties → ScopesPassExecutor</td><td>Shader properties отделены от имени RenderGraph pass; явные обращения; internal visibility; комментарии Vector4.</td><td>15 shader binding строк сохранены и сверены с HLSL.</td></tr></table>
+<h2>TL-LIFE / TL-REV</h2>
+<table><tr><th>Состояние/ресурс</th><th>Создание и освобождение</th><th>Инвалидизация</th></tr>
+<tr><td>Terrain/Lighting данные</td><td>Прежние owners, registration, resources и teardown; изменения только в названиях</td><td>Условия invalidation, revisions, ack/retry и dispatch order не изменены</td></tr>
+<tr><td>World bloom</td><td>Feature создаёт и Dispose освобождает единственный bloom pass; RenderGraph owns временные текстуры</td><td>Production shader/material IsAlive пересоздаёт ресурсы как раньше</td></tr>
+<tr><td>DisplayFinal</td><td>Feature создаёт один display pass; shader lifetime check сохранён</td><td>Обновления VolumeStack, LUT, диагностики, paper white сохранены</td></tr></table>
+<h2>TL-STAGE / TL-DATA / TL-PERF</h2>
+<p>Scene-linear HDR → WorldBloom Prefilter/Downsample/Upsample → additive composition → URP post exposure и tonemapping → DisplayFinal → URP output encoding. Изменений форматов, пространства координат, packed terrain data, transport math и viewport mapping нет. Production world-bloom параметры и dispatch count сохранены; исчезли только legacy-only ресурсы и dispatches. Измерений ускорения нет, performance/visual улучшение не заявляется.</p>
+<p>Robot: FormerlySerializedAs сохранит _botID, _playerID, _clanID. Диагностическое terrainGpuUploadTimeMs тоже имеет старое имя. JSON budget CPU/GPU keys сохранены явными JsonPropertyName и проверены независимыми ожидаемыми ключами.</p>
+<h2>TL-VERIFY</h2>
+<table><tr><th>Проверка</th><th>Результат</th></tr>
+<tr><td>dotnet build Temp/naming-validation-tests/ValidationTests.csproj --no-restore --verbosity quiet</td><td>0 C# errors. Aggregate runtime + editor/test source compilation against actual Unity libraries; 3 fixture-only MSB3277 reference conflicts. Это вспомогательная компиляция, не сборка Unity asmdef.</td></tr>
+<tr><td>dotnet test tools/Kern.TerrainTests/Kern.TerrainTests.csproj --no-restore --verbosity quiet</td><td>1212 passed</td></tr>
+<tr><td>dotnet test tools/Kern.WorldLightingExchangeTests/Kern.WorldLightingExchangeTests.csproj --no-restore --verbosity quiet</td><td>48 passed</td></tr>
+<tr><td>dotnet test tools/Kern.FrameHarness.Tests/Kern.FrameHarness.Tests.csproj --no-restore --verbosity quiet</td><td>186 passed</td></tr>
+<tr><td>dotnet test tools/Kern.ArchitectureLinter.Tests/Kern.ArchitectureLinter.Tests.csproj --no-restore --verbosity quiet</td><td>27 passed; retired kernels rejected, current kernels and output stage enforced</td></tr>
+<tr><td>dotnet test tools/Kern.DisplayTests/Kern.DisplayTests.csproj --no-restore --verbosity quiet</td><td>3 passed</td></tr>
+<tr><td>ArchitectureLinter --project-root . --source-only --fail-on Error</td><td>0 errors, 31 warnings (remaining repository debt). Проверка не ослаблена: вместо CompositeFinal проверяются world bloom kernels, additive blend и точный AfterRenderingPostProcessing для обоих renderer events.</td></tr>
+<tr><td>git diff --check; git diff --cached --check; tracked path scan; USS source check</td><td>Passed. Все text-shadow имеют одну тень; crystal count использует поддерживаемые outline properties.</td></tr>
+<tr><td>Unity production GPU/visual path и USS import</td><td>Не выполнено: управление Unity и запуск Unity tests не были явно запрошены. TL-VERIFY production-path gate остаётся pending; GPU/visual correctness и runtime scene behavior не заявляются подтверждёнными. WorldBloomKernelContractTests скомпилирован, но не запускался в Unity.</td></tr></table>
+<h2>Обязательные dependency scans</h2><pre>Assets/Scripts/World/Terrain: (no matches)
+Assets/Scripts/World/Lighting: (no matches)</pre>
+<p>TL-API scans не нашли запрещённых ссылок. Diff не добавляет service locator, reflection orchestration или междоменные события. Gates A–D orchestration migration не применимы: оркестрация Terrain-to-Lighting этим изменением не мигрируется. Checklist ownership/lifecycle/revisions/stage/data проверен по исходникам; runtime/GPU gate pending и блокирует заявление о полной production-верификации.</p></html>

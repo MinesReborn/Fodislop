@@ -7,13 +7,13 @@ namespace MinesServer.Networking.Connection.Client;
 
 internal static class DummyMapColors
 {
-    public static int Get(int cellID)
+    public static int Get(int cellId)
     {
-        if (cellID is < 0 or > byte.MaxValue)
+        if (cellId is < 0 or > byte.MaxValue)
         {
             return unchecked((int)0xFF808080);
         }
 
-        return MapBlockColors.GetPackedColor((CellType)cellID);
+        return MapBlockColors.GetPackedColor((CellType)cellId);
     }
 }

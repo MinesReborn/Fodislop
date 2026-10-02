@@ -8,7 +8,7 @@ using NUnit.Framework;
 namespace Kern.Tests.World;
 
 [TestFixture]
-public class ChunkLruCacheBoundaryTests
+public class ChunkLRUCacheBoundaryTests
 {
     [TestCase(1)]
     [TestCase(2)]
@@ -16,7 +16,7 @@ public class ChunkLruCacheBoundaryTests
     [TestCase(1024)]
     public void LoadedCount_NeverExceedsCapacity(int capacity)
     {
-        var cache = new ChunkLruCache<int>(capacity);
+        var cache = new ChunkLRUCache<int>(capacity);
         for (int i = 0; i < capacity * 4; i++)
         {
             cache.AddOrUpdate(i, new int[1]);
@@ -31,7 +31,7 @@ public class ChunkLruCacheBoundaryTests
     {
         int evictCalls = 0;
         int? evictedIndex = null;
-        var cache = new ChunkLruCache<int>(capacity, (idx, _) =>
+        var cache = new ChunkLRUCache<int>(capacity, (idx, _) =>
         {
             evictCalls++;
             evictedIndex = idx;
@@ -54,7 +54,7 @@ public class ChunkLruCacheBoundaryTests
     public void PreserveDirtyChunks_SkipsDirtyEvictionAndKeepsDataResident()
     {
         int evictCalls = 0;
-        var cache = new ChunkLruCache<int>(
+        var cache = new ChunkLRUCache<int>(
             maxCapacity: 1,
             onEvictDirty: (_, _) => evictCalls++,
             allowDirtyEviction: false);
@@ -74,7 +74,7 @@ public class ChunkLruCacheBoundaryTests
     [Test]
     public void DetachedDirtySnapshot_UsesCopyOnWriteForConcurrentMutation()
     {
-        var cache = new ChunkLruCache<int>(4);
+        var cache = new ChunkLRUCache<int>(4);
         int[] original = [10, 20];
         cache.AddOrUpdate(7, original);
         cache.MarkDirty(7);
@@ -98,7 +98,7 @@ public class ChunkLruCacheBoundaryTests
     [TestCase(64)]
     public void AddOrUpdate_SameIndex_DoesNotGrowCount(int capacity)
     {
-        var cache = new ChunkLruCache<int>(capacity);
+        var cache = new ChunkLRUCache<int>(capacity);
         cache.AddOrUpdate(0, new int[1]);
         int before = cache.LoadedCount;
         for (int i = 0; i < 5; i++) cache.AddOrUpdate(0, new int[1]);
@@ -108,7 +108,7 @@ public class ChunkLruCacheBoundaryTests
     [Test]
     public void Touch_PromotesToMostRecentlyUsed()
     {
-        var cache = new ChunkLruCache<int>(2);
+        var cache = new ChunkLRUCache<int>(2);
         cache.AddOrUpdate(0, new int[1]);
         cache.AddOrUpdate(1, new int[1]);
         cache.Touch(0);
@@ -120,7 +120,7 @@ public class ChunkLruCacheBoundaryTests
     [Test]
     public void MarkDirty_NonExistent_AddsToDirtyWithoutLoaded()
     {
-        var cache = new ChunkLruCache<int>(4);
+        var cache = new ChunkLRUCache<int>(4);
         cache.MarkDirty(99);
         Assert.That(cache.HasDirtyChunks, Is.True);
         Assert.That(cache.DirtyCount, Is.EqualTo(1));
@@ -129,7 +129,7 @@ public class ChunkLruCacheBoundaryTests
     [Test]
     public void ClearDirty_EmptiesDirtySet()
     {
-        var cache = new ChunkLruCache<int>(4);
+        var cache = new ChunkLRUCache<int>(4);
         cache.AddOrUpdate(0, new int[1]);
         cache.AddOrUpdate(1, new int[1]);
         cache.MarkDirty(0);
@@ -142,7 +142,7 @@ public class ChunkLruCacheBoundaryTests
     [Test]
     public void Clear_DropsAllLoaded()
     {
-        var cache = new ChunkLruCache<int>(4);
+        var cache = new ChunkLRUCache<int>(4);
         cache.AddOrUpdate(0, new int[1]);
         cache.AddOrUpdate(1, new int[1]);
         cache.Clear();
@@ -154,13 +154,13 @@ public class ChunkLruCacheBoundaryTests
     [TestCase(int.MinValue)]
     public void NonPositiveCapacity_Throws(int capacity)
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => new ChunkLruCache<int>(capacity));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ChunkLRUCache<int>(capacity));
     }
 
     [Test]
     public void AddOrUpdate_NullChunk_Throws()
     {
-        var cache = new ChunkLruCache<int>(4);
+        var cache = new ChunkLRUCache<int>(4);
         Assert.Throws<ArgumentNullException>(() => cache.AddOrUpdate(0, null!));
     }
 }

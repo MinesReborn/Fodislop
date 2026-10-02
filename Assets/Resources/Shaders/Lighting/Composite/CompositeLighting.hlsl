@@ -7,10 +7,11 @@
 // WRITES: _Result
 // MUST NOT: вызывать DDA, трогать каскады, источники
 
-float3 SurfaceReflection(int2 pixel, float3 albedo, float3 centerIncident)
+float3 SurfaceIncidentLighting(int2 pixel, float3 centerIncident)
 {
     float3 incident = centerIncident;
     float4 firstAir = _SurfaceAirCache.Load(int3(pixel, 0));
+    float2 cellsPerPixel = (_WorldRect.zw / _CellSize) / float2(_LightSize);
     static const int2 offsets[4] =
     {
         int2(-1, 0),
@@ -29,15 +30,27 @@ float3 SurfaceReflection(int2 pixel, float3 albedo, float3 centerIncident)
                 _DirectInput.Load(int3(neighbor, 0)).rgb +
                 _StaticDirectInput.Load(int3(neighbor, 0)).rgb;
 
-            // Incident light reaches the exposed face through the surface
-            // reflection reach, in cells (_SurfaceReflectionReachCells).
+            // A surface texel receives light from an exposed face according
+            // to its own depth, in cells. Applying one fixed coefficient to
+            // every texel copied a bright air sample across an entire wall cell.
             // Surface reflection is presentation only; it is never transmitted
             // through the wall or used as light on its opposite face.
-            incident = max(incident, light * SegmentTransmission(0.0, _SurfaceReflectionReachCells));
+            //
+            // Depth is measured from the face to this texel's centre: the face
+            // lies half a texel before the first air centre. Measuring to the
+            // air centre made the weight depend on lattice density; at two
+            // texels per cell every face texel sat exactly at the reach and
+            // received zero surface light.
+            float depthCells = length(float2(offsets[i]) * (float(stepIndex) - 0.5) * cellsPerPixel);
+            float faceWeight = 1.0 - smoothstep(0.0, _SurfaceReflectionReachCells, depthCells);
+            incident = max(incident, light * faceWeight * SegmentTransmission(0.0, depthCells));
         }
     }
 
-    return incident * saturate(albedo);
+    // The published field contains incident light. The visible material pass
+    // applies receiver albedo once; coloring this field by that same albedo
+    // would square the material color and tint other receivers sampling it.
+    return incident;
 }
 
 [numthreads(8, 8, 1)]
@@ -52,7 +65,7 @@ void CompositeLighting(uint3 dispatchId : SV_DispatchThreadID)
     if (dispatchSize.x <= 0 || dispatchSize.y <= 0)
     {
         dispatchOrigin = int2(0, 0);
-        dispatchSize = _FieldSize;
+        dispatchSize = _LightSize;
     }
 
     if (any(int2(dispatchId.xy) >= dispatchSize))
@@ -61,11 +74,13 @@ void CompositeLighting(uint3 dispatchId : SV_DispatchThreadID)
     }
 
     int2 pixel = dispatchOrigin + int2(dispatchId.xy);
-    if (any(pixel < 0) || any(pixel >= _FieldSize))
+    if (any(pixel < 0) || any(pixel >= _LightSize))
     {
         return;
     }
-    int2 materialPixel = MaterialPixel(pixel);
+    // Output is on the light lattice; material is read at the transport
+    // texel holding this receiver's centre.
+    int2 materialPixel = MaterialPixel(LightPxToFieldTexel(pixel));
 
     float4 material = _MaterialField.Load(int3(materialPixel.x, materialPixel.y, 0)).rgba;
     float4 emission = _EmissionField.Load(int3(materialPixel.x, materialPixel.y, 0)).rgba;
@@ -132,13 +147,16 @@ void CompositeLighting(uint3 dispatchId : SV_DispatchThreadID)
 
     float solid = saturate(material.a);
 
-    float3 surfaceRefl = 0.0;
+    float3 directAndSurface = combinedDirect.rgb;
     if (solid > 0.0)
     {
-        surfaceRefl = solid * SurfaceReflection(pixel, material.rgb, combinedDirect.rgb);
+        float3 surfaceIncident = SurfaceIncidentLighting(pixel, combinedDirect.rgb);
+        // Surface presentation replaces the attenuated interior sample with
+        // its exposed-face incident estimate. It does not add the center
+        // incident light to itself a second time.
+        directAndSurface = lerp(combinedDirect.rgb, surfaceIncident, solid);
     }
 
-    float3 directAndSurface = combinedDirect.rgb + surfaceRefl;
     float3 ambient = _AmbientColor.rgb;
 
     if (_DebugView == 8) // Exposure (false-color zebras)

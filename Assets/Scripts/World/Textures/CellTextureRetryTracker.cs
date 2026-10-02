@@ -13,7 +13,7 @@ namespace Kern.World.Textures;
 public sealed class CellTextureRetryTracker
 {
     private const double FailedCellTextureRetrySeconds = 30.0;
-    private static readonly Stopwatch _RetryClock = Stopwatch.StartNew();
+    private static readonly Stopwatch s_retryClock = Stopwatch.StartNew();
 
     private readonly ConcurrentDictionary<CellType, byte> _inFlightRequests = new();
     private readonly ConcurrentDictionary<CellType, double> _retryTimes = new();
@@ -23,7 +23,7 @@ public sealed class CellTextureRetryTracker
     public bool ShouldThrottle(CellType cellType)
     {
         if (_retryTimes.TryGetValue(cellType, out double retryAfterSeconds) &&
-            _RetryClock.Elapsed.TotalSeconds < retryAfterSeconds)
+            s_retryClock.Elapsed.TotalSeconds < retryAfterSeconds)
         {
             return true;
         }
@@ -49,7 +49,7 @@ public sealed class CellTextureRetryTracker
         catch (Exception exception)
         {
             bool firstFailure = !_retryTimes.ContainsKey(cellType);
-            _retryTimes[cellType] = _RetryClock.Elapsed.TotalSeconds + FailedCellTextureRetrySeconds;
+            _retryTimes[cellType] = s_retryClock.Elapsed.TotalSeconds + FailedCellTextureRetrySeconds;
 
             if (firstFailure)
             {

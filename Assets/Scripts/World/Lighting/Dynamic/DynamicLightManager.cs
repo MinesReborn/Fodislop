@@ -6,12 +6,12 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 namespace Kern.World.Lighting;
-public readonly struct DynamicLightGpuData
+public readonly struct DynamicLightGPUData
 {
     public readonly Vector4 PositionRadius;
     public readonly Vector4 ColorIntensity;
 
-    public DynamicLightGpuData(
+    public DynamicLightGPUData(
         Vector2 position,
         Color color,
         float intensity)
@@ -29,8 +29,8 @@ public readonly record struct DynamicLightSource(
 public sealed class DynamicLightManager
 {
     private readonly SortedDictionary<int, DynamicLightSource> _externalLights = new();
-    private readonly List<int> _lastDroppedDynamicLightIDs = new();
-    private DynamicLightGpuData[] _dynamicLights = new DynamicLightGpuData[1];
+    private readonly List<int> _lastDroppedDynamicLightIds = new();
+    private DynamicLightGPUData[] _dynamicLights = new DynamicLightGPUData[1];
     private int _lastDynamicLightCount;
     private int _lastDroppedDynamicLightCount;
     private bool _externalLightsDirty;
@@ -41,16 +41,16 @@ public sealed class DynamicLightManager
     public int UploadedCount => _lastDynamicLightCount;
 
     // Same dynamic lights, in the same order, as the last GPU upload.
-    public System.ReadOnlySpan<DynamicLightGpuData> UploadedLights =>
+    public System.ReadOnlySpan<DynamicLightGPUData> UploadedLights =>
         new(_dynamicLights, 0, _lastDynamicLightCount);
 
     // Caller ids of UploadedLights, index for index.
-    public System.ReadOnlySpan<int> UploadedLightIDs =>
-        new(_uploadedLightIDs, 0, _lastDynamicLightCount);
+    public System.ReadOnlySpan<int> UploadedLightIds =>
+        new(_uploadedLightIds, 0, _lastDynamicLightCount);
 
-    private int[] _uploadedLightIDs = new int[1];
+    private int[] _uploadedLightIds = new int[1];
     public int DroppedCount => _lastDroppedDynamicLightCount;
-    public IReadOnlyList<int> DroppedLightIDs => _lastDroppedDynamicLightIDs;
+    public IReadOnlyList<int> DroppedLightIds => _lastDroppedDynamicLightIds;
     public bool IsDirty => _externalLightsDirty;
 
     public void ClearDirty() => _externalLightsDirty = false;
@@ -106,8 +106,8 @@ public sealed class DynamicLightManager
     {
         if (_dynamicLights.Length != capacity)
         {
-            _dynamicLights = new DynamicLightGpuData[capacity];
-            _uploadedLightIDs = new int[capacity];
+            _dynamicLights = new DynamicLightGPUData[capacity];
+            _uploadedLightIds = new int[capacity];
         }
     }
 
@@ -115,7 +115,7 @@ public sealed class DynamicLightManager
     {
         _lastDynamicLightCount = 0;
         _lastDroppedDynamicLightCount = 0;
-        _lastDroppedDynamicLightIDs.Clear();
+        _lastDroppedDynamicLightIds.Clear();
     }
 
     public int UploadDynamicLights(
@@ -129,30 +129,30 @@ public sealed class DynamicLightManager
         int dynamicLightCount = 0;
         int previousDynamicLightCount = _lastDynamicLightCount;
         uploadedLightsChanged = false;
-        _lastDroppedDynamicLightIDs.Clear();
+        _lastDroppedDynamicLightIds.Clear();
 
         foreach (KeyValuePair<int, DynamicLightSource> pair in _externalLights)
         {
             DynamicLightSource source = pair.Value;
             if (dynamicLightCount >= maximumLightCount)
             {
-                _lastDroppedDynamicLightIDs.Add(pair.Key);
+                _lastDroppedDynamicLightIds.Add(pair.Key);
                 continue;
             }
 
             if (source.Intensity <= 0f)
             {
-                _lastDroppedDynamicLightIDs.Add(pair.Key);
+                _lastDroppedDynamicLightIds.Add(pair.Key);
                 continue;
             }
 
             if (!IntersectsReach(source, worldRect, cellSize))
             {
-                _lastDroppedDynamicLightIDs.Add(pair.Key);
+                _lastDroppedDynamicLightIds.Add(pair.Key);
                 continue;
             }
 
-            DynamicLightGpuData dynamicLight = new(
+            DynamicLightGPUData dynamicLight = new(
                 source.Position * cellSize,
                 source.Color,
                 source.Intensity);
@@ -163,7 +163,7 @@ public sealed class DynamicLightManager
                 uploadedLightsChanged = true;
             }
 
-            _uploadedLightIDs[dynamicLightCount] = pair.Key;
+            _uploadedLightIds[dynamicLightCount] = pair.Key;
             _dynamicLights[dynamicLightCount++] = dynamicLight;
         }
 
@@ -173,7 +173,7 @@ public sealed class DynamicLightManager
         }
 
         _lastDynamicLightCount = dynamicLightCount;
-        _lastDroppedDynamicLightCount = _lastDroppedDynamicLightIDs.Count;
+        _lastDroppedDynamicLightCount = _lastDroppedDynamicLightIds.Count;
 
         if (uploadedLightsChanged && dynamicLightCount > 0 && dynamicLightBuffer != null)
         {
@@ -189,8 +189,8 @@ public sealed class DynamicLightManager
     }
 
     private static bool DynamicLightEquals(
-        DynamicLightGpuData left,
-        DynamicLightGpuData right)
+        DynamicLightGPUData left,
+        DynamicLightGPUData right)
     {
         return left.PositionRadius == right.PositionRadius &&
             left.ColorIntensity == right.ColorIntensity;

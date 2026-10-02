@@ -20,7 +20,7 @@ internal sealed class SkillProgressRing : VisualElement
     private const long TickIntervalMs = 16L;
 
     // Лайм старого клиента.
-    private static readonly Color32 RingColor = new(163, 230, 53, 255);
+    private static readonly Color32 s_ringColor = new(163, 230, 53, 255);
 
     private readonly VisualElement[] _segments = new VisualElement[SegmentCount];
     private float _displayed;
@@ -34,7 +34,7 @@ internal sealed class SkillProgressRing : VisualElement
         {
             var segment = new VisualElement();
             segment.AddToClassList("hud-skill-ring-segment");
-            segment.style.backgroundColor = new StyleColor(RingColor);
+            segment.style.backgroundColor = new StyleColor(s_ringColor);
             segment.style.position = Position.Absolute;
             segment.style.display = DisplayStyle.None;
             Add(segment);

@@ -1,4 +1,4 @@
-﻿// Simplified SDF shader:
+// Simplified SDF shader:
 // - No Shading Option (bevel / bump / env map)
 // - No Glow Option
 // - Softness is applied on both side of the outline
@@ -100,7 +100,6 @@ SubShader {
 			float3	normal			: NORMAL;
 			fixed4	color			: COLOR;
 			float4	texcoord0		: TEXCOORD0;
-			float2	texcoord1		: TEXCOORD1;
 		};
 
 		struct pixel_t {

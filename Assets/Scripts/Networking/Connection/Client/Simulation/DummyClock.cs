@@ -52,7 +52,7 @@ public sealed class RealtimeDummyClock : IDummyClock
 // ближайшем Advance, а не на следующем кадре.
 public sealed class VirtualDummyClock : IDummyClock
 {
-    private static readonly DateTimeOffset _Epoch = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset s_epoch = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
     private readonly SortedSet<Waiter> _waiters = new(WaiterOrder.Instance);
     private long _nowMilliseconds;
@@ -67,7 +67,7 @@ public sealed class VirtualDummyClock : IDummyClock
 
     public int PendingCount => _waiters.Count;
 
-    public long UtcNowTicks => _Epoch.AddMilliseconds(_nowMilliseconds).Ticks;
+    public long UtcNowTicks => s_epoch.AddMilliseconds(_nowMilliseconds).Ticks;
 
     public Random Random { get; }
 

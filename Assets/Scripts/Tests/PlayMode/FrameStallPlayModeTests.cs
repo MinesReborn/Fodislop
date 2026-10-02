@@ -30,7 +30,7 @@ public sealed class FrameStallPlayModeTests
     private const int WalkRounds = 2;
     private const int MeasuredFrames = IdleFrames + (WalkFramesPerKey * 2 * WalkRounds);
 
-    private static readonly Key[] _WalkKeys = [Key.D, Key.A];
+    private static readonly Key[] s_walkKeys = [Key.D, Key.A];
 
     private BootstrapLifetimeScope _bootstrap = null!;
     private DummyAuthenticationScope _authentication = null!;
@@ -88,7 +88,7 @@ public sealed class FrameStallPlayModeTests
 
         for (int round = 0; round < WalkRounds; round++)
         {
-            foreach (Key key in _WalkKeys)
+            foreach (Key key in s_walkKeys)
             {
                 _keyboard.Hold(key);
                 for (int frame = 0; frame < WalkFramesPerKey; frame++)

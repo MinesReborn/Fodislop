@@ -7,6 +7,7 @@ using Cysharp.Threading.Tasks;
 using Kern;
 using Kern.Core;
 using Kern.Persistence;
+using Kern.World;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 
@@ -14,6 +15,37 @@ namespace MinesServer.Networking.Connection.Client;
 
 internal static class DummyWorldMapLoader
 {
+    internal static async UniTask PrepareMapFileAsync(
+        string worldCodeName,
+        string mapPath,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        (int worldWidth, int worldHeight) = await DummyWorldMapArchive.ReadDimensionsWithRetryAsync(mapPath);
+        if (worldWidth <= 0 || worldHeight <= 0)
+        {
+            throw new InvalidDataException(
+                $"Prebaked map file '{mapPath}' has invalid dimensions ({worldWidth}x{worldHeight}).");
+        }
+
+        int widthChunks = (worldWidth + ProjectRuntimeContracts.World.ChunkSize - 1) /
+            ProjectRuntimeContracts.World.ChunkSize;
+        int heightChunks = (worldHeight + ProjectRuntimeContracts.World.ChunkSize - 1) /
+            ProjectRuntimeContracts.World.ChunkSize;
+        await WorldLayer<CellType>.MigrateLegacyFileAsync(
+            mapPath,
+            widthChunks,
+            heightChunks,
+            ProjectRuntimeContracts.World.ChunkSize,
+            cancellationToken);
+        await MapStorage.PrepareWorldCacheAsync(
+            worldCodeName,
+            widthChunks,
+            heightChunks,
+            cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+
     internal static async UniTask<(WorldLayer<CellType> Layer, DummyWorldDescriptor Descriptor)> LoadWorldLayerAsync(
         string mapPath,
         IAsyncOperationSupervisor operations,

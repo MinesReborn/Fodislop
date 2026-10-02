@@ -24,7 +24,7 @@ namespace Kern.UI;
 
 public sealed class ServerWindowPresenter : IDisposable
 {
-    private static readonly Regex _canvasImagePattern = new(
+    private static readonly Regex s_canvasImagePattern = new(
         @"^(?<x>-?\d+x)?(?<y>-?\d+y)?(?<h>\d+h)?(?<w>\d+w)=I#(?<uri>.+)$",
         RegexOptions.CultureInvariant);
 
@@ -282,7 +282,7 @@ public sealed class ServerWindowPresenter : IDisposable
         var plain = new StringBuilder();
         for (int index = 0; index < lines.Length;)
         {
-            Match canvasImage = _canvasImagePattern.Match(lines[index]);
+            Match canvasImage = s_canvasImagePattern.Match(lines[index]);
             if (canvasImage.Success)
             {
                 FlushPlainText(plain, children);

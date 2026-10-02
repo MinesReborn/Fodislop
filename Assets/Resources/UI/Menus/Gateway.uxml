@@ -43,7 +43,7 @@
                 <ui:Label class="auth-brand-title" text="KERN" />
                 <ui:Label class="auth-brand-subtitle" text="DEEP SUBSURFACE EXPEDITION // MINES PROTOCOL v7" />
                 <ui:VisualElement class="auth-systems">
-                    <ui:Label name="AuthStatusGpu" class="auth-system-chip" text="[GPU] OK" />
+                    <ui:Label name="AuthStatusGPU" class="auth-system-chip" text="[GPU] OK" />
                     <ui:Label name="AuthStatusAudio" class="auth-system-chip" text="[FMOD] SYNCED" />
                     <ui:Label name="AuthStatusWorld" class="auth-system-chip" text="[WORLD] MOUNTED" />
                 </ui:VisualElement>
@@ -147,13 +147,6 @@
                             <ui:Label class="onb-hint" text="gateway.onb.ui_scale_hint" />
                         </ui:VisualElement>
                         <ui:DropdownField name="OnbUIScale" class="onb-select" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="onb-row">
-                        <ui:VisualElement class="onb-row-text">
-                            <ui:Label class="onb-label" text="gateway.onb.colorblind_label" />
-                            <ui:Label class="onb-hint" text="gateway.onb.colorblind_hint" />
-                        </ui:VisualElement>
-                        <ui:DropdownField name="OnbColorblind" class="onb-select" />
                     </ui:VisualElement>
                 </ui:VisualElement>
 

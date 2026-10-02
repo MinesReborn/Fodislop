@@ -17,7 +17,7 @@ internal static class EmitUssTokensTool
         ["--face-display"] = "Assets/Resources/Fonts/Unbounded_SDF.asset",
     };
 
-    private static readonly Dictionary<string, (string name, string note)> Easing = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, (string name, string? note)> Easing = new(StringComparer.Ordinal)
     {
         ["cubic-bezier(0.2,0.75,0.2,1)"] = ("ease-out-circ", "подбор fit-easing.py, max-отклонение 0.129"),
         ["cubic-bezier(0.4,0,0.2,1)"] = ("ease-in-out", null),
@@ -100,7 +100,7 @@ internal static class EmitUssTokensTool
             {
                 inMedia = true;
                 string media = Regex.Match(trimmed, @"@media\s*\(([^)]*)\)").Groups[1].Value.Trim();
-                if (Tiers.TryGetValue(media, out string cls))
+                if (Tiers.TryGetValue(media, out string? cls))
                 {
                     current = tiers[cls] = new Dictionary<string, string>(StringComparer.Ordinal);
                 }
@@ -151,7 +151,7 @@ internal static class EmitUssTokensTool
         if (DropExact.Contains(name) || DropPrefix.Any(p => name.StartsWith(p)))
             return null;
 
-        if (FontAssets.TryGetValue(name, out string path))
+        if (FontAssets.TryGetValue(name, out string? path))
         {
             if (!File.Exists(Path.Combine(GetRepoRoot(), path)))
             {

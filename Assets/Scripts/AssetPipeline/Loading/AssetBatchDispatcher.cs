@@ -237,8 +237,10 @@ public sealed class AssetBatchDispatcher : IDisposable
     public async UniTask HandleAssetPacketAsync(
         ServerPacket obj,
         IPersistentAssetCache persistentCache,
-        Action<string> onDisconnect)
+        Action<string> onDisconnect,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (obj.Payload is not RuntimeAssetPacket assetPacket)
         {
             return;
@@ -269,7 +271,9 @@ public sealed class AssetBatchDispatcher : IDisposable
             if ((contents == null || contents.Length == 0) &&
                 !string.IsNullOrEmpty(assetPacket.ETag))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 byte[]? cachedAsset = await persistentCache.GetAssetAsync(filename);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (cachedAsset == null || cachedAsset.Length == 0)
                 {
                     throw new InvalidDataException(
@@ -289,7 +293,9 @@ public sealed class AssetBatchDispatcher : IDisposable
             string etag = Calculate(contents) ??
                 throw new InvalidDataException(
                     $"Asset '{filename}' produced no ETag after download.");
+            cancellationToken.ThrowIfCancellationRequested();
             await persistentCache.SaveAssetAsync(filename, contents, etag);
+            cancellationToken.ThrowIfCancellationRequested();
             _missingAssets.TryRemove(filename, out _);
             tcs.TrySetResult(contents);
         }
@@ -306,15 +312,9 @@ public sealed class AssetBatchDispatcher : IDisposable
             return false;
         }
 
-        if (filename.EndsWith(".webp.bytes", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
         string ext = Path.GetExtension(filename).ToLowerInvariant();
         return string.IsNullOrEmpty(ext) || ext == ".png" || ext == ".jpg" ||
-            ext == ".jpeg" || ext == ".webp" || ext == ".gif" ||
-            ext == ".exr";
+            ext == ".jpeg" || ext == ".exr";
     }
 
     public static bool IsAudioBank(string filename)

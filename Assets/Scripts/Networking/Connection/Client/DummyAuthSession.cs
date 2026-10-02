@@ -38,7 +38,7 @@ internal sealed class DummyAuthSession
         return newToken;
     }
 
-    internal static long StableUserID(string? deviceIdentifier)
+    internal static long StableUserId(string? deviceIdentifier)
     {
         string seed = deviceIdentifier ?? string.Empty;
         uint hash = 2166136261u;

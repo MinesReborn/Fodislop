@@ -10,15 +10,15 @@ namespace Kern.Tests.World.Lighting;
 [TestFixture]
 public class CascadeCostCalculatorFuzzTests
 {
-    private static readonly int[] _Seeds = [1, 7, 42, 1337, 90210, 2147483, 8675309];
+    private static readonly int[] s_seeds = [1, 7, 42, 1337, 90210, 2147483, 8675309];
 
-    private static readonly int[] _HostileEntryCounts = [0, -1, 1, 7, 1000];
-    private static readonly int[] _HostileDirectionCounts = [0, 1, 4, 16, 64, 256, 512];
-    private static readonly float[] _HostileIntervalStarts = [0f, -1f, 1f, 4f, 100f];
-    private static readonly float[] _HostileIntervalEnds = [0f, -1f, 1f, 4f, 16f, 1000f];
+    private static readonly int[] s_hostileEntryCounts = [0, -1, 1, 7, 1000];
+    private static readonly int[] s_hostileDirectionCounts = [0, 1, 4, 16, 64, 256, 512];
+    private static readonly float[] s_hostileIntervalStarts = [0f, -1f, 1f, 4f, 100f];
+    private static readonly float[] s_hostileIntervalEnds = [0f, -1f, 1f, 4f, 16f, 1000f];
 
     [Test]
-    public void SamplesMatchTheReferenceForEveryRandomWorld([ValueSource(nameof(_Seeds))] int seed)
+    public void SamplesMatchTheReferenceForEveryRandomWorld([ValueSource(nameof(s_seeds))] int seed)
     {
         var random = new System.Random(seed);
 
@@ -45,7 +45,7 @@ public class CascadeCostCalculatorFuzzTests
     }
 
     [Test]
-    public void HostileStepBudgetsNeverThrowAndStillMatchTheReference([ValueSource(nameof(_Seeds))] int seed)
+    public void HostileStepBudgetsNeverThrowAndStillMatchTheReference([ValueSource(nameof(s_seeds))] int seed)
     {
         var random = new System.Random(seed);
         int[] budgets = [0, -1, int.MinValue, 1, 63, 64, 256, int.MaxValue];
@@ -73,7 +73,7 @@ public class CascadeCostCalculatorFuzzTests
     }
 
     [Test]
-    public void HostileLayoutsMatchTheReferenceWithoutThrowing([ValueSource(nameof(_Seeds))] int seed)
+    public void HostileLayoutsMatchTheReferenceWithoutThrowing([ValueSource(nameof(s_seeds))] int seed)
     {
         var random = new System.Random(seed);
 
@@ -84,16 +84,16 @@ public class CascadeCostCalculatorFuzzTests
             int offset = 0;
             for (int i = 0; i < cascadeCount; i++)
             {
-                int entryCount = Pick(random, _HostileEntryCounts);
+                int entryCount = Pick(random, s_hostileEntryCounts);
                 cascades.Add(new CascadeLayout(
                     offset,
                     entryCount,
                     random.Next(0, 64),
                     random.Next(0, 64),
                     random.Next(1, 9),
-                    Pick(random, _HostileDirectionCounts),
-                    Pick(random, _HostileIntervalStarts),
-                    Pick(random, _HostileIntervalEnds)));
+                    Pick(random, s_hostileDirectionCounts),
+                    Pick(random, s_hostileIntervalStarts),
+                    Pick(random, s_hostileIntervalEnds)));
                 offset += entryCount;
             }
 
@@ -113,7 +113,7 @@ public class CascadeCostCalculatorFuzzTests
     }
 
     [Test]
-    public void AggregateCostsStayNonNegativeForRealisticWorlds([ValueSource(nameof(_Seeds))] int seed)
+    public void AggregateCostsStayNonNegativeForRealisticWorlds([ValueSource(nameof(s_seeds))] int seed)
     {
         var random = new System.Random(seed);
 

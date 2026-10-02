@@ -17,12 +17,12 @@ namespace Kern.World
     [DefaultExecutionOrder(50)]
     public class SurfaceRenderer : MonoBehaviour, Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor
     {
-        private static readonly ProfilerMarker _SurfaceLateUpdateMarker =
+        private static readonly ProfilerMarker s_surfaceLateUpdateMarker =
             new("Kern.Surface.LateUpdate");
-        private static readonly ProfilerMarker _SurfaceLightingMeshBuildMarker =
+        private static readonly ProfilerMarker s_surfaceLightingMeshBuildMarker =
             new("Kern.Surface.RebuildLightingMeshes");
 
-        private static readonly AllocationLedger.Entry _AllocationEntry =
+        private static readonly AllocationLedger.Entry s_allocationEntry =
             AllocationLedger.Register("Поверхность — LateUpdate");
 
         private const string TransitObjectName = "SurfaceTransit";
@@ -189,7 +189,7 @@ namespace Kern.World
                 _lastLightingMeshWorldWidth != worldWidth ||
                 _lastLightingMeshWorldHeight != worldHeight)
             {
-                using var buildMarker = _SurfaceLightingMeshBuildMarker.Auto();
+                using var buildMarker = s_surfaceLightingMeshBuildMarker.Auto();
                 Rect lightingRect = Rect.MinMaxRect(
                     worldRect.x,
                     worldRect.y,
@@ -247,6 +247,10 @@ namespace Kern.World
 
         private void OnWorldInitialized()
         {
+            _hasCachedCoverage = false;
+            _hasLightingMeshes = false;
+            _lastWorldWidth = 0;
+            _lastWorldHeight = 0;
             if (!_initialized)
             {
                 EnsureInitialized();
@@ -255,8 +259,8 @@ namespace Kern.World
 
         protected void LateUpdate()
         {
-            using var marker = _SurfaceLateUpdateMarker.Auto();
-            using var allocationScope = AllocationLedger.Measure(_AllocationEntry);
+            using var marker = s_surfaceLateUpdateMarker.Auto();
+            using var allocationScope = AllocationLedger.Measure(s_allocationEntry);
             if (_mapManager == null || !_mapManager.IsWorldInitialized)
             {
                 return;
@@ -282,22 +286,21 @@ namespace Kern.World
             float cx = mainCamera.transform.position.x;
             float surfaceY = _mapManager.WorldHeight;
 
+            float visibleHalfWidth = (mainCamera.orthographicSize * mainCamera.aspect) +
+                SurfaceGeometryBuilder.BoundaryOverscan;
+            float span = Mathf.Max(visibleHalfWidth + 16f, Screen.width / 30f, 64f);
+
             _geometry.UpdateSurfaceMeshes(
                 _transitMesh!,
                 _perspectiveMesh!,
                 cx,
                 surfaceY,
-                Screen.width);
+                span);
 
             _horizonRenderer!.transform.localPosition = new Vector3(
                 cx,
                 surfaceY,
                 -0.02f);
-
-            bool showNearSurface = mainCamera.pixelHeight /
-                (mainCamera.orthographicSize * 2f) >= 16f;
-            _transitRenderer!.gameObject.SetActive(showNearSurface);
-            _perspectiveRenderer!.gameObject.SetActive(showNearSurface);
 
             Rect visibleRect = SurfaceGeometryBuilder.GetVisibleRect(mainCamera);
             if (_lastWorldWidth == _mapManager.WorldWidth &&

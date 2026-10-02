@@ -19,34 +19,6 @@ float TerrainGeometryEdgeCross(
     return (edge.x * toSample.y) - (edge.y * toSample.x);
 }
 
-float2 TerrainGeometryRawCorner(float4 cornersX, float4 cornersY, int index)
-{
-    if (index == 0)
-    {
-        return float2(cornersX.x, cornersY.x);
-    }
-
-    if (index == 1)
-    {
-        return float2(cornersX.y, cornersY.y);
-    }
-
-    if (index == 2)
-    {
-        return float2(cornersX.z, cornersY.z);
-    }
-
-    return float2(cornersX.w, cornersY.w);
-}
-
-// The pixel grid is applied only after all continuous corner and edge
-// displacements have been combined into the final polygon vertices.
-float2 TerrainGeometryCorner(float4 cornersX, float4 cornersY, int index)
-{
-    return QuantizeTerrainGeometryPoint(
-        TerrainGeometryRawCorner(cornersX, cornersY, index));
-}
-
 float2 TerrainGeometrySegmentClosestPoint(
     float2 samplePosition,
     float2 edgeStart,

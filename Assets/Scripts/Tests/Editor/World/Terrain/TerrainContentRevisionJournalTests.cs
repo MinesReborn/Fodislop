@@ -1,6 +1,8 @@
 #nullable enable
 
+using System.Collections.Generic;
 using Kern.World.Terrain;
+using UnityEngine;
 using NUnit.Framework;
 
 namespace Kern.Tests.World.Terrain;

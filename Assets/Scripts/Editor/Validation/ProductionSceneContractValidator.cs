@@ -23,7 +23,7 @@ public sealed class ProductionSceneContractValidator : IPreprocessBuildWithRepor
 
     public int callbackOrder => 0;
 
-    private static readonly string[] _ServiceGroups = { "World", "Rendering", "UI", "Audio" };
+    private static readonly string[] s_serviceGroups = { "World", "Rendering", "UI", "Audio" };
 
     [MenuItem("Kern/Architecture/Validate Production Scene Contracts")]
     public static void ValidateFromMenu()
@@ -228,7 +228,7 @@ public sealed class ProductionSceneContractValidator : IPreprocessBuildWithRepor
             errors.Add($"{sceneName}: {ServicesInactiveMessage}");
         }
 
-        foreach (string group in _ServiceGroups)
+        foreach (string group in s_serviceGroups)
         {
             Transform groupRoot = servicesRoot.Find(group);
             if (groupRoot == null)
@@ -366,7 +366,7 @@ public sealed class ProductionSceneContractValidator : IPreprocessBuildWithRepor
             }
         }
 
-        foreach (string group in _ServiceGroups)
+        foreach (string group in s_serviceGroups)
         {
             Transform groupRoot = servicesRoot.Find(group);
             if (groupRoot == null)

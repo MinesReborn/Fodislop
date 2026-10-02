@@ -1,5 +1,22 @@
 # TODO
 
+## Системные оптимизации и графический пайплайн
+
+- [ ] **1. Compute Shader 2D Signed Distance Field (SDF) & Jump Flooding (JFA) вместо пошагового DDA**
+  - Генерация точного 2D SDF за $\log_2(N)$ проходов Jump Flooding compute-шейдера.
+  - Трассировка каскадов освещения (Radiance Cascades) через Sphere Tracing (Ray Marching) по полю расстояний вместо пошагового воксельного DDA.
+  - Subgroup/Wavefront intrinsics (`WaveReadLaneFirst`, `WaveActiveBitOr`) для когерентности лучей в варпах на Metal/Vulkan.
+
+- [x] **2. Burst / SIMD / C# Job System для сборки геометрии террейна**
+  - Перевод `TerrainQuadBuilder`, `TerrainMeshManager` и генерации геометрии/деформаций на `[BurstCompile]` и C# Jobs.
+  - Устранение managed-аллокаций при перестроении квадов террейна (использование `NativeArray`, `UnsafeUtility`).
+  - SIMD-векторизация расчёта смещений вершин, дисторшна и упаковки half-texel координат.
+
+- [x] **3. GPU Driven Rendering & DrawMeshIndirect для динамических объектов (мобы / кристаллы / дроп)**
+  - Хранение параметров инстансов (позиция, UV/кадр, цвет, масштаб) в `ComputeBuffer` / `GraphicsBuffer` (StructuredBuffer).
+  - Отрисовка всех динамических визуальных объектов через `Graphics.RenderMeshIndirect` / `DrawMeshInstancedIndirect` за 1 Draw Call.
+  - Освобождение CPU от обхода GameObject/Transform и матричных трансформаций Unity.
+
 ## Провисы кадра в игре
 
 - [ ] Прогнать `Kern.Tests.PlayMode.FrameStallPlayModeTests` (PlayMode): тест стоит и ходит 15 с, пишет все маркеры движка и при провисе падает со списком маркеров, выросших в провисших кадрах. Чинить по этому списку.

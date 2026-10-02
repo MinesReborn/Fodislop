@@ -9,12 +9,13 @@ namespace Kern.World.Lighting;
 
 internal sealed class IndirectLightingSolver
 {
-    private static readonly ProfilerMarker _compositeMarker =
+    private static readonly ProfilerMarker s_compositeMarker =
         new("Kern.Lighting.Composite.Record.CPU");
 
-    // Composite reads the 1-cell SurfaceReflection neighborhood around each
-    // pixel of the composite.
-    private const float CompositeNeighborCells = 1f;
+    // The dirty union includes every surface receiver whose cached air sample
+    // can read a changed direct-light texel. Composite runs on the light
+    // lattice; every rectangle here is in light texels.
+    private const float CompositeNeighborCells = LightingConfigHolder.SurfaceReflectionReachCells;
 
     private const int PartialSlackTexels = 2;
 
@@ -32,7 +33,7 @@ internal sealed class IndirectLightingSolver
         float cellSize,
         IFrameTelemetry telemetry)
     {
-        using var compositeMarker = _compositeMarker.Auto();
+        using var compositeMarker = s_compositeMarker.Auto();
         long compositeStart = System.Diagnostics.Stopwatch.GetTimestamp();
         commandBuffer.BeginSample("Kern.Lighting.Composite");
         ComputeShader compute = _resources.LightingCompute!;
@@ -40,35 +41,35 @@ internal sealed class IndirectLightingSolver
         commandBuffer.SetComputeTextureParam(
             compute,
             kernel,
-            LightingComputeBinder.DirectInputID,
+            LightingComputeBinder.DirectInputId,
             _resources.DirectTexture!);
         commandBuffer.SetComputeTextureParam(
             compute,
             kernel,
-            LightingComputeBinder.StaticDirectInputID,
+            LightingComputeBinder.StaticDirectInputId,
             _resources.StaticDirectTexture!);
         commandBuffer.SetComputeTextureParam(
             compute,
             kernel,
-            LightingComputeBinder.ResultID,
+            LightingComputeBinder.ResultId,
             _resources.LightmapTexture!);
         commandBuffer.SetComputeTextureParam(
             compute,
             kernel,
-            LightingComputeBinder.SurfaceAirCacheID,
+            LightingComputeBinder.SurfaceAirCacheId,
             _resources.SurfaceAirCache!);
-        int fieldWidth = _resources.FieldWidth;
-        int fieldHeight = _resources.FieldHeight;
+        int lightWidth = _resources.LightWidth;
+        int lightHeight = _resources.LightHeight;
         if (TryGetFieldRect(fieldDirtyRect, worldRect, cellSize, out RectInt compositeRect))
         {
             commandBuffer.SetComputeIntParams(
                 compute,
-                LightingComputeBinder.CompositeDispatchOriginID,
+                LightingComputeBinder.CompositeDispatchOriginId,
                 compositeRect.x,
                 compositeRect.y);
             commandBuffer.SetComputeIntParams(
                 compute,
-                LightingComputeBinder.CompositeDispatchSizeID,
+                LightingComputeBinder.CompositeDispatchSizeId,
                 compositeRect.width,
                 compositeRect.height);
             telemetry.LightingCompositeDispatchPixels += (long)compositeRect.width * compositeRect.height;
@@ -85,20 +86,20 @@ internal sealed class IndirectLightingSolver
 
         commandBuffer.SetComputeIntParams(
             compute,
-            LightingComputeBinder.CompositeDispatchOriginID,
+            LightingComputeBinder.CompositeDispatchOriginId,
             0,
             0);
         commandBuffer.SetComputeIntParams(
             compute,
-            LightingComputeBinder.CompositeDispatchSizeID,
-            fieldWidth,
-            fieldHeight);
-        telemetry.LightingCompositeDispatchPixels += (long)fieldWidth * fieldHeight;
+            LightingComputeBinder.CompositeDispatchSizeId,
+            lightWidth,
+            lightHeight);
+        telemetry.LightingCompositeDispatchPixels += (long)lightWidth * lightHeight;
         commandBuffer.DispatchCompute(
             compute,
             kernel,
-            LightingComputeBinder.DispatchGroups(fieldWidth),
-            LightingComputeBinder.DispatchGroups(fieldHeight),
+            LightingComputeBinder.DispatchGroups(lightWidth),
+            LightingComputeBinder.DispatchGroups(lightHeight),
             1);
         telemetry.LightingCompositeTimeMs = ElapsedMs(compositeStart);
         commandBuffer.EndSample("Kern.Lighting.Composite");
@@ -128,13 +129,13 @@ internal sealed class IndirectLightingSolver
             return false;
         }
 
-        int fieldWidth = _resources.FieldWidth;
-        int fieldHeight = _resources.FieldHeight;
+        int lightWidth = _resources.LightWidth;
+        int lightHeight = _resources.LightHeight;
         int margin = ResolveFieldMargin(worldRect, cellSize);
         int minX = Mathf.Max(0, dirty.xMin - margin);
         int minY = Mathf.Max(0, dirty.yMin - margin);
-        int maxX = Mathf.Min(fieldWidth, dirty.xMax + margin);
-        int maxY = Mathf.Min(fieldHeight, dirty.yMax + margin);
+        int maxX = Mathf.Min(lightWidth, dirty.xMax + margin);
+        int maxY = Mathf.Min(lightHeight, dirty.yMax + margin);
         if (maxX <= minX || maxY <= minY)
         {
             return false;
@@ -147,9 +148,9 @@ internal sealed class IndirectLightingSolver
     private int ResolveFieldMargin(Vector4 worldRect, float cellSize)
     {
         float pixelsPerCell = 1f;
-        if (worldRect.z > 0f && cellSize > 0f && _resources.FieldWidth > 0)
+        if (worldRect.z > 0f && cellSize > 0f && _resources.LightWidth > 0)
         {
-            pixelsPerCell = _resources.FieldWidth * cellSize / worldRect.z;
+            pixelsPerCell = _resources.LightWidth * cellSize / worldRect.z;
         }
 
         return Mathf.CeilToInt(CompositeNeighborCells * Mathf.Max(1f, pixelsPerCell)) +

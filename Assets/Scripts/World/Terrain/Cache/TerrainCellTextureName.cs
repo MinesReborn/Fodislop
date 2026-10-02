@@ -30,12 +30,12 @@ public static class TerrainCellTextureName
         ReadOnlySpan<char> id = filename.AsSpan(
             CellPrefix.Length,
             (extensionIndex >= 0 ? extensionIndex : filename.Length) - CellPrefix.Length);
-        if (!int.TryParse(id, out int cellTypeID) || (uint)cellTypeID > ushort.MaxValue)
+        if (!int.TryParse(id, out int cellTypeId) || (uint)cellTypeId > ushort.MaxValue)
         {
             return false;
         }
 
-        cellType = (CellType)cellTypeID;
+        cellType = (CellType)cellTypeId;
         return true;
     }
 

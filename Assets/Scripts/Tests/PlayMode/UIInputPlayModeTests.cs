@@ -29,7 +29,7 @@ public sealed class UIInputPlayModeTests
     private UIInputManager _uiInput = null!;
     private int _movementPackets;
 
-    private VirtualKeyboard _Keyboard => _keyboard ?? throw new AssertionException("Virtual keyboard is not set up.");
+    private VirtualKeyboard Keyboard => _keyboard ?? throw new AssertionException("Virtual keyboard is not set up.");
 
     [UnitySetUp]
     public IEnumerator SetUp()
@@ -62,11 +62,11 @@ public sealed class UIInputPlayModeTests
     {
         IInputBlocker blocker = PlayModeHarness.RequireInGame<IInputBlocker>();
 
-        yield return _Keyboard.Tap(Key.Escape);
+        yield return Keyboard.Tap(Key.Escape);
         Assert.That(_uiInput.IsPauseMenuOpen, Is.True, "Escape did not open the pause menu.");
         Assert.That(blocker.IsInputBlocked, Is.True);
 
-        yield return _Keyboard.Tap(Key.Escape);
+        yield return Keyboard.Tap(Key.Escape);
         Assert.That(_uiInput.IsPauseMenuOpen, Is.False, "Escape did not close the pause menu.");
         Assert.That(blocker.IsInputBlocked, Is.False);
     }
@@ -74,14 +74,14 @@ public sealed class UIInputPlayModeTests
     [UnityTest]
     public IEnumerator OpenPauseMenu_BlocksMovementUntilClosed()
     {
-        yield return _Keyboard.Tap(Key.Escape);
+        yield return Keyboard.Tap(Key.Escape);
         Assert.That(_uiInput.IsPauseMenuOpen, Is.True);
 
         _movementPackets = 0;
         yield return HoldMovement();
         Assert.That(_movementPackets, Is.Zero, "Movement reached the server while the pause menu was open.");
 
-        yield return _Keyboard.Tap(Key.Escape);
+        yield return Keyboard.Tap(Key.Escape);
         Assert.That(_uiInput.IsPauseMenuOpen, Is.False);
 
         _movementPackets = 0;
@@ -94,13 +94,13 @@ public sealed class UIInputPlayModeTests
     {
         MapModeState map = PlayModeHarness.RequireInGame<MapModeState>();
 
-        yield return _Keyboard.Tap(Key.T);
+        yield return Keyboard.Tap(Key.T);
         yield return PlayModeHarness.WaitUntil(
             () => _uiInput.IsChatFocused,
             PlayModeHarness.UITimeoutSeconds,
             "T did not focus the chat input.");
 
-        yield return _Keyboard.Tap(Key.M);
+        yield return Keyboard.Tap(Key.M);
         Assert.That(map.IsOpen, Is.False, "M toggled the map while the player was typing.");
 
         _movementPackets = 0;
@@ -108,13 +108,13 @@ public sealed class UIInputPlayModeTests
         Assert.That(_movementPackets, Is.Zero, "Typing in chat moved the robot.");
 
         // Escape закрывает чат и не должен тем же нажатием открыть меню паузы.
-        yield return _Keyboard.Tap(Key.Escape);
+        yield return Keyboard.Tap(Key.Escape);
         Assert.That(_uiInput.IsChatFocused, Is.False, "Escape did not leave the chat.");
         Assert.That(_uiInput.IsPauseMenuOpen, Is.False, "Escape closed the chat and opened the pause menu at once.");
 
-        yield return _Keyboard.Tap(Key.M);
+        yield return Keyboard.Tap(Key.M);
         Assert.That(map.IsOpen, Is.True, "M did not open the map after leaving the chat.");
-        yield return _Keyboard.Tap(Key.M);
+        yield return Keyboard.Tap(Key.M);
         Assert.That(map.IsOpen, Is.False, "M did not close the map.");
     }
 
@@ -123,9 +123,9 @@ public sealed class UIInputPlayModeTests
     {
         foreach (Key key in new[] { Key.D, Key.A })
         {
-            _Keyboard.Hold(key);
+            Keyboard.Hold(key);
             yield return PlayModeHarness.Frames(HoldFrames);
-            _Keyboard.Release(key);
+            Keyboard.Release(key);
             yield return null;
         }
     }

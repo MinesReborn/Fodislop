@@ -20,10 +20,12 @@
   <ItemGroup>
     <!-- Данные сервера: Unity собирает их сам, ссылаются только на mscorlib. -->
     <Reference Include="MinesServer.Data">
-      <HintPath>$(ScriptAssemblies)/MinesServer.Data.dll</HintPath>
+      <HintPath Condition="Exists('$(ScriptAssemblies)/MinesServer.Data.dll')">$(ScriptAssemblies)/MinesServer.Data.dll</HintPath>
+      <HintPath Condition="!Exists('$(ScriptAssemblies)/MinesServer.Data.dll')">../lib/MinesServer.Data.dll</HintPath>
     </Reference>
     <Reference Include="MinesServer.Networking">
-      <HintPath>$(ScriptAssemblies)/MinesServer.Networking.dll</HintPath>
+      <HintPath Condition="Exists('$(ScriptAssemblies)/MinesServer.Networking.dll')">$(ScriptAssemblies)/MinesServer.Networking.dll</HintPath>
+      <HintPath Condition="!Exists('$(ScriptAssemblies)/MinesServer.Networking.dll')">../lib/MinesServer.Networking.dll</HintPath>
     </Reference>
   </ItemGroup>
 
@@ -33,19 +35,19 @@
     <Compile Include="../../Assets/Scripts/Core/Interfaces/Contracts/Settings/TerrainSettings.cs" Link="Game/TerrainSettings.cs" />
     <Compile Include="../../Assets/Scripts/Core/Configuration/Contracts/SettingAttributes.cs" Link="Game/SettingAttributes.cs" />
     <Compile Include="../../Assets/Scripts/Rendering/PostProcessing/ColorGrading/Contracts/VisualTuning.cs" Link="Game/VisualTuning.cs" />
-    <Compile Include="../../Assets/Scripts/Rendering/PostProcessing/ColorGrading/Contracts/DisplayTransform.cs" Link="Game/DisplayTransform.cs" />
     <Compile Include="../../Assets/Scripts/World/Common/CoordinateUtils.cs" Link="Game/CoordinateUtils.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainVertex.cs" Link="Game/TerrainVertex.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainCellGeometry.cs" Link="Game/TerrainCellGeometry.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainPrecalculator.cs" Link="Game/TerrainPrecalculator.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainQuadBuilder.cs" Link="Game/TerrainQuadBuilder.cs" />
+    <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainBackgroundTileResolver.cs" Link="Game/TerrainBackgroundTileResolver.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainQuadSite.cs" Link="Game/TerrainQuadSite.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainQuadUvs.cs" Link="Game/TerrainQuadUvs.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainCellLayers.cs" Link="Game/TerrainCellLayers.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainLightingData.cs" Link="Game/TerrainLightingData.cs" />
-    <Compile Include="../../Assets/Scripts/World/Terrain/Gpu/TerrainCellDataPacker.cs" Link="Game/TerrainCellDataPacker.cs" />
-    <Compile Include="../../Assets/Scripts/World/Terrain/Gpu/TerrainCellTypeSet.cs" Link="Game/TerrainCellTypeSet.cs" />
-    <Compile Include="../../Assets/Scripts/World/Terrain/Gpu/TerrainDirtyRegion.cs" Link="Game/TerrainDirtyRegion.cs" />
+    <Compile Include="../../Assets/Scripts/World/Terrain/GPU/TerrainCellDataPacker.cs" Link="Game/TerrainCellDataPacker.cs" />
+    <Compile Include="../../Assets/Scripts/World/Terrain/GPU/TerrainCellTypeSet.cs" Link="Game/TerrainCellTypeSet.cs" />
+    <Compile Include="../../Assets/Scripts/World/Terrain/GPU/TerrainDirtyRegion.cs" Link="Game/TerrainDirtyRegion.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Cache/DirtyRectSet.cs" Link="Game/DirtyRectSet.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Cache/TerrainCellRegion.cs" Link="Game/TerrainCellRegion.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Cache/TerrainRingGrid.cs" Link="Game/TerrainRingGrid.cs" />
@@ -61,6 +63,7 @@
     <!-- Маски и искажение читают TerrainCellCache: его заменяет Game/BenchTerrainCellCache.cs. -->
     <Compile Include="../../Assets/Scripts/World/Common/TileBitmaskConverter.cs" Link="Game/TileBitmaskConverter.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainCellMaskCalculator.cs" Link="Game/TerrainCellMaskCalculator.cs" />
+    <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainCellMaskRules.cs" Link="Game/TerrainCellMaskRules.cs" />
     <Compile Include="../../Assets/Scripts/World/Terrain/Mesh/TerrainVertexDistortionCalculator.cs" Link="Game/TerrainVertexDistortionCalculator.cs" />
     <Compile Include="../../Assets/Scripts/World/Common/Contracts/RenderingConstants.cs" Link="Game/RenderingConstants.cs" />
     <Compile Include="../../Assets/Scripts/World/Common/MapBlockColors.cs" Link="Game/MapBlockColors.cs" />

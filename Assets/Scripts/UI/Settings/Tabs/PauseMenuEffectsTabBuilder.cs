@@ -45,9 +45,8 @@ internal sealed class PauseMenuEffectsTabBuilder
 
         _postProcessController.EnsureVolumeSetup();
 
-        // Базовая калибровка вывода остаётся компактной и настраиваемой.
-        // Сила отдельных художественных эффектов задаётся PostProcessLook,
-        // а игрок решает, платить ли за эффект, через тумблеры ниже.
+        // Сила художественных эффектов задаётся PostProcessLook, а игрок
+        // решает, платить ли за эффект, через тумблеры ниже.
         Toggle Switch(string fieldName, Func<bool> read, Action<ClientConfig, bool> write) =>
             PauseMenuUIFactory.CreateBoundToggle(
                 _loc.Get(SettingSchema.LabelOf<EffectSettings>(fieldName)),
@@ -58,64 +57,10 @@ internal sealed class PauseMenuEffectsTabBuilder
 
         ClientConfig Cfg() => _clientConfig.Config;
 
-        VisualElement BoundCameraSlider(
-            string propertyName,
-            Func<float> read,
-            Action<ClientConfig, float> write) =>
-            PauseMenuUIFactory.CreateBoundSlider<PostProcessSettings>(
-                propertyName,
-                _loc,
-                read,
-                value => _graphicsSettings.UpdatePostProcessSettings(config => write(config, value)),
-                _refreshers);
-
-        cameraGroup.Add(BoundCameraSlider(
-            nameof(PostProcessSettings.Exposure),
-            () => Cfg().PostProcess.Exposure,
-            (config, value) => config.PostProcess.Exposure = value));
-
-        cameraGroup.Add(BoundCameraSlider(
-            nameof(PostProcessSettings.Contrast),
-            () => Cfg().PostProcess.Contrast,
-            (config, value) => config.PostProcess.Contrast = value));
-
-        cameraGroup.Add(BoundCameraSlider(
-            nameof(PostProcessSettings.Saturation),
-            () => Cfg().PostProcess.Saturation,
-            (config, value) => config.PostProcess.Saturation = value));
-
         bloomGroup.Add(Switch(
             nameof(EffectSettings.BloomEnabled),
             () => Cfg().Effects.BloomEnabled,
             (config, value) => config.Effects.BloomEnabled = value));
-
-        var bloomStyleRow = new VisualElement();
-        bloomStyleRow.AddToClassList("pause-slider-container");
-        var bloomStyleLabel = new Label(_loc.Get(SettingSchema.LabelOf<EffectSettings>(
-            nameof(EffectSettings.BloomVariant))));
-        bloomStyleLabel.AddToClassList("pause-slider-label");
-        var bloomStyleDropdown = new DropdownField
-        {
-            choices = new List<string>
-            {
-                _loc.Get(SettingSchema.LabelOf(BloomStyle.Standard)),
-                _loc.Get(SettingSchema.LabelOf(BloomStyle.Cyberpunk)),
-            },
-        };
-        bloomStyleDropdown.index = (int)Cfg().Effects.BloomVariant;
-        bloomStyleDropdown.RegisterValueChangedCallback(_ =>
-        {
-            BloomStyle style = (BloomStyle)bloomStyleDropdown.index;
-            _graphicsSettings.UpdatePostProcessSettings(
-                config => config.Effects.BloomVariant = style);
-        });
-        _refreshers.Add(() =>
-        {
-            bloomStyleDropdown.index = (int)Cfg().Effects.BloomVariant;
-        });
-        bloomStyleRow.Add(bloomStyleLabel);
-        bloomStyleRow.Add(bloomStyleDropdown);
-        bloomGroup.Add(bloomStyleRow);
 
         cameraGroup.Add(Switch(
             nameof(EffectSettings.VignetteEnabled),

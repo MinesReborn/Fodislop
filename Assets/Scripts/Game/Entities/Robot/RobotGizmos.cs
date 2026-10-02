@@ -12,7 +12,7 @@ public static class RobotGizmos
 
     public static void DrawGizmos(
         Transform transform,
-        uint botID,
+        uint botId,
         bool isLocalPlayer,
         bool isMetadataLoaded,
         float moveSpeed,
@@ -27,7 +27,7 @@ public static class RobotGizmos
         Vector3 direction = new Vector3(Mathf.Cos(angleRad), Mathf.Sin(angleRad), 0);
         KernGizmos.DrawArrow(transform.position, direction, Color.yellow, 1.2f);
 
-        string status = $"ID: {botID}\n{(isLocalPlayer ? "LOCAL PLAYER" : "REMOTE ROBOT")}\n" +
+        string status = $"ID: {botId}\n{(isLocalPlayer ? "LOCAL PLAYER" : "REMOTE ROBOT")}\n" +
                         $"Meta: {(isMetadataLoaded ? "OK" : "PENDING")}\n" +
                         $"Speed: {moveSpeed:F1}";
         KernGizmos.DrawLabel(transform.position + (Vector3.up * 1.5f), status, isMetadataLoaded ? Color.green : Color.orange);

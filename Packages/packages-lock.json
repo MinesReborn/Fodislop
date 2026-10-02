@@ -7,13 +7,6 @@
       "dependencies": {},
       "url": "https://packages.unity.com"
     },
-    "com.netpyoung.webp": {
-      "version": "https://github.com/netpyoung/unity.webp.git?path=unity_project/Assets/unity.webp#9818db6327e09d399bf4fb84da4ed19f03b565b4",
-      "depth": 0,
-      "source": "git",
-      "dependencies": {},
-      "hash": "9818db6327e09d399bf4fb84da4ed19f03b565b4"
-    },
     "com.unity.2d.sprite": {
       "version": "1.0.0",
       "depth": 0,
@@ -76,7 +69,7 @@
     },
     "com.unity.nuget.newtonsoft-json": {
       "version": "3.2.2",
-      "depth": 1,
+      "depth": 0,
       "source": "registry",
       "dependencies": {},
       "url": "https://packages.unity.com"
@@ -114,9 +107,9 @@
       }
     },
     "com.unity.render-pipelines.universal": {
-      "version": "17.6.0",
+      "version": "file:com.unity.render-pipelines.universal",
       "depth": 0,
-      "source": "builtin",
+      "source": "embedded",
       "dependencies": {
         "com.unity.render-pipelines.core": "17.6.0",
         "com.unity.shadergraph": "17.6.0",

@@ -1,11 +1,12 @@
 #nullable enable
 
 using System;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Text;
+using System.Threading;
+using Kern.Core.Diagnostics;
 using Kern.Core.Interfaces.Diagnostics;
 using Kern.Tests;
 using NUnit.Framework.Interfaces;
@@ -33,27 +34,17 @@ namespace Kern.Tests;
 /// процесса. Всё пишется строкой в Logs/Diagnostics/Tests/test_memory_*.csv,
 /// одна таблица на прогон.
 ///
-/// Заодно это предохранитель: прогоны PlayMode подряд уже трижды выедали
-/// память машины. Пороги — по системе, а не по доле процесса: на машине с
-/// 8 ГБ редактор сам по себе занимает больше половины. И не по одной
-/// свободной памяти: 23.09 она показывала 28%, а своп был занят на 11.3 ГБ
-/// из 12.3 — система держится, пока есть куда выгружать, и падает, когда
-/// своп кончился. Поэтому прогон останавливается, если выполнено любое:
-/// свободно меньше <see cref="MinimumAvailablePercent"/>% памяти, свободно
-/// меньше <see cref="MinimumSwapFreeBytes"/> свопа, своп вырос за прогон
-/// больше чем на <see cref="MaximumSwapGrowthBytes"/>. Сторож по кадрам
-/// убивает тест посреди выполнения — отменяет прогон и выходит из Play
-/// Mode; следующий тест не начинается. CSV лежат в Logs/Diagnostics/Tests/.
+/// Заодно это предохранитель: прогон останавливается, если физически
+/// доступная системная память опускается ниже
+/// <see cref="MinimumAvailablePercent"/>%, или процесс превышает свой лимит.
+/// Аллокации lighting проверяются до создания ресурсов. Swap записывается только как
+/// диагностическая метрика и не блокирует запуск или продолжение теста.
+/// Сторож по кадрам убивает тест посреди выполнения, если системный порог
+/// нарушен; следующий тест не начинается. CSV лежат в Logs/Diagnostics/Tests/.
 public sealed class TestMemoryMeasurement : ITestRunCallback
 {
     /// <summary>Сколько процентов памяти системы должно оставаться свободным.</summary>
-    public const int MinimumAvailablePercent = 20;
-
-    /// <summary>Сколько свопа должно оставаться свободным.</summary>
-    public const long MinimumSwapFreeBytes = 2L * 1024 * 1024 * 1024;
-
-    /// <summary>На сколько своп может вырасти за прогон.</summary>
-    public const long MaximumSwapGrowthBytes = 512L * 1024 * 1024;
+    public const int MinimumAvailablePercent = MemoryAllocationGuard.MinimumAvailablePercent;
 
     // Тест, выросший больше этого, отмечается в консоли.
     private const long NotableGrowthBytes = 128L * 1024 * 1024;
@@ -61,21 +52,48 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
     // Сторож смотрит на память не чаще, чем раз в столько секунд.
     private const double WatchIntervalSeconds = 0.25;
 
-    private static readonly UTF8Encoding _Utf8 = new(false);
+    private static readonly UTF8Encoding s_utf8 = new(false);
 
     private string? _reportPath;
     private Snapshot _before;
     private long _peak;
     private int _lowestAvailable;
-    private long _runSwapUsed = -1;
     private long _peakSwapUsed;
     private double _nextWatch;
-    private bool _running;
+    private int _pendingPlayModeExitUpdates;
+    private volatile bool _running;
+    private Timer? _watchdog;
+    private string? _abortReason;
+    private string? _abortReportPath;
+    private bool _batchMode;
 
     public void RunStarted(ITest testsToRun)
     {
+        _running = false;
+        _watchdog?.Dispose();
+        _abortReason = null;
+        _batchMode = Application.isBatchMode;
+        _abortReportPath = DiagnosticArtifactPaths.CreatePath("Tests", "test_memory_abort", "txt");
+        try
+        {
+            MemoryAllocationGuard.BeginTestRun();
+        }
+        catch (InvalidOperationException exception)
+        {
+            _abortReason = exception.Message;
+            if (_batchMode) { ExitUnsafeBatch(exception.Message); }
+#if UNITY_EDITOR
+            // Callback exceptions may be logged by the framework. Schedule
+            // cancellation as well, so swallowing one cannot start an unsafe run.
+            _running = true;
+            UnityEditor.EditorApplication.update -= Watch;
+            UnityEditor.EditorApplication.update += Watch;
+#endif
+            throw;
+        }
+        _watchdog = new Timer(CheckMemoryOutsideFrame, null, 250, 250);
         _reportPath = null;
-        _runSwapUsed = SystemMemory.Swap() is SwapUsage swap ? swap.UsedBytes : -1;
+        _pendingPlayModeExitUpdates = 0;
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.update -= Watch;
         UnityEditor.EditorApplication.update += Watch;
@@ -84,10 +102,16 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
 
     public void RunFinished(ITestResult testResults)
     {
-#if UNITY_EDITOR
-        UnityEditor.EditorApplication.update -= Watch;
-#endif
         _running = false;
+        _watchdog?.Dispose();
+        _watchdog = null;
+        MemoryAllocationGuard.EndTestRun();
+#if UNITY_EDITOR
+        if (_pendingPlayModeExitUpdates == 0)
+        {
+            UnityEditor.EditorApplication.update -= Watch;
+        }
+#endif
         if (_reportPath != null)
         {
             DiagnosticReport.Announce("Оперативка тестов", _reportPath);
@@ -100,10 +124,14 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
         {
             return;
         }
-
+        // PlayMode domain reload can recreate callbacks without RunStarted.
+        if (_watchdog == null) { RunStarted(test); }
         Snapshot now = Snapshot.Take();
-        if (Violation(now.AvailablePercent, now.Swap) is string reason)
+        if (Violation(now.Memory) is string reason)
         {
+            _abortReason = reason;
+            if (_batchMode) { ExitUnsafeBatch(reason); }
+            _running = true;
             // Колбэк не может пропустить тест, а исключение отсюда Unity
             // пробрасывает в раннер и обрывает прогон — это и нужно.
             throw new InvalidOperationException(
@@ -138,11 +166,11 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
                 $"({Megabytes(_before.ProcessBytes)} → {Megabytes(after.ProcessBytes)}, пик {Megabytes(_peak)}).");
         }
 
-        if (Violation(after.AvailablePercent, after.Swap) is string reason)
+        if (Violation(after.Memory) is string reason)
         {
             Debug.LogError(
                 $"[TestMemory] {result.Test.FullName}: {reason}; пик процесса {Megabytes(_peak)} МБ, " +
-                $"свободно минимум {_lowestAvailable}%, своп на пике {Megabytes(_peakSwapUsed)} МБ.");
+                $"свободно минимум {_lowestAvailable}%.");
         }
     }
 
@@ -161,31 +189,41 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
     }
 
     // Причина остановить прогон или null, если память в порядке.
-    private string? Violation(int? availablePercent, SwapUsage? swap)
+    private static string? Violation(ProcessMemorySnapshot memory) => MemoryAllocationGuard.TestRunRejection(memory);
+
+    // No Unity API here. The frame callback cannot protect a batch process stuck
+    // inside a synchronous allocation/render wait. Exit only the owned batch test
+    // process on a breach; GUI Editor cancellation stays on the main thread.
+    private void CheckMemoryOutsideFrame(object? state)
     {
-        if (availablePercent is int available && available < MinimumAvailablePercent)
+        if (!_running || Volatile.Read(ref _abortReason) != null) { return; }
+        string? reason;
+        try
         {
-            return $"у системы свободно {available}% памяти (порог {MinimumAvailablePercent}%)";
+            reason = Violation(ProcessMemorySnapshot.Capture());
         }
-
-        if (swap is not SwapUsage usage)
+        catch (Exception exception) when (exception is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {
-            return null;
+            reason = $"сторож не смог измерить память: {exception.Message}";
         }
-
-        if (usage.FreeBytes < MinimumSwapFreeBytes)
+        if (reason == null || !_running || Interlocked.CompareExchange(ref _abortReason, reason, null) != null) { return; }
+        if (_batchMode)
         {
-            return $"свопа свободно {Megabytes(usage.FreeBytes)} МБ из {Megabytes(usage.TotalBytes)} " +
-                $"(порог {Megabytes(MinimumSwapFreeBytes)} МБ)";
+            ExitUnsafeBatch(reason);
         }
+    }
 
-        if (_runSwapUsed >= 0 && usage.UsedBytes - _runSwapUsed > MaximumSwapGrowthBytes)
+    private void ExitUnsafeBatch(string reason)
+    {
+        try
         {
-            return $"своп вырос за прогон на {Megabytes(usage.UsedBytes - _runSwapUsed)} МБ " +
-                $"(порог {Megabytes(MaximumSwapGrowthBytes)} МБ)";
+            if (_abortReportPath != null)
+            {
+                File.WriteAllText(_abortReportPath, $"[TestMemory] Batch stopped: {reason}\n", s_utf8);
+            }
         }
-
-        return null;
+        catch (IOException) { /* Exit still protects memory if the report cannot be written. */ }
+        Environment.Exit(1);
     }
 
 #if UNITY_EDITOR
@@ -193,6 +231,21 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
     // дожидается. Выход из Play Mode обрывает PlayMode-прогон.
     private void Watch()
     {
+        if (_pendingPlayModeExitUpdates > 0)
+        {
+            _pendingPlayModeExitUpdates--;
+            if (_pendingPlayModeExitUpdates == 0)
+            {
+                UnityEditor.EditorApplication.update -= Watch;
+                if (UnityEditor.EditorApplication.isPlaying)
+                {
+                    UnityEditor.EditorApplication.ExitPlaymode();
+                }
+            }
+
+            return;
+        }
+
         if (!_running)
         {
             return;
@@ -205,10 +258,12 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
         }
 
         _nextWatch = now + WatchIntervalSeconds;
-        int? available = SystemMemory.AvailablePercent();
+        ProcessMemorySnapshot memory = ProcessMemorySnapshot.Capture();
+        int? available = memory.AvailablePercent;
         SwapUsage? swap = SystemMemory.Swap();
-        Observe(SystemMemory.ProcessBytes(), available, swap);
-        if (Violation(available, swap) is not string reason)
+        Observe(memory.ProcessBytes, available, swap);
+        string? reason = Volatile.Read(ref _abortReason) ?? Violation(memory);
+        if (reason == null)
         {
             return;
         }
@@ -218,7 +273,13 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
         KillRuns();
         if (UnityEditor.EditorApplication.isPlaying)
         {
-            UnityEditor.EditorApplication.ExitPlaymode();
+            // Дать callbacks отмены завершиться до domain reload при выходе из Play Mode.
+            // Иначе Pipeline может бесконечно переподключать незавершённый async-запрос.
+            _pendingPlayModeExitUpdates = 2;
+        }
+        else
+        {
+            UnityEditor.EditorApplication.update -= Watch;
         }
     }
 
@@ -274,7 +335,7 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
                     "test;result;seconds;process_before_mb;process_after_mb;process_peak_mb;" +
                     "system_free_before_pct;system_free_lowest_pct;swap_used_before_mb;swap_used_peak_mb;" +
                     "native_before_mb;native_after_mb;managed_before_mb;managed_after_mb;gfx_before_mb;gfx_after_mb\n",
-                    _Utf8);
+                    s_utf8);
             }
 
             var line = new StringBuilder(256);
@@ -294,7 +355,7 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
                 .Append(Megabytes(after.ManagedBytes)).Append(';')
                 .Append(Megabytes(_before.GraphicsBytes)).Append(';')
                 .Append(Megabytes(after.GraphicsBytes)).Append('\n');
-            File.AppendAllText(_reportPath, line.ToString(), _Utf8);
+            File.AppendAllText(_reportPath, line.ToString(), s_utf8);
         }
         catch (IOException exception)
         {
@@ -308,10 +369,9 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
 
     private readonly struct Snapshot
     {
-        private Snapshot(long process, int? available, SwapUsage? swap, long native, long managed, long graphics)
+        private Snapshot(ProcessMemorySnapshot memory, SwapUsage? swap, long native, long managed, long graphics)
         {
-            ProcessBytes = process;
-            AvailablePercent = available;
+            Memory = memory;
             Swap = swap;
             NativeBytes = native;
             ManagedBytes = managed;
@@ -319,10 +379,11 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
         }
 
         /// <summary>Память процесса целиком — то, что видит система.</summary>
-        public long ProcessBytes { get; }
+        public ProcessMemorySnapshot Memory { get; }
+        public long ProcessBytes => Memory.ProcessBytes;
 
         /// <summary>Свободная память системы в процентах; null, если узнать нельзя.</summary>
-        public int? AvailablePercent { get; }
+        public int? AvailablePercent => Memory.AvailablePercent;
 
         /// <summary>Своп системы; null, если узнать нельзя.</summary>
         public SwapUsage? Swap { get; }
@@ -335,8 +396,7 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
 
         public static Snapshot Take() =>
             new(
-                SystemMemory.ProcessBytes(),
-                SystemMemory.AvailablePercent(),
+                ProcessMemorySnapshot.Capture(),
                 SystemMemory.Swap(),
                 Profiler.GetTotalAllocatedMemoryLong(),
                 GC.GetTotalMemory(forceFullCollection: false),
@@ -360,84 +420,37 @@ public sealed class TestMemoryMeasurement : ITestRunCallback
     }
 
     /// <summary>
-    /// Память процесса и системы так, как их считает сама система.
+    /// Дополнительная метрика swap; она не считается запасом для аллокаций.
     /// </summary>
     ///
-    /// Process.WorkingSet64 в Mono на macOS врёт: редактор в гигабайтах, а он
-    /// показывает полторы сотни мегабайт. На macOS память процесса —
-    /// phys_footprint из proc_pid_rusage, свободная память системы —
-    /// kern.memorystatus_level, своп — vm.swapusage: по ним система сама
-    /// решает, что памяти не хватает.
+    /// Память процесса и физическая доступность измеряются ProcessMemorySnapshot.
+    /// На macOS vm.swapusage остаётся в CSV только для диагностики.
     private static class SystemMemory
     {
 #if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
-        private const int RusageInfoV0 = 0;
-        private const int PhysFootprintOffset = 72;
-        private const int RusageInfoV0Size = 96;
-
-        private static readonly byte[] _Buffer = new byte[RusageInfoV0Size];
-
-        [System.Runtime.InteropServices.DllImport("libSystem.dylib")]
-        private static extern int proc_pid_rusage(int pid, int flavor, byte[] buffer);
-
-        [System.Runtime.InteropServices.DllImport("libSystem.dylib")]
-        private static extern int getpid();
-
         // struct xsw_usage: total, avail, used (uint64), pagesize, encrypted.
         private const int SwapUsageSize = 32;
 
-        private static readonly byte[] _SwapBuffer = new byte[SwapUsageSize];
-
-        [System.Runtime.InteropServices.DllImport("libSystem.dylib")]
-        private static extern int sysctlbyname(string name, out int value, ref IntPtr length, IntPtr newValue, IntPtr newLength);
+        private static readonly byte[] s_swapBuffer = new byte[SwapUsageSize];
 
         [System.Runtime.InteropServices.DllImport("libSystem.dylib", EntryPoint = "sysctlbyname")]
         private static extern int sysctlbynameBytes(string name, byte[] value, ref IntPtr length, IntPtr newValue, IntPtr newLength);
 
-        public static long ProcessBytes()
-        {
-            if (proc_pid_rusage(getpid(), RusageInfoV0, _Buffer) == 0)
-            {
-                return (long)BitConverter.ToUInt64(_Buffer, PhysFootprintOffset);
-            }
-
-            return WorkingSet();
-        }
-
-        public static int? AvailablePercent()
-        {
-            var length = (IntPtr)sizeof(int);
-            return sysctlbyname("kern.memorystatus_level", out int level, ref length, IntPtr.Zero, IntPtr.Zero) == 0
-                ? level
-                : null;
-        }
-
         public static SwapUsage? Swap()
         {
             var length = (IntPtr)SwapUsageSize;
-            if (sysctlbynameBytes("vm.swapusage", _SwapBuffer, ref length, IntPtr.Zero, IntPtr.Zero) != 0)
+            if (sysctlbynameBytes("vm.swapusage", s_swapBuffer, ref length, IntPtr.Zero, IntPtr.Zero) != 0)
             {
                 return null;
             }
 
-            long total = (long)BitConverter.ToUInt64(_SwapBuffer, 0);
-            long free = (long)BitConverter.ToUInt64(_SwapBuffer, 8);
-            long used = (long)BitConverter.ToUInt64(_SwapBuffer, 16);
+            long total = (long)BitConverter.ToUInt64(s_swapBuffer, 0);
+            long free = (long)BitConverter.ToUInt64(s_swapBuffer, 8);
+            long used = (long)BitConverter.ToUInt64(s_swapBuffer, 16);
             return new SwapUsage(total, used, free);
         }
 #else
-        public static long ProcessBytes() => WorkingSet();
-
-        public static int? AvailablePercent() => null;
-
         public static SwapUsage? Swap() => null;
 #endif
-
-        private static long WorkingSet()
-        {
-            using Process process = Process.GetCurrentProcess();
-            process.Refresh();
-            return process.WorkingSet64;
-        }
     }
 }

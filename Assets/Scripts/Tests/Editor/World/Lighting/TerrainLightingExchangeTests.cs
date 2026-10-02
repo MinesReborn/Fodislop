@@ -103,7 +103,7 @@ public sealed class TerrainLightingExchangeTests
         Assert.That(publisherSource.IndexOf(
                 "if (!hasOutput || output.WorldGeneration != _worldGeneration)",
                 System.StringComparison.Ordinal),
-            Is.LessThan(publisherSource.IndexOf("window.Driver.Materials.ValidateLightingBinding(output);", System.StringComparison.Ordinal)));
+            Is.LessThan(publisherSource.IndexOf("window.Driver.Presentation.ValidateLightingBinding(output);", System.StringComparison.Ordinal)));
         Assert.That(publisherSource.IndexOf("exchange.PublishTerrainFrame(frame);", System.StringComparison.Ordinal), Is.GreaterThanOrEqualTo(0));
         int stageChanges = lightingSource.IndexOf("StageTerrainChanges(", System.StringComparison.Ordinal);
         int coordinatorAfterStaging = lightingSource.IndexOf(
@@ -130,11 +130,10 @@ public sealed class TerrainLightingExchangeTests
     {
         string projectRoot = FindProjectRoot();
         string terrainWindowPath = Path.Combine(
-            projectRoot, "Assets", "Scripts", "World", "Terrain", "Gpu", "TerrainWindow.cs");
-        string lifecyclePath = Path.Combine(
-            projectRoot, "Assets", "Scripts", "World", "Terrain", "Gpu", "TerrainWindow.BuildLifecycle.cs");
+            projectRoot, "Assets", "Scripts", "World", "Terrain", "GPU", "TerrainWindow.cs");
+        string lifecyclePath = terrainWindowPath;
         string schedulingPath = Path.Combine(
-            projectRoot, "Assets", "Scripts", "World", "Terrain", "Gpu", "TerrainWindowBuildRequestScheduler.cs");
+            projectRoot, "Assets", "Scripts", "World", "Terrain", "GPU", "TerrainWindowBuildRequestScheduler.cs");
         string terrainRendererPath = Path.Combine(
             projectRoot, "Assets", "Scripts", "World", "Terrain", "Core", "TerrainRenderer.cs");
         string facade = File.ReadAllText(terrainWindowPath);
@@ -142,16 +141,16 @@ public sealed class TerrainLightingExchangeTests
         string scheduling = File.ReadAllText(schedulingPath);
         string renderer = File.ReadAllText(terrainRendererPath);
 
-        Assert.That(facade.Contains("public sealed class TerrainWindow : IDisposable", System.StringComparison.Ordinal), Is.True);
-        Assert.That(facade.Contains("TryPublishCompleted(services, out failure)", System.StringComparison.Ordinal), Is.True);
-        Assert.That(facade.Contains("_lifecycle.Process(", System.StringComparison.Ordinal), Is.True);
-        Assert.That(facade.Contains("_lifecycle.Commit()", System.StringComparison.Ordinal), Is.True);
+        Assert.That(facade.Contains("public sealed class TerrainWindow", System.StringComparison.Ordinal), Is.True);
+        Assert.That(facade.Contains("TryPublishCompleted(in TerrainBuildContext context, out Exception? failure)", System.StringComparison.Ordinal), Is.True);
+        Assert.That(facade.Contains("_requestScheduler.TryTakeCompleted(", System.StringComparison.Ordinal), Is.True);
+        Assert.That(facade.Contains("_requestScheduler.Schedule(", System.StringComparison.Ordinal), Is.True);
         Assert.That(facade.Contains("partial class TerrainWindow", System.StringComparison.Ordinal), Is.False);
 
         int complete = lifecycle.IndexOf("private bool Complete(", System.StringComparison.Ordinal);
         int generationGuard = lifecycle.IndexOf("request.WorldGeneration != _worldGeneration", complete, System.StringComparison.Ordinal);
         int continueBuild = lifecycle.IndexOf("_driver.TryContinueBuild(", complete, System.StringComparison.Ordinal);
-        int driverPublish = lifecycle.IndexOf("_driver.Publish(context, request, result, latencySeconds * 1000f)", complete, System.StringComparison.Ordinal);
+        int driverPublish = lifecycle.IndexOf("_driver.Publish(context, atlases, request, result, latencySeconds * 1000f)", complete, System.StringComparison.Ordinal);
         int viewPublish = lifecycle.IndexOf("_publishedView.Publish(request)", complete, System.StringComparison.Ordinal);
         int journalPublish = lifecycle.IndexOf("_changes.AddPublishedChangedRegion(", complete, System.StringComparison.Ordinal);
         Assert.That(complete, Is.GreaterThanOrEqualTo(0));
@@ -162,7 +161,7 @@ public sealed class TerrainLightingExchangeTests
         Assert.That(journalPublish, Is.GreaterThan(viewPublish));
         Assert.That(lifecycle.Contains("_requestScheduler.BuildStartElapsedSeconds", System.StringComparison.Ordinal), Is.True);
         Assert.That(lifecycle.Contains("_changes.RestoreOldestChangeTimestamp(_buildOldestChangeTimestamp)", System.StringComparison.Ordinal), Is.True);
-        Assert.That(lifecycle.Contains("BuildState = TerrainBuildState.WaitingForData;\n                return false;", System.StringComparison.Ordinal), Is.True);
+        Assert.That(lifecycle.Contains("BuildState = TerrainBuildState.WaitingForData;", System.StringComparison.Ordinal), Is.True);
 
         int schedulingIntent = lifecycle.IndexOf("new TerrainBuildSchedulingIntent(", System.StringComparison.Ordinal);
         int scheduleCall = lifecycle.IndexOf("_requestScheduler.Schedule(", schedulingIntent, System.StringComparison.Ordinal);
@@ -432,6 +431,38 @@ public sealed class TerrainLightingExchangeTests
 
         Assert.That(state.FieldDirty, Is.True);
         Assert.That(state.ActivatePendingRegionIfVisible(new RectInt(0, 0, 20, 20)), Is.False);
+    }
+
+    [Test]
+    public void ReanchorTransfersAllOverlappingPendingEditsIntoTheCurrentSolve()
+    {
+        var state = new LightingRuntimeState { FieldDirty = false };
+        state.QueueRegionInvalidation(new RectInt(40, 4, 4, 4));
+        state.QueueRegionInvalidation(new RectInt(80, 4, 4, 4));
+        state.QueueRegionInvalidation(new RectInt(-10, 4, 4, 4));
+        LightingRegionInvalidationPolicy.OnRegionChanged(state, true, true, new Vector4(32, 0, 64, 64));
+        Assert.That(state.ActiveRegionInvalidations, Has.Count.EqualTo(2));
+        Assert.That(state.FieldDirty, Is.True);
+        Assert.That(state.ActivatePendingRegionIfVisible(new RectInt(-20, 0, 128, 32)), Is.False);
+        state.CompleteActiveRegionInvalidation();
+        Assert.That(state.ActiveRegionInvalidations, Is.Empty);
+    }
+
+    [Test]
+    public void FullResetCannotReuseAnAtlasSolvedWithPreviousStaticInputs()
+    {
+        var state = new LightingRuntimeState
+        {
+            FieldDirty = false,
+            HasRenderedLightState = true,
+            HasStaticRadianceState = true,
+            HasDynamicRadianceState = true,
+        };
+        TerrainLightingChangeApplier.Apply(Reset(2, 1), state);
+        Assert.That(state.FieldDirty, Is.True);
+        Assert.That(state.HasStaticRadianceState, Is.False);
+        Assert.That(state.HasDynamicRadianceState, Is.False);
+        Assert.That(state.HasRenderedLightState, Is.False);
     }
 
     [Test]

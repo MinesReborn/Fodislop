@@ -30,7 +30,7 @@ public sealed class AssetCache
     // Wall clock rather than Time.unscaledTime: cache maintenance runs from
     // asset-decode continuations that are not guaranteed to be on the main
     // thread, and Unity's time API is.
-    private static readonly System.Diagnostics.Stopwatch _UnusedAssetsClock =
+    private static readonly System.Diagnostics.Stopwatch s_unusedAssetsClock =
         System.Diagnostics.Stopwatch.StartNew();
     private const double MinimumSecondsBetweenUnusedAssetCollections = 30.0;
     private double _nextUnusedAssetsCollectionSeconds;
@@ -173,7 +173,7 @@ public sealed class AssetCache
 
     private void RequestUnusedAssetsCollection(bool force = false)
     {
-        double now = _UnusedAssetsClock.Elapsed.TotalSeconds;
+        double now = s_unusedAssetsClock.Elapsed.TotalSeconds;
         if (!force && now < _nextUnusedAssetsCollectionSeconds)
         {
             return;

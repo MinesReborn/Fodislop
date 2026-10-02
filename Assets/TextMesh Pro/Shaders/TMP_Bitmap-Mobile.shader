@@ -62,7 +62,6 @@ SubShader {
 			float4 vertex : POSITION;
 			fixed4 color : COLOR;
 			float2 texcoord0 : TEXCOORD0;
-			float2 texcoord1 : TEXCOORD1;
 		};
 
 		struct v2f

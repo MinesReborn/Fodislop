@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>12.0</LangVersion>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/Scripts/Core/Diagnostics/ProcessMemorySnapshot.cs" Link="ProcessMemorySnapshot.cs" />
+    <Compile Include="../../Assets/Scripts/Core/Diagnostics/MemoryAllocationGuard.cs" Link="MemoryAllocationGuard.cs" />
+    <Compile Include="../../Assets/Scripts/World/Lighting/Resources/LightingAllocationEstimate.cs" Link="LightingAllocationEstimate.cs" />
+    <Compile Include="../../Assets/Scripts/Rendering/Contracts/WorldRenderGrid.cs" Link="WorldRenderGrid.cs" />
+    <Compile Include="../../Assets/Scripts/Rendering/PostProcessing/Pipeline/PostProcessWorkload.cs" Link="PostProcessWorkload.cs" />
+    <Reference Include="Microsoft.CodeAnalysis">
+      <HintPath>$(MSBuildToolsPath)/Roslyn/bincore/Microsoft.CodeAnalysis.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.CodeAnalysis.CSharp">
+      <HintPath>$(MSBuildToolsPath)/Roslyn/bincore/Microsoft.CodeAnalysis.CSharp.dll</HintPath>
+    </Reference>
+    <Compile Include="../../Assets/Scripts/World/Common/FrameTelemetry.cs" Link="FrameTelemetry.cs" />
+    <Compile Include="../../Assets/Scripts/World/Common/IFrameTelemetryProducerStamp.cs" Link="IFrameTelemetryProducerStamp.cs" />
+    <Compile Include="../../Assets/Scripts/World/Common/TerrainTextureUploadCounters.cs" Link="TerrainTextureUploadCounters.cs" />
+    <Compile Include="../../Assets/Scripts/World/Common/TerrainTextureUploadCaptureFields.cs" Link="TerrainTextureUploadCaptureFields.cs" />
+    <ProjectReference Include="../Kern.FrameHarness/Kern.FrameHarness.csproj" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+  </ItemGroup>
+</Project>

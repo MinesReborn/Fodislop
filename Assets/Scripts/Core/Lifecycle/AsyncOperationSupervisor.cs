@@ -13,7 +13,7 @@ public sealed class AsyncOperationSupervisor : IAsyncOperationSupervisor, IDispo
     private readonly CancellationTokenSource _lifetime = new();
     private readonly Dictionary<long, string> _activeOperations = [];
     private readonly object _gate = new();
-    private long _nextOperationID;
+    private long _nextOperationId;
     private bool _stopping;
     private bool _disposed;
 
@@ -57,7 +57,7 @@ public sealed class AsyncOperationSupervisor : IAsyncOperationSupervisor, IDispo
             throw new ArgumentNullException(nameof(operation));
         }
 
-        long operationID;
+        long operationId;
         CancellationToken lifetimeToken;
         lock (_gate)
         {
@@ -66,12 +66,12 @@ public sealed class AsyncOperationSupervisor : IAsyncOperationSupervisor, IDispo
                 throw new ObjectDisposedException(nameof(AsyncOperationSupervisor));
             }
 
-            operationID = Interlocked.Increment(ref _nextOperationID);
+            operationId = Interlocked.Increment(ref _nextOperationId);
             lifetimeToken = _lifetime.Token;
-            _activeOperations.Add(operationID, operationName);
+            _activeOperations.Add(operationId, operationName);
         }
 
-        ExecuteAsync(operationID, operationName, operation, lifetimeToken).Forget();
+        ExecuteAsync(operationId, operationName, operation, lifetimeToken).Forget();
     }
 
     public async UniTask StopAsync(CancellationToken cancellationToken = default)
@@ -109,7 +109,7 @@ public sealed class AsyncOperationSupervisor : IAsyncOperationSupervisor, IDispo
     }
 
     private async UniTaskVoid ExecuteAsync(
-        long operationID,
+        long operationId,
         string operationName,
         Func<CancellationToken, UniTask> operation,
         CancellationToken lifetimeToken)
@@ -131,7 +131,7 @@ public sealed class AsyncOperationSupervisor : IAsyncOperationSupervisor, IDispo
         {
             lock (_gate)
             {
-                _activeOperations.Remove(operationID);
+                _activeOperations.Remove(operationId);
             }
         }
     }

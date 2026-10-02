@@ -28,15 +28,17 @@ The working color space of the scene is linear, scene-referred, with no upper bo
 
 ## Output transform
 
-Done by URP, not us: `HDROutputReconciler` holds a runtime Volume with `Tonemapping` in `Neutral` mode, BT.2390 range compression, `detectPaperWhite`/`detectBrightnessLimits` disabled. Therefore `VisualTuning.Grade.Transform` defaults to `None` — adding your own transform on top of URP produces double-mapping. Changing this value at runtime is **FORBIDDEN**.
+Done by URP, not us: `HDROutputReconciler` holds a runtime Volume with `Tonemapping` in `Neutral` mode, BT.2390 range compression, `detectPaperWhite`/`detectBrightnessLimits` disabled. The same Volume carries `ColorAdjustments.postExposure` (`PostProcessLook.Exposure.Stops`), so URP applies it right before its own curve. Adding a custom tone transform on top of URP produces double-mapping and is **FORBIDDEN**.
 
 ## Frame order (`PostProcess.compute`)
 
-scene → bloom → grade (LUT baked) → `CompositeFinal` → `DisplayFinal`: divide by paper white → `ApplyDisplayTransform` → LUT → curves → vignette → eigengrau → temporal smear → multiply by paper white in `ToDisplayOutput` → PQ/scRGB encoding done by URP.
+scene → world-grid bloom (`WorldBloom.compute` + `WorldBloomAdd.shader`) → URP: `ColorAdjustments.postExposure` (+1 stop, `PostProcessLook.Exposure`) and Neutral tonemapping → `DisplayFinal`: divide by paper white → server LUT (`ApplyCubeLut`, HDR-normalized) → vignette → eigengrau → multiply by paper white in `ToDisplayOutput` → PQ/scRGB encoding done by URP.
+
+With the world render grid active, `DisplayFinal` runs per world pixel: eigengrau stays on that lattice, but the vignette is applied by the URP final blit per screen pixel on the scene sample (`WorldGridFinalVignette.hlsl`), before UI composition; `DisplayFinal` only computes its mask for the debug view.
 
 ## Color space inside `DisplayFinal`
 
-After `ApplyDisplayTransform` the frame is linear relative to screen white, **not** sRGB-encoded — URP encodes after us. Therefore:
+After the paper-white division the frame is linear relative to screen white, **not** sRGB-encoded — URP encodes after us. Therefore:
 - Colors/thresholds specified as encoding-level values (e.g. `#16161D`) are converted to linear via `PerceptualToLinear` at the point of application.
 - Frame brightness is compared via `LinearToPerceptual`.
 - Light addition happens in linear space.

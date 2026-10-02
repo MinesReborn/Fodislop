@@ -55,13 +55,6 @@ public sealed class GraphicsSettingsController
         _postProcessController.ApplyClientConfig();
     }
 
-    public void UpdateAccessibilitySettings(Action<AccessibilitySettings> update)
-    {
-        Debug.Log("[GraphicsSettingsController] Updating accessibility settings");
-        _clientConfig.UpdateSection(config => config.Accessibility, update);
-        _postProcessController.ApplyClientConfig();
-    }
-
     public void UpdateWorldMaterialSettings(Action<ClientConfig> update)
     {
         Debug.Log("[GraphicsSettingsController] Updating world material settings");

@@ -163,7 +163,7 @@ internal sealed class DummyWorldStreamingCoordinator
     {
         IWorldLayer<CellType> layer = lease.Layer;
         int chunkIndex = (serverY / layer.ChunkSize) + ((serverX / layer.ChunkSize) * layer.HeightChunks);
-        ChunkReadResult<CellType> result = layer.ReadChunk(chunkIndex, touchLru: true);
+        ChunkReadResult<CellType> result = layer.ReadChunk(chunkIndex, touchLRU: true);
         while (result.Status == ChunkReadStatus.Loading)
         {
             if (isDisposed())
@@ -172,7 +172,7 @@ internal sealed class DummyWorldStreamingCoordinator
             }
 
             await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
-            result = layer.ReadChunk(chunkIndex, touchLru: true);
+            result = layer.ReadChunk(chunkIndex, touchLRU: true);
         }
 
         return result.Status == ChunkReadStatus.Available && !isDisposed();

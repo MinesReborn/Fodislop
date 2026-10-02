@@ -24,7 +24,7 @@ public sealed class TeardownPlayModeTests
     private const string TestDummyToken = "playmode-teardown-token";
 
     // Объект FMOD создаётся плагином лениво и живёт весь процесс.
-    private static readonly HashSet<string> _ProcessLifetimeObjects = ["FMOD.UnityIntegration.RuntimeManager"];
+    private static readonly HashSet<string> s_processLifetimeObjects = ["FMOD.UnityIntegration.RuntimeManager"];
 
     private DummyAuthenticationScope _authentication = null!;
 
@@ -75,7 +75,7 @@ public sealed class TeardownPlayModeTests
 
         string[] leftovers = PersistentRootNames()
             .Except(persistentBefore)
-            .Where(name => !_ProcessLifetimeObjects.Contains(name))
+            .Where(name => !s_processLifetimeObjects.Contains(name))
             .ToArray();
         if (leftovers.Length > 0)
         {
@@ -190,7 +190,7 @@ public sealed class TeardownPlayModeTests
 
     // Служебные цели редактора, URP и UI Toolkit живут весь процесс и
     // пересоздаются сами; игре они не принадлежат.
-    private static readonly string[] _EngineRenderTexturePrefixes =
+    private static readonly string[] s_engineRenderTexturePrefixes =
     [
         "GUIView", "GameView", "EditorAtlas", "UIR Dynamic Atlas", "_Camera",
         "_InternalColorGradingLut", "DefaultShadowTexture", "SceneView", "PreviewRenderUtility",
@@ -200,7 +200,7 @@ public sealed class TeardownPlayModeTests
         Resources.FindObjectsOfTypeAll<RenderTexture>()
             .Where(texture => texture != null)
             .Select(texture => texture.name)
-            .Where(name => !_EngineRenderTexturePrefixes.Any(prefix => name.StartsWith(prefix, System.StringComparison.Ordinal)))
+            .Where(name => !s_engineRenderTexturePrefixes.Any(prefix => name.StartsWith(prefix, System.StringComparison.Ordinal)))
             .ToList();
 
     private static List<string> PersistentRootNames() =>

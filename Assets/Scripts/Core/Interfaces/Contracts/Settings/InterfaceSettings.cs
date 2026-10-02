@@ -54,13 +54,53 @@ public sealed class InterfaceSettings
     public const string DefaultKeyBuildGreen = "F";
     public const string DefaultKeyBuildWhite = "J";
 
+    [SettingUnbounded("Имя клавиши UnityEngine.InputSystem.Key; неизвестное откатывается к дефолту.")]
+    [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler.WantsToDig")]
     public string KeyDig = DefaultKeyDig;
+
+    [SettingUnbounded("Имя клавиши UnityEngine.InputSystem.Key; неизвестное откатывается к дефолту.")]
+    [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler.WantsToToggleAutoDig")]
     public string KeyAutoDig = DefaultKeyAutoDig;
+
+    [SettingUnbounded("Имя клавиши UnityEngine.InputSystem.Key; неизвестное откатывается к дефолту.")]
+    [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler.WantsToToggleAggression")]
     public string KeyAggression = DefaultKeyAggression;
+
+    [SettingUnbounded("Имя клавиши UnityEngine.InputSystem.Key; неизвестное откатывается к дефолту.")]
+    [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler.WantsToGeo")]
     public string KeyGeo = DefaultKeyGeo;
+
+    [SettingUnbounded("Имя клавиши UnityEngine.InputSystem.Key; неизвестное откатывается к дефолту.")]
+    [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler.WantsToHeal")]
     public string KeyHeal = DefaultKeyHeal;
+
+    [SettingUnbounded("Имя клавиши UnityEngine.InputSystem.Key; неизвестное откатывается к дефолту.")]
+    [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler.WantsToBuildCyan")]
     public string KeyBuildCyan = DefaultKeyBuildCyan;
+
+    [SettingUnbounded("Имя клавиши UnityEngine.InputSystem.Key; неизвестное откатывается к дефолту.")]
+    [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler.WantsToBuildGray")]
     public string KeyBuildGray = DefaultKeyBuildGray;
+
+    [SettingUnbounded("Имя клавиши UnityEngine.InputSystem.Key; неизвестное откатывается к дефолту.")]
+    [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler.WantsToBuildGreen")]
     public string KeyBuildGreen = DefaultKeyBuildGreen;
+
+    [SettingUnbounded("Имя клавиши UnityEngine.InputSystem.Key; неизвестное откатывается к дефолту.")]
+    [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler.WantsToBuildWhite")]
     public string KeyBuildWhite = DefaultKeyBuildWhite;
+
+    // Позиция перетаскиваемой панели HUD (left/top в пикселях панели) с
+    // прошлого запуска. Пока игрок её не двигал, панель стоит по стилям.
+    [SettingUnbounded("Флаг сохранённой позиции панели HUD; тумблера нет.")]
+    [SettingConsumer(SettingConsumerTarget.UserInterface, "PlayerHUDView.ApplySavedPanelPosition")]
+    public bool HasHudPanelPosition;
+
+    [SettingUnbounded("Пиксели панели UI; разрешение проверяет PlayerHUDView при восстановлении.")]
+    [SettingConsumer(SettingConsumerTarget.UserInterface, "PlayerHUDView.ApplySavedPanelPosition")]
+    public float HudPanelX;
+
+    [SettingUnbounded("Пиксели панели UI; разрешение проверяет PlayerHUDView при восстановлении.")]
+    [SettingConsumer(SettingConsumerTarget.UserInterface, "PlayerHUDView.ApplySavedPanelPosition")]
+    public float HudPanelY;
 }

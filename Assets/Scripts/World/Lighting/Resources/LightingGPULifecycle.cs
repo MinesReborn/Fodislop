@@ -31,8 +31,11 @@ internal sealed class LightingGPULifecycle
         out bool cascadeBudgetLimited,
         out int effectivePixelsPerCell)
     {
+        RenderTexture? oldMaterial = _resources.MaterialField;
         int oldFieldWidth = _resources.FieldWidth;
         int oldFieldHeight = _resources.FieldHeight;
+        int oldAoWidth = _resources.AmbientOcclusionWidth;
+        int oldAoHeight = _resources.AmbientOcclusionHeight;
 
         _resources.EnsureResources(
             gridWidth,
@@ -46,8 +49,11 @@ internal sealed class LightingGPULifecycle
         _frameExecutor.EnsureDynamicLightCapacity(
             Mathf.Max(1, qualitySettings.LightingMaximumLightCount));
 
-        return oldFieldWidth != _resources.FieldWidth ||
-            oldFieldHeight != _resources.FieldHeight;
+        return oldMaterial != _resources.MaterialField ||
+            oldFieldWidth != _resources.FieldWidth ||
+            oldFieldHeight != _resources.FieldHeight ||
+            oldAoWidth != _resources.AmbientOcclusionWidth ||
+            oldAoHeight != _resources.AmbientOcclusionHeight;
     }
 
     public void EnsurePipeline()

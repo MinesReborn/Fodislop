@@ -74,6 +74,19 @@ public sealed class BackgroundFloodFill
             type != CellType.BuildingDoor;
     }
 
+    // Дорога — покрытие, которое кладёт игрок, а не грунт. Своя клетка
+    // остаётся полом с собственной текстурой, но фоном под соседний блок
+    // дорога не становится: под блоком лежит земля. Иначе голосование
+    // соседей перекрашивало подложку блока в дорогу, как только серых
+    // соседей оказывалось больше.
+    private static bool IsBackgroundSource(CellType type, CellConfigProperties properties)
+    {
+        return IsFloorCell(type, properties) && !IsCovering(type);
+    }
+
+    private static bool IsCovering(CellType type) =>
+        CellVisualProtocolRegistry.Current.Get(type).IsRoad;
+
     public void ComputeFull(ICachedCellDataProvider cellCache)
     {
         int w = _width, h = _height;
@@ -92,14 +105,6 @@ public sealed class BackgroundFloodFill
                 }
             });
 
-        // The seed scan writes only its own cell and appends to its own
-        // column list, so it parallelises cleanly. A full populate remains a
-        // fallback path; ordinary camera movement uses ComputeScrolled.
-        //
-        // Concatenating the column lists in x order reproduces the sequential
-        // frontier exactly, which matters: FBPWPropagate fills each Unloaded
-        // cell from whichever seed reaches it first, so a different frontier
-        // order would be a different background map.
         Parallel.For(
             0,
             w,
@@ -190,9 +195,6 @@ public sealed class BackgroundFloodFill
             SeedResolvedRow(dy > 0 ? row.yMin - 1 : row.yMax, row.xMin, row.width, frontier);
         }
 
-        // Волна заливает только неразрешённые клетки каймы. Раньше она
-        // перезаливала всю связную породу окна: 73% стоимости шага камеры, а
-        // внутренность при этом перещёлкивалась на ничьих ~10% клеток.
         FBPWPropagate(frontier, onlyUnresolved: true);
 
         if (column.width > 0)
@@ -348,7 +350,7 @@ public sealed class BackgroundFloodFill
                 }
 
                 CachedCellInfo n = _sourceCells[nx, ny];
-                if (!IsFloorCell(n.Type, n.Properties))
+                if (!IsBackgroundSource(n.Type, n.Properties))
                 {
                     continue;
                 }
@@ -429,6 +431,13 @@ public sealed class BackgroundFloodFill
             {
                 var (x, y) = current[i];
                 CellType bg = _bgMapBuffer[x, y];
+                // Resolved road floors enter as scroll seeds; they bound the
+                // wave but never spread their covering under blocks.
+                if (IsCovering(bg))
+                {
+                    continue;
+                }
+
                 for (int dy = -1; dy <= 1; dy++)
                 {
                     for (int dx = -1; dx <= 1; dx++)

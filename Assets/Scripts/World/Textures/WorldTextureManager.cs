@@ -32,7 +32,7 @@ namespace Kern.World
 
         // Скорость покадровой анимации клетки, когда серверный конфиг её не
         // задал, а текстура — GIF-лента кадров (например, вращение бокса).
-        private const float DefaultCellAnimationFps = 6f;
+        private const float DefaultCellAnimationFPS = 6f;
 
         private WorldAtlasCollection _atlasCollection = null!;
 
@@ -172,7 +172,7 @@ namespace Kern.World
 
                         // Анимация выведена из самой текстуры (лента кадров без
                         // серверного конфига) — крутим дефолтной скоростью.
-                        speed = DefaultCellAnimationFps;
+                        speed = DefaultCellAnimationFPS;
                     }
 
                     frameIndex = (int)(Time.realtimeSinceStartup * speed) % textureInfo.AnimationFrames;
@@ -239,7 +239,7 @@ namespace Kern.World
             // (GIF-ассет без серверного конфига): GPU-террейн получает
             // дефолтную скорость, иначе шейдер останется на кадре 0.
             return _textureCache.TryGetTexture(cellType, out var info) && info.AnimationFrames > 1
-                ? DefaultCellAnimationFps
+                ? DefaultCellAnimationFPS
                 : 0f;
         }
 
@@ -394,14 +394,14 @@ namespace Kern.World
             AddTextureToAtlas(cellType, texture, ownsTexture: true);
         }
 
-        private static readonly Unity.Profiling.ProfilerMarker _AtlasAddMarker = new("Kern.Textures.AtlasAdd");
+        private static readonly Unity.Profiling.ProfilerMarker s_atlasAddMarker = new("Kern.Textures.AtlasAdd");
 
         private void AddTextureToAtlas(
             CellType cellType,
             Texture2D texture,
             bool ownsTexture)
         {
-            using var atlasAddMarker = _AtlasAddMarker.Auto();
+            using var atlasAddMarker = s_atlasAddMarker.Auto();
             if (_atlasCollection.ContainsCell(cellType) || !_mapManager.IsWorldInitialized)
             {
                 return;

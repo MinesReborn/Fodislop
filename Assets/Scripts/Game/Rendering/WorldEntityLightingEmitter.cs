@@ -107,7 +107,7 @@ namespace Kern.Game
             if (pass < 0)
             {
                 throw new InvalidOperationException(
-                    $"World-entity material '{batchMaterial.name}' is missing the LightingMaterialField pass.");
+                    $"World-entity material '{batchMaterial.name}' is missing the {ProjectRuntimeContracts.ShaderPassNames.LightingMaterialField} pass.");
             }
 
             int vertexCount = emissiveCount * 4;

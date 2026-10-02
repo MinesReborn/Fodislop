@@ -12,36 +12,10 @@ float Max3(float3 value)
     return max(value.x, max(value.y, value.z));
 }
 
-float2 OutputUv(float2 pixelPosition)
-{
-    return saturate(pixelPosition / float2(_FieldSize));
-}
-
 float InterleavedGradientNoise(float2 pixelCoord)
 {
     float3 magic = float3(0.06711056, 0.00583715, 52.9829189);
     return frac(magic.z * frac(dot(pixelCoord, magic.xy)));
-}
-
-float2 MaterialUv(float2 pixelPosition)
-{
-    float2 uv = OutputUv(pixelPosition);
-    if (_MaterialYFlip != 0)
-    {
-        uv.y = 1.0 - uv.y;
-    }
-
-    return uv;
-}
-
-float SampleOccupancy(float2 pixelPosition, float mipLevel)
-{
-    float4 material = 0.0;
-    material = _MaterialField.SampleLevel(
-        sampler_LinearClamp,
-        MaterialUv(pixelPosition),
-        mipLevel);
-    return material.a;
 }
 
 // Пороги solidity приходят юниформами _SolidOccupancyThreshold и

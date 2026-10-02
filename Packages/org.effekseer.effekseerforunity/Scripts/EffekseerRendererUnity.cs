@@ -1072,9 +1072,9 @@ namespace Effekseer.Internal
 
 			// update view matrixes
 			Plugin.EffekseerSetProjectionMatrix(path.renderId, Utility.Matrix2Array(
-				GL.GetGPUProjectionMatrix(camera.projectionMatrix, false)));
+				GL.GetGPUProjectionMatrix(renderTargetProperty?.ProjectionMatrixOverride ?? camera.projectionMatrix, false)));
 			Plugin.EffekseerSetCameraMatrix(path.renderId, Utility.Matrix2Array(
-				camera.worldToCameraMatrix));
+				renderTargetProperty?.ViewMatrixOverride ?? camera.worldToCameraMatrix));
 
 			// Reset command buffer
 			path.ResetBuffers();

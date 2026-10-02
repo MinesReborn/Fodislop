@@ -25,8 +25,8 @@ public sealed class InstallUpgradeTests
     private const int WorldWidth = 64;
     private const int WorldHeight = 32;
     private const string CachedAsset = "Cells/117.png";
-    private static readonly CellType _StoredCell = (CellType)123;
-    private static readonly byte[] _CachedPayload = [1, 2, 3, 4];
+    private static readonly CellType s_storedCell = (CellType)123;
+    private static readonly byte[] s_cachedPayload = [1, 2, 3, 4];
 
     private string _dataRoot = null!;
 
@@ -60,7 +60,7 @@ public sealed class InstallUpgradeTests
     {
         ClientConfigLoader.Result config = LoadConfig();
         _ = new PersistentAssetCache(CachePath);
-        WithMap(storage => Assert.That(storage.GetCell(0, 0), Is.Not.EqualTo(_StoredCell)));
+        WithMap(storage => Assert.That(storage.GetCell(0, 0), Is.Not.EqualTo(s_storedCell)));
 
         Assert.That(config.Outcome, Is.EqualTo(ClientConfigLoader.Outcome.CreatedDefaults));
         Assert.That(new ClientConfigRepository(ConfigPath).Load().Config.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
@@ -152,7 +152,7 @@ public sealed class InstallUpgradeTests
     {
         WriteMap(formatVersion: 0);
 
-        WithMap(storage => Assert.That(storage.GetCell(0, 0), Is.Not.EqualTo(_StoredCell)));
+        WithMap(storage => Assert.That(storage.GetCell(0, 0), Is.Not.EqualTo(s_storedCell)));
         Assert.That(ReadMapFormatVersion(), Is.EqualTo(WorldLayerFileHeader.CurrentFormatVersion));
         Assert.That(Directory.GetFiles(_dataRoot, "*.v*.backup", SearchOption.AllDirectories), Is.Empty);
     }
@@ -165,7 +165,7 @@ public sealed class InstallUpgradeTests
         _ = new PersistentAssetCache(CachePath);
 
         Assert.That(ReadCacheMarker(), Is.EqualTo(PersistentAssetCacheFormat.CurrentSchemaVersion));
-        Assert.That(File.ReadAllBytes(Path.Combine(CachePath, CachedAsset)), Is.EqualTo(_CachedPayload));
+        Assert.That(File.ReadAllBytes(Path.Combine(CachePath, CachedAsset)), Is.EqualTo(s_cachedPayload));
     }
 
     [Test]
@@ -176,7 +176,7 @@ public sealed class InstallUpgradeTests
         _ = new PersistentAssetCache(CachePath);
 
         Assert.That(ReadCacheMarker(), Is.EqualTo(PersistentAssetCacheFormat.CurrentSchemaVersion));
-        Assert.That(File.ReadAllBytes(Path.Combine(CachePath, CachedAsset)), Is.EqualTo(_CachedPayload));
+        Assert.That(File.ReadAllBytes(Path.Combine(CachePath, CachedAsset)), Is.EqualTo(s_cachedPayload));
     }
 
     [Test]
@@ -193,7 +193,7 @@ public sealed class InstallUpgradeTests
 
         Assert.That(File.ReadAllText(ConfigPath), Is.EqualTo(newerJson));
         Assert.That(ReadCacheMarker(), Is.EqualTo(PersistentAssetCacheFormat.CurrentSchemaVersion));
-        WithMap(storage => Assert.That(storage.GetCell(0, 0), Is.Not.EqualTo(_StoredCell)));
+        WithMap(storage => Assert.That(storage.GetCell(0, 0), Is.Not.EqualTo(s_storedCell)));
         Assert.That(Directory.GetFiles(_dataRoot, "*.v*.backup", SearchOption.AllDirectories), Is.Empty);
     }
 
@@ -233,7 +233,7 @@ public sealed class InstallUpgradeTests
     {
         string assetPath = Path.Combine(CachePath, CachedAsset);
         Directory.CreateDirectory(Path.GetDirectoryName(assetPath)!);
-        File.WriteAllBytes(assetPath, _CachedPayload);
+        File.WriteAllBytes(assetPath, s_cachedPayload);
         if (markerVersion.HasValue)
         {
             File.WriteAllText(
@@ -251,7 +251,7 @@ public sealed class InstallUpgradeTests
     {
         WithMap(storage =>
         {
-            storage.SetCell(0, 0, _StoredCell);
+            storage.SetCell(0, 0, s_storedCell);
             storage.Flush(durable: true);
         });
 

@@ -11,7 +11,7 @@ namespace Kern.UI
     {
         private const string ResolveShaderName = "Kern/UI/UnpremultiplyAlpha";
 
-        private static readonly int _worldSpaceCameraPosID = Shader.PropertyToID("_WorldSpaceCameraPos");
+        private static readonly int s_worldSpaceCameraPosId = Shader.PropertyToID("_WorldSpaceCameraPos");
 
         private CommandBuffer? _commandBuffer;
         private readonly List<(Mesh Mesh, Matrix4x4 Matrix, Material Material, int SubMesh, float Distance)> _draws = new();
@@ -214,7 +214,7 @@ namespace Kern.UI
             _commandBuffer.SetViewProjectionMatrices(
                 viewpoint.WorldToView,
                 GL.GetGPUProjectionMatrix(viewpoint.Projection, renderIntoTexture: true));
-            _commandBuffer.SetGlobalVector(_worldSpaceCameraPosID, viewpoint.Position);
+            _commandBuffer.SetGlobalVector(s_worldSpaceCameraPosId, viewpoint.Position);
             foreach ((Mesh mesh, Matrix4x4 matrix, Material material, int subMesh, _) in _draws)
             {
                 _commandBuffer.DrawMesh(mesh, matrix, material, subMesh, 0);

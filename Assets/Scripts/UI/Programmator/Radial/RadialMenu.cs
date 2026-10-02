@@ -18,11 +18,11 @@ public class RadialMenu
     private readonly VisualElement _outerRingBg;
     private readonly VisualElement _backButton;
 
-    private int[] _innerIDs = Array.Empty<int>();
+    private int[] _innerIds = Array.Empty<int>();
     private int _innerCount;
     private Color[]? _innerItemColors;
 
-    private int[] _outerIDs = Array.Empty<int>();
+    private int[] _outerIds = Array.Empty<int>();
     private int _outerCount;
 
     private readonly float _innerRadius = 55f;
@@ -41,8 +41,8 @@ public class RadialMenu
     public VisualElement Root => _root;
     public bool IsShown => _root.parent != null;
 
-    private static readonly Color _DefaultBorder = new Color(0.5f, 0.5f, 0.5f, 1f);
-    private static readonly Color _HoverBorder = new Color(1f, 0.84f, 0f, 1f);
+    private static readonly Color s_defaultBorder = new Color(0.5f, 0.5f, 0.5f, 1f);
+    private static readonly Color s_hoverBorder = new Color(1f, 0.84f, 0f, 1f);
 
     public RadialMenu(ILocalizationService loc, IProgrammatorTextureCatalog textures)
     {
@@ -79,8 +79,8 @@ public class RadialMenu
     public void SetInnerItems(int[] ids, Color[]? colors = null)
     {
         _innerContainer.Clear();
-        _innerIDs = ids ?? Array.Empty<int>();
-        _innerCount = _innerIDs.Length;
+        _innerIds = ids ?? Array.Empty<int>();
+        _innerCount = _innerIds.Length;
         _innerItemColors = colors;
 
         for (int i = 0; i < _innerCount; i++)
@@ -108,7 +108,7 @@ public class RadialMenu
 
             item.AddToClassList("prog-radial-item");
 
-            Color borderColor = (colors != null && i < colors.Length) ? colors[i] : _DefaultBorder;
+            Color borderColor = (colors != null && i < colors.Length) ? colors[i] : s_defaultBorder;
             item.style.borderTopColor = borderColor;
             item.style.borderBottomColor = borderColor;
             item.style.borderLeftColor = borderColor;
@@ -118,7 +118,7 @@ public class RadialMenu
             item.name = $"radial_inner_{i}";
 
             // Categories use negative IDs — show name label
-            string catName = ProgrammatorData.CATEGORY_NAMES.TryGetValue(_innerIDs[i], out var cn) ? _loc.Get(cn) : _innerIDs[i].ToString();
+            string catName = ProgrammatorData.CATEGORY_NAMES.TryGetValue(_innerIds[i], out var cn) ? _loc.Get(cn) : _innerIds[i].ToString();
             var label = new Label(catName);
             label.AddToClassList("prog-radial-item-label");
             label.pickingMode = PickingMode.Ignore;
@@ -126,7 +126,7 @@ public class RadialMenu
 
             item.RegisterCallback<PointerEnterEvent>(_ => OnInnerPointerEnter(itemIdx));
             item.RegisterCallback<PointerLeaveEvent>(_ => OnInnerPointerLeave(itemIdx));
-            item.RegisterCallback<PointerDownEvent>(_ => OnCategoryClicked?.Invoke(_innerIDs[itemIdx]));
+            item.RegisterCallback<PointerDownEvent>(_ => OnCategoryClicked?.Invoke(_innerIds[itemIdx]));
 
             _innerContainer.Add(item);
         }
@@ -135,8 +135,8 @@ public class RadialMenu
     public void SetOuterItems(int[] ids, Color[]? colors = null)
     {
         _outerContainer.Clear();
-        _outerIDs = ids ?? Array.Empty<int>();
-        _outerCount = _outerIDs.Length;
+        _outerIds = ids ?? Array.Empty<int>();
+        _outerCount = _outerIds.Length;
 
         for (int i = 0; i < _outerCount; i++)
         {
@@ -166,7 +166,7 @@ public class RadialMenu
             item.pickingMode = PickingMode.Position;
             item.name = $"radial_outer_{i}";
 
-            int id = _outerIDs[i];
+            int id = _outerIds[i];
             var action = (ProgAction)id;
             var tex = _textures.GetTexture(action);
             if (tex != null)
@@ -185,7 +185,7 @@ public class RadialMenu
 
             item.RegisterCallback<PointerEnterEvent>(_ => OnOuterPointerEnter(itemIdx));
             item.RegisterCallback<PointerLeaveEvent>(_ => OnOuterPointerLeave(itemIdx));
-            item.RegisterCallback<PointerDownEvent>(_ => OnItemClicked?.Invoke(_outerIDs[itemIdx]));
+            item.RegisterCallback<PointerDownEvent>(_ => OnItemClicked?.Invoke(_outerIds[itemIdx]));
 
             _outerContainer.Add(item);
         }
@@ -198,7 +198,7 @@ public class RadialMenu
     {
         _outerContainer.Clear();
         _outerCount = 0;
-        _outerIDs = Array.Empty<int>();
+        _outerIds = Array.Empty<int>();
         _hoveredOuterIndex = -1;
         _outerRingBg.style.display = DisplayStyle.None;
         _backButton.style.display = DisplayStyle.None;
@@ -215,8 +215,8 @@ public class RadialMenu
                 continue;
             }
 
-            Color bc = (i == index) ? _HoverBorder
-                : (_innerItemColors != null && i < _innerItemColors.Length) ? _innerItemColors[i] : _DefaultBorder;
+            Color bc = (i == index) ? s_hoverBorder
+                : (_innerItemColors != null && i < _innerItemColors.Length) ? _innerItemColors[i] : s_defaultBorder;
             item.style.borderTopColor = bc;
             item.style.borderBottomColor = bc;
             item.style.borderLeftColor = bc;
@@ -234,7 +234,7 @@ public class RadialMenu
         var item = _innerContainer[index] as VisualElement;
         if (item != null)
         {
-            Color bc = (_innerItemColors != null && index < _innerItemColors.Length) ? _innerItemColors[index] : _DefaultBorder;
+            Color bc = (_innerItemColors != null && index < _innerItemColors.Length) ? _innerItemColors[index] : s_defaultBorder;
             item.style.borderTopColor = bc;
             item.style.borderBottomColor = bc;
             item.style.borderLeftColor = bc;
@@ -253,7 +253,7 @@ public class RadialMenu
                 continue;
             }
 
-            Color bc = (i == index) ? _HoverBorder : _DefaultBorder;
+            Color bc = (i == index) ? s_hoverBorder : s_defaultBorder;
             item.style.borderTopColor = bc;
             item.style.borderBottomColor = bc;
             item.style.borderLeftColor = bc;
@@ -271,10 +271,10 @@ public class RadialMenu
         var item = _outerContainer[index] as VisualElement;
         if (item != null)
         {
-            item.style.borderTopColor = _DefaultBorder;
-            item.style.borderBottomColor = _DefaultBorder;
-            item.style.borderLeftColor = _DefaultBorder;
-            item.style.borderRightColor = _DefaultBorder;
+            item.style.borderTopColor = s_defaultBorder;
+            item.style.borderBottomColor = s_defaultBorder;
+            item.style.borderLeftColor = s_defaultBorder;
+            item.style.borderRightColor = s_defaultBorder;
         }
     }
 

@@ -1,0 +1,19 @@
+#pragma kernel ReadProbeRows
+
+// Reads the probe field the way lighting kernels read their fields: by memory
+// row through Load. Row r is 1 when the raster covered it.
+Texture2D<float4> _ProbeField;
+RWStructuredBuffer<uint> _ProbeRows;
+int _ProbeRowCount;
+
+[numthreads(8, 1, 1)]
+void ReadProbeRows(uint3 id : SV_DispatchThreadID)
+{
+    int row = (int)id.x;
+    if (row >= _ProbeRowCount)
+    {
+        return;
+    }
+
+    _ProbeRows[row] = _ProbeField.Load(int3(0, row, 0)).a > 0.5 ? 1u : 0u;
+}

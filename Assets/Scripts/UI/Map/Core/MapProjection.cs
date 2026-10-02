@@ -9,13 +9,17 @@ namespace Kern.UI;
 /// <summary>Shared server-cell projection and unknown-cell appearance for all map surfaces.</summary>
 internal static class MapProjection
 {
+    public static readonly Color32 UnknownCellSolidColor = new(38, 35, 53, 255);
+
     public static Color32[] BuildCellColorTable(MapManager manager)
     {
         var colors = new Color32[256];
         for (int i = 0; i < colors.Length; i++)
         {
             CellType type = (CellType)i;
-            colors[i] = manager.GetCellMinimapColor32(type);
+            Color32 color = manager.GetCellMinimapColor32(type);
+            color.a = 255;
+            colors[i] = color;
         }
 
         return colors;
@@ -82,10 +86,21 @@ internal static class MapProjection
         return new Vector2Int(serverX - centerX + halfSize, centerY + halfSize - serverY);
     }
 
-    public static Color32 UnknownCellColor(int serverX, int serverY)
+    public static Color32 UnknownCellColor(int serverX, int serverY, float cellsPerPixel = 1f)
     {
         bool stripe = ((serverX + serverY) & 3) < 2;
-        return stripe ? new Color32(48, 43, 66, 255) : new Color32(28, 27, 39, 255);
+        Color32 stripeColor = stripe ? new Color32(48, 43, 66, 255) : new Color32(28, 27, 39, 255);
+        if (cellsPerPixel <= 1f)
+        {
+            return stripeColor;
+        }
+
+        if (cellsPerPixel >= 2f)
+        {
+            return UnknownCellSolidColor;
+        }
+
+        return Color32.Lerp(stripeColor, UnknownCellSolidColor, cellsPerPixel - 1f);
     }
 
     public static Color32 SampleCellColor(
@@ -96,7 +111,8 @@ internal static class MapProjection
         int worldWidth,
         int worldHeight,
         Color32 outOfBoundsColor,
-        out bool hasLoadedCell)
+        out bool hasLoadedCell,
+        float cellsPerPixel = 1f)
     {
         hasLoadedCell = false;
         if (serverX < 0 || serverX >= worldWidth || serverY < 0 || serverY >= worldHeight)
@@ -106,7 +122,7 @@ internal static class MapProjection
 
         if (!sampler.TryGetCell(serverX, serverY, out CellType type) || type == CellType.Unloaded)
         {
-            return UnknownCellColor(serverX, serverY);
+            return UnknownCellColor(serverX, serverY, cellsPerPixel);
         }
 
         hasLoadedCell = true;

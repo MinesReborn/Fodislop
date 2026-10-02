@@ -1,0 +1,154 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine.Scripting.APIUpdating;
+using UnityEngine.Serialization;
+
+#if UNITY_EDITOR
+using UnityEditor;
+using UnityEditor.ProjectWindowCallback;
+#endif
+
+namespace UnityEngine.Rendering.Universal
+{
+    [Serializable, ReloadGroup, ExcludeFromPreset]
+    [MovedFrom(true, "UnityEngine.Experimental.Rendering.Universal", "Unity.RenderPipelines.Universal.Runtime")]
+    [URPHelpURL("urp/2DRendererData-overview")]
+    public partial class Renderer2DData : ScriptableRendererData
+    {
+        internal enum Renderer2DDefaultMaterialType
+        {
+            Lit,
+            Unlit,
+            Custom
+        }
+
+        [SerializeField]
+        LayerMask m_LayerMask = -1;
+
+        [SerializeField]
+        TransparencySortMode m_TransparencySortMode = TransparencySortMode.Default;
+
+        [SerializeField]
+        Vector3 m_TransparencySortAxis = Vector3.up;
+
+        [SerializeField]
+        float m_HDREmulationScale = 1;
+
+        [SerializeField, Range(0.01f, 1.0f)]
+        float m_LightRenderTextureScale = 0.5f;
+
+        [SerializeField, FormerlySerializedAs("m_LightOperations")]
+        Light2DBlendStyle[] m_LightBlendStyles = null;
+
+        [SerializeField]
+        bool m_UseDepthStencilBuffer = true;
+
+        [SerializeField]
+        bool m_UseCameraSortingLayersTexture = false;
+
+        [SerializeField]
+        int m_CameraSortingLayersTextureBound = 0;
+
+        [SerializeField]
+        Downsampling m_CameraSortingLayerDownsamplingMethod = Downsampling.None;
+
+        [SerializeField]
+        uint m_MaxLightRenderTextureCount = 16;
+
+        [SerializeField]
+        uint m_MaxShadowRenderTextureCount = 1;
+
+        [SerializeField]
+        PostProcessData m_PostProcessData = null;
+
+        public float hdrEmulationScale => m_HDREmulationScale;
+        internal float lightRenderTextureScale => m_LightRenderTextureScale;
+        public Light2DBlendStyle[] lightBlendStyles => m_LightBlendStyles;
+        internal bool useDepthStencilBuffer => m_UseDepthStencilBuffer;
+        internal PostProcessData postProcessData { get => m_PostProcessData; set { m_PostProcessData = value; } }
+        internal TransparencySortMode transparencySortMode => m_TransparencySortMode;
+        internal Vector3 transparencySortAxis => m_TransparencySortAxis;
+        internal uint lightRenderTextureMemoryBudget => m_MaxLightRenderTextureCount;
+        internal uint shadowRenderTextureMemoryBudget => m_MaxShadowRenderTextureCount;
+        internal bool useCameraSortingLayerTexture => m_UseCameraSortingLayersTexture;
+        internal int cameraSortingLayerTextureBound => m_CameraSortingLayersTextureBound;
+        internal Downsampling cameraSortingLayerDownsamplingMethod => m_CameraSortingLayerDownsamplingMethod;
+        internal LayerMask layerMask => m_LayerMask;
+        internal bool useRenderingLayers { get { return UniversalRenderPipeline.asset.useRenderingLayers; } }
+        internal RenderingLayerUtils.MaskSize renderingLayersMaskSize { get; set; }
+
+        /// <returns>The instance of Renderer2D</returns>
+        protected override ScriptableRenderer Create()
+        {
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
+                ReloadAllNullProperties();
+            }
+#endif
+            UnityEngine.RenderAs2DUtil.InitializeCanRenderAs2D();
+            return new Renderer2D(this);
+        }
+
+        internal void Dispose()
+        {
+            UnityEngine.RenderAs2DUtil.DisposeCanRenderAs2D();
+
+            foreach(var mat in lightMaterials)
+                CoreUtils.Destroy(mat.Value);
+
+            lightMaterials.Clear();
+
+            CoreUtils.Destroy(spriteSelfShadowMaterial);
+            CoreUtils.Destroy(spriteUnshadowMaterial);
+            CoreUtils.Destroy(spriteSelfShadowMaterialSkinned);
+            CoreUtils.Destroy(spriteUnshadowMaterialSkinned);
+            CoreUtils.Destroy(geometrySelfShadowMaterial);
+            CoreUtils.Destroy(geometryUnshadowMaterial);
+            CoreUtils.Destroy(projectedShadowMaterial);
+            CoreUtils.Destroy(projectedUnshadowMaterial);
+        }
+
+        protected override void OnEnable()
+        {
+            base.OnEnable();
+
+            geometrySelfShadowMaterial = null;
+            geometryUnshadowMaterial = null;
+
+            spriteSelfShadowMaterial = null;
+            spriteUnshadowMaterial = null;
+            spriteSelfShadowMaterialSkinned = null;
+            spriteUnshadowMaterialSkinned = null;
+            projectedShadowMaterial = null;
+            projectedUnshadowMaterial = null;
+        }
+
+        // transient data
+        internal Dictionary<uint, Material> lightMaterials { get; } = new Dictionary<uint, Material>();
+
+        internal void ClearLightMaterialCache()
+        {
+            foreach (var mat in lightMaterials.Values)
+            {
+                if (mat != null)
+                    CoreUtils.Destroy(mat);
+            }
+            lightMaterials.Clear();
+        }
+        internal Material spriteSelfShadowMaterial { get; set; }
+        internal Material spriteUnshadowMaterial { get; set; }
+        internal Material spriteSelfShadowMaterialSkinned { get; set; }
+        internal Material spriteUnshadowMaterialSkinned { get; set; }
+        internal Material geometrySelfShadowMaterial { get; set; }
+        internal Material geometryUnshadowMaterial { get; set; }
+        internal Material projectedShadowMaterial { get; set; }
+        internal Material projectedUnshadowMaterial { get; set; }
+
+        internal RTHandle normalsRenderTarget;
+        internal RTHandle cameraSortingLayerRenderTarget;
+
+        // this shouldn've been in RenderingData along with other cull results
+        internal ILight2DCullResult lightCullResult { get; set; }
+    }
+}

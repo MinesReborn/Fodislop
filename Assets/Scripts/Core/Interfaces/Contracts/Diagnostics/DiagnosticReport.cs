@@ -21,7 +21,7 @@ public static class DiagnosticReport
 {
     public const string LogTag = "[Diag]";
 
-    private static readonly UTF8Encoding _Utf8 = new(false);
+    private static readonly UTF8Encoding s_utf8 = new(false);
 
     /// <summary>Шапка отчёта: что это, когда, где и на чём.</summary>
     public static string Header(string kind)
@@ -45,7 +45,7 @@ public static class DiagnosticReport
         try
         {
             string path = DiagnosticArtifactPaths.CreatePath(category, name, "txt");
-            File.WriteAllText(path, Header(kind) + Environment.NewLine + body, _Utf8);
+            File.WriteAllText(path, Header(kind) + Environment.NewLine + body, s_utf8);
             Announce(kind, path);
             return path;
         }
@@ -70,7 +70,7 @@ public static class DiagnosticReport
             File.AppendAllText(
                 path,
                 (created ? Header(kind) : string.Empty) + Environment.NewLine + entry + Environment.NewLine,
-                _Utf8);
+                s_utf8);
             if (created)
             {
                 Announce(kind, path);

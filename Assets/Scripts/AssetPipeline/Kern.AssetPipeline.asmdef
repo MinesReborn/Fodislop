@@ -5,7 +5,6 @@
         "UniTask",
         "Kern.Contracts",
         "MinesServer.Networking",
-        "unity.webp",
         "VContainer"
     ],
     "includePlatforms": [],

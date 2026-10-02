@@ -19,8 +19,11 @@ namespace MinesServer.Networking.Connection.Client;
 internal sealed class DummyClanManager
 {
     private readonly Action<ServerPacket> _onReceived;
-    private ushort _clanID;
-    private static readonly (ushort ID, string Name, string Desc)[] _MockClans =
+    private ushort _clanId;
+    private int _closeElement = -1;
+    private int _leaveElement = -1;
+    private int[] _clanElements = [];
+    private static readonly (ushort Id, string Name, string Desc)[] s_mockClans =
     {
         (1, "Альфа", "Старейший клан на сервере"),
     };
@@ -30,13 +33,21 @@ internal sealed class DummyClanManager
         _onReceived = onReceived;
     }
 
-    public ushort ClanID => _clanID;
+    public ushort ClanId => _clanId;
 
     public void SendClanListWindow()
     {
         var items = new List<IGUIComponentPacket>();
-        foreach (var clan in _MockClans)
+        var clanButtons = new List<IGUIComponentPacket>();
+        foreach (var clan in s_mockClans)
         {
+            var clanButton = new TextPacket
+            {
+                Text = $"<color=white><b>Клан «{clan.Name}»</b>  <color=#888888>(ID: {clan.Id})</color></color>",
+                OnClickContext = ".",
+                AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Left") },
+            };
+            clanButtons.Add(clanButton);
             items.Add(new DockPanelPacket
             {
                 Style = new GUIStylePacket
@@ -51,17 +62,12 @@ internal sealed class DummyClanManager
                 {
                     new ImagePacket
                     {
-                        URI = $"clan/{clan.ID}.png",
+                        URI = $"clan/{clan.Id}.png",
                         Width = 16,
                         Height = 16,
                         AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Left") },
                     },
-                    new TextPacket
-                    {
-                        Text = $"<color=white><b>Клан «{clan.Name}»</b>  <color=#888888>(ID: {clan.ID})</color></color>",
-                        OnClickContext = ".",
-                        AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Left") },
-                    },
+                    clanButton,
                 },
             });
             items.Add(new TextPacket
@@ -75,6 +81,7 @@ internal sealed class DummyClanManager
             });
         }
 
+        TextPacket close = CloseButton();
         var root = new DockPanelPacket
         {
             Style = new GUIStylePacket
@@ -96,12 +103,7 @@ internal sealed class DummyClanManager
                             Text = "<color=#B2A680><b>Доступные кланы</b></color>",
                             AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Left") },
                         },
-                        new TextPacket
-                        {
-                            Text = "<color=#B3B3B3>×</color>",
-                            OnClickContext = "clan_close",
-                            AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Right") },
-                        },
+                        close,
                     },
                 },
                 new ScrollViewerPacket
@@ -116,16 +118,32 @@ internal sealed class DummyClanManager
             },
         };
 
+        _closeElement = DummyWindowElements.IndexOf(root, close);
+        _clanElements = clanButtons.Select(button => DummyWindowElements.IndexOf(root, button)).ToArray();
         _onReceived.Invoke(new ServerPacket(new OpenWindowPacket("clan_list", 320, 260, root)));
     }
 
     public void SendClanInfoWindow()
     {
-        string clanName = _clanID.ToString();
-        string clanDesc = string.Empty;
-        foreach (var c in _MockClans)
+        var leave = new TextPacket
         {
-            if (c.ID == _clanID)
+            Text = "<color=#FF6666>Покинуть клан</color>",
+            OnClickContext = ".",
+            AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Top") },
+            Style = new GUIStylePacket
+            {
+                Padding = new Margins(6, 10, 6, 6),
+                Background = System.Drawing.Color.FromArgb(40, 80, 40, 40),
+                Border = System.Drawing.Color.FromArgb(60, 120, 60, 60),
+                BorderWidth = 1,
+                Margin = new Margins(0, 0, 0, 0),
+            },
+        };
+        string clanName = _clanId.ToString();
+        string clanDesc = string.Empty;
+        foreach (var c in s_mockClans)
+        {
+            if (c.Id == _clanId)
             {
                 clanName = c.Name;
                 clanDesc = c.Desc;
@@ -133,6 +151,7 @@ internal sealed class DummyClanManager
             }
         }
 
+        TextPacket close = CloseButton();
         var root = new DockPanelPacket
         {
             Style = new GUIStylePacket
@@ -154,40 +173,24 @@ internal sealed class DummyClanManager
                             Text = "<color=#B2A680><b>Мой клан</b></color>",
                             AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Left") },
                         },
-                        new TextPacket
-                        {
-                            Text = "<color=#B3B3B3>×</color>",
-                            OnClickContext = "clan_close",
-                            AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Right") },
-                        },
+                        close,
                     },
                 },
                 new TextPacket
                 {
-                    Text = $"<color=white><b>Клан «{clanName}»</b></color>\n<color=#888888>ID: {_clanID}</color>\n<color=#999999>{clanDesc}</color>",
+                    Text = $"<color=white><b>Клан «{clanName}»</b></color>\n<color=#888888>ID: {_clanId}</color>\n<color=#999999>{clanDesc}</color>",
                     AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Top") },
                     Style = new GUIStylePacket
                     {
                         Margin = new Margins(8, 0, 8, 0),
                     },
                 },
-                new TextPacket
-                {
-                    Text = "<color=#FF6666>Покинуть клан</color>",
-                    OnClickContext = ".",
-                    AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Top") },
-                    Style = new GUIStylePacket
-                    {
-                        Padding = new Margins(6, 10, 6, 6),
-                        Background = System.Drawing.Color.FromArgb(40, 80, 40, 40),
-                        Border = System.Drawing.Color.FromArgb(60, 120, 60, 60),
-                        BorderWidth = 1,
-                        Margin = new Margins(0, 0, 0, 0),
-                    },
-                },
+                leave,
             },
         };
 
+        _closeElement = DummyWindowElements.IndexOf(root, close);
+        _leaveElement = DummyWindowElements.IndexOf(root, leave);
         _onReceived.Invoke(new ServerPacket(new OpenWindowPacket("clan_info", 300, 200, root)));
     }
 
@@ -195,49 +198,57 @@ internal sealed class DummyClanManager
     {
         if (packet.WindowTag == "join_clan")
         {
-            _clanID = 1;
+            _clanId = 1;
             _onReceived.Invoke(new ServerPacket(new ShowClanPacket(1)));
         }
         else if (packet.WindowTag == "leave_clan")
         {
-            _clanID = 0;
+            _clanId = 0;
             _onReceived.Invoke(new ServerPacket(new HideClanPacket()));
         }
         else if (packet.WindowTag == "clan_list")
         {
-            if (packet.ElementIndex == 0)
+            if (packet.ElementIndex == _closeElement)
             {
                 _onReceived.Invoke(new ServerPacket(new CloseWindowPacket()));
             }
             else
             {
-                int idx = packet.ElementIndex - 1;
-                if (idx >= 0 && idx < _MockClans.Length)
+                int idx = Array.IndexOf(_clanElements, packet.ElementIndex);
+                if (idx >= 0 && idx < s_mockClans.Length)
                 {
-                    _clanID = _MockClans[idx].ID;
-                    _onReceived.Invoke(new ServerPacket(new ShowClanPacket(_clanID)));
+                    _clanId = s_mockClans[idx].Id;
+                    _onReceived.Invoke(new ServerPacket(new ShowClanPacket(_clanId)));
                     _onReceived.Invoke(new ServerPacket(new CloseWindowPacket()));
                 }
             }
         }
         else if (packet.WindowTag == "clan_info")
         {
-            if (packet.ElementIndex == 0)
+            if (packet.ElementIndex == _closeElement)
             {
                 _onReceived.Invoke(new ServerPacket(new CloseWindowPacket()));
             }
-            else
+            else if (packet.ElementIndex == _leaveElement)
             {
-                _clanID = 0;
+                _clanId = 0;
                 _onReceived.Invoke(new ServerPacket(new HideClanPacket()));
                 _onReceived.Invoke(new ServerPacket(new CloseWindowPacket()));
             }
         }
     }
 
+    // "." collects inputs from the button itself: it has none.
+    private static TextPacket CloseButton() => new()
+    {
+        Text = "<color=#B3B3B3>×</color>",
+        OnClickContext = ".",
+        AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Right") },
+    };
+
     public void HandleOpenClanClick()
     {
-        if (_clanID == 0)
+        if (_clanId == 0)
         {
             SendClanListWindow();
         }

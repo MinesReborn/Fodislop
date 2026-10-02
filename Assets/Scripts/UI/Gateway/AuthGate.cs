@@ -1,6 +1,8 @@
 #nullable enable
 
 using System;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Core.Localization;
@@ -24,11 +26,14 @@ public sealed class AuthGate
     private readonly Label _hint;
     private readonly IClientConfigManager _clientConfig;
     private readonly IAuthenticationService _authentication;
+    private readonly IAsyncOperationSupervisor _operations;
     private readonly ILocalizationService? _loc;
 
     private Button? _vkButton;
     private Label? _vkLabel;
     private bool _vkBusy;
+    private int _loginGeneration;
+    private bool _disposed;
 
     public event Action? Passed;
 
@@ -42,6 +47,7 @@ public sealed class AuthGate
         Label hint,
         IClientConfigManager clientConfig,
         IAuthenticationService authentication,
+        IAsyncOperationSupervisor operations,
         ILocalizationService? loc)
     {
         _loginForm = loginForm;
@@ -53,6 +59,7 @@ public sealed class AuthGate
         _hint = hint;
         _clientConfig = clientConfig;
         _authentication = authentication;
+        _operations = operations;
         _loc = loc;
     }
 
@@ -75,6 +82,7 @@ public sealed class AuthGate
         VisualElement tree,
         IClientConfigManager clientConfig,
         IAuthenticationService authentication,
+        IAsyncOperationSupervisor operations,
         ILocalizationService? loc)
     {
         var loginForm = tree.Q<VisualElement>("AuthLoginForm");
@@ -103,6 +111,7 @@ public sealed class AuthGate
             hint,
             clientConfig,
             authentication,
+            operations,
             loc);
         gate.Bind(tree);
         return gate;
@@ -144,30 +153,51 @@ public sealed class AuthGate
         _autoLogin.SetValueWithoutNotify(_clientConfig.Config.Interface.AutoLogin);
     }
 
-    private async void StartVKLogin()
+    private void StartVKLogin()
     {
-        if (_vkBusy)
+        if (_disposed || _vkBusy)
         {
             return;
         }
 
+        int loginGeneration = ++_loginGeneration;
         _vkBusy = true;
         _vkButton?.SetEnabled(false);
         ShowHint(
             L("gateway.auth.vk_started", "VK: откройте ссылку подтверждения в браузере…"),
             warn: false);
 
+        _operations.Run("gateway_vk_login", token => CompleteVKLoginAsync(loginGeneration, token));
+    }
+
+    private async UniTask CompleteVKLoginAsync(int loginGeneration, CancellationToken cancellationToken)
+    {
         AuthenticationResult result;
         try
         {
             result = await _authentication.LoginWithVKAsync();
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return;
         }
         catch (Exception e)
         {
+            if (!IsCurrentLogin(loginGeneration))
+            {
+                return;
+            }
+
             Debug.LogError($"[AuthGate] VK login failed: {e}");
             _vkBusy = false;
             _vkButton?.SetEnabled(true);
             ShowHint(L("gateway.auth.vk_fail", "Ошибка VK: {0}", e.Message), warn: true);
+            return;
+        }
+
+        if (!IsCurrentLogin(loginGeneration))
+        {
             return;
         }
 
@@ -189,6 +219,18 @@ public sealed class AuthGate
             : result.Error;
         ShowHint(message, warn: true);
     }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _loginGeneration++;
+        _vkBusy = false;
+        _vkButton = null;
+        _vkLabel = null;
+    }
+
+    private bool IsCurrentLogin(int loginGeneration) =>
+        !_disposed && loginGeneration == _loginGeneration;
 
     public void Show()
     {

@@ -227,9 +227,9 @@ public class PlayerMovementValidatorTests
         public float GetMoveCooldown(CellType cellType) =>
             cellType == CellType.Empty ? emptyCooldown : normalCooldown;
 
-        public bool TryGetTileGroup(CellType type, out int groupID)
+        public bool TryGetTileGroup(CellType type, out int groupId)
         {
-            groupID = 0;
+            groupId = 0;
             return false;
         }
 
@@ -284,8 +284,8 @@ public class PlayerMovementValidatorTests
         public IEnumerable<int> GetLoadedChunkIndices() => [];
         public int GetLoadedCount() => 0;
         public int GetDirtyCount() => 0;
-        public CellType GetCell(int x, int y, bool touchLru = true) => CellType.Empty;
-        public CellType GetCellSync(int x, int y, bool touchLru = true) => CellType.Empty;
+        public CellType GetCell(int x, int y, bool touchLRU = true) => CellType.Empty;
+        public CellType GetCellSync(int x, int y, bool touchLRU = true) => CellType.Empty;
         public bool TryGetCell(int x, int y, out CellType value)
         {
             value = CellType.Empty;
@@ -295,8 +295,8 @@ public class PlayerMovementValidatorTests
         public void SetCell(int x, int y, CellType value) { }
         public int SetRegion(int startX, int startY, int width, int height, CellType[] cells, int cellsOffset = 0) => 0;
         public int SetRegion(int startX, int startY, int width, int height, ReadOnlySpan<CellType> cells, int cellsOffset = 0) => 0;
-        public CellType[] GetOrCreateChunk(int chunkIndex, bool touchLru = true) => [];
-        public ChunkReadResult<CellType> ReadChunk(int chunkIndex, bool touchLru = true) => new(ChunkReadStatus.Available, [], null);
+        public CellType[] GetOrCreateChunk(int chunkIndex, bool touchLRU = true) => [];
+        public ChunkReadResult<CellType> ReadChunk(int chunkIndex, bool touchLRU = true) => new(ChunkReadStatus.Available, [], null);
         public void Flush(bool flushToDisk = false) { }
         public bool GetChunkIndexAndLocal(int x, int y, out int chunkIndex, out int localIndex) { chunkIndex = 0; localIndex = 0; return true; }
         public void Dispose() { }

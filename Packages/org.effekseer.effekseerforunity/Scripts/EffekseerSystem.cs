@@ -24,6 +24,13 @@ namespace Effekseer
 	[Serializable]
 	public class EffekseerSystem
 	{
+        /// <summary>
+        /// Explicit world-grid backend policy, configured before scene loading.
+        /// Unity shaders expose vertex quantization; native binary shaders do not.
+        /// This mode requires compute support and never substitutes native rendering.
+        /// </summary>
+        public static bool WorldGridRendering { get; set; }
+
 		/// <summary xml:lang="en">
 		/// Plays the effect.
 		/// </summary>
@@ -358,7 +365,13 @@ namespace Effekseer
 
 			var settings = EffekseerSettings.Instance;
 
-			RendererType = settings.RendererType;
+			RendererType = WorldGridRendering ? EffekseerRendererType.Unity : settings.RendererType;
+            if (WorldGridRendering && (!SystemInfo.supportsComputeShaders ||
+                SystemInfo.graphicsDeviceType == GraphicsDeviceType.OpenGLCore ||
+                SystemInfo.graphicsDeviceType == GraphicsDeviceType.OpenGLES3))
+            {
+                throw new InvalidOperationException("World-grid Effekseer rendering requires the Unity shader backend with compute support.");
+            }
 
 			if (RendererType == EffekseerRendererType.Unity)
 			{
@@ -429,6 +442,11 @@ namespace Effekseer
 						break;
 				}
 			}
+
+            if (WorldGridRendering && RendererType != EffekseerRendererType.Unity)
+            {
+                throw new InvalidOperationException("World-grid rendering cannot use the native Effekseer shader backend.");
+            }
 
 			// reverse Znear and Zfar
 			bool reversedDepth = false;

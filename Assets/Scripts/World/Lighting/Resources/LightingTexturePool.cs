@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using Kern.Core.Diagnostics;
 using UnityEngine;
 
 namespace Kern.World.Lighting;
@@ -16,6 +17,15 @@ internal static class LightingTexturePool
         string name,
         bool useMipMap = false)
     {
+        int bytesPerPixel = format switch
+        {
+            RenderTextureFormat.ARGB32 or RenderTextureFormat.RFloat => 4,
+            RenderTextureFormat.ARGBHalf => 8,
+            RenderTextureFormat.ARGBFloat => 16,
+            _ => throw new ArgumentOutOfRangeException(nameof(format), format, "No lighting memory estimate for this format."),
+        };
+        long bytes = LightingAllocationEstimate.TextureBytes(width, height, 1, bytesPerPixel);
+        MemoryAllocationGuard.Require(name, useMipMap ? checked(bytes * 2) : bytes);
         var texture = new RenderTexture(
             width,
             height,

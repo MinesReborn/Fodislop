@@ -46,37 +46,37 @@ public sealed class SceneTransitionPlayModeTests
     }
 
     [UnityTest]
-    public IEnumerator BootstrapToGateway_WaitsForConcreteGatewayUi()
+    public IEnumerator BootstrapToGateway_WaitsForConcreteGatewayUI()
     {
         Scene gateway = SceneManager.GetSceneByName("Gateway");
         Assert.That(_bootstrap.CurrentSceneName, Is.EqualTo("Gateway"));
         Assert.That(gateway.isLoaded, Is.True);
         Assert.That(SceneManager.GetActiveScene(), Is.EqualTo(gateway));
         Assert.That(CountScopes(gateway), Is.EqualTo(1));
-        Assert.That(HasNamedUiElement(gateway, "GatewayRoot"), Is.True);
+        Assert.That(HasNamedUIElement(gateway, "GatewayRoot"), Is.True);
         yield break;
     }
 
     [UnityTest]
-    public IEnumerator GatewayToMainMenu_UnloadsGatewayOnlyAfterMenuUiExists()
+    public IEnumerator GatewayToMainMenu_UnloadsGatewayOnlyAfterMenuUIExists()
     {
-        bool menuUiObservedBeforeCompletion = false;
+        bool menuUIObservedBeforeCompletion = false;
         UniTask transition = _bootstrap.TransitionAsync("MainMenu").Preserve();
         while (!transition.Status.IsCompleted())
         {
             Scene menuDuringTransition = SceneManager.GetSceneByName("MainMenu");
-            menuUiObservedBeforeCompletion |= menuDuringTransition.isLoaded &&
-                HasNamedUiElement(menuDuringTransition, "MainMenuContainer");
+            menuUIObservedBeforeCompletion |= menuDuringTransition.isLoaded &&
+                HasNamedUIElement(menuDuringTransition, "MainMenuContainer");
             yield return null;
         }
 
         transition.GetAwaiter().GetResult();
         Scene menu = SceneManager.GetSceneByName("MainMenu");
-        Assert.That(menuUiObservedBeforeCompletion, Is.True);
+        Assert.That(menuUIObservedBeforeCompletion, Is.True);
         Assert.That(SceneManager.GetSceneByName("Gateway").isLoaded, Is.False);
         Assert.That(menu.isLoaded, Is.True);
         Assert.That(CountScopes(menu), Is.EqualTo(1));
-        Assert.That(HasNamedUiElement(menu, "MainMenuContainer"), Is.True);
+        Assert.That(HasNamedUIElement(menu, "MainMenuContainer"), Is.True);
     }
 
     [UnityTest]
@@ -156,7 +156,7 @@ public sealed class SceneTransitionPlayModeTests
     }
 
     [UnityTest]
-    public IEnumerator FailedTransition_FiresOnceAndKeepsPreviousUiOperational()
+    public IEnumerator FailedTransition_FiresOnceAndKeepsPreviousUIOperational()
     {
         int failureCount = 0;
         _bootstrap.TransitionChanged += OnChanged;
@@ -166,7 +166,7 @@ public sealed class SceneTransitionPlayModeTests
             yield return AwaitFailure(transition, PlayModeHarness.UITimeoutSeconds);
             Assert.That(failureCount, Is.EqualTo(1));
             Assert.That(SceneManager.GetSceneByName("Gateway").isLoaded, Is.True);
-            Assert.That(HasNamedUiElement(SceneManager.GetSceneByName("Gateway"), "GatewayRoot"), Is.True);
+            Assert.That(HasNamedUIElement(SceneManager.GetSceneByName("Gateway"), "GatewayRoot"), Is.True);
         }
         finally
         {
@@ -249,8 +249,8 @@ public sealed class SceneTransitionPlayModeTests
             : null;
     }
 
-    private static bool HasNamedUiElement(Scene scene, string elementName) =>
-        PlayModeHarness.HasNamedUiElement(scene, elementName);
+    private static bool HasNamedUIElement(Scene scene, string elementName) =>
+        PlayModeHarness.HasNamedUIElement(scene, elementName);
 
     private static IEnumerator Await(UniTask task, float timeoutSeconds) => PlayModeHarness.Await(task, timeoutSeconds);
 

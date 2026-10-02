@@ -79,10 +79,11 @@ Shader "Kern/World Surface"
             Varyings VisibleVert(Attributes input)
             {
                 Varyings output;
-                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                float3 worldPosition = KernWorldGridVertex(TransformObjectToWorld(input.positionOS.xyz));
+                output.positionCS = KernWorldGridClipPosition(worldPosition);
                 output.uv = input.uv;
                 output.uv2 = input.customData.xy;
-                output.worldPosition = TransformObjectToWorld(input.positionOS.xyz).xy;
+                output.worldPosition = worldPosition.xy;
                 output.emissionMask = saturate(input.customData.x);
                 return output;
             }
@@ -218,6 +219,7 @@ Shader "Kern/World Surface"
             #pragma multi_compile_local_fragment _ KERN_SURFACE_REDROCK KERN_SURFACE_TRANSIT KERN_SURFACE_PERSPECTIVE KERN_SURFACE_HORIZON
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Assets/Shaders/World/LightingFieldRaster.hlsl"
             #include "WorldSurfaceCommon.hlsl"
 
             struct Attributes
@@ -259,7 +261,7 @@ Shader "Kern/World Surface"
             Varyings LightingFieldVert(Attributes input)
             {
                 Varyings output;
-                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                output.positionCS = KernLightingFieldClipPositionWorld(TransformObjectToWorld(input.positionOS.xyz));
                 output.uv = input.uv;
                 output.emissionMask = saturate(input.lightingData.x);
                 output.worldPosition = TransformObjectToWorld(input.positionOS.xyz).xy;
@@ -315,6 +317,7 @@ Shader "Kern/World Surface"
             #pragma multi_compile_local_fragment _ KERN_SURFACE_REDROCK KERN_SURFACE_TRANSIT KERN_SURFACE_PERSPECTIVE KERN_SURFACE_HORIZON
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Assets/Shaders/World/LightingFieldRaster.hlsl"
             #include "WorldSurfaceCommon.hlsl"
 
             struct Attributes
@@ -348,7 +351,7 @@ Shader "Kern/World Surface"
             Varyings LightingAmbientOcclusionVert(Attributes input)
             {
                 Varyings output;
-                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                output.positionCS = KernLightingFieldClipPositionWorld(TransformObjectToWorld(input.positionOS.xyz));
                 output.uv = input.uv;
                 output.worldPosition = TransformObjectToWorld(input.positionOS.xyz).xy;
                 return output;

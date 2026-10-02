@@ -97,37 +97,40 @@ public sealed class LightingGeometryRegistry
             _fieldTargets[1] = new RenderTargetIdentifier(emissionField);
             commandBuffer.SetRenderTarget(
                 _fieldTargets,
-                new RenderTargetIdentifier(BuiltinRenderTextureType.None));
+                new RenderTargetIdentifier(materialField));
             commandBuffer.ClearRenderTarget(
                 clearDepth: false,
                 clearColor: true,
                 backgroundColor: Color.clear);
         }
 
-        Matrix4x4 projection = Matrix4x4.Ortho(
-            worldRect.x,
-            worldRect.x + worldRect.z,
-            worldRect.y,
-            worldRect.y + worldRect.w,
-            -100f,
-            100f);
-        commandBuffer.SetViewProjectionMatrices(
-            Matrix4x4.identity,
-            GL.GetGPUProjectionMatrix(projection, renderIntoTexture: true));
+        // Contributors rasterize through the same explicit field transform as
+        // terrain (LightingFieldRaster.hlsl); their object matrix comes from
+        // each draw call. Camera matrices are not used by field passes.
+        LightingFieldOrientation.BindRaster(commandBuffer, worldRect, Matrix4x4.identity);
 
         var context = new LightingMaterialEmissionContext(materialField, emissionField, worldRect);
+        commandBuffer.SetViewport(new Rect(0f, 0f, materialField.width, materialField.height));
+        commandBuffer.EnableScissorRect(new Rect(0f, 0f, materialField.width, materialField.height));
         foreach (Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor contributor in _contributors)
         {
             contributor.RenderMaterialEmissionFields(commandBuffer, context);
         }
+        commandBuffer.DisableScissorRect();
     }
 
     public void RenderAmbientOcclusionField(
         CommandBuffer commandBuffer,
         RenderTexture ambientOcclusionField,
         Vector4 worldRect,
-        bool clearField = true)
+        bool clearField = true,
+        RectInt? rasterRect = null)
     {
+        if (clearField && rasterRect.HasValue)
+        {
+            throw new ArgumentException("Partial AO clearing is owned by the geometry solver.", nameof(clearField));
+        }
+
         if (commandBuffer == null)
         {
             throw new ArgumentNullException(nameof(commandBuffer));
@@ -150,29 +153,30 @@ public sealed class LightingGeometryRegistry
             _ambientOcclusionTarget[0] = new RenderTargetIdentifier(ambientOcclusionField);
             commandBuffer.SetRenderTarget(
                 _ambientOcclusionTarget,
-                new RenderTargetIdentifier(BuiltinRenderTextureType.None));
+                new RenderTargetIdentifier(ambientOcclusionField));
             commandBuffer.ClearRenderTarget(
                 clearDepth: false,
                 clearColor: true,
                 backgroundColor: Color.clear);
         }
 
-        Matrix4x4 projection = Matrix4x4.Ortho(
-            worldRect.x,
-            worldRect.x + worldRect.z,
-            worldRect.y,
-            worldRect.y + worldRect.w,
-            -100f,
-            100f);
-        commandBuffer.SetViewProjectionMatrices(
-            Matrix4x4.identity,
-            GL.GetGPUProjectionMatrix(projection, renderIntoTexture: true));
+        // Contributors rasterize through the same explicit field transform as
+        // terrain (LightingFieldRaster.hlsl); their object matrix comes from
+        // each draw call. Camera matrices are not used by field passes.
+        LightingFieldOrientation.BindRaster(commandBuffer, worldRect, Matrix4x4.identity);
 
-        var context = new LightingAmbientOcclusionContext(ambientOcclusionField, worldRect);
+        var context = new LightingAmbientOcclusionContext(ambientOcclusionField, worldRect)
+        {
+            RasterRect = rasterRect,
+        };
+        commandBuffer.SetViewport(new Rect(0f, 0f, ambientOcclusionField.width, ambientOcclusionField.height));
+        RectInt rect = rasterRect ?? new RectInt(0, 0, ambientOcclusionField.width, ambientOcclusionField.height);
+        commandBuffer.EnableScissorRect(new Rect(rect.x, rect.y, rect.width, rect.height));
         foreach (Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor contributor in _contributors)
         {
             contributor.RenderAmbientOcclusionField(commandBuffer, context);
         }
+        commandBuffer.DisableScissorRect();
     }
 
     private static ulong RotateLeft(ulong value, int offset)

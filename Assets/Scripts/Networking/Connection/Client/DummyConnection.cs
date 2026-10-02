@@ -139,7 +139,7 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
             _pathFinder,
             SendPacket,
             () => _debugSettings.IgnoreCollision,
-            _mockBotID);
+            _mockBotId);
         _actionResponder = new DummyGameplayActionResponder(
             _playerState,
             _worldState,
@@ -149,7 +149,7 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
             _chatSimulator,
             clock,
             SendPacket,
-            _mockBotID);
+            _mockBotId);
         _windowResponder = new DummyWindowResponder(
             SendPacket,
             _buffManager,
@@ -172,11 +172,11 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
             LoopAlive);
     }
 
-    private string _PlayerName => _authSession.PlayerName;
+    private string PlayerName => _authSession.PlayerName;
 
-    private long _Level => 12345;
+    private long Level => 12345;
 
-    private long _Currency => 123456;
+    private long Currency => 123456;
 
     public ConnectionStatus ConnectionStatus => _session.Status;
 
@@ -206,7 +206,7 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
     private readonly DummyWorldSimulationState _worldState;
     private readonly DummyWorldStartupResponder _worldStartup;
 
-    private const ushort _mockBotID = 456;
+    private const ushort _mockBotId = 456;
     private readonly List<(ushort X, ushort Y)> _teleportPositions = new();
 
     // Depth warning/damage feature disabled in DummyConnection
@@ -407,7 +407,7 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
             case SendLocalChatMessagePacket localMsg:
                 _chatResponder.SendLocal(
                     localMsg,
-                    _mockBotID,
+                    _mockBotId,
                     _playerState.X,
                     _playerState.Y);
                 break;
@@ -483,10 +483,10 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
         return _worldStartup.InitializeAsync(
             PrebakedWorldCodeName,
             _session.LifecycleVersion,
-            _PlayerName,
-            _Level,
-            _Currency,
-            _mockBotID);
+            PlayerName,
+            Level,
+            Currency,
+            _mockBotId);
     }
 
 }

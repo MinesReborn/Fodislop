@@ -17,6 +17,37 @@ public sealed class TerrainWindowAdvanceTests
     private const int Width = 192;
     private const int Height = 160;
 
+    [TestCase(8, 0)]
+    [TestCase(-8, 0)]
+    [TestCase(0, 8)]
+    [TestCase(0, -8)]
+    [TestCase(8, -8)]
+    public void WindowMovementPublishesArrivingAndDepartingCoverage(int deltaX, int deltaY)
+    {
+        var journal = new TerrainWindowChangeJournal();
+        RectInt previous = new(-32, -48, 32, 32);
+        RectInt current = new(previous.x + deltaX, previous.y + deltaY, 32, 32);
+        journal.RecordPublishedCoverageChange(previous, current);
+        var regions = new List<RectInt>();
+        journal.TakePublishedChangedRegions(regions);
+        for (int y = -64; y < 0; y++)
+        {
+            for (int x = -48; x < 16; x++)
+            {
+                Vector2Int cell = new(x, y);
+                if (previous.Contains(cell) != current.Contains(cell))
+                {
+                    Assert.That(regions.Exists(region => region.Contains(cell)), Is.True,
+                        $"Changed contributor coverage at {cell} was not published.");
+                }
+            }
+        }
+
+        regions.Clear();
+        journal.TakePublishedChangedRegions(regions);
+        Assert.That(regions, Is.Empty, "Coverage must be acknowledged once.");
+    }
+
     [Test]
     public void NothingToDoWhenTheWindowIsAlreadyWhereItWasAsked()
     {

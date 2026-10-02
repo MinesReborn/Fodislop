@@ -17,10 +17,12 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="VContainer">
-      <HintPath>../../Library/ScriptAssemblies/VContainer.dll</HintPath>
+      <HintPath Condition="Exists('../../Library/ScriptAssemblies/VContainer.dll')">../../Library/ScriptAssemblies/VContainer.dll</HintPath>
+      <HintPath Condition="!Exists('../../Library/ScriptAssemblies/VContainer.dll')">../lib/VContainer.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
-      <HintPath>/Applications/Unity/Hub/Editor/6000.6.0f1/Unity.app/Contents/Resources/Scripting/Managed/UnityEngine/UnityEngine.CoreModule.dll</HintPath>
+      <HintPath Condition="Exists('../../Library/ScriptAssemblies/UnityEngine.CoreModule.dll')">../../Library/ScriptAssemblies/UnityEngine.CoreModule.dll</HintPath>
+      <HintPath Condition="!Exists('../../Library/ScriptAssemblies/UnityEngine.CoreModule.dll')">../lib/UnityEngine.CoreModule.dll</HintPath>
       <Aliases>UnityEngineRuntime</Aliases>
     </Reference>
   </ItemGroup>
@@ -30,7 +32,10 @@
     <Compile Include="$(UnityRoot)/World/Lighting/Core/TerrainLightingChangePump.cs" Link="Production/TerrainLightingChangePump.cs" />
     <Compile Include="$(UnityRoot)/World/Lighting/Core/TerrainLightingFramePump.cs" Link="Production/TerrainLightingFramePump.cs" />
     <Compile Include="$(UnityRoot)/World/Lighting/Core/TerrainLightingChangeApplier.cs" Link="Production/TerrainLightingChangeApplier.cs" />
+    <Compile Include="$(UnityRoot)/World/Lighting/Core/LightingRuntimeInvalidation.cs" Link="Production/LightingRuntimeInvalidation.cs" />
     <Compile Include="$(UnityRoot)/World/Lighting/Core/LightingRuntimeState.cs" Link="Production/LightingRuntimeState.cs" />
+    <Compile Include="$(UnityRoot)/World/Lighting/Core/LightingAmbientOcclusionUpdatePolicy.cs" Link="Production/LightingAmbientOcclusionUpdatePolicy.cs" />
+    <Compile Include="$(UnityRoot)/Tests/Editor/World/Lighting/LightingAmbientOcclusionUpdatePolicyTests.cs" Link="Tests/LightingAmbientOcclusionUpdatePolicyTests.cs" />
     <Compile Include="$(UnityRoot)/World/Lighting/Core/LightingRegionCalculator.cs" Link="Production/LightingRegionCalculator.cs" />
     <Compile Include="$(UnityRoot)/World/Lighting/Core/LightingRegionInvalidationPolicy.cs" Link="Production/LightingRegionInvalidationPolicy.cs" />
     <Compile Include="$(UnityRoot)/World/Lighting/Core/LightingQualityTransitionPolicy.cs" Link="Production/LightingQualityTransitionPolicy.cs" />

@@ -171,9 +171,9 @@ public sealed class TerrainCellMetadataCacheTests
 
         public float GetMoveCooldown(CellType cellType) => 0f;
 
-        public bool TryGetTileGroup(CellType type, out int groupID)
+        public bool TryGetTileGroup(CellType type, out int groupId)
         {
-            groupID = 0;
+            groupId = 0;
             return false;
         }
 

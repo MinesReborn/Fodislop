@@ -245,7 +245,7 @@ namespace Effekseer.Internal
 			if ((allEffectMask & cameraMask) == 0)
 			{
 				// Because rendering thread is asynchronous
-				SpecifyRenderingMatrix(camera, path);
+				SpecifyRenderingMatrix(camera, path, renderTargetProperty);
 				return;
 			}
 
@@ -295,10 +295,10 @@ namespace Effekseer.Internal
 			var screenSize = BackgroundRenderTexture.GetRequiredSize(camera, renderTargetProperty);
 			Plugin.EffekseerSetRenderTargetProperty(path.renderId, TextureFormatType.R8G8B8A8_UNORM, TextureFormatType.D32S8, screenSize.x, screenSize.y);
 
-			SpecifyRenderingMatrix(camera, path);
+			SpecifyRenderingMatrix(camera, path, renderTargetProperty);
 		}
 
-		private static void SpecifyRenderingMatrix(Camera camera, RenderPath path)
+		private static void SpecifyRenderingMatrix(Camera camera, RenderPath path, RenderTargetProperty renderTargetProperty)
 		{
 			// specify matrixes for stereo rendering
 			if (camera.stereoEnabled)
@@ -318,9 +318,9 @@ namespace Effekseer.Internal
 			{
 				// update view matrixes
 				Plugin.EffekseerSetProjectionMatrix(path.renderId, Utility.Matrix2Array(
-					GL.GetGPUProjectionMatrix(camera.projectionMatrix, false)));
+					GL.GetGPUProjectionMatrix(renderTargetProperty?.ProjectionMatrixOverride ?? camera.projectionMatrix, false)));
 				Plugin.EffekseerSetCameraMatrix(path.renderId, Utility.Matrix2Array(
-					camera.worldToCameraMatrix));
+					renderTargetProperty?.ViewMatrixOverride ?? camera.worldToCameraMatrix));
 			}
 		}
 

@@ -49,6 +49,4 @@ public static class StyleApplicator
         bottom(margins.Bottom);
     }
 
-    public static Color ConvertColor(System.Drawing.Color color) =>
-        new(color.R / 255f, color.G / 255f, color.B / 255f, color.A / 255f);
 }

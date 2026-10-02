@@ -21,7 +21,7 @@ internal sealed class DummyAdminCommands(
 
     private const CellType DefaultPlacedCell = CellType.SuperRainbow;
 
-    private static readonly System.Drawing.Color _ServerColor =
+    private static readonly System.Drawing.Color s_serverColor =
         System.Drawing.Color.FromArgb(255, 255, 180, 60);
 
     public bool TryHandle(string? message)
@@ -141,9 +141,9 @@ internal sealed class DummyAdminCommands(
             now,
             0,
             0,
-            _ServerColor,
+            s_serverColor,
             "Сервер",
-            _ServerColor,
+            s_serverColor,
             text);
         sendPacket(new ServerPacket(new ChatMessageListPacket(
             ProjectRuntimeContracts.Chat.GlobalChannelTag,

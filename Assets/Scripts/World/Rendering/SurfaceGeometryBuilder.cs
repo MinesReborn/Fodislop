@@ -8,16 +8,14 @@ namespace Kern.World;
 public sealed class SurfaceGeometryBuilder
 {
     public const float TransitHeight = 2f;
-    public const float PerspectiveHeight = 2f;
     public const float TransitTileWidth = 30f;
-    public const float PerspectiveTileWidth = 30f;
     public const float HorizonWidth = 200f;
     public const float HorizonHeight = 100f;
     public const float BoundaryOverscan = 2f;
     public const float GeometryCacheQuantum = 32f;
     public const float GeometryCachePadding = 16f;
 
-    private static readonly int[] _QuadTriangles =
+    private static readonly int[] s_quadTriangles =
     [
         0, 1, 2, 3, 2, 1,
     ];
@@ -136,20 +134,6 @@ public sealed class SurfaceGeometryBuilder
             emissionMask: 1f);
     }
 
-    public void UpdatePerspectiveMesh(Mesh mesh, Rect coverageRect, int worldHeight)
-    {
-        float bottom = worldHeight + TransitHeight;
-        UpdateBandMesh(
-            mesh,
-            coverageRect,
-            bottom,
-            top: bottom + PerspectiveHeight,
-            tileWidth: PerspectiveTileWidth,
-            uvProjectionHeight: PerspectiveHeight,
-            uvOffset: 15f,
-            emissionMask: 1f);
-    }
-
     public void UpdateHorizonMesh(Mesh mesh)
     {
         float halfWidth = HorizonWidth * 0.5f;
@@ -167,7 +151,7 @@ public sealed class SurfaceGeometryBuilder
         mesh.SetVertices(_quadVertices);
         mesh.SetUVs(channel: 0, _quadUv);
         mesh.SetUVs(channel: 1, _quadLightingData);
-        mesh.SetTriangles(_QuadTriangles, submesh: 0, calculateBounds: true);
+        mesh.SetTriangles(s_quadTriangles, submesh: 0, calculateBounds: true);
     }
 
     public void InitializePerspectiveMesh(Mesh mesh)
@@ -175,7 +159,7 @@ public sealed class SurfaceGeometryBuilder
         mesh.SetVertices(_verticesPers);
         mesh.SetUVs(channel: 0, _uvPers);
         mesh.SetUVs(channel: 1, _uvPers2);
-        mesh.SetTriangles(_QuadTriangles, submesh: 0, calculateBounds: false);
+        mesh.SetTriangles(s_quadTriangles, submesh: 0, calculateBounds: false);
     }
 
     public void InitializeTransitMesh(Mesh mesh)
@@ -183,7 +167,7 @@ public sealed class SurfaceGeometryBuilder
         mesh.SetVertices(_verticesTransit);
         mesh.SetUVs(channel: 0, _uvTransit);
         mesh.SetUVs(channel: 1, _quadLightingData);
-        mesh.SetTriangles(_QuadTriangles, submesh: 0, calculateBounds: false);
+        mesh.SetTriangles(s_quadTriangles, submesh: 0, calculateBounds: false);
     }
 
     public void UpdateSurfaceMeshes(
@@ -191,10 +175,10 @@ public sealed class SurfaceGeometryBuilder
         Mesh perspectiveMesh,
         float cx,
         float surfaceY,
-        float screenWidth,
+        float span,
         float z = -0.04f)
     {
-        float span = Mathf.Max(screenWidth, 1f) / 30f;
+        span = Mathf.Max(span, 1f);
         float num = cx - span;
         float num2 = cx + span;
         float num3 = -(num - (Mathf.Floor(num / 30f) * 30f)) / 30f;
@@ -223,17 +207,18 @@ public sealed class SurfaceGeometryBuilder
         _verticesPers[2] = new Vector3(num2, surfaceY + 2f, z);
         _verticesPers[3] = new Vector3(num2, surfaceY + 4f, z);
 
-        transitMesh.bounds = new Bounds(new Vector3(cx, surfaceY + 1f, 0f), new Vector3(100f, 100f, 10f));
+        float meshBoundsWidth = Mathf.Max((span * 2f) + 32f, 200f);
+        transitMesh.bounds = new Bounds(new Vector3(cx, surfaceY + 1f, 0f), new Vector3(meshBoundsWidth, 100f, 10f));
         transitMesh.SetVertices(_verticesTransit);
         transitMesh.SetUVs(channel: 0, _uvTransit);
         transitMesh.SetUVs(channel: 1, _quadLightingData);
-        transitMesh.SetTriangles(_QuadTriangles, submesh: 0, calculateBounds: false);
+        transitMesh.SetTriangles(s_quadTriangles, submesh: 0, calculateBounds: false);
 
-        perspectiveMesh.bounds = new Bounds(new Vector3(cx, surfaceY + 3f, 0f), new Vector3(100f, 100f, 10f));
+        perspectiveMesh.bounds = new Bounds(new Vector3(cx, surfaceY + 3f, 0f), new Vector3(meshBoundsWidth, 100f, 10f));
         perspectiveMesh.SetVertices(_verticesPers);
         perspectiveMesh.SetUVs(channel: 0, _uvPers);
         perspectiveMesh.SetUVs(channel: 1, _uvPers2);
-        perspectiveMesh.SetTriangles(_QuadTriangles, submesh: 0, calculateBounds: false);
+        perspectiveMesh.SetTriangles(s_quadTriangles, submesh: 0, calculateBounds: false);
     }
 
     private void UpdateBandMesh(
@@ -280,7 +265,7 @@ public sealed class SurfaceGeometryBuilder
         mesh.SetVertices(_quadVertices);
         mesh.SetUVs(channel: 0, _quadUv);
         mesh.SetUVs(channel: 1, _quadLightingData);
-        mesh.SetTriangles(_QuadTriangles, submesh: 0, calculateBounds: true);
+        mesh.SetTriangles(s_quadTriangles, submesh: 0, calculateBounds: true);
     }
 
     private void AppendBoundaryQuad(

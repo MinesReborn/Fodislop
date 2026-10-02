@@ -22,12 +22,12 @@ namespace Kern.Persistence;
 internal sealed class WorldLayerDirtyWriter<T>
     where T : unmanaged
 {
-    private readonly ChunkLruCache<T> _cache;
+    private readonly ChunkLRUCache<T> _cache;
     private readonly WorldLayerFile<T> _file;
     private readonly int _chunkArea;
 
     public WorldLayerDirtyWriter(
-        ChunkLruCache<T> cache,
+        ChunkLRUCache<T> cache,
         WorldLayerFile<T> file,
         int chunkArea)
     {

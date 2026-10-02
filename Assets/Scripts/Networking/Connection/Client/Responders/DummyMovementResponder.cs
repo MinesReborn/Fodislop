@@ -24,7 +24,7 @@ internal sealed class DummyMovementResponder(
     DummyPathFinder pathFinder,
     Action<ServerPacket> sendPacket,
     Func<bool> ignoreCollision,
-    ushort playerBotID) : IDisposable
+    ushort playerBotId) : IDisposable
 {
     private CancellationTokenSource? _pathCancellation;
     private CancellationTokenSource? _pendingMoveLoadCancellation;
@@ -77,10 +77,16 @@ internal sealed class DummyMovementResponder(
         ScheduleMoveAfterPrefetch(packet.X, packet.Y, requestVersion);
     }
 
+    // Сервер отвечает на поворот сразу и раньше, чем на следующее действие:
+    // клиент сам бота не поворачивает, а ждёт этот ответ. Отложенный на
+    // 200 мс снимок пропускал вперёд копание, и эффект копания рисовался по
+    // старому углу бота. Позиция при повороте не меняется, чанки не нужны;
+    // отложенный снимок после шага, если он ждёт, остаётся — он пришлёт то же
+    // актуальное состояние вместе с чанками.
     public void HandleRotate(RotatePacket packet)
     {
         playerState.SetDirection(packet.Direction);
-        SchedulePositionSnapshot();
+        SendPositionSnapshot();
     }
 
     public void HandleClick(ClickCellPacket packet)
@@ -111,7 +117,7 @@ internal sealed class DummyMovementResponder(
     {
         sendPacket(new ServerPacket(new HBPacket([
             new RobotPositionPacket(
-                playerBotID,
+                playerBotId,
                 playerState.X,
                 playerState.Y,
                 (byte)playerState.Direction),
@@ -363,7 +369,7 @@ internal sealed class DummyMovementResponder(
                 previousY = nextY;
                 sendPacket(new ServerPacket(new HBPacket([
                     new RobotPositionPacket(
-                        playerBotID,
+                        playerBotId,
                         playerState.X,
                         playerState.Y,
                         (byte)direction),

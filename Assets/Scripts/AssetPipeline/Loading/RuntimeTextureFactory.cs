@@ -25,14 +25,14 @@ public static class RuntimeTextureFactory
         public bool FullyOpaque { get; }
     }
 
-    private static readonly ConditionalWeakTable<Texture2D, TextureOpacity> _decodedOpacity = new();
+    private static readonly ConditionalWeakTable<Texture2D, TextureOpacity> s_decodedOpacity = new();
 
-    public static bool SupportsTexture2DGpuCopy =>
+    public static bool SupportsTexture2DGPUCopy =>
         (SystemInfo.copyTextureSupport & CopyTextureSupport.Basic) != 0;
 
     public static bool TryGetDecodedOpacity(Texture2D texture, out bool fullyOpaque)
     {
-        if (_decodedOpacity.TryGetValue(texture, out TextureOpacity opacity))
+        if (s_decodedOpacity.TryGetValue(texture, out TextureOpacity opacity))
         {
             fullyOpaque = opacity.FullyOpaque;
             return true;
@@ -125,28 +125,6 @@ public static class RuntimeTextureFactory
         return texture;
     }
 
-    public static Texture2D CreateRGBAFloatNoMip(
-        int width,
-        int height,
-        string name,
-        RuntimeTextureColorSpace colorSpace,
-        FilterMode filterMode,
-        TextureWrapMode wrapMode)
-    {
-        ValidateDimensions(width, height, name);
-        var texture = new Texture2D(
-            width,
-            height,
-            TextureFormat.RGBAFloat,
-            mipChain: false,
-            linear: colorSpace == RuntimeTextureColorSpace.Linear)
-        {
-            name = name,
-        };
-        ApplySampling(texture, filterMode, wrapMode);
-        return texture;
-    }
-
     // Половинная точность: столько же каналов, вдвое меньше памяти. Нужна для
     // снятия содержимого HDR-целей на CPU (ReadPixels), где RGBA32 обрезал бы
     // всё ярче единицы, а RGBAFloat стоил бы вдвое больше без выигрыша в
@@ -166,6 +144,24 @@ public static class RuntimeTextureFactory
             TextureFormat.RGBAHalf,
             mipChain: false,
             linear: colorSpace == RuntimeTextureColorSpace.Linear)
+        {
+            name = name,
+        };
+        ApplySampling(texture, filterMode, wrapMode);
+        return texture;
+    }
+
+    public static Texture2D CreateRGBAFloatNoMip(
+        int width,
+        int height,
+        string name,
+        RuntimeTextureColorSpace colorSpace,
+        FilterMode filterMode,
+        TextureWrapMode wrapMode)
+    {
+        ValidateDimensions(width, height, name);
+        var texture = new Texture2D(width, height, TextureFormat.RGBAFloat,
+            mipChain: false, linear: colorSpace == RuntimeTextureColorSpace.Linear)
         {
             name = name,
         };
@@ -284,7 +280,7 @@ public static class RuntimeTextureFactory
             result.Apply(
                 updateMipmaps: false,
                 makeNoLongerReadable: makeNoLongerReadable);
-            _decodedOpacity.Add(result, new TextureOpacity(fullyOpaque));
+            s_decodedOpacity.Add(result, new TextureOpacity(fullyOpaque));
             return result;
         }
         catch

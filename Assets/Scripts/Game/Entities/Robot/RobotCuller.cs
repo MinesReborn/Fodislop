@@ -47,12 +47,14 @@ public sealed class RobotCuller
                 _isCulled = true;
                 visuals.SetBodyVisible(false);
                 visuals.SetTentaclesActive(false);
-                lighting.Remove(lightingEngine);
             }
 
-            transform.position = movement.TargetPosition;
-            movement.TeleportToTarget();
-            transform.rotation = Quaternion.Euler(0, 0, movement.TargetAngle);
+            var (_, angle, _, _) = movement.Step(Time.deltaTime);
+            transform.position = movement.SmoothPosition;
+            transform.rotation = Quaternion.Euler(0, 0, angle);
+            // Visibility culling owns visuals. Transport owns source reach;
+            // an offscreen robot can still illuminate visible receivers.
+            lighting.Update(movement.SmoothPosition, lightingEngine);
             return true;
         }
 

@@ -9,15 +9,12 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using VContainer;
-using Unity.Profiling;
 
 namespace Kern.Rendering.PostProcessing
 {
     [DisallowMultipleComponent]
     public class PostProcessController : MonoBehaviour
     {
-        private static readonly ProfilerMarker _PostProcessLateUpdateMarker = new("Kern.PostProcess.LateUpdate");
-
         [SerializeField]
         private Volume? _volume;
 
@@ -34,7 +31,6 @@ namespace Kern.Rendering.PostProcessing
 
         private BloomComponent? _bloom;
         private VignetteComponent? _vignette;
-        private ColorGradingComponent? _colorGrading;
         private EigengrauComponent? _eigengrau;
         private readonly GradingWorkbench _gradingWorkbench = new();
 
@@ -61,17 +57,6 @@ namespace Kern.Rendering.PostProcessing
             }
         }
 
-        public BloomStyle BloomVariant
-        {
-            get => GetRequired(_bloom, nameof(_bloom)).style.value;
-            set
-            {
-                BloomComponent bloom = GetRequired(_bloom, nameof(_bloom));
-                bloom.style.overrideState = true;
-                bloom.style.value = value;
-            }
-        }
-
         public float VignetteIntensity
         {
             get => GetRequired(_vignette, nameof(_vignette)).intensity.value;
@@ -81,54 +66,6 @@ namespace Kern.Rendering.PostProcessing
                 vignette.intensity.overrideState = true;
                 vignette.intensity.value = Mathf.Clamp01(value);
                 vignette.active = vignette.intensity.value > 0f;
-            }
-        }
-
-        public float Exposure
-        {
-            get => GetRequired(_colorGrading, nameof(_colorGrading)).exposure.value;
-            set
-            {
-                ColorGradingComponent colorGrading = GetRequired(_colorGrading, nameof(_colorGrading));
-                float sanitized = Mathf.Clamp(value, -4f, 4f);
-                if (!Mathf.Approximately(colorGrading.exposure.value, sanitized))
-                {
-                    colorGrading.exposure.overrideState = true;
-                    colorGrading.exposure.value = sanitized;
-                    UpdateColorGradingActiveState();
-                }
-            }
-        }
-
-        public float Contrast
-        {
-            get => GetRequired(_colorGrading, nameof(_colorGrading)).contrast.value;
-            set
-            {
-                ColorGradingComponent colorGrading = GetRequired(_colorGrading, nameof(_colorGrading));
-                float sanitized = Mathf.Clamp(value, -1f, 1f);
-                if (!Mathf.Approximately(colorGrading.contrast.value, sanitized))
-                {
-                    colorGrading.contrast.overrideState = true;
-                    colorGrading.contrast.value = sanitized;
-                    UpdateColorGradingActiveState();
-                }
-            }
-        }
-
-        public float Saturation
-        {
-            get => GetRequired(_colorGrading, nameof(_colorGrading)).saturation.value;
-            set
-            {
-                ColorGradingComponent colorGrading = GetRequired(_colorGrading, nameof(_colorGrading));
-                float sanitized = Mathf.Clamp(value, 0f, 2f);
-                if (!Mathf.Approximately(colorGrading.saturation.value, sanitized))
-                {
-                    colorGrading.saturation.overrideState = true;
-                    colorGrading.saturation.value = sanitized;
-                    UpdateColorGradingActiveState();
-                }
             }
         }
 
@@ -142,12 +79,6 @@ namespace Kern.Rendering.PostProcessing
                 eigengrau.intensity.value = Mathf.Clamp01(value);
                 eigengrau.active = eigengrau.intensity.value > 0f;
             }
-        }
-
-        private void UpdateColorGradingActiveState()
-        {
-            ColorGradingComponent colorGrading = GetRequired(_colorGrading, nameof(_colorGrading));
-            colorGrading.active = true;
         }
 
         private void Awake()
@@ -181,7 +112,7 @@ namespace Kern.Rendering.PostProcessing
             _gradingWorkbench.Deactivate();
             PostProcessRuntimeState.BypassPostProcessEffects = false;
             PostProcessRuntimeState.TemporaryBypass = false;
-            PostProcessRuntimeState.SetColorGrade(ColorGradeSnapshot.FromLook());
+            PostProcessRuntimeState.SetLUT(null, 0f);
             PostProcessRuntimeState.DebugView = PostProcessDebugView.None;
             PostProcessRuntimeState.CompareSplit = 0f;
             PostProcessRuntimeState.CompareMode = CompareMode.Off;
@@ -268,8 +199,6 @@ namespace Kern.Rendering.PostProcessing
 
             PostProcessVolumeUtilities.RequireVolumeComponent(ref _bloom, profile);
             PostProcessVolumeUtilities.RequireVolumeComponent(ref _vignette, profile);
-            PostProcessVolumeUtilities.RequireVolumeComponent(ref _colorGrading, profile);
-            _colorGrading.active = true;
             PostProcessVolumeUtilities.RequireVolumeComponent(ref _eigengrau, profile);
             _volumeSetupCompleted = true;
             ApplyClientConfig();
@@ -277,9 +206,7 @@ namespace Kern.Rendering.PostProcessing
 
         public void ApplyClientConfig()
         {
-            if (_bloom == null || _vignette == null ||
-                _colorGrading == null ||
-                _eigengrau == null)
+            if (_bloom == null || _vignette == null || _eigengrau == null)
             {
                 // Подготовка сама вызовет применение в конце, поэтому
                 // здесь возврат: иначе конфиг применился бы дважды за один
@@ -294,8 +221,6 @@ namespace Kern.Rendering.PostProcessing
             ClientConfig config = clientConfigManager.Config ??
                 throw new InvalidOperationException("PostProcessController requires an initialized ClientConfig.");
 
-            PostProcessRuntimeState.SetColorGrade(ColorGradeSnapshot.FromLook());
-
             Debug.Log($"[PostProcessController] ApplyClientConfig: Bloom={config.Effects.BloomEnabled}, Vignette={config.Effects.VignetteEnabled}");
 
             BloomComponent bloom = GetRequired(_bloom, nameof(_bloom));
@@ -309,7 +234,6 @@ namespace Kern.Rendering.PostProcessing
             bloom.scatter.value = PostProcessLook.Bloom.Scatter;
             bloom.tint.overrideState = true;
             bloom.tint.value = PostProcessLook.Bloom.Tint;
-            BloomVariant = config.Effects.BloomVariant;
             BloomIntensity = config.Effects.BloomEnabled ? PostProcessLook.Bloom.Intensity : 0f;
 
             VignetteComponent vignette = GetRequired(_vignette, nameof(_vignette));
@@ -321,12 +245,6 @@ namespace Kern.Rendering.PostProcessing
             vignette.center.value = PostProcessLook.Vignette.Center;
             VignetteIntensity = config.Effects.VignetteEnabled ? PostProcessLook.Vignette.Intensity : 0f;
 
-
-            ApplyColorGrading(
-                PostProcessLook.ColorGrading.Exposure,
-                PostProcessLook.ColorGrading.Contrast,
-                PostProcessLook.ColorGrading.Saturation);
-
             EigengrauComponent eigengrau = GetRequired(_eigengrau, nameof(_eigengrau));
             eigengrau.color.overrideState = true;
             eigengrau.color.value = PostProcessLook.FilmGrain.Color;
@@ -337,78 +255,9 @@ namespace Kern.Rendering.PostProcessing
             EigengrauIntensity = config.Effects.EigengrauEnabled ? PostProcessLook.FilmGrain.Intensity : 0f;
         }
 
-        private void ApplyColorGrading(
-            float authoredExposure,
-            float authoredContrast,
-            float authoredSaturation)
-        {
-            IClientConfigManager clientConfigManager = _clientConfigManager ??
-                throw new InvalidOperationException(
-                    "PostProcessController requires IClientConfigManager injection.");
-            ClientConfig config = clientConfigManager.Config ??
-                throw new InvalidOperationException(
-                    "PostProcessController requires an initialized ClientConfig.");
-            PostProcessSettings settings = config.PostProcess ??
-                throw new InvalidOperationException(
-                    "PostProcessController requires post-process settings in ClientConfig.");
-
-            Exposure = settings.Exposure + authoredExposure;
-            Color filter = PostProcessLook.ColorGrading.Filter;
-            float contrast = settings.Contrast + authoredContrast;
-            float saturation = settings.Saturation * authoredSaturation;
-
-            if (!ColorblindAdaptation.TryApply(
-                    config.Accessibility.ColorblindMode, ref filter, ref contrast, ref saturation))
-            {
-                Debug.LogError(
-                    "[PostProcessController] Неизвестный режим цветокоррекции " +
-                    $"{config.Accessibility.ColorblindMode}; коррекция не применена.");
-            }
-
-            ColorGradingComponent colorGrading = GetRequired(
-                _colorGrading,
-                nameof(_colorGrading));
-            colorGrading.colorFilter.overrideState = true;
-            colorGrading.colorFilter.value = filter;
-            Contrast = contrast;
-            Saturation = saturation;
-        }
-
         private void Update()
         {
             _gradingWorkbench.Tick();
-            if (!_volumeSetupCompleted)
-            {
-                return;
-            }
-
-            if (_gradingWorkbench.IsApplying)
-            {
-                ColorGradeState state = _gradingWorkbench.State;
-                state.Sanitize();
-                PostProcessRuntimeState.SetColorGrade(state.ToSnapshot());
-                ApplyColorGrading(
-                    state.EffectiveExposure,
-                    state.EffectiveContrast,
-                    state.EffectiveSaturation);
-            }
-            else
-            {
-                if (_gradingWorkbench.StoppedApplying)
-                {
-                    ApplyClientConfig();
-                }
-
-                // Только когда рабочее место НЕ применяет свой грейд: пока
-                // автор крутит ползунки, он обязан видеть ровно то, что крутит,
-                // а не сумму своей правки и зоны, где стоит камера.
-                ColorGradeZones.Resolution resolution = ColorGradeZoneDriver.Push(
-                    _gradingWorkbench.Zones, _mainCamera ??= _gameplayCamera?.Camera);
-                ApplyColorGrading(
-                    resolution.Exposure,
-                    resolution.Contrast,
-                    resolution.Saturation);
-            }
         }
 
         private void EnsureCameraSetup(Camera mainCamera)

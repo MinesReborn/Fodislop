@@ -11,7 +11,7 @@ namespace Kern.Tests.World;
 [TestFixture]
 public sealed class TerrainQuantizationContractTests
 {
-    private static readonly string _RepoRoot = FindRepoRoot();
+    private static readonly string s_repoRoot = FindRepoRoot();
 
     [Test]
     public void IdentityPolygonOccupiesEveryPixel()
@@ -171,11 +171,13 @@ public sealed class TerrainQuantizationContractTests
         string geometryContract = ReadRepoFile("Assets", "Shaders", "Terrain", "TerrainGeometryContract.hlsl");
         string cellData = ReadRepoFile("Assets", "Shaders", "Terrain", "TerrainCellData.hlsl");
         string cellGeometry = ReadRepoFile("Assets", "Scripts", "World", "Terrain", "Mesh", "TerrainCellGeometry.cs");
-        string cellPacker = ReadRepoFile("Assets", "Scripts", "World", "Terrain", "Gpu", "TerrainCellDataPacker.cs");
-        string textures = ReadRepoFile("Assets", "Scripts", "World", "Terrain", "Gpu", "TerrainCellDataTextures.cs");
+        string cellPacker = ReadRepoFile("Assets", "Scripts", "World", "Terrain", "GPU", "TerrainCellDataPacker.cs");
+        string textures = ReadRepoFile("Assets", "Scripts", "World", "Terrain", "GPU", "TerrainCellDataTextures.cs");
 
         Assert.That(CountOccurrences(terrain, "EvaluateTerrainCellCoverage("), Is.EqualTo(2));
-        Assert.That(CountOccurrences(terrain, "clip(cellCoverage - 0.5);"), Is.EqualTo(3));
+        // The production path clips the visible pass, two lighting-debug
+        // views, foreground identity diagnostics, the regular debug path, and the lighting field pass.
+        Assert.That(CountOccurrences(terrain, "clip(cellCoverage - 0.5);"), Is.EqualTo(6));
         Assert.That(CountOccurrences(contour, "TerrainGeometryCoverage("), Is.EqualTo(1));
         // Geometry owns the polygon and distance rules; the shared contract
         // owns the cell grid quantization used by its corner and bend points.
@@ -205,8 +207,8 @@ public sealed class TerrainQuantizationContractTests
         Assert.That(textures, Does.Contain("_geometryY.Stage(slot"));
         Assert.That(textures, Does.Contain("_geometryX.CopyStaged(slot"));
         Assert.That(textures, Does.Contain("_geometryY.CopyStaged(slot"));
-        Assert.That(textures, Does.Contain("Shader.SetGlobalTexture(GeometryXID"));
-        Assert.That(textures, Does.Contain("Shader.SetGlobalTexture(GeometryYID"));
+        Assert.That(textures, Does.Contain("Shader.SetGlobalTexture(GeometryXId"));
+        Assert.That(textures, Does.Contain("Shader.SetGlobalTexture(GeometryYId"));
         Assert.That(terrain, Does.Not.Contain("_TerrainGridOffsets"));
         Assert.That(terrain, Does.Not.Contain("packedGeometryCorners"));
         Assert.That(contour, Does.Not.Contain("PhysicalContour("));
@@ -214,7 +216,7 @@ public sealed class TerrainQuantizationContractTests
 
     private static string ReadRepoFile(params string[] parts)
     {
-        string path = _RepoRoot;
+        string path = s_repoRoot;
         foreach (string part in parts)
         {
             path = Path.Combine(path, part);

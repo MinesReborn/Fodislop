@@ -84,7 +84,7 @@ namespace Kern.Player
 
         // UIDocument может быть пересоздан (выключение/включение), поэтому
         // подписка держится актуальной: перезакрепляемся при смене корня.
-        private void EnsureUiEventSubscription()
+        private void EnsureUIEventSubscription()
         {
             VisualElement? root = _injectedUIDoc != null && _injectedUIDoc.isActiveAndEnabled
                 ? _injectedUIDoc.rootVisualElement
@@ -109,7 +109,7 @@ namespace Kern.Player
 
         protected void Update()
         {
-            EnsureUiEventSubscription();
+            EnsureUIEventSubscription();
 
             if (_localPlayer is not { Current: { IsGameplayVisible: true } })
             {

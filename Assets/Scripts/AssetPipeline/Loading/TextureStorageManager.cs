@@ -18,7 +18,7 @@ namespace Kern.AssetPipeline
     {
         // Декодирование и копия в RGBA32 идут на главном потоке: маркер
         // нужен, чтобы провис кадра на приезде текстур был виден в FrameStall.
-        private static readonly Unity.Profiling.ProfilerMarker _DecodeMarker = new("Kern.Textures.Decode");
+        private static readonly Unity.Profiling.ProfilerMarker s_decodeMarker = new("Kern.Textures.Decode");
 
         private int _lastDecodeFrame = -1;
 
@@ -81,7 +81,7 @@ namespace Kern.AssetPipeline
 
             _lastDecodeFrame = Time.frameCount;
             Texture2D texture;
-            using (_DecodeMarker.Auto())
+            using (s_decodeMarker.Auto())
             {
                 texture = DecodeTexture(normalizedFilename, rawData);
             }
@@ -114,20 +114,7 @@ namespace Kern.AssetPipeline
 
         private static Texture2D DecodeTexture(string filename, byte[] data)
         {
-            AnimationContainerDecoder.ContainerType containerType =
-                AnimationContainerDecoder.DetectType(data);
-            if (containerType == AnimationContainerDecoder.ContainerType.GIF ||
-                containerType == AnimationContainerDecoder.ContainerType.WebP)
-            {
-                AnimationContainerDecoder.DecodedAnimation animation =
-                    containerType == AnimationContainerDecoder.ContainerType.GIF
-                        ? AnimationContainerDecoder.DecodeGif(data)
-                        : AnimationContainerDecoder.DecodeWebP(data);
-                return animation.Atlas ?? throw new InvalidDataException(
-                    $"Texture '{filename}' produced no animation atlas.");
-            }
-
-            bool makeNoLongerReadable = RuntimeTextureFactory.SupportsTexture2DGpuCopy;
+            bool makeNoLongerReadable = RuntimeTextureFactory.SupportsTexture2DGPUCopy;
             return RuntimeTextureFactory.DecodeEncodedImageToRGBA32NoMip(
                 data,
                 filename,
@@ -138,7 +125,7 @@ namespace Kern.AssetPipeline
         }
 
         /// <param name="filename">The texture filename.</param>
-        /// <returns>PNG/WEBP bytes, or null if not found.</returns>
+        /// <returns>Image bytes, or null if not found.</returns>
         public async UniTask<byte[]?> GetTextureData(string filename, CancellationToken cancellationToken = default)
         {
             var data = await LoadTextureFromStorage(filename, cancellationToken);

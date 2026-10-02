@@ -13,13 +13,22 @@ public static class AnimationContainerDecoder
     {
         None,
         PNG,
-        GIF,
-        WebP,
     }
+
+    private static readonly Dictionary<string, (int frameWidth, int frameHeight, int frameCount, float fps)> s_knownAnimations =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "vfx/bz", (16, 32, 15, 15f) },
+            { "vfx/death", (64, 64, 39, 40f) },
+            { "vfx/destroy", (1, 1, 1, 0f) },
+            { "cells/66", (32, 32, 6, 5f) },
+            { "cells/67", (32, 32, 6, 5f) },
+            { "cells/90", (32, 32, 4, 4f) },
+        };
 
     public static ContainerType DetectType(byte[] data)
     {
-        if (data == null || data.Length < 12)
+        if (data == null || data.Length < 8)
         {
             return ContainerType.None;
         }
@@ -29,18 +38,68 @@ public static class AnimationContainerDecoder
             return ContainerType.PNG;
         }
 
-        if (data[0] == 0x47 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x38)
-        {
-            return ContainerType.GIF;
-        }
-
-        if (data[0] == 0x52 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x46 &&
-            data[8] == 0x57 && data[9] == 0x45 && data[10] == 0x42 && data[11] == 0x50)
-        {
-            return ContainerType.WebP;
-        }
-
         return ContainerType.None;
+    }
+
+    public static bool TryGetAnimationConfig(
+        string filename,
+        int width,
+        int height,
+        out int frameWidth,
+        out int frameHeight,
+        out int frameCount,
+        out float fps)
+    {
+        if (width <= 0 || height <= 0)
+        {
+            frameWidth = 0;
+            frameHeight = 0;
+            frameCount = 0;
+            fps = 0f;
+            return false;
+        }
+
+        string normalized = NormalizeAnimationName(filename);
+        if (s_knownAnimations.TryGetValue(normalized, out var config))
+        {
+            frameWidth = config.frameWidth;
+            frameHeight = config.frameHeight;
+            frameCount = config.frameCount;
+            fps = config.fps;
+            return true;
+        }
+
+        if (height > width && height % width == 0)
+        {
+            frameWidth = width;
+            frameHeight = width;
+            frameCount = height / width;
+            fps = 5f;
+            return true;
+        }
+
+        frameWidth = width;
+        frameHeight = height;
+        frameCount = 1;
+        fps = 0f;
+        return true;
+    }
+
+    private static string NormalizeAnimationName(string path)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            return string.Empty;
+        }
+
+        string normalized = path.Replace('\\', '/').TrimStart('/');
+        int dot = normalized.LastIndexOf('.');
+        if (dot > 0 && dot > normalized.LastIndexOf('/'))
+        {
+            normalized = normalized.Substring(0, dot);
+        }
+
+        return normalized;
     }
 
     public static Sprite[] Decode(Texture2D atlas, int width, int height, int frameCount)
@@ -85,9 +144,6 @@ public static class AnimationContainerDecoder
             int x = (i % framesPerRow) * width;
             int y = (i / framesPerRow) * height;
 
-            // DecodeGif/DecodeWebP place frame zero at the bottom of the
-            // Unity texture and append later frames upwards. Re-inverting Y
-            // here returned the animation in reverse order.
             frames[i] = Sprite.Create(
                 atlas,
                 new Rect(x, y, width, height),
@@ -98,23 +154,13 @@ public static class AnimationContainerDecoder
         return frames;
     }
 
-    public static DecodedAnimation DecodeGif(byte[] data)
-    {
-        return GifAnimationDecoder.Decode(data);
-    }
-
-    public static DecodedAnimation DecodeWebP(byte[] data)
-    {
-        return WebPAnimationDecoder.Decode(data);
-    }
-
     public static void CopyFramesToAtlas(
         List<Texture2D> frameTextures,
         Texture2D atlas,
         int width,
         int height)
     {
-        bool useGpuCopy = RuntimeTextureFactory.SupportsTexture2DGpuCopy;
+        bool useGPUCopy = RuntimeTextureFactory.SupportsTexture2DGPUCopy;
         for (int i = 0; i < frameTextures.Count; i++)
         {
             Texture2D frame = frameTextures[i];
@@ -125,7 +171,7 @@ public static class AnimationContainerDecoder
                     $"expected {width}x{height}.");
             }
 
-            if (useGpuCopy)
+            if (useGPUCopy)
             {
                 if (frame.graphicsFormat != atlas.graphicsFormat)
                 {
@@ -160,7 +206,7 @@ public static class AnimationContainerDecoder
             }
         }
 
-        if (!useGpuCopy)
+        if (!useGPUCopy)
         {
             atlas.Apply(updateMipmaps: false, makeNoLongerReadable: false);
         }
@@ -181,7 +227,7 @@ public static class AnimationContainerDecoder
         textures.Clear();
     }
 
-    public static float GetAnimationFps(
+    public static float GetAnimationFPS(
         float averageDelay,
         int frameCount,
         string containerName)

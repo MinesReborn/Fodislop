@@ -9,26 +9,45 @@ using UnityEngine;
 
 namespace Kern.UI;
 
-internal sealed class MapViewportRenderer
+internal sealed class MapViewportRenderer : IDisposable
 {
-    private readonly Color32 _defaultColor = new(0, 0, 0, 255);
-    private readonly Color32[] _cellColorTable = new Color32[256];
-    private Color32[]? _pixelBuffer;
-    private Color32[]? _shiftBuffer;
+    private const int ChunkDim = 16;
+    private const int ChunkUints = 64; // 16 * 16 bytes = 256 bytes = 64 uints
 
-    private bool _hasView;
-    private int _lastTexWidth;
-    private int _lastTexHeight;
-    private int _lastWorldWidth;
-    private int _lastWorldHeight;
-    private float _lastCenterX;
-    private float _lastCenterY;
-    private float _lastCellsPerPixel;
-    private float _pendingShiftX;
-    private float _pendingShiftY;
-    private MarkerRect _lastMarker;
+    private readonly Color32[] _cellColorTable = new Color32[256];
+    private readonly Vector4[] _paletteArray = new Vector4[256];
+
+    private ComputeShader? _computeShader;
+    private int _kernelHandle = -1;
+
+    private ComputeBuffer? _paletteBuffer;
+    private ComputeBuffer? _chunkDataBuffer;
+    private ComputeBuffer? _chunkLookupBuffer;
+
+    private uint[]? _chunkDataArray;
+    private int[]? _chunkLookupArray;
+    private Texture2D? _dummyMipTexture;
+
+    private int _lastMinChunkX = int.MinValue;
+    private int _lastMaxChunkX = int.MinValue;
+    private int _lastMinChunkY = int.MinValue;
+    private int _lastMaxChunkY = int.MinValue;
+    private int _lastSamplerRevision = -1;
+    private int _lastLoadedChunkCount;
 
     public Color32[] CellColorTable => _cellColorTable;
+
+    public MapViewportRenderer()
+    {
+        for (int i = 0; i < 256; i++)
+        {
+            CellType type = (CellType)i;
+            Color32 c = MapBlockColors.GetColor32(type);
+            _cellColorTable[i] = c;
+            Color cLinear = ((Color)c).linear;
+            _paletteArray[i] = new Vector4(cLinear.r, cLinear.g, cLinear.b, c.a / 255f);
+        }
+    }
 
     public void InitColorTable(MapManager manager)
     {
@@ -39,23 +58,30 @@ internal sealed class MapViewportRenderer
 
         Color32[] colors = MapProjection.BuildCellColorTable(manager);
         Array.Copy(colors, _cellColorTable, colors.Length);
+
+        for (int i = 0; i < 256; i++)
+        {
+            Color c = (Color)_cellColorTable[i];
+            Color cLinear = c.linear;
+            _paletteArray[i] = new Vector4(cLinear.r, cLinear.g, cLinear.b, c.a);
+        }
+
+        _paletteBuffer?.SetData(_paletteArray);
     }
 
-    /// <summary>
-    /// Сбрасывает опору инкрементальной отрисовки. Обязателен при пересоздании
-    /// текстуры и при смене мира: старое содержимое буфера тогда описывает
-    /// другую карту, и сдвигать его нельзя.
-    /// </summary>
+    // The next render re-uploads the visible chunk grid even when its bounds
+    // and the sampler revision are unchanged (texture or world replaced).
     public void InvalidateViewState()
     {
-        _hasView = false;
-        _pendingShiftX = 0f;
-        _pendingShiftY = 0f;
-        _lastMarker = MarkerRect.None;
+        _lastMinChunkX = int.MinValue;
+        _lastMaxChunkX = int.MinValue;
+        _lastMinChunkY = int.MinValue;
+        _lastMaxChunkY = int.MinValue;
+        _lastSamplerRevision = -1;
     }
 
-    public void Render(
-        Texture2D? mapTexture,
+    public bool Render(
+        RenderTexture? mapTexture,
         MapManager manager,
         MapCellSampler cellSampler,
         WorldMapMipCache? mipCache,
@@ -63,472 +89,283 @@ internal sealed class MapViewportRenderer
         int texHeight,
         float cellsPerPixel,
         float viewCenterX,
-        float viewCenterY,
-        ILocalPlayer? player,
-        bool playerBlinkState)
+        float viewCenterY)
     {
-        if (texWidth <= 0 || texHeight <= 0)
+        if (manager == null)
+        {
+            return false;
+        }
+
+        return Render(
+            mapTexture,
+            manager.WorldWidth,
+            manager.WorldHeight,
+            cellSampler,
+            mipCache,
+            texWidth,
+            texHeight,
+            cellsPerPixel,
+            viewCenterX,
+            viewCenterY);
+    }
+
+    public bool Render(
+        RenderTexture? mapTexture,
+        int worldWidth,
+        int worldHeight,
+        MapCellSampler cellSampler,
+        WorldMapMipCache? mipCache,
+        int texWidth,
+        int texHeight,
+        float cellsPerPixel,
+        float viewCenterX,
+        float viewCenterY)
+    {
+        if (mapTexture == null)
+        {
+            return false;
+        }
+
+        int worldW = worldWidth;
+        int worldH = worldHeight;
+        float cp = cellsPerPixel;
+        float cx = viewCenterX;
+        float cy = viewCenterY;
+        int texW = texWidth;
+        int texH = texHeight;
+
+        if (texW <= 0 || texH <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(texWidth), "Map texture dimensions must be positive.");
         }
 
-        if (cellsPerPixel <= 0f || float.IsNaN(cellsPerPixel) || float.IsInfinity(cellsPerPixel))
+        if (cp <= 0f || float.IsNaN(cp) || float.IsInfinity(cp))
         {
             throw new ArgumentOutOfRangeException(nameof(cellsPerPixel), "Map scale must be finite and positive.");
         }
 
-        int texW = texWidth;
-        int texH = texHeight;
-        float cp = cellsPerPixel;
+        EnsureComputeResources();
 
-        EnsureBuffers(texW, texH);
+        float startWorldX = cx + (0.5f - texW * 0.5f) * cp;
+        float startWorldY = cy + (texH * 0.5f - 0.5f) * cp;
+        bool useMip = mipCache != null && cp >= mipCache.ChunkSize;
 
-        int worldW = manager.WorldWidth;
-        int worldH = manager.WorldHeight;
-        var context = new SampleContext(
-            cellSampler,
-            mipCache,
-            texW,
-            texH,
-            cp,
-            viewCenterX,
-            viewCenterY,
-            worldW,
-            worldH,
-            _defaultColor);
+        int minChunkX = 0;
+        int minChunkY = 0;
+        int gridWidth = 1;
+        int gridHeight = 1;
+        int chunkSlot = 0;
 
-        MarkerRect marker = ComputeMarkerRect(player, playerBlinkState, context);
-
-        bool rebuild = !_hasView ||
-            texW != _lastTexWidth ||
-            texH != _lastTexHeight ||
-            worldW != _lastWorldWidth ||
-            worldH != _lastWorldHeight ||
-            !Mathf.Approximately(cp, _lastCellsPerPixel);
-
-        if (rebuild)
+        if (!useMip)
         {
-            _pendingShiftX = 0f;
-            _pendingShiftY = 0f;
-            RenderRegion(context, 0, texW - 1, 0, texH - 1);
-            DrawMarker(context.TexWidth, marker);
-        }
-        else
-        {
-            int shiftX = AccumulateShiftX(viewCenterX, cp);
-            int shiftY = AccumulateShiftY(viewCenterY, cp);
+            float minWorldX = startWorldX;
+            float maxWorldX = startWorldX + (texW - 1) * cp;
+            float minWorldY = cy + (0.5f - texH * 0.5f) * cp;
+            float maxWorldY = cy + (texH * 0.5f - 0.5f) * cp;
 
-            if (Math.Abs(shiftX) >= texW || Math.Abs(shiftY) >= texH)
+            int maxChunkCoordX = Mathf.Max(0, (worldW + ChunkDim - 1) / ChunkDim - 1);
+            int maxChunkCoordY = Mathf.Max(0, (worldH + ChunkDim - 1) / ChunkDim - 1);
+
+            minChunkX = Mathf.Clamp(Mathf.FloorToInt(minWorldX / ChunkDim), 0, maxChunkCoordX);
+            int maxChunkX = Mathf.Clamp(Mathf.FloorToInt(maxWorldX / ChunkDim), 0, maxChunkCoordX);
+            minChunkY = Mathf.Clamp(Mathf.FloorToInt(minWorldY / ChunkDim), 0, maxChunkCoordY);
+            int maxChunkY = Mathf.Clamp(Mathf.FloorToInt(maxWorldY / ChunkDim), 0, maxChunkCoordY);
+
+            gridWidth = Mathf.Max(1, maxChunkX - minChunkX + 1);
+            gridHeight = Mathf.Max(1, maxChunkY - minChunkY + 1);
+            int gridArea = gridWidth * gridHeight;
+
+            int heightChunks = cellSampler.HeightChunks;
+            EnsureBuffers(gridArea, 4096);
+
+            bool gridUnchanged = minChunkX == _lastMinChunkX &&
+                                 maxChunkX == _lastMaxChunkX &&
+                                 minChunkY == _lastMinChunkY &&
+                                 maxChunkY == _lastMaxChunkY &&
+                                 cellSampler.Revision == _lastSamplerRevision &&
+                                 _chunkLookupBuffer != null &&
+                                 _chunkLookupBuffer.count >= gridArea;
+
+            if (gridUnchanged)
             {
-                // Смещение шире текстуры: перекрытия не осталось, сдвигать нечего.
-                _pendingShiftX = 0f;
-                _pendingShiftY = 0f;
-                RenderRegion(context, 0, texW - 1, 0, texH - 1);
-                DrawMarker(context.TexWidth, marker);
+                chunkSlot = _lastLoadedChunkCount;
             }
-            else if (shiftX == 0 && shiftY == 0 && marker.Equals(_lastMarker))
+            else
             {
-                StoreView(texW, texH, worldW, worldH, viewCenterX, viewCenterY, cp, marker);
-                return;
-            }
+                _lastMinChunkX = minChunkX;
+                _lastMaxChunkX = maxChunkX;
+                _lastMinChunkY = minChunkY;
+                _lastMaxChunkY = maxChunkY;
+                _lastSamplerRevision = cellSampler.Revision;
 
-            ShiftContent(texW, texH, shiftX, shiftY);
-            RenderExposedBands(context, shiftX, shiftY);
-            RestoreMarkerArea(context, shiftX, shiftY, marker);
-            DrawMarker(context.TexWidth, marker);
-        }
-
-        StoreView(texW, texH, worldW, worldH, viewCenterX, viewCenterY, cp, marker);
-
-        if (mapTexture != null)
-        {
-            mapTexture.SetPixelData(_pixelBuffer, 0);
-            mapTexture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
-        }
-    }
-
-    private void EnsureBuffers(int texWidth, int texHeight)
-    {
-        int length = texWidth * texHeight;
-        if (_pixelBuffer == null || _pixelBuffer.Length != length)
-        {
-            _pixelBuffer = new Color32[length];
-            _shiftBuffer = new Color32[length];
-            InvalidateViewState();
-        }
-    }
-
-    // Сдвиг накапливается дробью: округляя смещение каждый кадр, мы потеряли бы
-    // до половины пикселя за кадр и панорама систематически отставала бы от курсора.
-    private int AccumulateShiftX(float centerX, float cellsPerPixel)
-    {
-        _pendingShiftX += (_lastCenterX - centerX) / cellsPerPixel;
-        int shift = Mathf.RoundToInt(_pendingShiftX);
-        _pendingShiftX -= shift;
-        return shift;
-    }
-
-    private int AccumulateShiftY(float centerY, float cellsPerPixel)
-    {
-        // Строка 0 текстуры — низ изображения, то есть максимальный server Y,
-        // поэтому рост центра по Y двигает содержимое вверх по строкам.
-        _pendingShiftY += (centerY - _lastCenterY) / cellsPerPixel;
-        int shift = Mathf.RoundToInt(_pendingShiftY);
-        _pendingShiftY -= shift;
-        return shift;
-    }
-
-    private void ShiftContent(int texWidth, int texHeight, int shiftX, int shiftY)
-    {
-        if (shiftX == 0 && shiftY == 0)
-        {
-            return;
-        }
-
-        int texW = texWidth;
-        int texH = texHeight;
-        Color32[] source = _pixelBuffer!;
-        Color32[] destination = _shiftBuffer!;
-
-        int firstRow = Math.Max(0, shiftY);
-        int lastRow = Math.Min(texH - 1, texH - 1 + shiftY);
-        int firstColumn = Math.Max(0, shiftX);
-        int lastColumn = Math.Min(texW - 1, texW - 1 + shiftX);
-        for (int row = firstRow; row <= lastRow; row++)
-        {
-            Array.Copy(
-                source,
-                ((row - shiftY) * texW) - shiftX + firstColumn,
-                destination,
-                (row * texW) + firstColumn,
-                lastColumn - firstColumn + 1);
-        }
-
-        Color32[] swap = _pixelBuffer!;
-        _pixelBuffer = destination;
-        _shiftBuffer = swap;
-    }
-
-    private void RenderExposedBands(SampleContext context, int shiftX, int shiftY)
-    {
-        int texW = context.TexWidth;
-        int texH = context.TexHeight;
-
-        if (shiftY > 0)
-        {
-            RenderRegion(context, 0, texW - 1, 0, shiftY - 1);
-        }
-        else if (shiftY < 0)
-        {
-            RenderRegion(context, 0, texW - 1, texH + shiftY, texH - 1);
-        }
-
-        int firstRow = Math.Max(0, shiftY);
-        int lastRow = Math.Min(texH - 1, texH - 1 + shiftY);
-        if (shiftX > 0)
-        {
-            RenderRegion(context, 0, shiftX - 1, firstRow, lastRow);
-        }
-        else if (shiftX < 0)
-        {
-            RenderRegion(context, texW + shiftX, texW - 1, firstRow, lastRow);
-        }
-    }
-
-    private void RestoreMarkerArea(SampleContext context, int shiftX, int shiftY, MarkerRect marker)
-    {
-        MarkerRect stale = _lastMarker.Shifted(shiftX, shiftY);
-        MarkerRect area = MarkerRect.Union(stale, marker, context.TexWidth, context.TexHeight);
-        if (area.IsEmpty)
-        {
-            return;
-        }
-
-        RenderRegion(context, area.X0, area.X1, area.Y0, area.Y1);
-    }
-
-    private void DrawMarker(int texWidth, MarkerRect marker)
-    {
-        if (marker.IsEmpty)
-        {
-            return;
-        }
-
-        Color32 playerColor = new(255, 0, 0, 255);
-        Color32[] buffer = _pixelBuffer!;
-        int texW = texWidth;
-        for (int row = marker.Y0; row <= marker.Y1; row++)
-        {
-            int rowStart = row * texW;
-            for (int column = marker.X0; column <= marker.X1; column++)
-            {
-                buffer[rowStart + column] = playerColor;
-            }
-        }
-    }
-
-    private static MarkerRect ComputeMarkerRect(ILocalPlayer? player, bool playerBlinkState, SampleContext context)
-    {
-        if (player == null || !playerBlinkState)
-        {
-            return MarkerRect.None;
-        }
-
-        Vector2Int playerPos = player.Position;
-        float cp = context.CellsPerPixel;
-        float halfWidth = context.TexWidth * 0.5f * cp;
-        float halfHeight = context.TexHeight * 0.5f * cp;
-        float leftX = context.CenterX - halfWidth;
-        float rightX = context.CenterX + halfWidth;
-        float topServerY = context.CenterY - halfHeight;
-        float bottomServerY = context.CenterY + halfHeight;
-
-        bool visible = playerPos.x + 1f >= leftX && playerPos.x <= rightX &&
-            playerPos.y + 1f >= topServerY && playerPos.y <= bottomServerY;
-        if (!visible)
-        {
-            return MarkerRect.None;
-        }
-
-        // Маркер занимает ровно клетку робота: те же границы, что у нити
-        // маршрута (обратная проекция RenderRegion), а не блок от проекции
-        // центра со сдвигом вправо-вниз — иначе маркер вылезал на соседние
-        // блоки при близком зуме.
-        float pxLo = (playerPos.x - context.CenterX) / cp + context.TexWidth * 0.5f - 0.5f;
-        float pxHi = (playerPos.x + 1f - context.CenterX) / cp + context.TexWidth * 0.5f - 0.5f;
-        float pyHi = context.TexHeight * 0.5f - 0.5f - (playerPos.y - context.CenterY) / cp;
-        float pyLo = context.TexHeight * 0.5f - 0.5f - (playerPos.y + 1f - context.CenterY) / cp;
-
-        int x0 = Mathf.CeilToInt(pxLo);
-        int x1 = Mathf.FloorToInt(pxHi);
-        int y0 = Mathf.CeilToInt(pyLo);
-        int y1 = Mathf.FloorToInt(pyHi);
-
-        if (x1 < x0)
-        {
-            x0 = x1 = Mathf.RoundToInt((pxLo + pxHi) * 0.5f);
-        }
-
-        if (y1 < y0)
-        {
-            y0 = y1 = Mathf.RoundToInt((pyLo + pyHi) * 0.5f);
-        }
-
-        return new MarkerRect(x0, y0, x1, y1);
-    }
-
-    private void RenderRegion(SampleContext context, int pxStart, int pxEnd, int pyStart, int pyEnd)
-    {
-        if (pxStart > pxEnd || pyStart > pyEnd)
-        {
-            return;
-        }
-
-        Color32[] buffer = _pixelBuffer!;
-        int texW = context.TexWidth;
-        int texH = context.TexHeight;
-        float cp = context.CellsPerPixel;
-        float cx = context.CenterX;
-        float cy = context.CenterY;
-        int worldW = context.WorldWidth;
-        int worldH = context.WorldHeight;
-
-        // Полупиксельное смещение внутри texWidth - тот же отсчёт, что даёт
-        // serverY = floor((cell + 0.5) - centerX) / cp, иначе сдвиг полосы
-        // разошёлся бы с полной перерисовкой на доли клетки.
-        float startWorldX = cx + (pxStart + 0.5f - texW * 0.5f) * cp;
-
-        for (int py = pyStart; py <= pyEnd; py++)
-        {
-            int rowStart = py * texW;
-
-            // Строка 0 текстуры — низ отображаемой карты. Серверные координаты
-            // считаются сверху вниз, поэтому нижняя строка текстуры берёт
-            // наибольший server Y во вьюпорте.
-            float screenRowFromTop = texH - 0.5f - py;
-            float worldY = cy + (screenRowFromTop - texH * 0.5f) * cp;
-            int serverY = Mathf.FloorToInt(worldY);
-
-            if (serverY < 0 || serverY >= worldH)
-            {
-                Array.Fill(buffer, context.OutOfBoundsColor, rowStart + pxStart, pxEnd - pxStart + 1);
-                continue;
-            }
-
-            float worldX = startWorldX;
-            for (int px = pxStart; px <= pxEnd; px++, worldX += cp)
-            {
-                int serverX = Mathf.FloorToInt(worldX);
-                Color32 color;
-
-                if (serverX < 0 || serverX >= worldW)
+                if (gridArea <= 4096)
                 {
-                    color = context.OutOfBoundsColor;
-                }
-                else if (context.Mip != null && cp >= context.Mip.ChunkSize)
-                {
-                    color = context.Mip.Sample(worldX, worldY, cp);
+                    for (int gy = 0; gy < gridHeight; gy++)
+                    {
+                        int chunkY = minChunkY + gy;
+                        int rowOffset = gy * gridWidth;
+                        for (int gx = 0; gx < gridWidth; gx++)
+                        {
+                            int chunkX = minChunkX + gx;
+                            if (cellSampler.TryGetChunk(chunkX, chunkY, out CellType[]? chunk) && chunk != null && chunkSlot < 4096)
+                            {
+                                _chunkLookupArray![rowOffset + gx] = chunkSlot;
+                                PackChunk(chunk, _chunkDataArray!, chunkSlot);
+                                chunkSlot++;
+                            }
+                            else
+                            {
+                                _chunkLookupArray![rowOffset + gx] = -1;
+                            }
+                        }
+                    }
                 }
                 else
                 {
-                    color = MapProjection.SampleCellColor(
-                        context.Sampler,
-                        _cellColorTable,
-                        serverX,
-                        serverY,
-                        worldW,
-                        worldH,
-                        context.OutOfBoundsColor,
-                        out _);
+                    Array.Fill(_chunkLookupArray!, -1, 0, gridArea);
+
+                    if (cellSampler.Layer != null && heightChunks > 0)
+                    {
+                        foreach (int chunkIndex in cellSampler.Layer.GetLoadedChunkIndices())
+                        {
+                            int chunkX = chunkIndex / heightChunks;
+                            int chunkY = chunkIndex % heightChunks;
+
+                            if (chunkX >= minChunkX && chunkX <= maxChunkX &&
+                                chunkY >= minChunkY && chunkY <= maxChunkY)
+                            {
+                                int gx = chunkX - minChunkX;
+                                int gy = chunkY - minChunkY;
+                                if (cellSampler.TryGetChunk(chunkX, chunkY, out CellType[]? chunk) && chunk != null && chunkSlot < 4096)
+                                {
+                                    _chunkLookupArray![gy * gridWidth + gx] = chunkSlot;
+                                    PackChunk(chunk, _chunkDataArray!, chunkSlot);
+                                    chunkSlot++;
+                                }
+                            }
+                        }
+                    }
                 }
 
-                buffer[rowStart + px] = color;
+                _lastLoadedChunkCount = chunkSlot;
+                _chunkLookupBuffer!.SetData(_chunkLookupArray, 0, 0, gridArea);
+                if (chunkSlot > 0)
+                {
+                    _chunkDataBuffer!.SetData(_chunkDataArray, 0, 0, chunkSlot * ChunkUints);
+                }
             }
+        }
+        else
+        {
+            EnsureBuffers(1, 1);
+        }
+
+        Texture mipTextureToBind = useMip ? mipCache!.GetOrCreateMipTexture() : GetDummyMipTexture();
+
+        _computeShader!.SetVector("_StartWorld", new Vector4(startWorldX, startWorldY, 0f, 0f));
+        _computeShader.SetVector("_TexSize", new Vector4(texW, texH, 0f, 0f));
+        _computeShader.SetFloat("_CellsPerPixel", cp);
+        _computeShader.SetInt("_WorldWidth", worldW);
+        _computeShader.SetInt("_WorldHeight", worldH);
+        _computeShader.SetInt("_UseMip", useMip ? 1 : 0);
+        _computeShader.SetInt("_GridMinChunkX", minChunkX);
+        _computeShader.SetInt("_GridMinChunkY", minChunkY);
+        _computeShader.SetInt("_GridWidth", gridWidth);
+        _computeShader.SetInt("_GridHeight", gridHeight);
+
+        _computeShader.SetTexture(_kernelHandle, "_Result", mapTexture);
+        _computeShader.SetTexture(_kernelHandle, "_MipTexture", mipTextureToBind);
+        _computeShader.SetBuffer(_kernelHandle, "_Palette", _paletteBuffer);
+        _computeShader.SetBuffer(_kernelHandle, "_ChunkData", _chunkDataBuffer);
+        _computeShader.SetBuffer(_kernelHandle, "_ChunkLookup", _chunkLookupBuffer);
+
+        int groupsX = Mathf.CeilToInt(texW / 8f);
+        int groupsY = Mathf.CeilToInt(texH / 8f);
+        _computeShader.Dispatch(_kernelHandle, groupsX, groupsY, 1);
+        return chunkSlot > 0 || useMip;
+    }
+
+    public void Dispose()
+    {
+        _paletteBuffer?.Release();
+        _paletteBuffer = null;
+
+        _chunkDataBuffer?.Release();
+        _chunkDataBuffer = null;
+
+        _chunkLookupBuffer?.Release();
+        _chunkLookupBuffer = null;
+
+        if (_dummyMipTexture != null)
+        {
+            UnityEngine.Object.Destroy(_dummyMipTexture);
+            _dummyMipTexture = null;
         }
     }
 
-    private void StoreView(
-        int texWidth,
-        int texHeight,
-        int worldWidth,
-        int worldHeight,
-        float viewCenterX,
-        float viewCenterY,
-        float cellsPerPixel,
-        MarkerRect marker)
+    private void EnsureComputeResources()
     {
-        _hasView = true;
-        _lastTexWidth = texWidth;
-        _lastTexHeight = texHeight;
-        _lastWorldWidth = worldWidth;
-        _lastWorldHeight = worldHeight;
-        _lastCenterX = viewCenterX;
-        _lastCenterY = viewCenterY;
-        _lastCellsPerPixel = cellsPerPixel;
-        _lastMarker = marker;
+        if (_computeShader == null)
+        {
+            _computeShader = Resources.Load<ComputeShader>(ProjectRuntimeContracts.ResourcePaths.WorldMapCompute) ??
+                throw new InvalidOperationException($"[MapViewportRenderer] Resources/{ProjectRuntimeContracts.ResourcePaths.WorldMapCompute}.compute is missing.");
+            _kernelHandle = _computeShader.FindKernel("CSWorldMapRender");
+        }
+
+        if (_paletteBuffer == null)
+        {
+            _paletteBuffer = new ComputeBuffer(256, sizeof(float) * 4);
+            _paletteBuffer.SetData(_paletteArray);
+        }
     }
 
-    private readonly struct SampleContext
+    private void EnsureBuffers(int requiredLookupSize, int requiredChunkSlots)
     {
-        public SampleContext(
-            MapCellSampler sampler,
-            WorldMapMipCache? mip,
-            int texWidth,
-            int texHeight,
-            float cellsPerPixel,
-            float centerX,
-            float centerY,
-            int worldWidth,
-            int worldHeight,
-            Color32 outOfBoundsColor)
+        if (_chunkLookupBuffer == null || _chunkLookupBuffer.count < requiredLookupSize)
         {
-            Sampler = sampler;
-            Mip = mip;
-            TexWidth = texWidth;
-            TexHeight = texHeight;
-            CellsPerPixel = cellsPerPixel;
-            CenterX = centerX;
-            CenterY = centerY;
-            WorldWidth = worldWidth;
-            WorldHeight = worldHeight;
-            OutOfBoundsColor = outOfBoundsColor;
+            _chunkLookupBuffer?.Release();
+            _chunkLookupBuffer = new ComputeBuffer(requiredLookupSize, sizeof(int));
+            _chunkLookupArray = new int[requiredLookupSize];
         }
 
-        public MapCellSampler Sampler { get; }
-
-        public WorldMapMipCache? Mip { get; }
-
-        public int TexWidth { get; }
-
-        public int TexHeight { get; }
-
-        public float CellsPerPixel { get; }
-
-        public float CenterX { get; }
-
-        public float CenterY { get; }
-
-        public int WorldWidth { get; }
-
-        public int WorldHeight { get; }
-
-        public Color32 OutOfBoundsColor { get; }
+        int requiredChunkUints = requiredChunkSlots * ChunkUints;
+        if (_chunkDataBuffer == null || _chunkDataBuffer.count < requiredChunkUints)
+        {
+            _chunkDataBuffer?.Release();
+            _chunkDataBuffer = new ComputeBuffer(requiredChunkUints, sizeof(uint));
+            _chunkDataArray = new uint[requiredChunkUints];
+        }
     }
 
-    internal readonly struct MarkerRect
+    private Texture2D GetDummyMipTexture()
     {
-        public static MarkerRect None => default;
-
-        public MarkerRect(int x0, int y0, int x1, int y1)
+        if (_dummyMipTexture == null)
         {
-            X0 = x0;
-            Y0 = y0;
-            X1 = x1;
-            Y1 = y1;
-            Valid = true;
+            _dummyMipTexture = RuntimeTextureFactory.CreateRGBA32NoMip(
+                1,
+                1,
+                "WorldMapDummyMipTexture",
+                RuntimeTextureColorSpace.Srgb,
+                FilterMode.Point,
+                TextureWrapMode.Clamp);
+            _dummyMipTexture.SetPixel(0, 0, Color.black);
+            _dummyMipTexture.Apply(false, false);
         }
 
-        public int X0 { get; }
+        return _dummyMipTexture;
+    }
 
-        public int Y0 { get; }
-
-        public int X1 { get; }
-
-        public int Y1 { get; }
-
-        public bool Valid { get; }
-
-        public bool IsEmpty => !Valid;
-
-        public MarkerRect Shifted(int shiftX, int shiftY) =>
-            Valid ? new MarkerRect(X0 + shiftX, Y0 + shiftY, X1 + shiftX, Y1 + shiftY) : None;
-
-        /// <summary>
-        /// Прямоугольник маркера после смещения гарантированно лежит в буфере
-        /// только в своей прежней позиции: сдвиг может увести его за любой край.
-        /// Зажим обязателен до объединения — возвращать сырые координаты нельзя.
-        /// </summary>
-        private static MarkerRect ClampToBuffer(MarkerRect rect, int width, int height)
+    private static void PackChunk(CellType[] chunk, uint[] dest, int chunkSlot)
+    {
+        int baseOffset = chunkSlot * ChunkUints;
+        for (int i = 0; i < ChunkUints; i++)
         {
-            if (rect.IsEmpty)
-            {
-                return None;
-            }
-
-            if (rect.X0 > width - 1 || rect.X1 < 0 || rect.Y0 > height - 1 || rect.Y1 < 0)
-            {
-                return None;
-            }
-
-            int x0 = Math.Clamp(rect.X0, 0, width - 1);
-            int y0 = Math.Clamp(rect.Y0, 0, height - 1);
-            int x1 = Math.Clamp(rect.X1, 0, width - 1);
-            int y1 = Math.Clamp(rect.Y1, 0, height - 1);
-            return x1 < x0 || y1 < y0 ? None : new MarkerRect(x0, y0, x1, y1);
+            int cellIdx = i * 4;
+            dest[baseOffset + i] =
+                (uint)(byte)chunk[cellIdx] |
+                ((uint)(byte)chunk[cellIdx + 1] << 8) |
+                ((uint)(byte)chunk[cellIdx + 2] << 16) |
+                ((uint)(byte)chunk[cellIdx + 3] << 24);
         }
-
-        public static MarkerRect Union(MarkerRect first, MarkerRect second, int width, int height)
-        {
-            MarkerRect a = ClampToBuffer(first, width, height);
-            MarkerRect b = ClampToBuffer(second, width, height);
-            if (a.IsEmpty)
-            {
-                return b;
-            }
-
-            if (b.IsEmpty)
-            {
-                return a;
-            }
-
-            return new MarkerRect(
-                Math.Min(a.X0, b.X0),
-                Math.Min(a.Y0, b.Y0),
-                Math.Max(a.X1, b.X1),
-                Math.Max(a.Y1, b.Y1));
-        }
-
-        public bool Equals(MarkerRect other) =>
-            Valid == other.Valid && (!Valid || (X0 == other.X0 && Y0 == other.Y0 && X1 == other.X1 && Y1 == other.Y1));
     }
 }

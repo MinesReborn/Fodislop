@@ -17,7 +17,7 @@ using UnityEngine;
 namespace Kern.Effekseer;
 public static class RuntimeEffekseerLoader
 {
-    private static readonly HashSet<EntityId> _activeRuntimeEffectIDs = new();
+    private static readonly HashSet<EntityId> s_activeRuntimeEffectIds = new();
 
     /// <param name="efkBytes">Raw .efk file data (SKFE format).</param>
     /// <param name="effectName">Name for the effect asset (used for logging and native registration).</param>
@@ -108,7 +108,7 @@ public static class RuntimeEffekseerLoader
             // LoadEffect is intentionally called exactly once. Calling asset.LoadEffect()
             // after this repeats the native resource reload for the same asset.
             EffekseerSystem.Instance.LoadEffect(asset);
-            _activeRuntimeEffectIDs.Add(asset.GetEntityId());
+            s_activeRuntimeEffectIds.Add(asset.GetEntityId());
             return asset;
         }
         catch
@@ -127,7 +127,7 @@ public static class RuntimeEffekseerLoader
             return;
         }
 
-        _activeRuntimeEffectIDs.Remove(asset.GetEntityId());
+        s_activeRuntimeEffectIds.Remove(asset.GetEntityId());
 
         var resources = asset.textureResources;
         if (resources != null)
@@ -159,31 +159,7 @@ public static class RuntimeEffekseerLoader
                 $"Effect texture '{serverPath}' was not returned by the asset loader.");
         }
 
-        // Detect & decode animated container (GIF/WebP) or plain PNG
-        var type = AnimationContainerDecoder.DetectType(bytes);
-        if (type == AnimationContainerDecoder.ContainerType.GIF ||
-            type == AnimationContainerDecoder.ContainerType.WebP)
-        {
-            var decoded = type == AnimationContainerDecoder.ContainerType.GIF
-                ? AnimationContainerDecoder.DecodeGif(bytes)
-                : AnimationContainerDecoder.DecodeWebP(bytes);
-
-            if (decoded.Atlas != null)
-            {
-                decoded.Atlas.name = $"EffekseerTex_{serverPath}";
-                RuntimeTextureFactory.ApplySampling(
-                    decoded.Atlas,
-                    FilterMode.Point,
-                    TextureWrapMode.Repeat);
-                return decoded.Atlas;
-            }
-
-            throw new InvalidDataException(
-                $"Animated effect texture '{serverPath}' contains no decodable frames.");
-        }
-
-        // Single-frame images are normalized to the same explicit runtime
-        // format as terrain and UI textures.
+        // Effect textures are decoded as standard RGBA32 images with Repeat wrap.
         return RuntimeTextureFactory.DecodeEncodedImageToRGBA32NoMip(
             bytes,
             $"EffekseerTex_{serverPath}",

@@ -11,14 +11,14 @@ public static class PacketTelemetry
 {
     public const int HistoryCapacity = 200;
 
-    private static readonly Dictionary<string, PacketStat> _Incoming = [];
-    private static readonly Dictionary<string, PacketStat> _Outgoing = [];
-    private static readonly PacketEvent[] _History = new PacketEvent[HistoryCapacity];
-    private static int _historyCursor;
-    private static int _historyCount;
-    private static double _windowStart;
-    private static long _windowIncoming;
-    private static long _windowOutgoing;
+    private static readonly Dictionary<string, PacketStat> s_incoming = [];
+    private static readonly Dictionary<string, PacketStat> s_outgoing = [];
+    private static readonly PacketEvent[] s_history = new PacketEvent[HistoryCapacity];
+    private static int s_historyCursor;
+    private static int s_historyCount;
+    private static double s_windowStart;
+    private static long s_windowIncoming;
+    private static long s_windowOutgoing;
 
     public static bool Enabled { get; set; }
 
@@ -54,18 +54,18 @@ public static class PacketTelemetry
     public static long PeakQueueBytes { get; private set; }
 
     /// <summary>Сколько раз поток чтения ждал места в очереди (давление на сервер).</summary>
-    public static long BackpressureCount => Interlocked.Read(ref _backpressureCount);
+    public static long BackpressureCount => Interlocked.Read(ref s_backpressureCount);
 
     /// <summary>Суммарное ожидание потока чтения, мс.</summary>
     public static double BackpressureMilliseconds =>
-        Interlocked.Read(ref _backpressureMicroseconds) / 1000.0;
+        Interlocked.Read(ref s_backpressureMicroseconds) / 1000.0;
 
     /// <summary>Пакеты главного потока, положенные сверх лимита.</summary>
-    public static long AdmissionOverflowCount => Interlocked.Read(ref _admissionOverflowCount);
+    public static long AdmissionOverflowCount => Interlocked.Read(ref s_admissionOverflowCount);
 
-    private static long _backpressureCount;
-    private static long _backpressureMicroseconds;
-    private static long _admissionOverflowCount;
+    private static long s_backpressureCount;
+    private static long s_backpressureMicroseconds;
+    private static long s_admissionOverflowCount;
 
     public static long BudgetStopCount { get; private set; }
 
@@ -79,13 +79,13 @@ public static class PacketTelemetry
         }
 
         TotalIncoming++;
-        _windowIncoming++;
+        s_windowIncoming++;
         if (!handled)
         {
             TotalUnhandled++;
         }
 
-        Accumulate(_Incoming, packetType.Name, handled, timeSeconds);
+        Accumulate(s_incoming, packetType.Name, handled, timeSeconds);
         PushHistory(new PacketEvent(packetType.Name, Incoming: true, handled, timeSeconds));
     }
 
@@ -99,8 +99,8 @@ public static class PacketTelemetry
         }
 
         string name = packetType.Name;
-        _Incoming.TryGetValue(name, out PacketStat stat);
-        _Incoming[name] = stat with
+        s_incoming.TryGetValue(name, out PacketStat stat);
+        s_incoming[name] = stat with
         {
             Name = name,
             HandlerCount = stat.HandlerCount + 1,
@@ -127,8 +127,8 @@ public static class PacketTelemetry
         }
 
         TotalOutgoing++;
-        _windowOutgoing++;
-        Accumulate(_Outgoing, packetType.Name, handled: true, timeSeconds);
+        s_windowOutgoing++;
+        Accumulate(s_outgoing, packetType.Name, handled: true, timeSeconds);
         PushHistory(new PacketEvent(packetType.Name, Incoming: false, Handled: true, timeSeconds));
     }
 
@@ -165,8 +165,8 @@ public static class PacketTelemetry
             return;
         }
 
-        Interlocked.Increment(ref _backpressureCount);
-        Interlocked.Add(ref _backpressureMicroseconds, (long)(Math.Max(0d, waitMilliseconds) * 1000.0));
+        Interlocked.Increment(ref s_backpressureCount);
+        Interlocked.Add(ref s_backpressureMicroseconds, (long)(Math.Max(0d, waitMilliseconds) * 1000.0));
     }
 
     public static void RecordAdmissionOverflow()
@@ -176,28 +176,28 @@ public static class PacketTelemetry
             return;
         }
 
-        Interlocked.Increment(ref _admissionOverflowCount);
+        Interlocked.Increment(ref s_admissionOverflowCount);
     }
 
     public static void Poll(double nowSeconds)
     {
-        if (_windowStart <= 0d)
+        if (s_windowStart <= 0d)
         {
-            _windowStart = nowSeconds;
+            s_windowStart = nowSeconds;
             return;
         }
 
-        double elapsed = nowSeconds - _windowStart;
+        double elapsed = nowSeconds - s_windowStart;
         if (elapsed < 1d)
         {
             return;
         }
 
-        IncomingPerSecond = _windowIncoming / elapsed;
-        OutgoingPerSecond = _windowOutgoing / elapsed;
-        _windowIncoming = 0;
-        _windowOutgoing = 0;
-        _windowStart = nowSeconds;
+        IncomingPerSecond = s_windowIncoming / elapsed;
+        OutgoingPerSecond = s_windowOutgoing / elapsed;
+        s_windowIncoming = 0;
+        s_windowOutgoing = 0;
+        s_windowStart = nowSeconds;
     }
 
     public static void RecordBatch(int packetCount)
@@ -221,11 +221,11 @@ public static class PacketTelemetry
 
     public static void Reset()
     {
-        _Incoming.Clear();
-        _Outgoing.Clear();
-        Array.Clear(_History, 0, _History.Length);
-        _historyCursor = 0;
-        _historyCount = 0;
+        s_incoming.Clear();
+        s_outgoing.Clear();
+        Array.Clear(s_history, 0, s_history.Length);
+        s_historyCursor = 0;
+        s_historyCount = 0;
         TotalIncoming = 0;
         TotalOutgoing = 0;
         TotalUnhandled = 0;
@@ -238,29 +238,29 @@ public static class PacketTelemetry
         PeakQueueDepth = 0;
         QueueBytes = 0;
         PeakQueueBytes = 0;
-        Interlocked.Exchange(ref _backpressureCount, 0);
-        Interlocked.Exchange(ref _backpressureMicroseconds, 0);
-        Interlocked.Exchange(ref _admissionOverflowCount, 0);
+        Interlocked.Exchange(ref s_backpressureCount, 0);
+        Interlocked.Exchange(ref s_backpressureMicroseconds, 0);
+        Interlocked.Exchange(ref s_admissionOverflowCount, 0);
         BudgetStopCount = 0;
         BatchCapStopCount = 0;
         SlowestHandlerMilliseconds = 0d;
         SlowestHandlerName = string.Empty;
-        _windowStart = 0d;
-        _windowIncoming = 0;
-        _windowOutgoing = 0;
+        s_windowStart = 0d;
+        s_windowIncoming = 0;
+        s_windowOutgoing = 0;
     }
 
-    public static void CollectIncoming(List<PacketStat> destination) => Copy(_Incoming, destination);
+    public static void CollectIncoming(List<PacketStat> destination) => Copy(s_incoming, destination);
 
-    public static void CollectOutgoing(List<PacketStat> destination) => Copy(_Outgoing, destination);
+    public static void CollectOutgoing(List<PacketStat> destination) => Copy(s_outgoing, destination);
 
     public static void CollectHistory(List<PacketEvent> destination)
     {
         destination.Clear();
-        for (int i = 0; i < _historyCount; i++)
+        for (int i = 0; i < s_historyCount; i++)
         {
-            int index = (_historyCursor - 1 - i + HistoryCapacity * 2) % HistoryCapacity;
-            destination.Add(_History[index]);
+            int index = (s_historyCursor - 1 - i + HistoryCapacity * 2) % HistoryCapacity;
+            destination.Add(s_history[index]);
         }
     }
 
@@ -282,9 +282,9 @@ public static class PacketTelemetry
 
     private static void PushHistory(PacketEvent entry)
     {
-        _History[_historyCursor] = entry;
-        _historyCursor = (_historyCursor + 1) % HistoryCapacity;
-        _historyCount = Math.Min(_historyCount + 1, HistoryCapacity);
+        s_history[s_historyCursor] = entry;
+        s_historyCursor = (s_historyCursor + 1) % HistoryCapacity;
+        s_historyCount = Math.Min(s_historyCount + 1, HistoryCapacity);
     }
 
     private static void Copy(Dictionary<string, PacketStat> source, List<PacketStat> destination)

@@ -15,6 +15,16 @@ internal sealed class MapCellSampler
     private int _chunkSize;
     private int _heightChunks;
 
+    public IWorldLayer<CellType>? Layer => _layer;
+
+    public int ChunkSize => _chunkSize;
+
+    public int WidthChunks => _layer?.WidthChunks ?? 0;
+
+    public int HeightChunks => _heightChunks;
+
+    public int Revision { get; private set; }
+
     // Границы мира в клетках кешируются: попиксельный опрос карты обращается к
     // слою миллионы раз за кадр, и чтение свойств через IWorldLayer на каждом
     // пикселе стоило дороже всей остальной выборки.
@@ -38,6 +48,7 @@ internal sealed class MapCellSampler
         _lastChunk = null;
         _chunkSize = layer?.ChunkSize ?? 0;
         _heightChunks = layer?.HeightChunks ?? 0;
+        Revision++;
         _worldWidth = _chunkSize * (layer?.WidthChunks ?? 0);
         _worldHeight = _chunkSize * _heightChunks;
     }
@@ -48,6 +59,7 @@ internal sealed class MapCellSampler
         _chunkOrder.Clear();
         _lastChunkIndex = -1;
         _lastChunk = null;
+        Revision++;
     }
 
     public void InvalidateChunk(int serverX, int serverY)
@@ -66,6 +78,42 @@ internal sealed class MapCellSampler
             _lastChunkIndex = -1;
             _lastChunk = null;
         }
+
+        Revision++;
+    }
+
+    public bool TryGetChunk(int chunkX, int chunkY, out CellType[]? chunk)
+    {
+        chunk = null;
+        if (_layer == null || _chunkSize <= 0 || _heightChunks <= 0 ||
+            chunkX < 0 || chunkY < 0 ||
+            chunkX >= _layer.WidthChunks || chunkY >= _heightChunks)
+        {
+            return false;
+        }
+
+        int chunkIndex = chunkY + (chunkX * _heightChunks);
+        if (chunkIndex == _lastChunkIndex)
+        {
+            chunk = _lastChunk;
+            return chunk != null;
+        }
+
+        if (_chunks.TryGetValue(chunkIndex, out chunk))
+        {
+            _lastChunkIndex = chunkIndex;
+            _lastChunk = chunk;
+            return chunk != null;
+        }
+
+        ChunkReadResult<CellType> result = _layer.ReadChunk(chunkIndex, touchLRU: false);
+        chunk = (result.Status == ChunkReadStatus.Available) ? result.Data : null;
+        _chunks[chunkIndex] = chunk;
+        _chunkOrder.Enqueue(chunkIndex);
+        TrimCache();
+        _lastChunkIndex = chunkIndex;
+        _lastChunk = chunk;
+        return chunk != null;
     }
 
     public bool TryGetCell(int serverX, int serverY, out CellType cellType)
@@ -81,43 +129,7 @@ internal sealed class MapCellSampler
 
         int chunkX = serverX / _chunkSize;
         int chunkY = serverY / _chunkSize;
-        int chunkIndex = chunkY + (chunkX * _heightChunks);
-
-        CellType[]? chunk = null;
-        bool hasCached = false;
-
-        if (chunkIndex == _lastChunkIndex)
-        {
-            chunk = _lastChunk;
-            hasCached = true;
-        }
-        else if (_chunks.TryGetValue(chunkIndex, out chunk))
-        {
-            hasCached = true;
-        }
-
-        if (!hasCached)
-        {
-            ChunkReadResult<CellType> result = _layer.ReadChunk(chunkIndex, touchLru: false);
-            if (result.Status == ChunkReadStatus.Available && result.Data != null)
-            {
-                chunk = result.Data;
-            }
-            else
-            {
-                chunk = null;
-            }
-
-            _chunks[chunkIndex] = chunk;
-            _chunkOrder.Enqueue(chunkIndex);
-            TrimCache();
-            hasCached = true;
-        }
-
-        _lastChunkIndex = chunkIndex;
-        _lastChunk = chunk;
-
-        if (chunk == null)
+        if (!TryGetChunk(chunkX, chunkY, out CellType[]? chunk) || chunk == null)
         {
             return false;
         }

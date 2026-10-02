@@ -39,7 +39,6 @@ public sealed class AudioPlaybackHandle : IAudioPlaybackHandle
 
         var mode = fadeOut > 0f ? FMOD.Studio.STOP_MODE.ALLOWFADEOUT : FMOD.Studio.STOP_MODE.IMMEDIATE;
         EventInstance.stop(mode);
-        EventInstance.release();
     }
 
     public void SetPosition(Vector3 worldPosition)

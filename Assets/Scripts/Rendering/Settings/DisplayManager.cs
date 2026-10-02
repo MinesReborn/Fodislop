@@ -133,11 +133,11 @@ namespace Kern.Rendering
         private static void ApplyPixelSampling(PixelSamplingMode mode)
         {
             Shader.SetGlobalFloat(
-                _PixelArtFilteringProperty,
+                s_pixelArtFilteringProperty,
                 PixelSamplingRules.FiltersTexelEdges(mode) ? 1f : 0f);
         }
 
-        private static readonly int _PixelArtFilteringProperty = Shader.PropertyToID("_PixelArtFiltering");
+        private static readonly int s_pixelArtFilteringProperty = Shader.PropertyToID("_PixelArtFiltering");
 
         public void SetResolution(int width, int height, FullScreenMode mode, int refreshRate = 60)
         {
@@ -157,6 +157,17 @@ namespace Kern.Rendering
 
             Screen.SetResolution(width, height, mode, new RefreshRate { numerator = (uint)Mathf.Max(1, refreshRate), denominator = 1 });
             Debug.Log($"[DisplayManager] SetResolution: {width}x{height} @ {refreshRate}Hz (Mode={mode})");
+        }
+
+        // Temporary renderer fixtures retain and restore their own dimensions;
+        // they must not persist a benchmark resolution into client settings.
+        internal static void SetTransientResolution(int width, int height, FullScreenMode mode)
+        {
+            if (width <= 0 || height <= 0)
+            {
+                throw new ArgumentOutOfRangeException(width <= 0 ? nameof(width) : nameof(height));
+            }
+            Screen.SetResolution(width, height, NormalizeFullScreenMode(mode));
         }
 
         public void SetVSync(bool enabled)
@@ -202,7 +213,7 @@ namespace Kern.Rendering
             {
                 Debug.LogWarning(
                     "[HDR] No HDR-capable display is reported yet; the preference is kept " +
-                    "and applied by HDROutputReconciler once one appears.");
+                    "and applied by HdrOutputReconciler once one appears.");
             }
 
             HDROutput.ConfigureCamera(_gameplayCamera.Camera);

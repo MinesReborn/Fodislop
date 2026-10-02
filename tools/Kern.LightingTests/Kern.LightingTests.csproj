@@ -17,11 +17,14 @@
     <Compile Include="FreezeReport.cs" />
     <Compile Include="NativeHarness.cs" />
     <Compile Include="LightingShim.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\Assets\Scripts\World\Lighting\Quality\Contracts\LightingQualityTuning.cs" Link="Game\LightingQualityTuning.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\Assets\Scripts\World\Lighting\Quality\LightingQualityTuningController.cs" Link="Game\LightingQualityTuningController.cs" />
     <Compile Include="ProbeRectTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)..\..\Assets\Scripts\World\Lighting\Cascades\LightingCascadeLayout.cs" Link="Game\LightingCascadeLayout.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)..\..\Assets\Scripts\World\Lighting\Cascades\CascadeLayoutBuilder.cs" Link="Game\CascadeLayoutBuilder.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)..\..\Assets\Scripts\World\Lighting\Cascades\CascadeCostCalculator.cs" Link="Game\CascadeCostCalculator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)..\..\Assets\Scripts\World\Lighting\Resources\LightingComputeBinder.cs" Link="Game\LightingComputeBinder.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\Assets\Scripts\Rendering\Settings\Contracts\DisplayOutputPrecision.cs" Link="Game\DisplayOutputPrecision.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)..\..\Assets\Scripts\World\Lighting\Cascades\CascadeProbeRects.cs" Link="Game\CascadeProbeRects.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)..\..\Assets\Scripts\World\Streaming\StreamingPolicy.cs" Link="Game\StreamingPolicy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)..\..\Assets\Scripts\World\Streaming\StreamingPlan.cs" Link="Game\StreamingPlan.cs" />

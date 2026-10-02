@@ -8,7 +8,7 @@ using Kern.ArchitectureLinter.Scanning;
 namespace Kern.ArchitectureLinter.Rules.CodeStyle;
 
 /// <summary>
-/// Validates C# naming conventions. Private fields must start with underscore.
+/// Validates C# naming conventions. Private instance fields use an underscore; static fields use s_.
 /// Interfaces must start with 'I'.
 /// Scans source files directly (not DLLs) to catch changes immediately.
 /// </summary>
@@ -76,9 +76,12 @@ public sealed class NamingConventionRule : IRule
             {
                 var fieldName = m.Groups[1].Value;
 
-                // Skip if already has underscore
-                if (fieldName.StartsWith("_"))
+                bool isStatic = Regex.IsMatch(m.Value, @"\bstatic\b");
+                string expectedPrefix = isStatic ? "s_" : "_";
+                if (fieldName.StartsWith(expectedPrefix, StringComparison.Ordinal))
+                {
                     continue;
+                }
 
                 // Skip compiler-generated backing fields
                 if (IsCompilerGeneratedBackingField(fieldName, source, m.Index))
@@ -88,7 +91,7 @@ public sealed class NamingConventionRule : IRule
                 violations.Add(new RuleViolation
                 {
                     RuleId = Id,
-                    Message = $"Private field '{fieldName}' does not start with '_'.",
+                    Message = $"Private {(isStatic ? "static" : "instance")} field '{fieldName}' does not start with '{expectedPrefix}'.",
                     Severity = Severity,
                     TypeName = $"{relative}:{line}"
                 });

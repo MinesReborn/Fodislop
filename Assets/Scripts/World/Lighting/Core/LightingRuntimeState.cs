@@ -12,9 +12,14 @@ internal sealed class LightingRuntimeState
     public bool HasRenderedLightState { get; set; }
     public bool HasStaticRadianceState { get; set; }
     public bool HasDynamicRadianceState { get; set; }
+    public RectInt LastDynamicReceiverRect { get; set; }
     public bool WasLightingBypassed { get; set; }
     public Vector4 LastVisibleRegion { get; set; } = new(float.NaN, float.NaN, float.NaN, float.NaN);
     public ulong LastTerrainGeometryRevision { get; set; }
+    // Latest revision transferred through the contiguous terrain journal.
+    // A matching revision has complete spatial invalidation records; an
+    // unjournaled revision still requires the conservative full rebuild.
+    public ulong StagedTerrainGeometryRevision { get; set; }
     public ulong LastContributorGeometryRevision { get; set; }
     public ulong SolveCount { get; set; }
     public float RequestedPixelsPerCell { get; set; }
@@ -22,9 +27,8 @@ internal sealed class LightingRuntimeState
     public bool TextureDimensionLimited { get; set; }
     public bool CascadeBudgetLimited { get; set; }
 
-    // Geometry can arrive in the stable lighting padding before it is visible.
-    // Keep that invalidation pending; activating it immediately would launch a
-    // full static transport solve for pixels the player cannot see.
+    // Geometry in the stable padding can affect visible rays immediately.
+    // The coordinator activates the complete transport region plus its halo.
     private readonly List<RectInt> _pendingRegionInvalidations = new(8);
     private readonly List<RectInt> _activeRegionInvalidations = new(8);
 
@@ -60,22 +64,14 @@ internal sealed class LightingRuntimeState
     {
         bool activated = false;
         long allocatedArea = 0;
-        Vector2 viewportCenter = new(
-            visibleRegion.xMin + visibleRegion.width * 0.5f,
-            visibleRegion.yMin + visibleRegion.height * 0.5f);
-
-        // Sort pending regions descending by distance so that the nearest regions are at the end,
-        // allowing efficient RemoveAt(Count - 1) in O(1).
-        _pendingRegionInvalidations.Sort((a, b) =>
+        if (_pendingRegionInvalidations.Count == 0)
         {
-            Vector2 centerA = new(a.xMin + a.width * 0.5f, a.yMin + a.height * 0.5f);
-            Vector2 centerB = new(b.xMin + b.width * 0.5f, b.yMin + b.height * 0.5f);
-            float distSqA = (centerA.x - viewportCenter.x) * (centerA.x - viewportCenter.x) +
-                (centerA.y - viewportCenter.y) * (centerA.y - viewportCenter.y);
-            float distSqB = (centerB.x - viewportCenter.x) * (centerB.x - viewportCenter.x) +
-                (centerB.y - viewportCenter.y) * (centerB.y - viewportCenter.y);
-            return distSqB.CompareTo(distSqA);
-        });
+            return false;
+        }
+        if (_pendingRegionInvalidations.Count > 1)
+        {
+            SortPendingRegions(visibleRegion);
+        }
 
         for (int index = _pendingRegionInvalidations.Count - 1; index >= 0; index--)
         {
@@ -85,7 +81,7 @@ internal sealed class LightingRuntimeState
                 continue;
             }
 
-            int regionArea = pending.width * pending.height;
+            long regionArea = (long)pending.width * pending.height;
             if (allocatedArea > 0 && allocatedArea + regionArea > maxAreaCells)
             {
                 // Defer further regions to subsequent frames to preserve the frame budget.
@@ -106,27 +102,46 @@ internal sealed class LightingRuntimeState
         return activated;
     }
 
+    private void SortPendingRegions(RectInt visibleRegion)
+    {
+        Vector2 viewportCenter = new(
+            visibleRegion.xMin + visibleRegion.width * 0.5f,
+            visibleRegion.yMin + visibleRegion.height * 0.5f);
+
+        // Sort pending regions descending by distance so that the nearest regions are at the end,
+        // allowing efficient RemoveAt(Count - 1) in O(1).
+        _pendingRegionInvalidations.Sort((a, b) =>
+        {
+            Vector2 centerA = new(a.xMin + a.width * 0.5f, a.yMin + a.height * 0.5f);
+            Vector2 centerB = new(b.xMin + b.width * 0.5f, b.yMin + b.height * 0.5f);
+            float distSqA = (centerA.x - viewportCenter.x) * (centerA.x - viewportCenter.x) +
+                (centerA.y - viewportCenter.y) * (centerA.y - viewportCenter.y);
+            float distSqB = (centerB.x - viewportCenter.x) * (centerB.x - viewportCenter.x) +
+                (centerB.y - viewportCenter.y) * (centerB.y - viewportCenter.y);
+            return distSqB.CompareTo(distSqA);
+        });
+
+    }
+
     public void ClearPendingRegionInvalidation()
     {
         _pendingRegionInvalidations.Clear();
         _activeRegionInvalidations.Clear();
     }
 
-    // Region moves that reuse the atlas keep every overlapping entry, so
-    // pending edits inside the new field must NOT be dropped (the kept
-    // entries would stay stale indefinitely). They are NOT force-activated
-    // either: flushing a backlog in the move frame would spike exactly like
-    // the full solve being removed. They stay pending and drain through the
-    // regular budgeted activation over the next frames; the fringe heals
-    // itself via the mask path. Anything outside the new field is dropped,
-    // matching the previous policy and bounding the list.
+    // Rebuilding a moved material field makes every pending overlapping edit
+    // current at once. Transfer all of them to this solve before publishing;
+    // deferring them would reuse old intervals against the new geometry.
     public void RetainPendingRegionsForReuse(RectInt field)
     {
         for (int index = _pendingRegionInvalidations.Count - 1; index >= 0; index--)
         {
-            if (!Intersects(_pendingRegionInvalidations[index], field))
+            RectInt pending = _pendingRegionInvalidations[index];
+            _pendingRegionInvalidations.RemoveAt(index);
+            if (Intersects(pending, field))
             {
-                _pendingRegionInvalidations.RemoveAt(index);
+                _activeRegionInvalidations.Add(pending);
+                FieldDirty = true;
             }
         }
     }

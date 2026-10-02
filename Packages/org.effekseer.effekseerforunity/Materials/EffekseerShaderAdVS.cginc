@@ -1,3 +1,4 @@
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/WorldRenderGrid.hlsl"
 #include <UnityInstancing.cginc>
 
 #if defined(UNITY_INSTANCING_ENABLED) || defined(UNITY_PROCEDURAL_INSTANCING_ENABLED) || defined(UNITY_STEREO_INSTANCING_ENABLED)
@@ -320,7 +321,10 @@ VS_Output vert(VS_Input i)
 
 	float4 worldPos = mul(mModel, localPosition);
 
-	Output.PosVS = mul(mCameraProj, worldPos);
+	worldPos.xyz = KernWorldGridVertex(worldPos.xyz);
+	Output.PosVS = _KernWorldGridDensity > 0.0
+        ? KernWorldGridClipPosition(worldPos.xyz)
+        : mul(mCameraProj, worldPos);
 
 	float2 outputUV = Input.UV;
 	outputUV.x = outputUV.x * uv.z + uv.x;
@@ -348,8 +352,8 @@ VS_Output vert(VS_Input i)
 	Output.WorldT = worldTangent.xyz;
 
 #elif defined(ENABLE_DISTORTION)
-	Output.ProjTangent = mul(mCameraProj, worldPos + worldTangent);
-	Output.ProjBinormal = mul(mCameraProj, worldPos + worldBinormal);
+	Output.ProjTangent = (_KernWorldGridDensity > 0.0 ? KernWorldGridClipPosition(worldPos.xyz + worldTangent.xyz) : mul(mCameraProj, worldPos + worldTangent));
+	Output.ProjBinormal = (_KernWorldGridDensity > 0.0 ? KernWorldGridClipPosition(worldPos.xyz + worldBinormal.xyz) : mul(mCameraProj, worldPos + worldBinormal));
 #endif
 
 #else
@@ -367,7 +371,9 @@ VS_Output vert(VS_Input i)
 	Output.PosP = Output.PosVS;
 #endif
 
-	Output.PosVS = UnityObjectToClipPos(worldPos);
+	Output.PosVS = _KernWorldGridDensity > 0.0
+        ? KernWorldGridClipPosition(worldPos.xyz)
+        : UnityObjectToClipPos(worldPos);
 	return Output;
 }
 
@@ -516,7 +522,10 @@ VS_Output vert(VS_Input i)
 
 	float4 worldPos = { Input.Pos.x, Input.Pos.y, Input.Pos.z, 1.0 };
 
-	Output.PosVS = mul(mCameraProj, worldPos);
+	worldPos.xyz = KernWorldGridVertex(worldPos.xyz);
+	Output.PosVS = _KernWorldGridDensity > 0.0
+        ? KernWorldGridClipPosition(worldPos.xyz)
+        : mul(mCameraProj, worldPos);
 
 #ifdef ENABLE_LIGHTING
 	// NBT
@@ -525,8 +534,8 @@ VS_Output vert(VS_Input i)
 	Output.WorldT = worldTangent.xyz;
 
 #elif defined(ENABLE_DISTORTION)
-	Output.ProjTangent = mul(mCameraProj, worldPos + worldTangent);
-	Output.ProjBinormal = mul(mCameraProj, worldPos + worldBinormal);
+	Output.ProjTangent = (_KernWorldGridDensity > 0.0 ? KernWorldGridClipPosition(worldPos.xyz + worldTangent.xyz) : mul(mCameraProj, worldPos + worldTangent));
+	Output.ProjBinormal = (_KernWorldGridDensity > 0.0 ? KernWorldGridClipPosition(worldPos.xyz + worldBinormal.xyz) : mul(mCameraProj, worldPos + worldBinormal));
 #endif
 
 	Output.Color = Input.Color;
@@ -537,7 +546,9 @@ VS_Output vert(VS_Input i)
 	Output.PosP = Output.PosVS;
 #endif
 
-    Output.PosVS = UnityObjectToClipPos(worldPos);
+    Output.PosVS = _KernWorldGridDensity > 0.0
+        ? KernWorldGridClipPosition(worldPos.xyz)
+        : UnityObjectToClipPos(worldPos);
 	return Output;
 }
 

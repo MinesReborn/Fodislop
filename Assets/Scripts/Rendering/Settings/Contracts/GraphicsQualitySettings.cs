@@ -24,13 +24,13 @@ public struct GraphicsQualitySettings : IEquatable<GraphicsQualitySettings>
 
     public static readonly int[] AntiAliasingSampleCounts = [0, 2, 4, 8];
 
-    [Range(1, 8)]
+    [Range(1, 16)]
     [SettingLabel("settings.lighting.density")]
-    [Tooltip("Нижняя граница lighting-пикселей на клетку. Фактическое разрешение считается от render target базовой камеры.")]
+    [Tooltip("Запрошенная плотность проб статического транспорта, проб на клетку. Бюджет атласа и трассировки ограничивает пробы; геометрия, альбедо, эмиссия и применение света вычисляются в 32×32 независимо от зума.")]
     [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine field allocation")]
     public int LightingMinimumPixelsPerCell;
 
-    [Range(MinimumLightingTextureDimension, 4096)]
+    [Range(MinimumLightingTextureDimension, 16384)]
     [SettingLabel("settings.lighting.max_size")]
     [Tooltip("Максимальный размер lighting field в пикселях.")]
     [SettingConsumer(SettingConsumerTarget.LightingEngine, "LightingEngine field allocation")]

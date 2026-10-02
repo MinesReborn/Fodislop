@@ -18,7 +18,6 @@ namespace Kern.UI
         [SerializeField]
         private int _uiSize = 160;
 
-        // UI Toolkit
         [Inject]
         private UIDocument _doc = null!;
         [Inject]
@@ -27,10 +26,9 @@ namespace Kern.UI
         private IInputBlocker _inputBlocker = null!;
         [Inject]
         private ILocalPlayerState _localPlayer = null!;
-        private MinimapView? _view;
-        private Texture2D? _minimapTexture;
+        private MinimapUIController? _ui;
+        private RenderTexture? _minimapTexture;
 
-        // World state
         private ILocalPlayer? _player;
         [Inject]
         private MapStorage _mapStorage = null!;
@@ -43,17 +41,14 @@ namespace Kern.UI
 
         private MinimapTextureRenderer? _textureRenderer;
         private readonly MapCellSampler _cellSampler = new();
-
-        // Refresh & throttle state
+        private MinimapCellInvalidation _cellInvalidation = null!;
         private readonly MinimapRefreshPolicy _refreshPolicy = new();
+        private readonly MinimapRefreshLoop _refreshLoop = new();
         private bool _ready;
         private bool _lastRefreshHadLoadedCells;
         private IWorldLayer<CellType>? _subscribedCellLayer;
         private bool _playerMoveSubscribed;
         private bool _localPlayerChangeSubscribed;
-        private bool _mapDataRefreshPending;
-
-        private bool _uiCreated;
 
         // Остаток клик-маршрута для отрисовки нитью на миникарте (null - нет).
         private IReadOnlyList<Vector2Int>? _clickPath;
@@ -61,6 +56,7 @@ namespace Kern.UI
 
         protected void Start()
         {
+            _cellInvalidation = new MinimapCellInvalidation(_cellSampler);
             if (_uiSize < 3)
             {
                 throw new InvalidOperationException(
@@ -69,27 +65,17 @@ namespace Kern.UI
 
             _textureRenderer = new MinimapTextureRenderer(_uiSize);
 
-            _minimapTexture = RuntimeTextureFactory.CreateRGBA32NoMip(
-                _uiSize,
-                _uiSize,
-                "MinimapTexture",
-                RuntimeTextureColorSpace.Srgb,
-                FilterMode.Point,
-                TextureWrapMode.Clamp);
+            _minimapTexture = new RenderTexture(_uiSize, _uiSize, 0, RenderTextureFormat.ARGB32)
+            {
+                name = "MinimapRenderTexture",
+                enableRandomWrite = true,
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp,
+            };
+            _minimapTexture.Create();
 
-            // new Texture2D не инициализирует пиксели, и до первого Refresh
-            // панель показала бы неинициализированную память. Заливаем цветом
-            // незагруженной клетки: миникарта без данных обязана быть чёрной.
-            var unloaded = new Color32[_uiSize * _uiSize];
-            Array.Fill(unloaded, new Color32(0, 0, 0, 255));
-            _minimapTexture.SetPixelData(unloaded, 0);
-            _minimapTexture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
-
-            // Текстура переписывается на каждом рефреше, поэтому динамический атлас
-            // UI Toolkit обязан её исключить.
-            DynamicAtlasConfigurator.RegisterRuntimeRedrawn(_minimapTexture);
-
-            CreateUI();
+            _ui = new MinimapUIController(_doc, _minimapTexture, _textureRenderer.PathOverlay, RequestMinimapMove);
+            _ui.TryCreate();
             _mapModeState.Changed += OnMapModeChanged;
             SubscribeToLocalPlayerChanges();
             _mapStorage.CellChanged += OnCellChanged;
@@ -100,7 +86,6 @@ namespace Kern.UI
                 _mapManager.OnWorldInitialized += OnWorldReady;
                 _mapManager.OnWorldDataLoaded += OnWorldReady;
             }
-
             if (IsWorldReady())
             {
                 OnWorldReady();
@@ -112,7 +97,6 @@ namespace Kern.UI
                 BindPlayer(_player);
             }
         }
-
         private bool IsWorldReady() =>
             _mapManager != null && _mapManager.IsWorldInitialized &&
             _mapStorage != null && _mapStorage.IsReady;
@@ -124,15 +108,15 @@ namespace Kern.UI
                 return;
             }
 
-            if (_mapManager != null)
+            if (!_ready)
             {
-                _mapManager.OnWorldInitialized -= OnWorldReady;
-                _mapManager.OnWorldDataLoaded -= OnWorldReady;
+                TryInitialize();
             }
-
-            TryInitialize();
+            else
+            {
+                ReinitializeWorldState();
+            }
         }
-
         private void OnPlayerChanged(ILocalPlayer? player)
         {
             if (player == null)
@@ -153,7 +137,7 @@ namespace Kern.UI
 
             if (_ready)
             {
-                _view?.UpdateCoordinates(_player.Position.x, _player.Position.y);
+                _ui?.UpdateCoordinates(_player.Position.x, _player.Position.y);
                 bool minimapVisible = !_mapModeState.IsOpen;
                 if (minimapVisible)
                 {
@@ -168,92 +152,28 @@ namespace Kern.UI
                     _lastRefreshHadLoadedCells);
             }
         }
-
-        protected void Update()
+        protected void Update() => _refreshLoop.Process(
+                _doc,
+                _ui,
+                _mapModeState,
+                _mapStorage,
+                _cellLayer,
+                _player,
+                _worldWidth,
+                _worldHeight,
+                _ready,
+                _lastRefreshHadLoadedCells,
+                _cellInvalidation,
+                _refreshPolicy,
+                _cellSampler,
+                ReinitializeWorldState,
+                RefreshTexture,
+                SetVisible);
+        private void ReinitializeWorldState()
         {
-            if (!_uiCreated)
-            {
-                CreateUI();
-            }
-
-            if (_doc == null || !_doc.enabled)
-            {
-                return;
-            }
-
-            // Инициализации здесь нет и быть не должно. Единственная дорога к
-            // ней — OnWorldReady, подписанный в Start на OnWorldInitialized и
-            // OnWorldDataLoaded: он сам проверяет готовность и отписывается
-            // только когда она действительно наступила, поэтому раннее событие
-            // при неготовом хранилище просто дождётся следующего. Прежний
-            // per-frame ретрай дублировал эту дорогу и прятал её отказ —
-            // если бы события не пришли, никто бы этого не заметил.
-            if (_ready && _mapStorage != null &&
-                !ReferenceEquals(_cellLayer, _mapStorage.CellLayer))
-            {
-                _ready = false;
-                InitializeWorldState();
-            }
-
-            if (_ready && _mapDataRefreshPending && !_mapModeState.IsOpen &&
-                _refreshPolicy.CanRefresh(Time.time))
-            {
-                bool hasServerPosition = _player is { HasServerPosition: true };
-                int centerX = hasServerPosition ? _player!.Position.x : _worldWidth / 2;
-                int centerY = hasServerPosition ? _player!.Position.y : _worldHeight / 2;
-                RefreshTexture(centerX, centerY, drawPlayerMarker: hasServerPosition);
-                long revision = _mapStorage?.Revision ?? -1;
-                _refreshPolicy.RecordRefresh(Time.time, revision, _lastRefreshHadLoadedCells);
-                _mapDataRefreshPending = false;
-            }
-
-            if (_player != null && _player.HasServerPosition)
-            {
-                long currentRevision = _mapStorage != null ? _mapStorage.Revision : -1;
-                if (!_refreshPolicy.InitialRefreshDone &&
-                    _ready &&
-                    _refreshPolicy.CanRefresh(Time.time))
-                {
-                    _view?.UpdateCoordinates(_player.Position.x, _player.Position.y);
-                    bool minimapVisible = !_mapModeState.IsOpen;
-                    if (minimapVisible)
-                    {
-                        RefreshTexture(_player.Position.x, _player.Position.y);
-                    }
-
-                    _refreshPolicy.RecordInitialRefresh(
-                        Time.time,
-                        _player.Position,
-                        currentRevision,
-                        minimapVisible,
-                        _lastRefreshHadLoadedCells);
-                }
-                else if (_refreshPolicy.ShouldRefreshOnStorageOrMove(
-                    Time.time,
-                    currentRevision,
-                    _ready,
-                    !_mapModeState.IsOpen,
-                    true))
-                {
-                    _cellSampler.Invalidate();
-                    RefreshTexture(_player.Position.x, _player.Position.y);
-                    _refreshPolicy.RecordRefresh(Time.time, currentRevision, _lastRefreshHadLoadedCells);
-                }
-                else if (_refreshPolicy.ShouldRefreshOnChunkLoad(
-                    Time.time,
-                    _ready,
-                    !_mapModeState.IsOpen,
-                    true))
-                {
-                    RefreshTexture(_player.Position.x, _player.Position.y);
-                    MapStorage storage = _mapStorage ??
-                        throw new InvalidOperationException("Minimap storage was lost after a chunk loaded.");
-                    _refreshPolicy.RecordChunkLoadRefresh(Time.time, storage.Revision, _lastRefreshHadLoadedCells);
-                }
-            }
-
+            _ready = false;
+            InitializeWorldState();
         }
-
         private void TryInitialize()
         {
             if (_localPlayer == null || _mapModeState == null)
@@ -284,7 +204,7 @@ namespace Kern.UI
 
             if (_player != null && _player.HasServerPosition && !_refreshPolicy.InitialRefreshDone)
             {
-                _view?.UpdateCoordinates(_player.Position.x, _player.Position.y);
+                _ui?.UpdateCoordinates(_player.Position.x, _player.Position.y);
                 bool minimapVisible = !_mapModeState.IsOpen;
                 if (minimapVisible)
                 {
@@ -335,33 +255,6 @@ namespace Kern.UI
             SetVisible(!_mapModeState.IsOpen);
         }
 
-        private void CreateUI()
-        {
-            if (_uiCreated)
-            {
-                return;
-            }
-
-            if (_doc == null || _doc.rootVisualElement == null)
-            {
-                // Не бросаем: UIDocument может появиться после этого Start (PostStart-
-                // инъекция или аддитивная загрузка сцены); Update ретраит CreateUI —
-                // ждём молча, иначе первый кадр роняет клиент.
-                return;
-            }
-
-            _view = MinimapView.Create(
-                _doc,
-                _minimapTexture ?? throw new InvalidOperationException("Minimap texture is required."),
-                RequestMinimapMove);
-
-            _uiCreated = true;
-            if (_ready)
-            {
-                SetVisible(!_mapModeState.IsOpen);
-            }
-        }
-
         // Клик по блоку миникарты: пиксель текстуры -> серверная клетка
         // относительно центра (робота) -> клик-маршрут, та же логика, что
         // у ЛКМ по миру (PlayerInteractionController.HandleMouseClick).
@@ -377,12 +270,16 @@ namespace Kern.UI
                 return;
             }
 
-            Vector2Int server = MapProjection.MinimapPixelToServerCell(
+            if (_textureRenderer == null)
+            {
+                return;
+            }
+
+            Vector2Int server = _textureRenderer.PixelToServerCell(
                 texX,
                 texY,
                 _player.Position.x,
-                _player.Position.y,
-                _uiSize);
+                _player.Position.y);
             if (server.x < 0 || server.y < 0 ||
                 server.x >= _worldWidth || server.y >= _worldHeight)
             {
@@ -545,7 +442,7 @@ namespace Kern.UI
 
             if (_player != null)
             {
-                _view?.UpdateCoordinates(_player.Position.x, _player.Position.y);
+                _ui?.UpdateCoordinates(_player.Position.x, _player.Position.y);
             }
 
             if (_mapModeState.IsOpen)
@@ -577,37 +474,18 @@ namespace Kern.UI
 
         private void OnChunkLoaded(int serverX, int serverY, int width, int height)
         {
-            // Only the loaded chunk changed. Dropping the whole sampler here
-            // made every load re-request every chunk under the minimap.
-            _cellSampler.InvalidateChunk(serverX, serverY);
-            _mapDataRefreshPending = true;
+            _cellInvalidation.OnChunkLoaded(serverX, serverY);
+            _refreshPolicy.NotifyChunkLoaded();
         }
 
         private void OnCellChanged(int serverX, int serverY)
         {
-            _cellSampler.InvalidateChunk(serverX, serverY);
-            _mapDataRefreshPending = true;
+            _cellInvalidation.OnCellChanged(serverX, serverY);
         }
 
         private void OnRegionChanged(int startX, int startY, int width, int height)
         {
-            if (width <= 0 || height <= 0 || _cellLayer == null)
-            {
-                return;
-            }
-
-            int chunkSize = _cellLayer.ChunkSize;
-            int endX = startX + width - 1;
-            int endY = startY + height - 1;
-            for (int chunkX = Mathf.Max(0, startX / chunkSize); chunkX <= endX / chunkSize; chunkX++)
-            {
-                for (int chunkY = Mathf.Max(0, startY / chunkSize); chunkY <= endY / chunkSize; chunkY++)
-                {
-                    _cellSampler.InvalidateChunk(chunkX * chunkSize, chunkY * chunkSize);
-                }
-            }
-
-            _mapDataRefreshPending = true;
+            _cellInvalidation.OnRegionChanged(startX, startY, width, height, _cellLayer);
         }
 
         private void RefreshTexture(int playerX, int playerY, bool drawPlayerMarker = true)
@@ -638,11 +516,10 @@ namespace Kern.UI
                 _worldWidth,
                 _worldHeight,
                 _cellSampler,
-                path,
-                pathStart,
-                drawPlayerMarker);
+                drawPlayerMarker ? path : null,
+                pathStart);
 
-            _view?.MarkDirty();
+            _ui?.MarkDirty();
         }
 
         protected void OnDestroy()
@@ -678,21 +555,25 @@ namespace Kern.UI
                 _subscribedCellLayer = null;
             }
 
-            _view?.Dispose();
-            _view = null;
+            _textureRenderer?.Dispose();
+            _ui?.Dispose();
+            _ui = null;
 
             UnbindPathWalker();
 
             if (_minimapTexture != null)
             {
+                if (_minimapTexture.IsCreated())
+                {
+                    _minimapTexture.Release();
+                }
+
                 Destroy(_minimapTexture);
+                _minimapTexture = null;
             }
         }
 
-        private void SetVisible(bool visible)
-        {
-            _view?.SetVisible(visible);
-        }
+        private void SetVisible(bool visible) => _ui?.SetVisible(visible);
 
         private void OnMapModeChanged(bool mapModeEnabled)
         {

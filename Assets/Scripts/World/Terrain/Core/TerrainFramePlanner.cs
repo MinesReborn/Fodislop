@@ -21,7 +21,7 @@ public readonly record struct TerrainFramePlanningInput(
     int MeshHeight,
     bool IsInitialized,
     bool CellsCommitted,
-    bool CpuBuildInFlight,
+    bool CPUBuildInFlight,
     float SpeedCellsPerSecond,
     float PreparationLatencySeconds,
     RectInt RetainedLightingViewport,
@@ -49,7 +49,7 @@ public sealed class TerrainFramePlanner
     private int _lastResidencyProbeCalls;
     private int _lastResidencyChunkReads;
     private int _lastResidencyCacheHits;
-    private int _lastResidencyLruTouches;
+    private int _lastResidencyLRUTouches;
 
     public StreamingPolicy Policy => _viewport.Policy;
 
@@ -59,7 +59,7 @@ public sealed class TerrainFramePlanner
 
     public int LastResidencyCacheHits => _lastResidencyCacheHits;
 
-    public int LastResidencyLruTouches => _lastResidencyLruTouches;
+    public int LastResidencyLRUTouches => _lastResidencyLRUTouches;
 
     public TerrainFramePlan Plan(in TerrainFramePlanningInput input)
     {
@@ -115,7 +115,7 @@ public sealed class TerrainFramePlanner
         _lastResidencyProbeCalls = 1;
         _lastResidencyChunkReads = 0;
         _lastResidencyCacheHits = 0;
-        _lastResidencyLruTouches = 0;
+        _lastResidencyLRUTouches = 0;
         bool isRequestedResident = TerrainResidencyProbe.IsWindowResident(
             input.Storage,
             input.MapData,
@@ -157,7 +157,7 @@ public sealed class TerrainFramePlanner
             _lastResidencyProbeCalls += _residencyCache.ProbeCalls;
             _lastResidencyChunkReads = _residencyCache.ChunkReads;
             _lastResidencyCacheHits = _residencyCache.CacheHits;
-            _lastResidencyLruTouches = _residencyCache.LruTouches;
+            _lastResidencyLRUTouches = _residencyCache.LRUTouches;
         }
 
         return _viewport.SelectFramePlan(
@@ -174,7 +174,7 @@ public sealed class TerrainFramePlanner
                 requestedWindow.Size.y),
             dimensionsChanged,
             input.CellsCommitted,
-            input.CpuBuildInFlight,
+            input.CPUBuildInFlight,
             input.HoldingPublishedView);
     }
 

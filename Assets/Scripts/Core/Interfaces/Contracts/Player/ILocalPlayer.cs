@@ -13,7 +13,7 @@ public interface ILocalPlayer
 
     bool isActiveAndEnabled { get; }
 
-    uint BotID { get; }
+    uint BotId { get; }
 
     Vector2Int Position { get; }
 
@@ -41,11 +41,16 @@ public interface ILocalPlayer
 
     void UpdateServerPosition(Vector2Int position, bool teleport = false);
 
+    void ResetServerPosition();
+
     void ConfirmDigAction(ushort x, ushort y);
+
+    // Направление, в котором клиент сам копал эту клетку последним.
+    bool TryGetDigDirection(ushort x, ushort y, out Direction direction);
 
     void ResetDirection();
 
-    void Initialize(uint botID);
+    void Initialize(uint botId);
 
     void SetGameplayVisible();
 

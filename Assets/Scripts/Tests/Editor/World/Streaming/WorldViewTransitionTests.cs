@@ -6,8 +6,8 @@ using UnityEngine;
 
 namespace Kern.Tests.World.Streaming;
 
-// Камера при телепорте встаёт на место назначения только тогда, когда её
-// кадр целиком лежит в собранном окне: иначе игрок увидел бы прогрузку.
+// Readiness describes whether an explicitly held publication covers a viewport.
+// Camera teleport policy is tested separately in CameraFollowTests.
 public sealed class WorldViewTransitionTests
 {
     [Test]

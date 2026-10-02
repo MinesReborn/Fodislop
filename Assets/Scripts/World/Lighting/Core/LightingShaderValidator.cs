@@ -83,7 +83,7 @@ internal static class LightingShaderValidator
         return kernelIndex;
     }
 
-    public static void ValidateGpuRequirements()
+    public static void ValidateGPURequirements()
     {
         if (SystemInfo.supportedRenderTargetCount < 2 ||
             !SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.ARGB32) ||

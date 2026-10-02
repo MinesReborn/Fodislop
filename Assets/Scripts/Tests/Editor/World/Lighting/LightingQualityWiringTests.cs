@@ -17,13 +17,13 @@ namespace Kern.Tests.World.Lighting;
 [TestFixture]
 public sealed class LightingQualityWiringTests
 {
-    private static readonly GraphicsQualityProfile _profile = GraphicsQualityProfile.CreateDefault();
+    private static readonly GraphicsQualityProfile s_profile = GraphicsQualityProfile.CreateDefault();
 
     [Test]
     public void StandardPresetDisablesLighting()
     {
         Assert.That(
-            _profile.Get(GraphicsPreset.Standard).LightingQuality,
+            s_profile.Get(GraphicsPreset.Standard).LightingQuality,
             Is.EqualTo(LightingQualityMode.Off),
             "'Стандарт' is the preset without lighting: if it ever drifts back to a " +
             "solving mode, the cheap preset silently starts computing light.");
@@ -33,7 +33,7 @@ public sealed class LightingQualityWiringTests
     public void OverdrivePresetSolvesLightingPerPixel()
     {
         Assert.That(
-            _profile.Get(GraphicsPreset.Overdrive).LightingQuality,
+            s_profile.Get(GraphicsPreset.Overdrive).LightingQuality,
             Is.EqualTo(LightingQualityMode.PerPixel),
             "'Overdrive' is the preset with lighting - dropping back to a disabled mode " +
             "silently removes light from the preset that is supposed to show it.");
@@ -44,8 +44,8 @@ public sealed class LightingQualityWiringTests
     {
         // The whole point of the pair: «всё, кроме освещения» and «всё». If any other
         // field ever drifts apart, one of the two stops being "everything".
-        GraphicsQualitySettings standard = _profile.Get(GraphicsPreset.Standard);
-        GraphicsQualitySettings overdrive = _profile.Get(GraphicsPreset.Overdrive);
+        GraphicsQualitySettings standard = s_profile.Get(GraphicsPreset.Standard);
+        GraphicsQualitySettings overdrive = s_profile.Get(GraphicsPreset.Overdrive);
         overdrive.LightingQuality = standard.LightingQuality;
         Assert.That(
             overdrive,
@@ -56,7 +56,7 @@ public sealed class LightingQualityWiringTests
     [Test]
     public void ValidateSettingsRejectsLightingOnTheStandardPreset()
     {
-        GraphicsQualitySettings settings = _profile.Get(GraphicsPreset.Standard);
+        GraphicsQualitySettings settings = s_profile.Get(GraphicsPreset.Standard);
         settings.LightingQuality = LightingQualityMode.PerPixel;
 
         Assert.Throws<InvalidOperationException>(
@@ -68,7 +68,7 @@ public sealed class LightingQualityWiringTests
     [Test]
     public void ValidateSettingsRejectsDisabledLightingOnOverdrive()
     {
-        GraphicsQualitySettings settings = _profile.Get(GraphicsPreset.Overdrive);
+        GraphicsQualitySettings settings = s_profile.Get(GraphicsPreset.Overdrive);
         settings.LightingQuality = LightingQualityMode.Off;
 
         Assert.Throws<InvalidOperationException>(

@@ -104,4 +104,3 @@ public class ImagePacketBuilder : PacketUIBuilderBase<ImagePacket>
         return await webLoader.GetTextureAsync(uri, token);
     }
 }
-

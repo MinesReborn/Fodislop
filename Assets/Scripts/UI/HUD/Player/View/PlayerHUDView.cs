@@ -52,7 +52,7 @@ namespace Kern.UI.HUD.Player.View
         private Label? _hpCountLabel;
         private VisualElement? _hpBarFill;
         private Label? _moneyLabel;
-        private Label? _credsLabel;
+        private Label? _creditsLabel;
         private Label? _geologyLabel;
         private Label? _basketPercentLabel;
         private VisualElement? _basketSeparator;
@@ -69,8 +69,6 @@ namespace Kern.UI.HUD.Player.View
         private Vector2 _panelSize;
 
         // Сохранение позиции панели между запусками клиента.
-        private const string HudPanelPosXKey = "hud.panel.posX";
-        private const string HudPanelPosYKey = "hud.panel.posY";
 
         private ProgrammatorGrid? _programmatorGrid;
         private Button? _programmatorButton;
@@ -98,6 +96,8 @@ namespace Kern.UI.HUD.Player.View
         private UIInputManager _uiInput = null!;
         [Inject]
         private IProgrammatorTextureCatalog _programmatorTextures = null!;
+        [Inject]
+        private IClientConfigManager _clientConfig = null!;
 
         protected void Start()
         {
@@ -332,8 +332,8 @@ namespace Kern.UI.HUD.Player.View
 
             _moneyLabel = tree.Q<Label>("MoneyLabel") ??
                 throw new InvalidOperationException("[PlayerHUD] MoneyLabel is missing from PlayerHUD.uxml.");
-            _credsLabel = tree.Q<Label>("CredsLabel") ??
-                throw new InvalidOperationException("[PlayerHUD] CredsLabel is missing from PlayerHUD.uxml.");
+            _creditsLabel = tree.Q<Label>("CreditsLabel") ??
+                throw new InvalidOperationException("[PlayerHUD] CreditsLabel is missing from PlayerHUD.uxml.");
             _basketPercentLabel = tree.Q<Label>("BasketPercentLabel") ??
                 throw new InvalidOperationException("[PlayerHUD] BasketPercentLabel is missing from PlayerHUD.uxml.");
             _basketSeparator = tree.Q<VisualElement>("BasketSeparator") ??
@@ -346,7 +346,7 @@ namespace Kern.UI.HUD.Player.View
             _skeletonPulse.Register(_hpCountLabel);
             _skeletonPulse.Register(_hpBarFill);
             _skeletonPulse.Register(_moneyLabel);
-            _skeletonPulse.Register(_credsLabel);
+            _skeletonPulse.Register(_creditsLabel);
             _skeletonPulse.Register(_geologyLabel);
             _skeletonPulse.Register(_basketPercentLabel);
 
@@ -466,9 +466,7 @@ namespace Kern.UI.HUD.Player.View
         // первой раскладки (до неё размеры панели ещё не посчитаны).
         private void ApplySavedPanelPosition()
         {
-            if (_panelRoot == null ||
-                !PlayerPrefs.HasKey(HudPanelPosXKey) ||
-                !PlayerPrefs.HasKey(HudPanelPosYKey))
+            if (_panelRoot == null || !_clientConfig.Config.Interface.HasHudPanelPosition)
             {
                 return;
             }
@@ -495,15 +493,16 @@ namespace Kern.UI.HUD.Player.View
             // ВАЖНО: размеры панели (width/height/right/bottom) здесь не трогаем -
             // сброс их через StyleKeyword.Undefined схлопывает бокс панели
             // (фон перестаёт оборачивать контент). Задаём только позицию.
-            float x = PlayerPrefs.GetFloat(HudPanelPosXKey);
-            float y = PlayerPrefs.GetFloat(HudPanelPosYKey);
+            float x = _clientConfig.Config.Interface.HudPanelX;
+            float y = _clientConfig.Config.Interface.HudPanelY;
 
             // Мусор в сохранении (NaN/бесконечность) - сбрасываем на позицию
             // по умолчанию из стилей.
             if (float.IsNaN(x) || float.IsNaN(y) || float.IsInfinity(x) || float.IsInfinity(y))
             {
-                PlayerPrefs.DeleteKey(HudPanelPosXKey);
-                PlayerPrefs.DeleteKey(HudPanelPosYKey);
+                _clientConfig.UpdateSection(
+                    config => config.Interface,
+                    settings => settings.HasHudPanelPosition = false);
                 return;
             }
 
@@ -565,9 +564,9 @@ namespace Kern.UI.HUD.Player.View
                 _moneyLabel.text = _isLoaded ? $"<color=lime>${stats.Money:N0}</color>" : "---";
             }
 
-            if (_credsLabel != null)
+            if (_creditsLabel != null)
             {
-                _credsLabel.text = _isLoaded ? $"<color=yellow>C {stats.Creds:N0}</color>" : "---";
+                _creditsLabel.text = _isLoaded ? $"<color=yellow>C {stats.Credits:N0}</color>" : "---";
             }
 
             if (_geologyLabel != null)
@@ -672,9 +671,16 @@ namespace Kern.UI.HUD.Player.View
             // Позиция панели переживает перезапуск клиента.
             if (_panelRoot != null)
             {
-                PlayerPrefs.SetFloat(HudPanelPosXKey, _panelRoot.resolvedStyle.left);
-                PlayerPrefs.SetFloat(HudPanelPosYKey, _panelRoot.resolvedStyle.top);
-                PlayerPrefs.Save();
+                float left = _panelRoot.resolvedStyle.left;
+                float top = _panelRoot.resolvedStyle.top;
+                _clientConfig.UpdateSection(
+                    config => config.Interface,
+                    settings =>
+                    {
+                        settings.HasHudPanelPosition = true;
+                        settings.HudPanelX = left;
+                        settings.HudPanelY = top;
+                    });
             }
         }
 

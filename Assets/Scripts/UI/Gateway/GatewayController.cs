@@ -109,7 +109,12 @@ namespace Kern.UI
             // некому и форма входа осталась бы видимой поверх онбординга.
             _gatewayRoot = _root.Q<VisualElement>("GatewayRoot") ?? _root;
 
-            _authGate = AuthGate.TryCreate(_root, _clientConfig, _authentication, _loc);
+            _authGate = AuthGate.TryCreate(
+                _root,
+                _clientConfig,
+                _authentication,
+                _operations,
+                _loc);
             if (_authGate == null)
             {
                 Debug.LogWarning("[Gateway] Ворота входа не собрались — сразу уходим в меню.");
@@ -152,6 +157,12 @@ namespace Kern.UI
 
         private void OnDestroy()
         {
+            if (_authGate != null)
+            {
+                _authGate.Passed -= OnAuthPassed;
+                _authGate.Dispose();
+            }
+
             if (_loc != null)
             {
                 _loc.UnregisterLocalizable(this);

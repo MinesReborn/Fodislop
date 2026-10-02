@@ -15,6 +15,8 @@ namespace UnityEngine
         public static float Max(float left, float right) => MathF.Max(left, right);
         public static int Clamp(int value, int min, int max) => Math.Clamp(value, min, max);
         public static float Clamp(float value, float min, float max) => Math.Clamp(value, min, max);
+        public static float Pow(float value, float power) => MathF.Pow(value, power);
+        public static int NextPowerOfTwo(int value) => (int)System.Numerics.BitOperations.RoundUpToPowerOf2((uint)Math.Max(1, value));
     }
 
     public struct Vector2Int : IEquatable<Vector2Int>
@@ -81,8 +83,23 @@ namespace Kern.Core
     public readonly struct GraphicsQualitySettings;
 }
 
-namespace Kern.Rendering
+namespace Kern.Rendering.PostProcessing
 {
+    public static class PostProcessLook
+    {
+        public static class Exposure
+        {
+            public const float Stops = 1f;
+        }
+    }
+}
+
+namespace Kern.Core.Interfaces.WorldLighting
+{
+    public static class LightingFieldOrientation
+    {
+        public static bool RowsTopDown => UnityEngine.SystemInfo.graphicsUVStartsAtTop;
+    }
 }
 
 namespace Kern.World.Terrain
@@ -115,6 +132,7 @@ namespace Kern.World.Lighting
 
     public static class LightingConfigHolder
     {
+        public static readonly LightingQualityTuning DefaultQuality = new(32, 32, 4, 64, 6f, 8, 3, 64);
         public static LightingFeatureFlags EnabledFeatures { get; set; } = LightingFeatureFlags.StaticRC;
         public const float AmbientIntensity = 0f;
         public const float EmissionScale = 16f;
@@ -128,9 +146,6 @@ namespace Kern.World.Lighting
         public const float SolidOccupancyThreshold = 0.5f;
         public const float TransportSolidThreshold = 0.4f;
         public const int DynamicEmitterPointsPerAxis = 3;
-        public const float DynamicReachSlackTexels = 2f;
-        public const float DynamicReachSlackCells = 1.5f;
-        public const float DynamicPolarMargin = 1.5f;
         public static UnityEngine.Color AmbientColor => UnityEngine.Color.white;
         public static UnityEngine.Color EmptyExtinctionRGB => UnityEngine.Color.white;
         public static UnityEngine.Color SolidExtinctionRGB => UnityEngine.Color.white;

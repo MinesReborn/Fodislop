@@ -46,12 +46,12 @@ internal sealed class LightingComposition
             dynamicLightManager,
             geometryRegistry,
             telemetry);
-        GpuLifecycle = new LightingGPULifecycle(resources, FrameExecutor);
+        GPULifecycle = new LightingGPULifecycle(resources, FrameExecutor);
         Presentation = new LightingPresentation(resources);
         UpdateCoordinator = new LightingUpdateCoordinator(
             resources,
             runtimeState,
-            GpuLifecycle,
+            GPULifecycle,
             FrameExecutor,
             Presentation,
             geometryRegistry,
@@ -62,7 +62,7 @@ internal sealed class LightingComposition
 
     public LightingFrameExecutor FrameExecutor { get; }
 
-    public LightingGPULifecycle GpuLifecycle { get; }
+    public LightingGPULifecycle GPULifecycle { get; }
 
     public LightingPresentation Presentation { get; }
 

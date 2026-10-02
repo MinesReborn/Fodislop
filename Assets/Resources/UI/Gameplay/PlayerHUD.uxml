@@ -33,7 +33,7 @@
 
             <!-- Валюта -->
             <ui:Label name="MoneyLabel" class="hud-money" text="---" />
-            <ui:Label name="CredsLabel" class="hud-creds" text="---" />
+            <ui:Label name="CreditsLabel" class="hud-credits" text="---" />
             <ui:Label name="GeologyLabel" class="hud-stat"  text="" />
 
             <ui:VisualElement name="BasketSeparator" class="hud-separator" />
@@ -109,7 +109,10 @@
                     <ui:Button name="WorldMapCloseButton" class="world-map-close" text="×" />
                 </ui:VisualElement>
                 <ui:Label name="WorldMapStatus" class="world-map-status is-hidden" text="hud.map_preparing" picking-mode="Ignore" />
-                <ui:Image name="WorldMapImage" class="world-map-image" picking-mode="Position" />
+                <ui:VisualElement name="WorldMapViewport" class="world-map-viewport">
+                    <ui:Image name="WorldMapImage" class="world-map-image" picking-mode="Position" />
+                    <ui:VisualElement name="WorldMapPlayerMarker" class="world-map-player-marker is-hidden" picking-mode="Ignore" />
+                </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
 

@@ -9,7 +9,7 @@ namespace Kern.Tests.UI;
 [TestFixture]
 public class InventoryModelFuzzTests
 {
-    private static readonly ItemType[] Types =
+    private static readonly ItemType[] s_types =
     [
         ItemType.Rem,
         ItemType.Battery,
@@ -78,14 +78,14 @@ public class InventoryModelFuzzTests
             var model = new Kern.Game.Inventory.InventoryModel();
             model.ApplyFullSnapshot(new Dictionary<ItemType, long>() { });
             model.MergeChanges(MakeChanges(random));
-            Assert.That(model.OrderedTypes.Count, Is.LessThanOrEqualTo(Types.Length), $"i={i}");
+            Assert.That(model.OrderedTypes.Count, Is.LessThanOrEqualTo(s_types.Length), $"i={i}");
         }
     }
 
     private static Dictionary<ItemType, long> MakeSnapshot(System.Random random)
     {
         var snapshot = new Dictionary<ItemType, long>();
-        foreach (ItemType type in Types)
+        foreach (ItemType type in s_types)
         {
             if (random.Next(3) != 0)
             {
@@ -101,7 +101,7 @@ public class InventoryModelFuzzTests
         var changes = new Dictionary<ItemType, long>();
         for (int j = 0; j < 3; j++)
         {
-            ItemType type = Types[RandomIndex(random, Types.Length)];
+            ItemType type = s_types[RandomIndex(random, s_types.Length)];
             long quantity = random.Next(4) == 0 ? 0 : random.Next(1, 50);
             changes[type] = quantity;
         }

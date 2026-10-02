@@ -31,8 +31,8 @@ public class TerrainCellDataPackerTests
     [Test]
     public void SurfaceCopyPreservesCornerDataAndPackedSurfaceBits()
     {
-        TerrainVertex[] expected = Quad(_Identity);
-        TerrainVertex[] actual = Quad(_Identity);
+        TerrainVertex[] expected = Quad(s_identity);
+        TerrainVertex[] actual = Quad(s_identity);
         TerrainVertex surface = expected[0];
         for (int corner = 0; corner < 4; corner++)
         {
@@ -65,7 +65,7 @@ public class TerrainCellDataPackerTests
         return quad;
     }
 
-    private static readonly Vector2[] _Identity =
+    private static readonly Vector2[] s_identity =
     [
         new(0, 0), new(1, 0), new(1, 1), new(0, 1),
     ];
@@ -73,7 +73,7 @@ public class TerrainCellDataPackerTests
     [Test]
     public void SharedAttributesAreCopiedBitForBit()
     {
-        TerrainVertex[] quad = Quad(_Identity);
+        TerrainVertex[] quad = Quad(s_identity);
         TerrainCellTexels texels = TerrainCellDataPacker.PackQuad(quad, 3);
         TerrainVertex v = quad[0];
 
@@ -89,7 +89,7 @@ public class TerrainCellDataPackerTests
     [Test]
     public void LargeWorldCoordinatesAndPackedColorsSurvive()
     {
-        TerrainCellTexels texels = TerrainCellDataPacker.PackQuad(Quad(_Identity), 0);
+        TerrainCellTexels texels = TerrainCellDataPacker.PackQuad(Quad(s_identity), 0);
 
         Assert.That(texels.World.x, Is.EqualTo(9999f));
         Assert.That(texels.World.y, Is.EqualTo(39999f));
@@ -99,7 +99,7 @@ public class TerrainCellDataPackerTests
     [Test]
     public void GeometryCornersArePackedWithCellData()
     {
-        TerrainCellTexels texels = TerrainCellDataPacker.PackQuad(Quad(_Identity), 0);
+        TerrainCellTexels texels = TerrainCellDataPacker.PackQuad(Quad(s_identity), 0);
 
         Assert.That(texels.Meta.a, Is.EqualTo(byte.MaxValue));
         Assert.That(Mathf.HalfToFloat(texels.GeometryX.R), Is.EqualTo(0.0f));
@@ -110,7 +110,7 @@ public class TerrainCellDataPackerTests
     [Test]
     public void UndrawnQuadPacksAsZeroAtlas()
     {
-        TerrainCellTexels texels = TerrainCellDataPacker.PackQuad(Quad(_Identity), -1);
+        TerrainCellTexels texels = TerrainCellDataPacker.PackQuad(Quad(s_identity), -1);
 
         Assert.That(texels.Meta.r, Is.EqualTo(0));
         Assert.That(TerrainCellDataPacker.UnpackAtlasIndex(texels.Meta), Is.EqualTo(-1));
@@ -121,7 +121,7 @@ public class TerrainCellDataPackerTests
     [Test]
     public void EveryCornerTransformRoundTrips([NUnit.Framework.Range(0, 7)] int transform)
     {
-        Vector2[] uv = (Vector2[])_Identity.Clone();
+        Vector2[] uv = (Vector2[])s_identity.Clone();
         if ((transform & 1) != 0)
         {
             (uv[0].x, uv[1].x) = (uv[1].x, uv[0].x);

@@ -14,11 +14,6 @@ public sealed class EffectSettings
     [SettingConsumer(SettingConsumerTarget.PostProcessController, "PostProcessController.BloomIntensity")]
     public bool BloomEnabled = PostProcessLook.Effects.Bloom;
 
-    [SettingUnbounded("Выбор цветовой обработки свечения.")]
-    [SettingLabel("settings.effects.bloom_variant")]
-    [SettingConsumer(SettingConsumerTarget.PostProcessController, "PostProcessController.BloomVariant")]
-    public BloomStyle BloomVariant = BloomStyle.Standard;
-
     [SettingUnbounded("Тумблер затемнения к краям кадра.")]
     [SettingLabel("settings.effects.vignette")]
     [SettingConsumer(SettingConsumerTarget.PostProcessController, "PostProcessController.VignetteIntensity")]

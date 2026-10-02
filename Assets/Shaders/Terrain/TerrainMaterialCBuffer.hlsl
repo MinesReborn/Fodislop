@@ -28,8 +28,6 @@ CBUFFER_START(UnityPerMaterial)
     float _ReliefRimDistanceScale;
     float _ReliefRimFalloff;
     float _ReliefRimQuantizationEnabled;
-    float4 _DebugColor;
-    float _DebugMode;
 
     // Авторский вид поверхности: числа лежат в TerrainConfigHolder и приезжают
     // свойствами материала. Блок один на все проходы, поэтому раскладку держит

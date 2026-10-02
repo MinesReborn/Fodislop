@@ -3,13 +3,14 @@
 using System;
 using System.Diagnostics;
 using Unity.Profiling;
+using UnityEngine;
 namespace Kern.Core;
 public interface IFrameTelemetry
 {
     float TerrainMeshTimeMs { get; set; }
     float TerrainCacheTimeMs { get; set; }
     float TerrainFloodFillTimeMs { get; set; }
-    float TerrainGpuUploadTimeMs { get; set; }
+    float TerrainGPUUploadTimeMs { get; set; }
     float TerrainAtlasUploadTimeMs { get; set; }
     float LightingBuildCommandsTimeMs { get; set; }
     float LightingExecuteCommandsTimeMs { get; set; }
@@ -91,12 +92,12 @@ public interface IFrameTelemetry
     void ResetFrameTimers();
 }
 
-public sealed class FrameTelemetry : IFrameTelemetry, IDisposable
+public sealed class FrameTelemetry : IFrameTelemetry, IFrameTelemetryProducerStamp, ITerrainTextureUploadTelemetryReceiver, IDisposable
 {
     public float TerrainMeshTimeMs { get; set; }
     public float TerrainCacheTimeMs { get; set; }
     public float TerrainFloodFillTimeMs { get; set; }
-    public float TerrainGpuUploadTimeMs { get; set; }
+    public float TerrainGPUUploadTimeMs { get; set; }
     public float TerrainAtlasUploadTimeMs { get; set; }
     public float LightingBuildCommandsTimeMs { get; set; }
     public float LightingExecuteCommandsTimeMs { get; set; }
@@ -218,6 +219,19 @@ public sealed class FrameTelemetry : IFrameTelemetry, IDisposable
     // same defect as a heap that is collected often and expensively.
     public int GcCollectionCount { get; private set; }
 
+    // Identifies the frame whose telemetry window began at ResetFrameTimers.
+    // Validity means the producer reached that lifecycle boundary; consumers
+    // must still compare this stamp with their observation frame.
+    public int ProducerFrameId { get; private set; } = -1;
+    public bool ProducerLifecycleValid { get; private set; }
+
+    public TerrainTextureUploadSnapshot? TerrainTextureUploadSnapshot { get; private set; }
+
+    public TerrainTextureUploadDelta? TerrainTextureUploadFrameDelta { get; private set; }
+
+    private ITerrainTextureUploadTelemetry? _terrainTextureUploadSource;
+    private TerrainTextureUploadSnapshot? _previousTerrainTextureUploadSnapshot;
+
     private const double AllocationRateWindowSeconds = 1.0;
 
     private long _windowTotalAllocatedBytes;
@@ -228,6 +242,7 @@ public sealed class FrameTelemetry : IFrameTelemetry, IDisposable
     // across the window rather than read as a running total.
     private ProfilerRecorder _allocatedInFrameRecorder;
     private bool _allocationRecorderStarted;
+    private bool _disposed;
 
     public void BeginFrame()
     {
@@ -295,10 +310,31 @@ public sealed class FrameTelemetry : IFrameTelemetry, IDisposable
 
     public void ResetFrameTimers()
     {
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(FrameTelemetry));
+        }
+
+        ProducerFrameId = Time.frameCount;
+        ProducerLifecycleValid = true;
+        TerrainTextureUploadFrameDelta = null;
+        if (_terrainTextureUploadSource is { } uploadSource)
+        {
+            int observationFrameId = Time.frameCount - 1;
+            TerrainTextureUploadSnapshot snapshot = uploadSource.Capture(observationFrameId);
+            TerrainTextureUploadSnapshot = snapshot;
+            if (_previousTerrainTextureUploadSnapshot is { } previous &&
+                TerrainTextureUploadCounters.TryGetDelta(previous, snapshot, out TerrainTextureUploadDelta delta))
+            {
+                TerrainTextureUploadFrameDelta = delta;
+            }
+
+            _previousTerrainTextureUploadSnapshot = snapshot;
+        }
         TerrainMeshTimeMs = 0f;
         TerrainCacheTimeMs = 0f;
         TerrainFloodFillTimeMs = 0f;
-        TerrainGpuUploadTimeMs = 0f;
+        TerrainGPUUploadTimeMs = 0f;
         TerrainAtlasUploadTimeMs = 0f;
         LightingBuildCommandsTimeMs = 0f;
         LightingExecuteCommandsTimeMs = 0f;
@@ -322,8 +358,35 @@ public sealed class FrameTelemetry : IFrameTelemetry, IDisposable
         LightingCascadeFullEntriesFrame = 0;
     }
 
+    public void BindTerrainTextureUploadTelemetry(ITerrainTextureUploadTelemetry? telemetry)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (ReferenceEquals(_terrainTextureUploadSource, telemetry))
+        {
+            return;
+        }
+
+        _terrainTextureUploadSource = telemetry;
+        _previousTerrainTextureUploadSnapshot = null;
+        TerrainTextureUploadSnapshot = null;
+        TerrainTextureUploadFrameDelta = null;
+    }
+
+    public TerrainTextureUploadSnapshot? CaptureTerrainTextureUploadSnapshot(int observationFrameId) =>
+        _disposed ? null : _terrainTextureUploadSource?.Capture(observationFrameId);
+
     public void Dispose()
     {
+        _disposed = true;
+        ProducerLifecycleValid = false;
+        _terrainTextureUploadSource = null;
+        _previousTerrainTextureUploadSnapshot = null;
+        TerrainTextureUploadSnapshot = null;
+        TerrainTextureUploadFrameDelta = null;
         SetAllocationTrackingEnabled(false);
         _allocationClock.Stop();
     }

@@ -18,7 +18,12 @@ internal static class MeasureI18nTool
             return 2;
         }
 
-        var langs = Directory.GetFiles(dictsDir, "*.json").Select(Path.GetFileNameWithoutExtension).Order().ToList();
+        var langs = Directory.GetFiles(dictsDir, "*.json")
+            .Select(Path.GetFileNameWithoutExtension)
+            .Where(static lang => lang is not null)
+            .Select(static lang => lang!)
+            .Order()
+            .ToList();
         var keys = langs.ToDictionary(l => l, l => new HashSet<string>(JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(Path.Combine(dictsDir, $"{l}.json")))!.Keys));
 
         string baseLang = langs.Contains("en") ? "en" : langs.First();
@@ -58,7 +63,7 @@ internal static class MeasureI18nTool
 
         foreach (var (k, src) in baseDict)
         {
-            if (!targetDict.TryGetValue(k, out string dst)) continue;
+            if (!targetDict.TryGetValue(k, out string? dst)) continue;
             if (string.IsNullOrEmpty(src) || string.IsNullOrEmpty(dst)) continue;
             double f = (double)dst.Length / src.Length;
             per.First(b => b.Key <= src.Length && src.Length <= b.Key).Value.Add(f);

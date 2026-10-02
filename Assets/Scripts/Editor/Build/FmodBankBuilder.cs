@@ -14,7 +14,7 @@ public sealed class FmodBankBuilder : IPreprocessBuildWithReport
 {
     private const string FmodSourceBuildPath = "KernAudio/Build/Desktop";
     private const string StreamingAssetsAudioPath = "Assets/StreamingAssets/Audio";
-    private static readonly string[] _requiredBanks = ["Master.bank", "Master.strings.bank"];
+    private static readonly string[] s_requiredBanks = ["Master.bank", "Master.strings.bank"];
 
     public int callbackOrder => 0;
 
@@ -88,7 +88,7 @@ public sealed class FmodBankBuilder : IPreprocessBuildWithReport
         if (!RequiredBanksExist(targetDir))
         {
             Fail(throwOnFailure,
-                $"Required FMOD banks are missing from '{targetDir}'. Expected: {string.Join(", ", _requiredBanks)}.");
+                $"Required FMOD banks are missing from '{targetDir}'. Expected: {string.Join(", ", s_requiredBanks)}.");
             return;
         }
 
@@ -98,7 +98,7 @@ public sealed class FmodBankBuilder : IPreprocessBuildWithReport
 
     private static bool RequiredBanksExist(string directory)
     {
-        foreach (string bank in _requiredBanks)
+        foreach (string bank in s_requiredBanks)
         {
             if (!File.Exists(Path.Combine(directory, bank)))
             {

@@ -18,14 +18,17 @@ namespace Kern.World.Lighting;
 /// </summary>
 internal sealed class LightingUpdateCoordinator
 {
-    private static readonly ProfilerMarker _UpdateMarker =
+    private static readonly ProfilerMarker s_updateMarker =
         new("Kern.Lighting.UpdateLighting.CPU");
-    private static readonly AllocationLedger.Entry _AllocationEntry =
+    private static readonly AllocationLedger.Entry s_allocationEntry =
         AllocationLedger.Register("Свет — обновление");
-    private static readonly ProfilerMarker _BuildCommandsMarker =
+    private static readonly ProfilerMarker s_buildCommandsMarker =
         new("Kern.Lighting.BuildCommands.CPU");
-    private static readonly ProfilerMarker _ExecuteCommandsMarker =
+    private static readonly ProfilerMarker s_executeCommandsMarker =
         new("Kern.Lighting.ExecuteCommands.CPU");
+    // Explicit dense reference for production differential tests. Ordinary
+    // reanchors use the dependency-aware path, never the dormant band solver.
+    internal static bool DiagnosticForceDenseReanchor { get; set; }
 
     private readonly LightingResourceManager _resources;
     private readonly LightingRuntimeState _state;
@@ -36,6 +39,7 @@ internal sealed class LightingUpdateCoordinator
     private readonly DynamicLightManager _dynamicLightManager;
     private readonly IFrameTelemetry _telemetry;
     private readonly LightingInvalidationJournal _journal;
+    private readonly LightingAmbientOcclusionUpdater _ambientOcclusionUpdater;
     private readonly List<string> _executedStages = new();
 
     public LightingUpdateCoordinator(
@@ -58,6 +62,15 @@ internal sealed class LightingUpdateCoordinator
         _dynamicLightManager = dynamicLightManager;
         _telemetry = telemetry;
         _journal = journal;
+        _ambientOcclusionUpdater = new(
+            _resources,
+            _state,
+            _frameExecutor,
+            _presentation,
+            _geometryRegistry,
+            _telemetry,
+            _journal,
+            _executedStages);
     }
 
     public void Update(
@@ -73,8 +86,8 @@ internal sealed class LightingUpdateCoordinator
         bool bypassLightingCompute,
         bool ambientOcclusionOnly)
     {
-        using var updateMarker = _UpdateMarker.Auto();
-        using var allocationScope = AllocationLedger.Measure(_AllocationEntry);
+        using var updateMarker = s_updateMarker.Auto();
+        using var allocationScope = AllocationLedger.Measure(s_allocationEntry);
         if (terrainGeometry == null ||
             (terrainGeometry is UnityEngine.Object unityObject && unityObject == null))
         {
@@ -95,7 +108,7 @@ internal sealed class LightingUpdateCoordinator
         {
             if (!bypassLightingCompute && ambientOcclusionOnly)
             {
-                UpdateAmbientOcclusionOnly(
+                _ambientOcclusionUpdater.Update(
                     visibleMinX,
                     visibleMinY,
                     visibleWidth,
@@ -139,13 +152,16 @@ internal sealed class LightingUpdateCoordinator
         }
         _state.LastVisibleRegion = lightingRegion;
 
-        const int maxInvalidationAreaPerFrame = 32 * 32 * 2; // Safe per-frame cascade budget
+        // Consume every pending geometry change in this frame. Transport
+        // dependencies reduce work; an area cap would publish stale lighting.
+        const int maxInvalidationAreaPerFrame = int.MaxValue;
+        bool fieldWasDirty = _state.FieldDirty;
         _state.ActivatePendingRegionsBudgeted(
             new RectInt(
-                visibleMinX,
-                visibleMinY,
-                visibleWidth,
-                visibleHeight),
+                Mathf.RoundToInt(lightingRegion.x) - 1,
+                Mathf.RoundToInt(lightingRegion.y) - 1,
+                Mathf.RoundToInt(lightingRegion.z) + 2,
+                Mathf.RoundToInt(lightingRegion.w) + 2),
             maxInvalidationAreaPerFrame);
 
         int gridWidth = Mathf.RoundToInt(lightingRegion.z);
@@ -171,14 +187,16 @@ internal sealed class LightingUpdateCoordinator
                 Mathf.RoundToInt(lightingRegion.y - previousLightingRegion.y))
             : Vector2Int.zero;
 
-        // ROLLED BACK 2026-09-19: scroll reuse correlated with a heavy FPS
-        // drop in playmode, cause not yet isolated (prime suspects: full-atlas
-        // memmove cost on large fields, or a broken reuse path doing more work
-        // than the full solve it replaces). The scroll/strip machinery in
-        // StaticLightingSolver stays in place but dormant; re-enable by
-        // restoring the condition below once the cause is measured.
-        // Original: regionChanged && !resourcesResized.
-        bool canReuseStaticAtlas = false;
+        // A region reanchor must preserve the already solved overlap. The
+        // solver validates the probe phase for every cascade; incompatible
+        // deltas invalidate the corresponding cascade instead of mixing phases.
+        bool canReuseStaticAtlas = !DiagnosticForceDenseReanchor &&
+            _state.HasStaticRadianceState &&
+            _state.LastContributorGeometryRevision == _geometryRegistry.GeometryRevision &&
+            regionChanged &&
+            !resourcesResized &&
+            !float.IsNaN(previousLightingRegion.x) &&
+            _frameExecutor.CanReuseStaticAtlas(regionDelta);
 
         LightingRegionInvalidationPolicy.OnRegionChanged(
             _state,
@@ -186,29 +204,43 @@ internal sealed class LightingUpdateCoordinator
             canReuseStaticAtlas,
             lightingRegion);
 
+        // The output (SDR/HDR, paper white) or the source count moved the
+        // visibility bound: re-cull sources and re-trace every ray and horizon.
+        if (LightingComputeBinder.UpdateInvisibleDynamicRadiance(_dynamicLightManager.Count))
+        {
+            _dynamicLightManager.MarkDirty();
+            _frameExecutor.InvalidateDynamicTiles();
+            _state.HasDynamicRadianceState = false;
+        }
+
         bool dynamicLightsDirty = !_state.HasRenderedLightState || _dynamicLightManager.IsDirty;
         ulong contributorGeometryRevision = _geometryRegistry.GeometryRevision;
         bool contributorGeometryChanged =
             _state.LastContributorGeometryRevision != contributorGeometryRevision;
         bool geometryChanged =
-            _state.LastTerrainGeometryRevision != terrainGeometry.LightingGeometryRevision ||
+            (_state.LastTerrainGeometryRevision != terrainGeometry.LightingGeometryRevision &&
+                (_state.StagedTerrainGeometryRevision != terrainGeometry.LightingGeometryRevision ||
+                 _state.ActiveRegionInvalidations.Count > 0)) ||
             contributorGeometryChanged;
         if (geometryChanged)
         {
             _telemetry.LightingGeometryChangeCount++;
         }
-        if (!_state.FieldDirty && !regionChanged && !dynamicLightsDirty && !geometryChanged &&
-            !_state.CompositeDirty)
-        {
-            return;
-        }
-
         const float cellSize = ProjectRuntimeContracts.World.CellSize;
         Vector4 worldRect = new(
             lightingRegion.x * cellSize,
             lightingRegion.y * cellSize,
             lightingRegion.z * cellSize,
             lightingRegion.w * cellSize);
+        RectInt receiverRect = LightingReceiverCoverage.GetRect(camera, worldRect,
+            _resources.LightWidth, _resources.LightHeight, cellSize);
+        bool receiversChanged = _dynamicLightManager.Count > 0 && !_state.LastDynamicReceiverRect.Equals(receiverRect);
+        if (!_state.FieldDirty && !regionChanged && !dynamicLightsDirty && !geometryChanged &&
+            !_state.CompositeDirty && !receiversChanged)
+        {
+            _state.LastTerrainGeometryRevision = terrainGeometry.LightingGeometryRevision;
+            return;
+        }
         CommandBuffer commandBuffer = _resources.LightingCommandBuffer ??
             throw new InvalidOperationException(
                 "Radiance Cascades command buffer is not initialized.");
@@ -228,7 +260,7 @@ internal sealed class LightingUpdateCoordinator
         try
         {
             long buildStart = System.Diagnostics.Stopwatch.GetTimestamp();
-            using (_BuildCommandsMarker.Auto())
+            using (s_buildCommandsMarker.Auto())
             {
                 commandBuffer.BeginSample("Kern.RadianceCascades");
                 dynamicLightCount = _frameExecutor.UploadDynamicLights(
@@ -238,7 +270,7 @@ internal sealed class LightingUpdateCoordinator
                     out dynamicLightsChanged);
 
                 if (!rebuildFields && !dynamicLightsChanged &&
-                    !_state.CompositeDirty)
+                    !_state.CompositeDirty && !receiversChanged)
                 {
                     commandBuffer.EndSample("Kern.RadianceCascades");
                     RememberDynamicLightState();
@@ -254,7 +286,7 @@ internal sealed class LightingUpdateCoordinator
                     debugView);
                 bool staticRadianceChanged = rebuildFields || !_state.HasStaticRadianceState;
                 bool dynamicRadianceChanged = dynamicLightCount > 0 &&
-                    (dynamicLightsChanged || staticRadianceChanged || !_state.HasDynamicRadianceState);
+                    (dynamicLightsChanged || staticRadianceChanged || receiversChanged || !_state.HasDynamicRadianceState);
                 LightingInvalidationFlags invalidations = RecordLightingFrame(
                     commandBuffer,
                     worldRect,
@@ -267,10 +299,18 @@ internal sealed class LightingUpdateCoordinator
                     regionDelta,
                     _state.ActiveRegionInvalidations,
                     allowStaticDependencyMask,
+                    LightingAmbientOcclusionUpdatePolicy.CanUpdatePartially(
+                        _state, terrainGeometry.LightingGeometryRevision, fieldWasDirty,
+                        resourcesResized, regionChanged, contributorGeometryChanged),
                     dynamicRadianceChanged,
                     qualityMode,
                     debugView,
-                    terrainGeometry);
+                    terrainGeometry,
+                    receiverRect);
+                if (receiversChanged)
+                {
+                    invalidations |= LightingInvalidationFlags.ReceiverCoverageChanged;
+                }
                 _state.HasStaticRadianceState |= staticRadianceChanged;
                 _state.HasDynamicRadianceState = dynamicLightCount > 0 &&
                     (dynamicRadianceChanged || _state.HasDynamicRadianceState);
@@ -292,7 +332,7 @@ internal sealed class LightingUpdateCoordinator
                 _telemetry.LightingCommandBufferBytes = commandBuffer.sizeInBytes;
                 _telemetry.ActiveDynamicLights = dynamicLightCount;
                 long executeStart = System.Diagnostics.Stopwatch.GetTimestamp();
-                using (_ExecuteCommandsMarker.Auto())
+                using (s_executeCommandsMarker.Auto())
                 {
                     Graphics.ExecuteCommandBuffer(commandBuffer);
                 }
@@ -308,7 +348,7 @@ internal sealed class LightingUpdateCoordinator
                     ? (reuseStaticAtlas ? "Region moved (scroll)" : "Geometry or region updated")
                     : dynamicLightsChanged
                         ? "Dynamic lights updated"
-                        : "Lightmap refreshed";
+                        : receiversChanged ? "World receiver coverage changed" : "Lightmap refreshed";
                 _journal.Record(
                     _state.SolveCount,
                     invalidations,
@@ -320,109 +360,20 @@ internal sealed class LightingUpdateCoordinator
                 _state.CompositeDirty = false;
                 _state.LastTerrainGeometryRevision = terrainGeometry.LightingGeometryRevision;
                 _state.LastContributorGeometryRevision = contributorGeometryRevision;
+                _state.LastDynamicReceiverRect = receiverRect;
                 _state.CompleteActiveRegionInvalidation();
                 RememberDynamicLightState();
             }
         }
+        catch
+        {
+            // A recording/execution failure cannot leave a swapped atlas marked current.
+            LightingRuntimeInvalidation.ResetFieldAndRadiance(_state);
+            throw;
+        }
         finally
         {
             commandBuffer.Clear();
-        }
-    }
-
-    private void UpdateAmbientOcclusionOnly(
-        int visibleMinX,
-        int visibleMinY,
-        int visibleWidth,
-        int visibleHeight,
-        Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor terrainGeometry,
-        GraphicsQualitySettings qualitySettings)
-    {
-        bool entering = _state.WasLightingBypassed || _presentation.IsDisabledStatePublished;
-        _state.WasLightingBypassed = false;
-        Vector4 previousRegion = _state.LastVisibleRegion;
-        Vector4 region = LightingRegionCalculator.GetStableLightingRegion(
-            visibleMinX,
-            visibleMinY,
-            visibleWidth,
-            visibleHeight,
-            previousRegion);
-        bool regionChanged = region != previousRegion;
-        _state.LastVisibleRegion = region;
-        if (regionChanged)
-        {
-            _state.FieldDirty = true;
-            _telemetry.LightingRegionChangeCount++;
-        }
-
-        if (entering || _state.FieldDirty)
-        {
-            _presentation.PublishDisabled();
-        }
-
-        bool resized = _resources.EnsureAmbientOcclusionOnlyResources(
-            Mathf.RoundToInt(region.z),
-            Mathf.RoundToInt(region.w),
-            qualitySettings.LightingMaximumTextureDimension);
-        ulong contributorRevision = _geometryRegistry.GeometryRevision;
-        bool geometryChanged =
-            _state.LastTerrainGeometryRevision != terrainGeometry.LightingGeometryRevision ||
-            _state.LastContributorGeometryRevision != contributorRevision;
-        if (geometryChanged)
-        {
-            _telemetry.LightingGeometryChangeCount++;
-        }
-
-        if (!entering && !resized && !regionChanged && !geometryChanged && !_state.FieldDirty)
-        {
-            return;
-        }
-
-        const float cellSize = ProjectRuntimeContracts.World.CellSize;
-        Vector4 worldRect = new(
-            region.x * cellSize,
-            region.y * cellSize,
-            region.z * cellSize,
-            region.w * cellSize);
-        RenderTexture field = _resources.AmbientOcclusionField ??
-            throw new InvalidOperationException("Standard graphics has no AO field.");
-        CommandBuffer commands = _resources.LightingCommandBuffer ??
-            throw new InvalidOperationException("Standard graphics has no AO command buffer.");
-        LightingInvalidationFlags invalidations =
-            (regionChanged ? LightingInvalidationFlags.RegionChanged : LightingInvalidationFlags.None) |
-            (geometryChanged ? LightingInvalidationFlags.GeometryChanged : LightingInvalidationFlags.None) |
-            (_state.FieldDirty || resized || entering
-                ? LightingInvalidationFlags.FieldDirty
-                : LightingInvalidationFlags.None);
-        _state.FieldDirty = true;
-        FrameEventLog.Record(
-            $"AO Стандарт: перестройка {field.width}×{field.height}, " +
-            $"регион={regionChanged}, геометрия={geometryChanged}, ресурсы={resized}");
-        commands.Clear();
-        try
-        {
-            _frameExecutor.RecordAmbientOcclusionField(commands, terrainGeometry, worldRect);
-            Graphics.ExecuteCommandBuffer(commands);
-            _presentation.PublishAmbientOcclusionOnly(field, region, cellSize);
-            _telemetry.LightingFieldRebuildCount++;
-            _state.FieldDirty = false;
-            _state.CompositeDirty = false;
-            _state.LastTerrainGeometryRevision = terrainGeometry.LightingGeometryRevision;
-            _state.LastContributorGeometryRevision = contributorRevision;
-            _state.ClearPendingRegionInvalidation();
-            _executedStages.Clear();
-            _executedStages.Add("AmbientOcclusionField");
-            _journal.Record(
-                _state.SolveCount,
-                invalidations,
-                "Standard ambient occlusion updated",
-                _executedStages,
-                Array.Empty<string>());
-            _state.SolveCount++;
-        }
-        finally
-        {
-            commands.Clear();
         }
     }
 
@@ -432,7 +383,7 @@ internal sealed class LightingUpdateCoordinator
         Camera camera,
         GraphicsQualitySettings qualitySettings)
     {
-        _state.RequestedPixelsPerCell = Mathf.Clamp(qualitySettings.LightingMinimumPixelsPerCell, 1, 16);
+        _state.RequestedPixelsPerCell = LightingQualityTuningController.FieldPixelsPerCell;
         bool textureDimensionLimited;
         bool cascadeBudgetLimited;
         bool resized = _gpuLifecycle.EnsureResources(
@@ -465,10 +416,12 @@ internal sealed class LightingUpdateCoordinator
         Vector2Int regionDelta,
         IReadOnlyList<RectInt> dirtyRegions,
         bool allowStaticDependencyMask,
+        bool allowPartialAmbientOcclusion,
         bool dynamicRadianceChanged,
         LightingQualityMode qualityMode,
         LightingEngine.DebugView debugView,
-        Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor terrainGeometry)
+        Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor terrainGeometry,
+        RectInt receiverRect)
     {
         LightingFrameResult result = _frameExecutor.Record(
             commandBuffer,
@@ -488,7 +441,11 @@ internal sealed class LightingUpdateCoordinator
                     (dynamicLightsChanged || staticRadianceChanged || _state.HasDynamicRadianceState),
                 _state.CompositeDirty,
                 qualityMode,
-                debugView),
+                debugView)
+            {
+                DynamicReceiverRect = receiverRect,
+                AllowPartialAmbientOcclusion = allowPartialAmbientOcclusion,
+            },
             terrainGeometry,
             _resources.StaticEmissionField!,
             _resources.StaticDirectTexture!);

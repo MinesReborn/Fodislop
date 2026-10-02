@@ -38,8 +38,8 @@ public interface IWorldLayer<T> : IDisposable
     IEnumerable<int> GetLoadedChunkIndices();
     int GetLoadedCount();
     int GetDirtyCount();
-    T GetCell(int x, int y, bool touchLru = true);
-    T GetCellSync(int x, int y, bool touchLru = true);
+    T GetCell(int x, int y, bool touchLRU = true);
+    T GetCellSync(int x, int y, bool touchLRU = true);
     bool TryGetCell(int x, int y, out T value);
     void SetCell(int x, int y, T value);
     int SetRegion(
@@ -56,8 +56,8 @@ public interface IWorldLayer<T> : IDisposable
         int height,
         ReadOnlySpan<T> cells,
         int cellsOffset = 0);
-    T[] GetOrCreateChunk(int chunkIndex, bool touchLru = true);
-    ChunkReadResult<T> ReadChunk(int chunkIndex, bool touchLru = true);
+    T[] GetOrCreateChunk(int chunkIndex, bool touchLRU = true);
+    ChunkReadResult<T> ReadChunk(int chunkIndex, bool touchLRU = true);
     void Flush(bool flushToDisk = false);
     bool GetChunkIndexAndLocal(
         int x,

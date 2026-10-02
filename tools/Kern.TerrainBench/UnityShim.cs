@@ -141,7 +141,7 @@ namespace UnityEngine
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct RectInt(int x, int y, int width, int height)
+    public struct RectInt(int x, int y, int width, int height) : IEquatable<RectInt>
     {
         public int x = x;
         public int y = y;
@@ -155,6 +155,20 @@ namespace UnityEngine
         public int xMax => x + width;
 
         public int yMax => y + height;
+
+        public bool Contains(Vector2Int point) =>
+            point.x >= xMin && point.x < xMax && point.y >= yMin && point.y < yMax;
+
+        public bool Equals(RectInt other) =>
+            x == other.x && y == other.y && width == other.width && height == other.height;
+
+        public override bool Equals(object? obj) => obj is RectInt other && Equals(other);
+
+        public override int GetHashCode() => HashCode.Combine(x, y, width, height);
+
+        public static bool operator ==(RectInt left, RectInt right) => left.Equals(right);
+
+        public static bool operator !=(RectInt left, RectInt right) => !left.Equals(right);
     }
 
     [StructLayout(LayoutKind.Sequential)]

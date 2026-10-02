@@ -24,9 +24,15 @@ internal sealed class ScopeResources : IDisposable
 
     public ComputeBuffer? StatsBuffer { get; private set; }
 
+    public ComputeBuffer? ExposureHistogramBuffer { get; private set; }
+
     public uint ClippedBlackSamples { get; private set; }
 
     public uint ClippedHighlightSamples { get; private set; }
+
+    public float MedianExposureStops { get; private set; } = float.NaN;
+
+    public float P95ExposureStops { get; private set; } = float.NaN;
 
     public RenderTexture? HistogramTexture { get; private set; }
 
@@ -39,6 +45,7 @@ internal sealed class ScopeResources : IDisposable
         WaveformBuffer != null &&
         VectorscopeBuffer != null &&
         StatsBuffer != null &&
+        ExposureHistogramBuffer != null &&
         HistogramTexture != null && HistogramTexture.IsCreated() &&
         WaveformTexture != null && WaveformTexture.IsCreated() &&
         VectorscopeTexture != null && VectorscopeTexture.IsCreated();
@@ -61,6 +68,7 @@ internal sealed class ScopeResources : IDisposable
             WaveformBuffer = new ComputeBuffer(Size * Size * 4, sizeof(uint), ComputeBufferType.Structured);
             VectorscopeBuffer = new ComputeBuffer(Size * Size, sizeof(uint), ComputeBufferType.Structured);
             StatsBuffer = new ComputeBuffer(2, sizeof(uint), ComputeBufferType.Structured);
+            ExposureHistogramBuffer = new ComputeBuffer(Bins, sizeof(uint), ComputeBufferType.Structured);
 
             HistogramTexture = CreateTexture(HistogramWidth, HistogramHeight, "_ScopeHistogram");
             WaveformTexture = CreateTexture(Size, Size, "_ScopeWaveform");
@@ -112,8 +120,12 @@ internal sealed class ScopeResources : IDisposable
         VectorscopeBuffer = null;
         StatsBuffer?.Release();
         StatsBuffer = null;
+        ExposureHistogramBuffer?.Release();
+        ExposureHistogramBuffer = null;
         ClippedBlackSamples = 0;
         ClippedHighlightSamples = 0;
+        MedianExposureStops = float.NaN;
+        P95ExposureStops = float.NaN;
 
         Release(HistogramTexture);
         HistogramTexture = null;
@@ -136,6 +148,54 @@ internal sealed class ScopeResources : IDisposable
             ClippedBlackSamples = values[0];
             ClippedHighlightSamples = values[1];
         }
+    }
+
+    public void ApplyExposureHistogram(AsyncGPUReadbackRequest request)
+    {
+        if (request.hasError)
+        {
+            return;
+        }
+
+        NativeArray<uint> bins = request.GetData<uint>();
+        if (bins.Length < Bins)
+        {
+            return;
+        }
+
+        ulong total = 0;
+        for (int index = 0; index < Bins; index++)
+        {
+            total += bins[index];
+        }
+
+        if (total == 0)
+        {
+            MedianExposureStops = float.NaN;
+            P95ExposureStops = float.NaN;
+            return;
+        }
+
+        MedianExposureStops = FindPercentile(bins, total, 0.5);
+        P95ExposureStops = FindPercentile(bins, total, 0.95);
+    }
+
+    private static float FindPercentile(NativeArray<uint> bins, ulong total, double percentile)
+    {
+        ulong target = (ulong)Math.Ceiling(total * percentile);
+        ulong cumulative = 0;
+        for (int index = 0; index < Bins; index++)
+        {
+            cumulative += bins[index];
+            if (cumulative >= target)
+            {
+                const float minimumStops = -12f;
+                const float stopsPerBin = 24f / Bins;
+                return minimumStops + (index + 0.5f) * stopsPerBin;
+            }
+        }
+
+        return 12f;
     }
 
     private static void Release(RenderTexture? texture)

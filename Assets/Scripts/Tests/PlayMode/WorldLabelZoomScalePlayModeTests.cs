@@ -46,7 +46,7 @@ public sealed class WorldLabelZoomScalePlayModeTests
     private const ushort AnchorY = 15;
     private const ushort ProbeX = AnchorX + 1;
     private const ushort ProbeY = AnchorY;
-    private const uint ProbeBotID = 9_900_001;
+    private const uint ProbeBotId = 9_900_001;
     private const string ProbeNickname = "ZoomProbe";
     private const string ProbeMessage = "привет";
 
@@ -113,9 +113,9 @@ public sealed class WorldLabelZoomScalePlayModeTests
         // Второй робот появляется после того, как вид встал на место: иначе он
         // мигал бы в unloaded-чанке и светился бы об ошибках стримера.
         _robots.UpdateRobotMetadata(
-            ProbeBotID,
+            ProbeBotId,
             new RobotMetadata(-1, 0, ProbeNickname, string.Empty, string.Empty));
-        _robots.UpdateRobotPosition(ProbeBotID, ProbeX, ProbeY, 0);
+        _robots.UpdateRobotPosition(ProbeBotId, ProbeX, ProbeY, 0);
 
         yield return PlayModeHarness.WaitUntil(
             () => RobotSettled(),
@@ -282,7 +282,7 @@ public sealed class WorldLabelZoomScalePlayModeTests
         // gateway, из которого его публикует ChatProcessor. Пузырь живёт три
         // секунды, поэтому на каждый замер приходит свежий: заодно проверяется
         // переиспользование пузыря из пула с уже переопределённым кеглем.
-        _chat.Publish(new LocalChatMessagePacket(ProbeBotID, ProbeX, ProbeY, ProbeMessage));
+        _chat.Publish(new LocalChatMessagePacket(ProbeBotId, ProbeX, ProbeY, ProbeMessage));
         yield return Settle();
     }
 
@@ -310,7 +310,7 @@ public sealed class WorldLabelZoomScalePlayModeTests
         {
             // Сервер присылает позицию каждый тик; без неё prune снёс бы робота
             // через 2.5 с молчания, и ник пропал бы из панели.
-            _robots.UpdateRobotPosition(ProbeBotID, ProbeX, ProbeY, 0);
+            _robots.UpdateRobotPosition(ProbeBotId, ProbeX, ProbeY, 0);
             yield return null;
         }
     }
@@ -342,7 +342,7 @@ public sealed class WorldLabelZoomScalePlayModeTests
 
     private bool RobotSettled()
     {
-        if (!_robots.TryGetRobot(ProbeBotID, out IRobotView? robot) || robot == null)
+        if (!_robots.TryGetRobot(ProbeBotId, out IRobotView? robot) || robot == null)
         {
             return false;
         }

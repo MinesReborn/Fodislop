@@ -5,7 +5,8 @@
         "TestAssemblies"
     ],
     "references": [
-        "Kern.Contracts"
+        "Kern.Contracts",
+        "Kern.Core"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

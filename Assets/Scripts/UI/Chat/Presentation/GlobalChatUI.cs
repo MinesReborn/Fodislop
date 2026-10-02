@@ -31,7 +31,7 @@ namespace Kern.UI
         private ChatBlinkController? _blink;
         private bool _isOpen;
         private bool _initialized;
-        private readonly ChatMessageHistory _history = new();
+        private readonly GlobalChatMessagePresenter _messages = new();
         private readonly ChatMuteTracker _muteTracker = new();
         private bool _lastMutedState;
         private bool _hasCachedMuteState;
@@ -148,6 +148,7 @@ namespace Kern.UI
             _blink?.Dispose();
             _blink = null;
             _view?.Tree.RemoveFromHierarchy();
+            _messages.Detach();
             _view = null;
             _colorController = null;
             _hasCachedMuteState = false;
@@ -228,6 +229,7 @@ namespace Kern.UI
             VisualElement tree = uiUxml.CloneTree();
             UILocalizer.Apply(tree, _loc);
             _view = new ChatViewElements(tree, _loc);
+            _messages.Attach(_view.ScrollView);
 
             if (_doc != null && _view.Panel != null)
             {
@@ -368,26 +370,7 @@ namespace Kern.UI
 
         private void AppendMessage(string formattedMessage)
         {
-            _history.Add(formattedMessage);
-            AppendVisibleMessage(formattedMessage);
-        }
-
-        private void AppendVisibleMessage(string formattedMessage)
-        {
-            if (_view?.ScrollView == null)
-            {
-                return;
-            }
-
-            var label = new Label(formattedMessage);
-            label.AddToClassList("gchat-message");
-            _view.ScrollView.Add(label);
-            while (_view.ScrollView.childCount > ChatMessageHistory.MaxMessages)
-            {
-                _view.ScrollView.RemoveAt(0);
-            }
-
-            _view.ScrollView.scrollOffset = new Vector2(0, float.MaxValue);
+            _messages.Add(formattedMessage);
         }
 
         private void SelectGlobalChannel()
@@ -444,12 +427,7 @@ namespace Kern.UI
                 return;
             }
 
-            _view.ScrollView.Clear();
-            var messages = _history.GetMessages();
-            for (int i = 0; i < messages.Count; i++)
-            {
-                AppendVisibleMessage(messages[i]);
-            }
+            _messages.Render();
         }
 
         public void ApplyMute(ChatMutePacket packet)

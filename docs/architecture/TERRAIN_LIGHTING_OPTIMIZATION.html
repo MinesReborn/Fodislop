@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kern — принципы оптимизации terrain и lighting</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font: 16px/1.6 system-ui, sans-serif; max-width: 1120px; margin: auto; padding: 32px 24px 64px; }
+    h1, h2, h3 { line-height: 1.25; }
+    h2 { margin-top: 2.2em; }
+    a { color: light-dark(#1455a0, #91bdff); }
+    code { font-size: .9em; overflow-wrap: anywhere; }
+    table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+    th, td { border: 1px solid #8886; padding: 10px; text-align: left; vertical-align: top; }
+    th { background: #8882; }
+    .note { border-left: 4px solid #6995bd; padding: 12px 20px; background: #6995bd12; }
+    .table-wrap { overflow-x: auto; }
+    dt { font-weight: 650; margin-top: 1em; }
+    dd { margin-left: 0; }
+    @media print { body { max-width: none; padding: 0; } a { color: inherit; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Принципы оптимизации terrain и lighting</h1>
+  <p>Цель: для каждого дорогого действия можно назвать изменившийся вход, область влияния,
+    причину непригодности кеша и измеренную стоимость. Оптимизация уменьшает работу и время
+    реального кадра, сохраняя изображение, согласованность данных и своевременность обновлений.</p>
+  <p class="note">Статус на 28 сентября 2026: реализован первый слой — standalone-анализатор
+    captures с проверками счётчиков OPT-1 для S0/S1/S4, отдельным сравнением CPU/GPU и опциональным
+    JSON-экспортом существующего игрового benchmark. Полный production replay, остальные правила,
+    GPU capture и визуальные oracle ещё не реализованы. Текущая просадка FPS не считается устранённой.</p>
+  <p>Нормативный источник — <a href="TERRAIN_LIGHTING_STANDARD.md">Terrain and Lighting Architecture Standard</a>.
+    Этот документ переводит его требования в проверяемые правила оптимизации, не заменяя ворота A–D,
+    модель обмена и обязательные доказательства. Дополняющие документы:
+    <a href="TERRAIN_PIPELINE_STANDARD.html">стандарт terrain pipeline</a> и
+    <a href="LIGHTING_ARCHITECTURE.md">текущая архитектура lighting</a>.
+    При расхождении описания реализации с исходниками фактическое поведение устанавливается по коду;
+    отклонение от стандарта остаётся долгом.</p>
+
+  <h2 id="principles">1. Пять принципов</h2>
+  <h3 id="opt-1">OPT-1. Неизменные входы не вызывают пересчёт</h3>
+  <p>Кеш действителен, пока неизменны все его зависимости: содержимое, конфигурация,
+    расположение поля, состав contributors и поколение ресурсов. Номер нового кадра сам по себе
+    не является изменением содержимого. После завершения начальной подготовки стабильный мир
+    не пересобирает terrain, не загружает неизменные данные и не пересчитывает статические поля света.</p>
+  <p>Это не запрет на отрисовку кадра. Движение динамического источника обрабатывается на каждом
+    готовом кадре по точной позиции, включая перемещение внутри клетки. Изменение только источника
+    не пересобирает terrain, статические каскады или AO. Если меняется сама геометрия объекта,
+    это отдельное изменение входа, а не «только движение света».</p>
+  <p>Проверка: нулевые дельты ненужных rebuild/upload/solve на стабильных кадрах и обновление
+    динамического результата для каждой изменившейся позиции. Основание: TL-REV, TL-STAGE, TL-PERF.</p>
+
+  <h3 id="opt-2">OPT-2. Пересчитывается полная, но ограниченная область влияния</h3>
+  <p>Изменение клетки несёт канал, версию и полуоткрытую мировую область. Каждая стадия расширяет
+    её на собственные зависимости. Для света учитываются дальние каскады и распространение через
+    кеши; размер изменённой клетки не равен размеру затронутого освещения. Частичный расчёт допустим
+    только при доказанной полноте области влияния.</p>
+  <p>Если требуется полный расчёт, он имеет именованную причину и счётчик. Объединение областей
+    не теряет изменения, но его расширение учитывается в стоимости. Две узкие полосы на
+    противоположных краях, объединённые bounding rectangle, могут превратиться в целое поле.
+    Повторное покрытие учитывается отдельно: площадь объединения и сумма обработанных площадей — разные величины.</p>
+  <p>Проверка: ожидаемая область зависимостей покрыта; лишнее покрытие и повторная работа видны;
+    каждое расширение до полного поля объяснено. Основание: TL-REV, TL-STAGE, TL-PERF.</p>
+
+  <h3 id="opt-3">OPT-3. Один владелец результата и явная версия его входов</h3>
+  <p>Terrain владеет клетками, окнами и опубликованной геометрией. Lighting владеет полями,
+    ресурсами света и решением о пересчёте. Presentation потребляет опубликованные результаты.
+    Обмен передаёт факты и последовательности, не запускает работу другого домена.</p>
+  <p>У каждого кеша перечислены владелец, ключ валидности, время жизни и точка публикации.
+    Ключ включает именно его зависимости; одинаковый универсальный ключ для всех кешей не требуется.
+    Requested, completed и published версии различаются. Кадровая последовательность отделена
+    от content revision. Новые dirty-флаги не вводятся без объяснения, какое независимое состояние они представляют.</p>
+  <p>Изменения сохраняются до успешного потребления. Отмена, ошибка, телепорт и смена мира не
+    публикуют смесь версий. Повторная обработка той же записи не дублирует invalidation.</p>
+  <p>Проверка: контракт, ownership/lifecycle tests, revision journal и production-порядок публикации.
+    Основание: TL-OWN, TL-API, TL-LIFE, TL-REV.</p>
+
+  <h3 id="opt-4">OPT-4. Кеш окупает собственную стоимость</h3>
+  <p>Для переиспользования учитываются проверка валидности, перенос, очистка, копирование,
+    новые выделения памяти, синхронизация и пересчёт границ. Сравниваются полные пути:
+    <code>T(reuse) = T(validate + copy + clear + partial solve + publish)</code> и
+    <code>T(full) = T(full solve + publish)</code>. Выигрыш отдельных функций недостаточен.</p>
+  <p>Перед изменением GPU-пути рассчитываются dispatch groups/threads, размеры ресурсов,
+    логические чтения/записи и worst case. Оценка байтов не выдаётся за измеренный трафик памяти,
+    work units — за миллисекунды, а записанные команды — за завершённую GPU-работу.
+    Дополнительный кеш принимается только с доказательством корректности и выигрыша в заявленных сценариях.</p>
+  <p>Проверка: полный бюджет операций и памяти, затем сопоставимые production-замеры.
+    Алгоритм полного расчёта остаётся явно выбранным корректным режимом там, где reuse не доказан;
+    отсутствие данных не маскируется упрощённым результатом. Основание: TL-DATA, TL-PERF, TL-VERIFY.</p>
+
+  <h3 id="opt-5">OPT-5. Выигрыш доказывается реальным кадром при сохранении результата</h3>
+  <p>Baseline и candidate проходят один сценарий с одинаковыми входами, качеством, разрешением,
+    backend и устройством. Измеряются время кадра, CPU-работа, GPU-работа доступным методом,
+    объёмы операций и задержка от изменения мира до видимого результата. Средний FPS не скрывает
+    редкие зависания. Уменьшение частоты обновления, качества или точности не считается эквивалентной оптимизацией.</p>
+  <p>Микробенчмарк проверяет локальную гипотезу. Он не исключает стоимость реального scheduler,
+    storage, upload, shader или кадра. Численные и визуальные ожидания имеют независимый oracle;
+    production-функция, сравнённая с собой, ничего не доказывает.</p>
+  <p>Проверка: воспроизводимый before/after, независимые проверки корректности и реальные
+    shader/pass, mesh attributes, material keywords, data textures, camera/projection.
+    Основание: TL-PERF, TL-VERIFY, TL-CHANGE.</p>
+
+  <h2 id="grid">1.1. Общая пространственная сетка terrain: 32×32</h2>
+  <p><strong>GRID-32:</strong> одна мировая клетка terrain содержит 32×32 пространственных отсчёта;
+    шаг по каждой оси — <code>1/32</code> клетки. Это плотность геометрии и рисунка поверхности,
+    не размер чанка, всего атласа или экрана. Геометрические узлы лежат на границах отсчётов,
+    выборки рисунка поверхности — в их центрах. Для одной клетки это 32 интервала и 33 граничных
+    узла по оси, а не требование создавать mesh из 1024 квадов.</p>
+  <p>Требование распространяется на обычный и кастомный terrain: углы, органические изгибы,
+    смещения, процедурный рисунок поверхности, маски, decals, relief и terrain shader passes.
+    Сетка имеет общий origin и фазу в координатах мира; соседние клетки не вводят собственные
+    несовместимые округления. Цвет, radiance, время и угол не округляются до «32 уровней»:
+    речь о пространственной детализации.</p>
+  <ul>
+    <li><strong>Геометрия.</strong> Итоговые вершины силуэта, включая производные bend points,
+      квантуются один раз после непрерывных деформаций: <code>Q(p) = round(32p)/32</code>.
+      Промежуточные CPU-данные могут оставаться непрерывными. CPU/GPU обязаны согласовать
+      округление половинных значений и отрицательных координат; ожидаемые значения задаются независимым тестом.</li>
+    <li><strong>Шейдерный рисунок.</strong> Пространственные выборки, определяющие пиксельный рисунок
+      terrain, используют общий адрес отсчёта с центром <code>C(p) = (floor(32p)+0.5)/32</code>.
+      Atlas UV выводится из соответствующего surface mapping; grid position, atlas texel и lighting
+      texel не подменяют друг друга. Кастомный шейдер не создаёт более мелкую независимую сетку.</li>
+    <li><strong>Силуэт во всех проходах.</strong> Visible, material/emission и AO используют одну
+      каноническую квантованную форму. Raster coverage проверяет непрерывную позицию фрагмента
+      относительно этой формы: повторное независимое округление fragment position по клеткам может
+      открыть швы. Полигон с вершинами на сетке и ступенчатая маска покрытия — разные контракты;
+      GRID-32 не вводит вторую геометрию в отдельном pass.</li>
+    <li><strong>Масштабирование и свет.</strong> Camera zoom не меняет мировую сетку. Размер screen
+      pixel и разрешение lighting/AO fields имеют отдельные контракты; 32×32 не требует автоматически
+      увеличивать все light buffers до 32 texels/cell. AO/contact distance измеряется по общей форме,
+      а правила фильтрации и HDR остаются явными.</li>
+  </ul>
+  <p>В исходниках уже есть основа:
+    <a href="../../Assets/Shaders/Terrain/TerrainGeometryContract.hlsl">TerrainGeometryContract.hlsl</a>
+    задаёт сетку 32 и две операции для узлов и центров;
+    <a href="../../Assets/Shaders/Terrain/TerrainGeometry.hlsl">TerrainGeometry.hlsl</a>
+    применяет её к итоговым углам и bend points. Это не доказывает соблюдение требования всеми
+    кастомными материалами и проходами. Их полный аудит и production-проверка остаются необходимыми.</p>
+
+  <h3 id="robot-grid">Роботы: локальная сетка и произвольный угол поворота</h3>
+  <p>Формулировка предложения: <strong>«геометрия и рисунок робота имеют локальную сетку
+    с плотностью 32 отсчёта на единицу, равную мировой клетке; робот может вращаться на произвольный
+    угол, не обязательно кратный 90°»</strong>. Это не ограничение всего спрайта размером 32×32.
+    Плотность задаётся в локальных единицах с известным масштабом относительно мира.</p>
+  <p>Сначала определяется локальная квантованная форма, затем применяется transform:
+    <code>p_world = position + R(angle) · (scale · Q(p_local))</code>.
+    Локальная текстурная сетка вращается вместе с роботом. При произвольном угле её узлы уже
+    не обязаны совпадать с мировой сеткой terrain. Повторное округление повёрнутых вершин в мировых
+    координатах может менять длины рёбер и вызывать дрожание; оно не следует из локального контракта.</p>
+  <p>Если требуется, чтобы все видимые пиксели робота после поворота оставались выровнены по общей
+    мировой/экранной сетке, это отдельная политика финальной растеризации. Она даёт ступенчатое
+    изменение контура при вращении и требует собственного visual oracle. В этом документе
+    локальная сетка — предложенный вариант для роботов; окончательная политика их растра ещё
+    не выбрана. Углы, движение робота и связанного света не ограничиваются сеткой или клеточными переходами.</p>
+
+  <h3 id="grid-proof">Что проверяет harness для GRID-32</h3>
+  <p>Независимые численные fixtures покрывают отрицательные координаты, половинные значения,
+    соседние клетки, максимальные смещения и органические bends. Production captures проходят
+    через реальные mesh/keywords/textures/camera для каждого terrain pass: проверяют общие границы,
+    согласованность силуэта и рисунка при движении камеры и reanchor. Наличие числа 32 в shader
+    или успешный CPU round-trip не заменяет эти проверки.</p>
+  <p>Для предложенного варианта роботов тестируются, например, 0°, 17°, 45°, 90° и плавный переход
+    между углами: локальная форма сохраняется, transform не получает дополнительного world snap,
+    рисунок прикреплён к объекту. Пока политика роботов не утверждена, эти проверки имеют статус
+    proposed и не выдают PASS. Для terrain GRID-32 — требование; непроверенные материалы отмечаются явно.</p>
+
+  <h2 id="scenarios">2. Контракт сценариев</h2>
+  <p>Это целевые проверки, а не утверждение, что текущая реализация уже их проходит.
+    Каждый сценарий начинается с известного snapshot мира и конфигурации. Для stable-сценариев
+    очередь изменений должна быть обработана, workers завершены, ресурсы и публикации готовы.
+    Timeout подготовки — не успешный замер. Cold/startup измеряется отдельно.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>ID и вход</th><th>Ожидаемая работа</th><th>Условие провала</th></tr></thead>
+    <tbody>
+      <tr><td>S0: прогретый мир, камера, источники и настройки неизменны</td><td>Отрисовка опубликованных данных; ноль terrain rebuild/data upload, geometry/AO rebuild и static solve.</td><td>Любой такой пересчёт без изменившегося входа.</td></tr>
+      <tr><td>S1: камера движется внутри неизменных подготовленных окон</td><td>Plan/presentation; версии содержимого и статические кеши прежние.</td><td>Пересчёт только из-за frame sequence или положения камеры. Изменение окна переводит кадр в S2.</td></tr>
+      <tr><td>S2: пересечение границы окна по X, Y и диагонали; обратный ход</td><td>Новые terrain bands и зависимости; lighting partial или именованный full solve согласно доказанной политике.</td><td>Необъяснённый полный пересчёт, дублирующие dispatch-области одной стадии/каскада, потерянные edits, неверный overlap. Законный full solve сам по себе не ошибка.</td></tr>
+      <tr><td>S3: изменение клетки, серии клеток и клетки на границе; каналы отдельно</td><td>Зависимые terrain/lighting стадии; сохранение записей до потребления; измеренная edit-to-display latency.</td><td>Потерянная запись, неверный канал/версия, недостаточная область влияния или несвязанный rebuild.</td></tr>
+      <tr><td>S4: плавное движение только динамического света, включая движение внутри клетки</td><td>Динамический свет и зависящие от него bounce/composite результаты на каждом готовом кадре.</td><td>Пропущенная позиция, ступенчатое обновление, static/AO/terrain rebuild из-за одного источника.</td></tr>
+      <tr><td>S5: смена размеров, настроек, состава contributors или поколения GPU-ресурсов — по одному входу</td><td>Именованная инвалидация ровно зависимых кешей и согласованная публикация.</td><td>Старые ресурсы в новом результате; повторные rebuild после завершённого перехода.</td></tr>
+      <tr><td>S6: телепорт, смена мира, холодные чанки, отмена/ошибка build и повтор</td><td>Явное удержание опубликованного состояния, generation checks, lossless journal и корректное восстановление.</td><td>Публикация pending/mixed версии, ack после ошибки, применение старого мира, бесконечное ожидание.</td></tr>
+      <tr><td>S7: движение + редактирование + динамический свет</td><td>Те же правила при совпадении причин в одном кадре.</td><td>Двойная обработка одной зависимости или исчезнувшее изменение после coalescing/reanchor.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Профили графики тестируются раздельно: сценарий обязан подтвердить фактически включённые стадии.
+    Ноль cascade dispatch в профиле без каскадов не доказывает их производительность.
+    Full/partial эквивалентность сравнивается на одинаковых данных; численные границы и допустимая
+    погрешность задаются независимо до запуска.</p>
+
+  <h2 id="harness">3. Единый harness: сценарий → наблюдение → проверка → benchmark</h2>
+  <p>Один набор сценариев и один формат отчёта объединяют три уровня. Harness управляет входами
+    через тестовую обвязку, наблюдает реальное выполнение, но не содержит второй реализации рендера
+    и не подменяет production-планирование ручными вызовами стадий.</p>
+  <ol>
+    <li><strong>Контракты без Unity.</strong> Тесты production-контрактов и journal, lifecycle,
+      revision/invalidation, границ доменов и прямоугольников. Независимые фикстуры описывают ожидаемые
+      последствия. Такой прогон может пройти без GPU, но доказывает только свой уровень.</li>
+    <li><strong>Production-сценарии.</strong> Расширение существующих PlayMode harness и benchmark:
+      настоящий startup, world storage, terrain build/commit, lighting tick, материалы и камера.
+      Входы воспроизводимы; snapshots, seed, маршрут, точные позиции света и расписание edits сохранены.
+      События и асинхронная готовность сопоставляются по ID, а не по предположению об одинаковом wall-clock.</li>
+    <li><strong>Анализатор артефактов.</strong> Проверяет полноту capture, причинность и бюджеты,
+      сравнивает baseline/candidate, формирует JSON и читаемый отчёт. Может работать standalone
+      и в CI на уже полученных артефактах; устаревший или чужой capture не подтверждает текущую сборку.</li>
+  </ol>
+  <p>У каждого правила указан принцип OPT, требование TL, сценарий, ожидаемое поведение,
+    источник наблюдений и текущий статус реализации. Coverage публикуется явно: отсутствие
+    проверки не означает соблюдение принципа. Архитектурный линтер не доказывает семантику GPU.</p>
+
+  <h3 id="observations">Что должен содержать capture</h3>
+  <dl>
+    <dt>Идентичность запуска</dt>
+    <dd>Версия схемы и harness; commit и hash фактических исходников с dirty diff; идентичность
+      исполняемого артефакта, shaders и значимых assets/settings; версия Unity, платформа, устройство,
+      GPU/backend, разрешение, профиль качества, seed и hash сценария. Старый бинарник с новым
+      commit в подписи не считается замером нового кода.</dd>
+    <dt>Причины и версии</dt>
+    <dd>Frame ID, world/resource generation, frame/change sequences, версии входов и опубликованных
+      результатов, окна, channel/region, причина invalidation, request/build/commit/ack события.
+      Stage execution ссылается на конкретные причины; одна причина может затрагивать несколько стадий.</dd>
+    <dt>Фактически записанная работа</dt>
+    <dd>По стадии и каскаду: rebuild, draw/dispatch count, kernel/pass, groups, threads,
+      полезная область и padding, уникальное и повторное покрытие, copied/cleared/uploaded entries
+      и байты, размеры/форматы ресурсов, allocations и пиковая память. Счётчики снимаются у реальной
+      операции. План и выполнение хранятся отдельно; GPU completion подтверждается своим источником.</dd>
+    <dt>Стоимость и задержки</dt>
+    <dd>Frame wall time; CPU main/render/worker и command-record/submit; GPU duration с методом
+      измерения; edit-to-display и request-to-publication latency. Вложенные CPU scopes не суммируются
+      с родительскими, параллельные CPU/GPU интервалы не складываются в «время кадра».</dd>
+    <dt>Достоверность</dt>
+    <dd>Единицы и семантика каждого поля: frame-local, cumulative delta, estimate или measured.
+      Смена поколения сбрасывает базу cumulative delta явно. GPU samples с задержкой привязываются
+      к исходному submission; потерянные/неподдерживаемые samples — missing, не нули.
+      Оценки DDA work не выдаются за фактические shader texel visits.</dd>
+    <dt>Доказательство результата</dt>
+    <dd>Ссылки на production captures и независимые ожидаемые значения; версия oracle,
+      заранее выбранные допуски и области сравнения. Перестановка каскадов, формат, AO или HDR
+      не принимаются только по совпадению timings.</dd>
+  </dl>
+  <p>Источники — существующие <code>IFrameTelemetry</code>, profiler markers,
+    <code>FrameEventLog</code> и subsystem event sources. Отсутствующие поля добавляются туда,
+    где есть владелец операции. Хранение — ограниченный буфер структур, без строкового лога на каждый
+    кадр, синхронного GPU-readback и полного перебора profiler markers в фоне. Экспорт идёт через
+    <code>DiagnosticArtifactPaths</code>/<code>DiagnosticReport</code> после окна измерения.
+    Переполнение/потеря обязательных событий делает capture неполным.</p>
+  <p>Лёгкие счётчики могут наблюдать обычную игру; тяжёлый replay/визуальная проверка запускаются
+    отдельным сценарием. Собственная стоимость наблюдения измеряется и ограничивается заранее,
+    а baseline/candidate используют одинаковый режим instrumentation.</p>
+
+  <h3 id="verdict">Два независимых вердикта</h3>
+  <p><strong>Correctness/invariants</strong> и <strong>performance</strong> получают каждый
+    <code>PASS</code>, <code>FAIL</code> или <code>INCOMPLETE</code>.
+    Высокий FPS не компенсирует лишний static solve или неправильное изображение.
+    Недостающие обязательные данные, baseline, GPU timing либо production capture не дают PASS
+    соответствующей проверке. Общий результат успешен только при PASS всех обязательных проверок.</p>
+  <p>Нарушение содержит rule/scenario/frame ID, входное событие, ожидание и наблюдение,
+    стадию/каскад, версии, область и путь к артефакту. Например:
+    <code>OPT-1 / S4: source position changed; expected staticSolveDelta=0; observed=1</code>.
+    Другой пример: <code>OPT-2 / S2: same cascade/stage scheduled twice over the full probe grid</code>.
+    Разные законные проходы не считаются дубликатами только из-за общей области.</p>
+
+  <h2 id="benchmark">4. Протокол бенчмарка и критерии приёмки</h2>
+  <ol>
+    <li>До изменения выбрать сценарии, корректность/oracle, измеряемые показатели и бюджеты:
+      допустимую абсолютную и относительную регрессию, целевой выигрыш, memory/latency limits,
+      warmup, длительность, число повторений и статистический метод. Бюджеты хранятся с версией;
+      менять их после плохого результата для получения PASS нельзя.</li>
+    <li>Получить production baseline и candidate с сопоставимым manifest. При dirty worktree
+      сохранить идентичность фактического кода. Для сравнения не требуется откат текущей рабочей
+      директории: используются отдельные проверенные артефакты.</li>
+    <li>Отдельно измерить cold setup, stable, reanchor, edits и resource transitions. Повторить
+      редкие события в воспроизводимых условиях и сохранить их индивидуальную стоимость.
+      Один full rebuild среди 600 кадров может не попасть даже в p99; общий percentile его не характеризует.</li>
+    <li>Для каждого класса кадров дать count, p50/p95/p99/max и распределение по повторам,
+      объёмы работы, память и latency. По каждому событию сохранить кадры от input до publication.
+      Stall-классификация использует существующие <code>FrameBudget</code>/<code>FrameBaseline</code>.</li>
+    <li>Проверить invariants и результат, затем применить заранее объявленные performance-бюджеты.
+      Неустойчивый результат требует повторного замера по протоколу; выбор только лучшего запуска запрещён.
+      Меньшее число dispatch без уменьшения измеренной стоимости не доказывает ускорение.</li>
+  </ol>
+  <p>Порогов в миллисекундах в этой спецификации пока нет: без baseline целевых устройств они были
+    бы выдуманными. Нулевой ненужный rebuild — точное структурное правило, не статистический бюджет.
+    Конкретный benchmark обязан иметь численные пороги до сравнения; иначе performance acceptance неполон.</p>
+  <p>Отключение subsystem используется только как диагностический эксперимент: разность двух
+    frame times не равна автоматически его собственной стоимости из-за зависимостей и перекрытия
+    CPU/GPU. Приёмочное сравнение сохраняет полный требуемый pipeline. GPU duration нельзя заменить
+    <code>Stopwatch</code> вокруг записи или отправки команд. Если метод GPU-измерения недоступен,
+    GPU-проверка остаётся INCOMPLETE.</p>
+
+  <h2 id="existing">5. На что опираемся в текущем проекте</h2>
+  <p>Состояние установлено чтением исходников; перечисление ниже не является результатом runtime-прогона.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Существующая часть</th><th>Что уже есть</th><th>Чего это ещё не доказывает</th></tr></thead>
+    <tbody>
+      <tr><td><a href="../../Assets/Scripts/World/Terrain/GPU/TerrainWindow.cs">TerrainWindow</a> и <a href="../../Assets/Scripts/World/Terrain/GPU/TerrainWindowPublishedView.cs">PublishedView</a></td><td>Условия rebuild и пропуска upload; опубликованная content revision. Terrain уже имеет кеширование.</td><td>Фактическую частоту invalidation и стоимость кадра.</td></tr>
+      <tr><td><a href="../../Assets/Scripts/World/Common/FrameTelemetry.cs">IFrameTelemetry / FrameTelemetry</a></td><td>Terrain timings, rebuild counters, причины lighting rebuild, static/dynamic work, latency; часть счётчиков cumulative, часть frame-local.</td><td>Полный причинный trace и GPU timings. CPU command-recording timings явно отделены в контракте.</td></tr>
+      <tr><td><a href="../../Assets/Scripts/Tests/PlayMode/PlayModeHarness.cs">PlayModeHarness</a></td><td>Настоящий startup на offline transport и доступ к сервисам сцен.</td><td>Готовый replay всех S0–S7 и независимый visual oracle.</td></tr>
+      <tr><td><a href="../../Assets/Scripts/Tests/PlayMode/FrameBenchmarkPlayModeTests.cs">FrameBenchmarkPlayModeTests</a></td><td>Запуск мира, frame percentiles, CPU markers, варианты с bypass terrain; теперь каждый сценарий автоматически экспортирует frame-local lighting dispatch/DDA/atlas и terrain/GC telemetry.</td><td>Проверки принципов и бюджеты: текущий assert проверяет лишь положительное среднее время. Нет scripted движения/копания/света, полной input/workload identity, frame-correlated GPU timings и независимого visual oracle; это диагностический capture, не performance verdict.</td></tr>
+      <tr><td><a href="../../tools/Kern.TerrainBench/Suites.cs">TerrainBench.GlobalFrame</a> и <a href="../../tools/Kern.TerrainBench/Kern.TerrainBench.csproj">его source inputs</a></td><td>Синтетическая CPU-последовательность; часть production-функций, подменённый TerrainCellCache, SyntheticVertices и копирование массивов.</td><td>Production build/commit/render, texture upload и lighting. Название global не делает его бенчмарком игры; allocation value=0 здесь задано, а не измерено.</td></tr>
+      <tr><td><a href="../../tools/Kern.LightingTests/README.md">Kern.LightingTests</a>, <a href="../../tools/Kern.WorldLightingExchangeTests/Kern.WorldLightingExchangeTests.csproj">exchange tests</a>, <a href="../../tools/Kern.ArchitectureLinter/Kern.ArchitectureLinter.csproj">ArchitectureLinter</a></td><td>Standalone fixtures, проверки shader math/контрактов и границ исходников.</td><td>Production GPU/визуальное поведение и выигрыш времени кадра.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="implementation">6. Порядок реализации harness</h2>
+  <p>Исполняемая часть: <a href="../../tools/Kern.FrameHarness/README.md">Kern.FrameHarness</a>;
+    контракт <a href="../../tools/Kern.FrameHarness/CaptureSchema.cs">CaptureSchema.cs</a> и
+    <a href="../../tools/Kern.FrameHarness.Tests/CaptureAnalyzerTests.cs">независимые fixtures</a>.
+    <code>validate</code> проверяет capture, <code>compare</code> сравнивает compatible baseline/candidate
+    с шестью явно заданными CPU/frame и GPU допусками p95/p99/max. Выход — текст или JSON;
+    exit 1 означает нарушение, 3 — INCOMPLETE. Известный FAIL не скрывается отсутствием GPU-замера.</p>
+  <p>Текущий scope — счётчики OPT-1 на подтверждённых соседними source observations стабильных кадрах.
+    Одна метка S0/S1/S4 не доказывает сценарий. Cold/reanchor имеют раздельные timing statistics и
+    performance budgets, но ещё не правила корректности пересчёта. OPT-2/3/4, полное OPT-5,
+    GRID-32, ack/region/dispatch проверки остаются непокрытыми. Scope включён в каждый отчёт.</p>
+  <p><code>KERN_FRAME_CAPTURE=1</code> включает экспорт при отдельно запущенном explicit
+    <code>FrameBenchmarkPlayModeTests.MainGame_FrameCostByScenario</code>. Экспорт не запускает Unity.
+    Он читает IFrameTelemetry, сохраняет массивы значений и форматирует JSON после всех окон.
+    Эти наблюдения помечаются observational/diagnostic, не S0: нет полного набора source revisions,
+    deterministic workload, классификации кадров, GPU, upload calls/bytes и visual oracle.
+    Неизвестные поля остаются null, результаты — INCOMPLETE. Assembly MVIDs идентифицируют
+    только загруженный managed code, не shaders/assets и не текущие файлы исходников.</p>
+  <ol>
+    <li><strong>Manifest и правила.</strong> Зафиксировать schema, coverage OPT/TL, сценарии,
+      классы метрик и три статуса. Анализатор проверяется на независимых корректных и намеренно
+      испорченных captures: missing metrics, неверная версия, лишний solve, потерянный ack и дубликаты областей.</li>
+    <li><strong>Production-наблюдение.</strong> Дополнить существующую телеметрию недостающими причинами,
+      корреляцией build/commit/dispatch и объёмами. Проверить место сброса счётчиков и стоимость instrumentation.
+      Реализовать сначала S0, S1 и S4 с точными assertions.</li>
+    <li><strong>Переходы и корректность.</strong> Добавить S2, S3, S5–S7, независимые oracle и captures
+      реального pipeline. Проверить редкие события, диагональные сдвиги и совпадающие invalidation причины.</li>
+    <li><strong>Performance gates.</strong> Подключить поддерживаемые GPU measurements, получить baseline,
+      зафиксировать бюджеты, сравнивать production replay. CI на стандартных GitHub-hosted runners
+      проверяет контракты и анализирует captures; отсутствие нужных production/GPU-данных не маскируется
+      успешным standalone тестом.</li>
+  </ol>
+  <p>Это план расширения существующей инфраструктуры. Новый rendering manager, второй scheduler
+    и альтернативная модель кеша для прохождения benchmark не нужны. Решение удалить каскады,
+    изменить AO или упростить качество света находится вне этой оптимизационной спецификации.</p>
+
+  <h2 id="review">7. Применение к каждому изменению</h2>
+  <p>До правки назвать owner, stage, изменившийся вход, путь invalidation, ожидаемую убранную работу
+    и required proof. После правки приложить TL-CHANGE bundle: dependency/lifecycle/invalidation,
+    stage/data contract, команды и артефакты проверки, before/after и заранее выбранный критерий.
+    Обязательные непройденные проверки блокируют соответствующее утверждение и приёмку изменения.</p>
+  <p>Упрощение оценивается числом независимых состояний, владельцев, путей invalidation и механизмов
+    публикации. Удаление класса при сохранении дублирующей логики само по себе не упрощает систему.
+    Дополнительная оптимизация должна объяснить, почему её новая сложность окупается.</p>
+  <p class="note">Границы выполнения: этот документ не разрешает запуск Unity. Production capture,
+    PlayMode-тесты и другие Unity-операции выполняются только при прямом запросе конкретной операции.
+    Здесь runtime/GPU-прогоны не выполнены; документирование принципов не требует их запуска.</p>
+  <h3 id="harness-evidence">TL-CHANGE: первый исполняемый слой</h3>
+  <p>Следующий шаг — <a href="TERRAIN_TEXTURE_UPLOAD_TELEMETRY.html">телеметрия загрузок текстур terrain</a>:
+    добавлены отдельные cumulative Apply/CopyTexture calls и payload bytes, generation/availability
+    и дельты соседних наблюдений. CaptureAnalyzer теперь условно проверяет согласованные
+    adjacent endpoints одной texture generation в stable S0/S1/S4: positive Apply/CopyTexture
+    delta даёт OPT-1 FAIL, mismatch экспортированной delta считается malformed, а gap,
+    unavailable endpoint и generation transition дают INCOMPLETE. Старые captures без optional
+    endpoint полей не трактуются как нулевые и сохраняют прежний scope. Общие terrain/atlas
+    upload counts/bytes остаются null.
+    Текущая полная компиляция producer/exporter и production capture не выполнены.
+    Приведённые ниже 105 тестов, 96 байт и temporary compilation/serialization относятся к предыдущему
+    этапу producer stamps, до добавления upload telemetry; это не результаты текущего расширенного sample.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Артефакт</th><th>Область и результат</th></tr></thead>
+    <tbody>
+      <tr><td>TL-OWN / TL-API</td><td>Владелец DTO/анализа — standalone CLI invocation;
+        владелец buffers/export — существующая benchmark coroutine. Producer stamp принадлежит
+        существующему FrameTelemetry singleton, lifecycle owner — GameLifetimeScope.
+        IFrameTelemetry не расширялся; IFrameTelemetryProducerStamp — опциональная read-only capability
+        того же объекта, без новой регистрации. Main-thread frame ID в единицах Unity frames,
+        не source revision и не commit watermark. Registration и Terrain↔Lighting зависимости не меняются.
+        Оба нормативных source scan
+        не находят запрещённых ссылок; exit 1 у rg означает отсутствие совпадений.</td></tr>
+      <tr><td>TL-LIFE</td><td>CLI: read → validate/compare → report → process exit, без Unity/GPU ресурсов.
+        Producer FrameTelemetry: до первого ResetFrameTimers метка недействительна → ResetFrameTimers
+        фиксирует номер Unity-кадра → Dispose снимает lifecycle validity. Пропуск reset не обновляет метку;
+        повторный Dispose безопасен, Reset после Dispose выбрасывает ObjectDisposedException.
+        Это наблюдение, не gate запуска lighting и не доказательство успешного commit/output.
+        Capture: перед измерением создаётся массив и baseline → coroutine пишет structs → после всех
+        окон создаются JSON и файлы → память освобождается обычным GC. Новых runtime callbacks нет.
+        Отказ записи приводит к ошибке теста, не к потере capture с ложным успехом.</td></tr>
+      <tr><td>TL-REV / TL-STAGE / TL-DATA</td><td>Стадии, shader bindings, поля, форматы, coordinate/HDR
+        контракты и путь invalidation не меняются. Вход анализатора — immutable snapshots:
+        unchanged inputs → нулевые лишние work counters; dynamic-only revision → dynamic solve/trace;
+        counter reset → неизвестная дельта и новая baseline; холодный/reanchor кадр → отдельная
+        категория и перенос baseline. Устаревший sample разрывает цепочку cumulative deltas;
+        две последующие валидные точки снова позволяют определить работу. Невалидная начальная
+        baseline не доказывает дельту первого кадра. CPU comparison не сравнивает сокращённые
+        выборки; независимые frame/GPU failures сохраняются.
+        Никакой результат анализа не пишет в production state.</td></tr>
+      <tr><td>TL-PERF</td><td>Первый CaptureSample без producer stamp занимал 84 байта;
+        расширенный — 96 байт по Unsafe.SizeOf на standalone .NET 10, Unity layout не измерялся.
+        В цикле — чтение 11 float,
+        9 counter int, observation frame ID и producer stamp; без создания строк/JSON и файловых операций.
+        ResetFrameTimers дополнительно проверяет disposed, читает Time.frameCount и записывает две scalar fields;
+        producer хранит дополнительный int и два bool, с runtime-зависимым выравниванием.
+        Новых callbacks, циклов, allocations на корректном reset и GPU-операций нет;
+        вызов reset после disposal явно выбрасывает исключение. Сериализация линейна по числу frames,
+        происходит после всех окон. Цена instrumentation в production не измерена. GPU-работа не добавлена.</td></tr>
+      <tr><td>TL-VERIFY: выполнено без Unity</td><td><code>dotnet test tools/Kern.FrameHarness.Tests --no-restore</code>:
+        105/105 (2026-09-28), включая настоящий CLI subprocess, negative fixtures, GPU regression, missing metrics,
+        malformed/null input, reset, cold/reanchor, редкий spike 1/600, stale producer/baseline,
+        запрет sparse CPU comparison и восстановление delta chain.
+        Production FrameTelemetry source-linked в тесты с узкими Time/ProfilerRecorder заглушками:
+        initial/reset/skipped-reset/dispose/repeated-dispose/reset-after-dispose проходят.
+        Отдельный temporary netstandard2.1 compilation существующего PlayMode-файла против локальных
+        DLL прошёл без ошибок/предупреждений; это только проверка C# типов, не Unity compilation/run.
+        Дополнительный managed-only probe проверил реальные методы сериализации CaptureSample →
+        JSON → анализатор, producer stamps, сохранение null и managed размер struct 96 байт,
+        без вызова Unity API. Git diff --check чистый; оба нормативных scan — 0 совпадений.</td></tr>
+      <tr><td>TL-VERIFY: pending</td><td>PlayMode-прогон указанного benchmark с экспортом и проверкой
+        frame correlation/reset/commit на production path. Нужного прямого запроса на эту Unity-операцию
+        не было; она не выполнена. GPU/visual/GRID-32 correctness, полный replay и FPS improvement
+        остаются недоказанными; соответствующие gates не пройдены.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Ранее существующие изменения runtime-кода не получают доказательства корректности или ускорения
+    через этот harness или документ. Standalone fixtures доказывают поведение анализатора,
+    а не готовность всего terrain/lighting pipeline.</p>
+</main>
+</body>
+</html>

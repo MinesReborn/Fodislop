@@ -10,7 +10,8 @@ public static class WorldLayerFileHeader
 {
     public const int HeaderSize = 16; // 4 ints (width, height, chunk size, format version)
     public const int FormatVersionOffset = sizeof(int) * 3;
-    public const int CurrentFormatVersion = 1;
+    public const int LegacyRLEFormatVersion = 1;
+    public const int CurrentFormatVersion = 2;
 
     public static void ReadExactly(Stream stream, Span<byte> buffer)
     {
@@ -168,7 +169,7 @@ public static class WorldLayerFileHeader
                 int height = reader.ReadInt32();
                 int chunkSize = reader.ReadInt32();
                 int formatVersion = reader.ReadInt32();
-                if (formatVersion == CurrentFormatVersion)
+                if (formatVersion == LegacyRLEFormatVersion || formatVersion == CurrentFormatVersion)
                 {
                     return;
                 }
@@ -177,7 +178,7 @@ public static class WorldLayerFileHeader
                 {
                     throw new IOException(
                         $"Map file '{filePath}' uses unsupported format version {formatVersion}; " +
-                        $"this client supports version {CurrentFormatVersion}.");
+                        $"this client supports versions 0, {LegacyRLEFormatVersion}, and {CurrentFormatVersion}.");
                 }
 
                 if (width != expectedWidth || height != expectedHeight || chunkSize != expectedChunkSize)
@@ -197,7 +198,9 @@ public static class WorldLayerFileHeader
                     destination,
                     System.Text.Encoding.UTF8,
                     leaveOpen: true);
-                writer.Write(CurrentFormatVersion);
+                // v0 and v1 have the same RLE payload. Promote only the header
+                // to v1; the v1->v2 converter rewrites every chunk afterward.
+                writer.Write(LegacyRLEFormatVersion);
                 writer.Flush();
                 destination.Flush(true);
             }

@@ -8,7 +8,7 @@ using NUnit.Framework;
 namespace Kern.Tests.World;
 
 [TestFixture]
-public class WorldChunkRleCodecBoundaryTests
+public class WorldChunkRLECodecBoundaryTests
 {
     [TestCase(1)]
     [TestCase(2)]
@@ -25,11 +25,11 @@ public class WorldChunkRleCodecBoundaryTests
 
         using var ms = new MemoryStream();
         using (var w = new BinaryWriter(ms, System.Text.Encoding.UTF8, leaveOpen: true))
-            WorldChunkRleCodec.EncodeChunk(w, data, area);
+            WorldChunkRLECodec.EncodeChunk(w, data, area);
 
         ms.Position = 0;
         using var r = new BinaryReader(ms, System.Text.Encoding.UTF8, leaveOpen: true);
-        byte[] decoded = WorldChunkRleCodec.DecodeChunk<byte>(r, area);
+        byte[] decoded = WorldChunkRLECodec.DecodeChunk<byte>(r, area);
 
         Assert.That(decoded, Is.EqualTo(data), $"area={area}");
     }
@@ -40,11 +40,11 @@ public class WorldChunkRleCodecBoundaryTests
         byte[] data = new byte[4096];
         using var ms = new MemoryStream();
         using (var w = new BinaryWriter(ms, System.Text.Encoding.UTF8, leaveOpen: true))
-            WorldChunkRleCodec.EncodeChunk(w, data, data.Length);
+            WorldChunkRLECodec.EncodeChunk(w, data, data.Length);
 
         ms.Position = 0;
         using var r = new BinaryReader(ms, System.Text.Encoding.UTF8, leaveOpen: true);
-        byte[] decoded = WorldChunkRleCodec.DecodeChunk<byte>(r, data.Length);
+        byte[] decoded = WorldChunkRLECodec.DecodeChunk<byte>(r, data.Length);
         Assert.That(decoded, Is.EqualTo(data));
     }
 
@@ -57,11 +57,11 @@ public class WorldChunkRleCodecBoundaryTests
 
         using var ms1 = new MemoryStream();
         using (var w = new BinaryWriter(ms1, System.Text.Encoding.UTF8, leaveOpen: true))
-            WorldChunkRleCodec.EncodeChunk(w, data, data.Length);
+            WorldChunkRLECodec.EncodeChunk(w, data, data.Length);
 
         using var ms2 = new MemoryStream();
         using (var w = new BinaryWriter(ms2, System.Text.Encoding.UTF8, leaveOpen: true))
-            WorldChunkRleCodec.EncodeChunk(w, data, data.Length);
+            WorldChunkRLECodec.EncodeChunk(w, data, data.Length);
 
         Assert.That(ms1.ToArray(), Is.EqualTo(ms2.ToArray()));
     }
@@ -74,14 +74,14 @@ public class WorldChunkRleCodecBoundaryTests
 
         using var ms = new MemoryStream();
         using (var w = new BinaryWriter(ms, System.Text.Encoding.UTF8, leaveOpen: true))
-            WorldChunkRleCodec.EncodeChunk(w, data, 1024);
+            WorldChunkRLECodec.EncodeChunk(w, data, 1024);
 
         byte[] truncated = new byte[16];
         ms.Position = 0;
         ms.Read(truncated, 0, truncated.Length);
 
         using var r = new BinaryReader(new MemoryStream(truncated), System.Text.Encoding.UTF8, leaveOpen: true);
-        Assert.Throws<InvalidDataException>(() => WorldChunkRleCodec.DecodeChunk<byte>(r, 1024));
+        Assert.Throws<InvalidDataException>(() => WorldChunkRLECodec.DecodeChunk<byte>(r, 1024));
     }
 
     [TestCase(0)]
@@ -91,17 +91,17 @@ public class WorldChunkRleCodecBoundaryTests
     {
         using var ms = new MemoryStream();
         using var w = new BinaryWriter(ms);
-        Assert.Throws<ArgumentOutOfRangeException>(() => WorldChunkRleCodec.EncodeChunk<int>(w, new int[10], area));
+        Assert.Throws<ArgumentOutOfRangeException>(() => WorldChunkRLECodec.EncodeChunk<int>(w, new int[10], area));
         using var r = new BinaryReader(ms);
-        Assert.Throws<ArgumentOutOfRangeException>(() => WorldChunkRleCodec.DecodeChunk<int>(r, area));
+        Assert.Throws<ArgumentOutOfRangeException>(() => WorldChunkRLECodec.DecodeChunk<int>(r, area));
     }
 
     [Test]
     public void EncodeDecode_NullArgs_Throws()
     {
-        Assert.Throws<ArgumentNullException>(() => WorldChunkRleCodec.EncodeChunk<int>(null!, new int[10], 10));
+        Assert.Throws<ArgumentNullException>(() => WorldChunkRLECodec.EncodeChunk<int>(null!, new int[10], 10));
         using var ms = new MemoryStream();
         using var w = new BinaryWriter(ms);
-        Assert.Throws<ArgumentNullException>(() => WorldChunkRleCodec.EncodeChunk<int>(w, null!, 10));
+        Assert.Throws<ArgumentNullException>(() => WorldChunkRLECodec.EncodeChunk<int>(w, null!, 10));
     }
 }

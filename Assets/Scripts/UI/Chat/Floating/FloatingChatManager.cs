@@ -50,6 +50,7 @@ namespace Kern.UI
         {
             _chatEvents.LocalMessageReceived += ShowLocalChat;
             TryInitialize();
+            PrewarmBubble();
 
             // Школа (одна дорога): [Inject]-методы и панель UIDocument создаются
             // до Start, один вызов без ретраев из Update.
@@ -139,11 +140,15 @@ namespace Kern.UI
 
             ExpireBubbleOf((int)packet.BotId);
 
+            long poolStart = System.Diagnostics.Stopwatch.GetTimestamp();
             var bubble = GetFromPool();
+            RecordIfSlow("облако чата из пула", poolStart);
             if (bubble == null)
             {
                 return;
             }
+
+            long showStart = System.Diagnostics.Stopwatch.GetTimestamp();
 
             // GetOrCreateRobot здесь материализовал бы призрака: сервер шлёт
             // локальный чат игрокам из чанков вокруг отправителя, а клиент
@@ -160,7 +165,34 @@ namespace Kern.UI
                 bubble.Init((int)packet.BotId, packet.Text, ResolveFallbackPosition(packet));
             }
 
+            RecordIfSlow("облако чата: показ", showStart);
             _activeBubbles.Add(bubble);
+        }
+
+        // Первое облако вместе с подписью создаётся при старте сцены. Пул
+        // начинался пустым, и первый пакет локального чата создавал объект,
+        // внедрял зависимости и строил подпись прямо в разборе сетевой
+        // очереди: кадр провисал на ~31 мс, и камера дёргалась.
+        private void PrewarmBubble()
+        {
+            FloatingChatBubble? bubble = GetFromPool();
+            if (bubble == null)
+            {
+                return;
+            }
+
+            bubble.Prewarm();
+            ReturnToPool(bubble);
+        }
+
+        private static void RecordIfSlow(string what, long startTimestamp)
+        {
+            double milliseconds = (System.Diagnostics.Stopwatch.GetTimestamp() - startTimestamp) * 1000.0 /
+                System.Diagnostics.Stopwatch.Frequency;
+            if (milliseconds >= 2.0)
+            {
+                Kern.Core.Interfaces.Diagnostics.FrameEventLog.Record($"{what} {milliseconds:F1} мс");
+            }
         }
 
         private Vector3 ResolveFallbackPosition(LocalChatMessagePacket packet)
@@ -177,12 +209,12 @@ namespace Kern.UI
             return CoordinateUtils.ServerToUnityPos(packet.FallbackX, packet.FallbackY, worldHeight);
         }
 
-        private void ExpireBubbleOf(int ownerID)
+        private void ExpireBubbleOf(int ownerId)
         {
             for (int i = _activeBubbles.Count - 1; i >= 0; i--)
             {
                 FloatingChatBubble bubble = _activeBubbles[i];
-                if (bubble != null && bubble.OwnerID == ownerID)
+                if (bubble != null && bubble.OwnerId == ownerId)
                 {
                     bubble.Expire();
                 }

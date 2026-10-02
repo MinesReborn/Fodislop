@@ -20,6 +20,12 @@ internal sealed class PlayerActionDispatcher
     private float _lastDigTime;
     private Vector2Int? _pendingDigTarget;
 
+    // Последнее отправленное копание. Живёт дольше ожидания подтверждения:
+    // на одно копание сервер присылает и звук, и эффект, и оба рисуют
+    // визуал, которому нужно направление.
+    private Vector2Int? _lastDigTarget;
+    private Direction _lastDigDirection;
+
     public PlayerActionDispatcher(
         IPlayerInput input,
         INetworkService? networkService)
@@ -49,10 +55,18 @@ internal sealed class PlayerActionDispatcher
         _pendingDigTarget = null;
     }
 
-    public void NotifyDug(Vector2Int target)
+    public void NotifyDug(Vector2Int target, Direction direction)
     {
         _lastDigTime = Time.time;
         _pendingDigTarget = target;
+        _lastDigTarget = target;
+        _lastDigDirection = direction;
+    }
+
+    public bool TryGetDigDirection(ushort x, ushort y, out Direction direction)
+    {
+        direction = _lastDigDirection;
+        return _lastDigTarget == new Vector2Int(x, y);
     }
 
     public void ConfirmDigAction(ushort x, ushort y)
@@ -87,7 +101,7 @@ internal sealed class PlayerActionDispatcher
             return;
         }
 
-        NotifyDug(digTarget);
+        NotifyDug(digTarget, direction);
         _networkService?.Send(
             new ActionClientPacket((ushort)digTarget.x, (ushort)digTarget.y, new BzPacket()));
     }

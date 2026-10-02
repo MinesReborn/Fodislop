@@ -7,7 +7,7 @@ namespace Kern.UI;
 internal static class MenuSceneryProjection
 {
     private const float OrbitRadius = 1.72f;
-    private static readonly Vector3 _orbitTilt = new(72f, 0f, -19f);
+    private static readonly Vector3 s_orbitTilt = new(72f, 0f, -19f);
 
     public static bool TryGetStationViewportPosition(
         MenuSceneryViewpoint viewpoint,
@@ -40,7 +40,7 @@ internal static class MenuSceneryProjection
             Mathf.Cos(angleDegrees * Mathf.Deg2Rad),
             0f,
             Mathf.Sin(angleDegrees * Mathf.Deg2Rad)) * OrbitRadius;
-        Vector3 point = center.position + (Quaternion.Euler(_orbitTilt) * localOffset);
+        Vector3 point = center.position + (Quaternion.Euler(s_orbitTilt) * localOffset);
         return TryProject(viewpoint, point, out viewportPosition);
     }
 

@@ -28,4 +28,10 @@ float3 TerrainResolveFlowSample(
     return result;
 }
 
+// World-stable surface coordinates shared by visual material animations.
+float2 TerrainAnimationWorldPosition(float4 worldPos, float4 packedData)
+{
+    return worldPos.xy + packedData.yz * float2(1.0, -1.0);
+}
+
 #endif

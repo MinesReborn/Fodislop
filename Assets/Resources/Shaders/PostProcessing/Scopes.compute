@@ -37,6 +37,7 @@ RWStructuredBuffer<uint> _HistogramBuffer;    // 4 * 256: R, G, B, яркост�
 RWStructuredBuffer<uint> _WaveformBuffer;     // 4 * 256 * 256: R, G, B, luma — столбец x уровень
 RWStructuredBuffer<uint> _VectorscopeBuffer;  // 256 * 256, плоскость Cb/Cr
 RWStructuredBuffer<uint> _ScopeStatsBuffer;   // [0] black, [1] highlight samples
+RWStructuredBuffer<uint> _ExposureHistogramBuffer; // luma histogram in stops relative to paper white
 
 Texture2D<float4> _ScopeSource;
 RWTexture2D<float4> _ScopeOutput;
@@ -45,6 +46,7 @@ SamplerState sampler_LinearClamp;
 float4 _ScopeSourceSize;  // xy = размер источника, zw = 1/размер
 float4 _ScopeParams;      // x = histogram norm, y = шаг, z/w = waveform/vector norm
 float _ScopeSignalScale;  // HDR: configured peak -> 1; SDR: 1
+float _ScopeExposureScale; // scene-linear/paper-white units for exposure measurement
 int _ScopeHistogramMode;  // 0 = RGB + luma, 1 = luma, 2 = RGB
 float _ScopeVectorscopeScale;
 int _ScopeShowSkinToneLine;
@@ -91,6 +93,11 @@ void ScopesClear(uint3 id : SV_DispatchThreadID)
         _ScopeStatsBuffer[1] = 0;
     }
 
+    if (id.y == 0)
+    {
+        _ExposureHistogramBuffer[id.x] = 0;
+    }
+
     // Первые четыре строки сетки заодно накрывают все 4*256 корзин
     // гистограммы — отдельное ядро ради тысячи обнулений не нужно.
     if (id.y < 4)
@@ -114,6 +121,15 @@ void ScopesGather(uint3 id : SV_DispatchThreadID)
     // These diagnostic axes are Rec.709, independent of the HDR output gamut.
     color = RotateOutputSpaceToRec709(color);
 #endif
+    float3 exposureColor = max(color * (_ScopeExposureScale / _ScopeSignalScale), 0.0);
+    float exposureLuma = max(ScopeLuminance(exposureColor), exp2(-12.0));
+    float exposureStops = log2(exposureLuma);
+    uint exposureBin = (uint)clamp(
+        ((exposureStops + 12.0) / 24.0) * SCOPE_BINS,
+        0.0,
+        SCOPE_BINS - 1);
+    InterlockedAdd(_ExposureHistogramBuffer[exposureBin], 1);
+
     if (any(color <= 0.0))
     {
         InterlockedAdd(_ScopeStatsBuffer[0], 1);

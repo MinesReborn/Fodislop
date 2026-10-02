@@ -32,7 +32,7 @@ public sealed class SceneContractRule : IRule
         {
             // Networking и Gameplay — чистый C# в контейнере (SCENE_STANDARD.md §1).
             ["World"] = new[] { "MapManager", "WorldBackgroundSetup", "WorldTextureManager" },
-            ["Rendering"] = new[] { "TerrainRenderer", "WorldEntityBatchRenderer", "PostProcessController", "LightingEngine", "SurfaceRenderer", "CameraFollow", "VFXPool" },
+            ["Rendering"] = new[] { "TerrainRenderer", "WorldEntityBatchRenderer", "PostProcessController", "LightingEngine", "SurfaceRenderer", "CameraFollow", "VfxPool" },
             ["Audio"] = new[] { "ServerAudioEventManager" },
         }),
         ("Assets/Scenes/Gateway.unity", "GatewayLifetimeScope", new[] { "GatewayLifetimeScope", "GatewayController", "UIDocument" }, null),

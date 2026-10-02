@@ -59,7 +59,7 @@ internal static class CheckFitTool
                 string[] classes = m.Groups[1].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 foreach (string c in classes)
                 {
-                    if (toGame.TryGetValue(c, out string gname))
+                    if (toGame.TryGetValue(c, out string? gname))
                     {
                         if (!variants.TryGetValue(gname, out var fits))
                         {
@@ -89,7 +89,7 @@ internal static class CheckFitTool
                 continue;
             }
 
-            string fit = fits.FirstOrDefault();
+            string? fit = fits.FirstOrDefault();
             if (string.IsNullOrEmpty(fit)) continue;
 
             var have = uss.GetValueOrDefault(gname, new Dictionary<string, string>());
@@ -106,7 +106,7 @@ internal static class CheckFitTool
 
             foreach (var (prop, want) in Required[fit])
             {
-                string got = have.GetValueOrDefault(prop);
+                string? got = have.GetValueOrDefault(prop);
                 if (got == null)
                 {
                     Console.WriteLine($"  .{gname} (fit={fit}): {prop} = не сказано");

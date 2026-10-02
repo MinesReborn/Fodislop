@@ -11,10 +11,9 @@ namespace Kern.Game;
 
 public sealed class RobotLighting
 {
-    private static int _nextDynamicLightID;
+    private static int s_nextDynamicLightId;
 
-    private readonly int _dynamicLightID;
-    private bool _dynamicLightEnabled;
+    private readonly int _dynamicLightId;
     private float _dynamicLightIntensity;
     private Color _dynamicLightColor;
     private bool _hasSubmittedDynamicLight;
@@ -27,8 +26,7 @@ public sealed class RobotLighting
 
     public RobotLighting()
     {
-        _dynamicLightID = Interlocked.Increment(ref _nextDynamicLightID);
-        _dynamicLightEnabled = LightingConfigHolder.DynamicLightEnabled;
+        _dynamicLightId = Interlocked.Increment(ref s_nextDynamicLightId);
         _dynamicLightIntensity = LightingConfigHolder.DynamicLightIntensity;
         _dynamicLightColor = LightingConfigHolder.DynamicLightColor;
     }
@@ -55,20 +53,6 @@ public sealed class RobotLighting
         _dynamicLightSettingsLoaded = true;
     }
 
-    public void SetEnabled(bool enabled, LightingEngine? lightingEngine)
-    {
-        if (_dynamicLightEnabled == enabled)
-        {
-            return;
-        }
-
-        _dynamicLightEnabled = enabled;
-        if (!enabled)
-        {
-            Remove(lightingEngine);
-        }
-    }
-
     public void SetColor(Color color, LightingEngine? lightingEngine)
     {
         _dynamicLightColor = new Color(
@@ -80,11 +64,14 @@ public sealed class RobotLighting
 
     public void Update(Vector3 position, LightingEngine? lighting)
     {
-        if (!_dynamicLightEnabled || lighting == null || !lighting.IsRuntimeConfigReady)
+        // The feature flag is read live. A robot created while dynamic light
+        // was switched off cached that state and never lit again, even after
+        // the flag returned: only robots spawned earlier or later had lights.
+        if (!LightingConfigHolder.DynamicLightEnabled || lighting == null || !lighting.IsRuntimeConfigReady)
         {
             if (_hasSubmittedDynamicLight)
             {
-                lighting?.RemoveDynamicLight(_dynamicLightID);
+                lighting?.RemoveDynamicLight(_dynamicLightId);
             }
 
             _hasSubmittedDynamicLight = false;
@@ -111,7 +98,7 @@ public sealed class RobotLighting
         }
 
         lighting.SetDynamicLight(
-            _dynamicLightID,
+            _dynamicLightId,
             pos2D,
             _dynamicLightColor,
             _dynamicLightIntensity);
@@ -127,7 +114,7 @@ public sealed class RobotLighting
     {
         if (_hasSubmittedDynamicLight && lighting != null)
         {
-            lighting.RemoveDynamicLight(_dynamicLightID);
+            lighting.RemoveDynamicLight(_dynamicLightId);
             _hasSubmittedDynamicLight = false;
         }
     }

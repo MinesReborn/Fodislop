@@ -35,14 +35,6 @@ public sealed class TerrainSettings
     [SettingConsumer(SettingConsumerTarget.TerrainRenderer, "TerrainMaterialManager.ShimmerColor")]
     public Color ShimmerColor = TerrainConfigHolder.ShimmerColor;
 
-    [SettingUnbounded("Цвет: компоненты проверяются на конечность и неотрицательность, отрезка нет — яркость выше единицы законна.")]
-    [SettingConsumer(SettingConsumerTarget.TerrainRenderer, "TerrainMaterialManager.DebugColor")]
-    public Color DebugColor = Color.magenta;
-
-    [SettingUnbounded("Тумблер отладочной раскраски террейна.")]
-    [SettingConsumer(SettingConsumerTarget.TerrainRenderer, "TerrainMaterialManager.DebugMode")]
-    public bool DebugMode;
-
     // Смещение узлов сетки террейна. Название ключа говорит про кромку
     // блока — так было, пока смещались только границы массивов породы;
     // теперь колышется и их внутренность, как в оригинале Mines.

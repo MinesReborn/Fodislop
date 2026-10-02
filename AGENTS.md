@@ -31,15 +31,13 @@ Code is the source of truth if reference context is stale. Don't read everything
 
 ## Authority boundaries
 
-- Unity CLI is available as `unity`; invoke it only for a specific Unity operation explicitly named in the current user request.
-- Do not launch, open, close, or control Unity Editor/Hub; do not invoke Unity CLI, MCP, Editor API, batch mode, build, tests, import, or read Editor logs unless the current user request explicitly names a specific Unity operation. Do not solicit system permission to act in Unity on your own initiative.
-- Permission extends only to the explicitly named Unity operation. If the verification cannot be completed without Unity, stop and name the specific operation left for the user.
-- Mentioning a Unity operation in acceptance criteria, a Definition of Ready, a plan, a CI table, or a broad request such as “do everything” does not authorize running it. The current user message must directly request the specific action (for example, “run EditMode tests”, “build for macOS”, or “close Unity Editor”). Authorization covers only that named operation, not related Unity actions.
+- Unity CLI is available as `unity`. Invoke it when requested by the user. Requests to run tests (such as “запусти тесты”, “запусти все тесты”, “run tests”, “run EditMode tests”, “run PlayMode tests”) authorize running the corresponding Unity tests.
+- Do not launch, open, close, or control Unity Editor/Hub in GUI mode, and do not execute builds or destructive operations unless requested by the user.
 - Do not perform Git rollback or history rewriting without an explicit request in the current message: `reset`, `restore`, checkout for restoration, `revert`, `clean`, amend, rebase, or force-push. Do not restore files from `HEAD`, stash, or reflog, and do not solicit such permission on your own initiative.
 - NEVER ROLL BACK ANYTHING. This rule is broader than Git: it is forbidden to undo your own edit by any means — neither a `git` command, nor manually reverting file text, nor deleting added code and tests. Rollback is permitted ONLY when the user explicitly requests it in the current message.
 - Do not edit `.prefab`, `.unity`, or `.asset` files as text; modify them only through explicitly permitted Unity Editor API/Inspector. Preserve GUIDs and `.meta` files.
 - Existing working-tree changes belong to the user. Do not overwrite or incorporate them into your changes without necessity.
-- When the user asks a question or writes a question-reply — stop immediately, answer directly, and do NOT edit, create, or run anything without explicit instruction from the user.
+- During an active task, a short question, question-reply, complaint, or hypothesis is steering for that task: answer briefly and continue the already authorized investigation and fixes. Do not stop work or demand another "work" instruction. Stop only when the user explicitly asks to stop/pause or clearly replaces the objective. A standalone question with no active task calls for an answer; it does not by itself authorize unrelated changes. Preserve existing restrictions on Unity control and other operations.
 - NEVER USE `--no-verify`!
 - Warning suppression is forbidden: do not add `SuppressMessage`, `#pragma warning disable`, `NoWarn`, disabling blanket warnings, or similar exclusions. Fix the root cause of the warning; an exception is permitted only for an immutable third-party package that is not part of project code.
 - `git commit` and `git push` are executed ONLY when the user explicitly requests it in the current message. A user request to "push" means stage all working-tree changes, create one commit with a short Russian message, and push it; do not ask for separate commit authorization. Do not commit or push after completing a task "for convenience" or "to save" — only file edits.
@@ -61,6 +59,8 @@ and required proof before editing; apply the mandatory checklist in
 required evidence or a failed applicable gate blocks completion.
 
 When the user reports a current performance regression, treat it as present in the current working tree. A previously fixed bug or measurements from before that fix do not resolve the report; continue investigating the current cause and do not shift verification of the reported regression onto the user.
+
+Trust the user's reported symptoms and measurements as facts: if the user reports a 60 ms freeze when digging a block, investigate that freeze without asking them to prove it, reproduce it again, or provide a profile. Distinguish the accepted symptom from the cause that still needs investigation. When instructed to read code or use existing logs only, trace the complete production code path autonomously; do not substitute requests to control Unity, collect new measurements, or obtain confirmation for that work. Missing profiling evidence does not invalidate the user's report or justify stopping code analysis. State uncertainty about the cause honestly without casting doubt on the reported problem.
 
 Keep the investigation anchored to the subsystem and symptom the user identified. For a lighting FPS regression, trace the current frame's lighting invalidation, repeated rebuilds, dispatches, shaders, and GPU cost until the cause of the reported slowdown is established. A screenshot of GC, an incidental diagnostic cost, or an unrelated inefficiency is supporting evidence only; do not switch tasks or edit that path unless its causal contribution to the reported slowdown is demonstrated. Do not present a minor or unmeasured improvement as a fix for the main regression.
 

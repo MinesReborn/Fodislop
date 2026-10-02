@@ -57,7 +57,7 @@ internal sealed class WorldEntityTextureAtlas : IDisposable
             return;
         }
 
-        if (!RuntimeTextureFactory.SupportsTexture2DGpuCopy)
+        if (!RuntimeTextureFactory.SupportsTexture2DGPUCopy)
         {
             throw new InvalidOperationException(
                 "The active graphics API does not support GPU texture copies required by the world-entity atlas.");

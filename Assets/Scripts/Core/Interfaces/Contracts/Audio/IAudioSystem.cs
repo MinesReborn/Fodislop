@@ -30,6 +30,7 @@ public interface IAudioSystem
     IAudioPlaybackHandle? Play2D(string eventName, AudioLayer? layer = null, float? volume = null);
     float GetBusVolume(AudioBusType type);
     void SetBusVolume(AudioBusType type, float volume);
+    void StopBus(AudioBusType type, float fadeOut = 0f);
 
     UniTask WaitUntilBanksReadyAsync(CancellationToken cancellationToken = default);
 }
