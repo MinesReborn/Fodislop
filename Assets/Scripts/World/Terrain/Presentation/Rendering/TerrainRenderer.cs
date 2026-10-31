@@ -39,7 +39,7 @@ namespace Kern.World.Terrain
         private int _viewportPadding = 2;
 
         [Inject]
-        private Kern.World.Streaming.WorldViewTransition? _viewTransition = null;
+        private IWorldPresentationState _presentationState = null!;
 
         [Inject]
         private IWorldDataStorage _storage = null!;
@@ -49,6 +49,8 @@ namespace Kern.World.Terrain
         private MapManager _mapManager = null!;
         [Inject]
         private ITextureService _textureService = null!;
+        [Inject]
+        private IAssetLoader _assetLoader = null!;
         [Inject]
         private IClientConfigManager _clientConfigManager = null!;
         [Inject]
@@ -130,7 +132,8 @@ namespace Kern.World.Terrain
         internal TerrainCellBuffers CellBuffers => _window.Driver.Pipeline.CellBuilder.Buffers;
 
         public bool IsReadyForGameplay =>
-            TerrainReadiness.IsReadyForGameplay(_window, _textureService);
+            TerrainReadiness.IsReadyForGameplay(_window, _textureService) &&
+            LightingFramePublisher.HasValidatedLightingOutput;
 
         public void ApplyClientConfig() => ConfigApplier.ApplyAndRecord(_clientConfigManager, WorldChanges);
 
@@ -243,12 +246,8 @@ namespace Kern.World.Terrain
             LightingOutputSnapshot lightingOutput = default;
             bool hasLightingOutput = LightingFramePublisher.TryReadLightingOutput(out lightingOutput);
 
-            bool holdingView = _viewTransition is { IsHolding: true };
+            bool holdingView = _presentationState.IsTeleportPreparing;
             _window.HoldPublication = holdingView;
-            if (_viewTransition != null)
-            {
-                _viewTransition.CanHold = _window.CellsCommitted;
-            }
 
             long publishStart = TerrainStallReport.Begin();
             if (!_window.TryPublishCompleted(Services, out Exception? publishFailure))
@@ -259,6 +258,7 @@ namespace Kern.World.Terrain
                     _mapManager,
                     _textureService,
                     _storage);
+                _presentationState.FailTransition(_presentationState.Current.TransitionId);
                 return;
             }
 
@@ -271,7 +271,7 @@ namespace Kern.World.Terrain
 
             long planStart = TerrainStallReport.Begin();
             Vector3 focusPosition = holdingView
-                ? _viewTransition!.Destination
+                ? _presentationState.Current.Destination
                 : _cameraFrame.Camera!.transform.position;
             var planningInput = new TerrainFramePlanningInput(
                 Camera: _cameraFrame.Camera!,
@@ -310,7 +310,7 @@ namespace Kern.World.Terrain
                 }
                 LightingFramePublisher.ValidateLightingOutput(hasLightingOutput, lightingOutput, _window);
                 PublishTerrainFrameDemand(framePlan, holdingView);
-                RecordFrameDiagnostics(stallStart, planMs, 0f, 0f, uploadMs, 0, 0);
+                TerrainFrameDiagnosticsRecorder.Record(Diagnostics, _telemetry, _planner, stallStart, planMs, 0f, 0f, uploadMs, 0, 0);
                 return;
             }
 
@@ -339,7 +339,8 @@ namespace Kern.World.Terrain
                     _mapManager,
                     _textureService,
                     _storage);
-                RecordFrameDiagnostics(
+                _presentationState.FailTransition(_presentationState.Current.TransitionId);
+                TerrainFrameDiagnosticsRecorder.Record(Diagnostics, _telemetry, _planner,
                     stallStart,
                     planMs,
                     dimensionsMs,
@@ -371,10 +372,11 @@ namespace Kern.World.Terrain
                 TerrainReadiness.PublishViewTransitionReadiness(
                     _window,
                     _textureService,
-                    _viewTransition!);
+                    _assetLoader,
+                    _presentationState);
                 LightingFramePublisher.ValidateLightingOutput(hasLightingOutput, lightingOutput, _window);
                 PublishTerrainFrameDemand(framePlan, holdingView: true);
-                RecordFrameDiagnostics(
+                TerrainFrameDiagnosticsRecorder.Record(Diagnostics, _telemetry, _planner,
                     stallStart,
                     planMs,
                     dimensionsMs,
@@ -404,7 +406,7 @@ namespace Kern.World.Terrain
             LightingFramePublisher.ValidateLightingOutput(hasLightingOutput, lightingOutput, _window);
             PublishTerrainFrameDemand(framePlan, holdingView: false);
 
-            RecordFrameDiagnostics(
+            TerrainFrameDiagnosticsRecorder.Record(Diagnostics, _telemetry, _planner,
                 stallStart,
                 planMs,
                 dimensionsMs,
@@ -413,25 +415,6 @@ namespace Kern.World.Terrain
                 dirtyRectCount,
                 dirtyArea);
         }
-
-        private void RecordFrameDiagnostics(
-            long stallStart,
-            float planMs,
-            float dimensionsMs,
-            float processMs,
-            float uploadMs,
-            int dirtyRectCount,
-            long dirtyArea) => TerrainFrameDiagnosticsRecorder.Record(
-                Diagnostics,
-                _telemetry,
-                _planner,
-                stallStart,
-                planMs,
-                dimensionsMs,
-                processMs,
-                uploadMs,
-                dirtyRectCount,
-                dirtyArea);
 
         private TerrainBuildContext Services => new TerrainBuildContext(
             _storage,
@@ -461,15 +444,19 @@ namespace Kern.World.Terrain
             _meshRenderer.sortingLayerName = _sortingLayerName;
             _meshRenderer.sortingOrder = _sortingOrder;
         }
-        private void OnTextureLoaded(string filename, Texture2D texture)
+        private void OnTextureLoaded(CellType cellType, Texture2D texture)
         {
-            Diagnostics.Mark(1 << 9, $"[TerrainDiag] first texture arrived: {filename}");
-            WorldChanges.HandleTextureLoaded(filename, texture);
+            Diagnostics.Mark(1 << 9, $"[TerrainDiag] first texture arrived: {cellType}");
+            WorldChanges.HandleTextureLoaded(cellType, texture);
         }
 
         private void OnWorldDataLoaded()
         {
             WorldChanges.HandleWorldDataLoaded(EnsureSubscriptions);
+            if (_meshRenderer != null)
+            {
+                _meshRenderer.enabled = false;
+            }
         }
         private bool TryResolveCamera()
         {

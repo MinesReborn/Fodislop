@@ -146,13 +146,19 @@ namespace Kern.Game.Player.Movement
         private IWorldDataStorage _storage = null!;
 
         [Inject]
-        private IServerVFXService _vfx = null!;
+        private IServerVisualEffectService _visualEffect = null!;
+
+        [Inject]
+        private IServerAudioService _audio = null!;
 
         [Inject]
         private INetworkService _networkService = null!;
 
         [Inject]
         private IMapDataProvider _mapDataProvider = null!;
+
+        [Inject]
+        private IWorldPresentationState _presentationState = null!;
 
         [Inject]
         private IConnectionService _connectionService = null!;
@@ -222,6 +228,12 @@ namespace Kern.Game.Player.Movement
 
         protected void Start()
         {
+            if (_presentationState == null)
+            {
+                throw new InvalidOperationException(
+                    "PlayerMovementController requires IWorldPresentationState before Start.");
+            }
+
             _lastSentDirection = null;
 
             // Field injection completes during scope build, before Start runs:
@@ -230,7 +242,7 @@ namespace Kern.Game.Player.Movement
             _localPlayerState?.Publish(this);
             if (_input != null)
             {
-                _actionDispatcher = new PlayerActionDispatcher(_input, _networkService, _vfx);
+                _actionDispatcher = new PlayerActionDispatcher(_input, _networkService, _audio, _visualEffect);
             }
             _programmator.StateChanged += OnProgramStateChanged;
         }
@@ -260,6 +272,11 @@ namespace Kern.Game.Player.Movement
                 _robot,
                 HasServerPosition && (!Application.isPlaying || IsGameplayVisible),
                 _inputBlocker != null && _inputBlocker.IsInputBlockedExcludingMapMode);
+
+            if (!_presentationState.IsStable)
+            {
+                return;
+            }
 
             if (!HasServerPosition || (Application.isPlaying && !IsGameplayVisible))
             {
@@ -364,6 +381,14 @@ namespace Kern.Game.Player.Movement
             HasServerPosition = false;
             Position = default;
             _awaitingMoveConfirmation = false;
+            IsGameplayVisible = false;
+            CancelClickPath();
+            foreach (SpriteRenderer renderer in _playerRenderers)
+            {
+                renderer.enabled = false;
+            }
+
+            _robot?.SetBatchedBodyVisible(false);
         }
 
         public void UpdateServerPosition(Vector2Int position, bool teleport = false)
@@ -399,10 +424,35 @@ namespace Kern.Game.Player.Movement
             Position = position;
             HasServerPosition = true;
             Vector3 targetWorldPos = WorldCoordinateConverter.ServerToUnityPos(position.x, position.y, worldHeight, transform.position.z);
-            transform.position = targetWorldPos;
+            bool holdPresentation = false;
+            if (teleport && _presentationState == null)
+            {
+                throw new InvalidOperationException(
+                    "PlayerMovementController requires IWorldPresentationState before teleporting.");
+            }
+
+            if (teleport &&
+                (oldPos != position || _presentationState.IsTeleportPreparing))
+            {
+                holdPresentation = _presentationState.IsTeleportAwaitingDestination
+                    ? _presentationState.ConfirmTeleportRequest(
+                        _presentationState.Current.TransitionId,
+                        targetWorldPos)
+                    : _presentationState.TryBeginTeleport(targetWorldPos, out _);
+            }
+
+            if (!holdPresentation)
+            {
+                transform.position = targetWorldPos;
+            }
+
             if (_robot is not null)
             {
-                if (shouldSnap || teleport)
+                if (holdPresentation)
+                {
+                    _robot.TargetPosition = targetWorldPos;
+                }
+                else if (shouldSnap || teleport)
                 {
                     _robot.SnapTo(targetWorldPos);
                     if (teleport)

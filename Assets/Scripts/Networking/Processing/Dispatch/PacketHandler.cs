@@ -36,7 +36,7 @@ public sealed class PacketHandler : IStartable, IDisposable
     private readonly ChatProcessor _chat;
     private readonly StatusProcessor _status;
     private readonly AudioPacketProcessor _audio;
-    private readonly VFXPacketProcessor _vfx;
+    private readonly VisualPacketProcessor _visual;
     private readonly InventoryProcessor _inventory;
     private readonly ClanProcessor _clan;
     private readonly MissionProcessor _mission;
@@ -58,7 +58,7 @@ public sealed class PacketHandler : IStartable, IDisposable
         ChatProcessor chat,
         StatusProcessor status,
         AudioPacketProcessor audio,
-        VFXPacketProcessor vfx,
+        VisualPacketProcessor visual,
         InventoryProcessor inventory,
         ClanProcessor clan,
         MissionProcessor mission,
@@ -77,7 +77,7 @@ public sealed class PacketHandler : IStartable, IDisposable
         _chat = chat;
         _status = status;
         _audio = audio;
-        _vfx = vfx;
+        _visual = visual;
         _inventory = inventory;
         _clan = clan;
         _mission = mission;
@@ -96,7 +96,7 @@ public sealed class PacketHandler : IStartable, IDisposable
             chat,
             status,
             audio,
-            vfx,
+            visual,
             inventory,
             clan,
             mission,
@@ -184,7 +184,7 @@ public sealed class PacketHandler : IStartable, IDisposable
         On<PingPacket>(_status.Process);
         On<OutdatedClientPacket>(_status.Process);
         On<AudioPacket>(_audio.Process);
-        On<VFXPacket>(_vfx.Process);
+        On<VisualPacket>(_visual.Process);
         On<InventoryPacket>(_inventory.Process);
         On<MinesServer.Networking.Server.Packets.Inventory.SelectItemPacket>(_inventory.Process);
         On<MinesServer.Networking.Server.Packets.Inventory.DeselectItemPacket>(_inventory.Process);

@@ -9,9 +9,9 @@ namespace Kern.Tests.World;
 [TestFixture]
 public sealed class TerrainCellTextureNameTests
 {
-    [TestCase("Cells/Rock.png", CellType.Rock)]
-    [TestCase("cells/redrock", CellType.RedRock)]
-    [TestCase("Cells/117.png", CellType.RedRock)]
+    [TestCase("Visual/Cells/Rock.png", CellType.Rock)]
+    [TestCase("visual/cells/redrock", CellType.RedRock)]
+    [TestCase("Visual/Cells/117.png", CellType.RedRock)]
     public void TryParseCellType_RecognizesEnumTextureNames(
         string filename,
         CellType expectedCellType)
@@ -22,9 +22,9 @@ public sealed class TerrainCellTextureNameTests
         Assert.That(cellType, Is.EqualTo(expectedCellType));
     }
 
-    [TestCase("Cells/NotACell.png")]
+    [TestCase("Visual/Cells/NotACell.png")]
     [TestCase("Other/Rock.png")]
-    [TestCase("Cells/12345.png")]
+    [TestCase("Visual/Cells/12345.png")]
     public void TryParseCellType_RejectsUnknownCellTextureNames(string filename)
     {
         bool success = TerrainCellTextureName.TryParseCellType(filename, out _);

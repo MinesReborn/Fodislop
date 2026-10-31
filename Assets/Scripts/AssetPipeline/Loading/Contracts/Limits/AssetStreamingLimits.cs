@@ -5,7 +5,8 @@ namespace Kern.Core;
 public static class AssetStreamingLimits
 {
     public const int RequestBatchIntervalMilliseconds = 50;
-    public const int MaximumConcurrentTextureLoads = 2;
+    public const int MaximumConcurrentManifestAssetDownloads = 4;
+    public const int MaximumConcurrentCellTextureLoads = 2;
     public const int AssetRequestTimeoutSeconds = 5;
     public const int LargeAssetRequestTimeoutSeconds = 10;
     public const long AssetCacheCapacityBytes = 256L * 1024 * 1024;

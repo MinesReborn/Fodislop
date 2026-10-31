@@ -28,8 +28,8 @@ internal sealed class SkillProgressBar : VisualElement
     // Лайм старого клиента; красный - оттенок --state-danger из
     // ThemeTokens.uss (#ff5555), чтобы совпадать с остальной "опасностью".
     // Альфа ~0.65 - как у заливки полосы корзины.
-    private static readonly Color32 FillColor = new(163, 230, 53, 165);
-    private static readonly Color32 ReadyColor = new(255, 85, 85, 170);
+    private static readonly Color32 s_fillColor = new(163, 230, 53, 165);
+    private static readonly Color32 s_readyColor = new(255, 85, 85, 170);
 
     // Перелив опыта сверх 100%, при котором заливка становится полностью
     // красной: 0.5 = +50% (то есть 150% опыта). Ручка насыщенности красного.
@@ -104,8 +104,8 @@ internal sealed class SkillProgressBar : VisualElement
     {
         _fill.style.width = Length.Percent(Mathf.Clamp01(_displayed) * 100f);
         _fill.style.backgroundColor = new StyleColor(Color32.Lerp(
-            FillColor,
-            ReadyColor,
+            s_fillColor,
+            s_readyColor,
             Mathf.Clamp01((_displayed - 1f) / FullRedOverflow)));
 
         // Цифры крупным кеглем, "%" - мельче (rich-тег): число читается

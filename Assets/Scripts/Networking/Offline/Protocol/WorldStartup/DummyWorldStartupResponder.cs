@@ -3,8 +3,10 @@
 using System;
 using System.Threading;
 using System.Collections.Generic;
+using System.Linq;
 using Cysharp.Threading.Tasks;
 using Kern;
+using Kern.AssetPipeline.Loading;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.World;
@@ -18,7 +20,7 @@ using MinesServer.Networking.Server.Packets.Inventory;
 using MinesServer.Networking.Server.Packets.Movement;
 using MinesServer.Networking.Server.Packets.Utilities;
 using MinesServer.Networking.Server.Packets.World;
-using MinesServer.Networking.Shared.Packets;
+using MinesServer.Networking.Contracts.Packets;
 
 namespace Kern.Networking.Offline;
 
@@ -37,7 +39,8 @@ internal sealed class DummyWorldStartupResponder
     private readonly Action<ServerPacket> _sendPacket;
     private readonly Func<int, bool> _loopAlive;
     private readonly DummyBlockSpawner _blockSpawner;
-    private readonly IRuntimeAssetPaths? _assetPaths;
+    private readonly ITextureStorageService _textureStorage;
+    private readonly IRuntimeAssetPaths _assetPaths;
     private readonly DummyGameplayActionResponder _actionResponder;
     internal DummyWorldStartupResponder(
     IAsyncOperationSupervisor operations,
@@ -54,7 +57,8 @@ internal sealed class DummyWorldStartupResponder
     Func<int, bool> loopAlive,
     DummyBlockSpawner blockSpawner,
     DummyGameplayActionResponder actionResponder,
-    IRuntimeAssetPaths? assetPaths = null)
+    ITextureStorageService textureStorage,
+    IRuntimeAssetPaths assetPaths)
     {
         _operations = operations;
         _clock = clock;
@@ -69,6 +73,7 @@ internal sealed class DummyWorldStartupResponder
         _sendPacket = sendPacket;
         _loopAlive = loopAlive;
         _blockSpawner = blockSpawner;
+        _textureStorage = textureStorage;
         _assetPaths = assetPaths;
         _actionResponder = actionResponder;
     }
@@ -83,7 +88,7 @@ internal sealed class DummyWorldStartupResponder
         ushort playerBotId)
     {
         DummyWorldDescriptor world = await _worldState.OpenAsync(worldCodeName);
-        SendWorldIdentity(worldCodeName, world, playerName, playerBotId);
+        await SendWorldIdentityAsync(worldCodeName, world, playerName, playerBotId);
         SendClientConfig();
 
         _playerState.SetPosition(25, 50);
@@ -107,8 +112,7 @@ internal sealed class DummyWorldStartupResponder
 
         _sendPacket(new ServerPacket(
             new MovementSpeedPacket(
-                DummyCellConfigurationFactory.CreateMovementSpeeds(
-                    world.CellConfigurations))));
+                DummyCellConfigurationFactory.CreateMovementSpeeds())));
 
         Dictionary<ItemType, long> inventory = CreateInitialInventory(_itemCatalog);
         _inventoryResponder.ReplaceItems(inventory);
@@ -138,7 +142,7 @@ internal sealed class DummyWorldStartupResponder
         _sendPacket(new ServerPacket(new HBPacket(new IHBPacket[]
         {
             new AudioPacket(
-                SFX.Music,
+                AudioEventType.Music,
                 0,
                 _playerState.X,
                 _playerState.Y,
@@ -158,26 +162,33 @@ internal sealed class DummyWorldStartupResponder
         return inventory;
     }
 
-    private void SendWorldIdentity(
+    private async UniTask SendWorldIdentityAsync(
         string worldCodeName,
         DummyWorldDescriptor world,
         string playerName,
         ushort playerBotId)
     {
+        CellConfigurationPacket[] cellConfigurations = (CellConfigurationPacket[])world.CellConfigurations.Clone();
+        WorldAssetDefinitionPacket[] assetManifest =
+            await DummyCellConfigurationFactory.CreateAssetManifestAsync(
+                _textureStorage,
+                _assetPaths,
+                cellConfigurations);
         _sendPacket(new ServerPacket(new WorldInitPacket(
             worldCodeName,
             "Pallada",
             (ushort)world.Width,
             (ushort)world.Height,
-            world.CellConfigurations,
-            DummyCellConfigurationFactory.CreateTileGroups())));
+            cellConfigurations,
+            DummyCellConfigurationFactory.CreateTileGroups(),
+            assetManifest)));
         _sendPacket(new ServerPacket(new PlayerInfoPacket(999, playerBotId, playerName)));
         _sendPacket(new ServerPacket(new RobotInfoPacket(
             playerBotId,
             999,
             1,
-            "Skin/bee.png",
-            "Tail/default.png",
+            "Visual/Skin/bee.png",
+            "Visual/Tail/default.png",
             string.Empty)));
         _sendPacket(new ServerPacket(new HBPacket(new IHBPacket[]
         {
@@ -253,8 +264,8 @@ internal sealed class DummyWorldStartupResponder
             // Match PlayerEntity.SendEffects: the position is the gun, the bot is its target.
             _sendPacket(new ServerPacket(new HBPacket(new IHBPacket[]
             {
-                new VFXPacket(VFX.GunShot, playerBotId, GunX, GunY, Array.Empty<StringPairPacket>()),
-                new AudioPacket(SFX.GunShot, playerBotId, GunX, GunY, Array.Empty<StringPairPacket>()),
+                new VisualPacket(VisualEffect.GunShot, playerBotId, GunX, GunY, Array.Empty<StringPairPacket>()),
+                new AudioPacket(AudioEventType.GunShot, playerBotId, GunX, GunY, Array.Empty<StringPairPacket>()),
             })));
             _actionResponder.HandleGunHit();
         }
@@ -301,51 +312,15 @@ internal sealed class DummyWorldStartupResponder
     {
         IReadOnlyList<string> textures = GetAvailableTextures();
         _sendPacket(new ServerPacket(new ClientConfigPacket(
-            new SoundConfigPacket(255, new Dictionary<string, byte>()),
-            RendererMode.Default,
             Array.Empty<StringPairPacket>(),
             textures)));
     }
 
     private IReadOnlyList<string> GetAvailableTextures()
     {
-        if (_assetPaths == null)
-        {
-            return Array.Empty<string>();
-        }
-
-        try
-        {
-            string root = _assetPaths.BundledTexturesRoot;
-            if (!System.IO.Directory.Exists(root))
-            {
-                return Array.Empty<string>();
-            }
-
-            var list = new List<string>();
-            foreach (string filePath in System.IO.Directory.EnumerateFiles(root, "*.*", System.IO.SearchOption.AllDirectories))
-            {
-                if (IsTextureFile(filePath))
-                {
-                    string relative = System.IO.Path.GetRelativePath(root, filePath).Replace('\\', '/');
-                    list.Add(relative);
-                }
-            }
-
-            return list;
-        }
-        catch
-        {
-            return Array.Empty<string>();
-        }
+        return _assetPaths.GetTextureFilenames()
+            .Where(AssetBatchDispatcher.IsTextureFile)
+            .ToArray();
     }
 
-    private static bool IsTextureFile(string path)
-    {
-        string ext = System.IO.Path.GetExtension(path);
-        return ext.Equals(".png", StringComparison.OrdinalIgnoreCase) ||
-               ext.Equals(".jpg", StringComparison.OrdinalIgnoreCase) ||
-               ext.Equals(".jpeg", StringComparison.OrdinalIgnoreCase) ||
-               ext.Equals(".exr", StringComparison.OrdinalIgnoreCase);
-    }
 }

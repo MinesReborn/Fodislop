@@ -3,10 +3,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Kern.Core;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.Information;
+using Kern.World.Terrain;
+using Kern.World.Textures;
 using UnityEngine;
 
 namespace Kern.World;
@@ -16,12 +19,58 @@ public sealed class MapCellConfigCatalog
     private CellConfigurationPacket[]? _cellConfigurations;
     private readonly Dictionary<CellType, int> _cellToTileGroup = new();
     private readonly Dictionary<CellType, ushort> _cellMoveSpeeds = new();
+    private readonly Dictionary<string, WorldAssetDefinitionPacket> _assetsByName = new(StringComparer.Ordinal);
 
-    public void LoadConfigurations(CellConfigurationPacket[]? configurations, byte[][]? tileGroups)
+    public void LoadConfigurations(
+        CellConfigurationPacket[]? configurations,
+        byte[][]? tileGroups,
+        WorldAssetDefinitionPacket[]? assetManifest = null)
     {
         ValidateCellConfigurations(configurations);
 
         _cellConfigurations = configurations;
+        _assetsByName.Clear();
+        if (assetManifest != null)
+        {
+            foreach (WorldAssetDefinitionPacket asset in assetManifest)
+            {
+                ValidateAssetDefinition(asset);
+                if (!_assetsByName.TryAdd(asset.Filename, asset))
+                {
+                    throw new InvalidDataException($"WorldInitPacket.AssetManifest contains duplicate filename '{asset.Filename}'.");
+                }
+            }
+        }
+
+        var decalTextureNames = configurations!
+            .Select(configuration => configuration.DecalTextureName)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        long textureArrayBytes = (long)TerrainDecalFactory.TextureWidth *
+            TerrainDecalFactory.TextureHeight * (decalTextureNames.Length + 1) * 4;
+        if (textureArrayBytes > 64L * 1024 * 1024)
+        {
+            throw new InvalidDataException("World decal texture array exceeds the 64 MiB client limit.");
+        }
+
+        foreach (CellConfigurationPacket configuration in configurations!)
+        {
+            if (!string.IsNullOrEmpty(configuration.TextureName) &&
+                !_assetsByName.ContainsKey(configuration.TextureName))
+            {
+                throw new InvalidDataException(
+                    $"Cell configuration references texture '{configuration.TextureName}', which is absent from WorldInitPacket.AssetManifest.");
+            }
+
+            if (!string.IsNullOrEmpty(configuration.DecalTextureName) &&
+                !_assetsByName.ContainsKey(configuration.DecalTextureName))
+            {
+                throw new InvalidDataException(
+                    $"Cell configuration references decal texture '{configuration.DecalTextureName}', which is absent from WorldInitPacket.AssetManifest.");
+            }
+        }
+        TerrainDecalCatalog.Configure(decalTextureNames);
 
         _cellToTileGroup.Clear();
         if (tileGroups != null)
@@ -39,6 +88,32 @@ public sealed class MapCellConfigCatalog
                 }
             }
         }
+    }
+
+    public bool TryGetAssetDefinition(string? filename, out WorldAssetDefinitionPacket definition)
+    {
+        if (string.IsNullOrEmpty(filename))
+        {
+            definition = default;
+            return false;
+        }
+
+        return _assetsByName.TryGetValue(filename, out definition);
+    }
+
+    public bool TryGetAudioBankFilenames(out IReadOnlyList<string> filenames)
+    {
+        if (_cellConfigurations == null)
+        {
+            filenames = Array.Empty<string>();
+            return false;
+        }
+
+        filenames = _assetsByName.Keys
+            .Where(filename => Path.GetExtension(filename) == ".bank")
+            .OrderBy(filename => filename, StringComparer.Ordinal)
+            .ToArray();
+        return true;
     }
 
     public void UpdateMovementSpeeds(MovementSpeedPacket packet)
@@ -161,6 +236,8 @@ public sealed class MapCellConfigCatalog
         _cellConfigurations = null;
         _cellToTileGroup.Clear();
         _cellMoveSpeeds.Clear();
+        _assetsByName.Clear();
+        TerrainDecalCatalog.Configure(Array.Empty<string>());
     }
 
     private static void ValidateCellConfigurations(CellConfigurationPacket[]? configurations)
@@ -169,6 +246,41 @@ public sealed class MapCellConfigCatalog
         {
             throw new InvalidDataException(
                 "WorldInitPacket.Cells is missing or empty; terrain cannot be initialized.");
+        }
+    }
+
+    private static void ValidateAssetDefinition(in WorldAssetDefinitionPacket asset)
+    {
+        if (string.IsNullOrWhiteSpace(asset.Filename) || asset.Filename.Length > byte.MaxValue)
+        {
+            throw new InvalidDataException($"World asset '{asset.Filename}' has an invalid filename.");
+        }
+
+        string normalizedPath = asset.Filename.Replace('\\', '/');
+        if (normalizedPath.StartsWith('/') || normalizedPath.Split('/').Any(segment => segment is "." or ".."))
+        {
+            throw new InvalidDataException($"World asset '{asset.Filename}' must be a safe relative filename.");
+        }
+
+        foreach (char character in asset.Filename)
+        {
+            if (character > 0x7F)
+            {
+                throw new InvalidDataException($"World asset '{asset.Filename}' must contain ASCII characters only.");
+            }
+        }
+
+        if (asset.ETag.Length != 0 && asset.ETag.Length != 32)
+        {
+            throw new InvalidDataException($"World asset '{asset.Filename}' ETag must be a 32-character MD5 value or empty.");
+        }
+
+        foreach (char character in asset.ETag)
+        {
+            if (!Uri.IsHexDigit(character))
+            {
+                throw new InvalidDataException($"World asset '{asset.Filename}' ETag contains a non-hex character.");
+            }
         }
     }
 }

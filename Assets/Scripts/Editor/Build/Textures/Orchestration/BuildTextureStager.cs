@@ -43,6 +43,20 @@ public sealed class BuildTextureStager : BuildPlayerProcessor
         buildPlayerContext.AddAdditionalPathToStreamingAssets(stagedTextures, "Textures");
         buildPlayerContext.AddAdditionalPathToStreamingAssets(manifestPath, "Textures.manifest");
 
+        string audioRoot = Path.GetFullPath(Path.Combine("Assets/StreamingAssets", "Audio"));
+        if (Directory.Exists(audioRoot))
+        {
+            string[] audioBanks = Directory.EnumerateFiles(audioRoot, "*.bank", SearchOption.AllDirectories)
+                .Select(path => Path.GetRelativePath(audioRoot, path).Replace('\\', '/'))
+                .OrderBy(path => path, StringComparer.Ordinal)
+                .ToArray();
+            string audioManifestPath = Path.Combine(stagingRoot, "Audio.manifest");
+            File.WriteAllLines(audioManifestPath, audioBanks);
+            buildPlayerContext.AddAdditionalPathToStreamingAssets(
+                audioManifestPath,
+                "Audio/Audio.manifest");
+        }
+
         string worldMaps = Path.GetFullPath(Path.Combine("Assets/StreamingAssets/WorldMaps"));
         if (Directory.Exists(worldMaps))
         {

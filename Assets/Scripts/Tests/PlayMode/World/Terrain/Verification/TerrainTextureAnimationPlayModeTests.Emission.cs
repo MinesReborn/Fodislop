@@ -21,11 +21,7 @@ public sealed partial class TerrainTextureAnimationPlayModeTests
         Material material = Own(new Material(Shader.Find(TerrainShaderName)));
         Texture2D source = CreateSolidTexture(new Color(0.8f, 0.8f, 0.8f, 1f), 32);
         material.SetTexture("_TerrainAtlas0", source);
-        material.SetTexture("_TerrainDecalAtlas", CreateSolidTexture(Color.clear));
-        material.SetTexture("_TerrainDecalRockAtlas", CreateSolidTexture(Color.clear));
         material.SetTexture("_PrismaticFlowMap", CreateSolidTexture(Color.red));
-        material.SetFloat("_GroundDecalStrength", 0f);
-        material.SetFloat("_RockDecalStrength", 0f);
         material.SetFloat("_PrismaticPhaseSpeed", 1f);
         material.SetFloat("_BlinkingSpeedScale", 1f);
         material.SetFloat("_SurfaceEmissionStrength", 1f);
@@ -46,16 +42,26 @@ public sealed partial class TerrainTextureAnimationPlayModeTests
             Shader.SetGlobalTexture("_WorldLightTexture", Texture2D.blackTexture);
             Shader.SetGlobalVector("_WorldLightRect", new Vector4(0, 0, 2, 2));
             Shader.SetGlobalVector("_WorldLightTextureSize", Vector4.one);
-            foreach (CellSurfaceEffect effect in new[] { CellSurfaceEffect.Prismatic, CellSurfaceEffect.Plain })
+            foreach (CellAnimationType effect in new[] { CellAnimationType.Prismatic, CellAnimationType.Blinking })
             {
                 _cellData?.Dispose();
                 UploadSingleCell(new TerrainTypeFields(
                     Type: CellType.Green,
-                    Block: new BlockDefinition(DrawLayer: CellDrawLayer.Background, Emission: true,
-                        Outline: CellOutline.Pliant, TextureAnchor: CellTextureAnchor.Cell,
-                        ShaderAnimation: effect == CellSurfaceEffect.Plain ? CellAnimationType.Blinking : CellAnimationType.None,
-                        FrameAnimationSpeed: 10f, SurfaceEffect: effect, SurfaceEffectPalette: 1,
-                        DecalAtlas: CellDecalAtlas.None, ReliefGroup: 0, MapColor: default),
+                    Block: new BlockDefinition(
+                        Passable: false,
+                        MovementCooldownMs: 100,
+                        DrawLayer: CellDrawLayer.Background,
+                        Outline: CellOutline.Pliant,
+                        TextureName: "",
+                        TextureAnchor: CellTextureAnchor.Cell,
+                        TileGroup: null,
+                        DecalTextureName: null,
+                        ReliefGroup: 0,
+                        AnimationType: effect,
+                        AnimationPalette: 1,
+                        FrameAnimationSpeed: 10f,
+                        Emission: true,
+                        MapColor: default),
                     Slot: 0, AtlasRect: new Vector4(0, 0, 1, 1), TileSize: 1f,
                     FrameCount: 1, FrameHeightTiles: 1f, OpaqueOwn: true, OpaqueAny: true,
                     HasTileGroup: false, TileGroupId: 0), 0, 1);
@@ -66,7 +72,7 @@ public sealed partial class TerrainTextureAnimationPlayModeTests
                     Color actual = RenderAndReadCenter(mesh, material, material.FindPass("Universal2D"), target);
                     double phase = Time.time * 10.0;
                     Color expected;
-                    if (effect == CellSurfaceEffect.Prismatic)
+                    if (effect == CellAnimationType.Prismatic)
                     {
                         // Independent original gamma-domain oracle: red flow has hue 0.
                         double wave = (Math.Sin(-phase) + 1.0) / 2.0;

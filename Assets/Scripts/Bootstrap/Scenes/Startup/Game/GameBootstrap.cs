@@ -5,6 +5,8 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Kern.Core.Interfaces;
 using Kern.Core.Lifecycle;
+using Kern.Game.Inventory;
+using Kern.Game.Player.Stats;
 using UnityEngine.SceneManagement;
 using VContainer.Unity;
 using Kern.Core;
@@ -19,24 +21,34 @@ namespace Kern.Bootstrap.Scenes
         private readonly SceneTransitionTicket _ticket;
         private readonly AsyncOperationSupervisor _operations;
         private readonly GameStartupPipeline _pipeline;
+        private readonly IWorldPresentationState _presentationState;
+        private readonly PlayerStatsModel _playerStats;
+        private readonly InventoryModel _inventory;
 
         public GameBootstrap(
             Scene ownScene,
             GameLifetimeScope scope,
             SceneTransitionTicket ticket,
             AsyncOperationSupervisor operations,
-            GameStartupPipeline pipeline)
+            GameStartupPipeline pipeline,
+            IWorldPresentationState presentationState,
+            PlayerStatsModel playerStats,
+            InventoryModel inventory)
         {
             _ownScene = ownScene;
             _scope = scope;
             _ticket = ticket;
             _operations = operations;
             _pipeline = pipeline;
+            _presentationState = presentationState;
+            _playerStats = playerStats;
+            _inventory = inventory;
             _ticket.Attach(_ownScene);
         }
 
         public void PostStart()
         {
+            _scope.InitializePresentationState(_presentationState, _playerStats, _inventory);
             _operations.Run("game_startup", _ => StartAsync());
         }
 
@@ -74,6 +86,7 @@ namespace Kern.Bootstrap.Scenes
             }
             catch (Exception exception)
             {
+                _presentationState.FailTransition(_presentationState.Current.TransitionId);
                 UnityEngine.Debug.LogError(
                     $"[GameBootstrap] Startup failed in scene '{_ownScene.name}' " +
                     $"during transition phase '{_ticket.Phase}'.");

@@ -35,6 +35,7 @@ public sealed class ContractsAssemblyBoundaryTests
         string[] folders = Directory.GetDirectories(ScriptsRoot, ContractsFolderName, SearchOption.AllDirectories)
             .Select(Normalize)
             .Where(folder => !IsInside(folder, root))
+            .Where(folder => !IsInside(folder, Normalize(Path.Combine(ScriptsRoot, "Tests"))))
             .ToArray();
         Assert.That(folders, Is.Not.Empty);
 

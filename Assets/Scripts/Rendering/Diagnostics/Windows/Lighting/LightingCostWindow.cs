@@ -296,7 +296,7 @@ public sealed class LightingCostWindow : ToolWindow
                 MutedLabelStyle);
         }
 
-        int field = DrawPowerOfTwo("Перенос: материал и свечение · пикс/клетку", _draft.FieldPixelsPerCell, s_densityLabels, 1);
+        int field = LightingQualitySelectionControls.DrawPowerOfTwo("Перенос: материал и свечение · пикс/клетку", _draft.FieldPixelsPerCell, s_densityLabels, 1);
         _draft = _draft with
         {
             FieldPixelsPerCell = field,
@@ -309,15 +309,15 @@ public sealed class LightingCostWindow : ToolWindow
         _draft = _draft with
         {
             LightPixelsPerCell = System.Math.Min(field,
-                DrawPowerOfTwo("Карта света · пикс/клетку", _draft.LightPixelsPerCell, s_densityLabels, 1)),
+                LightingQualitySelectionControls.DrawPowerOfTwo("Карта света · пикс/клетку", _draft.LightPixelsPerCell, s_densityLabels, 1)),
         };
         GUILayout.Label("Приёмники static/dynamic direct и итоговая карта света; не больше переноса. " +
             "Уменьшение вдвое сокращает число приёмников в четыре раза.", MutedLabelStyle);
         _draft = _draft with
         {
             CascadeProbePixelsPerCell = System.Math.Min(field,
-                DrawPowerOfTwo("Статика · проб/клетку", _draft.CascadeProbePixelsPerCell, s_probeLabels, 1)),
-            MaximumStaticCascadeDirections = DrawPowerOfTwo("Статика · предел направлений",
+                LightingQualitySelectionControls.DrawPowerOfTwo("Статика · проб/клетку", _draft.CascadeProbePixelsPerCell, s_probeLabels, 1)),
+            MaximumStaticCascadeDirections = LightingQualitySelectionControls.DrawPowerOfTwo("Статика · предел направлений",
                 _draft.MaximumStaticCascadeDirections, s_staticAngleLabels, 4),
         };
         GUILayout.Label("Плотность и направления применяются точно. Если поле или атлас " +
@@ -335,10 +335,10 @@ public sealed class LightingCostWindow : ToolWindow
             MutedLabelStyle);
         _draft = _draft with
         {
-            DynamicAngularSampleCount = DrawDiscreteSamples("Динамика · выборок на пиксель",
+            DynamicAngularSampleCount = LightingQualitySelectionControls.DrawDiscreteSamples("Динамика · выборок на пиксель",
                 _draft.DynamicAngularSampleCount, s_sampleLabels, s_sampleValues),
             DynamicEmitterPointsPerAxis = 1 + DrawEmitterIndex(),
-            DynamicPolarDirectionCount = DrawPowerOfTwo("Динамика · углов веера на точку",
+            DynamicPolarDirectionCount = LightingQualitySelectionControls.DrawPowerOfTwo("Динамика · углов веера на точку",
                 _draft.DynamicPolarDirectionCount, s_polarLabels, 4),
         };
         GUILayout.Label("Цена веера растёт с числом углов и квадратом числа точек по оси. " +
@@ -411,30 +411,6 @@ public sealed class LightingCostWindow : ToolWindow
         GUILayout.Label("Динамика · точки источника", WrappedLabelStyle);
         return GUILayout.SelectionGrid(_draft.DynamicEmitterPointsPerAxis - 1,
             s_emitterLabels, 4, ToolTheme.SegmentedButton);
-    }
-
-    private static int DrawPowerOfTwo(string label, int value, string[] labels, int first)
-    {
-        GUILayout.Label(label, ToolTheme.WrappedLabel);
-        int index = -1;
-        for (int candidate = 0; candidate < labels.Length; candidate++)
-        {
-            if ((first << candidate) == value)
-            {
-                index = candidate;
-                break;
-            }
-        }
-        int selected = GUILayout.SelectionGrid(index, labels, 3, ToolTheme.SegmentedButton);
-        return selected < 0 ? value : first << selected;
-    }
-
-    private static int DrawDiscreteSamples(string label, int value, string[] labels, int[] values)
-    {
-        GUILayout.Label(label, ToolTheme.WrappedLabel);
-        int selectedIndex = System.Array.IndexOf(values, value);
-        int selected = GUILayout.SelectionGrid(selectedIndex, labels, 3, ToolTheme.SegmentedButton);
-        return selected < 0 ? value : values[selected];
     }
 
     private void DrawCascadeRows()

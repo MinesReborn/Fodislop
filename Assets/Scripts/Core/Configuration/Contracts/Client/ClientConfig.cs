@@ -12,7 +12,7 @@ public class ClientConfig
     // 34: две ступени качества (Классика/Стандарт) вместо шести, без Custom.
     // 35: EffectSettings.BloomVariant.
     // 36: перебиндиваемые клавиши InterfaceSettings.Key* (вкладка «Управление»).
-    // 37: InterfaceSettings.KeyAggression (агрессия перебиндивается).
+    // 37: reserved schema version.
     // 38: DisplaySettings.HDRSwitchPending для подтверждения смены режима дисплея.
     // 39: DisplaySettings.PeakBrightnessFromDisplay — пик с дисплея до ручной настройки.
     // 40: TerrainSettings EnableReliefRim → EnableRim, *Emission* → *Glow*,

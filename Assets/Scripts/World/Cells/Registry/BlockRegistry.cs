@@ -80,15 +80,18 @@ public sealed class BlockRegistry : IBlockRegistry
             }
 
             var def = new BlockDefinition(
+                Passable: Required(raw.Passable, cellName, "passable"),
+                MovementCooldownMs: Required(raw.MovementCooldownMs, cellName, "movementCooldownMs"),
                 DrawLayer: ParseEnum<CellDrawLayer>(raw.DrawLayer, cellName, "drawLayer"),
                 Outline: ParseEnum<CellOutline>(raw.Outline, cellName, "outline"),
+                TextureName: RequiredString(raw.TextureName, cellName, "textureName"),
                 TextureAnchor: ParseEnum<CellTextureAnchor>(raw.TextureAnchor, cellName, "textureAnchor"),
-                ShaderAnimation: ParseEnum<CellAnimationType>(raw.ShaderAnimation, cellName, "shaderAnimation"),
-                FrameAnimationSpeed: Required(raw.FrameAnimationSpeed, cellName, "frameAnimationSpeed"),
-                SurfaceEffect: ParseEnum<CellSurfaceEffect>(raw.SurfaceEffect, cellName, "surfaceEffect"),
-                SurfaceEffectPalette: Required(raw.SurfaceEffectPalette, cellName, "surfaceEffectPalette"),
-                DecalAtlas: ParseEnum<CellDecalAtlas>(raw.DecalAtlas, cellName, "decalAtlas"),
+                TileGroup: raw.TileGroup,
+                DecalTextureName: raw.DecalTextureName,
                 ReliefGroup: Required(raw.ReliefGroup, cellName, "reliefGroup"),
+                AnimationType: ParseEnum<CellAnimationType>(raw.AnimationType, cellName, "animationType"),
+                AnimationPalette: Required(raw.AnimationPalette, cellName, "animationPalette"),
+                FrameAnimationSpeed: Required(raw.FrameAnimationSpeed, cellName, "frameAnimationSpeed"),
                 Emission: Required(raw.Emission, cellName, "emission"),
                 MapColor: ParseColor(raw.MapColor, cellName, "mapColor"));
 
@@ -149,6 +152,9 @@ public sealed class BlockRegistry : IBlockRegistry
         where T : struct =>
         value ?? throw new InvalidDataException($"Cell '{cellName}': missing '{key}'.");
 
+    private static string RequiredString(string? value, string cellName, string key) =>
+        value ?? throw new InvalidDataException($"Cell '{cellName}': missing '{key}'.");
+
     private static T ParseEnum<T>(string? value, string cellName, string key)
         where T : struct, Enum
     {
@@ -195,7 +201,7 @@ public sealed class BlockRegistry : IBlockRegistry
             return File.ReadAllText(workingDirPath);
         }
 
-        // Walk up from cwd (handles dotnet test running from bin/Debug/net10.0/)
+        // Поднимаемся от текущей папки вверх; это нужно при запуске dotnet test из bin/Debug/net10.0/.
         DirectoryInfo? dir = new DirectoryInfo(Directory.GetCurrentDirectory());
         while (dir != null)
         {
@@ -220,23 +226,29 @@ public sealed class BlockRegistry : IBlockRegistry
     // Ключи cells.json — те же имена, что у BlockDefinition.
     private sealed class RawCellDefinition
     {
+        public bool? Passable { get; set; }
+
+        public ushort? MovementCooldownMs { get; set; }
+
         public string? DrawLayer { get; set; }
 
         public string? Outline { get; set; }
 
+        public string? TextureName { get; set; }
+
         public string? TextureAnchor { get; set; }
 
-        public string? ShaderAnimation { get; set; }
+        public string? TileGroup { get; set; }
 
-        public float? FrameAnimationSpeed { get; set; }
-
-        public string? SurfaceEffect { get; set; }
-
-        public byte? SurfaceEffectPalette { get; set; }
-
-        public string? DecalAtlas { get; set; }
+        public string? DecalTextureName { get; set; }
 
         public byte? ReliefGroup { get; set; }
+
+        public string? AnimationType { get; set; }
+
+        public byte? AnimationPalette { get; set; }
+
+        public float? FrameAnimationSpeed { get; set; }
 
         public bool? Emission { get; set; }
 

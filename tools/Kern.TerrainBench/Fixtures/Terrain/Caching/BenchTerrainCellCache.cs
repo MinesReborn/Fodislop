@@ -131,11 +131,11 @@ public class TerrainCellCache : ITerrainCellDataSource
         {
             State = TerrainCellState.Loaded,
             Type = type,
-            ReliefGroup = (byte)(solid ? 1 + (noise % 3) : 0),
             Outline = solid && noise % 7 == 0 ? CellOutline.Wavy : 0,
+            AtlasIndex = 0,
             HasTileGroup = solid && noise % 5 == 0,
             TileGroupId = solid ? noise % 4 : 0,
-            AtlasIndex = 0,
+            ReliefGroup = (byte)(solid ? 1 + (noise % 3) : 0),
             IsTextureReady = true,
         };
     }

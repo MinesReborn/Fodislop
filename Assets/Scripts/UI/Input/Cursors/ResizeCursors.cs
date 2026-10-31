@@ -29,9 +29,9 @@ internal static class ResizeCursors
     }
 
     private const int Size = 32;
-    private static readonly Vector2 Hotspot = new(Size / 2, Size / 2);
+    private static readonly Vector2 s_hotspot = new(Size / 2, Size / 2);
 
-    private static readonly Dictionary<Shape, Texture2D> Cache = new();
+    private static readonly Dictionary<Shape, Texture2D> s_cache = new();
 
     // Подписки хранятся, чтобы Dispose мог снять их вместе с элементами чата.
     // EventCallback, а не Action: RegisterCallback/UnregisterCallback принимают
@@ -40,7 +40,7 @@ internal static class ResizeCursors
 
     public static void Bind(VisualElement element, Shape shape)
     {
-        EventCallback<PointerEnterEvent> enter = _ => UnityEngine.Cursor.SetCursor(Get(shape), Hotspot, CursorMode.Auto);
+        EventCallback<PointerEnterEvent> enter = _ => UnityEngine.Cursor.SetCursor(Get(shape), s_hotspot, CursorMode.Auto);
         EventCallback<PointerLeaveEvent> leave = _ => Reset();
         element.RegisterCallback(enter);
         element.RegisterCallback(leave);
@@ -65,10 +65,10 @@ internal static class ResizeCursors
 
     private static Texture2D Get(Shape shape)
     {
-        if (!Cache.TryGetValue(shape, out Texture2D? texture))
+        if (!s_cache.TryGetValue(shape, out Texture2D? texture))
         {
             texture = Build(shape);
-            Cache[shape] = texture;
+            s_cache[shape] = texture;
         }
 
         return texture;

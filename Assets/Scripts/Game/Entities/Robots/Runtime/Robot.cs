@@ -13,7 +13,7 @@ using Kern.World.Terrain;
 using UnityEngine;
 using VContainer;
 
-using Kern.Game.Events.Audio;
+using Kern.Game.Events.Playback;
 using Kern.Game.Player.Movement;
 using Kern.Game.Rendering;
 
@@ -38,9 +38,11 @@ namespace Kern.Game.Entities.Robots
         [Inject]
         private ISceneObjectFactory _sceneObjects = null!;
         [Inject]
-        private ServerAudioEventManager _serverEffects = null!;
+        private ServerEventPlaybackManager _eventPlayback = null!;
         [Inject]
         private ILocalPlayerState _localPlayer = null!;
+        [Inject]
+        private IWorldPresentationState _presentationState = null!;
         [Inject]
         private IGameplayCamera _gameplayCamera = null!;
         [SerializeField]
@@ -114,6 +116,19 @@ namespace Kern.Game.Entities.Robots
         {
             _lighting ??= new RobotLighting();
             _visuals ??= new RobotVisuals(transform, IsLocalPlayer);
+        }
+
+        [Inject]
+        private void SubscribeToPresentationState(IWorldPresentationState presentationState)
+        {
+            if (_presentationState != null)
+            {
+                _presentationState.TeleportCommitting -= HandleTeleportCommitting;
+            }
+
+            _presentationState = presentationState;
+            _presentationState.TeleportCommitting -= HandleTeleportCommitting;
+            _presentationState.TeleportCommitting += HandleTeleportCommitting;
         }
 
         public float LogicalFacingAngle => _movement.TargetAngle;
@@ -204,9 +219,9 @@ namespace Kern.Game.Entities.Robots
 
         protected void OnDisable()
         {
-            if (IsLocalPlayer && _serverEffects != null)
+            if (IsLocalPlayer && _eventPlayback != null)
             {
-                _serverEffects.SetLocalHealHeld(false);
+                _eventPlayback.SetLocalHealHeld(false);
             }
 
             _nameplate.SetEnabled(false);
@@ -228,7 +243,7 @@ namespace Kern.Game.Entities.Robots
 
         public void SetBatchedBodyVisible(bool visible) => _visuals.SetBodyVisible(visible);
 
-        public void SetHealHeld(bool held) => _serverEffects.SetLocalHealHeld(held);
+        public void SetHealHeld(bool held) => _eventPlayback.SetLocalHealHeld(held);
 
 
         protected void Start()
@@ -249,8 +264,8 @@ namespace Kern.Game.Entities.Robots
 
             if (string.IsNullOrEmpty(_skinPath) && IsLocalPlayer && !Application.isPlaying)
             {
-                _skinPath = "Skin/bee.png";
-                _tailPath = "Tail/default.png";
+                _skinPath = "Visual/Skin/bee.png";
+                _tailPath = "Visual/Tail/default.png";
             }
 
             if (!string.IsNullOrEmpty(_skinPath))
@@ -283,6 +298,11 @@ namespace Kern.Game.Entities.Robots
 
             TryInitializeDynamicLightSettings();
             ApplyPendingServerPosition();
+
+            if (_presentationState.IsTeleportPreparing)
+            {
+                return;
+            }
 
             if (!IsLocalPlayer && _culler.CheckAndApply(
                 transform,
@@ -346,12 +366,7 @@ namespace Kern.Game.Entities.Robots
 
             _isMetadataLoaded = false;
             _visualsLoadCompleted = false;
-            if (_spriteRenderer != null)
-            {
-                _spriteRenderer.color = Color.white;
-            }
-
-            _visuals.SetColor(Color.white);
+            RobotMetadataPresentation.ResetColor(_spriteRenderer, _visuals);
             _nameplate.SetText(string.Empty, IsLocalPlayer);
             _visuals.SetClanSprite(null);
         }
@@ -376,12 +391,7 @@ namespace Kern.Game.Entities.Robots
             _isMetadataLoaded = true;
             _visualsLoadCompleted = string.IsNullOrEmpty(_skinPath);
 
-            if (_spriteRenderer != null)
-            {
-                _spriteRenderer.color = Color.white;
-            }
-
-            _visuals.SetColor(Color.white);
+            RobotMetadataPresentation.ResetColor(_spriteRenderer, _visuals);
             InitializeVisualElements();
             _nameplate.SetText(nickname, IsLocalPlayer);
             _nameplate.InvalidatePosition();
@@ -409,6 +419,16 @@ namespace Kern.Game.Entities.Robots
             _lighting.Update(_movement.SmoothPosition, _lightingEngine);
         }
 
+        private void HandleTeleportCommitting(ulong transitionId)
+        {
+            if (_presentationState.Current.TransitionId != transitionId)
+            {
+                return;
+            }
+
+            SnapVisualToTarget();
+        }
+
         private void ApplyPendingServerPosition()
         {
             if (!_hasPendingServerPosition)
@@ -434,58 +454,18 @@ namespace Kern.Game.Entities.Robots
 
         private void LoadMetadataAssets()
         {
-            if (_assetLoader == null || _operations == null)
+            if (_assetLoader != null && _operations != null)
             {
-                return;
+                RobotMetadataPresentation.Load(AssetLoader, _skinPath, _tailPath, _clanId,
+                    IsLocalPlayer, _visuals, _nameplate, transform, () => _visualsLoadCompleted = true);
             }
-
-            AssetLoader.LoadMetadataAssets(
-                _skinPath,
-                _tailPath,
-                _clanId,
-                IsLocalPlayer,
-                onSkinLoaded: skinSprite =>
-                {
-                    if (skinSprite != null)
-                    {
-                        _visuals.SetSkinSprite(skinSprite);
-                        _nameplate.InvalidatePosition();
-                        _nameplate.UpdatePosition(transform.position, _visuals.SkinSprite, transform, _visuals.ClanTransform);
-                    }
-
-                    _visualsLoadCompleted = true;
-                },
-                onTailLoaded: tailTexture =>
-                {
-                    if (tailTexture != null)
-                    {
-                        _visuals.CreateTentacles(tailTexture, transform.position);
-                    }
-                    else
-                    {
-                        _visuals.ClearTentacles();
-                    }
-                },
-                onClanLoaded: clanSprite =>
-                {
-                    if (clanSprite != null)
-                    {
-                        _visuals.SetClanSprite(clanSprite);
-                    }
-                });
         }
 
 #if UNITY_EDITOR
         protected void OnDrawGizmos()
         {
-            if (!Application.isPlaying ||
-                _debugSettings == null ||
-                !_debugSettings.ShowRobotDebugVisuals)
-            {
-                return;
-            }
-
-            RobotGizmos.DrawGizmos(
+            RobotGizmos.DrawGizmosIfEnabled(
+                _debugSettings,
                 transform,
                 _botId,
                 IsLocalPlayer,
@@ -498,6 +478,11 @@ namespace Kern.Game.Entities.Robots
 
         protected void OnDestroy()
         {
+            if (_presentationState != null)
+            {
+                _presentationState.TeleportCommitting -= HandleTeleportCommitting;
+            }
+
             _assetLoaderHelper?.Cancel();
             _robotService?.UnregisterRobot(_botId);
             _nameplate.Destroy();

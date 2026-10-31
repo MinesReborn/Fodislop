@@ -224,7 +224,7 @@ public sealed class WorldLabelChatStyleTests
         Assert.That(worldLabels, Does.Contain("Resources.Load<Sprite>"));
         Assert.That(worldLabels, Does.Contain("ResourcePaths.LocalChatBubbleSprite"));
         Assert.That(
-            ReadSource("Assets/Scripts/World/Coordinates/Contracts/Grid/WorldGridDefaults.cs"),
+            ReadSource("Assets/Scripts/Core/Resources/Contracts/Paths/ResourcePaths.cs"),
             Does.Contain("LocalChatBubbleSprite = \"UI/Chat/Floating/Sprites/LocalChatBubble\""));
     }
 

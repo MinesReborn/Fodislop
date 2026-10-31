@@ -4,10 +4,9 @@ using MinesServer.Networking.Server.Packets.GUI.Components;
 
 namespace Kern.Networking.Offline;
 
-// ElementClickPacket.ElementIndex is the clicked component's pre-order index
-// in the window tree (root 0, then each container before its children), the
-// order the client collects it in. The dummy server resolves clicks by the
-// packets it built instead of counting positions by hand.
+// ElementClickPacket.ElementIndex is the component's pre-order index among
+// clickable packets only, matching ServerWindowPresenter. The dummy server
+// resolves clicks by the packets it built instead of counting positions by hand.
 internal static class DummyWindowElements
 {
     public static int IndexOf(IGUIComponentPacket root, IGUIComponentPacket target)
@@ -18,12 +17,16 @@ internal static class DummyWindowElements
 
     private static bool Find(IGUIComponentPacket packet, IGUIComponentPacket target, ref int index)
     {
-        if (ReferenceEquals(packet, target))
+        if (!string.IsNullOrEmpty(packet.OnClickContext))
         {
-            return true;
+            if (ReferenceEquals(packet, target))
+            {
+                return true;
+            }
+
+            index++;
         }
 
-        index++;
         if (packet is IContainerComponentPacket container)
         {
             foreach (IGUIComponentPacket child in container.Children)

@@ -52,8 +52,8 @@ TL-VERIFY: фактический geometry attachment плюс независи�
 Перестройка всего плана пока не завершена; производительность и полный HDR/UI lifecycle gate не подтверждены.</p>
 <h2>Контракт изменений и владельцы</h2>
 <p>Rendering владеет WorldRenderGrid, camera binding, контекстом Renderer2D, color/depth и postprocessing.
-Видимые terrain/entity/surface и стандартные URP sprite/mask vertex shaders потребляют одну плотность;
-Effekseer использует Unity backend и те же vertex helpers. Вершины округляются при растеризации,
+Видимые terrain/entity/surface и стандартные URP sprite/mask vertex shaders потребляют одну плотность.
+Вершины округляются при растеризации,
 угол робота не округляется. Lighting владеет своей опубликованной текстурой/rect; presentation читает её,
 Пробы каскадов остаются редкими; поля геометрии, материалов, эмиссии и применения света теперь имеют 32×32 текселя на клетку.</p>
 <p>Последовательность: world color/depth → WorldBloom.compute → RGB additive WorldBloomAdd → native URP exposure/tonemapping

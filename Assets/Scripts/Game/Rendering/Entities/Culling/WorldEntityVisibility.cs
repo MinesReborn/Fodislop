@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using Kern.World;
 using UnityEngine;
 
-using Kern.Game.VisualEffects.Tentacles;
+using Kern.Game.Visual.Entities.Tentacles;
 
 namespace Kern.Game.Rendering
 {

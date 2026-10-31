@@ -17,7 +17,7 @@ using MinesServer.Networking.Server.Packets.Mission;
 using MinesServer.Networking.Server.Packets.Movement;
 using MinesServer.Networking.Server.Packets.Utilities;
 using MinesServer.Networking.Server.Packets.World;
-using MinesServer.Networking.Shared.Packets;
+using MinesServer.Networking.Contracts.Packets;
 using UnityEngine;
 
 
@@ -98,7 +98,7 @@ internal sealed class DummyMissionRunner
         // "." collects inputs from the clicked text itself: it has none.
         var close = new TextPacket
         {
-            Text = "<color=#B3B3B3>×</color>",
+            Text = "ВЫЙТИ",
             OnClickContext = ".",
             AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Right") },
         };

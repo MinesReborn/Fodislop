@@ -26,6 +26,8 @@ namespace Kern.UI.Map
         private IInputBlocker _inputBlocker = null!;
         [Inject]
         private ILocalPlayerState _localPlayer = null!;
+        [Inject]
+        private IWorldPresentationState _presentationState = null!;
         private MinimapUIController? _ui;
         private RenderTexture? _minimapTexture;
 
@@ -83,6 +85,7 @@ namespace Kern.UI.Map
             _ui = new MinimapUIController(_doc, _minimapTexture, _textureRenderer.PathOverlay, RequestMinimapMove);
             _ui.TryCreate();
             _mapModeState.Changed += OnMapModeChanged;
+            _presentationState.Changed += OnPresentationStateChanged;
             SubscribeToLocalPlayerChanges();
             _mapStorage.CellChanged += OnCellChanged;
             _mapStorage.RegionChanged += OnRegionChanged;
@@ -102,6 +105,8 @@ namespace Kern.UI.Map
             {
                 BindPlayer(_player);
             }
+
+            OnPresentationStateChanged(_presentationState.Current);
         }
         private bool IsWorldReady() =>
             _mapManager != null && _mapManager.IsWorldInitialized &&
@@ -143,6 +148,11 @@ namespace Kern.UI.Map
 
             if (_ready)
             {
+                if (!_presentationState.IsStable)
+                {
+                    return;
+                }
+
                 _ui?.UpdateCoordinates(_player.Position.x, _player.Position.y);
                 bool minimapVisible = !_mapModeState.IsOpen;
                 if (minimapVisible)
@@ -167,7 +177,7 @@ namespace Kern.UI.Map
                 _player,
                 _worldWidth,
                 _worldHeight,
-                _ready,
+                _ready && _presentationState.IsStable,
                 _lastRefreshHadLoadedCells,
                 _cellInvalidation,
                 _refreshPolicy,
@@ -384,7 +394,7 @@ namespace Kern.UI.Map
         {
             _clickPath = path;
 
-            if (!isActiveAndEnabled || !_ready || _mapModeState.IsOpen)
+            if (!isActiveAndEnabled || !_ready || !_presentationState.IsStable || _mapModeState.IsOpen)
             {
                 return;
             }
@@ -441,7 +451,7 @@ namespace Kern.UI.Map
 
         private void OnPlayerMoved(Vector2Int oldPos, Vector2Int newPos)
         {
-            if (!isActiveAndEnabled || !_ready)
+            if (!isActiveAndEnabled || !_ready || !_presentationState.IsStable)
             {
                 return;
             }
@@ -496,7 +506,7 @@ namespace Kern.UI.Map
 
         private bool RefreshTexture(int playerX, int playerY, bool drawPlayerMarker = true)
         {
-            if (_textureRenderer == null)
+            if (_textureRenderer == null || _presentationState == null || !_presentationState.IsStable)
             {
                 return false;
             }
@@ -534,6 +544,11 @@ namespace Kern.UI.Map
             if (_mapModeState != null)
             {
                 _mapModeState.Changed -= OnMapModeChanged;
+            }
+
+            if (_presentationState != null)
+            {
+                _presentationState.Changed -= OnPresentationStateChanged;
             }
 
             UnsubscribeFromLocalPlayerChanges();
@@ -580,12 +595,35 @@ namespace Kern.UI.Map
             }
         }
 
-        private void SetVisible(bool visible) => _ui?.SetVisible(visible);
+        private void SetVisible(bool visible) =>
+            _ui?.SetVisible(visible && (_presentationState.IsStable || _presentationState.HasPublishedView));
+
+        private void OnPresentationStateChanged(WorldPresentationSnapshot snapshot)
+        {
+            if (snapshot.Phase != WorldPresentationPhase.Stable)
+            {
+                SetVisible(_presentationState.HasPublishedView && !_mapModeState.IsOpen);
+                return;
+            }
+
+            if (_ready && _player is { HasServerPosition: true })
+            {
+                _ui?.UpdateCoordinates(_player.Position.x, _player.Position.y);
+                RefreshTexture(_player.Position.x, _player.Position.y);
+                _refreshPolicy.RecordRefresh(
+                    Time.time,
+                    _mapStorage.Revision,
+                    _lastRefreshHadLoadedCells);
+            }
+
+            SetVisible(!_mapModeState.IsOpen);
+        }
 
         private void OnMapModeChanged(bool mapModeEnabled)
         {
             SetVisible(!mapModeEnabled);
-            if (!mapModeEnabled && _ready && _player is { HasServerPosition: true })
+            if (_presentationState.IsStable &&
+                !mapModeEnabled && _ready && _player is { HasServerPosition: true })
             {
                 RefreshTexture(_player.Position.x, _player.Position.y);
                 _refreshPolicy.RecordRefresh(Time.time, _mapStorage.Revision, _lastRefreshHadLoadedCells);

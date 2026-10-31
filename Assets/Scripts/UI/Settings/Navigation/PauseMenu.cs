@@ -14,7 +14,7 @@ using Kern.UI.Programmator;
 using Kern.World.Lighting;
 using Kern.World.Terrain;
 using MinesServer.Networking.Client.Packets.GUI;
-using MinesServer.Networking.Shared.Packets;
+using MinesServer.Networking.Contracts.Packets;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;

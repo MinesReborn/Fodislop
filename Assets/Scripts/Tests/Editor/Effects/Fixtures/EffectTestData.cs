@@ -49,7 +49,7 @@ internal static class EffectTestData
             new EffectEmitterDefinition
             {
                 Id = "core",
-                SpriteSheet = "VFX/Sprites/Textures/CrystallSparkle/CrystallSparkleImage",
+                SpriteSheet = "Visual/Sprites/Textures/CrystallSparkle/CrystallSparkleImage",
                 SpriteSheetColumns = 6,
                 SpriteSheetRows = 1,
                 FrameCount = 6,
@@ -80,7 +80,7 @@ internal static class EffectTestData
             new EffectEmitterDefinition
             {
                 Id = "core",
-                SpriteSheet = "VFX/Sprites/Textures/CrystallSparkle/CrystallSparkleImage",
+                SpriteSheet = "Visual/Sprites/Textures/CrystallSparkle/CrystallSparkleImage",
                 SpriteSheetColumns = 6,
                 SpriteSheetRows = 1,
                 FrameCount = 6,

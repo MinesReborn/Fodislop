@@ -2,7 +2,7 @@
 #define KERN_TERRAIN_SAMPLING_INCLUDED
 
 #include "Assets/Shaders/Terrain/Autotiling/TerrainTileAddressing.hlsl"
-#include "Assets/Shaders/Terrain/Cells/TerrainCellFormat.hlsl"
+#include "Assets/Shaders/Terrain/Cells/Format/TerrainCellFormat.hlsl"
 #include "Assets/Shaders/Terrain/Geometry/TerrainGeometryContract.hlsl"
 
 // Порядок обязателен: cbuffer-файл зовёт TerrainAtlasTexelSize, — сначала идёт
@@ -171,6 +171,14 @@ TerrainTileUvResult ResolveTerrainTileUV(
     if (frameCount > 1.5)
     {
         float speed = animData.y;
+        int animationType = (int)(animData.x + 0.5);
+        if (animationType == (int)KERN_TERRAIN_ANIMATION_TYPE_LEGACY3TEST ||
+            animationType == (int)KERN_TERRAIN_ANIMATION_TYPE_LEGACY4TEST ||
+            animationType == (int)KERN_TERRAIN_ANIMATION_TYPE_LEGACY6TEST ||
+            animationType == (int)KERN_TERRAIN_ANIMATION_TYPE_LEGACY8TEST)
+        {
+            speed *= 20.01;
+        }
         float frameIndex = floor(fmod(timeY * speed, frameCount));
         animOffsetUV = frameIndex * frameHeightTiles * tileSizeUV.y;
     }

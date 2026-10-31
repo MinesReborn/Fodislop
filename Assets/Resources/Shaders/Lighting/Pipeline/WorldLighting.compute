@@ -280,7 +280,7 @@ SamplerState sampler_LinearClamp;
 // Dynamic Lights
 // ============================================================================
 
-#include "Assets/Resources/Shaders/Lighting/Dynamic/Polar/DynamicPolar.hlsl"
+#include "Assets/Resources/Shaders/Lighting/Dynamic/Polar/Dispatch/DynamicPolar.hlsl"
 #include "Assets/Resources/Shaders/Lighting/Dynamic/Trace/DynamicLightTrace.hlsl"
 
 // ============================================================================

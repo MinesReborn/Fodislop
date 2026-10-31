@@ -4,14 +4,18 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Kern.AssetPipeline.Cache;
+using Kern.AssetPipeline.Loading;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.World.Terrain;
 using Kern.World.Textures;
 using MinesServer.Data;
 using UnityEngine;
+using MinesServer.Networking.Server.Packets.Connection;
 using VContainer;
 
 namespace Kern.World
@@ -34,6 +38,7 @@ namespace Kern.World
         // задал, а текстура — GIF-лента кадров (например, вращение бокса).
 
         private WorldAtlasCollection _atlasCollection = null!;
+        private IReadOnlyDictionary<string, byte[]>? _worldAssetBytes;
 
         public TextureAtlas _currentAtlas => _atlasCollection.CurrentAtlas;
 
@@ -42,27 +47,31 @@ namespace Kern.World
         [Inject]
         private IAssetLoader _assetLoader = null!;
         [Inject]
-        private ITextureStorageService _textureStorage = null!;
+        private IPersistentAssetCache _persistentAssetCache = null!;
         [Inject]
         private IAsyncOperationSupervisor _operations = null!;
         private CellTextureCache _textureCache = null!;
         private readonly WorldTextureAuxiliaryAssets _auxiliaryAssets = new();
+        private bool _isWorldAssetsReady;
+        private int _worldAssetLoadGeneration;
         public Texture2D? PrismaticFlowMapTexture => _auxiliaryAssets.PrismaticFlowMapTexture;
         public Texture2D? FlowMapTexture => _auxiliaryAssets.FlowMapTexture;
-        public Texture2D? TerrainDecalAtlasTexture => _auxiliaryAssets.TerrainDecalAtlasTexture;
-        public Texture2D? TerrainDecalRockAtlasTexture => _auxiliaryAssets.TerrainDecalRockAtlasTexture;
-        public Texture2D? TerrainDecalSandAtlasTexture => _auxiliaryAssets.TerrainDecalSandAtlasTexture;
+        public Texture2DArray? TerrainDecalAtlasArray => _auxiliaryAssets.TerrainDecalAtlasArray;
         private ConcurrentDictionary<CellType, TextureRequest> _pendingRequests = null!;
         private readonly CellTextureRetryTracker _retryTracker = new();
         private readonly SemaphoreSlim _textureLoadSlots = new(
-            AssetStreamingLimits.MaximumConcurrentTextureLoads);
+            AssetStreamingLimits.MaximumConcurrentCellTextureLoads);
+        private CancellationTokenSource _worldAssetsLifetime = new();
 
         public int PendingCellTextureRequests => _retryTracker.PendingRequestsCount;
+        public bool IsWorldAssetsReady => _isWorldAssetsReady;
 
         public uint TextureRevision { get; private set; }
 
         protected void OnDestroy()
         {
+            _worldAssetsLifetime.Cancel();
+            _worldAssetsLifetime.Dispose();
             _textureCache?.Clear();
             _atlasCollection?.Dispose();
 
@@ -85,7 +94,7 @@ namespace Kern.World
                 GetCachedTexture);
             _pendingRequests = new ConcurrentDictionary<CellType, TextureRequest>();
 
-            _auxiliaryAssets.Initialize(_textureStorage, _operations, RaiseTerrainDecalAtlasLoaded);
+            _auxiliaryAssets.Initialize();
         }
 
         private void EnsureInitialized()
@@ -96,11 +105,51 @@ namespace Kern.World
             }
         }
 
-        public event Action<string, Texture2D>? OnTextureLoaded;
+        public event Action<CellType, Texture2D>? OnTextureLoaded;
         public event Action? OnTerrainDecalAtlasLoaded;
 
         private void RaiseTerrainDecalAtlasLoaded() =>
             OnTerrainDecalAtlasLoaded?.Invoke();
+
+        public void LoadWorldAssets(
+            IReadOnlyList<WorldAssetDefinitionPacket> assetManifest)
+        {
+            EnsureInitialized();
+            ResetWorldAssets();
+            int generation = checked(++_worldAssetLoadGeneration);
+            CancellationToken worldLifetime = _worldAssetsLifetime.Token;
+            WorldAssetDefinitionPacket[] manifestSnapshot = new List<WorldAssetDefinitionPacket>(assetManifest).ToArray();
+            _operations.Run(
+                "synchronize_world_asset_manifest",
+                async cancellationToken =>
+                {
+                    using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                        cancellationToken,
+                        worldLifetime);
+                    var synchronizer = new AssetManifestSynchronizer(
+                        _persistentAssetCache,
+                        _assetLoader);
+                    IReadOnlyDictionary<string, byte[]> worldAssetBytes =
+                        await synchronizer.SynchronizeAsync(manifestSnapshot, linkedCancellation.Token);
+                    if (generation != _worldAssetLoadGeneration)
+                    {
+                        return;
+                    }
+
+                    _worldAssetBytes = worldAssetBytes;
+                    _auxiliaryAssets.LoadDecals(
+                        worldAssetBytes,
+                        _operations,
+                        () =>
+                        {
+                            if (generation == _worldAssetLoadGeneration)
+                            {
+                                _isWorldAssetsReady = true;
+                                RaiseTerrainDecalAtlasLoaded();
+                            }
+                        });
+                });
+        }
 
         public void RequestTexture(CellType cellType)
         {
@@ -117,16 +166,23 @@ namespace Kern.World
             // текстура из памяти успевала дойти до атласа синхронно: её
             // декодирование ложилось в кадр сборки, а OnTextureLoaded менял
             // набор типов, по которому сборка в этот момент шла.
+            CancellationToken worldLifetime = _worldAssetsLifetime.Token;
             _operations.Run(
                 $"load_world_texture_{cellType}",
-                cancellationToken => _retryTracker.RunTrackedRequestAsync(
-                    cellType,
-                    async (type, ct) =>
-                    {
-                        await UniTask.Yield(PlayerLoopTiming.Update, ct);
-                        await GetCellTextureCoordinate(type, 0, 0, ct);
-                    },
-                    cancellationToken));
+                async cancellationToken =>
+                {
+                    using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                        cancellationToken,
+                        worldLifetime);
+                    await _retryTracker.RunTrackedRequestAsync(
+                        cellType,
+                        async (type, ct) =>
+                        {
+                            await UniTask.Yield(PlayerLoopTiming.Update, ct);
+                            await GetCellTextureCoordinate(type, 0, 0, ct);
+                        },
+                        linkedCancellation.Token);
+                });
         }
 
         public AtlasCoordinate GetCellTextureCoordinate(CellType cellType)
@@ -216,7 +272,11 @@ namespace Kern.World
             int globalY,
             CancellationToken cancellationToken)
         {
-            await UniTask.SwitchToMainThread();
+            using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                _worldAssetsLifetime.Token);
+            cancellationToken = linkedCancellation.Token;
+            await UniTask.SwitchToMainThread(cancellationToken);
             EnsureInitialized();
             if (_textureCache.TryGetTexture(cellType, out var textureInfo))
             {
@@ -225,8 +285,8 @@ namespace Kern.World
 
             if (_pendingRequests.TryGetValue(cellType, out var existingRequest))
             {
-                await existingRequest.Task;
-                await UniTask.SwitchToMainThread();
+                await existingRequest.Task.AttachExternalCancellation(cancellationToken);
+                await UniTask.SwitchToMainThread(cancellationToken);
                 if (_textureCache.TryGetTexture(cellType, out textureInfo))
                 {
                     return GetCellTextureCoordinateSync(cellType, globalX, globalY);
@@ -239,10 +299,10 @@ namespace Kern.World
             {
                 if (_pendingRequests.TryGetValue(cellType, out var racingRequest))
                 {
-                    await racingRequest.Task;
+                    await racingRequest.Task.AttachExternalCancellation(cancellationToken);
                 }
 
-                await UniTask.SwitchToMainThread();
+                await UniTask.SwitchToMainThread(cancellationToken);
                 if (_textureCache.TryGetTexture(cellType, out textureInfo))
                 {
                     return GetCellTextureCoordinateSync(cellType, globalX, globalY);
@@ -256,7 +316,7 @@ namespace Kern.World
                 await _textureLoadSlots.WaitAsync(cancellationToken);
                 try
                 {
-                    await LoadTexture(cellType);
+                    await LoadTexture(cellType, cancellationToken);
                 }
                 finally
                 {
@@ -271,6 +331,11 @@ namespace Kern.World
                 }
 
                 throw new InvalidOperationException($"Failed to load texture for cell type {cellType}: texture is not cached after load");
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                request.SetResult(false);
+                throw;
             }
             catch (Exception ex)
             {
@@ -287,9 +352,9 @@ namespace Kern.World
             }
         }
 
-        private async UniTask LoadTexture(CellType cellType)
+        private async UniTask LoadTexture(CellType cellType, CancellationToken cancellationToken)
         {
-            var filename = $"Cells/{cellType}";
+            string filename = _mapManager.GetCellConfig(cellType).TextureName;
 
             if (_textureCache.TryGetTexture(cellType, out CellTextureInfo cachedTextureInfo))
             {
@@ -298,7 +363,8 @@ namespace Kern.World
                 {
                     // Атлас и данные декодированной текстуры принадлежат
                     // главному потоку Unity.
-                    await UniTask.SwitchToMainThread();
+                    await UniTask.SwitchToMainThread(cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
                     AddTextureToAtlas(
                         cellType,
                         cachedTexture,
@@ -311,17 +377,64 @@ namespace Kern.World
             Texture2D? texture = null;
             try
             {
-                texture = await _assetLoader.GetTextureAsync(filename);
+                if (_mapManager.TryGetAssetDefinition(filename, out WorldAssetDefinitionPacket definition))
+                {
+                    IReadOnlyDictionary<string, byte[]>? worldAssetBytes = _worldAssetBytes;
+                    byte[]? bytes;
+                    if (worldAssetBytes != null)
+                    {
+                        if (!worldAssetBytes.TryGetValue(definition.Filename, out bytes))
+                        {
+                            throw new InvalidDataException(
+                                $"Cell texture '{definition.Filename}' is absent from the loaded world asset manifest.");
+                        }
+                    }
+                    else
+                    {
+                        bytes = await _assetLoader.GetAssetBytesAsync(
+                            definition.Filename,
+                            definition.ETag,
+                            cancellationToken);
+                    }
+
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (bytes != null && bytes.Length > 0)
+                    {
+                        string? actualETag = ETagCalculator.Calculate(bytes);
+                        if (!string.IsNullOrEmpty(definition.ETag) &&
+                            !string.Equals(actualETag, definition.ETag, StringComparison.OrdinalIgnoreCase))
+                        {
+                            throw new InvalidDataException(
+                                $"Texture '{definition.Filename}' content hash does not match the world manifest.");
+                        }
+
+                        await UniTask.SwitchToMainThread(cancellationToken);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        texture = RuntimeTextureFactory.DecodeEncodedImageToRGBA32NoMip(
+                            bytes,
+                            definition.Filename,
+                            RuntimeTextureColorSpace.Srgb,
+                            FilterMode.Point,
+                            TextureWrapMode.Clamp,
+                            makeNoLongerReadable: true);
+                    }
+                }
             }
             catch (Exception ex)
             {
+                if (ex is OperationCanceledException && cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+
                 Debug.LogWarning($"[WorldTextureManager] Warning loading {filename}: {ex.Message}");
             }
 
             if (texture != null)
             {
-                await UniTask.SwitchToMainThread();
-                AddTextureToAtlas(cellType, texture, ownsTexture: false);
+                await UniTask.SwitchToMainThread(cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                AddTextureToAtlas(cellType, texture, ownsTexture: true);
                 return;
             }
 
@@ -331,7 +444,8 @@ namespace Kern.World
             // source for this explicit degraded rendering path.
             Debug.LogError($"[AssetDiag] TEXFAIL {filename} — using map colour fallback");
             Color mapColor = _mapManager.GetCellMinimapColor(cellType);
-            await UniTask.SwitchToMainThread();
+            await UniTask.SwitchToMainThread(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             texture = WorldTextureGenerator.CreateMapColorCellTexture(
                 cellType,
                 _cellTextureSize,
@@ -394,7 +508,7 @@ namespace Kern.World
             _atlasCollection.AddTexture(cellType, texture, TextureAtlas.MeasureFullyOpaque(texture));
             _textureCache.AddTexture(cellType, textureInfo);
             TextureRevision++;
-            OnTextureLoaded?.Invoke($"Cells/{cellType}.png", texture);
+            OnTextureLoaded?.Invoke(cellType, texture);
         }
 
         private static CellVariation CalculateVariation(CellTextureInfo textureInfo, int globalX, int globalY)
@@ -434,9 +548,23 @@ namespace Kern.World
         public void Clear()
         {
             EnsureInitialized();
+            ResetWorldAssets();
+            _auxiliaryAssets.RegenerateFlowMap();
+        }
+
+        private void ResetWorldAssets()
+        {
+            CancellationTokenSource previousLifetime = _worldAssetsLifetime;
+            _worldAssetsLifetime = new CancellationTokenSource();
+            previousLifetime.Cancel();
+            previousLifetime.Dispose();
+            _worldAssetLoadGeneration = checked(_worldAssetLoadGeneration + 1);
+            _isWorldAssetsReady = false;
+            _worldAssetBytes = null;
+            _retryTracker.ResetFailures();
             _textureCache.Clear();
             _atlasCollection.Reset();
-            _auxiliaryAssets.RegenerateFlowMap();
+            _auxiliaryAssets.ClearDecals();
             TextureRevision++;
         }
 

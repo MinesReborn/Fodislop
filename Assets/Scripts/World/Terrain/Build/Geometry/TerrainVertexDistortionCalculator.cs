@@ -93,13 +93,13 @@ public static class TerrainVertexDistortionCalculator
 
     public static bool IsWavy(CachedCellData data)
     {
-        return data.Outline == CellOutline.Wavy;
+        return !data.IsBackground && data.Outline == CellOutline.Wavy;
     }
 
-    // Держит узлы всё, кроме гибкого и волнистого контура.
+    // Контур фона не участвует в узлах геометрии переднего плана.
     public static bool Holds(CachedCellData data)
     {
-        return data.Outline is not (CellOutline.Pliant or CellOutline.Wavy);
+        return !data.IsBackground && data.Outline is not (CellOutline.Pliant or CellOutline.Wavy);
     }
 
     public static int RandXd(int x, int y)

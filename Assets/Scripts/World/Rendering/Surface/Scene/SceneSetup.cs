@@ -72,15 +72,15 @@ namespace Kern.World
             try
             {
                 Texture2D transitTexture = await textureStorage.GetTextureAsync(
-                    "transit.png",
+                    "Visual/World/Surface/Materials/transit.png",
                     cancellationToken) ??
                     throw new InvalidOperationException(
-                        "Required local surface texture 'transit.png' could not be decoded.");
+                        "Required local surface texture 'World/Surface/Materials/transit.png' could not be decoded.");
                 Texture2D perspectiveTexture = await textureStorage.GetTextureAsync(
-                    "perspective.png",
+                    "Visual/World/Surface/Materials/perspective.png",
                     cancellationToken) ??
                     throw new InvalidOperationException(
-                        "Required local surface texture 'perspective.png' could not be decoded.");
+                        "Required local surface texture 'World/Surface/Materials/perspective.png' could not be decoded.");
                 cancellationToken.ThrowIfCancellationRequested();
 
                 RuntimeTextureFactory.ApplySampling(

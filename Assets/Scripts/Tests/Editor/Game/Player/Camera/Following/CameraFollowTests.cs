@@ -48,15 +48,29 @@ public sealed class CameraFollowTests
             SetField(follow, "_target", targetOwner.transform);
             SetField(follow, "_originalZ", -10f);
             SetField(follow, "_followVelocity", new Vector3(3f, -40f, 0f));
-            var transition = new WorldViewTransition { CanHold = true };
-            SetField(follow, "_viewTransition", transition);
+            var transition = new WorldViewTransition();
+            ulong entryId = transition.BeginWorldEntry();
+            Assert.That(transition.PublishWorldEntry(entryId), Is.True);
+            Assert.That(transition.TryBeginTeleport(destination, out ulong transitionId), Is.True);
+            SetField(follow, "_presentationState", transition);
 
             typeof(CameraFollow).GetMethod("HandlePlayerTeleported", BindingFlags.Instance | BindingFlags.NonPublic)!
                 .Invoke(follow, null);
 
+            Assert.That(camera.transform.position, Is.EqualTo(initial));
+            Assert.That(transition.IsTeleportPreparing, Is.True, "the whole published view must remain held");
+
+            Assert.That(transition.MarkTeleportReady(
+                transitionId,
+                new RectInt(-50000, -50000, 100000, 100000)), Is.True);
+            object?[] followArgs = { false };
+            typeof(CameraFollow).GetMethod("HandleFollow", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(follow, followArgs);
+
             Vector3 expected = shouldSnap ? new Vector3(destination.x, destination.y, -10f) : initial;
             Assert.That(camera.transform.position, Is.EqualTo(expected));
-            Assert.That(transition.IsHolding, Is.False, "Terrain readiness must not delay the teleport.");
+            Assert.That(transition.IsStable, Is.True);
+            Assert.That(followArgs[0], Is.EqualTo(true));
             if (shouldSnap)
             {
                 Assert.That(GetField(follow, "_followVelocity"), Is.EqualTo(Vector3.zero));

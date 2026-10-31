@@ -26,7 +26,7 @@ assignees: ''
 
 ## Окружение
 
-- **Unity**: `6000.2.10f1` / другая версия
+- **Unity**: `6000.7.0b4` / другая версия
 - **ОС**: macOS / Windows / Linux
 - **Режим**: Editor / Standalone Build / автономный (без сервера)
 

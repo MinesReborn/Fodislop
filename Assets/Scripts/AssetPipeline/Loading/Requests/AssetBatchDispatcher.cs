@@ -23,10 +23,10 @@ using static ETagCalculator;
 
 public sealed class AssetBatchDispatcher : IDisposable
 {
-    private readonly ConcurrentDictionary<string, TaskCompletionSource<byte[]>> _pendingRequests = new();
+    private readonly ConcurrentDictionary<string, TaskCompletionSource<byte[]>> _pendingRequests = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<RuntimeAssetEntryPacket> _requestQueue = new();
-    private readonly ConcurrentDictionary<string, byte> _missingAssets = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, byte> _reportedAssetFailures = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, byte> _missingAssets = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, byte> _reportedAssetFailures = new(StringComparer.Ordinal);
     private CancellationTokenSource? _loopCts = new();
     private bool _isDestroyed;
     private bool _batchLoopFailureLogged;
@@ -40,14 +40,12 @@ public sealed class AssetBatchDispatcher : IDisposable
 
     public bool IsKnownMissing(string filename)
     {
-        string clean = filename.TrimStart('/').ToLowerInvariant();
-        return _missingAssets.ContainsKey(clean);
+        return _missingAssets.ContainsKey(filename);
     }
 
     public void MarkMissing(string filename)
     {
-        string clean = filename.TrimStart('/').ToLowerInvariant();
-        _missingAssets.TryAdd(clean, 0);
+        _missingAssets.TryAdd(filename, 0);
     }
     public void ClearMissing() => _missingAssets.Clear();
 
@@ -245,7 +243,7 @@ public sealed class AssetBatchDispatcher : IDisposable
         {
             filename = string.IsNullOrWhiteSpace(assetPacket.Filename)
                 ? throw new InvalidDataException("Server returned an asset packet without a filename.")
-                : assetPacket.Filename.TrimStart('/').ToLowerInvariant();
+                : assetPacket.Filename;
         }
         catch (Exception exception)
         {
@@ -288,7 +286,7 @@ public sealed class AssetBatchDispatcher : IDisposable
                 throw new InvalidDataException(
                     $"Asset '{filename}' produced no ETag after download.");
             cancellationToken.ThrowIfCancellationRequested();
-            await persistentCache.SaveAssetAsync(filename, contents, etag);
+            await persistentCache.SaveAssetAsync(filename, contents);
             cancellationToken.ThrowIfCancellationRequested();
             _missingAssets.TryRemove(filename, out _);
             tcs.TrySetResult(contents);
@@ -306,7 +304,7 @@ public sealed class AssetBatchDispatcher : IDisposable
             return false;
         }
 
-        string ext = Path.GetExtension(filename).ToLowerInvariant();
+        string ext = Path.GetExtension(filename);
         return string.IsNullOrEmpty(ext) || ext == ".png" || ext == ".jpg" ||
             ext == ".jpeg" || ext == ".exr";
     }
@@ -316,6 +314,6 @@ public sealed class AssetBatchDispatcher : IDisposable
         return string.Equals(
             Path.GetExtension(filename),
             ".bank",
-            StringComparison.OrdinalIgnoreCase);
+            StringComparison.Ordinal);
     }
 }

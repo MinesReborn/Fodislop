@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Kern.Core.Interfaces;
+using Kern.Core;
 using Kern.Core.Lifecycle;
 using MinesServer.Data;
 using MinesServer.Networking.Client.Packets;
@@ -15,7 +16,7 @@ using MinesServer.Networking.Server.Packets;
 using MinesServer.Networking.Server.Packets.Chat;
 using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.Information;
-using MinesServer.Networking.Shared;
+using MinesServer.Networking.Contracts;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -284,10 +285,11 @@ public sealed class DummyScenarioDeterminismTests
             new OfflineScenarioSettings { Scenario = scenario },
             new UnavailableDummyWorldMapSource(),
             new DummyTokenStore(Path.Combine(_tokenDirectory, runName + ".json")),
-            clock);
+            clock,
+            new Kern.AssetPipeline.Loading.RuntimeAssetPaths());
 
     private static ClientPacket Hello(string token) =>
-        new(0, new ClientHelloPacket(1, "test", 0, "fingerprint", token));
+        new(0, new ClientHelloPacket(ClientProtocolVersion.ClientVersion, "test", 0, "fingerprint", token));
 
     private sealed class NoTextures : ITextureStorageService
     {

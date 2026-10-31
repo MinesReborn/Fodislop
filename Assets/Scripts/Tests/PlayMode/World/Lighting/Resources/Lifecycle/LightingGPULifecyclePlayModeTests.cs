@@ -23,7 +23,7 @@ using Kern.AssetPipeline.Loading;
 using Kern.Bootstrap.Scenes;
 using Kern.Game.Entities.Robots;
 using Kern.Game.Player.Cameras;
-using Kern.Game.VisualEffects.Cells;
+using Kern.Game.Visual.Effects.Cells;
 using Kern.Rendering.Display;
 using Kern.UI.Menu;
 
@@ -237,7 +237,7 @@ public sealed class LightingGPULifecyclePlayModeTests
         var clip = new CellDestructionClip();
         Vector3 source = _walkingProbeCamera.transform.position;
         source.z = 0;
-        var effect = new CellDestructionEffect(SFX.Destroy, source, clip,
+        var effect = new CellDestructionEffect(AudioEventType.Destroy, source, clip,
             PlayModeHarness.RequireInGame<ISceneObjectFactory>(), lighting);
         effect.Advance(0.16666667f); // The pale cloud in the reported screenshot.
         // Independent original-source integral for frame 5. World illumination
@@ -376,7 +376,7 @@ public sealed class LightingGPULifecyclePlayModeTests
         var clip = new CellDestructionClip();
         Vector3 source = _walkingProbeCamera.transform.position;
         source.z = 0;
-        var effect = new CellDestructionEffect(SFX.Destroy, source, clip,
+        var effect = new CellDestructionEffect(AudioEventType.Destroy, source, clip,
             PlayModeHarness.RequireInGame<ISceneObjectFactory>(), _walkingProbeLighting);
         try
         {

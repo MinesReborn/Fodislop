@@ -8,9 +8,8 @@ using Kern.Audio.Core;
 using Kern.Core;
 using Kern.Rendering;
 using Kern.Core.Interfaces;
-using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Information;
-using MinesServer.Networking.Shared.Packets;
+using MinesServer.Networking.Contracts.Packets;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -35,31 +34,22 @@ public class ClientConfigProcessorTests
         _audio = new StubAudioSystem();
         _config = new ConfigFixture();
         _config.Config.Audio.MasterVolume = 0.25f;
-        _config.Config.Audio.SfxVolume = 0.5f;
+        _config.Config.Audio.SoundEffectsVolume = 0.5f;
         _config.Config.Audio.MusicVolume = 0.75f;
         _processor = new ClientConfigProcessor(_textureStorage, _supervisor, _audio, _config);
     }
 
     [Test]
-    public void Process_SoundConfig_PreservesLocalBusVolumes()
+    public void Process_UsesLocalBusVolumes()
     {
-        var soundConfig = new SoundConfigPacket(
-            128,
-            new Dictionary<string, byte>
-            {
-                ["sfx"] = 200,
-                ["music"] = 100,
-            });
         var packet = new ClientConfigPacket(
-            soundConfig,
-            RendererMode.Default,
             Array.Empty<StringPairPacket>(),
             Array.Empty<string>());
 
         _processor.Process(packet);
 
         Assert.That(_audio.BusVolumes[AudioBusType.Master], Is.EqualTo(0.25f).Within(0.001f));
-        Assert.That(_audio.BusVolumes[AudioBusType.SFX], Is.EqualTo(0.5f).Within(0.001f));
+        Assert.That(_audio.BusVolumes[AudioBusType.SoundEffects], Is.EqualTo(0.5f).Within(0.001f));
         Assert.That(_audio.BusVolumes[AudioBusType.Music], Is.EqualTo(0.75f).Within(0.001f));
     }
 
@@ -67,24 +57,20 @@ public class ClientConfigProcessorTests
     public void Process_UnrenderedTextures_RunsPreloadOperation()
     {
         var packet = new ClientConfigPacket(
-            new SoundConfigPacket(255, new Dictionary<string, byte>()),
-            RendererMode.Default,
             Array.Empty<StringPairPacket>(),
-            new[] { "Cells/1.png", "Cells/2.png", "Skin/bee.png" });
+            new[] { "Visual/Cells/1.png", "Visual/Cells/2.png", "Visual/Skin/bee.png" });
 
         _processor.Process(packet);
 
         Assert.That(_supervisor.LastOperationName, Is.EqualTo("preload_textures"));
         Assert.That(_textureStorage.PreloadedLists.Count, Is.EqualTo(1));
-        Assert.That(_textureStorage.PreloadedLists[0], Is.EquivalentTo(new[] { "Cells/1.png", "Cells/2.png", "Skin/bee.png" }));
+        Assert.That(_textureStorage.PreloadedLists[0], Is.EquivalentTo(new[] { "Visual/Cells/1.png", "Visual/Cells/2.png", "Visual/Skin/bee.png" }));
     }
 
     [Test]
     public void Process_EmptyTextures_DoesNotRunPreload()
     {
         var packet = new ClientConfigPacket(
-            new SoundConfigPacket(255, new Dictionary<string, byte>()),
-            RendererMode.Default,
             Array.Empty<StringPairPacket>(),
             Array.Empty<string>());
 

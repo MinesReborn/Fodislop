@@ -8,7 +8,7 @@ using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.UI;
 using MinesServer.Networking.Server.Packets.GUI.Components;
-using MinesServer.Networking.Shared.Packets;
+using MinesServer.Networking.Contracts.Packets;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -38,6 +38,13 @@ public class PacketInventoryCardTests
 
         public UniTask<byte[]?> GetAssetBytesAsync(
             string filename,
+            CancellationToken cancellationToken = default,
+            int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds) =>
+            UniTask.FromResult<byte[]?>(null);
+
+        public UniTask<byte[]?> GetAssetBytesAsync(
+            string filename,
+            string expectedETag,
             CancellationToken cancellationToken = default,
             int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds) =>
             UniTask.FromResult<byte[]?>(null);
@@ -85,7 +92,7 @@ public class PacketInventoryCardTests
         // Карточка инвентаря в исполнении моста: контейнер с иконкой (URI
         // серверного ассета) и статусом, пристыкованными вверх.
         VisualElement card = Builder().Build(PacketTestFactory.DockPanel(
-            PacketTestFactory.Image("Items/geoRed.png", 44, 44, "", PacketTestFactory.Pair("DockPanel.Dock", "Top")),
+            PacketTestFactory.Image("Visual/Items/geoRed.png", 44, 44, "", PacketTestFactory.Pair("DockPanel.Dock", "Top")),
             PacketTestFactory.Text("1.2KK\nНет спроса", "", PacketTestFactory.Pair("DockPanel.Dock", "Top"))));
 
         Assert.That(card.childCount, Is.EqualTo(2));

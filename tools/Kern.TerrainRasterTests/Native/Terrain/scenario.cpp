@@ -717,8 +717,6 @@ static long checkWorld(const std::string& path)
     _TerrainDistortionEnabled = readValue<int>(in);
     for (float4& vector : _TerrainDistortion)
         vector = float4{readValue<float>(in), readValue<float>(in), readValue<float>(in), readValue<float>(in)};
-    _TerrainGroundDecalRule = (int)readValue<uint>(in);
-    _TerrainRockDecalRule = (int)readValue<uint>(in);
     int originX = readValue<int>(in);
     int originY = readValue<int>(in);
     int ringWidth = readValue<int>(in);

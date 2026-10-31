@@ -15,7 +15,7 @@ public sealed class WorldLabels : IWorldLabels, IPostLateTickable, IDisposable
 {
     private const string TAG = "[WorldLabels]";
     private const string BubbleTextClass = "world-label-chat-text";
-    private static readonly Color FrameTint = new(1f, 1f, 1f, 0.6156863f);
+    private static readonly Color s_frameTint = new(1f, 1f, 1f, 0.6156863f);
 
     private static readonly ProfilerMarker s_postLateTickMarker =
         new("Kern.WorldLabels.PostLateTick");
@@ -76,7 +76,7 @@ public sealed class WorldLabels : IWorldLabels, IPostLateTickable, IDisposable
         Sprite sprite = Resources.Load<Sprite>(ResourcePaths.LocalChatBubbleSprite)
             ?? throw new InvalidOperationException("Missing local chat bubble sprite.");
         frame.style.backgroundImage = new StyleBackground(sprite);
-        frame.style.unityBackgroundImageTintColor = FrameTint;
+        frame.style.unityBackgroundImageTintColor = s_frameTint;
         Vector4 border = sprite.border;
         frame.style.unitySliceLeft = (int)border.x;
         frame.style.unitySliceBottom = (int)border.y;

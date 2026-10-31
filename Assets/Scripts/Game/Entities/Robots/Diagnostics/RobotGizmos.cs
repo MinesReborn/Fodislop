@@ -2,6 +2,7 @@
 
 #if UNITY_EDITOR
 using Kern.World;
+using Kern.Core.Interfaces;
 using UnityEngine;
 
 using Kern.Diagnostics.World;
@@ -11,6 +12,22 @@ namespace Kern.Game.Entities.Robots;
 public static class RobotGizmos
 {
     private const float VISUAL_ROTATION_OFFSET = -90f;
+
+    public static void DrawGizmosIfEnabled(
+        IRuntimeDebugSettings? settings,
+        Transform transform,
+        uint botId,
+        bool isLocalPlayer,
+        bool isMetadataLoaded,
+        float moveSpeed,
+        Vector3 serverPosition,
+        Vector3 targetPosition)
+    {
+        if (Application.isPlaying && settings != null && settings.ShowRobotDebugVisuals)
+        {
+            DrawGizmos(transform, botId, isLocalPlayer, isMetadataLoaded, moveSpeed, serverPosition, targetPosition);
+        }
+    }
 
     public static void DrawGizmos(
         Transform transform,

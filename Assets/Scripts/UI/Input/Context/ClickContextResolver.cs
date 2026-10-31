@@ -6,7 +6,7 @@ using System.Globalization;
 using System.Linq;
 using Kern.UI.Controls;
 using MinesServer.Networking.Server.Packets.GUI.Components;
-using MinesServer.Networking.Shared.Packets;
+using MinesServer.Networking.Contracts.Packets;
 using UnityEngine.UIElements;
 
 namespace Kern.UI.Input;

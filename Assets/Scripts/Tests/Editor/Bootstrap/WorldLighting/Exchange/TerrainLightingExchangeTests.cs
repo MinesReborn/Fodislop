@@ -125,11 +125,14 @@ public sealed class TerrainLightingExchangeTests
             stageChanges,
             System.StringComparison.Ordinal);
         int acknowledgeChanges = lightingSource.IndexOf("AcknowledgeStagedChanges(", System.StringComparison.Ordinal);
+        int publishOutputAfterAcknowledge = lightingSource.IndexOf(
+            "_terrainExchangeState.PublishOutput(",
+            acknowledgeChanges,
+            System.StringComparison.Ordinal);
         Assert.That(stageChanges, Is.GreaterThanOrEqualTo(0));
         Assert.That(coordinatorAfterStaging, Is.GreaterThan(stageChanges));
         Assert.That(acknowledgeChanges, Is.GreaterThan(coordinatorAfterStaging));
-        Assert.That(acknowledgeChanges,
-            Is.LessThan(lightingSource.IndexOf("LightingOutputState.Published", System.StringComparison.Ordinal)));
+        Assert.That(publishOutputAfterAcknowledge, Is.GreaterThan(acknowledgeChanges));
         Assert.That(exchangeStateSource.Contains("_changePump.Stage(exchange, worldGeneration, applyChange)", System.StringComparison.Ordinal), Is.True);
         Assert.That(exchangeStateSource.Contains("_changePump.AcknowledgeStaged(exchange)", System.StringComparison.Ordinal), Is.True);
         Assert.That(lightingSource.IndexOf("private void UpdateLightingCoordinator(", System.StringComparison.Ordinal),

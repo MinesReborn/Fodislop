@@ -4,7 +4,8 @@ using Kern.World.Lighting;
 using UnityEditor;
 using UnityEngine;
 
-namespace Kern.Editor;
+namespace Kern.Editor
+{
 
 [CustomEditor(typeof(LightingEngine))]
 public sealed class LightingEngineEditor : UnityEditor.Editor
@@ -44,4 +45,5 @@ public sealed class LightingEngineEditor : UnityEditor.Editor
             EditorGUILayout.LabelField(summary, EditorStyles.miniLabel);
         }
     }
+}
 }

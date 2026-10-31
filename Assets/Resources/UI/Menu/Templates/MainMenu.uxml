@@ -290,7 +290,7 @@
                                     <ui:Label class="mm-item-val" text="100%" />
                                 </ui:VisualElement>
                                 <ui:VisualElement class="mm-row-item">
-                                    <ui:Label class="mm-item-title" text="mainmenu.settings_sfx" />
+                                    <ui:Label class="mm-item-title" text="mainmenu.settings_sound_effects" />
                                     <ui:Label class="mm-item-val" text="85%" />
                                 </ui:VisualElement>
                                 <ui:VisualElement class="mm-row-item">

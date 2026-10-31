@@ -2,6 +2,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using Cysharp.Threading.Tasks;
+using Kern.AssetPipeline.Cache;
+using Kern.AssetPipeline.Loading;
+using Kern.Core.Interfaces;
 using Kern.World;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
@@ -13,22 +18,17 @@ internal static class DummyCellConfigurationFactory
     public static BlockDefinition GetBlockDefinition(CellType type) =>
         BlockRegistry.Get(type);
 
-    // Правило экономики сервера, а не свойство блока: добыча кристалла кладёт
-    // его в корзину, слот — номер CrystalType в BasketPacket.
-
     public static byte[][] CreateTileGroups()
     {
-        var pack = new List<byte>();
-        foreach ((CellType type, BlockDefinition def) in BlockRegistry.Blocks)
-        {
-            if (def.Outline is CellOutline.Wall or CellOutline.Corner or CellOutline.Door)
-            {
-                pack.Add((byte)type);
-            }
-        }
-
-        pack.Sort();
-        return new[] { pack.ToArray() };
+        return BlockRegistry.Blocks
+            .Where(pair => !string.IsNullOrWhiteSpace(pair.Value.TileGroup))
+            .GroupBy(pair => pair.Value.TileGroup!, StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
+            .Select(group => group
+                .Select(pair => (byte)pair.Key)
+                .OrderBy(cellId => cellId)
+                .ToArray())
+            .ToArray();
     }
 
     public static CellConfigurationPacket[] CreateCellConfigurations()
@@ -39,42 +39,104 @@ internal static class DummyCellConfigurationFactory
             var type = (CellType)i;
             BlockDefinition def = BlockRegistry.Get(type);
 
-            CellConfigFlags flags = CellConfigFlags.None;
-            if (def.IsPassable)
-            {
-                flags |= CellConfigFlags.Passable;
-            }
-
-            if (def.Emission)
-            {
-                flags |= CellConfigFlags.Emission;
-            }
-
             configs[i] = new CellConfigurationPacket(
-                Flags: flags,
+                Passable: def.Passable,
                 DrawLayer: (CellRenderLayer)def.DrawLayer,
                 Outline: (CellOutlineKind)def.Outline,
-                TextureAnchor: (CellTextureAnchorKind)def.TextureAnchor,
-                SurfaceEffect: (CellSurfaceEffectKind)def.SurfaceEffect,
-                SurfaceEffectPalette: def.SurfaceEffectPalette,
-                ShaderAnimation: def.ShaderAnimation,
-                FrameAnimationSpeed: def.FrameAnimationSpeed,
-                DecalAtlas: (CellDecalAtlasKind)def.DecalAtlas,
+                TextureName: def.TextureName,
+                DecalTextureName: def.DecalTextureName ?? string.Empty,
                 ReliefGroup: def.ReliefGroup,
-                MapColor: DummyMapColors.Get(i));
+                AnimationType: def.AnimationType,
+                AnimationPalette: def.AnimationPalette,
+                FrameAnimationSpeed: def.FrameAnimationSpeed,
+                MapColor: MapBlockColors.GetPackedColor(type));
         }
 
         return configs;
     }
 
-    public static Dictionary<CellType, ushort> CreateMovementSpeeds(
-        CellConfigurationPacket[] configurations)
+    public static async UniTask<WorldAssetDefinitionPacket[]> CreateAssetManifestAsync(
+        ITextureStorageService textureStorage,
+        IRuntimeAssetPaths assetPaths,
+        CellConfigurationPacket[] cellConfigurations)
+    {
+        var assets = new Dictionary<string, WorldAssetDefinitionPacket>(StringComparer.Ordinal);
+
+        IReadOnlyList<string> textureFilenames = assetPaths.GetTextureFilenames();
+        if (textureFilenames.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "Runtime texture paths must be ready before building the world asset manifest.");
+        }
+
+        foreach (string filename in textureFilenames.OrderBy(name => name, StringComparer.Ordinal))
+        {
+            if (!AssetBatchDispatcher.IsTextureFile(filename))
+            {
+                continue;
+            }
+
+            byte[]? contents = assetPaths.GetTextureBytes(filename);
+            if (contents is { Length: > 0 })
+            {
+                assets.Add(filename, CreateAssetDefinition(filename, contents));
+            }
+        }
+
+        foreach (string filename in await assetPaths.GetAudioBankFilenamesAsync())
+        {
+            byte[]? contents = await assetPaths.GetAudioBankBytesAsync(filename);
+            if (contents is { Length: > 0 })
+            {
+                assets.Add(filename, CreateAssetDefinition(filename, contents));
+            }
+        }
+
+        for (int cellId = 0; cellId < cellConfigurations.Length; cellId++)
+        {
+            CellConfigurationPacket configuration = cellConfigurations[cellId];
+            if (!string.IsNullOrWhiteSpace(configuration.TextureName))
+            {
+                byte[]? contents = await textureStorage.GetTextureData(configuration.TextureName);
+                if (contents == null || contents.Length == 0)
+                {
+                    cellConfigurations[cellId] = configuration with { TextureName = string.Empty };
+                }
+                else
+                {
+                    assets[configuration.TextureName] = CreateAssetDefinition(configuration.TextureName, contents);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(configuration.DecalTextureName))
+            {
+                byte[]? decalContents = await textureStorage.GetTextureData(configuration.DecalTextureName);
+                if (decalContents == null || decalContents.Length == 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Cell '{(CellType)cellId}' requires decal texture '{configuration.DecalTextureName}', but it is missing.");
+                }
+
+                assets[configuration.DecalTextureName] =
+                    CreateAssetDefinition(configuration.DecalTextureName, decalContents);
+            }
+        }
+
+        return assets.Values
+            .OrderBy(asset => asset.Filename, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static WorldAssetDefinitionPacket CreateAssetDefinition(string filename, byte[] contents) =>
+        new(filename, ETagCalculator.Calculate(contents) ??
+            throw new InvalidOperationException($"Could not calculate ETag for world asset '{filename}'."));
+
+    public static Dictionary<CellType, ushort> CreateMovementSpeeds()
     {
         var speeds = new Dictionary<CellType, ushort>(BlockRegistry.Blocks.Count);
         foreach ((CellType type, BlockDefinition def) in BlockRegistry.Blocks)
         {
-            // Правило сервера: по проходимому — быстро, по остальному — медленно.
-            speeds[type] = (ushort)(def.IsPassable ? 20 : 100);
+            speeds[type] = def.MovementCooldownMs;
         }
 
         return speeds;

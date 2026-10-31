@@ -20,9 +20,6 @@
     <Compile Include="Assets/Scripts/UI/**/*.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="Effekseer.URP"><HintPath>Library/ScriptAssemblies/Effekseer.URP.dll</HintPath></Reference>
-    <Reference Include="Effekseer"><HintPath>Library/ScriptAssemblies/Effekseer.dll</HintPath></Reference>
-    <Reference Include="EffekseerEditor"><HintPath>Library/ScriptAssemblies/EffekseerEditor.dll</HintPath></Reference>
     <Reference Include="FMODUnity"><HintPath>Library/ScriptAssemblies/FMODUnity.dll</HintPath></Reference>
     <Reference Include="FMODUnityEditor"><HintPath>Library/ScriptAssemblies/FMODUnityEditor.dll</HintPath></Reference>
     <Reference Include="FMODUnityHaptics"><HintPath>Library/ScriptAssemblies/FMODUnityHaptics.dll</HintPath></Reference>

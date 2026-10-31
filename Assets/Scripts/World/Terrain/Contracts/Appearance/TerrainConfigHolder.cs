@@ -59,14 +59,6 @@ public static class TerrainConfigHolder
     public const float FacetedGlintFallEnd = 0.40f;
     public const float FacetedGlintSweepDuration = 0.40f;
 
-    // 4. Декали подмешиваются к альбедо до цветовой анимации.
-    public const float GroundDecalStrength = 0.35f;
-    public const float RockDecalStrength = 0.7f;
-    // Packed offsets are -0.5..0.5: 0.125 limits translation to two
-    // texels on the 32-pixel face, within the authored atlas padding.
-    public const float DecalPlacementOffset = 0.125f;
-    public const uint GroundDecalPlacementPercent = 24u;
-
     // Усиление signed-разницы в диагностике вклада декали и призматического
     // тинта. На сам рендер поверхности этот коэффициент не влияет.
     public const float TerrainDebugDeltaContrast = 128f;

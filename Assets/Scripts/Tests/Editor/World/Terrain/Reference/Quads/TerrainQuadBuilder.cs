@@ -82,12 +82,9 @@ internal static class TerrainQuadBuilder
 
 
 
-        // Какой тип рисует слой. Фон (drawLayer Background или Underlay) лежит сам на себе и
-        // рисуется только фоном; у остального передний план — сама клетка,
-        // фон — подложка по фоновым соседям (ResolveUnderfillOf), как
-        // TerrainResolveUnderfill в шейдере.
-        CellType backgroundType = ResolveUnderfillOf(
-            cellFgType, left, bottomLeft, bottom, bottomRight, right, topRight, top, topLeft);
+        // Фон (Background или Underlay) лежит сам на себе. Под передним планом
+        // всегда используется глобальная подложка, не соседняя дорога или пол.
+        CellType backgroundType = UnderOf(cellFgType);
         bool floor = backgroundType == cellFgType;
         CellType cellType = isBackground ? backgroundType : cellFgType;
         if ((floor && !isBackground) || cellType == CellType.Unloaded)
@@ -206,12 +203,12 @@ internal static class TerrainQuadBuilder
         // мировой клетке (SampleMissingTexture), а не тихой дырой в кадре.
         float animOffset = ResolveAnimationOffset(block, type.HasAtlasRect, gridX, serverY);
 
-        // Анимация и поверхность — свои поля; скорость — из half строки.
+        // Единый режим эффекта, его параметры и скорость — из строки типа.
         Vector4 animDataVec = new(
-            (float)block.ShaderAnimation,
+            (float)block.AnimationType,
             TerrainCellData.HalfValue(TerrainCellData.HalfBits(block.FrameAnimationSpeed)),
             animOffset,
-            (float)block.SurfaceEffect);
+            0f);
         Vector4 tileSizeVec = new Vector4(type.TileSize, type.TileSize, (float)type.FrameCount, type.FrameHeightTiles);
         // Признак текстуры по миру — бит 5 в z, над колонкой тайлгруппы
         // (она занимает биты 0-4). В w его класть нельзя: там значение
@@ -225,12 +222,9 @@ internal static class TerrainQuadBuilder
 
         Vector4 worldPosVec = new Vector4(gridX, serverY, packedColumn, tiling ? 1f : 0f);
 
-        float decalPlacement = TerrainDecalCatalog.Place(
-            TerrainDecalCatalog.RuleOf(block.DecalAtlas),
-            gridX,
-            serverY);
+        float decalPlacement = TerrainDecalCatalog.Place(type.DecalTextureIndex, gridX, serverY);
         Vector4 glowVec = new Vector4(
-            decalPlacement != 0f ? (float)block.DecalAtlas : 0f,
+            decalPlacement != 0f ? type.DecalTextureIndex : 0f,
             lightingData.PackedFlags,
             lightingData.PackedContour,
             decalPlacement);
@@ -315,84 +309,25 @@ internal static class TerrainQuadBuilder
     {
         if (!hasAtlasRect)
         {
-            return block.SurfaceEffectPalette;
+            return block.AnimationPalette;
         }
 
-        if (block.ShaderAnimation == CellAnimationType.Blinking)
+        if (block.AnimationType == CellAnimationType.Blinking)
         {
             uint seed = HashCell(gridX, serverY);
             return (seed % 6283) / 1000f;
         }
 
-        if (block.SurfaceEffect == CellSurfaceEffect.Faceted)
+        if (block.AnimationType == CellAnimationType.Faceted)
         {
             return (HashCell(gridX, serverY) & 0xFFFF) / 65536f;
         }
 
-        return block.SurfaceEffectPalette;
+        return block.AnimationPalette;
     }
 
     internal static CellType UnderOf(CellType type) =>
         BlockRegistry.Get(type).DrawLayer != CellDrawLayer.Foreground ? type : BlockRegistry.UnderlayType;
-
-    /// <summary>
-    /// Фон под сплошной (передней) клеткой — по её фоновым соседям: тип фона
-    /// выбирает большинство из восьми соседей-фоновых клеток (дороги, полы),
-    /// при ничьей и отсутствии — глобальная подложка. Зеркало
-    /// <c>TerrainResolveUnderfill</c> в TerrainCellData.hlsl, включая порядок
-    /// соседей (L, BL, B, BR, R, TR, T, TL) — он задаёт разрешение ничьих.
-    /// Незагруженный сосед фоном не считается: Unloaded — передний план.
-    /// До GPU-сборки клеток то же делала заливка фона (BackgroundFloodFill:
-    /// passable-клетки распространяли свой тип под сплошные клетки).
-    /// </summary>
-    internal static CellType ResolveUnderfillOf(
-        CellType ownType,
-        CachedCellData left,
-        CachedCellData bottomLeft,
-        CachedCellData bottom,
-        CachedCellData bottomRight,
-        CachedCellData right,
-        CachedCellData topRight,
-        CachedCellData top,
-        CachedCellData topLeft)
-    {
-        if (BlockRegistry.Get(ownType).DrawLayer != CellDrawLayer.Foreground)
-        {
-            return ownType;
-        }
-
-        CachedCellData[] neighbours =
-        [
-            left, bottomLeft, bottom, bottomRight, right, topRight, top, topLeft,
-        ];
-        CellType chosen = 0;
-        int bestCount = 0;
-        foreach (CachedCellData candidate in neighbours)
-        {
-            if (BlockRegistry.Get(candidate.Type).DrawLayer == CellDrawLayer.Foreground)
-            {
-                continue;
-            }
-
-            int count = 0;
-            foreach (CachedCellData other in neighbours)
-            {
-                if (BlockRegistry.Get(other.Type).DrawLayer != CellDrawLayer.Foreground &&
-                    other.Type == candidate.Type)
-                {
-                    count++;
-                }
-            }
-
-            if (count > bestCount)
-            {
-                bestCount = count;
-                chosen = candidate.Type;
-            }
-        }
-
-        return chosen != 0 ? chosen : UnderOf(ownType);
-    }
 
     private static uint HashCell(int gridX, int serverY)
     {

@@ -24,7 +24,9 @@ public sealed class ManagerBinding
         _target = target;
     }
 
-    public string? ManagerType => _managerType;
+    public string? ManagerType => _target != null
+        ? _target.GetType().AssemblyQualifiedName
+        : _managerType;
 
     public string? ServiceGroup => _serviceGroup;
 

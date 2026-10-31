@@ -2,6 +2,7 @@
 
 using System;
 using Kern.World.Terrain;
+using MinesServer.Data;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -26,8 +27,6 @@ internal sealed class TerrainCellOracle
     private readonly Func<int, int> _atlasSize;
     private readonly uint[] _tileDescriptors;
     private readonly uint _groundType;
-    private readonly uint _groundDecalRule;
-    private readonly uint _rockDecalRule;
     private readonly int _worldHeight;
 
     public TerrainCellOracle(
@@ -37,8 +36,6 @@ internal sealed class TerrainCellOracle
         Func<int, int> atlasSize,
         uint[] tileDescriptors,
         uint groundType,
-        uint groundDecalRule,
-        uint rockDecalRule,
         int worldHeight)
     {
         _cellAt = cellAt;
@@ -47,8 +44,6 @@ internal sealed class TerrainCellOracle
         _atlasSize = atlasSize;
         _tileDescriptors = tileDescriptors;
         _groundType = groundType;
-        _groundDecalRule = groundDecalRule;
-        _rockDecalRule = rockDecalRule;
         _worldHeight = worldHeight;
     }
 
@@ -93,7 +88,7 @@ internal sealed class TerrainCellOracle
             }
             else
             {
-                typeIndex = ResolveUnderfill(fgType, nbType);
+                typeIndex = Under(fgType);
             }
         }
 
@@ -123,7 +118,7 @@ internal sealed class TerrainCellOracle
         if (typeIndex != 0 && !foreground)
         {
             bool occluded = !fgEmpty &&
-                HasRect(_typeOf(fgType)) && Outline(fgLook) != 3 &&
+                HasRect(_typeOf(fgType)) && Outline(fgLook) != 2 &&
                 Bit(fgLook, 4);
             if (occluded && fgAnchored)
             {
@@ -192,7 +187,7 @@ internal sealed class TerrainCellOracle
         uint contour = 0;
         if (foreground)
         {
-            contour = Outline(look) == 3 ? 1u : 0u;
+            contour = Outline(look) == 2 ? 1u : 0u;
             if (Rim(type) != 0)
             {
                 bool t = Same(Rim(type), nbType[Top]), l = Same(Rim(type), nbType[Left]);
@@ -216,12 +211,8 @@ internal sealed class TerrainCellOracle
             (type.AtlasXY & 0xFFFu) / size, ((type.AtlasXY >> 12) & 0xFFFu) / size,
             (type.AtlasWH & 0xFFFu) / size, ((type.AtlasWH >> 12) & 0xFFFu) / size);
         float frameHeight = rect.w > 0f ? rect.w / tile : 1f;
-        uint decal = (look >> 17) & 3u;
-        uint decalRule = decal == 1 || decal == 3 ? _groundDecalRule
-            : decal == 2 ? _rockDecalRule
-            : 0u;
-
-        float expectedDecal = Decal(decalRule, gridX, serverY);
+        uint decalTextureIndex = (look >> 23) & 0xFFu;
+        float expectedDecal = Decal(decalTextureIndex, gridX, serverY);
 
         bool anchored = foreground && fgAnchored;
         if (!foreground)
@@ -231,10 +222,15 @@ internal sealed class TerrainCellOracle
         }
 
         uint uvBits = CornerUvBits(descriptor, tiling);
-        uint animation = (look >> 10) & 3u;
-        uint surface = (look >> 12) & 3u;
+        uint animation = (look >> TerrainCellFormat.TypeAnimationTypeShift) & 0xFu;
         float speed = Mathf.HalfToFloat((ushort)(type.SpeedGlowTile & 0xFFFFu));
-        float phase = Phase((look >> 14) & 7u, HasRect(type), animation == 1, surface == 2, gridX, serverY);
+        float phase = Phase(
+            (look >> TerrainCellFormat.TypeAnimationPaletteShift) & TerrainCellFormat.TypeAnimationPaletteMask,
+            HasRect(type),
+            animation == (uint)CellAnimationType.Blinking,
+            animation == (uint)CellAnimationType.Faceted,
+            gridX,
+            serverY);
         for (int corner = 0; corner < 4; corner++)
         {
             TerrainVertex v = quad[corner];
@@ -261,14 +257,14 @@ internal sealed class TerrainCellOracle
             Assert.That(v.UV4x, Is.EqualTo(TerrainVertex.H(animation)), $"{at}: тип анимации");
             Assert.That(v.UV4y, Is.EqualTo(TerrainVertex.H(speed)), $"{at}: скорость");
             Assert.That(v.UV4z, Is.EqualTo(TerrainVertex.H(phase)), $"{at}: фаза");
-            Assert.That(v.UV4w, Is.EqualTo(TerrainVertex.H(surface)), $"{at}: поверхность");
+            Assert.That(v.UV4w, Is.EqualTo(TerrainVertex.H(0f)), $"{at}: резерв UV4w");
 
             Assert.That(v.UV5x, Is.EqualTo(TerrainVertex.H(anchored ? 1f : 0f)), $"{at}: якорь");
             Assert.That(Mathf.HalfToFloat(v.UV5y), Is.EqualTo(cornersX[corner]), $"{at}: угол x");
             Assert.That(Mathf.HalfToFloat(v.UV5z), Is.EqualTo(cornersY[corner]), $"{at}: угол y");
             Assert.That(v.UV5w, Is.EqualTo(TerrainVertex.H(0f)), $"{at}: резерв");
 
-            AssertFloat(v.UV6.x, expectedDecal != 0f ? decal : 0f, $"{at}: атлас декали");
+            AssertFloat(v.UV6.x, expectedDecal != 0f ? decalTextureIndex : 0f, $"{at}: атлас декали");
             AssertFloat(v.UV6.y, packedFlags, $"{at}: флаги света");
             AssertFloat(v.UV6.z, contour, $"{at}: контур");
             AssertFloat(v.UV6.w, expectedDecal, $"{at}: декаль");
@@ -278,7 +274,7 @@ internal sealed class TerrainCellOracle
     // Раскладка строки — своя расшифровка, независимая от шейдера:
     // look: слот 0-2, пол 3, opaqueOwn 4, opaqueAny 5, по миру 6,
     // контур 7-9, анимация 10-11, эффект поверхности 12-13, палитра 14-16,
-    // атлас декалей 17-18; speedGlowTile:
+    // индекс текстуры декали 23-30; speedGlowTile:
     // скорость half 0-15, свечение 16-23, тайлгруппа + 1 24-31; масса каймы —
     // старший байт atlasWH.
     private static bool Bit(uint word, int bit) => ((word >> bit) & 1u) != 0;
@@ -286,47 +282,7 @@ internal sealed class TerrainCellOracle
     // Фон (бит 3) лежит сам на себе, передний план — на подложке.
     private uint Under(uint type) => Bit(_typeOf(type).Look, 3) ? type : _groundType;
 
-    // Фон под сплошной клеткой — по фоновым соседям, как
-    // TerrainResolveUnderfill в TerrainCellData.hlsl: большинство из
-    // восьми соседей-фоновых клеток (порядок L..TL задаёт разрешение
-    // ничьих), при отсутствии — глобальная подложка.
-    private uint ResolveUnderfill(uint ownType, uint[] nbTypes)
-    {
-        if (Bit(_typeOf(ownType).Look, 3))
-        {
-            return ownType;
-        }
-
-        uint chosen = 0u;
-        int bestCount = 0;
-        for (int candidate = 0; candidate < 8; candidate++)
-        {
-            if (!Bit(_typeOf(nbTypes[candidate]).Look, 3))
-            {
-                continue;
-            }
-
-            uint candidateType = nbTypes[candidate];
-            int count = 0;
-            for (int other = 0; other < 8; other++)
-            {
-                if (Bit(_typeOf(nbTypes[other]).Look, 3) && nbTypes[other] == candidateType)
-                {
-                    count++;
-                }
-            }
-
-            if (count > bestCount)
-            {
-                bestCount = count;
-                chosen = candidateType;
-            }
-        }
-
-        return chosen != 0u ? chosen : Under(ownType);
-    }
-
-    // Контур: 0 гибкий, 1 волнистый, 2 жёсткий, 3 капля, 4 стена, 5 угол, 6 дверь.
+    // Контур: 0 жёсткий, 1 волнистый, 2 капля, 3 податливый, 4 стена, 5 угол, 6 дверь.
     private static uint Outline(uint look) => (look >> 7) & 7u;
 
     private static uint TileCode(TerrainTypeRow row) => row.SpeedGlowTile >> 24;
@@ -337,15 +293,21 @@ internal sealed class TerrainCellOracle
 
     private bool OpaqueMass(uint type) =>
         type != 0 &&
+        IsForeground(type) &&
         Outline(_typeOf(type).Look) == 1 &&
         Bit(_typeOf(type).Look, 5);
 
-    private bool Corner(uint type) => Outline(_typeOf(type).Look) == 5;
+    private bool Corner(uint type) => IsForeground(type) && Outline(_typeOf(type).Look) == 5;
 
     private bool IsForeground(uint type) => !Bit(_typeOf(type).Look, 3);
 
     private bool Same(uint ownRim, uint otherType)
     {
+        if (!IsForeground(otherType))
+        {
+            return false;
+        }
+
         uint otherGroup = Rim(_typeOf(otherType));
         if (otherGroup == 0)
         {
@@ -409,20 +371,19 @@ internal sealed class TerrainCellOracle
         return bits;
     }
 
-    private static float Decal(uint rule, int worldX, int serverY)
+    private static float Decal(uint decalTextureIndex, int worldX, int serverY)
     {
-        uint percent = rule & 0x7Fu;
-        if (percent == 0)
+        if (decalTextureIndex == 0)
         {
             return 0f;
         }
 
         uint hash = unchecked((uint)worldX * 374761393u);
         hash = unchecked(hash + ((uint)serverY * 668265263u));
-        hash ^= unchecked(((rule >> 7) & 0xFFu) * 2246822519u);
+        hash ^= unchecked(decalTextureIndex * 2246822519u);
         hash = unchecked((hash ^ (hash >> 13)) * 1274126177u);
         hash ^= hash >> 16;
-        if (hash % 100u >= percent)
+        if (hash % 100u >= 25u)
         {
             return 0f;
         }

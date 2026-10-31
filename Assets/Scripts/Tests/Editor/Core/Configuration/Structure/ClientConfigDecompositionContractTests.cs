@@ -45,7 +45,7 @@ public sealed class ClientConfigDecompositionContractTests
     {
         return File.ReadAllText(Path.Combine(
             Application.dataPath,
-            "Scripts/Core/Configuration",
+            "Scripts/Core/Configuration/Management",
             fileName));
     }
 }

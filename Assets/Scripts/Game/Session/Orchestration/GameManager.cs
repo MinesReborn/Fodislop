@@ -38,6 +38,7 @@ namespace Kern.Game.Session
         private readonly ILocalPlayerState _localPlayer;
         private readonly IPlayerStats _playerStats;
         private readonly IWorldLoadProgress _loadProgress;
+        private readonly IWorldPresentationState _presentationState;
         private readonly TerrainRenderer _terrainRenderer;
         private readonly SurfaceRenderer _surfaceRenderer;
         private readonly LightingEngine _lightingEngine;
@@ -50,6 +51,7 @@ namespace Kern.Game.Session
             ILocalPlayerState localPlayer,
             IPlayerStats playerStats,
             IWorldLoadProgress loadProgress,
+            IWorldPresentationState presentationState,
             TerrainRenderer terrainRenderer,
             SurfaceRenderer surfaceRenderer,
             LightingEngine lightingEngine,
@@ -61,6 +63,7 @@ namespace Kern.Game.Session
             _localPlayer = localPlayer;
             _playerStats = playerStats;
             _loadProgress = loadProgress;
+            _presentationState = presentationState;
             _terrainRenderer = terrainRenderer;
             _surfaceRenderer = surfaceRenderer;
             _lightingEngine = lightingEngine;
@@ -70,6 +73,7 @@ namespace Kern.Game.Session
         private GameObject? _uiRoot;
         private bool _worldLoadPending;
         private bool _worldLoadPublished;
+        private ulong _worldEntryTransitionId;
         private bool _uiSetup;
 
         public void Dispose()
@@ -129,9 +133,16 @@ namespace Kern.Game.Session
 
         public void NotifyWorldLoaded()
         {
+            _worldEntryTransitionId = _presentationState.BeginWorldEntry();
             IsWorldLoaded = false;
             _worldLoadPublished = false;
             _worldLoadPending = true;
+            DeauthorizeUI();
+            if (CurrentState == GameState.InGame)
+            {
+                SetState(GameState.Connecting);
+            }
+
             _readinessDiagNextLog = Time.unscaledTime + ReadinessDiagInterval;
             _loadProgress.Report(WorldLoadPhase.WorldManifest);
             TryPublishWorldLoaded();
@@ -175,7 +186,10 @@ namespace Kern.Game.Session
                     $"statsDetail=hp={_playerStats?.MaxHealth}/basket={_playerStats?.BasketCapacity}/nick=({_playerStats?.Nickname})/lvl={_playerStats?.Level}," +
                     $"terrain={(terrain != null && terrain.IsReadyForGameplay)}," +
                     $"surface={(_surfaceRenderer == null || _surfaceRenderer.IsInitialized)}," +
+                    $"surfaceView={(_surfaceRenderer == null || _surfaceRenderer.IsReadyForGameplay)}," +
                     $"lighting={(_lightingEngine == null || _lightingEngine.IsInitialized)}," +
+                    $"lightingOutput={(_lightingEngine != null && _lightingEngine.IsReadyForGameplay)}," +
+                    $"worldAssets={_textureService.IsWorldAssetsReady}," +
                     $"assetPending={pendingAssets}," +
                     $"assetQueued={queuedAssets}," +
                     $"cellTexPending={_textureService.PendingCellTextureRequests}");
@@ -191,8 +205,9 @@ namespace Kern.Game.Session
                 _loadProgress.Report(WorldLoadPhase.TerrainMesh);
             }
 
-            if ((_surfaceRenderer == null || _surfaceRenderer.IsInitialized) &&
-                (_lightingEngine == null || _lightingEngine.IsInitialized) &&
+            if ((_surfaceRenderer == null || _surfaceRenderer.IsReadyForGameplay) &&
+                (_lightingEngine == null || _lightingEngine.IsReadyForGameplay) &&
+                _textureService.IsWorldAssetsReady &&
                 pendingAssets == 0 && queuedAssets == 0 &&
                 _textureService.PendingCellTextureRequests == 0)
             {
@@ -203,8 +218,9 @@ namespace Kern.Game.Session
                 robot == null || !robot.IsVisualsLoaded ||
                 _playerStats == null || !_playerStats.IsReady ||
                 terrain == null || !terrain.IsReadyForGameplay ||
-                _lightingEngine == null || !_lightingEngine.IsInitialized ||
-                (_surfaceRenderer != null && !_surfaceRenderer.IsInitialized) ||
+                _lightingEngine == null || !_lightingEngine.IsReadyForGameplay ||
+                (_surfaceRenderer != null && !_surfaceRenderer.IsReadyForGameplay) ||
+                !_textureService.IsWorldAssetsReady ||
                 (pendingAssets > 0) ||
                 (queuedAssets > 0) ||
                 _loadProgress == null)
@@ -214,6 +230,12 @@ namespace Kern.Game.Session
 
             _loadProgress.Report(WorldLoadPhase.Done);
             player.SetGameplayVisible();
+            if (!_presentationState.PublishWorldEntry(_worldEntryTransitionId))
+            {
+                throw new InvalidOperationException(
+                    $"World presentation transition {_worldEntryTransitionId} was superseded before entry publication.");
+            }
+
             AuthorizeUI();
 
             _worldLoadPending = false;

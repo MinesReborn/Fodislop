@@ -280,13 +280,6 @@
     "guid": "ab6a7bfceaf2a4f90bff4c34320d1fb8"
   },
   {
-    "old": "Assets/Resources/EffekseerSettings.asset",
-    "path": "Assets/Infrastructure/VisualEffects/Effekseer/Resources/EffekseerSettings.asset",
-    "sha256": "e81717a3983036e0250eb42974632439bd04ad61e10b29eab78ebc750db70607",
-    "meta_sha256": "006ca351eb07905127923afde0345ff504bababdc8899a3e859c6b4ec6d83b67",
-    "guid": "0943917d1442141808cb89199939a52c"
-  },
-  {
     "old": "Assets/Resources/PerformanceTestRunInfo.json",
     "path": "Assets/Testing/Performance/Resources/PerformanceTestRunInfo.json",
     "sha256": "c5b2dac790c25391b44749831f690fff6c80a864356ac22430dd3b7bcefd6091",
@@ -978,20 +971,6 @@
     "sha256": "655164f240e20c033a126d09f45ef7f0f10c2fcf04f56d6e8e06474610d97db1",
     "meta_sha256": "3ae8ff538e8b90aabe18ec69b3caf5cdd823f4643ac8d6a2524a04bb26c5bd82",
     "guid": "c157ab0d3734a45488373d32debcbbb4"
-  },
-  {
-    "old": "Assets/Resources/Programmator/160.png",
-    "path": "Assets/Resources/Programmator/Icons/Actions/Combat/Aggression/160.png",
-    "sha256": "069a3b73d6cce72cd59f69eb4225da3eca6db17a5c81808a87a6f6199bcbe330",
-    "meta_sha256": "4a55b1fee07674b69d087c8b2c7f17cd148a4618b1db44a6131a1d985821a7c4",
-    "guid": "9f576ca2b7e1ab045aec33543e770120"
-  },
-  {
-    "old": "Assets/Resources/Programmator/161.png",
-    "path": "Assets/Resources/Programmator/Icons/Actions/Combat/Aggression/161.png",
-    "sha256": "80f0d1271f5c6ce7f00324db02fa446549baaa4077ebf0492c6aeea2798dec15",
-    "meta_sha256": "9bc7f863b603f77d9549dde1f050bafde54eb8f95122af57660176937d0a773e",
-    "guid": "6879145cfd4e2bc4e8c69b1c30e96fc9"
   },
   {
     "old": "Assets/Resources/Programmator/162.png",
@@ -2024,28 +2003,28 @@
   },
   {
     "old": "Assets/Shaders/Terrain/TerrainCellData.hlsl",
-    "path": "Assets/Shaders/Terrain/Cells/TerrainCellData.hlsl",
+    "path": "Assets/Shaders/Terrain/Cells/Assembly/TerrainCellData.hlsl",
     "sha256": "7a49dcb7832a94e1e689a3fed3490a4c73b9f26faca49fac42110fb866a79b51",
     "meta_sha256": "41304b8b5ce0a9be4b0eccfec707f58ab06a8f5fd8828f49b223a9145944bc59",
     "guid": "e2ea5242117a049cb813eb6f16898a19"
   },
   {
     "old": "Assets/Shaders/Terrain/Terrain.shader",
-    "path": "Assets/Shaders/Terrain/Rendering/Terrain.shader",
+    "path": "Assets/Shaders/Terrain/Rendering/Shader/Terrain.shader",
     "sha256": "b9e79011f32938bfe7d99aa7c9b314616be207cfb030cd14dec02bb209759e77",
     "meta_sha256": "d7bc666d2284fe49b987500cfea8f3fabefed716c74d70c3e92f7d71089872ac",
     "guid": "943286b1ceedb6e49881652498d6ec13"
   },
   {
     "old": "Assets/Shaders/Terrain/TerrainPassCommon.hlsl",
-    "path": "Assets/Shaders/Terrain/Rendering/Passes/TerrainPassCommon.hlsl",
+    "path": "Assets/Shaders/Terrain/Rendering/Passes/Common/TerrainPassCommon.hlsl",
     "sha256": "13eba0c653731c8ff24368ce6885c325b977707bdc0a6cb46e76ee5c1ec95e4a",
     "meta_sha256": "e001c189f36be2447632be56fdc4e0d5adea6d4b06f242cb806fd7ffdecdd4ea",
     "guid": "96ab8e83ee8a4202969f91c737cd67cd"
   },
   {
     "old": "Assets/Shaders/Terrain/TerrainCellFormat.hlsl",
-    "path": "Assets/Shaders/Terrain/Cells/TerrainCellFormat.hlsl",
+    "path": "Assets/Shaders/Terrain/Cells/Format/TerrainCellFormat.hlsl",
     "sha256": "b15ef92185f1edb8978433b6391f0ef1e340ae44167e1a239dbb409bfd098f65",
     "meta_sha256": "9c3f8c1d516b75796489506b74369b86d4fafe32293796ba29babab8c33428d4",
     "guid": "09442ce91430485aab03ed94dab403f6"
@@ -2318,7 +2297,7 @@
   },
   {
     "old": "Assets/Resources/Shaders/Lighting/Dynamic/DynamicPolar.hlsl",
-    "path": "Assets/Resources/Shaders/Lighting/Dynamic/Polar/DynamicPolar.hlsl",
+    "path": "Assets/Resources/Shaders/Lighting/Dynamic/Polar/Dispatch/DynamicPolar.hlsl",
     "sha256": "1dcd8847c677052e67a94178a035bdf37b4896ef713f721ed2afff6092333645",
     "meta_sha256": "6f6a4d952be50fb610d10109cf35152791877da1e5d3dd02cc0085b5fb28f3ff",
     "guid": "a80305a216ff649589042a629b7d7fab"

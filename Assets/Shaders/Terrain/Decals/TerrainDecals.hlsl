@@ -1,16 +1,10 @@
 #ifndef KERN_TERRAIN_DECALS_INCLUDED
 #define KERN_TERRAIN_DECALS_INCLUDED
 
-#include "Assets/Shaders/Terrain/Cells/TerrainCellFormat.hlsl"
+#include "Assets/Shaders/Terrain/Cells/Format/TerrainCellFormat.hlsl"
 
-TEXTURE2D(_TerrainDecalAtlas);
-SAMPLER(sampler_TerrainDecalAtlas);
-
-TEXTURE2D(_TerrainDecalRockAtlas);
-SAMPLER(sampler_TerrainDecalRockAtlas);
-
-TEXTURE2D(_TerrainDecalSandAtlas);
-SAMPLER(sampler_TerrainDecalSandAtlas);
+TEXTURE2D_ARRAY(_TerrainDecalAtlasArray);
+SAMPLER(sampler_TerrainDecalAtlasArray);
 
 float2 TerrainTransformDecalUV(float2 uv, uint rotation, bool mirror)
 {
@@ -41,16 +35,19 @@ float2 TerrainTransformDecalUV(float2 uv, uint rotation, bool mirror)
 
 // All atlases use hard light on linear surface color before illumination.
 
-float3 ApplyTerrainDecal(float3 baseColor, float2 localUV, float packedFamily, float packedPlacement)
+float3 ApplyTerrainDecal(float3 baseColor, float2 localUV, float packedTextureIndex, float packedPlacement)
 {
     if (packedPlacement < 0.5)
     {
         return baseColor;
     }
 
-    uint family = (uint)round(packedFamily);
-    bool useSand = family == KERN_TERRAIN_DECAL_ATLAS_SAND;
-    bool useRock = family == KERN_TERRAIN_DECAL_ATLAS_ROCK;
+    uint decalTextureIndex = (uint)round(packedTextureIndex);
+    if (decalTextureIndex == 0u)
+    {
+        return baseColor;
+    }
+
     uint code = (uint)round(packedPlacement) - 1u;
 
     uint variant   = code & KERN_TERRAIN_DECAL_VARIANT_MASK;
@@ -61,43 +58,28 @@ float3 ApplyTerrainDecal(float3 baseColor, float2 localUV, float packedFamily, f
 
     float2 transformedUV = TerrainTransformDecalUV(localUV, rotation, mirror);
     float2 placementOffset = float2(offsetX, offsetY) / 3.0 - 0.5;
-    // Rock artwork fits the rounded cell only while centred. Ground artwork
-    // has enough padding for the material's bounded two-pixel translation.
-    transformedUV += placementOffset * (useRock ? 0.0 : _DecalPlacementOffset);
+    float4 atlasInfo = _TerrainDecalAtlasInfo[decalTextureIndex];
+    float4 effect = _TerrainDecalEffects[decalTextureIndex];
+    transformedUV += placementOffset * effect.y;
 
-    // Sixteen horizontal 32x32 slots in a 512x32 atlas. Sampling texel centres
-    // prevents a transformed edge from crossing into the neighbouring slot.
-    float2 pixel   = float2(variant * 32.0, 0.0) +
-        clamp(saturate(transformedUV) * 32.0, 0.5, 31.5);
-    float2 atlasUV = pixel / float2(512.0, 32.0);
+    uint columns = max((uint)atlasInfo.z, 1u);
+    uint rows = max((uint)atlasInfo.w, 1u);
+    uint variantCount = columns * rows;
+    variant %= variantCount;
+    // AtlasInfo.xy is the fixed client tile size; zw is the fixed grid layout.
+    float2 tileSize = atlasInfo.xy;
+    float2 atlasSize = tileSize * float2(columns, rows);
+    float2 slotOrigin = float2(variant % columns, variant / columns) * tileSize;
+    float2 pixel = slotOrigin + clamp(saturate(transformedUV) * tileSize, 0.5, tileSize - 0.5);
+    float2 atlasUV = pixel / atlasSize;
+    half4 decal = SAMPLE_TEXTURE2D_ARRAY_LOD(
+        _TerrainDecalAtlasArray,
+        sampler_TerrainDecalAtlasArray,
+        atlasUV,
+        decalTextureIndex,
+        0.0);
 
-    half4 decal;
-    if (useRock)
-    {
-        decal = SAMPLE_TEXTURE2D_LOD(
-            _TerrainDecalRockAtlas,
-            sampler_TerrainDecalRockAtlas,
-            atlasUV,
-            0.0);
-    }
-    else if (useSand)
-    {
-        decal = SAMPLE_TEXTURE2D_LOD(
-            _TerrainDecalSandAtlas,
-            sampler_TerrainDecalSandAtlas,
-            atlasUV,
-            0.0);
-    }
-    else
-    {
-        decal = SAMPLE_TEXTURE2D_LOD(
-            _TerrainDecalAtlas,
-            sampler_TerrainDecalAtlas,
-            atlasUV,
-            0.0);
-    }
-
-    float strength = (useRock || useSand) ? _RockDecalStrength : _GroundDecalStrength;
+    float strength = effect.x;
     float3 darken = baseColor * (2.0 * decal.rgb);
     float3 lighten = 1.0 - (1.0 - baseColor) * (2.0 - 2.0 * decal.rgb);
     float3 hardLight = lerp(darken, lighten, step(0.5, decal.rgb));

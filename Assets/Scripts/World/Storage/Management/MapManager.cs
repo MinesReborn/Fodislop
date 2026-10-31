@@ -229,7 +229,7 @@ namespace Kern.World
                     $"WorldInitPacket dimensions are invalid: {packet.Width}x{packet.Height}.");
             }
 
-            _cellCatalog.LoadConfigurations(packet.Cells, packet.TileGroups);
+            _cellCatalog.LoadConfigurations(packet.Cells, packet.TileGroups, packet.AssetManifest);
 
             _worldCodeName = packet.CodeName;
             _worldDisplayName = packet.DisplayName;
@@ -278,6 +278,12 @@ namespace Kern.World
         public float GetMinMoveCooldown() => _cellCatalog.GetMinMoveCooldown();
 
         public CellConfigurationPacket GetCellConfig(CellType type) => _cellCatalog.GetCellConfig(type);
+
+        public bool TryGetAssetDefinition(string? filename, out WorldAssetDefinitionPacket definition) =>
+            _cellCatalog.TryGetAssetDefinition(filename, out definition);
+
+        public bool TryGetAudioBankFilenames(out IReadOnlyList<string> filenames) =>
+            _cellCatalog.TryGetAudioBankFilenames(out filenames);
 
         public bool TryGetTileGroup(CellType type, out int groupId) => _cellCatalog.TryGetTileGroup(type, out groupId);
 
@@ -367,14 +373,11 @@ namespace Kern.World
 
                             var config = GetCellConfig(cellType);
 
-                            if (config.Flags != 0)
+                            bool isPassable = config.DrawLayer != CellRenderLayer.Foreground;
+                            if (!isPassable)
                             {
-                                bool isPassable = ((CellConfigFlags)config.Flags).HasFlag(CellConfigFlags.Passable);
-                                if (!isPassable)
-                                {
-                                    Gizmos.color = new Color(1, 0, 0, 0.15f);
-                                    Gizmos.DrawCube(new Vector3(x + 0.5f, y + 0.5f, 0), new Vector3(0.9f, 0.9f, 0.1f));
-                                }
+                                Gizmos.color = new Color(1, 0, 0, 0.15f);
+                                Gizmos.DrawCube(new Vector3(x + 0.5f, y + 0.5f, 0), new Vector3(0.9f, 0.9f, 0.1f));
                             }
                         }
                     }

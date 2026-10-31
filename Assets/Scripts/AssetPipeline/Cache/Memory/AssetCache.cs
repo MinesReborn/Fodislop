@@ -11,10 +11,10 @@ using UnityEngine;
 namespace Kern.AssetPipeline.Cache;
 public sealed class AssetCache
 {
-    private readonly ConcurrentDictionary<string, AssetCacheEntry> _entries = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, long> _entrySizes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, AssetCacheEntry> _entries = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, long> _entrySizes = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<string> _accessOrder = new();
-    private readonly ConcurrentDictionary<string, long> _decodedEntrySizes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, long> _decodedEntrySizes = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<string> _decodedAccessOrder = new();
     private readonly Func<string, CancellationToken, int, UniTask<byte[]?>> _bytesLoader;
 

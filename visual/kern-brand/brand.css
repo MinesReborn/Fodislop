@@ -141,10 +141,17 @@ section.sec { padding: 72px 0; border-bottom: 1px solid var(--seam); display: gr
 
 @media (max-width: 900px) {
   .page { padding: 0 16px 80px; }
-  .cover, section.sec, .logo-stage, .do-dont, .voice { grid-template-columns: 1fr; }
-  .cover h1 { font-size: 64px; }
+  .cover, section.sec, .logo-stage, .do-dont, .voice { grid-template-columns: minmax(0, 1fr); }
+  .lockup { gap: 14px; }
+  .lockup img { width: 56px; height: 56px; }
+  .lockup .wm { font-size: 36px; }
+  .lockup .hz { width: 40px; height: 40px; font-size: 26px; }
+  .cover h1 { font-size: min(64px, 14.5vw); }
+  .sheet-top { flex-wrap: wrap; height: auto; padding: 14px 0; row-gap: 8px; }
+  .sheet-top b { white-space: nowrap; }
   .cover .hanzi { display: none; }
-  .g3, .g4, .kit, .social { grid-template-columns: 1fr 1fr; }
+  .g3, .g4, .kit, .social { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .demo > * { max-width: 100%; }
   .swatches { grid-template-columns: repeat(3, 1fr); }
   .icons { grid-template-columns: repeat(5, 1fr); }
   .sec > header { position: static; }

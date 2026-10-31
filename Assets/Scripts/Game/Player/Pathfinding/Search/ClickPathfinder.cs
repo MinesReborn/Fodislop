@@ -166,7 +166,13 @@ public static class ClickPathfinder
 
     private static int CellCostMs(IWorldDataStorage storage, IMapDataProvider mapDataProvider, int x, int y)
     {
-        if (!storage.TryGetCell(x, y, out CellType cell))
+        if (!storage.TryGetCell(x, y, out CellType cell) ||
+            cell is CellType.Unloaded or CellType.Pregener)
+        {
+            return -1;
+        }
+
+        if (!PlayerMovementValidator.IsPassable(cell, mapDataProvider.GetCellConfig(cell)))
         {
             return -1;
         }

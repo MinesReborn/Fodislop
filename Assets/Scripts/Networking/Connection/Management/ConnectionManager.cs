@@ -14,7 +14,7 @@ using MinesServer.Networking.Client.Packets.Connection;
 using MinesServer.Networking.Client.Packets.GUI;
 using MinesServer.Networking.Connection;
 using MinesServer.Networking.Server.Packets;
-using MinesServer.Networking.Shared;
+using MinesServer.Networking.Contracts;
 using Unity.Profiling;
 using UnityEngine;
 using VContainer;
@@ -27,19 +27,6 @@ namespace Kern.Networking.Connection
 {
     public class ConnectionManager : MonoBehaviour, IConnectionService, IWorldRegionRequester
     {
-        private static readonly ProfilerMarker s_packetDrainMarker =
-            new("Kern.Net.DrainPacketQueue");
-
-        private static readonly AllocationLedger.Entry s_allocationEntry =
-            AllocationLedger.Register("Сеть — разбор очереди");
-
-        // Бюджет на обработку входящих пакетов — доля времени КАДРА, а не стены часов.
-        // Пропорция к deltaTime масштабирует пропускную способность с частотой кадров
-        // (независимость от 30 vs 144 FPS) и ограничивает долю CPU, но при этом
-        // всплеск пакетов (мировые текстуры при входе в мир) дренится за несколько
-        // кадров, а не тянется секунду, как с накоплением 2% реального времени.
-        private const float PacketDrainBudgetFractionOfFrame = 0.33f;
-        private const float PacketDrainBudgetMaximumSeconds = 0.01f;
 
         public IServerConnection? Connection { get; private set; }
         public bool IsConnected => Connection != null && Connection.ConnectionStatus == ConnectionStatus.Connected;
@@ -64,6 +51,7 @@ namespace Kern.Networking.Connection
         public event Action? OnReconnectHidden;
 
         private readonly InboundPacketBuffer _inboundPackets = new();
+        private InboundPacketDrain _packetDrain = null!;
         private readonly ReconnectBackoff _reconnectBackoff = new();
 
         [Inject]
@@ -95,6 +83,9 @@ namespace Kern.Networking.Connection
         protected void Awake()
         {
             _inboundPackets.CaptureMainThread();
+            _packetDrain = new InboundPacketDrain(_inboundPackets,
+                () => OnPacketBatchStarted?.Invoke(), () => OnPacketBatchCompleted?.Invoke(),
+                packet => OnPacketReceived?.Invoke(packet), HandleServerDisconnect);
         }
 
         protected void OnDestroy()
@@ -104,83 +95,8 @@ namespace Kern.Networking.Connection
 
         protected void Update()
         {
-            DrainPacketQueue();
+            _packetDrain.Drain();
             UpdateReconnect();
-        }
-
-        private void DrainPacketQueue()
-        {
-            using var marker = s_packetDrainMarker.Auto();
-            using var allocationScope = AllocationLedger.Measure(s_allocationEntry);
-            float budgetSeconds = Mathf.Min(
-                Time.unscaledDeltaTime * PacketDrainBudgetFractionOfFrame,
-                PacketDrainBudgetMaximumSeconds);
-            long startTimestamp = System.Diagnostics.Stopwatch.GetTimestamp();
-            int processedCount = 0;
-            bool stoppedByBudget = false;
-            bool stoppedByCap = false;
-
-            bool batchActive = _inboundPackets.Count > 1;
-            if (batchActive)
-            {
-                OnPacketBatchStarted?.Invoke();
-            }
-
-            try
-            {
-                while (processedCount < NetworkRuntimeLimits.MaximumPacketBatchPerFrame)
-                {
-                    // A handler cannot be preempted. Stop before dequeuing the next
-                    // packet so one expensive handler is the only unavoidable overrun.
-                    float elapsedMs = (float)((System.Diagnostics.Stopwatch.GetTimestamp() - startTimestamp) * 1000.0 / System.Diagnostics.Stopwatch.Frequency);
-                    if (processedCount > 0 && elapsedMs >= budgetSeconds * 1000f)
-                    {
-                        stoppedByBudget = true;
-                        break;
-                    }
-
-                    if (!_inboundPackets.TryTake(out ServerPacket packet))
-                    {
-                        break;
-                    }
-
-                    processedCount++;
-                    try
-                    {
-                        OnPacketReceived?.Invoke(packet);
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.LogException(
-                            new InvalidOperationException(
-                                "A server packet could not be processed. Disconnecting to avoid continuing with corrupted state.",
-                                ex));
-                        HandleServerDisconnect("Client packet processing failed.");
-                        break;
-                    }
-                }
-            }
-            finally
-            {
-                if (batchActive)
-                {
-                    OnPacketBatchCompleted?.Invoke();
-                }
-            }
-
-            if (processedCount >= NetworkRuntimeLimits.MaximumPacketBatchPerFrame &&
-                !_inboundPackets.IsEmpty)
-            {
-                stoppedByCap = true;
-            }
-
-            // Остаток очереди и причина обрыва — единственный признак того, что
-            // пакет уже пришёл, но до обработчика в этом кадре не добрался.
-            PacketTelemetry.RecordQueueState(
-                _inboundPackets.Count,
-                _inboundPackets.PacketBytes,
-                stoppedByBudget,
-                stoppedByCap);
         }
 
         private void UpdateReconnect()

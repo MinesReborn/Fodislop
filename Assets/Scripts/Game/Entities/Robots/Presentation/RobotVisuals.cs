@@ -8,7 +8,7 @@ using Kern.Core.Lifecycle;
 using UnityEngine;
 
 using Kern.Game.Rendering;
-using Kern.Game.VisualEffects.Tentacles;
+using Kern.Game.Visual.Entities.Tentacles;
 
 namespace Kern.Game.Entities.Robots;
 

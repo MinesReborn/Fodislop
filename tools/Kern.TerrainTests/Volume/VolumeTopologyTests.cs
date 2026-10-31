@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Kern.World.Terrain;
+using MinesServer.Networking.Server.Packets.Connection;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -90,7 +91,7 @@ public sealed class VolumeTopologyTests
     public void RoundBlockEdgesEncloseTheIndependentPixelAreaAndAreOnArtGrid()
     {
         var buffers = new TerrainCellBuffers();
-        buffers.Type(1, 3u << 7);
+        buffers.Type(1, (uint)CellOutlineKind.Round << TerrainCellFormat.TypeOutlineShift);
         buffers.Set(2, 2, 1);
         var topology = new TerrainVolumeTopology();
         topology.Publish(buffers, Vector2Int.zero, 8, 8, false);

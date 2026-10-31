@@ -34,8 +34,8 @@ using MinesServer.Networking.Server.Packets.Movement;
 using MinesServer.Networking.Server.Packets.Utilities;
 using MinesServer.Networking.Server.Packets.World;
 using MinesServer.Networking.Server.Packets.Programmator;
-using MinesServer.Networking.Shared;
-using MinesServer.Networking.Shared.Packets;
+using MinesServer.Networking.Contracts;
+using MinesServer.Networking.Contracts.Packets;
 using UnityEngine;
 using VContainer;
 
@@ -43,6 +43,7 @@ namespace Kern.Networking.Offline;
 public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegionRequester
 {
     private readonly ITextureStorageService _textureStorage;
+    private readonly IRuntimeAssetPaths _assetPaths;
     private readonly IAsyncOperationSupervisor _operations;
     private readonly IRuntimeDebugSettings _debugSettings;
     private readonly DummyConnectionSession _session = new();
@@ -64,7 +65,7 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
         IOfflineScenarioSettings scenarioSettings,
         DummyWorldMapSource worldMaps,
         IDummyClock clock,
-        IRuntimeAssetPaths? assetPaths = null)
+        IRuntimeAssetPaths assetPaths)
         : this(
             textureStorage,
             itemCatalog,
@@ -87,10 +88,11 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
         IDummyWorldMapSource worldMaps,
         DummyTokenStore tokenStore,
         IDummyClock clock,
-        IRuntimeAssetPaths? assetPaths = null)
+        IRuntimeAssetPaths assetPaths)
     {
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _textureStorage = textureStorage;
+        _assetPaths = assetPaths;
         _operations = operations;
         _debugSettings = debugSettings;
         _scenario = new DummyScenarioController(scenarioSettings);
@@ -102,7 +104,7 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
             SendPacket,
             operations,
             clock,
-            LoopAlive);
+            _session.IsAlive);
         _inventoryResponder = new DummyInventoryResponder(
             SendPacket,
             _buffManager.ActivateBuff,
@@ -118,7 +120,7 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
             {
                 SendPacket(new ServerPacket(new HBPacket(new IHBPacket[]
                 {
-                    new VFXPacket(VFX.TpOut, 0, _playerState.X, _playerState.Y,
+                    new VisualPacket(VisualEffect.TpOut, 0, _playerState.X, _playerState.Y,
                         Array.Empty<StringPairPacket>()),
                 })));
                 await _worldState.SendChunksAroundAsync(
@@ -128,12 +130,12 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
                     CancellationToken.None);
                 _playerState.SetPosition(destX, destY);
             });
-        // LoopAlive привязан к жизненному циклу соединения: чат-петля
+        // _session.IsAlive привязан к жизненному циклу соединения: чат-петля
         // умирает вместе с коннектом (раньше она жила вечно и текла
         // через реконнекты — фиксированный источник мусора).
         _chatSimulator = new DummyChatSimulator(
             SendPacket,
-            LoopAlive,
+            _session.IsAlive,
             operations,
             clock);
         _chatResponder = new DummyChatResponder(SendPacket, clock);
@@ -162,14 +164,14 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
             _mockBotId,
             operations,
             () => _session.LifecycleVersion,
-            LoopAlive);
+            _session.IsAlive);
         _blockSpawner = new DummyBlockSpawner(
             operations,
             clock,
             _worldState,
             _playerState,
             SendPacket,
-            LoopAlive,
+            _session.IsAlive,
             type => _textureStorage.HasTexture($"cells/{type}"));
         _windowResponder = new DummyWindowResponder(
             SendPacket,
@@ -191,17 +193,16 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
             _missionRunner,
             _teleportPositions,
             SendPacket,
-            LoopAlive,
+            _session.IsAlive,
             _blockSpawner,
             _actionResponder,
+            _textureStorage,
             assetPaths);
     }
 
-    private string PlayerName => _authSession.PlayerName;
+    private const long PlayerLevel = 12345;
 
-    private long Level => 12345;
-
-    private long Currency => 123456;
+    private const long PlayerCurrency = 123456;
 
     public ConnectionStatus ConnectionStatus => _session.Status;
 
@@ -210,7 +211,12 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
     public event Action? OnDisconnected;
     public event Action? OnDisconnecting;
     public event Action? OnConnecting;
-    public event Action<Exception>? OnError;
+    // Offline connection does not decode transport frames, so it has no transport errors to publish.
+    event Action<Exception> IConnection<ServerPacket, ClientPacket>.OnError
+    {
+        add { }
+        remove { }
+    }
 
     public int DecodeErrorCount => 0;
 
@@ -331,10 +337,7 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
         OnDisconnected?.Invoke();
     }
 
-    private bool LoopAlive(int lifecycleVersion)
-    {
-        return _session.IsAlive(lifecycleVersion);
-    }
+
 
     public void Dispose()
     {
@@ -375,43 +378,8 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
         switch (packet.Data)
         {
             case ClientHelloPacket clientHello:
-                if (!_scenario.TryBeginHello(_session.LifecycleVersion))
-                {
-                    return;
-                }
-
-                if (_scenario.RejectsAuthentication)
-                {
-                    OnReceived?.Invoke(DummyWindowBuilder.BuildAuthWindow());
-                    return;
-                }
-
-                string receivedToken = clientHello.AuthToken;
-                // Офлайн-сервер пермиссивный и окна авторизации не вызывает:
-                // Знакомые токены принимаются как есть, для пустого или
-                // незнакомого dummy-сервер сам выдаёт новый
-                // и запоминает его, чтобы авто-вход работал и дальше.
-                string resolvedToken = _authSession.ResolveToken(receivedToken);
-
-                if (clientHello.ClientVersion < global::Kern.Core.ClientProtocolVersion.ClientVersion)
-                {
-                    // Причина передаётся ключом словаря: StatusProcessor и
-                    // ReconnectUI резолвят его через HasKey, если он попадёт
-                    // на экран.
-                    OnReceived?.Invoke(new ServerPacket(new OutdatedClientPacket(
-                        2, "Mines 3", "network.error.old_client",
-                        "https://minesgame.ru/download", string.Empty)));
-                    return;
-                }
-
-                OnReceived?.Invoke(new ServerPacket(new AuthTokenPacket(resolvedToken)));
-
-                if (_scenario.StallsWorldInitialization)
-                {
-                    return;
-                }
-
-                _operations.Run("dummy_world_init", InitWorldAsync);
+                DummyHelloResponder.Handle(clientHello, _scenario, _session, _authSession,
+                    _operations, SendPacket, InitWorldAsync);
                 break;
             case RuntimeAssetRequestPacket runtimeAssets:
                 _operations.Run(
@@ -419,6 +387,7 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
                     _ => DummyAssetResponder.HandleRequestAsync(
                         runtimeAssets,
                         _textureStorage,
+                        _assetPaths,
                         SendPacket));
                 break;
             case OpenHelpClickPacket:
@@ -506,7 +475,9 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
     {
         try
         {
-            await _worldState.EnsureInitializedAsync(InitWorldCoreAsync);
+            await _worldState.EnsureInitializedAsync(() => _worldStartup.InitializeAsync(
+                PrebakedWorldCodeName, _session.LifecycleVersion, _authSession.PlayerName,
+                PlayerLevel, PlayerCurrency, _mockBotId));
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -527,15 +498,6 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
         }
     }
 
-    private UniTask InitWorldCoreAsync()
-    {
-        return _worldStartup.InitializeAsync(
-            PrebakedWorldCodeName,
-            _session.LifecycleVersion,
-            PlayerName,
-            Level,
-            Currency,
-            _mockBotId);
-    }
+
 
 }

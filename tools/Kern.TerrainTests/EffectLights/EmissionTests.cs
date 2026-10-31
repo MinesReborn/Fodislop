@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using Kern;
 using Kern.AssetPipeline.Animation;
-using Kern.Game.VisualEffects.Lighting;
+using Kern.Game.Visual.Effects.Lighting;
 using Kern.World.Lighting;
 using NUnit.Framework;
 using UnityEngine;

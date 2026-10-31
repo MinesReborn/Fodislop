@@ -8,7 +8,8 @@ using MinesServer.Data;
 using UnityEditor;
 using UnityEngine;
 
-namespace Kern.Editor;
+namespace Kern.Editor
+{
 
 public sealed class MapbConverter : EditorWindow
 {
@@ -356,4 +357,5 @@ public sealed class MapbConverter : EditorWindow
 
         return $"{size:F2} {suffixes[i]}";
     }
+}
 }

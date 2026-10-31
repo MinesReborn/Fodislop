@@ -28,7 +28,7 @@ public interface IProgrammatorTextureCatalog
 }
 
 // Иконки операторов приходят с сервера через IAssetLoader (файлы вида
-// 'programmator/166.png' — тот же канал, что VFX/Items/Robot), а не из
+// 'programmator/166.png' — тот же канал, что VisualEffect/Items/Robot), а не из
 // билда клиента: сервер владеет контентом операторов. Пока файл не загружен
 // (или сервер недоступен), GetGlyph отдаёт локальную копию из Resources,
 // чтобы окно открывалось мгновенно; серверная версия подменяет её по факту

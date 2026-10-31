@@ -29,8 +29,15 @@ internal static class Program
         string shim = Read(root, "tools/Kern.LightingTests/Native/Transport/Shims/NativeTransportShim.cpp")
             .Replace("std::round(a.x)", "std::nearbyint(a.x)", StringComparison.Ordinal)
             .Replace("std::round(a.y)", "std::nearbyint(a.y)", StringComparison.Ordinal);
-        string format = Read(root, "Assets/Shaders/Terrain/Cells/TerrainCellFormat.hlsl");
-        string loader = Read(root, "Assets/Shaders/Terrain/Cells/TerrainCellData.hlsl");
+        string format = Read(root, "Assets/Shaders/Terrain/Cells/Format/TerrainCellFormat.hlsl");
+        string animationProfile = Read(root, "Assets/Shaders/Terrain/Animation/TerrainAnimationProfile.hlsl")
+            .Replace("#include \"Assets/Shaders/Terrain/Cells/Format/TerrainCellFormat.hlsl\"", string.Empty, StringComparison.Ordinal);
+        string loader =
+            Read(root, "Assets/Shaders/Terrain/Cells/Decoding/TerrainCellDecoding.hlsl") + "\n" +
+            Read(root, "Assets/Shaders/Terrain/Autotiling/TerrainCellTiling.hlsl") + "\n" +
+            Read(root, "Assets/Shaders/Terrain/Cells/Variation/TerrainCellVariation.hlsl") + "\n" +
+            Read(root, "Assets/Shaders/Terrain/Cells/Geometry/TerrainCellGeometry.hlsl") + "\n" +
+            Read(root, "Assets/Shaders/Terrain/Cells/Vertices/TerrainCellVertexLoader.hlsl");
         string terrainContour = Read(root, "Assets/Shaders/Terrain/Geometry/TerrainContour.hlsl");
         string terrainGeometryContract = Read(root, "Assets/Shaders/Terrain/Geometry/TerrainGeometryContract.hlsl");
         string screenCoverage = SliceBetween(terrainContour, "// The visible terrain", "float TerrainCellOccupancy(");
@@ -38,8 +45,8 @@ internal static class Program
         string terrainDepth = Read(root, "Assets/Shaders/Terrain/Geometry/TerrainDepth.hlsl");
         string depthScenario = Read(root, "tools/Kern.TerrainRasterTests/Native/Terrain/depth.cpp");
         string roundCoverage = SliceBetween(terrainContour, "float EvaluateRoundableBlockAlpha(", "// The rim switch is bound");
-        string terrainShader = Read(root, "Assets/Shaders/Terrain/Rendering/Terrain.shader");
-        string passCommon = Read(root, "Assets/Shaders/Terrain/Rendering/Passes/TerrainPassCommon.hlsl");
+        string terrainShader = ReadWithIncludes(root, "Assets/Shaders/Terrain/Rendering/Shader/Terrain.shader");
+        string passCommon = Read(root, "Assets/Shaders/Terrain/Rendering/Passes/Common/TerrainPassCommon.hlsl");
         string volumeInput = Regex.Match(terrainShader, @"struct TerrainVolumeVertexInput\s*\{[^}]+\}").Value;
         if (volumeInput.Contains("TEXCOORD", StringComparison.Ordinal))
         {
@@ -285,8 +292,8 @@ internal static class Program
                     (string before, string after) = mutation switch
                     {
                         "rim-merges-any-masses" => (
-                            "return otherMass != 0u && TerrainTypeReliefGroup(own) == otherMass;",
-                            "return otherMass != 0u;"),
+                            "return !TerrainTypeIsBackground(other) && otherMass != 0u && TerrainTypeReliefGroup(own) == otherMass;",
+                            "return !TerrainTypeIsBackground(other) && otherMass != 0u;"),
                         "background-ignores-occlusion" => (
                             "        if (occluded && (!retainBackground || !exposedPresentationGround))\n        {\n            return v;\n        }",
                             "        if (false)\n        {\n            return v;\n        }"),
@@ -331,7 +338,7 @@ internal static class Program
                     .Replace("Texture2D<float>", "AoTexture", StringComparison.Ordinal)
                     .Replace("SamplerState", "int", StringComparison.Ordinal);
                 string source = shim + extra + aoShim + terrainUniforms + Translate(
-                    terrainGeometryContract + candidateGeometry + format + candidateLoader + lighting +
+                    terrainGeometryContract + candidateGeometry + format + animationProfile + candidateLoader + lighting +
                     contour + quantizeUv + roundCoverage + candidateRim + terrainGeometryUv +
                     tileAddressing + tileUvResult + candidateTileSampling + candidateAo + screenCoverage + candidateDepth) + depthScenario + scenario;
                 File.WriteAllText(cppPath, source);
@@ -397,13 +404,24 @@ internal static class Program
         DirectoryInfo? directory = new(Directory.GetCurrentDirectory());
         while (directory is not null)
         {
-            if (File.Exists(Path.Combine(directory.FullName, "Assets/Shaders/Terrain/Rendering/Terrain.shader"))) return directory.FullName;
+            if (File.Exists(Path.Combine(directory.FullName, "Assets/Shaders/Terrain/Rendering/Shader/Terrain.shader"))) return directory.FullName;
             directory = directory.Parent;
         }
         throw new DirectoryNotFoundException("Could not locate the repository root.");
     }
 
     private static string Read(string root, string relativePath) => File.ReadAllText(Path.Combine(root, relativePath));
+
+    private static string ReadWithIncludes(string root, string relativePath)
+    {
+        string text = Read(root, relativePath);
+        return Regex.Replace(text, @"#include\s+""([^""]+)""", m =>
+        {
+            string inc = m.Groups[1].Value;
+            string incPath = Path.Combine(root, inc);
+            return File.Exists(incPath) ? File.ReadAllText(incPath) : m.Value;
+        });
+    }
 
     private static int Fail(string message)
     {

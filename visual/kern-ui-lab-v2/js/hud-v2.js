@@ -327,7 +327,6 @@ function toggleHudBusy() {
     ? '<div class="g-state" style="color:#8fd3ff"><span class="g-srv">строка состояния</span></div><div class="g-state" style="color:#ffb35c"><span class="g-srv">строка состояния</span></div>' : '';
   document.getElementById('hudInvHint').hidden = !hud.busy;
   hud.basket = hud.busy ? { g: 4608, r: 96, b: 1204, v: 12, w: 3, c: 57 } : { g: 412, r: 96, b: 1204, v: 0, w: 0, c: 57 };
-  if (hud.busy !== playerState.isAggression) toggleAggression();
   if (hud.busy !== hud.progRunning) toggleHudProgram();
   updateBasketUI();
 }

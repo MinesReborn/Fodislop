@@ -15,7 +15,7 @@ using MinesServer.Data;
 using MinesServer.Networking.Client.Packets.Actions;
 using MinesServer.Networking.Client.Packets.GUI;
 using MinesServer.Networking.Server.Packets.Programmator;
-using MinesServer.Networking.Shared.Packets;
+using MinesServer.Networking.Contracts.Packets;
 using UnityEngine;
 using UnityEngine.UIElements;
 using VContainer;
@@ -612,8 +612,7 @@ namespace Kern.UI.HUD
             if (_levelLabel != null)
             {
                 // "Уровень: X" - белым, компактно; до загрузки данных строка пустая.
-                _levelLabel.text = _isLoaded ? $"Уровень: {stats.Level:N0}" : string.Empty;
-                _levelLabel.style.color = Color.white;
+                _levelLabel.text = _isLoaded ? _loc.Get("hud.level", stats.Level) : string.Empty;
             }
 
             float pct = stats.HealthPercent;
@@ -658,7 +657,7 @@ namespace Kern.UI.HUD
             {
                 // Общий груз == 0 - груз, разделитель и кнопка выброса бокса скрываются.
                 bool showBasket = _isLoaded && stats.BasketMaxPercent > 0;
-                _basketPercentLabel.text = showBasket ? $"Груз: {stats.BasketMaxPercent}%" : string.Empty;
+                _basketPercentLabel.text = showBasket ? _loc.Get("hud.basket_percent", stats.BasketMaxPercent) : string.Empty;
                 _basketPercentLabel.style.display = showBasket ? DisplayStyle.Flex : DisplayStyle.None;
                 SetDisplayed(_basketSeparator, showBasket);
                 SetDisplayed(_basketRow, showBasket);

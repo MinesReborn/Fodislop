@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.Information;
@@ -28,6 +29,7 @@ public interface IMapDataProvider
     /// <see cref="Color"/> срезает единицу в каналах на обратном касте.
     /// </summary>
     Color32 GetCellMinimapColor32(CellType type);
+    bool TryGetAudioBankFilenames(out IReadOnlyList<string> filenames);
     void UpdateMovementSpeeds(MovementSpeedPacket packet);
     void LoadWorldInit(WorldInitPacket packet);
     Action? OnWorldInitialized { get; set; }

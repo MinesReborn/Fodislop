@@ -49,7 +49,7 @@
             <ui:VisualElement name="BasketContainer" class="hud-basket-container" />
 
             <!-- Ручка перетаскивания панели -->
-            <ui:VisualElement name="HUDDragHandle" class="hud-drag-handle" tooltip="Перетащить панель">
+            <ui:VisualElement name="HUDDragHandle" class="hud-drag-handle" tooltip="hud.tooltip.drag">
                 <ui:Label text="✥" picking-mode="Ignore" />
             </ui:VisualElement>
         </ui:VisualElement>

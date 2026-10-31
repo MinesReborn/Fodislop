@@ -31,7 +31,7 @@ public sealed class PatternRule : IRule
         (new Regex(@"Camera\.main"), "Camera.main is forbidden; use the explicit gameplay-camera contract", null, null),
         (new Regex(@"Application\.targetFrameRate\s*="), "FPS cap outside DisplayManager", @"^Assets/Scripts/Rendering/Display/Control/DisplayManager\.cs$", null),
         (new Regex(@"QualitySettings\.vSyncCount\s*="), "VSync ownership outside DisplayManager", @"^Assets/Scripts/Rendering/Display/Control/DisplayManager\.cs$", null),
-        (new Regex(@"new\s+Texture2D(Array)?\s*\("), "runtime Texture2D construction outside RuntimeTextureFactory", @"^(Assets/(?:Scripts/)?Editor/|Assets/Scripts/AssetPipeline/Loading/Textures/Creation/RuntimeTextureFactory\.cs|Assets/Scripts/Tests/)", null),
+        (new Regex(@"new\s+Texture2D(Array)?\s*\("), "runtime texture construction outside a RuntimeTextureFactory", @"^(Assets/(?:Scripts/)?Editor/|Assets/Scripts/AssetPipeline/Loading/Textures/Creation/RuntimeTexture(?:Array)?Factory\.cs|Assets/Scripts/Tests/)", null),
         (new Regex(@"\.LoadImage\s*\("), "runtime image decoding outside RuntimeTextureFactory", @"^(Assets/(?:Scripts/)?Editor/|Assets/Scripts/AssetPipeline/Loading/Textures/Creation/RuntimeTextureFactory\.cs|Assets/Scripts/Tests/)", null),
         (new Regex(@"\.styleSheets\.Add\s*\("), "controller-local UI Toolkit stylesheet", null, null),
         (new Regex(@"new\s+Vector2\s*\([^,]+,\s*Screen\.height\s*-"), "manual screen-to-panel Y flip", @"^Assets/Scripts/UI/Screen/Layout/UISafeArea\.cs$", null),

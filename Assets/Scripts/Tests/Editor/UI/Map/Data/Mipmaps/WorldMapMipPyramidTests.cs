@@ -213,16 +213,16 @@ public sealed class WorldMapMipPyramidTests
     [Test]
     public void ChooseBlockSize_PrefersTheFinestBlockThatFitsTheBudget()
     {
-        Assert.That(WorldMapMipPyramid.ChooseBlockSize(1024, 1024, 32), Is.EqualTo(1));
-        Assert.That(WorldMapMipPyramid.ChooseBlockSize(2048, 2048, 32), Is.EqualTo(2));
-        Assert.That(WorldMapMipPyramid.ChooseBlockSize(4096, 4096, 32), Is.EqualTo(4));
-        Assert.That(WorldMapMipPyramid.ChooseBlockSize(16384, 16384, 32), Is.EqualTo(16));
+        Assert.That(WorldMapMipSizing.ChooseBlockSize(1024, 1024, 32), Is.EqualTo(1));
+        Assert.That(WorldMapMipSizing.ChooseBlockSize(2048, 2048, 32), Is.EqualTo(2));
+        Assert.That(WorldMapMipSizing.ChooseBlockSize(4096, 4096, 32), Is.EqualTo(4));
+        Assert.That(WorldMapMipSizing.ChooseBlockSize(16384, 16384, 32), Is.EqualTo(16));
     }
 
     [Test]
     public void ChooseBlockSize_FallsBackToStorageChunkWhenNothingFits()
     {
-        Assert.That(WorldMapMipPyramid.ChooseBlockSize(100_000, 100_000, 32), Is.EqualTo(32));
+        Assert.That(WorldMapMipSizing.ChooseBlockSize(100_000, 100_000, 32), Is.EqualTo(32));
     }
 
     [Test]

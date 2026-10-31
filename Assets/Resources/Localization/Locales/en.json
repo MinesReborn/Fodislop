@@ -59,7 +59,7 @@
   "settings.display.hdr_fixed_on": "Currently using HDR. Switching from the game is unavailable.",
   "settings.display.hdr_fixed_off": "Currently using SDR. Switching HDR from the game is unavailable.",
   "menu.settings.master_volume": "Master Volume",
-  "menu.settings.sfx_volume": "Sound Effects (SFX)",
+  "menu.settings.sound_effects_volume": "Sound Effects",
   "menu.settings.music_volume": "Music",
   "menu.settings.ambience_volume": "Ambience",
   "menu.settings.ui_volume": "UI Volume",
@@ -592,7 +592,7 @@
   "mainmenu.settings_lighting_ultra": "ULTRA (4 cascades, 1 diffuse bounce)",
   "mainmenu.settings_hdr": "HDR",
   "mainmenu.settings_master_volume": "Master volume",
-  "mainmenu.settings_sfx": "Drilling effects (SFX)",
+  "mainmenu.settings_sound_effects": "Drilling effects",
   "mainmenu.settings_spatial": "Spatial 3D positioning",
   "mainmenu.settings_active": "Active",
   "mainmenu.settings_card_keys": "KEY BINDINGS",
@@ -801,5 +801,11 @@
   "mainmenu.profile_expedition_id": "EXPEDITION ID: #8849-0192 · RANK 4",
   "mainmenu.profile_drill_val": "Titan-M2 (0.3s)",
   "mainmenu.profile_inventory_slots_val": "54 slots (9x6)",
-  "bootstrap.loading.shaders": "Compiling graphics pipelines..."
+  "bootstrap.loading.shaders": "Compiling graphics pipelines...",
+  "hud.level": "Level: {0:N0}",
+  "hud.basket_percent": "Load: {0}%",
+  "mainmenu.server_depth_fmt": "-{0} m",
+  "mainmenu.server_ping_fmt": "{0} ms",
+  "common.close": "Close",
+  "hud.tooltip.drag": "Drag panel"
 }

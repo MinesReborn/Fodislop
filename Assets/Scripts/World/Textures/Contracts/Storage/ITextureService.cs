@@ -6,13 +6,19 @@ using Cysharp.Threading.Tasks;
 using Kern.World;
 using MinesServer.Data;
 using UnityEngine;
+using MinesServer.Networking.Server.Packets.Connection;
 
 namespace Kern.Core.Interfaces;
 public interface ITextureService
 {
-    event Action<string, Texture2D>? OnTextureLoaded;
+    event Action<CellType, Texture2D>? OnTextureLoaded;
     event Action? OnTerrainDecalAtlasLoaded;
     int PendingCellTextureRequests { get; }
+    /// <summary>
+    /// True when every payload in the current world asset manifest is retained
+    /// in memory and the decal atlas is ready.
+    /// </summary>
+    bool IsWorldAssetsReady { get; }
     void RequestTexture(CellType cellType);
     AtlasCoordinate GetCellTextureCoordinate(CellType cellType);
     Vector4 GetCellFrameRect(CellType cellType);
@@ -23,9 +29,9 @@ public interface ITextureService
         int globalY);
     Texture2D? PrismaticFlowMapTexture { get; }
     Texture2D? FlowMapTexture { get; }
-    Texture2D? TerrainDecalAtlasTexture { get; }
-    Texture2D? TerrainDecalRockAtlasTexture { get; }
-    Texture2D? TerrainDecalSandAtlasTexture { get; }
+    Texture2DArray? TerrainDecalAtlasArray { get; }
+    void LoadWorldAssets(
+        IReadOnlyList<WorldAssetDefinitionPacket> assetManifest);
     IReadOnlyList<IAtlasDescriptor> GetAllAtlases();
     string GetCacheStats();
     void FlushDirtyAtlases();

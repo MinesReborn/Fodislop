@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using Kern.Core.Interfaces;
+using Kern.Infrastructure.Audio;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.Information;
@@ -38,7 +39,8 @@ public class WorldInitProcessorTests
             _gameManager,
             _robotManager,
             _buildingManager,
-            _localPlayer);
+            _localPlayer,
+            new AudioBankManifestState());
     }
 
     [TearDown]
@@ -100,7 +102,7 @@ public class WorldInitProcessorTests
 
         public void UpdateMovementSpeeds(MovementSpeedPacket packet) { }
         public Camera MainCamera => null!;
-        public bool IsStandaloneMode => false;
+        public bool IsStandaloneMode => true;
         public float GetMoveCooldown(CellType cellType) => 0f;
 
         public float GetMinMoveCooldown() => 0f;
@@ -113,6 +115,11 @@ public class WorldInitProcessorTests
 
         public Color GetCellMinimapColor(CellType type) => Color.white;
         public Color32 GetCellMinimapColor32(CellType type) => Color.white;
+        public bool TryGetAudioBankFilenames(out IReadOnlyList<string> filenames)
+        {
+            filenames = Array.Empty<string>();
+            return true;
+        }
         public void ResetWorldState() { }
     }
 

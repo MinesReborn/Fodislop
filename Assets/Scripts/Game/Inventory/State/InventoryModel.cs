@@ -29,6 +29,7 @@ public class InventoryModel : IInventoryModel, IInventoryState, IBatchAwareProce
     private ItemType? _selectedItem;
     private int _batchDepth;
     private bool _hasPendingItemsChanged;
+    private bool _hasPendingSelectedChanged;
 
     public event Action? OnItemsChanged;
     public event Action<ItemType?>? OnSelectedChanged;
@@ -46,10 +47,19 @@ public class InventoryModel : IInventoryModel, IInventoryState, IBatchAwareProce
         }
 
         _batchDepth--;
-        if (_batchDepth == 0 && _hasPendingItemsChanged)
+        if (_batchDepth == 0)
         {
-            _hasPendingItemsChanged = false;
-            OnItemsChanged?.Invoke();
+            if (_hasPendingItemsChanged)
+            {
+                _hasPendingItemsChanged = false;
+                OnItemsChanged?.Invoke();
+            }
+
+            if (_hasPendingSelectedChanged)
+            {
+                _hasPendingSelectedChanged = false;
+                OnSelectedChanged?.Invoke(_selectedItem);
+            }
         }
     }
 
@@ -62,6 +72,17 @@ public class InventoryModel : IInventoryModel, IInventoryState, IBatchAwareProce
         }
 
         OnItemsChanged?.Invoke();
+    }
+
+    private void NotifySelectedChanged()
+    {
+        if (_batchDepth > 0)
+        {
+            _hasPendingSelectedChanged = true;
+            return;
+        }
+
+        OnSelectedChanged?.Invoke(_selectedItem);
     }
 
     public IReadOnlyList<ItemType> OrderedTypes => _order;
@@ -190,7 +211,7 @@ public class InventoryModel : IInventoryModel, IInventoryState, IBatchAwareProce
         {
             _selectedItem = type;
             MoveToFront(type);
-            OnSelectedChanged?.Invoke(type);
+            NotifySelectedChanged();
             NotifyItemsChanged();
         }
 
@@ -211,7 +232,7 @@ public class InventoryModel : IInventoryModel, IInventoryState, IBatchAwareProce
         }
 
         _selectedItem = null;
-        OnSelectedChanged?.Invoke(null);
+        NotifySelectedChanged();
 
         if (_networkService == null)
         {
@@ -230,7 +251,7 @@ public class InventoryModel : IInventoryModel, IInventoryState, IBatchAwareProce
         }
 
         _selectedItem = null;
-        OnSelectedChanged?.Invoke(null);
+        NotifySelectedChanged();
     }
 
     public void UseSelectedItem()
@@ -276,7 +297,7 @@ public class InventoryModel : IInventoryModel, IInventoryState, IBatchAwareProce
         }
 
         _selectedItem = null;
-        OnSelectedChanged?.Invoke(null);
+        NotifySelectedChanged();
         return true;
     }
 

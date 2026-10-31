@@ -78,24 +78,24 @@ public static class TerrainCellMaskCalculator
         CachedCellData bottom)
     {
         int cornerSideMask = 0;
-        if (BlockRegistry.Get(data.Type).Outline == CellOutline.Wall)
+        if (!data.IsBackground && BlockRegistry.Get(data.Type).Outline == CellOutline.Wall)
         {
-            if (BlockRegistry.Get(left.Type).Outline == CellOutline.Corner)
+            if (!left.IsBackground && BlockRegistry.Get(left.Type).Outline == CellOutline.Corner)
             {
                 cornerSideMask |= 1;
             }
 
-            if (BlockRegistry.Get(right.Type).Outline == CellOutline.Corner)
+            if (!right.IsBackground && BlockRegistry.Get(right.Type).Outline == CellOutline.Corner)
             {
                 cornerSideMask |= 2;
             }
 
-            if (BlockRegistry.Get(top.Type).Outline == CellOutline.Corner)
+            if (!top.IsBackground && BlockRegistry.Get(top.Type).Outline == CellOutline.Corner)
             {
                 cornerSideMask |= 4;
             }
 
-            if (BlockRegistry.Get(bottom.Type).Outline == CellOutline.Corner)
+            if (!bottom.IsBackground && BlockRegistry.Get(bottom.Type).Outline == CellOutline.Corner)
             {
                 cornerSideMask |= 8;
             }
@@ -153,7 +153,7 @@ public static class TerrainCellMaskCalculator
 
     // Соседи одной ненулевой массы — одно тело без каймы; масса 0 каймы не имеет.
     private static bool SameRimSurface(in CachedCellData first, in CachedCellData second) =>
-        second.ReliefGroup != 0 && first.ReliefGroup == second.ReliefGroup;
+        !second.IsBackground && second.ReliefGroup != 0 && first.ReliefGroup == second.ReliefGroup;
 
     internal static void CalculateRimMasks(
         in CachedCellData data,

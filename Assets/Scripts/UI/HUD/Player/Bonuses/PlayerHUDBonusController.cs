@@ -4,7 +4,7 @@ using System;
 using Kern.Core.Interfaces;
 using Kern.Core.Localization;
 using MinesServer.Networking.Client.Packets.GUI;
-using MinesServer.Networking.Shared.Packets;
+using MinesServer.Networking.Contracts.Packets;
 using UnityEngine;
 using UnityEngine.UIElements;
 

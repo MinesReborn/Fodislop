@@ -9,7 +9,7 @@ map when a production root or assembly boundary changes.
 | Path | Purpose | Placement rule |
 | --- | --- | --- |
 | `Assets/` | Unity-authored game code, assets, scenes, and runtime resources | Keep Unity GUIDs by moving each asset together with its `.meta` file. Never edit serialized Unity assets as text. |
-| `Packages/` | Embedded Unity packages, including Effekseer | Keep vendor package code and assets inside their package; do not mix game code into it. |
+| `Packages/` | Embedded Unity packages | Keep vendor package code and assets inside their package; do not mix game code into it. |
 | `ProjectSettings/` | Unity project configuration | Change only for a requested project-setting change; avoid mass-formatting. |
 | `KernAudio/` | FMOD Studio project, metadata, source audio, and built banks | Follow the `fmod-sync` skill when synchronizing banks. |
 | `tools/` | Standalone .NET tools, harnesses, and test projects | Keep generated `bin/` and `obj/` out of source. |
@@ -34,7 +34,7 @@ definitions are:
 | `Kern.Core` | `Core` | Shared configuration, lifecycle, localization, platform and resource services |
 | `Kern.Bootstrap` | `Bootstrap` | Scene scopes, startup, scene transitions and domain wiring |
 | `Kern.AssetPipeline` | `AssetPipeline` | Runtime asset loading, caching, and animation decoding |
-| `Kern.Infrastructure` | `Infrastructure` | Audio and Effekseer infrastructure adapters |
+| `Kern.Infrastructure` | `Infrastructure` | Audio infrastructure adapters |
 | `Kern.Effects` | `Effects` | Effect catalog/definitions, deterministic particle simulation, and sprite presentation contracts |
 | `Kern.Diagnostics` | `Diagnostics` | Runtime capture, telemetry, logging and world diagnostic primitives |
 | `Kern.Application` | `Game` | Game and player application behavior |
@@ -76,8 +76,9 @@ reference game assemblies, use reflection, or modify camera components or assets
   by stable domain (cells, items, UI, VFX, etc.). Numeric or legacy names that
   are identifiers must be mapped/documented rather than renamed for aesthetics.
   `Assets/Settings/Build/Textures/TextureStagingCatalog.json` maps categorized
-  authoring paths to stable published/server names. RuntimeAssetPaths uses the
-  same catalog in the Editor; TextureStagingWriter exports those identities.
+  authoring paths to stable published/server names rooted at `Visual/`.
+  RuntimeAssetPaths uses the same catalog in the Editor; TextureStagingWriter
+  exports those identities. Audio bank names use the separate `Audio/` root.
 - `Assets/StreamingAssets/` is for files that must remain directly addressable
   in the built player. It is not a second general-purpose Resources directory.
 - Always move Unity assets with their `.meta` files. Do not hand-edit scenes,

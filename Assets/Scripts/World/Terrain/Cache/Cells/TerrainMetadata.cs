@@ -16,25 +16,27 @@ public struct CachedCellData
 {
     public TerrainCellState State;
     public CellType Type;
-    public byte ReliefGroup;
+    public bool IsBackground;
     public CellOutline Outline;
+    public int AtlasIndex;
+    public Vector4 AtlasRect;
     public bool HasTileGroup;
     public int TileGroupId;
-    public Vector4 AtlasRect;
-    public int AtlasIndex;
+    public byte ReliefGroup;
     public int AnimationFrameCount;
     public bool IsTextureReady;
 }
 
 public struct CellMetadata
 {
-    public byte ReliefGroup;
+    public bool IsPopulated;
     public CellOutline Outline;
+    public int AtlasIndex;
+    public Vector4 AtlasRect;
     public bool HasTileGroup;
     public int TileGroupId;
-    public Vector4 AtlasRect;
-    public int AtlasIndex;
+    public byte DecalTextureIndex;
+    public byte ReliefGroup;
     public int AnimationFrameCount;
     public bool IsTextureReady;
-    public bool IsPopulated;
 }

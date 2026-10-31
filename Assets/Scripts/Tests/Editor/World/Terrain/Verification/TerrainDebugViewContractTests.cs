@@ -22,8 +22,25 @@ namespace Kern.Tests.World;
 [TestFixture]
 public sealed class TerrainDebugViewContractTests
 {
-    private static string ShaderSource() => File.ReadAllText(
-        Path.Combine(Application.dataPath, "Shaders/Terrain/Diagnostics/TerrainDebugView.hlsl"));
+    private static string ShaderSource() => ReadShaderWithIncludes(
+        "Shaders/Terrain/Diagnostics/TerrainDebugView.hlsl");
+
+    private static string ReadShaderWithIncludes(string relativePath)
+    {
+        return ExpandShaderIncludes(Path.Combine(Application.dataPath, relativePath));
+    }
+
+    private static string ExpandShaderIncludes(string path)
+    {
+        string source = File.ReadAllText(path);
+        return Regex.Replace(source, @"(?m)^\s*#include\s+""([^""]+)""\s*$", match =>
+        {
+            string includePath = match.Groups[1].Value;
+            string projectPath = Path.Combine(Directory.GetParent(Application.dataPath)!.FullName, includePath);
+            string localPath = Path.Combine(Path.GetDirectoryName(path)!, includePath);
+            return ExpandShaderIncludes(File.Exists(projectPath) ? projectPath : localPath);
+        });
+    }
 
     private static Dictionary<string, int> ShaderConstants()
     {
@@ -101,18 +118,18 @@ public sealed class TerrainDebugViewContractTests
         Assert.That(
             ShaderSource(),
             Does.Contain("> KERN_TERRAIN_DEBUG_OFF").And
-                .Contain("<= KERN_TERRAIN_DEBUG_FOREGROUND_TILE_IDENTITY"),
+                .Contain("<= KERN_TERRAIN_DEBUG_MOLTEN_ANIMATION"),
             "Активность отладочного вида обязана проверяться диапазоном объявленных номеров.");
     }
 
     [Test]
     public void BackgroundTileIdentityViewIsolatedAndUsesResolvedAtlasTile()
     {
-        string terrainShader = File.ReadAllText(
-            Path.Combine(Application.dataPath, "Shaders/Terrain/Rendering/Terrain.shader"));
+        string terrainShader = ReadShaderWithIncludes(
+            "Shaders/Terrain/Rendering/Shader/Terrain.shader");
         string debugShader = ShaderSource();
-        string cellDataShader = File.ReadAllText(
-            Path.Combine(Application.dataPath, "Shaders/Terrain/Cells/TerrainCellData.hlsl"));
+        string cellDataShader = ReadShaderWithIncludes(
+            "Shaders/Terrain/Cells/Assembly/TerrainCellData.hlsl");
         string samplingShader = File.ReadAllText(
             Path.Combine(Application.dataPath, "Shaders/Terrain/Textures/TerrainSampling.hlsl"));
 

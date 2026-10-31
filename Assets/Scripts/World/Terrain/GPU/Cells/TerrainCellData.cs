@@ -2,17 +2,19 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.InteropServices;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.World;
+using Kern.World.Textures;
 using MinesServer.Data;
 using UnityEngine;
 
 namespace Kern.World.Terrain;
 
 // Упаковка данных террейна для GPU. Раскладка — только в
-// Assets/Shaders/Terrain/Cells/TerrainCellFormat.hlsl (источник правды); здесь —
+// Assets/Shaders/Terrain/Cells/Format/TerrainCellFormat.hlsl (источник правды); здесь —
 // её зеркало для записи и правила «тип → строка».
 
 /// <summary>Клетка на GPU: её тип (Cell в TerrainCellFormat.hlsl).</summary>
@@ -45,7 +47,8 @@ internal readonly record struct TerrainTypeFields(
     bool OpaqueAny,
     // Сервер.
     bool HasTileGroup,
-    int TileGroupId)
+    int TileGroupId,
+    byte DecalTextureIndex = 0)
 {
     public bool IsBackground => TerrainCellData.IsBackground(Block);
 
@@ -88,7 +91,7 @@ public static class TerrainCellData
         if ((uint)fields.Slot > TerrainCellFormat.TypeSlotMask ||
             (uint)fields.TileGroupId > 254u ||
             (uint)fields.FrameCount > byte.MaxValue ||
-            block.SurfaceEffectPalette > TerrainCellFormat.TypeSurfaceEffectPaletteMask)
+            block.AnimationPalette > TerrainCellFormat.TypeAnimationPaletteMask)
         {
             throw new ArgumentOutOfRangeException(nameof(fields));
         }
@@ -112,10 +115,9 @@ public static class TerrainCellData
             (fields.OpaqueAny ? TerrainCellFormat.TypeOpaqueAny : 0u) |
             ((uint)block.TextureAnchor << TerrainCellFormat.TypeTextureAnchorShift) |
             ((uint)block.Outline << TerrainCellFormat.TypeOutlineShift) |
-            ((uint)block.ShaderAnimation << TerrainCellFormat.TypeAnimationTypeShift) |
-            ((uint)block.SurfaceEffect << TerrainCellFormat.TypeSurfaceEffectShift) |
-            ((uint)block.SurfaceEffectPalette << TerrainCellFormat.TypeSurfaceEffectPaletteShift) |
-            ((uint)block.DecalAtlas << TerrainCellFormat.TypeDecalAtlasShift);
+            ((uint)block.AnimationType << TerrainCellFormat.TypeAnimationTypeShift) |
+            ((uint)block.AnimationPalette << TerrainCellFormat.TypeAnimationPaletteShift) |
+            ((uint)fields.DecalTextureIndex << TerrainCellFormat.TypeDecalTextureIndexShift);
         uint tileGroup = (uint)(fields.HasTileGroup ? fields.TileGroupId + 1 : 0);
         return new TerrainTypeRow(
             (uint)x | ((uint)y << TerrainCellFormat.TypePixelHighShift) | ((uint)fields.FrameCount << TerrainCellFormat.TypeByteShift),
@@ -175,16 +177,6 @@ public static class TerrainCellData
             new Vector4(TerrainConfigHolder.ClassicXHashModulus, TerrainConfigHolder.ClassicYHashModulus,
                 0f, 0f),
         };
-    }
-
-    public static uint PackDecal(TerrainDecalRule rule)
-    {
-        if (rule.Percent > 100u || rule.Seed > byte.MaxValue)
-        {
-            throw new ArgumentOutOfRangeException(nameof(rule));
-        }
-
-        return rule.Percent | (rule.Seed << TerrainCellFormat.DecalRuleSeedShift);
     }
 
     // Доля свечения — дробная часть флагов света: шейдер складывает её с
@@ -254,6 +246,7 @@ internal static class TerrainCellPacker
         return new TerrainTypeFields(
             Type: cellType,
             Block: BlockRegistry.Get(cellType),
+            DecalTextureIndex: props.DecalTextureIndex,
             Slot: slot,
             AtlasRect: atlasRect,
             TileSize: tileSize,
@@ -266,43 +259,73 @@ internal static class TerrainCellPacker
     }
 }
 
-/// <summary>Где и с какой частотой ставится декаль; Percent == 0 — нигде.</summary>
-public readonly record struct TerrainDecalRule(uint Percent, uint Seed);
-
 public static class TerrainDecalCatalog
 {
     public const int VariantCount = (int)TerrainCellFormat.DecalVariants;
+    private static readonly Dictionary<string, byte> s_textureIndices = new(StringComparer.Ordinal);
+    private static readonly Vector4[] s_atlasInfo = new Vector4[byte.MaxValue + 1];
+    private static readonly Vector4[] s_effects = new Vector4[byte.MaxValue + 1];
+    private static string[] s_textureNames = Array.Empty<string>();
 
-    // Доля клеток камня, получающих декаль. Порог сравнивается с хэшем
-    // клетки, поэтому подъём доли только добавляет декали, не трогая уже
-    // стоящие.
-    private const uint RockPlacementPercent = 30;
-
-    // Семейство хранится в строке типа, а его правило передаётся глобально.
-    // Шейдер и Place используют одинаковый хэш мировых координат.
-    public static readonly TerrainDecalRule GroundRule =
-        new(TerrainConfigHolder.GroundDecalPlacementPercent, Seed: 32u);
-
-    public static readonly TerrainDecalRule RockRule =
-        new(RockPlacementPercent, Seed: 7u);
-
-    public static TerrainDecalRule RuleOf(CellDecalAtlas family) => family switch
+    public static void Configure(IEnumerable<string?> textureNames)
     {
-        CellDecalAtlas.Ground => GroundRule,
-        CellDecalAtlas.Rock => RockRule,
-        CellDecalAtlas.Sand => GroundRule,
-        _ => default,
-    };
+        s_textureIndices.Clear();
+        Array.Clear(s_atlasInfo, 0, s_atlasInfo.Length);
+        Array.Clear(s_effects, 0, s_effects.Length);
+        var names = new List<string>();
+        foreach (string? textureName in textureNames)
+        {
+            if (string.IsNullOrWhiteSpace(textureName) || s_textureIndices.ContainsKey(textureName))
+            {
+                continue;
+            }
 
-    public static int Place(TerrainDecalRule rule, int worldX, int serverY)
+            if (names.Count == byte.MaxValue)
+            {
+                throw new InvalidDataException("World uses more decal textures than the GPU cell format supports.");
+            }
+
+            byte index = (byte)(names.Count + 1);
+            names.Add(textureName);
+            s_textureIndices.Add(textureName, index);
+            s_atlasInfo[index] = TerrainDecalFactory.CreateShaderInfo();
+            s_effects[index] = new Vector4(
+                TerrainDecalFactory.Strength,
+                TerrainDecalFactory.PlacementOffset / 255f,
+                0f,
+                0f);
+        }
+
+        s_textureNames = names.ToArray();
+    }
+
+    public static IReadOnlyList<string> GetTextureNames() => s_textureNames;
+
+    public static Vector4[] GetAtlasInfo() => s_atlasInfo;
+
+    public static Vector4[] GetEffects() => s_effects;
+
+    public static byte TextureIndex(string? textureName)
     {
-        if (rule.Percent == 0u)
+        if (string.IsNullOrWhiteSpace(textureName))
         {
             return 0;
         }
 
-        uint hash = Hash(worldX, serverY, rule.Seed);
-        if ((hash % 100u) >= rule.Percent)
+        return s_textureIndices.TryGetValue(textureName, out byte index)
+            ? index
+            : throw new InvalidDataException($"Decal texture '{textureName}' is not registered for the world.");
+    }
+
+    public static int Place(byte decalTextureIndex, int worldX, int serverY)
+    {
+        if (decalTextureIndex == 0)
+        {
+            return 0;
+        }
+
+        uint hash = Hash(worldX, serverY, decalTextureIndex);
+        if ((hash % 100u) >= TerrainDecalFactory.PlacementPercent)
         {
             return 0;
         }

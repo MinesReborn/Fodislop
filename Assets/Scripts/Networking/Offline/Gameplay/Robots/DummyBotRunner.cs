@@ -85,8 +85,8 @@ internal static class DummyBotRunner
                             b.id,
                             1000,
                             0,
-                            "Skin/bee.png",
-                            "Tail/default.png",
+                            "Visual/Skin/bee.png",
+                            "Visual/Tail/default.png",
                             b.name)));
                     }
 

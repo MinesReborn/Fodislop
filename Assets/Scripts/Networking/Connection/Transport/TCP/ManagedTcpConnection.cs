@@ -8,7 +8,7 @@ using System.Threading;
 using MinesServer.Networking.Client.Packets;
 using MinesServer.Networking.Connection;
 using MinesServer.Networking.Server.Packets;
-using MinesServer.Networking.Shared;
+using MinesServer.Networking.Contracts;
 using UnityEngine;
 
 namespace Kern.Networking.Connection

@@ -94,7 +94,7 @@ public sealed class TerrainCellMetadataCacheTests
     {
         public int FrameRectCalls { get; private set; }
 
-        public event Action<string, Texture2D>? OnTextureLoaded
+        public event Action<CellType, Texture2D>? OnTextureLoaded
         {
             add { }
             remove { }
@@ -107,14 +107,15 @@ public sealed class TerrainCellMetadataCacheTests
         }
 
         public int PendingCellTextureRequests => 0;
+        public bool IsWorldAssetsReady => true;
 
         public Texture2D? PrismaticFlowMapTexture => null;
 
         public Texture2D? FlowMapTexture => null;
 
-        public Texture2D? TerrainDecalAtlasTexture => null;
-        public Texture2D? TerrainDecalRockAtlasTexture => null;
-        public Texture2D? TerrainDecalSandAtlasTexture => null;
+        public Texture2DArray? TerrainDecalAtlasArray => null;
+        public void LoadWorldAssets(
+            IReadOnlyList<WorldAssetDefinitionPacket> assetManifest) { }
 
         public void RequestTexture(CellType cellType)
         {
@@ -165,7 +166,6 @@ public sealed class TerrainCellMetadataCacheTests
 
         public CellConfigurationPacket GetCellConfig(CellType type) =>
             CellPacket.Create(
-                properties: CellConfigFlags.DropsShadow,
                 mapColor: unchecked((int)0xFF204060));
 
         public float GetMoveCooldown(CellType cellType) => 0f;
@@ -182,6 +182,12 @@ public sealed class TerrainCellMetadataCacheTests
         public Color GetCellMinimapColor(CellType type) => Color.gray;
 
         public Color32 GetCellMinimapColor32(CellType type) => Color.gray;
+
+        public bool TryGetAudioBankFilenames(out IReadOnlyList<string> filenames)
+        {
+            filenames = Array.Empty<string>();
+            return false;
+        }
 
         public void UpdateMovementSpeeds(MovementSpeedPacket packet) =>
             throw new NotSupportedException();

@@ -1,63 +1,212 @@
 #nullable enable
 
+using System;
+using Kern.Core.Interfaces;
 using UnityEngine;
 
 namespace Kern.World.Streaming;
 
 /// <summary>
-/// Shared state for explicitly held world publications and destination readiness.
-/// CameraFollow teleports immediately outside its reference viewport and releases
-/// any held publication; it does not wait for this readiness state.
+/// Owns the presentation lifecycle shared by world entry, camera, terrain,
+/// entities, and server effects. Terrain readiness is versioned so an older
+/// asynchronous build cannot release a newer teleport.
 /// </summary>
-public sealed class WorldViewTransition
+public sealed class WorldViewTransition : IWorldPresentationState
 {
     private RectInt _readyCells;
     private bool _hasReadyCells;
+    private ulong _nextTransitionId;
+    private bool _hasPublishedView;
 
-    /// <summary>Камера стоит, пока место назначения готовится.</summary>
-    public bool IsHolding { get; private set; }
+    public WorldPresentationSnapshot Current { get; private set; } = new(
+        0,
+        WorldPresentationKind.WorldEntry,
+        WorldPresentationPhase.Preparing,
+        Vector3.zero);
 
-    /// <summary>Куда камера встанет после перехода, в мировых координатах.</summary>
-    public Vector3 Destination { get; private set; }
+    public bool IsStable => Current.Phase == WorldPresentationPhase.Stable;
 
-    /// <summary>
-    /// Есть ли что удерживать: опубликованный вид мира. До первой публикации
-    /// экран закрыт загрузкой мира, и камера переставляется сразу.
-    /// </summary>
-    public bool CanHold { get; set; }
+    public bool IsTeleportPreparing =>
+        Current.Kind == WorldPresentationKind.Teleport &&
+        Current.Phase != WorldPresentationPhase.Stable;
 
-    public void Hold(Vector3 destination)
+    public bool IsTeleportAwaitingDestination =>
+        Current.Kind == WorldPresentationKind.Teleport &&
+        Current.Phase == WorldPresentationPhase.AwaitingDestination;
+
+    public bool HasPublishedView => _hasPublishedView;
+
+    public event Action<WorldPresentationSnapshot>? Changed;
+
+    public event Action<ulong>? TeleportCommitting;
+
+    public ulong BeginWorldEntry()
     {
-        if (!IsHolding)
-        {
-            IsHolding = true;
-            _hasReadyCells = false;
-        }
-
-        Destination = destination;
+        ulong transitionId = checked(++_nextTransitionId);
+        _hasPublishedView = false;
+        _hasReadyCells = false;
+        SetCurrent(new WorldPresentationSnapshot(
+            transitionId,
+            WorldPresentationKind.WorldEntry,
+            WorldPresentationPhase.Preparing,
+            Vector3.zero));
+        return transitionId;
     }
 
-    /// <summary>
-    /// Террейн: клетки мира, которые будут на экране сразу после перехода,
-    /// собраны, текстуры их типов на месте, и шаг ждёт публикации.
-    /// </summary>
-    public void MarkReady(RectInt readyCells)
+    public bool PublishWorldEntry(ulong transitionId)
     {
-        _readyCells = readyCells;
-        _hasReadyCells = true;
-    }
-
-    public void ClearReady() => _hasReadyCells = false;
-
-    /// <summary>
-    /// Готово ли место назначения для кадра камеры с центром в
-    /// <paramref name="position"/> и полуразмерами кадра в клетках.
-    /// </summary>
-    public bool IsReadyFor(Vector3 position, float halfWidthCells, float halfHeightCells, float cellSize)
-    {
-        if (!_hasReadyCells)
+        if (transitionId == 0 || Current.TransitionId != transitionId ||
+            Current.Kind != WorldPresentationKind.WorldEntry ||
+            Current.Phase != WorldPresentationPhase.Preparing)
         {
             return false;
+        }
+
+        _hasPublishedView = true;
+        SetCurrent(Current with { Phase = WorldPresentationPhase.Stable });
+        return true;
+    }
+
+    public bool TryBeginTeleport(Vector3 destination, out ulong transitionId)
+    {
+        transitionId = 0;
+        if (!IsStable && !IsTeleportPreparing)
+        {
+            return false;
+        }
+
+        transitionId = checked(++_nextTransitionId);
+        _hasReadyCells = false;
+        SetCurrent(new WorldPresentationSnapshot(
+            transitionId,
+            WorldPresentationKind.Teleport,
+            WorldPresentationPhase.Preparing,
+            destination));
+        return true;
+    }
+
+    public bool TryBeginTeleportRequest(Vector3 currentView, out ulong transitionId)
+    {
+        transitionId = 0;
+        if (!IsStable)
+        {
+            return false;
+        }
+
+        transitionId = checked(++_nextTransitionId);
+        _hasReadyCells = false;
+        SetCurrent(new WorldPresentationSnapshot(
+            transitionId,
+            WorldPresentationKind.Teleport,
+            WorldPresentationPhase.AwaitingDestination,
+            currentView));
+        return true;
+    }
+
+    public bool ConfirmTeleportRequest(ulong transitionId, Vector3 destination)
+    {
+        if (transitionId == 0 || transitionId != Current.TransitionId ||
+            !IsTeleportAwaitingDestination)
+        {
+            return false;
+        }
+
+        SetCurrent(Current with
+        {
+            Phase = WorldPresentationPhase.Preparing,
+            Destination = destination,
+        });
+        return true;
+    }
+
+    public bool CancelTeleportRequest(ulong transitionId)
+    {
+        if (transitionId == 0 || transitionId != Current.TransitionId ||
+            !IsTeleportAwaitingDestination)
+        {
+            return false;
+        }
+
+        SetCurrent(Current with { Phase = WorldPresentationPhase.Stable });
+        return true;
+    }
+
+    public bool UpdateTeleportDestination(ulong transitionId, Vector3 destination)
+    {
+        if (transitionId == 0 || Current.TransitionId != transitionId ||
+            Current.Phase is not (WorldPresentationPhase.Preparing or WorldPresentationPhase.ReadyToCommit))
+        {
+            return false;
+        }
+
+        if (Current.Destination == destination)
+        {
+            return true;
+        }
+
+        _hasReadyCells = false;
+        SetCurrent(Current with
+        {
+            Phase = WorldPresentationPhase.Preparing,
+            Destination = destination,
+        });
+        return true;
+    }
+
+    public bool MarkTeleportReady(ulong transitionId, RectInt readyCells)
+    {
+        if (readyCells.width <= 0 || readyCells.height <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(readyCells), "Teleport readiness requires a non-empty world-cell region.");
+        }
+
+        if (transitionId == 0 || Current.TransitionId != transitionId ||
+            Current.Phase is not (WorldPresentationPhase.Preparing or WorldPresentationPhase.ReadyToCommit))
+        {
+            return false;
+        }
+
+        _readyCells = readyCells;
+        _hasReadyCells = true;
+        SetCurrent(Current with { Phase = WorldPresentationPhase.ReadyToCommit });
+        return true;
+    }
+
+    public bool ClearTeleportReady(ulong transitionId)
+    {
+        if (transitionId == 0 || Current.TransitionId != transitionId ||
+            Current.Phase is not (WorldPresentationPhase.Preparing or WorldPresentationPhase.ReadyToCommit))
+        {
+            return false;
+        }
+
+        if (!_hasReadyCells && Current.Phase == WorldPresentationPhase.Preparing)
+        {
+            return true;
+        }
+
+        _hasReadyCells = false;
+        SetCurrent(Current with { Phase = WorldPresentationPhase.Preparing });
+        return true;
+    }
+
+    public bool IsTeleportReadyFor(
+        ulong transitionId,
+        Vector3 position,
+        float halfWidthCells,
+        float halfHeightCells,
+        float cellSize)
+    {
+        if (transitionId == 0 || transitionId != Current.TransitionId ||
+            Current.Phase != WorldPresentationPhase.ReadyToCommit || !_hasReadyCells)
+        {
+            return false;
+        }
+
+        if (cellSize <= 0f || halfWidthCells < 0f || halfHeightCells < 0f)
+        {
+            throw new ArgumentOutOfRangeException(nameof(cellSize));
         }
 
         int minX = Mathf.FloorToInt((position.x / cellSize) - halfWidthCells);
@@ -68,9 +217,45 @@ public sealed class WorldViewTransition
             maxX <= _readyCells.xMax && maxY <= _readyCells.yMax;
     }
 
-    public void Release()
+    public bool CommitTeleport(
+        ulong transitionId,
+        Vector3 position,
+        float halfWidthCells,
+        float halfHeightCells,
+        float cellSize)
     {
-        IsHolding = false;
+        if (transitionId == 0 || transitionId != Current.TransitionId ||
+            Current.Kind != WorldPresentationKind.Teleport ||
+            Current.Phase != WorldPresentationPhase.ReadyToCommit || !_hasReadyCells ||
+            !IsTeleportReadyFor(transitionId, position, halfWidthCells, halfHeightCells, cellSize))
+        {
+            return false;
+        }
+
+        TeleportCommitting?.Invoke(transitionId);
+        _hasPublishedView = true;
         _hasReadyCells = false;
+        SetCurrent(Current with { Phase = WorldPresentationPhase.Stable });
+        return true;
+    }
+
+    public bool FailTransition(ulong transitionId)
+    {
+        if (transitionId == 0 || transitionId != Current.TransitionId ||
+            Current.Phase == WorldPresentationPhase.Stable ||
+            Current.Phase == WorldPresentationPhase.Failed)
+        {
+            return false;
+        }
+
+        _hasReadyCells = false;
+        SetCurrent(Current with { Phase = WorldPresentationPhase.Failed });
+        return true;
+    }
+
+    private void SetCurrent(WorldPresentationSnapshot snapshot)
+    {
+        Current = snapshot;
+        Changed?.Invoke(snapshot);
     }
 }

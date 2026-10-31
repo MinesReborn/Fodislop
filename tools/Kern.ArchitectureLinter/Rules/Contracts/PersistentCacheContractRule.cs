@@ -8,10 +8,8 @@ namespace Kern.ArchitectureLinter.Rules.Contracts;
 
 /// <summary>
 /// Validates persistent asset cache contract:
-/// - PersistentAssetCache must serialize per-entry access and atomically persist
-/// - Manifest must validate schema v2 length and SHA-256
-/// - Format stamps the current marker; payload layout is identical across
-///   versions, so there are no migrations, backups or staging.
+/// PersistentAssetCache must serialize per-entry access and persist payloads
+/// atomically through PersistentAssetCacheFiles (temporary file, then replace).
 /// Ported from check-architecture.js checkPersistentAssetCacheContract().
 /// </summary>
 public sealed class PersistentCacheContractRule : IRule
@@ -34,58 +32,20 @@ public sealed class PersistentCacheContractRule : IRule
         if (File.Exists(cachePath))
         {
             var cache = File.ReadAllText(cachePath);
+            string filesPath = Path.Combine(projectRoot,
+                "Assets/Scripts/AssetPipeline/Cache/Persistence/Storage/PersistentAssetCacheFiles.cs");
+            string files = File.Exists(filesPath) ? File.ReadAllText(filesPath) : string.Empty;
             if (!cache.Contains("ConcurrentDictionary<string, SemaphoreSlim>") ||
-                !cache.Contains("ReadVerifiedAsset") ||
-                !cache.Contains("WriteAtomically") ||
-                !cache.Contains("private const string ManifestSuffix = \".entry\"") ||
-                !cache.Contains("assetPath + ManifestSuffix"))
+                !cache.Contains("PersistentAssetCacheFiles.WriteAtomically") ||
+                !files.Contains("WriteAtomically") ||
+                !files.Contains("File.Replace("))
             {
                 violations.Add(new RuleViolation
                 {
                     RuleId = Id,
-                    Message = "PersistentAssetCache должен сериализовать per-entry access и atomically persist verified payload/manifest pairs.",
+                    Message = "PersistentAssetCache должен сериализовать per-entry access и атомарно записывать payload через PersistentAssetCacheFiles.",
                     Severity = Severity,
                     TypeName = "Assets/Scripts/AssetPipeline/Cache/Persistence/Storage/PersistentAssetCache.cs"
-                });
-            }
-        }
-
-        // Manifest
-        var manifestPath = Path.Combine(projectRoot, "Assets/Scripts/AssetPipeline/Cache/Persistence/Manifest/PersistentAssetCacheEntryManifest.cs");
-        if (File.Exists(manifestPath))
-        {
-            var manifest = File.ReadAllText(manifestPath);
-            if (!manifest.Contains("SHA256.Create()") ||
-                !manifest.Contains("payload.LongLength == Length") ||
-                !manifest.Contains("EntryFormatVersion = 2"))
-            {
-                violations.Add(new RuleViolation
-                {
-                    RuleId = Id,
-                    Message = "Persistent cache entries должны валидировать schema v2 length и SHA-256 перед использованием.",
-                    Severity = Severity,
-                    TypeName = "Assets/Scripts/AssetPipeline/Cache/Persistence/Manifest/PersistentAssetCacheEntryManifest.cs"
-                });
-            }
-        }
-
-        // Format
-        var formatPath = Path.Combine(projectRoot, "Assets/Scripts/AssetPipeline/Cache/Persistence/Manifest/PersistentAssetCacheFormat.cs");
-        if (File.Exists(formatPath))
-        {
-            var format = File.ReadAllText(formatPath);
-            if (!format.Contains("CurrentSchemaVersion = 2") ||
-                !format.Contains("MarkerFileName") ||
-                format.Contains("BackupFileName") ||
-                format.Contains("MigrationStaging") ||
-                format.Contains("Migrate"))
-            {
-                violations.Add(new RuleViolation
-                {
-                    RuleId = Id,
-                    Message = "Persistent cache format должен штамповать маркер текущей схемы без миграций, бэкапов и staging.",
-                    Severity = Severity,
-                    TypeName = "Assets/Scripts/AssetPipeline/Cache/Persistence/Manifest/PersistentAssetCacheFormat.cs"
                 });
             }
         }

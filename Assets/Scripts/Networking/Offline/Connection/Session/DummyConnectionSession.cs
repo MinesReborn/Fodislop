@@ -1,6 +1,6 @@
 #nullable enable
 
-using MinesServer.Networking.Shared;
+using MinesServer.Networking.Contracts;
 
 namespace Kern.Networking.Offline;
 

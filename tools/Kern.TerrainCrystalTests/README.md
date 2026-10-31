@@ -1,8 +1,11 @@
 # Original OpenMines crystal checks
 
-The auxiliary CPU runner is currently absent: `RunCrystalTests/Program.cs` has
-not been implemented. These checks are not Unity shader compilation or a
-visual/GPU regression test.
+The headless CPU runner checks the committed phase-map dimensions and SHA-256,
+compares 12,000 deterministic color samples against an independent RGB-to-HSV
+reference implementation, and verifies that wrong-Y and wrong-luminance
+mutations are detected. It also checks 16,384 subpixel pairs against the
+1/32-cell pixel-center contract and verifies adjacent-pixel phase steps. These
+checks are not Unity shader compilation or a visual/GPU regression test.
 
 X-crystals use the OpenMines `Unlit_TerrainShader.shader` branch `animType == 5`
 (lines 335–373), with colors/speed from `CellRender.cs` (395–434). The shader
@@ -16,11 +19,8 @@ are part of this effect.
 from the 2048×2048 OpenMines terrain atlas: x=400,y=368,width=160,height=128.
 Rows are flipped for Unity raw texture loading; no resampling/recoloring occurs.
 Regenerate with `dotnet run --project tools/Kern.TerrainCrystalTests/GenerateCrystalFixtures`
-(requires the .NET SDK and the sibling OpenMines checkout). A future CPU runner
-will require neither Pillow nor OpenMines;
-they verify the committed phase data hash and compare 12,000 color samples to an
-independent Python/colorsys evaluation of the source equation. Wrong Y and wrong
-luminance mutations must fail.
+(requires the .NET SDK and the sibling OpenMines checkout). The CPU runner
+requires neither Pillow nor OpenMines and is run by `scripts/run-ci.sh`.
 
 Cost: crystals retain one phase-map sample (80 KiB, Bilinear, no mipmaps), HSV hue,
 one sine, the original polynomial and gamma/linear conversion. The rejected

@@ -28,8 +28,8 @@ public static class AuthoredTextureCatalog
     {
         Document document = JsonUtility.FromJson<Document>(File.ReadAllText(path)) ??
             throw new InvalidDataException($"Texture staging catalog is empty: {path}");
-        var entries = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var published = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var entries = new Dictionary<string, string>(StringComparer.Ordinal);
+        var published = new HashSet<string>(StringComparer.Ordinal);
         foreach (Entry entry in document.Entries)
         {
             if (entry == null || !IsRelativeAssetPath(entry.Source) || !IsRelativeAssetPath(entry.Published))

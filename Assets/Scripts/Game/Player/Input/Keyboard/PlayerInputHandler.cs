@@ -200,6 +200,7 @@ namespace Kern.Game.Player.Input
                 case TouchPlayerAction.BuildGray: _touchBuildGray = true; break;
                 case TouchPlayerAction.BuildGreen: _touchBuildGreen = true; break;
                 case TouchPlayerAction.BuildWhite: _touchBuildWhite = true; break;
+                default: throw new System.ArgumentOutOfRangeException(nameof(action), action, "Unknown touch action.");
             }
         }
 

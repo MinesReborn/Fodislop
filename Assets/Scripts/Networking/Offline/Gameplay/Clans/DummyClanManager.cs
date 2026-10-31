@@ -10,7 +10,7 @@ using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
 using MinesServer.Networking.Server.Packets.Information;
-using MinesServer.Networking.Shared.Packets;
+using MinesServer.Networking.Contracts.Packets;
 using MinesServer.Networking.Client.Packets.GUI;
 using UnityEngine;
 
@@ -242,7 +242,7 @@ internal sealed class DummyClanManager
     // "." collects inputs from the button itself: it has none.
     private static TextPacket CloseButton() => new()
     {
-        Text = "<color=#B3B3B3>×</color>",
+        Text = "ВЫЙТИ",
         OnClickContext = ".",
         AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Right") },
     };

@@ -16,7 +16,7 @@
 .modal-window {
     background-color: var(--surface-panel);
     border-color: var(--border-subtle);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-md);
     padding: var(--space-8);
     min-width: 300px;
@@ -76,7 +76,7 @@
 .popup-panel {
     background-color: var(--surface-panel);
     border-color: var(--border-subtle);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-md);
     padding: var(--space-8);
     min-width: 260px;
@@ -112,7 +112,7 @@
 .popup-btn {
     background-color: var(--surface-raised);
     border-color: var(--border-subtle);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-sm);
     padding: var(--space-4) var(--space-9);
     min-width: 96px;
@@ -157,7 +157,7 @@
 .tooltip-panel {
     position: absolute;
     background-color: var(--surface-slate-dense);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--text-disabled);
     padding: var(--space-3) var(--space-5);
     max-width: 250px;
@@ -192,7 +192,7 @@
     min-width: 260px;
     padding: var(--space-6) var(--space-8);
     background-color: var(--surface-panel);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-cyan);
     border-radius: var(--radius-sm);
     flex-direction: column;

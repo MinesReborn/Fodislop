@@ -13,7 +13,7 @@ using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
 using MinesServer.Networking.Server.Packets.Movement;
 using MinesServer.Networking.Server.Packets.World;
-using MinesServer.Networking.Shared.Packets;
+using MinesServer.Networking.Contracts.Packets;
 using UnityEngine;
 
 
@@ -185,7 +185,7 @@ internal sealed class DummyTeleportManager
     // "." collects inputs from the button itself: it has none.
     private static TextPacket CloseButton() => new()
     {
-        Text = "<color=#B3B3B3>×</color>",
+        Text = "ВЫЙТИ",
         OnClickContext = ".",
         AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Right") },
     };
@@ -217,7 +217,7 @@ internal sealed class DummyTeleportManager
         _onReceived.Invoke(new ServerPacket(new TeleportPacket(destX, destY)));
         _onReceived.Invoke(new ServerPacket(new HBPacket(new IHBPacket[]
         {
-            new VFXPacket(VFX.TpIn, 0, destX, destY, Array.Empty<StringPairPacket>()),
+            new VisualPacket(VisualEffect.TpIn, 0, destX, destY, Array.Empty<StringPairPacket>()),
         })));
         _onReceived.Invoke(new ServerPacket(new CloseWindowPacket()));
     }

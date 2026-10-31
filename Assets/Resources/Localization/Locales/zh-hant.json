@@ -59,7 +59,7 @@
   "settings.display.hdr_fixed_on": "目前使用 HDR。無法在遊戲內切換。",
   "settings.display.hdr_fixed_off": "目前使用 SDR。無法在遊戲內切換 HDR。",
   "menu.settings.master_volume": "主音量",
-  "menu.settings.sfx_volume": "音效（特效）",
+  "menu.settings.sound_effects_volume": "音效（特效）",
   "menu.settings.music_volume": "音樂",
   "menu.settings.ambience_volume": "環境音",
   "menu.settings.ui_volume": "介面音量",
@@ -594,7 +594,7 @@
   "mainmenu.settings_lighting_ultra": "極致（4 級聯，1 次漫反射反彈）",
   "mainmenu.settings_hdr": "HDR",
   "mainmenu.settings_master_volume": "主音量",
-  "mainmenu.settings_sfx": "鑽井特效（音效）",
+  "mainmenu.settings_sound_effects": "鑽井特效（音效）",
   "mainmenu.settings_spatial": "空間 3D 定位",
   "mainmenu.settings_active": "已啟用",
   "mainmenu.settings_card_keys": "按鍵綁定",
@@ -801,5 +801,11 @@
   "bootstrap.loading.shaders": "編譯圖形管線...",
   "chat.channel.chats": "聊天",
   "chat.list.close": "關閉",
-  "chat.list.title": "聊天頻道"
+  "chat.list.title": "聊天頻道",
+  "hud.level": "等級：{0:N0}",
+  "hud.basket_percent": "負重：{0}%",
+  "mainmenu.server_depth_fmt": "-{0} 公尺",
+  "mainmenu.server_ping_fmt": "{0} 毫秒",
+  "common.close": "關閉",
+  "hud.tooltip.drag": "拖曳面板"
 }

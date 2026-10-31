@@ -17,14 +17,12 @@ using UnityEngine;
 public class MapCellConfigCatalogTests
 {
     private static CellConfigurationPacket CreateConfig(
-        CellAnimationType shaderAnimation = CellAnimationType.None,
+        CellAnimationType animationType = CellAnimationType.None,
         float frameAnimationSpeed = 0f,
-        int color = 0,
-        ushort properties = 0)
+        int color = 0)
     {
         return CellPacket.Create(
-            properties: (MinesServer.Networking.Server.Packets.Connection.CellConfigFlags)properties,
-            shaderAnimation: shaderAnimation,
+            animationType: animationType,
             frameAnimationSpeed: frameAnimationSpeed,
             mapColor: color);
     }

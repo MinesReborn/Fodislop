@@ -67,6 +67,7 @@ internal static class TerrainOcclusionReference
     private static bool IsOpaqueMassCell(CachedCellData cell, IReadOnlyList<IAtlasDescriptor> atlases)
     {
         if (cell.State != TerrainCellState.Loaded ||
+            cell.IsBackground ||
             cell.Outline != CellOutline.Wavy)
         {
             return false;

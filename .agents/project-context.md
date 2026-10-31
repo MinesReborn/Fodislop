@@ -202,7 +202,7 @@ camera-position, zoom, or aspect change.
 `TerrainRenderer` owns terrain mesh presentation, packed cell data, lighting-field
 contributions, and optional tunnel-depth geometry; sorting order is `-1000`
 (`WorldRenderLayers.TerrainSortingOrder`). The shader's current attribute layout
-is defined in `Assets/Shaders/Terrain/Rendering/Terrain.shader`.
+is defined in `Assets/Shaders/Terrain/Rendering/Shader/Terrain.shader`.
 `SurfaceRenderer` is registered and resolved through
 `GameLifetimeScope`; never construct a second instance manually.
 

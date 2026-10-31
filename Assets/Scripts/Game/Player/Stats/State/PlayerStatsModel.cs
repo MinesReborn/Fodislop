@@ -21,7 +21,7 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
         tag ??= string.Empty;
         text ??= Array.Empty<string>();
         if (_statusLines.TryGetValue(tag, out StatusLineEntry existing) &&
-            AreStatusEntriesEqual(existing, text, color, blinkRate, expiry))
+            PlayerStatsChangeDetection.AreStatusEntriesEqual(existing, text, color, blinkRate, expiry))
         {
             return;
         }
@@ -96,6 +96,23 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
     private int _batchDepth;
     private bool _hasPendingStatsChanged;
     private bool _hasPendingStatusLinesChanged;
+    private PendingNotifications _pendingNotifications;
+    private readonly Dictionary<SkillType, (long Current, long Max)> _pendingSkillProgress = new();
+
+    [Flags]
+    private enum PendingNotifications
+    {
+        None = 0,
+        Health = 1 << 0,
+        Currency = 1 << 1,
+        Geology = 1 << 2,
+        Level = 1 << 3,
+        Nickname = 1 << 4,
+        Basket = 1 << 5,
+        DailyBonus = 1 << 6,
+        Mission = 1 << 7,
+        MissionArrow = 1 << 8,
+    }
 
     public void BeginBatch()
     {
@@ -123,7 +140,79 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
                 _hasPendingStatsChanged = false;
                 OnStatsChanged?.Invoke();
             }
+
+            FlushPendingNotifications();
         }
+    }
+
+    private void Notify(PendingNotifications notification, Action? callback)
+    {
+        if (_batchDepth > 0)
+        {
+            _pendingNotifications |= notification;
+            return;
+        }
+
+        callback?.Invoke();
+    }
+
+    private void FlushPendingNotifications()
+    {
+        PendingNotifications pending = _pendingNotifications;
+        _pendingNotifications = PendingNotifications.None;
+        if ((pending & PendingNotifications.Health) != 0)
+        {
+            OnHealthChanged?.Invoke();
+            OnHealthUpdated?.Invoke(Health, MaxHealth);
+        }
+
+        if ((pending & PendingNotifications.Currency) != 0)
+        {
+            OnCurrencyChanged?.Invoke();
+            OnCurrencyUpdated?.Invoke(Money, Credits);
+        }
+
+        if ((pending & PendingNotifications.Geology) != 0)
+        {
+            OnGeologyChanged?.Invoke();
+        }
+
+        if ((pending & PendingNotifications.Level) != 0)
+        {
+            OnLevelChanged?.Invoke();
+        }
+
+        if ((pending & PendingNotifications.Nickname) != 0)
+        {
+            OnNicknameChanged?.Invoke();
+        }
+
+        if ((pending & PendingNotifications.Basket) != 0)
+        {
+            OnBasketChanged?.Invoke();
+        }
+
+        if ((pending & PendingNotifications.DailyBonus) != 0)
+        {
+            OnDailyBonusChanged?.Invoke();
+        }
+
+        if ((pending & PendingNotifications.Mission) != 0)
+        {
+            OnMissionChanged?.Invoke();
+        }
+
+        if ((pending & PendingNotifications.MissionArrow) != 0)
+        {
+            OnMissionArrowChanged?.Invoke();
+        }
+
+        foreach (KeyValuePair<SkillType, (long Current, long Max)> progress in _pendingSkillProgress)
+        {
+            OnSkillProgress?.Invoke(progress.Key, progress.Value.Current, progress.Value.Max);
+        }
+
+        _pendingSkillProgress.Clear();
     }
 
     private void NotifyStatsChanged()
@@ -160,7 +249,7 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
         }
 
         DailyBonusAvailable = available;
-        OnDailyBonusChanged?.Invoke();
+        Notify(PendingNotifications.DailyBonus, OnDailyBonusChanged);
         NotifyStatsChanged();
     }
 
@@ -173,7 +262,7 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
         }
 
         Nickname = nickname;
-        OnNicknameChanged?.Invoke();
+        Notify(PendingNotifications.Nickname, OnNicknameChanged);
         NotifyStatsChanged();
     }
 
@@ -185,7 +274,7 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
         }
 
         Level = level;
-        OnLevelChanged?.Invoke();
+        Notify(PendingNotifications.Level, OnLevelChanged);
         NotifyStatsChanged();
     }
 
@@ -198,8 +287,15 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
 
         Health = current;
         MaxHealth = max;
-        OnHealthChanged?.Invoke();
-        OnHealthUpdated?.Invoke(current, max);
+        if (_batchDepth > 0)
+        {
+            _pendingNotifications |= PendingNotifications.Health;
+        }
+        else
+        {
+            OnHealthChanged?.Invoke();
+            OnHealthUpdated?.Invoke(current, max);
+        }
         NotifyStatsChanged();
     }
 
@@ -212,8 +308,15 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
 
         Money = money;
         Credits = credits;
-        OnCurrencyChanged?.Invoke();
-        OnCurrencyUpdated?.Invoke(money, credits);
+        if (_batchDepth > 0)
+        {
+            _pendingNotifications |= PendingNotifications.Currency;
+        }
+        else
+        {
+            OnCurrencyChanged?.Invoke();
+            OnCurrencyUpdated?.Invoke(money, credits);
+        }
         NotifyStatsChanged();
     }
 
@@ -229,7 +332,7 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
         GeologyCurrent = current;
         GeologyMax = max;
         GeologyText = text;
-        OnGeologyChanged?.Invoke();
+        Notify(PendingNotifications.Geology, OnGeologyChanged);
         NotifyStatsChanged();
     }
 
@@ -240,7 +343,7 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
             throw new ArgumentNullException(nameof(contents), "[PlayerStatsModel] Basket contents from server are null");
         }
 
-        if (BasketCapacity == capacity && AreContentsEqual(BasketContents, contents))
+        if (BasketCapacity == capacity && PlayerStatsChangeDetection.AreContentsEqual(BasketContents, contents))
         {
             return;
         }
@@ -264,13 +367,20 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
         // ёмкости): индикатор груза красится зонами 100-114% и выше, поэтому
         // верхнего клампа нет — отсекаются только отрицательные значения.
         BasketMaxPercent = maxPct < 0 ? 0 : maxPct;
-        OnBasketChanged?.Invoke();
+        Notify(PendingNotifications.Basket, OnBasketChanged);
         NotifyStatsChanged();
     }
 
     public void SetSkillProgress(SkillType skill, long current, long max)
     {
-        OnSkillProgress?.Invoke(skill, current, max);
+        if (_batchDepth > 0)
+        {
+            _pendingSkillProgress[skill] = (current, max);
+        }
+        else
+        {
+            OnSkillProgress?.Invoke(skill, current, max);
+        }
     }
 
     public void SetOnline(int players, int programmator)
@@ -322,7 +432,7 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
         MissionDescription = description;
         MissionProgress = 0;
         MissionMaxProgress = max;
-        OnMissionChanged?.Invoke();
+        Notify(PendingNotifications.Mission, OnMissionChanged);
         NotifyStatsChanged();
     }
 
@@ -334,7 +444,7 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
         }
 
         MissionProgress = current;
-        OnMissionChanged?.Invoke();
+        Notify(PendingNotifications.Mission, OnMissionChanged);
         NotifyStatsChanged();
     }
 
@@ -346,7 +456,7 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
         }
 
         MissionMaxProgress = max;
-        OnMissionChanged?.Invoke();
+        Notify(PendingNotifications.Mission, OnMissionChanged);
         NotifyStatsChanged();
     }
 
@@ -359,7 +469,7 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
         }
 
         MissionArrowTarget = target;
-        OnMissionArrowChanged?.Invoke();
+        Notify(PendingNotifications.MissionArrow, OnMissionArrowChanged);
     }
 
     public void ClearMission()
@@ -378,59 +488,12 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
         MissionProgress = 0;
         MissionMaxProgress = 0;
         MissionArrowTarget = null;
-        OnMissionChanged?.Invoke();
+        Notify(PendingNotifications.Mission, OnMissionChanged);
         if (hadArrow)
         {
-            OnMissionArrowChanged?.Invoke();
+            Notify(PendingNotifications.MissionArrow, OnMissionArrowChanged);
         }
 
         NotifyStatsChanged();
-    }
-
-    private static bool AreContentsEqual(long[] left, long[] right)
-    {
-        if (ReferenceEquals(left, right))
-        {
-            return true;
-        }
-
-        if (left.Length != right.Length)
-        {
-            return false;
-        }
-
-        for (int i = 0; i < left.Length; i++)
-        {
-            if (left[i] != right[i])
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static bool AreStatusEntriesEqual(
-        StatusLineEntry existing,
-        string[] text,
-        Color color,
-        byte blinkRate,
-        long expiry)
-    {
-        if (existing.Color != color || existing.BlinkRate != blinkRate || existing.Expiry != expiry ||
-            existing.Text.Length != text.Length)
-        {
-            return false;
-        }
-
-        for (int i = 0; i < text.Length; i++)
-        {
-            if (!string.Equals(existing.Text[i], text[i], StringComparison.Ordinal))
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 }

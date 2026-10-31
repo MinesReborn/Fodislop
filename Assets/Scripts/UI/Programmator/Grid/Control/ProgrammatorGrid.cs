@@ -337,7 +337,7 @@ public sealed class ProgrammatorGrid : IDisposable
             _keyboardInsert!.Reset();
             _isOpen = false;
             _uiInput.IsProgrammatorOpen = false;
-            _programs.HideCreateInput();
+            _programs!.HideCreateInput();
             _view!.ProgramListPanel.style.display = DisplayStyle.None;
             _view.Panel.style.display = DisplayStyle.None;
             _view.Popup.style.display = DisplayStyle.None;

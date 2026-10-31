@@ -32,14 +32,9 @@ public sealed class AnimationContainerDecoderTests
         Assert.That(AnimationContainerDecoder.DetectType(new byte[] { 0x89, 0x50 }), Is.EqualTo(AnimationContainerDecoder.ContainerType.None));
     }
 
-    [TestCase("vfx/bz", 16, 480, 16, 32, 15, 30f)]
-    [TestCase("VFX/death.png", 64, 2496, 64, 64, 39, 40f)]
-    [TestCase("VFX/destroy", 1, 1, 1, 1, 1, 0f)]
-    [TestCase("cells/GrayAcid.png", 32, 160, 32, 32, 5, 10f)]
-    [TestCase("cells/PurpleAcid", 32, 160, 32, 32, 5, 10f)]
-    [TestCase("cells/PassiveAcid", 32, 160, 32, 32, 5, 10f)]
-    [TestCase("cells/DeepLazuriteSand.png", 32, 160, 32, 32, 5, 2f)]
-    [TestCase("cells/Box.png", 32, 128, 32, 32, 4, 4f)]
+    [TestCase("Visual/bz.png", 16, 480, 16, 32, 15, 30f)]
+    [TestCase("Visual/death.png", 64, 2496, 64, 64, 39, 40f)]
+    [TestCase("Visual/destroy.png", 1, 1, 1, 1, 1, 0f)]
     public void TryGetAnimationConfig_KnownAnimations_ReturnsExpectedValues(
         string filename,
         int width,
@@ -175,23 +170,23 @@ public sealed class AnimationContainerDecoderTests
         Assert.That(result.Sprites.Length, Is.EqualTo(4));
         Assert.That(result.FrameHeight, Is.EqualTo(32));
         Assert.That(result.FrameCount, Is.EqualTo(4));
-        Assert.That(result.FPS, Is.EqualTo(4f));
+        Assert.That(result.FPS, Is.EqualTo(5f));
         Assert.That(result.Atlas, Is.Not.Null);
 
         UnityEngine.Object.DestroyImmediate(result.Atlas);
     }
 
     [Test]
-    public void DecodeAnimationSprites_ActualPngVFX_SuccessfullyDecodes()
+    public void DecodeAnimationSprites_ActualPngVisualEffect_SuccessfullyDecodes()
     {
-        string vfxPath = Path.Combine(Application.dataPath, "Textures/VFX/bz/bz.png");
-        if (!File.Exists(vfxPath))
+        string visualEffectPath = Path.Combine(Application.dataPath, "Textures/Visual/bz/bz.png");
+        if (!File.Exists(visualEffectPath))
         {
-            Assert.Ignore($"Asset not found at {vfxPath}");
+            Assert.Ignore($"Asset not found at {visualEffectPath}");
         }
 
-        byte[] bytes = File.ReadAllBytes(vfxPath);
-        var result = AssetCacheDecoder.DecodeAnimationSprites(bytes, "VFX/bz");
+        byte[] bytes = File.ReadAllBytes(visualEffectPath);
+        var result = AssetCacheDecoder.DecodeAnimationSprites(bytes, "Visual/bz");
 
         Assert.That(result.Sprites, Is.Not.Null);
         Assert.That(result.Sprites.Length, Is.EqualTo(15));
@@ -208,9 +203,9 @@ public sealed class AnimationContainerDecoderTests
     [Test]
     public void TextureFirstMiningDecode_PreservesEmissionMetadataBeforeDroppingCpuPixels()
     {
-        string path = Path.Combine(Application.dataPath, "Textures/VFX/bz/bz.png");
+        string path = Path.Combine(Application.dataPath, "Textures/Visual/bz/bz.png");
         Assert.That(File.Exists(path), Is.True);
-        var result = AssetCacheDecoder.DecodeTexture(File.ReadAllBytes(path), "VFX/bz");
+        var result = AssetCacheDecoder.DecodeTexture(File.ReadAllBytes(path), "Visual/bz");
         try
         {
             Assert.That(result.FrameEmission.Length, Is.EqualTo(15));

@@ -41,6 +41,13 @@ public class SliderPacketZeroRangeTests
             int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds) =>
             UniTask.FromResult<byte[]?>(null);
 
+        public UniTask<byte[]?> GetAssetBytesAsync(
+            string filename,
+            string expectedETag,
+            CancellationToken cancellationToken = default,
+            int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds) =>
+            UniTask.FromResult<byte[]?>(null);
+
         public UniTask<string> GetAssetPathAsync(
             string filename,
             CancellationToken cancellationToken = default,

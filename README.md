@@ -35,7 +35,7 @@ release-гейта, запрещающего dummy/localhost, в текущем 
 ## Технологии
 
 **Unity 6** (6000.7.0b4), **URP 2D 17.7.0**, C# 12, UI Toolkit,
-FMOD Studio, UniTask, Effekseer и проектный модуль `Kern.Effects`.
+FMOD Studio, UniTask и проектный модуль `Kern.Effects`.
 Сеть: локальные UPM-пакеты `darkar25.kern.*` из подмодуля
 [`MinesServerNetworking`](https://github.com/MinesReborn/MinesServerNetworking).
 

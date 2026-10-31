@@ -5,7 +5,6 @@ using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Game;
 using Kern.Networking;
-using Kern.World.Streaming;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using VContainer;
@@ -126,7 +125,7 @@ namespace Kern.Game.Player.Cameras
         [Inject] private IInputBlocker _inputBlocker = null!;
         [Inject] private ILocalPlayerState _localPlayer = null!;
         [Inject] private IClientConfigManager? _clientConfig = null;
-        [Inject] private WorldViewTransition? _viewTransition = null;
+        [Inject] private IWorldPresentationState _presentationState = null!;
         [Inject] private IMapDataProvider? _mapDataProvider = null;
         [Inject] private Kern.Game.Player.Input.TouchGestureTracker? _touchGestures = null;
 
@@ -251,7 +250,6 @@ namespace Kern.Game.Player.Cameras
         {
             _hasSnappedToServerPosition = false;
             _followVelocity = Vector3.zero;
-            _viewTransition?.Release();
         }
 
         private void HandlePlayerMoved(Vector2Int oldPosition, Vector2Int newPosition)
@@ -311,11 +309,28 @@ namespace Kern.Game.Player.Cameras
         // Only teleports outside the fixed reference viewport snap the camera.
         private void HandlePlayerTeleported()
         {
+            if (_presentationState.IsTeleportPreparing)
+            {
+                WorldPresentationSnapshot transition = _presentationState.Current;
+                Vector3 cameraDestination = transition.Destination +
+                    new Vector3(_offset.x, _offset.y, 0f);
+                cameraDestination.z = _originalZ;
+                _presentationState.UpdateTeleportDestination(
+                    transition.TransitionId,
+                    cameraDestination);
+                return;
+            }
+
             SnapIfOutsideTeleportViewport();
         }
 
         private void SnapIfOutsideTeleportViewport()
         {
+            if (_presentationState.IsTeleportPreparing)
+            {
+                return;
+            }
+
             if (_camera == null || _target == null || _target == _camera.transform)
             {
                 return;
@@ -351,11 +366,19 @@ namespace Kern.Game.Player.Cameras
                 return;
             }
 
-            HandleZoom();
+            if (!_presentationState.IsTeleportPreparing)
+            {
+                HandleZoom();
+            }
+
             Vector3 before = _camera.transform.position;
             Vector3 velocityBefore = _followVelocity;
             HandleFollow(out bool usedViewTransition);
-            UpdateHurtShake();
+            if (!_presentationState.IsTeleportPreparing)
+            {
+                UpdateHurtShake();
+            }
+
             ReportCameraJump(before, velocityBefore, usedViewTransition);
         }
 
@@ -381,7 +404,8 @@ namespace Kern.Game.Player.Cameras
                 $"[CameraFollow] Camera jumped {jump:F2} from {before} to {after}; {robotState}; " +
                 $"server cell={(player != null ? player.Position.ToString() : "none")}, " +
                 $"hasServerPosition={player?.HasServerPosition}, " +
-                $"holding={_viewTransition?.IsHolding}, viewTransition={usedViewTransition}, " +
+                $"presentation={_presentationState.Current.Phase}/{_presentationState.Current.TransitionId}, " +
+                $"viewTransition={usedViewTransition}, " +
                 $"dt={Time.deltaTime:F6}s, smoothTime={_followSmoothTime:F6}s, " +
                 $"velocityBefore={velocityBefore}, velocityAfter={_followVelocity}, frame={Time.frameCount}.");
         }
@@ -566,6 +590,31 @@ namespace Kern.Game.Player.Cameras
             Vector3 targetPosition = ResolveFollowPoint(_target) + new Vector3(_offset.x, _offset.y, 0f);
             Vector3 desiredPosition = new Vector3(targetPosition.x, targetPosition.y, _originalZ);
 
+            if (_presentationState.IsTeleportPreparing)
+            {
+                WorldPresentationSnapshot transition = _presentationState.Current;
+                desiredPosition = transition.Destination;
+                if (_presentationState.CommitTeleport(
+                    transition.TransitionId,
+                    desiredPosition,
+                    _camera.orthographicSize * _camera.aspect,
+                    _camera.orthographicSize,
+                    WorldGridDefaults.CellSize))
+                {
+                    if (IsOutsideTeleportViewport(
+                        desiredPosition - cameraTransform.position,
+                        _camera.aspect))
+                    {
+                        cameraTransform.position = SnapToPixelGrid(desiredPosition);
+                        _hasSnappedToServerPosition = true;
+                        _followVelocity = Vector3.zero;
+                    }
+                }
+
+                usedViewTransition = true;
+                return;
+            }
+
             if (HandleViewJump(cameraTransform, desiredPosition))
             {
                 usedViewTransition = true;
@@ -597,8 +646,9 @@ namespace Kern.Game.Player.Cameras
             cameraTransform.position = SnapToPixelGrid(smoothed);
         }
 
-        // The teleport viewport is fixed at the project's reference size.
-        // Terrain readiness and the user's current zoom do not delay a snap.
+        // The teleport threshold is fixed at the project's reference size.
+        // Teleports enter the shared presentation transition before changing
+        // entity poses. This path remains for non-teleport camera corrections.
         private bool HandleViewJump(Transform cameraTransform, Vector3 desiredPosition)
         {
             Vector3 offset = desiredPosition - cameraTransform.position;
@@ -607,10 +657,9 @@ namespace Kern.Game.Player.Cameras
                 return false;
             }
 
+            _followVelocity = Vector3.zero;
             cameraTransform.position = SnapToPixelGrid(desiredPosition);
             _hasSnappedToServerPosition = true;
-            _followVelocity = Vector3.zero;
-            _viewTransition?.Release();
             return true;
         }
 
@@ -668,7 +717,6 @@ namespace Kern.Game.Player.Cameras
                     new Vector3(targetPosition.x, targetPosition.y, _originalZ));
                 _hasSnappedToServerPosition = true;
                 _followVelocity = Vector3.zero;
-                _viewTransition?.Release();
             }
         }
         public void SetScrollEnabled(bool enabled) => _scrollEnabled = enabled;

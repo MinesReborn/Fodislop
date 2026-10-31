@@ -14,7 +14,7 @@ using UnityEngine.UIElements;
 namespace Kern.UI.ServerWindows;
 public class WindowBinding : IDisposable
 {
-    private static int _warmUpStarted;
+    private static int s_warmUpStarted;
 
     /// <summary>
     /// Прогрев движка шаблонов (SmartFormat + NCalc) в фоне. Первое реальное
@@ -25,7 +25,7 @@ public class WindowBinding : IDisposable
     /// </summary>
     public static void WarmUpInBackground(IAsyncOperationSupervisor operations)
     {
-        if (Interlocked.Exchange(ref _warmUpStarted, 1) != 0)
+        if (Interlocked.Exchange(ref s_warmUpStarted, 1) != 0)
         {
             return;
         }

@@ -34,7 +34,7 @@ public sealed class BlockRegistryTests
 
     [TestCase(CellType.WhiteSand, CellOutline.Round)]
     [TestCase(CellType.Lava, CellOutline.Round)]
-    [TestCase(CellType.Empty, CellOutline.Pliant)]
+    [TestCase(CellType.Empty, CellOutline.Rigid)]
     [TestCase(CellType.Rock, CellOutline.Wavy)]
     [TestCase(CellType.Boulder1, CellOutline.Rigid)]
     [TestCase(CellType.BuildingWall, CellOutline.Wall)]
@@ -49,21 +49,20 @@ public sealed class BlockRegistryTests
     public void LavaIsMoltenAtItsOwnSpeedAndGlows()
     {
         BlockDefinition lava = BlockRegistry.Get(CellType.Lava);
-        Assert.That(lava.SurfaceEffect, Is.EqualTo(CellSurfaceEffect.Molten));
+        Assert.That(lava.AnimationType, Is.EqualTo(CellAnimationType.Molten));
         Assert.That(lava.FrameAnimationSpeed, Is.EqualTo(10f));
         Assert.That(lava.Emission, Is.True);
     }
 
-    // Анимация текстуры и эффект поверхности — разные поля.
-    [TestCase(CellType.GrayAcid, CellAnimationType.Blinking, CellSurfaceEffect.Plain)]
-    [TestCase(CellType.PurpleAcid, CellAnimationType.Shimmer, CellSurfaceEffect.Plain)]
-    [TestCase(CellType.Lava, CellAnimationType.None, CellSurfaceEffect.Molten)]
-    [TestCase(CellType.XGreen, CellAnimationType.None, CellSurfaceEffect.Prismatic)]
-    public void AnimationAndSurfaceEffectAreAuthored(CellType type, CellAnimationType animation, CellSurfaceEffect surface)
+    [TestCase(CellType.GrayAcid, CellAnimationType.Blinking)]
+    [TestCase(CellType.PurpleAcid, CellAnimationType.Shimmer)]
+    [TestCase(CellType.Lava, CellAnimationType.Molten)]
+    [TestCase(CellType.XGreen, CellAnimationType.Prismatic)]
+    [TestCase(CellType.Green, CellAnimationType.Faceted)]
+    public void AnimationTypeIsAuthored(CellType type, CellAnimationType animation)
     {
         BlockDefinition block = BlockRegistry.Get(type);
-        Assert.That(block.ShaderAnimation, Is.EqualTo(animation));
-        Assert.That(block.SurfaceEffect, Is.EqualTo(surface));
+        Assert.That(block.AnimationType, Is.EqualTo(animation));
     }
 
 }

@@ -25,6 +25,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
+using UnityEngine.Serialization;
 using UnityEngine.UIElements;
 using VContainer;
 using VContainer.Unity;
@@ -35,16 +36,16 @@ using Kern.Diagnostics.Scenes;
 using Kern.Game.Configuration;
 using Kern.Game.Entities.Buildings;
 using Kern.Game.Entities.Robots;
-using Kern.Game.Events.Audio;
+using Kern.Game.Events.Playback;
 using Kern.Game.Player.Actions;
 using Kern.Game.Player.Cameras;
 using Kern.Game.Player.Input;
 using Kern.Game.Player.Movement;
 using Kern.Game.Rendering;
 using Kern.Game.Session;
-using Kern.Game.VisualEffects.Cells;
-using Kern.Game.VisualEffects.Pooling;
-using Kern.Game.VisualEffects.Sprites;
+using Kern.Game.Visual.Effects.Cells;
+using Kern.Game.Visual.Effects.Pooling;
+using Kern.Game.Visual.Effects.Sprites;
 using Kern.Networking.Gateways;
 using Kern.Networking.Processing;
 using Kern.Networking.Status;
@@ -74,13 +75,26 @@ namespace Kern.Bootstrap.Scenes
     public class GameLifetimeScope : TransitionSceneLifetimeScope
     {
         private Scene _ownScene;
+        private GameSceneBindings? _sceneBindings;
+        private GameSceneBindings SceneBindings => _sceneBindings ??= new GameSceneBindings(_managerBindings, _ownScene);
         private readonly UniTaskCompletionSource _readiness = new();
+        private IWorldPresentationState? _presentationState;
+        private VisualElement? _gameUIRoot;
+        private bool _presentationStable;
+        private bool _presentationFailed;
+        private bool _hasPublishedPresentation;
+        private PlayerStatsModel? _heldPlayerStats;
+        private InventoryModel? _heldInventory;
+        private bool _presentationDataHeld;
+        private bool? _lastAppliedGameUIVisibility;
+        private PickingMode? _lastAppliedGameUIPickingMode;
 
         [SerializeField] private Transform _servicesRoot = null!;
         [SerializeField] private Transform _runtimeRoot = null!;
         [SerializeField] private Transform _robotsRoot = null!;
         [SerializeField] private Transform _buildingsRoot = null!;
-        [SerializeField] private Transform _vfxRoot = null!;
+        [FormerlySerializedAs("_vfxRoot")]
+        [SerializeField] private Transform _visualEffectRoot = null!;
         [SerializeField] private Transform _floatingUIRoot = null!;
         [SerializeField] private Transform _audioEventsRoot = null!;
         [SerializeField] private UIDocument _uiDocument = null!;
@@ -109,6 +123,13 @@ namespace Kern.Bootstrap.Scenes
         protected override void OnDestroy()
         {
             _readiness.TrySetCanceled();
+            if (_presentationState != null)
+            {
+                _presentationState.Changed -= OnPresentationStateChanged;
+            }
+
+            ReleasePresentationDataHold();
+
             base.OnDestroy();
         }
 
@@ -126,7 +147,7 @@ namespace Kern.Bootstrap.Scenes
 
             builder.RegisterInstance(_ownScene);
             builder.Register<SceneObjectFactory>(resolver => new SceneObjectFactory(
-                _runtimeRoot, _robotsRoot, _buildingsRoot, _vfxRoot,
+                _runtimeRoot, _robotsRoot, _buildingsRoot, _visualEffectRoot,
                 _floatingUIRoot, _audioEventsRoot, resolver), Lifetime.Singleton)
                 .AsImplementedInterfaces();
 
@@ -151,7 +172,9 @@ namespace Kern.Bootstrap.Scenes
             builder.Register<InventoryModel>(Lifetime.Singleton).AsImplementedInterfaces().AsSelf();
             builder.Register<PlayerStatsModel>(Lifetime.Singleton).AsImplementedInterfaces().AsSelf();
             builder.Register<LightingGeometryRegistry>(Lifetime.Singleton);
-            builder.Register<Kern.World.Streaming.WorldViewTransition>(Lifetime.Singleton);
+            builder.Register<Kern.World.Streaming.WorldViewTransition>(Lifetime.Singleton)
+                .As<Kern.Core.Interfaces.IWorldPresentationState>()
+                .AsSelf();
             builder.Register<GraphicsSettingsController>(Lifetime.Singleton);
             builder.Register<MapModeState>(Lifetime.Singleton);
             builder.Register<ChatEventGateway>(Lifetime.Singleton);
@@ -170,96 +193,24 @@ namespace Kern.Bootstrap.Scenes
             RegisterManager<WorldTextureManager>(builder, "World").AsImplementedInterfaces().AsSelf();
             builder.Register<CellDestructionClip>(Lifetime.Singleton);
             builder.Register<SpriteAnimationLibrary>(Lifetime.Singleton);
-            RegisterManager<ServerAudioEventManager>(builder, "Audio").AsImplementedInterfaces().AsSelf();
+            RegisterManager<ServerEventPlaybackManager>(builder, "Audio").AsImplementedInterfaces().AsSelf();
             builder.RegisterEntryPoint<PacketHandler>().AsSelf();
 
-            builder.Register<ClanProcessor>(Lifetime.Singleton).AsImplementedInterfaces().AsSelf();
-            builder.Register<InventoryProcessor>(Lifetime.Singleton).AsImplementedInterfaces().AsSelf();
-            builder.Register<PlayerStatsProcessor>(Lifetime.Singleton).AsImplementedInterfaces().AsSelf();
-            builder.Register<StatusProcessor>(Lifetime.Singleton).AsImplementedInterfaces().AsSelf();
-            builder.Register<MapRegionProcessor>(Lifetime.Singleton);
-            builder.Register<AudioPacketProcessor>(Lifetime.Singleton);
-            builder.Register<VFXPacketProcessor>(Lifetime.Singleton);
-            builder.RegisterEntryPoint<ProgrammatorProcessor>().AsSelf();
-            builder.Register<PlayerInfoProcessor>(Lifetime.Singleton);
-            builder.Register<ChatProcessor>(Lifetime.Singleton);
-            builder.Register<MissionProcessor>(Lifetime.Singleton);
-            builder.Register<BuildingProcessor>(Lifetime.Singleton);
-            builder.Register<ConnectionProcessor>(Lifetime.Singleton);
-            builder.Register<MissionArrowProcessor>(Lifetime.Singleton);
-            builder.Register<WindowPacketProcessor>(Lifetime.Singleton);
-            builder.Register<ClientConfigProcessor>(Lifetime.Singleton);
+            GamePacketProcessorRegistration.Register(builder);
             builder.RegisterEntryPoint<GameManager>().AsSelf();
-            RegisterManager<VFXPool>(builder, "Rendering").AsImplementedInterfaces().AsSelf();
+            RegisterManager<VisualEffectPool>(builder, "Rendering").AsImplementedInterfaces().AsSelf();
             builder.Register<BuildingManager>(Lifetime.Singleton).AsImplementedInterfaces().AsSelf();
             builder.Register<RobotManager>(Lifetime.Singleton).AsImplementedInterfaces().AsSelf();
             RegisterManager<WorldEntityBatchRenderer>(builder, "Rendering");
 
-            if (_playerMovement == null)
-            {
-                throw new SceneContractException(
-                    "MainGame scene must contain an authored PlayerMovementController reference.");
-            }
+            GamePlayerRegistration.Register(builder, this, _playerMovement);
 
-            builder.RegisterComponent(_playerMovement);
-            if (_playerMovement.TryGetComponent<Robot>(out Robot? playerRobot))
-            {
-                // The local player's Robot carries [Inject] dependencies
-                // (IAssetLoader, LightingEngine, MapManager, RobotManager) that
-                // VContainer applies only to components it registers. Without
-                // this, the authored fallback skin path triggers Start-time
-                // loading against a null loader.
-                builder.RegisterComponent(playerRobot);
-            }
-
-            if (_playerMovement.TryGetComponent<PlayerInteractionController>(out PlayerInteractionController? playerInteraction))
-            {
-                // The PlayerInteractionController on the authored Player prefab
-                // must be registered exactly like the movement controller:
-                // without a registration VContainer never injects its [Inject]
-                // fields, so the component silently dropped every ClickCellPacket
-                // and mouse clicks on world cells never reached the server.
-                builder.RegisterComponent(playerInteraction);
-            }
-
-            SceneSetup? sceneSetup = GetComponentInChildren<SceneSetup>(includeInactive: true);
-            if (sceneSetup == null)
-            {
-                throw new SceneContractException(
-                    "MainGame scene must contain an authored SceneSetup component.");
-            }
-
-            builder.RegisterComponent(sceneSetup);
-
-            if (_playerMovement.TryGetComponent<PlayerInputHandler>(out PlayerInputHandler? playerInput))
-            {
-                // Same rule as the interaction controller: the authored
-                // Player's PlayerInputHandler carries [Inject]
-                // IClientConfigManager, and without a registration VContainer
-                // never injects it. The handler then silently falls back to
-                // hardcoded default keys, so InterfaceSettings.Key* rebinds
-                // from the controls tab change only the displayed key.
-                builder.RegisterComponent(playerInput);
-            }
-
-            builder.Register<ServerConfig>(Lifetime.Singleton).AsImplementedInterfaces().AsSelf();
             RegisterManager<GlobalChatUI>(builder, "UI");
-            builder.Register<UIInputManager>(Lifetime.Singleton);
-            builder.Register<TouchCommands>(Lifetime.Singleton);
-            builder.RegisterEntryPoint<Kern.Game.Player.Input.TouchGestureTracker>().AsSelf();
             RegisterManager<FPSCounter>(builder, "UI");
             RegisterManager<FloatingChatManager>(builder, "UI");
             RegisterManager<ReconnectUI>(builder, "UI");
             RegisterManager<AssetLoadingIndicator>(builder, "UI");
             RegisterManager<MissionArrowUI>(builder, "UI");
-
-            if (_postProcessVolume == null)
-            {
-                throw new SceneContractException(
-                    "MainGame scene scope is missing serialized _postProcessVolume reference.");
-            }
-
-            builder.RegisterComponent(_postProcessVolume);
             RegisterManager<PostProcessController>(builder, "Rendering");
             RegisterManager<LightingEngine>(builder, "Rendering");
             RegisterManager<SurfaceRenderer>(builder, "Rendering");
@@ -267,16 +218,11 @@ namespace Kern.Bootstrap.Scenes
             RegisterManager<PlayerHUDView>(builder, "UI");
             RegisterManager<InventoryView>(builder, "UI");
             RegisterManager<PauseMenu>(builder, "UI");
-            MapServiceRegistration.Register(builder);
             RegisterManager<MinimapController>(builder, "UI");
             RegisterManager<WorldMapController>(builder, "UI");
             RegisterManager<WorldMapRenderer>(builder, "UI");
-            builder.RegisterEntryPoint<DisplayManager>().AsSelf();
             RegisterManager<InGameDebugOverlay>(builder, "UI");
-
-            // Единственный фоновый отчёт о провисе кадра: живёт со сценой игры,
-            // а не внутри компонента, который случайно тикает каждый кадр.
-            builder.RegisterEntryPoint<Kern.Rendering.Diagnostics.Profiling.FrameStallMonitor>();
+            GameUIServiceRegistration.Register(builder, _postProcessVolume);
             builder.Register<GameInfrastructureStartup>(Lifetime.Singleton);
             builder.Register<GamePresentationStartup>(Lifetime.Singleton);
             builder.Register<GameStartupPipeline>(Lifetime.Singleton);
@@ -300,8 +246,31 @@ namespace Kern.Bootstrap.Scenes
         public void MarkReady() => _readiness.TrySetResult();
         public void MarkFailed(Exception exception) => _readiness.TrySetException(exception);
 
+        public void InitializePresentationState(
+            IWorldPresentationState presentationState,
+            PlayerStatsModel playerStats,
+            InventoryModel inventory)
+        {
+            if (_presentationState != null)
+            {
+                throw new InvalidOperationException("Game presentation state is already initialized.");
+            }
+
+            _presentationState = presentationState;
+            _heldPlayerStats = playerStats;
+            _heldInventory = inventory;
+            _presentationState.Changed += OnPresentationStateChanged;
+            _presentationStable = _presentationState.IsStable;
+            _presentationFailed = _presentationState.Current.Phase == WorldPresentationPhase.Failed;
+            _hasPublishedPresentation = _presentationState.HasPublishedView;
+            UpdatePresentationDataHold();
+            ApplyGameUIVisibility();
+        }
+
         protected void Update()
         {
+            ApplyGameUIVisibility();
+
             if (Keyboard.current == null || _uiDocument == null)
             {
                 return;
@@ -319,19 +288,82 @@ namespace Kern.Bootstrap.Scenes
         public void SetGameUIActive(bool active)
         {
             _isGameUIActive = active;
-
-            if (_uiDocument != null && _uiDocument.rootVisualElement != null)
-            {
-                _uiDocument.rootVisualElement.style.display = active ? DisplayStyle.Flex : DisplayStyle.None;
-                _uiDocument.rootVisualElement.pickingMode = active ? PickingMode.Position : PickingMode.Ignore;
-            }
-
-            if (_floatingUIRoot != null)
-            {
-                _floatingUIRoot.gameObject.SetActive(active);
-            }
+            ApplyGameUIVisibility();
 
             Debug.Log($"[GameLifetimeScope] Game UI {(active ? "ENABLED" : "DISABLED")}.");
+        }
+
+        private void OnPresentationStateChanged(WorldPresentationSnapshot snapshot)
+        {
+            _presentationStable = snapshot.Phase == WorldPresentationPhase.Stable;
+            _presentationFailed = snapshot.Phase == WorldPresentationPhase.Failed;
+            _hasPublishedPresentation = _presentationState?.HasPublishedView == true;
+            UpdatePresentationDataHold();
+            ApplyGameUIVisibility();
+        }
+
+        private void UpdatePresentationDataHold()
+        {
+            bool shouldHold = _hasPublishedPresentation && !_presentationStable && !_presentationFailed;
+            if (shouldHold == _presentationDataHeld)
+            {
+                return;
+            }
+
+            _presentationDataHeld = shouldHold;
+            if (shouldHold)
+            {
+                _heldPlayerStats?.BeginBatch();
+                _heldInventory?.BeginBatch();
+            }
+            else
+            {
+                _heldInventory?.EndBatch();
+                _heldPlayerStats?.EndBatch();
+            }
+        }
+
+        private void ReleasePresentationDataHold()
+        {
+            if (!_presentationDataHeld)
+            {
+                return;
+            }
+
+            _presentationDataHeld = false;
+            _heldInventory?.EndBatch();
+            _heldPlayerStats?.EndBatch();
+        }
+
+        private void ApplyGameUIVisibility()
+        {
+            bool visible = _isGameUIActive && (_presentationStable || _hasPublishedPresentation);
+            VisualElement? root = _uiDocument != null ? _uiDocument.rootVisualElement : null;
+            if (root != null &&
+                (!ReferenceEquals(root, _gameUIRoot) || _lastAppliedGameUIVisibility != visible))
+            {
+                _gameUIRoot = root;
+                root.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+                _lastAppliedGameUIVisibility = visible;
+                _lastAppliedGameUIPickingMode = null;
+            }
+
+            if (root != null)
+            {
+                PickingMode pickingMode = visible && (_presentationStable || _presentationFailed)
+                    ? PickingMode.Position
+                    : PickingMode.Ignore;
+                if (_lastAppliedGameUIPickingMode != pickingMode)
+                {
+                    root.pickingMode = pickingMode;
+                    _lastAppliedGameUIPickingMode = pickingMode;
+                }
+            }
+
+            if (_floatingUIRoot != null && _floatingUIRoot.gameObject.activeSelf != visible)
+            {
+                _floatingUIRoot.gameObject.SetActive(visible);
+            }
         }
 
         public async UniTask PrepareForUnloadAsync()
@@ -410,58 +442,8 @@ namespace Kern.Bootstrap.Scenes
         private RegistrationBuilder RegisterManager<T>(IContainerBuilder builder, string group)
             where T : MonoBehaviour
         {
-            T typed = ResolveTypedBinding<T>(group);
+            T typed = SceneBindings.ResolveTypedBinding<T>(group);
             return builder.RegisterComponent(typed);
-        }
-
-        private T ResolveTypedBinding<T>(string group)
-            where T : MonoBehaviour
-        {
-            string key = typeof(T).AssemblyQualifiedName
-                ?? throw new SceneContractException($"Cannot resolve assembly name for '{typeof(T).Name}'.");
-
-            ManagerBinding? match = null;
-            foreach (ManagerBinding binding in _managerBindings)
-            {
-                if (!string.Equals(binding.ManagerType, key, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                if (match != null)
-                {
-                    throw new SceneContractException(
-                        $"Duplicate ManagerBinding entries exist for '{typeof(T).Name}'.");
-                }
-
-                match = binding;
-            }
-
-            if (match == null)
-            {
-                throw new SceneContractException(
-                    $"No typed ManagerBinding exists for '{typeof(T).Name}'.");
-            }
-
-            if (match.Target is not T target)
-            {
-                throw new SceneContractException(
-                    $"Manager binding for '{typeof(T).Name}' points to an invalid target.");
-            }
-
-            if (target.gameObject.scene != _ownScene)
-            {
-                throw new SceneContractException(
-                    $"Manager binding for '{typeof(T).Name}' references another scene.");
-            }
-
-            if (!string.Equals(match.ServiceGroup, group, StringComparison.Ordinal))
-            {
-                throw new SceneContractException(
-                    $"Manager binding for '{typeof(T).Name}' declares group '{match.ServiceGroup}', expected '{group}'.");
-            }
-
-            return target;
         }
 
         private void ValidateSceneRoots()
@@ -473,7 +455,7 @@ namespace Kern.Bootstrap.Scenes
                 (_runtimeRoot, nameof(_runtimeRoot)),
                 (_robotsRoot, nameof(_robotsRoot)),
                 (_buildingsRoot, nameof(_buildingsRoot)),
-                (_vfxRoot, nameof(_vfxRoot)),
+                (_visualEffectRoot, nameof(_visualEffectRoot)),
                 (_floatingUIRoot, nameof(_floatingUIRoot)),
                 (_audioEventsRoot, nameof(_audioEventsRoot)),
 
@@ -489,19 +471,6 @@ namespace Kern.Bootstrap.Scenes
             }
         }
 
-        private bool HasSerializedServiceGroup(string group)
-        {
-            foreach (ManagerBinding binding in _managerBindings)
-            {
-                if (string.Equals(binding.ServiceGroup, group, StringComparison.Ordinal))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
         private void ValidateServiceGroups()
         {
             // Группа существует, только пока в ней есть компонент, которому нужен
@@ -511,7 +480,7 @@ namespace Kern.Bootstrap.Scenes
  };
             foreach (string group in requiredGroups)
             {
-                if (!HasSerializedServiceGroup(group))
+                if (!SceneBindings.HasSerializedServiceGroup(group))
                 {
                     throw new SceneContractException(
                         $"Required service group '{group}' is missing from the typed scene contract.");

@@ -59,7 +59,7 @@
   "settings.display.hdr_fixed_on": "Сейчас используется HDR. Переключение из игры недоступно.",
   "settings.display.hdr_fixed_off": "Сейчас используется SDR. Переключение HDR из игры недоступно.",
   "menu.settings.master_volume": "Общая громкость",
-  "menu.settings.sfx_volume": "Эффекты (SFX)",
+  "menu.settings.sound_effects_volume": "Звуковые эффекты",
   "menu.settings.music_volume": "Музыка",
   "menu.settings.ambience_volume": "Окружение",
   "menu.settings.ui_volume": "Интерфейс",
@@ -597,7 +597,7 @@
   "mainmenu.settings_lighting_ultra": "ULTRA (4 каскада, 1 diffuse bounce)",
   "mainmenu.settings_hdr": "HDR",
   "mainmenu.settings_master_volume": "Мастер громкость",
-  "mainmenu.settings_sfx": "Эффекты бурения (SFX)",
+  "mainmenu.settings_sound_effects": "Эффекты бурения",
   "mainmenu.settings_spatial": "Пространственное 3D-позиционирование",
   "mainmenu.settings_active": "Активно",
   "mainmenu.settings_card_keys": "ПРИВЯЗКА КЛАВИШ",
@@ -801,5 +801,11 @@
   "mainmenu.profile_expedition_id": "EXPEDITION ID: #8849-0192 · РАНГ 4",
   "mainmenu.profile_drill_val": "Титан-M2 (0.3s)",
   "mainmenu.profile_inventory_slots_val": "54 слота (9x6)",
-  "bootstrap.loading.shaders": "Компиляция графических конвейеров..."
+  "bootstrap.loading.shaders": "Компиляция графических конвейеров...",
+  "hud.level": "Уровень: {0:N0}",
+  "hud.basket_percent": "Груз: {0}%",
+  "mainmenu.server_depth_fmt": "-{0} м",
+  "mainmenu.server_ping_fmt": "{0} мс",
+  "common.close": "Закрыть",
+  "hud.tooltip.drag": "Перетащить панель"
 }

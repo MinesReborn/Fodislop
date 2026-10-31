@@ -8,7 +8,7 @@ using Kern.ArchitectureLinter.Scanning;
 namespace Kern.ArchitectureLinter.Rules.USS;
 
 /// <summary>
-/// Tracks design system debt: inline styles, literals, raw colors.
+/// Inline-стили, литералы размеров и цвета вне токенов.
 /// Debt has a ceiling (DEBT_BUDGET) — it must not grow.
 /// Ported from check-architecture.js checkDesignSystemRatchet().
 /// </summary>

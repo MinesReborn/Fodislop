@@ -29,10 +29,14 @@ internal sealed class TerrainLightingFramePublisher
     private ulong _frameSequence;
     private TerrainLightingFullResetReason? _pendingFullReset;
     private bool _hasPublishedView;
+    private bool _hasValidatedLightingOutput;
+    private ulong _validatedLightingOutputGeneration;
     private RectInt _lastCameraViewport;
     private RectInt _lastLightingViewport;
 
     public ulong WorldGeneration => _worldGeneration;
+
+    public bool HasValidatedLightingOutput => _hasValidatedLightingOutput;
 
     public void BeginWorldGeneration()
     {
@@ -40,6 +44,8 @@ internal sealed class TerrainLightingFramePublisher
         _changeSequence = 0;
         _frameSequence = 0;
         _hasPublishedView = false;
+        _hasValidatedLightingOutput = false;
+        _validatedLightingOutputGeneration = 0;
         _lastCameraViewport = default;
         _lastLightingViewport = default;
         RequestFullReset(TerrainLightingFullResetReason.WorldReplaced);
@@ -130,7 +136,15 @@ internal sealed class TerrainLightingFramePublisher
             return;
         }
 
+        if (_hasValidatedLightingOutput &&
+            output.OutputGeneration <= _validatedLightingOutputGeneration)
+        {
+            return;
+        }
+
         window.Driver.Presentation.ValidateLightingBinding(output);
+        _validatedLightingOutputGeneration = output.OutputGeneration;
+        _hasValidatedLightingOutput = true;
     }
 
     public void PublishFrameDemand(

@@ -9,7 +9,7 @@ namespace Kern.AssetPipeline.Loading;
 
 public sealed class PublishedTextureSourceIndex
 {
-    private readonly Dictionary<string, string> _sources = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _sources = new(StringComparer.Ordinal);
 
     public PublishedTextureSourceIndex(IReadOnlyDictionary<string, string> sourceToPublished)
     {
@@ -29,7 +29,7 @@ public sealed class PublishedTextureSourceIndex
     public string? Resolve(string publishedPath) =>
         _sources.TryGetValue(publishedPath, out string? source) ? source : null;
 
-    private static int FormatPriority(string path) => Path.GetExtension(path).ToLowerInvariant() switch
+    private static int FormatPriority(string path) => Path.GetExtension(path) switch
     {
         ".png" => 0,
         ".jpg" or ".jpeg" => 1,

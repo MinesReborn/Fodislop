@@ -130,11 +130,10 @@ public sealed class TerrainTestWorld
 
         public CellConfigurationPacket GetCellConfig(CellType type)
         {
-            CellConfigFlags properties = type switch
+            CellRenderLayer drawLayer = type switch
             {
-                CellType.Empty or CellType.Road => CellConfigFlags.Passable,
-                CellType.BuildingDoor => CellConfigFlags.Passable,
-                _ => CellConfigFlags.DropsShadow,
+                CellType.Empty or CellType.Road or CellType.BuildingDoor => CellRenderLayer.Background,
+                _ => CellRenderLayer.Foreground,
             };
             CellOutlineKind outline = type switch
             {
@@ -149,10 +148,10 @@ public sealed class TerrainTestWorld
                 _ => 0,
             };
             return CellPacket.Create(
-                properties,
-                mapColor: unchecked((int)0xFF204060),
+                drawLayer: drawLayer,
+                outline: outline,
                 reliefGroup: reliefGroup,
-                outline: outline);
+                mapColor: unchecked((int)0xFF204060));
         }
 
         public float GetMoveCooldown(CellType cellType) => 0f;
@@ -176,6 +175,12 @@ public sealed class TerrainTestWorld
 
         public Color32 GetCellMinimapColor32(CellType type) => new(64, 89, 115, 255);
 
+        public bool TryGetAudioBankFilenames(out IReadOnlyList<string> filenames)
+        {
+            filenames = Array.Empty<string>();
+            return false;
+        }
+
         public void UpdateMovementSpeeds(MovementSpeedPacket packet) =>
             throw new NotSupportedException();
 
@@ -189,7 +194,7 @@ public sealed class TerrainTestWorld
         public bool DoorTextureReady { get; set; } = true;
         public bool RoadTextureReady { get; set; } = true;
 
-        public event Action<string, Texture2D>? OnTextureLoaded
+        public event Action<CellType, Texture2D>? OnTextureLoaded
         {
             add { }
             remove { }
@@ -202,14 +207,15 @@ public sealed class TerrainTestWorld
         }
 
         public int PendingCellTextureRequests => 0;
+        public bool IsWorldAssetsReady => true;
 
         public Texture2D? PrismaticFlowMapTexture => null;
 
         public Texture2D? FlowMapTexture => null;
 
-        public Texture2D? TerrainDecalAtlasTexture => null;
-        public Texture2D? TerrainDecalRockAtlasTexture => null;
-        public Texture2D? TerrainDecalSandAtlasTexture => null;
+        public Texture2DArray? TerrainDecalAtlasArray => null;
+        public void LoadWorldAssets(
+            IReadOnlyList<WorldAssetDefinitionPacket> assetManifest) { }
 
         public void RequestTexture(CellType cellType)
         {

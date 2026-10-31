@@ -104,7 +104,7 @@ namespace Kern.Game.Entities.Buildings
         private async UniTask LoadBuildingAsync(CancellationToken token)
         {
             string buildingName = _buildingType.ToString();
-            string buildingPath = $"Pack/{buildingName}/{_variant}";
+            string buildingPath = $"Visual/Pack/{buildingName}/{_variant}";
 
             Texture2D? buildingTexture = await TryLoadOptionalTextureAsync(
                 _assetLoader,
@@ -146,7 +146,7 @@ namespace Kern.Game.Entities.Buildings
 
             Texture2D? clanTexture = await TryLoadOptionalTextureAsync(
                 _assetLoader,
-                $"Clan/{_linkedClan}",
+                $"Visual/Clan/{_linkedClan}",
                 token);
             if (token.IsCancellationRequested || clanTexture == null || _clanTransform == null)
             {

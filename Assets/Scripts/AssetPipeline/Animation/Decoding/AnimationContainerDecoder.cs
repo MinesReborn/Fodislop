@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using Kern;
 using Kern.World;
@@ -16,7 +17,7 @@ public static class AnimationContainerDecoder
         PNG,
     }
 
-    private const string FrameLayoutsResourcePath = "VFX/Sprites/Configuration/AnimationFrameLayouts";
+    private const string FrameLayoutsResourcePath = "Visual/Sprites/Configuration/AnimationFrameLayouts";
 
     [Serializable]
     private sealed class FrameLayoutEntry
@@ -53,16 +54,37 @@ public static class AnimationContainerDecoder
         FrameLayoutDocument document = JsonUtility.FromJson<FrameLayoutDocument>(json.text) ??
             throw new InvalidDataException(
                 $"Animation frame layouts at Resources/{FrameLayoutsResourcePath} are invalid.");
-        var layouts = new Dictionary<string, FrameLayoutEntry>(StringComparer.OrdinalIgnoreCase);
+        var layouts = new Dictionary<string, FrameLayoutEntry>(StringComparer.Ordinal);
         foreach (FrameLayoutEntry layout in document.Layouts)
         {
             if (!string.IsNullOrWhiteSpace(layout.Name))
             {
-                layouts[NormalizeAnimationName(layout.Name)] = layout;
+                layouts[layout.Name] = layout;
             }
         }
 
         return layouts;
+    }
+
+    private static bool TryGetFrameLayout(
+        string filename,
+        [NotNullWhen(true)] out FrameLayoutEntry? layout)
+    {
+        Dictionary<string, FrameLayoutEntry> layouts = s_layouts.Value;
+        if (layouts.TryGetValue(filename, out layout))
+        {
+            return true;
+        }
+
+        // Runtime asset requests use extensionless IDs (for example Visual/bz),
+        // while authored layouts identify the concrete PNG asset.
+        if (Path.GetExtension(filename).Length == 0)
+        {
+            return layouts.TryGetValue($"{filename}.png", out layout);
+        }
+
+        layout = null;
+        return false;
     }
 
     public static ContainerType DetectType(byte[] data)
@@ -98,8 +120,7 @@ public static class AnimationContainerDecoder
             return false;
         }
 
-        string normalized = NormalizeAnimationName(filename);
-        if (s_layouts.Value.TryGetValue(normalized, out FrameLayoutEntry? layout))
+        if (TryGetFrameLayout(filename, out FrameLayoutEntry? layout) && layout is not null)
         {
             if (layout.FrameCount <= 0)
             {
@@ -139,29 +160,12 @@ public static class AnimationContainerDecoder
         return true;
     }
 
-    private static string NormalizeAnimationName(string path)
-    {
-        if (string.IsNullOrEmpty(path))
-        {
-            return string.Empty;
-        }
-
-        string normalized = path.Replace('\\', '/').TrimStart('/');
-        int dot = normalized.LastIndexOf('.');
-        if (dot > 0 && dot > normalized.LastIndexOf('/'))
-        {
-            normalized = normalized.Substring(0, dot);
-        }
-
-        return normalized;
-    }
-
     public static bool HasFrameEmission(string filename) =>
-        s_layouts.Value.TryGetValue(NormalizeAnimationName(filename), out FrameLayoutEntry? layout) && layout.ComputeEmission;
+        TryGetFrameLayout(filename, out FrameLayoutEntry? layout) && layout?.ComputeEmission == true;
 
     public static float ResolvePixelsPerUnit(string filename, int frameWidth)
     {
-        if (!s_layouts.Value.TryGetValue(NormalizeAnimationName(filename), out FrameLayoutEntry? layout))
+        if (!TryGetFrameLayout(filename, out FrameLayoutEntry? layout) || layout is null)
         {
             return RenderingConstants.PIXELS_PER_UNIT;
         }

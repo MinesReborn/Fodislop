@@ -70,7 +70,7 @@ public sealed class ClientConfigRepositoryTests
             () => repository.Load())!;
 
         Assert.That(exception.Message, Does.Contain("missing field(s)"));
-        Assert.That(exception.Message, Does.Contain(nameof(AudioSettings.SfxVolume)));
+        Assert.That(exception.Message, Does.Contain(nameof(AudioSettings.SoundEffectsVolume)));
     }
 
     [TestCase("FisheyeEnabled")]

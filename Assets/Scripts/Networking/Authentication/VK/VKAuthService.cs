@@ -6,7 +6,6 @@ using System;
 using System.Security.Cryptography;
 using System.Text;
 using Cysharp.Threading.Tasks;
-using Kern.Core;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -83,6 +82,7 @@ public sealed class AuthenticationService : IAuthenticationService
 public sealed class VKIdentityProvider
 {
     public const string DefaultClientId = "";
+    private const string BackendExchangeURL = "";
 
     private const string DeviceIdKey = "VK.DeviceId";
     private const string AccessTokenKey = "VK.AccessToken";
@@ -113,7 +113,7 @@ public sealed class VKIdentityProvider
     public async UniTask<VKAuthResult> LoginAsync()
     {
         string clientId = ResolveClientId();
-        string backendURL = AuthenticationEndpoints.VKBackendURL;
+        string backendURL = BackendExchangeURL;
         if (string.IsNullOrWhiteSpace(clientId) ||
             !Uri.TryCreate(backendURL, UriKind.Absolute, out Uri backendUri) ||
             !string.Equals(backendUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
@@ -201,8 +201,7 @@ public sealed class VKIdentityProvider
 
     public static string ResolveClientId()
     {
-        string configured = AuthenticationEndpoints.VKClientId;
-        return string.IsNullOrWhiteSpace(configured) ? DefaultClientId : configured;
+        return DefaultClientId;
     }
 
     private static async UniTask<VKAuthResult> ExchangeWithBackendAsync(

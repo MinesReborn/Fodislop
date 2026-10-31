@@ -1,7 +1,6 @@
 #nullable enable
 
 using System;
-using Kern.Core.Interfaces;
 using MinesServer.Data;
 
 namespace Kern.World.Terrain;
@@ -11,11 +10,11 @@ namespace Kern.World.Terrain;
 /// </summary>
 ///
 /// Сервис текстур сообщает о загрузке именем файла, а террейну нужен тип
-/// клетки: «Cells/Rock.png» — это CellType Rock. Отдельным типом, потому что это
-/// разбор строки, а не работа рендерера, и его видно в тесте.
+/// клетки: «Visual/Cells/Rock.png» — это CellType Rock. Отдельным типом,
+/// потому что это разбор строки, а не работа рендерера, и его видно в тесте.
 public static class TerrainCellTextureName
 {
-    private const string CellPrefix = "Cells/";
+    private const string CellPrefix = "Visual/Cells/";
 
     public static bool TryParseCellType(string filename, out CellType cellType)
     {
@@ -39,6 +38,4 @@ public static class TerrainCellTextureName
 
         return true;
     }
-
-    public static bool IsDecalAtlas(string filename) => TerrainDecalAssets.Contains(filename);
 }

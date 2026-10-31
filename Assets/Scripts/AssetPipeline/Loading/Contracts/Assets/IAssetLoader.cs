@@ -19,6 +19,12 @@ public interface IAssetLoader
         CancellationToken cancellationToken = default,
         int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds);
 
+    UniTask<byte[]?> GetAssetBytesAsync(
+        string filename,
+        string expectedETag,
+        CancellationToken cancellationToken = default,
+        int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds);
+
     UniTask<string> GetAssetPathAsync(
         string filename,
         CancellationToken cancellationToken = default,

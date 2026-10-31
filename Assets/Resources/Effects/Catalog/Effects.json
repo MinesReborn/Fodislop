@@ -7,7 +7,7 @@
       "Emitters": [
         {
           "Id": "core",
-          "SpriteSheet": "VFX/Sprites/Textures/CrystallSparkle/CrystallSparkleImage",
+          "SpriteSheet": "Visual/Sprites/Textures/CrystallSparkle/CrystallSparkleImage",
           "SpriteSheetColumns": 6,
           "SpriteSheetRows": 1,
           "FrameCount": 6,
@@ -36,7 +36,7 @@
       "Emitters": [
         {
           "Id": "puff",
-          "SpriteSheet": "VFX/Sprites/Textures/Steam/SteamImage",
+          "SpriteSheet": "Visual/Sprites/Textures/Steam/SteamImage",
           "SpriteSheetColumns": 15,
           "SpriteSheetRows": 1,
           "FrameCount": 15,

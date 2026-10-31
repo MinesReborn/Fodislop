@@ -24,7 +24,6 @@
         "MinesServer.Data",
         "MinesServer.Networking",
         "MinesServer.Networking.Connection",
-        "MinesServer.Networking.Connection.Client",
         "UniTask",
         "VContainer",
         "Kern.Diagnostics",

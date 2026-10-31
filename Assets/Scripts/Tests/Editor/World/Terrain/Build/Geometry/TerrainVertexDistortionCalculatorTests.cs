@@ -75,13 +75,13 @@ public class TerrainVertexDistortionCalculatorTests
     {
         var cause = new CachedCellData
         {
-            Outline = CellOutline.Wavy,
             Type = CellType.Rock,
+            Outline = CellOutline.Wavy,
         };
         var lava = new CachedCellData
         {
-            Outline = CellOutline.Wavy,
             Type = CellType.Lava,
+            Outline = CellOutline.Wavy,
         };
 
         TerrainVertexOffset result = TerrainVertexDistortionCalculator.ComputeOffset(

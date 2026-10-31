@@ -2,775 +2,727 @@
   "Entries": [
     {
       "Source": "World/Surface/Materials/transit.png",
-      "Published": "transit.png"
+      "Published": "Visual/World/Surface/Materials/transit.png"
     },
     {
       "Source": "World/Terrain/Decals/terrain-decals.png",
-      "Published": "terrain-decals.png"
+      "Published": "Visual/World/Terrain/Decals/terrain-decals.png"
     },
     {
       "Source": "World/Surface/Materials/perspective.png",
-      "Published": "perspective.png"
-    },
-    {
-      "Source": "World/Terrain/Decals/terrain-decals-sand.png",
-      "Published": "terrain-decals-sand.png"
+      "Published": "Visual/World/Surface/Materials/perspective.png"
     },
     {
       "Source": "World/Terrain/Decals/terrain-decals-rock.png",
-      "Published": "terrain-decals-rock.png"
+      "Published": "Visual/World/Terrain/Decals/terrain-decals-rock.png"
     },
     {
       "Source": "UI/Menu/Icons/Navigation/mm_icon_update.png",
-      "Published": "UI/mm_icon_update.png"
+      "Published": "Visual/UI/mm_icon_update.png"
     },
     {
       "Source": "UI/Menu/Branding/mm_space_bg.png",
-      "Published": "UI/mm_space_bg.png"
+      "Published": "Visual/UI/mm_space_bg.png"
     },
     {
       "Source": "UI/Menu/Icons/Social/mm_icon_vk.png",
-      "Published": "UI/mm_icon_vk.png"
+      "Published": "Visual/UI/mm_icon_vk.png"
     },
     {
       "Source": "UI/Commands/respawn/respawn.svg",
-      "Published": "UI/respawn.svg"
+      "Published": "Visual/UI/respawn.svg"
     },
     {
       "Source": "UI/Commands/myBuildings/myBuildings.svg",
-      "Published": "UI/myBuildings.svg"
+      "Published": "Visual/UI/myBuildings.svg"
     },
     {
       "Source": "UI/Controls/Toggle/States/checked.png",
-      "Published": "UI/checked.png"
+      "Published": "Visual/UI/checked.png"
     },
     {
       "Source": "UI/Controls/Slider/knob.png",
-      "Published": "UI/knob.png"
+      "Published": "Visual/UI/knob.png"
     },
     {
       "Source": "UI/Controls/Toggle/States/selected.png",
-      "Published": "UI/selected.png"
+      "Published": "Visual/UI/selected.png"
     },
     {
       "Source": "UI/Menu/Icons/Social/mm_icon_discord.png",
-      "Published": "UI/mm_icon_discord.png"
+      "Published": "Visual/UI/mm_icon_discord.png"
     },
     {
       "Source": "UI/Menu/Icons/Navigation/mm_icon_settings.png",
-      "Published": "UI/mm_icon_settings.png"
+      "Published": "Visual/UI/mm_icon_settings.png"
     },
     {
       "Source": "UI/Menu/Branding/mm_logo.png",
-      "Published": "UI/mm_logo.png"
+      "Published": "Visual/UI/mm_logo.png"
     },
     {
       "Source": "UI/Controls/Toggle/States/deselected.png",
-      "Published": "UI/deselected.png"
+      "Published": "Visual/UI/deselected.png"
     },
     {
       "Source": "UI/Commands/FAQ/FAQ.svg",
-      "Published": "UI/FAQ.svg"
+      "Published": "Visual/UI/FAQ.svg"
     },
     {
       "Source": "UI/Menu/Icons/Social/mm_icon_telegram.png",
-      "Published": "UI/mm_icon_telegram.png"
+      "Published": "Visual/UI/mm_icon_telegram.png"
     },
     {
       "Source": "UI/Controls/Toggle/States/unchecked.png",
-      "Published": "UI/unchecked.png"
+      "Published": "Visual/UI/unchecked.png"
     },
     {
       "Source": "UI/Menu/Branding/mm_shade.png",
-      "Published": "UI/mm_shade.png"
+      "Published": "Visual/UI/mm_shade.png"
     },
     {
       "Source": "UI/Commands/console/console.svg",
-      "Published": "UI/console.svg"
+      "Published": "Visual/UI/console.svg"
     },
     {
       "Source": "UI/Menu/Icons/Navigation/mm_icon_chronicle.png",
-      "Published": "UI/mm_icon_chronicle.png"
+      "Published": "Visual/UI/mm_icon_chronicle.png"
     },
     {
       "Source": "UI/Menu/Icons/Navigation/mm_icon_exit.png",
-      "Published": "UI/mm_icon_exit.png"
+      "Published": "Visual/UI/mm_icon_exit.png"
     },
     {
       "Source": "UI/Menu/Icons/Navigation/mm_icon_repair.png",
-      "Published": "UI/mm_icon_repair.png"
+      "Published": "Visual/UI/mm_icon_repair.png"
     },
     {
       "Source": "Skin/bee/bee.png",
-      "Published": "Skin/bee.png"
+      "Published": "Visual/Skin/bee.png"
     },
     {
       "Source": "Cells/Boulders/MetalBoulder/MetalBoulder1.png",
-      "Published": "Cells/MetalBoulder1.png"
+      "Published": "Visual/Cells/MetalBoulder1.png"
     },
     {
       "Source": "Cells/Liquids/Lava/Lava.png",
-      "Published": "Cells/Lava.png"
+      "Published": "Visual/Cells/Lava.png"
     },
     {
       "Source": "Cells/Sand/DeepLazurite/DeepLazuriteSand.png",
-      "Published": "Cells/DeepLazuriteSand.png"
+      "Published": "Visual/Cells/DeepLazuriteSand.png"
     },
     {
       "Source": "Cells/Sand/DarkRusty/DarkRustySand.png",
-      "Published": "Cells/DarkRustySand.png"
+      "Published": "Visual/Cells/DarkRustySand.png"
     },
     {
       "Source": "Cells/Biological/Violet/AliveViol.png",
-      "Published": "Cells/AliveViol.png"
+      "Published": "Visual/Cells/AliveViol.png"
     },
     {
-      "Source": "Cells/Structures/Support/Support.png",
-      "Published": "Cells/Support.png"
+      "Source": "Cells/Construction/Support/Support.png",
+      "Published": "Visual/Cells/Support.png"
     },
     {
       "Source": "Cells/Boulders/MetalBoulder/MetalBoulder2.png",
-      "Published": "Cells/MetalBoulder2.png"
+      "Published": "Visual/Cells/MetalBoulder2.png"
     },
     {
       "Source": "Cells/Buildings/Road/BuildingRoad.png",
-      "Published": "Cells/BuildingRoad.png"
+      "Published": "Visual/Cells/BuildingRoad.png"
     },
     {
       "Source": "Cells/Construction/YellowBlock/YellowBlock.png",
-      "Published": "Cells/YellowBlock.png"
+      "Published": "Visual/Cells/YellowBlock.png"
     },
     {
       "Source": "Cells/Rock/Heavy/HeavyRock.png",
-      "Published": "Cells/HeavyRock.png"
+      "Published": "Visual/Cells/HeavyRock.png"
     },
     {
       "Source": "Cells/Rock/Deep/DeepRock.png",
-      "Published": "Cells/DeepRock.png"
+      "Published": "Visual/Cells/DeepRock.png"
     },
     {
       "Source": "Cells/Boulders/MetalBoulder/MetalBoulder3.png",
-      "Published": "Cells/MetalBoulder3.png"
+      "Published": "Visual/Cells/MetalBoulder3.png"
     },
     {
       "Source": "Cells/Biological/Black/AliveBlack.png",
-      "Published": "Cells/AliveBlack.png"
+      "Published": "Visual/Cells/AliveBlack.png"
     },
     {
       "Source": "Cells/Boulders/BlackBoulder/BlackBoulder1.png",
-      "Published": "Cells/BlackBoulder1.png"
+      "Published": "Visual/Cells/BlackBoulder1.png"
     },
     {
-      "Source": "Cells/Biological/White/AliveWhite.gif",
-      "Published": "Cells/AliveWhite.gif"
-    },
-    {
-      "Source": "Cells/Rock/G/GRock.png",
-      "Published": "Cells/GRock.png"
+      "Source": "Cells/Rock/GRock/GRock.png",
+      "Published": "Visual/Cells/GRock.png"
     },
     {
       "Source": "Cells/Backgrounds/WithHeavyTraces/BackgroundWithHeavyTraces.png",
-      "Published": "Cells/BackgroundWithHeavyTraces.png"
+      "Published": "Visual/Cells/BackgroundWithHeavyTraces.png"
     },
     {
       "Source": "Cells/Liquids/Acid/Gray/GrayAcid.png",
-      "Published": "Cells/GrayAcid.png"
+      "Published": "Visual/Cells/GrayAcid.png"
     },
     {
       "Source": "Cells/Rock/DeepRainbow/DeepRainbowRock.png",
-      "Published": "Cells/DeepRainbowRock.png"
+      "Published": "Visual/Cells/DeepRainbowRock.png"
     },
     {
       "Source": "Cells/Backgrounds/WithLightTraces/BackgroundWithLightTraces.png",
-      "Published": "Cells/BackgroundWithLightTraces.png"
+      "Published": "Visual/Cells/BackgroundWithLightTraces.png"
     },
     {
       "Source": "Cells/Construction/MilitaryBlockFrame/MilitaryBlockFrame.png",
-      "Published": "Cells/MilitaryBlockFrame.png"
+      "Published": "Visual/Cells/MilitaryBlockFrame.png"
     },
     {
       "Source": "Cells/Boulders/BlackBoulder/BlackBoulder2.png",
-      "Published": "Cells/BlackBoulder2.png"
-    },
-    {
-      "Source": "Cells/Liquids/Acid/Yellow/YellowAcid.gif",
-      "Published": "Cells/YellowAcid.gif"
+      "Published": "Visual/Cells/BlackBoulder2.png"
     },
     {
       "Source": "Cells/Construction/QuadBlock/QuadBlock.png",
-      "Published": "Cells/QuadBlock.png"
+      "Published": "Visual/Cells/QuadBlock.png"
     },
     {
       "Source": "Cells/Crystals/Violet/XViolet.png",
-      "Published": "Cells/XViolet.png"
+      "Published": "Visual/Cells/XViolet.png"
     },
     {
       "Source": "Cells/Boulders/BlackBoulder/BlackBoulder3.png",
-      "Published": "Cells/BlackBoulder3.png"
+      "Published": "Visual/Cells/BlackBoulder3.png"
     },
     {
       "Source": "Cells/Sand/Blue/BlueSand.png",
-      "Published": "Cells/BlueSand.png"
+      "Published": "Visual/Cells/BlueSand.png"
     },
     {
       "Source": "Cells/State/Empty/Empty.png",
-      "Published": "Cells/Empty.png"
+      "Published": "Visual/Cells/Empty.png"
     },
     {
       "Source": "Cells/Rock/Acid/AcidRock.png",
-      "Published": "Cells/AcidRock.png"
+      "Published": "Visual/Cells/AcidRock.png"
     },
     {
       "Source": "Cells/Sand/DarkBlack/DarkBlackSand.png",
-      "Published": "Cells/DarkBlackSand.png"
+      "Published": "Visual/Cells/DarkBlackSand.png"
     },
     {
       "Source": "Cells/Liquids/Acid/Passive/PassiveAcid.png",
-      "Published": "Cells/PassiveAcid.png"
+      "Published": "Visual/Cells/PassiveAcid.png"
     },
     {
       "Source": "Cells/Roads/Standard/Road.png",
-      "Published": "Cells/Road.png"
+      "Published": "Visual/Cells/Road.png"
     },
     {
       "Source": "Cells/Rock/Black/BlackRock.png",
-      "Published": "Cells/BlackRock.png"
-    },
-    {
-      "Source": "Cells/Liquids/Acid/Purple/PurpleAcid.gif",
-      "Published": "Cells/PurpleAcid.gif"
+      "Published": "Visual/Cells/BlackRock.png"
     },
     {
       "Source": "Cells/Crystals/Green/XGreen.png",
-      "Published": "Cells/XGreen.png"
-    },
-    {
-      "Source": "Cells/Biological/Cyan/AliveCyan.gif",
-      "Published": "Cells/AliveCyan.gif"
+      "Published": "Visual/Cells/XGreen.png"
     },
     {
       "Source": "Cells/Sand/DarkWhite/DarkWhiteSand.png",
-      "Published": "Cells/DarkWhiteSand.png"
+      "Published": "Visual/Cells/DarkWhiteSand.png"
     },
     {
       "Source": "Cells/Roads/Golden/GoldenRoad.png",
-      "Published": "Cells/GoldenRoad.png"
+      "Published": "Visual/Cells/GoldenRoad.png"
     },
     {
       "Source": "Cells/Construction/MilitaryBlock/MilitaryBlock.png",
-      "Published": "Cells/MilitaryBlock.png"
+      "Published": "Visual/Cells/MilitaryBlock.png"
     },
     {
       "Source": "Cells/Crystals/Blue/Blue.png",
-      "Published": "Cells/Blue.png"
+      "Published": "Visual/Cells/Blue.png"
     },
     {
       "Source": "Cells/Crystals/Blue/XBlue.png",
-      "Published": "Cells/XBlue.png"
+      "Published": "Visual/Cells/XBlue.png"
     },
     {
       "Source": "Cells/Biological/Blue/AliveBlue.png",
-      "Published": "Cells/AliveBlue.png"
+      "Published": "Visual/Cells/AliveBlue.png"
     },
     {
       "Source": "Cells/State/Unloaded/Unloaded.png",
-      "Published": "Cells/Unloaded.png"
+      "Published": "Visual/Cells/Unloaded.png"
     },
     {
       "Source": "Cells/Rock/Standard/Rock.png",
-      "Published": "Cells/Rock.png"
+      "Published": "Visual/Cells/Rock.png"
     },
     {
       "Source": "Cells/Biological/Red/AliveRed.png",
-      "Published": "Cells/AliveRed.png"
+      "Published": "Visual/Cells/AliveRed.png"
     },
     {
-      "Source": "Cells/Rock/DeepObsidian/DeepObsidianRock.png",
-      "Published": "Cells/DeepObsidianRock.png"
+      "Source": "Cells/Rock/DeepObsidian/DeepObsidian.png",
+      "Published": "Visual/Cells/DeepObsidianRock.png"
     },
     {
       "Source": "Cells/Rock/Golden/GoldenRock.png",
-      "Published": "Cells/GoldenRock.png"
+      "Published": "Visual/Cells/GoldenRock.png"
     },
     {
       "Source": "Cells/Rock/LivingBlack/LivingBlackRock.png",
-      "Published": "Cells/LivingBlackRock.png"
+      "Published": "Visual/Cells/LivingBlackRock.png"
     },
     {
       "Source": "Cells/Rock/DeepStriped/DeepStripedRock.png",
-      "Published": "Cells/DeepStripedRock.png"
+      "Published": "Visual/Cells/DeepStripedRock.png"
     },
     {
       "Source": "Cells/Sand/Yellow/YellowSand.png",
-      "Published": "Cells/YellowSand.png"
+      "Published": "Visual/Cells/YellowSand.png"
     },
     {
       "Source": "Cells/Crystals/Violet/Violet.png",
-      "Published": "Cells/Violet.png"
+      "Published": "Visual/Cells/Violet.png"
     },
     {
       "Source": "Cells/Backgrounds/Volcano/VolcanoBackground.png",
-      "Published": "Cells/VolcanoBackground.png"
+      "Published": "Visual/Cells/VolcanoBackground.png"
     },
     {
       "Source": "Cells/Buildings/Corner/BuildingCorner.png",
-      "Published": "Cells/BuildingCorner.png"
+      "Published": "Visual/Cells/BuildingCorner.png"
     },
     {
       "Source": "Cells/Crystals/Green/Green.png",
-      "Published": "Cells/Green.png"
-    },
-    {
-      "Source": "Cells/Liquids/Acid/Blue/BlueAcid.gif",
-      "Published": "Cells/BlueAcid.gif"
+      "Published": "Visual/Cells/Green.png"
     },
     {
       "Source": "Cells/Crystals/Red/XRed.png",
-      "Published": "Cells/XRed.png"
-    },
-    {
-      "Source": "Cells/Biological/Black/AliveBlack.gif",
-      "Published": "Cells/AliveBlack.gif"
+      "Published": "Visual/Cells/XRed.png"
     },
     {
       "Source": "Cells/Biological/White/AliveWhite.png",
-      "Published": "Cells/AliveWhite.png"
-    },
-    {
-      "Source": "Cells/Liquids/Acid/Gray/GrayAcid.gif",
-      "Published": "Cells/GrayAcid.gif"
+      "Published": "Visual/Cells/AliveWhite.png"
     },
     {
       "Source": "Cells/Roads/Polymer/PolymerRoad.png",
-      "Published": "Cells/PolymerRoad.png"
-    },
-    {
-      "Source": "Cells/Biological/Violet/AliveViolet.gif",
-      "Published": "Cells/AliveViolet.gif"
-    },
-    {
-      "Source": "Cells/Rock/Hypnosis/119.png",
-      "Published": "Cells/119.png"
+      "Published": "Visual/Cells/PolymerRoad.png"
     },
     {
       "Source": "Cells/Sand/Rusty/RustySand.png",
-      "Published": "Cells/RustySand.png"
+      "Published": "Visual/Cells/RustySand.png"
     },
     {
       "Source": "Cells/Crystals/Cyan/Cyan.png",
-      "Published": "Cells/Cyan.png"
+      "Published": "Visual/Cells/Cyan.png"
     },
     {
       "Source": "Cells/Boulders/Boulder/Boulder2.png",
-      "Published": "Cells/Boulder2.png"
+      "Published": "Visual/Cells/Boulder2.png"
     },
     {
       "Source": "Cells/Sand/DarkBlue/DarkBlueSand.png",
-      "Published": "Cells/DarkBlueSand.png"
+      "Published": "Visual/Cells/DarkBlueSand.png"
     },
     {
       "Source": "Cells/Liquids/Acid/Purple/PurpleAcid.png",
-      "Published": "Cells/PurpleAcid.png"
+      "Published": "Visual/Cells/PurpleAcid.png"
     },
     {
       "Source": "Cells/Boulders/Boulder/Boulder3.png",
-      "Published": "Cells/Boulder3.png"
+      "Published": "Visual/Cells/Boulder3.png"
     },
     {
       "Source": "Cells/Crystals/Cyan/XCyan.png",
-      "Published": "Cells/XCyan.png"
+      "Published": "Visual/Cells/XCyan.png"
     },
     {
       "Source": "Cells/Biological/Cyan/AliveCyan.png",
-      "Published": "Cells/AliveCyan.png"
+      "Published": "Visual/Cells/AliveCyan.png"
     },
     {
       "Source": "Cells/Rock/DeepTurquoise/DeepTurquoiseRock.png",
-      "Published": "Cells/DeepTurquoiseRock.png"
+      "Published": "Visual/Cells/DeepTurquoiseRock.png"
     },
     {
       "Source": "Cells/Boulders/Boulder/Boulder1.png",
-      "Published": "Cells/Boulder1.png"
+      "Published": "Visual/Cells/Boulder1.png"
     },
     {
       "Source": "Cells/Boulders/DeepMagmaBoulder/DeepMagmaBoulder.png",
-      "Published": "Cells/DeepMagmaBoulder.png"
-    },
-    {
-      "Source": "Cells/Biological/Blue/AliveBlue.gif",
-      "Published": "Cells/AliveBlue.gif"
+      "Published": "Visual/Cells/DeepMagmaBoulder.png"
     },
     {
       "Source": "Cells/Construction/GreenBlock/GreenBlock.png",
-      "Published": "Cells/GreenBlock.png"
+      "Published": "Visual/Cells/GreenBlock.png"
     },
     {
       "Source": "Cells/Sand/DarkYellow/DarkYellowSand.png",
-      "Published": "Cells/DarkYellowSand.png"
+      "Published": "Visual/Cells/DarkYellowSand.png"
     },
     {
       "Source": "Cells/Buildings/Wall/BuildingWall.png",
-      "Published": "Cells/BuildingWall.png"
+      "Published": "Visual/Cells/BuildingWall.png"
     },
     {
       "Source": "Cells/Sand/MilitaryBlock/MilitaryBlockSand.png",
-      "Published": "Cells/MilitaryBlockSand.png"
+      "Published": "Visual/Cells/MilitaryBlockSand.png"
     },
     {
       "Source": "Cells/Structures/Storage/Box.png",
-      "Published": "Cells/Box.png"
+      "Published": "Visual/Cells/Box.png"
     },
     {
       "Source": "Cells/Sand/White/WhiteSand.png",
-      "Published": "Cells/WhiteSand.png"
+      "Published": "Visual/Cells/WhiteSand.png"
     },
     {
       "Source": "Cells/Crystals/White/White.png",
-      "Published": "Cells/White.png"
-    },
-    {
-      "Source": "Cells/Biological/Red/AliveRed.gif",
-      "Published": "Cells/AliveRed.gif"
+      "Published": "Visual/Cells/White.png"
     },
     {
       "Source": "Cells/Rock/Red/RedRock.png",
-      "Published": "Cells/RedRock.png"
+      "Published": "Visual/Cells/RedRock.png"
     },
     {
       "Source": "Cells/State/WorldEdge/WorldEdge.png",
-      "Published": "Cells/WorldEdge.png"
+      "Published": "Visual/Cells/WorldEdge.png"
     },
     {
       "Source": "Cells/Crystals/Red/Red.png",
-      "Published": "Cells/Red.png"
+      "Published": "Visual/Cells/Red.png"
     },
     {
       "Source": "Cells/Buildings/Door/BuildingDoor.png",
-      "Published": "Cells/BuildingDoor.png"
+      "Published": "Visual/Cells/BuildingDoor.png"
     },
     {
       "Source": "Cells/Construction/RedBlock/RedBlock.png",
-      "Published": "Cells/RedBlock.png"
+      "Published": "Visual/Cells/RedBlock.png"
     },
     {
       "Source": "Cells/Sand/Black/BlackSand.png",
-      "Published": "Cells/BlackSand.png"
+      "Published": "Visual/Cells/BlackSand.png"
     },
     {
       "Source": "Clan/1/1.png",
-      "Published": "Clan/1.png"
+      "Published": "Visual/Clan/1.png"
     },
     {
       "Source": "Surface/ridge-b/ridge-b.png",
-      "Published": "Surface/ridge-b.png"
+      "Published": "Visual/Surface/ridge-b.png"
     },
     {
       "Source": "Surface/ridge-c/ridge-c.png",
-      "Published": "Surface/ridge-c.png"
+      "Published": "Visual/Surface/ridge-c.png"
     },
     {
       "Source": "Surface/ridge-a/ridge-a.png",
-      "Published": "Surface/ridge-a.png"
+      "Published": "Visual/Surface/ridge-a.png"
     },
     {
       "Source": "Surface/moon/moon.png",
-      "Published": "Surface/moon.png"
+      "Published": "Visual/Surface/moon.png"
     },
     {
       "Source": "Surface/basalt/basalt.png",
-      "Published": "Surface/basalt.png"
+      "Published": "Visual/Surface/basalt.png"
     },
     {
       "Source": "Tail/default/default.png",
-      "Published": "Tail/default.png"
+      "Published": "Visual/Tail/default.png"
     },
     {
-      "Source": "VFX/destroy/destroy.png",
-      "Published": "VFX/destroy.png"
+      "Source": "Visual/destroy/destroy.png",
+      "Published": "Visual/destroy.png"
     },
     {
-      "Source": "VFX/bz/bz.png",
-      "Published": "VFX/bz.png"
+      "Source": "Visual/bz/bz.png",
+      "Published": "Visual/bz.png"
     },
     {
-      "Source": "VFX/death/death.png",
-      "Published": "VFX/death.png"
+      "Source": "Visual/death/death.png",
+      "Published": "Visual/death.png"
     },
     {
       "Source": "Crystals/blue/blue.png",
-      "Published": "Crystals/blue.png"
+      "Published": "Visual/Crystals/blue.png"
     },
     {
       "Source": "Crystals/violet/violet.png",
-      "Published": "Crystals/violet.png"
+      "Published": "Visual/Crystals/violet.png"
     },
     {
       "Source": "Crystals/green/green.png",
-      "Published": "Crystals/green.png"
+      "Published": "Visual/Crystals/green.png"
     },
     {
       "Source": "Crystals/cyan/cyan.png",
-      "Published": "Crystals/cyan.png"
+      "Published": "Visual/Crystals/cyan.png"
     },
     {
       "Source": "Crystals/white/white.png",
-      "Published": "Crystals/white.png"
+      "Published": "Visual/Crystals/white.png"
     },
     {
       "Source": "Crystals/red/red.png",
-      "Published": "Crystals/red.png"
+      "Published": "Visual/Crystals/red.png"
     },
     {
       "Source": "Items/Economy/cred/cred.png",
-      "Published": "Items/cred.png"
+      "Published": "Visual/Items/cred.png"
     },
     {
       "Source": "Items/Combat/c190/c190.png",
-      "Published": "Items/c190.png"
+      "Published": "Visual/Items/c190.png"
     },
     {
       "Source": "Items/Buildings/auto/auto.png",
-      "Published": "Items/auto.png"
+      "Published": "Visual/Items/auto.png"
     },
     {
       "Source": "Items/Detection/aliveRadar/aliveRadar.png",
-      "Published": "Items/aliveRadar.png"
+      "Published": "Visual/Items/aliveRadar.png"
     },
     {
       "Source": "Items/Recovery/battery/battery.png",
-      "Published": "Items/battery.png"
+      "Published": "Visual/Items/battery.png"
     },
     {
       "Source": "Items/Progression/mineBooster/mineBooster.png",
-      "Published": "Items/mineBooster.png"
+      "Published": "Visual/Items/mineBooster.png"
     },
     {
       "Source": "Items/Travel/teleport/teleport.png",
-      "Published": "Items/teleport.png"
+      "Published": "Visual/Items/teleport.png"
     },
     {
       "Source": "Items/Geology/Instruments/geoBlackRock.png",
-      "Published": "Items/geoBlackRock.png"
+      "Published": "Visual/Items/geoBlackRock.png"
     },
     {
       "Source": "Items/Geology/Instruments/geoCyan.png",
-      "Published": "Items/geoCyan.png"
+      "Published": "Visual/Items/geoCyan.png"
     },
     {
       "Source": "Items/Combat/razBomb/razBomb.png",
-      "Published": "Items/razBomb.png"
+      "Published": "Visual/Items/razBomb.png"
     },
     {
       "Source": "Items/Travel/gate/gate.png",
-      "Published": "Items/gate.png"
+      "Published": "Visual/Items/gate.png"
     },
     {
       "Source": "Items/Detection/vulkanRadar/vulkanRadar.png",
-      "Published": "Items/vulkanRadar.png"
+      "Published": "Visual/Items/vulkanRadar.png"
     },
     {
       "Source": "Items/Recovery/rem/rem.png",
-      "Published": "Items/rem.png"
+      "Published": "Visual/Items/rem.png"
     },
     {
       "Source": "Items/Combat/charge/charge.png",
-      "Published": "Items/charge.png"
+      "Published": "Visual/Items/charge.png"
     },
     {
       "Source": "Items/Progression/up/up.png",
-      "Published": "Items/up.png"
+      "Published": "Visual/Items/up.png"
     },
     {
       "Source": "Items/Geology/Instruments/geoViolet.png",
-      "Published": "Items/geoViolet.png"
+      "Published": "Visual/Items/geoViolet.png"
     },
     {
       "Source": "Items/Economy/fED/fED.png",
-      "Published": "Items/fED.png"
+      "Published": "Visual/Items/fED.png"
     },
     {
       "Source": "Items/Geology/Instruments/geoWhite.png",
-      "Published": "Items/geoWhite.png"
+      "Published": "Visual/Items/geoWhite.png"
     },
     {
       "Source": "Items/Combat/protonBomb/protonBomb.png",
-      "Published": "Items/protonBomb.png"
+      "Published": "Visual/Items/protonBomb.png"
     },
     {
       "Source": "Items/Detection/robotRadar/robotRadar.png",
-      "Published": "Items/robotRadar.png"
+      "Published": "Visual/Items/robotRadar.png"
     },
     {
       "Source": "Items/Geology/Packs/geopack.png",
-      "Published": "Items/geopack.png"
+      "Published": "Visual/Items/geopack.png"
     },
     {
       "Source": "Items/Buildings/craft/craft.png",
-      "Published": "Items/craft.png"
+      "Published": "Visual/Items/craft.png"
     },
     {
       "Source": "Items/Combat/gun/gun.png",
-      "Published": "Items/gun.png"
+      "Published": "Visual/Items/gun.png"
     },
     {
       "Source": "Items/Geology/Instruments/geoRainbow.png",
-      "Published": "Items/geoRainbow.png"
+      "Published": "Visual/Items/geoRainbow.png"
     },
     {
       "Source": "Items/Economy/eMI/eMI.png",
-      "Published": "Items/eMI.png"
+      "Published": "Visual/Items/eMI.png"
     },
     {
       "Source": "Items/Geology/Instruments/geoRedRock.png",
-      "Published": "Items/geoRedRock.png"
+      "Published": "Visual/Items/geoRedRock.png"
     },
     {
       "Source": "Items/Buildings/constructionBot/constructionBot.png",
-      "Published": "Items/constructionBot.png"
+      "Published": "Visual/Items/constructionBot.png"
     },
     {
       "Source": "Items/Buildings/bombShop/bombShop.png",
-      "Published": "Items/bombShop.png"
+      "Published": "Visual/Items/bombShop.png"
     },
     {
       "Source": "Items/Buildings/botSpot/botSpot.png",
-      "Published": "Items/botSpot.png"
+      "Published": "Visual/Items/botSpot.png"
     },
     {
       "Source": "Items/Buildings/poly/poly.png",
-      "Published": "Items/poly.png"
+      "Published": "Visual/Items/poly.png"
     },
     {
       "Source": "Items/Buildings/clans/clans.png",
-      "Published": "Items/clans.png"
+      "Published": "Visual/Items/clans.png"
     },
     {
       "Source": "Items/Detection/scanner/scanner.png",
-      "Published": "Items/scanner.png"
+      "Published": "Visual/Items/scanner.png"
     },
     {
       "Source": "Items/Buildings/compressor/compressor.png",
-      "Published": "Items/compressor.png"
+      "Published": "Visual/Items/compressor.png"
     },
     {
       "Source": "Items/Travel/trans/trans.png",
-      "Published": "Items/trans.png"
+      "Published": "Visual/Items/trans.png"
     },
     {
       "Source": "Items/Buildings/storage/storage.png",
-      "Published": "Items/storage.png"
+      "Published": "Visual/Items/storage.png"
     },
     {
       "Source": "Items/Economy/currency/currency.png",
-      "Published": "Items/currency.png"
+      "Published": "Visual/Items/currency.png"
     },
     {
       "Source": "Items/Geology/Instruments/geoBlue.png",
-      "Published": "Items/geoBlue.png"
+      "Published": "Visual/Items/geoBlue.png"
     },
     {
       "Source": "Items/Buildings/jobs/jobs.png",
-      "Published": "Items/jobs.png"
+      "Published": "Visual/Items/jobs.png"
     },
     {
       "Source": "Items/Progression/freeUp/freeUp.png",
-      "Published": "Items/freeUp.png"
+      "Published": "Visual/Items/freeUp.png"
     },
     {
       "Source": "Items/Travel/portableTeleporter/portableTeleporter.png",
-      "Published": "Items/portableTeleporter.png"
+      "Published": "Visual/Items/portableTeleporter.png"
     },
     {
       "Source": "Items/Economy/oPP/oPP.png",
-      "Published": "Items/oPP.png"
+      "Published": "Visual/Items/oPP.png"
     },
     {
       "Source": "Items/Geology/Instruments/geoRed.png",
-      "Published": "Items/geoRed.png"
+      "Published": "Visual/Items/geoRed.png"
     },
     {
       "Source": "Items/Geology/Instruments/geoBlack.png",
-      "Published": "Items/geoBlack.png"
+      "Published": "Visual/Items/geoBlack.png"
     },
     {
       "Source": "Items/Buildings/scienceCentre/scienceCentre.png",
-      "Published": "Items/scienceCentre.png"
+      "Published": "Visual/Items/scienceCentre.png"
     },
     {
       "Source": "Items/Geology/Instruments/geoHypno.png",
-      "Published": "Items/geoHypno.png"
+      "Published": "Visual/Items/geoHypno.png"
     },
     {
       "Source": "Items/Buildings/market/market.png",
-      "Published": "Items/market.png"
+      "Published": "Visual/Items/market.png"
     },
     {
       "Source": "Items/Buildings/generator/generator.png",
-      "Published": "Items/generator.png"
+      "Published": "Visual/Items/generator.png"
     },
     {
       "Source": "Items/Travel/resp/resp.png",
-      "Published": "Items/resp.png"
+      "Published": "Visual/Items/resp.png"
     },
     {
       "Source": "Items/Buildings/disassembler/disassembler.png",
-      "Published": "Items/disassembler.png"
+      "Published": "Visual/Items/disassembler.png"
     },
     {
       "Source": "Items/Progression/upgradeBooster/upgradeBooster.png",
-      "Published": "Items/upgradeBooster.png"
+      "Published": "Visual/Items/upgradeBooster.png"
     },
     {
       "Source": "Items/Combat/plasmBomb/plasmBomb.png",
-      "Published": "Items/plasmBomb.png"
+      "Published": "Visual/Items/plasmBomb.png"
     },
     {
       "Source": "Items/Recovery/nano/nano.png",
-      "Published": "Items/nano.png"
+      "Published": "Visual/Items/nano.png"
     },
     {
       "Source": "Pack/Clans/0/0.png",
-      "Published": "Pack/Clans/0.png"
+      "Published": "Visual/Pack/Clans/0.png"
     },
     {
       "Source": "Pack/Craft/0/0.png",
-      "Published": "Pack/Craft/0.png"
+      "Published": "Visual/Pack/Craft/0.png"
     },
     {
       "Source": "Pack/Science/0/0.png",
-      "Published": "Pack/Science/0.png"
+      "Published": "Visual/Pack/Science/0.png"
     },
     {
       "Source": "Pack/Teleport/0/0.png",
-      "Published": "Pack/Teleport/0.png"
+      "Published": "Visual/Pack/Teleport/0.png"
     },
     {
       "Source": "Pack/Resp/0/0.png",
-      "Published": "Pack/Resp/0.png"
+      "Published": "Visual/Pack/Resp/0.png"
     },
     {
       "Source": "Pack/Storage/0/0.png",
-      "Published": "Pack/Storage/0.png"
+      "Published": "Visual/Pack/Storage/0.png"
     },
     {
       "Source": "Pack/Up/0/0.png",
-      "Published": "Pack/Up/0.png"
+      "Published": "Visual/Pack/Up/0.png"
     },
     {
       "Source": "Pack/Gun/0/0.png",
-      "Published": "Pack/Gun/0.png"
+      "Published": "Visual/Pack/Gun/0.png"
     },
     {
       "Source": "Pack/Market/0/0.png",
-      "Published": "Pack/Market/0.png"
+      "Published": "Visual/Pack/Market/0.png"
     },
     {
       "Source": "Cells/Liquids/Acid/Blue/BlueAcid.png",
-      "Published": "Cells/Pearl.png"
+      "Published": "Visual/Cells/Pearl.png"
     },
     {
       "Source": "Cells/Liquids/Acid/Yellow/YellowAcid.png",
-      "Published": "Cells/YellowAcid.png"
+      "Published": "Visual/Cells/YellowAcid.png"
     }
   ]
 }

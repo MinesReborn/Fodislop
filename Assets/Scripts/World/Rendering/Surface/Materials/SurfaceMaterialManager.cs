@@ -123,21 +123,6 @@ public sealed class SurfaceMaterialManager
         horizonMaterial.SetVector(s_worldSizeId, worldSize);
     }
 
-    public Vector2 GetTerrainSheetTileCount(Texture2D texture)
-    {
-        const int tileSize = RenderingConstants.CELL_SIZE;
-        if (texture.width <= 0 || texture.height <= 0 ||
-            texture.width % tileSize != 0 || texture.height % tileSize != 0)
-        {
-            throw new InvalidOperationException(
-                $"Surface terrain sheet '{texture.name}' dimensions " +
-                $"{texture.width}x{texture.height} must be positive multiples " +
-                $"of the terrain tile size {tileSize}.");
-        }
-
-        return new Vector2(texture.width / tileSize, texture.height / tileSize);
-    }
-
     private static void RequireShaderProperties(Material material)
     {
         string[] requiredProperties = new string[]

@@ -1,0 +1,32 @@
+{
+  "Layouts": [
+    {
+      "Name": "Visual/bz.png",
+      "ComputeEmission": true,
+      "FrameWidth": 0,
+      "FrameHeightRatio": 2,
+      "FrameCount": 15,
+      "Fps": 30.0,
+      "PixelsPerUnit": 0.0,
+      "PixelsPerUnitFromFrameWidth": true
+    },
+    {
+      "Name": "Visual/death.png",
+      "FrameWidth": 64,
+      "FrameHeightRatio": 1,
+      "FrameCount": 39,
+      "Fps": 40.0,
+      "PixelsPerUnit": 0.0,
+      "PixelsPerUnitFromFrameWidth": false
+    },
+    {
+      "Name": "Visual/destroy.png",
+      "FrameWidth": 1,
+      "FrameHeightRatio": 1,
+      "FrameCount": 1,
+      "Fps": 0.0,
+      "PixelsPerUnit": 0.0,
+      "PixelsPerUnitFromFrameWidth": false
+    }
+  ]
+}

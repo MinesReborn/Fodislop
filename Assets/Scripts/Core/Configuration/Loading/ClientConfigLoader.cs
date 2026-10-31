@@ -28,7 +28,7 @@ internal sealed class ClientConfigLoader
     private const int PresetPairSchemaVersion = 34;
     private const int BloomStyleSchemaVersion = 35;
     private const int KeyBindingsSchemaVersion = 36;
-    private const int AggressionKeySchemaVersion = 37;
+    private const int SchemaVersion37 = 37;
     private const int HdrSwitchPendingSchemaVersion = 38;
     private const int PeakBrightnessFromDisplaySchemaVersion = 39;
     private const int TerrainNamesSchemaVersion = 40;
@@ -249,18 +249,16 @@ internal sealed class ClientConfigLoader
             schema = KeyBindingsSchemaVersion;
         }
 
-        // 36 -> 37: InterfaceSettings.KeyAggression. Поле аддитивное:
-        // FromJsonOverwrite оставляет дефолт "L" из инициализатора модели,
-        // поэтому миграция только фиксирует новую версию схемы.
+        // Schema 37 is retained for existing config files.
         if (schema == KeyBindingsSchemaVersion)
         {
-            schema = AggressionKeySchemaVersion;
+            schema = SchemaVersion37;
         }
 
         // 37 -> 38: DisplaySettings.HDRSwitchPending. Existing schema-37
         // files predate the safe-start marker; FromJsonOverwrite leaves the
         // default false when the field is absent and preserves it when present.
-        if (schema == AggressionKeySchemaVersion)
+        if (schema == SchemaVersion37)
         {
             schema = HdrSwitchPendingSchemaVersion;
         }

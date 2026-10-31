@@ -170,7 +170,7 @@ public sealed class DeadMembersRule : IRule
                     continue;
 
                 // A type that hosts a runtime entry point is called by Unity,
-                // not by project code (for example the Effekseer grid policy).
+                // not by project code.
                 if (DeclaresTypeWithEntryPoint(stripped, declarationStart, m.Value))
                     continue;
 
@@ -336,6 +336,8 @@ public sealed class DeadMembersRule : IRule
             string.Join("\n", haystackPartsB),
         };
 
+        var reflectedFields = CSharpReflectionReferences.CollectFields(allFiles);
+
         foreach (var (name, places) in declarations)
         {
             var uses = 0;
@@ -357,7 +359,9 @@ public sealed class DeadMembersRule : IRule
             if (reflectionUses.TryGetValue(name, out int reflectionBonus))
                 uses += reflectionBonus;
 
-            if (uses <= places.Count)
+            bool readThroughReflection = places.Any(place =>
+                reflectedFields.Contains((Path.GetFullPath(Path.Combine(projectRoot, place.File)), name)));
+            if (uses <= places.Count && !readThroughReflection)
             {
                 var first = places[0];
                 violations.Add(new RuleViolation

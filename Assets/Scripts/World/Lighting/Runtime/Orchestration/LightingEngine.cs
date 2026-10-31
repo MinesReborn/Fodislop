@@ -140,6 +140,12 @@ namespace Kern.World.Lighting
         private ITerrainLightingExchange _terrainLightingExchange = null!;
 
         private bool _initialized;
+        private bool _hasGameplayLightingOutput;
+        private ulong _gameplayLightingWorldGeneration;
+        private ulong _gameplayLightingFrameSequence;
+        private LightingOutputState _gameplayLightingOutputState;
+        private RectInt _gameplayLightingOutputRect;
+        private RectInt _gameplayLightingViewport;
         private bool _orientationValidationStarted;
         private bool _orientationValidationRequired;
         private LightingQualityTuning _appliedTuning = LightingQualityTuningController.Current;
@@ -147,6 +153,43 @@ namespace Kern.World.Lighting
             LightingQualityTuningController.DynamicExecutionModeRevision;
 
         public bool IsInitialized => _initialized;
+
+        public bool IsReadyForGameplay
+        {
+            get
+            {
+                if (!_initialized || !_hasGameplayLightingOutput || _terrainLightingExchange == null ||
+                    !_terrainLightingExchange.TryReadLightingOutput(out LightingOutputSnapshot output) ||
+                    output.WorldGeneration != _gameplayLightingWorldGeneration ||
+                    output.State != _gameplayLightingOutputState ||
+                    output.WorldRectCells != _gameplayLightingOutputRect ||
+                    (_terrainLightingExchange.TryReadLatestTerrainFrame(
+                        0,
+                        out TerrainLightingFrameSnapshot pendingFrame) &&
+                     (pendingFrame.WorldGeneration != _gameplayLightingWorldGeneration ||
+                      pendingFrame.FrameSequence > _gameplayLightingFrameSequence)))
+                {
+                    return false;
+                }
+
+                if (output.State == LightingOutputState.Disabled)
+                {
+                    return true;
+                }
+
+                RectInt outputRect = output.WorldRectCells;
+                if (output.State != LightingOutputState.Published ||
+                    outputRect.xMin > _gameplayLightingViewport.xMin ||
+                    outputRect.yMin > _gameplayLightingViewport.yMin ||
+                    outputRect.xMax < _gameplayLightingViewport.xMax ||
+                    outputRect.yMax < _gameplayLightingViewport.yMax)
+                {
+                    return false;
+                }
+
+                return true;
+            }
+        }
 
         public Cysharp.Threading.Tasks.UniTask BeginOrientationValidationAsync()
         {
@@ -533,6 +576,7 @@ namespace Kern.World.Lighting
                     frame.WorldGeneration,
                     LightingOutputState.Disabled,
                     default);
+                RecordGameplayLightingOutput(frame, LightingOutputState.Disabled, default);
                 return false;
             }
 
@@ -547,7 +591,24 @@ namespace Kern.World.Lighting
                 frame.WorldGeneration,
                 LightingOutputState.Published,
                 CurrentLightingWorldRectCells());
+            RecordGameplayLightingOutput(
+                frame,
+                LightingOutputState.Published,
+                CurrentLightingWorldRectCells());
             return true;
+        }
+
+        private void RecordGameplayLightingOutput(
+            TerrainLightingFrameSnapshot frame,
+            LightingOutputState state,
+            RectInt worldRect)
+        {
+            _gameplayLightingWorldGeneration = frame.WorldGeneration;
+            _gameplayLightingFrameSequence = frame.FrameSequence;
+            _gameplayLightingOutputState = state;
+            _gameplayLightingOutputRect = worldRect;
+            _gameplayLightingViewport = frame.LightingViewportCells;
+            _hasGameplayLightingOutput = true;
         }
 
         private void UpdateLightingCoordinator(TerrainLightingFrameSnapshot frame)

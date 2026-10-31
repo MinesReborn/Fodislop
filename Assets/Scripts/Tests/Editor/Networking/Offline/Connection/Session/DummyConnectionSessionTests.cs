@@ -1,7 +1,7 @@
 #nullable enable
 
 using Kern.Core.Interfaces;
-using MinesServer.Networking.Shared;
+using MinesServer.Networking.Contracts;
 using NUnit.Framework;
 
 using Kern.Networking.Offline;

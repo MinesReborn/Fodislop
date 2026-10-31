@@ -47,24 +47,24 @@ public sealed class MenuFileDiagnosticsTests
     // ── Проверка FMOD-банков ──
 
     [Test]
-    public void CheckBankFile_MissingFile_FailsWithBothPaths()
+    public void CheckBankFile_MissingPersistentFile_FailsWithCachePath()
     {
         MenuFileCheckResult result = MenuFileDiagnosticsService.CheckBankFile(
-            "key", "Master.bank", StreamingRoot, CancellationToken.None);
+            "key", "Master.bank", PersistentRoot, CancellationToken.None);
 
         Assert.That(result.Status, Is.EqualTo(MenuFileCheckStatus.Failed));
-        Assert.That(result.Detail, Does.Contain("StreamingAssets/Master.bank"));
-        Assert.That(result.Detail, Does.Contain("StreamingAssets/Audio/Master.bank"));
+        Assert.That(result.Detail, Does.Contain("persistentDataPath/Assets/Audio/Master.bank"));
     }
 
     [Test]
     public void CheckBankFile_ShortFile_Fails()
     {
-        Directory.CreateDirectory(StreamingRoot);
-        File.WriteAllBytes(Path.Combine(StreamingRoot, "Master.bank"), [0x46, 0x53]);
+        string audioRoot = Path.Combine(PersistentRoot, "Assets", "Audio");
+        Directory.CreateDirectory(audioRoot);
+        File.WriteAllBytes(Path.Combine(audioRoot, "Master.bank"), [0x46, 0x53]);
 
         MenuFileCheckResult result = MenuFileDiagnosticsService.CheckBankFile(
-            "key", "Master.bank", StreamingRoot, CancellationToken.None);
+            "key", "Master.bank", PersistentRoot, CancellationToken.None);
 
         Assert.That(result.Status, Is.EqualTo(MenuFileCheckStatus.Failed));
     }
@@ -72,13 +72,14 @@ public sealed class MenuFileDiagnosticsTests
     [Test]
     public void CheckBankFile_WrongMagic_Fails()
     {
-        Directory.CreateDirectory(StreamingRoot);
+        string audioRoot = Path.Combine(PersistentRoot, "Assets", "Audio");
+        Directory.CreateDirectory(audioRoot);
         File.WriteAllBytes(
-            Path.Combine(StreamingRoot, "Master.bank"),
+            Path.Combine(audioRoot, "Master.bank"),
             Encoding.ASCII.GetBytes("RIFFxxxx"));
 
         MenuFileCheckResult result = MenuFileDiagnosticsService.CheckBankFile(
-            "key", "Master.bank", StreamingRoot, CancellationToken.None);
+            "key", "Master.bank", PersistentRoot, CancellationToken.None);
 
         Assert.That(result.Status, Is.EqualTo(MenuFileCheckStatus.Failed));
         Assert.That(result.Detail, Does.Contain("FSB5"));
@@ -87,12 +88,13 @@ public sealed class MenuFileDiagnosticsTests
     [Test]
     public void CheckBankFile_ValidFsb5_SucceedsWithExpectedMd5()
     {
-        Directory.CreateDirectory(StreamingRoot);
-        string path = Path.Combine(StreamingRoot, "Master.bank");
+        string audioRoot = Path.Combine(PersistentRoot, "Assets", "Audio");
+        Directory.CreateDirectory(audioRoot);
+        string path = Path.Combine(audioRoot, "Master.bank");
         File.WriteAllBytes(path, ValidBank());
 
         MenuFileCheckResult result = MenuFileDiagnosticsService.CheckBankFile(
-            "key", "Master.bank", StreamingRoot, CancellationToken.None);
+            "key", "Master.bank", PersistentRoot, CancellationToken.None);
 
         // Сумма в детали сверяется с независимым подсчётом по файлу.
         using var md5 = MD5.Create();
@@ -106,13 +108,14 @@ public sealed class MenuFileDiagnosticsTests
     }
 
     [Test]
-    public void CheckBankFile_FallbackAudioCopy_Succeeds()
+    public void CheckBankFile_ReadsAudioBankFromPersistentAssets()
     {
-        Directory.CreateDirectory(Path.Combine(StreamingRoot, "Audio"));
-        File.WriteAllBytes(Path.Combine(StreamingRoot, "Audio/Master.strings.bank"), ValidBank());
+        string audioRoot = Path.Combine(PersistentRoot, "Assets", "Audio");
+        Directory.CreateDirectory(audioRoot);
+        File.WriteAllBytes(Path.Combine(audioRoot, "Master.strings.bank"), ValidBank());
 
         MenuFileCheckResult result = MenuFileDiagnosticsService.CheckBankFile(
-            "key", "Master.strings.bank", StreamingRoot, CancellationToken.None);
+            "key", "Master.strings.bank", PersistentRoot, CancellationToken.None);
 
         Assert.That(result.Status, Is.EqualTo(MenuFileCheckStatus.Ok));
     }
