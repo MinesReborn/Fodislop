@@ -61,6 +61,12 @@ TextField,
     -unity-text-align: middle-center;
 }
 
+/* Кнопка подтверждения на блокирующем оверлее (A4-S: OK после кика). */
+.ui-overlay-button {
+    margin-top: var(--space-5);
+    padding: var(--space-2) var(--space-6);
+}
+
 .ui-panel {
     flex-direction: column;
     min-height: 0;

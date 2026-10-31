@@ -32,11 +32,16 @@ namespace Kern.UI.Connection
         // presentation-readiness signal for this Game-tier overlay.
         [Inject]
         private GameManager _gameManager = null!;
+        [Inject]
+        private ISceneNavigator _sceneNavigator = null!;
+        [Inject]
+        private IAsyncOperationSupervisor _operations = null!;
 
         private VisualElement? _reconnectOverlay;
         private VisualElement? _disconnectOverlay;
         private Label? _reconnectLabel;
         private Label? _disconnectLabel;
+        private Button? _disconnectOkButton;
         private bool _reconnectStatusSet;
         private bool _initialized;
 
@@ -53,6 +58,7 @@ namespace Kern.UI.Connection
             _disconnectOverlay?.RemoveFromHierarchy();
             _reconnectOverlay = null;
             _disconnectOverlay = null;
+            _disconnectOkButton = null;
         }
 
         protected void Start()
@@ -113,6 +119,11 @@ namespace Kern.UI.Connection
                 throw new InvalidOperationException("[ReconnectUI] ReconnectLabel is missing from Reconnect.uxml.");
             _disconnectLabel = tree.Q<Label>("DisconnectLabel") ??
                 throw new InvalidOperationException("[ReconnectUI] DisconnectLabel is missing from Reconnect.uxml.");
+            _disconnectOkButton = tree.Q<Button>("DisconnectOkButton") ??
+                throw new InvalidOperationException("[ReconnectUI] DisconnectOkButton is missing from Reconnect.uxml.");
+            // A4-S: после кика мультилогином/разрыва игрок возвращается на экран
+            // входа (токен сохранён — повторный вход по кнопке Play на Gateway).
+            _disconnectOkButton.clicked += ExitToGateway;
 
             _reconnectOverlay.SetEnabled(false);
             _disconnectOverlay.SetEnabled(false);
@@ -177,6 +188,22 @@ namespace Kern.UI.Connection
             UIState.Show(_disconnectOverlay);
             _disconnectOverlay.SetEnabled(true);
             _disconnectOverlay.pickingMode = PickingMode.Position;
+        }
+
+        // Кик/разрыв — соединение уже мертво: единственный выход из блокирующего
+        // оверлея это экран входа. Токен не трогаем (сохранён — повторный вход
+        // по кнопке Play на Gateway).
+        private void ExitToGateway()
+        {
+            if (_sceneNavigator == null || _operations == null)
+            {
+                return;
+            }
+
+            Hide();
+            _operations.Run(
+                "reconnect_exit_to_gateway",
+                cancellationToken => _sceneNavigator.TransitionAsync(SceneNames.Gateway, cancellationToken));
         }
 
         public void SetStatus(string status)

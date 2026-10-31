@@ -53,7 +53,7 @@ public sealed class PlayerHUDPopups
             throw new InvalidOperationException("[PlayerHUD] RespawnButton is missing from PlayerHUD.uxml.");
         respawnButton.clicked += () => _respawnPopup.style.display = DisplayStyle.Flex;
 
-        // «Мои здания» и FAQ — серверные страницы: кнопки шлют OpenBuildingsClickPacket (26)
+        // «Мои здания» и FAQ — серверные страницы: кнопки шлют OpenBuildingsClickPacket (27)
         // и OpenHelpClickPacket (18); сервер отвечает окном (Session.BuildingsHandler →
         // Player.MyBuildingsWindow, Session.HelpHandler → Settings.FAQWindow) через
         // ServerWindowPresenter. Локальные попапы из UXML удалены.

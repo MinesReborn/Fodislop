@@ -106,4 +106,111 @@ public class ChatEventGatewayTests
 
         Assert.AreEqual(0, calls);
     }
+
+    // ─── E2-C: счётчик непрочитанных ───
+
+    private static ChatMessageListPacket MakeMessages(string tag, int count, long firstId = 1)
+    {
+        var messages = new ChatMessagePacket[count];
+        for (int i = 0; i < count; i++)
+        {
+            messages[i] = new ChatMessagePacket(
+                firstId + i,
+                123,
+                1,
+                0,
+                System.Drawing.Color.White,
+                "tester",
+                System.Drawing.Color.White,
+                "m");
+        }
+
+        return new ChatMessageListPacket(tag, messages);
+    }
+
+    [Test]
+    public void PublishMessages_WithoutFocus_CountsUnreadPerTag()
+    {
+        var gateway = new ChatEventGateway();
+
+        gateway.Publish(MakeMessages("FED", 3));
+        gateway.Publish(MakeMessages("TRADE", 2));
+
+        Assert.AreEqual(3, gateway.GetUnread("FED"));
+        Assert.AreEqual(2, gateway.GetUnread("TRADE"));
+        Assert.AreEqual(5, gateway.GetTotalUnread());
+    }
+
+    [Test]
+    public void PublishMessages_ForFocusedTag_DoesNotCountUnread()
+    {
+        var gateway = new ChatEventGateway();
+        gateway.SetFocusedTag("FED");
+
+        gateway.Publish(MakeMessages("FED", 4));
+
+        Assert.AreEqual(0, gateway.GetUnread("FED"));
+        Assert.AreEqual(0, gateway.GetTotalUnread());
+    }
+
+    [Test]
+    public void SetFocusedTag_ResetsUnreadOfFocusedTag()
+    {
+        var gateway = new ChatEventGateway();
+        gateway.Publish(MakeMessages("FED", 3));
+        gateway.Publish(MakeMessages("TRADE", 2));
+
+        gateway.SetFocusedTag("FED");
+
+        Assert.AreEqual(0, gateway.GetUnread("FED"));
+        Assert.AreEqual(2, gateway.GetUnread("TRADE"));
+        Assert.AreEqual(2, gateway.GetTotalUnread());
+    }
+
+    [Test]
+    public void HideChat_ClearsFocus_NextMessagesCountAgain()
+    {
+        var gateway = new ChatEventGateway();
+        gateway.SetFocusedTag("FED");
+        gateway.Publish(MakeMessages("FED", 2));
+
+        gateway.SetFocusedTag(null);
+        gateway.Publish(MakeMessages("FED", 2));
+
+        Assert.AreEqual(2, gateway.GetUnread("FED"));
+    }
+
+    [Test]
+    public void UnreadChanged_RaisesOnlyOnActualChange()
+    {
+        var gateway = new ChatEventGateway();
+        int notifications = 0;
+        gateway.UnreadChanged += () => notifications++;
+
+        gateway.Publish(MakeMessages("FED", 3));
+        Assert.AreEqual(1, notifications);
+
+        gateway.SetFocusedTag("FED");
+        Assert.AreEqual(2, notifications);
+
+        gateway.SetFocusedTag("FED");
+        Assert.AreEqual(2, notifications);
+
+        // Фокусный канал не копит непрочитанных — событие не срабатывает.
+        gateway.Publish(MakeMessages("FED", 2));
+        Assert.AreEqual(2, notifications);
+    }
+
+    [Test]
+    public void PublishMessages_EmptyBatch_DoesNotRaiseUnreadChanged()
+    {
+        var gateway = new ChatEventGateway();
+        int notifications = 0;
+        gateway.UnreadChanged += () => notifications++;
+
+        gateway.Publish(MakeMessages("FED", 0));
+
+        Assert.AreEqual(0, notifications);
+        Assert.AreEqual(0, gateway.GetTotalUnread());
+    }
 }

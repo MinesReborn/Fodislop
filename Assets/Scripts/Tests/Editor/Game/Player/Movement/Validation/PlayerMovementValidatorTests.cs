@@ -129,21 +129,21 @@ public class PlayerMovementValidatorTests
     [Test]
     public void IsPassable_UnloadedCell_ReturnsFalse()
     {
-        var passableConfig = CellPacket.Create(properties: CellConfigFlags.Passable);
+        var passableConfig = CellPacket.Create(properties: CellConfigProperties.Passable);
         Assert.IsFalse(PlayerMovementValidator.IsPassable(CellType.Unloaded, passableConfig));
     }
 
     [Test]
     public void IsPassable_PregenerCell_ReturnsFalse()
     {
-        var passableConfig = CellPacket.Create(properties: CellConfigFlags.Passable);
+        var passableConfig = CellPacket.Create(properties: CellConfigProperties.Passable);
         Assert.IsFalse(PlayerMovementValidator.IsPassable(CellType.Pregener, passableConfig));
     }
 
     [Test]
     public void IsPassable_ConfiguredPassable_ReturnsTrue()
     {
-        var passableConfig = CellPacket.Create(properties: CellConfigFlags.Passable);
+        var passableConfig = CellPacket.Create(properties: CellConfigProperties.Passable);
         Assert.IsTrue(PlayerMovementValidator.IsPassable(CellType.BuildingDoor, passableConfig));
     }
 
@@ -307,8 +307,8 @@ public class PlayerMovementValidatorTests
 
         public CellConfigurationPacket GetCellConfig(CellType type) =>
             CellPacket.Create(properties: type == CellType.Empty
-                ? CellConfigFlags.Passable
-                : CellConfigFlags.None);
+                ? CellConfigProperties.Passable
+                : CellConfigProperties.None);
 
         public float GetMoveCooldown(CellType cellType) =>
             cellType == CellType.Empty ? _emptyCooldown : _normalCooldown;

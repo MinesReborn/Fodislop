@@ -130,17 +130,11 @@ public sealed class TerrainTestWorld
 
         public CellConfigurationPacket GetCellConfig(CellType type)
         {
-            CellConfigFlags properties = type switch
+            CellConfigProperties properties = type switch
             {
-                CellType.Empty or CellType.Road => CellConfigFlags.Passable,
-                CellType.BuildingDoor => CellConfigFlags.Passable,
-                _ => CellConfigFlags.DropsShadow,
-            };
-            CellOutlineKind outline = type switch
-            {
-                CellType.Rock => CellOutlineKind.Wavy,
-                CellType.BuildingWall or CellType.BuildingDoor => CellOutlineKind.Rigid,
-                _ => CellOutlineKind.Pliant,
+                CellType.Empty or CellType.Road => CellConfigProperties.Passable,
+                CellType.BuildingDoor => CellConfigProperties.Passable,
+                _ => CellConfigProperties.DropsShadow,
             };
             byte reliefGroup = type switch
             {
@@ -151,8 +145,7 @@ public sealed class TerrainTestWorld
             return CellPacket.Create(
                 properties,
                 mapColor: unchecked((int)0xFF204060),
-                reliefGroup: reliefGroup,
-                outline: outline);
+                reliefGroup: reliefGroup);
         }
 
         public float GetMoveCooldown(CellType cellType) => 0f;

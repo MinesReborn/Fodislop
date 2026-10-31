@@ -449,3 +449,19 @@
     background-position: center center;
     -unity-background-image-tint-color: var(--light-solid);
 }
+
+/* E2-C: бейдж непрочитанных — кружок с числом в правом верхнем углу кнопки. */
+.chat-toggle-badge {
+    position: absolute;
+    top: -4px;
+    right: -6px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 3px;
+    border-radius: var(--radius-pill);
+    background-color: var(--state-danger, #d64541);
+    color: var(--light-solid);
+    font-size: 10px;
+    -unity-text-align: middle-center;
+    -unity-font-style: bold;
+}

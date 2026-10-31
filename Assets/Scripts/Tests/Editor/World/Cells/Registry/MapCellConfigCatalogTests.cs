@@ -23,7 +23,7 @@ public class MapCellConfigCatalogTests
         ushort properties = 0)
     {
         return CellPacket.Create(
-            properties: (MinesServer.Networking.Server.Packets.Connection.CellConfigFlags)properties,
+            properties: (CellConfigProperties)properties,
             shaderAnimation: shaderAnimation,
             frameAnimationSpeed: frameAnimationSpeed,
             mapColor: color);

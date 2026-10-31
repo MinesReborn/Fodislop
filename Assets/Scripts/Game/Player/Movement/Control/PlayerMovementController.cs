@@ -172,9 +172,11 @@ namespace Kern.Game.Player.Movement
         [Inject]
         private Kern.Networking.Processing.ProgrammatorProcessor _programmator = null!;
 
-        // Пока выполняется программа (и не HandMode), ручное движение
-        // закрыто: ни WASD, ни клик-путь — сервер их всё равно отвергнет,
-        // а клиент без гейта рисовал путь и делал предсказанный шаг.
+        // Пока выполняется программа (флаг из ProgramStatePacket 43), ручной
+        // ввод закрыт целиком: ни WASD, ни клик-путь, ни копание, ни хоткеи —
+        // сервер их всё равно отвергнет, а клиент без гейта рисовал путь и
+        // делал предсказанный шаг (G3-C). Живёт в PlayerMovementController:
+        // Update() гейтит всё одной точкой выхода.
         private bool _movementLockedByProgram;
 
         protected void Awake()
@@ -282,6 +284,15 @@ namespace Kern.Game.Player.Movement
             }
 
             if (_movementValidationFailed)
+            {
+                return;
+            }
+
+            // Пока выполняется программа, ручной ввод закрыт целиком: WASD,
+            // click-маршрут, копание и хоткеи уходят в один gating единственный
+            // ранний выход (G3-C). TryStartPath держит собственный барьер:
+            // он внешнее API, его зовёт PlayerInteractionController.
+            if (_movementLockedByProgram)
             {
                 return;
             }
@@ -465,11 +476,6 @@ namespace Kern.Game.Player.Movement
 
         private void ApplyMovement()
         {
-            if (_movementLockedByProgram)
-            {
-                return;
-            }
-
             if (_robot is null || _input is null)
             {
                 return;
@@ -673,11 +679,6 @@ namespace Kern.Game.Player.Movement
         // чтобы смены направления туда-обратно не флудили сервером.
         private void TryRotate(Vector2Int direction)
         {
-            if (_movementLockedByProgram)
-            {
-                return;
-            }
-
             if (_robot is null)
             {
                 return;

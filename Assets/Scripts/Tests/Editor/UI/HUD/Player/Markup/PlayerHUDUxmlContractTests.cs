@@ -61,6 +61,28 @@ public sealed class PlayerHUDUxmlContractTests
         "RespawnPopup",
     };
 
+    // Элементы, которые код HUD запрашивает как Q<Button> с throw при отсутствии:
+    // если в UXML элемент объявлен не Button (например ui:VisualElement), Q<Button>
+    // вернёт null и InitializeHUD упадёт, оторвав весь HUD от данных (деньги,
+    // корзина и кодовые надписи кнопок перестанут обновляться).
+    private static readonly string[] s_requiredButtonElements =
+    new[] {
+
+        "ClanButton",
+        "DropBoxButton",
+        "DonateButton",
+        "ProgrammatorButton",
+        "ProgramRunButton",
+        "RespawnConfirmButton",
+        "RespawnCancelButton",
+        "RespawnButton",
+        "BuildingsButton",
+        "FaqButton",
+        "MConsoleButton",
+        "AutoDigButton",
+
+    };
+
     [Test]
     public void PlayerHudResourceLoadsAndContainsHudRoot()
     {
@@ -106,6 +128,23 @@ public sealed class PlayerHUDUxmlContractTests
 
             VisualElement? inTree = tree.Q(overlayName);
             Assert.That(inTree, Is.Not.Null, $"Overlay #{overlayName} must exist in PlayerHUD.uxml");
+        }
+    }
+
+    [Test]
+    public void CodeRequiredElementsResolveAsButtons()
+    {
+        VisualTreeAsset asset = Resources.Load<VisualTreeAsset>("UI/HUD/Player/Templates/PlayerHUD");
+        Assert.That(asset, Is.Not.Null);
+
+        TemplateContainer tree = asset.CloneTree();
+
+        foreach (string buttonName in s_requiredButtonElements)
+        {
+            VisualElement? typed = tree.Q<Button>(buttonName);
+            Assert.That(typed, Is.Not.Null,
+                $"Element #{buttonName} must be a ui:Button in PlayerHUD.uxml: " +
+                "PlayerHUDView queries it as Q<Button> and throws on mismatch.");
         }
     }
 

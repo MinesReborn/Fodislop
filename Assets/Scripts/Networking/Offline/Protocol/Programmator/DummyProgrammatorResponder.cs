@@ -89,10 +89,13 @@ internal sealed class DummyProgrammatorResponder
             record.Breakpoints)));
     }
 
-    private void SetState(ProgramState state, bool isMovementAllowed = true)
+    // Оффлайн-отражение серверного контракта G3-S (ProgramStatus.Resolve
+    // на NS): движение разрешено только вне Running — на паузе/брейкпоинте
+    // клиент ходит и копает, под работающей программой ввод закрыт.
+    private void SetState(ProgramState state)
     {
         _state = state;
-        _sendPacket(new ServerPacket(new ProgramStatePacket(_state, isMovementAllowed)));
+        _sendPacket(new ServerPacket(new ProgramStatePacket(_state, state != ProgramState.Running)));
     }
 
     private sealed record ProgramRecord(

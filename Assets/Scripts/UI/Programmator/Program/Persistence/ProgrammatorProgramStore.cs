@@ -66,6 +66,9 @@ internal sealed class ProgrammatorProgramStore
     /// _activeIndex = -1, и пускать нечего).</summary>
     public bool HasActiveProgram => _activeIndex >= 0;
 
+    /// <summary>Слот открытой в редакторе программы (== ProgramId на сервере).</summary>
+    public int ActiveIndex => _activeIndex;
+
     public int ProgramCount => _programItems.Count;
 
     /// <summary>Активная (открытая в редакторе) программа сменилась или сбросилась.</summary>
@@ -235,9 +238,33 @@ internal sealed class ProgrammatorProgramStore
         }
 
         _programItems.RemoveAt(index);
-        _protocol.DeleteProgram();
+        // G5-C: пакет несёт ProgramId — сервер удаляет именно строку списка,
+        // а не выбранную в пульте. Слот открытой программы корректируется
+        // зеркально серверу (Player.AdjustSelectedProgramAfterDeletion).
+        _protocol.DeleteProgram(index);
+        if (_activeIndex == index)
+        {
+            _activeIndex = index > 0 ? index - 1 : (index < _programItems.Count ? index : -1);
+        }
+        else if (_activeIndex > index)
+        {
+            _activeIndex--;
+        }
+
         _file.Save(_programItems);
         RefreshProgramList();
+        RaiseActiveProgramChanged();
+    }
+
+    // Имя вводится в серверном окне (StaticGUI.Rename); клиент только адресует программу.
+    public void RenameProgram(int index)
+    {
+        if (index < 0 || index >= _programItems.Count)
+        {
+            return;
+        }
+
+        _protocol.RenameProgram(index);
     }
 
     public void RefreshProgramList()
@@ -264,6 +291,20 @@ internal sealed class ProgrammatorProgramStore
             nameLabel.AddToClassList("text-size-fixed-18");
             nameLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
             row.Add(nameLabel);
+
+            // G5-C: действия адресуют строку списка (индекс == ProgramId на сервере),
+            // а не открытую в пульте программу.
+            var renameButton = new Button { text = "✎" };
+            renameButton.AddToClassList("prog-list-action");
+            renameButton.tooltip = _loc.Get("programmator.rename");
+            renameButton.clicked += () => RenameProgram(idx);
+            row.Add(renameButton);
+
+            var deleteButton = new Button { text = "✕" };
+            deleteButton.AddToClassList("prog-list-action");
+            deleteButton.tooltip = _loc.Get("programmator.delete");
+            deleteButton.clicked += () => DeleteProgram(idx);
+            row.Add(deleteButton);
 
             row.RegisterCallback<ClickEvent>(_ => OpenProgram(idx));
             row.RegisterCallback<MouseEnterEvent>(_ =>

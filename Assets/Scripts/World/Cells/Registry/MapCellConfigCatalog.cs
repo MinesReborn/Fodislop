@@ -117,7 +117,7 @@ public sealed class MapCellConfigCatalog
     /// террейна.
     ///
     /// Палитра клиента — временный fallback: сервер пока шлёт заглушку в
-    /// <c>CellConfigurationPacket.MapColor</c> (<c>0xFFFFFFFF</c> для всех
+    /// <c>CellConfigurationPacket.Color</c> (<c>0xFFFFFFFF</c> для всех
     /// 256 типов, поэтому доверять пакету для описанных типов нельзя. Пакет
     /// читается только там, где палитра ничего не знает, — то есть для типа,
     /// которого в клиентской таблице ещё нет.
@@ -135,9 +135,9 @@ public sealed class MapCellConfigCatalog
         }
 
         CellConfigurationPacket config = GetCellConfig(type);
-        if (config.MapColor != 0)
+        if (config.Color != 0)
         {
-            int argb = config.MapColor;
+            int argb = config.Color;
             byte a = (byte)((argb >> 24) & 0xFF);
             if (a == 0)
             {

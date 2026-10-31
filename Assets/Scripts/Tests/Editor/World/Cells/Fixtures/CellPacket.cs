@@ -8,24 +8,17 @@ namespace Kern.Tests;
 internal static class CellPacket
 {
     public static CellConfigurationPacket Create(
-        CellConfigFlags properties = CellConfigFlags.None,
+        CellConfigProperties properties = CellConfigProperties.None,
         CellAnimationType shaderAnimation = CellAnimationType.None,
         float frameAnimationSpeed = 0f,
         int mapColor = 0,
-        byte reliefGroup = 0,
-        CellOutlineKind outline = CellOutlineKind.Pliant) =>
+        byte reliefGroup = 0) =>
         new(
             properties,
-            properties.HasFlag(CellConfigFlags.Passable)
-                ? CellRenderLayer.Background
-                : CellRenderLayer.Foreground,
-            outline,
-            CellTextureAnchorKind.Cell,
-            CellSurfaceEffectKind.Plain,
-            0,
+            CellDistortionType.Neutral,
             shaderAnimation,
-            frameAnimationSpeed,
-            CellDecalAtlasKind.None,
-            reliefGroup,
-            mapColor);
+            (byte)frameAnimationSpeed,
+            0,
+            mapColor,
+            reliefGroup);
 }

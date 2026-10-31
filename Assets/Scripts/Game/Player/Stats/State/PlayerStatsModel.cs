@@ -77,6 +77,9 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
     public string MissionDescription { get; private set; } = string.Empty;
     public long MissionProgress { get; private set; }
     public long MissionMaxProgress { get; private set; }
+    public string MissionImageUri { get; private set; } = string.Empty;
+    public ushort MissionImageWidth { get; private set; }
+    public ushort MissionImageHeight { get; private set; }
     public Vector2Int? MissionArrowTarget { get; private set; }
 
     public event Action? OnStatsChanged;
@@ -306,13 +309,16 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
         MaxDepth = depth;
         NotifyStatsChanged();
     }
-    public void SetMission(string title, string description, long max)
+    public void SetMission(string title, string description, long max, string imageUri = "", ushort imageWidth = 0, ushort imageHeight = 0)
     {
         title ??= string.Empty;
         description ??= string.Empty;
+        imageUri ??= string.Empty;
         if (IsMissionActive && string.Equals(MissionTitle, title, StringComparison.Ordinal) &&
             string.Equals(MissionDescription, description, StringComparison.Ordinal) &&
-            MissionMaxProgress == max && MissionProgress == 0)
+            MissionMaxProgress == max && MissionProgress == 0 &&
+            string.Equals(MissionImageUri, imageUri, StringComparison.Ordinal) &&
+            MissionImageWidth == imageWidth && MissionImageHeight == imageHeight)
         {
             return;
         }
@@ -322,6 +328,9 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
         MissionDescription = description;
         MissionProgress = 0;
         MissionMaxProgress = max;
+        MissionImageUri = imageUri;
+        MissionImageWidth = imageWidth;
+        MissionImageHeight = imageHeight;
         OnMissionChanged?.Invoke();
         NotifyStatsChanged();
     }
@@ -366,7 +375,8 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
     {
         if (!IsMissionActive && string.IsNullOrEmpty(MissionTitle) &&
             string.IsNullOrEmpty(MissionDescription) && MissionProgress == 0 &&
-            MissionMaxProgress == 0 && !MissionArrowTarget.HasValue)
+            MissionMaxProgress == 0 && !MissionArrowTarget.HasValue &&
+            string.IsNullOrEmpty(MissionImageUri))
         {
             return;
         }
@@ -377,6 +387,9 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
         MissionDescription = string.Empty;
         MissionProgress = 0;
         MissionMaxProgress = 0;
+        MissionImageUri = string.Empty;
+        MissionImageWidth = 0;
+        MissionImageHeight = 0;
         MissionArrowTarget = null;
         OnMissionChanged?.Invoke();
         if (hadArrow)

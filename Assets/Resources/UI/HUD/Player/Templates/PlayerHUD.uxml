@@ -39,6 +39,8 @@
             <ui:Label name="CreditsLabel" class="hud-credits" text="---" />
             <ui:Label name="GeologyLabel" class="hud-stat"  text="" />
 
+            <ui:Button name="DonateButton" class="hud-donate-button" text="💰" tooltip="hud.tooltip.donate" picking-mode="Position" />
+
             <ui:VisualElement name="BasketSeparator" class="hud-separator" />
 
             <!-- Корзина: груз + кнопка выброса бокса справа от процента (видна только при грузе > 0%) -->
@@ -125,7 +127,10 @@
                 <ui:Label class="sci-fi-badge-gold" text="hud.mission_badge" />
                 <ui:Label name="MissionTitleLabel" class="hud-mission-title" text="---" />
             </ui:VisualElement>
-            <ui:Label name="MissionDescLabel" class="hud-mission-desc" text="---" />
+            <ui:VisualElement class="hud-mission-body">
+                <ui:VisualElement name="MissionImage" class="hud-mission-image is-hidden" picking-mode="Ignore" />
+                <ui:Label name="MissionDescLabel" class="hud-mission-desc" text="---" />
+            </ui:VisualElement>
             <ui:VisualElement class="sci-fi-bar-track hud-mission-track">
                 <ui:VisualElement name="MissionProgressFill" class="sci-fi-bar-fill-cyan" />
             </ui:VisualElement>

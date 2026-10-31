@@ -18,6 +18,7 @@ using Kern.AssetPipeline.Loading;
 using Kern.Networking.Gateways;
 using Kern.UI.Input;
 using Kern.UI.Localization;
+using Kern.UI.Screens;
 
 namespace Kern.UI.Chat
 {
@@ -39,6 +40,7 @@ namespace Kern.UI.Chat
         private ChatWindowInteractionController? _interaction;
         private ChatEmojiController? _emojiController;
         private Button? _chatToggle;
+        private Label? _chatUnreadBadge;
 
         // Белая пиксельная иконка чата (цвет задаёт USS-тинт кнопки).
         private const string ChatIconResource = "UI/Chat/Global/Icons/ChatIcon";
@@ -85,6 +87,7 @@ namespace Kern.UI.Chat
             _chatEvents.HistoryReceived += AddHistory;
             _chatEvents.MuteReceived += ApplyMute;
             _chatEvents.ChatListReceived += ApplyChatList;
+            _chatEvents.UnreadChanged += UpdateUnreadBadge;
             if (_chatEvents.LastChatList is ChatListPacket lastChatList)
             {
                 ApplyChatList(lastChatList);
@@ -194,6 +197,8 @@ namespace Kern.UI.Chat
                 _chatEvents.HistoryReceived -= AddHistory;
                 _chatEvents.MuteReceived -= ApplyMute;
                 _chatEvents.ChatListReceived -= ApplyChatList;
+                _chatEvents.UnreadChanged -= UpdateUnreadBadge;
+                _chatEvents.SetFocusedTag(null);
             }
 
             _blink?.Dispose();
@@ -409,9 +414,37 @@ namespace Kern.UI.Chat
                 button.style.backgroundImage = new StyleBackground(icon);
             }
 
+            // Бейдж непрочитанных (E2-C): число поверх иконки; 0 = скрыт.
+            var unreadBadge = new Label { name = "ChatUnreadBadge" };
+            unreadBadge.AddToClassList("chat-toggle-badge");
+            unreadBadge.pickingMode = PickingMode.Ignore;
+            UIState.Hide(unreadBadge);
+            button.Add(unreadBadge);
+            _chatUnreadBadge = unreadBadge;
+
             _doc.rootVisualElement.Add(button);
             _chatToggle = button;
             RefreshToggleState();
+            UpdateUnreadBadge();
+        }
+
+        // Сумма непрочитанных по всем каналам; 0 — бейдж скрыт (E2-C).
+        private void UpdateUnreadBadge()
+        {
+            if (_chatUnreadBadge == null || _chatEvents == null)
+            {
+                return;
+            }
+
+            int total = _chatEvents.GetTotalUnread();
+            if (total <= 0)
+            {
+                UIState.Hide(_chatUnreadBadge);
+                return;
+            }
+
+            _chatUnreadBadge.text = total > 99 ? "99+" : total.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            UIState.Show(_chatUnreadBadge);
         }
 
         private void RefreshToggleState()
@@ -448,6 +481,10 @@ namespace Kern.UI.Chat
             _view?.Tree.BringToFront();
             MarkChatOpen(true);
 
+            // Открытие окна = «прочитано»: счётчик активного канала сбрасывается,
+            // бейдж на кнопке гаснет (E2-C).
+            _chatEvents?.SetFocusedTag(_activeTag);
+
             // История и сообщения могли прийти в скрытое окно (при заходе на
             // сервер чат закрыт): при показе доскролливаем к последнему
             // сообщению - отложенная прокрутка дождётся раскладки.
@@ -471,6 +508,10 @@ namespace Kern.UI.Chat
             {
                 _view.Panel.style.display = DisplayStyle.None;
             }
+
+            // Окно закрыто — просматриваемого канала нет: новые сообщения
+            // снова считаются непрочитанными (E2-C).
+            _chatEvents?.SetFocusedTag(null);
 
             // Курсор мог висеть над зоной ресайза в момент скрытия.
             _interaction?.OnPanelHidden();
@@ -632,6 +673,9 @@ namespace Kern.UI.Chat
             _activeTag = tag;
             _activeChatName = chatName;
             _chatListRequested = false;
+            // Переключение канала при открытом окне = «прочитано» (E2-C); при
+            // закрытом окне фокус и так null.
+            _chatEvents?.SetFocusedTag(_isOpen ? tag : null);
             if (_view?.ChatListPopup != null)
             {
                 _view.ChatListPopup.style.display = DisplayStyle.None;

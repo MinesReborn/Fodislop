@@ -80,7 +80,10 @@ public sealed class ProgrammatorProcessor : IStartable, IDisposable
 
     public void StepOver() => _networkService.Send(new ProgramStepOverPacket());
 
-    public void DeleteProgram() => _networkService.Send(new DeleteProgramClickPacket());
+    public void DeleteProgram(int programId) => _networkService.Send(new DeleteProgramClickPacket(programId));
+
+    // Имя вводится в серверном окне (StaticGUI.Rename): пакет только адресует программу.
+    public void RenameProgram(int programId) => _networkService.Send(new RenameProgramClickPacket(programId));
 
     // Кнопка «Программы» в HUD и «К списку» в редакторе (G7-C): источник списка
     // — сервер. Ответ сервера — OpenProgrammatorPacket (грид открывается по

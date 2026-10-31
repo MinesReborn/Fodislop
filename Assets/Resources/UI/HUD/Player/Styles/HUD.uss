@@ -455,6 +455,27 @@
     color: var(--surface-panel);
 }
 
+/* Иконокная кнопка доната в статус-панели — тот же паттерн, что и dropbox:
+   без неё ui:Button показывал бы дефолтный серый фон. */
+.hud-panel .hud-donate-button {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+    padding: 0;
+    margin-left: var(--space-2);
+    font-size: var(--size-sm);
+    -unity-text-align: middle-center;
+    color: var(--accent-gold);
+    background-color: var(--accent-gold-glow);
+    border-width: 1px;
+    border-color: var(--text-disabled);
+}
+
+.hud-panel .hud-donate-button:hover {
+    background-color: var(--accent-gold);
+    color: var(--surface-panel);
+}
+
 .hud-basket-container {
     flex-direction: column;
 }
@@ -1289,6 +1310,18 @@
     font-size: var(--size-xs);
     white-space: normal;
     margin-bottom: var(--space-3);
+}
+
+/* J2-C: картинка миссии (M3G из MissionInitPacket.ImageURI) слева от текста. */
+.hud-mission-body {
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+.hud-mission-image {
+    flex-shrink: 0;
+    margin-right: var(--space-3);
+    -unity-background-scale-mode: scale-and-crop;
 }
 
 .hud-mission-track {

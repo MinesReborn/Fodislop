@@ -7,6 +7,7 @@ using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Core.Localization;
 using Kern.Core.Models;
+using Kern.AssetPipeline.Loading;
 using Kern.Networking;
 using Kern.Player.Interfaces;
 using Kern.Game.Player.Stats;
@@ -97,6 +98,8 @@ namespace Kern.UI.HUD
         [Inject]
         private IAssetLoader _assetLoader = null!;
         [Inject]
+        private IWebAssetLoader _webAssetLoader = null!;
+        [Inject]
         private INetworkService _networkService = null!;
         [Inject]
         private ProgrammatorProcessor _programmatorProtocol = null!;
@@ -172,7 +175,7 @@ namespace Kern.UI.HUD
             }
 
             if (_doc == null || _doc.rootVisualElement == null || _model == null ||
-                _globalChatUI == null || _assetLoader == null || _networkService == null ||
+                _globalChatUI == null || _assetLoader == null || _webAssetLoader == null || _networkService == null ||
                 _inputBlocker == null || _loc == null || _operations == null)
             {
                 return;
@@ -394,6 +397,11 @@ namespace Kern.UI.HUD
             _dropBoxButton = tree.Q<Button>("DropBoxButton") ??
                 throw new InvalidOperationException("[PlayerHUD] DropBoxButton is missing from PlayerHUD.uxml.");
             _dropBoxButton.clicked += () => _networkService?.Send(new DropBoxClickPacket());
+
+            var donateButton = tree.Q<Button>("DonateButton") ??
+                throw new InvalidOperationException("[PlayerHUD] DonateButton is missing from PlayerHUD.uxml.");
+            donateButton.clicked += () => _networkService?.Send(new ElementClickPacket("donate", 0, Array.Empty<StringPairPacket>()));
+
             _geologyLabel = tree.Q<Label>("GeologyLabel") ??
                 throw new InvalidOperationException("[PlayerHUD] GeologyLabel is missing from PlayerHUD.uxml.");
 
@@ -446,7 +454,7 @@ namespace Kern.UI.HUD
             _popups.Initialize(tree);
 
             _statusPanel.Initialize(tree);
-            _missionPanel = new PlayerHUDMissionPanel(_loc);
+            _missionPanel = new PlayerHUDMissionPanel(_loc, _assetLoader, _webAssetLoader, _operations);
             _missionPanel.Initialize(tree);
 
             _programmatorButton = tree.Q<Button>("ProgrammatorButton") ??

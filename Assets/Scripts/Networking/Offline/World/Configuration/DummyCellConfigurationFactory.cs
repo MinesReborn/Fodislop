@@ -39,29 +39,27 @@ internal static class DummyCellConfigurationFactory
             var type = (CellType)i;
             BlockDefinition def = BlockRegistry.Get(type);
 
-            CellConfigFlags flags = CellConfigFlags.None;
+            // Визуальные поля (слой, контур, декаль и пр.) описаны на клиенте
+            // в cells.json (BlockRegistry) и больше не входят в пакет.
+            var properties = CellConfigProperties.None;
             if (def.IsPassable)
             {
-                flags |= CellConfigFlags.Passable;
+                properties |= CellConfigProperties.Passable;
             }
 
             if (def.Emission)
             {
-                flags |= CellConfigFlags.Emission;
+                properties |= CellConfigProperties.Glowing;
             }
 
             configs[i] = new CellConfigurationPacket(
-                Flags: flags,
-                DrawLayer: (CellRenderLayer)def.DrawLayer,
-                Outline: (CellOutlineKind)def.Outline,
-                TextureAnchor: (CellTextureAnchorKind)def.TextureAnchor,
-                SurfaceEffect: (CellSurfaceEffectKind)def.SurfaceEffect,
-                SurfaceEffectPalette: def.SurfaceEffectPalette,
-                ShaderAnimation: def.ShaderAnimation,
-                FrameAnimationSpeed: def.FrameAnimationSpeed,
-                DecalAtlas: (CellDecalAtlasKind)def.DecalAtlas,
-                ReliefGroup: def.ReliefGroup,
-                MapColor: DummyMapColors.Get(i));
+                Properties: properties,
+                Distortion: CellDistortionType.Neutral,
+                Animation: def.ShaderAnimation,
+                AnimationSpeed: (byte)def.FrameAnimationSpeed,
+                FrameOffset: 0,
+                Color: DummyMapColors.Get(i),
+                ReliefGroup: def.ReliefGroup);
         }
 
         return configs;

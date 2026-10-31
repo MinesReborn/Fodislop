@@ -747,6 +747,23 @@
     background-color: var(--surface-shelf-solid);
 }
 
+/* G5-C: ✎/✕ в строке списка программ — адресуют строку, не выбранную программу. */
+.prog-list-action {
+    width: 24px;
+    height: 24px;
+    margin-left: var(--space-2);
+    background-color: transparent;
+    color: var(--text-secondary);
+    font-size: var(--size-base);
+    -unity-text-align: middle-center;
+    border-width: 0;
+    padding: 0;
+}
+
+.prog-list-action:hover {
+    color: var(--text-primary);
+}
+
 .prog-list-name {
     flex-grow: 1;
     color: var(--accent-gold-hover);

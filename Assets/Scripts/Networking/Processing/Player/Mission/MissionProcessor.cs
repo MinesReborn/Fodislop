@@ -23,7 +23,7 @@ public sealed class MissionProcessor :
             return;
         }
 
-        _playerStats.SetMission(packet.Title, packet.Description, 0);
+        _playerStats.SetMission(packet.Title, packet.Description, 0, packet.ImageURI, packet.Width, packet.Height);
     }
 
     public void Process(MissionProgressPacket packet)

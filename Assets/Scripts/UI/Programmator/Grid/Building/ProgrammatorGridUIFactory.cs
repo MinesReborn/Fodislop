@@ -361,6 +361,28 @@ internal sealed class ProgrammatorGridUIFactory : ILocalizableUI
             throw new InvalidOperationException("[Programmator] DialogConfirmButton is missing from Programmator.uxml.");
         dialogConfirmBtn.clicked += () => programs.CreateNewProgram(_createInput!.value);
 
+        // G5-C: ✎/✕ действуют на программу, открытую в пульте. Имя вводится в
+        // серверном окне — клиент только адресует программу (см. RenameProgram).
+        Button renameProgramBtn = tree.Q<Button>("RenameProgramButton") ??
+            throw new InvalidOperationException("[Programmator] RenameProgramButton is missing from Programmator.uxml.");
+        renameProgramBtn.clicked += () =>
+        {
+            if (programs.HasActiveProgram)
+            {
+                programs.RenameProgram(programs.ActiveIndex);
+            }
+        };
+
+        Button deleteProgramBtn = tree.Q<Button>("DeleteProgramButton") ??
+            throw new InvalidOperationException("[Programmator] DeleteProgramButton is missing from Programmator.uxml.");
+        deleteProgramBtn.clicked += () =>
+        {
+            if (programs.HasActiveProgram)
+            {
+                programs.DeleteProgram(programs.ActiveIndex);
+            }
+        };
+
         _tooltip = new Tooltip();
         _tooltip.Initialize(_doc);
 
