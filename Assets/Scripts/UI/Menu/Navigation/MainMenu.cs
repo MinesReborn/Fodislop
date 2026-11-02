@@ -343,6 +343,7 @@ namespace Kern.UI.Menu
 
             _sceneryPresenter.Tick(ref _spaceBgTexture);
             MenuKeyboardHandler.HandleInput(_modalManager, _loadingActive, OnPlayButtonClicked, CancelDescent);
+            TickOnlineBadge();
 
         }
 

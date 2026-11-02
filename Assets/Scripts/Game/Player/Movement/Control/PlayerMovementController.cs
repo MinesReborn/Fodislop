@@ -140,6 +140,12 @@ namespace Kern.Game.Player.Movement
         private float _lastMoveTime;
         private float _lastRotateTime;
         private Direction? _lastSentDirection;
+        // Направление, до которого сервер реально дошёл пакетом Rotate
+        // (IntendedDirection). MovePacket направление не передаёт (структура
+        // (X, Y)), поэтому это единственный источник правды о том, куда
+        // сервер повернёт робота на следующем шаге. _lastSentDirection этим
+        // быть не может: он коммитится оптимистично на каждый шаг/бур.
+        private Direction _lastServerRotation = Direction.Down;
         private bool _movementValidationFailed;
         private bool _awaitingMoveConfirmation;
         [Inject]
@@ -325,6 +331,7 @@ namespace Kern.Game.Player.Movement
             IsGameplayVisible = false;
             _awaitingMoveConfirmation = false;
             _lastSentDirection = null;
+            _lastServerRotation = Direction.Down;
             _lastMoveTime = 0f;
             _lastRotateTime = 0f;
             CancelClickPath();
@@ -494,16 +501,15 @@ namespace Kern.Game.Player.Movement
 
             Vector2Int direction = PlayerDirectionMapping.InputToDirection(moveInput);
 
-            // Отдельный RotatePacket по смене ввода не отправляется: сервер
-            // доворачивает робота при исполнении любого действия (шаг - Rotate
-            // внутри TryMove, бур - ClickCellHandler), а поворот по факту ввода
-            // опережал кулдаун шага: миллисекундный тап боковой клавиши на ходу
-            // поворачивал робота без шага, обратный доворот гасился
-            // MinRotateInterval, и робот шёл наверх, глядя вбок, до следующего
-            // шага. Направление коммитится локально ровно в момент отправки
-            // шага/бура (см. _lastSentDirection ниже). Исключение - явный
-            // поворот на месте: Shift гасит отправку шага, повернуться иначе
-            // нельзя.
+            // Шаг MovePacket не несёт направление (структура (X, Y)); сервер
+            // доворачивает робота к IntendedDirection внутри TryMove, а само
+            // IntendedDirection меняется только пакетом Rotate. Поэтому
+            // RotatePacket отправляется при коммите ШАГА в новом направлении
+            // (см. TryRotate перед SendAction MovePacket ниже) - доворот по
+            // сырому вводу недопустим: миллисекундный тап боковой клавиши
+            // поворачивал робота без шага, обратный гасился кулдауном.
+            // Исключение - явный поворот на месте: Shift гасит отправку
+            // шага, повернуться иначе нельзя.
             if (direction != Vector2Int.zero && _input.IsShiftPressed && !_awaitingMoveConfirmation)
             {
                 TryRotate(direction);
@@ -623,6 +629,7 @@ namespace Kern.Game.Player.Movement
                     _lastMoveTime = Time.time;
                     _lastSentDirection = packetDirection;
                     _robot.TargetAngle = PlayerDirectionMapping.DirectionToAngle(direction);
+                    TryRotate(direction);
                     _awaitingMoveConfirmation = true;
                     _networkService?.SendAction(new MovePacket((ushort)targetPosition.x, (ushort)targetPosition.y));
                 }
@@ -646,6 +653,7 @@ namespace Kern.Game.Player.Movement
                 OnPlayerMoved?.Invoke(oldPos, Position);
                 _lastMoveTime = Time.time;
                 _lastSentDirection = packetDirection;
+                TryRotate(direction);
                 _awaitingMoveConfirmation = true;
                 _networkService?.SendAction(new MovePacket(targetServerX, targetServerY));
             }
@@ -672,11 +680,14 @@ namespace Kern.Game.Player.Movement
             }
         }
 
-        // Поворот на месте (Shift + направление): пакет уходит сразу, не
-        // ожидая кулдауна клетки, и не трогает _lastMoveTime, так что шаг в
-        // новую сторону происходит в обычном ритме клетки. _lastRotateTime
-        // гасит дрожь аналогового ввода у диагонали квантования (|x| == |y|),
-        // чтобы смены направления туда-обратно не флудили сервером.
+        // Поворот на месте (Shift + направление) и доворот при коммите шага
+        // в новом направлении: пакет уходит сразу, не ожидая кулдауна клетки,
+        // и не трогает _lastMoveTime, так что шаг в новую сторону происходит
+        // в обычном ритме клетки. "Знает ли сервер направление" - проверяем
+        // через _lastServerRotation (последний фактически отправленный
+        // Rotate); _lastRotateTime гасит дрожь аналогового ввода у диагонали
+        // квантования (|x| == |y|), чтобы смены направления туда-обратно
+        // не флудили сервером.
         private void TryRotate(Vector2Int direction)
         {
             if (_robot is null)
@@ -685,13 +696,14 @@ namespace Kern.Game.Player.Movement
             }
 
             Direction packetDirection = PlayerDirectionMapping.ToPacketDirection(direction);
-            if (_lastSentDirection == packetDirection ||
+            if (_lastServerRotation == packetDirection ||
                 Time.time - _lastRotateTime < MovementDefaults.MinRotateInterval)
             {
                 return;
             }
 
             _lastRotateTime = Time.time;
+            _lastServerRotation = packetDirection;
             _lastSentDirection = packetDirection;
             // Предсказание угла, как при шаге движения: сервер подтвердит
             // поворот ответным снимком позиции, но визуал не должен ждать
@@ -775,10 +787,14 @@ namespace Kern.Game.Player.Movement
             Vector2Int direction = new Vector2Int(serverDelta.x, -serverDelta.y);
             Direction packetDirection = PlayerDirectionMapping.ToPacketDirection(direction);
 
-            if (_lastSentDirection != packetDirection)
+            // Доворот - через общий TryRotate: знает ли сервер направление,
+            // сверяем с _lastServerRotation, а не с оптимистичным
+            // _lastSentDirection (его коммитят шаги WASD, которые направление
+            // не передают). Поворот тратит такт маршрута: шаг уйдёт только
+            // после отправленного Rotate.
+            if (_lastServerRotation != packetDirection)
             {
-                _networkService?.SendAction(new RotatePacket(packetDirection));
-                _lastSentDirection = packetDirection;
+                TryRotate(direction);
                 _lastMoveTime = Time.time;
                 return;
             }
@@ -829,6 +845,7 @@ namespace Kern.Game.Player.Movement
         public void ResetDirection()
         {
             _lastSentDirection = null;
+            _lastServerRotation = Direction.Down;
         }
 
         public void SetMovementInput(Vector2 input)
