@@ -1,9 +1,5 @@
 fileFormatVersion: 2
-<<<<<<<< HEAD:Assets/Scripts/Game/Visual.meta
 guid: 028f81ac05fb44209da15d549731e155
-========
-guid: 772715472f7d69b4c920df640925c71a
->>>>>>>> upstream/main:Assets/Textures/Pack/Gun/1.meta
 folderAsset: yes
 DefaultImporter:
   externalObjects: {}
