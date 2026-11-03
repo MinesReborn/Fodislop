@@ -455,6 +455,25 @@
     color: var(--surface-panel);
 }
 
+.hud-panel .hud-donate-button {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+    padding: 0;
+    margin-left: var(--space-2);
+    font-size: var(--size-sm);
+    -unity-text-align: middle-center;
+    color: var(--accent-gold);
+    background-color: var(--accent-gold-glow);
+    border-width: 1px;
+    border-color: var(--text-disabled);
+}
+
+.hud-panel .hud-donate-button:hover {
+    background-color: var(--accent-gold);
+    color: var(--surface-panel);
+}
+
 .hud-basket-container {
     flex-direction: column;
 }
@@ -544,31 +563,6 @@
     background-color: var(--accent-gold-hover);
 }
 
-.hud-button-close {
-    width: var(--space-10);
-    height: var(--space-10);
-    background-color: transparent;
-    color: var(--text-secondary);
-    font-size: var(--size-lg);
-    padding: 0;
-    border-width: 0;
-}
-
-.hud-button-claim {
-    align-self: center;
-    background-color: var(--accent-cyan-glow);
-    color: var(--light-solid);
-    border-color: var(--light-edge);
-    border-width: var(--space-1);
-    border-radius: var(--radius-sm);
-    padding: var(--space-2) var(--space-8);
-    font-size: var(--size-md);
-}
-
-.hud-button-claim:hover {
-    background-color: var(--light-edge);
-}
-
 .hud-button-label {
     font-size: var(--size-sm);
     -unity-font-style: bold;
@@ -576,38 +570,9 @@
     flex-grow: 1;
 }
 
-.hud-bonus-panel {
-    position: absolute;
-    top: 66px;
-    left: 256px;
-    width: 260px;
-    max-width: 90%;
-    max-height: 90%;
-    padding: var(--space-5);
-    background-color: var(--surface-panel);
-    border-color: var(--border-subtle);
-    border-width: var(--border-width-thin);
-    border-radius: var(--radius-md);
-    flex-direction: column;
-}
-
-.hud-bonus-panel .hud-stat {
-    margin: var(--space-1) 0;
-}
-
-.hud-bonus-panel .hud-title-row {
-    flex-direction: row;
-    margin-bottom: var(--space-5);
-}
-
-.hud-bonus-panel .hud-title-row .hud-stat {
-    color: var(--accent-gold);
-    flex-grow: 1;
-}
-
 .hud-status-panel {
     position: absolute;
-    /* Ниже кнопки бонуса (top:10 + высота 50 + зазор 6) — как было в C#-версии */
+    /* Под панелью игрока, как было в C#-версии */
     top: 66px;
     left: 256px;
     width: 220px;
@@ -978,14 +943,6 @@
 /* Hover-подложка темы перекрыла бы спрайт - на иконках её нет. */
 .hud-btn-top-row:hover { background-color: rgba(0, 0, 0, 0); }
 
-.hud-bonus-button {
-    position: absolute;
-    left: 256px;
-    top: var(--space-5);
-    width: 90px;
-    height: 50px;
-}
-
 /* Кнопки чата в HUD больше нет: чат открывается по TAB (GlobalChatUI.Update),
    панель - .gchat-panel в Chat.uss. */
 
@@ -1273,6 +1230,17 @@
     flex-direction: row;
     align-items: center;
     margin-bottom: var(--space-2);
+}
+
+.hud-mission-body {
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+.hud-mission-image {
+    flex-shrink: 0;
+    margin-right: var(--space-3);
+    -unity-background-scale-mode: scale-and-crop;
 }
 
 .hud-mission-title {

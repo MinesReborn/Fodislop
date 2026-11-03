@@ -18,15 +18,6 @@
       "Fps": 40.0,
       "PixelsPerUnit": 0.0,
       "PixelsPerUnitFromFrameWidth": false
-    },
-    {
-      "Name": "Visual/Effects/destroy.png",
-      "FrameWidth": 1,
-      "FrameHeightRatio": 1,
-      "FrameCount": 1,
-      "Fps": 0.0,
-      "PixelsPerUnit": 0.0,
-      "PixelsPerUnitFromFrameWidth": false
     }
   ]
 }

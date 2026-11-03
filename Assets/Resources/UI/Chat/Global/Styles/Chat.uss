@@ -268,45 +268,6 @@
     border-color: var(--text-disabled);
 }
 
-/* Кнопка-пикер смайлов: квадрат в ряду ввода, как кнопка цвета; глиф
-   кнопке ставит ChatEmojiController (emoji-шрифтом). */
-.gchat-emoji-button {
-    width: var(--space-11);
-    height: var(--space-11);
-    flex-shrink: 0;
-    padding: 0;
-    border-width: var(--border-width-thin);
-    border-left-width: 0;
-    border-color: var(--border-line);
-}
-
-/* Пикер смайлов: тот же плавающий попап над строкой ввода, 4 в ряд.
-   Открытие одного пикера закрывает второй (GlobalChatUI). */
-.gchat-emoji-grid {
-    position: absolute;
-    bottom: 40px;
-    right: var(--space-4);
-    flex-direction: row;
-    flex-wrap: wrap;
-    width: 170px;
-    flex-shrink: 0;
-    justify-content: center;
-    background-color: var(--surface-slate-dense);
-    border-width: var(--border-width-thin);
-    border-color: var(--border-cyan);
-    border-radius: var(--radius-md);
-    padding: var(--space-2);
-}
-
-.gchat-emoji-item {
-    width: var(--space-9);
-    height: var(--space-9);
-    margin: 1px;
-    padding: 0;
-    border-width: var(--border-width-thin);
-    border-color: var(--text-disabled);
-}
-
 .gchat-internal-input {
     background-color: transparent;
     border-width: 0;
@@ -448,4 +409,19 @@
     background-size: contain;
     background-position: center center;
     -unity-background-image-tint-color: var(--light-solid);
+}
+
+.chat-toggle-badge {
+    position: absolute;
+    top: -4px;
+    right: -6px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 3px;
+    border-radius: var(--radius-pill);
+    background-color: var(--state-danger, #d64541);
+    color: var(--light-solid);
+    font-size: 10px;
+    -unity-text-align: middle-center;
+    -unity-font-style: bold;
 }

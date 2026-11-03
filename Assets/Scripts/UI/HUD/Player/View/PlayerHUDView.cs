@@ -7,6 +7,7 @@ using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Core.Localization;
 using Kern.Core.Models;
+using Kern.AssetPipeline.Loading;
 using Kern.Networking;
 using Kern.Player.Interfaces;
 using Kern.Game.Player.Stats;
@@ -40,7 +41,6 @@ namespace Kern.UI.HUD
         private readonly PlayerHUDSkillGrid _skillGrid = new();
         private readonly PlayerHUDBasketView _basketView = new();
         private PlayerHUDMissionPanel _missionPanel = null!;
-        private PlayerHUDBonusController _bonusController = null!;
         private PlayerHUDPopups _popups = null!;
 
         [Inject]
@@ -96,6 +96,8 @@ namespace Kern.UI.HUD
         private GlobalChatUI _globalChatUI = null!;
         [Inject]
         private IAssetLoader _assetLoader = null!;
+        [Inject]
+        private IWebAssetLoader _webAssetLoader = null!;
         [Inject]
         private INetworkService _networkService = null!;
         [Inject]
@@ -161,7 +163,6 @@ namespace Kern.UI.HUD
             }
 
             _programmatorGrid?.Tick();
-            _bonusController?.Update();
         }
 
         private void TryStartInitialization()
@@ -172,7 +173,7 @@ namespace Kern.UI.HUD
             }
 
             if (_doc == null || _doc.rootVisualElement == null || _model == null ||
-                _globalChatUI == null || _assetLoader == null || _networkService == null ||
+                _globalChatUI == null || _assetLoader == null || _webAssetLoader == null || _networkService == null ||
                 _inputBlocker == null || _loc == null || _operations == null)
             {
                 return;
@@ -279,7 +280,6 @@ namespace Kern.UI.HUD
             {
                 _model.OnStatsChanged -= RefreshAll;
                 _model.OnSkillProgress -= OnSkillProgress;
-                _model.OnDailyBonusChanged -= OnDailyBonusChanged;
                 _model.OnStatusLinesChanged -= OnStatusLinesChanged;
                 _model.OnMissionChanged -= OnMissionChanged;
             }
@@ -290,7 +290,6 @@ namespace Kern.UI.HUD
             }
         }
 
-        private void OnDailyBonusChanged() => _bonusController.UpdateDailyBonusPanel(_model);
         private void OnStatusLinesChanged() => _statusPanel.Rebuild(_model);
         private void OnMissionChanged() => _missionPanel.Update(_model);
         private void InitializeHUD()
@@ -315,12 +314,10 @@ namespace Kern.UI.HUD
                 _model.OnSkillProgress += OnSkillProgress;
                 _model.OnStatusLinesChanged += OnStatusLinesChanged;
                 _model.OnMissionChanged += OnMissionChanged;
-                _model.OnDailyBonusChanged += OnDailyBonusChanged;
                 _model.OnStatsChanged += RefreshAll;
                 _isLoaded = _model.Health > 0 || _model.Level > 0;
             }
 
-            _bonusController.UpdateDailyBonusPanel(_model);
 
             _basketView.RebuildRows();
 
@@ -394,6 +391,10 @@ namespace Kern.UI.HUD
             _dropBoxButton = tree.Q<Button>("DropBoxButton") ??
                 throw new InvalidOperationException("[PlayerHUD] DropBoxButton is missing from PlayerHUD.uxml.");
             _dropBoxButton.clicked += () => _networkService?.Send(new DropBoxClickPacket());
+            Button donateButton = tree.Q<Button>("DonateButton") ??
+                throw new InvalidOperationException("[PlayerHUD] DonateButton is missing from PlayerHUD.uxml.");
+            donateButton.clicked += () => _networkService?.Send(
+                new ElementClickPacket("donate", 0, Array.Empty<StringPairPacket>()));
             _geologyLabel = tree.Q<Label>("GeologyLabel") ??
                 throw new InvalidOperationException("[PlayerHUD] GeologyLabel is missing from PlayerHUD.uxml.");
 
@@ -430,14 +431,6 @@ namespace Kern.UI.HUD
             // Кнопки чата в HUD нет: глобальный чат открывается по TAB
             // внутри GlobalChatUI.Update.
 
-            _bonusController = new PlayerHUDBonusController(packet => _networkService?.Send(packet), _loc, _uiInput);
-            _bonusController.Initialize(tree);
-            var bonusButton = tree.Q<Button>("BonusButton");
-            if (bonusButton != null)
-            {
-                Tooltip.AttachTo(bonusButton, () => _loc.Get("hud.tooltip.bonus"), _tooltip!);
-            }
-
             _popups = new PlayerHUDPopups(
                 packet => _networkService?.SendAction(packet),
                 packet => _networkService?.Send(packet),
@@ -446,7 +439,7 @@ namespace Kern.UI.HUD
             _popups.Initialize(tree);
 
             _statusPanel.Initialize(tree);
-            _missionPanel = new PlayerHUDMissionPanel(_loc);
+            _missionPanel = new PlayerHUDMissionPanel(_loc, _assetLoader, _webAssetLoader, _operations);
             _missionPanel.Initialize(tree);
 
             _programmatorButton = tree.Q<Button>("ProgrammatorButton") ??

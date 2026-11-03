@@ -133,15 +133,6 @@
     display: none;
 }
 
-.pointer--touch .hud-bonus-button {
-    top: var(--touch-edge);
-    left: auto;
-    right: 124px;
-    width: auto;
-    min-width: 72px;
-    height: var(--touch-target);
-}
-
 .pointer--touch .hud-status-panel {
     top: 56px;
     left: auto;
@@ -149,7 +140,6 @@
     width: 160px;
 }
 
-.form--tablet .hud-bonus-button,
 .form--tablet .hud-status-panel {
     right: 156px;
 }
@@ -472,12 +462,11 @@
    Две разные нехватки места, у каждой своя раскладка:
      form--narrow — внешний экран флипа (~390×380 dp): мало ширины;
      form--short  — окно в сплите (~900×200 dp): мало высоты.
-   Обоим не хватает места на задание, бонус, навыки и строки статуса —
+   Обоим не хватает места на задание, навыки и строки статуса —
    они уходят; управление дроном, чат, меню и программатор остаются. */
 
 .form--micro .hud-mission-panel,
 .form--micro .hud-status-panel,
-.form--micro .hud-bonus-button,
 .form--micro .hud-basket,
 .form--micro .hud-basket-container,
 .form--micro .hud-panel .hud-separator,

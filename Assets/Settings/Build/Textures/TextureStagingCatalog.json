@@ -437,10 +437,6 @@
       "Published": "Visual/Tail/default.png"
     },
     {
-      "Source": "Visual/destroy/destroy.png",
-      "Published": "Visual/Effects/destroy.png"
-    },
-    {
       "Source": "Visual/bz/bz.png",
       "Published": "Visual/Effects/bz.png"
     },

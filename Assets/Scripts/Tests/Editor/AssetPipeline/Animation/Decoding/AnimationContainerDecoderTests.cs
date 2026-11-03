@@ -34,7 +34,6 @@ public sealed class AnimationContainerDecoderTests
 
     [TestCase("Visual/Effects/bz.png", 16, 480, 16, 32, 15, 30f)]
     [TestCase("Visual/Effects/death.png", 64, 2496, 64, 64, 39, 40f)]
-    [TestCase("Visual/Effects/destroy.png", 1, 1, 1, 1, 1, 0f)]
     public void TryGetAnimationConfig_KnownAnimations_ReturnsExpectedValues(
         string filename,
         int width,

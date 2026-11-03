@@ -171,7 +171,9 @@ public class NetworkBatchingTests
         public string MissionDescription => string.Empty;
         public long MissionProgress => 0;
         public long MissionMaxProgress => 0;
-        public bool DailyBonusAvailable => false;
+        public string MissionImageUri => string.Empty;
+        public ushort MissionImageWidth => 0;
+        public ushort MissionImageHeight => 0;
         public Vector2Int? MissionArrowTarget => null;
 
         public void SetLevel(long level) { }
@@ -181,9 +183,14 @@ public class NetworkBatchingTests
         public void SetNickname(string nickname) { }
         public void SetClanId(int clanId) { }
         public void SetMaxDepth(int depth) { }
-        public void SetDailyBonusAvailable(bool available) { }
         public void SetSkillProgress(SkillType skill, long current, long max) { }
-        public void SetMission(string title, string description, long max) { }
+        public void SetMission(
+            string title,
+            string description,
+            long max,
+            string imageUri = "",
+            ushort imageWidth = 0,
+            ushort imageHeight = 0) { }
         public void SetMissionArrow(ushort x, ushort y) { }
         public void SetMissionProgress(long current) { }
         public void SetMissionMaxProgress(long max) { }
@@ -248,12 +255,6 @@ public class NetworkBatchingTests
         }
 
         public event Action<SkillType, long, long>? OnSkillProgress
-        {
-            add { }
-            remove { }
-        }
-
-        public event Action? OnDailyBonusChanged
         {
             add { }
             remove { }

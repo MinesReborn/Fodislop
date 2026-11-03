@@ -16,10 +16,6 @@ internal sealed class ChatColorController
     private readonly VisualElement? _colorGrid;
     private System.Drawing.Color _currentColor = ChatColorPalette.DefaultColor;
 
-    // Сообщает, что попап открылся (GlobalChatUI закрывает им второй попап,
-    // чтобы пикеры цвета и смайлов не висели друг на друге).
-    public event Action? Opened;
-
     public ChatColorController(
         INetworkService networkService,
         Button? colorButton,
@@ -53,18 +49,6 @@ internal sealed class ChatColorController
         {
             bool opening = _colorGrid.style.display == DisplayStyle.None;
             _colorGrid.style.display = opening ? DisplayStyle.Flex : DisplayStyle.None;
-            if (opening)
-            {
-                Opened?.Invoke();
-            }
-        }
-    }
-
-    public void CloseColorGrid()
-    {
-        if (_colorGrid != null)
-        {
-            _colorGrid.style.display = DisplayStyle.None;
         }
     }
 
@@ -72,7 +56,10 @@ internal sealed class ChatColorController
     {
         _currentColor = color;
         ApplyButtonColor(color);
-        CloseColorGrid();
+        if (_colorGrid != null)
+        {
+            _colorGrid.style.display = DisplayStyle.None;
+        }
 
         try
         {

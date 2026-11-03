@@ -25,8 +25,6 @@ public sealed class PlayerHUDUxmlContractTests
         "BasketPercentLabel",
         "BasketContainer",
         "HUDDragHandle",
-        "BonusButton",
-        "BonusPanel",
         "AutoDigButton",
         "MobileControls",
         "MobileMovePad",

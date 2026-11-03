@@ -10,10 +10,8 @@
             <ui:TextField name="ChatInput" class="gchat-input" />
             <ui:Button name="SendButton" class="gchat-send-button" text="&gt;" />
             <ui:Button name="ColorButton" class="gchat-color-button" />
-            <ui:Button name="EmojiButton" class="gchat-emoji-button" />
         </ui:VisualElement>
         <ui:VisualElement name="ColorGrid" class="gchat-color-grid" style="display: none;" />
-        <ui:VisualElement name="EmojiGrid" class="gchat-emoji-grid" style="display: none;" />
         <ui:VisualElement name="ChatListPopup" class="gchat-chats-popup" style="display: none;">
             <ui:Label name="ChatListHeader" class="gchat-chats-header" text="chat.list.title" />
             <ui:ScrollView name="ChatListScroll" class="gchat-chats-scroll" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto" />

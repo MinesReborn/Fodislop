@@ -140,6 +140,7 @@ namespace Kern.Game.Player.Movement
         private float _lastMoveTime;
         private float _lastRotateTime;
         private Direction? _lastSentDirection;
+        private Direction _lastServerRotation = Direction.Down;
         private bool _movementValidationFailed;
         private bool _awaitingMoveConfirmation;
         [Inject]
@@ -303,6 +304,13 @@ namespace Kern.Game.Player.Movement
                 return;
             }
 
+            // Block all manual gameplay input together: movement, digging and hotkeys.
+            // TryStartPath keeps its own guard because callers can invoke that public API directly.
+            if (_movementLockedByProgram)
+            {
+                return;
+            }
+
             try
             {
                 ApplyMovement();
@@ -331,6 +339,7 @@ namespace Kern.Game.Player.Movement
             IsGameplayVisible = false;
             _awaitingMoveConfirmation = false;
             _lastSentDirection = null;
+            _lastServerRotation = Direction.Down;
             _lastMoveTime = 0f;
             _lastRotateTime = 0f;
             CancelClickPath();
@@ -522,11 +531,6 @@ namespace Kern.Game.Player.Movement
 
         private void ApplyMovement()
         {
-            if (_movementLockedByProgram)
-            {
-                return;
-            }
-
             if (_robot is null || _input is null)
             {
                 return;
@@ -545,16 +549,10 @@ namespace Kern.Game.Player.Movement
 
             Vector2Int direction = PlayerDirectionMapping.InputToDirection(moveInput);
 
-            // Отдельный RotatePacket по смене ввода не отправляется: сервер
-            // доворачивает робота при исполнении любого действия (шаг - Rotate
-            // внутри TryMove, бур - ClickCellHandler), а поворот по факту ввода
-            // опережал кулдаун шага: миллисекундный тап боковой клавиши на ходу
-            // поворачивал робота без шага, обратный доворот гасился
-            // MinRotateInterval, и робот шёл наверх, глядя вбок, до следующего
-            // шага. Направление коммитится локально ровно в момент отправки
-            // шага/бура (см. _lastSentDirection ниже). Исключение - явный
-            // поворот на месте: Shift гасит отправку шага, повернуться иначе
-            // нельзя.
+            // MovePacket carries coordinates but no direction. Rotate only when
+            // a step in a new direction is committed; rotating on raw input can
+            // turn the robot even when the movement cooldown prevents a step.
+            // Shift remains an explicit rotate-in-place action.
             if (direction != Vector2Int.zero && _input.IsShiftPressed && !_awaitingMoveConfirmation)
             {
                 TryRotate(direction);
@@ -674,6 +672,7 @@ namespace Kern.Game.Player.Movement
                     _lastMoveTime = Time.time;
                     _lastSentDirection = packetDirection;
                     _robot.TargetAngle = PlayerDirectionMapping.DirectionToAngle(direction);
+                    TryRotate(direction);
                     _awaitingMoveConfirmation = true;
                     _networkService?.SendAction(new MovePacket((ushort)targetPosition.x, (ushort)targetPosition.y));
                 }
@@ -697,6 +696,7 @@ namespace Kern.Game.Player.Movement
                 OnPlayerMoved?.Invoke(oldPos, Position);
                 _lastMoveTime = Time.time;
                 _lastSentDirection = packetDirection;
+                TryRotate(direction);
                 _awaitingMoveConfirmation = true;
                 _networkService?.SendAction(new MovePacket(targetServerX, targetServerY));
             }
@@ -723,31 +723,25 @@ namespace Kern.Game.Player.Movement
             }
         }
 
-        // Поворот на месте (Shift + направление): пакет уходит сразу, не
-        // ожидая кулдауна клетки, и не трогает _lastMoveTime, так что шаг в
-        // новую сторону происходит в обычном ритме клетки. _lastRotateTime
-        // гасит дрожь аналогового ввода у диагонали квантования (|x| == |y|),
-        // чтобы смены направления туда-обратно не флудили сервером.
+        // Rotate-in-place and committed step turns share this sender. Track the
+        // last direction actually sent as RotatePacket separately from the
+        // optimistic direction of a MovePacket, which carries no direction.
         private void TryRotate(Vector2Int direction)
         {
-            if (_movementLockedByProgram)
-            {
-                return;
-            }
-
             if (_robot is null)
             {
                 return;
             }
 
             Direction packetDirection = PlayerDirectionMapping.ToPacketDirection(direction);
-            if (_lastSentDirection == packetDirection ||
+            if (_lastServerRotation == packetDirection ||
                 Time.time - _lastRotateTime < MovementDefaults.MinRotateInterval)
             {
                 return;
             }
 
             _lastRotateTime = Time.time;
+            _lastServerRotation = packetDirection;
             _lastSentDirection = packetDirection;
             // Предсказание угла, как при шаге движения: сервер подтвердит
             // поворот ответным снимком позиции, но визуал не должен ждать
@@ -831,10 +825,9 @@ namespace Kern.Game.Player.Movement
             Vector2Int direction = new Vector2Int(serverDelta.x, -serverDelta.y);
             Direction packetDirection = PlayerDirectionMapping.ToPacketDirection(direction);
 
-            if (_lastSentDirection != packetDirection)
+            if (_lastServerRotation != packetDirection)
             {
-                _networkService?.SendAction(new RotatePacket(packetDirection));
-                _lastSentDirection = packetDirection;
+                TryRotate(direction);
                 _lastMoveTime = Time.time;
                 return;
             }
@@ -885,6 +878,7 @@ namespace Kern.Game.Player.Movement
         public void ResetDirection()
         {
             _lastSentDirection = null;
+            _lastServerRotation = Direction.Down;
         }
 
         public void SetMovementInput(Vector2 input)

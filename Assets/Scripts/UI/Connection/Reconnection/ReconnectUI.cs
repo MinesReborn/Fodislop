@@ -32,11 +32,16 @@ namespace Kern.UI.Connection
         // presentation-readiness signal for this Game-tier overlay.
         [Inject]
         private GameManager _gameManager = null!;
+        [Inject]
+        private ISceneNavigator _sceneNavigator = null!;
+        [Inject]
+        private IAsyncOperationSupervisor _operations = null!;
 
         private VisualElement? _reconnectOverlay;
         private VisualElement? _disconnectOverlay;
         private Label? _reconnectLabel;
         private Label? _disconnectLabel;
+        private Button? _disconnectOkButton;
         private bool _reconnectStatusSet;
         private bool _initialized;
 
@@ -53,6 +58,7 @@ namespace Kern.UI.Connection
             _disconnectOverlay?.RemoveFromHierarchy();
             _reconnectOverlay = null;
             _disconnectOverlay = null;
+            _disconnectOkButton = null;
         }
 
         protected void Start()
@@ -113,6 +119,9 @@ namespace Kern.UI.Connection
                 throw new InvalidOperationException("[ReconnectUI] ReconnectLabel is missing from Reconnect.uxml.");
             _disconnectLabel = tree.Q<Label>("DisconnectLabel") ??
                 throw new InvalidOperationException("[ReconnectUI] DisconnectLabel is missing from Reconnect.uxml.");
+            _disconnectOkButton = tree.Q<Button>("DisconnectOkButton") ??
+                throw new InvalidOperationException("[ReconnectUI] DisconnectOkButton is missing from Reconnect.uxml.");
+            _disconnectOkButton.clicked += ExitToGateway;
 
             _reconnectOverlay.SetEnabled(false);
             _disconnectOverlay.SetEnabled(false);
@@ -202,6 +211,14 @@ namespace Kern.UI.Connection
                 _reconnectOverlay.SetEnabled(true);
                 _reconnectOverlay.pickingMode = PickingMode.Position;
             }
+        }
+
+        private void ExitToGateway()
+        {
+            Hide();
+            _operations.Run(
+                "reconnect_exit_to_gateway",
+                cancellationToken => _sceneNavigator.TransitionAsync(SceneNames.Gateway, cancellationToken));
         }
 
         public void Hide()
