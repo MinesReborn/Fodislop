@@ -2,7 +2,7 @@
 #define KERN_TERRAIN_LIGHTING_DATA_INCLUDED
 
 // Декодеры флагов света и контура вершины; раскладка — TerrainCellFormat.hlsl.
-#include "Assets/Shaders/Terrain/Cells/TerrainCellFormat.hlsl"
+#include "Assets/Shaders/Terrain/Cells/Format/TerrainCellFormat.hlsl"
 
 uint KernTerrainLightingFlags(float packedFlags)
 {

@@ -8,22 +8,23 @@ using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.UI;
 using MinesServer.Networking.Server.Packets.GUI.Components;
-using MinesServer.Networking.Shared.Packets;
+using MinesServer.Networking.Contracts.Packets;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 using Kern.AssetPipeline.Loading;
 using Kern.Networking.Processing;
+using Kern.Networking.Protocol;
 using Kern.UI.ServerWindows;
 
 namespace Kern.Tests.UI;
 
 /// <summary>
-/// Контракт генерической сборки легаси-окон: карточки инвентаря сервер
+/// Контракт сборки серверных окон: карточки инвентаря сервер
 /// присылает контейнерами [иконка / статус], ряды — DockPanel с детьми
 /// влево, колонки — детьми без стыковки; закрывающая кнопка (метка
-/// PacketUI.ExitAction) не рисуется, оставаясь в кликабельном порядке.
+/// ServerWindowActionMetadata) не рисуется, оставаясь в кликабельном порядке.
 /// </summary>
 [TestFixture]
 public class PacketInventoryCardTests
@@ -36,8 +37,23 @@ public class PacketInventoryCardTests
 
         public bool IsKnownMissing(string filename) => false;
 
+        public event System.Action<System.Collections.Generic.IReadOnlyCollection<string>>? AssetsChanged
+        {
+            add { }
+            remove { }
+        }
+
+        public void ReplaceAssets(System.Collections.Generic.IReadOnlyCollection<string> filenames) { }
+
         public UniTask<byte[]?> GetAssetBytesAsync(
             string filename,
+            CancellationToken cancellationToken = default,
+            int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds) =>
+            UniTask.FromResult<byte[]?>(null);
+
+        public UniTask<byte[]?> GetAssetBytesAsync(
+            string filename,
+            string expectedETag,
             CancellationToken cancellationToken = default,
             int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds) =>
             UniTask.FromResult<byte[]?>(null);
@@ -85,7 +101,7 @@ public class PacketInventoryCardTests
         // Карточка инвентаря в исполнении моста: контейнер с иконкой (URI
         // серверного ассета) и статусом, пристыкованными вверх.
         VisualElement card = Builder().Build(PacketTestFactory.DockPanel(
-            PacketTestFactory.Image("Items/geoRed.png", 44, 44, "", PacketTestFactory.Pair("DockPanel.Dock", "Top")),
+            PacketTestFactory.Image("Visual/Items/geoRed.png", 44, 44, "", PacketTestFactory.Pair("DockPanel.Dock", "Top")),
             PacketTestFactory.Text("1.2KK\nНет спроса", "", PacketTestFactory.Pair("DockPanel.Dock", "Top"))));
 
         Assert.That(card.childCount, Is.EqualTo(2));
@@ -106,9 +122,11 @@ public class PacketInventoryCardTests
         // Закрывающая кнопка — обычная видимая кнопка ряда (крестик рамки и
         // ESC шлют клик по её индексу), без клиентских спец-веток.
         VisualElement exit = Builder().Build(PacketTestFactory.Text(
-            "ВЫЙТИ",
+            "Закрыть",
             ".",
-            PacketTestFactory.Pair("PacketUI.ExitAction", "1")));
+            PacketTestFactory.Pair(
+                ServerWindowActionMetadata.ActionKey,
+                ServerWindowActionMetadata.CloseActionValue)));
 
         Assert.That(exit, Is.InstanceOf<Button>());
         Assert.That(exit.ClassListContains("packet-window-action"), Is.True);

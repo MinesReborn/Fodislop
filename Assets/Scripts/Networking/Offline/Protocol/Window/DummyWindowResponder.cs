@@ -14,7 +14,6 @@ internal sealed class DummyWindowResponder
 {
     private readonly Action<ServerPacket> _sendPacket;
     private readonly DummyBuffManager _buffManager;
-    private readonly DummyInventoryResponder _inventoryResponder;
     private readonly DummyTeleportManager _teleportManager;
     private readonly DummyClanManager _clanManager;
     private readonly DummyMissionRunner _missionRunner;
@@ -22,7 +21,6 @@ internal sealed class DummyWindowResponder
     internal DummyWindowResponder(
     Action<ServerPacket> sendPacket,
     DummyBuffManager buffManager,
-    DummyInventoryResponder inventoryResponder,
     DummyTeleportManager teleportManager,
     DummyClanManager clanManager,
     DummyMissionRunner missionRunner,
@@ -30,7 +28,6 @@ internal sealed class DummyWindowResponder
     {
         _sendPacket = sendPacket;
         _buffManager = buffManager;
-        _inventoryResponder = inventoryResponder;
         _teleportManager = teleportManager;
         _clanManager = clanManager;
         _missionRunner = missionRunner;
@@ -42,9 +39,6 @@ internal sealed class DummyWindowResponder
     {
         switch (packet.WindowTag)
         {
-            case "daily_bonus":
-                _buffManager.HandleDailyBonusClaim(_inventoryResponder.Items);
-                break;
             case "teleport":
                 HandleTeleport(packet);
                 break;
@@ -65,6 +59,13 @@ internal sealed class DummyWindowResponder
                 break;
             case "open_url_test":
                 _sendPacket(DummyWindowBuilder.BuildOpenUrlPacket("https://vk.ru/mines4reborn"));
+                break;
+            case "donate":
+                _sendPacket(new ServerPacket(new ModalWindowPacket(
+                    "Донат недоступен",
+                    "Пополнение баланса доступно только при подключении к серверу.",
+                    "Понятно",
+                    string.Empty)));
                 break;
             case "toggle_block_spawner":
                 _blockSpawner.Enabled = !_blockSpawner.Enabled;

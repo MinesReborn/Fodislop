@@ -15,11 +15,11 @@ public sealed class DummyClockContractTests
     private static readonly string[] s_exempt =
     new[] {
 
-        "Simulation/DummyClock.cs",
-        "Simulation/DummyWorldMapArchive.cs",
-        "Simulation/DummyWorldSimulationState.cs",
-        "Simulation/DummyWorldStreamingCoordinator.cs",
-        "Systems/DummyMapStreamer.cs",
+        "Scheduling/Clock/DummyClock.cs",
+        "World/Maps/Archives/DummyWorldMapArchive.cs",
+        "World/State/DummyWorldSimulationState.cs",
+        "World/Streaming/DummyWorldStreamingCoordinator.cs",
+        "World/Streaming/DummyMapStreamer.cs",
 
     };
 
@@ -30,7 +30,7 @@ public sealed class DummyClockContractTests
     [Test]
     public void OfflineServer_TakesTimeAndRandomnessOnlyFromDummyClock()
     {
-        string root = Path.Combine(Application.dataPath, "Scripts/Networking/Connection/Client");
+        string root = Path.Combine(Application.dataPath, "Scripts/Networking/Offline");
         string[] offenders = Directory
             .EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
             .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))

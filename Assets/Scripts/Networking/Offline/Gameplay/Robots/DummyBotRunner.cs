@@ -1,8 +1,8 @@
 #nullable enable
 
 using System;
-using System.Threading;
 using System.Collections.Generic;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using Kern.Core;
 using MinesServer.Data;
@@ -15,6 +15,12 @@ namespace Kern.Networking.Offline;
 
 internal static class DummyBotRunner
 {
+    private const int CommandRobotCount = 100;
+    private const ushort StaticCommandBotIdBase = 2000;
+    private const ushort CircularCommandBotIdBase = 2100;
+    private const float CommandOrbitRadius = 16f;
+    private const float CommandOrbitSpeed = 0.45f;
+
     public static readonly string[] BotNames =
     {
         "Mira",
@@ -24,6 +30,141 @@ internal static class DummyBotRunner
         "Iris",
         "Vex",
     };
+
+    public static async UniTask RunStaticBotsAround(
+        int lifecycleVersion,
+        int count,
+        ushort centerX,
+        ushort centerY,
+        IDummyClock clock,
+        Action<ServerPacket> sendPacket,
+        Func<int, bool> loopAlive,
+        CancellationToken cancellationToken)
+    {
+        List<CommandBot> bots = SpawnCommandBots(
+            count,
+            centerX,
+            centerY,
+            0,
+            StaticCommandBotIdBase,
+            sendPacket,
+            moveInCircle: false);
+        var positions = new IHBPacket[bots.Count];
+
+        while (loopAlive(lifecycleVersion))
+        {
+            for (int i = 0; i < bots.Count; i++)
+            {
+                CommandBot bot = bots[i];
+                float radius = 8f + (i / 25) * 4f;
+                (ushort x, ushort y) = GetPosition(bot.CenterX, bot.CenterY, radius, bot.InitialAngle);
+                positions[i] = new RobotPositionPacket(bot.Id, x, y, GetRotation(bot.InitialAngle));
+            }
+
+            sendPacket(new ServerPacket(new HBPacket((IHBPacket[])positions.Clone())));
+            await clock.Delay(100, cancellationToken);
+        }
+    }
+
+    public static async UniTask RunCircularBotsAround(
+        int lifecycleVersion,
+        ushort centerX,
+        ushort centerY,
+        IDummyClock clock,
+        Action<ServerPacket> sendPacket,
+        Func<int, bool> loopAlive,
+        CancellationToken cancellationToken)
+    {
+        long startedAtMilliseconds = DummyClockTime.UnixMilliseconds(clock);
+        List<CommandBot> bots = SpawnCommandBots(
+            CommandRobotCount,
+            centerX,
+            centerY,
+            startedAtMilliseconds,
+            CircularCommandBotIdBase,
+            sendPacket,
+            moveInCircle: true);
+        var positions = new IHBPacket[bots.Count];
+
+        while (loopAlive(lifecycleVersion))
+        {
+            for (int i = 0; i < bots.Count; i++)
+            {
+                CommandBot bot = bots[i];
+                double angle = bot.InitialAngle +
+                    (DummyClockTime.UnixMilliseconds(clock) - bot.StartedAtMilliseconds) / 1000d * CommandOrbitSpeed;
+                (ushort x, ushort y) = GetPosition(bot.CenterX, bot.CenterY, CommandOrbitRadius, angle);
+                positions[i] = new RobotPositionPacket(bot.Id, x, y, GetRotation(angle));
+            }
+
+            sendPacket(new ServerPacket(new HBPacket((IHBPacket[])positions.Clone())));
+            await clock.Delay(100, cancellationToken);
+        }
+    }
+
+    private static List<CommandBot> SpawnCommandBots(
+        int count,
+        ushort centerX,
+        ushort centerY,
+        long startedAtMilliseconds,
+        ushort botIdBase,
+        Action<ServerPacket> sendPacket,
+        bool moveInCircle)
+    {
+        var bots = new List<CommandBot>(count);
+        var initialPositions = new IHBPacket[count];
+
+        for (int i = 0; i < count; i++)
+        {
+            int ringIndex = i / 25;
+            float radius = moveInCircle ? CommandOrbitRadius : 8f + ringIndex * 4f;
+            double angle = moveInCircle
+                ? i * (Math.PI * 2d / count)
+                : (i % 25) * (Math.PI * 2d / 25);
+            ushort id = checked((ushort)(botIdBase + i));
+            (ushort x, ushort y) = GetPosition(centerX, centerY, radius, angle);
+
+            sendPacket(new ServerPacket(new RobotInfoPacket(
+                id,
+                1000,
+                0,
+                "Visual/Skin/Standard.png",
+                "Visual/Tail/default.png",
+                $"Test {id}")));
+
+            bots.Add(new CommandBot(id, centerX, centerY, angle, startedAtMilliseconds));
+            initialPositions[i] = new RobotPositionPacket(id, x, y, GetRotation(angle));
+        }
+
+        sendPacket(new ServerPacket(new HBPacket(initialPositions)));
+        return bots;
+    }
+
+    private static (ushort X, ushort Y) GetPosition(ushort centerX, ushort centerY, float radius, double angle)
+    {
+        int x = (int)Math.Round(centerX + Math.Cos(angle) * radius, MidpointRounding.AwayFromZero);
+        int y = (int)Math.Round(centerY + Math.Sin(angle) * radius, MidpointRounding.AwayFromZero);
+        return ((ushort)Math.Clamp(x, 0, ushort.MaxValue), (ushort)Math.Clamp(y, 0, ushort.MaxValue));
+    }
+
+    private static byte GetRotation(double angle)
+    {
+        double degrees = ((Math.Atan2(Math.Sin(angle), Math.Cos(angle)) * (180d / Math.PI)) + 360d) % 360d;
+        return degrees switch
+        {
+            > 225 and <= 315 => 0,
+            > 135 and <= 225 => 1,
+            > 45 and <= 135 => 2,
+            _ => 3,
+        };
+    }
+
+    private readonly record struct CommandBot(
+        ushort Id,
+        ushort CenterX,
+        ushort CenterY,
+        double InitialAngle,
+        long StartedAtMilliseconds);
 
     public static async UniTask RunCircularBots(
         int count,
@@ -85,8 +226,8 @@ internal static class DummyBotRunner
                             b.id,
                             1000,
                             0,
-                            "Skin/bee.png",
-                            "Tail/default.png",
+                            "Visual/Skin/Standard.png",
+                            "Visual/Tail/default.png",
                             b.name)));
                     }
 

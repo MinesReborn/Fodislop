@@ -32,8 +32,8 @@ public sealed class SceneContractRule : IRule
         {
             // Networking и Gameplay — чистый C# в контейнере (SCENE_STANDARD.md §1).
             ["World"] = new[] { "MapManager", "WorldBackgroundSetup", "WorldTextureManager" },
-            ["Rendering"] = new[] { "TerrainRenderer", "WorldEntityBatchRenderer", "PostProcessController", "LightingEngine", "SurfaceRenderer", "CameraFollow", "VFXPool" },
-            ["Audio"] = new[] { "ServerAudioEventManager" },
+            ["Rendering"] = new[] { "TerrainRenderer", "WorldEntityBatchRenderer", "PostProcessController", "LightingEngine", "SurfaceRenderer", "CameraFollow", "VisualEffectPool" },
+            ["Audio"] = new[] { "ServerEventPlaybackManager" },
         }),
         ("Assets/Scenes/Gateway.unity", "GatewayLifetimeScope", new[] { "GatewayLifetimeScope", "GatewayController", "UIDocument" }, null),
         ("Assets/Scenes/MainMenu.unity", "MainMenuLifetimeScope", new[] { "MainMenuLifetimeScope", "MainMenu", "UIDocument" }, null),
@@ -137,6 +137,8 @@ public sealed class SceneContractRule : IRule
     {
         // Unity built-in components
         ["UIDocument"] = "0000000000000000e000000000000000",
+        ["VisualEffectPool"] = "28db09fc049bf324fbee51907a8eaa35",
+        ["ServerEventPlaybackManager"] = "2d8f1740e9d392848890f725fd671084",
         // Project components (found via MCP inspection)
         ["GatewayController"] = "908ee3e9c3acb4c3cba7e23129cc9b38",
     };

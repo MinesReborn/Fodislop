@@ -135,7 +135,6 @@ struct TerrainSurfaceInputs
     float anchored;
     float packedContour;
     float packedLightingFlags;
-    int cellSurfaceEffect;
 };
 
 TerrainSurfaceInputs BuildTerrainSurfaceInputs(
@@ -143,8 +142,7 @@ TerrainSurfaceInputs BuildTerrainSurfaceInputs(
     float2 tileUV,
     float4 cornersX,
     float4 cornersY,
-    float4 lightContourDecal,
-    float packedCellSurfaceEffect)
+    float4 lightContourDecal)
 {
     TerrainSurfaceInputs surface;
     surface.cellSample = packedData.yz;
@@ -154,7 +152,6 @@ TerrainSurfaceInputs BuildTerrainSurfaceInputs(
     surface.anchored = packedData.x;
     surface.packedContour = lightContourDecal.z;
     surface.packedLightingFlags = lightContourDecal.y;
-    surface.cellSurfaceEffect = (int)(packedCellSurfaceEffect + 0.5);
     return surface;
 }
 

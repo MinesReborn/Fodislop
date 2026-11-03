@@ -211,7 +211,7 @@ public sealed class ProductionSceneContractValidator : IPreprocessBuildWithRepor
         string[] requiredFields =
         {
             "_servicesRoot", "_runtimeRoot", "_robotsRoot", "_buildingsRoot",
-            "_vfxRoot", "_floatingUIRoot", "_audioEventsRoot",
+            "_visualEffectRoot", "_floatingUIRoot", "_audioEventsRoot",
             "_uiDocument", "_postProcessVolume", "_playerMovement",
         };
 

@@ -17,10 +17,7 @@ internal static class WorldChunkV2Codec
 {
     internal const int FrameHeaderSize = 20;
     private const byte Crc32CFlag = 1;
-    private const byte ChunkIndexBoundFlag = 2;
-    private const uint Crc32CPolynomial = 0x82F63B78;
-    private const uint SchemaHashSeed = 2166136261;
-    private static readonly uint[] s_crc32CTable = CreateCrc32CTable();
+    internal const byte ChunkIndexBoundFlag = 2;
 
     internal sealed class VisitorCallbackException : Exception
     {
@@ -45,7 +42,7 @@ internal static class WorldChunkV2Codec
 
     internal static uint SchemaId<T>() where T : unmanaged
     {
-        return SchemaIdCache<T>.Value;
+        return WorldChunkSchema.SchemaIdCache<T>.Value;
     }
 
     internal static void EncodeLegacyV2Chunk<T>(BinaryWriter writer, T[] chunk, int chunkArea)
@@ -101,7 +98,7 @@ internal static class WorldChunkV2Codec
             ReadOnlySpan<byte> selectedPayload = raw;
             int selectedLength = rawLength;
 
-            int rleLength = EncodeRLE<T>(chunk.AsSpan(0, chunkArea), rleBuffer);
+            int rleLength = WorldChunkRunLengthCodec.EncodeRLE<T>(chunk.AsSpan(0, chunkArea), rleBuffer);
             if (rleLength < selectedLength)
             {
                 selectedCodec = Codec.RLE;
@@ -111,7 +108,7 @@ internal static class WorldChunkV2Codec
 
             if (paletteBuffer != null)
             {
-                int paletteLength = EncodeBytePalette(raw, paletteBuffer);
+                int paletteLength = WorldChunkPaletteCodec.EncodeBytePalette(raw, paletteBuffer);
                 if (paletteLength > 0 && paletteLength < selectedLength)
                 {
                     selectedCodec = Codec.BytePalette;
@@ -141,15 +138,15 @@ internal static class WorldChunkV2Codec
             BinaryPrimitives.WriteUInt16LittleEndian(header[6..], checked((ushort)elementSize));
             BinaryPrimitives.WriteUInt32LittleEndian(header[8..], checked((uint)selectedLength));
             BinaryPrimitives.WriteUInt32LittleEndian(header[12..], SchemaId<T>());
-            uint crc = UpdateCrc32C(uint.MaxValue, header[..16]);
+            uint crc = WorldChunkIntegrity.UpdateCrc32C(uint.MaxValue, header[..16]);
             if (chunkIndex.HasValue)
             {
                 Span<byte> chunkIndexBytes = stackalloc byte[sizeof(int)];
                 BinaryPrimitives.WriteInt32LittleEndian(chunkIndexBytes, chunkIndex.Value);
-                crc = UpdateCrc32C(crc, chunkIndexBytes);
+                crc = WorldChunkIntegrity.UpdateCrc32C(crc, chunkIndexBytes);
             }
 
-            crc = UpdateCrc32C(crc, selectedPayload);
+            crc = WorldChunkIntegrity.UpdateCrc32C(crc, selectedPayload);
             BinaryPrimitives.WriteUInt32LittleEndian(header[16..], ~crc);
 
             writer.Write(header);
@@ -249,7 +246,7 @@ internal static class WorldChunkV2Codec
         {
             Span<byte> payload = payloadBuffer.AsSpan(0, payloadLength);
             ReadExactly(reader, payload);
-            VerifyChecksum(header, payload, chunkIndex);
+            WorldChunkIntegrity.VerifyChecksum(header, payload, chunkIndex);
             DecodePayload<T>(header[4], payload, destination.AsSpan(0, chunkArea), rawLength);
         }
         finally
@@ -294,17 +291,17 @@ internal static class WorldChunkV2Codec
         {
             Span<byte> payload = payloadBuffer.AsSpan(0, payloadLength);
             ReadExactly(reader, payload);
-            VerifyChecksum(headerBuffer, payload, chunkIndex);
+            WorldChunkIntegrity.VerifyChecksum(headerBuffer, payload, chunkIndex);
             byte codec = headerBuffer[4];
             if (codec == (byte)Codec.RLE)
             {
-                ValidateRLE<T>(payload, chunkArea);
-                VisitRLE<T>(payload, chunkIndex, visitor);
+                WorldChunkRunLengthCodec.ValidateRLE<T>(payload, chunkArea);
+                WorldChunkRunLengthCodec.VisitRLE<T>(payload, chunkIndex, visitor);
             }
             else if (codec == (byte)Codec.BytePalette)
             {
-                ValidatePalette(payload, chunkArea);
-                VisitPalette<T>(payload, chunkArea, chunkIndex, visitor);
+                WorldChunkPaletteCodec.ValidatePalette(payload, chunkArea);
+                WorldChunkPaletteCodec.VisitPalette<T>(payload, chunkArea, chunkIndex, visitor);
             }
             else if (codec == (byte)Codec.Raw)
             {
@@ -370,86 +367,18 @@ internal static class WorldChunkV2Codec
         return Math.Max(rleMaximum, Math.Max(rawLength, lz4Maximum));
     }
 
-    private static int EncodeRLE<T>(ReadOnlySpan<T> values, Span<byte> destination)
-        where T : unmanaged
-    {
-        var comparer = EqualityComparer<T>.Default;
-        int elementSize = Unsafe.SizeOf<T>();
-        int output = 0;
-        int index = 0;
-        Span<T> valueStorage = stackalloc T[1];
-        while (index < values.Length)
-        {
-            T value = values[index];
-            int count = 1;
-            while (index + count < values.Length && count < ushort.MaxValue && comparer.Equals(values[index + count], value))
-            {
-                count++;
-            }
-
-            BinaryPrimitives.WriteUInt16LittleEndian(destination[output..], (ushort)count);
-            output += sizeof(ushort);
-            valueStorage[0] = value;
-            MemoryMarshal.AsBytes(valueStorage).CopyTo(destination[output..]);
-            output += elementSize;
-            index += count;
-        }
-
-        return output;
-    }
-
-    private static int EncodeBytePalette(ReadOnlySpan<byte> values, Span<byte> destination)
-    {
-        Span<short> indexByValue = stackalloc short[256];
-        indexByValue.Fill(-1);
-        Span<byte> palette = stackalloc byte[256];
-        int paletteCount = 0;
-        foreach (byte value in values)
-        {
-            if (indexByValue[value] < 0)
-            {
-                indexByValue[value] = (short)paletteCount;
-                palette[paletteCount++] = value;
-            }
-        }
-
-        int bitsPerIndex = BitsRequired(paletteCount - 1);
-        int packedLength = checked((int)(((long)values.Length * bitsPerIndex + 7) / 8));
-        int encodedLength = 4 + paletteCount + packedLength;
-        BinaryPrimitives.WriteUInt16LittleEndian(destination, (ushort)paletteCount);
-        destination[2] = (byte)bitsPerIndex;
-        destination[3] = 0;
-        palette[..paletteCount].CopyTo(destination[4..]);
-        Span<byte> packed = destination.Slice(4 + paletteCount, packedLength);
-        packed.Clear();
-        int bitPosition = 0;
-        foreach (byte value in values)
-        {
-            int paletteIndex = indexByValue[value];
-            for (int bit = 0; bit < bitsPerIndex; bit++, bitPosition++)
-            {
-                if ((paletteIndex & (1 << bit)) != 0)
-                {
-                    packed[bitPosition >> 3] |= (byte)(1 << (bitPosition & 7));
-                }
-            }
-        }
-
-        return encodedLength;
-    }
-
     private static void DecodePayload<T>(byte codec, ReadOnlySpan<byte> payload, Span<T> destination, int rawLength)
         where T : unmanaged
     {
         if (codec == (byte)Codec.RLE)
         {
-            DecodeRLE(payload, destination);
+            WorldChunkRunLengthCodec.DecodeRLE(payload, destination);
             return;
         }
 
         if (codec == (byte)Codec.BytePalette)
         {
-            DecodePalette(payload, MemoryMarshal.AsBytes(destination));
+            WorldChunkPaletteCodec.DecodePalette(payload, MemoryMarshal.AsBytes(destination));
             return;
         }
 
@@ -484,153 +413,7 @@ internal static class WorldChunkV2Codec
         throw new InvalidDataException($"World chunk codec {codec} cannot be decoded as raw data.");
     }
 
-    private static void DecodeRLE<T>(ReadOnlySpan<byte> payload, Span<T> destination)
-        where T : unmanaged
-    {
-        int elementSize = Unsafe.SizeOf<T>();
-        int offset = 0;
-        int cell = 0;
-        while (offset < payload.Length)
-        {
-            if (payload.Length - offset < sizeof(ushort) + elementSize)
-            {
-                throw new InvalidDataException("RLE world chunk has a truncated run.");
-            }
-
-            ushort count = BinaryPrimitives.ReadUInt16LittleEndian(payload[offset..]);
-            offset += sizeof(ushort);
-            if (count == 0 || count > destination.Length - cell)
-            {
-                throw new InvalidDataException("RLE world chunk contains an invalid run length.");
-            }
-
-            T value = MemoryMarshal.Read<T>(payload.Slice(offset, elementSize));
-            destination.Slice(cell, count).Fill(value);
-            cell += count;
-            offset += elementSize;
-        }
-
-        if (cell != destination.Length)
-        {
-            throw new InvalidDataException("RLE world chunk has an unexpected cell count.");
-        }
-    }
-
-    private static void ValidateRLE<T>(ReadOnlySpan<byte> payload, int chunkArea) where T : unmanaged
-    {
-        int elementSize = Unsafe.SizeOf<T>();
-        int offset = 0;
-        int cells = 0;
-        while (offset < payload.Length)
-        {
-            if (payload.Length - offset < sizeof(ushort) + elementSize)
-            {
-                throw new InvalidDataException("RLE world chunk has a truncated run.");
-            }
-
-            ushort count = BinaryPrimitives.ReadUInt16LittleEndian(payload[offset..]);
-            offset += sizeof(ushort) + elementSize;
-            if (count == 0 || count > chunkArea - cells)
-            {
-                throw new InvalidDataException("RLE world chunk contains an invalid run length.");
-            }
-
-            cells += count;
-        }
-
-        if (cells != chunkArea)
-        {
-            throw new InvalidDataException("RLE world chunk has an unexpected cell count.");
-        }
-    }
-
-    private static void VisitRLE<T>(ReadOnlySpan<byte> payload, int chunkIndex, Action<int, T, int> visitor)
-        where T : unmanaged
-    {
-        int elementSize = Unsafe.SizeOf<T>();
-        int offset = 0;
-        while (offset < payload.Length)
-        {
-            int count = BinaryPrimitives.ReadUInt16LittleEndian(payload[offset..]);
-            offset += sizeof(ushort);
-            T value = MemoryMarshal.Read<T>(payload.Slice(offset, elementSize));
-            InvokeVisitor(visitor, chunkIndex, value, count);
-            offset += elementSize;
-        }
-    }
-
-    private static void ValidatePalette(ReadOnlySpan<byte> payload, int chunkArea)
-    {
-        if (payload.Length < 4)
-        {
-            throw new InvalidDataException("Byte-palette chunk header is truncated.");
-        }
-
-        int paletteCount = BinaryPrimitives.ReadUInt16LittleEndian(payload);
-        int bits = payload[2];
-        int expectedBits = BitsRequired(paletteCount - 1);
-        int packedLength = checked((int)(((long)chunkArea * bits + 7) / 8));
-        if (paletteCount is < 1 or > 256 || bits != expectedBits || payload[3] != 0 ||
-            payload.Length != 4 + paletteCount + packedLength)
-        {
-            throw new InvalidDataException("Byte-palette chunk has invalid framing.");
-        }
-
-        ReadOnlySpan<byte> packed = payload[(4 + paletteCount)..];
-        for (int cell = 0, bitPosition = 0; cell < chunkArea; cell++, bitPosition += bits)
-        {
-            if (ReadBits(packed, bitPosition, bits) >= paletteCount)
-            {
-                throw new InvalidDataException("Byte-palette chunk contains an invalid palette index.");
-            }
-        }
-    }
-
-    private static void DecodePalette(ReadOnlySpan<byte> payload, Span<byte> output)
-    {
-        int paletteCount = BinaryPrimitives.ReadUInt16LittleEndian(payload);
-        int bits = payload[2];
-        ReadOnlySpan<byte> palette = payload.Slice(4, paletteCount);
-        ReadOnlySpan<byte> packed = payload[(4 + paletteCount)..];
-        for (int cell = 0, bitPosition = 0; cell < output.Length; cell++, bitPosition += bits)
-        {
-            output[cell] = palette[ReadBits(packed, bitPosition, bits)];
-        }
-    }
-
-    private static void VisitPalette<T>(ReadOnlySpan<byte> payload, int chunkArea, int chunkIndex, Action<int, T, int> visitor)
-        where T : unmanaged
-    {
-        if (Unsafe.SizeOf<T>() != 1)
-        {
-            throw new InvalidDataException("Byte-palette codec requires one-byte values.");
-        }
-
-        int paletteCount = BinaryPrimitives.ReadUInt16LittleEndian(payload);
-        int bits = payload[2];
-        ReadOnlySpan<byte> palette = payload.Slice(4, paletteCount);
-        ReadOnlySpan<byte> packed = payload[(4 + paletteCount)..];
-        int current = palette[ReadBits(packed, 0, bits)];
-        int runLength = 1;
-        for (int cell = 1, bitPosition = bits; cell < chunkArea; cell++, bitPosition += bits)
-        {
-            int value = palette[ReadBits(packed, bitPosition, bits)];
-            if (value == current)
-            {
-                runLength++;
-            }
-            else
-            {
-                EmitByteRun<T>(visitor, chunkIndex, (byte)current, runLength);
-                current = value;
-                runLength = 1;
-            }
-        }
-
-        EmitByteRun<T>(visitor, chunkIndex, (byte)current, runLength);
-    }
-
-    private static void EmitByteRun<T>(Action<int, T, int> visitor, int chunkIndex, byte value, int count)
+    internal static void EmitByteRun<T>(Action<int, T, int> visitor, int chunkIndex, byte value, int count)
         where T : unmanaged
     {
         Span<byte> valueBytes = stackalloc byte[1];
@@ -659,7 +442,7 @@ internal static class WorldChunkV2Codec
         }
     }
 
-    private static void InvokeVisitor<T>(Action<int, T, int> visitor, int chunkIndex, T value, int count)
+    internal static void InvokeVisitor<T>(Action<int, T, int> visitor, int chunkIndex, T value, int count)
     {
         try
         {
@@ -669,110 +452,6 @@ internal static class WorldChunkV2Codec
         {
             throw new VisitorCallbackException(exception);
         }
-    }
-
-    private static int ReadBits(ReadOnlySpan<byte> source, int bitPosition, int bitCount)
-    {
-        if (bitCount == 0)
-        {
-            return 0;
-        }
-
-        int byteIndex = bitPosition >> 3;
-        int bitOffset = bitPosition & 7;
-        uint window = source[byteIndex];
-        if (byteIndex + 1 < source.Length)
-        {
-            window |= (uint)source[byteIndex + 1] << 8;
-        }
-
-        return (int)((window >> bitOffset) & ((1u << bitCount) - 1));
-    }
-
-    private static int BitsRequired(int value)
-    {
-        int bits = 0;
-        while (value > 0)
-        {
-            bits++;
-            value >>= 1;
-        }
-
-        return bits;
-    }
-
-    private static void VerifyChecksum(ReadOnlySpan<byte> header, ReadOnlySpan<byte> payload, int? chunkIndex)
-    {
-        uint expected = BinaryPrimitives.ReadUInt32LittleEndian(header[16..]);
-        uint crc = UpdateCrc32C(uint.MaxValue, header[..16]);
-        bool isChunkIndexBound = (header[5] & ChunkIndexBoundFlag) != 0;
-        if (chunkIndex.HasValue && !isChunkIndexBound)
-        {
-            throw new InvalidDataException("Current world chunk frame is not bound to its chunk index.");
-        }
-
-        if (isChunkIndexBound)
-        {
-            if (!chunkIndex.HasValue)
-            {
-                throw new InvalidDataException("World chunk checksum requires its chunk index.");
-            }
-
-            Span<byte> chunkIndexBytes = stackalloc byte[sizeof(int)];
-            BinaryPrimitives.WriteInt32LittleEndian(chunkIndexBytes, chunkIndex.Value);
-            crc = UpdateCrc32C(crc, chunkIndexBytes);
-        }
-
-        crc = UpdateCrc32C(crc, payload);
-        if (~crc != expected)
-        {
-            throw new InvalidDataException("World chunk CRC32C mismatch.");
-        }
-    }
-
-    private static uint UpdateCrc32C(uint crc, ReadOnlySpan<byte> bytes)
-    {
-        foreach (byte value in bytes)
-        {
-            crc = (crc >> 8) ^ s_crc32CTable[(int)((crc ^ value) & 0xff)];
-        }
-
-        return crc;
-    }
-
-    private static uint[] CreateCrc32CTable()
-    {
-        var table = new uint[256];
-        for (uint index = 0; index < table.Length; index++)
-        {
-            uint value = index;
-            for (int bit = 0; bit < 8; bit++)
-            {
-                value = (value >> 1) ^ ((value & 1) == 0 ? 0 : Crc32CPolynomial);
-            }
-
-            table[(int)index] = value;
-        }
-
-        return table;
-    }
-
-    private static class SchemaIdCache<T> where T : unmanaged
-    {
-        internal static readonly uint Value = ComputeSchemaId<T>();
-    }
-
-    private static uint ComputeSchemaId<T>() where T : unmanaged
-    {
-        string typeName = typeof(T).FullName ?? typeof(T).Name;
-        uint hash = SchemaHashSeed;
-        foreach (char character in typeName)
-        {
-            hash = unchecked((hash ^ (byte)character) * 16777619);
-            hash = unchecked((hash ^ (byte)(character >> 8)) * 16777619);
-        }
-
-        return hash;
     }
 
     private static void ReadExactly(BinaryReader reader, Span<byte> destination)

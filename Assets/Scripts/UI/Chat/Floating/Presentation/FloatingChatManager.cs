@@ -154,7 +154,7 @@ namespace Kern.UI.Chat
 
             long poolStart = System.Diagnostics.Stopwatch.GetTimestamp();
             var bubble = GetFromPool();
-            RecordIfSlow("облако чата из пула", poolStart);
+            RecordIfSlow(nameof(GetFromPool), poolStart);
             if (bubble == null)
             {
                 return;
@@ -177,7 +177,7 @@ namespace Kern.UI.Chat
                 bubble.Init((int)packet.BotId, packet.Text, ResolveFallbackPosition(packet));
             }
 
-            RecordIfSlow("облако чата: показ", showStart);
+            RecordIfSlow(nameof(ShowLocalChat), showStart);
             _activeBubbles.Add(bubble);
         }
 
@@ -203,7 +203,7 @@ namespace Kern.UI.Chat
                 System.Diagnostics.Stopwatch.Frequency;
             if (milliseconds >= 2.0)
             {
-                Kern.Diagnostics.Frames.FrameEventLog.Record($"{what} {milliseconds:F1} мс");
+                Kern.Diagnostics.Frames.FrameEventLog.Record($"{what} {milliseconds:F1} ms");
             }
         }
 

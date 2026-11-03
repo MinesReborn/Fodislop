@@ -11,8 +11,6 @@
         "Unity.RenderPipelines.Core.Runtime",
         "Unity.RenderPipelines.Universal.Runtime",
         "FMODUnity",
-        "Effekseer",
-        "Effekseer.URP",
         "VContainer",
         "Kern.Diagnostics"
     ],

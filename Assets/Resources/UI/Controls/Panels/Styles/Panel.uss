@@ -5,7 +5,7 @@
 .panel {
     background-color: var(--surface-panel);
     border-color: var(--border-subtle);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-md);
     padding: var(--space-6);
     color: var(--text-primary);

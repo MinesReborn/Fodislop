@@ -2,9 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
-using Cysharp.Threading.Tasks;
-using Kern.Core.Interfaces;
 using MinesServer.Data;
 using UnityEngine;
 
@@ -21,18 +18,9 @@ public readonly record struct ProgGlyph(Texture2D Texture, int Width, int Height
 public interface IProgrammatorTextureCatalog
 {
     ProgGlyph? GetGlyph(ProgAction action);
-
-    // Серверная версия иконки догрузилась: видимые ячейки и палитра
-    // перерисовывают иконки.
-    event Action? ServerTexturesChanged;
 }
 
-// Иконки операторов приходят с сервера через IAssetLoader (файлы вида
-// 'programmator/166.png' — тот же канал, что VFX/Items/Robot), а не из
-// билда клиента: сервер владеет контентом операторов. Пока файл не загружен
-// (или сервер недоступен), GetGlyph отдаёт локальную копию из Resources,
-// чтобы окно открывалось мгновенно; серверная версия подменяет её по факту
-// загрузки и поднимает ServerTexturesChanged.
+// Иконки операторов вшиты в клиент (Resources/Programmator/Icons) и по сети не приходят.
 public sealed class ProgrammatorTextureRegistry : IProgrammatorTextureCatalog, IDisposable
 {
     // Панель рендерится с дробным масштабом (PanelSettings:
@@ -46,34 +34,11 @@ public sealed class ProgrammatorTextureRegistry : IProgrammatorTextureCatalog, I
     // исходным Width/Height.
     private const int Supersample = 3;
 
-    private readonly IAssetLoader _assetLoader;
-    private readonly IAsyncOperationSupervisor _operations;
     private readonly Dictionary<ProgAction, ProgGlyph> _localCache = new();
-    private readonly Dictionary<ProgAction, ProgGlyph> _serverCache = new();
-    private readonly HashSet<ProgAction> _fetchStarted = new();
     private readonly List<Texture2D> _runtimeCopies = new();
-    private readonly CancellationTokenSource _lifetime = new();
-
-    public event Action? ServerTexturesChanged;
-
-    public ProgrammatorTextureRegistry(IAssetLoader assetLoader, IAsyncOperationSupervisor operations)
-    {
-        _assetLoader = assetLoader ?? throw new ArgumentNullException(nameof(assetLoader));
-        _operations = operations ?? throw new ArgumentNullException(nameof(operations));
-    }
 
     public ProgGlyph? GetGlyph(ProgAction action)
     {
-        if (_serverCache.TryGetValue(action, out var serverGlyph))
-        {
-            return serverGlyph;
-        }
-
-        if (_fetchStarted.Add(action))
-        {
-            _operations.Run($"programmator_glyph_{(int)action}", token => FetchFromServer(action, token));
-        }
-
         if (_localCache.TryGetValue(action, out var localGlyph))
         {
             return localGlyph;
@@ -96,42 +61,6 @@ public sealed class ProgrammatorTextureRegistry : IProgrammatorTextureCatalog, I
         return localGlyph;
     }
 
-    // Провал (файла нет, сервер недоступен) снимает отметку: следующее
-    // обновление UI повторит запрос, уже существующие ответы «нет такого
-    // файла» отсекает IsKnownMissing у диспетчера.
-    private async UniTask FetchFromServer(ProgAction action, CancellationToken cancellationToken)
-    {
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifetime.Token);
-        string filename = $"programmator/{(int)action}.png";
-        try
-        {
-            if (_assetLoader.IsKnownMissing(filename))
-            {
-                return;
-            }
-
-            Texture2D? texture = await _assetLoader.GetTextureAsync(
-                filename,
-                linked.Token);
-            if (texture == null || _lifetime.IsCancellationRequested)
-            {
-                _fetchStarted.Remove(action);
-                return;
-            }
-
-            _serverCache[action] = PrepareGlyph(texture);
-            ServerTexturesChanged?.Invoke();
-        }
-        catch (OperationCanceledException)
-        {
-            // Отмена — штатный путь при закрытии скоупа.
-        }
-        catch (Exception)
-        {
-            _fetchStarted.Remove(action);
-        }
-    }
-
     private ProgGlyph PrepareGlyph(Texture2D source)
     {
         RuntimeTextureFactory.ApplySampling(
@@ -140,8 +69,7 @@ public sealed class ProgrammatorTextureRegistry : IProgrammatorTextureCatalog, I
             TextureWrapMode.Clamp);
 
         // Не лезем в суперсэмплинг, если расширенная копия не влезает в
-        // лимит GPU (для текущего арта ≤31px запас большой, но сервер
-        // владеет контентом и может прислать что угодно).
+        // лимит GPU (для текущего арта ≤31px запас большой).
         bool fitsGpu = source.width * Supersample <= SystemInfo.maxTextureSize &&
                        source.height * Supersample <= SystemInfo.maxTextureSize;
         Texture2D render = fitsGpu ? SupersampleNearest(source) : source;
@@ -196,9 +124,6 @@ public sealed class ProgrammatorTextureRegistry : IProgrammatorTextureCatalog, I
 
     public void Dispose()
     {
-        _lifetime.Cancel();
-        _lifetime.Dispose();
-
         foreach (Texture2D copy in _runtimeCopies)
         {
             if (copy != null)

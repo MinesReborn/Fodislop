@@ -11,15 +11,13 @@ public sealed class DummyResponderDecompositionContractTests
     [Test]
     public void Connection_DelegatesWindowTagsInsteadOfOwningTheirRouting()
     {
-        string connection = ReadClientSource("DummyConnection.cs");
-        string responder = ReadClientSource("Responders/DummyWindowResponder.cs");
+        string connection = ReadOfflineSource("Connection/Session/DummyConnection.cs");
+        string responder = ReadOfflineSource("Protocol/Window/DummyWindowResponder.cs");
 
         Assert.That(connection, Does.Contain("_windowResponder.Handle("));
         Assert.That(connection, Does.Contain("elementClick"));
-        Assert.That(connection, Does.Not.Contain("packet.WindowTag == \"daily_bonus\""));
         Assert.That(connection, Does.Not.Contain("packet.WindowTag == \"teleport\""));
         Assert.That(connection, Does.Not.Contain("packet.WindowTag == \"missions\""));
-        Assert.That(responder, Does.Contain("case \"daily_bonus\":"));
         Assert.That(responder, Does.Contain("case \"teleport\":"));
         Assert.That(responder, Does.Contain("case \"missions\":"));
     }
@@ -27,7 +25,7 @@ public sealed class DummyResponderDecompositionContractTests
     [Test]
     public void Connection_DelegatesChatAndInventoryState()
     {
-        string connection = ReadClientSource("DummyConnection.cs");
+        string connection = ReadOfflineSource("Connection/Session/DummyConnection.cs");
 
         Assert.That(connection, Does.Not.Contain("_chatColor"));
         Assert.That(connection, Does.Not.Contain("_selectedItemType"));
@@ -39,8 +37,8 @@ public sealed class DummyResponderDecompositionContractTests
     [Test]
     public void Connection_DelegatesWorldStartupSnapshotAndLoops()
     {
-        string connection = ReadClientSource("DummyConnection.cs");
-        string responder = ReadClientSource("Responders/DummyWorldStartupResponder.cs");
+        string connection = ReadOfflineSource("Connection/Session/DummyConnection.cs");
+        string responder = ReadOfflineSource("Protocol/WorldStartup/DummyWorldStartupResponder.cs");
 
         Assert.That(connection, Does.Contain("_worldStartup.InitializeAsync("));
         Assert.That(connection, Does.Not.Contain("new WorldInitPacket("));
@@ -53,9 +51,9 @@ public sealed class DummyResponderDecompositionContractTests
     [Test]
     public void Connection_DelegatesMovementAndPathLifecycle()
     {
-        string connection = ReadClientSource("DummyConnection.cs");
-        string responder = ReadClientSource("Responders/DummyMovementResponder.cs");
-        string worldState = ReadClientSource("Simulation/DummyWorldSimulationState.cs");
+        string connection = ReadOfflineSource("Connection/Session/DummyConnection.cs");
+        string responder = ReadOfflineSource("Protocol/Movement/DummyMovementResponder.cs");
+        string worldState = ReadOfflineSource("World/State/DummyWorldSimulationState.cs");
 
         Assert.That(connection, Does.Contain("_actionResponder.Handle(actionPacket)"));
         Assert.That(connection, Does.Not.Contain("dummy_walk_path"));
@@ -69,8 +67,8 @@ public sealed class DummyResponderDecompositionContractTests
     [Test]
     public void Connection_DelegatesGameplayActionsAndAssetResponses()
     {
-        string connection = ReadClientSource("DummyConnection.cs");
-        string actions = ReadClientSource("Responders/DummyGameplayActionResponder.cs");
+        string connection = ReadOfflineSource("Connection/Session/DummyConnection.cs");
+        string actions = ReadOfflineSource("Protocol/GameplayAction/DummyGameplayActionResponder.cs");
 
         Assert.That(connection, Does.Contain("_actionResponder.Handle(actionPacket)"));
         Assert.That(connection, Does.Not.Contain("actionPacket.Payload is BzPacket"));
@@ -80,11 +78,11 @@ public sealed class DummyResponderDecompositionContractTests
         Assert.That(actions, Does.Contain("case GeoPacket:"));
     }
 
-    private static string ReadClientSource(string fileName)
+    private static string ReadOfflineSource(string fileName)
     {
         return File.ReadAllText(Path.Combine(
             Application.dataPath,
-            "Scripts/Networking/Connection/Client",
+            "Scripts/Networking/Offline",
             fileName));
     }
 }

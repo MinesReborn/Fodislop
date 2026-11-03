@@ -349,8 +349,8 @@ namespace Kern.Networking.Processing
                 {
                     string detail = packet switch
                     {
-                        VFXPacket vfx => $" ({vfx.EffectType})",
-                        AudioPacket audio => $" ({audio.EffectType})",
+                        VisualPacket visualPacket => $" ({visualPacket.EffectType})",
+                        AudioPacket audio => $" ({audio.EventType})",
                         _ => string.Empty,
                     };
                     Kern.Diagnostics.Frames.FrameEventLog.Record(

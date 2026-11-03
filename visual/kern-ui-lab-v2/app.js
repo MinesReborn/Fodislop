@@ -170,7 +170,6 @@ const playerState = {
   missionTarget: 200,
   isAutoDig: false,
   autoDigTimer: null,
-  isAggression: false,
   activeHotbarIndex: 0,
   activeProgCommand: '⬇ СКАН',
   isProgRunning: false,
@@ -822,21 +821,6 @@ function autoDigLoop() {
     mineTileBlock(target);
   }
   if (playerState.isAutoDig) playerState.autoDigTimer = setTimeout(autoDigLoop, 550);
-}
-
-function toggleAggression() {
-  playerState.isAggression = !playerState.isAggression;
-  const btn = document.getElementById('btnAggression');
-  const led = document.getElementById('ledAggression');
-  if (btn && led) {
-    if (playerState.isAggression) {
-      btn.classList.add('active');
-      led.classList.add('alert');
-    } else {
-      btn.classList.remove('active');
-      led.classList.remove('alert');
-    }
-  }
 }
 
 function selectHotbarSlot(idx) {
@@ -1505,8 +1489,6 @@ window.addEventListener('keydown', (e) => {
     }
   } else if (e.key === 'e' || e.key === 'E' || e.key === 'у' || e.key === 'У') {
     if (currentMode === 'ingame' && !document.querySelector('.modal-overlay.active')) toggleAutoDig();
-  } else if (e.key === 'l' || e.key === 'L' || e.key === 'д' || e.key === 'Д') {
-    if (currentMode === 'ingame' && !document.querySelector('.modal-overlay.active')) toggleAggression();
   } else if (e.key === 'p' || e.key === 'P' || e.key === 'з' || e.key === 'З') {
     if (currentMode === 'ingame' && !document.querySelector('.modal-overlay.active')) openModal('programmatorModal');
   } else if (e.key === 'Enter') {

@@ -169,8 +169,8 @@ public sealed class SceneTransitionPlayModeTests
         config.UpdateSection(value => value.Connection, settings => settings.UseDummyConnection = true);
         yield return Await(_bootstrap.TransitionAsync("MainMenu"), PlayModeHarness.UITimeoutSeconds);
         ConnectionManager connection = _bootstrap.Container.Resolve<ConnectionManager>();
-        IOfflineScenarioSettings scenario = _bootstrap.Container.Resolve<IOfflineScenarioSettings>();
-        scenario.Scenario = OfflineScenario.DisconnectDuringHandshake;
+        IDummyScenarioSettings scenario = _bootstrap.Container.Resolve<IDummyScenarioSettings>();
+        scenario.Scenario = DummyScenario.DisconnectDuringHandshake;
         LogAssert.Expect(LogType.Error,
             "[GameBootstrap] Startup failed in scene 'MainGame' during transition phase 'StartupReady'.");
         LogAssert.Expect(LogType.Exception,
@@ -184,7 +184,7 @@ public sealed class SceneTransitionPlayModeTests
         Assert.That(SceneManager.GetSceneByName("MainGame").isLoaded, Is.False);
         Assert.Throws<ConnectionStartupInterruptedException>(connection.MarkWorldReady);
         connection.Disconnect();
-        scenario.Scenario = OfflineScenario.HappyPath;
+        scenario.Scenario = DummyScenario.HappyPath;
     }
 
     [UnityTest]
@@ -232,8 +232,8 @@ public sealed class SceneTransitionPlayModeTests
         yield return Await(_bootstrap.TransitionAsync("MainMenu"), PlayModeHarness.UITimeoutSeconds);
 
         ConnectionManager connection = _bootstrap.Container.Resolve<ConnectionManager>();
-        IOfflineScenarioSettings scenario = _bootstrap.Container.Resolve<IOfflineScenarioSettings>();
-        scenario.Scenario = OfflineScenario.WorldInitializationTimeout;
+        IDummyScenarioSettings scenario = _bootstrap.Container.Resolve<IDummyScenarioSettings>();
+        scenario.Scenario = DummyScenario.WorldInitializationTimeout;
 
         LogAssert.Expect(LogType.Error,
             "[GameBootstrap] Startup failed in scene 'MainGame' during transition phase 'Failed'.");
@@ -261,7 +261,7 @@ public sealed class SceneTransitionPlayModeTests
         Assert.That(connection.Connection, Is.Null,
             "A failed MainGame candidate must not leave a connected transport with a lost WorldInit packet.");
         Assert.That(_bootstrap.CurrentSceneName, Is.EqualTo("MainMenu"));
-        scenario.Scenario = OfflineScenario.HappyPath;
+        scenario.Scenario = DummyScenario.HappyPath;
     }
 
     [UnityTest]

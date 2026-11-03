@@ -38,7 +38,7 @@ MOVED = {
   'hud.eyebrow_tag': 'миссия — #hudMission (текст от сервера)', 'hud.hud_title_row_2': 'награда миссии — текст сервера в #hudMission',
   'hud.sci_fi_panel': 'текст миссии — место текста сервера', 'hud.sci_fi_panel_2': 'подпись прогресса — #missionMetric', 'hud.mission_metric': 'прогресс — #missionMetric «N / M»',
   'mock.hud.minimap': 'миникарта — .g-minimap', 'hud.hud_title_row_4': 'глубина на миникарте → координаты x:y #hudCoords',
-  'hud.hud_action_label': 'автокопка — #btnAutoDig «Автокопание»', 'hud.hud_action_label_2': 'режим боя — #btnAggression «АГРЕССИЯ»',
+  'hud.hud_action_label': 'автокопка — #btnAutoDig «Автокопание»',
   'hud.hud_action_label_3': 'грузовой отсек — хотбар #hotbarSlotsWrap, TAB → inventoryModal', 'hud.hud_action_key': 'подсказка TAB — клавиша работает',
   'hud.chat': 'чат — колонка/мини-чат, кнопка .g-chat-toggle', 'hud.hud_action_key_2': 'подсказка ENTER — Enter открывает колонку чата',
   'hud.hud_action_label_4': 'торговец — traderModal с дев-панели', 'hud.hud_action_label_5': 'бонус шахты — кнопка «Бонусы»',

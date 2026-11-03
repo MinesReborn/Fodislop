@@ -20,7 +20,8 @@ internal sealed class PlayerActionDispatcher
 {
     private readonly IPlayerInput _input;
     private readonly INetworkService? _networkService;
-    private readonly IServerVFXService _vfx;
+    private readonly IServerAudioService _audio;
+    private readonly IServerVisualEffectService _visualEffect;
     private float _lastDigTime;
     private Vector2Int? _pendingDigTarget;
 
@@ -33,11 +34,13 @@ internal sealed class PlayerActionDispatcher
     public PlayerActionDispatcher(
         IPlayerInput input,
         INetworkService? networkService,
-        IServerVFXService vfx)
+        IServerAudioService audio,
+        IServerVisualEffectService visualEffect)
     {
         _input = input ?? throw new ArgumentNullException(nameof(input));
         _networkService = networkService;
-        _vfx = vfx ?? throw new ArgumentNullException(nameof(vfx));
+        _audio = audio ?? throw new ArgumentNullException(nameof(audio));
+        _visualEffect = visualEffect ?? throw new ArgumentNullException(nameof(visualEffect));
     }
 
     /// <param name="robot">Робот игрока; до его появления делать нечего.</param>
@@ -94,7 +97,8 @@ internal sealed class PlayerActionDispatcher
         _lastDigTime = Time.time;
         _lastDigTarget = target;
         _lastDigDirection = direction;
-        _vfx.PlayBoundaryDig(target.x, target.y, direction);
+        _audio.Play(AudioEventType.Bz, (ushort)position.x, (ushort)position.y);
+        _visualEffect.PlayBoundaryDig(target.x, target.y, direction);
     }
 
     public void HandleDig(Vector2Int position, Direction direction, IMapDataProvider? mapDataProvider)

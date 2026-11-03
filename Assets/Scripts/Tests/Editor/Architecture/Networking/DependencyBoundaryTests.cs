@@ -40,7 +40,7 @@ public sealed class DependencyBoundaryTests
     public void PacketProcessors_DoNotReferencePresentationTypes()
     {
         Type[] processors = typeof(PacketHandler).Assembly.GetTypes()
-            .Where(type => type.Namespace == "Kern.Networking.Processors")
+            .Where(type => type.Namespace == "Kern.Networking.Processing")
             .ToArray();
         Assert.That(processors, Is.Not.Empty);
 

@@ -276,9 +276,9 @@
   }
 
   // ── Стенд: ?pad=xbox|ps|switch (то же, что ?input=…) ──
-  const q = new URLSearchParams(location.search);
   renderCluster();
-  window.kernWorld.ready.then(() => { if (q.get('pad')) window.kernInput.set(q.get('pad')); if (q.get('padhud')) setHudMode(true); });
+  window.kernScene.on(2.5, q => { if (q.get('pad')) window.kernInput.set(q.get('pad')); if (q.get('padhud')) setHudMode(true); });
+  window.kernScene.onReset(() => { if (hudMode) setHudMode(false); });
 
   window.kernPad = { get active() { return active; }, get family() { return family; }, label: act => glyphOf(bind[act]), press };   // press — для проверок без пада
 })();

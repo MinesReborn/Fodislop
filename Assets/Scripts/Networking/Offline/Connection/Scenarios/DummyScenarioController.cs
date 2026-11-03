@@ -6,27 +6,27 @@ namespace Kern.Networking.Offline;
 
 internal sealed class DummyScenarioController
 {
-    private readonly IOfflineScenarioSettings _settings;
+    private readonly IDummyScenarioSettings _settings;
     private int _lifecycleVersion = -1;
     private bool _helloHandled;
 
-    public DummyScenarioController(IOfflineScenarioSettings settings)
+    public DummyScenarioController(IDummyScenarioSettings settings)
     {
         _settings = settings;
     }
 
-    public OfflineScenario ActiveScenario { get; private set; } = OfflineScenario.HappyPath;
+    public DummyScenario ActiveScenario { get; private set; } = DummyScenario.HappyPath;
 
-    public bool StallsConnection => ActiveScenario == OfflineScenario.HandshakeTimeout;
+    public bool StallsConnection => ActiveScenario == DummyScenario.HandshakeTimeout;
 
     public bool DisconnectsDuringHandshake =>
-        ActiveScenario == OfflineScenario.DisconnectDuringHandshake;
+        ActiveScenario == DummyScenario.DisconnectDuringHandshake;
 
     public bool RejectsAuthentication =>
-        ActiveScenario == OfflineScenario.RejectAuthentication;
+        ActiveScenario == DummyScenario.RejectAuthentication;
 
     public bool StallsWorldInitialization =>
-        ActiveScenario == OfflineScenario.WorldInitializationTimeout;
+        ActiveScenario == DummyScenario.WorldInitializationTimeout;
 
     public void BeginLifecycle(int lifecycleVersion)
     {

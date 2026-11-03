@@ -32,18 +32,6 @@ internal sealed class ChatWindowInteractionController
     private const float EdgeThickness = 5f;
     private const float CornerSize = 12f;
 
-    private enum BoxEdge
-    {
-        North,
-        South,
-        West,
-        East,
-        Northwest,
-        Northeast,
-        Southwest,
-        Southeast,
-    }
-
     private readonly VisualElement _treeRoot;
     private readonly VisualElement _panel;
     private readonly IClientConfigManager _config;
@@ -70,7 +58,7 @@ internal sealed class ChatWindowInteractionController
 
     private bool _resizing;
     private int _resizePointerId = -1;
-    private BoxEdge _resizeEdge;
+    private ChatResizeCursor.BoxEdge _resizeEdge;
     private Rect _resizeStartBox;
 
     public ChatWindowInteractionController(VisualElement treeRoot, VisualElement panel, IClientConfigManager config)
@@ -121,27 +109,27 @@ internal sealed class ChatWindowInteractionController
 
     private void BuildResizeZones()
     {
-        AddZone(BoxEdge.North, "gchat-resize-edge--n",
+        AddZone(ChatResizeCursor.BoxEdge.North, "gchat-resize-edge--n",
             top: 0f, left: CornerSize, right: CornerSize, height: EdgeThickness);
-        AddZone(BoxEdge.South, "gchat-resize-edge--s",
+        AddZone(ChatResizeCursor.BoxEdge.South, "gchat-resize-edge--s",
             bottom: 0f, left: CornerSize, right: CornerSize, height: EdgeThickness);
-        AddZone(BoxEdge.West, "gchat-resize-edge--w",
+        AddZone(ChatResizeCursor.BoxEdge.West, "gchat-resize-edge--w",
             top: CornerSize, bottom: CornerSize, left: 0f, width: EdgeThickness);
-        AddZone(BoxEdge.East, "gchat-resize-edge--e",
+        AddZone(ChatResizeCursor.BoxEdge.East, "gchat-resize-edge--e",
             top: CornerSize, bottom: CornerSize, right: 0f, width: EdgeThickness);
 
-        AddZone(BoxEdge.Northwest, "gchat-resize-corner--nw", top: 0f, left: 0f,
+        AddZone(ChatResizeCursor.BoxEdge.Northwest, "gchat-resize-corner--nw", top: 0f, left: 0f,
             width: CornerSize, height: CornerSize);
-        AddZone(BoxEdge.Northeast, "gchat-resize-corner--ne", top: 0f, right: 0f,
+        AddZone(ChatResizeCursor.BoxEdge.Northeast, "gchat-resize-corner--ne", top: 0f, right: 0f,
             width: CornerSize, height: CornerSize);
-        AddZone(BoxEdge.Southwest, "gchat-resize-corner--sw", bottom: 0f, left: 0f,
+        AddZone(ChatResizeCursor.BoxEdge.Southwest, "gchat-resize-corner--sw", bottom: 0f, left: 0f,
             width: CornerSize, height: CornerSize);
-        AddZone(BoxEdge.Southeast, "gchat-resize-corner--se", bottom: 0f, right: 0f,
+        AddZone(ChatResizeCursor.BoxEdge.Southeast, "gchat-resize-corner--se", bottom: 0f, right: 0f,
             width: CornerSize, height: CornerSize);
     }
 
     private void AddZone(
-        BoxEdge edge,
+        ChatResizeCursor.BoxEdge edge,
         string className,
         float top = -1f,
         float bottom = -1f,
@@ -190,19 +178,10 @@ internal sealed class ChatWindowInteractionController
         zone.RegisterCallback<PointerMoveEvent>(OnResizePointerMove);
         zone.RegisterCallback<PointerUpEvent>(OnResizePointerUp);
         zone.RegisterCallback<PointerCaptureOutEvent>(OnResizeCaptureLost);
-        ResizeCursors.Bind(zone, CursorShape(edge));
+        ResizeCursors.Bind(zone, ChatResizeCursor.CursorShape(edge));
 
         _panel.Add(zone);
     }
-
-    private static ResizeCursors.Shape CursorShape(BoxEdge edge) => edge switch
-    {
-        BoxEdge.North or BoxEdge.South => ResizeCursors.Shape.NorthSouth,
-        BoxEdge.West or BoxEdge.East => ResizeCursors.Shape.WestEast,
-        BoxEdge.Northwest or BoxEdge.Southeast => ResizeCursors.Shape.NorthwestSoutheast,
-        BoxEdge.Northeast or BoxEdge.Southwest => ResizeCursors.Shape.NortheastSouthwest,
-        _ => ResizeCursors.Shape.MoveAll,
-    };
 
     // ─── Восстановление геометрии и кламп в экран ───
 
@@ -407,7 +386,7 @@ internal sealed class ChatWindowInteractionController
 
     // ─── Растягивание за грани и углы ───
 
-    private void OnResizePointerDown(BoxEdge edge, PointerDownEvent evt)
+    private void OnResizePointerDown(ChatResizeCursor.BoxEdge edge, PointerDownEvent evt)
     {
         if (_dragging || _resizing || evt.button != 0 || _panel.panel == null || !PinBoxFromStyles())
         {
@@ -440,22 +419,22 @@ internal sealed class ChatWindowInteractionController
         float right = _resizeStartBox.xMax;
         float bottom = _resizeStartBox.yMax;
 
-        if (_resizeEdge is BoxEdge.East or BoxEdge.Northeast or BoxEdge.Southeast)
+        if (_resizeEdge is ChatResizeCursor.BoxEdge.East or ChatResizeCursor.BoxEdge.Northeast or ChatResizeCursor.BoxEdge.Southeast)
         {
             right = Mathf.Clamp(right + delta.x, left + MinWidth, screen.width);
         }
 
-        if (_resizeEdge is BoxEdge.West or BoxEdge.Northwest or BoxEdge.Southwest)
+        if (_resizeEdge is ChatResizeCursor.BoxEdge.West or ChatResizeCursor.BoxEdge.Northwest or ChatResizeCursor.BoxEdge.Southwest)
         {
             left = Mathf.Clamp(left + delta.x, 0f, right - MinWidth);
         }
 
-        if (_resizeEdge is BoxEdge.South or BoxEdge.Southeast or BoxEdge.Southwest)
+        if (_resizeEdge is ChatResizeCursor.BoxEdge.South or ChatResizeCursor.BoxEdge.Southeast or ChatResizeCursor.BoxEdge.Southwest)
         {
             bottom = Mathf.Clamp(bottom + delta.y, top + MinHeight, screen.height);
         }
 
-        if (_resizeEdge is BoxEdge.North or BoxEdge.Northeast or BoxEdge.Northwest)
+        if (_resizeEdge is ChatResizeCursor.BoxEdge.North or ChatResizeCursor.BoxEdge.Northeast or ChatResizeCursor.BoxEdge.Northwest)
         {
             top = Mathf.Clamp(top + delta.y, 0f, bottom - MinHeight);
         }

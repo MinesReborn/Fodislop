@@ -49,21 +49,21 @@ internal static class ChatEmojiCatalog
         "Fonts/Unbounded/Unbounded_SDF",
     ];
 
-    private static FontAsset? _emojiFont;
-    private static bool _installed;
+    private static FontAsset? s_emojiFont;
+    private static bool s_installed;
 
     // Создаёт emoji-шрифт и дописывает его в фолбэк-таблицы лиц. Идемпотентно:
     // повторные вызовы возвращают уже созданный шрифт.
     public static FontAsset? EnsureInstalled()
     {
-        if (_installed)
+        if (s_installed)
         {
-            return _emojiFont;
+            return s_emojiFont;
         }
 
-        _installed = true;
-        _emojiFont = CreateEmojiFont();
-        if (_emojiFont == null)
+        s_installed = true;
+        s_emojiFont = CreateEmojiFont();
+        if (s_emojiFont == null)
         {
             Debug.LogWarning(
                 "[ChatEmoji] Системный emoji-шрифт не найден — смайлы отрисуются квадратиками.");
@@ -78,13 +78,13 @@ internal static class ChatEmojiCatalog
             }
 
             face.fallbackFontAssetTable ??= new List<FontAsset>();
-            if (!face.fallbackFontAssetTable.Contains(_emojiFont))
+            if (!face.fallbackFontAssetTable.Contains(s_emojiFont))
             {
-                face.fallbackFontAssetTable.Add(_emojiFont);
+                face.fallbackFontAssetTable.Add(s_emojiFont);
             }
         }
 
-        return _emojiFont;
+        return s_emojiFont;
     }
 
     private static FontAsset? CreateEmojiFont()

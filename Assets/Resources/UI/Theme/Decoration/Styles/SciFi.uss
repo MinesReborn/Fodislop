@@ -12,7 +12,7 @@
 
 .sci-fi-panel {
     background-color: var(--surface-panel);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-md);
     padding: var(--space-6);
@@ -33,7 +33,7 @@
     justify-content: space-between;
     padding-bottom: var(--space-4);
     margin-bottom: var(--space-5);
-    border-bottom-width: 1px;
+    border-bottom-width: var(--border-width-thin);
     border-bottom-color: var(--border-subtle);
 }
 
@@ -52,7 +52,7 @@
     height: 38px;
     padding: 0 var(--space-8);
     background-color: var(--accent-gold);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--accent-gold);
     border-radius: var(--radius-sm);
     color: var(--surface-void-solid);
@@ -73,7 +73,7 @@
     height: 36px;
     padding: 0 var(--space-7);
     background-color: var(--accent-cyan-wash);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-cyan);
     border-radius: var(--radius-sm);
     color: var(--accent-cyan);
@@ -95,7 +95,7 @@
     height: 34px;
     padding: 0 var(--space-6);
     background-color: var(--surface-slate-dense);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
@@ -113,7 +113,7 @@
     -unity-font-definition: var(--face-data);
     background-color: var(--accent-cyan-wash);
     color: var(--accent-cyan);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-cyan);
     padding: var(--space-1) var(--space-3);
     border-radius: var(--radius-sharp);
@@ -125,7 +125,7 @@
     -unity-font-definition: var(--face-data);
     background-color: var(--accent-gold-glow);
     color: var(--accent-gold);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-gold);
     padding: var(--space-1) var(--space-3);
     border-radius: var(--radius-sharp);
@@ -136,7 +136,7 @@
 .sci-fi-bar-track {
     height: var(--space-4);
     background-color: var(--surface-inset);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-sharp);
 }
@@ -162,7 +162,7 @@
 
 .sci-fi-input {
     background-color: var(--surface-scrim);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
@@ -193,7 +193,7 @@
     height: 36px;
     padding: 0 var(--space-7);
     background-color: var(--state-danger-glow);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-danger);
     border-radius: var(--radius-sm);
     color: var(--state-danger-hover);
@@ -251,7 +251,7 @@
 
 .sci-fi-window {
     background-color: var(--surface-panel);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-cyan);
     border-radius: var(--radius-md);
     padding: var(--space-8);
@@ -278,7 +278,7 @@
    и с фиксированной высотой: от неё считается центр дорожки. */
 .packet-slider {
     width: 100%;
-    height: 16px;
+    height: var(--space-8);
     margin: var(--space-1) 0;
 }
 
@@ -290,10 +290,10 @@
     position: absolute;
     left: 0;
     right: 0;
-    top: 6px;
-    height: 4px;
+    top: var(--space-3);
+    height: var(--space-2);
     background-color: var(--border-strong);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-cyan);
     border-radius: var(--radius-sharp);
 }
@@ -314,8 +314,8 @@
 .packet-slider .unity-base-slider__dragger {
     /* По умолчанию ручка невидима: слайдер без диапазона (выбирать нечего) —
        голая линия. Прозрачный бокс остаётся зоной захвата драга. */
-    width: 14px;
-    height: 14px;
+    width: var(--space-7);
+    height: var(--space-7);
     background-color: transparent;
     background-image: none;
     border-width: 0;
@@ -338,8 +338,8 @@
 /* Картинка Knob из пакета вписывается в зону ручки: инлайн-размер из пакета
    зажимается максимумом, чтобы арт не вылезал за зону захвата драга. */
 .packet-slider__knob {
-    max-width: 12px;
-    max-height: 12px;
+    max-width: var(--space-6);
+    max-height: var(--space-6);
 }
 
 /* Выключенный слайдер (полоска заполнения) — приглушаем ручку и линию. */

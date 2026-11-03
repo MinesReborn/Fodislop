@@ -24,7 +24,7 @@ public sealed class ReconnectPlayModeTests
     private BootstrapLifetimeScope _bootstrap = null!;
     private DummyAuthenticationScope _authentication = null!;
     private IConnectionService _connection = null!;
-    private IOfflineScenarioSettings _scenario = null!;
+    private IDummyScenarioSettings _scenario = null!;
 
     [UnitySetUp]
     public IEnumerator SetUp()
@@ -33,15 +33,15 @@ public sealed class ReconnectPlayModeTests
         yield return PlayModeHarness.StartAtGateway();
         _bootstrap = PlayModeHarness.FindBootstrap()!;
         _connection = _bootstrap.Container.Resolve<IConnectionService>();
-        _scenario = _bootstrap.Container.Resolve<IOfflineScenarioSettings>();
-        _scenario.Scenario = OfflineScenario.HappyPath;
+        _scenario = _bootstrap.Container.Resolve<IDummyScenarioSettings>();
+        _scenario.Scenario = DummyScenario.HappyPath;
         yield return PlayModeHarness.EnterMainGame(_bootstrap);
     }
 
     [UnityTearDown]
     public IEnumerator TearDown()
     {
-        _scenario.Scenario = OfflineScenario.HappyPath;
+        _scenario.Scenario = DummyScenario.HappyPath;
         yield return PlayModeHarness.Shutdown();
         _authentication.Restore();
     }
@@ -119,14 +119,14 @@ public sealed class ReconnectPlayModeTests
         // Офлайн-сервер закрывает соединение через 100 мс; раньше новое
         // подключение он не примет.
         yield return new WaitForSecondsRealtime(0.5f);
-        _scenario.Scenario = OfflineScenario.DisconnectDuringHandshake;
+        _scenario.Scenario = DummyScenario.DisconnectDuringHandshake;
         _connection.Connect();
         yield return PlayModeHarness.Frames(10);
         Assert.That(_connection.IsConnected, Is.False, "The dropped handshake unexpectedly connected.");
 
         // Повторный Connect поверх оборванного соединения раньше вызывал
         // Dispose у синглтона DummyConnection и ломал его мир навсегда.
-        _scenario.Scenario = OfflineScenario.HappyPath;
+        _scenario.Scenario = DummyScenario.HappyPath;
         _connection.Connect();
         yield return WaitForWorldReload(game, "The offline server did not serve a world after a dropped handshake.");
     }

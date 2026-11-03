@@ -10,7 +10,7 @@ public enum AudioBusType
     Master = 0,
 
     [Kern.Core.AudioBusPath("bus:/sfx")]
-    SFX = 10,
+    SoundEffects = 10,
 
     [Kern.Core.AudioBusPath("bus:/music")]
     Music = 20,
@@ -28,7 +28,7 @@ public enum AudioBusType
 [System.Serializable]
 public struct AudioLayer
 {
-    [Tooltip("Шина микшера: SFX, Music, Voice, Ambience, UI.")]
+    [Tooltip("Шина микшера: Sound Effects, Music, Voice, Ambience, UI.")]
     public AudioBusType Bus;
 
     [Range(0f, 2f)]
@@ -40,9 +40,9 @@ public struct AudioLayer
     [Tooltip("Пространственный звук: позиция передаётся в FMOD.")]
     public bool IsSpatial;
 
-    public static AudioLayer SFXDefault() => new()
+    public static AudioLayer SoundEffectsDefault() => new()
     {
-        Bus = AudioBusType.SFX,
+        Bus = AudioBusType.SoundEffects,
         Volume = 1f,
         Pitch = 1f,
         IsSpatial = true,

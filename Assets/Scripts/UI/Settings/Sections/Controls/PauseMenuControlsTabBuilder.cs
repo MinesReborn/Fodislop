@@ -91,11 +91,6 @@ internal sealed class PauseMenuControlsTabBuilder
             (settings, key) => settings.KeyFastMove = key,
             InterfaceSettings.DefaultKeyFastMove),
         new(
-            "settings.controls.key_fast_move_alternate",
-            settings => settings.KeyFastMoveAlternate,
-            (settings, key) => settings.KeyFastMoveAlternate = key,
-            InterfaceSettings.DefaultKeyFastMoveAlternate),
-        new(
             "settings.controls.key_dig",
             settings => settings.KeyDig,
             (settings, key) => settings.KeyDig = key,
@@ -197,6 +192,16 @@ internal sealed class PauseMenuControlsTabBuilder
         schemeRow.Add(schemeDropdown);
         controlsSection.Add(schemeRow);
 
+        // Помощь в движении: при выключенном автокопании робот сам обходит
+        // препятствие на пути. Читается из живого конфига каждый шаг.
+        controlsSection.Add(PauseMenuUIFactory.CreateBoundToggle(
+            _loc.Get("settings.controls.movement_assist"),
+            () => _clientConfig.Config.Interface.MovementAssist,
+            value => _clientConfig.UpdateSection(
+                config => config.Interface,
+                settings => settings.MovementAssist = value),
+            _refreshers));
+
         _keyList = new VisualElement();
         _keyList.AddToClassList("controls-key-list");
         controlsSection.Add(_keyList);
@@ -247,6 +252,7 @@ internal sealed class PauseMenuControlsTabBuilder
                     settings =>
                     {
                         settings.ControlScheme = InterfaceSettings.DefaultControlScheme;
+                        settings.MovementAssist = InterfaceSettings.DefaultMovementAssist;
                         foreach (KeyAction action in s_keyActions)
                         {
                             action.Set(settings, action.DefaultKey);

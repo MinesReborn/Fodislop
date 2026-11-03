@@ -1,4 +1,4 @@
-exclude: '^(Assets/Plugins/|Packages/|Library/|Assets/Resources/Rendering/GraphicsStates\.graphicsstate$|.*\.unity$|.*\.prefab$|.*\.asset$|.*\.mat$|.*\.anim$|.*\.controller$|.*\.mask$|.*\.meta$|.*\.spriteatlas$|.*\.playable$|.*\.overrideController$|.*\.physicMaterial$|.*\.physicsMaterial2D$|.*\.tss$|.*\.scenetemplate$|.*\.inputactions$|.*\.dll$)'
+exclude: '^(Assets/Plugins/|Packages/|Library/|Assets/Resources/Rendering/Warmup/States/GraphicsStates\.graphicsstate$|.*\.unity$|.*\.prefab$|.*\.asset$|.*\.mat$|.*\.anim$|.*\.controller$|.*\.mask$|.*\.meta$|.*\.spriteatlas$|.*\.playable$|.*\.overrideController$|.*\.physicMaterial$|.*\.physicsMaterial2D$|.*\.tss$|.*\.scenetemplate$|.*\.inputactions$|.*\.dll$)'
 
 repos:
     - repo: https://github.com/pre-commit/pre-commit-hooks

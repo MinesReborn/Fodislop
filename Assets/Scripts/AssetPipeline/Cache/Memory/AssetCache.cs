@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -11,10 +12,10 @@ using UnityEngine;
 namespace Kern.AssetPipeline.Cache;
 public sealed class AssetCache
 {
-    private readonly ConcurrentDictionary<string, AssetCacheEntry> _entries = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, long> _entrySizes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, AssetCacheEntry> _entries = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, long> _entrySizes = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<string> _accessOrder = new();
-    private readonly ConcurrentDictionary<string, long> _decodedEntrySizes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, long> _decodedEntrySizes = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<string> _decodedAccessOrder = new();
     private readonly Func<string, CancellationToken, int, UniTask<byte[]?>> _bytesLoader;
 
@@ -118,6 +119,29 @@ public sealed class AssetCache
             RequestUnusedAssetsCollection(force: true);
         }
     }
+    /// <summary>
+    /// Забывает записи заменённых файлов. Ссылки у тех, кто уже получил картинку, остаются нетронутыми: их заменят сами
+    /// владельцы, когда перезагрузят файл.
+    /// </summary>
+    public void Invalidate(IEnumerable<string> filenames)
+    {
+        foreach (string filename in filenames)
+        {
+            if (_entries.TryRemove(filename, out AssetCacheEntry? entry))
+            {
+                entry.ReleaseAllReferences();
+            }
+
+            RemoveTrackedSize(filename);
+            if (_decodedEntrySizes.TryRemove(filename, out long decodedSize))
+            {
+                Interlocked.Add(ref _totalDecodedBytes, -decodedSize);
+            }
+        }
+
+        RequestUnusedAssetsCollection();
+    }
+
     // Предупреждение ОС о нехватке памяти: декодированные копии отпускаются
     // целиком — их восстанавливают из байтов при следующем обращении, а
     // байты и сами ассеты на экране остаются.

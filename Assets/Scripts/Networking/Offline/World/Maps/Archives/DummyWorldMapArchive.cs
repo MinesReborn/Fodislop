@@ -23,10 +23,8 @@ internal static class DummyWorldMapArchive
 
     // internal: окно диагностики собирает тот же путь к источнику карты.
     internal const string StreamingFolderName = "WorldMaps";
-    private const string StampSuffix = ".stamp";
-    private const string TempSuffix = ".tmp";
-    private const long FreeSpaceMarginBytes = 64L * 1024 * 1024;
-    private static readonly TimeSpan s_abandonedTempAge = TimeSpan.FromHours(1);
+    internal const long FreeSpaceMarginBytes = 64L * 1024 * 1024;
+    internal static readonly TimeSpan s_abandonedTempAge = TimeSpan.FromHours(1);
 
     public static async UniTask<string> ResolveMapFileAsync(string worldCodeName, CancellationToken cancellationToken)
     {
@@ -59,7 +57,7 @@ internal static class DummyWorldMapArchive
         string sourceStamp)
     {
         Directory.CreateDirectory(cacheDirectory);
-        DeleteAbandonedTempFiles(cacheDirectory);
+        DummyMapArchiveFiles.DeleteAbandonedTempFiles(cacheDirectory);
 
         string mapPath = Path.Combine(cacheDirectory, MapFileName(worldCodeName));
         if (IsCacheCurrent(mapPath, sourceStamp))
@@ -71,11 +69,11 @@ internal static class DummyWorldMapArchive
         ZipArchiveEntry entry = archive.GetEntry(MapFileName(worldCodeName)) ??
             throw new InvalidDataException(
                 $"Dummy server archive '{archivePath}' does not contain '{MapFileName(worldCodeName)}'.");
-        EnsureFreeSpace(cacheDirectory, entry.Length);
+        DummyMapArchiveFiles.EnsureFreeSpace(cacheDirectory, entry.Length);
 
         // Отметка снимается до замены карты: сбой между шагами оставит карту без
         // отметки, и следующий запуск распакует её заново, а не поверит ей.
-        string stampPath = StampPath(mapPath);
+        string stampPath = DummyMapArchiveFiles.StampPath(mapPath);
         if (File.Exists(stampPath))
         {
             File.Delete(stampPath);
@@ -83,7 +81,7 @@ internal static class DummyWorldMapArchive
 
         // Уникальное имя: два процесса (два редактора, редактор и билд) пишут
         // каждый в свой файл, а на место встаёт целиком записанный.
-        string tempPath = NewTempPath(mapPath);
+        string tempPath = DummyMapArchiveFiles.NewTempPath(mapPath);
         try
         {
             entry.ExtractToFile(tempPath, overwrite: false);
@@ -94,8 +92,8 @@ internal static class DummyWorldMapArchive
                     $"Dummy server map '{worldCodeName}' extracted {written} of {entry.Length} bytes.");
             }
 
-            ReplaceFile(tempPath, mapPath);
-            WriteStamp(mapPath, sourceStamp);
+            DummyMapArchiveFiles.ReplaceFile(tempPath, mapPath);
+            DummyMapArchiveFiles.WriteStamp(mapPath, sourceStamp);
         }
         catch (IOException exception)
         {
@@ -105,7 +103,7 @@ internal static class DummyWorldMapArchive
         }
         finally
         {
-            DeleteFileQuietly(tempPath);
+            DummyMapArchiveFiles.DeleteFileQuietly(tempPath);
         }
 
         return mapPath;
@@ -113,7 +111,7 @@ internal static class DummyWorldMapArchive
 
     internal static bool IsCacheCurrent(string mapPath, string sourceStamp)
     {
-        string stampPath = StampPath(mapPath);
+        string stampPath = DummyMapArchiveFiles.StampPath(mapPath);
         try
         {
             return File.Exists(mapPath) &&
@@ -269,7 +267,7 @@ internal static class DummyWorldMapArchive
 
         ReadDimensions(sourcePath);
         Directory.CreateDirectory(cacheDirectory);
-        DeleteAbandonedTempFiles(cacheDirectory);
+        DummyMapArchiveFiles.DeleteAbandonedTempFiles(cacheDirectory);
 
         var sourceInfo = new FileInfo(sourcePath);
         long sourceLength = sourceInfo.Length;
@@ -281,8 +279,8 @@ internal static class DummyWorldMapArchive
             return mapPath;
         }
 
-        EnsureFreeSpace(cacheDirectory, sourceLength);
-        string tempPath = NewTempPath(mapPath);
+        DummyMapArchiveFiles.EnsureFreeSpace(cacheDirectory, sourceLength);
+        string tempPath = DummyMapArchiveFiles.NewTempPath(mapPath);
         try
         {
             using (var source = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read))
@@ -302,8 +300,8 @@ internal static class DummyWorldMapArchive
             }
 
             ReadDimensions(tempPath);
-            ReplaceFile(tempPath, mapPath);
-            WriteStamp(mapPath, sourceStamp);
+            DummyMapArchiveFiles.ReplaceFile(tempPath, mapPath);
+            DummyMapArchiveFiles.WriteStamp(mapPath, sourceStamp);
         }
         catch (IOException exception)
         {
@@ -313,7 +311,7 @@ internal static class DummyWorldMapArchive
         }
         finally
         {
-            DeleteFileQuietly(tempPath);
+            DummyMapArchiveFiles.DeleteFileQuietly(tempPath);
         }
 
         return mapPath;
@@ -377,7 +375,7 @@ internal static class DummyWorldMapArchive
         }
         finally
         {
-            DeleteFileQuietly(archiveCopy);
+            DummyMapArchiveFiles.DeleteFileQuietly(archiveCopy);
         }
     }
 
@@ -404,7 +402,7 @@ internal static class DummyWorldMapArchive
 
         // Отметка совпала, а заголовок испорчен: файл повреждён уже после
         // распаковки. Одна повторная распаковка; вторая порча — отказ.
-        InvalidateCache(mapPath);
+        DummyMapArchiveFiles.InvalidateCache(mapPath);
         mapPath = ExtractIfStale(archivePath, cacheDirectory, worldCodeName, sourceStamp);
         ReadDimensions(mapPath);
         return mapPath;
@@ -415,7 +413,7 @@ internal static class DummyWorldMapArchive
         string destinationPath,
         CancellationToken cancellationToken)
     {
-        string tempPath = NewTempPath(destinationPath);
+        string tempPath = DummyMapArchiveFiles.NewTempPath(destinationPath);
         try
         {
             using (var request = new UnityWebRequest(uri, UnityWebRequest.kHttpVerbGET))
@@ -424,7 +422,7 @@ internal static class DummyWorldMapArchive
                 await request.SendWebRequest().WithCancellation(cancellationToken);
             }
 
-            ReplaceFile(tempPath, destinationPath);
+            DummyMapArchiveFiles.ReplaceFile(tempPath, destinationPath);
         }
         catch (UnityWebRequestException exception)
         {
@@ -435,7 +433,7 @@ internal static class DummyWorldMapArchive
         }
         finally
         {
-            DeleteFileQuietly(tempPath);
+            DummyMapArchiveFiles.DeleteFileQuietly(tempPath);
         }
     }
 
@@ -450,113 +448,6 @@ internal static class DummyWorldMapArchive
             throw new InvalidDataException(
                 $"Dummy server archive '{archivePath}' is corrupt: {exception.Message}",
                 exception);
-        }
-    }
-
-    private static void EnsureFreeSpace(string directory, long requiredBytes)
-    {
-        long availableBytes;
-        try
-        {
-            availableBytes = new DriveInfo(Path.GetFullPath(directory)).AvailableFreeSpace;
-        }
-        catch (Exception exception) when (
-            exception is ArgumentException or IOException or UnauthorizedAccessException or
-                NotSupportedException)
-        {
-            // Размер тома узнать нельзя — нехватку места покажет сама запись.
-            return;
-        }
-
-        if (availableBytes < requiredBytes + FreeSpaceMarginBytes)
-        {
-            throw new IOException(
-                $"Not enough disk space for the dummy server map in '{directory}': " +
-                $"needs {ToMegabytes(requiredBytes + FreeSpaceMarginBytes)} MB, " +
-                $"available {ToMegabytes(availableBytes)} MB.");
-        }
-    }
-
-    private static void InvalidateCache(string mapPath)
-    {
-        string stampPath = StampPath(mapPath);
-        if (File.Exists(stampPath))
-        {
-            File.Delete(stampPath);
-        }
-
-        if (File.Exists(mapPath))
-        {
-            File.Delete(mapPath);
-        }
-    }
-
-    private static void WriteStamp(string mapPath, string sourceStamp)
-    {
-        string stampPath = StampPath(mapPath);
-        string tempPath = NewTempPath(stampPath);
-        try
-        {
-            File.WriteAllText(tempPath, sourceStamp);
-            ReplaceFile(tempPath, stampPath);
-        }
-        finally
-        {
-            DeleteFileQuietly(tempPath);
-        }
-    }
-
-    private static void ReplaceFile(string sourcePath, string destinationPath)
-    {
-        // Keep the previous cache visible until the complete replacement is ready.
-        for (int attempt = 0; ; attempt++)
-        {
-            try
-            {
-                if (File.Exists(destinationPath))
-                {
-                    File.Replace(sourcePath, destinationPath, destinationBackupFileName: null);
-                }
-                else
-                {
-                    File.Move(sourcePath, destinationPath);
-                }
-
-                return;
-            }
-            catch (IOException) when (attempt < 2)
-            {
-                // Между удалением и переносом цель записал соседний процесс
-                // из того же источника — повторяем.
-            }
-        }
-    }
-
-    private static void DeleteAbandonedTempFiles(string cacheDirectory)
-    {
-        DateTime threshold = DateTime.UtcNow - s_abandonedTempAge;
-        foreach (string tempPath in Directory.GetFiles(cacheDirectory, "*" + TempSuffix))
-        {
-            // Свежий временный файл может дописывать соседний процесс.
-            if (File.GetLastWriteTimeUtc(tempPath) < threshold)
-            {
-                DeleteFileQuietly(tempPath);
-            }
-        }
-    }
-
-    private static void DeleteFileQuietly(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            // Брошенный файл подберёт DeleteAbandonedTempFiles.
         }
     }
 
@@ -593,10 +484,4 @@ internal static class DummyWorldMapArchive
     internal static string MapFileName(string worldCodeName) => $"{worldCodeName}_cells.mapb";
 
     internal static string ArchiveFileName(string worldCodeName) => $"{worldCodeName}_cells.zip";
-
-    private static string StampPath(string mapPath) => mapPath + StampSuffix;
-
-    private static string NewTempPath(string path) => $"{path}.{Guid.NewGuid():N}{TempSuffix}";
-
-    private static long ToMegabytes(long bytes) => bytes / (1024 * 1024);
 }

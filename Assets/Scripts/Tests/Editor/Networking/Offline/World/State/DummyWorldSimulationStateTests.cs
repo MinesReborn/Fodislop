@@ -105,6 +105,11 @@ public sealed class DummyWorldSimulationStateTests
 
         foreach (CellType type in Enum.GetValues(typeof(CellType)))
         {
+            if (type is CellType.Unloaded or CellType.Pregener or CellType.WorldEdge)
+            {
+                continue;
+            }
+
             Assert.That(
                 BlockRegistry.Blocks.ContainsKey(type),
                 Is.True,
@@ -115,8 +120,7 @@ public sealed class DummyWorldSimulationStateTests
     [Test]
     public void CreateMovementSpeeds_ProvidesValidSpeedsForGameplayCellTypes()
     {
-        CellConfigurationPacket[] configs = DummyCellConfigurationFactory.CreateCellConfigurations();
-        Dictionary<CellType, ushort> speeds = DummyCellConfigurationFactory.CreateMovementSpeeds(configs);
+        Dictionary<CellType, ushort> speeds = DummyCellConfigurationFactory.CreateMovementSpeeds();
 
         Assert.That(speeds, Is.Not.Null);
         Assert.That(speeds.ContainsKey(CellType.BackgroundWithLightTraces), Is.True);
@@ -128,6 +132,11 @@ public sealed class DummyWorldSimulationStateTests
 
         foreach (CellType type in Enum.GetValues(typeof(CellType)))
         {
+            if (type is CellType.Unloaded or CellType.Pregener or CellType.WorldEdge)
+            {
+                continue;
+            }
+
             Assert.That(
                 speeds.TryGetValue(type, out ushort speed) && speed > 0,
                 Is.True,
@@ -143,32 +152,30 @@ public sealed class DummyWorldSimulationStateTests
         Assert.That(DummyMiningRewards.GetMinedCrystal(CellType.Road), Is.EqualTo(CrystalType.Unknown));
 
         BlockDefinition green = DummyCellConfigurationFactory.GetBlockDefinition(CellType.Green);
-        Assert.That(green.IsPassable, Is.False);
+        Assert.That(green.Passable, Is.False);
         Assert.That(green.Outline, Is.EqualTo(CellOutline.Wavy));
         Assert.That(green.MapColor, Is.EqualTo(new Color32(0x08, 0xD7, 0x64, 0xFF)));
 
         BlockDefinition road = DummyCellConfigurationFactory.GetBlockDefinition(CellType.Road);
-        Assert.That(road.IsPassable, Is.True);
+        Assert.That(road.Passable, Is.True);
         Assert.That(road.MapColor, Is.EqualTo(new Color32(0x44, 0x44, 0x44, 0xFF)));
-        Assert.That(road.DecalAtlas, Is.EqualTo(CellDecalAtlas.None));
 
         BlockDefinition buildingRoad = DummyCellConfigurationFactory.GetBlockDefinition(CellType.BuildingRoad);
         Assert.That(buildingRoad.Outline, Is.EqualTo(CellOutline.Rigid));
 
         BlockDefinition lava = DummyCellConfigurationFactory.GetBlockDefinition(CellType.Lava);
         Assert.That(lava.Outline, Is.EqualTo(CellOutline.Round));
-        Assert.That(lava.SurfaceEffect, Is.EqualTo(CellSurfaceEffect.Molten));
+        Assert.That(lava.AnimationType, Is.EqualTo(CellAnimationType.Molten));
 
         BlockDefinition xgreen = DummyCellConfigurationFactory.GetBlockDefinition(CellType.XGreen);
-        Assert.That(xgreen.SurfaceEffect, Is.EqualTo(CellSurfaceEffect.Prismatic));
-        Assert.That(xgreen.SurfaceEffectPalette, Is.EqualTo(1));
+        Assert.That(xgreen.AnimationType, Is.EqualTo(CellAnimationType.Prismatic));
+        Assert.That(xgreen.AnimationPalette, Is.EqualTo(1));
 
         byte[][] tileGroups = DummyCellConfigurationFactory.CreateTileGroups();
         Assert.That(tileGroups.Length, Is.EqualTo(1));
         Assert.That(tileGroups[0], Is.EquivalentTo(new byte[] { 37, 38, 106 }));
 
-        CellConfigurationPacket[] configs = DummyCellConfigurationFactory.CreateCellConfigurations();
-        Dictionary<CellType, ushort> speeds = DummyCellConfigurationFactory.CreateMovementSpeeds(configs);
+        Dictionary<CellType, ushort> speeds = DummyCellConfigurationFactory.CreateMovementSpeeds();
         Assert.That(speeds.ContainsKey(CellType.Unloaded), Is.True);
         Assert.That(speeds.ContainsKey(CellType.Pregener), Is.True);
     }

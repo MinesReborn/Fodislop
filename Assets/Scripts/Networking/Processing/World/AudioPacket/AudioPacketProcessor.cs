@@ -14,5 +14,5 @@ public sealed class AudioPacketProcessor : IPacketProcessor<AudioPacket>
     }
 
     public void Process(AudioPacket packet) =>
-        _audio.PlayEffect(packet);
+        _audio.Play(packet);
 }

@@ -77,18 +77,11 @@ namespace Kern.World.Terrain
             _contentRevision.RecordBoundedRegionChange();
         }
 
-        public void HandleTextureLoaded(string filename, Texture2D texture)
+        public void HandleTextureLoaded(CellType cellType, Texture2D texture)
         {
-            if (TerrainCellTextureName.TryParseCellType(filename, out CellType cellType))
-            {
-                _window.Driver.Presentation.SetTerrainShader(_getTerrainShader());
-                _window.Driver.Presentation.InitializeShader();
-                _window.PendingTextureCellTypes.Add(cellType);
-            }
-            else
-            {
-                return;
-            }
+            _window.Driver.Presentation.SetTerrainShader(_getTerrainShader());
+            _window.Driver.Presentation.InitializeShader();
+            _window.PendingTextureCellTypes.Add(cellType);
 
             RecordLightingVisibleTextureChange();
         }

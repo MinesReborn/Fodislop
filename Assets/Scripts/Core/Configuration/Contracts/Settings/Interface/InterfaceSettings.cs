@@ -34,6 +34,15 @@ public sealed class InterfaceSettings
     [SettingConsumer(SettingConsumerTarget.Gameplay, "Controls / Onboarding scheme")]
     public int ControlScheme;
 
+    // Помощь в движении: при выключенном автокопании робот сам обходит
+    // непроходимую клетку на пути и идёт дальше в удерживаемом направлении.
+    public const bool DefaultMovementAssist = true;
+
+    [SettingUnbounded("Тумблер помощи в движении на вкладке «Управление».")]
+    [SettingLabel("settings.controls.movement_assist")]
+    [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerStepSelector.Select")]
+    public bool MovementAssist = DefaultMovementAssist;
+
     [SettingUnbounded("Тумблер автовхода в воротах авторизации.")]
     [SettingLabel("gateway.auth.auto_login")]
     [SettingConsumer(SettingConsumerTarget.UserInterface, "AuthGate auto sign-in toggle")]
@@ -59,8 +68,7 @@ public sealed class InterfaceSettings
     public const string DefaultKeyMoveRightAlternate = "RightArrow";
     public const string DefaultKeyTurnOnly = "LeftShift";
     public const string DefaultKeyTurnOnlyAlternate = "RightShift";
-    public const string DefaultKeyFastMove = "LeftCtrl";
-    public const string DefaultKeyFastMoveAlternate = "RightCtrl";
+    public const string DefaultKeyFastMove = "LeftAlt";
 
     [SettingUnbounded("Имя клавиши UnityEngine.InputSystem.Key.")]
     [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler")]
@@ -106,10 +114,6 @@ public sealed class InterfaceSettings
     [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler")]
     public string KeyFastMove = DefaultKeyFastMove;
 
-    [SettingUnbounded("Имя клавиши UnityEngine.InputSystem.Key.")]
-    [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler")]
-    public string KeyFastMoveAlternate = DefaultKeyFastMoveAlternate;
-
     public const string DefaultKeyDig = "Space";
     public const string DefaultKeyAutoDig = "E";
     public const string DefaultKeyGeo = "G";
@@ -151,20 +155,6 @@ public sealed class InterfaceSettings
     [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler.WantsToBuildWhite")]
     public string KeyBuildWhite = DefaultKeyBuildWhite;
 
-    // Позиция перетаскиваемой панели HUD (left/top в пикселях панели) с
-    // прошлого запуска. Пока игрок её не двигал, панель стоит по стилям.
-    [SettingUnbounded("Флаг сохранённой позиции панели HUD; тумблера нет.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "PlayerHUDView.ApplySavedPanelPosition")]
-    public bool HasHudPanelPosition;
-
-    [SettingUnbounded("Пиксели панели UI; разрешение проверяет PlayerHUDView при восстановлении.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "PlayerHUDView.ApplySavedPanelPosition")]
-    public float HudPanelX;
-
-    [SettingUnbounded("Пиксели панели UI; разрешение проверяет PlayerHUDView при восстановлении.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "PlayerHUDView.ApplySavedPanelPosition")]
-    public float HudPanelY;
-
     // Геометрия перетаскиваемого/растягиваемого окна глобального чата (left,
     // top, width, height в пикселях панели) с прошлого запуска. Пока игрок не
     // трогал окно, оно стоит по стилям Chat.uss.
@@ -199,7 +189,6 @@ public sealed class InterfaceSettings
         string.Equals(KeyTurnOnly, keyName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(KeyTurnOnlyAlternate, keyName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(KeyFastMove, keyName, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(KeyFastMoveAlternate, keyName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(KeyDig, keyName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(KeyAutoDig, keyName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(KeyGeo, keyName, StringComparison.OrdinalIgnoreCase) ||

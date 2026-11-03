@@ -4,23 +4,18 @@ using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Kern;
+using Kern.AssetPipeline.Loading;
 using Kern.Core.Interfaces;
 using Kern.Core.Localization;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-using Kern.AssetPipeline.Loading;
 using Kern.UI.Screens;
 
 namespace Kern.UI.HUD;
 
 public sealed class PlayerHUDMissionPanel
 {
-    // Дневной сброс заданий Рабочего Центра — 18:00 МСК (игровое правило,
-    // продублированное на сервере в GJobs/ServerTime). Дедлайна в пакете нет,
-    // поэтому клиент считает остаток сам и тикает локально.
-    private static readonly TimeZoneInfo MoscowTimeZone =
-        TimeZoneInfo.FindSystemTimeZoneById("Russian Standard Time");
     private const int MissionResetHour = 18;
     private const string TimerMacro = "%T%";
 
@@ -99,10 +94,6 @@ public sealed class PlayerHUDMissionPanel
         }
     }
 
-    // Картинка миссии — по договорённости ImagePacketBuilder: пустой URI значит
-    // «картинки нет» (загрузку не планируем), absolute http(s) идёт в веб-канал,
-    // относительный — в серверный asset-канал (M3G). URI кэшируется, чтобы
-    // повторные Update не перезагружали ту же картинку.
     private void UpdateImage(IPlayerStats stats)
     {
         if (_missionImage == null)
@@ -212,17 +203,23 @@ public sealed class PlayerHUDMissionPanel
             return;
         }
 
-        _missionDescLabel.text = _timerDescription.Replace(TimerMacro, FormatTimeUntilReset(), StringComparison.Ordinal);
+        _missionDescLabel.text = _timerDescription.Replace(
+            TimerMacro,
+            FormatTimeUntilReset(),
+            StringComparison.Ordinal);
     }
 
-    private static string FormatTimeUntilReset()
+    private string FormatTimeUntilReset()
     {
-        DateTime mskNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, MoscowTimeZone);
-        DateTime nextReset = mskNow.Hour < MissionResetHour
-            ? new DateTime(mskNow.Year, mskNow.Month, mskNow.Day, MissionResetHour, 0, 0)
-            : new DateTime(mskNow.Year, mskNow.Month, mskNow.Day, MissionResetHour, 0, 0).AddDays(1);
-        TimeSpan remaining = nextReset - mskNow;
-        return $"{remaining.Hours} ч. {remaining.Minutes} мин.";
+        DateTime localNow = DateTime.Now;
+        DateTime nextReset = localNow.Date.AddHours(MissionResetHour);
+        if (localNow >= nextReset)
+        {
+            nextReset = nextReset.AddDays(1);
+        }
+
+        TimeSpan remaining = nextReset - localNow;
+        return _loc.Get("hud.mission.reset_in", remaining.Hours, remaining.Minutes);
     }
 
     private void StopTimer()

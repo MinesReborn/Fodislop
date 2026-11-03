@@ -57,6 +57,9 @@ hierarchy does not replace assembly boundaries. Move Unity files with their
 metadata and migrate resource keys, namespace strings and tool paths together.
 See `.agents/repository-map.md` and `tools/Kern.RepositoryTaxonomy/Inventory/`.
 
+Do not use C# `partial` types. Split responsibilities into separate types and
+files with explicit ownership instead of dividing one type across files.
+
 ## Authority boundaries
 
 - Never launch, invoke, or control Unity Editor, Unity Hub, or Unity CLI unless the user explicitly requests that specific operation in the current task. Code changes, shader changes, visual fixes, test requirements, skills, and verification standards do not by themselves authorize a Unity operation. Use source inspection, existing logs, and relevant local checks that do not invoke Unity; continue all independently available work without asking to run Unity.
@@ -84,7 +87,37 @@ See `.agents/repository-map.md` and `tools/Kern.RepositoryTaxonomy/Inventory/`.
 
 ## Task execution
 
+**HARD REQUIREMENT — FINISH CLEAR TASKS.** When the user gives a clear,
+actionable request, DO THE WORK. Do not bail out with a status update, partial
+diagnosis, hypothesis, apology, or list of things still to investigate. Keep
+reading the relevant code, make the requested change, and verify it as far as
+the permitted tools allow. The task is not complete until the requested result
+exists.
+
+**NO FAKE BLOCKERS.** Your uncertainty, incomplete search, or failure to spot a
+file is not a blocker. Search the repository and relevant neighboring project
+paths thoroughly, trace the actual implementation, and keep going. Do not ask
+the user to repeat, clarify, or authorize work they already clearly requested.
+Ask only when a concrete, consequential choice cannot be resolved from the
+conversation or code. Continue every independent part of the task while that
+choice is pending.
+
+**FOLLOW THE REQUEST, NOT AN INVENTED SUBSTITUTE.** Implement the artifact the
+user asked for. Do not replace animations with animation debug views, or
+animations with test cells; do not invent fixtures, entities, UI, or content.
+Use the conversation and repository context to choose the implementation that
+matches the stated outcome. If the user corrects you, treat that correction as
+steering for the active task: acknowledge briefly and immediately continue the
+corrected task. Stop only when the user explicitly says to stop or replaces
+the objective.
+
 When the user sends project errors, compiler output, stack traces, or runtime logs, treat them as an instruction to fix the reported problem immediately. Locate the root cause, edit the affected files, and run the strongest permitted verification. Do not stop at explaining the error or merely suggesting a fix; only report without editing when the user explicitly asks for diagnosis only.
+
+Never suppress, downgrade, or deduplicate error diagnostics as a substitute for
+fixing the failure. Preserve the error and its useful context while tracing the
+root cause. Do not swallow exceptions or replace a failing handler with a
+successful no-op. Change logging behavior only when explicitly requested and
+when the logging behavior itself is the stated defect.
 
 For non-trivial work: define the outcome, make the changes, and continue until verified completion unless a new user decision is required. Without separate approval, you may run relevant local checks that do not control Unity, have no production access, and use disposable fixtures. Fix failures caused by your change and re-run the relevant checks.
 

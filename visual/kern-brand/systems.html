@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Kern — системы интерфейса</title>
+<link rel="stylesheet" href="../kern-ui/css/tokens.css">
+<!-- Четыре системы интерфейса. Вид элемента определяет автор информации — как в японском письме слово пишут
+     хираганой, катаканой или кандзи по его происхождению. Общее у всех: палитра, шрифты, форма панели со срезом угла -->
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--void); color: var(--bone); font: 13px/1.45 var(--font-text); padding: 40px 40px 80px; }
+.nano { font: 600 7px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+.micro { font: 600 8.5px/1.25 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ash); }
+.sl { color: var(--seam-strong); margin: 0 .5em; }
+.intro { max-width: 980px; margin-bottom: 36px; }
+.intro h1 { font: 700 34px/1 var(--font-display); letter-spacing: .03em; text-transform: uppercase; }
+.intro p { margin-top: 12px; color: var(--mist); max-width: 760px; }
+.intro .rule { margin-top: 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--seam); border: 1px solid var(--seam); }
+.intro .rule div { background: var(--graphite); padding: 10px 12px; }
+.intro .rule b { display: block; font: 700 15px/1 var(--font-display); letter-spacing: .04em; text-transform: uppercase; margin-bottom: 6px; }
+.intro .rule span { color: var(--ash); font-size: 12px; }
+
+.sys { display: grid; grid-template-columns: 330px 1fr; gap: 32px; padding: 28px 0; border-top: 1px solid var(--seam); }
+.sys h2 { font: 700 26px/1 var(--font-display); letter-spacing: .04em; text-transform: uppercase; }
+.sys .who { margin-top: 8px; }
+.sys h3 { margin: 18px 0 6px; }
+.sys p { color: var(--mist); }
+.sys ul { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.sys li { color: var(--mist); padding-left: 14px; position: relative; }
+.sys li::before { content: "//"; position: absolute; left: 0; color: var(--seam-strong); font: 600 9px/1.6 var(--font-mono); }
+.sys .where { columns: 2; column-gap: 24px; }
+.sys .where li { break-inside: avoid; }
+.demo { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+
+/* Общая форма панели: рамка со срезом угла одной формой */
+.pn { position: relative; isolation: isolate; background: var(--seam); clip-path: var(--notch-clip); }
+.pn::before { content: ""; position: absolute; inset: 1px; z-index: -1; background: var(--grain), var(--graphite);
+  clip-path: polygon(0 0, calc(100% - var(--notch) + .586px) 0, 100% calc(var(--notch) - .586px), 100% 100%, 0 100%); }
+
+/* ── РОБОТ: квант — точки и ячейки, крупная цифра с единицей мелко ── */
+.r-panel { width: 264px; padding: 12px 14px; }
+.r-row { display: flex; align-items: center; gap: 10px; }
+.dots { flex: 1; display: grid; grid-template-columns: repeat(20, 1fr); gap: 2px; }
+.dots i { aspect-ratio: 1; border-radius: 50%; border: 1px solid var(--c); }
+.dots i.on { background: var(--c); }
+.big { font: 700 26px/.8 var(--font-display); white-space: nowrap; }
+.big sup { font: 600 8px/1 var(--font-mono); letter-spacing: .12em; color: var(--ash); vertical-align: top; margin-left: 2px; }
+.cells { display: grid; gap: 2px; height: 10px; margin-top: 8px; }
+.cells i { background: var(--well); box-shadow: inset 1px 1px 0 rgb(0 0 0 / .7); }
+.cells i.on { background: var(--c); box-shadow: none; }
+.scale { display: flex; justify-content: space-between; margin-top: 4px; }
+
+/* ── РУКИ: клавиша — плоская в волосяной рамке, нажатая темнее; горячая клавиша — в углу ── */
+.key { position: relative; display: inline-flex; align-items: center; gap: 10px; height: 36px; padding: 0 16px; border: 1px solid var(--seam-strong); background: var(--plate);
+   font: 600 13px/1 var(--font-text); color: var(--bone); }
+.key.down { background: var(--well); }
+.key.main { background: var(--signal); border-color: var(--signal); color: var(--on-signal); font-weight: 700; clip-path: var(--notch-btn-clip);  }
+.kc { display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 3px; border: 1px solid var(--seam-strong); border-bottom-width: 2px; font: 600 9px/1 var(--font-mono); color: var(--ash); }
+.slot { position: relative; width: 56px; height: 56px; border: 1px solid var(--seam-strong); background: var(--plate); display: grid; place-items: center;
+   }
+.slot.sel { border-color: var(--bone); box-shadow: inset 0 0 0 1px var(--bone); }
+.slot img { width: 34px; height: 34px; image-rendering: pixelated; }
+.slot .kc { position: absolute; left: 3px; top: 3px; height: 13px; min-width: 13px; font-size: 8px; }
+.slot b { position: absolute; right: 4px; bottom: 3px; font: 600 12px/1 var(--font-mono); }
+.tgl { display: inline-flex; align-items: center; gap: 10px; }
+.tgl .sw { width: 26px; height: 14px; border: 1px solid var(--bone); background: rgb(var(--rgb-bone) / .1); position: relative; }
+.tgl .sw::after { content: ""; position: absolute; right: 2px; top: 2px; width: 8px; height: 8px; background: var(--bone); }
+
+/* ── ДЕЛО: лист — заголовок, разделы «//», подпись ···· значение, вкладки чертой ── */
+.d-sheet { width: 420px; }
+.d-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px 12px; border-bottom: 1px solid var(--seam); }
+.d-head h4 { font: 700 22px/1 var(--font-display); letter-spacing: .04em; text-transform: uppercase; }
+.d-tabs { display: flex; padding: 0 18px; border-bottom: 1px solid var(--seam); }
+.d-tabs span { position: relative; height: 32px; padding: 0 12px; display: flex; align-items: center; color: var(--ash); font-weight: 600; }
+.d-tabs span.on { color: var(--bone); }
+.d-tabs span.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--bone); }
+.d-body { padding: 12px 18px 16px; display: flex; flex-direction: column; gap: 9px; }
+.sec { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.sec::after { content: ""; flex: 1; height: 1px; background: repeating-linear-gradient(90deg, var(--seam) 0 2px, transparent 2px 4px); }
+.lv { display: flex; align-items: baseline; gap: 6px; }
+.lv span { color: var(--ash); }
+.lv::after { content: ""; order: 1; flex: 1; border-bottom: 1px dotted var(--seam-strong); translate: 0 -3px; }
+.lv b { order: 2; font: 600 13px/1 var(--font-mono); }
+
+/* ── СЕТЬ: передача — строка источника сверху (кто ···· откуда), время моно, текст как пришёл ── */
+.n-pk { width: 420px; }
+.n-rail { display: flex; align-items: center; gap: 8px; height: 22px; padding: 0 18px; border-bottom: 1px solid var(--seam); }
+.n-rail .sp { flex: 1; height: 1px; background: repeating-linear-gradient(90deg, var(--seam-strong) 0 1px, transparent 1px 3px); }
+.n-body { padding: 12px 18px 16px; display: flex; flex-direction: column; gap: 6px; }
+.msg { display: grid; grid-template-columns: auto 1fr; gap: 8px; }
+.msg time { font: 500 11px/1.6 var(--font-mono); color: var(--dim); }
+.msg b { font-weight: 700; }
+.n-modal p { color: var(--mist); }
+</style>
+</head>
+<body>
+<div class="intro">
+  <span class="micro">Project Kern <span class="sl">//</span> системы интерфейса</span>
+  <h1 style="margin-top:10px">Вид решает автор</h1>
+  <p>Как в японском письме слово пишут хираганой, катаканой или кандзи по его происхождению, так и элемент интерфейса получает систему по тому, кто автор информации. Общее у всех — палитра, три шрифта и одна форма панели со срезом угла. Различаются мотив и правила. Оранжевый — во всех системах только главное действие и тревога.</p>
+  <div class="rule">
+    <div><b>Робот</b><span>говорит тело робота: показания</span></div>
+    <div><b>Руки</b><span>делает игрок: нажимает, вводит</span></div>
+    <div><b>Дело</b><span>записи игрока: читает и правит</span></div>
+    <div><b>Сеть</b><span>пришло извне: сервер и другие игроки</span></div>
+  </div>
+</div>
+
+<section class="sys">
+  <div>
+    <h2>Робот</h2><p class="micro who">Автор — датчики робота</p>
+    <h3 class="nano">Причина</h3>
+    <p>Это приборы, на них смотрят краем глаза, не отрываясь от копания. Мир состоит из клеток, и робот меряет так же — порциями, а не плавной полосой.</p>
+    <h3 class="nano">Мотив — квант</h3>
+    <ul><li>значение — точками и ячейками: прочность 20 × 5%, груз 20 × 5%, геология — ячейка на блок</li><li>крупная цифра Tektur, единица мелко сверху</li><li>цвет — само значение: пороги игры, цвет кристалла</li><li>подписи — только моно-капсом и только где без них не понять</li><li>без заголовков и без рамок внутри панели</li></ul>
+    <h3 class="nano">Где</h3>
+    <ul class="where"><li>прочность, деньги, кредиты</li><li>груз, кристаллы</li><li>геология</li><li>рост навыков (мини-навыки)</li><li>действующие эффекты и их время</li><li>координаты, миникарта</li><li>стрелки к меткам у края экрана</li><li>строка состояния: игроки, версия, FPS</li></ul>
+  </div>
+  <div class="demo">
+    <div class="pn r-panel">
+      <div class="r-row"><div class="dots" style="--c:#a6f53c"></div><span class="big" style="color:#a6f53c">113<sup>HP</sup></span></div>
+    </div>
+    <div class="pn r-panel">
+      <div class="r-row"><span class="nano" style="font-size:9px">Груз</span><span class="big" style="color:#ff9d5c">130<sup>%</sup></span></div>
+      <div class="cells" id="c1" style="--c:#f59048"></div>
+      <div class="scale nano"><span>0</span><span>50</span><span>100</span></div>
+      <div class="r-row" style="margin-top:10px"><span class="nano" style="font-size:9px">Геология</span><div class="cells" id="c2" style="--c:var(--ash);flex:1;margin:0;height:8px"></div><b style="font:600 13px/1 var(--font-mono);color:var(--ash)">3/10</b></div>
+    </div>
+  </div>
+</section>
+
+<section class="sys">
+  <div>
+    <h2>Руки</h2><p class="micro who">Автор — игрок, своим нажатием</p>
+    <h3 class="nano">Причина</h3>
+    <p>Это то, что нажимают пальцем, мышью или кнопкой геймпада. Поэтому оно выглядит как клавиша: плоское поле в волосяной рамке, при нажатии темнеет. Если есть горячая клавиша — она написана на самой кнопке.</p>
+    <h3 class="nano">Мотив — клавиша</h3>
+    <ul><li>плоское поле, волосяная рамка; без света и тени</li><li>наведение — рамка светлее, нажато — поле темнее, выбрано — рамка кости</li><li>в панелях инструментов — иконки без рамок, рамка при наведении</li><li>горячая клавиша — колпачок моно в углу или справа</li><li>главное действие — оранжевое со срезом угла, одно на экран</li><li>поля ввода — вдавленные, фокус — риска слева</li></ul>
+    <h3 class="nano">Где</h3>
+    <ul class="where"><li>системные кнопки справа сверху</li><li>хотбар и ячейки инвентаря</li><li>автокопание, программатор</li><li>кнопки во всех окнах</li><li>сегменты, переключатели, ползунки, флажки</li><li>поля ввода, строка чата</li><li>тач: джойстик, дуга действий, «Копать»</li><li>подсказки геймпада, колпачки клавиш</li></ul>
+  </div>
+  <div class="demo">
+    <span class="key">Продать всё</span>
+    <span class="key down">Нажата</span>
+    <span class="key main">Продать</span>
+    <span class="key">Автокопание <span class="kc">E</span></span>
+    <span class="slot"><span class="kc">1</span><img src="../kern-ui/img/items/geopack.png" alt=""><b>12</b></span>
+    <span class="slot sel"><span class="kc">2</span><img src="../kern-ui/img/items/market.png" alt=""><b>3</b></span>
+    <span class="tgl"><span class="sw"></span>Свечение</span>
+  </div>
+</section>
+
+<section class="sys">
+  <div>
+    <h2>Дело</h2><p class="micro who">Автор — игрок, это его записи</p>
+    <h3 class="nano">Причина</h3>
+    <p>Окна клиента — личное дело игрока: профиль, настройки, вещи, карта, программы. Их читают и правят спокойно, поэтому они устроены как лист: заголовок, разделы, строки «подпись ···· значение».</p>
+    <h3 class="nano">Мотив — лист</h3>
+    <ul><li>заголовок Tektur капсом; под ним — линия</li><li>разделы — моно-капсом с пунктиром до края</li><li>подпись ···· значение — выноска точками, значение моно</li><li>вкладки — подписью с чертой снизу, не плашками</li><li>таблицы — строки по пунктиру, шапка колонок моно-капсом</li></ul>
+    <h3 class="nano">Где</h3>
+    <ul class="where"><li>профиль и его настройки</li><li>настройки (все вкладки)</li><li>инвентарь</li><li>навыки</li><li>карта мира</li><li>программатор</li><li>свой клан: участники, объявления, казна</li><li>почта: список и чтение</li><li>меню, пауза, вход, обучение, обновление, проверка файлов, калибровка</li></ul>
+  </div>
+  <div class="demo">
+    <div class="pn d-sheet">
+      <div class="d-head"><h4>Настройки</h4><span class="kc">Esc</span></div>
+      <div class="d-tabs"><span class="on">Графика</span><span>Звук</span><span>Интерфейс</span><span>Управление</span></div>
+      <div class="d-body">
+        <div class="lv"><span>Разрешение</span><b>1920×1080</b></div>
+        <div class="lv"><span>Ограничение FPS</span><b>60</b></div>
+        <div class="sec nano">Эффекты</div>
+        <div class="lv"><span>Свечение</span><b>вкл</b></div>
+        <div class="lv"><span>Виньетка</span><b>вкл</b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sys">
+  <div>
+    <h2>Сеть</h2><p class="micro who">Автор — сервер или другие игроки</p>
+    <h3 class="nano">Причина</h3>
+    <p>Это пришло извне, клиент его не писал и не решает, что внутри. Поэтому сверху всегда видно, откуда оно: здание и его место, канал, сервер. Внутри — компоненты протокола как есть.</p>
+    <h3 class="nano">Мотив — передача</h3>
+    <ul><li>строка источника сверху: кто ···· откуда</li><li>время — моно, слева от сообщения</li><li>ник — цветом игрока, текст — как прислали</li><li>серверный текст не переводится и не переписывается</li><li>длинные числа клиент сокращает K, KK…, полное — по наведению</li></ul>
+    <h3 class="nano">Где</h3>
+    <ul class="where"><li>окна зданий: рынок, респаун, пушка</li><li>список кланов, чужой клан</li><li>серверная модалка, ссылка</li><li>соединение и разрыв</li><li>чат, личные сообщения</li><li>миссия</li><li>новости в меню</li><li>письма от сервера и игроков (текст письма)</li></ul>
+  </div>
+  <div class="demo">
+    <div class="pn n-pk">
+      <div class="n-rail nano"><span>Здание</span><span class="sp"></span><span>1154:903</span></div>
+      <div class="n-body"><b style="font:700 22px/1 var(--font-display);letter-spacing:.04em;text-transform:uppercase">Рынок</b></div>
+    </div>
+    <div class="pn n-pk">
+      <div class="n-rail nano"><span>Канал</span><span class="sp"></span><span>FED</span></div>
+      <div class="n-body">
+        <div class="msg"><time>18:42</time><span><b style="color:#ffd27a">ШАХТЁР-102</b>: кто у респа?</span></div>
+        <div class="msg"><time>18:43</time><span><b style="color:#9fe8ff">ШАХТЁР-774</b>: я, иду вниз</span></div>
+        <div class="msg"><time>18:44</time><span><b style="color:#e6c8ff">DVM_LEADER</b>: голубые на 1200:840</span></div>
+      </div>
+    </div>
+    <div class="pn n-pk n-modal">
+      <div class="n-rail nano"><span>Сервер</span><span class="sp"></span></div>
+      <div class="n-body"><b style="font:700 18px/1 var(--font-display);letter-spacing:.03em">Неделя добычи</b><p>До воскресенья добыча всех кристаллов увеличена вдвое. Удачи в шахте!</p></div>
+    </div>
+  </div>
+</section>
+<script>
+// Ячейки груза и геологии — как в макете: 20 × 5% и ячейка на блок
+const fill = (id, n, on) => document.getElementById(id).innerHTML = Array.from({ length: n }, (_, i) => `<i${i < on ? ' class="on"' : ''}></i>`).join('');
+document.getElementById('c1').style.gridTemplateColumns = 'repeat(20,1fr)'; fill('c1', 20, 20);
+document.getElementById('c2').style.gridTemplateColumns = 'repeat(10,1fr)'; fill('c2', 10, 3);
+document.querySelectorAll('.dots').forEach(d => { d.innerHTML = Array.from({ length: 20 }, (_, i) => `<i${i < 17 ? ' class="on"' : ''}></i>`).join(''); });
+</script>
+</body>
+</html>

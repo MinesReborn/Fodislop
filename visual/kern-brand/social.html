@@ -21,7 +21,6 @@ body { position: relative; color: var(--bone); font-family: var(--font-text); }
 .top img { width: calc(var(--u) * 3); height: calc(var(--u) * 3); }
 .top b { font: 600 calc(var(--u) * 1.8)/1 var(--font-display); letter-spacing: .03em; text-transform: none; color: var(--bone); }
 .top .sp { flex: 1; }
-.seal { display: grid; place-items: center; width: calc(var(--u) * 2.4); height: calc(var(--u) * 2.4); border: 2px solid var(--signal); color: var(--signal); font: 600 calc(var(--u) * 1.4)/1 var(--font-text); }
 h1 { width: max-content; font: 700 calc(var(--u) * 6.4)/.95 var(--font-display); white-space: nowrap; }
 h1 > span { display: block; }
 .content > div:nth-child(2) { padding-block: calc(var(--u) * 1.2); }
@@ -32,7 +31,6 @@ h1 > span:last-child { color: var(--signal); }
 /* Аватар и квадратные значки: только знак */
 .mark-only { position: absolute; inset: 0; display: grid; place-items: center; }
 .mark-only img { width: 62%; height: 62%; }
-.mark-only .seal { position: absolute; right: 9%; bottom: 9%; width: 15%; height: 15%; font-size: calc(var(--w) * .09); border-width: calc(var(--w) * .006); }
 </style>
 </head>
 <body>
@@ -41,13 +39,14 @@ h1 > span:last-child { color: var(--signal); }
 <script>
 const FORMATS = { avatar: [1024, 1024], x: [1500, 500], youtube: [2560, 1440], vk: [1920, 768], discord: [960, 540], telegram: [640, 640], post: [1080, 1080], story: [1080, 1920], 'ui-hud': [1920, 1080] };
 // Заголовок — строками: переносы заданы, а не случайны; последняя строка — сигналом. В широких кадрах первые две строки — одной
-const TEXT = { title: ['Под землёй', 'тоже есть', 'политика.'], sub: 'Экспедиция в недра планеты', foot: 'Project Kern · 核' };
+const TEXT = { title: ['Под землёй', 'тоже есть', 'политика.'], sub: 'Экспедиция в недра планеты', foot: 'Project Kern' };
 const f = new URLSearchParams(location.search).get('f') || 'post';
 const [w, h] = FORMATS[f] || FORMATS.post;
 const r = document.documentElement.style;
 r.setProperty('--w', w + 'px'); r.setProperty('--h', h + 'px');
 // Единица кадра — от короткой стороны, у вытянутых шапок — от высоты
-r.setProperty('--u', Math.min(w, h) / (w / h > 2.2 ? 32 : 44) + 'px');
+// YouTube: значимое только в полосе 423 px по высоте — единица от неё, иначе служебные строки съедают место заголовка
+r.setProperty('--u', (f === 'youtube' ? 423 / 19 : Math.min(w, h) / (w / h > 2.2 ? 32 : 44)) + 'px');
 const root = document.getElementById('root');
 if (f === 'avatar' || f === 'telegram') {
   root.innerHTML = `<div class="frame-ticks"></div><div class="mark-only"><img src="../kern-ui/img/brand/mark.svg" alt=""></div>`;
@@ -56,7 +55,7 @@ if (f === 'avatar' || f === 'telegram') {
   const safe = f === 'youtube' ? 'style="left:507px;right:507px;top:508px;bottom:508px"' : '';
   root.innerHTML = `<div class="core"></div><div class="frame-ticks"></div>
     <div class="content" ${safe}>
-      <div class="top"><img src="../kern-ui/img/brand/mark.svg" alt=""><b>Project Kern</b><span class="sp"></span><span>K·00</span><span class="seal">核</span></div>
+      <div class="top"><img src="../kern-ui/img/brand/mark.svg" alt=""><b>Project Kern</b><span class="sp"></span><span>K·00</span></div>
       <div><h1>${(w / h > 1.6 ? [TEXT.title[0] + ' ' + TEXT.title[1], TEXT.title[2]] : TEXT.title).map(t => `<span>${t}</span>`).join('')}</h1><p class="sub">${TEXT.sub}</p></div>
       <div class="bottom"><span>${TEXT.foot}</span><span>${f.toUpperCase()} · ${w}×${h}</span></div>
     </div>`;

@@ -16,7 +16,7 @@ static const int KERN_TERRAIN_DEBUG_COVERAGE = 3;
 static const int KERN_TERRAIN_DEBUG_LAYER = 4;
 static const int KERN_TERRAIN_DEBUG_ANCHORED = 5;
 static const int KERN_TERRAIN_DEBUG_CELL_LOCAL = 6;
-static const int KERN_TERRAIN_DEBUG_RIM_MASS = 7;
+static const int KERN_TERRAIN_DEBUG_RELIEF_GROUP = 7;
 static const int KERN_TERRAIN_DEBUG_WORLD_TEXTURE_ANCHOR = 8;
 static const int KERN_TERRAIN_DEBUG_AMBIENT_OCCLUSION = 9;
 static const int KERN_TERRAIN_DEBUG_BACKGROUND_TILE_IDENTITY = 10;
@@ -28,6 +28,10 @@ static const int KERN_TERRAIN_DEBUG_DECAL_CONTRIBUTION = 15;
 static const int KERN_TERRAIN_DEBUG_SHIMMER_FLOW = 16;
 static const int KERN_TERRAIN_DEBUG_PRISMATIC_FLOW = 17;
 static const int KERN_TERRAIN_DEBUG_FOREGROUND_TILE_IDENTITY = 18;
+static const int KERN_TERRAIN_DEBUG_BLINKING_ANIMATION = 19;
+static const int KERN_TERRAIN_DEBUG_SHIMMER_ANIMATION = 20;
+static const int KERN_TERRAIN_DEBUG_RAINBOW_ANIMATION = 21;
+static const int KERN_TERRAIN_DEBUG_MOLTEN_ANIMATION = 22;
 
 // Диапазон, а не «не ноль». Глобаль живёт в нативной части и переживает
 // доменную перезагрузку: номер удалённого вида остаётся в ней и после того,
@@ -36,13 +40,13 @@ static const int KERN_TERRAIN_DEBUG_FOREGROUND_TILE_IDENTITY = 18;
 bool KernTerrainDebugActive()
 {
     return _TerrainDebugView > KERN_TERRAIN_DEBUG_OFF &&
-        _TerrainDebugView <= KERN_TERRAIN_DEBUG_FOREGROUND_TILE_IDENTITY;
+        _TerrainDebugView <= KERN_TERRAIN_DEBUG_MOLTEN_ANIMATION;
 }
 
 bool KernTerrainDebugNeedsSurfaceSample()
 {
     return _TerrainDebugView >= KERN_TERRAIN_DEBUG_FACETED_GLINT &&
-        _TerrainDebugView <= KERN_TERRAIN_DEBUG_PRISMATIC_FLOW;
+        _TerrainDebugView <= KERN_TERRAIN_DEBUG_MOLTEN_ANIMATION;
 }
 
 float3 KernTerrainDebugEncodeSignedDelta(float3 delta, float contrast)
@@ -60,7 +64,6 @@ float3 KernTerrainDebugSurfaceColor(
     float3 animatedColor,
     float3 decalColor,
     float facetedGlintSignal,
-    int cellSurfaceEffect,
     int cellAnimationType,
     float deltaContrast)
 {
@@ -71,15 +74,16 @@ float3 KernTerrainDebugSurfaceColor(
 
     if (_TerrainDebugView == KERN_TERRAIN_DEBUG_SHIMMER_FLOW)
     {
-        bool usesShimmerFlow = cellAnimationType == (int)KERN_TERRAIN_ANIMATION_TYPE_SHIMMER &&
-            cellSurfaceEffect != (int)KERN_TERRAIN_SURFACE_EFFECT_PRISMATIC &&
-            cellSurfaceEffect != (int)KERN_TERRAIN_SURFACE_EFFECT_FACETED;
+        TerrainAnimationProfile profile = ResolveTerrainAnimationProfile(cellAnimationType);
+        bool usesShimmerFlow = profile.flowSource == KERN_TERRAIN_FLOW_STANDARD &&
+            cellAnimationType == (int)KERN_TERRAIN_ANIMATION_TYPE_SHIMMER;
         return usesShimmerFlow ? flowSample : float3(0.0, 0.0, 0.0);
     }
 
     if (_TerrainDebugView == KERN_TERRAIN_DEBUG_PRISMATIC_FLOW)
     {
-        return cellSurfaceEffect == (int)KERN_TERRAIN_SURFACE_EFFECT_PRISMATIC
+        TerrainAnimationProfile profile = ResolveTerrainAnimationProfile(cellAnimationType);
+        return profile.flowSource == KERN_TERRAIN_FLOW_PRISMATIC
             ? flowSample
             : float3(0.0, 0.0, 0.0);
     }
@@ -89,9 +93,34 @@ float3 KernTerrainDebugSurfaceColor(
         return animatedColor;
     }
 
+    if (_TerrainDebugView == KERN_TERRAIN_DEBUG_BLINKING_ANIMATION)
+    {
+        TerrainAnimationProfile profile = ResolveTerrainAnimationProfile(cellAnimationType);
+        return profile.behavior == KERN_TERRAIN_PROFILE_BASE_ANIMATION &&
+            profile.animationType == KERN_TERRAIN_ANIMATION_TYPE_BLINKING ? animatedColor : 0.0.xxx;
+    }
+    if (_TerrainDebugView == KERN_TERRAIN_DEBUG_SHIMMER_ANIMATION)
+    {
+        TerrainAnimationProfile profile = ResolveTerrainAnimationProfile(cellAnimationType);
+        return profile.behavior == KERN_TERRAIN_PROFILE_BASE_ANIMATION &&
+            profile.animationType == KERN_TERRAIN_ANIMATION_TYPE_SHIMMER ? animatedColor : 0.0.xxx;
+    }
+    if (_TerrainDebugView == KERN_TERRAIN_DEBUG_RAINBOW_ANIMATION)
+    {
+        TerrainAnimationProfile profile = ResolveTerrainAnimationProfile(cellAnimationType);
+        return profile.behavior == KERN_TERRAIN_PROFILE_BASE_ANIMATION &&
+            profile.animationType == KERN_TERRAIN_ANIMATION_TYPE_RAINBOW ? animatedColor : 0.0.xxx;
+    }
+    if (_TerrainDebugView == KERN_TERRAIN_DEBUG_MOLTEN_ANIMATION)
+    {
+        TerrainAnimationProfile profile = ResolveTerrainAnimationProfile(cellAnimationType);
+        return profile.behavior == KERN_TERRAIN_PROFILE_MOLTEN ? animatedColor : 0.0.xxx;
+    }
+
     if (_TerrainDebugView == KERN_TERRAIN_DEBUG_PRISMATIC_TINT)
     {
-        float3 tintDelta = cellSurfaceEffect == (int)KERN_TERRAIN_SURFACE_EFFECT_PRISMATIC
+        TerrainAnimationProfile profile = ResolveTerrainAnimationProfile(cellAnimationType);
+        float3 tintDelta = profile.behavior == KERN_TERRAIN_PROFILE_PRISMATIC
             ? animatedColor - decalColor
             : float3(0.0, 0.0, 0.0);
         return KernTerrainDebugEncodeSignedDelta(tintDelta, deltaContrast);
@@ -99,6 +128,12 @@ float3 KernTerrainDebugSurfaceColor(
 
     if (_TerrainDebugView == KERN_TERRAIN_DEBUG_FACETED_GLINT)
     {
+        TerrainAnimationProfile profile = ResolveTerrainAnimationProfile(cellAnimationType);
+        if (profile.behavior != KERN_TERRAIN_PROFILE_FACETED)
+        {
+            return 0.0.xxx;
+        }
+
         return lerp(
             float3(0.015, 0.01, 0.025),
             float3(1.0, 0.42, 0.05),
@@ -218,6 +253,7 @@ float3 KernTerrainDebugColor(
     float coverage,
     float isForeground,
     float packedColumn,
+    float reliefGroup,
     float ambientOcclusion)
 {
     float2 cellLocal = surface.cellSample;
@@ -285,11 +321,10 @@ float3 KernTerrainDebugColor(
         return float3(saturate(cellLocal.x), saturate(cellLocal.y), 0.0);
     }
 
-    if (_TerrainDebugView == KERN_TERRAIN_DEBUG_RIM_MASS)
+    if (_TerrainDebugView == KERN_TERRAIN_DEBUG_RELIEF_GROUP)
     {
-        int rimCode = KernTerrainRimCode(packedContour);
-        float shade = rimCode == 0 ? 0.0 : (float)rimCode / 17.0;
-        return float3(shade, shade * 0.5, 1.0 - shade);
+        float group = saturate(reliefGroup / 255.0);
+        return float3(group, group, group);
     }
 
     if (_TerrainDebugView == KERN_TERRAIN_DEBUG_WORLD_TEXTURE_ANCHOR)

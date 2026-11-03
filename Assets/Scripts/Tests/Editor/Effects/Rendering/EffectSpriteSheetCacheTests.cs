@@ -1,7 +1,7 @@
 #nullable enable
 
 using System;
-using Kern.Game.VisualEffects.Engine;
+using Kern.Game.Visual.Effects.Engine;
 using Kern.World;
 using NUnit.Framework;
 using UnityEngine;
@@ -11,7 +11,7 @@ namespace Kern.Tests.Effects;
 [TestFixture]
 public sealed class EffectSpriteSheetCacheTests
 {
-    private const string SparkSheet = "VFX/Sprites/Textures/CrystallSparkle/CrystallSparkleImage";
+    private const string SparkSheet = "Visual/Sprites/Textures/CrystallSparkle/CrystallSparkleImage";
 
     [Test]
     public void SlicesSheetIntoRowMajorFrames()

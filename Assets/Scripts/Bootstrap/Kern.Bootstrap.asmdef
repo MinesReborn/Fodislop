@@ -15,7 +15,6 @@
         "MinesServer.Data",
         "MinesServer.Networking",
         "MinesServer.Networking.Connection",
-        "MinesServer.Networking.Connection.Client",
         "Unity.InputSystem",
         "Unity.TextMeshPro",
         "Unity.RenderPipelines.Core.Runtime",

@@ -5,7 +5,7 @@
 .chat-container {
     background-color: var(--surface-panel);
     border-color: var(--border-subtle);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-md);
     padding: var(--space-6);
     width: 400px;
@@ -27,7 +27,7 @@
 .chat-input {
     background-color: var(--surface-shelf-solid);
     border-color: var(--border-subtle);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-sm);
     padding: var(--space-2) var(--space-4);
     color: var(--text-primary);
@@ -49,7 +49,7 @@
     bottom: var(--space-8);
     height: 180px;
     background-color: var(--surface-slate-dense);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-cyan);
     border-radius: var(--radius-md);
     padding: var(--space-4);
@@ -103,7 +103,7 @@
     height: 26px;
     padding: 0 var(--space-4);
     background-color: var(--surface-shelf-dense);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-line);
     color: var(--text-secondary);
     -unity-text-align: middle-center;
@@ -125,7 +125,7 @@
     flex-grow: 1;
     margin-bottom: var(--space-3);
     background-color: var(--surface-void-haze);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-line);
 }
 
@@ -137,7 +137,7 @@
    широкая дефолтная полоса. Ручка чуть заметнее рамки, на наведении и
    перетаскивании подсвечивается цианью. */
 .gchat-scroll .unity-scroller--vertical {
-    width: 6px;
+    width: var(--space-3);
     min-width: 0;
     padding: 0;
     overflow: hidden;
@@ -173,10 +173,10 @@
 }
 
 .gchat-scroll .unity-base-slider__dragger {
-    width: 6px;
+    width: var(--space-3);
     min-width: 0;
     border-width: 0;
-    border-radius: 3px;
+    border-radius: var(--radius-sharp);
     background-color: var(--border-line);
 }
 
@@ -212,7 +212,7 @@
     font-size: var(--size-sm);
     color: var(--light-solid);
     background-color: transparent;
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-line);
     padding: var(--space-1) var(--space-2);
 }
@@ -225,7 +225,7 @@
     color: var(--light-solid);
     font-size: var(--size-base);
     -unity-text-align: middle-center;
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-left-width: 0;
     border-color: var(--border-line);
 }
@@ -235,7 +235,7 @@
     height: var(--space-11);
     flex-shrink: 0;
     padding: 0;
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-left-width: 0;
     border-color: var(--border-line);
 }
@@ -253,7 +253,7 @@
     flex-shrink: 0;
     justify-content: center;
     background-color: var(--surface-slate-dense);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-cyan);
     border-radius: var(--radius-md);
     padding: var(--space-2);
@@ -264,46 +264,7 @@
     height: var(--space-9);
     margin: 1px;
     padding: 0;
-    border-width: 1px;
-    border-color: var(--text-disabled);
-}
-
-/* Кнопка-пикер смайлов: квадрат в ряду ввода, как кнопка цвета; глиф
-   кнопке ставит ChatEmojiController (emoji-шрифтом). */
-.gchat-emoji-button {
-    width: var(--space-11);
-    height: var(--space-11);
-    flex-shrink: 0;
-    padding: 0;
-    border-width: 1px;
-    border-left-width: 0;
-    border-color: var(--border-line);
-}
-
-/* Пикер смайлов: тот же плавающий попап над строкой ввода, 4 в ряд.
-   Открытие одного пикера закрывает второй (GlobalChatUI). */
-.gchat-emoji-grid {
-    position: absolute;
-    bottom: 40px;
-    right: var(--space-4);
-    flex-direction: row;
-    flex-wrap: wrap;
-    width: 170px;
-    flex-shrink: 0;
-    justify-content: center;
-    background-color: var(--surface-slate-dense);
-    border-width: 1px;
-    border-color: var(--border-cyan);
-    border-radius: var(--radius-md);
-    padding: var(--space-2);
-}
-
-.gchat-emoji-item {
-    width: var(--space-9);
-    height: var(--space-9);
-    margin: 1px;
-    padding: 0;
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--text-disabled);
 }
 
@@ -344,7 +305,7 @@
     flex-grow: 1;
     margin-bottom: var(--space-2);
     background-color: var(--surface-void-haze);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-line);
 }
 
@@ -354,7 +315,7 @@
     padding: var(--space-2);
     margin-bottom: var(--space-1);
     background-color: var(--surface-shelf-dense);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-line);
 }
 
@@ -374,7 +335,7 @@
     height: 26px;
     flex-shrink: 0;
     background-color: var(--surface-shelf-solid);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-line);
     color: var(--text-secondary);
     -unity-text-align: middle-center;
@@ -393,14 +354,14 @@
 
 .lchat-panel {
     position: absolute;
-    left: 50%;
+    left: var(--radius-pill);
     top: 45%;
     translate: -50% 0;
     width: 420px;
     flex-direction: row;
     align-items: center;
     background-color: var(--surface-slate-dense);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-cyan);
     border-radius: var(--radius-sm);
     padding: var(--space-1) var(--space-2);
@@ -440,7 +401,7 @@
 .chat-toggle-btn {
     position: absolute;
     left: 182px;
-    bottom: 12px;
+    bottom: var(--space-6);
     width: 40px;
     height: 40px;
     background-color: transparent;
@@ -450,7 +411,6 @@
     -unity-background-image-tint-color: var(--light-solid);
 }
 
-/* E2-C: бейдж непрочитанных — кружок с числом в правом верхнем углу кнопки. */
 .chat-toggle-badge {
     position: absolute;
     top: -4px;

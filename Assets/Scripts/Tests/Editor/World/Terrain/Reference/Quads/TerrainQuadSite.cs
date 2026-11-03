@@ -4,7 +4,7 @@ namespace Kern.World.Terrain;
 
 /// <summary>Какой слой клетки собирается.</summary>
 ///
-/// Фон — прямоугольник под клеткой: её тип — TerrainQuadBuilder.ResolveUnderfillOf,
+/// Фон — прямоугольник под клеткой: её тип — TerrainQuadBuilder.UnderOf,
 /// геометрия не смещается, света и каймы она не несёт. Передний план — сама
 /// клетка со всем этим.
 public enum TerrainQuadLayer

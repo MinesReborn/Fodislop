@@ -35,11 +35,9 @@ public interface IPlayerStats
     string MissionDescription { get; }
     long MissionProgress { get; }
     long MissionMaxProgress { get; }
-    /// <summary>URI картинки миссии из MissionInitPacket; пустая строка — картинки нет.</summary>
     string MissionImageUri { get; }
     ushort MissionImageWidth { get; }
     ushort MissionImageHeight { get; }
-    bool DailyBonusAvailable { get; }
     /// <summary>Цель в серверных клетках (Y вниз); null, когда указателя нет.</summary>
     Vector2Int? MissionArrowTarget { get; }
 
@@ -50,9 +48,14 @@ public interface IPlayerStats
     void SetNickname(string nickname);
     void SetClanId(int clanId);
     void SetMaxDepth(int depth);
-    void SetDailyBonusAvailable(bool available);
     void SetSkillProgress(SkillType skill, long current, long max);
-    void SetMission(string title, string description, long max, string imageUri = "", ushort imageWidth = 0, ushort imageHeight = 0);
+    void SetMission(
+        string title,
+        string description,
+        long max,
+        string imageUri = "",
+        ushort imageWidth = 0,
+        ushort imageHeight = 0);
     void SetMissionArrow(ushort x, ushort y);
     void SetMissionProgress(long current);
     void SetMissionMaxProgress(long max);
@@ -71,7 +74,6 @@ public interface IPlayerStats
     event Action OnNicknameChanged;
     event Action OnBasketChanged;
     event Action<SkillType, long, long> OnSkillProgress;
-    event Action OnDailyBonusChanged;
     event Action OnMissionChanged;
     event Action OnMissionArrowChanged;
     event Action OnStatusLinesChanged;

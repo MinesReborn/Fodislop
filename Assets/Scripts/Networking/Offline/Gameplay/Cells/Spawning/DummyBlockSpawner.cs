@@ -81,7 +81,7 @@ internal sealed class DummyBlockSpawner
             var type = (CellType)index;
             if (type != CellType.Unloaded &&
                 Enum.IsDefined(typeof(CellType), type) &&
-                (configurations[index].Properties & CellConfigProperties.Passable) == 0 &&
+                configurations[index].DrawLayer == CellRenderLayer.Foreground &&
                 _hasCellTexture(type))
             {
                 blocks.Add(type);
@@ -142,7 +142,7 @@ internal sealed class DummyBlockSpawner
         // весь круг вокруг робота: тоннели закрывались, свет снаружи не
         // доходил, и всё дальше лампы робота становилось чёрным.
         if (_worldState.GetCellConfig(current) is not { } currentConfig ||
-            (currentConfig.Properties & CellConfigProperties.Passable) != 0)
+            currentConfig.DrawLayer != CellRenderLayer.Foreground)
         {
             return;
         }

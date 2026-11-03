@@ -14,7 +14,7 @@ cd ~/Projects/games && python3 -m http.server 8765 --bind 127.0.0.1
 # http://127.0.0.1:8765/Fodislop/visual/kern-ui-rebuild/game.html
 ```
 
-- `game.html?state=` `default` · `busy` (миссия, агрессия, геология, перегруз
+- `game.html?state=` `default` · `busy` (миссия, геология, перегруз
   128 %, строки состояния, запущенная программа, подсказка предмета) · `chat` · `chatlist` · `skills` ·
   `skills-selected` · `skills-empty-slot`
 - `menu.html?state=` `bootstrap` · `auth` · `onboarding` · `menu` · `update` ·

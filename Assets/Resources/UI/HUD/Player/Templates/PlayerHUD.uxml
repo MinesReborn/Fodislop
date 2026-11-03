@@ -39,7 +39,7 @@
             <ui:Label name="CreditsLabel" class="hud-credits" text="---" />
             <ui:Label name="GeologyLabel" class="hud-stat"  text="" />
 
-            <ui:Button name="DonateButton" class="hud-donate-button" text="💰" tooltip="hud.tooltip.donate" picking-mode="Position" />
+            <ui:Button name="DonateButton" class="hud-donate-button" text="$" tooltip="hud.tooltip.donate" picking-mode="Position" />
 
             <ui:VisualElement name="BasketSeparator" class="hud-separator" />
 
@@ -50,27 +50,10 @@
             </ui:VisualElement>
             <ui:VisualElement name="BasketContainer" class="hud-basket-container" />
 
-            <!-- Ручка перетаскивания панели -->
-            <ui:VisualElement name="HUDDragHandle" class="hud-drag-handle" tooltip="Перетащить панель">
-                <ui:Label text="✥" picking-mode="Ignore" />
-            </ui:VisualElement>
         </ui:VisualElement>
 
         <!-- ════════════ СТАТУСНЫЕ ЛИНИИ (справа от панели игрока, под кнопкой бонуса) ════════════ -->
         <ui:VisualElement name="StatusPanel" class="hud-status-panel is-hidden" />
-
-        <!-- ════════════ КНОПКА БОНУСА ════════════ -->
-        <ui:Button name="BonusButton" class="hud-button-accent hud-bonus-button" text="hud.bonus" tooltip="hud.tooltip.bonus" picking-mode="Position" />
-
-        <!-- ════════════ ПАНЕЛЬ БОНУСОВ ════════════ -->
-        <ui:VisualElement name="BonusPanel" class="hud-bonus-panel is-hidden">
-            <ui:VisualElement class="hud-title-row">
-                <ui:Label class="hud-stat" text="hud.bonus" />
-                <ui:Button name="BonusCloseButton" class="hud-button-close" text="×" picking-mode="Position" />
-            </ui:VisualElement>
-            <ui:Label name="BonusStatusLabel" class="hud-stat hud-stat-wrap"  text="" />
-            <ui:Button name="BonusClaimButton" class="hud-button-claim is-hidden" text="hud.bonus.claim" picking-mode="Position" />
-        </ui:VisualElement>
 
         <!-- ════════════ ТУМБЛЕРЫ (снизу слева) ════════════ -->
         <ui:Button name="AutoDigButton" class="hud-button hud-toggle-btn hud-toggle-auto-dig" tooltip="hud.tooltip.autodig" picking-mode="Position">

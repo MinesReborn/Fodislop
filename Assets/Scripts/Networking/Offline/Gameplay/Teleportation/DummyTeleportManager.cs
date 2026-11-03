@@ -11,9 +11,10 @@ using MinesServer.Networking.Server.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
+using Kern.Networking.Protocol;
 using MinesServer.Networking.Server.Packets.Movement;
 using MinesServer.Networking.Server.Packets.World;
-using MinesServer.Networking.Shared.Packets;
+using MinesServer.Networking.Contracts.Packets;
 using UnityEngine;
 
 
@@ -185,9 +186,13 @@ internal sealed class DummyTeleportManager
     // "." collects inputs from the button itself: it has none.
     private static TextPacket CloseButton() => new()
     {
-        Text = "<color=#B3B3B3>×</color>",
+        Text = "Закрыть",
         OnClickContext = ".",
-        AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Right") },
+        AttachedProperties = new[]
+        {
+            new StringPairPacket("DockPanel.Dock", "Right"),
+            new StringPairPacket(ServerWindowActionMetadata.ActionKey, ServerWindowActionMetadata.CloseActionValue),
+        },
     };
 
     public void HandleTeleportClick(int index)
@@ -217,7 +222,7 @@ internal sealed class DummyTeleportManager
         _onReceived.Invoke(new ServerPacket(new TeleportPacket(destX, destY)));
         _onReceived.Invoke(new ServerPacket(new HBPacket(new IHBPacket[]
         {
-            new VFXPacket(VFX.TpIn, 0, destX, destY, Array.Empty<StringPairPacket>()),
+            new VisualPacket(VisualEffect.TpIn, 0, destX, destY, Array.Empty<StringPairPacket>()),
         })));
         _onReceived.Invoke(new ServerPacket(new CloseWindowPacket()));
     }

@@ -85,7 +85,6 @@
 .g-flag--autodig { bottom: calc(150 * var(--g)); }
 .g-flag--autodig.active { color: #e2523a; border-color: rgb(226 82 58 / 50%); }
 .g-flag--aggro { bottom: calc(171 * var(--g)); }
-.g-flag--aggro:not(.active) { display: none; }          /* AgrShow — только при агрессии */
 .g-hud:not(.is-busy) .g-flag--aggro.active { display: flex; }
 .g-flag--aggro.active { color: #ff837e; border-color: var(--border-danger); }
 

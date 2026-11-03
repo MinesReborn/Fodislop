@@ -33,6 +33,10 @@ public enum TerrainDebugView
     ShimmerFlow = 16,
     PrismaticFlow = 17,
     ForegroundTileIdentity = 18,
+    BlinkingAnimation = 19,
+    ShimmerAnimation = 20,
+    RainbowAnimation = 21,
+    MoltenAnimation = 22,
 }
 
 public static class TerrainDebugViewState
@@ -77,6 +81,10 @@ public static class TerrainDebugViewState
         TerrainDebugView.ShimmerFlow => "Поток shimmer",
         TerrainDebugView.PrismaticFlow => "Поток призматик",
         TerrainDebugView.ForegroundTileIdentity => "Уникальные тайлы передних блоков",
+        TerrainDebugView.BlinkingAnimation => "Анимация: мигание",
+        TerrainDebugView.ShimmerAnimation => "Анимация: shimmer",
+        TerrainDebugView.RainbowAnimation => "Анимация: радуга",
+        TerrainDebugView.MoltenAnimation => "Эффект: расплав",
         _ => view.ToString(),
     };
 
@@ -122,6 +130,10 @@ public static class TerrainDebugViewState
             "Показывает только передний слой. Цвет без хеша кодирует слот атласа " +
             "и фактически выбранный тайл 32×32 после автотайлинга; силуэт " +
             "учитывает геометрию клетки. Пурпурный — некорректный адрес.",
+        TerrainDebugView.BlinkingAnimation => "Результат анимации мигания; чёрное — клетки без этого типа.",
+        TerrainDebugView.ShimmerAnimation => "Результат shimmer; чёрное — клетки без этого типа.",
+        TerrainDebugView.RainbowAnimation => "Результат анимации радуги; чёрное — клетки без этого типа.",
+        TerrainDebugView.MoltenAnimation => "Результат эффекта расплава; чёрное — клетки без этого эффекта.",
         TerrainDebugView.FacetedGlint =>
             "Фактическая интенсивность формулы глинта, нормализованная на его силу: " +
             "почти чёрное — вклада нет, оранжевое — активный глинт.",
@@ -157,6 +169,10 @@ public static class TerrainDebugViewState
         TerrainDebugView.DecalContribution or
         TerrainDebugView.ShimmerFlow or
         TerrainDebugView.PrismaticFlow => true,
+        TerrainDebugView.BlinkingAnimation or
+        TerrainDebugView.ShimmerAnimation or
+        TerrainDebugView.RainbowAnimation or
+        TerrainDebugView.MoltenAnimation => true,
         _ => false,
     };
 

@@ -14,12 +14,15 @@ namespace Kern.Game.Entities.Robots;
 public sealed class RobotManager : IRobotService
 {
     private const string TAG = "[RobotManager]";
+    private const int MaximumRobotsWithTails = 50;
     private readonly ISceneObjectFactory _sceneObjects;
     private readonly ILocalPlayerState _localPlayer;
     private readonly Dictionary<uint, Robot> _robots = new();
     private readonly Dictionary<uint, float> _lastSeenAt = new();
     private readonly HashSet<uint> _overwriteWarningsLogged = new();
     private readonly List<uint> _keysToRemove = new();
+    private readonly HashSet<uint> _robotsWithTailSlots = new();
+    private uint? _priorityTailBotId;
     private bool _robotLimitWarningLogged;
 
     public RobotManager(ISceneObjectFactory sceneObjects, ILocalPlayerState localPlayer)
@@ -31,6 +34,75 @@ public sealed class RobotManager : IRobotService
     public uint LocalPlayerBotId { get; private set; }
 
     public int RobotCount => _robots.Count;
+
+    public bool TryReserveTailSlot(uint botId, bool prioritize)
+    {
+        if (_robotsWithTailSlots.Contains(botId))
+        {
+            if (prioritize)
+            {
+                _priorityTailBotId = botId;
+            }
+
+            return true;
+        }
+
+        if (_robotsWithTailSlots.Count < MaximumRobotsWithTails)
+        {
+            _robotsWithTailSlots.Add(botId);
+            if (prioritize)
+            {
+                _priorityTailBotId = botId;
+            }
+
+            return true;
+        }
+
+        if (!prioritize)
+        {
+            return false;
+        }
+
+        uint? victimBotId = null;
+        foreach (uint candidateId in _robotsWithTailSlots)
+        {
+            if (candidateId != botId &&
+                candidateId != LocalPlayerBotId &&
+                candidateId != _priorityTailBotId)
+            {
+                victimBotId = candidateId;
+                break;
+            }
+        }
+
+        if (!victimBotId.HasValue)
+        {
+            return false;
+        }
+
+        _robotsWithTailSlots.Remove(victimBotId.Value);
+        if (_robots.TryGetValue(victimBotId.Value, out Robot? victim))
+        {
+            victim.ReleaseTailSlotFromManager();
+        }
+
+        _robotsWithTailSlots.Add(botId);
+        if (prioritize)
+        {
+            _priorityTailBotId = botId;
+        }
+
+        return true;
+    }
+
+    public void ReleaseTailSlot(uint botId)
+    {
+        _robotsWithTailSlots.Remove(botId);
+        if (_priorityTailBotId == botId)
+        {
+            _priorityTailBotId = null;
+        }
+    }
 
     public void RegisterRobot(IRobotView robot)
     {
@@ -157,6 +229,7 @@ public sealed class RobotManager : IRobotService
     public void SetLocalPlayerBotId(uint botId)
     {
         LocalPlayerBotId = botId;
+        _priorityTailBotId = _robotsWithTailSlots.Contains(botId) ? botId : null;
 
         // Если фабричный бот под этим id был создан до того, как сервер
         // сообщил наш BotId (PlayerInfoPacket), — заменяем его игровым
@@ -236,5 +309,6 @@ public sealed class RobotManager : IRobotService
         _robots.Remove(botId);
         _lastSeenAt.Remove(botId);
         _overwriteWarningsLogged.Remove(botId);
+        ReleaseTailSlot(botId);
     }
 }

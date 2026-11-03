@@ -178,12 +178,6 @@
       "source": "local",
       "dependencies": {}
     },
-    "darkar25.kern.networking.client": {
-      "version": "file:MinesServerNetworking/MinesServer.Networking.Connection.Client",
-      "depth": 0,
-      "source": "local",
-      "dependencies": {}
-    },
     "darkar25.kern.networking.connection": {
       "version": "file:MinesServerNetworking/MinesServer.Networking.Connection",
       "depth": 0,
@@ -194,12 +188,6 @@
       "version": "file:MinesServerNetworking/MinesServer.Utils",
       "depth": 0,
       "source": "local",
-      "dependencies": {}
-    },
-    "org.effekseer.effekseerforunity": {
-      "version": "file:org.effekseer.effekseerforunity",
-      "depth": 0,
-      "source": "embedded",
       "dependencies": {}
     },
     "com.unity.modules.accessibility": {

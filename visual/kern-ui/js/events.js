@@ -55,47 +55,50 @@
     if (EVENTS[kind]) EVENTS[kind]();
   }
   $('standEvent').onchange = e => setEvent(e.target.value);
+  window.kernScene.onReset(() => setEvent(''));
 
-  // ── Стрелки у края экрана: цель миссии (MissionArrowPacket X, Y) и своя метка ──
-  // Пока цель в кадре — значок над её клеткой; за кадром — стрелка у края в её сторону и расстояние в клетках
-  const MISSION = { kind: 'mission', x: W.PX + 58, y: W.PY - 22, color: '#e4e8ea', name: 'Миссия', off: () => $('mission').hidden };
+  // ── Два виртуальных кольца вокруг игрока: внутреннее — миссии (MissionArrowPacket X, Y), внешнее — остальные метки (своя метка с карты и др.) ──
+  // Самих колец на экране нет — только светящийся серп там, где цель за пределами своего кольца, в её сторону: цвет — вид цели,
+  // ширина растёт с близостью, подпись — название и расстояние в клетках. Цель в кадре — значок над её клеткой
+  const MISSION = { kind: 'mission', x: W.PX + 58, y: W.PY - 22, color: getComputedStyle(document.documentElement).getPropertyValue('--bone').trim(), name: 'Миссия', off: () => $('mission').hidden };
+  const RINGS = [{ id: 'mission', share: .29 }, { id: 'other', share: .38 }];   // радиус — доля меньшей стороны поля
+  const RING_ARC_MAX = 24, RING_ARC_MIN = 8, RING_THICK = 14;                                                 // полуугол дуги, °; толщина в середине, px
+  const pts = (cx, cy, r, a, w, thick, n) => {                                  // сечение дуги: толщина падает до нуля к концам
+    const out = [], inn = [];
+    for (let i = 0; i <= n; i++) {
+      const f = -w + 2 * w * i / n, t = thick * (1 - (f / w) ** 2) ** 1.3 / 2, an = a + f;
+      out.push([cx + (r + t) * Math.cos(an), cy + (r + t) * Math.sin(an)]);
+      inn.push([cx + (r - t) * Math.cos(an), cy + (r - t) * Math.sin(an)]);
+    }
+    return { out, inn };
+  };
+  const num = ([x, y]) => x.toFixed(1) + ' ' + y.toFixed(1);
+  const crescent = (...a) => { const { out, inn } = pts(...a, 28); return 'M' + out.concat(inn.reverse()).map(num).join('L') + 'Z'; };
   function arrows() {
     const v = W.view; if (!v) return;
     const fw = frame.offsetWidth, fh = frame.offsetHeight, cs = getComputedStyle(frame);
-    const list = W.marks.filter(m => !m.off?.());
-    // Стрелка стоит на самом краю экрана (за безопасной зоной), подпись — внутрь; слой стрелок лежит в HUD, он сдвинут на безопасную зону
-    const px = v => parseFloat(cs.getPropertyValue(v)) || 0;
+    const px = n => parseFloat(cs.getPropertyValue(n)) || 0;
+    // Слой HUD сдвинут на безопасную зону; игрок — в центре кадра
     const left = px('--sl') + 22, right = fw - px('--sr') - 22, top = px('--st') + 22, bottom = fh - px('--sb') - 22;
-    // Занятое HUD: панели и кнопки в координатах кадра
-    const fr = frame.getBoundingClientRect(), sc = fr.width / fw;
-    const busy = [...document.querySelectorAll('#hud .panel, #hud .sysbar, #hud .inventory, #hud .mini-skills, #hud .touch-sys, #hud .dock button, #hud .pad, #hud .low-row > *, #hud .status-bar, #hud .chat-peek, #hud .toggle, #hud .pad-cluster, #hud .item-hint')]
-      .filter(el => el.offsetParent && !el.closest('[hidden]')).map(el => { const r = el.getBoundingClientRect(); return [(r.left - fr.left) / sc, (r.top - fr.top) / sc, (r.right - fr.left) / sc, (r.bottom - fr.top) / sc]; })
-      .filter(([l, t, r, b]) => r > l && b > t);
-    // Точки по периметру поля с шагом 8 px; первая свободная — ближайшая к идеальной
-    function free(ix, iy, lw, taken) {
-      const pts = [];
-      for (let x = left; x <= right; x += 8) pts.push([x, top, 't'], [x, bottom, 'b']);
-      for (let y = top; y <= bottom; y += 8) pts.push([left, y, 'l'], [right, y, 'r']);
-      pts.sort((p, q) => Math.hypot(p[0] - ix, p[1] - iy) - Math.hypot(q[0] - ix, q[1] - iy));
-      const boxOf = ([x, y, side]) => side === 'r' ? [x - 15 - lw, y - 15, x + 15, y + 15] : side === 'l' ? [x - 15, y - 15, x + 15 + lw, y + 15]
-        : side === 't' ? [Math.min(x - 15, x - lw / 2), y - 15, Math.max(x + 15, x + lw / 2), y + 35] : [Math.min(x - 15, x - lw / 2), y - 35, Math.max(x + 15, x + lw / 2), y + 15];
-      const hit = b => taken.some(([l, t, r, bb]) => b[0] < r && b[2] > l && b[1] < bb && b[3] > t);
-      const p = pts.find(q => !hit(boxOf(q))) || pts[0];
-      return { x: p[0], y: p[1], side: p[2], box: boxOf(p) };
-    }
-    $('edgeArrows').innerHTML = list.map(m => {
-      const tx = v.offX + (m.x - v.ox + .5) * W.CELL, ty = v.offY + (m.y - v.oy + .5) * W.CELL;
-      const dist = Math.round(Math.hypot(m.x - W.PX, m.y - W.PY));
-      if (tx > left && tx < right && ty > top && ty < bottom) return `<div class="edge-pin" style="left:${tx - px('--sl')}px;top:${ty - W.CELL / 2 - px('--st')}px;--c:${m.color}"><span>${m.name}</span></div>`;
-      // Луч от центра кадра к цели обрезается краем; затем стрелка сдвигается вдоль края к ближайшему месту без панелей HUD
-      const cx = fw / 2, cy = fh / 2, dx = tx - cx, dy = ty - cy;
-      const k = Math.min(dx > 0 ? (right - cx) / dx : dx < 0 ? (left - cx) / dx : Infinity, dy > 0 ? (bottom - cy) / dy : dy < 0 ? (top - cy) / dy : Infinity);
-      const label = `${m.name} · ${dist}`, lw = label.length * 6.5 + 14;
-      const at = free(cx + dx * k, cy + dy * k, lw, busy);
-      busy.push(at.box);
-      const ang = Math.atan2(ty - at.y, tx - at.x) * 180 / Math.PI;
-      return `<div class="edge-arrow edge-arrow--${at.side}" style="left:${at.x - px('--sl')}px;top:${at.y - px('--st')}px;--c:${m.color};--a:${ang}deg"><i></i><span>${label}</span></div>`;
-    }).join('');
+    const cx = fw / 2, cy = fh / 2, lx = cx - px('--sl'), ly = cy - px('--st'), side = Math.min(right - left, bottom - top);
+    const list = W.marks.filter(m => !m.off?.());
+    const pins = [], parts = [];
+    RINGS.forEach(ring => {
+      const R = Math.round(side * ring.share), placed = [];
+      list.filter(m => (m.kind === 'mission' ? 'mission' : 'other') === ring.id).forEach(m => {
+        const tx = v.offX + (m.x - v.ox + .5) * W.CELL, ty = v.offY + (m.y - v.oy + .5) * W.CELL;
+        const dist = Math.round(Math.hypot(m.x - W.PX, m.y - W.PY));
+        if (tx > left && tx < right && ty > top && ty < bottom) pins.push(`<div class="edge-pin" style="left:${tx - px('--sl')}px;top:${ty - W.CELL / 2 - px('--st')}px;--c:${m.color}"><span>${m.name}</span></div>`);
+        if (Math.hypot(tx - cx, ty - cy) <= R) return;                            // цель внутри своего кольца — дуга не нужна
+        const a = Math.atan2(ty - cy, tx - cx), w = Math.max(RING_ARC_MIN, RING_ARC_MAX - dist * .15) * Math.PI / 180;
+        let lr = R + 20;                                                           // подписи рядом по углу разводятся по радиусу
+        while (placed.some(q => Math.abs(Math.atan2(Math.sin(a - q.a), Math.cos(a - q.a))) < .3 && Math.abs(lr - q.r) < 13)) lr += 13;
+        placed.push({ a, r: lr });
+        const lxp = lx + lr * Math.cos(a), lyp = ly + lr * Math.sin(a), c = Math.cos(a);
+        parts.push(`<g style="--c:${m.color}"><path class="ring-glow" d="${crescent(lx, ly, R, a, w, RING_THICK)}"/><path class="ring-core" d="${crescent(lx, ly, R, a, w * .8, RING_THICK * .35)}"/><text class="ring-t" x="${lxp.toFixed(1)}" y="${(lyp + 3.5).toFixed(1)}" text-anchor="${c > .35 ? 'start' : c < -.35 ? 'end' : 'middle'}">${m.name} · ${dist}</text></g>`);
+      });
+    });
+    $('edgeArrows').innerHTML = `<svg class="marker-ring" aria-hidden="true">${parts.join('')}</svg>` + pins.join('');
   }
 
   // ── Подписи над роботами (WorldLabels): ник — от правого верхнего угла клетки, облако — хвостом к роботу ──
@@ -158,12 +161,11 @@
   $('standText').onchange = e => setText(e.target.value);
   window.kernText = { set: setText };
 
-  const q = new URLSearchParams(location.search);
-  W.ready.then(() => {
-    W.marks.push(MISSION);
-    W.draw();
-    // Снимок: окна без плавного появления (в безголовом браузере кадры анимации не идут)
-    if (q.get('event')) { ['netDialog', 'srvModal', 'linkDialog'].forEach(id => { $(id).style.transition = 'none'; }); setTimeout(() => setEvent(q.get('event'))); }
-    if (q.get('text')) setTimeout(() => setText(q.get('text')));
+  W.ready.then(() => { W.marks.push(MISSION); W.draw(); });
+  // Снимок: окна без плавного появления (в безголовом браузере кадры анимации не идут)
+  window.kernScene.on(3, q => {
+    if (q.get('event')) { ['netDialog', 'srvModal', 'linkDialog'].forEach(id => { $(id).style.transition = 'none'; }); setEvent(q.get('event')); }
+    if (q.get('text')) setText(q.get('text'));
   });
+  window.kernScene.onReset(() => { if (mode !== 'ru') setText('ru'); });
 })();

@@ -38,13 +38,13 @@ public sealed class BenchTerrainMetadataLookup : ITerrainMetadataLookup
         {
             metadata[index] = new CellMetadata
             {
+                IsPopulated = true,
+                AtlasIndex = 0,
+                AtlasRect = new UnityEngine.Vector4(0f, 0f, 0.0625f, 0.0625f),
                 HasTileGroup = index % 5 == 0,
                 TileGroupId = index % 4,
-                AtlasRect = new UnityEngine.Vector4(0f, 0f, 0.0625f, 0.0625f),
-                AtlasIndex = 0,
                 AnimationFrameCount = 1,
                 IsTextureReady = true,
-                IsPopulated = true,
             };
         }
 

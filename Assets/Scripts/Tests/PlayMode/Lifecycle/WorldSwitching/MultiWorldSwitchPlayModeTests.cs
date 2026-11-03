@@ -28,7 +28,7 @@ public sealed class MultiWorldSwitchPlayModeTests
     private const string TestDummyToken = "playmode-multiworld-token";
     private BootstrapLifetimeScope _bootstrap = null!;
     private DummyAuthenticationScope _authentication = null!;
-    private IOfflineScenarioSettings _scenario = null!;
+    private IDummyScenarioSettings _scenario = null!;
 
     [UnitySetUp]
     public IEnumerator SetUp()
@@ -36,15 +36,15 @@ public sealed class MultiWorldSwitchPlayModeTests
         _authentication = DummyAuthenticationScope.Seed(TestDummyToken);
         yield return PlayModeHarness.StartAtGateway();
         _bootstrap = PlayModeHarness.FindBootstrap()!;
-        _scenario = _bootstrap.Container.Resolve<IOfflineScenarioSettings>();
-        _scenario.Scenario = OfflineScenario.HappyPath;
+        _scenario = _bootstrap.Container.Resolve<IDummyScenarioSettings>();
+        _scenario.Scenario = DummyScenario.HappyPath;
         yield return PlayModeHarness.EnterMainGame(_bootstrap);
     }
 
     [UnityTearDown]
     public IEnumerator TearDown()
     {
-        _scenario.Scenario = OfflineScenario.HappyPath;
+        _scenario.Scenario = DummyScenario.HappyPath;
         yield return PlayModeHarness.Shutdown();
         _authentication.Restore();
     }

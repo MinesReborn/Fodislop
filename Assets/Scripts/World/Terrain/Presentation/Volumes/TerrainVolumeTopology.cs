@@ -110,7 +110,7 @@ internal sealed class TerrainVolumeTopology
                     continue;
                 }
                 uint outline = (buffers.GetTypeRow(type).Look >> TerrainCellFormat.TypeOutlineShift) & 7u;
-                if (outline == 3u)
+                if (outline == 2u)
                 {
                     foreach (TerrainVolumeEdge edge in s_roundEdges[occupied])
                     {

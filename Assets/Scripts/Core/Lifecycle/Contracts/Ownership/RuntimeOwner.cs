@@ -10,7 +10,7 @@ public enum RuntimeOwner
     General,
     Robots,
     Buildings,
-    VFX,
+    VisualEffects,
     FloatingUI,
     AudioEvents,
 }

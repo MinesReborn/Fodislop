@@ -17,7 +17,7 @@
 
 .inv-full-bg {
     background-color: var(--surface-slate-dense);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--accent-cyan-fill);
     border-radius: var(--radius-md);
     padding: var(--space-9);
@@ -33,7 +33,7 @@
     width: var(--space-11);
     height: var(--space-11);
     background-color: var(--surface-void-haze);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--accent-cyan-glow);
     border-radius: var(--radius-md);
     padding: 0;
@@ -103,7 +103,7 @@
     /* Рамка всегда 2px, в обычном состоянии — прозрачная. Постоянная
        прозрачная рамка держит содержимое на месте при выборе.
        Шаг сетки не меняется: box-sizing border-box, клетка остаётся 62px. */
-    border-width: 2px;
+    border-width: var(--border-width-strong);
     border-color: rgba(0, 0, 0, 0);
     border-radius: var(--radius-sm);
     background-color: var(--surface-void-dense);
@@ -161,7 +161,7 @@
     margin-right: 1px;
     margin-bottom: 1px;
     font-size: var(--size-2xs);
-    color: rgb(255, 255, 255);
+    color: var(--light-solid);
 }
 
 .inv-floating {
@@ -282,9 +282,9 @@
     min-height: 50px;
     flex-shrink: 0;
     flex-grow: 0;
-    margin: 3px;
+    margin: var(--radius-sharp);
     background-color: var(--light-sheen);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--accent-cyan-fill);
     border-radius: var(--radius-md);
     padding: 0;
@@ -302,7 +302,7 @@
 .inv-tooltip-card {
     position: absolute;
     top: var(--space-12);
-    left: 50%;
+    left: var(--radius-pill);
     translate: -50% 0;
     min-width: 320px;
     max-width: 480px;
@@ -349,7 +349,7 @@
     min-width: 36px;
     padding: 1px 6px;
     background-color: var(--surface-raised);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-cyan);
     border-radius: var(--radius-sm);
     color: var(--text-primary);

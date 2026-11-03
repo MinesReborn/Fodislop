@@ -37,8 +37,8 @@ namespace Kern.Tests.PlayMode;
 /// </summary>
 public sealed class PacketInputAppearancePlayModeTests
 {
-    private static readonly Color TextPrimary = new(240f / 255f, 246f / 255f, 248f / 255f, 1f);
-    private static readonly Color AccentGold = new(245f / 255f, 197f / 255f, 66f / 255f, 1f);
+    private static readonly Color s_textPrimary = new(240f / 255f, 246f / 255f, 248f / 255f, 1f);
+    private static readonly Color s_accentGold = new(245f / 255f, 197f / 255f, 66f / 255f, 1f);
 
     private PanelSettings _panel = null!;
     private GameObject _host = null!;
@@ -92,7 +92,7 @@ public sealed class PacketInputAppearancePlayModeTests
         Assert.That(IsLight(background), Is.False,
             ".sci-fi-input обязан гасить светлый фон внутреннего input: иначе поле — белая плашка дефолтной темы");
 
-        Assert.That(inner.resolvedStyle.color, Is.EqualTo(TextPrimary).Within(0.02f),
+        Assert.That(inner.resolvedStyle.color, Is.EqualTo(s_textPrimary).Within(0.02f),
             "текст внутреннего input обязан наследовать --text-primary, а не дефолтный тёмный цвет темы Unity");
     }
 
@@ -133,7 +133,7 @@ public sealed class PacketInputAppearancePlayModeTests
         VisualElement? dragger = slider.Q(className: "unity-base-slider__dragger");
         Assert.That(dragger, Is.Not.Null,
             "у Slider обязан быть unity-base-slider__dragger — на него цепляется арт ручки из пакета");
-        Assert.That(dragger!.resolvedStyle.backgroundColor, Is.EqualTo(AccentGold).Within(0.02f),
+        Assert.That(dragger!.resolvedStyle.backgroundColor, Is.EqualTo(s_accentGold).Within(0.02f),
             "у живого слайдера (--filled, MaxValue > MinValue) кругляш-ручка обязан быть виден: " +
             "репорт — «он должен быть, если кристаллов > 0»");
     }

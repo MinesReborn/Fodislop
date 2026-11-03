@@ -1,13 +1,13 @@
 /* Микрографика Kern — вид поверх раскладки. Места блоков, их состав и поведение задают hud/screens/touch/pad/prog/events;
    этот файл меняет только облик: гарнитуры, волосяные линии, засечки, срезы углов, индексы, штриховку.
-   Декор — только из языконезависимых знаков (цифры, символы, 核): перевод и проверка переполнения его не видят. */
+   Декор — только из языконезависимых знаков (цифры, символы): перевод и проверка переполнения его не видят. */
 
 /* ── Гарнитуры ─────────────────────────────────────────────── */
 body, .frame { font-family: var(--font-text); }
 /* Числа и служебные метки — моноширинным: цифры стоят столбцом, как в журнале смены */
 :is(.hp-value, .wallet dd, .crystals li > span, .cargo-head strong, .mission-progress, .pid span, .coords, .status-bar, .states time,
     .inv-slots span, .inv-cell span, .inv-window-count, .clan-bank b, .clan-bank span, .profile-stats dd, .profile-level small, .map-coords, .map-scale,
-    .prog-page, .prog-cell small, .chat-log time, .pm-thread time, .mail-list time, .clan-board time, .edge-arrow span, .edge-pin span,
+    .prog-page, .prog-cell small, .chat-log time, .pm-thread time, .mail-list time, .clan-board time, .edge-pin span,
     .descent-meta, .upd-meta b, .calib-slider output, .range output, .badge, .chat-list i, .pm-thread i, .geo, .prog-foot kbd, .toggle kbd,
     .keycap, .menu-meta code, .menu-meta b, .skills-slots, .prog-state, .slot .lvl, .pin span, .stand-res) {
   font-family: var(--font-mono); letter-spacing: var(--ls-mono); }
@@ -21,39 +21,22 @@ body, .frame { font-family: var(--font-text); }
 /* ── Иконки: одна толщина, прямые концы и углы ─────────────── */
 svg { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 
-/* ── Панель: базальт, волосяная рамка, засечки по углам, срезанный правый верхний угол ── */
-.panel { border-radius: 0; border-color: var(--seam); background: var(--ticks), var(--notch-line), var(--grain), var(--graphite);
+/* ── Панель — одна форма везде (HUD, окна клиента, окна сервера): базальт, волосяная рамка, срез правого верхнего угла,
+   линия среза рисуется в рамке (border-box), без меток совмещения. Декор без данных не ставится: индексы и штрихкоды, которые ничего не значат, убраны ── */
+.panel { --notch-edge: var(--seam); border-radius: 0; border-color: var(--notch-edge);
+  background: linear-gradient(225deg, transparent calc(var(--notch) * .7071 - 1px), var(--notch-edge) calc(var(--notch) * .7071 - 1px) calc(var(--notch) * .7071 + 1px), transparent calc(var(--notch) * .7071 + 1px)) border-box, var(--grain) padding-box, var(--graphite) padding-box;
   clip-path: var(--notch-clip); box-shadow: var(--shadow-panel); }
 .hud .panel { box-shadow: var(--shadow-panel); }
-:is(.player, .cargo, .dialog, .srv-window, .settings, .skills, .inv-window, .gate, .onb, .prog-win, .map-win) { background: var(--barcode), var(--ticks), var(--notch-line), var(--grain), var(--graphite); }
-.frame.compact :is(.player, .cargo) { background: var(--ticks), var(--notch-line), var(--grain), var(--graphite); }
-/* Индекс блока в углу панели — у среза */
-:is(.player, .mission, .cargo, .prog, .minimap) { position: relative; }
-:is(.player, .mission, .cargo, .prog, .minimap, .dialog, .srv-window, .settings, .skills, .inv-window, .gate, .onb)::after {
-  position: absolute; z-index: 2; top: 2px; right: calc(var(--notch) + 4px); font: var(--fw-semi) var(--t-0)/8px var(--font-mono); letter-spacing: .12em;
-  color: var(--dim); pointer-events: none; }
 :is(.dialog, .srv-window, .settings, .skills, .inv-window) { position: relative; }
-.player::after { content: "K·01"; }
-.mission::after { content: "K·02"; }
-.cargo::after { content: "K·03"; }
-.prog::after { content: "K·05"; top: auto; bottom: 2px; }
-.minimap::after { content: "K·04"; color: var(--mist); top: auto; right: auto; left: 6px; bottom: 3px; }
-:is(.dialog, .srv-window, .settings, .skills, .inv-window, .gate, .onb)::after { content: "核 · KRN"; }
-.frame.compact :is(.player, .mission, .cargo, .prog, .minimap)::after { display: none; }
 
-/* ── Шапка окна: печать 核, заголовок Tektur заглавными, штриховка вдоль нижней линии ── */
-:is(.srv-head, .skills-head, .settings-head, .inv-window-head) { background: var(--hatch) left bottom / 100% 4px no-repeat; }
+/* ── Шапка окна: заголовок Tektur заглавными, штриховка вдоль нижней линии ── */
 :is(.srv-head h2, .skills-head h2, .settings-head h2, .inv-window-head h2, .dialog > h2, .dialog > header h2) {
   display: flex; align-items: center; gap: var(--sp-5); text-transform: uppercase; letter-spacing: var(--ls-caps); }
-:is(.srv-head h2, .skills-head h2, .settings-head h2, .inv-window-head h2, .dialog > h2, .dialog > header h2)::before {
-  content: "核"; flex: none; display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid var(--signal);
-  color: var(--signal); font: var(--fw-bold) var(--t-4)/1 var(--font-text); letter-spacing: 0; }
-.frame.compact :is(.srv-head h2, .skills-head h2, .settings-head h2, .inv-window-head h2)::before { width: 16px; height: 16px; font-size: var(--t-2); }
 
 /* ── Кнопки: прямые, волосяная рамка; основная — сигнал бура со срезом угла ── */
 .btn { border-radius: 0; border-color: var(--seam-strong); background: var(--plate); font-weight: var(--fw-semi); letter-spacing: .01em; }
 .btn:hover { border-color: var(--ash); background: var(--plate-hover); }
-.btn--primary, .btn--update { clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%); font-weight: var(--fw-bold); }
+.btn--primary, .btn--update { clip-path: var(--notch-btn-clip); font-weight: var(--fw-bold); }
 .btn--primary { background: var(--signal); border-color: var(--signal); color: var(--on-signal); }
 .btn--primary:hover { background: var(--signal-hover); border-color: var(--signal-hover); }
 .btn--signal { background: var(--signal-wash); border-color: var(--signal-line); color: var(--signal); }
@@ -65,52 +48,49 @@ svg { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 .meter { border-radius: 0; background: var(--hatch), var(--well); }
 .meter--cargo::after, .meter--wide::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background: repeating-linear-gradient(90deg, transparent 0 calc(5% - 1px), rgb(var(--rgb-well) / .7) calc(5% - 1px) 5%); }
-.hp .meter::after { background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 2px), rgb(var(--rgb-well) / .9) calc(10% - 2px) 10%); }
-.geo .share, .crystals .share { border-radius: 0; height: 2px; }
 
 /* ── Переключатели: прямоугольная дорожка, квадратный бегунок ── */
 .toggle, .switch, .seg, .seg button, .input, .chat-input, .field select, .keycap, .tbtn, .pid span, .prog-pick, .prog-op, .prog-cats button,
 .inv-slots li, .inv-cell, .inv-expand, .states li, .clan-list li, .clan-board li, .mail-gift, .pm-thread button, .profile-ach li, .profile-stats div,
 .map-places button, .upd-box, .net-reason, .link-url, .rail-btn, .chat-peek, .item-hint, .status-bar, .diag, .coords, .pin span, .map-scale { border-radius: 0; }
 .toggle .dot, .toggle .dot::after, .switch::after { border-radius: 0; }
-.toggle[aria-pressed="true"] { border-color: var(--signal-line); background: var(--ticks), var(--graphite); }
-.switch:checked { background: var(--hatch-signal), var(--signal-soft); }
+.toggle[aria-pressed="true"] { border-color: var(--signal-line); background: var(--graphite); }
 .seg { padding: 2px; gap: 2px; }
-.seg button[aria-checked="true"] { background: var(--signal); color: var(--on-signal); font-weight: var(--fw-bold); }
 
 /* ── Поля ввода: углубление, при фокусе — сигнальная риска слева ── */
-.input, .chat-input { background: var(--well); border-color: var(--seam-strong); }
+.input, .chat-input { background: var(--well); border-color: var(--seam-strong); box-shadow: var(--press); }
 .input:focus, .chat-input:focus { border-color: var(--signal); box-shadow: inset 2px 0 0 var(--signal); }
 .input::placeholder, .chat-input::placeholder { color: var(--smoke); }
 
 /* ── Левая колонка ── */
 .pid span { border-color: var(--seam-strong); background: var(--well); color: var(--mist); }
-.hp-value { color: var(--bone); }
-.geo { border-top: 1px dashed var(--seam); }
+/* Клан и номер — две плашки одной высоты в рамке; рамка клана рисуется по центру кнопки — зона касания больше рамки */
+.clan-btn { position: relative; border-radius: 0; border-color: transparent; }
+.clan-btn::before { content: ""; position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; translate: -50% -50%; border: 1px solid var(--seam-strong); pointer-events: none; }
+.frame.compact .clan-btn::before { width: 18px; height: 18px; }
+.clan-btn:hover { border-color: transparent; }
+.clan-btn:hover::before { border-color: var(--ash); }
+.frame:not(.in-touch, .compact) .clan-btn { width: 22px; height: 22px; padding: 0; margin: 0; border: 0; }
+.frame:not(.compact) .pid span { height: 22px; line-height: 20px; font-size: 11px; }
+.clan-btn img { width: 13px; height: 13px; }
 .states li { border-left-width: 2px; background: linear-gradient(90deg, color-mix(in srgb, var(--c) 14%, transparent), transparent 60%), var(--graphite); }
-.mission .meter { height: 3px; }
-.cargo-head span { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: var(--ls-caps); font-size: var(--t-3); }
-.frame.compact .cargo-head span { font-size: var(--t-2); }
 .prog-name { border-radius: 0; background: var(--signal-wash); border: 1px solid var(--signal-line); padding: 0 var(--sp-3); font-family: var(--font-mono); }
 .coords { background: var(--tag); border: 1px solid var(--seam); color: var(--bone); }
 
 /* ── Правый верх: плитки кнопок с порядковым индексом ── */
-.frame:not(.compact) .sysbuttons, .frame:not(.compact) .sysbar { counter-reset: sys; }
-.frame:not(.compact) :is(.sysbuttons .icon-btn, .sysbar .bonus) { border-radius: 0; background: var(--ticks), var(--graphite); counter-increment: sys; position: relative; }
-.frame:not(.compact) :is(.sysbuttons .icon-btn, .sysbar .bonus)::before { content: counter(sys, decimal-leading-zero); position: absolute; left: 3px; top: 2px;
-  font: var(--fw-semi) var(--t-0)/8px var(--font-mono); color: var(--dim); }
-.frame:not(.compact) .sysbar .bonus { border-color: var(--signal-line); background: var(--hatch-signal) right top / 10px 10px no-repeat, var(--ticks), var(--graphite); }
+.frame:not(.compact) :is(.sysbuttons .icon-btn, .sysbar .bonus) { border-radius: 0; background: var(--graphite); position: relative; }
+.frame:not(.compact) .sysbar .bonus { border-color: var(--signal-line); background: var(--hatch-signal) right top / 10px 10px no-repeat, var(--graphite); }
 .frame:not(.compact) :is(.sysbuttons .icon-btn, .sysbar .bonus):hover { border-color: var(--ash); }
 .frame:not(.compact) .sys-sep { width: 1px; background: repeating-linear-gradient(transparent 0 2px, var(--seam-strong) 2px 4px); }
 .status-bar { background: var(--tag); border-color: var(--seam); letter-spacing: var(--ls-mono); }
 
 /* ── Инвентарь: ячейки с номером слота ── */
 .inv-slots { counter-reset: slot; }
-.inv-slots li { counter-increment: slot; background: var(--ticks), var(--graphite); }
+.inv-slots li { counter-increment: slot; background: var(--graphite); }
 .inv-slots li::before { content: counter(slot, decimal-leading-zero); position: absolute; left: 4px; top: 2px; font: var(--fw-semi) var(--t-0)/8px var(--font-mono); color: var(--dim); }
 .inv-slots li.is-on, .inv-cell.is-on { border-color: var(--signal); box-shadow: inset 0 0 0 1px var(--signal); background: var(--hatch-signal), var(--graphite); }
 .inv-expand { border-radius: 0; background: var(--hatch), var(--graphite); }
-.inv-cell { background: var(--well); }
+.inv-cell { background: var(--well); box-shadow: var(--press); }
 
 /* ── Навыки ── */
 .mini-skill .bar { border-radius: 0; width: 3px; }
@@ -131,12 +111,8 @@ svg { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 .link-layer { background: var(--dots), var(--scrim-strong); }
 .dialog p { color: var(--mist); }
 :is(.inv-window-info, .mail-list, .map-side, .skill-info, .prog-side) { border-left-color: var(--seam); }
-.settings-tabs { background: var(--hatch), var(--plate); counter-reset: tab; }
-.settings-tabs button { position: relative; counter-increment: tab; border-left-width: 2px; }
-.settings-tabs button:not(.settings-exit)::before { content: counter(tab, decimal-leading-zero); position: absolute; right: var(--sp-6); top: 50%; translate: 0 -50%;
-  font: var(--fw-semi) var(--t-0)/1 var(--font-mono); color: var(--dim); }
-.settings-tabs button.is-on { background: linear-gradient(90deg, var(--signal-soft), transparent); }
-.settings-tabs button.is-on::before { color: var(--signal); }
+.settings-tabs { background: var(--hatch), var(--plate); }
+.settings-tabs button { position: relative; border-left-width: 2px; }
 .set-sec { color: var(--dim); font-size: var(--t-3); display: flex; align-items: center; gap: var(--sp-4); }
 .set-sec::after { content: ""; flex: 1; height: 1px; background: repeating-linear-gradient(90deg, var(--seam) 0 2px, transparent 2px 4px); }
 .field { border-bottom-style: dashed; }
@@ -146,16 +122,16 @@ svg { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 .mail-list button.is-on { border-left-width: 2px; }
 .mail-list button > i, .clan-list li > i, .menu-online i, .prog-cats button i { border-radius: 0; }
 .profile-closed { border-style: dashed; background: var(--hatch); }
-.upd-box, .mail-gift { background: var(--ticks), var(--well); }
+.upd-box, .mail-gift { background: var(--well); }
 
 /* ── Программатор: клетки — миллиметровка ── */
 .prog-grid { border-radius: 0; }
 .prog-grid-wrap { background: var(--dots), var(--well); }
-.prog-cell { background: var(--well); }
+.prog-cell { background: var(--well); box-shadow: var(--press); }
 .prog-cell:hover { background: var(--plate); }
 .prog-op { background: var(--plate); }
-.prog-list { border-radius: 0; background: var(--ticks), var(--graphite-solid); }
-.prog-go.is-stop { clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%); }
+.prog-list { border-radius: 0; background: var(--graphite-solid); }
+.prog-go.is-stop { clip-path: var(--notch-btn-clip); }
 
 /* ── Карта ── */
 .map-view { background: var(--dots), var(--void); }
@@ -171,7 +147,7 @@ svg { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 .menu-lead { color: var(--mist); }
 .menu-top, .menu-foot { background: var(--hatch) left bottom / 100% 3px no-repeat; }
 .menu-foot { background-position: left top; }
-.rail-btn { background: var(--ticks), var(--graphite); }
+.rail-btn { background: var(--graphite); }
 .rail-btn:hover { translate: none; border-color: var(--ash); }
 .boot-logo, .brand img { image-rendering: auto; }
 .boot-phase { font-family: var(--font-mono); font-size: var(--t-4); letter-spacing: var(--ls-mono); color: var(--ash); }
@@ -185,11 +161,11 @@ svg { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 .calib-logo { -webkit-mask-image: url(../img/brand/mark.svg); mask-image: url(../img/brand/mark.svg); }
 
 /* ── Тач и пад ── */
-.tbtn { background: var(--ticks), var(--graphite); }
-.frame.compact .touch-sys .icon-btn { border-radius: 0; background: var(--ticks), var(--graphite); }
+.tbtn { background: var(--graphite); }
+.frame.compact .touch-sys .icon-btn { border-radius: 0; background: var(--graphite); }
 .act-arc :is(.act, #autodig, .build, .fast-move) { border-radius: 0; }
 .pg { border-radius: var(--r-s); font-family: var(--font-mono); }
-.pad-bar { border-radius: 0; background: var(--ticks), var(--float); }
+.pad-bar { border-radius: 0; background: var(--float); }
 .pd:not(.pd-rt) { background: var(--float); }
 
 /* ── Прокрутка: тонкая прямая полоса ── */
@@ -204,3 +180,50 @@ svg { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 /* ── Плотные места: Onest шире прежней гарнитуры — в узких коробках трекинг чуть сжат, чтобы строка влезала как раньше ── */
 .frame.compact .mission-text, .frame.in-touch .cap, .frame:not(.compact).tier-standard .sysbuttons .control-label { letter-spacing: -.02em; }
 .frame.compact .mission-text { line-height: 14px; }
+
+
+/* ── Выбор и включённое — кость, не сигнал: оранжевый остаётся только у главного действия, тревоги и непрочитанного ── */
+.seg button[aria-checked="true"] { background: var(--well); color: var(--bone); font-weight: var(--fw-bold); box-shadow: inset 0 0 0 1px var(--bone); }
+.settings-tabs button.is-on { color: var(--bone); border-left-color: var(--bone); background: linear-gradient(90deg, rgb(var(--rgb-bone) / .08), transparent); }
+:is(.chat-tab, .frame.compact .chat-tab).is-on { color: var(--bone); }
+/* Вкладки чата: значок непрочитанного стоит в своём поле вкладки — между вкладками зазор, чтобы он не прилипал к соседней */
+.chat-tabs { column-gap: var(--sp-6); }
+.chat-tab.is-on::after { background: var(--bone); }
+.chat-list button.is-on { background: rgb(var(--rgb-bone) / .08); }
+.toggle[aria-pressed="true"] { border-color: var(--seam-strong); }
+.toggle[aria-pressed="true"] .dot { background: rgb(var(--rgb-bone) / .1); border-color: var(--bone); }
+.toggle[aria-pressed="true"] .dot::after { background: var(--bone); }
+.switch:checked { background: var(--hatch), rgb(var(--rgb-bone) / .1); border-color: var(--bone); }
+.switch:checked::after { background: var(--bone); }
+:is(.inv-slots li, .inv-cell).is-on { border-color: var(--bone); box-shadow: inset 0 0 0 1px var(--bone); background: var(--hatch), var(--graphite); }
+.mail-list button.is-on { border-left-color: var(--bone); }
+.map-tools .icon-btn[aria-pressed="true"], .prog-group .icon-btn[aria-pressed="true"] { color: var(--bone); border-color: var(--bone); background: rgb(var(--rgb-bone) / .08); }
+.prog-cell.is-sel { background: rgb(var(--rgb-bone) / .08); box-shadow: inset 0 0 0 2px var(--bone); }
+.prog-list li.is-on { background: rgb(var(--rgb-bone) / .08); }
+.steps li.is-on { color: var(--bone); border-color: var(--bone); background: rgb(var(--rgb-bone) / .06); }
+.phases li.is-on::before { border-color: var(--bone); background: var(--bone); box-shadow: none; outline-color: var(--seam-strong); }
+.calib-steps li.is-on { color: var(--void); background: var(--bone); border-color: var(--bone); }
+.calib-steps li.is-done { color: var(--bone); border-color: var(--seam-strong); }
+.slot.is-on { border-color: var(--bone); box-shadow: 0 0 0 2px var(--bone); }
+.tbtn[aria-pressed="true"], .frame.in-touch :is(.act, #autodig, .build, .fast-move)[aria-pressed="true"] { border-color: var(--bone); background: rgb(var(--rgb-bone) / .12); color: var(--bone); }
+.frame.in-touch :is(.act, #autodig, .build, .fast-move)[aria-pressed="true"] .cap { color: var(--bone); }
+.pd.is-on { border-color: var(--bone); color: var(--bone); }
+:is(.clan-board li.is-pin, .profile-ach li.is-done) { border-color: var(--seam-strong); background: var(--hatch) right top / 14px 14px no-repeat, var(--plate); }
+/* Заголовки окон клиента — тем же Tektur капсом, что заголовки окон зданий, но без значка — на ступень мельче */
+:is(.srv-head h2, .skills-head h2, .settings-head h2, .inv-window-head h2, .dialog > h2, .dialog > header h2) { font-size: 22px; line-height: 1; letter-spacing: .04em; }
+/* Ранг в клане, уровень профиля и кредиты казны — данные, а не действие: без сигнала */
+.clan-list .role { color: var(--bone); }
+.profile-level b { color: var(--bone); }
+.profile-level .meter i { background: var(--mist); }
+.clan-bank span { color: var(--creds); }
+/* Флажки — тоже выбор: кость */
+.check input, input[type="checkbox"] { accent-color: var(--bone); }
+/* Ползунки громкости и калибровки — заполненное туманом, как ползунки окон зданий */
+:is(.range, .calib-slider) input { accent-color: var(--mist); }
+/* Миссия: прогресс — ячейки (одна на шаг, до 10), счёт — кость; оранжевый не нужен: это данные, а не действие */
+.mission-cells { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; height: 4px; margin: 0 -14px var(--sp-5); }
+.mission-cells i { background: var(--well); }
+.mission-cells i.on { background: var(--bone); }
+.mission-progress { color: var(--bone); }
+/* Загруженная программа — ярлык данных: кость в рамке */
+.prog-name { background: transparent; border-color: var(--seam-strong); color: var(--bone); }

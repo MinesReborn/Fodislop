@@ -17,6 +17,9 @@
     --space-12: 32px;
     --space-13: 40px;
     --space-14: 48px;
+    --border-width-thin: 1px;
+    --border-width-strong: 2px;
+    --border-width-bold: 3px;
     --radius-sharp: 3px;
     --radius-sm: 5px;
     --radius-md: 7px;

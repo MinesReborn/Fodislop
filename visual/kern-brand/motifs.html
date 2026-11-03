@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Project Kern — мотивы микродизайна</title>
+<link rel="stylesheet" href="../kern-ui/css/tokens.css">
+<!-- Три варианта микрографики на одном наборе элементов: А — геометрия знака, Б — клетка шахты, В — программатор.
+     Смотреть крупно: headless Chrome с --force-device-scale-factor=3 -->
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--dots), var(--void); color: var(--bone); font: 14px/1.4 var(--font-text); padding: 32px; }
+.cols { display: grid; grid-template-columns: repeat(3, 340px); gap: 40px; }
+.col > h1 { font: 600 11px/1 var(--font-mono); letter-spacing: var(--ls-caps-wide); text-transform: uppercase; color: var(--signal); margin-bottom: 6px; }
+.col > p { font: 500 11px/1.4 var(--font-mono); color: var(--ash); margin-bottom: 20px; min-height: 46px; }
+.stack { display: flex; flex-direction: column; gap: 14px; }
+
+/* Общий состав — как в HUD */
+.pn { position: relative; padding: 12px 14px 14px; border: 1px solid var(--seam); background-color: var(--graphite); }
+.row { display: flex; align-items: center; gap: 8px; }
+.nick { font: 700 17px/1 var(--font-display); letter-spacing: .02em; }
+.pid { font: 500 11px/1 var(--font-mono); color: var(--mist); border: 1px solid var(--seam-strong); background: var(--well); padding: 3px 5px; }
+.hp { margin-top: 12px; display: flex; align-items: center; gap: 10px; }
+.meter { position: relative; flex: 1; height: 8px; background: var(--hatch), var(--well); }
+.meter i { position: absolute; inset: 0 22% 0 0; background: #9be22d; }
+.hp b { font: 600 13px/1 var(--font-mono); color: #9be22d; }
+.money { margin-top: 10px; font: 500 14px/1.5 var(--font-mono); color: var(--ok); }
+.idx { position: absolute; font: 600 8px/8px var(--font-mono); letter-spacing: .12em; color: var(--dim); }
+.win { position: relative; border: 1px solid var(--seam); background-color: var(--graphite); }
+.win header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--seam); }
+.win h2 { font: 700 15px/1 var(--font-display); letter-spacing: var(--ls-caps); text-transform: uppercase; }
+.win .bd { padding: 14px; display: flex; gap: 10px; }
+.btn { height: 34px; padding: 0 16px; border: 1px solid var(--seam-strong); background: var(--plate); color: var(--bone); font: 600 13px/1 var(--font-text); }
+.btn.p { background: var(--signal); border-color: var(--signal); color: var(--on-signal); font-weight: 700; }
+.slots { display: flex; gap: 6px; }
+.slot { position: relative; width: 44px; height: 44px; border: 1px solid var(--seam); background: var(--well); }
+.slot.on { border-color: var(--signal); }
+
+/* ── А · Грань: всё из шестигранника знака. Срезы под 30° — как рёбра шестигранника, ромб-ядро — метка ── */
+.A .pn, .A .win { clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 8px, 100% 100%, 14px 100%, 0 calc(100% - 8px));
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='8'%3E%3Cpath d='M0 .5 14 8.5' stroke='%234a4668'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='8'%3E%3Cpath d='M0 -.5 14 7.5' stroke='%234a4668'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9'%3E%3Cpath d='M.5 8V.5H8' fill='none' stroke='%23d8d5ee' stroke-opacity='.55'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9'%3E%3Cpath d='M8.5 1v7.5H1' fill='none' stroke='%23d8d5ee' stroke-opacity='.55'/%3E%3C/svg%3E");
+  background-position: right -1px top -1px, left -1px bottom -1px, left 2px top 2px, right 2px bottom 2px; background-repeat: no-repeat; }
+.A .idx { top: 4px; right: 20px; }
+.A .idx::before { content: ""; display: inline-block; width: 5px; height: 5px; margin-right: 5px; rotate: 45deg; background: var(--signal); vertical-align: 1px; }
+.A .meter { clip-path: polygon(0 0, 100% 0, calc(100% - 4px) 100%, 0 100%); }
+.A .meter i { clip-path: polygon(0 0, 100% 0, calc(100% - 4px) 100%, 0 100%); }
+.A .seal { flex: none; width: 18px; height: 20px; background: url("../kern-ui/img/brand/mark.svg") center / contain no-repeat; }
+.A .btn.p { clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 6px, 100% 100%, 10px 100%, 0 calc(100% - 6px)); }
+.A .slot.on::after { content: ""; position: absolute; left: 50%; top: -3px; width: 5px; height: 5px; translate: -50% 0; rotate: 45deg; background: var(--signal); }
+
+/* ── Б · Клетка: всё из сетки мира. Углы ступенькой в пиксель, метки — квадраты, индексы — координаты клетки ── */
+.B .pn, .B .win { clip-path: polygon(0 0, calc(100% - 8px) 0, calc(100% - 8px) 4px, calc(100% - 4px) 4px, calc(100% - 4px) 8px, 100% 8px, 100% 100%,
+    8px 100%, 8px calc(100% - 4px), 4px calc(100% - 4px), 4px calc(100% - 8px), 0 calc(100% - 8px));
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9'%3E%3Cpath d='M.5 0v4.5h4v4H9' fill='none' stroke='%234a4668'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9'%3E%3Cpath d='M0 .5h4.5v4h4V9' fill='none' stroke='%234a4668'/%3E%3C/svg%3E"),
+    linear-gradient(rgb(var(--rgb-bone) / .55), rgb(var(--rgb-bone) / .55)), linear-gradient(rgb(var(--rgb-bone) / .55), rgb(var(--rgb-bone) / .55)),
+    linear-gradient(rgb(var(--rgb-bone) / .025) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--rgb-bone) / .025) 1px, transparent 1px);
+  background-position: right -1px top -1px, left -1px bottom -1px, left 3px top 3px, right 3px bottom 3px, -1px -1px, -1px -1px;
+  background-size: auto, auto, 3px 3px, 3px 3px, 8px 8px, 8px 8px; background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat, repeat; }
+.B .idx { top: 4px; right: 14px; }
+.B .meter { background: repeating-linear-gradient(90deg, transparent 0 6px, var(--well) 6px 8px), var(--hatch), var(--well); }
+.B .meter i { -webkit-mask: repeating-linear-gradient(90deg, #000 0 6px, transparent 6px 8px); mask: repeating-linear-gradient(90deg, #000 0 6px, transparent 6px 8px); }
+.B .seal { flex: none; width: 12px; height: 12px; background: conic-gradient(var(--signal) 0 25%, transparent 0 50%, var(--signal) 0 75%, transparent 0); outline: 1px solid var(--signal-line); outline-offset: 1px; }
+.B .btn.p { clip-path: polygon(0 0, calc(100% - 6px) 0, calc(100% - 6px) 3px, calc(100% - 3px) 3px, calc(100% - 3px) 6px, 100% 6px, 100% 100%, 0 100%); }
+.B .slot.on::after { content: ""; position: absolute; right: 2px; top: 2px; width: 4px; height: 4px; background: var(--signal); }
+
+/* ── В · Программатор: окна — как блоки кода. Скобки по бокам, жёлоб с номерами строк, стрелка-команда перед заголовком ── */
+.C .pn, .C .win { padding-left: 24px; border-color: transparent;
+  background-image:
+    linear-gradient(var(--seam-strong), var(--seam-strong)), linear-gradient(var(--seam-strong), var(--seam-strong)), linear-gradient(var(--seam-strong), var(--seam-strong)),
+    linear-gradient(var(--seam-strong), var(--seam-strong)), linear-gradient(var(--seam-strong), var(--seam-strong)), linear-gradient(var(--seam-strong), var(--seam-strong)),
+    repeating-linear-gradient(transparent 0 11px, rgb(var(--rgb-bone) / .22) 11px 12px),
+    linear-gradient(90deg, var(--well), var(--well));
+  background-position: left top, left top, left bottom, right top, right top, right bottom, left 6px top 6px, left top;
+  background-size: 1px 100%, 8px 1px, 8px 1px, 1px 100%, 8px 1px, 8px 1px, 6px calc(100% - 12px), 16px 100%; background-repeat: no-repeat; }
+.C .win { padding-left: 16px; }
+.C .win header { border-bottom: 1px dashed var(--seam); }
+.C .idx { top: 4px; right: 10px; }
+.C .idx::before { content: "→ "; color: var(--signal); }
+.C .meter { background: var(--well); outline: 1px solid var(--seam); }
+.C .seal { flex: none; width: 18px; height: 18px; display: grid; place-items: center; border: 1px solid var(--signal-line); background: var(--signal-wash);
+  font: 700 12px/1 var(--font-mono); color: var(--signal); }
+.C .seal::before { content: "▸"; }
+.C .btn.p { box-shadow: inset 3px 0 0 var(--on-signal); }
+.C .slot.on::after { content: ""; position: absolute; left: -1px; top: 8px; bottom: 8px; width: 2px; background: var(--signal); }
+</style>
+</head>
+<body>
+<div class="cols">
+  <section class="col A"><h1>А · Грань</h1><p>Всё из шестигранника знака: срезы под 30° как его рёбра, ромб-ядро — метка активного, печать окна — сам знак.</p></section>
+  <section class="col B"><h1>Б · Клетка</h1><p>Всё из сетки мира: углы ступенькой в пиксель, шкалы клетками, метки квадратами — интерфейс собран из той же клетки, что шахта.</p></section>
+  <section class="col C"><h1>В · Программатор</h1><p>Окна как блоки кода: скобки по бокам, жёлоб строк слева, стрелка-команда в индексе и заголовке.</p></section>
+</div>
+<template id="t">
+  <div class="stack">
+    <div class="pn"><span class="idx">K·01</span>
+      <div class="row"><span class="pid">#10482</span><span class="nick">ШАХТЁР-774</span></div>
+      <div class="hp"><div class="meter"><i></i></div><b>113 HP</b></div>
+      <div class="money">$14 850</div>
+    </div>
+    <div class="win"><span class="idx">K·07</span>
+      <header><span class="seal"></span><h2>Инвентарь</h2></header>
+      <div class="bd"><div class="slots"><div class="slot"></div><div class="slot on"></div><div class="slot"></div></div></div>
+      <div class="bd"><button class="btn">Отмена</button><button class="btn p">Готово</button></div>
+    </div>
+  </div>
+</template>
+<script>document.querySelectorAll('.col').forEach(c => c.append(document.getElementById('t').content.cloneNode(true)));</script>
+</body>
+</html>

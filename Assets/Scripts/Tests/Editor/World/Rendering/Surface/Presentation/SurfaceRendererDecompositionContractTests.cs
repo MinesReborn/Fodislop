@@ -97,6 +97,6 @@ public sealed class SurfaceRendererDecompositionContractTests
 
     private static string RenderingSourcePath(string fileName)
     {
-        return Path.Combine(Application.dataPath, "Scripts/World/Rendering", fileName);
+        return Path.Combine(Application.dataPath, "Scripts/World/Rendering/Surface/Presentation", fileName);
     }
 }

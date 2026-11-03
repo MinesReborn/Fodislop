@@ -61,7 +61,6 @@ TextField,
     -unity-text-align: middle-center;
 }
 
-/* Кнопка подтверждения на блокирующем оверлее (A4-S: OK после кика). */
 .ui-overlay-button {
     margin-top: var(--space-5);
     padding: var(--space-2) var(--space-6);
@@ -74,7 +73,7 @@ TextField,
     flex-shrink: 1;
     background-color: var(--surface-panel);
     border-color: var(--border-subtle);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-md);
     padding: var(--space-6);
 }
@@ -208,7 +207,7 @@ TextField,
     width: var(--space-8);
     height: var(--space-8);
     border-radius: var(--radius-pill);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--accent-gold);
     opacity: 0;
 }
@@ -249,8 +248,8 @@ TextField,
 
 .mm-target-dot {
     position: absolute;
-    width: 5px;
-    height: 5px;
+    width: var(--radius-sm);
+    height: var(--radius-sm);
     border-radius: var(--radius-sharp);
     background-color: var(--accent-gold);
 }
@@ -262,7 +261,7 @@ TextField,
     right: var(--space-11);
     top: -10px;
     background-color: var(--surface-void-dense);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--accent-gold-glow);
     border-radius: var(--radius-sm);
     padding: 3px 9px;
@@ -310,7 +309,7 @@ TextField,
     justify-content: space-between;
     align-items: center;
     padding: 0 var(--space-14);
-    border-bottom-width: 1px;
+    border-bottom-width: var(--border-width-thin);
     border-bottom-color: var(--border-subtle);
     background-color: var(--surface-abyss-dense);
 }
@@ -354,7 +353,7 @@ TextField,
     flex-direction: row;
     align-items: center;
     background-color: var(--surface-raised);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-md);
     padding: 5px var(--space-7);
@@ -362,8 +361,8 @@ TextField,
 }
 
 .mm-network-dot {
-    width: 7px;
-    height: 7px;
+    width: var(--radius-md);
+    height: var(--radius-md);
     margin-right: var(--space-4);
     border-radius: var(--radius-md);
     background-color: var(--accent-cyan);
@@ -379,7 +378,7 @@ TextField,
     flex-direction: row;
     align-items: center;
     background-color: var(--border-hairline);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-sm);
     padding: var(--space-2) var(--space-6);
@@ -439,7 +438,7 @@ TextField,
     height: var(--space-14);
     border-radius: var(--radius-pill);
     background-color: var(--surface-slate-dense);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-cyan);
     align-items: center;
     justify-content: center;
@@ -506,7 +505,7 @@ TextField,
     height: var(--space-5);
     border-radius: var(--radius-md);
     background-color: var(--state-danger);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--light-solid);
 }
 
@@ -604,7 +603,7 @@ Button#PlayButton {
     white-space: normal;
     padding: 0 var(--space-8) 0 22px;
     background-color: var(--accent-gold);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--accent-gold);
     border-radius: var(--radius-md);
     margin-left: 0;
@@ -649,7 +648,7 @@ Button#ServerSelectButton {
     min-height: 46px;
     padding: 0 var(--space-8) 0 var(--space-9);
     background-color: var(--surface-raised);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-md);
     margin-left: 0;
@@ -676,7 +675,7 @@ Button#ServerSelectButton Label {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/JetBrainsMono/JetBrainsMono_SDF.asset");
     background-color: var(--accent-cyan-wash);
     color: var(--accent-cyan);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-cyan);
     padding: var(--space-1) var(--space-4);
     border-radius: var(--radius-sm);
@@ -702,7 +701,7 @@ Button#ServerSelectButton Label {
 .mm-kbd-box {
     -unity-font-definition: url("project://database/Assets/Resources/Fonts/JetBrainsMono/JetBrainsMono_SDF.asset");
     background-color: var(--light-film);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--light-sheen);
     border-radius: var(--radius-sharp);
     padding: var(--space-1) var(--space-2);
@@ -751,7 +750,7 @@ Button#ServerSelectButton Label {
 
 .mm-loader-progress-track {
     width: 100%;
-    height: 5px;
+    height: var(--radius-sm);
     background-color: var(--border-line);
     border-radius: var(--radius-sharp);
     overflow: hidden;
@@ -829,7 +828,7 @@ Button#ServerSelectButton Label {
     justify-content: space-between;
     align-items: center;
     padding: 0 var(--space-14);
-    border-top-width: 1px;
+    border-top-width: var(--border-width-thin);
     border-top-color: var(--border-subtle);
     background-color: var(--surface-abyss-dense);
 }
@@ -860,8 +859,8 @@ Button#ServerSelectButton Label {
    движение по маршруту. */
 .mm-route-dot {
     display: none;
-    width: 5px;
-    height: 5px;
+    width: var(--radius-sm);
+    height: var(--radius-sm);
     margin-right: var(--space-3);
     rotate: 45deg;
     background-color: var(--accent-gold);
@@ -882,7 +881,7 @@ Button#ServerSelectButton Label {
     flex-direction: row;
     align-items: center;
     background-color: var(--border-hairline);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-sm);
     padding: 3px var(--space-6);
@@ -969,7 +968,7 @@ Button#ServerSelectButton Label {
     width: var(--modal-xl);
     max-height: 84%;
     background-color: var(--surface-solid);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-cyan);
     border-radius: var(--radius-md);
     flex-direction: column;
@@ -986,7 +985,7 @@ Button#ServerSelectButton Label {
     align-items: center;
     padding: 0 var(--space-10);
     background-color: var(--surface-slate-solid);
-    border-bottom-width: 1px;
+    border-bottom-width: var(--border-width-thin);
     border-bottom-color: var(--border-subtle);
 }
 
@@ -1005,7 +1004,7 @@ Button#ServerSelectButton Label {
     /* Рамка есть всегда, но прозрачная: :hover ниже красит её в опасный цвет,
        а при нулевой ширине красить нечего — обводки при наведении просто не
        было. Ширина заодно держит габарит, чтобы глиф не прыгал. */
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: transparent;
     color: var(--text-secondary);
     font-size: var(--size-fixed-20);
@@ -1047,7 +1046,7 @@ Button#ServerSelectButton Label {
     align-items: center;
     padding: 0 var(--space-10);
     background-color: var(--surface-abyss-solid);
-    border-top-width: 1px;
+    border-top-width: var(--border-width-thin);
     border-top-color: var(--border-subtle);
 }
 
@@ -1055,7 +1054,7 @@ Button.mm-btn-gold {
     -unity-font-definition: var(--face-body);
     background-color: var(--accent-gold);
     color: var(--shadow-solid);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--accent-gold);
     border-radius: var(--radius-sharp);
     padding: var(--space-4) 18px;
@@ -1071,7 +1070,7 @@ Button.mm-btn-outline {
     -unity-font-definition: var(--face-body);
     background-color: transparent;
     color: var(--text-primary);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-sharp);
     padding: var(--space-4) 18px;
@@ -1104,7 +1103,7 @@ Button.mm-btn-outline:hover {
     justify-content: space-between;
     align-items: center;
     background-color: var(--surface-raised);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-md);
     padding: var(--space-6) var(--space-8);
@@ -1178,7 +1177,7 @@ Button.mm-btn-outline:hover {
 .mm-settings-nav {
     width: 200px;
     background-color: var(--surface-abyss-dense);
-    border-right-width: 1px;
+    border-right-width: var(--border-width-thin);
     border-right-color: var(--border-subtle);
     padding: var(--space-8) 0;
     flex-direction: column;
@@ -1188,7 +1187,7 @@ Button.mm-btn-outline:hover {
     -unity-font-definition: var(--face-body);
     background-color: transparent;
     border-width: 0;
-    border-left-width: 3px;
+    border-left-width: var(--border-width-bold);
     border-left-color: transparent;
     color: var(--text-secondary);
     font-size: var(--size-md);
@@ -1239,7 +1238,7 @@ Button.mm-btn-outline:hover {
 .mm-card-box {
     flex-direction: column;
     background-color: var(--surface-raised);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-md);
     padding: var(--space-7);
@@ -1300,7 +1299,7 @@ Button.mm-btn-outline:hover {
 .mm-key-badge {
     -unity-font-definition: var(--face-data);
     background-color: var(--light-film);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--light-sheen);
     border-radius: var(--radius-sharp);
     padding: var(--space-1) var(--space-3);
@@ -1336,7 +1335,7 @@ Button.mm-btn-outline:hover {
 
 .mm-select--controls > .unity-base-field__input {
     background-color: var(--surface-inset);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-sm);
     padding: var(--space-3) var(--space-5);
@@ -1380,7 +1379,7 @@ Button.mm-btn-outline:hover {
     justify-content: space-between;
     align-items: center;
     background-color: var(--accent-gold-tint);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-gold);
     border-radius: var(--radius-md);
     padding: var(--space-5) var(--space-6);
@@ -1449,7 +1448,7 @@ Button.mm-btn-outline:hover {
 .mm-repair-log {
     flex-direction: column;
     background-color: var(--surface-sunken);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-sm);
     padding: var(--space-5);
@@ -1545,7 +1544,7 @@ Button.mm-btn-outline:hover {
     left: var(--space-3);
     top: var(--space-2);
     bottom: var(--space-2);
-    width: 2px;
+    width: var(--space-1);
     background-color: var(--border-line);
 }
 
@@ -1573,7 +1572,7 @@ Button.mm-btn-outline:hover {
 .mm-timeline-card {
     position: relative;
     background-color: var(--surface-raised);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-md);
     padding: var(--space-6);
@@ -1599,10 +1598,10 @@ Button.mm-btn-outline:hover {
     position: absolute;
     left: -24px;
     top: var(--space-5);
-    width: 12px;
-    height: 12px;
+    width: var(--space-6);
+    height: var(--space-6);
     border-radius: var(--radius-pill);
-    border-width: 2px;
+    border-width: var(--border-width-strong);
     background-color: var(--surface-solid);
     align-items: center;
     justify-content: center;
@@ -1621,8 +1620,8 @@ Button.mm-btn-outline:hover {
 }
 
 .mm-bead-core {
-    width: 4px;
-    height: 4px;
+    width: var(--space-2);
+    height: var(--space-2);
     border-radius: var(--radius-pill);
     background-color: var(--accent-cyan);
 }
@@ -1640,7 +1639,7 @@ Button.mm-btn-outline:hover {
     -unity-font-definition: var(--face-data);
     background-color: var(--accent-cyan-wash);
     color: var(--accent-cyan);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-cyan);
     padding: var(--space-1) var(--space-3);
     border-radius: var(--radius-sharp);

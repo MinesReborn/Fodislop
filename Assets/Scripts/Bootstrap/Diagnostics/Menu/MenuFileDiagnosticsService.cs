@@ -29,7 +29,7 @@ public sealed class MenuFileDiagnosticsService : IMenuFileDiagnosticsService
 
     private static readonly byte[] s_fsb5MagicBytes = { 0x46, 0x53, 0x42, 0x35 }; // "FSB5"
 
-    private static readonly TimeSpan ReportCacheTtl = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan s_reportCacheTtl = TimeSpan.FromSeconds(30);
 
     // Порядок ключей = порядок строк в окне и порядок проверок в отчёте.
     private static readonly string[] s_checkLabelKeys =
@@ -51,14 +51,14 @@ public sealed class MenuFileDiagnosticsService : IMenuFileDiagnosticsService
         bool forceRefresh,
         CancellationToken cancellationToken = default)
     {
-        if (!forceRefresh && _cachedReport is { } cached && DateTime.UtcNow - _cachedReportAt < ReportCacheTtl)
+        if (!forceRefresh && _cachedReport is { } cached && DateTime.UtcNow - _cachedReportAt < s_reportCacheTtl)
         {
             return cached;
         }
 
         // Application.* читаются только на главном потоке — снимаем пути до ухода в пул.
-        string streamingRoot = Application.streamingAssetsPath;
         string persistentRoot = Application.persistentDataPath;
+        string streamingRoot = Application.streamingAssetsPath;
         string? packagedStamp = IsLocalStreamingAssets(streamingRoot)
             ? null
             : $"package:{Application.buildGUID}";
@@ -69,13 +69,13 @@ public sealed class MenuFileDiagnosticsService : IMenuFileDiagnosticsService
         fraction?.Invoke(0f);
         activeCheck?.Invoke(0);
         var masterBank = await UniTask.RunOnThreadPool(
-            () => CheckBankFile(s_checkLabelKeys[0], "Master.bank", streamingRoot, cancellationToken),
+            () => CheckBankFile(s_checkLabelKeys[0], "Master.bank", persistentRoot, cancellationToken),
             cancellationToken: cancellationToken);
 
         fraction?.Invoke(1f / s_checkLabelKeys.Length);
         activeCheck?.Invoke(1);
         var stringsBank = await UniTask.RunOnThreadPool(
-            () => CheckBankFile(s_checkLabelKeys[1], "Master.strings.bank", streamingRoot, cancellationToken),
+            () => CheckBankFile(s_checkLabelKeys[1], "Master.strings.bank", persistentRoot, cancellationToken),
             cancellationToken: cancellationToken);
 
         fraction?.Invoke(mapFraction);
@@ -100,26 +100,24 @@ public sealed class MenuFileDiagnosticsService : IMenuFileDiagnosticsService
     }
 
     /// <summary>
-    /// Банк FMOD: наличие в StreamingAssets (корень или Audio/), размер,
+    /// Банк FMOD: наличие в persistent-кэше Assets/Audio, размер,
     /// сигнатура FSB5 и контрольная сумма MD5 всей файла.
     /// </summary>
     internal static MenuFileCheckResult CheckBankFile(
         string labelKey,
         string fileName,
-        string streamingRoot,
+        string persistentRoot,
         CancellationToken cancellationToken)
     {
         try
         {
-            string rootPath = Path.Combine(streamingRoot, fileName);
-            string audioPath = Path.Combine(streamingRoot, "Audio", fileName);
-            string? path = File.Exists(rootPath) ? rootPath : File.Exists(audioPath) ? audioPath : null;
-            if (path == null)
+            string path = Path.Combine(persistentRoot, "Assets", "Audio", fileName);
+            if (!File.Exists(path))
             {
                 return new MenuFileCheckResult(
                     labelKey,
                     MenuFileCheckStatus.Failed,
-                    $"нет файла: StreamingAssets/{fileName} и StreamingAssets/Audio/{fileName}");
+                    $"нет файла: persistentDataPath/Assets/Audio/{fileName}");
             }
 
             var info = new FileInfo(path);

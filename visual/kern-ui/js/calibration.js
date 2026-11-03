@@ -80,6 +80,6 @@
   $('onbCalib').onclick = () => window.openCalibration($('onbHdr').checked);
 
   // ?calib=hdr|sdr&calibstep=N — снимки
-  const q = new URLSearchParams(location.search);
-  if (q.get('calib')) window.openCalibration(q.get('calib') !== 'sdr', Number(q.get('calibstep')) || 0);
+  window.kernScene.on(0, q => { if (q.get('calib')) window.openCalibration(q.get('calib') !== 'sdr', Number(q.get('calibstep')) || 0); });
+  window.kernScene.onReset(() => { $('calib').hidden = true; });
 })();

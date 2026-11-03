@@ -219,7 +219,8 @@ namespace Kern.World.Terrain
             // Классификация клетки: дверь ли она (накладка) и смещена ли.
             long quadStart = System.Diagnostics.Stopwatch.GetTimestamp();
             CellType type = sources.CellCache.GetCell(x + 1, y + 1).Type;
-            bool door = BlockRegistry.Get(type).Outline == CellOutline.Door;
+            BlockDefinition block = BlockRegistry.Get(type);
+            bool door = block.DrawLayer == CellDrawLayer.Foreground && block.Outline == CellOutline.Door;
             quadTicks = System.Diagnostics.Stopwatch.GetTimestamp() - quadStart;
 
             // Смещённая искажающая клетка: признак того, что реальная карта

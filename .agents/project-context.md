@@ -130,7 +130,9 @@ Physical ownership and asmdefs are listed in `repository-map.md`. Contracts
 are module-local neutral APIs with asmrefs to `Kern.Contracts`; diagnostics
 implementation lives in `Kern.Diagnostics`, not in the contract assembly.
 Authoring texture categories are independent of published identities: the
-texture staging catalog and RuntimeAssetPaths bridge those names explicitly.
+texture delivery catalog maps them explicitly and separates client-embedded
+textures from the local DummyWorld asset set. Online world assets still come
+from the server manifest.
 
 ### Networking and caching
 
@@ -140,14 +142,17 @@ and HTTP API port `5460` (`ClientConfigurationDefaults`). A public endpoint and
 an automated production-endpoint build gate are not supplied by those defaults.
 
 The server supplies lightweight state and identifiers. Heavy textures, sprites,
-and FMOD banks are loaded on demand once. The cache hierarchy is RAM, persistent
-disk cache with versioned ETag/length/SHA-256 manifest, then CDN/server.
+and FMOD banks come from the world asset manifest (`WorldInit`), downloaded before
+world entry. The cache hierarchy is RAM, persistent disk cache (`manifest.json`:
+folder tree of file name to MD5, verified on read; files absent from the server
+manifest are deleted on each world entry), then CDN/server. Client-embedded
+assets (menu UI, item icons, surface scene) are not part of the manifest.
 
 `PacketHandler` only dispatches packets to processors and owns subscriptions. It
 must not contain UI, scene managers, or player state. Packet logic belongs in
 `Networking/Processors/*` and updates models, gateways, and domain services.
 
-`DummyConnection` is the offline transport. `IOfflineScenarioSettings` selects
+`DummyConnection` is the dummy transport. `IDummyScenarioSettings` selects
 one deterministic negative scenario for the lifetime: authentication rejection,
 disconnect during handshake, handshake timeout, or world-init timeout.
 
@@ -202,7 +207,7 @@ camera-position, zoom, or aspect change.
 `TerrainRenderer` owns terrain mesh presentation, packed cell data, lighting-field
 contributions, and optional tunnel-depth geometry; sorting order is `-1000`
 (`WorldRenderLayers.TerrainSortingOrder`). The shader's current attribute layout
-is defined in `Assets/Shaders/Terrain/Rendering/Terrain.shader`.
+is defined in `Assets/Shaders/Terrain/Rendering/Shader/Terrain.shader`.
 `SurfaceRenderer` is registered and resolved through
 `GameLifetimeScope`; never construct a second instance manually.
 

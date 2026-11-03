@@ -19,7 +19,7 @@
 
 .pause-panel {
     background-color: var(--surface-abyss-solid);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-cyan);
     border-radius: var(--radius-md);
     padding: var(--space-10) 30px;
@@ -101,7 +101,7 @@
     padding-top: var(--space-3);
     padding-right: 18px;
     margin-right: var(--space-1);
-    border-right-width: 1px;
+    border-right-width: var(--border-width-thin);
     border-right-color: var(--border-line);
 }
 
@@ -147,7 +147,7 @@
     -unity-text-align: middle-left;
     background-color: transparent;
     border-width: 0;
-    border-left-width: 3px;
+    border-left-width: var(--border-width-bold);
     border-left-color: transparent;
     color: var(--text-secondary);
     font-size: var(--size-sm);
@@ -177,7 +177,7 @@
     margin-bottom: 22px;
     padding: var(--space-7) var(--space-7) var(--space-8) var(--space-7);
     background-color: var(--surface-raised);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-md);
 }
@@ -188,7 +188,7 @@
     -unity-font-style: bold;
     margin-bottom: var(--space-8);
     padding-bottom: var(--space-4);
-    border-bottom-width: 1px;
+    border-bottom-width: var(--border-width-thin);
     border-bottom-color: var(--accent-gold-fill);
 }
 
@@ -221,7 +221,7 @@
 .settings-section--advanced,
 .settings-section--debug {
     background-color: var(--surface-shelf-solid);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-line);
     padding: var(--space-7);
 }
@@ -266,7 +266,7 @@
 
 .pause-confirm-panel {
     background-color: var(--surface-panel);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-cyan);
     border-radius: var(--radius-md);
     padding: var(--space-9) var(--space-13);
@@ -297,7 +297,7 @@
 
 .pause-btn-confirm {
     background-color: var(--state-danger-glow);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--state-magma-glow);
     border-radius: var(--radius-sm);
     padding: var(--space-4) var(--space-9);
@@ -310,7 +310,7 @@
 
 .pause-btn {
     background-color: var(--surface-raised);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-sm);
     padding: var(--space-4) var(--space-9);

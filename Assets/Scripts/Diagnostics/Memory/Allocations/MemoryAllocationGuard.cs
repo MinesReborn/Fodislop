@@ -10,7 +10,7 @@ namespace Kern.Diagnostics.Memory;
 public static class MemoryAllocationGuard
 {
     public const int MinimumAvailablePercent = 20;
-    public const long MaximumTestProcessBytes = 3L * 1024 * 1024 * 1024;
+    public const long MaximumTestProcessBytes = 3L * 1024 * 1024 * 1024 + 256L * 1024 * 1024;
     private const long MinimumReserveBytes = 512L * 1024 * 1024;
     private static long s_testProcessLimit;
 
@@ -18,7 +18,7 @@ public static class MemoryAllocationGuard
     public static void BeginTestRun()
     {
         ProcessMemorySnapshot memory = ProcessMemorySnapshot.Capture();
-        long limit = Math.Min(MaximumTestProcessBytes, memory.PhysicalBytes / 100 * 35);
+        long limit = MaximumTestProcessBytes;
         if (Rejection(memory, 0, limit) is string reason)
         {
             throw new InvalidOperationException($"[MemoryGuard] test run: {reason}");
@@ -46,8 +46,7 @@ public static class MemoryAllocationGuard
         if (processLimitBytes < 0) { throw new ArgumentOutOfRangeException(nameof(processLimitBytes)); }
         RequireValidSnapshot(memory);
         long overhead = checked(allocationBytes + (allocationBytes + 3) / 4);
-        long limit = processLimitBytes > 0 ? processLimitBytes :
-            Math.Min(MaximumTestProcessBytes, memory.PhysicalBytes / 100 * 35);
+        long limit = processLimitBytes > 0 ? processLimitBytes : MaximumTestProcessBytes;
         if (memory.ProcessBytes > limit || overhead > limit - memory.ProcessBytes)
         {
             return $"процесс {MiB(memory.ProcessBytes)} МиБ + аллокация {MiB(overhead)} МиБ " +

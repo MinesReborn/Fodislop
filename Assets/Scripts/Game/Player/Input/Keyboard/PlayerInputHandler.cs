@@ -100,8 +100,7 @@ namespace Kern.Game.Player.Input
 
         public bool IsCtrlPressed =>
             _touchFastMove ||
-            (IsHeld(ConfiguredKey(_clientConfig?.Config.Interface.KeyFastMove, Key.LeftCtrl)) ||
-             IsHeld(ConfiguredKey(_clientConfig?.Config.Interface.KeyFastMoveAlternate, Key.RightCtrl))) ||
+            IsHeld(ConfiguredKey(_clientConfig?.Config.Interface.KeyFastMove, Key.LeftAlt)) ||
             (Gamepad.current != null && Gamepad.current.leftTrigger.isPressed);
 
         [VContainer.Inject]
@@ -200,6 +199,7 @@ namespace Kern.Game.Player.Input
                 case TouchPlayerAction.BuildGray: _touchBuildGray = true; break;
                 case TouchPlayerAction.BuildGreen: _touchBuildGreen = true; break;
                 case TouchPlayerAction.BuildWhite: _touchBuildWhite = true; break;
+                default: throw new System.ArgumentOutOfRangeException(nameof(action), action, "Unknown touch action.");
             }
         }
 

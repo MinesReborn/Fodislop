@@ -20,6 +20,8 @@ public sealed class CellTextureRetryTracker
 
     public int PendingRequestsCount => _inFlightRequests.Count;
 
+    public void ResetFailures() => _retryTimes.Clear();
+
     public bool ShouldThrottle(CellType cellType)
     {
         if (_retryTimes.TryGetValue(cellType, out double retryAfterSeconds) &&

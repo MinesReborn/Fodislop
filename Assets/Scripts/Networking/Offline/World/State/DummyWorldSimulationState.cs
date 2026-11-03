@@ -448,7 +448,7 @@ internal sealed class DummyWorldSimulationState : IDisposable
     private void DisposeLayer() =>
         Interlocked.Exchange(ref _layerLease, null)?.Release();
 
-    private async UniTask<StreamingGateLock> AcquireStreamingGateAsync(CancellationToken cancellationToken)
+    private async UniTask<DummyStreamingGateLease> AcquireStreamingGateAsync(CancellationToken cancellationToken)
     {
         if (_disposed)
         {
@@ -483,28 +483,8 @@ internal sealed class DummyWorldSimulationState : IDisposable
             throw new ObjectDisposedException(nameof(DummyWorldSimulationState));
         }
 
-        return new StreamingGateLock(this);
+        return new DummyStreamingGateLease(_streamingGate);
     }
 
-    private readonly struct StreamingGateLock : IDisposable
-    {
-        private readonly DummyWorldSimulationState _owner;
 
-        internal StreamingGateLock(DummyWorldSimulationState owner)
-        {
-            _owner = owner;
-        }
-
-        public void Dispose()
-        {
-            try
-            {
-                _owner._streamingGate.Release();
-            }
-            catch (ObjectDisposedException)
-            {
-                // Gate was disposed concurrently during release.
-            }
-        }
-    }
 }

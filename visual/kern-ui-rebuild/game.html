@@ -239,8 +239,6 @@ if (state === 'busy') {
   // Строки состояния (AddStatusLinePacket: текст и цвет — сервера) под грузом
   document.querySelector('.stack').insertAdjacentHTML('beforeend',
     `<div class="states"><div class="state-line" style="color:#8fd3ff">${srv('строка состояния')}</div><div class="state-line" style="color:#ffb35c">${srv('строка состояния')}</div></div>`);
-  // Агрессия (AgrShow) над автокопанием
-  document.querySelector('.flag.autodig').insertAdjacentHTML('beforebegin', '<div class="flag aggro panel">АГРЕССИЯ</div>');
   // Подсказка выбранного предмета (InventoryHint, сверху по центру)
   document.body.insertAdjacentHTML('beforeend', `<div class="inv-hint">${srv('подсказка предмета от сервера')}</div>`);
   // Запущенная программа: имя активной программы вместо «Программатор», ■ вместо ▶

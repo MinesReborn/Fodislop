@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.World;
@@ -52,8 +53,6 @@ public sealed class TerrainCellEquivalenceHarnessTests
             slot => world.Sources.Atlases[slot].Size,
             TerrainCellData.PackTileDescriptors(),
             (uint)BlockRegistry.UnderlayType,
-            TerrainCellData.PackDecal(TerrainDecalCatalog.GroundRule),
-            TerrainCellData.PackDecal(TerrainDecalCatalog.RockRule),
             WorldHeight);
         int anchored = 0;
         int decals = 0;
@@ -114,8 +113,6 @@ public sealed class TerrainCellEquivalenceHarnessTests
             writer.Write(vector.w);
         }
 
-        writer.Write(TerrainCellData.PackDecal(TerrainDecalCatalog.GroundRule));
-        writer.Write(TerrainCellData.PackDecal(TerrainDecalCatalog.RockRule));
         writer.Write(OriginX);
         writer.Write(OriginY);
         writer.Write(ringWidth);
@@ -193,6 +190,8 @@ public sealed class TerrainCellEquivalenceHarnessTests
 
     private static World BuildWorld(int seed)
     {
+        TerrainDecalCatalog.Configure(
+            BlockRegistry.Blocks.Values.Select(block => block.DecalTextureName));
         var lookup = new VariedMetadata(seed);
         var grid = new Grid(lookup, seed);
         var distortion = new TerrainDistortionSettings();
@@ -256,18 +255,19 @@ public sealed class TerrainCellEquivalenceHarnessTests
             bool textured = type == CellType.Empty || hash % 7 != 0;
             metadata = new CellMetadata
             {
+                IsPopulated = true,
                 // Вид — из cells.json, как в TerrainCellMetadataCache.
-                ReliefGroup = BlockRegistry.Get(type).ReliefGroup,
                 Outline = BlockRegistry.Get(type).Outline,
-                HasTileGroup = hash % 4 == 1 || type is CellType.BuildingWall or CellType.BuildingCorner or CellType.BuildingDoor,
-                TileGroupId = (int)(hash % 3),
+                AtlasIndex = (int)(hash % 3) - 1,
                 AtlasRect = textured
                     ? new Vector4((hash % 8) / 16f, ((hash >> 3) % 8) / 16f, 0.0625f * (1 + (hash % 3)), 0.0625f)
                     : Vector4.zero,
-                AtlasIndex = (int)(hash % 3) - 1,
+                HasTileGroup = hash % 4 == 1 || type is CellType.BuildingWall or CellType.BuildingCorner or CellType.BuildingDoor,
+                TileGroupId = (int)(hash % 3),
+                DecalTextureIndex = TerrainDecalCatalog.TextureIndex(BlockRegistry.Get(type).DecalTextureName),
+                ReliefGroup = BlockRegistry.Get(type).ReliefGroup,
                 AnimationFrameCount = 1 + (int)(hash % 4),
                 IsTextureReady = textured,
-                IsPopulated = true,
             };
             return true;
         }
@@ -279,12 +279,14 @@ public sealed class TerrainCellEquivalenceHarnessTests
             {
                 State = state,
                 Type = type,
-                ReliefGroup = m.ReliefGroup,
+                // Признак фона — из cells.json, как в TerrainCellMetadataCache.
+                IsBackground = BlockRegistry.Get(type).DrawLayer != CellDrawLayer.Foreground,
                 Outline = m.Outline,
+                AtlasIndex = m.AtlasIndex,
+                AtlasRect = m.AtlasRect,
                 HasTileGroup = m.HasTileGroup,
                 TileGroupId = m.TileGroupId,
-                AtlasRect = m.AtlasRect,
-                AtlasIndex = m.AtlasIndex,
+                ReliefGroup = m.ReliefGroup,
                 AnimationFrameCount = m.AnimationFrameCount,
                 IsTextureReady = m.IsTextureReady,
             };
@@ -306,7 +308,13 @@ public sealed class TerrainCellEquivalenceHarnessTests
                     TerrainCellState state = hash % 97 == 0 ? TerrainCellState.Unloaded : TerrainCellState.Loaded;
                     _cells[x, y] = state == TerrainCellState.Loaded
                         ? metadata.CellOf(type, state)
-                        : new CachedCellData { State = state, Type = CellType.Unloaded };
+                        : new CachedCellData
+                        {
+                            State = state,
+                            Type = CellType.Unloaded,
+                            // Шейдер берёт контур незагруженной клетки из её строки cells.json.
+                            Outline = BlockRegistry.Get(CellType.Unloaded).Outline,
+                        };
                 }
             }
         }

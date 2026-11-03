@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Diagnostics;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Kern.Core.Interfaces;
@@ -19,8 +20,12 @@ public sealed class SceneTransitionTicket : IDisposable
     private readonly UniTaskCompletionSource _startupReady = new();
     private readonly UniTaskCompletionSource _presentationReady = new();
     private readonly UniTaskCompletionSource _failureSignal = new();
-    private readonly CancellationTokenSource _timeoutCts;
+    private CancellationTokenSource _timeoutCts;
+    private int _timeoutGeneration;
     private readonly TimeSpan _timeout;
+    private readonly Stopwatch _timeoutClock = Stopwatch.StartNew();
+    private TimeSpan _remainingTimeout;
+    private bool _timeoutPaused;
     private bool _isDisposed;
     private Exception? _failure;
 
@@ -36,8 +41,8 @@ public sealed class SceneTransitionTicket : IDisposable
             throw new ArgumentOutOfRangeException(nameof(timeout), "Transition timeout must be positive.");
         }
 
-        _timeoutCts = new CancellationTokenSource(_timeout);
-        _timeoutCts.Token.Register(OnTimeout, useSynchronizationContext: true);
+        _remainingTimeout = _timeout;
+        _timeoutCts = CreateTimeout(_timeout);
     }
 
     public string TargetSceneName { get; }
@@ -51,6 +56,51 @@ public sealed class SceneTransitionTicket : IDisposable
     public bool IsPresentationReady => Phase == SceneTransitionPhase.PresentationReady;
 
     internal event Action<SceneTransitionStatus>? Changed;
+
+    internal void SetWaitingForExternalWork(bool waiting)
+    {
+        if (_isDisposed || Phase is SceneTransitionPhase.Failed or SceneTransitionPhase.PresentationReady ||
+            waiting == _timeoutPaused)
+        {
+            return;
+        }
+
+        if (waiting)
+        {
+            _timeoutClock.Stop();
+            _remainingTimeout -= _timeoutClock.Elapsed;
+            _timeoutClock.Reset();
+            if (_remainingTimeout <= TimeSpan.Zero)
+            {
+                OnTimeout();
+                return;
+            }
+
+            _timeoutPaused = true;
+            _timeoutGeneration++;
+            _timeoutCts.Dispose();
+        }
+        else
+        {
+            _timeoutPaused = false;
+            _timeoutClock.Restart();
+            _timeoutCts = CreateTimeout(_remainingTimeout);
+        }
+    }
+
+    private CancellationTokenSource CreateTimeout(TimeSpan remaining)
+    {
+        int generation = ++_timeoutGeneration;
+        var timeout = new CancellationTokenSource(remaining);
+        timeout.Token.Register(() =>
+        {
+            if (generation == _timeoutGeneration)
+            {
+                OnTimeout();
+            }
+        }, useSynchronizationContext: true);
+        return timeout;
+    }
 
     public void Attach(Scene scene)
     {
@@ -152,7 +202,7 @@ public sealed class SceneTransitionTicket : IDisposable
 
     private void OnTimeout()
     {
-        if (_isDisposed || Phase is SceneTransitionPhase.Failed or SceneTransitionPhase.PresentationReady)
+        if (_isDisposed || _timeoutPaused || Phase is SceneTransitionPhase.Failed or SceneTransitionPhase.PresentationReady)
         {
             return;
         }

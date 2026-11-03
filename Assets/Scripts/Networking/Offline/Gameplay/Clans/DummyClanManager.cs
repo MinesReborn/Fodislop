@@ -9,8 +9,9 @@ using MinesServer.Networking.Server.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
+using Kern.Networking.Protocol;
 using MinesServer.Networking.Server.Packets.Information;
-using MinesServer.Networking.Shared.Packets;
+using MinesServer.Networking.Contracts.Packets;
 using MinesServer.Networking.Client.Packets.GUI;
 using UnityEngine;
 
@@ -63,7 +64,7 @@ internal sealed class DummyClanManager
                 {
                     new ImagePacket
                     {
-                        URI = $"clan/{clan.Id}.png",
+                        URI = $"Visual/Clan/{clan.Id}.png",
                         Width = 16,
                         Height = 16,
                         AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Left") },
@@ -242,9 +243,13 @@ internal sealed class DummyClanManager
     // "." collects inputs from the button itself: it has none.
     private static TextPacket CloseButton() => new()
     {
-        Text = "<color=#B3B3B3>×</color>",
+        Text = "Закрыть",
         OnClickContext = ".",
-        AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Right") },
+        AttachedProperties = new[]
+        {
+            new StringPairPacket("DockPanel.Dock", "Right"),
+            new StringPairPacket(ServerWindowActionMetadata.ActionKey, ServerWindowActionMetadata.CloseActionValue),
+        },
     };
 
     public void HandleOpenClanClick()

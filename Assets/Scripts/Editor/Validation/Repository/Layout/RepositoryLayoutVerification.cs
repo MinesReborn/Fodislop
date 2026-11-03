@@ -24,15 +24,13 @@ public static class RepositoryLayoutVerification
         PlayerSettings.productName = "FodislopTaxonomyVerification";
         AssetDatabase.SaveAssets();
 
-        var paths = new RuntimeAssetPaths();
         int textures = 0;
-        foreach (var entry in AuthoredTextureCatalog.Read(Path.Combine(root, AuthoredTextureCatalog.AssetPath)))
+        foreach (var entry in TextureDeliveryCatalog.Read(Path.Combine(root, TextureDeliveryCatalog.AssetPath)).All)
         {
-            string? actual = paths.FindBundledTextureFile(entry.Value);
             string expected = Path.GetFullPath(Path.Combine(Application.dataPath, "Textures", entry.Key));
-            if (actual == null || !string.Equals(Path.GetFullPath(actual), expected, StringComparison.Ordinal))
+            if (!File.Exists(expected))
             {
-                throw new InvalidDataException($"Published texture '{entry.Value}' did not resolve to '{expected}'.");
+                throw new InvalidDataException($"Published texture '{entry.Value}' has no authored source at '{expected}'.");
             }
 
             textures++;

@@ -17,7 +17,7 @@ using MinesServer.Networking.Server.Packets.Information;
 using MinesServer.Networking.Server.Packets.Movement;
 using MinesServer.Networking.Server.Packets.Utilities;
 using MinesServer.Networking.Server.Packets.World;
-using MinesServer.Networking.Shared.Packets;
+using MinesServer.Networking.Contracts.Packets;
 using UnityEngine;
 
 namespace Kern.Networking.Offline;
@@ -100,9 +100,9 @@ internal sealed class DummyGameplayActionResponder
                 _sendPacket(new ServerPacket(new HealthPacket(_playerState.Heal(50), 500)));
                 _sendPacket(new ServerPacket(new HBPacket(new IHBPacket[]
                 {
-                    new VFXPacket(VFX.Heal, _playerBotId, _playerState.X, _playerState.Y,
+                    new VisualPacket(VisualEffect.Heal, _playerBotId, _playerState.X, _playerState.Y,
                         Array.Empty<StringPairPacket>()),
-                    CreateAudioPacket(SFX.Heal, _playerState.X, _playerState.Y),
+                    CreateAudioPacket(AudioEventType.Heal, _playerState.X, _playerState.Y),
                 })));
                 break;
             case BuildCyanPacket:
@@ -143,13 +143,13 @@ internal sealed class DummyGameplayActionResponder
 
     internal void HandleGunHit()
     {
-        SendAudio(SFX.Hurt, _playerState.X, _playerState.Y);
+        SendAudio(AudioEventType.Hurt, _playerState.X, _playerState.Y);
         _playerState.SetHealth(_playerState.Health - 10);
         if (_playerState.Health == 0)
         {
             _sendPacket(new ServerPacket(new HBPacket(new IHBPacket[]
             {
-                new VFXPacket(VFX.Death, _playerBotId, _playerState.X, _playerState.Y,
+                new VisualPacket(VisualEffect.Death, _playerBotId, _playerState.X, _playerState.Y,
                     Array.Empty<StringPairPacket>()),
             })));
             HandleSuicide();
@@ -159,18 +159,18 @@ internal sealed class DummyGameplayActionResponder
         _sendPacket(new ServerPacket(new HealthPacket(_playerState.Health, 500)));
         _sendPacket(new ServerPacket(new HBPacket(new IHBPacket[]
         {
-            new VFXPacket(VFX.Hurt, _playerBotId, _playerState.X, _playerState.Y,
+            new VisualPacket(VisualEffect.Hurt, _playerBotId, _playerState.X, _playerState.Y,
                 Array.Empty<StringPairPacket>()),
         })));
     }
 
     private void HandleDig(ushort cellX, ushort cellY)
     {
-        SendAudio(SFX.Bz, cellX, cellY);
+        SendAudio(AudioEventType.Bz, cellX, cellY);
         _sendPacket(new ServerPacket(new HBPacket(new IHBPacket[]
         {
-            new VFXPacket(
-                VFX.Bz,
+            new VisualPacket(
+                VisualEffect.Bz,
                 _playerBotId,
                 cellX,
                 cellY,
@@ -193,7 +193,7 @@ internal sealed class DummyGameplayActionResponder
             }
 
             AddCrystalToBasket(cellType, cellX, cellY);
-            SendCellUpdate(cellX, cellY, CellType.Empty, SFX.Destroy);
+            SendCellUpdate(cellX, cellY, CellType.Empty, AudioEventType.Destroy);
         }
 
         _missionRunner.OnBlockMined(_inventoryResponder.Items);
@@ -224,7 +224,7 @@ internal sealed class DummyGameplayActionResponder
             };
             _sendPacket(new ServerPacket(new HBPacket(new IHBPacket[]
             {
-                new VFXPacket(VFX.Crystal, _playerBotId, cellX, cellY, new[]
+                new VisualPacket(VisualEffect.Crystal, _playerBotId, cellX, cellY, new[]
                 {
                     new StringPairPacket("color", color),
                     new StringPairPacket("count", count.ToString(System.Globalization.CultureInfo.InvariantCulture)),
@@ -249,7 +249,7 @@ internal sealed class DummyGameplayActionResponder
                 SpawnX,
                 SpawnY,
                 (byte)_playerState.Direction),
-            CreateAudioPacket(SFX.Death, effectX, effectY),
+            CreateAudioPacket(AudioEventType.Death, effectX, effectY),
         })));
     }
 
@@ -290,7 +290,7 @@ internal sealed class DummyGameplayActionResponder
             10,
             reportedCell,
             reportedCell.ToString())));
-        SendCellUpdate(x, y, mapCell, SFX.Geology);
+        SendCellUpdate(x, y, mapCell, AudioEventType.Geology);
     }
 
     private void HandleBuild(CellType cellType)
@@ -437,7 +437,7 @@ internal sealed class DummyGameplayActionResponder
         return true;
     }
 
-    private void SendCellUpdate(ushort x, ushort y, CellType cell, SFX? effect = null)
+    private void SendCellUpdate(ushort x, ushort y, CellType cell, AudioEventType? effect = null)
     {
         _worldState.SetCell(x, y, cell);
         IHBPacket[] packets = effect.HasValue
@@ -446,9 +446,9 @@ internal sealed class DummyGameplayActionResponder
         _sendPacket(new ServerPacket(new HBPacket(packets)));
     }
 
-    private void SendAudio(SFX effect, ushort x, ushort y) =>
+    private void SendAudio(AudioEventType effect, ushort x, ushort y) =>
         _sendPacket(new ServerPacket(new HBPacket(new IHBPacket[] { CreateAudioPacket(effect, x, y) })));
 
-    private AudioPacket CreateAudioPacket(SFX effect, ushort x, ushort y) =>
+    private AudioPacket CreateAudioPacket(AudioEventType effect, ushort x, ushort y) =>
         new(effect, _playerBotId, x, y, Array.Empty<StringPairPacket>());
 }

@@ -1,0 +1,219 @@
+<!doctype html>
+<!-- Аудит дизайна: что осталось в старом виде. Проходит экраны и окна на ПК и телефоне; для каждого видимого элемента кадра
+     находит правила CSS, которые его рисуют.
+     1. Забыт — элемент виден (фон, рамка или свой текст), но его рисуют только старые правила: ни одно правило слоя систем
+        (micro.css, systems.css, srvgui.css) и ни одно правило, написанное после старого вида, его не касается.
+        Старый вид — селекторы файлов на коммите 03696ed0, снятые в tools/design-legacy.json.
+     2. Нарушения правил дизайн-кода — независимо от файла: скругление (кроме круглого по смыслу), оранжевый не у действия и не у тревоги,
+        чужой шрифт, размытая тень, кегль меньше 7 px.
+     Итог — в <title>: «design: ok» или «design: FAIL N»; список — в <pre>, сгруппирован по компоненту (первый класс элемента). ?only=forgot|rules -->
+<html><head><meta charset="utf-8"><title>design: …</title></head>
+<body style="margin:0;background:#000;color:#ccc;font:12px/1.4 monospace">
+<pre id="log"></pre><pre id="counts" hidden></pre>
+<script>
+// Сцена: адрес стенда, после «|» — что нажать (селекторы через «;»): вкладки и списки без своего параметра в адресе
+const SCENES_ALL = [
+  'state=busy', 'state=calm', 'state=busy&assets=60', 'state=busy&chat=1', 'state=busy&chat=1|#chatListBtn', 'state=busy&chat=1|.chat-tab[data-tag=PM]', 'state=busy&mark=1',
+  'clan=1', 'clan=1|#clanTabs [data-tab=board]', 'clan=1|#clanTabs [data-tab=bank]', 'clan=1&clanrole=head', 'clan=1&clanrole=head|#clanTabs [data-tab=requests]',
+  'mail=1', 'profile=1', 'profile=DVM_LEADER', 'profile=settings', 'menu=1', 'buildings=1', 'inv=1', 'inv=3',
+  'settings=1', 'settings=audio', 'settings=interface', 'settings=controls', 'map=1', 'prog=1', 'prog=debug', 'pause=1', 'pm=DVM_LEADER',
+  'event=modal', 'event=lost', 'event=reconnect', 'event=link', 'srvwin=market', 'srvwin=market|.pk--tabs .pk-btn:not(.is-on)', 'srvwin=resp', 'srvwin=gun',
+  'srvwin=clan_list', 'srvwin=clan_info', 'state=busy&srvwin=box', 'state=busy&text=slots&srvwin=market',
+  'calib=hdr', 'calib=hdr&calibstep=1', 'calib=hdr&calibstep=2', 'calib=hdr&calibstep=3', 'calib=sdr',
+  'screen=boot', 'screen=auth', 'screen=auth&forgot=1', 'screen=auth&autherr=1', 'screen=auth&auth=register', 'screen=auth&auth=register&autherr=1',
+  'screen=onboarding', 'screen=onboarding&onbstep=1', 'screen=onboarding&onbstep=2', 'screen=menu', 'screen=menu&update=1', 'screen=menu&skills=2',
+  'screen=menu&updwin=1', 'screen=menu&health=1', 'screen=descent',
+];
+const DEVICES_ALL = ['device=d1080', 'device=d768', 'device=d1440&input=ps', 'device=promax&input=touch', 'device=ipadpro&input=touch', 'device=tv&input=xbox', 'device=tv&input=xbox&padhud=1'];
+// ?scene=…&dev=… — один экран для разбора
+const SCENES = new URLSearchParams(location.search).get('scene') ? [new URLSearchParams(location.search).get('scene')] : SCENES_ALL;
+const DEVICES = new URLSearchParams(location.search).get('dev') ? [new URLSearchParams(location.search).get('dev')] : DEVICES_ALL;
+const NEW = /\/(micro|systems|srvgui)\.css$/;
+// Оранжевый разрешён: главное действие, тревога, непрочитанное, новое, ссылка, фокус поля ввода, бонус, стенд
+const SIGNAL_OK = '.btn--primary, .is-primary, .btn--signal, .bonus, .badge, .chat-badge, .is-unread, .is-unread *, .link, .menu-news small, .chat-input, .input, .tbtn--dig, #touchDig, .dig, .prog-run, .act--dig, .mission-progress, .online em, .brand img, .wordmark, .pd-rt, .pd-rt *, .mark-dot, .keycap.is-listening, [class*="pad-"] , .is-running';
+const FONTS = /Tektur|Onest|JetBrains Mono|PingFang|Hiragino|Noto Sans SC|Microsoft YaHei|system-ui|monospace|sans-serif/;
+const q = new URLSearchParams(location.search), only = q.get('only'), why = q.get('why');   // ?why=селектор — какие правила рисуют элемент
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const load = src => new Promise(r => { const f = document.createElement('iframe'); f.style.cssText = 'border:0;width:1920px;height:1080px;position:absolute;left:-3000px'; f.onload = () => r(f); f.src = src; document.body.append(f); });
+
+function rulesOf(doc) {
+  const out = [];
+  const walk = (list, href) => { for (const r of list) {
+    if (r.cssRules && !r.selectorText) walk(r.cssRules, href);
+    else if (r.selectorText) out.push({ sel: r.selectorText, href, style: r.style });
+  } };
+  for (const s of doc.styleSheets) { try { walk(s.cssRules, s.href || ''); } catch { } }
+  return out;
+}
+// Состояния наведения и нажатия: каждое правило с :hover/:active копируется сразу за собой с классом .audit-hover/.audit-active —
+// та же специфичность и то же место в каскаде, поэтому вид состояния читается из getComputedStyle, как настоящий
+function stateRules(doc) {
+  const walk = list => { for (let i = list.length - 1; i >= 0; i--) { const r = list[i];
+    if (r.cssRules && !r.selectorText) { walk(r.cssRules); continue; }
+    if (!r.selectorText || !/:(hover|active)/.test(r.selectorText)) continue;
+    const sel = r.selectorText.replace(/:hover/g, '.audit-hover').replace(/:active/g, '.audit-active');
+    try { (r.parentRule || r.parentStyleSheet).insertRule(`${sel} { ${r.style.cssText} }`, i + 1); } catch { }
+  } };
+  for (const s of doc.styleSheets) { try { walk(s.cssRules); } catch { } }
+}
+// rgb(…) — каналы 0…255; color(srgb …) из color-mix — 0…1
+const rgb = c => { const v = (c.match(/[\d.]+/g) || []).map(Number); return /^color\(srgb/.test(c) ? [...v.slice(0, 3).map(x => x * 255), v[3] ?? 1] : v; };
+const lum = ([r, g, b]) => { const f = v => (v /= 255) <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; return .2126 * f(r) + .7152 * f(g) + .0722 * f(b); };
+const contrast = (a, b) => { const [x, y] = [lum(rgb(a)), lum(rgb(b))].sort((p, q) => q - p); return (x + .05) / (y + .05); };
+const own = (el, w) => {
+  const cs = w.getComputedStyle(el);
+  const bg = cs.backgroundColor !== 'rgba(0, 0, 0, 0)' || cs.backgroundImage !== 'none';
+  const bd = ['Top', 'Right', 'Bottom', 'Left'].some(s => parseFloat(cs['border' + s + 'Width']) > 0 && cs['border' + s + 'Color'] !== 'rgba(0, 0, 0, 0)');
+  const txt = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+  return { cs, bg, bd, txt };
+};
+const visible = (el, w) => { const r = el.getBoundingClientRect(); if (r.width < 2 || r.height < 2) return false;
+  for (let e = el; e && e.nodeType === 1; e = e.parentElement) { const c = w.getComputedStyle(e); if (c.display === 'none' || c.visibility === 'hidden' || +c.opacity === 0) return false; } return true; };
+// Компонент — первый класс элемента; у безымянного — тег внутри ближайшего предка с классом
+const key = el => { if (el.classList[0] && !/^is-|^on$/.test(el.classList[0])) return '.' + el.classList[0];
+  const up = el.parentElement?.closest('[class]'); const upc = up && ([...up.classList].find(c => !/^is-/.test(c)) || up.classList[0]);
+  return el.tagName.toLowerCase() + (el.classList[0] ? '.' + el.classList[0] : '') + (upc ? ' в .' + upc : ''); };
+const norm = s => s.split(/\s+/).join(' ').trim();
+
+(async () => {
+  const legacy = await (await fetch('design-legacy.json')).json();
+  // Правило старое, если в старом файле был тот же селектор с тем же набором свойств; переписанное на месте — новое
+  // Сокращённые свойства (font, inset, place-items…) CSSOM разворачивает в полные — сводим обе стороны к семействам
+  const fam = p => p === 'line-height' ? 'font' : /^(top|right|bottom|left)$/.test(p) ? 'inset' : /^(align|justify)-(items|content|self)$/.test(p) ? 'place'
+    : /^(row|column)-gap$/.test(p) ? 'gap' : p.replace(/^(border|margin|padding|font|background|grid|flex|inset|overflow|transition|outline|text-decoration|list-style|columns|mask|animation)-.*$/, '$1');
+  const props = st => [...new Set([...st].map(fam))].sort().join();
+  const isNew = ru => { if (NEW.test(ru.href)) return true; const f = (ru.href.match(/\/([\w-]+)\.css$/) || [])[1];
+    const old = legacy[f]?.[norm(ru.sel)]; if (!old) return true;
+    const mine = props(ru.style); return !old.some(o => props(o.map(x => x)) === mine); };
+  const forgot = new Map(), broken = new Map();
+  var add = (map, k, where) => { if (!map.has(k)) map.set(k, new Set()); map.get(k).add(where); };
+  // Сцены идут пачкой по POOL в параллельных рамках; готовность — мир, шрифты и два кадра, а не слепая пауза.
+  // ?wait=мс — старое фиксированное ожидание, чтобы сверить: число проверенных элементов по сценам должно совпасть (#counts)
+  const WAIT = +q.get('wait') || 0, POOL = +q.get('pool') || 2, counts = {}, listed = {};   // ?list=1 — какие элементы проверены (разбор расхождений)
+  const frames = w => new Promise(r => w.requestAnimationFrame(() => w.requestAnimationFrame(r)));
+  const settle = async f => { const w = f.contentWindow;
+    if (WAIT) return wait(WAIT);
+    await w.document.fonts.ready; await w.kernWorld?.ready; await frames(w); await wait(450); await frames(w); };
+  const jobs = DEVICES.flatMap(dev => SCENES.map(sc => [dev, sc]));
+  // ?mode=reload — прежний способ (загрузка игры на каждую сцену), для сверки по #counts; иначе игра грузится один раз,
+  // сцена — kernScene.reset() и apply(параметры) теми же обработчиками, что при загрузке по адресу
+  const RELOAD = q.get('mode') === 'reload';
+  let one, oneRules, oneDev;
+  const prepare = (d, w) => {
+    // Правила документа и их «новизна» — до копий состояний (stateRules), один раз на документ
+    const rules = rulesOf(d).filter(ru => !/\/stand\.css$/.test(ru.href) && !/srv-slots/.test(ru.sel) &&   // разметка мест текста сервера — режим стенда
+       !/^(\*|html|body|:root|:where\([^)]*\)\s*\*?)(,|$)/.test(ru.sel.trim()))   // сбросы и стенд — не вид компонента
+      .map(ru => ({ ...ru, bare: ru.sel.replace(/::?(before|after|placeholder|-webkit-[\w-]+|selection|marker)/g, '').trim(), fresh: isNew(ru) }));
+    stateRules(d);
+    return rules;
+  };
+  const run = async ([dev, sc]) => {
+    const [addr, clicks] = sc.split('|');
+    let f, rules;
+    if (RELOAD) { f = await load(`../index.html?${addr}&${dev}&still=1`); await settle(f); rules = prepare(f.contentDocument, f.contentWindow); }
+    else {
+      // Игра грузится заново на каждое устройство (ввод и подсказки геймпада живут на устройстве), сцены устройства — на месте
+      if (oneDev !== dev) { one?.remove(); one = await load(`../index.html?${dev}&still=1`); await settle(one); oneRules = prepare(one.contentDocument, one.contentWindow); oneDev = dev; }
+      f = one; rules = oneRules;
+      f.contentWindow.kernScene.reset(); f.contentWindow.kernScene.apply(`${addr}&${dev}&still=1`);
+      await wait(0);                                             // наблюдатели изменений (подсказки геймпада, перевод) — до проверки
+    }
+    const d = f.contentDocument, w = f.contentWindow;
+    if (clicks) { for (const c of clicks.split(';')) { const b = d.querySelector(c); if (!b) add(broken, `СЦЕНА: нет «${c}»`, sc); else b.click(); } await wait(0); }
+    d.querySelectorAll('.dialog-layer, .screen').forEach(e => { e.style.transition = 'none'; e.classList.remove('is-entering'); });
+    const frame = d.getElementById('frame');
+    const where = `${sc} @${dev.split('&')[0].slice(7)}`;
+    let n = 0;
+    for (const el of frame.querySelectorAll('*')) {
+      // Арт игры и рамка стенда — не интерфейс: спрайты навыков, вырез телефона
+      if (el.closest('svg, canvas, .world, #worldLabels, .robot-art, .calib-world, .calib-tile, .prog-cell img, .skill-sprite, .cutout, .sk, .mini-skill .ico, .skill-info .big') || ['IMG', 'CANVAS', 'svg', 'use', 'path'].includes(el.tagName)) continue;
+      if (!visible(el, w)) continue;
+      n++; if (q.get('list')) (listed[`${dev} ${sc}`] ||= []).push(key(el) + (el.id ? '#' + el.id : '') + (el.dataset.btn ? '[' + el.dataset.btn + '] в ' + (el.parentElement.className || el.parentElement.parentElement.className) : ''));
+      const { cs, bg, bd, txt } = own(el, w);
+      const k = key(el);
+      // 2. Нарушения правил
+      const r = parseFloat(cs.borderTopLeftRadius) || 0, box = el.getBoundingClientRect();
+      if (r > 0.5 && !(cs.borderTopLeftRadius.includes('%') || r >= Math.min(box.width, box.height) / 2 - 1)) add(broken, `${k}  скругление ${cs.borderTopLeftRadius}`, where);
+      const sig = /rgb\(255, 90, 31/;
+      if ((sig.test(cs.color) && txt) || sig.test(cs.backgroundColor) || (bd && sig.test(cs.borderTopColor + cs.borderLeftColor + cs.borderBottomColor))) {
+        if (!el.matches(SIGNAL_OK) && !el.closest(SIGNAL_OK)) add(broken, `${k}  оранжевый не у действия`, where);
+      }
+      if (txt && !FONTS.test(cs.fontFamily)) add(broken, `${k}  шрифт ${cs.fontFamily.split(',')[0]}`, where);
+      // Тень: делим список по запятым вне скобок; размытие — третье число у тени без inset
+      if (cs.boxShadow !== 'none' && cs.boxShadow.split(/,(?![^(]*\))/).some(sh => !/inset/.test(sh) && parseFloat((sh.replace(/rgba?\([^)]*\)/, '').match(/-?[\d.]+px/g) || [])[2]) > 0))
+        add(broken, `${k}  размытая тень`, where);
+      if (txt && parseFloat(cs.fontSize) < 7) add(broken, `${k}  кегль ${cs.fontSize}`, where);
+      // Срезанный угол у элемента с рамкой: рамка обрывается на срезе, если диагональ не прочерчена своей линией
+      // Залитый элемент (рамка цвета фона) среза не прочерчивает — у него обрыва нет
+      if (bd && /^polygon/.test(cs.clipPath) && cs.borderTopColor !== cs.backgroundColor && !el.matches('.srv-slots [data-srv]')) {
+        const diag = cs.backgroundImage.match(/linear-gradient\(225deg, rgba\(0, 0, 0, 0\)[^,]*, (rgba?\([^)]*\))/);
+        if (!diag) add(broken, `${k}  срез угла без линии (.${[...el.classList].join('.')}: рамка ${cs.borderTopColor}, фон ${cs.backgroundColor})`, where);
+        else if (diag[1] !== cs.borderTopColor) add(broken, `${k}  диагональ среза ${diag[1]} ≠ рамка ${cs.borderTopColor}`, where);
+      }
+      // 1. Забыт: виден, но слой систем его не касается
+      // Места текста сервера в режиме стенда закрашены и обведены стендом — их вид проверяется в обычном режиме
+      if (!(bg || bd || txt) || el.matches('.srv-slots [data-srv]')) continue;
+      // Без своих правил элемент наследует вид родителя и судится вместе с ним
+      let touched = false, old = false;
+      for (const ru of rules) { let hit = false; try { hit = !!ru.bare && el.matches(ru.bare); } catch { }
+        if (!hit) continue; if (ru.fresh) { touched = true; break; } old = true; }
+      if (old && !touched) add(forgot, k, where);
+      if (why && el.matches(why)) for (const ru of rules) { let h = false; try { h = el.matches(ru.sel.replace(/::?(before|after|placeholder|-webkit-[\w-]+|selection|marker)/g, '')); } catch { } if (h) add(broken, `ПОЧЕМУ ${why}: ${isNew(ru) ? 'new' : 'old'} ${ru.href.split('/').pop()} «${ru.sel}»`, where); }
+    }
+    // 3. Состояния клавиш (Руки): покой, наведение, нажатие
+    //    скос — тень со смещением (свет или тень по кромке) в любом состоянии; разрешено только кольцо выбора (inset 0 0 0 1px)
+    //    наведение — без сдвига; нажатие — поле не светлее покоя; текст читается на своём фоне
+    const bevel = sh => sh !== 'none' && sh.split(/,(?![^(]*\))/).some(x => { const v = (x.replace(/rgba?\([^)]*\)|color\([^)]*\)/g, '').match(/-?[\d.]+px/g) || []).map(parseFloat); return v[0] || v[1]; });
+    // Углубления (клетка программы) — поле ввода, а не клавиша: тень по верху у них по коду
+    for (const el of frame.querySelectorAll('button, a, [role="tab"], .btn, .tbtn, .pk-btn')) {
+      if (el.disabled || el.matches('.prog-cell') || el.closest('.cutout, .world') || !visible(el, w)) continue;
+      const k = key(el), txt = [...el.childNodes].some(t => t.nodeType === 3 && t.textContent.trim());
+      const rest = w.getComputedStyle(el), restBg = rest.backgroundColor, restTf = rest.transform + rest.translate;
+      if (bevel(rest.boxShadow)) add(broken, `${k}  скос у клавиши (${rest.boxShadow})`, where);
+      for (const st of ['hover', 'active']) {
+        el.classList.add('audit-hover'); if (st === 'active') el.classList.add('audit-active');
+        const cs = w.getComputedStyle(el), bgc = rgb(cs.backgroundColor);
+        if (txt && cs.backgroundImage === 'none' && (bgc[3] ?? 1) >= .9 && contrast(cs.color, cs.backgroundColor) < 3)
+          add(broken, `${k}  :${st} текст не читается (${cs.color} на ${cs.backgroundColor})`, where);
+        if (bevel(cs.boxShadow)) add(broken, `${k}  :${st} скос у клавиши (${cs.boxShadow})`, where);
+        if (cs.transform + cs.translate !== restTf) add(broken, `${k}  :${st} клавиша сдвигается`, where);
+        const rb = rgb(restBg);
+        if (st === 'active' && (rb[3] ?? 1) >= .9 && (bgc[3] ?? 1) >= .9 && lum(bgc) > lum(rb) + .002) add(broken, `${k}  :active поле светлее покоя (.${[...el.classList].join('.')}: ${restBg} → ${cs.backgroundColor})`, where);
+        el.classList.remove('audit-hover', 'audit-active');
+      }
+    }
+    // 3б. Клавиша с текстом держит минимальную ширину: смена текста (состояние, перевод, данные) не должна двигать соседей
+    for (const el of frame.querySelectorAll('.btn, .pk-btn, .prog-go')) {
+      // Плитки системного ряда — фиксированной ширины (72 / 62 px), им пол не нужен
+      if (!visible(el, w) || !el.textContent.trim() || el.closest('.seg, .pk--tabs') || el.matches('.bonus')) continue;
+      const mw = parseFloat(w.getComputedStyle(el).minWidth) || 0;
+      if (mw < 64) add(broken, `${key(el)}  нет минимальной ширины (min-width ${w.getComputedStyle(el).minWidth}) «${el.textContent.trim().slice(0, 20)}»`, where);
+    }
+    // 4. Одно главное действие на экран: залитые сигналом клавиши в верхнем открытом слое
+    const layers = [...frame.querySelectorAll('.dialog-layer, .calib, .screen')].filter(e => visible(e, w));
+    const top = layers.at(-1) || frame;
+    const mains = [...top.querySelectorAll('button, .btn, .pk-btn')].filter(e => visible(e, w) && /rgb\(255, 90, 31\)/.test(w.getComputedStyle(e).backgroundColor) && !e.closest('.badge'));
+    if (mains.length > 1) add(broken, `главных действий ${mains.length}: ${mains.map(e => '«' + e.textContent.trim() + '»').join(' ')}`, where);
+    // 5. Заглавные — оформлением: строка словаря, записанная капсом, ломает перевод (аббревиатуры до 3 букв — HP, FPS). Ники и данные не в словаре
+    const dict = w.I18N?.exact || {};
+    for (const el of frame.querySelectorAll('*')) {
+      if (el.closest('[data-srv], svg, .world, #worldLabels, .cutout') || !visible(el, w)) continue;
+      for (const t of el.childNodes) if (t.nodeType === 3 && t.textContent.trim() in dict && /[A-ZА-ЯЁ]{2}/.test(t.textContent) && t.textContent.split(/[^A-Za-zА-Яа-яЁё]+/).some(wd => wd.length > 3 && wd === wd.toUpperCase() && /[A-ZА-ЯЁ]/.test(wd) && !/^[A-Z]+$/.test(wd)))
+        add(broken, `${key(el)}  капс в строке «${t.textContent.trim().slice(0, 24)}»`, where);
+    }
+    counts[`${dev} ${sc}`] = n;
+    if (RELOAD) f.remove();
+  };
+  const queue = [...jobs];
+  if (RELOAD) await Promise.all(Array.from({ length: POOL }, async () => { while (queue.length) await run(queue.shift()); }));
+  else for (const job of queue) await run(job);
+  const fmt = (title, map) => `${title}: ${map.size}\n` + [...map].sort((a, b) => b[1].size - a[1].size).map(([k, s]) => `  ${k}   (${s.size}) ${[...s].slice(0, 3).join(' | ')}`).join('\n');
+  const parts = [];
+  if (only !== 'rules') parts.push(fmt('ЗАБЫТО — рисуют только старые файлы', forgot));
+  if (only !== 'forgot') parts.push(fmt('НАРУШЕНИЯ дизайн-кода', broken));
+  document.getElementById('log').textContent = parts.join('\n\n');
+  const n = (only === 'rules' ? 0 : forgot.size) + (only === 'forgot' ? 0 : broken.size);
+  document.getElementById('counts').textContent = JSON.stringify(q.get('list') ? listed : counts);
+  document.title = n ? `design: FAIL ${n}` : 'design: ok';
+})();
+</script></body></html>

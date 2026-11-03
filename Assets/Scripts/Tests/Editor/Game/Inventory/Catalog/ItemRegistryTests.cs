@@ -1,5 +1,7 @@
 #nullable enable
 
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using MinesServer.Data;
@@ -15,14 +17,19 @@ public sealed class ItemRegistryTests
 {
     private sealed class StubAssetPaths : IRuntimeAssetPaths
     {
-        public string BundledTexturesRoot => string.Empty;
-        public string PersistentTexturesRoot => string.Empty;
-
         public UniTask EnsureReadyAsync() => UniTask.CompletedTask;
 
-        public string? FindBundledTextureFile(string relativePath) => null;
+        public IReadOnlyList<string> GetEmbeddedTextureFilenames() => Array.Empty<string>();
 
-        public string? FindTextureFile(string relativePath) => null;
+        public IReadOnlyList<string> GetDummyWorldTextureFilenames() => Array.Empty<string>();
+
+        public byte[]? GetTextureBytes(string relativePath) => null;
+
+        public UniTask<IReadOnlyList<string>> GetAudioBankFilenamesAsync() =>
+            UniTask.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
+
+        public UniTask<byte[]?> GetAudioBankBytesAsync(string relativePath) =>
+            UniTask.FromResult<byte[]?>(null);
     }
 
     [Test]

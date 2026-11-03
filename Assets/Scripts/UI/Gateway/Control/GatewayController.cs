@@ -6,6 +6,7 @@ using Cysharp.Threading.Tasks;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Core.Localization;
+using Kern.Core.Platform;
 using UnityEngine;
 using UnityEngine.UIElements;
 using VContainer;
@@ -47,7 +48,7 @@ namespace Kern.UI.Gateway
         [Inject]
         private IAsyncOperationSupervisor _operations = null!;
         [Inject]
-        private IAuthenticationService _authentication = null!;
+        private IGameTokenStore _tokens = null!;
 
         private void OnEnable()
         {
@@ -126,8 +127,7 @@ namespace Kern.UI.Gateway
             _authGate = AuthGate.TryCreate(
                 _root,
                 _clientConfig,
-                _authentication,
-                _operations,
+                _tokens,
                 _loc);
             if (_authGate == null)
             {
@@ -179,7 +179,6 @@ namespace Kern.UI.Gateway
             if (_authGate != null)
             {
                 _authGate.Passed -= OnAuthPassed;
-                _authGate.Dispose();
             }
 
             if (_loc != null)

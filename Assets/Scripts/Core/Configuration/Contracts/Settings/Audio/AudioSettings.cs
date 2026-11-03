@@ -2,6 +2,7 @@
 
 using System;
 using Kern.Audio.Core;
+using UnityEngine.Serialization;
 
 
 namespace Kern.Core;
@@ -19,10 +20,11 @@ public sealed class AudioSettings
     public float MasterVolume = 1f;
 
     [SettingRange(VolumeMin, VolumeMax)]
-    [SettingLabel("menu.settings.sfx_volume")]
-    [AudioBus(AudioBusType.SFX)]
+    [SettingLabel("menu.settings.sound_effects_volume")]
+    [AudioBus(AudioBusType.SoundEffects)]
     [SettingConsumer(SettingConsumerTarget.AudioSystem, "AudioBusRegistry -> AudioSystem.SetBusVolume")]
-    public float SfxVolume = 1f;
+    [FormerlySerializedAs("SfxVolume")]
+    public float SoundEffectsVolume = 1f;
 
     [SettingRange(VolumeMin, VolumeMax)]
     [SettingLabel("menu.settings.music_volume")]

@@ -139,13 +139,13 @@ public sealed class TerrainQuantizationContractTests
     [Test]
     public void ShaderSourceUsesOneCoverageContractAndPerCellGeometry()
     {
-        string terrain = ReadRepoFile("Assets", "Shaders", "Terrain", "Terrain.shader");
-        string contour = ReadRepoFile("Assets", "Shaders", "Terrain", "TerrainContour.hlsl");
-        string geometry = ReadRepoFile("Assets", "Shaders", "Terrain", "TerrainGeometry.hlsl");
-        string geometryContract = ReadRepoFile("Assets", "Shaders", "Terrain", "TerrainGeometryContract.hlsl");
-        string cellData = ReadRepoFile("Assets", "Shaders", "Terrain", "TerrainCellData.hlsl");
-        string cellGeometry = ReadRepoFile("Assets", "Scripts", "Tests", "Editor", "World", "Terrain", "Reference", "TerrainCellGeometry.cs");
-        string buffers = ReadRepoFile("Assets", "Scripts", "World", "Terrain", "GPU", "TerrainCellBuffers.cs");
+        string terrain = ReadRepoFile("Assets", "Shaders", "Terrain", "Rendering", "Shader", "Terrain.shader");
+        string contour = ReadRepoFile("Assets", "Shaders", "Terrain", "Geometry", "TerrainContour.hlsl");
+        string geometry = ReadRepoFile("Assets", "Shaders", "Terrain", "Geometry", "TerrainGeometry.hlsl");
+        string geometryContract = ReadRepoFile("Assets", "Shaders", "Terrain", "Geometry", "TerrainGeometryContract.hlsl");
+        string cellData = ReadRepoFile("Assets", "Shaders", "Terrain", "Cells", "Assembly", "TerrainCellData.hlsl");
+        string cellGeometry = ReadRepoFile("Assets", "Scripts", "Tests", "Editor", "World", "Terrain", "Reference", "Cells", "TerrainCellGeometry.cs");
+        string buffers = ReadRepoFile("Assets", "Scripts", "World", "Terrain", "GPU", "Cells", "TerrainCellBuffers.cs");
 
         Assert.That(CountOccurrences(terrain, "EvaluateTerrainCellCoverage("), Is.EqualTo(2));
         // The production path clips the visible pass, two lighting-debug

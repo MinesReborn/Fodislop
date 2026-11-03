@@ -25,7 +25,9 @@ public static class BuildingTemplates
 
     public static ushort GetAnchorDistance(BuildingType type) => type switch
     {
-        BuildingType.Up or BuildingType.Clans => 3,
+        BuildingType.Resp => 1,
+        BuildingType.Up => 4,
+        BuildingType.Clans => 3,
         BuildingType.Science => 6,
         _ => 2,
     };

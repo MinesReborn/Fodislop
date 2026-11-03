@@ -5,6 +5,8 @@ using System.Collections;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.Rendering;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -60,6 +62,9 @@ internal static class PlayModeHarness
 
     public static IEnumerator EnterMainGame(BootstrapLifetimeScope bootstrap)
     {
+        // PlayMode tests must not inherit the developer's persisted graphics preset.
+        // Start world-entry checks with the standard production lighting preset.
+        bootstrap.Container.Resolve<IClientConfigManager>().SelectGraphicsPreset(GraphicsPreset.Standard);
         yield return Await(bootstrap.TransitionAsync(SceneNames.MainMenu), UITimeoutSeconds);
         yield return Await(bootstrap.TransitionAsync(SceneNames.MainGame), WorldTimeoutSeconds);
     }

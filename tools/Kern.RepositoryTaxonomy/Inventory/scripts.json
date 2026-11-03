@@ -1029,20 +1029,6 @@
     "assembly_before": "Kern.Contracts"
   },
   {
-    "old": "Assets/Scripts/Audio/Effekseer/RuntimeEffekseerLoader.cs",
-    "path": "Assets/Scripts/Infrastructure/VisualEffects/Effekseer/Loading/RuntimeEffekseerLoader.cs",
-    "meta_sha256": "9685a776e1101dfd91754f1fff3007bac5eff5f23addc3c92c73e805bd8a0b04",
-    "guid": "4469a49d9246ac945946a4cb1179544b",
-    "assembly_before": "Kern.Infrastructure"
-  },
-  {
-    "old": "Assets/Scripts/Audio/Effekseer/EffekseerWorldGridPolicy.cs",
-    "path": "Assets/Scripts/Infrastructure/VisualEffects/Effekseer/Coordinates/EffekseerWorldGridPolicy.cs",
-    "meta_sha256": "1a6b0b950d262f6482af7e80fa77588f3c187b96b7e5219aa50f5115f4e7306f",
-    "guid": "be6a8d9e7ee2e4e78a0923eca2c91a46",
-    "assembly_before": "Kern.Infrastructure"
-  },
-  {
     "old": "Assets/Scripts/Audio/Backend/AudioSystem.cs",
     "path": "Assets/Scripts/Infrastructure/Audio/FMOD/Playback/AudioSystem.cs",
     "meta_sha256": "436c584d9957da6a724275b26bae08fe267c5b46a2de9731636803045327f19e",
@@ -1100,7 +1086,7 @@
   },
   {
     "old": "Assets/Scripts/Game/Managers/ServerAudioEventManager.cs",
-    "path": "Assets/Scripts/Game/Events/Audio/Management/ServerAudioEventManager.cs",
+    "path": "Assets/Scripts/Game/Events/Playback/ServerEventPlaybackManager.cs",
     "meta_sha256": "8a0d5e109863b08242d049d93cf0c95cade22732ff02e278e37c25c19de2ab25",
     "guid": "2d8f1740e9d392848890f725fd671084",
     "assembly_before": "Kern.Application"
@@ -1121,119 +1107,119 @@
   },
   {
     "old": "Assets/Scripts/Game/VFX/GunShotWorldEffect.cs",
-    "path": "Assets/Scripts/Game/VisualEffects/Weapons/GunShots/GunShotWorldEffect.cs",
+    "path": "Assets/Scripts/Game/Visual/Effects/Weapons/GunShots/GunShotWorldEffect.cs",
     "meta_sha256": "c3f50064b1235daeba23be7bef38fda4c74dea617a2341e85fed0d88e9a1ed47",
     "guid": "39408acfc19e4537a33c3ab4c8b1b0a8",
     "assembly_before": "Kern.Application"
   },
   {
     "old": "Assets/Scripts/Game/VFX/TailChain.cs",
-    "path": "Assets/Scripts/Game/VisualEffects/Tails/Simulation/TailChain.cs",
+    "path": "Assets/Scripts/Game/Visual/Entities/Tails/Simulation/TailChain.cs",
     "meta_sha256": "6afcf371ea4528397eac580c6ba2fdc77235d3348b3bd1fd4bfe9d60cf59046a",
     "guid": "417af5674458c0f4986a537c1bab6a8e",
     "assembly_before": "Kern.Application"
   },
   {
     "old": "Assets/Scripts/Game/VFX/Tentacle.cs",
-    "path": "Assets/Scripts/Game/VisualEffects/Tentacles/Geometry/Tentacle.cs",
+    "path": "Assets/Scripts/Game/Visual/Entities/Tentacles/Geometry/Tentacle.cs",
     "meta_sha256": "57539f52492bc08d7bd3517c5de6ae6c7fdc84ccf5e9e1aa76c71412059b1b1c",
     "guid": "29228b062b7949158e6d9429cdb5a4ac",
     "assembly_before": "Kern.Application"
   },
   {
     "old": "Assets/Scripts/Game/VFX/CellDestructionEffect.cs",
-    "path": "Assets/Scripts/Game/VisualEffects/Cells/Destruction/CellDestructionEffect.cs",
+    "path": "Assets/Scripts/Game/Visual/Effects/Cells/Destruction/CellDestructionEffect.cs",
     "meta_sha256": "1d98675f01eb71c09d4b3d45f1ff9a94fed997a57e8acf73a93be96e01bbee64",
     "guid": "62b6d6ed526f43adb1799b2df2bcfc30",
     "assembly_before": "Kern.Application"
   },
   {
     "old": "Assets/Scripts/Game/VFX/CrystalCollectionVisualVariant.cs",
-    "path": "Assets/Scripts/Game/VisualEffects/Crystals/Collection/CrystalCollectionVisualVariant.cs",
+    "path": "Assets/Scripts/Game/Visual/Effects/Crystals/Collection/CrystalCollectionVisualVariant.cs",
     "meta_sha256": "c5b2fe84a27d1d0525d75d822f16064b0c9a3575f9f45215c210a4b0deec6d7e",
     "guid": "0315a5fc0f8646c193650b2969493492",
     "assembly_before": "Kern.Application"
   },
   {
     "old": "Assets/Scripts/Game/VFX/SpriteAnimationLibrary.cs",
-    "path": "Assets/Scripts/Game/VisualEffects/Sprites/Animation/SpriteAnimationLibrary.cs",
+    "path": "Assets/Scripts/Game/Visual/Effects/Sprites/Animation/SpriteAnimationLibrary.cs",
     "meta_sha256": "1b310e84751f8fdd549c66e27ab5273b40ad63edf7ea38a691a7202995825929",
     "guid": "01d52cd9d55f44469fae4d955be399d8",
     "assembly_before": "Kern.Application"
   },
   {
     "old": "Assets/Scripts/Game/VFX/ServerVFXEvent.cs",
-    "path": "Assets/Scripts/Game/Events/VisualEffects/Playback/ServerVFXEvent.cs",
+    "path": "Assets/Scripts/Game/Visual/Effects/Events/Playback/ServerVisualEvent.cs",
     "meta_sha256": "66e32621bd51bc6112286beeb6f5b8185ce39a8ae9c94eea5a5367471468c13a",
     "guid": "4e8b27c3f19a4d52a6c0d9b7e3f184a6",
     "assembly_before": "Kern.Application"
   },
   {
     "old": "Assets/Scripts/Game/VFX/VFXPool.cs",
-    "path": "Assets/Scripts/Game/VisualEffects/Pooling/VFXPool.cs",
+    "path": "Assets/Scripts/Game/Visual/Effects/Pooling/VisualEffectPool.cs",
     "meta_sha256": "f74dfcb5d08a5e58a482a1d748e2a8c9c75d0851e4f37cfb813abc1aa842ec69",
     "guid": "28db09fc049bf324fbee51907a8eaa35",
     "assembly_before": "Kern.Application"
   },
   {
     "old": "Assets/Scripts/Game/VFX/CellDestructionClip.cs",
-    "path": "Assets/Scripts/Game/VisualEffects/Cells/Destruction/CellDestructionClip.cs",
+    "path": "Assets/Scripts/Game/Visual/Effects/Cells/Destruction/CellDestructionClip.cs",
     "meta_sha256": "68dade9aaed86281a548f3292fae912131aa790444e9e4960c64738a7cf2cbb8",
     "guid": "a146a7537f35435e96e818b2f026988d",
     "assembly_before": "Kern.Application"
   },
   {
     "old": "Assets/Scripts/Game/VFX/TentacleGeometry.cs",
-    "path": "Assets/Scripts/Game/VisualEffects/Tentacles/Geometry/TentacleGeometry.cs",
+    "path": "Assets/Scripts/Game/Visual/Entities/Tentacles/Geometry/TentacleGeometry.cs",
     "meta_sha256": "b4f61e0102837f4d3998d11fc477d8b6eeac20ee31980f8828b9f7b03c598dc7",
     "guid": "e1c8391381e7478f864fc05fbb31ff61",
     "assembly_before": "Kern.Application"
   },
   {
     "old": "Assets/Scripts/Game/VFX/SpriteAnimationWorldEffect.cs",
-    "path": "Assets/Scripts/Game/VisualEffects/Sprites/Animation/SpriteAnimationWorldEffect.cs",
+    "path": "Assets/Scripts/Game/Visual/Effects/Sprites/Animation/SpriteAnimationWorldEffect.cs",
     "meta_sha256": "0965dc2bab2855d5b6ae45c5b27e013b81f4929b67ec3ffaa9c5934f9fad6b73",
     "guid": "49ab0f42bb9c4c6785d2f5a15ea3390c",
     "assembly_before": "Kern.Application"
   },
   {
     "old": "Assets/Scripts/Game/VFX/IServerWorldEffect.cs",
-    "path": "Assets/Scripts/Game/VisualEffects/Pooling/IServerWorldEffect.cs",
+    "path": "Assets/Scripts/Game/Visual/Effects/Pooling/IServerWorldEffect.cs",
     "meta_sha256": "1a6242967d0830beb3c6e0ffb3167296dc9e73edab55bb8f77fe60f2e76d76b6",
     "guid": "9a3f62b1c5d84e07a1d6f0b82c47e519",
     "assembly_before": "Kern.Application"
   },
   {
-    "old": "Assets/Scripts/Game/Audio/ServerAudioVisualLoader.cs",
-    "path": "Assets/Scripts/Game/Events/VisualEffects/Playback/ServerAudioVisualLoader.cs",
+    "old": "Assets/Scripts/Game/Audio/VisualEffectAssetLoader.cs",
+    "path": "Assets/Scripts/Game/Visual/Effects/Loading/VisualEffectAssetLoader.cs",
     "meta_sha256": "a283f7631e5020222d3a3553820fbf5673bb66b138fe6cd5d74136ecf75721a6",
     "guid": "ec2f0679b00c42738739d937929db37a",
     "assembly_before": "Kern.Application"
   },
   {
     "old": "Assets/Scripts/Game/Audio/SfxEventNames.cs",
-    "path": "Assets/Scripts/Game/Events/Audio/Playback/SfxEventNames.cs",
+    "path": "Assets/Scripts/Game/Audio/Events/Playback/AudioEventNames.cs",
     "meta_sha256": "4c577e36a0ab9b5c78c8d266a5ac402515208e4b5182e34b985b0b423be5bf3a",
     "guid": "1ed1a5b34f6d4c20a49229716bc8ade4",
     "assembly_before": "Kern.Application"
   },
   {
-    "old": "Assets/Scripts/Game/Audio/ServerAudioVisualPlayback.cs",
-    "path": "Assets/Scripts/Game/Events/VisualEffects/Playback/ServerAudioVisualPlayback.cs",
+    "old": "Assets/Scripts/Game/Audio/ServerVisualEffectPlayback.cs",
+    "path": "Assets/Scripts/Game/Visual/Effects/Events/Playback/ServerVisualEffectPlayback.cs",
     "meta_sha256": "e6c4c085f52b2815af4a1bb52a3c7a863ccac2f96ad359333c068fd8b540c6cd",
     "guid": "2dbb183aad6e427a85ec3c44bf4406db",
     "assembly_before": "Kern.Application"
   },
   {
     "old": "Assets/Scripts/Game/Audio/ServerAudioEvent.cs",
-    "path": "Assets/Scripts/Game/Events/Audio/Playback/ServerAudioEvent.cs",
+    "path": "Assets/Scripts/Game/Audio/Events/Playback/ServerAudioEvent.cs",
     "meta_sha256": "b563832683ea3e3d95fe69dd53fbd0a3c1edc42f613345d9f6e2c4a1fdb3ce63",
     "guid": "47926417c7253a04abdf6293f18f5022",
     "assembly_before": "Kern.Application"
   },
   {
     "old": "Assets/Scripts/Game/Audio/ServerAudioParameters.cs",
-    "path": "Assets/Scripts/Game/Events/Audio/Playback/ServerAudioParameters.cs",
+    "path": "Assets/Scripts/Game/Visual/Effects/Events/Parameters/VisualEffectParameters.cs",
     "meta_sha256": "4deec71081e5a730ef1efe34016378d0f80472ab0ccfccc015f62b91cf46cb33",
     "guid": "a0fa52ad8bde9462cae6acdc20ddbcce",
     "assembly_before": "Kern.Application"
@@ -1261,7 +1247,7 @@
   },
   {
     "old": "Assets/Scripts/Game/Rendering/WorldEntityGeometry.cs",
-    "path": "Assets/Scripts/Game/Rendering/Entities/Geometry/WorldEntityGeometry.cs",
+    "path": "Assets/Scripts/Game/Rendering/Entities/Geometry/Writing/WorldEntityGeometry.cs",
     "meta_sha256": "4a06eabdd781919bcfd9aa5966cbf944e045e25e7987b35bcc75c7361a182efb",
     "guid": "4fbdd0397ff24eefa927a417ab245de5",
     "assembly_before": "Kern.Application"
@@ -1457,7 +1443,7 @@
   },
   {
     "old": "Assets/Scripts/Game/Entities/Robot/RobotAssetLoader.cs",
-    "path": "Assets/Scripts/Game/Entities/Robots/Assets/RobotAssetLoader.cs",
+    "path": "Assets/Scripts/Game/Entities/Robots/Assets/Loading/RobotAssetLoader.cs",
     "meta_sha256": "8ce0f1b020d608280985d566e23a91cd556b66c61daf1e78dba1ddcfaaf2c6c1",
     "guid": "09e2da122f3c54e8a9b562fcfe20ef94",
     "assembly_before": "Kern.Application"
@@ -2822,7 +2808,7 @@
   },
   {
     "old": "Assets/Scripts/Tests/PlayMode/CrystalCollectionPixelParityPlayModeTests.cs",
-    "path": "Assets/Scripts/Tests/PlayMode/Game/VisualEffects/Crystals/CrystalCollectionPixelParityPlayModeTests.cs",
+    "path": "Assets/Scripts/Tests/PlayMode/Game/Visual/Effects/Crystals/CrystalCollectionPixelParityPlayModeTests.cs",
     "meta_sha256": "3560404b76c2421d3596f9581004b39b769bba7d25f924df99436ca721ec65c5",
     "guid": "7a63b434f4104550bb167391eb9dd7e1",
     "assembly_before": "Kern.Tests.PlayMode"
@@ -3354,7 +3340,7 @@
   },
   {
     "old": "Assets/Scripts/Tests/Editor/Game/TailChainLegacyParityTests.cs",
-    "path": "Assets/Scripts/Tests/Editor/Game/VisualEffects/Tails/Simulation/TailChainLegacyParityTests.cs",
+    "path": "Assets/Scripts/Tests/Editor/Game/Visual/Entities/Tails/Simulation/TailChainLegacyParityTests.cs",
     "meta_sha256": "c0effc0940d120123f30dd08f6e02c9ed2993e7373c9118f29ec6babc1516528",
     "guid": "7039585348454a518c20ea69850e7643",
     "assembly_before": "Kern.Tests.Editor"
@@ -4481,7 +4467,7 @@
   },
   {
     "old": "Assets/Scripts/Networking/Processors/World/VFXPacketProcessor.cs",
-    "path": "Assets/Scripts/Networking/Processing/World/VFXPacket/VFXPacketProcessor.cs",
+    "path": "Assets/Scripts/Networking/Processing/World/VisualPacket/VisualPacketProcessor.cs",
     "meta_sha256": "eccc1a3bdcfdd46598b70dbefa40b4ef889a76144bc8e74b1e437801c903f1ce",
     "guid": "62a3c6eea0f740a1a7dbb17335e1c422",
     "assembly_before": "Kern.Networking"
@@ -4558,7 +4544,7 @@
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Contracts/OfflineScenarioSettings.cs",
-    "path": "Assets/Scripts/Networking/Connection/Contracts/Scenarios/OfflineScenarioSettings.cs",
+    "path": "Assets/Scripts/Networking/Connection/Contracts/Scenarios/DummyScenarioSettings.cs",
     "meta_sha256": "386cb4b1f885922d1cc58fecdd88748af15d376b3e1a3518d5e80c8fba992f2a",
     "guid": "77ae65c93a514e328e7fe80b6e29dc48",
     "assembly_before": "Kern.Contracts"
@@ -4782,7 +4768,7 @@
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Simulation/DummyWorldStreamingCoordinator.cs",
-    "path": "Assets/Scripts/Networking/Offline/World/Streaming/DummyWorldStreamingCoordinator.cs",
+    "path": "Assets/Scripts/Networking/Offline/World/Streaming/Coordination/DummyWorldStreamingCoordinator.cs",
     "meta_sha256": "1b90b0dd31fc5677e175d28367abbf672fc4f0c9d260b464eb5bfc4193a95f9b",
     "guid": "f2b3c4d5e6789012345678abcdef0123",
     "assembly_before": "Kern.Networking"
@@ -4810,7 +4796,7 @@
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Simulation/LayerLease.cs",
-    "path": "Assets/Scripts/Networking/Offline/World/Streaming/LayerLease.cs",
+    "path": "Assets/Scripts/Networking/Offline/World/Streaming/Lifetime/LayerLease.cs",
     "meta_sha256": "0c874c2e1aa0e160f9d93384d8205cf3c249dc35b5edcf1b5c67045cda9fe47c",
     "guid": "e5f6a7b8c9d012345678abcdef012345",
     "assembly_before": "Kern.Networking"
@@ -4880,7 +4866,7 @@
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Systems/DummyMapStreamer.cs",
-    "path": "Assets/Scripts/Networking/Offline/World/Streaming/DummyMapStreamer.cs",
+    "path": "Assets/Scripts/Networking/Offline/World/Streaming/Regions/DummyMapStreamer.cs",
     "meta_sha256": "bbeeb29c9bd0407deebddb226804d612e5b2dd47aa6830c811cbbde96146c08e",
     "guid": "ebc9a5ff74d864eeeb1ec7896545919b",
     "assembly_before": "Kern.Networking"
@@ -5328,7 +5314,7 @@
   },
   {
     "old": "Assets/Scripts/Core/Interfaces/Contracts/Audio/IServerAudioService.cs",
-    "path": "Assets/Scripts/Game/Events/Audio/Contracts/IServerAudioService.cs",
+    "path": "Assets/Scripts/Game/Audio/Contracts/IServerAudioService.cs",
     "meta_sha256": "d38fedb68a07b632c80c1a53c1b2fbb1594ea522a48ea6dce25204f0708226bd",
     "guid": "f304c13fe29154d4ba21d20be915277d",
     "assembly_before": "Kern.Contracts"
@@ -5405,7 +5391,7 @@
   },
   {
     "old": "Assets/Scripts/Core/Interfaces/Contracts/Rendering/IVFXService.cs",
-    "path": "Assets/Scripts/Game/VisualEffects/Contracts/Pooling/IVFXService.cs",
+    "path": "Assets/Scripts/Game/Visual/Effects/Contracts/Pooling/IVisualEffectService.cs",
     "meta_sha256": "aacaad648dc610002dc3593606ce5c771d8553ce4b6317429b65ad9db57bdf1e",
     "guid": "2b3e0fd68cfab4fd388889ee34eaedad",
     "assembly_before": "Kern.Contracts"
@@ -5433,7 +5419,7 @@
   },
   {
     "old": "Assets/Scripts/Core/Interfaces/Contracts/Rendering/IServerVFXService.cs",
-    "path": "Assets/Scripts/Game/Events/VisualEffects/Contracts/IServerVFXService.cs",
+    "path": "Assets/Scripts/Game/Visual/Effects/Events/Contracts/IServerVisualEffectService.cs",
     "meta_sha256": "059b77ea1705f72eb1a9abb81e7a39746a9d61d6f42160f32ffd63df507397fb",
     "guid": "8f5bf9b85a6f4f8d9c9d4c8f3af5d7d1",
     "assembly_before": "Kern.Contracts"

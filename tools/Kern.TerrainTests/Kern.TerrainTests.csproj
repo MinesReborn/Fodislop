@@ -48,7 +48,7 @@
     <Compile Include="$(Game)/World/Storage/Contracts/Data/IWorldLayer.cs" Link="Game/IWorldLayer.cs" />
     <Compile Include="$(Game)/AssetPipeline/Animation/Contracts/Data/SpriteEmissionFrame.cs" Link="Game/SpriteEmissionFrame.cs" />
     <Compile Include="$(Game)/AssetPipeline/Animation/Emission/SpriteEmissionIntegrator.cs" Link="Game/SpriteEmissionIntegrator.cs" />
-    <Compile Include="$(Game)/Game/VisualEffects/Lighting/Emission/TransientEffectLight.cs" Link="Game/TransientEffectLight.cs" />
+    <Compile Include="$(Game)/Game/Visual/Effects/Lighting/Emission/TransientEffectLight.cs" Link="Game/TransientEffectLight.cs" />
     <Compile Include="$(Game)/Core/Configuration/Contracts/Schema/SettingAttributes.cs" Link="Game/SettingAttributes.cs" />
     <Compile Include="$(Game)/Core/Configuration/Contracts/Settings/Interface/InterfaceSettings.cs" Link="Game/InterfaceSettings.cs" />
     <Compile Include="$(Game)/Core/Configuration/Migration/InputAndText/InputAndTextConfigMigration.cs" Link="Game/InputAndTextConfigMigration.cs" />
@@ -66,7 +66,7 @@
     <Compile Include="$(Game)/World/Cells/Contracts/BlockDefinition.cs" Link="Game/BlockDefinition.cs" />
     <Compile Include="$(Game)/World/Cells/Contracts/IBlockRegistry.cs" Link="Game/IBlockRegistry.cs" />
     <Compile Include="$(Game)/World/Cells/Contracts/CellVisualProtocol.cs" Link="Game/CellVisualProtocolContracts.cs" />
-    <Compile Include="$(Game)/World/Textures/Contracts/Storage/TerrainDecalAssets.cs" Link="Game/TerrainDecalAssets.cs" />
+    <Compile Include="$(Game)/World/Textures/Decals/Configuration/TerrainDecalFactory.cs" Link="Game/TerrainDecalFactory.cs" />
     <Compile Include="$(Game)/World/Cells/Palette/MapBlockColors.cs" Link="Game/MapBlockColors.cs" />
     <Compile Include="$(Game)/World/Cells/Registry/BlockRegistry.cs" Link="Game/BlockRegistry.cs" />
     <Compile Include="$(Game)/World/Cells/Registry/MapCellConfigCatalog.cs" Link="Game/MapCellConfigCatalog.cs" />
@@ -106,6 +106,9 @@
     <Compile Include="$(Game)/UI/Map/Rendering/Viewport/MapViewportChunkBudget.cs" Link="Game/MapViewportChunkBudget.cs" />
     <Compile Include="$(Game)/UI/Map/Minimap/Projection/MinimapCellProjection.cs" Link="Game/MinimapCellProjection.cs" />
     <Compile Include="$(Game)/UI/Map/Data/Mipmaps/WorldMapMipPyramid.cs" Link="Game/WorldMapMipPyramid.cs" />
+    <Compile Include="$(Game)/UI/Map/Data/Resolution/WorldMapMipSizing.cs" Link="Game/WorldMapMipSizing.cs" />
+    <Compile Include="$(Game)/UI/Map/Data/Color/WorldMapMipColors.cs" Link="Game/WorldMapMipColors.cs" />
+    <Compile Include="$(Game)/UI/Map/Data/Resampling/WorldMapMipResampling.cs" Link="Game/WorldMapMipResampling.cs" />
     <!-- Кодек чанков: чистый BCL, ни Unity, ни UniTask. -->
     <Compile Include="$(Game)/World/Persistence/Chunks/Encoding/WorldChunkRLECodec.cs" Link="Game/WorldChunkRLECodec.cs" />
     <Compile Include="$(Game)/World/Persistence/Files/Format/WorldLayerFileHeader.cs" Link="Game/WorldLayerFileHeader.cs" />
@@ -113,6 +116,10 @@
     <Compile Include="$(Game)/World/Persistence/Files/Storage/WorldLayerFile.cs" Link="Game/WorldLayerFile.cs" />
     <Compile Include="$(Game)/World/Persistence/Chunks/Caching/ChunkLRUCache.cs" Link="Game/ChunkLRUCache.cs" />
     <Compile Include="$(Game)/World/Persistence/Chunks/Encoding/WorldChunkV2Codec.cs" Link="Game/WorldChunkV2Codec.cs" />
+    <Compile Include="$(Game)/World/Persistence/Chunks/RunLength/Encoding/WorldChunkRunLengthCodec.cs" Link="Game/WorldChunkRunLengthCodec.cs" />
+    <Compile Include="$(Game)/World/Persistence/Chunks/Palette/Encoding/WorldChunkPaletteCodec.cs" Link="Game/WorldChunkPaletteCodec.cs" />
+    <Compile Include="$(Game)/World/Persistence/Chunks/Integrity/Checksums/WorldChunkIntegrity.cs" Link="Game/WorldChunkIntegrity.cs" />
+    <Compile Include="$(Game)/World/Persistence/Chunks/Schema/Identity/WorldChunkSchema.cs" Link="Game/WorldChunkSchema.cs" />
     <Compile Include="$(Game)/World/Persistence/Files/Migration/WorldLayerFileMigrator.cs" Link="Game/WorldLayerFileMigrator.cs" />
 
     <!-- Тесты из Assets: те же, что гоняет Unity. -->

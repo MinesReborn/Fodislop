@@ -20,6 +20,13 @@ public sealed class MemoryAllocationGuardTests
     }
 
     [Test]
+    public void ProcessBelowHardCapIsNotRejectedByPhysicalMemoryPercentage()
+    {
+        var memory = new ProcessMemorySnapshot(8 * GiB, 3075 * MiB, 25);
+        Assert.That(MemoryAllocationGuard.Rejection(memory, 0), Is.Null);
+    }
+
+    [Test]
     public void PendingGenerationIncludesDriverOverheadAndExistingProcess()
     {
         var memory = new ProcessMemorySnapshot(8 * GiB, 2 * GiB, 80);

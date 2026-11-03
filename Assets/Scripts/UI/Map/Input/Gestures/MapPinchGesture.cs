@@ -12,7 +12,7 @@ namespace Kern.UI.Map;
 internal sealed class MapPinchGesture
 {
     // Шаг зума колеса — множитель 0.85 на щелчок (MapInteractionController).
-    private static readonly float LogStep = Mathf.Log(1f / 0.85f);
+    private static readonly float s_logStep = Mathf.Log(1f / 0.85f);
     private const float MinimumStep = 0.02f;
 
     private int _first = -1;
@@ -101,7 +101,7 @@ internal sealed class MapPinchGesture
 
         // Мелкие сдвиги копятся: зум отбрасывает шаг меньше сотой щелчка, и
         // медленный пинч иначе не масштабировал бы вовсе.
-        float delta = -Mathf.Log(distance / _lastDistance) / LogStep;
+        float delta = -Mathf.Log(distance / _lastDistance) / s_logStep;
         if (Mathf.Abs(delta) >= MinimumStep)
         {
             wheelDelta = delta;

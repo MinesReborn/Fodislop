@@ -2,26 +2,18 @@
 
 namespace Kern.World;
 
-// Группа декали типа; номера соответствуют KERN_TERRAIN_DECAL_ATLAS_*.
-public enum CellDecalAtlas : byte
-{
-    None = 0,
-    Ground = 1,
-    Rock = 2,
-    Sand = 3,
-}
-
 // Слой, в котором рисуется клетка.
-//   Foreground — передний план: непроходим, даёт тень, под ним подложка;
-//   Background — фон: проходим, лежит сам на себе;
+//   WorldBoundary — слой оформления границы мира;
 //   Underlay   — подложка: фон, который лежит под каждым передним планом.
-//                Ровно один тип.
+//                Ровно один тип;
+//   Foreground — передний план: непроходим, даёт тень, под ним подложка;
+//   Background — фон: проходим, лежит сам на себе.
 public enum CellDrawLayer : byte
 {
-    Foreground = 0,
-    Background = 1,
-    Underlay = 2,
-    WorldEdge = 3,
+    WorldBoundary = 0,
+    Underlay = 1,
+    Foreground = 2,
+    Background = 3,
 }
 
 // Откуда клетка берёт координаты текстуры; номера — KERN_TERRAIN_TEXTURE_ANCHOR_*.
@@ -34,34 +26,20 @@ public enum CellTextureAnchor : byte
     World = 1,
 }
 
-// Цветовая поверхность клетки; номера — KERN_TERRAIN_SURFACE_EFFECT_*. Анимация
-// текстуры (мигание, мерцание, радуга) — отдельное поле, CellAnimationType.
-//   Plain     — цвет текстуры как есть;
-//   Molten    — расплав (лава);
-//   Faceted   — грани кристалла;
-//   Prismatic — радужный кристалл (палитра — SurfaceEffectPalette).
-public enum CellSurfaceEffect : byte
-{
-    Plain = 0,
-    Molten = 1,
-    Faceted = 2,
-    Prismatic = 3,
-}
-
-// Контур клетки — её край и как он ведёт себя в сетке; номера —
-// KERN_TERRAIN_OUTLINE_*. Узлы сетки гнутся, только если рядом есть Wavy.
+// Контур переднего плана — его край и поведение в сетке; номера —
+// KERN_TERRAIN_OUTLINE_*. Фон остаётся плоским и не участвует в расчёте узлов.
 //   Pliant — квадрат, края гнутся вслед за соседями;
 //   Wavy   — квадрат, сам гнёт свои края и узлы вокруг;
 //   Rigid  — квадрат с прямыми краями: держит узлы, соседи его не гнут;
 //   Round  — капля (пески, лава, кислоты): клетку целиком не закрывает, держит;
-//   Wall, Corner, Door — стена, угол и дверь пака, держат: стена выбирает
+//   Wall, Corner, Door — стена, угол и дверь набора; стена выбирает
 //            картинку по соседним углам, дверь рисуется отдельным слоем поверх.
 public enum CellOutline : byte
 {
-    Pliant = 0,
+    Rigid = 0,
     Wavy = 1,
-    Rigid = 2,
-    Round = 3,
+    Round = 2,
+    Pliant = 3,
     Wall = 4,
     Corner = 5,
     Door = 6,

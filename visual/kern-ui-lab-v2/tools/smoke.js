@@ -10,7 +10,6 @@
   step('dig x40', () => { for (let i = 0; i < 40; i++) mockTouchDig(); }, () => $('hudMiniSkills').children.length >= 1);
   step('crystals grow', () => {}, () => $('basketMiniGrid').textContent !== before);
   step('autodig on/off', () => { toggleAutoDig(); toggleAutoDig(); }, () => !$('btnAutoDig').classList.contains('active'));
-  step('aggression', () => toggleAggression(), () => $('btnAggression').classList.contains('active'));
   step('hp damage/heal', () => simulateDamageOrHeal(), () => /HP$/.test($('hpText').textContent));
   step('bonus', () => claimBonus(), () => /^\$/.test($('hudMoney').textContent));
   step('chat mode 1', () => cycleChatMode(), () => $('gameHud').dataset.chat === '1');

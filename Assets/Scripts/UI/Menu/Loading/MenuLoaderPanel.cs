@@ -92,9 +92,9 @@ namespace Kern.UI.Menu
             _progress?.ShowFailure(loc.Get("menu.loading.failed", exception.Message));
         }
 
-        public void UpdateProgress(WorldLoadPhase phase, Action onDone)
+        public void UpdateProgress(WorldLoadPhase phase, AssetSyncProgress assetSync, Action onDone)
         {
-            _progress?.UpdateProgress(phase);
+            _progress?.UpdateProgress(phase, assetSync);
 
             if (phase == WorldLoadPhase.Done && !_hiddenAtDone)
             {

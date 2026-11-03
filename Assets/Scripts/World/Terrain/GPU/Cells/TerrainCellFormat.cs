@@ -2,7 +2,7 @@
 
 namespace Kern.World.Terrain;
 
-// Зеркало Assets/Shaders/Terrain/Cells/TerrainCellFormat.hlsl — только данные.
+// Зеркало Assets/Shaders/Terrain/Cells/Format/TerrainCellFormat.hlsl — только данные.
 // Источник правды — шейдер: имя здесь — имя оттуда без KERN_TERRAIN_ в
 // PascalCase, значение то же. TerrainCellFormatMirrorTests читает HLSL и
 // роняет сборку, если хоть одна константа разошлась или пропала.
@@ -24,16 +24,15 @@ public static class TerrainCellFormat
     public const uint TypeOpaqueAny = 1u << 5;
     public const int TypeTextureAnchorShift = 6;
     public const int TypeOutlineShift = 7;
-    public const int TypeAnimationTypeShift = 10;
-    public const int TypeSurfaceEffectShift = 12;
-    public const int TypeSurfaceEffectPaletteShift = 14;
-    public const uint TypeSurfaceEffectPaletteMask = 7u;
-    public const int TypeDecalAtlasShift = 17;
+    public const int TypeAnimationTypeShift = 19;
+    public const int TypeAnimationPaletteShift = 14;
+    public const uint TypeAnimationPaletteMask = 7u;
+    public const int TypeDecalTextureIndexShift = 23;
+    public const uint TypeDecalTextureIndexMask = 0xFFu;
 
     public const int TypeGlowShift = 16;
 
-    // Правило декали.
-    public const int DecalRuleSeedShift = 7;
+    public const uint DecalPlacementPercent = 20u;
 
     // Код декали клетки.
     public const uint DecalVariants = 16u;

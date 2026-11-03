@@ -1,9 +1,9 @@
 #nullable enable
 
-using System.Linq;
+using System;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
-using Kern.Core.Interfaces;
 using Kern.World;
 using Kern.World.Terrain;
 using MinesServer.Data;
@@ -14,6 +14,15 @@ namespace Kern.TerrainTests;
 [TestFixture]
 public sealed class TerrainDecalCatalogTests
 {
+    private const string GroundTexture = "Visual/World/Terrain/Decals/terrain-decals.png";
+    private const string RockTexture = "Visual/World/Terrain/Decals/terrain-decals-rock.png";
+
+    [SetUp]
+    public void ConfigureCatalog() => TerrainDecalCatalog.Configure(new[] { GroundTexture, RockTexture });
+
+    [TearDown]
+    public void ClearCatalog() => TerrainDecalCatalog.Configure(Array.Empty<string>());
+
     [Test]
     public void PlacementValuesRemainExactInHalfPrecision()
     {
@@ -24,27 +33,23 @@ public sealed class TerrainDecalCatalogTests
     }
 
     [Test]
-    public void PublishedAtlasNamesCoverEveryFamily()
+    public void CatalogRegistersOnlyConfiguredTextureNames()
     {
-        Assert.That(TerrainDecalAssets.Contains(TerrainDecalAssets.Ground), Is.True);
-        Assert.That(TerrainDecalAssets.Contains(TerrainDecalAssets.Rock.ToUpperInvariant()), Is.True);
-        Assert.That(TerrainDecalAssets.Contains(TerrainDecalAssets.Sand), Is.True);
-        Assert.That(TerrainDecalAssets.Contains("terrain-decals-other.png"), Is.False);
+        Assert.That(TerrainDecalCatalog.GetTextureNames(), Is.EqualTo(new[] { GroundTexture, RockTexture }));
+        Assert.That(TerrainDecalCatalog.TextureIndex(GroundTexture), Is.EqualTo(1));
+        Assert.That(TerrainDecalCatalog.TextureIndex(RockTexture), Is.EqualTo(2));
+        Assert.That(TerrainDecalCatalog.TextureIndex(null), Is.Zero);
+        Assert.Throws<InvalidDataException>(() => TerrainDecalCatalog.TextureIndex("Visual/World/Terrain/Decals/terrain-decals-other.png"));
     }
 
     [Test]
-    public void EachPublishedAtlasHasOneExistingStagingSource()
+    public void EachConfiguredAtlasHasOneExistingStagingSource()
     {
-        DirectoryInfo? root = new DirectoryInfo(System.AppContext.BaseDirectory);
-        while (root != null && !File.Exists(Path.Combine(root.FullName, "Assets/Settings/Build/Textures/TextureStagingCatalog.json")))
-        {
-            root = root.Parent;
-        }
-
+        DirectoryInfo? root = FindProjectRoot();
         Assert.That(root, Is.Not.Null, "Project root was not found.");
         using JsonDocument catalog = JsonDocument.Parse(File.ReadAllText(
-            Path.Combine(root!.FullName, "Assets/Settings/Build/Textures/TextureStagingCatalog.json")));
-        foreach (string name in new[] { TerrainDecalAssets.Ground, TerrainDecalAssets.Rock, TerrainDecalAssets.Sand })
+            Path.Combine(root!.FullName, "Assets/Settings/Build/Textures/TextureDeliveryCatalog.json")));
+        foreach (string name in TerrainDecalCatalog.GetTextureNames())
         {
             JsonElement[] entries = catalog.RootElement.GetProperty("Entries").EnumerateArray()
                 .Where(entry => entry.GetProperty("Published").GetString() == name).ToArray();
@@ -54,84 +59,54 @@ public sealed class TerrainDecalCatalogTests
         }
     }
 
-    // Семья — из cells.json. Камень — только красно- и черноскал: атлас
-    // нарисован под их гамму.
-    [TestCase(CellType.Empty, CellDecalAtlas.Ground)]
-    [TestCase(CellType.WorldEdge, CellDecalAtlas.Rock)]
-    [TestCase(CellType.RedRock, CellDecalAtlas.Rock)]
-    [TestCase(CellType.BlackRock, CellDecalAtlas.Rock)]
-    [TestCase(CellType.Rock, CellDecalAtlas.None)]
-    [TestCase(CellType.WhiteSand, CellDecalAtlas.Sand)]
-    [TestCase(CellType.BlackSand, CellDecalAtlas.Sand)]
-    [TestCase(CellType.DarkBlueSand, CellDecalAtlas.Sand)]
-    [TestCase(CellType.Road, CellDecalAtlas.None)]
-    [TestCase(CellType.Lava, CellDecalAtlas.None)]
-    [TestCase(CellType.BuildingWall, CellDecalAtlas.None)]
-    public void Decal_ComesFromCellConfig(CellType cellType, CellDecalAtlas expected)
+    [TestCase(CellType.Empty, GroundTexture)]
+    [TestCase(CellType.WorldEdge, RockTexture)]
+    [TestCase(CellType.RedRock, RockTexture)]
+    [TestCase(CellType.BlackRock, RockTexture)]
+    [TestCase(CellType.Rock, null)]
+    [TestCase(CellType.WhiteSand, null)]
+    public void DecalTextureComesFromCellConfiguration(CellType cellType, string? expected)
     {
-        Assert.That(BlockRegistry.Get(cellType).DecalAtlas, Is.EqualTo(expected));
-    }
-
-    [Test]
-    public void AllSandTypesUseSandDecals()
-    {
-        foreach (CellType type in System.Enum.GetValues<CellType>().Where(type => type != CellType.MilitaryBlockSand && type.ToString().EndsWith("Sand", System.StringComparison.Ordinal)))
-        {
-            Assert.That(BlockRegistry.Get(type).DecalAtlas, Is.EqualTo(CellDecalAtlas.Sand), type.ToString());
-        }
-
-        Assert.That(BlockRegistry.Get(CellType.MilitaryBlockSand).DecalAtlas, Is.EqualTo(CellDecalAtlas.None));
-    }
-
-    [Test]
-    public void RuleOf_FollowsTheDrawnTypeFamily()
-    {
-        Assert.That(TerrainDecalCatalog.RuleOf(BlockRegistry.Get(CellType.Empty).DecalAtlas), Is.EqualTo(TerrainDecalCatalog.GroundRule));
-        Assert.That(TerrainDecalCatalog.RuleOf(BlockRegistry.Get(CellType.RedRock).DecalAtlas), Is.EqualTo(TerrainDecalCatalog.RockRule));
-        Assert.That(TerrainDecalCatalog.RuleOf(BlockRegistry.Get(CellType.BlackRock).DecalAtlas), Is.EqualTo(TerrainDecalCatalog.RockRule));
-        Assert.That(TerrainDecalCatalog.RuleOf(BlockRegistry.Get(CellType.WhiteSand).DecalAtlas), Is.EqualTo(TerrainDecalCatalog.GroundRule));
-        Assert.That(TerrainDecalCatalog.RuleOf(BlockRegistry.Get(CellType.Rock).DecalAtlas), Is.EqualTo(default(TerrainDecalRule)));
-        Assert.That(TerrainDecalCatalog.RuleOf(BlockRegistry.Get(CellType.Road).DecalAtlas), Is.EqualTo(default(TerrainDecalRule)));
+        Assert.That(BlockRegistry.Get(cellType).DecalTextureName, Is.EqualTo(expected));
     }
 
     [Test]
     public void Place_IsDeterministicAndSparse()
     {
-        int ground = 0;
-        int rock = 0;
-        const int sampleSize = 4096;
-        for (int i = 0; i < sampleSize; i++)
+        byte textureIndex = TerrainDecalCatalog.TextureIndex(RockTexture);
+        int placedCount = 0;
+        const int SampleSize = 4096;
+        for (int i = 0; i < SampleSize; i++)
         {
-            int first = TerrainDecalCatalog.Place(TerrainDecalCatalog.RockRule, i, i * 17);
-            Assert.That(TerrainDecalCatalog.Place(TerrainDecalCatalog.RockRule, i, i * 17), Is.EqualTo(first));
-            Assert.That(first, Is.InRange(0, 2048), "код размещения не содержит семейство");
-            rock += first > 0 ? 1 : 0;
-            ground += TerrainDecalCatalog.Place(TerrainDecalCatalog.GroundRule, i, i * 17) > 0 ? 1 : 0;
+            int first = TerrainDecalCatalog.Place(textureIndex, i, i * 17);
+            Assert.That(TerrainDecalCatalog.Place(textureIndex, i, i * 17), Is.EqualTo(first));
+            Assert.That(first, Is.InRange(0, 2048), "placement code exceeds the packed cell field");
+            placedCount += first > 0 ? 1 : 0;
         }
 
-        Assert.That(rock, Is.InRange(sampleSize * 26 / 100, sampleSize * 34 / 100));
-        Assert.That(ground, Is.InRange(sampleSize * 20 / 100, sampleSize * 28 / 100));
+        Assert.That(placedCount, Is.InRange(SampleSize * 18 / 100, SampleSize * 22 / 100));
     }
 
     [Test]
-    public void Place_EmptyRuleNeverPlaces()
+    public void Place_ZeroTextureNeverPlaces()
     {
         for (int i = 0; i < 1024; i++)
         {
-            Assert.That(TerrainDecalCatalog.Place(default, i, -i), Is.Zero);
+            Assert.That(TerrainDecalCatalog.Place(0, i, -i), Is.Zero);
         }
     }
 
     [Test]
     public void Place_GroundUsesAllVariantsAndOffsets()
     {
+        byte textureIndex = TerrainDecalCatalog.TextureIndex(GroundTexture);
         bool[] variants = new bool[TerrainDecalCatalog.VariantCount];
         bool[] offsetsX = new bool[4];
         bool[] offsetsY = new bool[4];
 
         for (int i = 0; i < 20000; i++)
         {
-            int packed = TerrainDecalCatalog.Place(TerrainDecalCatalog.GroundRule, i, i * 37);
+            int packed = TerrainDecalCatalog.Place(textureIndex, i, i * 37);
             if (packed == 0)
             {
                 continue;
@@ -146,5 +121,16 @@ public sealed class TerrainDecalCatalogTests
         Assert.That(variants.All(value => value), Is.True);
         Assert.That(offsetsX.All(value => value), Is.True);
         Assert.That(offsetsY.All(value => value), Is.True);
+    }
+
+    private static DirectoryInfo? FindProjectRoot()
+    {
+        DirectoryInfo? root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !File.Exists(Path.Combine(root.FullName, "Assets/Settings/Build/Textures/TextureDeliveryCatalog.json")))
+        {
+            root = root.Parent;
+        }
+
+        return root;
     }
 }

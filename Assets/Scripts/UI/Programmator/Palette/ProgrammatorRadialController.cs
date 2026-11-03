@@ -15,14 +15,13 @@ namespace Kern.UI.Programmator;
 // list directly. Insertion rules are unchanged from the radial menu era: a
 // palette item click or a joystick pick writes the operator into the target
 // cell and closes the menu.
-internal sealed class ProgrammatorRadialController : IDisposable
+internal sealed class ProgrammatorRadialController
 {
     private readonly UIDocument _doc;
     private readonly Action<int, int> _updateCell;
     private readonly ProgrammatorPalette _palette;
     private readonly ObserverJoystick _joystick;
     private readonly ProgrammatorData _data;
-    private readonly IProgrammatorTextureCatalog _textures;
 
     private bool _shown;
     private int _cellIndex = -1;
@@ -42,7 +41,6 @@ internal sealed class ProgrammatorRadialController : IDisposable
         _doc = doc ?? throw new ArgumentNullException(nameof(doc));
         _updateCell = updateCell ?? throw new ArgumentNullException(nameof(updateCell));
         _data = data ?? throw new ArgumentNullException(nameof(data));
-        _textures = textures ?? throw new ArgumentNullException(nameof(textures));
 
         _palette = new ProgrammatorPalette(loc, textures, doc);
         _palette.OnOperatorClicked += OnPaletteOperatorClicked;
@@ -51,17 +49,6 @@ internal sealed class ProgrammatorRadialController : IDisposable
 
         _joystick = new ObserverJoystick(textures);
         _joystick.OnOperatorSelected += OnJoystickOperatorSelected;
-
-        // Серверные иконки догружаются асинхронно — палитра статична, поэтому
-        // перевыставляем глифы по событию каталога.
-        _textures.ServerTexturesChanged += OnServerTexturesChanged;
-    }
-
-    private void OnServerTexturesChanged() => _palette.RefreshServerIcons();
-
-    public void Dispose()
-    {
-        _textures.ServerTexturesChanged -= OnServerTexturesChanged;
     }
 
     public bool IsShown => _shown;

@@ -30,6 +30,8 @@ public sealed class GameManagerTests
             null!,
             null!,
             null!,
+            null!,
+            null!,
             null!);
         GameState? observedState = null;
         manager.OnGameStateChanged += _ => throw new InvalidOperationException("observer failed");

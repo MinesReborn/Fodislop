@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using Kern.Core.Interfaces;
 using Kern.Core.Localization;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -163,6 +164,34 @@ internal sealed class WorldMapPanel : IDisposable
             : total > 0
                 ? localization.Get("hud.map_preparing_progress", (int)(100f * progress / total))
                 : localization.Get("hud.map_preparing");
+    }
+
+    public void UpdatePlayerMarker(
+        ILocalPlayer? player,
+        float viewCenterX,
+        float viewCenterY,
+        float cellsPerPixel,
+        int texWidth,
+        int texHeight,
+        bool blinkVisible)
+    {
+        if (player is { HasServerPosition: true })
+        {
+            Vector2Int position = player.Position;
+            UpdatePlayerMarker(
+                position.x,
+                position.y,
+                viewCenterX,
+                viewCenterY,
+                cellsPerPixel,
+                texWidth,
+                texHeight,
+                blinkVisible);
+        }
+        else
+        {
+            HidePlayerMarker();
+        }
     }
 
     public void UpdatePlayerMarker(

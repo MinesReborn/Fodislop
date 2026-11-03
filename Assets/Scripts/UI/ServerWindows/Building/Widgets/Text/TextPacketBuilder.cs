@@ -1,6 +1,8 @@
 #nullable enable
 
 using System;
+using Kern.Networking.Protocol;
+using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -8,6 +10,12 @@ using UnityEngine.UIElements;
 namespace Kern.UI.ServerWindows;
 public class TextPacketBuilder : PacketUIBuilderBase<TextPacket>
 {
+    internal static bool IsCloseAction(IGUIComponentPacket packet) =>
+        string.Equals(
+            AttachedProperties.Find(packet, ServerWindowActionMetadata.ActionKey),
+            ServerWindowActionMetadata.CloseActionValue,
+            StringComparison.Ordinal);
+
     protected override VisualElement BuildTyped(TextPacket packet, PacketUIBuilder builder)
     {
         if (!string.IsNullOrEmpty(packet.OnClickContext))
@@ -37,11 +45,11 @@ public class TextPacketBuilder : PacketUIBuilderBase<TextPacket>
         if (leftAligned)
         {
             label.text = packet.Text[2..];
-            label.style.unityTextAlign = TextAnchor.MiddleLeft;
+            label.AddToClassList("packet-text--left");
         }
         else
         {
-            label.style.unityTextAlign = TextAnchor.MiddleCenter;
+            label.AddToClassList("packet-text--center");
         }
 
         return label;

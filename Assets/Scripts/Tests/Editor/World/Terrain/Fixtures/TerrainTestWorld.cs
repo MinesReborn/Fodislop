@@ -130,11 +130,16 @@ public sealed class TerrainTestWorld
 
         public CellConfigurationPacket GetCellConfig(CellType type)
         {
-            CellConfigProperties properties = type switch
+            CellRenderLayer drawLayer = type switch
             {
-                CellType.Empty or CellType.Road => CellConfigProperties.Passable,
-                CellType.BuildingDoor => CellConfigProperties.Passable,
-                _ => CellConfigProperties.DropsShadow,
+                CellType.Empty or CellType.Road or CellType.BuildingDoor => CellRenderLayer.Background,
+                _ => CellRenderLayer.Foreground,
+            };
+            CellOutlineKind outline = type switch
+            {
+                CellType.Rock => CellOutlineKind.Wavy,
+                CellType.BuildingWall or CellType.BuildingDoor => CellOutlineKind.Rigid,
+                _ => CellOutlineKind.Pliant,
             };
             byte reliefGroup = type switch
             {
@@ -143,9 +148,10 @@ public sealed class TerrainTestWorld
                 _ => 0,
             };
             return CellPacket.Create(
-                properties,
-                mapColor: unchecked((int)0xFF204060),
-                reliefGroup: reliefGroup);
+                drawLayer: drawLayer,
+                outline: outline,
+                reliefGroup: reliefGroup,
+                mapColor: unchecked((int)0xFF204060));
         }
 
         public float GetMoveCooldown(CellType cellType) => 0f;
@@ -169,11 +175,19 @@ public sealed class TerrainTestWorld
 
         public Color32 GetCellMinimapColor32(CellType type) => new(64, 89, 115, 255);
 
+        public bool TryGetAudioBanks(out IReadOnlyList<AssetsDefinitionPacket> banks)
+        {
+            banks = Array.Empty<AssetsDefinitionPacket>();
+            return false;
+        }
+
         public void UpdateMovementSpeeds(MovementSpeedPacket packet) =>
             throw new NotSupportedException();
 
         public void LoadWorldInit(WorldInitPacket packet) => throw new NotSupportedException();
 
+        public bool IsSameWorld(WorldInitPacket packet) => false;
+        public void ApplyWorldContent(WorldInitPacket packet) { }
         public void ResetWorldState() => throw new NotSupportedException();
     }
 
@@ -182,7 +196,7 @@ public sealed class TerrainTestWorld
         public bool DoorTextureReady { get; set; } = true;
         public bool RoadTextureReady { get; set; } = true;
 
-        public event Action<string, Texture2D>? OnTextureLoaded
+        public event Action<CellType, Texture2D>? OnTextureLoaded
         {
             add { }
             remove { }
@@ -195,14 +209,18 @@ public sealed class TerrainTestWorld
         }
 
         public int PendingCellTextureRequests => 0;
+        public bool IsWorldAssetsReady => true;
 
         public Texture2D? PrismaticFlowMapTexture => null;
 
         public Texture2D? FlowMapTexture => null;
 
-        public Texture2D? TerrainDecalAtlasTexture => null;
-        public Texture2D? TerrainDecalRockAtlasTexture => null;
-        public Texture2D? TerrainDecalSandAtlasTexture => null;
+        public Texture2DArray? TerrainDecalAtlasArray => null;
+        public void UpdateWorldAssets(
+            IReadOnlyList<AssetsDefinitionPacket> assetManifest) { }
+
+        public void LoadWorldAssets(
+            IReadOnlyList<AssetsDefinitionPacket> assetManifest) { }
 
         public void RequestTexture(CellType cellType)
         {

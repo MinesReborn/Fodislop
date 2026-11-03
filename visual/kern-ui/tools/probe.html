@@ -1,13 +1,13 @@
-<!doctype html>
-<!-- Проба вычисленных стилей: ?page=…&sel=…&props=a,b — пишет значения в title -->
-<html><head><meta charset="utf-8"></head><body style="margin:0"><iframe id="f" style="border:0;width:1920px;height:1080px"></iframe>
+<!doctype html><meta charset="utf-8"><title>probe: …</title><pre id="log"></pre>
 <script>
-const q = new URLSearchParams(location.search), f = document.getElementById('f');
-f.onload = () => setTimeout(() => {
-  const d = f.contentDocument, el = d.querySelector(q.get('sel'));
-  if (!el) { document.title = 'NO ELEMENT'; return; }
-  const cs = f.contentWindow.getComputedStyle(el);
-  document.title = q.get('props').split(',').map(p => p + '=' + cs.getPropertyValue(p)).join(' | ');
-}, 800);
-f.src = q.get('page');
-</script></body></html>
+// Замер одной сцены: загрузка, мир, кадр, переключение устройства, проход проверки
+const T0 = performance.now(), t = [], mark = k => t.push(k + ' ' + Math.round(performance.now() - T0));
+const f = document.createElement('iframe'); f.style.cssText = 'width:1800px;height:1400px;border:0;position:absolute;left:-9999px';
+f.src = '../index.html?screen=game&state=busy&device=d1080&still=1'; document.body.append(f);
+f.onload = async () => { const w = f.contentWindow, d = f.contentDocument; mark('load');
+  await w.document.fonts.ready; mark('fonts'); await w.kernWorld.ready; mark('world');
+  await new Promise(r => w.requestAnimationFrame(() => w.requestAnimationFrame(r))); mark('2raf');
+  w.kernStand.device('promax'); mark('device'); d.body.getBoundingClientRect(); d.querySelector('#frame').offsetHeight; mark('layout');
+  let n = 0; for (const el of d.querySelectorAll('#frame *')) { w.getComputedStyle(el).overflow; el.getBoundingClientRect(); n++; } mark('scan ' + n);
+  document.getElementById('log').textContent = t.join('\n'); document.title = 'probe: ok'; };
+</script>

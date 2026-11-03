@@ -1,7 +1,7 @@
 Shader "Kern/World Entity"
 {
     // Sprite shader for everything rendered through WorldEntityBatchRenderer
-    // (robots, buildings, tentacles, pooled VFX, chat bubbles). Identical in
+    // (robots, buildings, tentacles, pooled visual effects, chat bubbles). Identical in
     // look and blending to Sprites/Default, plus one addition: the fragment
     // samples the global _WorldLightTexture radiance field at its world
     // position and multiplies, so world entities finally receive the same

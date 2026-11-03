@@ -1,8 +1,8 @@
 /* Kern UI — токены. Все размеры заданы для эталонного кадра высотой 1080 px
    (Kern PanelSettings: 1920×1080, масштаб по высоте); стенд масштабирует кадр целиком.
 
-   Образ — Kern, «ядро»: шахта, за которую воюют кланы и работают роботы по коду. Интерфейс — приборная панель бюро
-   глубокого бурения: базальт, волосяные линии, засечки, индексы, один оранжевый сигнал бура.
+   Образ — Kern, «ядро»: шахта, за которую воюют кланы и работают роботы по коду. Вид элемента решает автор информации —
+   четыре системы (Робот, Руки, Дело, Сеть, css/systems.css); общее у всех — базальт, волосяные линии, срез угла, один сигнал.
 
    Три слоя:
    1. Палитра — каналы RGB (--rgb-*). Из них собираются и сплошные цвета, и прозрачные:
@@ -68,7 +68,7 @@
   --smoke: #575372;              /* третичный, неактивный */
   --on-bright: var(--well-solid);/* текст на цветной плашке данных */
 
-  /* Сигнал — оранжевый бура (активное, выбранное, основное действие) */
+  /* Сигнал — оранжевый: только главное действие и тревога. Выбранное и включённое — кость (systems.css) */
   --signal: rgb(var(--rgb-signal));
   --signal-hover: #ff7a45;
   --signal-soft: rgb(var(--rgb-signal) / .14);
@@ -91,6 +91,21 @@
   --money: var(--ok);
   --creds: #e8e27a;
   --cry-g: #4fe885; --cry-r: #ff6f86; --cry-b: #7a8cff; --cry-v: #ee6fe0; --cry-w: #eceaf8; --cry-c: #4fe6f0;
+
+  /* Цвета данных макета: пороги груза, навыки, программатор и события */
+  --cargo-low: #9aa3a9; --cargo-low-fill: #7e878d;
+  --cargo-normal: #79d98a; --cargo-normal-fill: #5cc46f;
+  --cargo-warn: #ffe066; --cargo-warn-fill: #e8c845; --cargo-warn-line: #b3801f;
+  --cargo-high: #ff9d5c; --cargo-high-fill: #f59048; --cargo-danger-line: #b3002a;
+  --cargo-danger: #ff6b5e; --cargo-danger-fill: #e65959;
+  --skill-dig: #ffff00; --skill-mining: #ff6600; --skill-move: #00ffe6; --skill-defense: #ff00ff;
+  --skill-road: #aeb8c0; --skill-green: #5bcc7a; --skill-yellow: #f2c037; --skill-red: #ff5f5f;
+  --skill-cooling: #5a9bff; --skill-road-move: #c99b4f; --skill-pack: #b07cff;
+  --skill-blue-pack: #6f8cff; --skill-cyan-pack: #45d3e6; --skill-red-pack: #ff7a7a; --skill-preview: #58ced3;
+  --prog-control: #e4e8ea; --prog-action: #f2d64b; --prog-observer: #45d3e6; --prog-condition: #79d98a; --prog-memory: #e07ae0;
+  --event-mining: #ffa500; --event-xp: #00c800;
+  --build-military: #4bc4e0; --build-road: #aeb8c0; --build-block: #5bcc7a; --build-support: #ebeff2;
+  --map-background: #05070a; --map-grid: rgb(228 232 234 / .08);
 
   /* Метки карты */
   --mark-clan: var(--live);
@@ -147,12 +162,12 @@
   --margin: var(--sp-12);  /* поле экрана */
   --col: 264px;            /* левая колонка — одна ширина для всех блоков */
 
-  /* Скругления — форма прямая; круг остаётся только у круглых по смыслу (навык, стик) */
+  /* Скругления — форма прямая, все ступени 0; круг остаётся только у круглых по смыслу (навык, стик, кнопки геймпада) */
   --r-xs: 0px;
-  --r-s: 1px;
-  --radius: 2px;
-  --r-l: 2px;
-  --r-pill: 2px;
+  --r-s: 0px;
+  --radius: 0px;
+  --r-l: 0px;
+  --r-pill: 0px;
   --r-round: 50%;
 
   /* Размеры элементов — фиксированная шкала */
@@ -185,11 +200,9 @@
     linear-gradient(var(--tick-c), var(--tick-c)) left bottom / 1px var(--tick) no-repeat,
     linear-gradient(var(--tick-c), var(--tick-c)) right bottom / var(--tick) 1px no-repeat,
     linear-gradient(var(--tick-c), var(--tick-c)) right bottom / 1px var(--tick) no-repeat;
-  /* Штрих-код — метка в нижнем правом углу крупных панелей */
-  --barcode: repeating-linear-gradient(90deg, var(--tick-c) 0 1px, transparent 1px 3px, var(--tick-c) 3px 5px, transparent 5px 6px, var(--tick-c) 6px 7px, transparent 7px 10px)
-    right 14px bottom 3px / 38px 3px no-repeat;
-  /* Диагональ среза — та же волосяная линия */
-  --notch-line: linear-gradient(225deg, transparent calc(var(--notch) * .7071 - 1px), var(--seam-strong) calc(var(--notch) * .7071 - 1px) calc(var(--notch) * .7071), transparent calc(var(--notch) * .7071));
+  /* Диагональ среза — той же линией, что рамка: цвет --notch-edge. Значение собирается там, где задан --notch-edge (.panel в micro.css),
+     иначе var() разрешится здесь, на :root. Полоса заходит за линию среза, чтобы обрезка оставила ровно 1 px без размытой кромки снаружи */
+  --notch-line: linear-gradient(225deg, transparent calc(var(--notch) * .7071 - 1px), var(--seam) calc(var(--notch) * .7071 - 1px) calc(var(--notch) * .7071 + 1px), transparent calc(var(--notch) * .7071 + 1px));
   --notch-clip: polygon(0 0, calc(100% - var(--notch)) 0, 100% var(--notch), 100% 100%, 0 100%);
   /* Штриховка пустого: косые волосяные полосы через 4 px */
   --hatch: repeating-linear-gradient(135deg, rgb(var(--rgb-bone) / .1) 0 1px, transparent 1px 4px);
@@ -198,6 +211,10 @@
   --dots: radial-gradient(rgb(var(--rgb-bone) / .09) 1px, transparent 1.2px) 0 0 / 16px 16px;
   /* Зерно — статичный шум, как у выдавленного металла */
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .85 0 0 0 0 .84 0 0 0 0 .93 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  /* Углубление — то, куда вводят или кладут: тёмное поле и тонкая тень по верху, без отсвета и скоса (скос читается как Windows 95) */
+  --press: inset 0 1px 0 rgb(var(--rgb-black) / .5);
+  --notch-btn-clip: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
 
   /* Слои кадра */
   --z-pad: 4;        /* подсказки геймпада */

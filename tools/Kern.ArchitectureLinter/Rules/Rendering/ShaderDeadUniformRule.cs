@@ -1,3 +1,5 @@
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Kern.ArchitectureLinter.Core;
 using Kern.ArchitectureLinter.Scanning;
 using Mono.Cecil;
@@ -78,6 +80,7 @@ public sealed class ShaderDeadUniformRule : IRule
         // locals and function bodies must not count as globals. CBUFFER_START
         // blocks use macros (no braces), so their members stay at depth 0.
         var declarations = new Dictionary<string, (string File, int Line)>(StringComparer.Ordinal);
+        var constants = new HashSet<string>(StringComparer.Ordinal);
         foreach (var (relative, code, rawLines) in sources)
         {
             int depth = 0;
@@ -89,7 +92,14 @@ public sealed class ShaderDeadUniformRule : IRule
                 {
                     Match uniform = UniformRegex.Match(line);
                     if (uniform.Success)
-                        Record(declarations, uniform.Groups[1].Value, relative, index + 1);
+                    {
+                        string name = uniform.Groups[1].Value;
+                        Record(declarations, name, relative, index + 1);
+                        if (Regex.IsMatch(uniform.Value, @"\bconst\b"))
+                        {
+                            constants.Add(name);
+                        }
+                    }
                     else
                     {
                         Match resource = ResourceRegex.Match(line);
@@ -108,13 +118,32 @@ public sealed class ShaderDeadUniformRule : IRule
             }
         }
 
+        // Индексирование таблицы констант из C# — чтение контракта шейдера.
+        // Строки в комментариях и сообщениях не являются такими ссылками.
+        var hostReads = new HashSet<string>(StringComparer.Ordinal);
+        foreach (string file in CSharpSourceFiles.EnumerateAllCsFiles(
+            Path.Combine(context.ProjectRoot, "Assets/Scripts"),
+            Path.Combine(context.ProjectRoot, "Assets/Editor")))
+        {
+            var root = CSharpSyntaxTree.ParseText(File.ReadAllText(file)).GetRoot();
+            foreach (ElementAccessExpressionSyntax access in root.DescendantNodes().OfType<ElementAccessExpressionSyntax>())
+            {
+                if (access.ArgumentList.Arguments.Count == 1 &&
+                    access.ArgumentList.Arguments[0].Expression is LiteralExpressionSyntax literal &&
+                    literal.RawKind == (int)SyntaxKind.StringLiteralExpression)
+                {
+                    hostReads.Add(literal.Token.ValueText);
+                }
+            }
+        }
+
         string haystack = string.Join("\n", sources.Select(s => s.Code));
         foreach (var (name, place) in declarations)
         {
             if (name.Length < 3)
                 continue;
             int uses = Regex.Matches(haystack, $@"(?<!\w){Regex.Escape(name)}(?!\w)").Count;
-            if (uses <= 1)
+            if (uses <= 1 && !(constants.Contains(name) && hostReads.Contains(name)))
             {
                 violations.Add(new RuleViolation
                 {

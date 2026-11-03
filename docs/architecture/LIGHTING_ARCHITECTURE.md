@@ -267,9 +267,9 @@ and the receiver rule: every non-physical terrain surface receives AO, while
 physical foreground mass does not darken itself. AO uses one spatial source:
 the contact falloff field, sampled once at the receiver's transformed world position.
 That field is rasterized from the same displaced cell geometry as the visible
-terrain, including organic bends. AO occupancy follows the cell polygon and does
-not sample atlas alpha: transparent pixels affect visible coverage, but they do
-not create extra AO geometry. The cell-neighbor mask is not combined into AO, so
+terrain, including organic bends. AO occupancy follows the cell polygon and the
+same first-frame atlas alpha cutoff as the material field, so transparent parts
+of building cells do not cast contact occlusion. The cell-neighbor mask is not combined into AO, so
 nominal grid directions cannot add shadows at locations where displaced geometry
 no longer touches the receiver.
 
@@ -283,8 +283,8 @@ relief remain part of the material-field albedo as spatially stable inputs. The
 material/glow fragment rejects absent polygon coverage and atlas alpha before
 applying decals. Expanded raster carriers cannot publish albedo or decal glow
 outside the visible material silhouette.
-AO-field occupancy is independent of atlas frames and alpha, so animation or
-transparent texels cannot change static contact occupancy on a field rebuild.
+AO-field occupancy uses the authored first atlas frame, so time-varying animation
+does not change static contact occupancy on a field rebuild.
 
 The displaced silhouette has one geometric predicate in
 `TerrainGeometry.hlsl`: four corner vertices for regular cells, or those corners

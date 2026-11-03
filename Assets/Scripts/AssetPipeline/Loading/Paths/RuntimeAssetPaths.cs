@@ -1,268 +1,382 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using Kern.Core.Interfaces;
 using UnityEngine;
 using UnityEngine.Networking;
-using Kern.Core;
-
 
 namespace Kern.AssetPipeline.Loading;
-// Контракт IRuntimeAssetPaths находится в Kern.Contracts, а реализация
-// живёт рядом с потребителями asset pipeline.
+
 public sealed class RuntimeAssetPaths : IRuntimeAssetPaths
 {
-    private const string TexturesFolderName = "Textures";
-
+    private const string EmbeddedTexturesFolderName = "EmbeddedTextures";
+    private const string EmbeddedTextureManifestFilename = "EmbeddedTextures.manifest";
+    private const string DummyWorldTexturesFolderName = "DummyWorldTextures";
+    private const string DummyWorldTextureManifestFilename = "DummyWorldTextures.manifest";
+    private const string AudioFolderName = "Audio";
+    private const string AudioManifestFilename = "Audio.manifest";
+    private readonly string? _textureRootOverride;
 #if UNITY_EDITOR
-    private readonly Lazy<PublishedTextureSourceIndex> _authoredSources = new(() => new(
-        AuthoredTextureCatalog.Read(Path.Combine(
-            Application.dataPath, AuthoredTextureCatalog.AssetPath.Substring("Assets/".Length)))));
+    private readonly Lazy<TextureDeliveryCatalogData> _textureDeliveryCatalog = new(() =>
+        TextureDeliveryCatalog.Read(GetTextureDeliveryCatalogPath()));
 #endif
-
-    private string? _bundledTexturesRoot;
-    private readonly string? _bundledRootOverride;
-    private readonly string? _persistentRootOverride;
+    private IReadOnlyDictionary<string, byte[]> _textureBytes =
+        new Dictionary<string, byte[]>(StringComparer.Ordinal);
+    private IReadOnlyList<string> _embeddedTextureFilenames = Array.Empty<string>();
+    private IReadOnlyList<string> _dummyWorldTextureFilenames = Array.Empty<string>();
+    private IReadOnlyList<string> _audioBankFilenames = Array.Empty<string>();
+    private readonly SemaphoreSlim _ensureReadyGate = new(1, 1);
+    private bool _isReady;
+    private bool _audioBanksReady;
 
     public RuntimeAssetPaths()
     {
     }
 
-    public RuntimeAssetPaths(string bundledRoot, string persistentRoot)
+    public RuntimeAssetPaths(string textureRoot)
     {
-        _bundledRootOverride = bundledRoot ?? throw new ArgumentNullException(nameof(bundledRoot));
-        _persistentRootOverride = persistentRoot ?? throw new ArgumentNullException(nameof(persistentRoot));
+        _textureRootOverride = textureRoot ?? throw new ArgumentNullException(nameof(textureRoot));
     }
 
     public async UniTask EnsureReadyAsync()
     {
-#if UNITY_ANDROID && !UNITY_EDITOR
-        // Android: StreamingAssets лежат внутри APK, File.* их не видит — чтение
-        // идёт через UnityWebRequest, то есть с главного потока. Файловый
-        // ввод-вывод уходит в пул через RunOnThreadPool: он возвращает управление
-        // на главный поток, а `await File.WriteAllBytesAsync` — нет, и следующий
-        // виток цикла создавал бы UnityWebRequest уже с потока пула.
-        string extractedRoot = Path.Combine(
-            Application.persistentDataPath,
-            "BundledAssets",
-            TexturesFolderName);
-        string markerPath = Path.Combine(extractedRoot, ".manifest");
-        string manifest = await DownloadTextAsync(
-            CombineStreamingURI(Application.streamingAssetsPath, "Textures.manifest"));
-        if (!File.Exists(markerPath) ||
-            !string.Equals(
-                await UniTask.RunOnThreadPool(() => File.ReadAllText(markerPath)),
-                manifest,
-                System.StringComparison.Ordinal))
+        await _ensureReadyGate.WaitAsync();
+        try
         {
-            if (Directory.Exists(extractedRoot))
+            if (_isReady)
             {
-                Directory.Delete(extractedRoot, recursive: true);
+                return;
             }
 
-            Directory.CreateDirectory(extractedRoot);
-            string[] relativeFiles = manifest
-                .Split(new[] { '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries)
-                .Select(path => path.Trim())
-                .Where(path => path.Length > 0)
+            await LoadAssetsAsync();
+            _isReady = true;
+        }
+        finally
+        {
+            _ensureReadyGate.Release();
+        }
+    }
+
+    private async UniTask LoadAssetsAsync()
+    {
+        Dictionary<string, byte[]> loadedTextures = new(StringComparer.Ordinal);
+        IReadOnlyList<string> embeddedFilenames;
+        IReadOnlyList<string> dummyWorldFilenames;
+
+        if (_textureRootOverride != null)
+        {
+            string[] filenames = Directory.EnumerateFiles(
+                    _textureRootOverride,
+                    "*",
+                    SearchOption.AllDirectories)
+                .Select(path => Path.GetRelativePath(_textureRootOverride, path).Replace('\\', '/'))
+                .OrderBy(path => path, StringComparer.Ordinal)
                 .ToArray();
-            foreach (string relativeFile in relativeFiles)
+            await LoadFilesAsync(
+                filenames,
+                filename => Path.Combine(
+                    _textureRootOverride,
+                    filename.Replace('/', Path.DirectorySeparatorChar)),
+                loadedTextures);
+            embeddedFilenames = filenames;
+            dummyWorldFilenames = Array.Empty<string>();
+        }
+#if UNITY_EDITOR
+        else
+        {
+            string source = Path.Combine(Application.dataPath, "Textures");
+            embeddedFilenames = await LoadTextureGroupFromEditorAsync(
+                source,
+                _textureDeliveryCatalog.Value.Embedded,
+                loadedTextures);
+            dummyWorldFilenames = await LoadTextureGroupFromEditorAsync(
+                source,
+                _textureDeliveryCatalog.Value.DummyWorld,
+                loadedTextures);
+        }
+#else
+        else
+        {
+            embeddedFilenames = await LoadStreamingTextureGroupAsync(
+                EmbeddedTextureManifestFilename,
+                EmbeddedTexturesFolderName,
+                loadedTextures);
+            dummyWorldFilenames = await LoadStreamingTextureGroupAsync(
+                DummyWorldTextureManifestFilename,
+                DummyWorldTexturesFolderName,
+                loadedTextures);
+        }
+#endif
+
+        if (embeddedFilenames.Count == 0 && dummyWorldFilenames.Count == 0)
+        {
+            throw new InvalidDataException("The runtime texture manifest contains no textures.");
+        }
+
+        var allFilenames = new HashSet<string>(embeddedFilenames, StringComparer.OrdinalIgnoreCase);
+        foreach (string filename in dummyWorldFilenames)
+        {
+            if (!allFilenames.Add(filename))
             {
-                string destination = Path.Combine(
-                    extractedRoot,
-                    relativeFile.Replace('/', Path.DirectorySeparatorChar));
-                string? directory = Path.GetDirectoryName(destination);
-                if (directory == null)
+                throw new InvalidDataException(
+                    $"Texture path '{filename}' appears in both local texture groups.");
+            }
+        }
+
+        _textureBytes = AddExtensionlessAliases(loadedTextures);
+        _embeddedTextureFilenames = embeddedFilenames;
+        _dummyWorldTextureFilenames = dummyWorldFilenames;
+    }
+
+    public IReadOnlyList<string> GetEmbeddedTextureFilenames() => _embeddedTextureFilenames;
+
+    public IReadOnlyList<string> GetDummyWorldTextureFilenames() => _dummyWorldTextureFilenames;
+
+#if UNITY_EDITOR
+    private static string GetTextureDeliveryCatalogPath() => Path.Combine(
+        Application.dataPath,
+        TextureDeliveryCatalog.AssetPath.Substring("Assets/".Length));
+
+    private static async UniTask<IReadOnlyList<string>> LoadTextureGroupFromEditorAsync(
+        string source,
+        IReadOnlyDictionary<string, string> sourceToPublished,
+        Dictionary<string, byte[]> loadedTextures)
+    {
+        IReadOnlyDictionary<string, string> sourceByPublished = sourceToPublished
+            .ToDictionary(entry => entry.Value, entry => entry.Key, StringComparer.Ordinal);
+        string[] filenames = sourceByPublished.Keys
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+        await LoadFilesAsync(
+            filenames,
+            filename => Path.Combine(
+                source,
+                sourceByPublished[filename].Replace('/', Path.DirectorySeparatorChar)),
+            loadedTextures);
+        return filenames;
+    }
+#endif
+
+    private static async UniTask<IReadOnlyList<string>> LoadStreamingTextureGroupAsync(
+        string manifestFilename,
+        string folderName,
+        Dictionary<string, byte[]> loadedTextures)
+    {
+        string[] manifestLines = await ReadStreamingTextAsync(manifestFilename);
+        var filenameSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var filenames = new List<string>(manifestLines.Length);
+        foreach (string line in manifestLines)
+        {
+            string relativePath = line.Trim();
+            if (relativePath.Length == 0)
+            {
+                continue;
+            }
+
+            string filename = ValidateRelativePath(relativePath);
+            if (!filenameSet.Add(filename))
+            {
+                throw new InvalidDataException(
+                    $"Runtime texture manifest '{manifestFilename}' contains duplicate path '{filename}'.");
+            }
+
+            filenames.Add(filename);
+        }
+
+        filenames.Sort(StringComparer.Ordinal);
+        foreach (string filename in filenames)
+        {
+            byte[] bytes = await ReadStreamingBytesAsync($"{folderName}/{filename}");
+            if (!loadedTextures.TryAdd(filename, bytes))
+            {
+                throw new InvalidDataException(
+                    $"Texture path '{filename}' appears in more than one runtime texture manifest.");
+            }
+        }
+
+        return filenames;
+    }
+
+    public async UniTask<IReadOnlyList<string>> GetAudioBankFilenamesAsync()
+    {
+        await EnsureReadyAsync();
+        await _ensureReadyGate.WaitAsync();
+        try
+        {
+            if (!_audioBanksReady)
+            {
+                _audioBankFilenames = await LoadAudioBankFilenamesAsync();
+                _audioBanksReady = true;
+            }
+
+            return _audioBankFilenames;
+        }
+        finally
+        {
+            _ensureReadyGate.Release();
+        }
+    }
+
+    public byte[]? GetTextureBytes(string relativePath)
+    {
+        string validatedPath = ValidateRelativePath(relativePath);
+        return _textureBytes.TryGetValue(validatedPath, out byte[]? bytes) ? bytes : null;
+    }
+
+    public async UniTask<byte[]?> GetAudioBankBytesAsync(string relativePath)
+    {
+        string validatedPath = ValidateRelativePath(relativePath);
+        if (!validatedPath.StartsWith($"{AudioFolderName}/", StringComparison.Ordinal) ||
+            Path.GetExtension(validatedPath) != ".bank" ||
+            !(await GetAudioBankFilenamesAsync()).Contains(validatedPath, StringComparer.Ordinal))
+        {
+            return null;
+        }
+
+        return await ReadStreamingBytesAsync(validatedPath);
+    }
+
+    private static async UniTask<IReadOnlyList<string>> LoadAudioBankFilenamesAsync()
+    {
+#if UNITY_EDITOR
+        string audioRoot = Path.Combine(Application.streamingAssetsPath, AudioFolderName);
+        if (!Directory.Exists(audioRoot))
+        {
+            return Array.Empty<string>();
+        }
+
+        return Directory.EnumerateFiles(audioRoot, "*.bank", SearchOption.AllDirectories)
+            .Select(path =>
+                $"{AudioFolderName}/{Path.GetRelativePath(audioRoot, path).Replace('\\', '/')}")
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+#else
+        string manifestPath = $"{AudioFolderName}/{AudioManifestFilename}";
+        string[] manifestLines;
+        try
+        {
+            manifestLines = await ReadStreamingTextAsync(manifestPath);
+        }
+        catch (IOException)
+        {
+            return Array.Empty<string>();
+        }
+
+        return manifestLines
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0)
+            .Select(ValidateRelativePath)
+            .Where(filename => Path.GetExtension(filename) == ".bank")
+            .Select(filename => $"{AudioFolderName}/{filename}")
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(filename => filename, StringComparer.Ordinal)
+            .ToArray();
+#endif
+    }
+
+    private static async UniTask LoadFilesAsync(
+        IReadOnlyList<string> filenames,
+        Func<string, string> resolvePath,
+        Dictionary<string, byte[]> loadedTextures)
+    {
+        foreach (string filename in filenames.OrderBy(path => path, StringComparer.Ordinal))
+        {
+            string path = resolvePath(filename);
+            loadedTextures.Add(filename, await UniTask.RunOnThreadPool(() => File.ReadAllBytes(path)));
+        }
+    }
+
+    private static IReadOnlyDictionary<string, byte[]> AddExtensionlessAliases(
+        Dictionary<string, byte[]> textures)
+    {
+        var withAliases = new Dictionary<string, byte[]>(textures, StringComparer.Ordinal);
+        var usedPaths = new HashSet<string>(textures.Keys, StringComparer.OrdinalIgnoreCase);
+        foreach (KeyValuePair<string, byte[]> texture in textures.OrderBy(
+                     pair => pair.Key,
+                     StringComparer.Ordinal))
+        {
+            string extension = Path.GetExtension(texture.Key);
+            if (extension.Length > 0)
+            {
+                string alias = texture.Key[..^extension.Length];
+                if (!usedPaths.Add(alias) || !withAliases.TryAdd(alias, texture.Value))
                 {
                     throw new InvalidDataException(
-                        $"Bundled texture has no destination directory: {relativeFile}");
+                        $"Runtime textures share the extensionless alias '{alias}'.");
                 }
-
-                Directory.CreateDirectory(directory);
-                byte[] bytes = await DownloadBytesAsync(
-                    CombineStreamingURI(
-                        Application.streamingAssetsPath,
-                        $"Textures/{relativeFile}"));
-                await UniTask.RunOnThreadPool(() => File.WriteAllBytes(destination, bytes));
             }
-
-            await UniTask.RunOnThreadPool(() => File.WriteAllText(markerPath, manifest));
         }
 
-        _bundledTexturesRoot = extractedRoot;
-#else
-        await UniTask.CompletedTask;
-#endif
+        return withAliases;
     }
 
-    public string BundledTexturesRoot
+    private static string ValidateRelativePath(string relativePath)
     {
-        get
+        if (string.IsNullOrWhiteSpace(relativePath) ||
+            Path.IsPathRooted(relativePath) ||
+            relativePath.Contains('\\'))
         {
-            if (_bundledTexturesRoot != null)
-            {
-                return _bundledTexturesRoot;
-            }
-
-            _bundledTexturesRoot = ResolveBundledRoot();
-            return _bundledTexturesRoot;
-        }
-    }
-
-    public string PersistentTexturesRoot
-    {
-        get
-        {
-            string path = _persistentRootOverride ??
-                Path.Combine(Application.persistentDataPath, TexturesFolderName);
-            Directory.CreateDirectory(path);
-            return Path.GetFullPath(path);
-        }
-    }
-
-    public string? FindBundledTextureFile(string relativePath)
-    {
-        string normalized = NormalizeRelativePath(relativePath);
-#if UNITY_EDITOR
-        if (_bundledRootOverride == null)
-        {
-            string? source = _authoredSources.Value.Resolve(normalized);
-            return source == null ? null : FindCaseInsensitive(BundledTexturesRoot, source);
-        }
-#endif
-        return FindCaseInsensitive(BundledTexturesRoot, normalized);
-    }
-
-    public string? FindTextureFile(string relativePath)
-    {
-        string normalized = NormalizeRelativePath(relativePath);
-        return FindCaseInsensitive(PersistentTexturesRoot, normalized) ??
-            FindBundledTextureFile(normalized);
-    }
-
-    private string ResolveBundledRoot()
-    {
-        string candidate = _bundledRootOverride ?? (Application.isEditor
-            ? Path.Combine(Application.dataPath, TexturesFolderName)
-            : Path.Combine(Application.streamingAssetsPath, TexturesFolderName));
-        if (!Directory.Exists(candidate))
-        {
-            throw new DirectoryNotFoundException($"Required texture directory is missing: {candidate}");
+            throw new ArgumentException(
+                "Texture path must be a non-empty relative path using forward slashes.",
+                nameof(relativePath));
         }
 
-        return Path.GetFullPath(candidate);
-    }
-
-    private static string NormalizeRelativePath(string relativePath)
-    {
-        if (string.IsNullOrWhiteSpace(relativePath) || Path.IsPathRooted(relativePath))
-        {
-            throw new ArgumentException("Texture path must be a non-empty relative path.", nameof(relativePath));
-        }
-
-        string[] segments = relativePath.Replace('\\', '/').Split('/');
+        string[] segments = relativePath.Split('/');
         if (segments.Any(segment =>
                 string.IsNullOrWhiteSpace(segment) ||
-                segment == "." ||
-                segment == ".."))
+                segment is "." or ".."))
         {
-            throw new ArgumentException($"Texture path contains an invalid segment: '{relativePath}'.", nameof(relativePath));
+            throw new ArgumentException(
+                $"Texture path contains an invalid segment: '{relativePath}'.",
+                nameof(relativePath));
         }
 
-        return string.Join("/", segments);
+        return relativePath;
     }
 
-    private static string? FindCaseInsensitive(string root, string relativePath)
+    private static async UniTask<string[]> ReadStreamingTextAsync(string relativePath)
     {
-        string current = root;
-        string[] segments = relativePath.Split('/');
-        for (int index = 0; index < segments.Length; index++)
-        {
-            string segment = segments[index];
-            string exact = Path.Combine(current, segment);
-            if (!Directory.Exists(current))
-            {
-                return null;
-            }
-
-            bool isLeaf = index == segments.Length - 1;
-            // Do not trust File.Exists/Directory.Exists for the fast path:
-            // macOS commonly uses a case-insensitive volume and would then
-            // return the caller's spelling instead of the canonical on-disk
-            // spelling. Returning the actual directory entry keeps persistent
-            // and bundled paths stable across platforms.
-            string? match = Directory.EnumerateFileSystemEntries(current)
-                .FirstOrDefault(entry => string.Equals(
-                    Path.GetFileName(entry),
-                    segment,
-                    StringComparison.OrdinalIgnoreCase));
-            if (match == null && (File.Exists(exact) || Directory.Exists(exact)))
-            {
-                match = exact;
-            }
-            if (match == null && isLeaf && string.IsNullOrEmpty(Path.GetExtension(segment)))
-            {
-                match = Directory.EnumerateFiles(current)
-                    .Where(path => string.Equals(
-                        Path.GetFileNameWithoutExtension(path),
-                        segment,
-                        StringComparison.OrdinalIgnoreCase))
-                    .Where(path => TextureFilePriority(path) != int.MaxValue)
-                    .OrderBy(TextureFilePriority)
-                    .FirstOrDefault();
-            }
-
-            if (match == null)
-            {
-                return null;
-            }
-
-            current = match;
-        }
-
-        return File.Exists(current) ? current : null;
-    }
-
-    private static int TextureFilePriority(string path)
-    {
-        return Path.GetExtension(path).ToLowerInvariant() switch
-        {
-            ".png" => 0,
-            ".jpg" or ".jpeg" => 1,
-            ".exr" => 2,
-            _ => int.MaxValue,
-        };
-    }
-
 #if UNITY_ANDROID && !UNITY_EDITOR
-    private static async UniTask<string> DownloadTextAsync(string uri)
-    {
-        byte[] bytes = await DownloadBytesAsync(uri);
-        return System.Text.Encoding.UTF8.GetString(bytes);
+        byte[] bytes = await ReadStreamingBytesAsync(relativePath);
+        return System.Text.Encoding.UTF8.GetString(bytes).Split('\n');
+#else
+        string path = Path.Combine(
+            Application.streamingAssetsPath,
+            relativePath.Replace('/', Path.DirectorySeparatorChar));
+        return await UniTask.RunOnThreadPool(() => File.ReadAllLines(path));
+#endif
     }
 
-    private static async UniTask<byte[]> DownloadBytesAsync(string uri)
+    private static async UniTask<byte[]> ReadStreamingBytesAsync(string relativePath)
     {
+#if UNITY_ANDROID && !UNITY_EDITOR
+        string uri = CombineStreamingUri(Application.streamingAssetsPath, relativePath);
         using UnityWebRequest request = UnityWebRequest.Get(uri);
         await request.SendWebRequest().ToUniTask();
         if (request.result != UnityWebRequest.Result.Success)
         {
-            throw new IOException(
-                $"Failed to extract required bundled asset '{uri}': {request.error}");
+            throw new IOException($"Failed to load runtime texture '{relativePath}': {request.error}");
         }
 
         return request.downloadHandler.data;
+#else
+        string path = Path.Combine(
+            Application.streamingAssetsPath,
+            relativePath.Replace('/', Path.DirectorySeparatorChar));
+        return await UniTask.RunOnThreadPool(() => File.ReadAllBytes(path));
+#endif
     }
 
-    private static string CombineStreamingURI(string root, string relativePath)
+    private static string CombineStreamingUri(string root, string relativePath)
     {
         string encodedPath = string.Join(
             "/",
-            relativePath.Split('/').Select(System.Uri.EscapeDataString));
+            relativePath.Split('/').Select(Uri.EscapeDataString));
         return $"{root.TrimEnd('/')}/{encodedPath}";
     }
-#endif
 }

@@ -66,6 +66,8 @@ internal sealed class GameStartupReport
         }
     }
 
+    public bool HasCritical => _issues.Exists(issue => issue.Severity == StartupIssueSeverity.Critical);
+
     public void ThrowIfCritical()
     {
         List<StartupIssue> critical = _issues.FindAll(
@@ -293,15 +295,28 @@ public sealed class GameStartupPipeline
         _connection = connection;
     }
 
-    internal GameStartupReport Initialize()
+    // Инфраструктура (подписки на пакеты, ассеты, террейн) готова — соединение можно открывать, не дожидаясь презентации:
+    // рукопожатие, вход и ответ мира идут по сети, пока свет и интерфейс инициализируются. Пакеты удержаны до
+    // CompletePresentation: обработчики мира рассчитывают на готовый интерфейс.
+    internal GameStartupReport InitializeInfrastructure()
     {
         var report = new GameStartupReport();
         _infrastructure.Initialize(report);
+        if (!report.HasCritical)
+        {
+            _connection.HoldInboundPackets();
+            _connection.Connect();
+        }
+
+        return report;
+    }
+
+    internal void InitializePresentation(GameStartupReport report)
+    {
         _presentation.Initialize(report);
         report.ThrowIfCritical();
-        _connection.Connect();
+        _connection.ReleaseInboundPackets();
         Debug.Log("[GameBootstrap] Startup validation PASSED — MainGame contract is ready");
-        return report;
     }
 
     internal UniTask PreparePersistentDataAsync(CancellationToken cancellationToken) =>

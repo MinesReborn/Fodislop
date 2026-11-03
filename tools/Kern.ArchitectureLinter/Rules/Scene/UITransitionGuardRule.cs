@@ -32,19 +32,36 @@ public sealed class UITransitionGuardRule : IRule
         if (!File.Exists(mainMenuPath))
             mainMenuPath = Path.Combine(projectRoot, "Assets/Scripts/UI/Menu/MainMenu.cs");
 
+        var worldEntryPath = Path.Combine(projectRoot, "Assets/Scripts/UI/Menu/WorldEntry/Control/MenuWorldEntryController.cs");
+
+        bool hasPlayGuard = false;
         if (File.Exists(mainMenuPath))
         {
             var content = File.ReadAllText(mainMenuPath);
-            if (!Regex.IsMatch(content, @"private void OnPlayButtonClicked\(\)\s*\{\s*if \(_loadingActive \|\| _teardownStarted\)"))
+            if (Regex.IsMatch(content, @"(?:private|internal)\s+void\s+OnPlayButtonClicked\(\)\s*\{\s*if \(_loadingActive \|\| _teardownStarted\)"))
             {
-                violations.Add(new RuleViolation
-                {
-                    RuleId = Id,
-                    Message = "MainMenu Play transition должен быть защищён от дублированных кликов во время загрузки или завершения.",
-                    Severity = Severity,
-                    TypeName = "Assets/Scripts/UI/Menu/Navigation/MainMenu.cs"
-                });
+                hasPlayGuard = true;
             }
+        }
+
+        if (!hasPlayGuard && File.Exists(worldEntryPath))
+        {
+            var content = File.ReadAllText(worldEntryPath);
+            if (Regex.IsMatch(content, @"(?:private|internal)\s+void\s+OnPlayButtonClicked\(\)\s*\{\s*if \(_loadingActive \|\| _teardownStarted\)"))
+            {
+                hasPlayGuard = true;
+            }
+        }
+
+        if (!hasPlayGuard)
+        {
+            violations.Add(new RuleViolation
+            {
+                RuleId = Id,
+                Message = "MainMenu Play transition должен быть защищён от дублированных кликов во время загрузки или завершения.",
+                Severity = Severity,
+                TypeName = "Assets/Scripts/UI/Menu/Navigation/MainMenu.cs"
+            });
         }
 
         // Gateway guard

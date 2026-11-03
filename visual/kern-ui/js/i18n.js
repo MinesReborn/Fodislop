@@ -97,6 +97,7 @@
     if (s.id === 'standLang') window.kernText?.set('ru');      // проверка текста — по русскому, вместе с переводом не работает
     set(s.value);
   }));
-  const q = new URLSearchParams(location.search).get('lang');
-  if (q) window.kernWorld.ready.then(() => setTimeout(() => set(q)));
+  // Язык — последним: переводит уже открытые сцену и окна
+  window.kernScene.on(3, p => { if (p.get('lang')) set(p.get('lang')); });
+  window.kernScene.onReset(() => { if (lang !== 'ru') set('ru'); });
 })();

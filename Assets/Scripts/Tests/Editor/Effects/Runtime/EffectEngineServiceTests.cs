@@ -2,7 +2,7 @@
 
 using System;
 using Kern.Effects;
-using Kern.Game.VisualEffects.Engine;
+using Kern.Game.Visual.Effects.Engine;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -15,31 +15,31 @@ public sealed class EffectEngineServiceTests
     public void PlayAndUpdate_DrivesEngineAndSlots()
     {
         using var sheets = new EffectSpriteSheetCache();
-        using var vfx = new RecordingVFXService();
+        using var visualEffect = new RecordingVisualEffectService();
         using var service = new EffectEngineService(
-            new EffectCatalog([EffectTestData.SheetSpark()]), vfx, sheets);
+            new EffectCatalog([EffectTestData.SheetSpark()]), visualEffect, sheets);
 
         Assert.That(service.ActiveCount, Is.Zero);
         service.Play("sheet-spark", Vector2.zero);
         service.Update(EffectInstance.SimulationStepSeconds);
 
         Assert.That(service.ActiveCount, Is.EqualTo(1));
-        Assert.That(vfx.Slots.Count, Is.EqualTo(6));
+        Assert.That(visualEffect.Slots.Count, Is.EqualTo(6));
 
         service.Update(1.5f);
         service.Update(EffectInstance.SimulationStepSeconds);
 
         Assert.That(service.ActiveCount, Is.Zero);
-        Assert.That(vfx.Slots, Has.All.Matches<RecordingVFXSlot>(slot => !slot.Enabled));
+        Assert.That(visualEffect.Slots, Has.All.Matches<RecordingVisualEffectSlot>(slot => !slot.Enabled));
     }
 
     [Test]
     public void DisposedService_RejectsPlayAndUpdate()
     {
         using var sheets = new EffectSpriteSheetCache();
-        using var vfx = new RecordingVFXService();
+        using var visualEffect = new RecordingVisualEffectService();
         var service = new EffectEngineService(
-            new EffectCatalog([EffectTestData.SheetSpark()]), vfx, sheets);
+            new EffectCatalog([EffectTestData.SheetSpark()]), visualEffect, sheets);
         service.Dispose();
 
         Assert.Throws<ObjectDisposedException>(() => service.Play("sheet-spark", Vector2.zero));

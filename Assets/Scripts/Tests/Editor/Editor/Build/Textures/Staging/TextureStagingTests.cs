@@ -43,7 +43,8 @@ public sealed class TextureStagingTests
     [Test]
     public void ProductionCatalogContainsEveryAuthoredTextureWithUniquePublishedIdentity()
     {
-        IReadOnlyDictionary<string, string> catalog = AuthoredTextureCatalog.Read(AuthoredTextureCatalog.AssetPath);
+            IReadOnlyDictionary<string, string> catalog =
+                TextureDeliveryCatalog.Read(TextureDeliveryCatalog.AssetPath).All;
         string root = Path.GetFullPath("Assets/Textures");
         foreach (string file in Directory.GetFiles(root, "*", SearchOption.AllDirectories))
         {

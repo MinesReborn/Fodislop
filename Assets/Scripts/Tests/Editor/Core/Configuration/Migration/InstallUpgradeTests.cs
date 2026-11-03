@@ -19,19 +19,15 @@ namespace Kern.Tests.Core;
 
 // Всё, что клиент хранит в persistentDataPath, проверяется вместе на одной
 // папке: конфиг, кэш ассетов и карта мира. Старые конфиги мигрируются с
-// backup; будущая схема отклоняется без перезаписи. Старые карта и маркер
-// кеша обновляются.
+// backup; будущая схема отклоняется без перезаписи. Старая карта
+// пересоздаётся текущим форматом.
 [TestFixture]
 public sealed class InstallUpgradeTests
 {
     private const string WorldCode = "install_test";
     private const int WorldWidth = 64;
     private const int WorldHeight = 32;
-    private const string CachedAsset = "Cells/117.png";
     private static readonly CellType s_storedCell = (CellType)123;
-    private static readonly byte[] s_cachedPayload = new byte[] {
-1, 2, 3, 4
- };
 
     private string _dataRoot = null!;
 
@@ -58,6 +54,22 @@ public sealed class InstallUpgradeTests
         {
             Directory.Delete(_dataRoot, recursive: true);
         }
+    }
+
+    [TestCase("LeftCtrl", "LeftAlt")]
+    [TestCase("B", "B")]
+    public void Schema49_SlowMovementBindingMigratesDefaultAndPreservesCustom(string oldKey, string expectedKey)
+    {
+        ClientConfig legacy = ClientConfigDefaults.Create(_profile);
+        legacy.SchemaVersion = 49;
+        legacy.Interface.KeyFastMove = oldKey;
+        Directory.CreateDirectory(Path.GetDirectoryName(ConfigPath)!);
+        File.WriteAllText(ConfigPath, JsonUtility.ToJson(legacy));
+
+        ClientConfigLoader.Result result = LoadConfig();
+
+        Assert.That(result.Config.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
+        Assert.That(result.Config.Interface.KeyFastMove, Is.EqualTo(expectedKey));
     }
 
     [TestCase(44)]
@@ -172,7 +184,7 @@ public sealed class InstallUpgradeTests
         string original = JsonUtility.ToJson(legacy, prettyPrint: true);
         foreach (string field in new[] { "TextScale", "KeyMoveUp", "KeyMoveDown", "KeyMoveLeft", "KeyMoveRight",
             "KeyMoveUpAlternate", "KeyMoveDownAlternate", "KeyMoveLeftAlternate", "KeyMoveRightAlternate",
-            "KeyTurnOnly", "KeyTurnOnlyAlternate", "KeyFastMove", "KeyFastMoveAlternate" })
+            "KeyTurnOnly", "KeyTurnOnlyAlternate", "KeyFastMove" })
         {
             original = Regex.Replace(original, "\\s*\"" + field + "\"\\s*:\\s*[^,}]+,", "");
         }
@@ -230,7 +242,6 @@ public sealed class InstallUpgradeTests
 
         Assert.That(config.Outcome, Is.EqualTo(ClientConfigLoader.Outcome.CreatedDefaults));
         Assert.That(new ClientConfigRepository(ConfigPath).Load().Config.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
-        Assert.That(ReadCacheMarker(), Is.EqualTo(PersistentAssetCacheFormat.CurrentSchemaVersion));
         Assert.That(ReadMapFormatVersion(), Is.EqualTo(WorldLayerFileHeader.CurrentFormatVersion));
         Assert.That(Directory.GetFiles(_dataRoot, "*.v*.backup", SearchOption.AllDirectories), Is.Empty);
     }
@@ -308,7 +319,6 @@ public sealed class InstallUpgradeTests
 
         Assert.That(second.Outcome, Is.EqualTo(ClientConfigLoader.Outcome.Loaded));
         Assert.That(File.ReadAllBytes(ConfigPath), Is.EqualTo(configBytes));
-        Assert.That(ReadCacheMarker(), Is.EqualTo(PersistentAssetCacheFormat.CurrentSchemaVersion));
         Assert.That(Directory.GetFiles(_dataRoot, "*.v*.backup", SearchOption.AllDirectories), Is.Empty);
     }
 
@@ -464,9 +474,6 @@ public sealed class InstallUpgradeTests
     {
         ClientConfig legacy = ClientConfigDefaults.Create(_profile);
         legacy.SchemaVersion = 41;
-        legacy.Interface.HasHudPanelPosition = true;
-        legacy.Interface.HudPanelX = 123.5f;
-        legacy.Interface.HudPanelY = 45f;
         string sourceJson = JsonUtility.ToJson(legacy, prettyPrint: true);
         string legacyJson = Regex.Replace(
             sourceJson,
@@ -487,10 +494,6 @@ public sealed class InstallUpgradeTests
         Assert.That(result.Config.Interface.ChatWindowY, Is.EqualTo(0f));
         Assert.That(result.Config.Interface.ChatWindowWidth, Is.EqualTo(0f));
         Assert.That(result.Config.Interface.ChatWindowHeight, Is.EqualTo(0f));
-        // Настройки пользователя прежней схемы переживают миграцию.
-        Assert.That(result.Config.Interface.HasHudPanelPosition, Is.True);
-        Assert.That(result.Config.Interface.HudPanelX, Is.EqualTo(123.5f));
-        Assert.That(result.Config.Interface.HudPanelY, Is.EqualTo(45f));
         Assert.That(File.ReadAllText(ConfigPath + ".backup"), Is.EqualTo(legacyJson));
     }
 
@@ -558,41 +561,15 @@ public sealed class InstallUpgradeTests
     }
 
     [Test]
-    public void OldCacheMarker_RestampsAndKeepsPayloads()
-    {
-        WriteCache(markerVersion: 1);
-
-        _ = new PersistentAssetCache(CachePath);
-
-        Assert.That(ReadCacheMarker(), Is.EqualTo(PersistentAssetCacheFormat.CurrentSchemaVersion));
-        Assert.That(File.ReadAllBytes(Path.Combine(CachePath, CachedAsset)), Is.EqualTo(s_cachedPayload));
-    }
-
-    [Test]
-    public void MissingCacheMarker_RestampsAndKeepsPayloads()
-    {
-        WriteCache(markerVersion: null);
-
-        _ = new PersistentAssetCache(CachePath);
-
-        Assert.That(ReadCacheMarker(), Is.EqualTo(PersistentAssetCacheFormat.CurrentSchemaVersion));
-        Assert.That(File.ReadAllBytes(Path.Combine(CachePath, CachedAsset)), Is.EqualTo(s_cachedPayload));
-    }
-
-    [Test]
     public void NewerConfigVersion_IsRejectedAndLeftUntouched()
     {
         string newerJson = OldVersionConfig(
             schemaVersion: ClientConfig.CurrentSchemaVersion + 1,
             PixelSamplingMode.SmoothFiltered);
-        WriteCache(markerVersion: PersistentAssetCacheFormat.CurrentSchemaVersion + 1);
         WriteMap(formatVersion: WorldLayerFileHeader.CurrentFormatVersion);
 
         Assert.Throws<InvalidDataException>(() => LoadConfig());
-        _ = new PersistentAssetCache(CachePath);
-
         Assert.That(File.ReadAllText(ConfigPath), Is.EqualTo(newerJson));
-        Assert.That(ReadCacheMarker(), Is.EqualTo(PersistentAssetCacheFormat.CurrentSchemaVersion));
         Assert.That(Directory.GetFiles(_dataRoot, "*.v*.backup", SearchOption.AllDirectories), Is.Empty);
     }
 
@@ -630,22 +607,6 @@ public sealed class InstallUpgradeTests
         File.WriteAllText(ConfigPath, json);
         return json;
     }
-
-    private void WriteCache(int? markerVersion)
-    {
-        string assetPath = Path.Combine(CachePath, CachedAsset);
-        Directory.CreateDirectory(Path.GetDirectoryName(assetPath)!);
-        File.WriteAllBytes(assetPath, s_cachedPayload);
-        if (markerVersion.HasValue)
-        {
-            File.WriteAllText(
-                Path.Combine(CachePath, PersistentAssetCacheFormat.MarkerFileName),
-                markerVersion.Value + "\n");
-        }
-    }
-
-    private int ReadCacheMarker() =>
-        int.Parse(File.ReadAllText(Path.Combine(CachePath, PersistentAssetCacheFormat.MarkerFileName)).Trim());
 
     // Карта чужого формата: пишем текущим клиентом и подменяем номер версии.
     // Старая клетка при этом теряется: файл пересоздаётся.

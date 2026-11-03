@@ -11,14 +11,13 @@ internal sealed class MenuLoaderProgress
 {
     // Значения — ключи словаря локализации, а не текст: Get() возвращает
     // ключ как есть, если его нет в словаре, поэтому литеральные фазы
-    // (SpawnSync/SurfaceAssets) проходят без изменений.
+    // (SpawnSync) проходят без изменений.
     private readonly (WorldLoadPhase Phase, string Label)[] _PhaseSteps =
     {
         (WorldLoadPhase.Handshake, "menu.loading.phase.handshake"),
         (WorldLoadPhase.WorldManifest, "menu.loading.phase.assets"),
         (WorldLoadPhase.SpawnSync, "menu.loading.phase.spawn_sync"),
         (WorldLoadPhase.TerrainMesh, "menu.loading.phase.terrain"),
-        (WorldLoadPhase.SurfaceAssets, "menu.loading.phase.surface_assets"),
     };
 
     private readonly VisualElement? _loaderProgressFill;
@@ -30,6 +29,7 @@ internal sealed class MenuLoaderProgress
     private readonly List<(VisualElement Item, Label Icon)> _phaseItems = new();
 
     private WorldLoadPhase _lastAppliedPhase = (WorldLoadPhase)(-1);
+    private AssetSyncProgress _lastAssetSync = new(-1, -1, -1, -1);
     private bool _lastAppliedDone;
     private int _lastAppliedPhaseIndex = -1;
     private float _lastAppliedProgress = -1f;
@@ -80,6 +80,9 @@ internal sealed class MenuLoaderProgress
     // Get() пропускает не-ключи как есть (возвращает сам ключ), поэтому
     // литеральные фазы без перевода не меняются. Null-безопасно: без
     // инжекта локализации текст остаётся как в _PhaseSteps/Uxml.
+    private static string FormatMegabytes(long bytes) =>
+        (bytes / 1048576d).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+
     private string Localize(string keyOrText) => _loc == null ? keyOrText : _loc.Get(keyOrText);
 
     public void RefreshLocalization() => BuildPhaseList();
@@ -105,7 +108,7 @@ internal sealed class MenuLoaderProgress
         }
     }
 
-    public void UpdateProgress(WorldLoadPhase phase)
+    public void UpdateProgress(WorldLoadPhase phase, AssetSyncProgress assetSync)
     {
         if (_failed)
         {
@@ -118,6 +121,7 @@ internal sealed class MenuLoaderProgress
 
         if (phase == _lastAppliedPhase)
         {
+            ApplyAssetSync(phase, assetSync);
             return;
         }
 
@@ -156,5 +160,40 @@ internal sealed class MenuLoaderProgress
             item.EnableInClassList("mm-loader-phase-item--active", isActive);
             icon.text = isDone ? "✓" : isActive ? "◆" : "○";
         }
+
+        ApplyAssetSync(phase, assetSync);
+    }
+
+    // Проверка кэша и вес скачанного растут внутри фазы, а фаза не меняется: подпись обновляем отдельно от смены фазы
+    private void ApplyAssetSync(WorldLoadPhase phase, AssetSyncProgress assetSync)
+    {
+        if (phase != WorldLoadPhase.WorldManifest || assetSync == _lastAssetSync)
+        {
+            return;
+        }
+
+        _lastAssetSync = assetSync;
+        if (_loaderPhaseLabel == null)
+        {
+            return;
+        }
+
+        string label = Localize(_PhaseSteps[(int)phase].Label);
+        if (_loc == null)
+        {
+            _loaderPhaseLabel.text = label;
+            return;
+        }
+
+        // Пока кэш проверяется — «проверено из скольких»; потом, если что-то качается, — вес скачанного
+        string status = assetSync.FilesTotal > 0 && assetSync.FilesChecked < assetSync.FilesTotal
+            ? _loc.Get("menu.loading.assets_check", assetSync.FilesChecked, assetSync.FilesTotal)
+            : assetSync.BytesTotal > 0
+                ? _loc.Get(
+                    "menu.loading.assets_size",
+                    FormatMegabytes(assetSync.BytesDone),
+                    FormatMegabytes(assetSync.BytesTotal))
+                : string.Empty;
+        _loaderPhaseLabel.text = status.Length > 0 ? $"{label} · {status}" : label;
     }
 }

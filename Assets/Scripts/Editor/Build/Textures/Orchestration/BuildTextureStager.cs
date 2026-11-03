@@ -3,6 +3,7 @@
 using Kern.AssetPipeline.Loading;
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -24,24 +25,37 @@ public sealed class BuildTextureStager : BuildPlayerProcessor
         }
 
         string stagingRoot = Path.GetFullPath(StagingRoot);
-        string stagedTextures = Path.Combine(stagingRoot, "Textures");
-        if (Directory.Exists(stagedTextures))
+        TextureDeliveryCatalogData textureCatalog = TextureDeliveryCatalog.Read(TextureDeliveryCatalog.AssetPath);
+        TextureStagingWriter.ValidateCatalogCoverage(source, textureCatalog.All);
+
+        StageTextureGroup(
+            source,
+            stagingRoot,
+            "EmbeddedTextures",
+            "EmbeddedTextures.manifest",
+            textureCatalog.Embedded,
+            buildPlayerContext);
+        StageTextureGroup(
+            source,
+            stagingRoot,
+            "DummyWorldTextures",
+            "DummyWorldTextures.manifest",
+            textureCatalog.DummyWorld,
+            buildPlayerContext);
+
+        string audioRoot = Path.GetFullPath(Path.Combine("Assets/StreamingAssets", "Audio"));
+        if (Directory.Exists(audioRoot))
         {
-            Directory.Delete(stagedTextures, recursive: true);
+            string[] audioBanks = Directory.EnumerateFiles(audioRoot, "*.bank", SearchOption.AllDirectories)
+                .Select(path => Path.GetRelativePath(audioRoot, path).Replace('\\', '/'))
+                .OrderBy(path => path, StringComparer.Ordinal)
+                .ToArray();
+            string audioManifestPath = Path.Combine(stagingRoot, "Audio.manifest");
+            File.WriteAllLines(audioManifestPath, audioBanks);
+            buildPlayerContext.AddAdditionalPathToStreamingAssets(
+                audioManifestPath,
+                "Audio/Audio.manifest");
         }
-
-        TextureStagingWriter.CopyRuntimeFiles(
-            source, stagedTextures, AuthoredTextureCatalog.Read(AuthoredTextureCatalog.AssetPath));
-        string[] relativeFiles = Directory
-            .EnumerateFiles(stagedTextures, "*", SearchOption.AllDirectories)
-            .Select(path => Path.GetRelativePath(stagedTextures, path).Replace('\\', '/'))
-            .OrderBy(path => path, StringComparer.Ordinal)
-            .ToArray();
-        string manifestPath = Path.Combine(stagingRoot, "Textures.manifest");
-        File.WriteAllLines(manifestPath, relativeFiles);
-
-        buildPlayerContext.AddAdditionalPathToStreamingAssets(stagedTextures, "Textures");
-        buildPlayerContext.AddAdditionalPathToStreamingAssets(manifestPath, "Textures.manifest");
 
         string worldMaps = Path.GetFullPath(Path.Combine("Assets/StreamingAssets/WorldMaps"));
         if (Directory.Exists(worldMaps))
@@ -54,6 +68,33 @@ public sealed class BuildTextureStager : BuildPlayerProcessor
             File.WriteAllLines(mapManifest, archiveEntries);
             buildPlayerContext.AddAdditionalPathToStreamingAssets(mapManifest, "WorldMaps/WorldMaps.manifest");
         }
+    }
+
+    private static void StageTextureGroup(
+        string source,
+        string stagingRoot,
+        string folderName,
+        string manifestName,
+        IReadOnlyDictionary<string, string> catalog,
+        BuildPlayerContext buildPlayerContext)
+    {
+        string stagedRoot = Path.Combine(stagingRoot, folderName);
+        if (Directory.Exists(stagedRoot))
+        {
+            Directory.Delete(stagedRoot, recursive: true);
+        }
+
+        TextureStagingWriter.CopyCatalogFiles(source, stagedRoot, catalog);
+        string[] relativeFiles = Directory
+            .EnumerateFiles(stagedRoot, "*", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(stagedRoot, path).Replace('\\', '/'))
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+        string manifestPath = Path.Combine(stagingRoot, manifestName);
+        File.WriteAllLines(manifestPath, relativeFiles);
+
+        buildPlayerContext.AddAdditionalPathToStreamingAssets(stagedRoot, folderName);
+        buildPlayerContext.AddAdditionalPathToStreamingAssets(manifestPath, manifestName);
     }
 
     private static string ComputeSha256(string path)

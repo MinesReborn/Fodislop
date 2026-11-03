@@ -139,8 +139,6 @@ dotnet run --project tools/Kern.DesignSystem -- inventory-art
 | `Assets/Resources/Programmator/Icons/ControlFlow/Automation/158.png` | 15x13 | — | 1.00 | 0.00 | 0, 0, 0, 0 | 0° | 0.52 | 0.86 | нет |
 | `Assets/Resources/Programmator/Icons/ControlFlow/Automation/159.png` | 15x13 | — | 0.92 | 0.02 | 0, 0, 0, 1 | 0° | 0.00 | 0.56 | нет |
 | `Assets/Resources/Programmator/Icons/Actions/Movement/Rotation/16.png` | 13x13 | — | 1.00 | 0.00 | 0, 0, 0, 0 | 58° | 0.58 | 1.00 | нет |
-| `Assets/Resources/Programmator/Icons/Actions/Combat/Aggression/160.png` | 11x9 | — | 1.00 | 0.00 | 0, 0, 0, 0 | 0° | 0.52 | 0.86 | нет |
-| `Assets/Resources/Programmator/Icons/Actions/Combat/Aggression/161.png` | 11x9 | — | 0.89 | 0.02 | 0, 0, 0, 1 | 0° | 0.00 | 0.56 | нет |
 | `Assets/Resources/Programmator/Icons/Actions/Combat/Weapons/162.png` | 20x15 | — | 1.00 | 0.02 | 0, 0, 0, 0 | 68° | 0.78 | 0.88 | нет |
 | `Assets/Resources/Programmator/Icons/Actions/Combat/Weapons/163.png` | 20x15 | — | 1.00 | 0.02 | 0, 0, 0, 0 | 96° | 0.77 | 0.88 | нет |
 | `Assets/Resources/Programmator/Icons/Actions/Combat/Weapons/164.png` | 20x15 | — | 1.00 | 0.02 | 0, 0, 0, 0 | 58° | 0.78 | 0.88 | нет |

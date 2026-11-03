@@ -16,7 +16,7 @@ using MinesServer.Data;
 using MinesServer.Networking.Client.Packets.Actions;
 using MinesServer.Networking.Client.Packets.GUI;
 using MinesServer.Networking.Server.Packets.Programmator;
-using MinesServer.Networking.Shared.Packets;
+using MinesServer.Networking.Contracts.Packets;
 using UnityEngine;
 using UnityEngine.UIElements;
 using VContainer;
@@ -41,13 +41,12 @@ namespace Kern.UI.HUD
         private readonly PlayerHUDSkillGrid _skillGrid = new();
         private readonly PlayerHUDBasketView _basketView = new();
         private PlayerHUDMissionPanel _missionPanel = null!;
-        private PlayerHUDBonusController _bonusController = null!;
         private PlayerHUDPopups _popups = null!;
 
         [Inject]
         private UIDocument _doc = null!;
         private Tooltip? _tooltip;
-        private bool _isLoaded;
+        private PlayerHUDStatsPresenter _statsPresenter = null!;
         [Inject]
         private Kern.Core.Interfaces.IInputBlocker _inputBlocker = null!;
         [Inject]
@@ -72,21 +71,8 @@ namespace Kern.UI.HUD
         private VisualElement? _basketContainer;
         private VisualElement? _skillContainer;
 
-        // Перетаскивание панели за ручку (правый нижний угол).
-        private VisualElement? _panelRoot;
-        private VisualElement? _dragHandle;
-        private bool _hudDragging;
-        private int _dragPointerId = -1;
-        private Vector2 _dragPointerStart;
-        private Vector2 _panelStartPosition;
-        private Vector2 _panelSize;
-
-        // Сохранение позиции панели между запусками клиента.
-
         private ProgrammatorGrid? _programmatorGrid;
-        private Button? _programmatorButton;
-        private Button? _programRunButton;
-        private bool _programRunning;
+        private readonly PlayerHUDProgramControls _programControls = new();
         [Inject]
         private ProgrammatorData? _programmatorData;
         private bool _initializationStarted;
@@ -164,7 +150,6 @@ namespace Kern.UI.HUD
             }
 
             _programmatorGrid?.Tick();
-            _bonusController?.Update();
         }
 
         private void TryStartInitialization()
@@ -229,7 +214,7 @@ namespace Kern.UI.HUD
             // пересоздаёт строки скрытыми, а Refresh по ним ещё не бегал -
             // без перерисовки корзина пуста до первого обновления статов
             // (первого копания). Перерисовываем сразу после построения строк.
-            RefreshAll();
+            _statsPresenter.Refresh();
         }
 
         public void ApplyLocalizedText()
@@ -244,7 +229,7 @@ namespace Kern.UI.HUD
             }
 
             UILocalizer.Apply(_doc.rootVisualElement, _loc);
-            RefreshAll();
+            _statsPresenter.Refresh();
             _programmatorGrid?.RefreshLocalization();
             UILocalizer.AssertLocalized(_doc.rootVisualElement, _loc);
         }
@@ -261,16 +246,7 @@ namespace Kern.UI.HUD
             _touchControls?.Dispose();
             _touchControls = null;
 
-            if (_programmatorGrid?.Programs is { } closingPrograms)
-            {
-                closingPrograms.ActiveProgramChanged -= UpdateProgrammatorButtonLabel;
-                closingPrograms.RunStateChanged -= ApplyProgramRunState;
-            }
-
-            if (_programmatorProtocol != null)
-            {
-                _programmatorProtocol.StateChanged -= OnProgramStateChanged;
-            }
+            _programControls.Dispose();
 
             _programmatorGrid?.Dispose();
             _programmatorGrid = null;
@@ -280,9 +256,8 @@ namespace Kern.UI.HUD
 
             if (_model != null)
             {
-                _model.OnStatsChanged -= RefreshAll;
+                _model.OnStatsChanged -= _statsPresenter.Refresh;
                 _model.OnSkillProgress -= OnSkillProgress;
-                _model.OnDailyBonusChanged -= OnDailyBonusChanged;
                 _model.OnStatusLinesChanged -= OnStatusLinesChanged;
                 _model.OnMissionChanged -= OnMissionChanged;
             }
@@ -293,13 +268,12 @@ namespace Kern.UI.HUD
             }
         }
 
-        private void OnDailyBonusChanged() => _bonusController.UpdateDailyBonusPanel(_model);
         private void OnStatusLinesChanged() => _statusPanel.Rebuild(_model);
         private void OnMissionChanged() => _missionPanel.Update(_model);
         private void InitializeHUD()
         {
             _programmatorData ??= new ProgrammatorData();
-            _programmatorTextures ??= new ProgrammatorTextureRegistry(_assetLoader, _operations);
+            _programmatorTextures ??= new ProgrammatorTextureRegistry();
             _programmatorGrid ??= new ProgrammatorGrid(
                 _doc,
                 _loc,
@@ -318,21 +292,18 @@ namespace Kern.UI.HUD
                 _model.OnSkillProgress += OnSkillProgress;
                 _model.OnStatusLinesChanged += OnStatusLinesChanged;
                 _model.OnMissionChanged += OnMissionChanged;
-                _model.OnDailyBonusChanged += OnDailyBonusChanged;
-                _model.OnStatsChanged += RefreshAll;
-                _isLoaded = _model.Health > 0 || _model.Level > 0;
+                _model.OnStatsChanged += _statsPresenter.Refresh;
             }
 
-            _bonusController.UpdateDailyBonusPanel(_model);
 
             _basketView.RebuildRows();
 
-            if (!_isLoaded && _hudRoot != null)
+            if (!_statsPresenter.IsLoaded && _hudRoot != null)
             {
                 _skeletonPulse.Start(_hudRoot);
             }
 
-            RefreshAll();
+            _statsPresenter.Refresh();
 
             var root = _doc.rootVisualElement;
 
@@ -397,11 +368,10 @@ namespace Kern.UI.HUD
             _dropBoxButton = tree.Q<Button>("DropBoxButton") ??
                 throw new InvalidOperationException("[PlayerHUD] DropBoxButton is missing from PlayerHUD.uxml.");
             _dropBoxButton.clicked += () => _networkService?.Send(new DropBoxClickPacket());
-
-            var donateButton = tree.Q<Button>("DonateButton") ??
+            Button donateButton = tree.Q<Button>("DonateButton") ??
                 throw new InvalidOperationException("[PlayerHUD] DonateButton is missing from PlayerHUD.uxml.");
-            donateButton.clicked += () => _networkService?.Send(new ElementClickPacket("donate", 0, Array.Empty<StringPairPacket>()));
-
+            donateButton.clicked += () => _networkService?.Send(
+                new ElementClickPacket("donate", 0, Array.Empty<StringPairPacket>()));
             _geologyLabel = tree.Q<Label>("GeologyLabel") ??
                 throw new InvalidOperationException("[PlayerHUD] GeologyLabel is missing from PlayerHUD.uxml.");
 
@@ -418,16 +388,6 @@ namespace Kern.UI.HUD
                 throw new InvalidOperationException("[PlayerHUD] BasketContainer is missing from PlayerHUD.uxml.");
             _basketView.Initialize(_basketContainer);
 
-            _panelRoot = tree.Q<VisualElement>("PlayerStatusPanel") ??
-                throw new InvalidOperationException("[PlayerHUD] PlayerStatusPanel is missing from PlayerHUD.uxml.");
-            _dragHandle = tree.Q<VisualElement>("HUDDragHandle") ??
-                throw new InvalidOperationException("[PlayerHUD] HUDDragHandle is missing from PlayerHUD.uxml.");
-            _dragHandle.RegisterCallback<PointerDownEvent>(OnDragHandlePointerDown);
-            _dragHandle.RegisterCallback<PointerMoveEvent>(OnDragHandlePointerMove);
-            _dragHandle.RegisterCallback<PointerUpEvent>(OnDragHandlePointerUp);
-            _dragHandle.RegisterCallback<PointerCaptureOutEvent>(OnDragHandleCaptureLost);
-            ApplySavedPanelPosition();
-
             _skillContainer = tree.Q<VisualElement>("SkillContainer") ??
                 throw new InvalidOperationException("[PlayerHUD] SkillContainer is missing from PlayerHUD.uxml.");
             _skillGrid.Initialize(_skillContainer);
@@ -437,14 +397,6 @@ namespace Kern.UI.HUD
 
             // Кнопки чата в HUD нет: глобальный чат открывается по TAB
             // внутри GlobalChatUI.Update.
-
-            _bonusController = new PlayerHUDBonusController(packet => _networkService?.Send(packet), _loc, _uiInput);
-            _bonusController.Initialize(tree);
-            var bonusButton = tree.Q<Button>("BonusButton");
-            if (bonusButton != null)
-            {
-                Tooltip.AttachTo(bonusButton, () => _loc.Get("hud.tooltip.bonus"), _tooltip!);
-            }
 
             _popups = new PlayerHUDPopups(
                 packet => _networkService?.SendAction(packet),
@@ -457,34 +409,26 @@ namespace Kern.UI.HUD
             _missionPanel = new PlayerHUDMissionPanel(_loc, _assetLoader, _webAssetLoader, _operations);
             _missionPanel.Initialize(tree);
 
-            _programmatorButton = tree.Q<Button>("ProgrammatorButton") ??
-                throw new InvalidOperationException("[PlayerHUD] ProgrammatorButton is missing from PlayerHUD.uxml.");
-            // G7-C: список программ рисует сервер (окно списка), клик по строке
-            // ходит ElementClickPacket'ом; грид открывается сам по
-            // OpenProgrammatorPacket (ProgrammatorGrid подписан на OpenRequested).
-            _programmatorButton.clicked += () => _programmatorProtocol.RequestProgramList();
+            _statsPresenter = new PlayerHUDStatsPresenter(
+                _model,
+                _loc,
+                _skeletonPulse,
+                _basketView,
+                _hpBarFillColor,
+                _hpBarLowColor,
+                _nicknameLabel,
+                _levelLabel,
+                _hpCountLabel,
+                _hpBarFill,
+                _moneyLabel,
+                _creditsLabel,
+                _geologyLabel,
+                _basketPercentLabel,
+                _basketSeparator,
+                _basketRow,
+                _isLoadedInitially: _model.Health > 0 || _model.Level > 0);
 
-            _programRunButton = tree.Q<Button>("ProgramRunButton") ??
-                throw new InvalidOperationException("[PlayerHUD] ProgramRunButton is missing from PlayerHUD.uxml.");
-            _programRunButton.clicked += OnProgramRunClicked;
-            Tooltip.AttachTo(
-                _programRunButton,
-                () => _loc.Get(_programRunning ? "hud.tooltip.program_stop" : "hud.tooltip.program_start"),
-                _tooltip!);
-
-            // Кнопка программатора показывает имя активной программы (как в старом
-            // клиенте); пока программа не выбрана - стандартная подпись.
-            _programmatorProtocol.StateChanged += OnProgramStateChanged;
-            if (_programmatorGrid?.Programs is { } hudPrograms)
-            {
-                hudPrograms.ActiveProgramChanged += UpdateProgrammatorButtonLabel;
-                // Локальный запуск/остановка (кнопка в окне и ▶/■ в HUD) —
-                // состояние ▶/■ обязано меняться сразу, не дожидаясь пакета
-                // сервера (реальный MinesServer его не присылает).
-                hudPrograms.RunStateChanged += ApplyProgramRunState;
-            }
-
-            UpdateProgrammatorButtonLabel();
+            _programControls.Initialize(tree, _programmatorGrid, _programmatorProtocol, _loc, _tooltip!);
         }
 
         private void InitializeTouchControls(VisualElement tree)
@@ -493,283 +437,17 @@ namespace Kern.UI.HUD
             _touchControls.Bind(tree);
         }
 
+        private static void SetDisplayed(VisualElement? element, bool visible)
+        {
+            if (element != null)
+            {
+                element.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+        }
+
         private void CancelMobileInput()
         {
             _touchControls?.Cancel();
-        }
-
-        // Подпись кнопки программатора: имя активной программы вместо "Программатор".
-        private void UpdateProgrammatorButtonLabel()
-        {
-            if (_programmatorButton == null)
-            {
-                return;
-            }
-
-            string? activeName = _programmatorGrid?.Programs?.ActiveProgramName;
-            _programmatorButton.text = string.IsNullOrWhiteSpace(activeName)
-                ? _loc.Get("hud.programmator")
-                : activeName;
-        }
-
-        // Одна кнопка запуска/остановки (как в старом клиенте): ▶ - старт, ■ - стоп.
-        private void OnProgramRunClicked()
-        {
-            if (_programRunning)
-            {
-                _programmatorProtocol.StopProgram();
-            }
-            else
-            {
-                _programmatorProtocol.StartProgram();
-            }
-        }
-
-        // Пауза тоже считается активным выполнением - в этом состоянии кнопка останавливает.
-        private void OnProgramStateChanged(ProgramStatePacket packet)
-        {
-            ApplyProgramRunState(
-                packet.State == ProgramState.Running || packet.State == ProgramState.Paused);
-        }
-
-        // Единая точка применения состояния ▶/■: сюда приходят и серверные
-        // пакеты, и локальный запуск/остановка из программатора.
-        private void ApplyProgramRunState(bool running)
-        {
-            _programRunning = running;
-            if (_programRunButton != null)
-            {
-                _programRunButton.text = _programRunning ? "■" : "▶";
-                _programRunButton.EnableInClassList("hud-program-run-btn--running", _programRunning);
-            }
-        }
-
-        // Восстановление позиции панели с прошлого запуска: применяем после
-        // первой раскладки (до неё размеры панели ещё не посчитаны).
-        private void ApplySavedPanelPosition()
-        {
-            if (_panelRoot == null || !_clientConfig.Config.Interface.HasHudPanelPosition)
-            {
-                return;
-            }
-
-            _panelRoot.RegisterCallback<GeometryChangedEvent>(ApplySavedPanelPositionOnce);
-        }
-
-        private void ApplySavedPanelPositionOnce(GeometryChangedEvent evt)
-        {
-            if (_panelRoot == null)
-            {
-                return;
-            }
-
-            // Первый GeometryChangedEvent может прийти до настоящей раскладки -
-            // размер панели ещё нулевой. Остаёмся подписанными и ждём следующий.
-            if (_panelRoot.layout.width <= 0f || _panelRoot.layout.height <= 0f)
-            {
-                return;
-            }
-
-            _panelRoot.UnregisterCallback<GeometryChangedEvent>(ApplySavedPanelPositionOnce);
-
-            // ВАЖНО: размеры панели (width/height/right/bottom) здесь не трогаем -
-            // сброс их через StyleKeyword.Undefined схлопывает бокс панели
-            // (фон перестаёт оборачивать контент). Задаём только позицию.
-            float x = _clientConfig.Config.Interface.HudPanelX;
-            float y = _clientConfig.Config.Interface.HudPanelY;
-
-            // Мусор в сохранении (NaN/бесконечность) - сбрасываем на позицию
-            // по умолчанию из стилей.
-            if (float.IsNaN(x) || float.IsNaN(y) || float.IsInfinity(x) || float.IsInfinity(y))
-            {
-                _clientConfig.UpdateSection(
-                    config => config.Interface,
-                    settings => settings.HasHudPanelPosition = false);
-                return;
-            }
-
-            // Разрешение могло смениться с прошлого запуска - не даём панели
-            // уйти за пределы экрана (размер экрана - через корень панели).
-            Rect screen = _panelRoot.panel.visualTree.layout;
-            float maxX = Mathf.Max(0f, screen.width - _panelRoot.layout.width);
-            float maxY = Mathf.Max(0f, screen.height - _panelRoot.layout.height);
-
-            _panelRoot.style.left = Mathf.Clamp(x, 0f, maxX);
-            _panelRoot.style.top = Mathf.Clamp(y, 0f, maxY);
-        }
-
-        private void RefreshAll()
-        {
-            var stats = _model;
-            if (stats == null)
-            {
-                return;
-            }
-
-            if (!_isLoaded && (stats.Health > 0 || stats.Level > 0 || stats.Money > 0 || !string.IsNullOrEmpty(stats.Nickname)))
-            {
-                _isLoaded = true;
-                _skeletonPulse.Stop();
-            }
-
-            if (_nicknameLabel != null)
-            {
-                _nicknameLabel.text = string.IsNullOrEmpty(stats.Nickname) ? "---" : stats.Nickname;
-            }
-
-            if (_levelLabel != null)
-            {
-                // "Уровень: X" - белым, компактно; до загрузки данных строка пустая.
-                _levelLabel.text = _isLoaded ? $"Уровень: {stats.Level:N0}" : string.Empty;
-                _levelLabel.style.color = Color.white;
-            }
-
-            float pct = stats.HealthPercent;
-
-            if (_hpBarFill != null)
-            {
-                _hpBarFill.style.width = new Length(pct * 100, LengthUnit.Percent);
-                _hpBarFill.style.backgroundColor = pct < 0.25f ? _hpBarLowColor : _hpBarFillColor;
-            }
-
-            if (_hpCountLabel != null)
-            {
-                // Счётчик внутри полосы: белый жирный текст с тёмной обводкой -
-                // читается на любом цвете заливки (стиль в .hud-hp-count).
-                _hpCountLabel.text = _isLoaded
-                    ? $"{stats.Health:N0} / {stats.MaxHealth:N0}"
-                    : "-- / --";
-            }
-
-            if (_moneyLabel != null)
-            {
-                _moneyLabel.text = _isLoaded ? $"<color=lime>${stats.Money:N0}</color>" : "---";
-            }
-
-            if (_creditsLabel != null)
-            {
-                _creditsLabel.text = _isLoaded ? $"<color=yellow>C {stats.Credits:N0}</color>" : "---";
-            }
-
-            if (_geologyLabel != null)
-            {
-                // Геология == 0 - строка скрывается полностью, чтобы не оставлять
-                // пустое пространство в панели.
-                bool showGeology = _isLoaded && stats.GeologyCurrent > 0;
-                _geologyLabel.text = showGeology
-                    ? _loc.Get("hud.geology", stats.GeologyCurrent, stats.GeologyMax, stats.GeologyText)
-                    : string.Empty;
-                _geologyLabel.style.display = showGeology ? DisplayStyle.Flex : DisplayStyle.None;
-            }
-
-            if (_basketPercentLabel != null)
-            {
-                // Общий груз == 0 - груз, разделитель и кнопка выброса бокса скрываются.
-                bool showBasket = _isLoaded && stats.BasketMaxPercent > 0;
-                _basketPercentLabel.text = showBasket ? $"Груз: {stats.BasketMaxPercent}%" : string.Empty;
-                _basketPercentLabel.style.display = showBasket ? DisplayStyle.Flex : DisplayStyle.None;
-                SetDisplayed(_basketSeparator, showBasket);
-                SetDisplayed(_basketRow, showBasket);
-            }
-
-            _basketView.Refresh(stats);
-        }
-
-        private static void SetDisplayed(VisualElement? element, bool visible)
-        {
-            if (element == null)
-            {
-                return;
-            }
-
-            element.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
-        }
-
-        // Перетаскивание панели за ручку: pointer capture держит события, даже
-        // когда курсор уходит за пределы ручки; позиция панели - inline left/top
-        // в пикселях панели ( USS-класс .hud-panel уже position: absolute).
-        private void OnDragHandlePointerDown(PointerDownEvent evt)
-        {
-            if (_panelRoot == null || _dragHandle == null || _hudDragging)
-            {
-                return;
-            }
-
-            _dragPointerId = evt.pointerId;
-            _dragPointerStart = new Vector2(evt.position.x, evt.position.y);
-            _panelStartPosition = new Vector2(
-                _panelRoot.resolvedStyle.left,
-                _panelRoot.resolvedStyle.top);
-            // Размер берём из готовой раскладки - нужен только для клампа.
-            // Если раскладка ещё не готова (0) - перетаскивание не начинаем,
-            // чтобы не зафиксировать мусорные значения.
-            _panelSize = new Vector2(
-                _panelRoot.layout.width,
-                _panelRoot.layout.height);
-            if (_panelSize.x <= 0f || _panelSize.y <= 0f)
-            {
-                return;
-            }
-
-            // Размеры панели задаёт только .hud-panel - здесь трогать их нельзя
-            // (inline-высота/ширина "залипают" и ломают бокс панели до конца
-            // сессии). Ведём панель исключительно через left/top.
-            _panelRoot.style.left = _panelStartPosition.x;
-            _panelRoot.style.top = _panelStartPosition.y;
-
-            _dragHandle.CapturePointer(evt.pointerId);
-            _hudDragging = true;
-        }
-
-        private void OnDragHandlePointerMove(PointerMoveEvent evt)
-        {
-            if (!_hudDragging || evt.pointerId != _dragPointerId || _panelRoot == null || _panelRoot.panel == null)
-            {
-                return;
-            }
-
-            var next = _panelStartPosition + (new Vector2(evt.position.x, evt.position.y) - _dragPointerStart);
-
-            // Панель не выходит за пределы экрана (размер панели - через её
-            // корневой визуальный элемент, растянутый на весь экран).
-            Rect screen = _panelRoot.panel.visualTree.layout;
-            next.x = Mathf.Clamp(next.x, 0f, Mathf.Max(0f, screen.width - _panelSize.x));
-            next.y = Mathf.Clamp(next.y, 0f, Mathf.Max(0f, screen.height - _panelSize.y));
-
-            _panelRoot.style.left = next.x;
-            _panelRoot.style.top = next.y;
-        }
-
-        private void OnDragHandlePointerUp(PointerUpEvent evt)
-        {
-            if (evt.pointerId != _dragPointerId)
-            {
-                return;
-            }
-
-            _hudDragging = false;
-            _dragPointerId = -1;
-            _dragHandle?.ReleasePointer(evt.pointerId);
-
-            // Позиция панели переживает перезапуск клиента.
-            if (_panelRoot != null)
-            {
-                float left = _panelRoot.resolvedStyle.left;
-                float top = _panelRoot.resolvedStyle.top;
-                _clientConfig.UpdateSection(
-                    config => config.Interface,
-                    settings =>
-                    {
-                        settings.HasHudPanelPosition = true;
-                        settings.HudPanelX = left;
-                        settings.HudPanelY = top;
-                    });
-            }
-        }
-
-        private void OnDragHandleCaptureLost(PointerCaptureOutEvent evt)
-        {
-            _hudDragging = false;
         }
 
         private void OnSkillProgress(SkillType skill, long current, long max)

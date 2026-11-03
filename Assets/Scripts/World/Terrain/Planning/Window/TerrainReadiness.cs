@@ -26,24 +26,28 @@ namespace Kern.World.Terrain
         public static void PublishViewTransitionReadiness(
             TerrainWindow window,
             ITextureService textureService,
-            Kern.World.Streaming.WorldViewTransition transition)
+            IAssetLoader assetLoader,
+            IWorldPresentationState presentationState)
         {
+            ulong transitionId = presentationState.Current.TransitionId;
             bool ready =
                 !window.HasCPUBuildInFlight &&
                 !window.NeedsRefresh &&
                 window.PendingTextureCellTypes.Count == 0 &&
                 !window.HasUnpublishedTextureRefresh &&
                 textureService.PendingCellTextureRequests == 0 &&
+                assetLoader.PendingAssetCount == 0 &&
+                assetLoader.QueuedAssetCount == 0 &&
                 (window.HeldOrigin != null || window.CellsCommitted);
             if (!ready)
             {
-                transition.ClearReady();
+                presentationState.ClearTeleportReady(transitionId);
                 return;
             }
 
             const int PresentationMarginCells = 4;
             Vector2Int origin = window.ProspectiveOrigin;
-            transition.MarkReady(new RectInt(
+            presentationState.MarkTeleportReady(transitionId, new RectInt(
                 origin.x + PresentationMarginCells,
                 origin.y + PresentationMarginCells,
                 window.Width - (PresentationMarginCells * 2),

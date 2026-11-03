@@ -1,7 +1,7 @@
 #nullable enable
 
 using Kern.Core.Interfaces;
-using MinesServer.Networking.Shared;
+using MinesServer.Networking.Contracts;
 using NUnit.Framework;
 
 using Kern.Networking.Offline;
@@ -11,29 +11,29 @@ namespace Kern.Tests.Networking;
 public sealed class DummyConnectionSessionTests
 {
     [Test]
-    public void OfflineScenarioSettings_DefaultToHappyPath()
+    public void DummyScenarioSettings_DefaultToHappyPath()
     {
-        var settings = new OfflineScenarioSettings();
+        var settings = new DummyScenarioSettings();
 
-        Assert.That(settings.Scenario, Is.EqualTo(OfflineScenario.HappyPath));
+        Assert.That(settings.Scenario, Is.EqualTo(DummyScenario.HappyPath));
 
-        settings.Scenario = OfflineScenario.RejectAuthentication;
-        Assert.That(settings.Scenario, Is.EqualTo(OfflineScenario.RejectAuthentication));
+        settings.Scenario = DummyScenario.RejectAuthentication;
+        Assert.That(settings.Scenario, Is.EqualTo(DummyScenario.RejectAuthentication));
     }
 
-    [TestCase(OfflineScenario.HappyPath, false, false, false, false)]
-    [TestCase(OfflineScenario.RejectAuthentication, false, false, true, false)]
-    [TestCase(OfflineScenario.DisconnectDuringHandshake, false, true, false, false)]
-    [TestCase(OfflineScenario.HandshakeTimeout, true, false, false, false)]
-    [TestCase(OfflineScenario.WorldInitializationTimeout, false, false, false, true)]
+    [TestCase(DummyScenario.HappyPath, false, false, false, false)]
+    [TestCase(DummyScenario.RejectAuthentication, false, false, true, false)]
+    [TestCase(DummyScenario.DisconnectDuringHandshake, false, true, false, false)]
+    [TestCase(DummyScenario.HandshakeTimeout, true, false, false, false)]
+    [TestCase(DummyScenario.WorldInitializationTimeout, false, false, false, true)]
     public void DummyScenarioController_MapsConfiguredScenarioDeterministically(
-        OfflineScenario scenario,
+        DummyScenario scenario,
         bool stallsConnection,
         bool disconnects,
         bool rejectsAuthentication,
         bool stallsWorld)
     {
-        var settings = new OfflineScenarioSettings { Scenario = scenario };
+        var settings = new DummyScenarioSettings { Scenario = scenario };
         var controller = new DummyScenarioController(settings);
 
         controller.BeginLifecycle(7);
@@ -50,14 +50,14 @@ public sealed class DummyConnectionSessionTests
     [Test]
     public void DummyScenarioController_CapturesSettingsForWholeLifecycle()
     {
-        var settings = new OfflineScenarioSettings
+        var settings = new DummyScenarioSettings
         {
-            Scenario = OfflineScenario.RejectAuthentication,
+            Scenario = DummyScenario.RejectAuthentication,
         };
         var controller = new DummyScenarioController(settings);
         controller.BeginLifecycle(1);
 
-        settings.Scenario = OfflineScenario.HandshakeTimeout;
+        settings.Scenario = DummyScenario.HandshakeTimeout;
 
         Assert.That(controller.RejectsAuthentication, Is.True);
         Assert.That(controller.StallsConnection, Is.False);

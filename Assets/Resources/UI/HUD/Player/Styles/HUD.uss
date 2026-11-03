@@ -32,7 +32,7 @@
     padding: var(--space-1) var(--space-4);
     background-color: var(--surface-void-shade);
     border-color: var(--border-subtle);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-md);
 }
 
@@ -118,7 +118,7 @@
     flex-direction: column;
     background-color: var(--surface-panel);
     border-color: var(--border-cyan);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-md);
     overflow: hidden;
 }
@@ -133,7 +133,7 @@
     padding-right: var(--space-3);
     background-color: var(--surface-slate-solid);
     border-bottom-color: var(--border-subtle);
-    border-bottom-width: 1px;
+    border-bottom-width: var(--border-width-thin);
 }
 
 .world-map-title {
@@ -164,19 +164,19 @@
     color: var(--accent-cyan-hover);
     background-color: var(--surface-slate-dense);
     border-color: var(--border-subtle);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
 }
 
 .world-map-status {
     position: absolute;
-    left: 50%;
-    top: 50%;
+    left: var(--radius-pill);
+    top: var(--radius-pill);
     translate: -50% -50%;
     padding: var(--space-3) var(--space-5);
     color: var(--text-primary);
     background-color: var(--surface-raised);
     border-color: var(--border-subtle);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-sm);
     font-size: var(--size-sm);
 }
@@ -199,8 +199,8 @@
     position: absolute;
     left: 0;
     top: 0;
-    width: 10px;
-    height: 10px;
+    width: var(--space-5);
+    height: var(--space-5);
     background-color: var(--state-danger);
     border-color: var(--light-solid);
     border-width: 1.5px;
@@ -246,7 +246,7 @@
     padding: 0 var(--space-4);
     background-color: var(--surface-slate-dense);
     border-color: var(--text-tertiary);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-md);
     color: var(--light-solid);
     -unity-text-align: middle-center;
@@ -270,7 +270,7 @@
     padding: var(--space-4);
     background-color: var(--surface-solid);
     border-color: var(--accent-cyan-fill);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-md);
 }
 
@@ -283,12 +283,12 @@
 }
 
 .asset-status-metrics {
-    margin-top: 5px;
+    margin-top: var(--radius-sm);
     color: var(--text-secondary);
 }
 
 .asset-status-details {
-    margin-top: 5px;
+    margin-top: var(--radius-sm);
     color: var(--text-secondary);
 }
 
@@ -328,7 +328,7 @@
 .hud-bar {
     background-color: var(--surface-shelf-solid);
     border-color: var(--border-subtle);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-sharp);
     height: var(--space-6);
     width: 150px;
@@ -349,7 +349,7 @@
     /* Рецепт окна меню (mm-modal-card / hud-minimap-panel): тонкая
        бирюзовая рамка со скруглением вместо серого прямогольника. */
     border-color: var(--border-cyan);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-md);
     flex-direction: column;
 }
@@ -367,7 +367,7 @@
     padding: 0;
     margin-left: var(--space-2);
     background-color: var(--accent-gold-glow);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--text-disabled);
 }
 
@@ -386,7 +386,7 @@
 /* Уровень под никнеймом: "Уровень: X" — компактная строка */
 .hud-panel .hud-level {
     font-size: var(--size-sm);
-    color: var(--text-secondary);
+    color: var(--light-solid);
     margin: 0 0 var(--space-1);
     -unity-font-style: bold;
 }
@@ -446,7 +446,7 @@
     -unity-text-align: middle-center;
     color: var(--accent-gold);
     background-color: var(--accent-gold-glow);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--text-disabled);
 }
 
@@ -455,11 +455,9 @@
     color: var(--surface-panel);
 }
 
-/* Иконокная кнопка доната в статус-панели — тот же паттерн, что и dropbox:
-   без неё ui:Button показывал бы дефолтный серый фон. */
 .hud-panel .hud-donate-button {
-    width: 15px;
-    height: 15px;
+    width: 24px;
+    height: 24px;
     flex-shrink: 0;
     padding: 0;
     margin-left: var(--space-2);
@@ -517,38 +515,6 @@
     padding: 0;
 }
 
-/* Перетаскиваемая ручка панели HUD: висит ПОД нижним краем панели, чтобы
- * не налезать на полосы кристаллов корзины в правом нижнем углу. */
-.hud-drag-handle {
-    position: absolute;
-    right: 4px;
-    bottom: -26px;
-    width: 28px;
-    height: 20px;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--radius-sm);
-    background-color: var(--surface-shelf-solid);
-    border-width: 1px;
-    border-color: var(--border-subtle);
-}
-
-.hud-drag-handle > .unity-label {
-    font-size: var(--size-base);
-    color: var(--text-secondary);
-    -unity-text-align: middle-center;
-    padding: 0;
-    margin: 0;
-}
-
-.hud-drag-handle:hover {
-    background-color: var(--accent-gold-tint);
-}
-
-.hud-drag-handle:hover > .unity-label {
-    color: var(--accent-gold);
-}
-
 .hud-button-accent {
     background-color: var(--accent-gold);
     border-color: var(--border-subtle);
@@ -565,31 +531,6 @@
     background-color: var(--accent-gold-hover);
 }
 
-.hud-button-close {
-    width: var(--space-10);
-    height: var(--space-10);
-    background-color: transparent;
-    color: var(--text-secondary);
-    font-size: var(--size-lg);
-    padding: 0;
-    border-width: 0;
-}
-
-.hud-button-claim {
-    align-self: center;
-    background-color: var(--accent-cyan-glow);
-    color: var(--light-solid);
-    border-color: var(--light-edge);
-    border-width: var(--space-1);
-    border-radius: var(--radius-sm);
-    padding: var(--space-2) var(--space-8);
-    font-size: var(--size-md);
-}
-
-.hud-button-claim:hover {
-    background-color: var(--light-edge);
-}
-
 .hud-button-label {
     font-size: var(--size-sm);
     -unity-font-style: bold;
@@ -597,45 +538,16 @@
     flex-grow: 1;
 }
 
-.hud-bonus-panel {
-    position: absolute;
-    top: 66px;
-    left: 256px;
-    width: 260px;
-    max-width: 90%;
-    max-height: 90%;
-    padding: var(--space-5);
-    background-color: var(--surface-panel);
-    border-color: var(--border-subtle);
-    border-width: 1px;
-    border-radius: var(--radius-md);
-    flex-direction: column;
-}
-
-.hud-bonus-panel .hud-stat {
-    margin: var(--space-1) 0;
-}
-
-.hud-bonus-panel .hud-title-row {
-    flex-direction: row;
-    margin-bottom: var(--space-5);
-}
-
-.hud-bonus-panel .hud-title-row .hud-stat {
-    color: var(--accent-gold);
-    flex-grow: 1;
-}
-
 .hud-status-panel {
     position: absolute;
-    /* Ниже кнопки бонуса (top:10 + высота 50 + зазор 6) — как было в C#-версии */
+    /* Под панелью игрока, как было в C#-версии */
     top: 66px;
     left: 256px;
     width: 220px;
     padding: var(--space-6);
     background-color: var(--surface-panel);
     border-color: var(--border-subtle);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-md);
     flex-direction: column;
 }
@@ -675,7 +587,7 @@
    общим align-items: center ячейки. */
 .hud-skill-icon-frame {
     position: relative;
-    margin-top: 16px;
+    margin-top: var(--space-8);
 }
 
 /* Надпись "up" при готовности апгрейда: абсолютный слой строго над иконкой,
@@ -686,10 +598,10 @@
    в PlayerHUDSkillGrid сдвигает только по Y и подгонку не затирает. */
 .hud-skill-arrow {
     position: absolute;
-    left: 2px;
+    left: var(--space-1);
     right: -2px;
     top: -16px;
-    height: 14px;
+    height: var(--space-7);
     font-size: var(--size-xs);
     -unity-font-style: bold;
     color: var(--accent-gold);
@@ -703,12 +615,12 @@
    корзины, чтобы числа выглядели одинаково. */
 .hud-skill-bar {
     width: 44px;
-    height: 20px;
+    height: var(--space-9);
     position: relative;
     margin-top: var(--space-3);
     border-radius: var(--radius-sm);
     background-color: var(--surface-panel);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     overflow: hidden;
 }
@@ -742,7 +654,7 @@
 
 .hud-crystal-row {
     flex-direction: row;
-    margin-bottom: 2px;
+    margin-bottom: var(--space-1);
     align-items: center;
 }
 
@@ -761,7 +673,7 @@
  * Зона: <100% лайм, 100-114% жёлтый, 114%+ коралл (перегруз). */
 .hud-crystal-bar {
     flex-grow: 1;
-    height: 20px;
+    height: var(--space-9);
     border-radius: var(--radius-sm);
     overflow: hidden;
 }
@@ -801,7 +713,7 @@
    сквозь сильно прозрачный фон контраст цифр убивала. */
 .hud-crystal-row--ok .hud-crystal-bar {
     background-color: rgba(74, 222, 128, 0.3);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: rgba(74, 222, 128, 0.45);
 }
 
@@ -811,7 +723,7 @@
 
 .hud-crystal-row--warn .hud-crystal-bar {
     background-color: rgba(245, 197, 66, 0.3);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-gold);
 }
 
@@ -821,7 +733,7 @@
 
 .hud-crystal-row--over .hud-crystal-bar {
     background-color: rgba(255, 85, 85, 0.3);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-danger);
 }
 
@@ -837,13 +749,13 @@
 .hud-mission-panel {
     position: absolute;
     top: 50px;
-    left: 50%;
+    left: var(--radius-pill);
     translate: -50% 0;
     min-width: 300px;
     padding: var(--space-4);
     background-color: var(--surface-panel);
     border-color: var(--border-cyan);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-md);
     flex-direction: column;
 }
@@ -887,7 +799,7 @@
        наведение — тонированная подложка, как у mm-user-pill. */
     background-color: var(--surface-slate-dense);
     border-color: var(--border-cyan);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-md);
     font-size: var(--size-sm);
     -unity-font-style: bold;
@@ -999,14 +911,6 @@
 /* Hover-подложка темы перекрыла бы спрайт - на иконках её нет. */
 .hud-btn-top-row:hover { background-color: rgba(0, 0, 0, 0); }
 
-.hud-bonus-button {
-    position: absolute;
-    left: 256px;
-    top: var(--space-5);
-    width: 90px;
-    height: 50px;
-}
-
 /* Кнопки чата в HUD больше нет: чат открывается по TAB (GlobalChatUI.Update),
    панель - .gchat-panel в Chat.uss. */
 
@@ -1069,33 +973,33 @@
     border-radius: var(--radius-pill);
     background-color: rgba(8, 17, 24, 0.48);
     border-color: var(--border-subtle);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     display: none;
 }
 
 .hud-mobile-move-ring {
     position: absolute;
-    left: 50%;
-    top: 50%;
+    left: var(--radius-pill);
+    top: var(--radius-pill);
     width: 72px;
     height: 72px;
     translate: -50% -50%;
     border-radius: var(--radius-pill);
     border-color: rgba(255, 255, 255, 0.28);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
 }
 
 .hud-mobile-move-knob {
     position: absolute;
-    left: 50%;
-    top: 50%;
+    left: var(--radius-pill);
+    top: var(--radius-pill);
     width: 54px;
     height: 54px;
     translate: -50% -50%;
     border-radius: var(--radius-pill);
     background-color: rgba(31, 163, 170, 0.78);
     border-color: var(--accent-cyan-hover);
-    border-width: 2px;
+    border-width: var(--border-width-strong);
 }
 
 .hud-mobile-actions {
@@ -1129,7 +1033,7 @@
     padding-right: var(--space-3);
     background-color: rgba(8, 17, 24, 0.82);
     border-color: var(--border-subtle);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-md);
     color: var(--text-primary);
     font-size: var(--size-sm);
@@ -1284,7 +1188,7 @@
 .hud-mission-panel {
     position: absolute;
     top: 50px;
-    left: 50%;
+    left: var(--radius-pill);
     translate: -50% 0;
     width: 380px;
     padding: var(--space-5) var(--space-7);
@@ -1294,6 +1198,17 @@
     flex-direction: row;
     align-items: center;
     margin-bottom: var(--space-2);
+}
+
+.hud-mission-body {
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+.hud-mission-image {
+    flex-shrink: 0;
+    margin-right: var(--space-3);
+    -unity-background-scale-mode: scale-and-crop;
 }
 
 .hud-mission-title {
@@ -1310,18 +1225,6 @@
     font-size: var(--size-xs);
     white-space: normal;
     margin-bottom: var(--space-3);
-}
-
-/* J2-C: картинка миссии (M3G из MissionInitPacket.ImageURI) слева от текста. */
-.hud-mission-body {
-    flex-direction: row;
-    align-items: flex-start;
-}
-
-.hud-mission-image {
-    flex-shrink: 0;
-    margin-right: var(--space-3);
-    -unity-background-scale-mode: scale-and-crop;
 }
 
 .hud-mission-track {
@@ -1374,7 +1277,7 @@
     left: var(--space-8);
     padding: var(--space-3);
     background-color: var(--surface-slate-dense);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--accent-cyan-fill);
     border-radius: var(--radius-md);
     flex-direction: column;
@@ -1384,7 +1287,7 @@
 .hud-minimap-container {
     width: 160px;
     height: 160px;
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--light-sheen);
     border-radius: var(--radius-sharp);
     background-color: var(--shadow-solid);
@@ -1399,11 +1302,11 @@
     position: absolute;
     left: 80px;
     top: 80px;
-    width: 6px;
-    height: 6px;
+    width: var(--space-3);
+    height: var(--space-3);
     background-color: var(--state-danger);
     border-color: var(--light-solid);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-pill);
     translate: -50% -50%;
 }
@@ -1414,7 +1317,7 @@
     -unity-font-style: bold;
     /* Фиксированная высота: панель миникарты получает детерминированную
        высоту (194px), кнопка программатора стыкуется с ней без нахлёста. */
-    height: 16px;
+    height: var(--space-8);
     margin-bottom: var(--space-2);
     -unity-text-align: middle-center;
 }

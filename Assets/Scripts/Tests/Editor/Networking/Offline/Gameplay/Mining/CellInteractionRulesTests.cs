@@ -11,14 +11,13 @@ namespace Kern.Tests.Player;
 
 public sealed class CellInteractionRulesTests
 {
-    [TestCase(CellConfigProperties.None, true)]
-    [TestCase(CellConfigProperties.Passable, false)]
-    [TestCase(CellConfigProperties.Blending, true)]
-    [TestCase(CellConfigProperties.Blending | CellConfigProperties.Passable, false)]
-    [TestCase((CellConfigProperties)254, true)]
-    public void OfflineExcavation_DependsOnlyOnPassability(CellConfigProperties properties, bool expected)
+    [TestCase(CellRenderLayer.Foreground, true)]
+    [TestCase(CellRenderLayer.Background, false)]
+    [TestCase(CellRenderLayer.Underlay, false)]
+    [TestCase(CellRenderLayer.WorldBoundary, false)]
+    public void OfflineExcavation_DependsOnDrawLayer(CellRenderLayer drawLayer, bool expected)
     {
-        var config = CellPacket.Create(properties);
+        var config = CellPacket.Create(drawLayer: drawLayer);
         Assert.That(CellInteractionRules.CanMine(config), Is.EqualTo(expected));
     }
 }

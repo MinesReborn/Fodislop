@@ -12,7 +12,7 @@ public class ClientConfig
     // 34: две ступени качества (Классика/Стандарт) вместо шести, без Custom.
     // 35: EffectSettings.BloomVariant.
     // 36: перебиндиваемые клавиши InterfaceSettings.Key* (вкладка «Управление»).
-    // 37: InterfaceSettings.KeyAggression (агрессия перебиндивается).
+    // 37: reserved schema version.
     // 38: DisplaySettings.HDRSwitchPending для подтверждения смены режима дисплея.
     // 39: DisplaySettings.PeakBrightnessFromDisplay — пик с дисплея до ручной настройки.
     // 40: TerrainSettings EnableReliefRim → EnableRim, *Emission* → *Glow*,
@@ -30,7 +30,10 @@ public class ClientConfig
     // 48: независимый масштаб текста и полные клавиатурные привязки.
     // 49: отдельные тумблеры рыбьего глаза и глубины, изначально выключены.
     // Схемы 31–48 мигрируются штатным загрузчиком с созданием backup.
-    public const int CurrentSchemaVersion = 49;
+    // 50: replace the old default slow-movement Ctrl binding.
+    // 51: move the default slow-movement binding to LeftAlt.
+    // 52: помощь в движении (обход препятствий), изначально включена.
+    public const int CurrentSchemaVersion = 52;
 
     public int SchemaVersion;
     public AudioSettings Audio = new();

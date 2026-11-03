@@ -9,7 +9,6 @@ using System.Text.RegularExpressions;
 using Kern.World;
 using Kern.World.Terrain;
 using MinesServer.Data;
-using MinesServer.Networking.Server.Packets.Connection;
 using NUnit.Framework;
 
 namespace Kern.Tests.World;
@@ -20,7 +19,7 @@ namespace Kern.Tests.World;
 [TestFixture]
 public sealed class TerrainCellFormatMirrorTests
 {
-    private const string FormatPath = "Assets/Shaders/Terrain/Cells/TerrainCellFormat.hlsl";
+    private const string FormatPath = "Assets/Shaders/Terrain/Cells/Format/TerrainCellFormat.hlsl";
 
     [Test]
     public void EveryMirrorConstantMatchesTheShader()
@@ -51,8 +50,12 @@ public sealed class TerrainCellFormatMirrorTests
         AssertCodes<CellOutline>(shader, "OUTLINE");
         AssertCodes<CellTextureAnchor>(shader, "TEXTURE_ANCHOR");
         AssertCodes<CellAnimationType>(shader, "ANIMATION_TYPE");
-        AssertCodes<CellSurfaceEffect>(shader, "SURFACE_EFFECT");
-        AssertCodes<CellDecalAtlas>(shader, "DECAL_ATLAS");
+
+        // Базовые коды и дверь проверяются явными ссылками на обе стороны контракта.
+        Assert.That(shader["KERN_TERRAIN_OUTLINE_RIGID"], Is.EqualTo((double)CellOutline.Rigid));
+        Assert.That(shader["KERN_TERRAIN_OUTLINE_DOOR"], Is.EqualTo((double)CellOutline.Door));
+        Assert.That(shader["KERN_TERRAIN_ANIMATION_TYPE_NONE"], Is.EqualTo((double)CellAnimationType.None));
+        Assert.That(shader["KERN_TERRAIN_TEXTURE_ANCHOR_CELL"], Is.EqualTo((double)CellTextureAnchor.Cell));
     }
 
     // Каждое значение перечисления — константа KERN_TERRAIN_<group>_<ИМЯ>

@@ -128,18 +128,18 @@ internal sealed class MenuSceneryPresenter
 
         TryApplyStarfieldTexture(ref spaceBgTexture);
         TryApplySceneryTexture();
-        ApplyImageTexture(_loaderShade, ref shadeTexture, "UI/mm_shade.png", nameof(_loaderShade));
+        ApplyImageTexture(_loaderShade, ref shadeTexture, "Visual/UI/mm_shade.png", nameof(_loaderShade));
 
-        ApplyImageTexture(_logoIcon, ref _logoTexture, "UI/mm_logo.png", nameof(_logoIcon));
+        ApplyImageTexture(_logoIcon, ref _logoTexture, "Visual/UI/mm_logo.png", nameof(_logoIcon));
 
-        ApplyIconTexture("SideChronicleIcon", "UI/mm_icon_chronicle.png");
-        ApplyIconTexture("SideSettingsIcon", "UI/mm_icon_settings.png");
-        ApplyIconTexture("SideRepairIcon", "UI/mm_icon_repair.png");
-        ApplyIconTexture("SideUpdateIcon", "UI/mm_icon_update.png");
-        ApplyIconTexture("SideDiscordIcon", "UI/mm_icon_discord.png");
-        ApplyIconTexture("SideTelegramIcon", "UI/mm_icon_telegram.png");
-        ApplyIconTexture("SideVkIcon", "UI/mm_icon_vk.png");
-        ApplyIconTexture("SideExitIcon", "UI/mm_icon_exit.png");
+        ApplyIconTexture("SideChronicleIcon", "Visual/UI/mm_icon_chronicle.png");
+        ApplyIconTexture("SideSettingsIcon", "Visual/UI/mm_icon_settings.png");
+        ApplyIconTexture("SideRepairIcon", "Visual/UI/mm_icon_repair.png");
+        ApplyIconTexture("SideUpdateIcon", "Visual/UI/mm_icon_update.png");
+        ApplyIconTexture("SideDiscordIcon", "Visual/UI/mm_icon_discord.png");
+        ApplyIconTexture("SideTelegramIcon", "Visual/UI/mm_icon_telegram.png");
+        ApplyIconTexture("SideVkIcon", "Visual/UI/mm_icon_vk.png");
+        ApplyIconTexture("SideExitIcon", "Visual/UI/mm_icon_exit.png");
 
         _uiTexturesReady = true;
     }
@@ -216,7 +216,7 @@ internal sealed class MenuSceneryPresenter
             return;
         }
 
-        ApplyImageTexture(_spaceBgImage, ref spaceBgTexture, "UI/mm_space_bg.png", nameof(_spaceBgImage));
+        ApplyImageTexture(_spaceBgImage, ref spaceBgTexture, "Visual/UI/mm_space_bg.png", nameof(_spaceBgImage));
     }
 
     private void TryApplySceneryTexture()
@@ -245,18 +245,16 @@ internal sealed class MenuSceneryPresenter
     private Texture2D? LoadDirectTexture(string assetPath)
     {
         string relativePath = assetPath;
-        string? absolutePath = _runtimeAssetPaths.FindTextureFile(relativePath);
-        if (absolutePath == null)
+        byte[]? fileData = _runtimeAssetPaths.GetTextureBytes(relativePath);
+        if (fileData == null)
         {
             Debug.LogError(
-                $"[MainMenu] Required UI texture is missing: '{relativePath}'. " +
-                $"BundledRoot='{_runtimeAssetPaths.BundledTexturesRoot}'.");
+                $"[MainMenu] Required UI texture is missing: '{relativePath}'.");
             return null;
         }
 
         try
         {
-            byte[] fileData = File.ReadAllBytes(absolutePath);
             return RuntimeTextureFactory.DecodeEncodedImageToRGBA32NoMip(
                 fileData,
                 Path.GetFileNameWithoutExtension(assetPath),
@@ -267,7 +265,7 @@ internal sealed class MenuSceneryPresenter
         }
         catch (Exception exception)
         {
-            Debug.LogWarning($"[MainMenu] Failed to load texture '{absolutePath}': {exception.Message}");
+            Debug.LogWarning($"[MainMenu] Failed to decode texture '{relativePath}': {exception.Message}");
             return null;
         }
     }

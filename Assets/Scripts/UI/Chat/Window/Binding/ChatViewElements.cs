@@ -28,10 +28,6 @@ internal sealed class ChatViewElements
 
     public VisualElement? ColorGrid { get; }
 
-    public Button? EmojiButton { get; }
-
-    public VisualElement? EmojiGrid { get; }
-
     public VisualElement? ChatListPopup { get; }
 
     public ScrollView? ChatListScroll { get; }
@@ -67,8 +63,6 @@ internal sealed class ChatViewElements
         SendButton = tree.Q<Button>("SendButton");
         ColorButton = tree.Q<Button>("ColorButton");
         ColorGrid = tree.Q<VisualElement>("ColorGrid");
-        EmojiButton = tree.Q<Button>("EmojiButton");
-        EmojiGrid = tree.Q<VisualElement>("EmojiGrid");
         ChatListPopup = tree.Q<VisualElement>("ChatListPopup");
         ChatListScroll = tree.Q<ScrollView>("ChatListScroll");
         ChatListCloseButton = tree.Q<Button>("ChatListCloseButton");

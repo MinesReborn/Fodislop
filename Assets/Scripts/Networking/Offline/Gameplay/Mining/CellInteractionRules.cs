@@ -11,5 +11,5 @@ namespace Kern.Networking.Offline;
 public static class CellInteractionRules
 {
     public static bool CanMine(in CellConfigurationPacket config) =>
-        !config.Properties.HasFlag(CellConfigProperties.Passable);
+        config.DrawLayer == CellRenderLayer.Foreground;
 }

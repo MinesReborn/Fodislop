@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.Information;
@@ -28,8 +29,15 @@ public interface IMapDataProvider
     /// <see cref="Color"/> срезает единицу в каналах на обратном касте.
     /// </summary>
     Color32 GetCellMinimapColor32(CellType type);
+    bool TryGetAudioBanks(out IReadOnlyList<AssetsDefinitionPacket> banks);
     void UpdateMovementSpeeds(MovementSpeedPacket packet);
     void LoadWorldInit(WorldInitPacket packet);
+
+    /// <summary>Мир из пакета — тот самый, что уже загружен (имя и размер совпадают).</summary>
+    bool IsSameWorld(WorldInitPacket packet);
+
+    /// <summary>Подменяет содержимое загруженного мира, не пересоздавая его.</summary>
+    void ApplyWorldContent(WorldInitPacket packet);
     Action? OnWorldInitialized { get; set; }
     Action? OnWorldDataLoaded { get; set; }
     void ResetWorldState();

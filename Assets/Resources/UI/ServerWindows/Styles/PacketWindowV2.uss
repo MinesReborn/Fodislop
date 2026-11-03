@@ -22,7 +22,7 @@
     position: absolute;
     background-color: var(--surface-panel);
     border-radius: var(--radius-md);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-cyan);
     overflow: hidden;
 }
@@ -36,7 +36,7 @@
     justify-content: space-between;
     padding: 0 var(--space-3) 0 var(--space-7);
     background-color: var(--surface-slate-solid);
-    border-bottom-width: 1px;
+    border-bottom-width: var(--border-width-thin);
     border-bottom-color: var(--border-subtle);
     border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
@@ -59,7 +59,7 @@
     height: 24px;
     margin: 0;
     padding: 0;
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: transparent;
     border-radius: var(--radius-sm);
     background-color: transparent;
@@ -91,8 +91,8 @@
     background-color: var(--accent-cyan-glow);
     border-top-left-radius: var(--radius-md);
     border-color: var(--border-cyan);
-    border-left-width: 1px;
-    border-top-width: 1px;
+    border-left-width: var(--border-width-thin);
+    border-top-width: var(--border-width-thin);
 }
 
 .v2-window-resize:hover {
@@ -106,7 +106,7 @@
     margin: var(--space-1) var(--space-3);
     padding: var(--space-3) var(--space-7);
     border-radius: var(--radius-sm);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     background-color: var(--surface-slate-dense);
     color: var(--text-primary);
@@ -158,7 +158,7 @@
    подчёркнута бирюзовой полосой и подсвечена тоном. */
 .packet-button--tab {
     border-radius: var(--radius-md) var(--radius-md) 0 0;
-    border-bottom-width: 2px;
+    border-bottom-width: var(--border-width-strong);
     border-bottom-color: var(--border-line);
     background-color: var(--surface-slate-dense);
     color: var(--text-secondary);
