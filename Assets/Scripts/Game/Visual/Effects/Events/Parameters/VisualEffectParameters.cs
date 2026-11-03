@@ -4,6 +4,7 @@ using System;
 using System.Globalization;
 using System.Collections.Generic;
 using MinesServer.Networking.Contracts.Packets;
+using UnityEngine;
 
 namespace Kern.Game.Visual.Effects.Events.Parameters;
 
@@ -17,6 +18,9 @@ internal sealed class VisualEffectParameters
     /// совпадает с именем ассета Crys/{цвет}.png. Сервер кладёт его в параметр "color".
     /// </summary>
     public string CrystalColorLetter { get; private set; } = "g";
+
+    /// <summary>Optional HTML hexadecimal color for a crystal, with or without a leading '#'.</summary>
+    public Color? CrystalHexColor { get; private set; }
 
     /// <summary>Количество кристаллов из параметра "count" (для VisualEffect.Crystal).</summary>
     public int CrystalCount { get; private set; } = 1;
@@ -44,12 +48,20 @@ internal sealed class VisualEffectParameters
 
                 case "color":
                 {
-                    // Пока используется только VisualEffect.Crystal: буквенное имя цвета
-                    // кристалла; неизвестные значения молча игнорируем (остаётся "g").
                     var color = param.Value.Trim().ToLowerInvariant();
                     if (color is "b" or "c" or "g" or "r" or "v" or "w")
                     {
                         result.CrystalColorLetter = color;
+                        result.CrystalHexColor = null;
+                    }
+                    else
+                    {
+                        string hex = color.StartsWith('#') ? color : $"#{color}";
+                        int digitCount = hex.Length - 1;
+                        if ((digitCount is 6 or 8) && ColorUtility.TryParseHtmlString(hex, out Color parsedColor))
+                        {
+                            result.CrystalHexColor = parsedColor;
+                        }
                     }
 
                     break;

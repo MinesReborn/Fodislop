@@ -335,7 +335,7 @@ public sealed class ServerVisualEvent : IServerWorldEffect
                 return;
             }
 
-            var filename = VisualEffectAssetLoader.GetPublishedAssetPath(_effectType.ToString());
+            var filename = VisualEffectAssetLoader.GetServerAssetName(_effectType.ToString());
             if (await TryLoadNamedVisualAsync(filename, token))
             {
                 return;
@@ -507,6 +507,10 @@ public sealed class ServerVisualEvent : IServerWorldEffect
         }
 
         _flightSpriteShared = isSharedSprite;
+        if (_parsedParams.CrystalHexColor is Color crystalColor)
+        {
+            _slot?.SetColor(crystalColor);
+        }
         await ConfigureFlightAsync(sprite, token);
         return true;
     }
@@ -920,7 +924,7 @@ public sealed class ServerVisualEvent : IServerWorldEffect
             FilterMode.Point,
             TextureWrapMode.Clamp);
 
-        Color color = _parsedParams.CrystalColorLetter switch
+        Color color = _parsedParams.CrystalHexColor ?? (_parsedParams.CrystalColorLetter switch
         {
             "b" => new Color(0.20f, 0.50f, 1.00f),
             "r" => new Color(1.00f, 0.25f, 0.25f),
@@ -928,7 +932,7 @@ public sealed class ServerVisualEvent : IServerWorldEffect
             "w" => new Color(0.95f, 0.95f, 1.00f),
             "c" => new Color(0.30f, 0.95f, 1.00f),
             _ => new Color(0.25f, 0.90f, 0.35f),
-        };
+        });
 
         var pixels = new Color[ProceduralCrystalSize * ProceduralCrystalSize];
         var center = (ProceduralCrystalSize - 1) * 0.5f;
@@ -988,13 +992,15 @@ public sealed class ServerVisualEvent : IServerWorldEffect
         _sourceCollectionSpriteObject = CreateSourceCollectionSpriteObject(
             _sceneObjects,
             _gameObject.transform,
-            _flightSprite);
+            _flightSprite,
+            _parsedParams.CrystalHexColor ?? Color.white);
     }
 
     internal static GameObject CreateSourceCollectionSpriteObject(
         ISceneObjectFactory sceneObjects,
         Transform parent,
-        Sprite sprite)
+        Sprite sprite,
+        Color tint)
     {
         GameObject spriteObject = sceneObjects.Create("CrystalCollectionMineral", RuntimeOwner.VisualEffects);
         try
@@ -1007,7 +1013,7 @@ public sealed class ServerVisualEvent : IServerWorldEffect
             SpriteRenderer renderer = spriteObject.AddComponent<SpriteRenderer>();
             renderer.sprite = sprite;
             renderer.sortingOrder = 5;
-            renderer.color = Color.white;
+            renderer.color = tint;
             renderer.drawMode = SpriteDrawMode.Simple;
             renderer.maskInteraction = SpriteMaskInteraction.None;
             renderer.receiveShadows = false;

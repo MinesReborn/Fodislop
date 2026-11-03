@@ -123,7 +123,8 @@ public sealed class CrystalCollectionPixelParityPlayModeTests
                 GameObject productionSpriteObject = ServerVisualEvent.CreateSourceCollectionSpriteObject(
                     sceneObjects,
                     productionRoot.transform,
-                    productionSprite);
+                    productionSprite,
+                    Color.white);
                 productionSpriteObject.layer = ProductionLayer;
 
                 AddSourcePrefabSpriteRenderer(sourceRoot.transform, sourceSprite, ReferenceLayer);

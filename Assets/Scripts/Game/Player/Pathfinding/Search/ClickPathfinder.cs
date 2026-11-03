@@ -166,8 +166,7 @@ public static class ClickPathfinder
 
     private static int CellCostMs(IWorldDataStorage storage, IMapDataProvider mapDataProvider, int x, int y)
     {
-        if (!storage.TryGetCell(x, y, out CellType cell) ||
-            cell is CellType.Unloaded or CellType.Pregener)
+        if (!storage.TryGetCell(x, y, out CellType cell))
         {
             return -1;
         }
