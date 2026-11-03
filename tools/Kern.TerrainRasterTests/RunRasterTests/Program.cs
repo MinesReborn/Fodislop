@@ -142,11 +142,11 @@ internal static class Program
             !ambientOcclusionPass.Contains("if (exteriorDistance >= _TerrainAmbientOcclusionDistance)", StringComparison.Ordinal) ||
             !ambientOcclusionPass.Contains("_TerrainAmbientOcclusionDistance, exteriorDistance)", StringComparison.Ordinal) ||
             !ambientOcclusionPass.Contains("ColorMask R", StringComparison.Ordinal) ||
-            ambientOcclusionFunction.Contains("SampleTerrainLightingFieldAlbedoTexel", StringComparison.Ordinal) ||
-            ambientOcclusionFunction.Contains("_AlphaCutoff", StringComparison.Ordinal) ||
+            !ambientOcclusionFunction.Contains("SampleTerrainLightingFieldAlbedoTexel", StringComparison.Ordinal) ||
+            !ambientOcclusionFunction.Contains("clip(alpha - _AlphaCutoff)", StringComparison.Ordinal) ||
             ambientOcclusionFunction.Contains("_PrismaticFlowMap", StringComparison.Ordinal))
         {
-            return Fail("AO must derive its single-channel red field from geometry without atlas-alpha dependencies");
+            return Fail("AO must combine geometry with the material atlas occupancy threshold");
         }
 
         int debugAt = terrainShader.IndexOf("if (KernTerrainDebugActive())", StringComparison.Ordinal);

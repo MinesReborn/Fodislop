@@ -17,6 +17,7 @@
 
             half4 AmbientOcclusionFieldFrag(TerrainLightingFieldVaryings input) : SV_Target
             {
+                float2 carrierPixelWidth = fwidth(input.packedData.yz);
                 // Evaluate coverage and falloff at the native 1/32-cell sample.
                 // No resampling/quantization pass follows this field calculation.
                 input.packedData.yz = QuantizeTerrainPixelCenter(input.packedData.yz);
@@ -81,6 +82,26 @@
                 {
                     clip(-1.0);
                 }
+
+                // Material occupancy excludes transparent atlas texels. Use the
+                // same authored frame and UV mapping here; outside the polygon,
+                // sample its closest edge instead of wrapping into a neighbour.
+                float2 samplePosition = exteriorDistance > 0.0
+                    ? closestGeometryPosition
+                    : surface.cellSample;
+                float4 sampleData = input.packedData;
+                sampleData.yz = samplePosition;
+                int atlasSlot = (int)round(input.atlasIndex);
+                float4 atlasTexelSize = TerrainMaterialAtlasTexelSize(atlasSlot);
+                float2 tileUv = TerrainResolveGeometryTileUV(
+                    saturate(input.uv), samplePosition,
+                    input.geometryCornersX, input.geometryCornersY,
+                    input.uvBits, input.packedData.x);
+                half alpha = SampleTerrainLightingFieldAlbedoTexel(
+                    tileUv, samplePosition, input.subAtlasRect, input.tileSizeUV,
+                    input.worldPos, input.animData, sampleData, atlasSlot,
+                    atlasTexelSize, carrierPixelWidth).a;
+                clip(alpha - _AlphaCutoff);
 
                 float contact = 1.0 - smoothstep(
                     0.0, _TerrainAmbientOcclusionDistance, exteriorDistance);
