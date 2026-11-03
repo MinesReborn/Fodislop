@@ -474,8 +474,19 @@
 /* Навыки — как в Legacy-клиенте (SkillButton.prefab / MiniSkill.prefab). Спрайты скопированы из него: img/legacy/up_framed.png (плашка «ап»),
    up_lock_framed.png (она же с замком), up_word.png (стрелка мини-навыка). Размеры Legacy ×1.26 — слот у нас 48 px вместо 38 */
 /* Уровень — плашка цвета навыка с чёрной цифрой (Level: спрайт rounded, цвет = SkillButton.colors[type], текст чёрный) */
-.frame .slot .lvl { top: -5px; min-width: 28px; height: 15px; padding: 0 3px; border: 0; border-radius: 5px; background: var(--c); color: var(--black);
-  font: var(--fw-bold) 12.6px/15px var(--font-text); letter-spacing: 0; }
+/* Навыки в окне UP чуть крупнее общего контрола 48 px */
+.frame:not(.compact) .slot { width: 54px; height: 54px; }
+/* Плашка уровня — вектором, в геометрии Legacy, снятой по пикселям со снимка окна UP. --u — пиксель Legacy: кольцо навыка
+   в Legacy 36 px, у нас кольцо — иконка .sk (слот минус рамка 1 и отступ 2 с каждой стороны).
+   Плашка: высота 10, уголок 1.5, верх на 5 выше кольца, «114» → 22. Цифры: высота 7, поле 2 сверху и 1 снизу, шаг 6,
+   штрих 1 (Unity растеризует Arial 10 в пикселях окна — цифры шире и плотнее браузерных). Отсюда кегль 9.4; строка 10.23 ставит
+   цифры ровно по центру — подобрано замером в Chrome на плашке, увеличенной ×30 (поля сверху и снизу равны), разрядка .8, обводка .35 и поля 2.5 / 1.5 (справа — минус хвост разрядки) */
+.frame .slot { --u: calc((54px - 6px) / 36); }
+.frame.compact .slot { --u: calc((var(--hit) - 6px) / 36); }
+.frame .slot .lvl { top: calc(2px - 5 * var(--u)); display: block; box-sizing: border-box; min-width: 0; height: calc(10 * var(--u));
+  padding: 0 calc(1.5 * var(--u)) 0 calc(2.5 * var(--u)); border: 0; border-radius: calc(1.5 * var(--u)); background: var(--lvl, var(--c)); color: #000;
+  font: 400 calc(9.4 * var(--u))/calc(10.23 * var(--u)) Arial, "Liberation Sans", sans-serif; letter-spacing: calc(.8 * var(--u));
+  -webkit-text-stroke: calc(.35 * var(--u)) #000; white-space: nowrap; overflow: hidden; }
 /* Плашка «ап» — готовый спрайт Legacy у правого верхнего края иконки (Up: смещение 15.2, 11.5; размер 15×20) */
 .frame .slot .ready { left: calc(50% + 10px); right: auto; top: auto; bottom: calc(50% + 2px); width: 20px; height: 27px; border-radius: 0; background: url("../img/legacy/up_framed.png") 0 0 / 100% 100% no-repeat; image-rendering: pixelated; }
 .frame .slot .ready::after { content: none; }
@@ -498,3 +509,18 @@
 /* «Проверить» в окне проверки файлов — без шевронов направления: это не переход, а проверка; отступ под шевроны тоже снят */
 #healthCheck::after { content: none; }
 #healthCheck { padding-right: var(--sp-8); }
+/* Выбранный навык — мигание самого навыка с периодом SkillButton.blinking Legacy (2π/15 ≈ 0.419 s): навык слегка
+   светлеет и возвращается, не пропадая. Кольца выделения нет: рамка слота остаётся обычной */
+.frame .slot.is-on, .frame .slot.is-on:hover { border-color: var(--seam-strong); box-shadow: none; }
+.frame .slot.is-on > :is(.sk, .lvl) { animation: skill-blink .419s ease-in-out infinite; }
+@keyframes skill-blink { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.6); } }
+/* Наведение — навык с плашкой чуть светлеют, кольцо наведения не появляется */
+.frame .slot:hover { border-color: var(--seam-strong); box-shadow: none; }
+.frame .slot:hover > :is(.sk, .lvl) { filter: brightness(1.25); }
+/* Плашки уровня — всегда на верхнем слое окна UP: слоты стоят тесно и перекрывают друг друга (первый рисуется поверх),
+   но цифру уровня не закрывает ни соседний навык, ни его кольцо, ни значок «ап». Для этого слот не должен образовывать
+   свой контекст наложения: центр ставят отрицательные поля, а не transform (transform замкнул бы z-index плашки внутри
+   слота). Сам слот без z-index, мигание и наведение (filter) висят на детях, а не на слоте */
+.frame .slot { --slot: 54px; transform: none; margin: calc(var(--slot) / -2) 0 0 calc(var(--slot) / -2); }
+.frame.compact .slot { --slot: var(--hit); }
+.frame .slot .lvl { z-index: 10; }

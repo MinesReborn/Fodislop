@@ -314,6 +314,7 @@
       if (code) {
         const k = set[code];
         b.style.setProperty('--c', k.color);
+        b.style.setProperty('--lvl', k.levelColor || k.color);
         b.title = k.name;
         b.innerHTML = `<i class="sk sk-${code}"></i><span class="lvl">${k.level}</span>` + (k.exp >= 1 ? '<span class="ready" title="Готово к улучшению"></span>' : '');
       } else { b.classList.add('is-empty'); b.title = 'Пустой слот'; }

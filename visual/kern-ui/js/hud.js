@@ -17,7 +17,11 @@
   const CRYSTALS = [['g', 'green'], ['r', 'red'], ['b', 'blue'], ['v', 'violet'], ['w', 'white'], ['c', 'cyan']];
   // Режим стенда «много денег и груза» (список «Груз и деньги», ?rich=1|2|3): уровень 1 — деньги до 100 млрд (КК), 2 — ×1000 (ККК), 3 — ×1 000 000 (КККК); груз с лимитом 10 млрд ×то же
   const RICH = { money: 99165000000, creds: 1250000, capacity: 10000000000, basket: { g: 9900000000, r: 320000000, b: 4700000000, v: 85000000, w: 12000000, c: 1300000000 } };
-  let richOn = 0, normal = null;
+  // Геология по уровням того же списка: счётчик «N/M» растёт до четырёх знаков, полоса — до 20 делений
+  const RICH_GEO = { 1: [86, 120], 2: [940, 1500], 3: [9999, 9999] };
+  let richOn = 0, normal = null, sceneBusy = false;
+  // Геология видна в состоянии «Все» и всегда, когда выбран режим «Груз и деньги»: иначе её смену не увидеть
+  const showGeo = () => { $('geo').hidden = !(sceneBusy || richOn); };
 
   // Число от 100 000 сокращается тысячами — K, KK, KKK, KKKK, перед буквами не больше 99 999 (как в окнах сервера, js/srvgui.js: short):
   // панель не растёт от данных. Полное значение — по наведению (.pk-cut из css/srvgui.css). Деньги, кредиты и кристаллы
@@ -46,12 +50,12 @@
   // Включает и выключает режим; обычные значения запоминаются и возвращаются как были
   window.kernHudRich = level => {
     if (level === richOn) return;
-    if (!richOn) normal = { money: state.money, creds: state.creds, capacity: state.capacity, basket: state.basket };
+    if (!richOn) normal = { money: state.money, creds: state.creds, capacity: state.capacity, basket: state.basket, geo: state.geo };
     if (level) {
       const f = 1000 ** (level - 1);
-      Object.assign(state, { money: RICH.money * f, creds: RICH.creds * f, capacity: RICH.capacity * f, basket: Object.fromEntries(Object.entries(RICH.basket).map(([k, v]) => [k, v * f])) });
+      Object.assign(state, { money: RICH.money * f, creds: RICH.creds * f, capacity: RICH.capacity * f, basket: Object.fromEntries(Object.entries(RICH.basket).map(([k, v]) => [k, v * f])), geo: RICH_GEO[level] });
     } else Object.assign(state, normal);
-    richOn = level; renderPlayer(); renderCargo();
+    richOn = level; renderPlayer(); renderCargo(); showGeo();
     window.dispatchEvent(new Event('kern-scene'));                // ширина левой колонки — по новым значениям
   };
   function renderCargo() {
@@ -92,6 +96,11 @@
     c: { name: 'Упаковка голубых кристаллов', level: 2, exp: .9, color: token('--skill-cyan-pack') },
     r: { name: 'Упаковка красных кристаллов', level: 1, exp: .3, color: token('--skill-red-pack') },
   };
+  // Плашка уровня в Legacy красится SkillButton.colors[type] (skillShorts: код → type), а не цветом бренда:
+  // ORANGE (1, .398, 0), YELLOW (1, 1, 0), PINK (1, 0, 1), CYAN (0, 1, .9), GREY (.574, .672, .652), BLUE (.16, .5, 1), GREEN (0, 1, 0)
+  const LEGACY_LEVEL = { orange: '#ff6600', yellow: '#ffff00', pink: '#ff00ff', cyan: '#00ffe6', grey: '#92aba6', blue: '#2980ff', green: '#00ff00' };
+  const LEVEL_OF = { d: 'yellow', m: 'orange', M: 'cyan', l: 'pink', A: 'grey', L: 'grey', Y: 'grey', E: 'grey', F: 'blue', t: 'cyan', p: 'green', b: 'green', c: 'green', r: 'green' };
+  Object.entries(skills).forEach(([code, k]) => { k.levelColor = LEGACY_LEVEL[LEVEL_OF[code]]; });
   window.kernSkills = skills;
   const SLOT_OF = { m: 0, d: 1, M: 2, l: 3 };
   const previewSkills = {
@@ -386,7 +395,8 @@
     const busy = b.dataset.state === 'busy';
     allMiniSkills = busy;
     renderMiniPreview();
-    $('mission').hidden = !busy; $('geo').hidden = !busy; $('states').hidden = !busy;
+    sceneBusy = busy;
+    $('mission').hidden = !busy; showGeo(); $('states').hidden = !busy;
     if (busy !== state.prog) $('progRun').click();
     const basket = busy ? { g: 2340, r: 96, b: 1204, v: 12, w: 3, c: 57 } : { g: 412, r: 96, b: 1204, v: 0, w: 0, c: 57 };
     if (richOn) normal.basket = basket; else state.basket = basket;                    // в режиме «много» груз не трогаем — выбор запоминается на выход
