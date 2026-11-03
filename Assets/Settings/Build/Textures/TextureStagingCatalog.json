@@ -697,6 +697,10 @@
       "Published": "Visual/Pack/Resp/0.png"
     },
     {
+      "Source": "Pack/Resp/1/1.png",
+      "Published": "Visual/Pack/Resp/1.png"
+    },
+    {
       "Source": "Pack/Storage/0/0.png",
       "Published": "Visual/Pack/Storage/0.png"
     },
@@ -709,8 +713,104 @@
       "Published": "Visual/Pack/Gun/0.png"
     },
     {
+      "Source": "Pack/Gun/1/1.png",
+      "Published": "Visual/Pack/Gun/1.png"
+    },
+    {
+      "Source": "Pack/Gun/2/2.png",
+      "Published": "Visual/Pack/Gun/2.png"
+    },
+    {
+      "Source": "Pack/Gun/3/3.png",
+      "Published": "Visual/Pack/Gun/3.png"
+    },
+    {
+      "Source": "Pack/Gun/4/4.png",
+      "Published": "Visual/Pack/Gun/4.png"
+    },
+    {
+      "Source": "Pack/Jobs/0/0.png",
+      "Published": "Visual/Pack/Jobs/0.png"
+    },
+    {
+      "Source": "Pack/Observatory/0/0.png",
+      "Published": "Visual/Pack/Observatory/0.png"
+    },
+    {
+      "Source": "Pack/Storage/1/1.png",
+      "Published": "Visual/Pack/Storage/1.png"
+    },
+    {
+      "Source": "Pack/Storage/2/2.png",
+      "Published": "Visual/Pack/Storage/2.png"
+    },
+    {
+      "Source": "Pack/Storage/3/3.png",
+      "Published": "Visual/Pack/Storage/3.png"
+    },
+    {
+      "Source": "Pack/Storage/4/4.png",
+      "Published": "Visual/Pack/Storage/4.png"
+    },
+    {
+      "Source": "Pack/Storage/5/5.png",
+      "Published": "Visual/Pack/Storage/5.png"
+    },
+    {
+      "Source": "Pack/Storage/6/6.png",
+      "Published": "Visual/Pack/Storage/6.png"
+    },
+    {
+      "Source": "Pack/Storage/7/7.png",
+      "Published": "Visual/Pack/Storage/7.png"
+    },
+    {
+      "Source": "Pack/Teleport/1/1.png",
+      "Published": "Visual/Pack/Teleport/1.png"
+    },
+    {
       "Source": "Pack/Market/0/0.png",
       "Published": "Visual/Pack/Market/0.png"
+    },
+    {
+      "Source": "Skin/Capsule/Capsule.png",
+      "Published": "Visual/Skin/Capsule.png"
+    },
+    {
+      "Source": "Skin/DarkCapsule/DarkCapsule.png",
+      "Published": "Visual/Skin/DarkCapsule.png"
+    },
+    {
+      "Source": "Skin/Fatty/Fatty.png",
+      "Published": "Visual/Skin/Fatty.png"
+    },
+    {
+      "Source": "Skin/Medic/Medic.png",
+      "Published": "Visual/Skin/Medic.png"
+    },
+    {
+      "Source": "Skin/Mosquito/Mosquito.png",
+      "Published": "Visual/Skin/Mosquito.png"
+    },
+    {
+      "Source": "Skin/Widow/Widow.png",
+      "Published": "Visual/Skin/Widow.png"
+    },
+    {
+      "Source": "Skin/greenSkin/greenSkin.png",
+      "Published": "Visual/Skin/greenSkin.png"
+    },
+    {
+      "Source": "Skin/orangeSkin/orangeSkin.png",
+      "Published": "Visual/Skin/orangeSkin.png"
+    },
+    {
+      "Source": "Skin/purpleSkin/purpleSkin.png",
+      "Published": "Visual/Skin/purpleSkin.png"
+    },
+    {
+      "Source": "Skin/redSkin/redSkin.png",
+      "Published": "Visual/Skin/redSkin.png"
     },
     {
       "Source": "Cells/Liquids/Acid/Blue/BlueAcid.png",
