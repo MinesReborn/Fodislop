@@ -58,7 +58,7 @@ internal sealed class VisualEffectParameters
                     {
                         string hex = color.StartsWith('#') ? color : $"#{color}";
                         int digitCount = hex.Length - 1;
-                        if ((digitCount is 6 or 8) && ColorUtility.TryParseHtmlString(hex, out Color parsedColor))
+                        if ((digitCount is 3 or 6 or 8) && ColorUtility.TryParseHtmlString(hex, out Color parsedColor))
                         {
                             result.CrystalHexColor = parsedColor;
                         }
