@@ -56,6 +56,22 @@ public sealed class InstallUpgradeTests
         }
     }
 
+    [TestCase("LeftCtrl", "LeftAlt")]
+    [TestCase("B", "B")]
+    public void Schema49_SlowMovementBindingMigratesDefaultAndPreservesCustom(string oldKey, string expectedKey)
+    {
+        ClientConfig legacy = ClientConfigDefaults.Create(_profile);
+        legacy.SchemaVersion = 49;
+        legacy.Interface.KeyFastMove = oldKey;
+        Directory.CreateDirectory(Path.GetDirectoryName(ConfigPath)!);
+        File.WriteAllText(ConfigPath, JsonUtility.ToJson(legacy));
+
+        ClientConfigLoader.Result result = LoadConfig();
+
+        Assert.That(result.Config.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
+        Assert.That(result.Config.Interface.KeyFastMove, Is.EqualTo(expectedKey));
+    }
+
     [TestCase(44)]
     [TestCase(45)]
     public void PreDepthConfig_MigratesMissingDepthSettingsAndPreservesSavedValues(int schema)
@@ -168,7 +184,7 @@ public sealed class InstallUpgradeTests
         string original = JsonUtility.ToJson(legacy, prettyPrint: true);
         foreach (string field in new[] { "TextScale", "KeyMoveUp", "KeyMoveDown", "KeyMoveLeft", "KeyMoveRight",
             "KeyMoveUpAlternate", "KeyMoveDownAlternate", "KeyMoveLeftAlternate", "KeyMoveRightAlternate",
-            "KeyTurnOnly", "KeyTurnOnlyAlternate", "KeyFastMove", "KeyFastMoveAlternate" })
+            "KeyTurnOnly", "KeyTurnOnlyAlternate", "KeyFastMove" })
         {
             original = Regex.Replace(original, "\\s*\"" + field + "\"\\s*:\\s*[^,}]+,", "");
         }

@@ -137,7 +137,7 @@ namespace Kern.Game.Player.Movement
 
         private bool _autoDig = false;
         private bool _ignoreCollision = false;
-        private float _lastMoveTime;
+        private float _nextMoveTime;
         private float _lastRotateTime;
         private Direction? _lastSentDirection;
         private Direction _lastServerRotation = Direction.Down;
@@ -340,7 +340,7 @@ namespace Kern.Game.Player.Movement
             _awaitingMoveConfirmation = false;
             _lastSentDirection = null;
             _lastServerRotation = Direction.Down;
-            _lastMoveTime = 0f;
+            _nextMoveTime = 0f;
             _lastRotateTime = 0f;
             CancelClickPath();
             _actionDispatcher?.ResetDigCooldown();
@@ -631,14 +631,14 @@ namespace Kern.Game.Player.Movement
                 _input.IsCtrlPressed,
                 _ignoreCollision);
 
+            if (Time.time < _nextMoveTime)
+            {
+                return;
+            }
+
             if (cooldown > 0)
             {
                 _robot.MoveSpeed = 1f / cooldown;
-            }
-
-            if (Time.time - _lastMoveTime < cooldown)
-            {
-                return;
             }
 
             if (_input.IsShiftPressed)
@@ -669,7 +669,7 @@ namespace Kern.Game.Player.Movement
                         out CellType residentTargetCellType) ||
                         residentTargetCellType is CellType.Unloaded or CellType.Pregener))
                 {
-                    _lastMoveTime = Time.time;
+                    _nextMoveTime = Time.time + cooldown;
                     _lastSentDirection = packetDirection;
                     _robot.TargetAngle = PlayerDirectionMapping.DirectionToAngle(direction);
                     TryRotate(direction);
@@ -694,7 +694,7 @@ namespace Kern.Game.Player.Movement
                 Vector2Int oldPos = Position;
                 Position = targetPosition;
                 OnPlayerMoved?.Invoke(oldPos, Position);
-                _lastMoveTime = Time.time;
+                _nextMoveTime = Time.time + cooldown;
                 _lastSentDirection = packetDirection;
                 TryRotate(direction);
                 _awaitingMoveConfirmation = true;
@@ -709,7 +709,7 @@ namespace Kern.Game.Player.Movement
                 _robot.TargetAngle = PlayerDirectionMapping.DirectionToAngle(direction);
                 _actionDispatcher?.NotifyDug(targetPosition, packetDirection);
                 _networkService?.Send(new ActionClientPacket(targetServerX, targetServerY, new BzPacket()));
-                _lastMoveTime = Time.time;
+                _nextMoveTime = Time.time + cooldown;
             }
             else
             {
@@ -809,16 +809,16 @@ namespace Kern.Game.Player.Movement
             float cooldown = PlayerMovementValidator.CalculateMoveCooldown(
                 mapDataProvider,
                 currentCellType,
-                isCtrlPressed: false,
+                isCtrlPressed: _input != null && _input.IsCtrlPressed,
                 _ignoreCollision);
+            if (Time.time < _nextMoveTime)
+            {
+                return;
+            }
+
             if (cooldown > 0)
             {
                 _robot.MoveSpeed = 1f / cooldown;
-            }
-
-            if (Time.time - _lastMoveTime < cooldown)
-            {
-                return;
             }
 
             // Дельта маршрута в серверных координатах -> направление в Unity.
@@ -828,7 +828,7 @@ namespace Kern.Game.Player.Movement
             if (_lastServerRotation != packetDirection)
             {
                 TryRotate(direction);
-                _lastMoveTime = Time.time;
+                _nextMoveTime = Time.time + cooldown;
                 return;
             }
 
@@ -856,7 +856,7 @@ namespace Kern.Game.Player.Movement
                 Vector2Int oldPos = Position;
                 Position = targetPosition;
                 OnPlayerMoved?.Invoke(oldPos, Position);
-                _lastMoveTime = Time.time;
+                _nextMoveTime = Time.time + cooldown;
                 _networkService?.SendAction(new MovePacket(targetServerX, targetServerY));
             }
             else if (_autoDig)
@@ -864,7 +864,7 @@ namespace Kern.Game.Player.Movement
                 // Сплошная клетка на маршруте: бурим, как WASD при включённом
                 // автокопании.
                 _networkService?.Send(new ActionClientPacket(targetServerX, targetServerY, new BzPacket()));
-                _lastMoveTime = Time.time;
+                _nextMoveTime = Time.time + cooldown;
                 _actionDispatcher?.NotifyDug(targetPosition, packetDirection);
             }
             else

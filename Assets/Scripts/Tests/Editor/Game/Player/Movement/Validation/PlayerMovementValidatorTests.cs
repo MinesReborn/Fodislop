@@ -56,7 +56,7 @@ public class PlayerMovementValidatorTests
     }
 
     [Test]
-    public void CalculateMoveCooldown_WithCtrlPressed_UsesMinServerCooldown()
+    public void CalculateMoveCooldown_WithCtrlPressed_TriplesTileCooldown()
     {
         var mapProvider = new StubMapDataProvider(normalCooldown: 0.5f, emptyCooldown: 0.1f);
 
@@ -66,7 +66,7 @@ public class PlayerMovementValidatorTests
             isCtrlPressed: true,
             ignoreCollision: false);
 
-        Assert.AreEqual(0.1f, cooldown);
+        Assert.AreEqual(1.5f, cooldown);
     }
 
     [Test]
@@ -88,7 +88,7 @@ public class PlayerMovementValidatorTests
             isCtrlPressed: true,
             ignoreCollision: true);
 
-        Assert.AreEqual(0.01f, tinyCooldown, 0.001f);
+        Assert.AreEqual(0.015f, tinyCooldown, 0.001f);
     }
 
     [Test]

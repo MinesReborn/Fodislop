@@ -30,7 +30,9 @@ public class ClientConfig
     // 48: независимый масштаб текста и полные клавиатурные привязки.
     // 49: отдельные тумблеры рыбьего глаза и глубины, изначально выключены.
     // Схемы 31–48 мигрируются штатным загрузчиком с созданием backup.
-    public const int CurrentSchemaVersion = 49;
+    // 50: replace the old default slow-movement Ctrl binding.
+    // 51: move the default slow-movement binding to LeftAlt.
+    public const int CurrentSchemaVersion = 51;
 
     public int SchemaVersion;
     public AudioSettings Audio = new();

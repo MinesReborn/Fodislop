@@ -371,8 +371,32 @@ internal sealed class ClientConfigLoader
             schema = InputAndTextSettingsSchemaVersion;
         }
 
-        config.SchemaVersion = schema == InputAndTextSettingsSchemaVersion
-            ? PresentationTogglesSchemaVersion : schema;
+        if (schema == InputAndTextSettingsSchemaVersion)
+        {
+            schema = PresentationTogglesSchemaVersion;
+        }
+
+        if (schema == PresentationTogglesSchemaVersion)
+        {
+            if (string.Equals(config.Interface.KeyFastMove, "LeftCtrl", StringComparison.OrdinalIgnoreCase))
+            {
+                config.Interface.KeyFastMove = InterfaceSettings.DefaultKeyFastMove;
+            }
+
+            schema = 50;
+        }
+
+        if (schema == 50)
+        {
+            if (string.Equals(config.Interface.KeyFastMove, "C", StringComparison.OrdinalIgnoreCase))
+            {
+                config.Interface.KeyFastMove = InterfaceSettings.DefaultKeyFastMove;
+            }
+
+            schema = ClientConfig.CurrentSchemaVersion;
+        }
+
+        config.SchemaVersion = schema;
     }
 
     private static void MigrateFlatVisualsToSections(ClientConfig config, string sourceJson)

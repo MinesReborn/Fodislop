@@ -22,9 +22,14 @@ public static class PlayerMovementValidator
         bool isCtrlPressed,
         bool ignoreCollision)
     {
-        float cooldown = isCtrlPressed || currentCellType is CellType.Unloaded or CellType.Pregener
+        float cooldown = currentCellType is CellType.Unloaded or CellType.Pregener
             ? mapDataProvider.GetMinMoveCooldown()
             : mapDataProvider.GetMoveCooldown(currentCellType);
+
+        if (isCtrlPressed)
+        {
+            cooldown *= 3f;
+        }
 
         if (ignoreCollision)
         {

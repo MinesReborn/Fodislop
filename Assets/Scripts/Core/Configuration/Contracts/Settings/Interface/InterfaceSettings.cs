@@ -59,8 +59,7 @@ public sealed class InterfaceSettings
     public const string DefaultKeyMoveRightAlternate = "RightArrow";
     public const string DefaultKeyTurnOnly = "LeftShift";
     public const string DefaultKeyTurnOnlyAlternate = "RightShift";
-    public const string DefaultKeyFastMove = "LeftCtrl";
-    public const string DefaultKeyFastMoveAlternate = "RightCtrl";
+    public const string DefaultKeyFastMove = "LeftAlt";
 
     [SettingUnbounded("Имя клавиши UnityEngine.InputSystem.Key.")]
     [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler")]
@@ -105,10 +104,6 @@ public sealed class InterfaceSettings
     [SettingUnbounded("Имя клавиши UnityEngine.InputSystem.Key.")]
     [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler")]
     public string KeyFastMove = DefaultKeyFastMove;
-
-    [SettingUnbounded("Имя клавиши UnityEngine.InputSystem.Key.")]
-    [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler")]
-    public string KeyFastMoveAlternate = DefaultKeyFastMoveAlternate;
 
     public const string DefaultKeyDig = "Space";
     public const string DefaultKeyAutoDig = "E";
@@ -185,7 +180,6 @@ public sealed class InterfaceSettings
         string.Equals(KeyTurnOnly, keyName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(KeyTurnOnlyAlternate, keyName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(KeyFastMove, keyName, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(KeyFastMoveAlternate, keyName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(KeyDig, keyName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(KeyAutoDig, keyName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(KeyGeo, keyName, StringComparison.OrdinalIgnoreCase) ||

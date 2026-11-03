@@ -91,11 +91,6 @@ internal sealed class PauseMenuControlsTabBuilder
             (settings, key) => settings.KeyFastMove = key,
             InterfaceSettings.DefaultKeyFastMove),
         new(
-            "settings.controls.key_fast_move_alternate",
-            settings => settings.KeyFastMoveAlternate,
-            (settings, key) => settings.KeyFastMoveAlternate = key,
-            InterfaceSettings.DefaultKeyFastMoveAlternate),
-        new(
             "settings.controls.key_dig",
             settings => settings.KeyDig,
             (settings, key) => settings.KeyDig = key,
