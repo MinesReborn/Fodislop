@@ -727,6 +727,7 @@
   "hud.autodig.off": "自動挖掘",
   "hud.geology": "地質：{0}/{1}（{2}）",
   "hud.mission": "任務",
+  "hud.mission.reset_in": "距重置還有{0}小時{1}分鐘",
   "settings.interface.language": "語言",
   "settings.interface.language.ru": "俄語",
   "settings.interface.language.en": "英語",
@@ -805,6 +806,5 @@
   "hud.basket_percent": "負重：{0}%",
   "mainmenu.server_depth_fmt": "-{0} 公尺",
   "mainmenu.server_ping_fmt": "{0} 毫秒",
-  "common.close": "關閉",
-  "hud.tooltip.drag": "拖曳面板"
+  "common.close": "關閉"
 }

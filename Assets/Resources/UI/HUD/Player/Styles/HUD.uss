@@ -515,38 +515,6 @@
     padding: 0;
 }
 
-/* Перетаскиваемая ручка панели HUD: висит ПОД нижним краем панели, чтобы
- * не налезать на полосы кристаллов корзины в правом нижнем углу. */
-.hud-drag-handle {
-    position: absolute;
-    right: var(--space-2);
-    bottom: -26px;
-    width: 28px;
-    height: var(--space-9);
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--radius-sm);
-    background-color: var(--surface-shelf-solid);
-    border-width: var(--border-width-thin);
-    border-color: var(--border-subtle);
-}
-
-.hud-drag-handle > .unity-label {
-    font-size: var(--size-base);
-    color: var(--text-secondary);
-    -unity-text-align: middle-center;
-    padding: 0;
-    margin: 0;
-}
-
-.hud-drag-handle:hover {
-    background-color: var(--accent-gold-tint);
-}
-
-.hud-drag-handle:hover > .unity-label {
-    color: var(--accent-gold);
-}
-
 .hud-button-accent {
     background-color: var(--accent-gold);
     border-color: var(--border-subtle);

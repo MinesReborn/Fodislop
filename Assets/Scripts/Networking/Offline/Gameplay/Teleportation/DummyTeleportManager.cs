@@ -11,6 +11,7 @@ using MinesServer.Networking.Server.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
+using Kern.Networking.Protocol;
 using MinesServer.Networking.Server.Packets.Movement;
 using MinesServer.Networking.Server.Packets.World;
 using MinesServer.Networking.Contracts.Packets;
@@ -185,9 +186,13 @@ internal sealed class DummyTeleportManager
     // "." collects inputs from the button itself: it has none.
     private static TextPacket CloseButton() => new()
     {
-        Text = "ВЫЙТИ",
+        Text = "Закрыть",
         OnClickContext = ".",
-        AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Right") },
+        AttachedProperties = new[]
+        {
+            new StringPairPacket("DockPanel.Dock", "Right"),
+            new StringPairPacket(ServerWindowActionMetadata.ActionKey, ServerWindowActionMetadata.CloseActionValue),
+        },
     };
 
     public void HandleTeleportClick(int index)

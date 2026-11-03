@@ -24,7 +24,6 @@ public sealed class PlayerHUDUxmlContractTests
         "GeologyLabel",
         "BasketPercentLabel",
         "BasketContainer",
-        "HUDDragHandle",
         "AutoDigButton",
         "MobileControls",
         "MobileMovePad",

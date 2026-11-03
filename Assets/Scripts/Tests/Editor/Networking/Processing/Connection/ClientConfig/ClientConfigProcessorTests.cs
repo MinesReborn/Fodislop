@@ -58,13 +58,13 @@ public class ClientConfigProcessorTests
     {
         var packet = new ClientConfigPacket(
             Array.Empty<StringPairPacket>(),
-            new[] { "Visual/Cells/1.png", "Visual/Cells/2.png", "Visual/Skin/bee.png" });
+            new[] { "Visual/Cells/1.png", "Visual/Cells/2.png", "Visual/Skin/Standard.png" });
 
         _processor.Process(packet);
 
         Assert.That(_supervisor.LastOperationName, Is.EqualTo("preload_textures"));
         Assert.That(_textureStorage.PreloadedLists.Count, Is.EqualTo(1));
-        Assert.That(_textureStorage.PreloadedLists[0], Is.EquivalentTo(new[] { "Visual/Cells/1.png", "Visual/Cells/2.png", "Visual/Skin/bee.png" }));
+        Assert.That(_textureStorage.PreloadedLists[0], Is.EquivalentTo(new[] { "Visual/Cells/1.png", "Visual/Cells/2.png", "Visual/Skin/Standard.png" }));
     }
 
     [Test]

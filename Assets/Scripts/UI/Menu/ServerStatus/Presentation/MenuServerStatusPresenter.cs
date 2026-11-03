@@ -206,7 +206,8 @@ internal sealed class MenuServerStatusPresenter
             if (Time.unscaledTime - _serverCardPingAppliedAt >= ServerCardPingRefreshSeconds)
             {
                 _serverCardPingAppliedAt = Time.unscaledTime;
-                ILocalizationService localization = _loc;
+                ILocalizationService localization = _loc ?? throw new InvalidOperationException(
+                    "MenuServerStatusPresenter requires a localization service.");
                 Label? rowPing = _serverRowPing;
                 Label? detailPing = _serverDetailPing;
                 if (rowPing is not null) rowPing.text = localization.Get("mainmenu.server_ping_fmt", roundTripMs);

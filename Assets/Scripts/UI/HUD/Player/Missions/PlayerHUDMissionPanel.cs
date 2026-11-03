@@ -209,7 +209,7 @@ public sealed class PlayerHUDMissionPanel
             StringComparison.Ordinal);
     }
 
-    private static string FormatTimeUntilReset()
+    private string FormatTimeUntilReset()
     {
         DateTime localNow = DateTime.Now;
         DateTime nextReset = localNow.Date.AddHours(MissionResetHour);
@@ -219,7 +219,7 @@ public sealed class PlayerHUDMissionPanel
         }
 
         TimeSpan remaining = nextReset - localNow;
-        return $"{remaining.Hours} ч. {remaining.Minutes} мин.";
+        return _loc.Get("hud.mission.reset_in", remaining.Hours, remaining.Minutes);
     }
 
     private void StopTimer()

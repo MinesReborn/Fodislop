@@ -71,17 +71,6 @@ namespace Kern.UI.HUD
         private VisualElement? _basketContainer;
         private VisualElement? _skillContainer;
 
-        // Перетаскивание панели за ручку (правый нижний угол).
-        private VisualElement? _panelRoot;
-        private VisualElement? _dragHandle;
-        private bool _hudDragging;
-        private int _dragPointerId = -1;
-        private Vector2 _dragPointerStart;
-        private Vector2 _panelStartPosition;
-        private Vector2 _panelSize;
-
-        // Сохранение позиции панели между запусками клиента.
-
         private ProgrammatorGrid? _programmatorGrid;
         private Button? _programmatorButton;
         private Button? _programRunButton;
@@ -411,16 +400,6 @@ namespace Kern.UI.HUD
                 throw new InvalidOperationException("[PlayerHUD] BasketContainer is missing from PlayerHUD.uxml.");
             _basketView.Initialize(_basketContainer);
 
-            _panelRoot = tree.Q<VisualElement>("PlayerStatusPanel") ??
-                throw new InvalidOperationException("[PlayerHUD] PlayerStatusPanel is missing from PlayerHUD.uxml.");
-            _dragHandle = tree.Q<VisualElement>("HUDDragHandle") ??
-                throw new InvalidOperationException("[PlayerHUD] HUDDragHandle is missing from PlayerHUD.uxml.");
-            _dragHandle.RegisterCallback<PointerDownEvent>(OnDragHandlePointerDown);
-            _dragHandle.RegisterCallback<PointerMoveEvent>(OnDragHandlePointerMove);
-            _dragHandle.RegisterCallback<PointerUpEvent>(OnDragHandlePointerUp);
-            _dragHandle.RegisterCallback<PointerCaptureOutEvent>(OnDragHandleCaptureLost);
-            ApplySavedPanelPosition();
-
             _skillContainer = tree.Q<VisualElement>("SkillContainer") ??
                 throw new InvalidOperationException("[PlayerHUD] SkillContainer is missing from PlayerHUD.uxml.");
             _skillGrid.Initialize(_skillContainer);
@@ -529,60 +508,6 @@ namespace Kern.UI.HUD
             }
         }
 
-        // Восстановление позиции панели с прошлого запуска: применяем после
-        // первой раскладки (до неё размеры панели ещё не посчитаны).
-        private void ApplySavedPanelPosition()
-        {
-            if (_panelRoot == null || !_clientConfig.Config.Interface.HasHudPanelPosition)
-            {
-                return;
-            }
-
-            _panelRoot.RegisterCallback<GeometryChangedEvent>(ApplySavedPanelPositionOnce);
-        }
-
-        private void ApplySavedPanelPositionOnce(GeometryChangedEvent evt)
-        {
-            if (_panelRoot == null)
-            {
-                return;
-            }
-
-            // Первый GeometryChangedEvent может прийти до настоящей раскладки -
-            // размер панели ещё нулевой. Остаёмся подписанными и ждём следующий.
-            if (_panelRoot.layout.width <= 0f || _panelRoot.layout.height <= 0f)
-            {
-                return;
-            }
-
-            _panelRoot.UnregisterCallback<GeometryChangedEvent>(ApplySavedPanelPositionOnce);
-
-            // ВАЖНО: размеры панели (width/height/right/bottom) здесь не трогаем -
-            // сброс их через StyleKeyword.Undefined схлопывает бокс панели
-            // (фон перестаёт оборачивать контент). Задаём только позицию.
-            float x = _clientConfig.Config.Interface.HudPanelX;
-            float y = _clientConfig.Config.Interface.HudPanelY;
-
-            // Мусор в сохранении (NaN/бесконечность) - сбрасываем на позицию
-            // по умолчанию из стилей.
-            if (float.IsNaN(x) || float.IsNaN(y) || float.IsInfinity(x) || float.IsInfinity(y))
-            {
-                _clientConfig.UpdateSection(
-                    config => config.Interface,
-                    settings => settings.HasHudPanelPosition = false);
-                return;
-            }
-
-            // Разрешение могло смениться с прошлого запуска - не даём панели
-            // уйти за пределы экрана (размер экрана - через корень панели).
-            Rect screen = _panelRoot.panel.visualTree.layout;
-            float maxX = Mathf.Max(0f, screen.width - _panelRoot.layout.width);
-            float maxY = Mathf.Max(0f, screen.height - _panelRoot.layout.height);
-
-            _panelRoot.style.left = Mathf.Clamp(x, 0f, maxX);
-            _panelRoot.style.top = Mathf.Clamp(y, 0f, maxY);
-        }
-
         private void RefreshAll()
         {
             var stats = _model;
@@ -667,93 +592,6 @@ namespace Kern.UI.HUD
             }
 
             element.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
-        }
-
-        // Перетаскивание панели за ручку: pointer capture держит события, даже
-        // когда курсор уходит за пределы ручки; позиция панели - inline left/top
-        // в пикселях панели ( USS-класс .hud-panel уже position: absolute).
-        private void OnDragHandlePointerDown(PointerDownEvent evt)
-        {
-            if (_panelRoot == null || _dragHandle == null || _hudDragging)
-            {
-                return;
-            }
-
-            _dragPointerId = evt.pointerId;
-            _dragPointerStart = new Vector2(evt.position.x, evt.position.y);
-            _panelStartPosition = new Vector2(
-                _panelRoot.resolvedStyle.left,
-                _panelRoot.resolvedStyle.top);
-            // Размер берём из готовой раскладки - нужен только для клампа.
-            // Если раскладка ещё не готова (0) - перетаскивание не начинаем,
-            // чтобы не зафиксировать мусорные значения.
-            _panelSize = new Vector2(
-                _panelRoot.layout.width,
-                _panelRoot.layout.height);
-            if (_panelSize.x <= 0f || _panelSize.y <= 0f)
-            {
-                return;
-            }
-
-            // Размеры панели задаёт только .hud-panel - здесь трогать их нельзя
-            // (inline-высота/ширина "залипают" и ломают бокс панели до конца
-            // сессии). Ведём панель исключительно через left/top.
-            _panelRoot.style.left = _panelStartPosition.x;
-            _panelRoot.style.top = _panelStartPosition.y;
-
-            _dragHandle.CapturePointer(evt.pointerId);
-            _hudDragging = true;
-        }
-
-        private void OnDragHandlePointerMove(PointerMoveEvent evt)
-        {
-            if (!_hudDragging || evt.pointerId != _dragPointerId || _panelRoot == null || _panelRoot.panel == null)
-            {
-                return;
-            }
-
-            var next = _panelStartPosition + (new Vector2(evt.position.x, evt.position.y) - _dragPointerStart);
-
-            // Панель не выходит за пределы экрана (размер панели - через её
-            // корневой визуальный элемент, растянутый на весь экран).
-            Rect screen = _panelRoot.panel.visualTree.layout;
-            next.x = Mathf.Clamp(next.x, 0f, Mathf.Max(0f, screen.width - _panelSize.x));
-            next.y = Mathf.Clamp(next.y, 0f, Mathf.Max(0f, screen.height - _panelSize.y));
-
-            _panelRoot.style.left = next.x;
-            _panelRoot.style.top = next.y;
-        }
-
-        private void OnDragHandlePointerUp(PointerUpEvent evt)
-        {
-            if (evt.pointerId != _dragPointerId)
-            {
-                return;
-            }
-
-            _hudDragging = false;
-            _dragPointerId = -1;
-            _dragHandle?.ReleasePointer(evt.pointerId);
-
-            // Позиция панели переживает перезапуск клиента.
-            if (_panelRoot != null)
-            {
-                float left = _panelRoot.resolvedStyle.left;
-                float top = _panelRoot.resolvedStyle.top;
-                _clientConfig.UpdateSection(
-                    config => config.Interface,
-                    settings =>
-                    {
-                        settings.HasHudPanelPosition = true;
-                        settings.HudPanelX = left;
-                        settings.HudPanelY = top;
-                    });
-            }
-        }
-
-        private void OnDragHandleCaptureLost(PointerCaptureOutEvent evt)
-        {
-            _hudDragging = false;
         }
 
         private void OnSkillProgress(SkillType skill, long current, long max)

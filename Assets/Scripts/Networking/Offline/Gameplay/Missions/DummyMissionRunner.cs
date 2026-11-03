@@ -14,6 +14,7 @@ using MinesServer.Networking.Server.Packets.Information;
 using MinesServer.Networking.Server.Packets.Information.StatusPanel;
 using MinesServer.Networking.Server.Packets.Inventory;
 using MinesServer.Networking.Server.Packets.Mission;
+using Kern.Networking.Protocol;
 using MinesServer.Networking.Server.Packets.Movement;
 using MinesServer.Networking.Server.Packets.Utilities;
 using MinesServer.Networking.Server.Packets.World;
@@ -98,9 +99,13 @@ internal sealed class DummyMissionRunner
         // "." collects inputs from the clicked text itself: it has none.
         var close = new TextPacket
         {
-            Text = "ВЫЙТИ",
+            Text = "Закрыть",
             OnClickContext = ".",
-            AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Right") },
+            AttachedProperties = new[]
+            {
+                new StringPairPacket("DockPanel.Dock", "Right"),
+                new StringPairPacket(ServerWindowActionMetadata.ActionKey, ServerWindowActionMetadata.CloseActionValue),
+            },
         };
         TextPacket? cancel = null;
         var rootChildren = new List<IGUIComponentPacket>

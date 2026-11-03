@@ -151,20 +151,6 @@ public sealed class InterfaceSettings
     [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler.WantsToBuildWhite")]
     public string KeyBuildWhite = DefaultKeyBuildWhite;
 
-    // Позиция перетаскиваемой панели HUD (left/top в пикселях панели) с
-    // прошлого запуска. Пока игрок её не двигал, панель стоит по стилям.
-    [SettingUnbounded("Флаг сохранённой позиции панели HUD; тумблера нет.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "PlayerHUDView.ApplySavedPanelPosition")]
-    public bool HasHudPanelPosition;
-
-    [SettingUnbounded("Пиксели панели UI; разрешение проверяет PlayerHUDView при восстановлении.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "PlayerHUDView.ApplySavedPanelPosition")]
-    public float HudPanelX;
-
-    [SettingUnbounded("Пиксели панели UI; разрешение проверяет PlayerHUDView при восстановлении.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "PlayerHUDView.ApplySavedPanelPosition")]
-    public float HudPanelY;
-
     // Геометрия перетаскиваемого/растягиваемого окна глобального чата (left,
     // top, width, height в пикселях панели) с прошлого запуска. Пока игрок не
     // трогал окно, оно стоит по стилям Chat.uss.

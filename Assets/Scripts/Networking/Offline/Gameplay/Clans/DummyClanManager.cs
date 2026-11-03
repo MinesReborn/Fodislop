@@ -9,6 +9,7 @@ using MinesServer.Networking.Server.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Containers;
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
+using Kern.Networking.Protocol;
 using MinesServer.Networking.Server.Packets.Information;
 using MinesServer.Networking.Contracts.Packets;
 using MinesServer.Networking.Client.Packets.GUI;
@@ -242,9 +243,13 @@ internal sealed class DummyClanManager
     // "." collects inputs from the button itself: it has none.
     private static TextPacket CloseButton() => new()
     {
-        Text = "ВЫЙТИ",
+        Text = "Закрыть",
         OnClickContext = ".",
-        AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Right") },
+        AttachedProperties = new[]
+        {
+            new StringPairPacket("DockPanel.Dock", "Right"),
+            new StringPairPacket(ServerWindowActionMetadata.ActionKey, ServerWindowActionMetadata.CloseActionValue),
+        },
     };
 
     public void HandleOpenClanClick()

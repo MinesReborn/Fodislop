@@ -458,9 +458,6 @@ public sealed class InstallUpgradeTests
     {
         ClientConfig legacy = ClientConfigDefaults.Create(_profile);
         legacy.SchemaVersion = 41;
-        legacy.Interface.HasHudPanelPosition = true;
-        legacy.Interface.HudPanelX = 123.5f;
-        legacy.Interface.HudPanelY = 45f;
         string sourceJson = JsonUtility.ToJson(legacy, prettyPrint: true);
         string legacyJson = Regex.Replace(
             sourceJson,
@@ -481,10 +478,6 @@ public sealed class InstallUpgradeTests
         Assert.That(result.Config.Interface.ChatWindowY, Is.EqualTo(0f));
         Assert.That(result.Config.Interface.ChatWindowWidth, Is.EqualTo(0f));
         Assert.That(result.Config.Interface.ChatWindowHeight, Is.EqualTo(0f));
-        // Настройки пользователя прежней схемы переживают миграцию.
-        Assert.That(result.Config.Interface.HasHudPanelPosition, Is.True);
-        Assert.That(result.Config.Interface.HudPanelX, Is.EqualTo(123.5f));
-        Assert.That(result.Config.Interface.HudPanelY, Is.EqualTo(45f));
         Assert.That(File.ReadAllText(ConfigPath + ".backup"), Is.EqualTo(legacyJson));
     }
 

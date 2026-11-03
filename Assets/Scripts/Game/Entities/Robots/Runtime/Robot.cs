@@ -44,8 +44,6 @@ namespace Kern.Game.Entities.Robots
         private ILocalPlayerState _localPlayer = null!;
         [Inject]
         private IWorldPresentationState _presentationState = null!;
-        [Inject]
-        private IGameplayCamera _gameplayCamera = null!;
         [SerializeField]
         private string _nickname = string.Empty;
         [SerializeField]
@@ -69,20 +67,28 @@ namespace Kern.Game.Entities.Robots
         private IRuntimeDebugSettings _debugSettings = null!;
 
         private RobotLighting _lighting = null!;
-        private bool _hasTailBudgetSlot;
         private RobotVisuals _visuals = null!;
         private readonly RobotNameplate _nameplate = new();
+        private RobotFrameUpdater? _frameUpdater;
+        private RobotFrameUpdater FrameUpdater => _frameUpdater ??= new RobotFrameUpdater(
+            transform,
+            _movement,
+            _visuals,
+            _nameplate,
+            _lighting,
+            _presentationState,
+            _gameplayCamera,
+            _lightingEngine,
+            _debugSettings);
 
         [Inject]
         private IWorldLabels _worldLabels = null!;
         private readonly RobotMovement _movement = new();
 
         private bool _visualElementsInitialized;
-        private bool _hasPendingServerPosition;
-        private ushort _pendingServerX = 0;
-        private ushort _pendingServerY = 0;
-        private readonly RobotCuller _culler = new();
         private WorldEntityBatchRenderer _entityBatchRenderer = null!;
+        [Inject]
+        private IGameplayCamera _gameplayCamera = null!;
         [Inject]
         private LightingEngine _lightingEngine = null!;
         [Inject]
@@ -265,17 +271,6 @@ namespace Kern.Game.Entities.Robots
                 _movement.InitializePose(snappedPos, transform.eulerAngles.z);
             }
 
-            if (string.IsNullOrEmpty(_skinPath) && IsLocalPlayer && !Application.isPlaying)
-            {
-                _skinPath = "Visual/Skin/bee.png";
-                _tailPath = "Visual/Tail/default.png";
-            }
-
-            if (!string.IsNullOrEmpty(_skinPath))
-            {
-                LoadMetadataAssets();
-            }
-
             _movement.TargetAngle = transform.eulerAngles.z;
 
             if (gameObject.CompareTag("Player"))
@@ -286,69 +281,12 @@ namespace Kern.Game.Entities.Robots
 
         protected void Update()
         {
-            if (Application.isPlaying)
-            {
-                if (IsLocalPlayer && _localPlayer is not { Current: { HasServerPosition: true } })
-                {
-                    return;
-                }
-
-                if (!IsLocalPlayer && (!_isMetadataLoaded || !_movement.HasReceivedInitialPosition))
-                {
-                    return;
-                }
-            }
-
-            TryInitializeDynamicLightSettings();
-            ApplyPendingServerPosition();
-
-            if (_presentationState.IsTeleportPreparing)
-            {
-                return;
-            }
-
-            if (!IsLocalPlayer && _culler.CheckAndApply(
-                transform,
-                _gameplayCamera?.Camera,
-                _visuals,
-                _nameplate,
-                _lighting,
-                _movement,
-                _lightingEngine))
-            {
-                return;
-            }
-
-            if (_movement.IsSettled(_visuals.TentaclesSettled))
-            {
-                // The last moving frame may leave the rendered Transform at
-                // the visual tremor offset. The light source is anchored to
-                // SmoothPosition, so settle the sprite on that same position.
-                transform.position = _movement.SmoothPosition;
-                _visuals.UpdateMotion(
-                    transform.position,
-                    0f,
-                    Time.deltaTime,
-                    true,
-                    _debugSettings.TailMotionDebugMode);
-                _nameplate.UpdatePosition(transform.position, _visuals.SkinSprite, transform, _visuals.ClanTransform);
-                _lighting.Update(_movement.SmoothPosition, _lightingEngine);
-                return;
-            }
-
-            var (finalPosition, nowRotationAngle, movementFactor) = _movement.Step(Time.deltaTime);
-
-            transform.position = finalPosition;
-            transform.rotation = Quaternion.Euler(0, 0, nowRotationAngle);
-
-            _visuals.UpdateMotion(
-                finalPosition,
-                movementFactor,
-                Time.deltaTime,
-                false,
-                _debugSettings.TailMotionDebugMode);
-            _nameplate.UpdatePosition(finalPosition, _visuals.SkinSprite, transform, _visuals.ClanTransform);
-            _lighting.Update(_movement.SmoothPosition, _lightingEngine);
+            FrameUpdater.Update(
+                IsLocalPlayer,
+                _isMetadataLoaded,
+                _movement.HasReceivedInitialPosition,
+                _localPlayer is { Current: { HasServerPosition: true } },
+                Time.deltaTime);
         }
 
         public void ResetDynamicLightPreferences()
@@ -364,11 +302,9 @@ namespace Kern.Game.Entities.Robots
         public void Initialize(uint botId)
         {
             TryInitializeDynamicLightSettings();
-            if (_botId != botId && _hasTailBudgetSlot)
+            if (_botId != botId)
             {
-                _robotManager.ReleaseTailSlot(_botId);
-                _hasTailBudgetSlot = false;
-                _visuals.ClearTentacles();
+                _visuals.ReleaseTailSlot(_botId, _robotManager);
             }
 
             _botId = botId;
@@ -416,17 +352,7 @@ namespace Kern.Game.Entities.Robots
         // без него сегменты тела "плывут" к точке на скорости обычного движения.
         public void SnapVisualToTarget()
         {
-            _movement.TeleportToTarget();
-            transform.position = _movement.SmoothPosition;
-            _visuals.SnapTentacles(_movement.SmoothPosition);
-            _visuals.UpdateMotion(
-                transform.position,
-                0f,
-                Time.deltaTime,
-                true,
-                _debugSettings.TailMotionDebugMode);
-            _nameplate.UpdatePosition(transform.position, _visuals.SkinSprite, transform, _visuals.ClanTransform);
-            _lighting.Update(_movement.SmoothPosition, _lightingEngine);
+            FrameUpdater.SnapVisualToTarget(Time.deltaTime);
         }
 
         private void HandleTeleportCommitting(ulong transitionId)
@@ -437,17 +363,6 @@ namespace Kern.Game.Entities.Robots
             }
 
             SnapVisualToTarget();
-        }
-
-        private void ApplyPendingServerPosition()
-        {
-            if (!_hasPendingServerPosition)
-            {
-                return;
-            }
-
-            ApplyServerPosition(_pendingServerX, _pendingServerY);
-            _hasPendingServerPosition = false;
         }
 
         private void ApplyServerPosition(ushort x, ushort y)
@@ -477,43 +392,19 @@ namespace Kern.Game.Entities.Robots
                     _visuals,
                     _nameplate,
                     transform,
-                    ApplyTailTexture,
+                    tailTexture => _visuals.ApplyTailTexture(
+                        tailTexture,
+                        transform.position,
+                        _robotManager,
+                        _botId,
+                        IsLocalPlayer),
                     () => _visualsLoadCompleted = true);
             }
         }
 
-        private void ApplyTailTexture(Texture2D? tailTexture)
-        {
-            if (tailTexture == null)
-            {
-                _visuals.ClearTentacles();
-                if (_hasTailBudgetSlot)
-                {
-                    _robotManager.ReleaseTailSlot(_botId);
-                    _hasTailBudgetSlot = false;
-                }
-
-                return;
-            }
-
-            if (!_hasTailBudgetSlot && _robotManager != null)
-            {
-                if (!_robotManager.TryReserveTailSlot(_botId, prioritize: IsLocalPlayer))
-                {
-                    _visuals.ClearTentacles();
-                    return;
-                }
-
-                _hasTailBudgetSlot = true;
-            }
-
-            _visuals.CreateTentacles(tailTexture, transform.position);
-        }
-
         internal void ReleaseTailSlotFromManager()
         {
-            _hasTailBudgetSlot = false;
-            _visuals.ClearTentacles();
+            _visuals.ReleaseTailSlotFromManager();
         }
 
 #if UNITY_EDITOR
@@ -565,11 +456,7 @@ namespace Kern.Game.Entities.Robots
             }
 
             _assetLoaderHelper?.Cancel();
-            if (_hasTailBudgetSlot && _robotManager != null)
-            {
-                _robotManager.ReleaseTailSlot(_botId);
-                _hasTailBudgetSlot = false;
-            }
+            _visuals?.ReleaseTailSlot(_botId, _robotManager);
 
             _robotService?.UnregisterRobot(_botId);
             _nameplate.Destroy();

@@ -6,6 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using Kern.Core.Interfaces;
 using Kern.Core.Localization;
 using Kern.Networking;
+using Kern.Networking.Protocol;
 using MinesServer.Networking.Client.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI.Components;
@@ -90,9 +91,9 @@ public sealed class ServerWindowPresenter : IDisposable
     public bool IsModalShowing => _modalWindowHandler.IsShowing;
 
     /// <summary>
-    /// ESC отправляет обычный ElementClickPacket по протокольной кнопке «ВЫЙТИ»
-    /// (либо по ExitAction, помеченному legacy-мостом). Если кнопки закрытия в
-    /// окне нет, ESC поглощается: клик по случайному элементу хуже бездействия.
+    /// ESC отправляет обычный ElementClickPacket по элементу, явно помеченному
+    /// как действие закрытия. Если его нет, ESC поглощается: клик по случайному
+    /// элементу хуже бездействия.
     /// </summary>
     public bool TryRequestCloseTopWindow()
     {
@@ -104,7 +105,7 @@ public sealed class ServerWindowPresenter : IDisposable
         WindowState state = _openWindows[^1];
         for (int index = state.ClickableOrder.Count - 1; index >= 0; index--)
         {
-            if (IsExitAction(state.ClickableOrder[index]))
+            if (IsCloseAction(state.ClickableOrder[index]))
             {
                 _networkService.Send(new ElementClickPacket(state.Tag, index, []));
                 return true;
@@ -189,7 +190,7 @@ public sealed class ServerWindowPresenter : IDisposable
         frame.style.width = packet.Width;
 
         // Высота каркаса по содержимому (мост ставит PacketUI.AutoSizeHeight
-        // на корень каждого легаси-окна): точную высоту рендера знает только
+        // на корень каждого протокольного окна): точную высоту рендера знает только
         // клиент — шрифты, переносы, размеры иконок. Каркас обнимает контент
         // в границах: пол (AutoHeightFloor) не даёт крошечным страницам
         // («Да/Нет» подтверждения) схлопываться, потолок — Height из пакета
@@ -236,7 +237,7 @@ public sealed class ServerWindowPresenter : IDisposable
         // Легаси-GUI — одно окно на игрока: сервер переотрисовывает его на
         // КАЖДОЕ действие (вход, таб, кнопка), раздавая каждому рендеру новый
         // уникальный тег (ProtocolWindow.MakeTag). Поэтому заменяем по тегу
-        // нельзя — новый рендер закрывает ВСЕ прежние легаси-окна. Без этого
+        // нельзя — новый рендер закрывает ВСЕ прежние окна. Без этого
         // копии окон накапливаются в иерархии весь сеанс: каждая остаётся в
         // layout и модальном стеке под новой, и лаги растут с каждым кликом
         // (репорт: маркет сильно лагает при заходе).
@@ -266,10 +267,11 @@ public sealed class ServerWindowPresenter : IDisposable
     {
         state.Frame.Clear();
         VisualElement packetRoot = new PacketUIBuilder(_assetLoader, _operations, _webAssetLoader).Build(state.Tree);
+        ApplyCloseActionCaption(packetRoot);
         packetRoot.AddToClassList("packet-window-content");
         state.Frame.Add(packetRoot);
         state.Binding.Bind(packetRoot);
-        state.ClickableOrder = CollectClickableOrder(state.Tree);
+        state.ClickableOrder = ClickableElementOrder.Collect(state.Tree);
         RegisterClickableElements(packetRoot, packetRoot, state);
         AddExitCloseButton(state.Frame, state.Tag, state.ClickableOrder);
     }
@@ -286,8 +288,8 @@ public sealed class ServerWindowPresenter : IDisposable
         public required WindowBinding Binding { get; init; }
         public required IGUIComponentPacket Tree { get; set; }
 
-        /// <summary>Пересчитывается при каждой сборке контента (см. CollectClickableOrder).</summary>
-        public List<IGUIComponentPacket> ClickableOrder { get; set; } = [];
+        /// <summary>Preorder list from the shared window protocol contract.</summary>
+        public IReadOnlyList<IGUIComponentPacket> ClickableOrder { get; set; } = Array.Empty<IGUIComponentPacket>();
     }
 
     private static void ValidateWindowPacket(OpenWindowPacket packet)
@@ -369,60 +371,30 @@ public sealed class ServerWindowPresenter : IDisposable
         _modalWindowHandler.Show(packet);
     }
 
-    /// <summary>
-    /// Pre-order обход дерева пакета, собирающий только кликабельные элементы.
-    /// Сервер адресует клики индексом в таком же списке (GuiWindowModel.Clickables),
-    /// поэтому индекс элемента — это номер в этом порядке, а не позиция в дереве:
-    /// контейнеры и некликабельные тексты индексы не получают.
-    /// </summary>
-    private static List<IGUIComponentPacket> CollectClickableOrder(IGUIComponentPacket packet)
+    private static bool IsCloseAction(IGUIComponentPacket packet) =>
+        TextPacketBuilder.IsCloseAction(packet);
+
+    private void ApplyCloseActionCaption(VisualElement element)
     {
-        var order = new List<IGUIComponentPacket>();
-        Walk(packet);
-        return order;
-
-        void Walk(IGUIComponentPacket current)
+        if (element.userData is IGUIComponentPacket packet &&
+            IsCloseAction(packet) &&
+            element is Button button)
         {
-            if (!string.IsNullOrEmpty(current.OnClickContext))
-            {
-                order.Add(current);
-            }
-
-            if (current is IContainerComponentPacket container)
-            {
-                foreach (IGUIComponentPacket child in container.Children)
-                {
-                    Walk(child);
-                }
-            }
-        }
-    }
-
-    private static int ClickableIndexOf(
-        List<IGUIComponentPacket> clickableOrder,
-        IGUIComponentPacket target)
-    {
-        for (int index = 0; index < clickableOrder.Count; index++)
-        {
-            if (ReferenceEquals(clickableOrder[index], target))
-            {
-                return index;
-            }
+            button.text = _localization.Get("common.close");
         }
 
-        return -1;
+        foreach (VisualElement child in element.Children())
+        {
+            ApplyCloseActionCaption(child);
+        }
     }
-
-    private static bool IsExitAction(IGUIComponentPacket packet) =>
-        AttachedProperties.Has(packet, PacketUIBuilder.ExitActionKey) ||
-        TextPacketBuilder.IsExitButton(packet);
 
     private void RegisterClickableElements(VisualElement element, VisualElement windowRoot, WindowState state)
     {
         if (element.userData is IGUIComponentPacket componentPacket &&
             !string.IsNullOrEmpty(componentPacket.OnClickContext))
         {
-            int elementIndex = ClickableIndexOf(state.ClickableOrder, componentPacket);
+            int elementIndex = IndexOf(state.ClickableOrder, componentPacket);
             if (elementIndex < 0)
             {
                 string message = $"[PacketUI] Clickable component {componentPacket.GetType().Name} " +
@@ -444,23 +416,33 @@ public sealed class ServerWindowPresenter : IDisposable
         }
     }
 
+    private static int IndexOf(
+        IReadOnlyList<IGUIComponentPacket> clickableOrder,
+        IGUIComponentPacket target)
+    {
+        for (int index = 0; index < clickableOrder.Count; index++)
+        {
+            if (ReferenceEquals(clickableOrder[index], target))
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
     /// <summary>
-    /// Белый крестик в правом верхнем углу рамки — адрес клика протокольной
-    /// кнопки «ВЫЙТИ» или действия PacketUI.ExitAction от legacy-моста. Клик
-    /// адресуется как у остальных элементов — по тегу окна и индексу
-    /// кликабельного: сервер закрывает окно сам после проверки OwnsTag.
-    /// OnClickContext кнопки в поле тега подставлять нельзя: это путь сбора
-    /// инпутов («.», «/n»), а не тег — такие клики сервер отбрасывал как
-    /// stale window tag, и крестик не работал.
+    /// The frame close button sends an ElementClickPacket for the component
+    /// marked as the close action, using this window's tag and shared preorder index.
     /// </summary>
     private void AddExitCloseButton(
         VisualElement frame,
         string windowTag,
-        List<IGUIComponentPacket> clickableOrder)
+        IReadOnlyList<IGUIComponentPacket> clickableOrder)
     {
         for (int elementIndex = 0; elementIndex < clickableOrder.Count; elementIndex++)
         {
-            if (!IsExitAction(clickableOrder[elementIndex]))
+            if (!IsCloseAction(clickableOrder[elementIndex]))
             {
                 continue;
             }
@@ -522,7 +504,7 @@ public sealed class ServerWindowPresenter : IDisposable
 
         StringPairPacket[] inputValues = ClickContextResolver.CollectInputValues(inputRoot);
         bool startsTeleport = string.Equals(state.Tag, "teleport", StringComparison.Ordinal) &&
-            !IsExitAction(componentPacket);
+            !IsCloseAction(componentPacket);
         if (startsTeleport)
         {
             if (!_presentationState.TryBeginTeleportRequest(

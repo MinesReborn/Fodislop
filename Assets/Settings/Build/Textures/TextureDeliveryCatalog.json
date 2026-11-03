@@ -121,8 +121,8 @@
       "Delivery": "Embedded"
     },
     {
-      "Source": "Skin/bee/bee.png",
-      "Published": "Visual/Skin/bee.png",
+      "Source": "Skin/Standard/Standard.png",
+      "Published": "Visual/Skin/Standard.png",
       "Delivery": "DummyWorld"
     },
     {

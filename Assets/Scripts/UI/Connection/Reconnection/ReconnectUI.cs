@@ -15,7 +15,7 @@ using Kern.UI.Screens;
 namespace Kern.UI.Connection
 {
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, sourceNamespace: "Kern.UI", sourceAssembly: null, sourceClassName: "ReconnectUI")]
-    public class ReconnectUI : MonoBehaviour
+    public class ReconnectUI : MonoBehaviour, ILocalizableUI
     {
         [Inject]
         private UIDocument _doc = null!;
@@ -42,11 +42,19 @@ namespace Kern.UI.Connection
         private Label? _reconnectLabel;
         private Label? _disconnectLabel;
         private Button? _disconnectOkButton;
+        private string? _disconnectOkTextKey;
+        private string? _reconnectStatus;
+        private string? _disconnectReason;
         private bool _reconnectStatusSet;
         private bool _initialized;
 
         private void OnDestroy()
         {
+            if (_loc != null)
+            {
+                _loc.UnregisterLocalizable(this);
+            }
+
             if (_connection != null)
             {
                 _connection.OnReconnectStatusChanged -= ShowReconnecting;
@@ -94,6 +102,7 @@ namespace Kern.UI.Connection
             }
 
             CreateUI();
+            _loc.RegisterLocalizable(this);
             _initialized = true;
         }
 
@@ -107,10 +116,6 @@ namespace Kern.UI.Connection
                     "[ReconnectUI] Resources/UI/Connection/Reconnection/Templates/Reconnect.uxml is required.");
             TemplateContainer tree = template.Instantiate();
 
-            // Статические ключи Uxml резолвятся сразу при сборке (контракт
-            // един для всех экранов; здесь их нет — тексты ставит код).
-            UILocalizer.Apply(tree, _loc);
-
             _reconnectOverlay = tree.Q<VisualElement>("ReconnectOverlay") ??
                 throw new InvalidOperationException("[ReconnectUI] ReconnectOverlay is missing from Reconnect.uxml.");
             _disconnectOverlay = tree.Q<VisualElement>("DisconnectOverlay") ??
@@ -121,7 +126,10 @@ namespace Kern.UI.Connection
                 throw new InvalidOperationException("[ReconnectUI] DisconnectLabel is missing from Reconnect.uxml.");
             _disconnectOkButton = tree.Q<Button>("DisconnectOkButton") ??
                 throw new InvalidOperationException("[ReconnectUI] DisconnectOkButton is missing from Reconnect.uxml.");
+            _disconnectOkTextKey = _disconnectOkButton.text;
             _disconnectOkButton.clicked += ExitToGateway;
+
+            UILocalizer.Apply(tree, _loc);
 
             _reconnectOverlay.SetEnabled(false);
             _disconnectOverlay.SetEnabled(false);
@@ -133,6 +141,33 @@ namespace Kern.UI.Connection
         private string Resolve(string text)
         {
             return _loc != null && _loc.HasKey(text) ? _loc.Get(text) : text;
+        }
+
+        public void ApplyLocalizedText()
+        {
+            UILocalizer.AssertLocalizationServiceAvailable(_loc, nameof(ReconnectUI));
+            if (_reconnectOverlay == null || _disconnectOverlay == null || _loc == null)
+            {
+                return;
+            }
+
+            UILocalizer.Apply(_reconnectOverlay, _loc);
+            UILocalizer.Apply(_disconnectOverlay, _loc);
+
+            if (_reconnectLabel != null && _reconnectStatus != null)
+            {
+                _reconnectLabel.text = Resolve(_reconnectStatus);
+            }
+
+            if (_disconnectLabel != null && _disconnectReason != null)
+            {
+                _disconnectLabel.text = Resolve(_disconnectReason);
+            }
+
+            if (_disconnectOkButton != null && _disconnectOkTextKey != null)
+            {
+                _disconnectOkButton.text = _loc.Get(_disconnectOkTextKey);
+            }
         }
 
         public void ShowReconnecting(string status)
@@ -154,7 +189,8 @@ namespace Kern.UI.Connection
 
             HideOverlay(_disconnectOverlay);
 
-            _reconnectLabel.text = Resolve(status);
+            _reconnectStatus = status;
+            _reconnectLabel.text = Resolve(_reconnectStatus);
 
             _reconnectStatusSet = true;
             UIState.Show(_reconnectOverlay);
@@ -181,7 +217,8 @@ namespace Kern.UI.Connection
 
             HideOverlay(_reconnectOverlay);
 
-            _disconnectLabel.text = Resolve(reason);
+            _disconnectReason = reason;
+            _disconnectLabel.text = Resolve(_disconnectReason);
 
             UIState.Show(_disconnectOverlay);
             _disconnectOverlay.SetEnabled(true);
@@ -202,7 +239,8 @@ namespace Kern.UI.Connection
 
             if (_reconnectLabel != null)
             {
-                _reconnectLabel.text = Resolve(status);
+                _reconnectStatus = status;
+                _reconnectLabel.text = Resolve(_reconnectStatus);
             }
 
             if (!_reconnectStatusSet && _doc != null && _reconnectOverlay != null)

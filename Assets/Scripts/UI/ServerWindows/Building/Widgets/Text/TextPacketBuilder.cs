@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using Kern.Networking.Protocol;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
 using UnityEngine;
@@ -9,12 +10,11 @@ using UnityEngine.UIElements;
 namespace Kern.UI.ServerWindows;
 public class TextPacketBuilder : PacketUIBuilderBase<TextPacket>
 {
-    private const string ExitButtonLabel = "ВЫЙТИ";
-
-    internal static bool IsExitButton(IGUIComponentPacket packet) =>
-        packet is TextPacket text &&
-        !string.IsNullOrEmpty(text.OnClickContext) &&
-        string.Equals(text.Text.Trim(), ExitButtonLabel, StringComparison.Ordinal);
+    internal static bool IsCloseAction(IGUIComponentPacket packet) =>
+        string.Equals(
+            AttachedProperties.Find(packet, ServerWindowActionMetadata.ActionKey),
+            ServerWindowActionMetadata.CloseActionValue,
+            StringComparison.Ordinal);
 
     protected override VisualElement BuildTyped(TextPacket packet, PacketUIBuilder builder)
     {

@@ -128,7 +128,7 @@ internal static class DummyBotRunner
                 id,
                 1000,
                 0,
-                "Visual/Skin/bee.png",
+                "Visual/Skin/Standard.png",
                 "Visual/Tail/default.png",
                 $"Test {id}")));
 
@@ -226,7 +226,7 @@ internal static class DummyBotRunner
                             b.id,
                             1000,
                             0,
-                            "Visual/Skin/bee.png",
+                            "Visual/Skin/Standard.png",
                             "Visual/Tail/default.png",
                             b.name)));
                     }

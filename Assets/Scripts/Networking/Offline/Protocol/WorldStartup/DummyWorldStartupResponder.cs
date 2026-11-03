@@ -224,7 +224,7 @@ internal sealed class DummyWorldStartupResponder
             playerBotId,
             999,
             1,
-            "Visual/Skin/bee.png",
+            "Visual/Skin/Standard.png",
             "Visual/Tail/default.png",
             string.Empty)));
         _sendPacket(new ServerPacket(new HBPacket(new IHBPacket[]

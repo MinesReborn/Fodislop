@@ -121,17 +121,13 @@ public sealed class SettingsWiringRule : IRule
             }
         }
 
-        // UI-only wiring: flow state owned by UI (scale, gateway gates,
-        // the remembered HUD panel position).
+        // UI-only wiring: flow state owned by UI (scale and gateway gates).
         // Such fields are correctly read only from UI controllers.
         var uiAllowed = new HashSet<string>(StringComparer.Ordinal)
         {
             "UIScale",
             "AutoLogin",
             "OnboardingDone",
-            "HasHudPanelPosition",
-            "HudPanelX",
-            "HudPanelY",
         };
         foreach (var field in fields)
         {

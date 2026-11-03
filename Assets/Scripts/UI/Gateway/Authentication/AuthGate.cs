@@ -150,10 +150,7 @@ public sealed class AuthGate
                 _vkButton.clicked += StartVKLogin;
                 if (_vkLabel != null && _authentication.HasVKSession)
                 {
-                    _vkLabel.text = L(
-                        "gateway.auth.vk_continue",
-                        "Продолжить как {0} (VK)",
-                        _authentication.VKDisplayName);
+                    _vkLabel.text = L("gateway.auth.vk_continue", "Продолжить как {0} (VK)", _authentication.VKDisplayName);
                 }
             }
             else

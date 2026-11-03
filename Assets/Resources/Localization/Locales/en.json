@@ -730,6 +730,7 @@
   "hud.autodig.off": "Auto-dig",
   "hud.geology": "Geology: {0}/{1} ({2})",
   "hud.mission": "Mission",
+  "hud.mission.reset_in": "Resets in {0} h {1} min",
   "settings.interface.language": "Language",
   "settings.interface.language.ru": "Russian",
   "settings.interface.language.en": "English",
@@ -805,6 +806,5 @@
   "hud.basket_percent": "Load: {0}%",
   "mainmenu.server_depth_fmt": "-{0} m",
   "mainmenu.server_ping_fmt": "{0} ms",
-  "common.close": "Close",
-  "hud.tooltip.drag": "Drag panel"
+  "common.close": "Close"
 }

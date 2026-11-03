@@ -15,15 +15,16 @@ using UnityEngine.UIElements;
 
 using Kern.AssetPipeline.Loading;
 using Kern.Networking.Processing;
+using Kern.Networking.Protocol;
 using Kern.UI.ServerWindows;
 
 namespace Kern.Tests.UI;
 
 /// <summary>
-/// Контракт генерической сборки легаси-окон: карточки инвентаря сервер
+/// Контракт сборки серверных окон: карточки инвентаря сервер
 /// присылает контейнерами [иконка / статус], ряды — DockPanel с детьми
 /// влево, колонки — детьми без стыковки; закрывающая кнопка (метка
-/// PacketUI.ExitAction) не рисуется, оставаясь в кликабельном порядке.
+/// ServerWindowActionMetadata) не рисуется, оставаясь в кликабельном порядке.
 /// </summary>
 [TestFixture]
 public class PacketInventoryCardTests
@@ -121,9 +122,11 @@ public class PacketInventoryCardTests
         // Закрывающая кнопка — обычная видимая кнопка ряда (крестик рамки и
         // ESC шлют клик по её индексу), без клиентских спец-веток.
         VisualElement exit = Builder().Build(PacketTestFactory.Text(
-            "ВЫЙТИ",
+            "Закрыть",
             ".",
-            PacketTestFactory.Pair("PacketUI.ExitAction", "1")));
+            PacketTestFactory.Pair(
+                ServerWindowActionMetadata.ActionKey,
+                ServerWindowActionMetadata.CloseActionValue)));
 
         Assert.That(exit, Is.InstanceOf<Button>());
         Assert.That(exit.ClassListContains("packet-window-action"), Is.True);

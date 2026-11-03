@@ -25,15 +25,10 @@ public static class BuildingTemplates
 
     public static ushort GetAnchorDistance(BuildingType type) => type switch
     {
-        BuildingType.Up or BuildingType.Clans => 3,
+        BuildingType.Resp => 1,
+        BuildingType.Up => 4,
+        BuildingType.Clans => 3,
         BuildingType.Science => 6,
         _ => 2,
-    };
-
-    public static int GetSpritePlacementOffsetY(BuildingType type) => type switch
-    {
-        BuildingType.Resp => 1,
-        BuildingType.Up => -1,
-        _ => 0,
     };
 }
