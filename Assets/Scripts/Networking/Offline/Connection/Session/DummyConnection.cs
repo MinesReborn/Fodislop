@@ -47,6 +47,7 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
     private readonly IAsyncOperationSupervisor _operations;
     private readonly IRuntimeDebugSettings _debugSettings;
     private readonly DummyConnectionSession _session = new();
+    private readonly DummyTransportByteCounter _transportByteCounter = new();
     private readonly DummyScenarioController _scenario;
     private readonly IDummyClock _clock;
     private readonly DummyProgrammatorResponder _programmatorResponder;
@@ -251,10 +252,6 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
     private const ushort _mockBotId = 456;
     private readonly List<(ushort X, ushort Y)> _teleportPositions = new();
 
-    // Depth warning/damage feature disabled in DummyConnection
-    // private const int _maxDepth = 200;
-    // private bool _depthWarningActive;
-
     // Сериализует InitWorldAsync: повторный ClientHello (ретрансмит,
     // двойной вход) больше не запускает второй конкурентный init, который
     // рвал мир и гонял распаковку карты одновременно с чтением.
@@ -368,14 +365,11 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
         OnReceived?.Invoke(new ServerPacket(new MinesServer.Networking.Server.Packets.Connection.ReconnectPacket(reason)));
     }
 
-    // Как у настоящего транспорта: считаем «принятые» байты, по ним строится прогресс скачивания ресурсов
-    private long _receivedBytes;
-
-    public long ReceivedBytes => Interlocked.Read(ref _receivedBytes);
+    public long ReceivedBytes => _transportByteCounter.ReceivedBytes;
 
     private void SendPacket(ServerPacket packet)
     {
-        Interlocked.Add(ref _receivedBytes, packet.Size);
+        _transportByteCounter.Add(packet.Size);
         OnReceived?.Invoke(packet);
     }
 
@@ -392,7 +386,19 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
         {
             case ClientHelloPacket clientHello:
                 DummyHelloResponder.Handle(clientHello, _scenario, _session, _authSession,
-                    _operations, SendPacket, InitWorldAsync);
+                    _operations,
+                    SendPacket,
+                    cancellationToken => DummyWorldInitialization.InitializeAsync(
+                        _worldState,
+                        _worldStartup,
+                        PrebakedWorldCodeName,
+                        _session.LifecycleVersion,
+                        _authSession.PlayerName,
+                        PlayerLevel,
+                        PlayerCurrency,
+                        _mockBotId,
+                        cancellationToken,
+                        TriggerDisconnect));
                 break;
             case ClientReadyPacket:
                 _worldStartup.OnClientReady();
@@ -483,34 +489,6 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
                 break;
             default:
                 break;
-        }
-    }
-    // Отключение или переподключение отменяет незавершённый вход в мир: это
-    // штатно и не должно уходить в лог как сбой.
-    private async UniTask InitWorldAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            await _worldState.EnsureInitializedAsync(() => _worldStartup.InitializeAsync(
-                PrebakedWorldCodeName, _session.LifecycleVersion, _authSession.PlayerName,
-                PlayerLevel, PlayerCurrency, _mockBotId));
-        }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            // Disconnect/reset cancels the active map open without stopping the
-            // application supervisor. That is a normal end to this request.
-        }
-        catch (Exception exception)
-        {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-
-            Debug.LogException(new InvalidOperationException(
-                "[DummyConnection] Offline world initialization failed before the world became ready.",
-                exception));
-            TriggerDisconnect($"Offline world initialization failed: {exception.Message}");
         }
     }
 

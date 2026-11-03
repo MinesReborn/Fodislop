@@ -76,7 +76,6 @@ namespace Kern.UI.Settings
         [Inject]
         private TouchCommands _touchCommands = null!;
         private bool _touchSubscribed;
-        private PauseMenuSettingsBuilder? _settingsBuilder;
         private PauseMenuTabRouter? _tabRouter;
 
         protected void Start()
@@ -277,56 +276,10 @@ namespace Kern.UI.Settings
 
         private void CreateMenu(VisualElement root)
         {
-            VisualElement? existingMenu = root.Q<VisualElement>("PauseOverlay");
-            if (existingMenu != null)
-            {
-                VisualElement existingTree = existingMenu;
-                while (existingTree.parent != null && existingTree.parent != root)
-                {
-                    existingTree = existingTree.parent;
-                }
-
-                if (existingTree.parent == root)
-                {
-                    root.Remove(existingTree);
-                }
-            }
-
-            VisualTreeAsset menuTemplate = Resources.Load<VisualTreeAsset>(
-                ResourcePaths.PauseMenuUxml) ??
+            VisualTreeAsset template = Resources.Load<VisualTreeAsset>(ResourcePaths.PauseMenuUxml) ??
                 throw new InvalidOperationException(
                     "[PauseMenu] Resources/UI/Settings/Pause/Templates/PauseMenu.uxml is required.");
-            TemplateContainer menuTree = menuTemplate.Instantiate();
-            _menuTree = menuTree;
-            menuTree.AddToClassList("ui-fullscreen");
-            menuTree.pickingMode = PickingMode.Ignore;
-            menuTree.style.display = DisplayStyle.None;
-
-            // Статические ключи Uxml (settings.*, pause.*) резолвятся сразу при
-            // сборке, а не только по событию смены языка.
-            UILocalizer.Apply(menuTree, _loc);
-            _menuPanel = menuTree.Q<VisualElement>("PauseOverlay") ??
-                throw new InvalidOperationException("[PauseMenu] PauseOverlay is missing from PauseMenu.uxml.");
-            _mainPage = menuTree.Q<VisualElement>("MainPage") ??
-                throw new InvalidOperationException("[PauseMenu] MainPage is missing from PauseMenu.uxml.");
-            _settingsPage = menuTree.Q<VisualElement>("SettingsPage") ??
-                throw new InvalidOperationException("[PauseMenu] SettingsPage is missing from PauseMenu.uxml.");
-
-            PauseMenuMainPage.Bind(
-                menuTree,
-                _loc,
-                CloseMenu,
-                OpenSettings,
-                ExitToMainMenu,
-                QuitGame);
-
-            var tabRouter = new PauseMenuTabRouter(menuTree, _loc, CloseSettings);
-            _tabRouter = tabRouter;
-
-            root.Add(menuTree);
-
-            _settingsRefreshers.Clear();
-            _settingsBuilder = new PauseMenuSettingsBuilder(
+            PauseMenuViewState view = new PauseMenuViewBuilder(
                 _doc,
                 _clientConfig,
                 _audioSystem,
@@ -338,32 +291,15 @@ namespace Kern.UI.Settings
                 _connectionService,
                 _localPlayer,
                 _uiInput,
-                _settingsRefreshers,
-                CloseMenu,
-                _loc);
+                _mainMenuNavigation,
+                _loc)
+                .Build(template, root, CloseMenu, OpenSettings, CloseSettings, _settingsRefreshers);
 
-#if UNITY_EDITOR || UNITY_ENABLE_CHECKS
-            // Built first: BuildAdvancedPage appends the lighting debug view
-            // and the diagnostics readout to this section.
-            VisualElement debugSection = _settingsBuilder.BuildDebugSection();
-#endif
-
-            _settingsBuilder.BuildAudioPage(tabRouter.AudioScroll);
-            _settingsBuilder.BuildDisplayPage(tabRouter.DisplayScroll);
-            _settingsBuilder.BuildGraphicsPage(tabRouter.GraphicsScroll);
-            _settingsBuilder.BuildEffectsPage(tabRouter.EffectsScroll);
-            _settingsBuilder.BuildInterfacePage(tabRouter.InterfaceScroll);
-            _settingsBuilder.BuildControlsPage(tabRouter.ControlsScroll);
-            _settingsBuilder.BuildAdvancedPage(tabRouter.AdvancedScroll);
-
-#if UNITY_EDITOR || UNITY_ENABLE_CHECKS
-            tabRouter.AdvancedScroll.contentContainer.Add(debugSection);
-#endif
-
-            // Apply the initial page after all dynamic content has been attached.
-            tabRouter.ShowTab(0);
-
-            _settingsPage.style.display = DisplayStyle.None;
+            _menuTree = view.MenuTree;
+            _menuPanel = view.MenuPanel;
+            _mainPage = view.MainPage;
+            _settingsPage = view.SettingsPage;
+            _tabRouter = view.TabRouter;
         }
 
         private void ToggleMenu()
@@ -534,14 +470,6 @@ namespace Kern.UI.Settings
             }
         }
 
-        private void QuitGame()
-        {
-            PauseMenuConfirmation.ConfirmQuitGame(_doc, _loc);
-        }
 
-        private void ExitToMainMenu()
-        {
-            PauseMenuConfirmation.ConfirmExitToMainMenu(_doc, _mainMenuNavigation, CloseMenu, _loc);
-        }
     }
 }

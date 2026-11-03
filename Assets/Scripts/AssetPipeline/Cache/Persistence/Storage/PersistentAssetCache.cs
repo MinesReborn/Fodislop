@@ -37,7 +37,6 @@ public interface IPersistentAssetCache
 
 public sealed class PersistentAssetCache : IPersistentAssetCache
 {
-    private const string AssetsDirectoryName = "Assets";
     private const int ManifestFlushDelayMilliseconds = 250;
     private readonly string _cachePath;
     private readonly IAsyncOperationSupervisor? _operations;
@@ -70,24 +69,7 @@ public sealed class PersistentAssetCache : IPersistentAssetCache
 #endif
     }
 
-    private static string GetDefaultCachePath()
-    {
-        string persistentPath = Application.persistentDataPath;
-        if (string.IsNullOrWhiteSpace(persistentPath))
-        {
-            throw new InvalidOperationException(
-                "Application.persistentDataPath is required for the persistent asset cache.");
-        }
-
-        string? parentPath = Path.GetDirectoryName(persistentPath);
-        if (string.IsNullOrWhiteSpace(parentPath) || !Directory.Exists(parentPath))
-        {
-            throw new DirectoryNotFoundException(
-                $"Persistent data parent directory '{parentPath}' does not exist.");
-        }
-
-        return Path.Combine(persistentPath, AssetsDirectoryName);
-    }
+    private static string GetDefaultCachePath() => PersistentAssetCachePaths.GetDefaultCachePath();
 
     public byte[]? GetAsset(string filename)
     {
@@ -287,38 +269,7 @@ public sealed class PersistentAssetCache : IPersistentAssetCache
         return removed;
     }
 
-    public string GetAssetPath(string filename)
-    {
-        if (string.IsNullOrWhiteSpace(filename))
-        {
-            throw new ArgumentException("Asset filename cannot be empty.", nameof(filename));
-        }
-
-        if (Path.IsPathRooted(filename) || filename.Contains('\\'))
-        {
-            throw new ArgumentException("Asset filename must be a relative path using forward slashes.", nameof(filename));
-        }
-
-        string[] segments = filename.Split('/');
-        if (Array.Exists(segments, segment =>
-                string.IsNullOrWhiteSpace(segment) ||
-                segment == "." ||
-                segment == ".."))
-        {
-            throw new ArgumentException("Asset filename contains an invalid path segment.", nameof(filename));
-        }
-
-        string fullPath = Path.GetFullPath(Path.Combine(_cachePath, filename));
-        string relativePath = Path.GetRelativePath(_cachePath, fullPath);
-        if (relativePath == ".." ||
-            relativePath.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
-            Path.IsPathRooted(relativePath))
-        {
-            throw new ArgumentException("Asset filename escapes the persistent cache directory.", nameof(filename));
-        }
-
-        return fullPath;
-    }
+    public string GetAssetPath(string filename) => PersistentAssetCachePaths.GetAssetPath(_cachePath, filename);
 
     private static void ValidateAssetInput(string filename, byte[] data)
     {

@@ -6,7 +6,6 @@ using Kern.Core.Interfaces;
 using Kern.Game;
 using Kern.Networking;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using VContainer;
 
 using Kern.Game.Entities.Robots;
@@ -44,92 +43,34 @@ namespace Kern.Game.Player.Cameras
         // не зависит от частоты кадров.
         [SerializeField] private float _zoomSmoothness = 8f;
 
-        private const float ZoomSettleEpsilon = 0.001f;
-        private const float InteractiveMinimumZoom = 7f;
-        private const float InteractiveMaximumZoom = 22f;
-        private const float ZoomInputSensitivity = 0.8f;
-        private const float MaximumZoomTargetRatio = 1.25f;
-
-        // Мягкий упор: в последней доле диапазона (в логарифмической шкале)
-        // шаг зума плавно уменьшается к границе. За границы зум не выходит —
-        // освещение рассчитано на кадр не больше MaximumOrthographicSize.
-        private const float ZoomEdgeBand = 0.15f;
-        private const float ZoomEdgeMinimumFactor = 0.25f;
-
         // Teleport detection uses the reference viewport, independent of zoom.
         private const float TeleportViewportHalfHeight = GameplayCameraDefaults.ReferenceOrthographicSize;
 
-        // Сериализованные пределы не выходят за контракт: освещение рассчитано
-        // на кадр GameplayCameraDefaults.MaximumOrthographicSize.
-        private float MinimumZoom => Mathf.Max(InteractiveMinimumZoom,
-            Mathf.Max(_minZoom, GameplayCameraDefaults.MinimumOrthographicSize));
-
-        private float MaximumZoom => Mathf.Clamp(_maxZoom, MinimumZoom,
-            Mathf.Min(InteractiveMaximumZoom, GameplayCameraDefaults.MaximumOrthographicSize));
         // Original Effects.Create(Hurt), RVA 0x198FD48: assign, do not add.
-        private int _hurtShakeFrames;
-        private float _hurtShakeClock;
-        private const float HurtShakeStepSeconds = 1f / 30f;
-
-        public void TriggerHurtShake() => _hurtShakeFrames = 16;
-
-        public void ClearHurtShake()
-        {
-            _hurtShakeFrames = 0;
-            _hurtShakeClock = 0f;
-        }
-
         // TpCamera.Update/Update30, RVA 0x1A97420 / 0x1A975D4.
         // The original advances at most one effect step per rendered frame.
-        private void UpdateHurtShake()
-        {
-            _hurtShakeClock += Time.deltaTime;
-            if (_hurtShakeClock < HurtShakeStepSeconds)
-            {
-                return;
-            }
 
-            _hurtShakeClock -= HurtShakeStepSeconds;
-            if (_hurtShakeFrames < 1)
-            {
-                return;
-            }
-
-            Vector3 position = _camera.transform.position;
-            float randomX = UnityEngine.Random.Range(0f, 1f);
-            float randomY = UnityEngine.Random.Range(0f, 1f);
-            position.x += (randomX * 5f - 2f) * 0.0625f;
-            position.y += (randomY * 5f - 2f) * 0.0625f;
-            _camera.transform.position = position;
-            _hurtShakeFrames--;
-        }
 
         private const float FollowSettleEpsilonSquared = 0.000001f;
 
         private float _originalZ;
         private Camera _camera = null!;
         private ILocalPlayer? _subscribedPlayer;
-        private float _targetZoom;
-        private float _currentZoom;
-        private float _lastZoom;
         public event Action<float>? OnZoomChanged;
-        private InputAction? _scrollAction;
-        private bool _scrollEnabled = true;
-        private bool _scrollNullLogged;
+        private CameraFollowEffects? _effects;
+        private CameraZoomController? _zoomController;
         private bool _hasSnappedToServerPosition;
         private bool _localPlayerSpawnSubscription;
         private Vector3 _followVelocity;
-        private float _pixelZoomNotches;
         private Robot? _targetRobot;
         [Inject] private Camera _injectedCamera = null!;
         [Inject] private IInputBlocker _inputBlocker = null!;
-        [Inject] private ILocalPlayerState _localPlayer = null!;
         [Inject] private IClientConfigManager? _clientConfig = null;
+        [Inject] private Kern.Game.Player.Input.TouchGestureTracker? _touchGestures = null;
+        [Inject] private ILocalPlayerState _localPlayer = null!;
         [Inject] private IWorldPresentationState _presentationState = null!;
         [Inject] private IMapDataProvider? _mapDataProvider = null;
-        [Inject] private Kern.Game.Player.Input.TouchGestureTracker? _touchGestures = null;
 
-        private CameraPixelGridAligner? _aligner;
 
         protected void Start()
         {
@@ -146,11 +87,18 @@ namespace Kern.Game.Player.Cameras
             _camera = _injectedCamera;
 
             _originalZ = _camera.transform.position.z;
-            float initialZoom = (MinimumZoom + MaximumZoom) * 0.5f;
-            _targetZoom = QuantizeIfPixelPerfect(initialZoom);
-            _currentZoom = _targetZoom;
-            _lastZoom = _currentZoom;
-            ApplyZoom(_currentZoom);
+            _zoomController = new CameraZoomController(
+                _camera,
+                _clientConfig,
+                _inputBlocker,
+                _touchGestures,
+                _minZoom,
+                _maxZoom,
+                _zoomStepPerNotch,
+                _zoomSmoothness,
+                value => OnZoomChanged?.Invoke(value));
+            _zoomController.Initialize();
+            _effects = new CameraFollowEffects(_camera, _localPlayer, _presentationState);
             if (_target == null || _target == _camera.transform)
             {
                 var player = _localPlayer?.Current;
@@ -180,7 +128,6 @@ namespace Kern.Game.Player.Cameras
             }
 
             SnapToTarget();
-            InitializeInput();
             if (_mapDataProvider != null)
             {
                 _mapDataProvider.OnWorldInitialized -= HandleWorldInitialized;
@@ -190,22 +137,7 @@ namespace Kern.Game.Player.Cameras
 
         protected void OnEnable()
         {
-            if (_scrollAction == null)
-            {
-                InitializeInput();
-            }
-            else
-            {
-                _scrollAction.Enable();
-            }
-        }
-
-        private void InitializeInput()
-        {
-            _scrollAction = InputSystem.actions?.FindAction(
-                "UI/ScrollWheel",
-                throwIfNotFound: false);
-            _scrollAction?.Enable();
+            _zoomController?.Enable();
         }
 
         protected void OnDestroy()
@@ -232,18 +164,48 @@ namespace Kern.Game.Player.Cameras
                 _localPlayerSpawnSubscription = false;
             }
 
-            DisposeScrollAction();
+            _zoomController?.Disable();
         }
 
         protected void OnDisable()
         {
-            DisposeScrollAction();
+            _zoomController?.Disable();
         }
 
-        private void DisposeScrollAction()
+        private Vector3 ResolveFollowPoint(Transform target)
         {
-            _scrollAction?.Disable();
-            _scrollAction = null;
+            if (_targetRobot == null || _targetRobot.transform != target)
+            {
+                _targetRobot = target.TryGetComponent(out Robot robot) ? robot : null;
+            }
+
+            return _targetRobot != null ? _targetRobot.CameraAnchor : target.position;
+        }
+
+        public void SnapToTarget()
+        {
+            if (_localPlayer?.Current is not { HasServerPosition: true })
+            {
+                return;
+            }
+
+            Transform cameraTransform = _camera.transform;
+            if (_target == null || _target == cameraTransform)
+            {
+                if (_localPlayer?.Current != null)
+                {
+                    _target = _localPlayer.Current.transform;
+                }
+            }
+
+            if (_target != null && _target != cameraTransform)
+            {
+                Vector3 targetPosition = ResolveFollowPoint(_target) + new Vector3(_offset.x, _offset.y, 0f);
+                cameraTransform.position = _zoomController!.SnapToPixelGrid(
+                    new Vector3(targetPosition.x, targetPosition.y, _originalZ));
+                _hasSnappedToServerPosition = true;
+                _followVelocity = Vector3.zero;
+            }
         }
 
         private void HandleWorldInitialized()
@@ -352,12 +314,12 @@ namespace Kern.Game.Player.Cameras
 
             if (!Application.isPlaying)
             {
-                ApplyZoom(QuantizeIfPixelPerfect(DefaultOrthographicSize));
+                _zoomController?.ApplyDefaultZoom(DefaultOrthographicSize);
 
                 var player = _localPlayer?.Current;
                 if (player != null)
                 {
-                    _camera.transform.position = SnapToPixelGrid(new Vector3(
+                    _camera.transform.position = _zoomController!.SnapToPixelGrid(new Vector3(
                         player.transform.position.x,
                         player.transform.position.y,
                         DefaultCameraDepthZ));
@@ -368,7 +330,7 @@ namespace Kern.Game.Player.Cameras
 
             if (!_presentationState.IsTeleportPreparing)
             {
-                HandleZoom();
+                _zoomController?.Update();
             }
 
             Vector3 before = _camera.transform.position;
@@ -376,196 +338,21 @@ namespace Kern.Game.Player.Cameras
             HandleFollow(out bool usedViewTransition);
             if (!_presentationState.IsTeleportPreparing)
             {
-                UpdateHurtShake();
+                _effects?.UpdateHurtShake();
             }
 
-            ReportCameraJump(before, velocityBefore, usedViewTransition);
-        }
-
-        // Скачок камеры больше JumpReportCells клеток за кадр пишется в лог
-        // вместе с тем, за чем она шла: так видно, кто его вызвал — позиция
-        // с сервера, сглаживание бота или переход вида.
-        private const float JumpReportCells = 2f;
-
-        private void ReportCameraJump(Vector3 before, Vector3 velocityBefore, bool usedViewTransition)
-        {
-            Vector3 after = _camera.transform.position;
-            float jump = Vector2.Distance(before, after);
-            if (jump <= JumpReportCells * WorldGridDefaults.CellSize)
-            {
-                return;
-            }
-
-            ILocalPlayer? player = _localPlayer?.Current;
-            string robotState = _targetRobot != null
-                ? $"anchor={_targetRobot.CameraAnchor}, target={_targetRobot.TargetPosition}"
-                : "robot=none";
-            Debug.LogWarning(
-                $"[CameraFollow] Camera jumped {jump:F2} from {before} to {after}; {robotState}; " +
-                $"server cell={(player != null ? player.Position.ToString() : "none")}, " +
-                $"hasServerPosition={player?.HasServerPosition}, " +
-                $"presentation={_presentationState.Current.Phase}/{_presentationState.Current.TransitionId}, " +
-                $"viewTransition={usedViewTransition}, " +
-                $"dt={Time.deltaTime:F6}s, smoothTime={_followSmoothTime:F6}s, " +
-                $"velocityBefore={velocityBefore}, velocityAfter={_followVelocity}, frame={Time.frameCount}.");
-        }
-
-        private void HandleZoom()
-        {
-            // Блокировка ввода (чат, меню, окно) и выключенная прокрутка
-            // запрещают только новое колёсико. Колесо, отданное прокрутке UI
-            // (лог глобального чата), зум тоже не двигает. Досглаживание уже
-            // начатого зума к цели продолжается: ранний выход замораживал
-            // зум на полпути.
-            bool acceptsInput = _scrollEnabled &&
-                !(_inputBlocker != null &&
-                  (_inputBlocker.IsInputBlocked || _inputBlocker.IsMouseWheelClaimedByUI));
-            float scrollInput = acceptsInput ? ReadScroll() : 0f;
-
-            // Пинч двумя пальцами: пальцы разошлись — приближение. Отношение
-            // расстояний переводится в щелчки колёсика, и дальше зум идёт тем
-            // же путём — с теми же границами, упором и квантованием.
-            float pinch = _touchGestures?.ConsumePinchScale() ?? 1f;
-            if (acceptsInput && Mathf.Abs(pinch - 1f) > 0.0001f)
-            {
-                scrollInput += Mathf.Log(pinch) / Mathf.Log(1f + _zoomStepPerNotch);
-            }
-
-            if (Mathf.Abs(scrollInput) > 0.001f)
-            {
-                ApplyZoomInput(scrollInput * ZoomInputSensitivity);
-            }
-
-            // Режим выборки могли переключить в настройках на ходу: цель
-            // PixelPerfect обязана стоять на целом уровне, иначе зум никогда не
-            // сядет на пиксельную сетку.
-            _targetZoom = QuantizeIfPixelPerfect(_targetZoom);
-
-            // Сглаживание идёт в логарифмической шкале, как и шаг: скорость
-            // приближения одинакова вблизи и вдали. Во время движения размер
-            // не квантуется, посадка на целый уровень — в конце, когда текущий
-            // размер сходится с квантованной целью.
-            float blend = 1f - Mathf.Exp(-_zoomSmoothness * Time.deltaTime);
-            float nextZoom = Mathf.Exp(Mathf.Lerp(
-                Mathf.Log(_currentZoom),
-                Mathf.Log(_targetZoom),
-                blend));
-            if (Mathf.Abs(nextZoom - _targetZoom) <= ZoomSettleEpsilon)
-            {
-                nextZoom = _targetZoom;
-            }
-
-            _currentZoom = nextZoom;
-            ApplyZoom(_currentZoom);
-
-            if (Mathf.Abs(_currentZoom - _lastZoom) > 0.01f)
-            {
-                _lastZoom = _currentZoom;
-                OnZoomChanged?.Invoke(_currentZoom);
-            }
-        }
-
-        private float ReadScroll()
-        {
-            if (_scrollAction != null && _scrollAction.enabled)
-            {
-                return _scrollAction.ReadValue<Vector2>().y;
-            }
-
-            if (Mouse.current != null)
-            {
-                return Mouse.current.scroll.ReadValue().y;
-            }
-
-            if (!_scrollNullLogged)
-            {
-                _scrollNullLogged = true;
-                Debug.LogWarning("[CameraFollow] Scroll action is unavailable; mouse-wheel zoom is disabled.");
-            }
-
-            return 0f;
-        }
-
-        private void ApplyZoomInput(float notches)
-        {
-            // Reverse from the visible scale, rather than first consuming the
-            // previous gesture's queued movement towards the opposite limit.
-            if (notches * (_targetZoom - _currentZoom) > 0f)
-            {
-                _targetZoom = _currentZoom;
-            }
-
-            if (notches * _pixelZoomNotches < 0f)
-            {
-                _pixelZoomNotches = 0f;
-            }
-
-            if (Aligner.QuantizesZoom)
-            {
-                _targetZoom = StepPixelPerfectZoom(_targetZoom, notches);
-                return;
-            }
-
-            float next = StepSmoothZoom(_targetZoom, notches);
-            // A long scroll burst must not queue an entire trip to an edge.
-            _targetZoom = Mathf.Clamp(next,
-                Mathf.Max(MinimumZoom, _currentZoom / MaximumZoomTargetRatio),
-                Mathf.Min(MaximumZoom, _currentZoom * MaximumZoomTargetRatio));
-        }
-
-        private float StepSmoothZoom(float size, float notches)
-        {
-            float logMinimum = Mathf.Log(MinimumZoom);
-            float logMaximum = Mathf.Log(MaximumZoom);
-            float logSize = Mathf.Log(size);
-
-            // Прокрутка вверх приближает: кадр уменьшается.
-            float delta = -notches * Mathf.Log(1f + _zoomStepPerNotch);
-            float band = (logMaximum - logMinimum) * ZoomEdgeBand;
-            if (band > 0f)
-            {
-                float remaining = delta < 0f ? logSize - logMinimum : logMaximum - logSize;
-                float ease = Mathf.Clamp01(remaining / band);
-                delta *= Mathf.Lerp(ZoomEdgeMinimumFactor, 1f, ease);
-            }
-
-            return Mathf.Exp(Mathf.Clamp(logSize + delta, logMinimum, logMaximum));
+            _effects?.ReportCameraJump(
+                before,
+                velocityBefore,
+                _followVelocity,
+                usedViewTransition,
+                _targetRobot,
+                _followSmoothTime);
         }
 
         // В PixelPerfect масштаб — целое число пикселей на тексель, уровней
         // всего несколько. Трекпад присылает доли щелчка; они копятся, и
         // каждый целый щелчок ведёт ровно на соседний уровень.
-        private float StepPixelPerfectZoom(float size, float notches)
-        {
-            _pixelZoomNotches += notches;
-            int levels = (int)_pixelZoomNotches;
-            if (levels == 0)
-            {
-                return size;
-            }
-
-            _pixelZoomNotches -= levels;
-            return Aligner.StepQuantizedSize(size, levels, MinimumZoom, MaximumZoom);
-        }
-
-        private float QuantizeIfPixelPerfect(float size) =>
-            Aligner.QuantizesZoom
-                ? Aligner.ResolveOrthographicSize(size, MinimumZoom, MaximumZoom)
-                : size;
-
-        // Камера следует за сглаженной позицией бота без дрожи
-        // (Robot.CameraAnchor), а не за transform: в transform подмешан
-        // случайный тремор и туда же на кадр пишется сырая клетка с сервера.
-        private Vector3 ResolveFollowPoint(Transform target)
-        {
-            if (_targetRobot == null || _targetRobot.transform != target)
-            {
-                _targetRobot = target.TryGetComponent(out Robot robot) ? robot : null;
-            }
-
-            return _targetRobot != null ? _targetRobot.CameraAnchor : target.position;
-        }
-
         private void HandleFollow(out bool usedViewTransition)
         {
             usedViewTransition = false;
@@ -605,7 +392,7 @@ namespace Kern.Game.Player.Cameras
                         desiredPosition - cameraTransform.position,
                         _camera.aspect))
                     {
-                        cameraTransform.position = SnapToPixelGrid(desiredPosition);
+                        cameraTransform.position = _zoomController!.SnapToPixelGrid(desiredPosition);
                         _hasSnappedToServerPosition = true;
                         _followVelocity = Vector3.zero;
                     }
@@ -643,7 +430,7 @@ namespace Kern.Game.Player.Cameras
                 smoothTime,
                 float.PositiveInfinity,
                 Time.deltaTime);
-            cameraTransform.position = SnapToPixelGrid(smoothed);
+            cameraTransform.position = _zoomController!.SnapToPixelGrid(smoothed);
         }
 
         // The teleport threshold is fixed at the project's reference size.
@@ -658,7 +445,7 @@ namespace Kern.Game.Player.Cameras
             }
 
             _followVelocity = Vector3.zero;
-            cameraTransform.position = SnapToPixelGrid(desiredPosition);
+            cameraTransform.position = _zoomController!.SnapToPixelGrid(desiredPosition);
             _hasSnappedToServerPosition = true;
             return true;
         }
@@ -674,52 +461,11 @@ namespace Kern.Game.Player.Cameras
         // высоты. На экране шире 2:1 высота уменьшается, чтобы ширина не
         // выходила за потолок (CameraViewRules). В PixelPerfect уменьшенный
         // кадр снова садится на целое число пикселей на тексель.
-        private void ApplyZoom(float zoom)
-        {
-            float size = CameraViewRules.OrthographicSize(zoom, _camera.aspect);
-            if (size < zoom && Aligner.QuantizesZoom)
-            {
-                size = Aligner.ResolveOrthographicSize(size, Mathf.Min(size, MinimumZoom), MaximumZoom);
-            }
+        public void TriggerHurtShake() => _effects?.TriggerHurtShake();
 
-            if (!Mathf.Approximately(_camera.orthographicSize, size))
-            {
-                _camera.orthographicSize = size;
-            }
-        }
+        public void ClearHurtShake() => _effects?.ClearHurtShake();
 
-        private Vector3 SnapToPixelGrid(Vector3 position) =>
-            Aligner.SnapPosition(position, _camera.orthographicSize);
-
-        private CameraPixelGridAligner Aligner =>
-            _aligner ??= new CameraPixelGridAligner(_clientConfig);
-
-        public void SnapToTarget()
-        {
-            if (_localPlayer?.Current is not { HasServerPosition: true })
-            {
-                return;
-            }
-
-            Transform cameraTransform = _camera.transform;
-            if (_target == null || _target == cameraTransform)
-            {
-                if (_localPlayer?.Current != null)
-                {
-                    _target = _localPlayer.Current.transform;
-                }
-            }
-
-            if (_target != null && _target != cameraTransform)
-            {
-                Vector3 targetPosition = ResolveFollowPoint(_target) + new Vector3(_offset.x, _offset.y, 0f);
-                cameraTransform.position = SnapToPixelGrid(
-                    new Vector3(targetPosition.x, targetPosition.y, _originalZ));
-                _hasSnappedToServerPosition = true;
-                _followVelocity = Vector3.zero;
-            }
-        }
-        public void SetScrollEnabled(bool enabled) => _scrollEnabled = enabled;
+        public void SetScrollEnabled(bool enabled) => _zoomController?.SetScrollEnabled(enabled);
 #if UNITY_EDITOR
         protected void OnDrawGizmosSelected()
         {

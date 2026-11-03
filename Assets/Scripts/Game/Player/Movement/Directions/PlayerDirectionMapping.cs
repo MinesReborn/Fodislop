@@ -23,6 +23,32 @@ public static class PlayerDirectionMapping
         return new Vector2Int(0, moveInput.y > 0 ? 1 : -1);
     }
 
+    // Восемь секторов по 45°: прямые стороны дают одну ось, диагональные —
+    // две. Клавиатурное W+A (135°) попадает ровно в центр диагонального
+    // сектора, стик и тач — по углу отклонения.
+    public static MovementIntent InputToIntent(Vector2 moveInput)
+    {
+        if (moveInput == Vector2.zero)
+        {
+            return MovementIntent.None;
+        }
+
+        float angle = Mathf.Atan2(moveInput.y, moveInput.x) * Mathf.Rad2Deg;
+        int sector = ((Mathf.RoundToInt(angle / 45f) % 8) + 8) % 8;
+        int x = sector is 7 or 0 or 1 ? 1 : sector is 3 or 4 or 5 ? -1 : 0;
+        int y = sector is 1 or 2 or 3 ? 1 : sector is 5 or 6 or 7 ? -1 : 0;
+        if (x == 0 || y == 0)
+        {
+            return new MovementIntent(new Vector2Int(x, y), Vector2Int.zero);
+        }
+
+        var horizontal = new Vector2Int(x, 0);
+        var vertical = new Vector2Int(0, y);
+        return Mathf.Abs(moveInput.x) > Mathf.Abs(moveInput.y)
+            ? new MovementIntent(horizontal, vertical)
+            : new MovementIntent(vertical, horizontal);
+    }
+
     public static Direction ToPacketDirection(Vector2Int direction)
     {
         return direction.x switch

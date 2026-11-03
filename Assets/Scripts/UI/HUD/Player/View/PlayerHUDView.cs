@@ -46,7 +46,7 @@ namespace Kern.UI.HUD
         [Inject]
         private UIDocument _doc = null!;
         private Tooltip? _tooltip;
-        private bool _isLoaded;
+        private PlayerHUDStatsPresenter _statsPresenter = null!;
         [Inject]
         private Kern.Core.Interfaces.IInputBlocker _inputBlocker = null!;
         [Inject]
@@ -72,9 +72,7 @@ namespace Kern.UI.HUD
         private VisualElement? _skillContainer;
 
         private ProgrammatorGrid? _programmatorGrid;
-        private Button? _programmatorButton;
-        private Button? _programRunButton;
-        private bool _programRunning;
+        private readonly PlayerHUDProgramControls _programControls = new();
         [Inject]
         private ProgrammatorData? _programmatorData;
         private bool _initializationStarted;
@@ -216,7 +214,7 @@ namespace Kern.UI.HUD
             // пересоздаёт строки скрытыми, а Refresh по ним ещё не бегал -
             // без перерисовки корзина пуста до первого обновления статов
             // (первого копания). Перерисовываем сразу после построения строк.
-            RefreshAll();
+            _statsPresenter.Refresh();
         }
 
         public void ApplyLocalizedText()
@@ -231,7 +229,7 @@ namespace Kern.UI.HUD
             }
 
             UILocalizer.Apply(_doc.rootVisualElement, _loc);
-            RefreshAll();
+            _statsPresenter.Refresh();
             _programmatorGrid?.RefreshLocalization();
             UILocalizer.AssertLocalized(_doc.rootVisualElement, _loc);
         }
@@ -248,16 +246,7 @@ namespace Kern.UI.HUD
             _touchControls?.Dispose();
             _touchControls = null;
 
-            if (_programmatorGrid?.Programs is { } closingPrograms)
-            {
-                closingPrograms.ActiveProgramChanged -= UpdateProgrammatorButtonLabel;
-                closingPrograms.RunStateChanged -= ApplyProgramRunState;
-            }
-
-            if (_programmatorProtocol != null)
-            {
-                _programmatorProtocol.StateChanged -= OnProgramStateChanged;
-            }
+            _programControls.Dispose();
 
             _programmatorGrid?.Dispose();
             _programmatorGrid = null;
@@ -267,7 +256,7 @@ namespace Kern.UI.HUD
 
             if (_model != null)
             {
-                _model.OnStatsChanged -= RefreshAll;
+                _model.OnStatsChanged -= _statsPresenter.Refresh;
                 _model.OnSkillProgress -= OnSkillProgress;
                 _model.OnStatusLinesChanged -= OnStatusLinesChanged;
                 _model.OnMissionChanged -= OnMissionChanged;
@@ -303,19 +292,18 @@ namespace Kern.UI.HUD
                 _model.OnSkillProgress += OnSkillProgress;
                 _model.OnStatusLinesChanged += OnStatusLinesChanged;
                 _model.OnMissionChanged += OnMissionChanged;
-                _model.OnStatsChanged += RefreshAll;
-                _isLoaded = _model.Health > 0 || _model.Level > 0;
+                _model.OnStatsChanged += _statsPresenter.Refresh;
             }
 
 
             _basketView.RebuildRows();
 
-            if (!_isLoaded && _hudRoot != null)
+            if (!_statsPresenter.IsLoaded && _hudRoot != null)
             {
                 _skeletonPulse.Start(_hudRoot);
             }
 
-            RefreshAll();
+            _statsPresenter.Refresh();
 
             var root = _doc.rootVisualElement;
 
@@ -421,34 +409,26 @@ namespace Kern.UI.HUD
             _missionPanel = new PlayerHUDMissionPanel(_loc, _assetLoader, _webAssetLoader, _operations);
             _missionPanel.Initialize(tree);
 
-            _programmatorButton = tree.Q<Button>("ProgrammatorButton") ??
-                throw new InvalidOperationException("[PlayerHUD] ProgrammatorButton is missing from PlayerHUD.uxml.");
-            // G7-C: список программ рисует сервер (окно списка), клик по строке
-            // ходит ElementClickPacket'ом; грид открывается сам по
-            // OpenProgrammatorPacket (ProgrammatorGrid подписан на OpenRequested).
-            _programmatorButton.clicked += () => _programmatorProtocol.RequestProgramList();
+            _statsPresenter = new PlayerHUDStatsPresenter(
+                _model,
+                _loc,
+                _skeletonPulse,
+                _basketView,
+                _hpBarFillColor,
+                _hpBarLowColor,
+                _nicknameLabel,
+                _levelLabel,
+                _hpCountLabel,
+                _hpBarFill,
+                _moneyLabel,
+                _creditsLabel,
+                _geologyLabel,
+                _basketPercentLabel,
+                _basketSeparator,
+                _basketRow,
+                _isLoadedInitially: _model.Health > 0 || _model.Level > 0);
 
-            _programRunButton = tree.Q<Button>("ProgramRunButton") ??
-                throw new InvalidOperationException("[PlayerHUD] ProgramRunButton is missing from PlayerHUD.uxml.");
-            _programRunButton.clicked += OnProgramRunClicked;
-            Tooltip.AttachTo(
-                _programRunButton,
-                () => _loc.Get(_programRunning ? "hud.tooltip.program_stop" : "hud.tooltip.program_start"),
-                _tooltip!);
-
-            // Кнопка программатора показывает имя активной программы (как в старом
-            // клиенте); пока программа не выбрана - стандартная подпись.
-            _programmatorProtocol.StateChanged += OnProgramStateChanged;
-            if (_programmatorGrid?.Programs is { } hudPrograms)
-            {
-                hudPrograms.ActiveProgramChanged += UpdateProgrammatorButtonLabel;
-                // Локальный запуск/остановка (кнопка в окне и ▶/■ в HUD) —
-                // состояние ▶/■ обязано меняться сразу, не дожидаясь пакета
-                // сервера (реальный MinesServer его не присылает).
-                hudPrograms.RunStateChanged += ApplyProgramRunState;
-            }
-
-            UpdateProgrammatorButtonLabel();
+            _programControls.Initialize(tree, _programmatorGrid, _programmatorProtocol, _loc, _tooltip!);
         }
 
         private void InitializeTouchControls(VisualElement tree)
@@ -457,141 +437,17 @@ namespace Kern.UI.HUD
             _touchControls.Bind(tree);
         }
 
+        private static void SetDisplayed(VisualElement? element, bool visible)
+        {
+            if (element != null)
+            {
+                element.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+        }
+
         private void CancelMobileInput()
         {
             _touchControls?.Cancel();
-        }
-
-        // Подпись кнопки программатора: имя активной программы вместо "Программатор".
-        private void UpdateProgrammatorButtonLabel()
-        {
-            if (_programmatorButton == null)
-            {
-                return;
-            }
-
-            string? activeName = _programmatorGrid?.Programs?.ActiveProgramName;
-            _programmatorButton.text = string.IsNullOrWhiteSpace(activeName)
-                ? _loc.Get("hud.programmator")
-                : activeName;
-        }
-
-        // Одна кнопка запуска/остановки (как в старом клиенте): ▶ - старт, ■ - стоп.
-        private void OnProgramRunClicked()
-        {
-            if (_programRunning)
-            {
-                _programmatorProtocol.StopProgram();
-            }
-            else
-            {
-                _programmatorProtocol.StartProgram();
-            }
-        }
-
-        // Пауза тоже считается активным выполнением - в этом состоянии кнопка останавливает.
-        private void OnProgramStateChanged(ProgramStatePacket packet)
-        {
-            ApplyProgramRunState(
-                packet.State == ProgramState.Running || packet.State == ProgramState.Paused);
-        }
-
-        // Единая точка применения состояния ▶/■: сюда приходят и серверные
-        // пакеты, и локальный запуск/остановка из программатора.
-        private void ApplyProgramRunState(bool running)
-        {
-            _programRunning = running;
-            if (_programRunButton != null)
-            {
-                _programRunButton.text = _programRunning ? "■" : "▶";
-                _programRunButton.EnableInClassList("hud-program-run-btn--running", _programRunning);
-            }
-        }
-
-        private void RefreshAll()
-        {
-            var stats = _model;
-            if (stats == null)
-            {
-                return;
-            }
-
-            if (!_isLoaded && (stats.Health > 0 || stats.Level > 0 || stats.Money > 0 || !string.IsNullOrEmpty(stats.Nickname)))
-            {
-                _isLoaded = true;
-                _skeletonPulse.Stop();
-            }
-
-            if (_nicknameLabel != null)
-            {
-                _nicknameLabel.text = string.IsNullOrEmpty(stats.Nickname) ? "---" : stats.Nickname;
-            }
-
-            if (_levelLabel != null)
-            {
-                // "Уровень: X" - белым, компактно; до загрузки данных строка пустая.
-                _levelLabel.text = _isLoaded ? _loc.Get("hud.level", stats.Level) : string.Empty;
-            }
-
-            float pct = stats.HealthPercent;
-
-            if (_hpBarFill != null)
-            {
-                _hpBarFill.style.width = new Length(pct * 100, LengthUnit.Percent);
-                _hpBarFill.style.backgroundColor = pct < 0.25f ? _hpBarLowColor : _hpBarFillColor;
-            }
-
-            if (_hpCountLabel != null)
-            {
-                // Счётчик внутри полосы: белый жирный текст с тёмной обводкой -
-                // читается на любом цвете заливки (стиль в .hud-hp-count).
-                _hpCountLabel.text = _isLoaded
-                    ? $"{stats.Health:N0} / {stats.MaxHealth:N0}"
-                    : "-- / --";
-            }
-
-            if (_moneyLabel != null)
-            {
-                _moneyLabel.text = _isLoaded ? $"<color=lime>${stats.Money:N0}</color>" : "---";
-            }
-
-            if (_creditsLabel != null)
-            {
-                _creditsLabel.text = _isLoaded ? $"<color=yellow>C {stats.Credits:N0}</color>" : "---";
-            }
-
-            if (_geologyLabel != null)
-            {
-                // Геология == 0 - строка скрывается полностью, чтобы не оставлять
-                // пустое пространство в панели.
-                bool showGeology = _isLoaded && stats.GeologyCurrent > 0;
-                _geologyLabel.text = showGeology
-                    ? _loc.Get("hud.geology", stats.GeologyCurrent, stats.GeologyMax, stats.GeologyText)
-                    : string.Empty;
-                _geologyLabel.style.display = showGeology ? DisplayStyle.Flex : DisplayStyle.None;
-            }
-
-            if (_basketPercentLabel != null)
-            {
-                // Общий груз == 0 - груз, разделитель и кнопка выброса бокса скрываются.
-                bool showBasket = _isLoaded && stats.BasketMaxPercent > 0;
-                _basketPercentLabel.text = showBasket ? _loc.Get("hud.basket_percent", stats.BasketMaxPercent) : string.Empty;
-                _basketPercentLabel.style.display = showBasket ? DisplayStyle.Flex : DisplayStyle.None;
-                SetDisplayed(_basketSeparator, showBasket);
-                SetDisplayed(_basketRow, showBasket);
-            }
-
-            _basketView.Refresh(stats);
-        }
-
-        private static void SetDisplayed(VisualElement? element, bool visible)
-        {
-            if (element == null)
-            {
-                return;
-            }
-
-            element.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         private void OnSkillProgress(SkillType skill, long current, long max)

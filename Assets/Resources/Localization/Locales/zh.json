@@ -727,6 +727,7 @@
   "settings.controls.section_title": "控制",
   "settings.controls.section_desc": "移动方案与当前控制按键。",
   "settings.controls.reset": "恢复默认设置",
+  "settings.controls.movement_assist": "移动辅助",
   "settings.controls.reset_confirm_title": "重置控制",
   "settings.controls.reset_confirm_msg": "确定要将控制恢复到初始状态吗？",
   "settings.controls.reset_confirm_btn": "重置",

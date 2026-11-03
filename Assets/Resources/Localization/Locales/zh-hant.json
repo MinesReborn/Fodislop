@@ -727,6 +727,7 @@
   "settings.controls.section_title": "控制",
   "settings.controls.section_desc": "移動方案與目前控制按鍵。",
   "settings.controls.reset": "重設為預設值",
+  "settings.controls.movement_assist": "移動輔助",
   "settings.controls.reset_confirm_title": "重設控制",
   "settings.controls.reset_confirm_msg": "確定要將控制重設為初始狀態嗎？",
   "settings.controls.reset_confirm_btn": "重設",

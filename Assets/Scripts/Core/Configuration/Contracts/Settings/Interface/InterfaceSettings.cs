@@ -34,6 +34,15 @@ public sealed class InterfaceSettings
     [SettingConsumer(SettingConsumerTarget.Gameplay, "Controls / Onboarding scheme")]
     public int ControlScheme;
 
+    // Помощь в движении: при выключенном автокопании робот сам обходит
+    // непроходимую клетку на пути и идёт дальше в удерживаемом направлении.
+    public const bool DefaultMovementAssist = true;
+
+    [SettingUnbounded("Тумблер помощи в движении на вкладке «Управление».")]
+    [SettingLabel("settings.controls.movement_assist")]
+    [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerStepSelector.Select")]
+    public bool MovementAssist = DefaultMovementAssist;
+
     [SettingUnbounded("Тумблер автовхода в воротах авторизации.")]
     [SettingLabel("gateway.auth.auto_login")]
     [SettingConsumer(SettingConsumerTarget.UserInterface, "AuthGate auto sign-in toggle")]

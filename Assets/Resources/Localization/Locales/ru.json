@@ -730,6 +730,7 @@
   "settings.controls.section_title": "Управление",
   "settings.controls.section_desc": "Схема движения и текущие клавиши управления.",
   "settings.controls.reset": "Сбросить до стандартных",
+  "settings.controls.movement_assist": "Помощь в движении",
   "settings.controls.reset_confirm_title": "Сброс управления",
   "settings.controls.reset_confirm_msg": "Вы уверены что хотите сбросить управление до первоначального?",
   "settings.controls.reset_confirm_btn": "Сбросить",

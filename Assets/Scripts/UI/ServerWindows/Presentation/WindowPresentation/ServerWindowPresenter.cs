@@ -43,7 +43,7 @@ public sealed class ServerWindowPresenter : IDisposable
     private readonly ModalWindowHandler _modalWindowHandler;
     private readonly IWorldPresentationState _presentationState;
     private readonly IGameplayCamera _gameplayCamera;
-    private readonly List<WindowState> _openWindows = [];
+    private readonly List<ServerWindowState> _openWindows = [];
     private ulong _pendingTeleportTransitionId;
     private OpenWindowPacket _pendingOpenWindow;
     private CloseWindowPacket _pendingCloseWindow;
@@ -102,10 +102,10 @@ public sealed class ServerWindowPresenter : IDisposable
             return false;
         }
 
-        WindowState state = _openWindows[^1];
+        ServerWindowState state = _openWindows[^1];
         for (int index = state.ClickableOrder.Count - 1; index >= 0; index--)
         {
-            if (IsCloseAction(state.ClickableOrder[index]))
+            if (TextPacketBuilder.IsCloseAction(state.ClickableOrder[index]))
             {
                 _networkService.Send(new ElementClickPacket(state.Tag, index, []));
                 return true;
@@ -135,7 +135,7 @@ public sealed class ServerWindowPresenter : IDisposable
         // а поиск по классу отдавал старый, скрытый. Плюс Dispose снимает
         // подписку на планировщик.
         _modalWindowHandler.Dispose();
-        foreach (WindowState state in _openWindows)
+        foreach (ServerWindowState state in _openWindows)
         {
             state.Binding.Dispose();
             state.Overlay.RemoveFromHierarchy();
@@ -174,7 +174,7 @@ public sealed class ServerWindowPresenter : IDisposable
 
     private void OpenCore(OpenWindowPacket packet)
     {
-        ValidateWindowPacket(packet);
+        ServerWindowPacketValidator.Validate(packet);
 
         // UIDocument може бути вимкненим (BypassGameUI). Серверне вікно потребує
         // активного дерева — вмикаємо документ перед додаванням елемента.
@@ -208,7 +208,7 @@ public sealed class ServerWindowPresenter : IDisposable
         }
 
         element.Add(frame);
-        var state = new WindowState
+        var state = new ServerWindowState
         {
             Tag = packet.WindowTag,
             Overlay = element,
@@ -241,7 +241,7 @@ public sealed class ServerWindowPresenter : IDisposable
         // копии окон накапливаются в иерархии весь сеанс: каждая остаётся в
         // layout и модальном стеке под новой, и лаги растут с каждым кликом
         // (репорт: маркет сильно лагает при заходе).
-        foreach (WindowState old in _openWindows)
+        foreach (ServerWindowState old in _openWindows)
         {
             old.Binding.Dispose();
             _uiInputManager.PopModal(old.Overlay);
@@ -263,73 +263,17 @@ public sealed class ServerWindowPresenter : IDisposable
     /// пакета, так что индексы кликабельных и обработчики остаются
     /// согласованными между собой.
     /// </summary>
-    private void BuildWindowContent(WindowState state)
+    private void BuildWindowContent(ServerWindowState state)
     {
         state.Frame.Clear();
         VisualElement packetRoot = new PacketUIBuilder(_assetLoader, _operations, _webAssetLoader).Build(state.Tree);
-        ApplyCloseActionCaption(packetRoot);
+        PacketCloseActionCaption.Apply(packetRoot, _localization);
         packetRoot.AddToClassList("packet-window-content");
         state.Frame.Add(packetRoot);
         state.Binding.Bind(packetRoot);
         state.ClickableOrder = ClickableElementOrder.Collect(state.Tree);
         RegisterClickableElements(packetRoot, packetRoot, state);
         AddExitCloseButton(state.Frame, state.Tag, state.ClickableOrder);
-    }
-
-    /// <summary>
-    /// Открытое серверное окно: визуальное дерево, биндинг и данные, по которым
-    /// живут клики. Tree — дерево пакета, из него строится контент окна.
-    /// </summary>
-    private sealed class WindowState
-    {
-        public required string Tag { get; init; }
-        public required VisualElement Overlay { get; init; }
-        public required VisualElement Frame { get; init; }
-        public required WindowBinding Binding { get; init; }
-        public required IGUIComponentPacket Tree { get; set; }
-
-        /// <summary>Preorder list from the shared window protocol contract.</summary>
-        public IReadOnlyList<IGUIComponentPacket> ClickableOrder { get; set; } = Array.Empty<IGUIComponentPacket>();
-    }
-
-    private static void ValidateWindowPacket(OpenWindowPacket packet)
-    {
-        if (packet.Content == null || packet.Width == 0 || packet.Height == 0)
-        {
-            FailWindowPacket(packet, "missing content or zero window dimensions");
-        }
-
-        string? format = AttachedProperties.Find(packet.Content, "Popup.Format");
-        if (format != null)
-        {
-            FailWindowPacket(packet,
-                $"unsupported string-based Popup.Format='{format}'; expected GUI components");
-        }
-
-        if (packet.Content is ScrollViewerPacket scroll)
-        {
-            foreach (IGUIComponentPacket child in scroll.Children)
-            {
-                if (child is TextPacket text &&
-                    (text.Text.Contains("\nbutton\n", StringComparison.Ordinal) ||
-                     text.Text.Contains("\n3card\n", StringComparison.Ordinal) ||
-                     text.Text.Contains("\ndrop\n", StringComparison.Ordinal) ||
-                     text.Text.Contains("=I#", StringComparison.Ordinal)))
-                {
-                    FailWindowPacket(packet,
-                        "a TextPacket contains serialized controls; expected clickable GUI components");
-                }
-            }
-        }
-    }
-
-    [DoesNotReturn]
-    private static void FailWindowPacket(OpenWindowPacket packet, string reason)
-    {
-        string message = $"[PacketUI] Invalid OpenWindowPacket tag='{packet.WindowTag}', " +
-            $"size={packet.Width}x{packet.Height}, root={packet.Content?.GetType().Name ?? "null"}: {reason}.";
-        Debug.LogError(message);
-        throw new InvalidOperationException(message);
     }
 
     private void Close(CloseWindowPacket packet)
@@ -351,7 +295,7 @@ public sealed class ServerWindowPresenter : IDisposable
             return;
         }
 
-        WindowState state = _openWindows[^1];
+        ServerWindowState state = _openWindows[^1];
         state.Binding.Dispose();
         _uiInputManager.PopModal(state.Overlay);
         state.Overlay.RemoveFromHierarchy();
@@ -371,30 +315,12 @@ public sealed class ServerWindowPresenter : IDisposable
         _modalWindowHandler.Show(packet);
     }
 
-    private static bool IsCloseAction(IGUIComponentPacket packet) =>
-        TextPacketBuilder.IsCloseAction(packet);
-
-    private void ApplyCloseActionCaption(VisualElement element)
-    {
-        if (element.userData is IGUIComponentPacket packet &&
-            IsCloseAction(packet) &&
-            element is Button button)
-        {
-            button.text = _localization.Get("common.close");
-        }
-
-        foreach (VisualElement child in element.Children())
-        {
-            ApplyCloseActionCaption(child);
-        }
-    }
-
-    private void RegisterClickableElements(VisualElement element, VisualElement windowRoot, WindowState state)
+    private void RegisterClickableElements(VisualElement element, VisualElement windowRoot, ServerWindowState state)
     {
         if (element.userData is IGUIComponentPacket componentPacket &&
             !string.IsNullOrEmpty(componentPacket.OnClickContext))
         {
-            int elementIndex = IndexOf(state.ClickableOrder, componentPacket);
+            int elementIndex = ClickableElementOrder.IndexOf(state.Tree, componentPacket);
             if (elementIndex < 0)
             {
                 string message = $"[PacketUI] Clickable component {componentPacket.GetType().Name} " +
@@ -416,21 +342,6 @@ public sealed class ServerWindowPresenter : IDisposable
         }
     }
 
-    private static int IndexOf(
-        IReadOnlyList<IGUIComponentPacket> clickableOrder,
-        IGUIComponentPacket target)
-    {
-        for (int index = 0; index < clickableOrder.Count; index++)
-        {
-            if (ReferenceEquals(clickableOrder[index], target))
-            {
-                return index;
-            }
-        }
-
-        return -1;
-    }
-
     /// <summary>
     /// The frame close button sends an ElementClickPacket for the component
     /// marked as the close action, using this window's tag and shared preorder index.
@@ -442,7 +353,7 @@ public sealed class ServerWindowPresenter : IDisposable
     {
         for (int elementIndex = 0; elementIndex < clickableOrder.Count; elementIndex++)
         {
-            if (!IsCloseAction(clickableOrder[elementIndex]))
+            if (!TextPacketBuilder.IsCloseAction(clickableOrder[elementIndex]))
             {
                 continue;
             }
@@ -473,7 +384,7 @@ public sealed class ServerWindowPresenter : IDisposable
         VisualElement clickedElement,
         VisualElement windowRoot,
         int elementIndex,
-        WindowState state)
+        ServerWindowState state)
     {
         if (clickedElement.userData is not IGUIComponentPacket componentPacket)
         {
@@ -504,7 +415,7 @@ public sealed class ServerWindowPresenter : IDisposable
 
         StringPairPacket[] inputValues = ClickContextResolver.CollectInputValues(inputRoot);
         bool startsTeleport = string.Equals(state.Tag, "teleport", StringComparison.Ordinal) &&
-            !IsCloseAction(componentPacket);
+            !TextPacketBuilder.IsCloseAction(componentPacket);
         if (startsTeleport)
         {
             if (!_presentationState.TryBeginTeleportRequest(

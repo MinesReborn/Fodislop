@@ -1,7 +1,10 @@
 #nullable enable
 
 using System;
+using Kern.Core.Interfaces;
 using UnityEngine.UIElements;
+using Kern.Player.Interfaces;
+using UnityEngine;
 
 namespace Kern.UI.Map
 {
@@ -54,6 +57,39 @@ namespace Kern.UI.Map
             {
                 _requestRender();
             }
+        }
+
+        public void HandleClick(
+            ClickEvent evt,
+            float viewCenterX,
+            float viewCenterY,
+            float cellsPerPixel,
+            IClickPathWalker? pathWalker)
+        {
+            Image? image = _panel.Image;
+            if (evt.button != 0 || _interaction.WasDragging || image == null)
+            {
+                return;
+            }
+
+            Rect rect = image.contentRect;
+            Vector2 local = new(evt.localPosition.x, evt.localPosition.y);
+            if (rect.width <= 0f || rect.height <= 0f || !rect.Contains(local))
+            {
+                return;
+            }
+
+            float pixelX = (local.x - rect.x) / rect.width * _textureController.TexWidth;
+            float pixelY = (local.y - rect.y) / rect.height * _textureController.TexHeight;
+            Vector2 server = MapProjection.MapPixelToServer(
+                pixelX,
+                pixelY,
+                viewCenterX,
+                viewCenterY,
+                cellsPerPixel,
+                _textureController.TexWidth,
+                _textureController.TexHeight);
+            pathWalker?.TryStartPath(new Vector2Int(Mathf.FloorToInt(server.x), Mathf.FloorToInt(server.y)));
         }
 
         public void HandlePointerDown(PointerDownEvent evt)

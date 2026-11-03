@@ -449,7 +449,7 @@
     const touchNav = document.querySelector('.touch-sys'), pauseSys = $('pauseSys');
     sysOrig.list ||= [...document.querySelector('.sysbuttons').children];
     if (compact) {
-      const game = sysOrig.list.filter(b => ['Почта', 'Консоль', 'Мои здания', 'Вернуться на респаун'].includes(b.dataset?.sys));
+      const game = sysOrig.list.filter(b => ['Почта', 'Консоль', 'Мои здания', 'Сбросить точку возрождения'].includes(b.dataset?.sys));
       touchNav.append(...game);
       pauseSys.append(...sysOrig.list.filter(b => b.tagName === 'BUTTON' && !game.includes(b)));
     } else {
@@ -459,9 +459,9 @@
     const sysMenu = $('sysMenu'), as = compact ? ['Настройки', '#i-settings'] : ['Меню', '#i-menu'];
     sysMenu.title = as[0]; sysMenu.querySelector('use').setAttribute('href', as[1]);   // перевод подхватит новую подпись сам
     const ml = sysMenu.querySelector('.control-label'); if (ml) ml.textContent = as[0];
-    // В узком блоке у миникарты подписи короче
-    const short = { 'Мои здания': 'Здания', 'Вернуться на респаун': 'Респаун' };
-    sysOrig.list.forEach(b => { const l = b.querySelector?.('.control-label'), k = b.dataset?.sys; if (l && short[k]) l.textContent = compact ? short[k] : k === 'Вернуться на респаун' ? 'На респаун' : k; });
+    // Подпись под иконкой — короткая: кнопка шириной 72px, полное название остаётся в подсказке title
+    const short = { 'Мои здания': 'Здания', 'Сбросить точку возрождения': 'Респаун' };
+    sysOrig.list.forEach(b => { const l = b.querySelector?.('.control-label'), k = b.dataset?.sys; if (l && short[k]) l.textContent = short[k]; });
     [$('miniSkills'), ...sysOrig.list].forEach(el => el.toggleAttribute('data-relocated', compact));
     // ПК: миникарта — под рядом кнопок, миссия — под картой, инвентарь — в правый нижний угол, рост навыков — под строками состояния.
     // На пальце места прежние: телефонная раскладка задана своими правилами
@@ -542,8 +542,7 @@
   document.querySelectorAll('.sysbuttons button, .menu-rail button').forEach(button => {
     const label = document.createElement('span');
     label.className = 'control-label';
-    label.textContent = button.id === 'respawnBtn' ? 'Сбросить точку возрождения'
-      : button.title === 'Выход из игры' ? 'Выход' : button.title;
+    label.textContent = { 'Мои здания': 'Здания', 'Сбросить точку возрождения': 'Респаун', 'Выход из игры': 'Выход' }[button.title] ?? button.title;
     button.append(label);
   });
   // ТОЛЬКО СТЕНД, НЕ ИГРОВАЯ ФУНКЦИЯ: клик по плашке усиления листает набор иконок i-fx-*, чтобы просмотреть все глифы на месте.

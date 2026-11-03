@@ -26,7 +26,7 @@ public sealed class FmodAudioBackend
     private bool _degraded;
     private FMOD.Studio.EventDescription _digEventDescription;
     private bool _digSamplesRequested;
-    private readonly Dictionary<string, LoadedBank> _persistentBanks = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, FmodLoadedBank> _persistentBanks = new(StringComparer.Ordinal);
     private bool _ready;
 
     private const string MasterBusPath = "bus:/";
@@ -168,7 +168,7 @@ public sealed class FmodAudioBackend
 
         bool changed = false;
         var stale = new List<string>();
-        foreach (KeyValuePair<string, LoadedBank> loaded in _persistentBanks)
+        foreach (KeyValuePair<string, FmodLoadedBank> loaded in _persistentBanks)
         {
             AssetsDefinitionPacket? wanted = null;
             foreach (AssetsDefinitionPacket bank in banks)
@@ -203,7 +203,7 @@ public sealed class FmodAudioBackend
 
         foreach (string filename in stale)
         {
-            if (_persistentBanks.Remove(filename, out LoadedBank unloaded) && unloaded.Bank.isValid())
+            if (_persistentBanks.Remove(filename, out FmodLoadedBank unloaded) && unloaded.Bank.isValid())
             {
                 unloaded.Bank.unload();
             }
@@ -229,7 +229,7 @@ public sealed class FmodAudioBackend
                     $"Could not load cached FMOD bank '{bankName}' at '{path}': {result}.");
             }
 
-            _persistentBanks[bank.Filename] = new LoadedBank(bank.ETag, loadedBank);
+            _persistentBanks[bank.Filename] = new FmodLoadedBank(bank.ETag, loadedBank);
             changed = true;
         }
 
@@ -244,7 +244,7 @@ public sealed class FmodAudioBackend
             return;
         }
 
-        foreach (LoadedBank loaded in _persistentBanks.Values)
+        foreach (FmodLoadedBank loaded in _persistentBanks.Values)
         {
             if (loaded.Bank.isValid())
             {
@@ -415,7 +415,7 @@ public sealed class FmodAudioBackend
         {
             lookupResult = FMODUnity.RuntimeManager.StudioSystem.getEvent(fmodPath, out description);
         }
-        RecordSlowCall("getEvent", fmodPath, callStart);
+        FmodSlowCallRecorder.Record("getEvent", fmodPath, callStart);
         if (lookupResult != FMOD.RESULT.OK)
         {
             if (_reportedMissingEvents.Add(fmodPath))
@@ -432,7 +432,7 @@ public sealed class FmodAudioBackend
             const int maxVoicesPerEvent = 8;
             callStart = System.Diagnostics.Stopwatch.GetTimestamp();
             FMOD.RESULT countResult = description.getInstanceCount(out int instanceCount);
-            RecordSlowCall("getInstanceCount", fmodPath, callStart);
+            FmodSlowCallRecorder.Record("getInstanceCount", fmodPath, callStart);
             if (countResult == FMOD.RESULT.OK && instanceCount >= maxVoicesPerEvent)
             {
                 return null;
@@ -441,7 +441,7 @@ public sealed class FmodAudioBackend
 
         callStart = System.Diagnostics.Stopwatch.GetTimestamp();
         FMOD.RESULT createResult = description.createInstance(out FMOD.Studio.EventInstance instance);
-        RecordSlowCall("createInstance", fmodPath, callStart);
+        FmodSlowCallRecorder.Record("createInstance", fmodPath, callStart);
         if (createResult != FMOD.RESULT.OK ||
             !instance.isValid())
         {
@@ -488,31 +488,8 @@ public sealed class FmodAudioBackend
         instance.setPitch(layer.Pitch);
         callStart = System.Diagnostics.Stopwatch.GetTimestamp();
         instance.start();
-        RecordSlowCall("start", fmodPath, callStart);
+        FmodSlowCallRecorder.Record("start", fmodPath, callStart);
         instance.release();
         return new AudioPlaybackHandle(instance, layer.Bus);
-    }
-
-    private static void RecordSlowCall(string operation, string eventPath, long started)
-    {
-        double milliseconds = (System.Diagnostics.Stopwatch.GetTimestamp() - started) *
-            1000.0 / System.Diagnostics.Stopwatch.Frequency;
-        if (milliseconds >= 2.0)
-        {
-            FrameEventLog.Record($"FMOD {operation}: {eventPath} {milliseconds:F1} мс");
-        }
-    }
-
-    private readonly struct LoadedBank
-    {
-        public LoadedBank(string eTag, FMOD.Studio.Bank bank)
-        {
-            ETag = eTag;
-            Bank = bank;
-        }
-
-        public string ETag { get; }
-
-        public FMOD.Studio.Bank Bank { get; }
     }
 }

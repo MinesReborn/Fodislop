@@ -2,7 +2,6 @@
 
 using System.Collections.Generic;
 using Kern.Core.Interfaces;
-using MinesServer.Data;
 using UnityEngine;
 
 using Kern.Game.Player.Movement;
@@ -44,7 +43,7 @@ public static class ClickPathfinder
             return null;
         }
 
-        int minStepMs = Mathf.Max(1, Mathf.RoundToInt(mapDataProvider.GetMinMoveCooldown() * 1000f));
+        int minStepMs = CellTraversalCost.MinStepMs(mapDataProvider);
 
         int startIndex = start.y * width + start.x;
         int targetIndex = target.y * width + target.x;
@@ -118,7 +117,7 @@ public static class ClickPathfinder
                     }
 
                     int neighbor = ny * width + nx;
-                    int cellCost = CellCostMs(storage, mapDataProvider, nx, ny);
+                    int cellCost = CellTraversalCost.EnterCostMs(storage, mapDataProvider, nx, ny);
                     if (cellCost < 0)
                     {
                         continue;
@@ -162,21 +161,6 @@ public static class ClickPathfinder
 
         path.Reverse();
         return path.Count > 0 ? path : null;
-    }
-
-    private static int CellCostMs(IWorldDataStorage storage, IMapDataProvider mapDataProvider, int x, int y)
-    {
-        if (!storage.TryGetCell(x, y, out CellType cell))
-        {
-            return -1;
-        }
-
-        if (!PlayerMovementValidator.IsPassable(cell, mapDataProvider.GetCellConfig(cell)))
-        {
-            return -1;
-        }
-
-        return Mathf.Max(1, Mathf.RoundToInt(mapDataProvider.GetMoveCooldown(cell) * 1000f));
     }
 
     private static int Heuristic(Vector2Int from, Vector2Int to, int minStepMs) =>

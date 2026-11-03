@@ -57,6 +57,9 @@ hierarchy does not replace assembly boundaries. Move Unity files with their
 metadata and migrate resource keys, namespace strings and tool paths together.
 See `.agents/repository-map.md` and `tools/Kern.RepositoryTaxonomy/Inventory/`.
 
+Do not use C# `partial` types. Split responsibilities into separate types and
+files with explicit ownership instead of dividing one type across files.
+
 ## Authority boundaries
 
 - Never launch, invoke, or control Unity Editor, Unity Hub, or Unity CLI unless the user explicitly requests that specific operation in the current task. Code changes, shader changes, visual fixes, test requirements, skills, and verification standards do not by themselves authorize a Unity operation. Use source inspection, existing logs, and relevant local checks that do not invoke Unity; continue all independently available work without asking to run Unity.

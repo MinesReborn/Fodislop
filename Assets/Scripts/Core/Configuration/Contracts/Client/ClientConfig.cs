@@ -32,7 +32,8 @@ public class ClientConfig
     // Схемы 31–48 мигрируются штатным загрузчиком с созданием backup.
     // 50: replace the old default slow-movement Ctrl binding.
     // 51: move the default slow-movement binding to LeftAlt.
-    public const int CurrentSchemaVersion = 51;
+    // 52: помощь в движении (обход препятствий), изначально включена.
+    public const int CurrentSchemaVersion = 52;
 
     public int SchemaVersion;
     public AudioSettings Audio = new();

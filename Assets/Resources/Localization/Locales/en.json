@@ -730,6 +730,7 @@
   "settings.controls.section_title": "Controls",
   "settings.controls.section_desc": "Movement scheme and current control keys.",
   "settings.controls.reset": "Reset to defaults",
+  "settings.controls.movement_assist": "Movement assist",
   "settings.controls.reset_confirm_title": "Reset controls",
   "settings.controls.reset_confirm_msg": "Are you sure you want to reset the controls to their original state?",
   "settings.controls.reset_confirm_btn": "Reset",
