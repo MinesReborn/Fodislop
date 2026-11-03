@@ -114,8 +114,11 @@ public sealed class TerrainCellMetadataCacheTests
         public Texture2D? FlowMapTexture => null;
 
         public Texture2DArray? TerrainDecalAtlasArray => null;
+        public void UpdateWorldAssets(
+            IReadOnlyList<AssetsDefinitionPacket> assetManifest) { }
+
         public void LoadWorldAssets(
-            IReadOnlyList<WorldAssetDefinitionPacket> assetManifest) { }
+            IReadOnlyList<AssetsDefinitionPacket> assetManifest) { }
 
         public void RequestTexture(CellType cellType)
         {
@@ -183,9 +186,9 @@ public sealed class TerrainCellMetadataCacheTests
 
         public Color32 GetCellMinimapColor32(CellType type) => Color.gray;
 
-        public bool TryGetAudioBankFilenames(out IReadOnlyList<string> filenames)
+        public bool TryGetAudioBanks(out IReadOnlyList<AssetsDefinitionPacket> banks)
         {
-            filenames = Array.Empty<string>();
+            banks = Array.Empty<AssetsDefinitionPacket>();
             return false;
         }
 
@@ -194,6 +197,8 @@ public sealed class TerrainCellMetadataCacheTests
 
         public void LoadWorldInit(WorldInitPacket packet) => throw new NotSupportedException();
 
+        public bool IsSameWorld(WorldInitPacket packet) => false;
+        public void ApplyWorldContent(WorldInitPacket packet) { }
         public void ResetWorldState() => throw new NotSupportedException();
     }
 }

@@ -1,12 +1,16 @@
 #nullable enable
 
 using System.Collections.Generic;
+using MinesServer.Networking.Server.Packets.Connection;
 
 namespace Kern.Core.Interfaces;
 
 public interface IAudioBankManifestState
 {
-    bool TryGetBankFilenames(out IReadOnlyList<string> filenames);
+    /// <summary>Растёт при каждой смене набора банков: по нему звук узнаёт, что банки пора сверить.</summary>
+    int Revision { get; }
 
-    void SetBankFilenames(IReadOnlyList<string> filenames);
+    bool TryGetBanks(out IReadOnlyList<AssetsDefinitionPacket> banks);
+
+    void SetBanks(IReadOnlyList<AssetsDefinitionPacket> banks);
 }

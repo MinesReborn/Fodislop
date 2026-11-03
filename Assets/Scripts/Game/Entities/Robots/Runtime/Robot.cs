@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Kern.Core;
@@ -57,6 +58,7 @@ namespace Kern.Game.Entities.Robots
         private bool _isMetadataLoaded;
         private bool _visualsLoadCompleted;
         private RobotAssetLoader? _assetLoaderHelper;
+        private bool _watchingAssets;
         private RobotAssetLoader AssetLoader => _assetLoaderHelper ??= new RobotAssetLoader(_assetLoader, _operations, this.GetCancellationTokenOnDestroy());
         [SerializeField]
         private float _moveSpeed = MovementDefaults.RobotMoveSpeed;
@@ -456,6 +458,12 @@ namespace Kern.Game.Entities.Robots
         {
             if (_assetLoader != null && _operations != null)
             {
+                if (!_watchingAssets)
+                {
+                    _assetLoader.AssetsChanged += OnAssetsChanged;
+                    _watchingAssets = true;
+                }
+
                 RobotMetadataPresentation.Load(AssetLoader, _skinPath, _tailPath, _clanId,
                     IsLocalPlayer, _visuals, _nameplate, transform, () => _visualsLoadCompleted = true);
             }
@@ -476,8 +484,34 @@ namespace Kern.Game.Entities.Robots
         }
 #endif
 
+        // Сервер заменил файлы посреди игры: перезагружаем облик, только если среди них скин, хвост или значок клана
+        private void OnAssetsChanged(IReadOnlyCollection<string> changed)
+        {
+            if (!_isMetadataLoaded)
+            {
+                return;
+            }
+
+            string? clanPath = _clanId != 0 && !IsLocalPlayer ? RobotAssetLoader.ClanPath(_clanId) : null;
+            foreach (string filename in changed)
+            {
+                if (string.Equals(filename, _skinPath, StringComparison.Ordinal) ||
+                    string.Equals(filename, _tailPath, StringComparison.Ordinal) ||
+                    string.Equals(filename, clanPath, StringComparison.Ordinal))
+                {
+                    LoadMetadataAssets();
+                    return;
+                }
+            }
+        }
+
         protected void OnDestroy()
         {
+            if (_watchingAssets && _assetLoader != null)
+            {
+                _assetLoader.AssetsChanged -= OnAssetsChanged;
+            }
+
             if (_presentationState != null)
             {
                 _presentationState.TeleportCommitting -= HandleTeleportCommitting;

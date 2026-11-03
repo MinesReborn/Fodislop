@@ -14,7 +14,7 @@ public static class TextureStagingWriter
         string destination,
         IReadOnlyDictionary<string, string> catalog)
     {
-        var copied = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var copied = new HashSet<string>(StringComparer.Ordinal);
         foreach (string file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
         {
             string name = Path.GetFileName(file);

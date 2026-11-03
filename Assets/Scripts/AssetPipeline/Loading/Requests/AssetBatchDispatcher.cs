@@ -305,8 +305,7 @@ public sealed class AssetBatchDispatcher : IDisposable
         }
 
         string ext = Path.GetExtension(filename);
-        return string.IsNullOrEmpty(ext) || ext == ".png" || ext == ".jpg" ||
-            ext == ".jpeg" || ext == ".exr";
+        return string.IsNullOrEmpty(ext) || ext == ".png";
     }
 
     public static bool IsAudioBank(string filename)

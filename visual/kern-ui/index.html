@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Project Kern — интерфейс игры</title>
+<script>document.documentElement.setAttribute('data-kern-booting', '');</script>
+<style>html[data-kern-booting] .frame { visibility: hidden; }</style>
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/stand.css">
 <link rel="stylesheet" href="css/hud.css">
@@ -14,6 +16,8 @@
 <link rel="stylesheet" href="css/prog.css">
 <link rel="stylesheet" href="css/events.css">
 <link rel="stylesheet" href="css/micro.css">
+<link rel="stylesheet" href="css/srvgui.css">
+<link rel="stylesheet" href="css/systems.css">
 </head>
 <body>
 
@@ -62,6 +66,23 @@
         <option value="kicked">Отключён сервером</option>
         <option value="modal">Сообщение сервера</option>
         <option value="link">Ссылка от сервера</option>
+      </select></label>
+    <label class="stand-pick" data-for="game"><span class="stand-label">Окно сервера</span>
+      <select id="standSrvWin">
+        <option value="">Нет</option>
+        <option value="market">Рынок</option>
+        <option value="resp">Респаун</option>
+        <option value="gun">Пушка</option>
+        <option value="clan_list">Кланы</option>
+        <option value="clan_info">Мой клан</option>
+        <option value="box">Бокс</option>
+      </select></label>
+    <label class="stand-pick" data-for="game"><span class="stand-label">Груз и деньги</span>
+      <select id="standRich">
+        <option value="">Обычные</option>
+        <option value="1">Много (КК)</option>
+        <option value="2">Ещё больше (ККК)</option>
+        <option value="3">Предел (КККК)</option>
       </select></label>
     <label class="stand-pick"><span class="stand-label">Язык</span>
       <select id="standLang" class="lang-pick">
@@ -155,18 +176,19 @@
                 <button type="button" class="pid" id="profileBtn" title="Профиль"><span>#10482</span></button>
                 <h1 class="nick">ШАХТЁР-774</h1>
               </header>
+              <!-- Прочность: 20 точек по 5% и число NHP — крупное число, единица мелко сверху -->
               <div class="hp" title="Прочность робота">
-                <div class="meter"><i id="hpFill"></i></div>
-                <span class="hp-value" id="hpValue">113HP</span>
+                <div class="hp-dots" id="hpDots"></div>
+                <span class="hp-value" id="hpValue"><b>113</b><sup>HP</sup></span>
               </div>
+              <!-- Деньги и кредиты — строками; знак валюты и значок кредита в одном слоте -->
               <dl class="wallet">
-                <div><dt>Деньги</dt><dd class="money" id="money" title="Деньги">$14 850</dd></div>
+                <div><dt>Деньги</dt><dd class="money" title="Деньги"><span class="cur">$</span><span id="money">14 850</span></dd></div>
                 <div><dt>Кредиты</dt><dd class="creds" title="Кредиты"><img src="img/legacy/credit.png" alt="" width="6" height="7"><span id="creds">340</span></dd></div>
               </dl>
             </article>
-            <button type="button" class="btn btn--signal bonus" id="bonus" title="Бонусы" aria-label="Бонусы"><svg><use href="#i-gift"/></svg></button>
             <article class="panel mission" id="mission" hidden>
-              <div class="meter meter--thin"><i style="width:30%"></i></div>
+              <div class="mission-cells"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               <p class="mission-title" data-srv>Тестовая миссия</p>
               <p class="mission-text" data-srv title="Проверка центрального информационного кольца">Проверка центрального информационного кольца</p>
               <span class="mission-progress">3 / 10</span>
@@ -176,21 +198,24 @@
           <article class="panel cargo" id="cargo">
             <header class="cargo-head">
               <span>Груз</span>
-              <strong id="cargoPercent">68%</strong>
-              <button type="button" class="icon-btn icon-btn--small" title="Бокс"><svg><use href="#i-box"/></svg></button>
+              <strong id="cargoPercent"><b>68</b><sup>%</sup></strong>
+              <button type="button" class="icon-btn icon-btn--small" title="Бокс" id="boxBtn"><svg><use href="#i-box"/></svg></button>
             </header>
-            <div class="meter meter--cargo"><i id="cargoFill"></i><b id="cargoOver"></b></div>
+            <!-- Полоса груза: 20 ячеек по 5%, шкала 0…100%; перегруз шкалу не растягивает — полоса полная, цвет — порог игры -->
+            <div class="cargo-cells" id="cargoCells"></div>
+            <div class="cargo-scale"><span>0</span><span>50</span><span>100</span></div>
             <ul class="crystals" id="crystals"></ul>
-            <!-- Геология (GeologyPacket: Current/Max, последний блок Cell и его название Text) -->
-            <div class="geo" id="geo" title="Геология: 3/10, последний блок — Камень" hidden>
-              <svg><use href="#i-geo"/></svg><img id="geoCell" src="img/cells/Rock.png" alt=""><i class="share" id="geoFill" style="--w:30%"></i><span id="geoCount">3/10</span>
+            <!-- Геология (GeologyPacket: Current/Max, последний блок и его название Text): ячейка — блок, последний блок — словом -->
+            <div class="geo" id="geo" hidden>
+              <div class="geo-row"><span class="geo-label">Геология</span><span class="geo-cells" id="geoCells"></span><span class="geo-count" id="geoCount">3/10</span></div>
+              <p class="geo-last"><span>Последний блок</span><span class="sl">//</span><b data-srv id="geoLast">Гипноскал</b></p>
             </div>
           </article>
 
           <div class="left-stack">
           <ul class="states" id="states" data-srv hidden>
-            <li style="--c:rgb(255,165,0)">Добыча x4<time>4:12</time></li>
-            <li style="--c:rgb(0,200,0)">Прокачка x3<time>11:40</time></li>
+            <li style="--c:var(--event-mining)"><svg><use href="#i-fx-ore"/></svg>Добыча x4<time>4:12</time></li>
+            <li style="--c:var(--event-xp)"><svg><use href="#i-fx-xp"/></svg>Прокачка x3<time>11:40</time></li>
           </ul>
           </div>
         </section>
@@ -222,7 +247,7 @@
             <!-- Игровое: после «Бонусов» — почта, здания, респаун; за разделителем системное — консоль, помощь, меню -->
             <button type="button" class="icon-btn" title="Почта" id="mailBtn"><svg><use href="#i-mail"/></svg><b class="badge" id="mailBadge">2</b></button>
             <button type="button" class="icon-btn" title="Мои здания"><svg><use href="#i-buildings"/></svg></button>
-            <button type="button" class="icon-btn" title="Вернуться на респаун" id="respawnBtn"><svg><use href="#i-respawn"/></svg></button>
+            <button type="button" class="icon-btn" title="Сбросить точку возрождения" id="respawnBtn"><svg><use href="#i-respawn"/></svg></button>
             <span class="sys-sep"></span>
             <button type="button" class="icon-btn" title="Консоль"><svg><use href="#i-console"/></svg></button>
             <button type="button" class="icon-btn" title="Помощь"><svg><use href="#i-help"/></svg></button>
@@ -258,10 +283,10 @@
       <div class="dock touch-only">
         <!-- Веер типов блоков: открывается кнопкой «Строить» -->
         <div class="build-fan panel" id="buildFan" hidden>
-          <button type="button" class="tbtn build" style="--c:rgb(75,196,224)" title="Установка военных блоков" aria-pressed="false"><img src="img/cells/MilitaryBlock.png" alt=""><span class="cap">Военный</span><kbd>C</kbd></button>
-          <button type="button" class="tbtn build" style="--c:rgb(174,184,192)" title="Установка дорог" aria-pressed="false"><img src="img/cells/Road.png" alt=""><span class="cap">Дорога</span><kbd>G</kbd></button>
-          <button type="button" class="tbtn build" style="--c:rgb(91,204,122)" title="Установка зеленых/жёлтых/красных блоков" aria-pressed="false"><img src="img/cells/GreenBlock.png" alt=""><span class="cap">Блок</span><kbd>Z</kbd></button>
-          <button type="button" class="tbtn build" style="--c:rgb(235,239,242)" title="Установка опор/квадроблоков" aria-pressed="false"><img src="img/cells/Support.png" alt=""><span class="cap">Опора</span><kbd>W</kbd></button>
+          <button type="button" class="tbtn build" style="--c:var(--build-military)" title="Установка военных блоков" aria-pressed="false"><img src="img/cells/MilitaryBlock.png" alt=""><span class="cap">Военный</span><kbd>C</kbd></button>
+          <button type="button" class="tbtn build" style="--c:var(--build-road)" title="Установка дорог" aria-pressed="false"><img src="img/cells/Road.png" alt=""><span class="cap">Дорога</span><kbd>G</kbd></button>
+          <button type="button" class="tbtn build" style="--c:var(--build-block)" title="Установка зеленых/жёлтых/красных блоков" aria-pressed="false"><img src="img/cells/GreenBlock.png" alt=""><span class="cap">Блок</span><kbd>Z</kbd></button>
+          <button type="button" class="tbtn build" style="--c:var(--build-support)" title="Установка опор/квадроблоков" aria-pressed="false"><img src="img/cells/Support.png" alt=""><span class="cap">Опора</span><kbd>W</kbd></button>
         </div>
         <!-- Под правым большим пальцем: «Копать» и дуга действий вокруг неё -->
         <div class="act-arc" id="actArc">
@@ -288,7 +313,7 @@
           <button type="button" class="icon-btn" data-close title="Выйти"><svg><use href="#i-close"/></svg></button>
         </header>
         <div class="skills-body">
-          <div class="robot" id="skillsRobot"><div class="robot-art"></div></div>
+          <div class="robot" id="skillsRobot"><svg class="robot-art" aria-hidden="true"><use href="#robot-up"/></svg></div>
           <aside class="skill-info" id="skillInfo"></aside>
         </div>
       </section>
@@ -340,7 +365,7 @@
             <span class="map-scale" id="mapScale"></span>
           </div>
           <aside class="map-side">
-            <h3>Показывать</h3>
+            <h3><b class="sec-plate">Показывать</b></h3>
             <div class="map-filters" id="mapFilters">
               <label class="check"><input type="checkbox" data-kind="me" checked><i class="pin-dot pin-dot--me"></i>Я</label>
               <label class="check"><input type="checkbox" data-kind="clan" checked><i class="pin-dot pin-dot--clan"></i>Клан в сети</label>
@@ -348,7 +373,7 @@
               <label class="check"><input type="checkbox" data-kind="spawn" checked><i class="pin-dot pin-dot--spawn"></i>Респаун</label>
               <label class="check"><input type="checkbox" data-kind="mark" checked><i class="pin-dot pin-dot--mark"></i>Моя метка</label>
             </div>
-            <h3>Места</h3>
+            <h3><b class="sec-plate">Места</b></h3>
             <ul class="map-places" id="mapPlaces"></ul>
           </aside>
         </div>
@@ -427,6 +452,7 @@
     <!-- Сообщение сервера (ModalWindowPacket: заголовок, текст, одна кнопка, картинка) -->
     <div class="dialog-layer" id="srvModal" hidden>
       <section class="panel dialog srv-modal" role="dialog" aria-labelledby="srvModalTitle">
+        <div class="src-rail"><span>Сервер</span><i></i></div>
         <img class="srv-modal-icon" id="srvModalIcon" src="img/items/upgradeBooster.png" alt="">
         <h2 id="srvModalTitle" data-srv>Неделя добычи</h2>
         <p id="srvModalText" data-srv>До воскресенья добыча всех кристаллов увеличена вдвое. Удачи в шахте!</p>
@@ -437,6 +463,7 @@
     <!-- Сервер просит открыть ссылку (OpenURLPacket) — только с согласия игрока -->
     <div class="dialog-layer" id="linkDialog" hidden>
       <section class="panel dialog link-dlg" role="dialog" aria-labelledby="linkTitle">
+        <div class="src-rail"><span>Сервер</span><i></i></div>
         <h2 id="linkTitle">Открыть ссылку?</h2>
         <p>Сервер предлагает открыть страницу в браузере.</p>
         <p class="link-url"><svg><use href="#i-link"/></svg><span><b id="linkHost">discord.gg</b><span id="linkPath">/projectkern</span></span></p>
@@ -465,6 +492,7 @@
       <section class="panel srv-window clan-win" role="dialog" aria-labelledby="clanTitle">
         <header class="srv-head">
           <h2 id="clanTitle">Клан</h2>
+          <span class="head-tag" data-srv>FED</span>
           <button type="button" class="icon-btn" data-close title="Закрыть"><svg><use href="#i-close"/></svg></button>
         </header>
         <div class="srv-body clan-body">
@@ -516,6 +544,7 @@
       <section class="panel srv-window profile" role="dialog" aria-labelledby="profileTitle">
         <header class="srv-head">
           <h2 id="profileTitle">Профиль</h2>
+          <span class="head-tag" id="profileHeadTag"></span>
           <button type="button" class="icon-btn" data-close title="Закрыть"><svg><use href="#i-close"/></svg></button>
         </header>
         <div class="srv-body profile-body" id="profileBody"></div>
@@ -529,6 +558,14 @@
           <button type="button" class="icon-btn" data-close title="Закрыть"><svg><use href="#i-close"/></svg></button>
         </header>
         <div class="srv-body"></div>
+      </section>
+    </div>
+
+    <!-- Окно сервера (OpenWindowPacket): клиент даёт затемнение, рамку Width×Height и кнопку закрытия, содержимое — пакет -->
+    <div class="dialog-layer" id="srvWinLayer" hidden>
+      <section class="panel srv-pk" role="dialog">
+        <button type="button" class="icon-btn srv-pk-close" data-close title="Закрыть"><svg><use href="#i-close"/></svg></button>
+        <div class="srv-pk-content"></div>
       </section>
     </div>
 
@@ -673,20 +710,15 @@
       <p class="descent-explain" id="descentExplain" aria-live="polite">Устанавливаем соединение с сервером.</p>
       <div class="descent-progress">
         <div class="meter meter--wide"><i id="descentFill"></i></div>
-        <div class="descent-meta"><span id="descentPhase">Подключение к серверу</span><span id="descentCount">1 / 5</span></div>
+        <div class="descent-meta"><span id="descentPhase">Подключение к серверу</span><span id="descentCount">1 / 4</span></div>
       </div>
-      <ol class="phases" id="descentPhases">
-        <li>Подключение к серверу</li><li>Загрузка ресурсов</li><li>Получение позиции</li><li>Построение мира</li><li>Загрузка текстур</li>
-      </ol>
+      <ol class="phases" id="descentPhases"></ol>
       <p class="descent-tip" id="descentTip" aria-live="polite" data-i18n-html></p>
+      <button type="button" class="btn btn--primary btn--wide" id="descentRetry" hidden>Повторить</button>
       <button type="button" class="btn btn--wide" id="descentCancel">Отмена</button>
     </div>
 
     <nav class="menu-rail" aria-label="Меню">
-      <button type="button" class="rail-btn" id="railHealth" title="Проверить ресурсы" aria-label="Проверить ресурсы">
-        <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 20 7v5.2c0 4.4-3.2 7.5-8 9.3-4.8-1.8-8-4.9-8-9.3V7z"/><path d="m8.5 12.2 2.2 2.2 4.8-5"/></svg>
-      </button>
-      <span class="rail-sep"></span>
       <button type="button" class="rail-btn" title="Discord"><img src="img/ui/mm_icon_discord.png" alt=""></button>
       <button type="button" class="rail-btn" title="Telegram"><img src="img/ui/mm_icon_telegram.png" alt=""></button>
       <button type="button" class="rail-btn" title="ВКонтакте"><img src="img/ui/mm_icon_vk.png" alt=""></button>
@@ -694,10 +726,10 @@
       <button type="button" class="rail-btn" title="Выход из игры"><img src="img/ui/mm_icon_exit.png" alt=""></button>
     </nav>
     <footer class="menu-foot" aria-label="Информация о сборке">
-      <button type="button" class="menu-news" id="menuNews"><small>НОВОЕ</small><span>0.9.0 — поезда на рельсах, переработанные клановые войны</span></button>
-      <span class="menu-meta menu-online"><i></i><small>В СЕТИ</small><b>1 284</b></span>
-      <span class="menu-meta"><small>ВЕРСИЯ</small><b id="versionLabel">0.8.14</b></span>
-      <span class="menu-meta"><small>СБОРКА</small><code id="buildHash">fb8e0225</code></span>
+      <button type="button" class="menu-news" id="menuNews"><small>Новое</small><span>0.9.0 — поезда на рельсах, переработанные клановые войны</span></button>
+      <span class="menu-meta menu-online"><i></i><small>В сети</small><b>1 284</b></span>
+      <span class="menu-meta"><small>Версия</small><b id="versionLabel">0.8.14</b></span>
+      <span class="menu-meta"><small>Сборка</small><code id="buildHash">fb8e0225</code><i class="idcode" id="buildBars" aria-hidden="true"></i></span>
     </footer>
 
     <!-- Окно обновления клиента (MainMenu.uxml UpdateModal) -->
@@ -765,7 +797,7 @@
           <label class="field"><span><b>Вертикальная синхронизация</b></span><input type="checkbox" class="switch" checked></label>
           <label class="field"><span><b>HDR</b></span><input type="checkbox" class="switch" id="setHdr"></label>
           <div class="field"><span><b>Калибровка дисплея</b></span><button type="button" class="btn set-btn" id="calibOpen">Настроить</button></div>
-          <h3 class="set-sec">Эффекты</h3>
+          <h3 class="set-sec"><b class="sec-plate">Эффекты</b></h3>
           <label class="field"><span><b>Свечение</b></span><input type="checkbox" class="switch" checked></label>
           <label class="field"><span><b>Виньетка</b></span><input type="checkbox" class="switch" checked></label>
         </div>
@@ -809,7 +841,7 @@
               <select id="padGlyphs"><option value="auto">Как у геймпада</option><option value="xbox">Xbox</option><option value="ps">PlayStation</option><option value="switch">Nintendo</option></select></label>
             <label class="field"><span><b>Вибрация</b></span><input type="checkbox" class="switch" checked></label>
             <label class="field"><span><b>Чувствительность стика</b></span><span class="range"><input type="range" min="0" max="100" value="50"><output>50%</output></span></label>
-            <h3 class="set-sec">Кнопки</h3>
+            <h3 class="set-sec"><b class="sec-plate">Кнопки</b></h3>
             <div id="padBinds"></div>
             <div class="set-foot"><button type="button" class="btn set-btn" id="padReset">Сбросить до стандартных</button></div>
           </div>
@@ -901,6 +933,16 @@
     <symbol id="i-respawn" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/></symbol>
     <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
     <symbol id="i-box" viewBox="0 0 24 24"><path d="M5 5l7-3.5L19 5v6.5L12 15 5 11.5z"/><path d="M5 5l7 3.5L19 5M12 8.5V15"/><path d="M12 17v5.5M9.5 20L12 22.5l2.5-2.5"/></symbol>
+    <!-- Робот окна навыков: силуэт Legacy upgrade.png (397×260, слоты PopupManager.slotPositions лежат на нём); тело и провода — гладкие дуги, подогнанные под растр (провод — одна кубика с горизонтальной касательной у шины, подогнанная по растру, отклонение 1–2 px) -->
+    <symbol id="robot-up" viewBox="0 0 397 260">
+      <path class="ru-bus" style="fill:none;stroke:var(--ru-bus);stroke-width:1;stroke-dasharray:6 5;vector-effect:non-scaling-stroke" d="M117 4V256"/>
+      <path class="ru-leg" style="fill:none;stroke:var(--ru-line);stroke-width:1.5;stroke-linecap:square;stroke-linejoin:miter;vector-effect:non-scaling-stroke" d="M56 80L66 44L50 20M74 92L93 63V35M56 184L66 220L50 244M74 172L93 201V229"/>
+      <path class="ru-wire" style="fill:none;stroke:var(--ru-line);stroke-width:1.5;stroke-linecap:square;vector-effect:non-scaling-stroke" d="M112 117.5C160.1 117.5 100.6 -11.5 376 27.5"/>
+      <path class="ru-wire" style="fill:none;stroke:var(--ru-line);stroke-width:1.5;stroke-linecap:square;vector-effect:non-scaling-stroke" d="M112 127C166.2 127 172.8 -5.8 376 75"/>
+      <path class="ru-wire" style="fill:none;stroke:var(--ru-line);stroke-width:1.5;stroke-linecap:square;vector-effect:non-scaling-stroke" d="M112 136C188.8 136 248.1 4.6 375 137"/>
+      <path class="ru-wire" style="fill:none;stroke:var(--ru-line);stroke-width:1.5;stroke-linecap:square;vector-effect:non-scaling-stroke" d="M112 146C209.8 146 251.6 70.4 375 176"/>
+      <path class="ru-body" style="fill:var(--ru-fill);stroke:var(--ru-line);stroke-width:1.5;vector-effect:non-scaling-stroke" d="M46 65C27 65 20 92 20 132C20 172 27 199 46 199C64 199 78 170 92 156C100 148 112 150 112 146V118C112 114 100 116 92 108C78 94 64 65 46 65Z"/>
+    </symbol>
     <symbol id="i-prog" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/><path d="M10 7h4a3 3 0 0 1 3 3v4"/></symbol>
     <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
     <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></symbol>
@@ -913,6 +955,16 @@
     <symbol id="i-geo" viewBox="0 0 24 24"><g transform="rotate(180 12 12)"><path d="M17 2.5L15 7.5"/><path d="M5 7.5h14v4a7 7 0 0 1-7 7H5z"/><path d="M5 18.5l1.2 2.5 1.3-2.5 1.2 2.5 1.3-2.5"/><path d="M7 7.5l1.6-3 2.4 1.2 1.6-2.2 2.4 4"/></g></symbol>
     <symbol id="i-heal" viewBox="0 0 24 24"><path d="M9 4h6v5h5v6h-5v5H9v-5H4V9h5z"/></symbol>
     <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3.5" y="8" width="17" height="4" rx="1"/><path d="M5 12v8h14v-8"/><path d="M12 8v12"/><path d="M12 8c-1.5-3-5-4-5.5-2S9 8 12 8zM12 8c1.5-3 5-4 5.5-2S15 8 12 8z"/></symbol>
+    <!-- Усиления и события (i-fx-*): только прямые отрезки, как срез панели. Добыча — ore/yield/bit, прокачка — xp/core/skill, событие — time/signal/surge -->
+    <symbol id="i-fx-ore" viewBox="0 0 24 24"><path d="M12 3l9 7-9 11-9-11z"/><path d="M3 10h18M8 10l4 11M16 10l-4 11"/></symbol>
+    <symbol id="i-fx-yield" viewBox="0 0 24 24"><path d="M12 3l6 6h-4v5h-4V9H6z"/><path d="M4 17.5h16M8 21h8"/></symbol>
+    <symbol id="i-fx-bit" viewBox="0 0 24 24"><path d="M4 3h16l-8 18z"/><path d="M7.5 8.5h9M9.8 13.5h4.4"/></symbol>
+    <symbol id="i-fx-xp" viewBox="0 0 24 24"><path d="M3 21h5v-5h5v-5h5"/><path d="M18 8V3M15.5 5.5 18 3l2.5 2.5"/></symbol>
+    <symbol id="i-fx-core" viewBox="0 0 24 24"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z"/><path d="M12 8l3.5 4-3.5 4-3.5-4z"/></symbol>
+    <symbol id="i-fx-skill" viewBox="0 0 24 24"><path d="M9 3h6v5H9zM3 16h6v5H3zM15 16h6v5h-6z"/><path d="M12 8v4M6 16v-4h12v4"/></symbol>
+    <symbol id="i-fx-time" viewBox="0 0 24 24"><path d="M6 3h12M6 21h12M7 3v4l5 5-5 5v4M17 3v4l-5 5 5 5v4"/></symbol>
+    <symbol id="i-fx-signal" viewBox="0 0 24 24"><path d="M12 9.5l2.5 2.5-2.5 2.5L9.5 12z"/><path d="M8 6l-5 6 5 6M16 6l5 6-5 6"/></symbol>
+    <symbol id="i-fx-surge" viewBox="0 0 24 24"><path d="M13 2 5 13h6l-1 9 9-12h-6z"/></symbol>
     <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.3c2.1.7 3.5 2.8 3.5 5.7"/></symbol>
     <symbol id="i-run" viewBox="0 0 24 24"><path d="M5 6l6 6-6 6M13 6l6 6-6 6"/></symbol>
     <symbol id="i-shift" viewBox="0 0 24 24"><path d="M12 4l7 8h-4v7H9v-7H5z"/></symbol>
@@ -922,6 +974,7 @@
   </defs>
 </svg>
 
+<script src="js/scene.js"></script>
 <script src="js/world.js"></script>
 <script src="js/hud.js"></script>
 <script src="js/screens.js"></script>
@@ -931,6 +984,7 @@
 <script src="js/prog-data.js"></script>
 <script src="js/prog.js"></script>
 <script src="js/events.js"></script>
+<script src="js/srvgui.js"></script>
 <script src="js/i18n-data.js"></script>
 <script src="js/i18n.js"></script>
 <script src="js/gamepad.js"></script>

@@ -64,13 +64,17 @@ namespace Kern.Bootstrap.Scenes
                 UniTask lightingValidation = _pipeline.BeginLightingOrientationValidationAsync();
                 float preparationStartedAt = UnityEngine.Time.realtimeSinceStartup;
                 UnityEngine.Debug.Log("[GameBootstrap] Preparing persistent world data before connecting.");
-                await UniTask.WhenAll(
-                    _pipeline.PreparePersistentDataAsync(scopeToken),
-                    lightingValidation);
+                await _pipeline.PreparePersistentDataAsync(scopeToken);
                 UnityEngine.Debug.Log(
-                    $"[GameBootstrap] Persistent data and lighting validation ready in " +
+                    $"[GameBootstrap] Persistent data ready in " +
+                    $"{(UnityEngine.Time.realtimeSinceStartup - preparationStartedAt) * 1000f:F0} ms; connecting.");
+                // Соединение стартует здесь и идёт параллельно проверке света и инициализации презентации
+                GameStartupReport report = _pipeline.InitializeInfrastructure();
+                await lightingValidation;
+                UnityEngine.Debug.Log(
+                    $"[GameBootstrap] Lighting validation ready at " +
                     $"{(UnityEngine.Time.realtimeSinceStartup - preparationStartedAt) * 1000f:F0} ms.");
-                GameStartupReport report = _pipeline.Initialize();
+                _pipeline.InitializePresentation(report);
                 _ticket.MarkStartupReady();
                 UnityEngine.Debug.Log("[GameBootstrap] Startup initialized; waiting for world presentation readiness.");
                 await _pipeline.WaitUntilReadyAsync(_ticket, report, scopeToken);

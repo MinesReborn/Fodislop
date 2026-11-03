@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Project Kern — микрографика блоков</title>
+<link rel="stylesheet" href="../kern-ui/css/tokens.css">
+<!-- Доска одного направления: панель игрока, груз и окно рынка в плотности референсов (Micrographics, Hard-press, Trace-paper).
+     Данные — те же, что в макете. Смотреть крупно: headless Chrome, --force-device-scale-factor=3 -->
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--void); color: var(--bone); font: 13px/1.3 var(--font-text); padding: 40px; }
+.board { display: grid; grid-template-columns: 300px 620px; gap: 48px; align-items: start; }
+.col { display: flex; flex-direction: column; gap: 10px; }
+
+/* Переключатель наборов данных доски */
+.sets { display: flex; align-items: center; gap: 4px; margin-bottom: 24px; }
+.sets span { margin-right: 8px; }
+.sets a { height: 22px; padding: 0 10px; display: grid; place-items: center; border: 1px solid var(--seam-strong); color: var(--ash); text-decoration: none; }
+.sets a:hover { color: var(--bone); }
+.sets a.on { color: var(--bone); border-color: var(--bone); }
+
+/* ── Общие нано-детали ── */
+.mono { font-family: var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+.nano { font: 600 7px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+.micro { font: 600 8.5px/1.25 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ash); }
+.br::before { content: "["; color: var(--seam-strong); margin-right: .4em; } .br::after { content: "]"; color: var(--seam-strong); margin-left: .4em; }
+.sl { color: var(--seam-strong); margin: 0 .5em; }
+.dot { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--ok); vertical-align: 1px; }
+.pill { display: inline-flex; align-items: center; gap: 5px; height: 14px; padding: 0 7px; border: 1px solid var(--seam-strong); border-radius: 7px; }
+/* Вдавленное */
+.press { box-shadow: inset 1px 1px 0 rgb(0 0 0 / .75), inset -1px -1px 0 rgb(var(--rgb-bone) / .07); background: var(--well); }
+
+/* ── Панель: тело, засечка среза, перекрестья ── */
+/* Рамка со срезом — одной формой: снаружи цвет линии, внутри тело с тем же срезом на 1 px глубже.
+   Для угла 45° внутренний срез меньше внешнего на 2 − √2 px — тогда диагональ той же толщины, что и прямые кромки */
+.pn, .win { position: relative; isolation: isolate; background: var(--seam); clip-path: var(--notch-clip); }
+.pn::before, .win::before { content: ""; position: absolute; inset: 1px; z-index: -1; background: var(--grain), var(--graphite);
+  clip-path: polygon(0 0, calc(100% - var(--notch) + .586px) 0, 100% calc(var(--notch) - .586px), 100% 100%, 0 100%); }
+.pn { padding: 12px 14px; }
+.rail { display: flex; align-items: center; gap: 6px; height: 12px; }
+.rail .sp { flex: 1; height: 1px; background: repeating-linear-gradient(90deg, var(--seam-strong) 0 1px, transparent 1px 3px); }
+
+/* ── Игрок — состав макета: шапка (клан, профиль, ник), прочность (полоса + NHP), деньги, кредиты — строками ── */
+/* Левая колонка — одна ширина на все блоки (--pcol): не меньше 264 px и не уже самой широкой шапки, как fitColumn в макете */
+.pn.player, .pn.cargo { width: var(--pcol, 264px); }
+.p-head { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.clan { flex: none; width: 22px; height: 22px; display: grid; place-items: center; border: 1px solid var(--seam-strong); }
+.clan img { width: 13px; height: 13px; image-rendering: pixelated; }
+.pid { flex: none; height: 22px; display: grid; place-items: center; padding: 0 6px; border: 1px solid var(--seam-strong); font: 500 11px/1 var(--font-mono); letter-spacing: .04em; color: var(--ash); }
+.p-head b { font: 700 18px/1 var(--font-display); letter-spacing: .02em; }
+.hp { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+/* Полоса прочности — ряд точек: одна точка — 5% */
+.dots { flex: 1; min-width: 120px; display: grid; grid-template-columns: repeat(20, 1fr); gap: 2px; }
+.dots i { aspect-ratio: 1; border-radius: 50%; border: 1px solid var(--c); }
+.dots i.on { background: var(--c); }
+.hp .big { flex: none; font: 700 26px/.8 var(--font-display); white-space: nowrap; }
+.hp .big sup { font: 600 8px/1 var(--font-mono); letter-spacing: .12em; color: var(--ash); vertical-align: top; margin-left: 2px; }
+.wallet { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+/* Деньги и кредиты — строками; знак валюты и значок кредита в одном слоте, числа начинаются с одной вертикали */
+.wallet div { display: grid; grid-template-columns: 9px auto; align-items: center; gap: 3px; font: 600 15px/1 var(--font-mono); letter-spacing: .02em; white-space: nowrap; }
+.wallet .cur { justify-self: center; }
+.wallet .usd { color: var(--ok); }
+.wallet .cr { color: #f2e15c; }
+.wallet .cr img { justify-self: center; width: 6px; height: 7px; image-rendering: pixelated; }
+
+/* ── Груз — состав макета: шапка (Груз, процент, Бокс), полоса с перегрузом, кристаллы (полоса к лимиту, число), геология ── */
+.c-head { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.c-head .c-lbl { font-size: 9px; }
+.c-head .big { font: 700 26px/.8 var(--font-display); }
+.c-head .big sup { font: 600 8px/1 var(--font-mono); letter-spacing: .12em; color: var(--ash); vertical-align: top; margin-left: 2px; }
+.c-head .box { margin-left: auto; width: 22px; height: 22px; display: grid; place-items: center; border: 1px solid var(--seam-strong); color: var(--ash); }
+.c-head .box svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: square; }
+/* Полоса груза — 20 ячеек по 5%, шкала 0…100%; при перегрузе полоса полная, цвет — порог игры */
+.load { position: relative; height: 10px; margin-top: 8px; }
+.load .cells { position: absolute; inset: 0; display: grid; gap: 2px; }
+.load .cells i { background: var(--well); box-shadow: inset 1px 1px 0 rgb(0 0 0 / .7); }
+.load .cells i.on { background: var(--bar); box-shadow: none; }
+.loadscale { position: relative; height: 10px; margin-top: 4px; }
+.loadscale span { position: absolute; translate: -50% 0; }
+.rows { margin-top: 10px; display: grid; grid-template-columns: 16px minmax(40px, 1fr) auto; align-items: center; gap: 6px 8px; }
+.rows img { width: 16px; height: 16px; image-rendering: pixelated; }
+.rows .bar { height: 3px; background: repeating-linear-gradient(90deg, rgb(var(--rgb-bone) / .14) 0 1px, transparent 1px 4px); position: relative; }
+.rows .bar i { position: absolute; inset: 0 auto 0 0; background: currentColor; }
+.rows b { font: 600 13px/1 var(--font-mono); text-align: right; white-space: nowrap; }
+.rows .sep { grid-column: 1 / -1; height: 0; margin: 2px 0; border-top: 1px dashed var(--seam); }
+/* Геология — в той же сетке, что кристаллы: полоса и число стоят по тем же вертикалям */
+.geo { margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--seam); }
+.geo-row { display: flex; align-items: center; gap: 8px; }
+.geo-row .nano { flex: none; font-size: 9px; }
+/* Ячейка — один блок (до 20 ячеек; больше — доля на 20) */
+.geo-cells { flex: 1; display: grid; gap: 2px; height: 8px; }
+.geo-cells i { background: var(--well); box-shadow: inset 1px 1px 0 rgb(0 0 0 / .7); }
+.geo-cells i.on { background: var(--ash); box-shadow: none; }
+.geo-row b { flex: none; font: 600 13px/1 var(--font-mono); color: var(--ash); white-space: nowrap; }
+.geo-last { margin-top: 6px; }
+.geo-last b { color: var(--ash); }
+
+/* ── Окно рынка ── */
+.win-rail { display: flex; align-items: center; gap: 8px; height: 22px; padding: 0 18px; border-bottom: 1px solid var(--seam); }
+.win-rail .sp { flex: 1; height: 1px; background: repeating-linear-gradient(90deg, var(--seam-strong) 0 1px, transparent 1px 3px); }
+.win-head { display: grid; grid-template-columns: 64px 1fr auto; gap: 14px; align-items: center; padding: 14px 18px; }
+.glyph { position: relative; width: 64px; height: 64px; display: grid; place-items: center; }
+.glyph::before { content: ""; position: absolute; inset: 2px; border-radius: 50%; border: 1px solid var(--seam-strong); }
+.glyph::after { content: ""; position: absolute; inset: 9px; border-radius: 50%; border: 1px dashed rgb(var(--rgb-bone) / .18); }
+.glyph img { position: relative; z-index: 1; width: 32px; height: 32px; image-rendering: pixelated; }
+.glyph .q { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: var(--ash); }
+.win-head h2 { font: 700 28px/.9 var(--font-display); letter-spacing: .04em; text-transform: uppercase; }
+.win-head .lines { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+.close { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--seam-strong); color: var(--ash); font: 400 14px/1 var(--font-mono); }
+.tabs { display: flex; align-items: center; gap: 0; padding: 0 18px; border-bottom: 1px solid var(--seam); }
+.tab { position: relative; height: 34px; padding: 0 14px; display: flex; align-items: center; gap: 8px; color: var(--ash); font: 600 13px/1 var(--font-text); }
+.tab .nano { color: var(--seam-strong); }
+.tab.on { color: var(--bone); }
+.tab.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--bone); }
+.tab.on .nano { color: var(--ash); }
+.tabs .rate { margin-left: auto; }
+table { width: 100%; border-collapse: collapse; }
+th { height: 26px; padding: 0 8px; white-space: nowrap; text-align: left; font: 600 7px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); border-bottom: 1px solid var(--seam); }
+th:first-child, td:first-child { padding-left: 18px; } th:last-child, td:last-child { padding-right: 18px; }
+th.r, td.r { text-align: right; }
+/* Ничего не режется: числовые колонки и название — по содержимому, остаток ширины берёт название. Ширина окна постоянна — длинные числа сокращаются (cut) */
+tbody tr:last-child td { border-bottom: 0; }
+td { height: 46px; padding: 0 8px; border-bottom: 1px dashed var(--seam); vertical-align: middle; white-space: nowrap; }
+th.n, td.n { width: 1%; }
+td.name { width: 100%; }
+td.slider { min-width: 96px; width: 150px; }
+td .num.sv { color: var(--bone); }
+td .nm { display: flex; align-items: center; gap: 10px; }
+td .nm img { width: 20px; height: 20px; image-rendering: pixelated; }
+td .nm span { display: flex; flex-direction: column; gap: 3px; }
+td .num { font: 500 13px/1 var(--font-mono); color: var(--mist); }
+td .num.s { color: var(--bone); font-weight: 700; }
+.sell { position: relative; height: 22px; }
+.sell .track { position: absolute; left: 0; right: 0; top: 6px; height: 6px; background: repeating-linear-gradient(90deg, rgb(var(--rgb-bone) / .1) 0 1px, transparent 1px 4px), var(--well); box-shadow: inset 1px 1px 0 rgb(0 0 0 / .75); }
+.sell .fill { position: absolute; left: 0; top: 6px; height: 6px; background: var(--mist); }
+.sell .knob { position: absolute; top: 2px; width: 2px; height: 14px; background: var(--bone); }
+.sell .knob::after { content: ""; position: absolute; left: -3px; top: -3px; width: 8px; height: 3px; background: var(--bone); }
+.sell .q { position: absolute; left: 0; right: 0; top: 15px; display: flex; justify-content: space-between; }
+.sell .q i { width: 1px; height: 3px; background: rgb(var(--rgb-bone) / .3); }
+/* Подвал: итог с подписью и кнопки; при длинном итоге кнопки уходят на вторую строку вправо */
+.foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; align-items: center; padding: 14px 18px 16px; border-top: 1px solid var(--seam); }
+.sumgroup { flex: 1 1 auto; display: flex; align-items: center; gap: 12px; margin-right: auto; }
+.total { flex: none; }
+.annot { white-space: nowrap; }
+.btns { flex: none; display: flex; gap: 12px; }
+.total b { display: block; margin-top: 5px; font: 700 28px/.8 var(--font-display); white-space: nowrap; }
+.annot { align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding-left: 12px; border-left: 1px solid var(--seam); }
+.btn { height: 36px; padding: 0 16px; border: 1px solid var(--seam-strong); background: var(--plate); color: var(--bone); font: 600 13px/1 var(--font-text); display: flex; align-items: center; gap: 10px; }
+.btn.p { background: var(--signal); border-color: var(--signal); color: var(--on-signal); font-weight: 700; clip-path: var(--notch-btn-clip); }
+.btn .nano { color: inherit; opacity: .6; }
+/* Сокращённое число: пунктир снизу — знак, что есть полное; полное — плашкой над числом */
+.cut { position: relative; text-decoration: underline dotted rgb(var(--rgb-bone) / .45); text-underline-offset: 3px; text-decoration-thickness: 1px; cursor: help; outline: 0; }
+.cut:hover::after, .cut:focus::after { content: attr(data-full); position: absolute; z-index: 5; right: -7px; bottom: calc(100% + 6px); padding: 5px 7px;
+  background: var(--well); border: 1px solid var(--seam-strong); color: var(--bone); font: 600 12px/1 var(--font-mono); letter-spacing: .02em; white-space: nowrap; text-decoration: none; }
+/* Нечего продать — кнопки недоступны, строка без груза приглушена */
+.btn.dis { background: transparent; border-color: var(--seam); color: var(--dim); clip-path: none; }
+tr.off td { color: var(--dim); }
+tr.off .nm img { opacity: .35; }
+tr.off .num, tr.off .num.s, tr.off .num.sv { color: var(--dim); }
+tr.off .sell .knob, tr.off .sell .fill { display: none; }
+</style>
+</head>
+<body>
+<nav class="sets nano"><span>Значения</span><a data-m="norm" href="?">Обычные</a><a data-m="zero" href="?data=zero">Ноль</a><a data-m="min" href="?data=min">Минимум</a><a data-m="max" href="?data=max">Максимум</a></nav>
+<div class="board">
+  <div class="col">
+    <!-- Игрок -->
+    <section class="pn player">
+      <div class="p-head"><span class="clan"><img src="../kern-ui/img/clan.png" alt=""></span><span class="pid" id="pid"></span><b id="nick"></b></div>
+      <div class="hp"><div class="dots" id="hpDots"></div><div class="big" id="hpBig"></div></div>
+      <div class="wallet"><div class="usd"><span class="cur">$</span><span id="money"></span></div><div class="cr"><img src="../kern-ui/img/legacy/credit.png" alt=""><span id="creds"></span></div></div>
+    </section>
+
+    <!-- Груз -->
+    <section class="pn cargo">
+      <div class="c-head"><span class="nano c-lbl">Груз</span><span class="big" id="cargoPct"></span><span class="box"><svg viewBox="0 0 24 24"><path d="M5 5l7-3.5L19 5v6.5L12 15 5 11.5z"/><path d="M5 5l7 3.5L19 5M12 8.5V15"/><path d="M12 17v5.5M9.5 20L12 22.5l2.5-2.5"/></svg></span></div>
+      <div class="load"><div class="cells" id="loadCells"></div></div>
+      <div class="loadscale nano" id="loadScale"></div>
+      <div class="rows" id="rows"></div>
+      <div class="geo" id="geo"></div>
+    </section>
+  </div>
+
+  <!-- Рынок -->
+  <section class="win">
+    <div class="win-rail nano"><span>Здание</span><span class="sp"></span><span>1154:903</span></div>
+    <div class="win-head">
+      <div class="glyph"><img src="../kern-ui/img/items/market.png" alt="">
+        <span class="q" style="left:31px;top:-1px"></span><span class="q" style="left:31px;bottom:-1px"></span><span class="q" style="top:31px;left:-1px"></span><span class="q" style="top:31px;right:-1px"></span></div>
+      <h2>Рынок</h2>
+      <span class="close">×</span>
+    </div>
+    <div class="tabs"><span class="tab on">Продать</span><span class="tab">Купить</span></div>
+    <table>
+      <thead><tr><th>Кристалл</th><th class="r n">В грузе</th><th class="r n">Цена <span class="sl">/</span> шт</th><th colspan="2">Продать</th><th class="r n">Сумма</th></tr></thead>
+      <tbody id="tb"></tbody>
+    </table>
+    <div class="foot">
+      <div class="sumgroup"><div class="total"><span class="nano">Итого к получению</span><b id="sum"></b></div>
+      <div class="annot"><span class="micro" id="sold"></span><span class="nano" id="after"></span></div></div>
+      <div class="btns"><span class="btn" id="btnAll">Продать всё</span><span class="btn p" id="btnSell">Продать</span></div>
+    </div>
+  </section>
+</div>
+<script>
+// Данные и форматы — как в макете (js/hud.js, Legacy GUIManager). ?data=zero|min|max — наборы для проверки: ноль, минимум, максимум (до 100 млрд)
+const q = new URLSearchParams(location.search), mode = q.get('data') || (q.has('worst') ? 'max' : 'norm');
+const SETS = {
+  norm: { nick: 'ШАХТЁР-774', id: 10482, hp: 113, maxHp: 136, money: 14850, creds: 340, capacity: 1800, geo: [3, 10, 'Гипноскал'],
+    basket: { g: 2340, r: 96, b: 1204, v: 12, w: 3, c: 57 }, price: { g: 12, b: 18, r: 40, v: 95, w: 260, c: 70 } },
+  zero: { nick: 'ШАХТЁР-774', id: 10482, hp: 0, maxHp: 136, money: 0, creds: 0, capacity: 1800, geo: [0, 10, ''],
+    basket: { g: 0, r: 0, b: 0, v: 0, w: 0, c: 0 }, price: { g: 0, b: 0, r: 0, v: 0, w: 0, c: 0 } },
+  min: { nick: 'Ян', id: 1, hp: 1, maxHp: 100000, money: 1, creds: 1, capacity: 1800, geo: [1, 10, 'Гипноскал'],
+    basket: { g: 1, r: 1, b: 1, v: 1, w: 1, c: 1 }, price: { g: 1, b: 1, r: 1, v: 1, w: 1, c: 1 } },
+  max: { nick: 'ШАХТЁР-77777777', id: 4294967295, hp: 99999, maxHp: 100000, money: 100e9, creds: 100e9, capacity: 5e9, geo: [10, 10, 'Чёрная скала'],
+    basket: { g: 1e11, r: 9999999999, b: 999999, v: 1000000, w: 12, c: 0 }, price: { g: 1, b: 999999, r: 1, v: 999999, w: 1, c: 999999 } },
+};
+const st = SETS[mode] || SETS.norm;
+document.querySelectorAll('.sets a').forEach(a => a.classList.toggle('on', a.dataset.m === (SETS[mode] ? mode : 'norm')));
+const group = n => String(Math.trunc(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+const crys = n => n < 1e6 ? group(n) : n < 1e10 ? group(n / 1e3) + ' K' : group(n / 1e6) + ' KK';
+const cargoTone = p => p < 50 ? ['#9aa3a9', '#7e878d', null] : p < 100 ? ['#79d98a', '#5cc46f', null]
+  : p < 115 ? ['#ffe066', '#e8c845', '#b3801f'] : p < 200 ? ['#ff9d5c', '#f59048', '#b3002a'] : ['#ff6b5e', '#e65959', '#b3002a'];
+const hpTone = f => `rgb(${Math.round(Math.sqrt(Math.sqrt(1 - f)) * 255)},${Math.round(Math.sqrt(Math.sqrt(f)) * 255)},${Math.round(f * (1 - f) * 255)})`;
+const $ = id => document.getElementById(id);
+$('nick').textContent = st.nick; $('pid').textContent = '#' + st.id;
+const hf = Math.max(0, Math.min(1, st.hp / st.maxHp)), hc = hpTone(hf);
+$('hpDots').style.setProperty('--c', hc);
+// Живой робот — хотя бы одна точка, раненый — никогда не все 20
+const hpOn = hf <= 0 ? 0 : hf >= 1 ? 20 : Math.min(19, Math.max(1, Math.round(hf * 20)));
+$('hpDots').innerHTML = Array.from({ length: 20 }, (_, i) => `<i class="${i < hpOn ? 'on' : ''}"></i>`).join('');
+$('hpBig').innerHTML = `<span style="color:${hc}">${st.hp}</span><sup>HP</sup>`;
+$('money').textContent = group(st.money); $('creds').textContent = group(st.creds);
+const CR = [['g', 'green', '#5fd37a'], ['r', 'red', '#ff5a6e'], ['b', 'blue', '#6c7bff'], ['v', 'violet', '#e06bd8'], ['w', 'white', '#d8d5ee'], ['c', 'cyan', '#5ad7e6']];
+const pct = Math.round(Math.max(...Object.values(st.basket)) * 100 / st.capacity);
+const [tText, tBar] = cargoTone(pct);
+$('cargoPct').innerHTML = `<span style="color:${tText}">${pct}</span><sup>%</sup>`;
+// Шкала всегда 0…100%, ячейка — 5%. Перегруз шкалу не растягивает (груз бывает и 2000%): полоса полная,
+// её цвет — порог игры (жёлтый до 115%, оранжевый до 200%, красный дальше), точное значение — числом
+const cells = $('loadCells'); cells.style.gridTemplateColumns = 'repeat(20, 1fr)'; cells.style.setProperty('--bar', tBar);
+// Непустой груз — хотя бы одна ячейка, даже если процент округлился до 0
+const lit = Math.min(20, Math.ceil(Math.max(...Object.values(st.basket)) * 100 / st.capacity / 5));
+cells.innerHTML = Array.from({ length: 20 }, (_, i) => `<i class="${i < lit ? 'on' : ''}"></i>`).join('');
+$('loadScale').innerHTML = [0, 50, 100].map(v => `<span style="left:${v}%;${v === 0 ? 'translate:0' : v === 100 ? 'translate:-100% 0' : ''}">${v}</span>`).join('');
+// Полоска кристалла — его доля лимита (у каждого типа свой лимит), до 100%
+const rowsEl = $('rows');
+const shareBar = (v, c) => `<span class="bar" style="color:${c}"><i style="width:max(2px, ${Math.min(100, v * 100 / st.capacity)}%)"></i></span>`;
+rowsEl.innerHTML = CR.filter(([k]) => st.basket[k] > 0).map(([k, id, c]) =>
+  `<img src="../kern-ui/img/crystals/${id}.png" alt="">${shareBar(st.basket[k], c)}<b style="color:${c}">${crys(st.basket[k])}</b>`).join('');
+// Геология: подпись, ячейки по блоку, счёт; ниже — последний блок словом
+const [gN, gMax, gLast] = st.geo, gCells = Math.min(gMax, 20), gLit = gN ? Math.max(1, Math.round(gN / gMax * gCells)) : 0;
+$('geo').innerHTML = `<div class="geo-row"><span class="nano">Геология</span><span class="geo-cells" style="grid-template-columns:repeat(${gCells},1fr)">${Array.from({ length: gCells }, (_, i) => `<i class="${i < gLit ? 'on' : ''}"></i>`).join('')}</span><b>${gN}/${gMax}</b></div>`
+  + (gLast ? `<div class="geo-last nano">Последний блок <span class="sl">//</span> <b>${gLast}</b></div>` : '');
+// Пустая корзина — панели груза нет, как в макете
+document.querySelector('.pn.cargo').hidden = Object.values(st.basket).every(v => v === 0);
+// Ширина колонки — по самой широкой шапке (игрок, груз), не меньше 264 px: как fitColumn в макете
+const fitColumn = () => {
+  const need = ['.p-head', '.c-head'].map(sel => {
+    const row = document.querySelector(sel), box = getComputedStyle(row.parentElement), kids = [...row.children];
+    return kids.reduce((w, c) => w + c.getBoundingClientRect().width, 0) + parseFloat(getComputedStyle(row).columnGap || 0) * (kids.length - 1)
+      + parseFloat(box.paddingLeft) + parseFloat(box.paddingRight) + 2;
+  });
+  document.querySelector('.col').style.setProperty('--pcol', Math.ceil(Math.max(264, ...need)) + 'px');
+};
+document.fonts.ready.then(fitColumn);
+// Рынок — та же корзина, что в панели груза; цена — с сервера (на пределе — от $1 до $999 999)
+const cr = [['g', 'green', 'Зелёные', 12], ['b', 'blue', 'Синие', 18], ['r', 'red', 'Красные', 40],
+  ['v', 'violet', 'Фиолетовые', 95], ['w', 'white', 'Белые', 260], ['c', 'cyan', 'Голубые', 70]]
+  .map(([k, id, name]) => [id, name, st.basket[k], st.price[k]]);
+// Окно рынка не растёт от данных: число длиннее пяти знаков сокращается тысячами — K, KK, KKK, KKKK (не больше 99 999 перед буквами).
+// Сокращённое подчёркнуто пунктиром; полное значение — по наведению или касанию
+const short = n => { let k = 0; while (n >= 1e5 && k < 4) { n /= 1e3; k++; } return group(Math.floor(n)) + (k ? ' ' + 'K'.repeat(k) : ''); };
+const cut = (n, pre = '') => short(n) === group(n) ? pre + group(n) : `<span class="cut" tabindex="0" data-full="${pre}${group(n)}">${pre}${short(n)}</span>`;
+document.getElementById('tb').innerHTML = cr.map(([id, name, n, p], i) => {
+  const sell = i < 2 ? n : Math.round(n / 2), v = n ? sell / n * 100 : 0;
+  return `<tr${n ? '' : ' class="off"'}><td class="name"><span class="nm"><img src="../kern-ui/img/crystals/${id}.png" alt=""><span>${name}</span></span></td>
+    <td class="r n"><span class="num">${cut(n)}</span></td><td class="r n"><span class="num">${cut(p, '$')}</span></td>
+    <td class="slider"><div class="sell"><span class="track"></span><span class="fill" style="width:${v}%"></span><span class="knob" style="left:calc(${v}% - 1px)"></span><span class="q"><i></i><i></i><i></i><i></i><i></i></span></div></td><td class="r n"><span class="num sv">${cut(sell)}</span></td>
+    <td class="r n"><span class="num s">${cut(p * sell, '$')}</span></td></tr>`;
+}).join('');
+// Итог продажи и груз после неё — из тех же строк
+let sum = 0, pcs = 0, kinds = 0, left = 0;
+cr.forEach(([, , n, p], i) => { const sell = i < 2 ? n : Math.round(n / 2); sum += p * sell; pcs += sell; kinds += sell > 0; left = Math.max(left, n - sell); });
+$('sum').innerHTML = cut(sum, '$');
+$('btnSell').classList.toggle('dis', pcs === 0); $('btnAll').classList.toggle('dis', cr.every(c => c[2] === 0));
+const plural = (n, one, few, many) => { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many; };
+$('sold').innerHTML = `${cut(pcs)} шт <span class="sl">//</span> ${kinds} ${plural(kinds, 'вид', 'вида', 'видов')}`;
+$('after').textContent = `Груз после продажи — ${Math.round(left * 100 / st.capacity)}%`;
+</script>
+</body>
+</html>

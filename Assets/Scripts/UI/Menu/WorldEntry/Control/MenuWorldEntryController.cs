@@ -94,7 +94,10 @@ internal sealed class MenuWorldEntryController
             WorldLoadPhase phase = _loadProgress != null
                 ? _loadProgress.CurrentPhase
                 : WorldLoadPhase.Handshake;
-            _loaderPanel.UpdateProgress(phase, ReleaseInputToGameplay);
+            _loaderPanel.UpdateProgress(
+                phase,
+                _loadProgress?.AssetSync ?? default,
+                ReleaseInputToGameplay);
         }
 
         internal void HideMenu()
@@ -172,6 +175,9 @@ internal sealed class MenuWorldEntryController
             _navigationPresenter.SetDescentRouteActive();
 
             _sceneryPresenter.DescentTarget = 1f;
+            // Провайдер живёт всё приложение: без сброса второй заход видит Done от первого и сразу отпускает ввод
+            _loadProgress?.Report(WorldLoadPhase.Handshake);
+            _loadProgress?.ResetAssetSync();
             UpdateLoaderProgress();
 
             _operations.Run("main_menu_descent", RunDescentAsync);

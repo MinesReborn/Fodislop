@@ -296,7 +296,7 @@ namespace Kern.UI.HUD
         private void InitializeHUD()
         {
             _programmatorData ??= new ProgrammatorData();
-            _programmatorTextures ??= new ProgrammatorTextureRegistry(_assetLoader, _operations);
+            _programmatorTextures ??= new ProgrammatorTextureRegistry();
             _programmatorGrid ??= new ProgrammatorGrid(
                 _doc,
                 _loc,

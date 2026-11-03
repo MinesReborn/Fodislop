@@ -41,7 +41,7 @@ public sealed class PlayerHUDBasketView
             try
             {
                 tex = await assetLoader.GetTextureAsync(
-                    "Visual/Crystals/" + name,
+                    "Visual/Crystals/" + name + ".png",
                     cancellationToken);
             }
             catch (OperationCanceledException)

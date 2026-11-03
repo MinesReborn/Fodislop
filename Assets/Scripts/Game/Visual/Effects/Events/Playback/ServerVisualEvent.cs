@@ -305,10 +305,9 @@ public sealed class ServerVisualEvent : IServerWorldEffect
     {
         try
         {
-            // Кристалл всегда летит к роботу: ассет "Visual/crystal" (если появится на
-            // сервере) используется как спрайт полёта, а не как статичная картинка
-            // на клетке. Если ни ассета, ни иконки Crys нет - рисуем процедурный
-            // кристалл, чтобы эффект был виден всегда.
+            // Кристалл всегда летит к роботу спрайтом своего цвета (Visual/Crystals/<цвет>.png,
+            // либо кадр атласа минералов), а не статичной картинкой на клетке. Если спрайта
+            // нет - рисуем процедурный кристалл, чтобы эффект был виден всегда.
             if (_effectType == VisualEffect.Crystal)
             {
                 if (await TryStartCrystalFlightAsync(token))
@@ -327,7 +326,7 @@ public sealed class ServerVisualEvent : IServerWorldEffect
 
             // Маркер запрета установки пака (VisualEffect.PlaceDeny): значение приходит
             // проводом сырым байтом — в клиентском пакете MinesServer.Data
-            // этот член enum не объявлен. Опциональный ассет "Visual/placedeny",
+            // этот член enum не объявлен. Опциональный ассет "Visual/placedeny.png",
             // иначе процедурный красный круг, как в легаси-клиенте.
             if ((byte)_effectType == PlaceDenyVisualEffectValue)
             {
@@ -335,7 +334,7 @@ public sealed class ServerVisualEvent : IServerWorldEffect
                 return;
             }
 
-            var filename = $"Visual/{_effectType.ToString().ToLowerInvariant()}";
+            var filename = $"Visual/{_effectType.ToString().ToLowerInvariant()}.png";
             if (await TryLoadNamedVisualAsync(filename, token))
             {
                 return;
@@ -438,7 +437,7 @@ public sealed class ServerVisualEvent : IServerWorldEffect
         if (texture != null)
         {
             // VisualEffect.GunShot — легаси-луч старого клиента: процедурная лента из
-            // родной текстуры 'Visual/gunshot', а не статичная картинка на клетке.
+            // родной текстуры 'Visual/gunshot.png', а не статичная картинка на клетке.
             if (_effectType == VisualEffect.GunShot)
             {
                 // Луч рисуется только когда робот-стрелок резолвится. Иначе
@@ -676,12 +675,12 @@ public sealed class ServerVisualEvent : IServerWorldEffect
         _ => "g",
     };
 
-    // Маркер запрета установки пака: опциональный ассет "Visual/placedeny"
+    // Маркер запрета установки пака: опциональный ассет "Visual/placedeny.png"
     // (тот же конвейер: анимация → статичная текстура), иначе
     // процедурный красный круг с чертой — как в легаси-клиенте.
     private async UniTask LoadPlaceDenyVisualAsync(CancellationToken token)
     {
-        if (await TryLoadNamedVisualAsync("Visual/placedeny", token))
+        if (await TryLoadNamedVisualAsync("Visual/placedeny.png", token))
         {
             return;
         }
@@ -809,7 +808,7 @@ public sealed class ServerVisualEvent : IServerWorldEffect
         _isAnimated = false;
         _maxLifetime = BeamLifetimeSeconds;
         UpdateBeam();
-        Debug.Log("[ServerVisualEvent] GunShot: легаси-луч запущен (текстура 'Visual/gunshot').");
+        Debug.Log("[ServerVisualEvent] GunShot: легаси-луч запущен (текстура 'Visual/gunshot.png').");
     }
 
     private void ResetBeamTail()

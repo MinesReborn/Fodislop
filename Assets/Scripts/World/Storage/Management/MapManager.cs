@@ -209,6 +209,42 @@ namespace Kern.World
             }
         }
 
+        /// <summary>
+        /// Тот же ли это мир, что уже загружен: имя и размер совпадают. Остальное в пакете — содержимое мира,
+        /// и сервер вправе менять его посреди игры.
+        /// </summary>
+        public bool IsSameWorld(WorldInitPacket packet) =>
+            IsWorldInitialized &&
+            string.Equals(_worldCodeName, packet.CodeName, StringComparison.Ordinal) &&
+            _width == packet.Width &&
+            _height == packet.Height;
+
+        /// <summary>
+        /// Применяет содержимое мира (описания клеток, группы тайлов, манифест) к уже загруженному миру: хранилище,
+        /// карта и события загрузки мира не трогаются.
+        /// </summary>
+        public void ApplyWorldContent(WorldInitPacket packet)
+        {
+            if (!IsSameWorld(packet))
+            {
+                throw new InvalidOperationException(
+                    $"World content for '{packet.CodeName}' ({packet.Width}x{packet.Height}) does not belong to the loaded world " +
+                    $"'{_worldCodeName}' ({_width}x{_height}).");
+            }
+
+            LoadCellContent(packet);
+            _worldDisplayName = packet.DisplayName;
+        }
+
+        // Таблица типов и каталог меняются вместе: оба собираются и проверяются до подмены, поэтому ошибка в одном
+        // не оставляет другой новым
+        private void LoadCellContent(WorldInitPacket packet)
+        {
+            BlockRegistry.Update blocks = BlockRegistry.Prepare(packet.Cells);
+            _cellCatalog.LoadConfigurations(packet.Cells, packet.TileGroups, packet.AssetsManifest);
+            BlockRegistry.Commit(blocks);
+        }
+
         public void LoadWorldInit(WorldInitPacket packet)
         {
             UnityEngine.Debug.Log($"[Probe] WorldInit {UnityEngine.Time.realtimeSinceStartup:F3}");
@@ -229,7 +265,7 @@ namespace Kern.World
                     $"WorldInitPacket dimensions are invalid: {packet.Width}x{packet.Height}.");
             }
 
-            _cellCatalog.LoadConfigurations(packet.Cells, packet.TileGroups, packet.AssetManifest);
+            LoadCellContent(packet);
 
             _worldCodeName = packet.CodeName;
             _worldDisplayName = packet.DisplayName;
@@ -279,11 +315,11 @@ namespace Kern.World
 
         public CellConfigurationPacket GetCellConfig(CellType type) => _cellCatalog.GetCellConfig(type);
 
-        public bool TryGetAssetDefinition(string? filename, out WorldAssetDefinitionPacket definition) =>
+        public bool TryGetAssetDefinition(string? filename, out AssetsDefinitionPacket definition) =>
             _cellCatalog.TryGetAssetDefinition(filename, out definition);
 
-        public bool TryGetAudioBankFilenames(out IReadOnlyList<string> filenames) =>
-            _cellCatalog.TryGetAudioBankFilenames(out filenames);
+        public bool TryGetAudioBanks(out IReadOnlyList<AssetsDefinitionPacket> banks) =>
+            _cellCatalog.TryGetAudioBanks(out banks);
 
         public bool TryGetTileGroup(CellType type, out int groupId) => _cellCatalog.TryGetTileGroup(type, out groupId);
 

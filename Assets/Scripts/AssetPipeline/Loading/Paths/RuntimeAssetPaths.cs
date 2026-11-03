@@ -106,7 +106,7 @@ public sealed class RuntimeAssetPaths : IRuntimeAssetPaths
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
 
-            filenames.Sort(CompareTexturePaths);
+            filenames.Sort(StringComparer.Ordinal);
             foreach (string filename in filenames)
             {
                 loadedTextures.Add(filename, await ReadStreamingBytesAsync($"{TexturesFolderName}/{filename}"));
@@ -207,7 +207,7 @@ public sealed class RuntimeAssetPaths : IRuntimeAssetPaths
         Func<string, string> resolvePath,
         Dictionary<string, byte[]> loadedTextures)
     {
-        foreach (string filename in filenames.OrderBy(path => path, Comparer<string>.Create(CompareTexturePaths)))
+        foreach (string filename in filenames.OrderBy(path => path, StringComparer.Ordinal))
         {
             string path = resolvePath(filename);
             loadedTextures.Add(filename, await UniTask.RunOnThreadPool(() => File.ReadAllBytes(path)));
@@ -220,7 +220,7 @@ public sealed class RuntimeAssetPaths : IRuntimeAssetPaths
         var withAliases = new Dictionary<string, byte[]>(textures, StringComparer.Ordinal);
         foreach (KeyValuePair<string, byte[]> texture in textures.OrderBy(
                      pair => pair.Key,
-                     Comparer<string>.Create(CompareTexturePaths)))
+                     StringComparer.Ordinal))
         {
             string extension = Path.GetExtension(texture.Key);
             if (extension.Length > 0)
@@ -231,21 +231,6 @@ public sealed class RuntimeAssetPaths : IRuntimeAssetPaths
 
         return withAliases;
     }
-
-    private static int CompareTexturePaths(string left, string right)
-    {
-        int priority = GetFormatPriority(Path.GetExtension(left)).CompareTo(
-            GetFormatPriority(Path.GetExtension(right)));
-        return priority != 0 ? priority : StringComparer.Ordinal.Compare(left, right);
-    }
-
-    private static int GetFormatPriority(string extension) => extension switch
-    {
-        ".png" => 0,
-        ".jpg" or ".jpeg" => 1,
-        ".exr" => 2,
-        _ => 3,
-    };
 
     private static string ValidateRelativePath(string relativePath)
     {

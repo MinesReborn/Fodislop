@@ -140,8 +140,11 @@ and HTTP API port `5460` (`ClientConfigurationDefaults`). A public endpoint and
 an automated production-endpoint build gate are not supplied by those defaults.
 
 The server supplies lightweight state and identifiers. Heavy textures, sprites,
-and FMOD banks are loaded on demand once. The cache hierarchy is RAM, persistent
-disk cache with versioned ETag/length/SHA-256 manifest, then CDN/server.
+and FMOD banks come from the world asset manifest (`WorldInit`), downloaded before
+world entry. The cache hierarchy is RAM, persistent disk cache (`manifest.json`:
+folder tree of file name to MD5, verified on read; files absent from the server
+manifest are deleted on each world entry), then CDN/server. Client-embedded
+assets (menu UI, item icons, surface scene) are not part of the manifest.
 
 `PacketHandler` only dispatches packets to processors and owns subscriptions. It
 must not contain UI, scene managers, or player state. Packet logic belongs in

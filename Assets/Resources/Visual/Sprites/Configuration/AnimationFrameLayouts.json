@@ -1,7 +1,7 @@
 {
   "Layouts": [
     {
-      "Name": "Visual/bz.png",
+      "Name": "Visual/Effects/bz.png",
       "ComputeEmission": true,
       "FrameWidth": 0,
       "FrameHeightRatio": 2,
@@ -11,7 +11,7 @@
       "PixelsPerUnitFromFrameWidth": true
     },
     {
-      "Name": "Visual/death.png",
+      "Name": "Visual/Effects/death.png",
       "FrameWidth": 64,
       "FrameHeightRatio": 1,
       "FrameCount": 39,
@@ -20,7 +20,7 @@
       "PixelsPerUnitFromFrameWidth": false
     },
     {
-      "Name": "Visual/destroy.png",
+      "Name": "Visual/Effects/destroy.png",
       "FrameWidth": 1,
       "FrameHeightRatio": 1,
       "FrameCount": 1,

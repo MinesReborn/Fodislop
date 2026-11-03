@@ -146,6 +146,10 @@
 .phases li.is-done::before { background: var(--ok); border-color: var(--ok); }
 .phases li.is-on { color: var(--bone); }
 .phases li.is-on::before { border-color: var(--signal); background: var(--signal); box-shadow: 0 0 6px var(--signal); }
+.descent-explain.is-bad { color: var(--danger); }
+.phases li.is-fail { color: var(--bone); }
+.phases li.is-fail::before { border-color: var(--danger); background: var(--danger); }
+.descent .btn--wide[hidden] { display: none; }
 .descent .btn--wide { width: 260px; justify-content: center; margin-top: var(--sp-4); }
 
 /* Окно обновления клиента */

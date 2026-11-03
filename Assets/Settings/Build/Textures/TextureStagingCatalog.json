@@ -438,15 +438,15 @@
     },
     {
       "Source": "Visual/destroy/destroy.png",
-      "Published": "Visual/destroy.png"
+      "Published": "Visual/Effects/destroy.png"
     },
     {
       "Source": "Visual/bz/bz.png",
-      "Published": "Visual/bz.png"
+      "Published": "Visual/Effects/bz.png"
     },
     {
       "Source": "Visual/death/death.png",
-      "Published": "Visual/death.png"
+      "Published": "Visual/Effects/death.png"
     },
     {
       "Source": "Crystals/blue/blue.png",

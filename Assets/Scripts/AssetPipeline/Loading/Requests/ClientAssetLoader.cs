@@ -292,6 +292,20 @@ namespace Kern.AssetPipeline.Loading
                 "ClientAssetLoader was destroyed while an asset request was active.",
                 cancellationToken);
         }
+        public event Action<IReadOnlyCollection<string>>? AssetsChanged;
+
+        public void ReplaceAssets(IReadOnlyCollection<string> filenames)
+        {
+            if (filenames.Count == 0)
+            {
+                return;
+            }
+
+            _cache?.Invalidate(filenames);
+            _dispatcher.ClearMissing();
+            AssetsChanged?.Invoke(filenames);
+        }
+
         public void ClearCache()
         {
             _cache?.Clear();

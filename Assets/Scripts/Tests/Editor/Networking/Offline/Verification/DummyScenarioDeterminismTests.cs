@@ -131,28 +131,6 @@ public sealed class DummyScenarioDeterminismTests
     }
 
     [Test]
-    public void DailyBonus_BecomesAvailableAfterTenVirtualSeconds()
-    {
-        var clock = new VirtualDummyClock(Seed);
-        var sent = new List<(long At, ServerPacket Packet)>();
-        using var operations = new AsyncOperationSupervisor();
-        bool alive = true;
-        var buffs = new DummyBuffManager(packet => sent.Add((clock.NowMilliseconds, packet)), operations, clock, _ => alive);
-
-        buffs.StartDailyBonusLoop(lifecycleVersion: 1);
-        clock.Advance(9999);
-        Assert.That(sent.Where(p => p.Packet.Payload is DailyBonusStatePacket), Is.Empty);
-
-        clock.Advance(1);
-        (long at, ServerPacket packet) = sent.Single(p => p.Packet.Payload is DailyBonusStatePacket);
-        Assert.That(at, Is.EqualTo(10000));
-        Assert.That(((DailyBonusStatePacket)packet.Payload).Enabled, Is.True);
-
-        alive = false;
-        clock.Advance(1000);
-    }
-
-    [Test]
     public void Buff_ExpiresOnTheFirstCheckAfterItsVirtualDuration()
     {
         var clock = new VirtualDummyClock(Seed);

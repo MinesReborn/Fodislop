@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using MinesServer.Data;
+using MinesServer.Networking.Server.Packets.Connection;
 using UnityEngine;
 
 namespace Kern.World;
@@ -14,9 +15,9 @@ public sealed class BlockRegistry : IBlockRegistry
     private const string ResourcePath = "World/Cells/Configuration/cells";
     private const string RelativeFilePath = "Assets/Resources/World/Cells/Configuration/cells.json";
 
-    private static readonly BlockDefinition[] s_blockArray = new BlockDefinition[256];
+    private static BlockDefinition[] s_blockArray = new BlockDefinition[256];
     private static CellType s_underlayType;
-    private static readonly Dictionary<CellType, BlockDefinition> s_blocks = LoadRegistry();
+    private static Dictionary<CellType, BlockDefinition> s_blocks = LoadRegistry();
     private static readonly BlockRegistry s_defaultInstance = new();
 
     public static IBlockRegistry Default => s_defaultInstance;
@@ -52,6 +53,91 @@ public sealed class BlockRegistry : IBlockRegistry
 
     bool IBlockRegistry.TryGet(CellType type, out BlockDefinition definition) =>
         s_blocks.TryGetValue(type, out definition);
+
+    /// <summary>Готовая к подмене таблица: собрана и проверена целиком, но ещё не видна клиенту.</summary>
+    public sealed class Update
+    {
+        internal Update(BlockDefinition[] array, Dictionary<CellType, BlockDefinition> blocks, CellType underlay)
+        {
+            Array = array;
+            Blocks = blocks;
+            Underlay = underlay;
+        }
+
+        internal BlockDefinition[] Array { get; }
+
+        internal Dictionary<CellType, BlockDefinition> Blocks { get; }
+
+        internal CellType Underlay { get; }
+    }
+
+    /// <summary>
+    /// Собирает таблицу типов из описаний сервера. Сервер — источник описаний: тип, которого нет в cells.json,
+    /// появляется здесь, а у известного подменяются поля, которые сервер присылает. Задержка движения и имя группы
+    /// тайлов в описании не едут и остаются прежними. Пустое описание (всё по умолчанию) типа не создаёт.
+    /// Ничего не меняет: упавшая проверка оставляет прежнюю таблицу.
+    /// </summary>
+    public static Update Prepare(CellConfigurationPacket[] cells)
+    {
+        BlockDefinition[] array = (BlockDefinition[])s_blockArray.Clone();
+        var blocks = new Dictionary<CellType, BlockDefinition>(s_blocks);
+        int count = Math.Min(cells.Length, array.Length);
+        for (int index = 0; index < count; index++)
+        {
+            CellConfigurationPacket cell = cells[index];
+            BlockDefinition previous = array[index];
+            var type = (CellType)index;
+            if (!blocks.ContainsKey(type) && IsEmpty(cell))
+            {
+                continue;
+            }
+
+            var definition = new BlockDefinition(
+                Passable: cell.Passable,
+                MovementCooldownMs: previous.MovementCooldownMs,
+                DrawLayer: (CellDrawLayer)cell.DrawLayer,
+                Outline: (CellOutline)cell.Outline,
+                TextureName: cell.TextureName ?? string.Empty,
+                TextureAnchor: (CellTextureAnchor)cell.TextureAnchor,
+                TileGroup: previous.TileGroup,
+                DecalTextureName: string.IsNullOrEmpty(cell.DecalTextureName) ? null : cell.DecalTextureName,
+                ReliefGroup: cell.ReliefGroup,
+                AnimationType: cell.AnimationType,
+                AnimationPalette: cell.AnimationPalette,
+                FrameAnimationSpeed: cell.FrameAnimationSpeed,
+                Emission: cell.Emission,
+                MapColor: UnpackColor(cell.MapColor));
+            array[index] = definition;
+            blocks[type] = definition;
+        }
+
+        return new Update(array, blocks, ResolveUnderlay(blocks));
+    }
+
+    /// <summary>Подменяет таблицу целиком: потоки сборки видят либо прежнюю, либо новую, но не смесь.</summary>
+    public static void Commit(Update update)
+    {
+        System.Threading.Volatile.Write(ref s_blockArray, update.Array);
+        System.Threading.Volatile.Write(ref s_blocks, update.Blocks);
+        s_underlayType = update.Underlay;
+    }
+
+    // Описание, в котором нет ничего, кроме цвета карты: сервер шлёт такие на неопределённые номера
+    private static bool IsEmpty(in CellConfigurationPacket cell) =>
+        !cell.Passable &&
+        (int)cell.DrawLayer == 0 &&
+        (int)cell.Outline == 0 &&
+        string.IsNullOrEmpty(cell.TextureName) &&
+        string.IsNullOrEmpty(cell.DecalTextureName) &&
+        cell.ReliefGroup == 0 &&
+        (int)cell.AnimationType == 0 &&
+        cell.AnimationPalette == 0 &&
+        cell.FrameAnimationSpeed == 0f &&
+        !cell.Emission &&
+        (int)cell.TextureAnchor == 0;
+
+    private static Color32 UnpackColor(int argb) =>
+        new((byte)((argb >> 16) & 0xFF), (byte)((argb >> 8) & 0xFF), (byte)(argb & 0xFF), (byte)((argb >> 24) & 0xFF));
 
     private static Dictionary<CellType, BlockDefinition> LoadRegistry()
     {

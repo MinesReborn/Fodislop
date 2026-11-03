@@ -55,17 +55,6 @@ public sealed class ProgrammatorGrid : IDisposable
             _textures = textures ?? throw new ArgumentNullException(nameof(textures));
             _protocol = protocol ?? throw new ArgumentNullException(nameof(protocol));
             _protocol.OpenRequested += Show;
-            // Серверные иконки операторов догружаются асинхронно — когда
-            // очередная приходит, перерисовываем текущую страницу.
-            _textures.ServerTexturesChanged += OnServerTexturesChanged;
-        }
-
-        private void OnServerTexturesChanged()
-        {
-            if (_uiBuilt)
-            {
-                _programs?.RefreshAllCells();
-            }
         }
 
         public void Initialize()
@@ -467,8 +456,6 @@ public sealed class ProgrammatorGrid : IDisposable
 
             _uiInput.IsProgrammatorOpen = false;
             _protocol.OpenRequested -= Show;
-            _textures.ServerTexturesChanged -= OnServerTexturesChanged;
-            _radial?.Dispose();
 
             if (_programs != null)
             {

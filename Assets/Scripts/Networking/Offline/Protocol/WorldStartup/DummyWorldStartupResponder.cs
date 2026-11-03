@@ -42,6 +42,15 @@ internal sealed class DummyWorldStartupResponder
     private readonly ITextureStorageService _textureStorage;
     private readonly IRuntimeAssetPaths _assetPaths;
     private readonly DummyGameplayActionResponder _actionResponder;
+    // Как настоящий сервер: данные мира уходят сразу, а живая симуляция (боты, пушка, спаун блоков, баффы, миссия)
+    // стартует только после ClientReadyPacket — пока клиент качает ассеты, робот не получает урон и не виден другим
+    private int _liveLifecycleVersion;
+    private DummyWorldDescriptor _liveWorld;
+    private bool _livePending;
+    private ushort _liveBotId;
+    private bool _worldDataSent;
+    private bool _clientReady;
+
     internal DummyWorldStartupResponder(
     IAsyncOperationSupervisor operations,
     IDummyClock clock,
@@ -87,15 +96,15 @@ internal sealed class DummyWorldStartupResponder
         long currency,
         ushort playerBotId)
     {
+        _worldDataSent = false;
+        _clientReady = false;
+        _livePending = false;
         DummyWorldDescriptor world = await _worldState.OpenAsync(worldCodeName);
         await SendWorldIdentityAsync(worldCodeName, world, playerName, playerBotId);
         SendClientConfig();
 
         _playerState.SetPosition(25, 50);
-        StartBotSimulation(lifecycleVersion);
         _sendPacket(new ServerPacket(new AutoMineStatePacket(false)));
-        _sendPacket(new ServerPacket(new DailyBonusStatePacket(false)));
-        _buffManager.ResetDailyBonus();
         _sendPacket(new ServerPacket(new CurrencyPacket(currency, 1234)));
         _playerState.SetHealth(250);
         _sendPacket(new ServerPacket(new HealthPacket(250, 500)));
@@ -104,8 +113,6 @@ internal sealed class DummyWorldStartupResponder
         _sendPacket(new ServerPacket(new GeologyPacket(5, 10, CellType.Lava, "Lava")));
         _sendPacket(new ServerPacket(new LevelPacket(level)));
         await _worldState.SendChunksAroundAsync(_playerState.X, _playerState.Y, _sendPacket);
-        _blockSpawner.Start(lifecycleVersion, world);
-
         SendSkillProgress();
         _chatSimulator.SendChatMock(lifecycleVersion);
         StartStatusSimulation(lifecycleVersion);
@@ -130,11 +137,41 @@ internal sealed class DummyWorldStartupResponder
         _sendPacket(new ServerPacket(new ChatListPacket(
             new[] { (ChatProtocolLimits.GlobalChannelTag, "Global", placeholder) })));
         SendTestPacks();
+        SendWorldMusic();
+
+        _liveLifecycleVersion = lifecycleVersion;
+        _liveWorld = world;
+        _liveBotId = playerBotId;
+        _livePending = true;
+        _worldDataSent = true;
+        TryStartLiveSimulation();
+    }
+
+    // ClientReadyPacket: клиент показал мир. Может прийти раньше, чем досланы последние данные, — тогда старт после них
+    internal void OnClientReady()
+    {
+        _clientReady = true;
+        TryStartLiveSimulation();
+    }
+
+    private void TryStartLiveSimulation()
+    {
+        if (!_worldDataSent || !_clientReady || !_livePending || !_loopAlive(_liveLifecycleVersion))
+        {
+            return;
+        }
+
+        DummyWorldDescriptor world = _liveWorld;
+        _livePending = false;
+        int lifecycleVersion = _liveLifecycleVersion;
+        ushort playerBotId = _liveBotId;
+        StartBotSimulation(lifecycleVersion);
+        _blockSpawner.Start(lifecycleVersion, world);
+        _buffManager.StartBuffLoop(lifecycleVersion);
         _operations.Run(
             "dummy_gun_loop",
             cancellationToken => RunGunAsync(lifecycleVersion, playerBotId, cancellationToken));
         _missionRunner.StartPersistentMission(_playerState.X, _playerState.Y);
-        SendWorldMusic();
     }
 
     private void SendWorldMusic()
@@ -169,7 +206,7 @@ internal sealed class DummyWorldStartupResponder
         ushort playerBotId)
     {
         CellConfigurationPacket[] cellConfigurations = (CellConfigurationPacket[])world.CellConfigurations.Clone();
-        WorldAssetDefinitionPacket[] assetManifest =
+        AssetsDefinitionPacket[] assetManifest =
             await DummyCellConfigurationFactory.CreateAssetManifestAsync(
                 _textureStorage,
                 _assetPaths,
@@ -215,10 +252,8 @@ internal sealed class DummyWorldStartupResponder
         _sendPacket(new ServerPacket(new OnlinePacket(42, 3)));
         _sendPacket(new ServerPacket(default(ClearStatusPacket)));
         _buffManager.SendStatusPackets();
-        _buffManager.StartBuffLoop(lifecycleVersion);
         _operations.Run("dummy_ping_loop", cancellationToken => SendPingLoopAsync(lifecycleVersion, cancellationToken));
         _operations.Run("dummy_online_loop", cancellationToken => SendOnlineLoopAsync(lifecycleVersion, cancellationToken));
-        _buffManager.StartDailyBonusLoop(lifecycleVersion);
     }
 
     private void SendSkillProgress()

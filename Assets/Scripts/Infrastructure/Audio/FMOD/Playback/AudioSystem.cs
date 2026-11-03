@@ -23,6 +23,8 @@ namespace Kern.Infrastructure.Audio
         private bool _configWaitLogged;
         private bool _bankWaitStarted;
         private bool _pausedInBackground;
+        private int _bankRevision = -1;
+        private bool _bankRefreshRunning;
 
         [Inject]
         private IClientConfigManager _clientConfig = null!;
@@ -56,10 +58,44 @@ namespace Kern.Infrastructure.Audio
         private void Update()
         {
             TryStartBankWait();
+            TryRefreshBanks();
             if (!_configApplied)
             {
                 TryApplySavedBusVolumes();
             }
+        }
+
+        // Сервер может сменить набор банков посреди игры: изменившиеся перезагружаются, не прерывая её
+        private void TryRefreshBanks()
+        {
+            if (_bankRefreshRunning ||
+                _operations == null ||
+                _backend == null ||
+                !_backend.IsReady ||
+                _audioBankManifest.Revision == _bankRevision)
+            {
+                return;
+            }
+
+            _bankRevision = _audioBankManifest.Revision;
+            _bankRefreshRunning = true;
+            _operations.Run(
+                "refresh_audio_banks",
+                async cancellationToken =>
+                {
+                    try
+                    {
+                        await _backend.RefreshBanksAsync(
+                            this,
+                            _assetLoader,
+                            _audioBankManifest,
+                            cancellationToken);
+                    }
+                    finally
+                    {
+                        _bankRefreshRunning = false;
+                    }
+                });
         }
 
         private void TryStartBankWait()

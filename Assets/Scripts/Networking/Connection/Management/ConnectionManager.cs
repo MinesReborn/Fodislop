@@ -75,6 +75,7 @@ namespace Kern.Networking.Connection
         private float _reconnectCountdown;
         private string _reconnectStatus = string.Empty;
         private bool _restartWorldOnConnect;
+        private bool _inboundHeld;
 
         // НУЖЕН: сохраняет причину серверного дисконнекта — используется при реконнекте
         // и для диагностики в ReconnectUI. НЕ УДАЛЯТЬ (см. HandleServerDisconnect).
@@ -95,7 +96,11 @@ namespace Kern.Networking.Connection
 
         protected void Update()
         {
-            _packetDrain.Drain();
+            if (!_inboundHeld)
+            {
+                _packetDrain.Drain();
+            }
+
             UpdateReconnect();
         }
 
@@ -177,8 +182,21 @@ namespace Kern.Networking.Connection
             OnReconnectStatusChanged?.Invoke(_reconnectStatus);
         }
 
+        public long ReceivedBytes => Connection is ITransportTraffic traffic ? traffic.ReceivedBytes : 0;
+
+        public void HoldInboundPackets()
+        {
+            _inboundHeld = true;
+        }
+
+        public void ReleaseInboundPackets()
+        {
+            _inboundHeld = false;
+        }
+
         public void Disconnect()
         {
+            _inboundHeld = false;
             _isConnectionAttemptPending = false;
             _isWorldStartupPending = false;
             _shouldAutoReconnect = false;

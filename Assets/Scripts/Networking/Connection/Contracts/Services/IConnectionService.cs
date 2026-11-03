@@ -14,13 +14,25 @@ public sealed class ConnectionStartupInterruptedException : InvalidOperationExce
     }
 }
 
+// Транспорт, который считает принятые байты: по ним строится плавный прогресс скачивания внутри крупного пакета
+public interface ITransportTraffic
+{
+    long ReceivedBytes { get; }
+}
+
 public interface IConnectionService
 {
+    // Принятые текущим транспортом байты; у нового транспорта счёт идёт с нуля. 0 — транспорт счёт не ведёт
+    long ReceivedBytes { get; }
     bool IsConnected { get; }
     bool IsAutoReconnecting { get; }
     bool IsWorldStartupPending { get; }
     bool IsOffline { get; }
     void Connect();
+    // Пока пакеты удержаны, транспорт подключается и принимает их в очередь, но обработчикам они не отдаются:
+    // соединение стартует параллельно инициализации презентации и открывается, когда потребители готовы
+    void HoldInboundPackets();
+    void ReleaseInboundPackets();
     void Disconnect();
     void MarkWorldReady();
     void TriggerDisconnect(string reason);

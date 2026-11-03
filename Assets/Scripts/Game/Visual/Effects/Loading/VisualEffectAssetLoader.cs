@@ -35,7 +35,7 @@ internal sealed class VisualEffectAssetLoader
 
     public async UniTask<LoadedVisualEffect> LoadAsync(string visualEffectName, CancellationToken token)
     {
-        string filename = $"Visual/{visualEffectName.ToLowerInvariant()}";
+        string filename = $"Visual/{visualEffectName.ToLowerInvariant()}.png";
         try
         {
             AnimatedSpriteData animData = await _assetLoader.GetAnimatedSpritesAsync(filename, token);

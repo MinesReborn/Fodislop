@@ -51,6 +51,5 @@
   // Входы: шестерёнка HUD (на пальце — в ☰), «Настройки» в паузе и в меню
   document.querySelectorAll('[title="Настройки"]').forEach(b => b.addEventListener('click', () => open()));
 
-  const q = new URLSearchParams(location.search).get('settings');
-  if (q) open(q === '1' ? 'graphics' : q);
+  window.kernScene.on(0, p => { const q = p.get('settings'); if (q) open(q === '1' ? 'graphics' : q); });
 })();

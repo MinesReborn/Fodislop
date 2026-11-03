@@ -5,13 +5,9 @@ using System.Threading;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Kern;
-using MinesServer.Data;
 using MinesServer.Networking.Server.Packets;
-using MinesServer.Networking.Server.Packets.Information;
 using MinesServer.Networking.Server.Packets.Information.StatusPanel;
-using MinesServer.Networking.Server.Packets.Inventory;
 using MinesServer.Networking.Server.Packets.Utilities;
-using UnityEngine;
 
 namespace Kern.Networking.Offline;
 
@@ -24,10 +20,6 @@ internal sealed class DummyBuffManager
     private readonly Dictionary<string, long> _activeBuffs = new();
     private readonly List<string> _expiredBuffTags = new();
     private bool _buffLoopStarted;
-    private bool _bonusClaimed;
-    private int _bonusCountdown;
-    private ItemType _pendingBonusItem;
-    private int _pendingBonusAmount;
     private int _activeLifecycleVersion;
 
     public DummyBuffManager(
@@ -76,8 +68,6 @@ internal sealed class DummyBuffManager
     {
         _buffLoopStarted = false;
         _activeBuffs.Clear();
-        _bonusClaimed = false;
-        _bonusCountdown = 0;
     }
 
     public void ResetLoopGuard()
@@ -85,72 +75,6 @@ internal sealed class DummyBuffManager
         _buffLoopStarted = false;
     }
 
-    public void ResetDailyBonus()
-    {
-        _bonusCountdown = 10;
-        _bonusClaimed = false;
-    }
-
-    public void HandleDailyBonusClaim(Dictionary<ItemType, long> inventory)
-    {
-        var rewardItem = _pendingBonusItem;
-        var rewardAmount = _pendingBonusAmount;
-
-        inventory.TryGetValue(rewardItem, out long current);
-        long newQty = current + rewardAmount;
-        inventory[rewardItem] = newQty;
-
-        _onReceived.Invoke(new ServerPacket(new InventoryPacket(
-            new Dictionary<ItemType, long> { { rewardItem, newQty } })));
-
-        _bonusClaimed = true;
-    }
-
-    public void StartDailyBonusLoop(int lifecycleVersion)
-    {
-        _operations.Run(
-            "dummy_daily_bonus_loop",
-            cancellationToken => SendDailyBonusMock(lifecycleVersion, cancellationToken));
-    }
-
-    private async UniTask SendDailyBonusMock(int lifecycleVersion, CancellationToken cancellationToken)
-    {
-        while (LoopAlive(lifecycleVersion))
-        {
-            _bonusClaimed = false;
-            _bonusCountdown = Math.Max(_bonusCountdown, 10);
-
-            while (_bonusCountdown > 0 && !_bonusClaimed && LoopAlive(lifecycleVersion))
-            {
-                await _clock.Delay(1000, cancellationToken);
-                _bonusCountdown--;
-            }
-
-            if (!LoopAlive(lifecycleVersion))
-            {
-                break;
-            }
-
-            _pendingBonusItem = DummyBonusRewards.PickRandomBonusItem(_clock.Random);
-            _pendingBonusAmount = (int)DummyBonusRewards.PickRandomAmount(
-                _pendingBonusItem,
-                _clock.Random);
-            _onReceived.Invoke(new ServerPacket(new DailyBonusStatePacket(true)));
-
-            while (!_bonusClaimed && LoopAlive(lifecycleVersion))
-            {
-                await _clock.Delay(500, cancellationToken);
-            }
-
-            if (!LoopAlive(lifecycleVersion))
-            {
-                break;
-            }
-
-            _bonusCountdown = 10;
-            _onReceived.Invoke(new ServerPacket(new DailyBonusStatePacket(false)));
-        }
-    }
     public void SendStatusPackets()
     {
         foreach (var kvp in _activeBuffs)

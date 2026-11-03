@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using Kern.AssetPipeline.Cache;
@@ -15,6 +16,9 @@ namespace Kern.Networking.Offline;
 
 internal static class DummyCellConfigurationFactory
 {
+    private static string WithPngExtension(string? name) =>
+        string.IsNullOrWhiteSpace(name) || Path.GetExtension(name).Length > 0 ? name ?? string.Empty : name + ".png";
+
     public static BlockDefinition GetBlockDefinition(CellType type) =>
         BlockRegistry.Get(type);
 
@@ -49,18 +53,21 @@ internal static class DummyCellConfigurationFactory
                 AnimationType: def.AnimationType,
                 AnimationPalette: def.AnimationPalette,
                 FrameAnimationSpeed: def.FrameAnimationSpeed,
-                MapColor: MapBlockColors.GetPackedColor(type));
+                MapColor: MapBlockColors.GetPackedColor(type),
+                Emission: def.Emission,
+                TextureAnchor: (CellTextureAnchorKind)def.TextureAnchor);
         }
 
         return configs;
     }
 
-    public static async UniTask<WorldAssetDefinitionPacket[]> CreateAssetManifestAsync(
+    public static async UniTask<AssetsDefinitionPacket[]> CreateAssetManifestAsync(
         ITextureStorageService textureStorage,
         IRuntimeAssetPaths assetPaths,
         CellConfigurationPacket[] cellConfigurations)
     {
-        var assets = new Dictionary<string, WorldAssetDefinitionPacket>(StringComparer.Ordinal);
+        var assets = new Dictionary<string, AssetsDefinitionPacket>(StringComparer.Ordinal);
+        var audioAssets = new List<AssetsDefinitionPacket>();
 
         IReadOnlyList<string> textureFilenames = assetPaths.GetTextureFilenames();
         if (textureFilenames.Count == 0)
@@ -79,7 +86,7 @@ internal static class DummyCellConfigurationFactory
             byte[]? contents = assetPaths.GetTextureBytes(filename);
             if (contents is { Length: > 0 })
             {
-                assets.Add(filename, CreateAssetDefinition(filename, contents));
+                assets[filename] = CreateAssetDefinition(filename, contents);
             }
         }
 
@@ -88,13 +95,19 @@ internal static class DummyCellConfigurationFactory
             byte[]? contents = await assetPaths.GetAudioBankBytesAsync(filename);
             if (contents is { Length: > 0 })
             {
-                assets.Add(filename, CreateAssetDefinition(filename, contents));
+                audioAssets.Add(CreateAssetDefinition(filename, contents));
             }
         }
 
         for (int cellId = 0; cellId < cellConfigurations.Length; cellId++)
         {
-            CellConfigurationPacket configuration = cellConfigurations[cellId];
+            // Одно имя на файл: везде с расширением, как в манифесте (клиент сверяет имена точно)
+            CellConfigurationPacket configuration = cellConfigurations[cellId] with
+            {
+                TextureName = WithPngExtension(cellConfigurations[cellId].TextureName),
+                DecalTextureName = WithPngExtension(cellConfigurations[cellId].DecalTextureName),
+            };
+            cellConfigurations[cellId] = configuration;
             if (!string.IsNullOrWhiteSpace(configuration.TextureName))
             {
                 byte[]? contents = await textureStorage.GetTextureData(configuration.TextureName);
@@ -122,14 +135,17 @@ internal static class DummyCellConfigurationFactory
             }
         }
 
+        // Сначала визуал, потом аудио: файлы качаются в порядке манифеста
         return assets.Values
             .OrderBy(asset => asset.Filename, StringComparer.Ordinal)
+            .Concat(audioAssets.OrderBy(asset => asset.Filename, StringComparer.Ordinal))
             .ToArray();
     }
 
-    private static WorldAssetDefinitionPacket CreateAssetDefinition(string filename, byte[] contents) =>
+    private static AssetsDefinitionPacket CreateAssetDefinition(string filename, byte[] contents) =>
         new(filename, ETagCalculator.Calculate(contents) ??
-            throw new InvalidOperationException($"Could not calculate ETag for world asset '{filename}'."));
+            throw new InvalidOperationException($"Could not calculate ETag for world asset '{filename}'."),
+            (uint)contents.Length);
 
     public static Dictionary<CellType, ushort> CreateMovementSpeeds()
     {

@@ -29,19 +29,36 @@ internal sealed class TerrainDecalAtlasLoader : IDisposable
         IReadOnlyDictionary<string, byte[]> worldAssetBytes,
         IReadOnlyList<string> textureNames,
         IAsyncOperationSupervisor operations,
-        Action? onTextureLoaded)
+        Action? onTextureLoaded,
+        bool keepCurrentUntilReady = false)
     {
         if (_disposed)
         {
             throw new ObjectDisposedException(nameof(TerrainDecalAtlasLoader));
         }
 
-        Clear();
+        // Посреди игры прежний массив остаётся на экране, пока не готов новый: иначе декали на время загрузки пропали бы
+        if (keepCurrentUntilReady)
+        {
+            _loadGeneration++;
+            _activeLoad?.Cancel();
+            _activeLoad?.Dispose();
+            _activeLoad = null;
+        }
+        else
+        {
+            Clear();
+        }
+
         string[] snapshot = textureNames.ToArray();
         int generation = ++_loadGeneration;
         var generationLifetime = new CancellationTokenSource();
         _activeLoad = generationLifetime;
-        _textureArray = CreateTransparentArray(snapshot.Length);
+        if (!keepCurrentUntilReady)
+        {
+            _textureArray = CreateTransparentArray(snapshot.Length);
+        }
+
         operations.Run(
             "load_terrain_decal_atlases",
             cancellationToken => LoadAsync(

@@ -1,0 +1,500 @@
+/* Четыре системы интерфейса. Вид элемента решает автор информации:
+     РОБОТ — показания датчиков робота (квант: точки, ячейки, крупная цифра с единицей мелко) — hud.css, левая колонка;
+     РУКИ  — то, что нажимает игрок (клавиша: выпуклая кромка, нажатое вдавлено, горячая клавиша на кнопке);
+     ДЕЛО  — записи игрока в окнах клиента (лист: заголовок, разделы «//», подпись ···· значение, вкладки чертой);
+     СЕТЬ  — пришло от сервера или других игроков (передача: строка источника сверху, время моно, текст как прислали) — srvgui.css.
+   Общее для всех — палитра, три шрифта, форма панели со срезом угла (micro.css). Оранжевый — только главное действие и тревога.
+   Доска системы: visual/kern-brand/systems.html; дизайн-код: visual/kern-brand/design-code.html */
+
+/* ═══ РУКИ — клавиша ═══════════════════════════════════════════════ */
+/* Плоская клавиша: поле и волосяная рамка, без света и тени (выпуклость читалась как Windows 95).
+   Наведение — рамка светлее; нажато — поле темнее; выбрано — рамка кости */
+:is(.btn, .icon-btn, .pk-btn, .inv-slots li, .inv-cell, .toggle, .prog-open, .tbtn, .rail-btn, .menu-rail button, .inv-expand, .prog-pick, .prog-op, .seg button) { box-shadow: none; }
+:is(.btn, .icon-btn, .pk-btn, .toggle, .prog-open, .tbtn, .rail-btn, .menu-rail button, .inv-expand, .prog-op, .prog-pick):active { background: var(--well); }
+:is(.inv-slots li, .inv-cell).is-on { box-shadow: inset 0 0 0 1px var(--bone); }
+/* Панели инструментов (программатор, карта): иконки без рамок — рамка и поле появляются при наведении; включённое — рамка кости */
+:is(.prog-bar, .prog-head, .map-tools) .icon-btn { border: 1px solid transparent; background: transparent; }
+:is(.prog-bar, .prog-head, .map-tools) .icon-btn:hover:not(:disabled) { border-color: var(--seam-strong); background: var(--plate); }
+:is(.prog-bar, .prog-head, .map-tools) .icon-btn[aria-pressed="true"] { border-color: var(--bone); background: rgb(var(--rgb-bone) / .08); }
+/* Варианты одного выбора — ряд в углублении; выбранный — рамка кости на тёмном */
+.seg { padding: 2px; gap: 2px; background: var(--well); border-color: var(--seam-strong); box-shadow: none; }
+.seg button { border-radius: 0; background: transparent; }
+.seg button:hover { background: var(--plate); }
+.seg button[aria-checked="true"] { background: var(--plate); color: var(--bone); box-shadow: inset 0 0 0 1px var(--bone); }
+/* Горячая клавиша — колпачок: рамка с утолщённым низом, моно */
+:is(.keycap, .toggle kbd, .prog-foot kbd) { border: 1px solid var(--seam-strong); border-bottom-width: 2px; border-radius: 0; background: var(--plate);
+  font-family: var(--font-mono); font-weight: var(--fw-semi); letter-spacing: .04em; color: var(--ash); }
+:is(.toggle kbd, .prog-foot kbd) { font-size: 9px; line-height: 1; }
+/* Колпачок в настройках управления — сама клавиша: текст кегля строки, цвет основной */
+.keycap { font-size: 12px; color: var(--bone); }
+
+/* ═══ ДЕЛО — лист ══════════════════════════════════════════════════ */
+/* Вкладки страниц окна — подпись с чертой снизу, не плашки: это разделы листа, а не выбор значения */
+:is(.clan-tabs, .prog-tabs, .seg--auth).seg { width: auto; padding: 0; gap: 0; background: none; border: 0; border-bottom: 1px solid var(--seam); box-shadow: none; }
+:is(.clan-tabs, .prog-tabs, .seg--auth).seg button { position: relative; flex: none; height: 32px; padding: 0 12px; border: 0; background: none; box-shadow: none; color: var(--ash); }
+:is(.clan-tabs, .prog-tabs, .seg--auth).seg button:hover { color: var(--bone); }
+:is(.clan-tabs, .prog-tabs, .seg--auth).seg button[aria-checked="true"] { background: none; box-shadow: none; color: var(--bone); }
+:is(.clan-tabs, .prog-tabs, .seg--auth).seg button[aria-checked="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--bone); }
+.seg--auth.seg { align-self: stretch; }
+.seg--auth.seg button { flex: 1; }
+/* Шапка листа: заголовок Tektur капсом, под ним — линия */
+:is(.srv-head, .skills-head, .settings-head, .inv-window-head) { border-bottom: 1px solid var(--seam); }
+/* Разделы — моно-капсом с пунктиром до края (set-sec, подписи разделов профиля, карты, кланов) */
+:is(.profile-sec > h3, .map-side h3, .clan-bank small) { font: var(--fw-semi) 8px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+:is(.profile-sec > h3, .map-side h3) { display: flex; align-items: center; gap: var(--sp-4); }
+:is(.profile-sec > h3, .map-side h3)::after { content: ""; flex: 1; height: 1px; background: repeating-linear-gradient(90deg, var(--seam) 0 2px, transparent 2px 4px); }
+/* Показатели профиля — подпись моно-капсом, значение крупной цифрой моно */
+.profile-stats div { background: var(--plate); border-color: var(--seam); }
+.profile-stats dt { font: var(--fw-semi) 8px/1.2 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.profile-stats dd { font: var(--fw-semi) 17px/1.1 var(--font-mono); color: var(--bone); }
+
+/* Списки листа — строки по пунктиру, не карточки: участники клана, заявки */
+.clan-list li { border: 0; border-bottom: 1px dashed var(--seam); background: none; }
+.clan-list li:hover { background: rgb(var(--rgb-bone) / .04); }
+
+/* ═══ СЕТЬ — передача ══════════════════════════════════════════════ */
+/* Строка источника над содержимым: «Сервер ····» — во всю ширину окна, как строка здания в окнах зданий */
+.src-rail { align-self: stretch; display: flex; align-items: center; gap: 8px; height: 22px; margin: calc(-1 * var(--sp-10)) calc(-1 * var(--sp-10)) 0; padding: 0 var(--sp-10);
+  border-bottom: 1px solid var(--seam); font: var(--fw-semi) 7px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); text-align: left; }
+.src-rail i { flex: 1; height: 1px; background: repeating-linear-gradient(90deg, var(--seam-strong) 0 1px, transparent 1px 3px); }
+/* Письмо: от кого и когда — строкой источника */
+.mail-read .from { display: flex; align-items: center; gap: 8px; padding-bottom: var(--sp-4); border-bottom: 1px dashed var(--seam);
+  font: var(--fw-semi) 8.5px/1.25 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ash); }
+/* Чат: время — моно служебным, ник — цветом игрока */
+.chat-log time { font-family: var(--font-mono); color: var(--dim); }
+
+/* ═══ Общее для всех систем — состояния ════════════════════════════ */
+/* Фокус клавиатуры и геймпада — где игрок сейчас, а не главное действие: кость, с отступом, без скругления */
+:where(.hud, .screen, .dialog-layer) :is(button, input, select, [tabindex]):focus-visible { outline: 1px solid var(--bone); outline-offset: 2px; }
+/* Недоступное — приглушено и не реагирует; сигнал с недоступного снимается */
+:is(.btn, .pk-btn, .icon-btn):disabled { opacity: .45; cursor: default; box-shadow: none; }
+
+/* ── Поправки после прохода по экранам ── */
+/* Заголовок обновления несёт номер версии: капс превратил бы «v0.9.0» в «V0.9.0» — пишется как есть */
+.dialog > .upd-head h2 { text-transform: none; letter-spacing: .02em; }
+/* Название версии и подписи команд программатора — данные, а не действие: без сигнала */
+.upd-hero b { color: var(--bone); }
+.prog-cell small { color: var(--mist); }
+/* Робот на карте — «я», не тревога: кость с тёмной обводкой */
+.pin-dot--me { background: var(--bone); box-shadow: 0 0 0 2px var(--void); }
+
+/* ═══ Компоненты в языке доски — замена прежних форм ═══════════════ */
+/* РОБОТ · действующие эффекты: строка панели, цвет эффекта — квадратом, время — моно; без заливки и цветной полосы */
+.states li { align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--seam); border-radius: 0; background: var(--graphite); font: var(--fw-normal) 13px/1.2 var(--font-text); }
+.states li svg { flex: none; width: 16px; height: 16px; color: var(--c); }
+.states li { pointer-events: auto; }   /* стенд: клик листает иконки (js/hud.js), поверх слоя HUD, пропускающего указатель */
+.states time { margin-left: auto; font: var(--fw-semi) 12px/1 var(--font-mono); color: var(--ash); }
+/* Эффекты — каждый своей строкой на любом экране: два множителя в одном ряду читаются как один */
+.frame:not(.compact).tier-standard .states { display: flex; flex-direction: column; }
+.frame:not(.compact).tier-standard .states li { flex-direction: row; flex-wrap: wrap; }
+/* РОБОТ · координаты — строкой над миникартой во всю ширину, как строка источника */
+.minimap .coords { left: 0; right: 0; top: 0; padding: 0 14px 0 8px; height: 18px; display: flex; align-items: center; justify-content: flex-end; border: 0; border-bottom: 1px solid var(--seam); border-radius: 0;
+  background: rgb(var(--rgb-well) / .82); font: var(--fw-semi) 10px/1 var(--font-mono); letter-spacing: .1em; color: var(--bone); }
+/* РОБОТ · строка состояния — моно-капс */
+.status-bar { border-radius: 0; font: var(--fw-semi) 10px/16px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+/* РУКИ · системные кнопки: подпись моно-капсом под значком */
+.frame:not(.compact) :is(.sysbuttons .icon-btn, .sysbar .bonus) { border-color: var(--seam-strong); border-radius: 0; }
+/* Подпись в плитке 72 px: самая длинная («Мои здания») должна влезть в одну строку — 7.5 px, разрядка .04em */
+/* В ряду системных кнопок у «Бонусов» иконка того же размера, что у соседей: иначе подпись садится ниже */
+.sysbar .bonus svg { width: 20px; height: 20px; }
+.frame.frame :is(.sysbuttons, .sysbar, .touch-sys) .control-label { font: var(--fw-semi) 7.5px/12px var(--font-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--ash); }
+.frame.frame:not(.compact).tier-standard .sysbuttons .control-label { letter-spacing: 0; }
+/* РУКИ · переключатель режима: квадратная дорожка, включено — кость */
+.toggle .dot { width: 26px; height: 14px; border-radius: 0; border-color: var(--seam-strong); }
+.toggle .dot::after { border-radius: 0; }
+.toggle[aria-pressed="true"] .dot::after { left: 14px; }
+/* РУКИ · хотбар: номер — нано, количество — моно */
+:is(.inv-slots, .inv-window-grid) span { font: var(--fw-semi) 12px/1 var(--font-mono); }
+/* СЕТЬ · свёрнутый чат: канал — моно-капсом служебным, строки как пришли */
+.chat-peek { border-radius: 0; border-color: var(--seam); }
+.chat-peek-tag { font: var(--fw-semi) 8px/1 var(--font-mono); letter-spacing: .14em; color: var(--dim); }
+/* СЕТЬ · развёрнутый чат: вкладки — чертой кости, ввод — вдавленный */
+.chat-head { padding-left: 14px; }
+
+/* ДЕЛО · шапка окна: заголовок слева, закрытие — квадрат в рамке, как у окон зданий */
+:is(.srv-head, .settings-head, .skills-head, .inv-window-head, .upd-head, .dialog > header) [data-close],
+.prog-head [data-close] { width: 28px; height: 28px; margin-right: 10px; border: 1px solid var(--seam-strong); border-radius: 0; color: var(--ash); box-shadow: none; }
+:is(.srv-head, .settings-head, .skills-head, .inv-window-head, .upd-head, .dialog > header) [data-close]:hover, .prog-head [data-close]:hover { border-color: var(--ash); color: var(--bone); background: none; }
+:is(.srv-head, .settings-head, .skills-head, .inv-window-head, .upd-head, .dialog > header) [data-close] svg, .prog-head [data-close] svg { width: 14px; height: 14px; }
+:is(.srv-head, .settings-head) { height: 56px; padding-left: 18px; }
+/* ДЕЛО · разделы настроек — список без штриховки, выбранный — чертой кости слева */
+.settings-tabs { background: var(--well); }
+.settings-tabs button { font-weight: var(--fw-semi); }
+/* ДЕЛО · строка настройки: подпись — обычным весом, пояснение — моно служебным */
+.field b { font-weight: var(--fw-normal); color: var(--bone); }
+.field small { font: var(--fw-semi) 9px/1.3 var(--font-mono); letter-spacing: .06em; color: var(--dim); }
+.field select { border-radius: 0; background-color: var(--well); box-shadow: var(--press); }
+/* ДЕЛО · окно с текстом (пауза, проверка, разрыв): заголовок крупным Tektur, пояснение — туман */
+.dialog > h2 { font-size: 22px; line-height: 1; }
+
+/* ═══ Остальное по списку tools/design-audit.html ═══════════════════ */
+/* РОБОТ · строка состояния: игроки — кость, программы в скобках — служебный (это не тревога); загрузка — ячейка, без скругления */
+.online b { color: var(--bone); }
+.online em { color: var(--ash); }
+.asset-load { font: inherit; color: var(--dim); }
+.asset-load-bar { border-radius: 0; height: 3px; background: var(--well); }
+.asset-load-bar i { background: var(--mist); }
+/* РОБОТ · рост навыка: стрелка — цвет навыка, но без подложки; шкала навыка — ячейкой */
+.mini-skill .bar { border-radius: 0; }
+/* РОБОТ · стрелка к метке у края экрана: подпись — моно-ярлык без скругления */
+.edge-pin span { border-radius: 0; font: var(--fw-semi) 10px/1.4 var(--font-mono); letter-spacing: .06em; }
+/* РОБОТ · текст миссии — пояснение, туман */
+.mission-text { color: var(--mist); }
+
+/* РУКИ · тач: подписи кнопок — моно-капсом, как системные; без размытых теней над миром — тёмная отбивка 1 px */
+.tbtn { border-radius: 0; box-shadow: 0 0 0 1px rgb(var(--rgb-black) / .5); }
+.frame.in-touch .toggle { box-shadow: 0 0 0 1px rgb(var(--rgb-black) / .5); }
+/* Подписи тач-кнопок 44 dp — текстовым шрифтом: моно-капс («ГЕОЛОГИЯ») в кнопку не влезает */
+/* РУКИ · джойстик: круг по смыслу; кольцо — волосяная линия, ручка — поле с рамкой кости */
+.pad-ring { border-color: rgb(var(--rgb-bone) / .18); border-style: dashed; }
+.pad-knob { background: var(--plate); border: 1px solid var(--bone); }
+/* РУКИ · подсказки геймпада: кнопки круглые по смыслу, плашки — прямые; подписи — моно-капсом */
+.pg { border-radius: 0; font-family: var(--font-mono); }
+.pg:where([data-btn="a"], [data-btn="b"], [data-btn="x"], [data-btn="y"]) { border-radius: 50%; }
+.pd { border-color: var(--seam-strong); }
+.pd-shoulders .pd { border-radius: 0; }
+.pd > small, .pad-bar span { font: var(--fw-semi) 8px/1.2 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
+.pd.is-on { border-color: var(--bone); color: var(--bone); }
+/* РУКИ · флажок и ссылка в окне входа: флажок — квадрат кости; ссылка — сигнал (это действие), моно-капсом */
+.check { font: var(--fw-normal) 13px/1.2 var(--font-text); color: var(--mist); }
+.check input { appearance: none; width: 14px; height: 14px; margin: 0; border: 1px solid var(--seam-strong); background: var(--well); display: grid; place-items: center; cursor: pointer; }
+.check input:checked { border-color: var(--bone); }
+.check input:checked::after { content: ""; width: 6px; height: 6px; background: var(--bone); }
+.link { font: var(--fw-semi) 9px/1.2 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; text-underline-offset: 4px; }
+/* РУКИ · категории команд программатора: квадрат цвета категории, выбранная — рамка цвета категории */
+.prog-cats button { border-radius: 0; font: var(--fw-semi) 9px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+.prog-cats button i { border-radius: 0; }
+.prog-group + .prog-group { border-left-style: dashed; }
+.prog-bar { gap: var(--sp-3) var(--sp-5); }
+/* РУКИ · назад в личных сообщениях — квадрат в рамке, как закрытие */
+.pm-back { width: 28px; height: 28px; border-radius: 0; border-color: var(--seam-strong); background: none; color: var(--ash); }
+.pm-back:hover { border-color: var(--ash); color: var(--bone); }
+
+/* ДЕЛО · программатор: состояние и изменённая память — данные (кость), пауза — служебный */
+.prog-state { font: var(--fw-semi) 9px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.prog-state.is-paused { color: var(--bone); }
+.prog-cell.is-here { box-shadow: inset 0 0 0 1px var(--ok); }
+.prog-mem th { font: var(--fw-semi) 7px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); border-bottom: 1px solid var(--seam); padding-bottom: 6px; }
+.prog-mem td { border-top: 1px dashed var(--seam); font-family: var(--font-mono); }
+.prog-mem .is-changed td:last-child { color: var(--bone); font-weight: var(--fw-bold); }
+/* ДЕЛО · чат развёрнутый — лист: вкладки чертой, строки по пунктиру, ввод в углублении */
+.chat-column { border-radius: 0; box-shadow: none; }
+.chat-tab { font-weight: var(--fw-semi); }
+.chat-log li { padding-bottom: 6px; border-bottom: 1px dashed rgb(var(--rgb-seam) / .6); }
+.chat-log li:last-child { border-bottom: 0; }
+.chat-log .sys { font: var(--fw-semi) 9px/1.4 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+.chat-form { background: var(--graphite); }
+.pm-head { border-bottom-style: dashed; }
+/* ДЕЛО · клан и профиль: эмблема и робот — в рамке без скругления; мета — подпись ···· значение моно */
+:is(.clan-emblem, .profile-robot) { border-radius: 0; border-color: var(--seam-strong); }
+.clan-name span { font: var(--fw-semi) 9px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ash); }
+.profile-meta b, .clan-who b { font-family: var(--font-mono); font-weight: var(--fw-semi); }
+.is-online em, .clan-list em { font-style: normal; font: var(--fw-semi) 9px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+.profile-level { font-size: 13px; }
+.profile-level small { font: var(--fw-semi) 11px/1 var(--font-mono); color: var(--ash); }
+.profile-sec h3 span { font: var(--fw-semi) 8px/1 var(--font-mono); color: var(--ash); }
+/* Длинные шкалы (уровень, загрузка, спуск, обновление) — ячейками по 8 px от левого края: заполненное и пустое совпадают по сетке */
+:is(.profile-level .meter, .meter--wide) { height: 6px; border-radius: 0; background: repeating-linear-gradient(90deg, var(--well) 0 6px, transparent 6px 8px); }
+:is(.profile-level .meter, .meter--wide) i { background: repeating-linear-gradient(90deg, var(--mist) 0 6px, transparent 6px 8px); }
+
+/* ДЕЛО · навыки: слот навыка — круг по смыслу; выбран — кость; готов к росту — кость (это данные, не тревога) */
+.slot { box-shadow: none; }
+.slot.is-on { border-color: var(--bone); box-shadow: 0 0 0 1px var(--bone); }
+.slot .ready { background: var(--bone); }
+.slot .ready::after { background: var(--void); }
+.skill-info { border-radius: 0; }
+.skill-info h3 { font: var(--fw-bold) 18px/1 var(--font-display); letter-spacing: .04em; text-transform: uppercase; }
+.skill-desc { font-size: 13px; color: var(--mist); }
+/* ДЕЛО · почта: список — строки по пунктиру; непрочитанное — квадрат сигнала; выбранное — черта кости */
+.mail-list button { border-bottom-style: dashed; }
+.mail-list button > i { border-radius: 0; width: 6px; height: 6px; }
+.mail-list time { font: var(--fw-semi) 10px/1 var(--font-mono); color: var(--dim); }
+.mail-read h3 { font: var(--fw-bold) 18px/1.1 var(--font-display); letter-spacing: .02em; }
+.mail-gift { border-radius: 0; border-color: var(--seam-strong); }
+/* ДЕЛО · карта: места — строки по пунктиру, координаты — моно; подсказка — туман */
+.map-places button { border-radius: 0; background: none; border: 0; border-bottom: 1px dashed var(--seam); }
+.map-places button:hover { background: rgb(var(--rgb-bone) / .04); }
+.map-places small { font: var(--fw-semi) 11px/1 var(--font-mono); }
+.map-places .map-hint, .map-hint { color: var(--mist); font-size: 12px; }
+.pin-dot { box-shadow: 0 0 0 1px rgb(var(--rgb-black) / .6); }
+.pin-dot--build { border-radius: 0; }
+/* ДЕЛО · обучение и спуск: шапка и подвал — лист */
+.onb-head { padding: 22px 28px 18px; }
+.onb-foot { border-top-style: solid; }
+.descent-tip { border-left-color: var(--bone); }
+.descent-explain { color: var(--mist); }
+.descent-meta { font: var(--fw-semi) 10px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.descent-tip b { color: var(--bone); }
+/* ДЕЛО · пусто — служебной подписью по центру */
+.inv-window-empty { font: var(--fw-semi) 9px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+/* Знак в окне входа на телефоне — та же марка */
+.brand { gap: 10px; }
+/* Нарушения: скругления у системной группы и иконки паузы; кегль шкалы груза на телефоне */
+.sysbuttons, .pause-sys .icon-btn, .icon-btn { border-radius: 0; }
+.frame.compact .cargo-scale { font-size: 7px; }
+/* Добито по второму прогону аудита */
+.mini-skill .up { background: var(--c); }
+.mini-skill .bar i { border-radius: 0; }
+.nick-link { font-weight: var(--fw-bold); }
+.nick-link:hover { text-decoration-style: dotted; }
+.asset-load span { font: inherit; color: var(--dim); }
+.pad { background: rgb(var(--rgb-graphite) / .55); border: 1px solid var(--seam-strong); }
+.prog-open span { font-weight: var(--fw-semi); }
+.mail-gift span { font-size: 13px; }
+.profile-ach small { font: var(--fw-semi) 9px/1.3 var(--font-mono); letter-spacing: .04em; color: var(--ash); }
+.prog-cats { gap: 4px; }
+.descent-meta span { font: inherit; }
+.link-url b { font-family: var(--font-mono); }
+/* Любая шкала-полоса без ячеек (опыт навыка) — туман, не сигнал */
+.meter > i { background-color: var(--mist); }
+.skill-info .meter i, .profile .meter i { background: var(--mist); }
+.skill-info { border-top-right-radius: 0; border-radius: 0; }
+.hud .chat-column, .frame .chat-column { border-radius: 0; }
+.profile-skills .skill-info { border-radius: 0; }
+.frame .pg:not([data-btn="a"], [data-btn="b"], [data-btn="x"], [data-btn="y"]) { border-radius: 0; }
+.tbtn span { font-family: var(--font-text); font-weight: var(--fw-semi); color: var(--mist); }
+
+/* ── Поправки после расширенного аудита: вкладки, калибровка, состояния окон без своего параметра ── */
+/* Кнопка не наследует шрифт страницы: вне HUD (калибровка) падала на системный */
+.btn { font-family: var(--font-text); }
+/* Обновление обязательно — красная клавиша целиком: общее правило клавиш перекрывало её заливку и рамку */
+.btn.btn--update { background: var(--danger); border-color: var(--danger); color: var(--on-signal); }
+.btn.btn--update:hover { background: var(--danger-hover); border-color: var(--danger-hover); }
+
+/* Калибровка: фон остаётся чистым чёрным — по нему настраивают чёрный уровень; текст — ДЕЛО, образец сцены — панель РОБОТА */
+.calib { background: var(--black); font-family: var(--font-text); }
+.calib-foot p { font: var(--fw-normal) 14px/1.5 var(--font-text); color: var(--ash); }
+.calib-trio figcaption { font: var(--fw-semi) 9px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+.calib-card { border-radius: 0; border: 1px solid var(--seam); background: var(--grain), var(--graphite); }
+.calib-card b { font: var(--fw-bold) 18px/1 var(--font-display); letter-spacing: .02em; }
+.calib-card span { font: var(--fw-semi) 14px/1 var(--font-mono); color: var(--money); }
+/* Прочность в образце — ячейками, как у робота: 20 по 5% */
+.calib-hp { border-radius: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(5% - 2px), var(--graphite-solid) calc(5% - 2px) 5%), linear-gradient(90deg, var(--calib-hp) 70%, var(--well) 70%); }
+.calib-paper { border-radius: 0; }
+
+/* Список каналов чата — строки ДЕЛА */
+.chat-list { background: var(--grain), var(--graphite-solid); }
+.chat-list button { border-radius: 0; border-bottom: 1px dashed var(--seam); }
+.chat-list b { font: var(--fw-semi) 14px/1.3 var(--font-text); color: var(--bone); }
+.chat-list span { font-size: 12px; color: var(--ash); }
+.pm-thread b { font-weight: var(--fw-semi); color: var(--bone); }
+
+/* Доска клана: роль и метка закрепления — подписи моно-капсом; закреплённое — кость, не сигнал */
+.clan-board .role { font: var(--fw-semi) 9px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ash); }
+/* .pin — ещё и метка карты (абсолютная, со сдвигом): на доске она строка шапки справа */
+.clan-board .pin { position: static; transform: none; margin-left: auto; font: var(--fw-semi) 9px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--bone); }
+.clan-board p { font: var(--fw-normal) 14px/1.55 var(--font-text); color: var(--bone); }
+.clan-list li.req small { font-size: 12px; color: var(--ash); }
+
+/* Окно обновления: пояснение и список изменений — ДЕЛО, пункты через «//» */
+.upd-box small { font-size: 12px; color: var(--ash); }
+.upd-list li { font: var(--fw-normal) 14px/1.45 var(--font-text); color: var(--bone); }
+.upd-list li::before { content: "// "; font: var(--fw-semi) 9px/1 var(--font-mono); color: var(--seam-strong); }
+.frame.compact .upd .dialog-actions { border-top: 1px dashed var(--seam); background: var(--grain), var(--graphite-solid); }
+
+/* Карточка предмета */
+.inv-window-info h3 { font: var(--fw-bold) 16px/1.1 var(--font-display); letter-spacing: .04em; text-transform: uppercase; }
+.inv-window-qty { font: var(--fw-semi) 12px/1 var(--font-mono); color: var(--ash); }
+.inv-window-desc { font: var(--fw-normal) 13px/1.5 var(--font-text); color: var(--ash); }
+/* Нажатие залитой клавиши: заливка остаётся и темнеет на шаг, рамка вместе с ней — без скоса; общий «колодец» стёр бы её под тёмный текст */
+.btn.btn--primary:active, .pk-btn.is-primary:active, .tbtn.tbtn--dig:active { --down: color-mix(in srgb, var(--signal) 82%, var(--black)); background: var(--down); border-color: var(--down); }
+.btn.btn--update:active { --down: color-mix(in srgb, var(--danger) 82%, var(--black)); background: var(--down); border-color: var(--down); }
+/* Клетка программы — углубление (поле ввода): при нажатии остаётся углублением, тонкая тень по верху — его, не скос клавиши */
+.prog-cell:active { background: var(--well); }
+
+/* Кнопка программатора: имя запущенной программы стоит на месте слова «Программатор» той же строкой — без плашки и второй строки */
+.frame .prog-open span[hidden] { display: none; }
+.frame.hud-pc .prog-open:has(.prog-name:not([hidden])) { display: flex; padding: 0 var(--sp-6); }
+.prog-open .prog-name { margin: 0; padding: 0; border: 0; background: none; color: var(--bone); font: inherit; font-weight: var(--fw-semi);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Фокус геймпада — как любой фокус: рамка кости с отступом 2 px; сигнал — только действие и тревога */
+.frame.in-pad :focus { outline: 1px solid var(--bone); outline-offset: 2px; }
+/* После клика мышью рамки нет: фокус-рамка — только у клавиатуры и геймпада */
+.frame:not(.in-pad) :focus:not(:focus-visible) { outline: none; }
+
+/* ── Навыки: робот Legacy (upgrade.png) обведён вектором — тело и провода волосяной линией, шина пунктиром; слоты лежат на тех же точках ── */
+.robot-art { -webkit-mask: none; mask: none; background: none; overflow: visible; --ru-line: var(--smoke); --ru-bus: var(--seam-strong); --ru-fill: color-mix(in srgb, var(--bone) 5%, var(--graphite-solid)); }   /* тело плотное: ноги и провода начинаются под ним, без зазоров на контуре */
+.slot { border-color: var(--seam-strong); background: var(--graphite-solid); }
+/* Пустой слот — пустое место на проводе: пунктирное кольцо без заливки */
+.slot.is-empty { border-style: dashed; border-color: var(--smoke); background: var(--graphite-solid); }
+/* Уровень навыка — число датчика: моно, цвет навыка на углублении; не плашка-заливка */
+.slot .lvl { top: -8px; min-width: 20px; height: 14px; padding: 0 3px; border: 1px solid var(--seam-strong); background: var(--well-solid); color: var(--c);
+  font: var(--fw-bold) 9px/12px var(--font-mono); text-align: center; }
+.skill-info .big { width: 48px; height: 48px; }
+.skill-desc { white-space: pre-line; font: var(--fw-normal) 13px/1.55 var(--font-text); color: var(--ash); }
+
+/* ── Профиль — лист: шапка, затем робот и колонка справа (выбранный навык, статистика), ниже достижения. Списки — строками, не карточками ── */
+.profile-grid { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px; align-items: start; }
+.profile-side { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.profile-side .skill-info { flex: none; padding: 14px; border: 1px solid var(--seam); background: var(--grain), var(--plate); display: grid; grid-template-columns: 48px minmax(0, 1fr); column-gap: 12px; row-gap: 6px; align-items: center; }
+.profile-side .skill-info > :not(.big, h3) { grid-column: 1 / -1; }
+.profile-side .skill-info h3 { font-size: 16px; }
+.profile-skills { display: block; }
+.profile-stats { display: flex; flex-direction: column; gap: 0; }
+.profile-stats div { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; border: 0; border-bottom: 1px dashed var(--seam); border-radius: 0; background: none; }
+.profile-stats dt { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; font: var(--fw-normal) 13px/1.2 var(--font-text); letter-spacing: 0; text-transform: none; color: var(--ash); }
+.profile-stats dt::after { content: ""; flex: 1; min-width: 12px; border-bottom: 1px dotted var(--seam-strong); }
+.profile-stats dd { font: var(--fw-semi) 14px/1.2 var(--font-mono); color: var(--bone); }
+.profile-ach { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 20px; row-gap: 0; }
+.profile-ach li, .profile-ach li.is-done { grid-template-columns: 28px minmax(0, 1fr); align-content: start; padding: 8px 0; border: 0; border-bottom: 1px dashed var(--seam); border-radius: 0; background: none; }
+.profile-ach img { grid-row: 1 / span 3; align-self: start; }
+.profile-ach b { grid-column: 2; font: var(--fw-semi) 13px/1.2 var(--font-text); }
+.profile-ach small { grid-column: 2; }
+.profile-ach .meter { grid-column: 2; height: 3px; margin: 4px 0 0; border-radius: 0; background: var(--well); }
+.profile-ach li.is-done b { color: var(--bone); }
+.frame.size-s .profile-ach { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* ── Программирование: программа — адресуемый лист. Номера строк и столбцов — адреса клеток (стек и пауза пишут «3:2»),
+   курсор исполнения и выбранная клетка подсвечивают свой адрес на линейках; запуск не перекрашивает лист ── */
+.prog-sheet { display: grid; grid-template-columns: 18px auto; grid-template-rows: 14px auto; column-gap: 4px; row-gap: 3px; }
+.prog-cols, .prog-rows { list-style: none; display: grid; gap: 1px; padding: 0 1px; font: var(--fw-semi) 8px/1 var(--font-mono); color: var(--smoke); }
+.prog-cols { grid-column: 2; grid-row: 1; grid-template-columns: repeat(16, var(--cell)); align-items: end; }
+.prog-rows { grid-column: 1; grid-row: 2; grid-template-rows: repeat(12, var(--cell)); padding: 1px 0; justify-items: end; align-items: center; }
+.prog-cols li { text-align: center; }
+.prog-cols li.is-on, .prog-rows li.is-on { color: var(--bone); }
+.prog-sheet > .prog-grid { grid-column: 2; grid-row: 2; }
+.prog-sheet { --cell: 48px; }
+.frame.in-touch .prog-sheet { --cell: 44px; }
+.prog-win.is-run .prog-grid { background: var(--seam); }
+/* Курсор исполнения — кость: где сейчас программа; точка останова — тревога; выбранное — кость тоньше */
+.prog-cell.is-here { background: rgb(var(--rgb-bone) / .1); box-shadow: inset 0 0 0 2px var(--bone); }
+.prog-cell.is-sel { box-shadow: inset 0 0 0 1px var(--bone); }
+/* Остановить — то же главное действие, что «Запустить», со своим знаком; не опасное */
+.prog-go.is-stop { --down: color-mix(in srgb, var(--signal) 82%, var(--black)); background: var(--signal); border-color: var(--signal); color: var(--on-signal); }
+.prog-go.is-stop:hover { background: var(--signal-hover); border-color: var(--signal-hover); }
+.prog-go.is-stop:active { background: var(--down); border-color: var(--down); }
+
+/* ── Сеть в мире: реплика игрока над роботом — плашка передачи (корпус, волосяная рамка) с прямым хвостом к роботу, а не пузырь Legacy ── */
+.wl-chat { opacity: .92; height: auto; translate: -6px calc(-100% - 6px); border: 1px solid var(--seam-strong); border-image: none; background: var(--graphite-solid); padding: 2px 6px; }
+.wl-chat::after { content: ""; position: absolute; left: 5px; top: 100%; width: 1px; height: 6px; background: var(--seam-strong); }
+.wl-chat span { height: 16px; margin: 0; padding: 0; line-height: 16px; color: var(--bone); font: var(--fw-normal) 12px/16px var(--font-text); }
+.wl-name { text-shadow: 0 1px 0 rgb(var(--rgb-black) / .9); }
+
+/* ── Пол размеров: клавиша не сжимается по тексту — смена состояния, перевода или данных не двигает соседей ──
+   шкала ширин: 96 — обычная, 120 — в строке действий окна, 160 — крупная; запуск программы держит ширину самого длинного состояния */
+.btn, .pk-btn { min-width: 96px; }
+.dialog-actions .btn, .skill-tools .btn, .calib-actions .btn, .onb-actions .btn { min-width: 120px; }
+.btn--hero, .btn--big { min-width: 160px; }
+.prog-go { min-width: 148px; justify-content: center; }
+.frame.size-s .calib-actions .btn { min-width: 96px; }
+
+/* ══ Микродизайн: детали из промышленной маркировки, каждая несёт данные или состояние ══ */
+/* Уголки рамки: углы панели прочерчены светлее линии — 6 px по трём углам (правый верхний срезан) */
+.panel:not(.minimap) { background:
+  var(--ticks),
+  linear-gradient(225deg, transparent calc(var(--notch) * .7071 - 1px), var(--notch-edge) calc(var(--notch) * .7071 - 1px) calc(var(--notch) * .7071 + 1px), transparent calc(var(--notch) * .7071 + 1px)) border-box,
+  var(--grain) padding-box, var(--graphite) padding-box;
+  background-origin: border-box, border-box, border-box, border-box, border-box, border-box, border-box, padding-box, padding-box; }
+/* Плашка шапки окна — главное число окна инверсией: тег клана, ID, слоты, предметы, координаты */
+:is(.head-tag, .skills-slots, .inv-window-count, .map-coords) { display: inline-flex; align-items: center; height: 18px; padding: 0 8px 0 6px; background: var(--bone); color: var(--void);
+  font: var(--fw-bold) 10px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; border-radius: 0;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%); }
+.head-tag:empty, .inv-window-count:empty, .map-coords:empty { display: none; }
+/* Штриховка: недоступное и пустое — косые волосяные полосы; так маркируют закрытое */
+/* Недоступно: штриховка, служебная рамка, без сигнала и без среза — даже у главного действия */
+.frame :is(.btn, .pk-btn):disabled { background: var(--hatch), transparent; border-color: var(--seam); color: var(--dim); clip-path: none; }
+.frame :is(.btn, .pk-btn):disabled::after { content: none; }
+.slot.is-empty { background: var(--hatch), var(--graphite-solid); }
+.inv-cell:empty, .inv-slots li:empty { background: var(--hatch), var(--well); }
+/* Главное действие — шевроны направления у правого края */
+.btn--primary, .btn--update { position: relative; }
+.btn--primary:not(.btn-ico-only)::after, .btn--update::after { content: "›››"; position: absolute; right: 12px; top: 50%; translate: 0 -54%; font: var(--fw-bold) 16px/1 var(--font-mono); letter-spacing: -.18em; opacity: .7; }
+/* Штрихкод значения — узкие и широкие штрихи из самих цифр (kernBars) */
+.idcode { display: inline-flex; align-items: stretch; gap: 1px; height: 12px; vertical-align: middle; opacity: .6; }
+.idcode b { width: 1px; background: currentColor; }
+.idcode b.w { width: 3px; }
+.menu-meta .idcode { margin-left: 8px; color: var(--ash); }
+.profile-meta .idcode { color: var(--ash); }
+/* Плашка стоит сразу за названием окна, остальное шапки — справа */
+:is(.srv-head, .skills-head, .inv-window-head) > h2:has(+ :is(.head-tag, .skills-slots, .inv-window-count, .map-coords)) { margin-right: 0; flex: none; }
+:is(.srv-head, .skills-head, .inv-window-head) > :is(.head-tag, .skills-slots, .inv-window-count, .map-coords) { margin: 0 auto 0 12px; }
+/* «Бонусы» — плитка своей ширины; пол клавиши её не растягивает (на пальце она в ряду с «Чатом») */
+.frame .btn.bonus { min-width: 0; }
+
+/* Окна: уголки крупнее и ярче — окно как маркированный лист */
+:is(.srv-window, .dialog, .settings, .skills, .inv-window, .srv-pk).panel { --tick: 12px; --tick-c: rgb(var(--rgb-bone) / .85); }
+.hud .panel { --tick: 8px; --tick-c: rgb(var(--rgb-bone) / .7); }
+:is(.srv-head:not(.prog-head), .settings-head, .skills-head, .inv-window-head) > [data-close] { order: 10; margin-left: auto; }
+:is(.srv-head, .skills-head, .inv-window-head) > :is(.head-tag, .skills-slots, .inv-window-count, .map-coords) { margin-right: 0; }
+/* Разделы листа: квадрат-маркер перед подписью, риска на конце пунктира */
+:is(.profile-sec > h3, .map-side h3, .set-sec)::before { content: ""; flex: none; width: 5px; height: 5px; background: var(--bone); }
+:is(.profile-sec > h3, .map-side h3)::after { background: linear-gradient(var(--seam-strong), var(--seam-strong)) right center / 1px 7px no-repeat, repeating-linear-gradient(90deg, var(--seam) 0 2px, transparent 2px 4px); height: 7px; background-size: 1px 7px, 100% 1px; background-position: right center, left center; background-repeat: no-repeat; }
+/* Клавиша: риска-засечка в правом нижнем углу — метка нажимаемого */
+.btn:not(.btn--primary, .btn--update, :disabled), .pk-btn:not(.is-primary, :disabled) {
+  background-image: linear-gradient(var(--seam-strong), var(--seam-strong)), linear-gradient(var(--seam-strong), var(--seam-strong));
+  background-size: 6px 1px, 1px 6px; background-position: right 3px bottom 3px, right 3px bottom 3px; background-repeat: no-repeat; }
+
+/* ══ Микродизайн, слой 2: таблички и маркировка ══ */
+/* Подпись раздела — инверсная табличка со скосом: так маркируют отсеки. Пунктир за ней кончается риской */
+:is(.profile-sec > h3, .map-side h3, .set-sec) { gap: 0; }
+:is(.profile-sec > h3, .map-side h3, .set-sec)::before { content: none; }
+.sec-plate, :is(.cargo-head > span:first-child, .geo-label) {
+  display: inline-flex; align-items: center; height: 14px; padding: 0 9px 0 5px; background: var(--bone); color: var(--void);
+  font: var(--fw-bold) 8px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%); }
+:is(.profile-sec > h3, .map-side h3, .set-sec) > .sec-plate + span { margin-left: 10px; }
+:is(.profile-sec > h3, .map-side h3, .set-sec)::after { margin-left: 10px; }
+/* Уголки толще и длиннее: рамка как пластина с усиленными углами */
+:is(.srv-window, .dialog, .settings, .skills, .inv-window, .srv-pk).panel { --tick: 16px; --tick-c: rgb(var(--rgb-bone) / .9); --tick-w: 2px; }
+.hud .panel { --tick: 10px; --tick-c: rgb(var(--rgb-bone) / .8); --tick-w: 2px; }
+.panel:not(.minimap) { background:
+  linear-gradient(var(--tick-c), var(--tick-c)) left top / var(--tick) var(--tick-w, 1px) no-repeat,
+  linear-gradient(var(--tick-c), var(--tick-c)) left top / var(--tick-w, 1px) var(--tick) no-repeat,
+  linear-gradient(var(--tick-c), var(--tick-c)) left bottom / var(--tick) var(--tick-w, 1px) no-repeat,
+  linear-gradient(var(--tick-c), var(--tick-c)) left bottom / var(--tick-w, 1px) var(--tick) no-repeat,
+  linear-gradient(var(--tick-c), var(--tick-c)) right bottom / var(--tick) var(--tick-w, 1px) no-repeat,
+  linear-gradient(var(--tick-c), var(--tick-c)) right bottom / var(--tick-w, 1px) var(--tick) no-repeat,
+  linear-gradient(225deg, transparent calc(var(--notch) * .7071 - 1px), var(--notch-edge) calc(var(--notch) * .7071 - 1px) calc(var(--notch) * .7071 + 1px), transparent calc(var(--notch) * .7071 + 1px)) border-box,
+  var(--grain) padding-box, var(--graphite) padding-box;
+  background-origin: border-box, border-box, border-box, border-box, border-box, border-box, border-box, padding-box, padding-box; }
+/* Ячейки миссии — внутри поля панели: не на кромке, не под уголком и не под срезом */
+.mission-cells { margin: 8px 0 10px; }
+.frame.compact .mission-cells { margin: 6px 0 6px; }
+/* Свёрнутый чат стоит рядом с левой колонкой и совпадает с ней по высоте: два ряда режимов и зазор между ними */
+.frame:not(.compact) .chat-peek { box-sizing: border-box; height: calc(var(--row) * 2 + var(--gap)); padding-block: 0; align-items: center; overflow: hidden; }
+.frame:not(.compact) .chat-peek li { line-height: 1.3; }
+.frame:not(.compact) .chat-peek-tag { align-self: center; }
+/* Чат на десктопе: окно прежней высоты, лента начинается сразу под вкладками — короткая переписка не оставляет пустоты сверху */
+.frame:not(.compact) .chat-log { justify-content: flex-start; }
+/* Вкладки каналов в шапке чата дублировали список каналов (бургер): переключение — только через него. Видна лишь вкладка
+   текущего канала — как название чата; остальные остаются в DOM, на них держится состояние канала (js/hud.js) */
+.chat-head .chat-tab:not(.is-on) { display: none; }
+.chat-head .chat-tab.is-on { pointer-events: none; }
+.chat-head .chat-tab.is-on::after { content: none; }   /* подчёркивание отмечало вкладку; у заголовка оно лишнее */
+.chat-head #chatListBtn { margin-left: auto; }
+.chat-head:has(#chatListBtn[aria-expanded="true"]) .chat-tabs { visibility: hidden; }   /* открыт список каналов — название текущего не нужно; место держим, шапка не прыгает */
+/* Инвентарь на десктопе: слоты растут снизу вверх — 01 внизу колонки, 04 сверху; колонки по-прежнему справа налево.
+   Ряд задан явно, поэтому раскладка dense (иначе сетка уводит каждый слот в свою колонку). Номер слота — по порядку в DOM, он едет вместе с предметом */
+.frame:not(.compact) .inv-slots { grid-auto-flow: column dense; }
+.frame:not(.compact) .inv-slots li:nth-child(4n + 1) { grid-row: 4; }
+.frame:not(.compact) .inv-slots li:nth-child(4n + 2) { grid-row: 3; }
+.frame:not(.compact) .inv-slots li:nth-child(4n + 3) { grid-row: 2; }
+.frame:not(.compact) .inv-slots li:nth-child(4n + 4) { grid-row: 1; }
+/* Навыки — как в Legacy-клиенте (SkillButton.prefab / MiniSkill.prefab). Спрайты скопированы из него: img/legacy/up_framed.png (плашка «ап»),
+   up_lock_framed.png (она же с замком), up_word.png (стрелка мини-навыка). Размеры Legacy ×1.26 — слот у нас 48 px вместо 38 */
+/* Уровень — плашка цвета навыка с чёрной цифрой (Level: спрайт rounded, цвет = SkillButton.colors[type], текст чёрный) */
+.frame .slot .lvl { top: -5px; min-width: 28px; height: 15px; padding: 0 3px; border: 0; border-radius: 5px; background: var(--c); color: var(--black);
+  font: var(--fw-bold) 12.6px/15px var(--font-text); letter-spacing: 0; }
+/* Плашка «ап» — готовый спрайт Legacy у правого верхнего края иконки (Up: смещение 15.2, 11.5; размер 15×20) */
+.frame .slot .ready { left: calc(50% + 10px); right: auto; top: auto; bottom: calc(50% + 2px); width: 20px; height: 27px; border-radius: 0; background: url("../img/legacy/up_framed.png") 0 0 / 100% 100% no-repeat; image-rendering: pixelated; }
+.frame .slot .ready::after { content: none; }
+.frame .slot .ready.is-locked { background-image: url("../img/legacy/up_lock_framed.png"); }
+/* Мини-навык — доли иконки по MiniSkill.prefab (иконка 20×20): стрелка up_word 11×6 цвета навыка стоит на верхней кромке иконки,
+   центр сдвинут на 1.2; полоса 4.52×20 — вплотную справа (зазор 1) и во всю высоту иконки */
+.mini-skill .up { width: 55%; height: 30%; left: 56%; top: auto; bottom: 100%; clip-path: none; background: var(--c); image-rendering: pixelated;
+  -webkit-mask: url("../img/legacy/up_word.png") 0 0 / 100% 100% no-repeat; mask: url("../img/legacy/up_word.png") 0 0 / 100% 100% no-repeat; }
+.mini-skill .bar { right: auto; left: calc(100% + 5%); width: 22.6%; height: 100%; }
+/* Стрелки «›››» на главной кнопке лежат поверх (absolute, right: 12px, ~20px): слева от них место закрыто отступом, длинная подпись («Остановить») не наезжает */
+.btn--primary:not(.btn-ico-only), .btn--update { padding-right: 36px; }
+/* Деньги и кредиты — одним рядом (в Legacy тоже в строку); ширину колонки под предельные суммы набирает fitColumn (js/hud.js) */
+/* Деньги и кредиты — две равные половины ряда: 50% на 50% */
+.wallet { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: var(--sp-8); }
+.wallet > div { min-width: 0; }
+.wallet dd { width: max-content; max-width: 100%; }   /* сумма — по содержимому: по ней fitColumn считает ширину колонки */
+.frame.compact .wallet { gap: var(--sp-5); }
+/* Миссия на ПК стоит под миникартой и ровно на её ширине; flex сбрасывается — в колонке 300px базы стали бы высотой */
+.frame:not(.compact) .top-right > .mission { flex: none; width: var(--col); min-width: 0; box-sizing: border-box; }
+/* «Проверить» в окне проверки файлов — без шевронов направления: это не переход, а проверка; отступ под шевроны тоже снят */
+#healthCheck::after { content: none; }
+#healthCheck { padding-right: var(--sp-8); }

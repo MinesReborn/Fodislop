@@ -1,40 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
-  <!-- Фон экранов вне игры: точечная сетка, шкала глубины слева, колонка пластов справа, крест прицела, печать 核 -->
+  <!-- Фон экранов вне игры: затемнение и точки по сетке клеток мира (клетка — 32 px) -->
   <defs>
-    <pattern id="d" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#d8d5ee" fill-opacity=".07"/></pattern>
-    <pattern id="h" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1" height="6" fill="#d8d5ee" fill-opacity=".14"/></pattern>
+    <pattern id="d" width="32" height="32" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#d8d5ee" fill-opacity=".08"/></pattern>
     <radialGradient id="v" cx=".62" cy=".5" r=".75"><stop offset="0" stop-color="#14121d"/><stop offset="1" stop-color="#06050a"/></radialGradient>
   </defs>
   <rect width="1920" height="1080" fill="url(#v)"/>
   <rect width="1920" height="1080" fill="url(#d)"/>
-  <g stroke="#d8d5ee" stroke-opacity=".22" stroke-width="1" fill="none">
-    <path d="M40 120V960"/>
-    <path d="M40 120h18M40 220h18M40 320h18M40 420h18M40 520h18M40 620h18M40 720h18M40 820h18M40 920h18"/>
-    <path d="M40 140h8M40 160h8M40 180h8M40 200h8M40 240h8M40 260h8M40 280h8M40 300h8M40 340h8M40 360h8M40 380h8M40 400h8M40 440h8M40 460h8M40 480h8M40 500h8M40 540h8M40 560h8M40 580h8M40 600h8M40 640h8M40 660h8M40 680h8M40 700h8M40 740h8M40 760h8M40 780h8M40 800h8M40 840h8M40 860h8M40 880h8M40 900h8M40 940h8"/>
-  </g>
-  <g fill="#d8d5ee" fill-opacity=".28" font-family="JetBrains Mono, Menlo, monospace" font-size="10" letter-spacing="1">
-    <text x="64" y="124">000</text><text x="64" y="224">100</text><text x="64" y="324">200</text><text x="64" y="424">300</text><text x="64" y="524">400</text>
-    <text x="64" y="624">500</text><text x="64" y="724">600</text><text x="64" y="824">700</text><text x="64" y="924">800</text>
-  </g>
-  <!-- Колонка керна: пласты разной плотности, один — сигнал -->
-  <g transform="translate(1380 0)">
-    <path d="M0 0h120v1080H0z" fill="#0d0c13"/>
-    <rect y="0" width="120" height="140" fill="url(#h)"/>
-    <rect y="140" width="120" height="60" fill="#d8d5ee" fill-opacity=".05"/>
-    <rect y="200" width="120" height="210" fill="url(#h)" opacity=".5"/>
-    <rect y="410" width="120" height="44" fill="#ff5a1f" fill-opacity=".9"/>
-    <rect y="454" width="120" height="120" fill="#d8d5ee" fill-opacity=".08"/>
-    <rect y="574" width="120" height="260" fill="url(#h)"/>
-    <rect y="834" width="120" height="30" fill="#6270ff" fill-opacity=".5"/>
-    <rect y="864" width="120" height="216" fill="#d8d5ee" fill-opacity=".04"/>
-    <path d="M0 0V1080M120 0V1080" stroke="#d8d5ee" stroke-opacity=".25"/>
-    <g stroke="#d8d5ee" stroke-opacity=".3"><path d="M-14 140h10M-14 200h10M-14 410h10M-14 454h10M-14 574h10M-14 834h10M-14 864h10"/></g>
-    <g fill="#d8d5ee" fill-opacity=".3" font-family="JetBrains Mono, Menlo, monospace" font-size="10" text-anchor="end">
-      <text x="-20" y="144">-140</text><text x="-20" y="414">-410</text><text x="-20" y="458">-454</text><text x="-20" y="838">-834</text>
-    </g>
-  </g>
-  <!-- Прицел -->
-  <g stroke="#d8d5ee" stroke-opacity=".18"><path d="M1240 160v120M1180 220h120"/><rect x="1236" y="216" width="8" height="8" fill="none"/></g>
-  <g stroke="#d8d5ee" stroke-opacity=".12"><path d="M240 980h360M240 974v12M600 974v12M420 977v6"/></g>
-  <text x="1350" y="1040" text-anchor="end" fill="#d8d5ee" fill-opacity=".025" font-family="PingFang SC, Noto Sans SC, sans-serif" font-size="300" font-weight="600">核</text>
 </svg>

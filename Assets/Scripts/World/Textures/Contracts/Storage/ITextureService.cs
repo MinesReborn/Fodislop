@@ -31,7 +31,14 @@ public interface ITextureService
     Texture2D? FlowMapTexture { get; }
     Texture2DArray? TerrainDecalAtlasArray { get; }
     void LoadWorldAssets(
-        IReadOnlyList<WorldAssetDefinitionPacket> assetManifest);
+        IReadOnlyList<AssetsDefinitionPacket> assetManifest);
+
+    /// <summary>
+    /// Мир уже играет, а сервер прислал новый манифест: докачать изменившееся и подменить текстуры без сброса мира и
+    /// без экрана загрузки. Описания клеток к этому моменту уже применены.
+    /// </summary>
+    void UpdateWorldAssets(
+        IReadOnlyList<AssetsDefinitionPacket> assetManifest);
     IReadOnlyList<IAtlasDescriptor> GetAllAtlases();
     string GetCacheStats();
     void FlushDirtyAtlases();

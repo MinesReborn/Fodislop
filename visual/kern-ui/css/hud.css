@@ -56,29 +56,39 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .frame.compact .pid span { height: 18px; padding: 0 var(--sp-2); font-size: var(--t-2); line-height: 16px; }
 .frame.compact .player-head { gap: 5px; }
 .nick { flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-strong); font-weight: var(--fw-bold); letter-spacing: .01em; }
-.hp { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--sp-5); }
-.hp .meter { height: 10px; }
-/* Деления по 10 % — полоса читается как запас, а не как прогресс-бар */
-.hp .meter::after { content: ""; position: absolute; inset: 0; z-index: 1; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgb(var(--rgb-well) / .55) calc(10% - 1px) 10%); }
-.hp-value { font-weight: var(--fw-semi); min-width: 58px; text-align: right; }
-.wallet { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-1); }
-.wallet > div { display: flex; flex-direction: column; gap: var(--sp-1); }
+/* Прочность: 20 точек по 5% (цвет — доля, как SetHP) и крупное число с единицей мелко сверху */
+.hp { display: flex; align-items: center; gap: var(--sp-5); }
+.hp-dots { flex: 1; min-width: 120px; display: grid; grid-template-columns: repeat(20, 1fr); gap: 2px; }
+.hp-dots i { aspect-ratio: 1; border-radius: 50%; border: 1px solid var(--c); }
+.hp-dots i.on { background: var(--c); }
+.hp-value { flex: none; white-space: nowrap; }
+.hp-value b { font: var(--fw-bold) 26px/.8 var(--font-display); letter-spacing: 0; }
+:is(.hp-value, .cargo-head strong) sup { margin-left: 2px; vertical-align: top; font: var(--fw-semi) 8px/1 var(--font-mono); letter-spacing: .12em; color: var(--ash); }
+/* Деньги и кредиты — строками: знак валюты и значок кредита в одном слоте, числа начинаются с одной вертикали */
+.wallet { display: flex; flex-direction: column; gap: 6px; }
 .wallet dt { display: none; }
-.wallet dd { font-variant-numeric: tabular-nums; font-weight: var(--fw-semi); display: flex; align-items: center; gap: var(--sp-3); }
+.wallet dd { display: grid; grid-template-columns: 9px auto; align-items: center; gap: 3px; font: var(--fw-semi) 15px/1 var(--font-mono); letter-spacing: .02em; white-space: nowrap; }
+.wallet .cur { justify-self: center; }
 .money { color: var(--money); }
 .creds { color: var(--creds); }
-.creds img { width: 9px; height: 10px; image-rendering: pixelated; }
-.geo { display: flex; align-items: center; gap: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--seam); color: var(--ash); font-weight: var(--fw-semi); font-variant-numeric: tabular-nums; }
+.creds img { justify-self: center; width: 6px; height: 7px; image-rendering: pixelated; }
+/* Геология: подпись, ячейка — блок, счёт; ниже — последний блок словом */
+.geo { padding-top: var(--sp-5); border-top: 1px dashed var(--seam); }
 .geo[hidden] { display: none; }
-.geo svg { flex: none; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.75; }
-.geo img { flex: none; width: 18px; height: 18px; image-rendering: pixelated; border-radius: var(--r-xs); }
-.geo .share { flex: 1; min-width: 16px; height: 3px; border-radius: var(--r-xs); background: linear-gradient(90deg, var(--ash) var(--w), var(--track) var(--w)); }
+.geo-row { display: flex; align-items: center; gap: var(--sp-4); }
+.geo-label, .geo-last { font: var(--fw-semi) 9px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+.geo-label { flex: none; }
+.geo-cells { flex: 1; display: grid; gap: 2px; height: 8px; }
+.geo-cells i, .cargo-cells i { background: var(--well); box-shadow: inset 1px 1px 0 rgb(var(--rgb-black) / .7); }
+.geo-cells i.on { background: var(--ash); box-shadow: none; }
+.geo-count { flex: none; font: var(--fw-semi) 13px/1 var(--font-mono); color: var(--ash); white-space: nowrap; }
+.geo-last { margin-top: 5px; display: flex; gap: .5em; font-size: 7px; line-height: 1.3; min-width: 0; }
+.geo-last .sl { color: var(--seam-strong); }
+.geo-last b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ash); }
 
 .bonus { width: var(--row); padding: 0; display: grid; place-items: center; }
 .bonus svg { width: 22px; height: 22px; }
 .mission { flex: 0 1 300px; min-width: 180px; padding: 0 var(--sp-7) var(--sp-6); display: grid; grid-template-columns: 1fr auto; column-gap: var(--sp-6); overflow: hidden; }
-.mission .meter { grid-column: 1 / -1; margin: 0 -14px var(--sp-5); border-radius: 0; }
-.mission .meter i { background: var(--signal); }
 .mission-title { font-weight: var(--fw-semi); }
 .mission-text { grid-column: 1; font-size: var(--t-small); color: var(--ash); }
 .mission-progress { grid-row: 2; grid-column: 2; font-weight: var(--fw-semi); color: var(--signal); }
@@ -86,18 +96,22 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .cargo { width: var(--pcol, var(--col)); padding: var(--sp-5) var(--sp-7) var(--sp-6); display: flex; flex-direction: column; gap: var(--sp-4); }
 .cargo[hidden] { display: none; }
 .cargo-head { display: flex; align-items: center; gap: var(--sp-4); white-space: nowrap; }
-.cargo-head span { color: var(--ash); }
-.cargo-head strong { font-weight: var(--fw-bold); }
+.cargo-head span { font: var(--fw-semi) 9px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+.cargo-head strong b { font: var(--fw-bold) 26px/.8 var(--font-display); letter-spacing: 0; }
 .cargo-head .icon-btn { margin-left: auto; margin-right: -6px; }
-.meter--cargo { height: 6px; }
-.crystals { list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-1); }
-.crystals li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); font-weight: var(--fw-semi); font-variant-numeric: tabular-nums; }
-.crystals .share { flex: 1; min-width: 8px; height: 3px; border-radius: var(--r-xs); background: linear-gradient(90deg, currentColor var(--w), var(--track) var(--w)); opacity: .7; }
-.crystals li > span { flex: none; }
-.crystals img { width: 18px; height: 18px; image-rendering: pixelated; flex: none; }
+/* Полоса груза — 20 ячеек по 5%; при перегрузе полная, цвет — порог игры */
+.cargo-cells { display: grid; grid-template-columns: repeat(20, 1fr); gap: 2px; height: 10px; }
+.cargo-cells i.on { background: var(--bar); box-shadow: none; }
+.cargo-scale { display: flex; justify-content: space-between; margin-top: calc(var(--sp-2) - var(--sp-4)); font: var(--fw-semi) 7px/1 var(--font-mono); letter-spacing: .14em; color: var(--dim); }
+/* Кристаллы — одна сетка: значок, доля лимита, число; полоски и числа стоят по одним вертикалям */
+.crystals { list-style: none; display: grid; grid-template-columns: 16px minmax(40px, 1fr) auto; gap: 6px 8px; align-items: center; }
+.crystals li { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; }
+.crystals .share { position: relative; height: 3px; background: repeating-linear-gradient(90deg, rgb(var(--rgb-bone) / .14) 0 1px, transparent 1px 4px); }
+.crystals .share i { position: absolute; inset: 0 auto 0 0; background: currentColor; }
+.crystals li > span { font: var(--fw-semi) 13px/1 var(--font-mono); text-align: right; white-space: nowrap; }
+.crystals img { width: 16px; height: 16px; image-rendering: pixelated; }
 .frame:not(.compact).tier-standard .cargo { padding: var(--sp-4) var(--sp-7); gap: var(--sp-2); }
-.frame:not(.compact).tier-standard .crystals li { line-height: 18px; }
-.frame:not(.compact).tier-standard .crystals img { width: 16px; height: 16px; }
+.frame:not(.compact).tier-standard .crystals { row-gap: 3px; }
 
 .states { list-style: none; width: var(--col); display: flex; flex-direction: column; gap: var(--sp-2); }
 .states li { display: flex; justify-content: space-between; padding: 5px var(--sp-6) 5px var(--sp-5); border-radius: var(--r-s); background: var(--graphite); border-left: 3px solid var(--c); font-size: var(--t-small); color: var(--bone); }

@@ -11,15 +11,13 @@ namespace Kern.Tests.AssetPipeline;
 public sealed class PublishedTextureSourceIndexTests
 {
     [Test]
-    public void PublishedIdentityUsesExactNameAndFormatPriority()
+    public void PublishedIdentityUsesExactName()
     {
         var index = new PublishedTextureSourceIndex(new Dictionary<string, string>
         {
-            ["Cells/Crystals/Blue/Blue.exr"] = "Cells/Blue.exr",
             ["Cells/Crystals/Blue/Blue.png"] = "Cells/Blue.png",
         });
         Assert.That(index.Resolve("Cells/Blue.png"), Is.EqualTo("Cells/Crystals/Blue/Blue.png"));
-        Assert.That(index.Resolve("Cells/Blue.exr"), Is.EqualTo("Cells/Crystals/Blue/Blue.exr"));
         Assert.That(index.Resolve("cells/BLUE"), Is.Null);
         Assert.That(index.Resolve("Cells/Absent.png"), Is.Null);
     }

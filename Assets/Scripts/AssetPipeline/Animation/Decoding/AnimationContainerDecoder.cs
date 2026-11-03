@@ -76,7 +76,7 @@ public static class AnimationContainerDecoder
             return true;
         }
 
-        // Runtime asset requests use extensionless IDs (for example Visual/bz),
+        // Runtime asset requests use extensionless IDs (for example Visual/Effects/bz),
         // while authored layouts identify the concrete PNG asset.
         if (Path.GetExtension(filename).Length == 0)
         {

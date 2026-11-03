@@ -8,6 +8,16 @@ namespace Kern.AssetPipeline.Cache;
 
 internal static class PersistentAssetCacheFiles
 {
+    // Служебные файлы системы и файловых менеджеров (.DS_Store, ._*, Thumbs.db, desktop.ini) не принадлежат кэшу:
+    // чистка их не трогает и не считает «лишними»
+    public static bool IsSystemFile(string pathOrName)
+    {
+        string name = Path.GetFileName(pathOrName);
+        return name.StartsWith('.') ||
+            string.Equals(name, "Thumbs.db", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, "desktop.ini", StringComparison.OrdinalIgnoreCase);
+    }
+
     public static void DeleteIfExists(string path)
     {
         if (File.Exists(path))

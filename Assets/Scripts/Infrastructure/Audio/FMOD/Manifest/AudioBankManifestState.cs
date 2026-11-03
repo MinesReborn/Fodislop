@@ -4,29 +4,40 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Kern.Core.Interfaces;
+using MinesServer.Networking.Server.Packets.Connection;
 
 namespace Kern.Infrastructure.Audio;
 
 public sealed class AudioBankManifestState : IAudioBankManifestState
 {
-    private IReadOnlyList<string>? _filenames;
+    private IReadOnlyList<AssetsDefinitionPacket>? _banks;
 
-    public bool TryGetBankFilenames(out IReadOnlyList<string> filenames)
+    public int Revision { get; private set; }
+
+    public bool TryGetBanks(out IReadOnlyList<AssetsDefinitionPacket> banks)
     {
-        filenames = _filenames ?? Array.Empty<string>();
-        return _filenames != null;
+        banks = _banks ?? Array.Empty<AssetsDefinitionPacket>();
+        return _banks != null;
     }
 
-    public void SetBankFilenames(IReadOnlyList<string> filenames)
+    public void SetBanks(IReadOnlyList<AssetsDefinitionPacket> banks)
     {
-        if (filenames == null)
+        if (banks == null)
         {
-            throw new ArgumentNullException(nameof(filenames));
+            throw new ArgumentNullException(nameof(banks));
         }
 
-        _filenames = filenames
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(filename => filename, StringComparer.Ordinal)
+        AssetsDefinitionPacket[] ordered = banks
+            .GroupBy(bank => bank.Filename, StringComparer.Ordinal)
+            .Select(group => group.First())
+            .OrderBy(bank => bank.Filename, StringComparer.Ordinal)
             .ToArray();
+        if (_banks != null && _banks.SequenceEqual(ordered))
+        {
+            return;
+        }
+
+        _banks = ordered;
+        Revision++;
     }
 }

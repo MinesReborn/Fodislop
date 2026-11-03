@@ -173,7 +173,6 @@ public sealed class PacketHandler : IStartable, IDisposable
 
         On<AutoMineStatePacket>(_playerInfo.Process);
         On<SkillProgressPacket>(_playerStats.Process);
-        On<DailyBonusStatePacket>(_playerStats.Process);
         On<TeleportPacket>(_playerInfo.Process);
         On<ChatMessageListPacket>(_chat.Process);
         On<LocalChatMessagePacket>(_chat.Process);

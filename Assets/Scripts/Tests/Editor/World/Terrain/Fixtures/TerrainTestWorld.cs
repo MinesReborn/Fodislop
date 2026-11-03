@@ -175,9 +175,9 @@ public sealed class TerrainTestWorld
 
         public Color32 GetCellMinimapColor32(CellType type) => new(64, 89, 115, 255);
 
-        public bool TryGetAudioBankFilenames(out IReadOnlyList<string> filenames)
+        public bool TryGetAudioBanks(out IReadOnlyList<AssetsDefinitionPacket> banks)
         {
-            filenames = Array.Empty<string>();
+            banks = Array.Empty<AssetsDefinitionPacket>();
             return false;
         }
 
@@ -186,6 +186,8 @@ public sealed class TerrainTestWorld
 
         public void LoadWorldInit(WorldInitPacket packet) => throw new NotSupportedException();
 
+        public bool IsSameWorld(WorldInitPacket packet) => false;
+        public void ApplyWorldContent(WorldInitPacket packet) { }
         public void ResetWorldState() => throw new NotSupportedException();
     }
 
@@ -214,8 +216,11 @@ public sealed class TerrainTestWorld
         public Texture2D? FlowMapTexture => null;
 
         public Texture2DArray? TerrainDecalAtlasArray => null;
+        public void UpdateWorldAssets(
+            IReadOnlyList<AssetsDefinitionPacket> assetManifest) { }
+
         public void LoadWorldAssets(
-            IReadOnlyList<WorldAssetDefinitionPacket> assetManifest) { }
+            IReadOnlyList<AssetsDefinitionPacket> assetManifest) { }
 
         public void RequestTexture(CellType cellType)
         {

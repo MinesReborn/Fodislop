@@ -5,7 +5,8 @@
   const $ = id => document.getElementById(id);
   const D = window.PROG_DATA, C = D.code;
   const COLS = 16, ROWS = 12, PER = COLS * ROWS, MAX_PAGES = 25;
-  const CAT_COLOR = { CAT_CONTROL_FLOW: '#e4e8ea', CAT_ACTIONS: '#f2d64b', CAT_OBSERVER: '#45d3e6', CAT_CONDITIONS: '#79d98a', CAT_MEMORY: '#e07ae0' };
+  const token = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const CAT_COLOR = { CAT_CONTROL_FLOW: token('--prog-control'), CAT_ACTIONS: token('--prog-action'), CAT_OBSERVER: token('--prog-observer'), CAT_CONDITIONS: token('--prog-condition'), CAT_MEMORY: token('--prog-memory') };
   const catOf = {}; D.cats.forEach(c => c.ops.forEach(o => { catOf[o] = c.id; }));
   const keyOf = {}; D.keys.forEach(([k, ops]) => ops.forEach(o => { keyOf[o] ||= k; }));
   // Команды со значением (ProgrammatorInputSpec): метка или имя переменной, у сравнений ещё число
@@ -43,6 +44,19 @@
   const grid = $('progGrid');
   grid.innerHTML = Array.from({ length: PER }, (_, i) => `<button type="button" class="prog-cell" role="gridcell" data-i="${i}"></button>`).join('');
   const cellEls = [...grid.children];
+  // Адреса клеток — строка и столбец с единицы, как в «Пауза на клетке 1 · 3:2»: линейки над и слева от сетки
+  const sheet = document.createElement('div');
+  sheet.className = 'prog-sheet';
+  sheet.innerHTML = `<ol class="prog-cols" aria-hidden="true">${Array.from({ length: COLS }, (_, i) => `<li>${i + 1}</li>`).join('')}</ol>`
+    + `<ol class="prog-rows" aria-hidden="true">${Array.from({ length: ROWS }, (_, i) => `<li>${i + 1}</li>`).join('')}</ol>`;
+  grid.replaceWith(sheet); sheet.append(grid);
+  const colEls = [...sheet.querySelector('.prog-cols').children], rowEls = [...sheet.querySelector('.prog-rows').children];
+  // Адрес исполняемой клетки (пауза на этой странице), иначе — последней выбранной
+  function markAddress() {
+    const i = state === 'paused' && Math.floor(here / PER) === page ? here % PER : [...sel].at(-1);
+    colEls.forEach((li, c) => li.classList.toggle('is-on', i != null && i % COLS === c));
+    rowEls.forEach((li, r) => li.classList.toggle('is-on', i != null && Math.floor(i / COLS) === r));
+  }
   const icon = op => `<img src="img/prog/${op}.png" alt="">`;
   function paintCell(i) {
     const c = cells()[i], el = cellEls[i];
@@ -70,7 +84,7 @@
     ['progStepIn', 'progStepOver', 'progStepOut'].forEach(id => { $(id).disabled = state !== 'paused'; });
     $('progError').hidden = state !== 'failed';
     $('progError').textContent = 'Ошибка программы: неизвестная инструкция ?73 в ячейке 3:6.';
-    renderMem(); foot();
+    renderMem(); foot(); markAddress();
   }
   // Клетка как «стр. 1 · 3:5» — строка и столбец с единицы
   const cellName = g => { const pg = Math.floor(g / PER), i = g % PER; return `${pg + 1} · ${Math.floor(i / COLS) + 1}:${i % COLS + 1}`; };
@@ -249,8 +263,10 @@
   window.kernProgState = setState;
   $('progDialog').querySelector('[data-close]').onclick = close;
   document.querySelector('.prog-open').addEventListener('click', window.openProg);
-  const q = new URLSearchParams(location.search).get('prog');
-  if (q) window.kernWorld.ready.then(() => {
+  // Сброс сцены — только то, что отличается от исходного: лишняя перерисовка стёрла бы подсказки геймпада на кнопках
+  window.kernScene.onReset(() => { if (state !== 'stopped') setState('stopped'); if (!$('progList').hidden) showList(false); sel.clear(); const t = $('progTabs').querySelector('[data-tab="ops"]'); if (t.getAttribute('aria-checked') !== 'true') t.click(); });
+  window.kernScene.on(1, p => {
+    const q = p.get('prog'); if (!q) return;
     $('progDialog').style.transition = 'none'; window.openProg();
     if (q === 'debug') setState('paused');
     if (q === 'run') setState('running');

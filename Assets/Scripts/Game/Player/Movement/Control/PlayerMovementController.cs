@@ -441,7 +441,14 @@ namespace Kern.Game.Player.Movement
                     : _presentationState.TryBeginTeleport(targetWorldPos, out _);
             }
 
-            if (!holdPresentation)
+            // Transform игрока — это transform Robot: им владеет Robot.Update
+            // (сглаживание). Пакеты разбирает ConnectionManager.Update без
+            // порядка относительно Robot.Update; запись целевой клетки сюда
+            // на каждом подтверждении шага показывала тело на клетку впереди
+            // сглаженной позиции в кадре, где пакет шёл после Robot.Update, и
+            // следующий кадр возвращал его назад. Робот сам ставит transform
+            // при снапе (SnapTo), поэтому здесь пишем только без робота.
+            if (!holdPresentation && _robot is null)
             {
                 transform.position = targetWorldPos;
             }

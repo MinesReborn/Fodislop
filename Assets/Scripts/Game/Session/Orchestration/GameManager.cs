@@ -9,6 +9,8 @@ using Kern.World;
 using Kern.World.Lighting;
 using Kern.World.Terrain;
 using UnityEngine;
+using MinesServer.Networking.Client.Packets;
+using MinesServer.Networking.Client.Packets.Connection;
 using VContainer.Unity;
 
 using Kern.Game.Entities.Robots;
@@ -43,6 +45,7 @@ namespace Kern.Game.Session
         private readonly SurfaceRenderer _surfaceRenderer;
         private readonly LightingEngine _lightingEngine;
         private readonly ISceneObjectFactory _sceneObjects;
+        private readonly IConnectionService _connection;
 
         public GameManager(
             IAssetLoader assetLoader,
@@ -55,7 +58,8 @@ namespace Kern.Game.Session
             TerrainRenderer terrainRenderer,
             SurfaceRenderer surfaceRenderer,
             LightingEngine lightingEngine,
-            ISceneObjectFactory sceneObjects)
+            ISceneObjectFactory sceneObjects,
+            IConnectionService connection)
         {
             _assetLoader = assetLoader;
             _textureService = textureService;
@@ -68,6 +72,7 @@ namespace Kern.Game.Session
             _surfaceRenderer = surfaceRenderer;
             _lightingEngine = lightingEngine;
             _sceneObjects = sceneObjects;
+            _connection = connection;
         }
 
         private GameObject? _uiRoot;
@@ -195,24 +200,17 @@ namespace Kern.Game.Session
                     $"cellTexPending={_textureService.PendingCellTextureRequests}");
             }
 
-            if (player != null && player.HasServerPosition)
-            {
-                _loadProgress.Report(WorldLoadPhase.SpawnSync);
-            }
-
-            if (terrain != null && terrain.IsReadyForGameplay)
-            {
-                _loadProgress.Report(WorldLoadPhase.TerrainMesh);
-            }
-
-            if ((_surfaceRenderer == null || _surfaceRenderer.IsReadyForGameplay) &&
-                (_lightingEngine == null || _lightingEngine.IsReadyForGameplay) &&
-                _textureService.IsWorldAssetsReady &&
-                pendingAssets == 0 && queuedAssets == 0 &&
-                _textureService.PendingCellTextureRequests == 0)
-            {
-                _loadProgress.Report(WorldLoadPhase.SurfaceAssets);
-            }
+            // Условия сходятся параллельно и в любом порядке. Фаза экрана — первый ещё не готовый этап по порядку
+            // «ассеты → робот → мир»: она не откатывается и называет то, что реально держит вход. Рельеф готов только
+            // вместе с текстурами ячеек и проверенным светом (TerrainReadiness), отдельной фазы текстур нет.
+            bool assetsReady = _textureService.IsWorldAssetsReady && pendingAssets == 0 && queuedAssets == 0;
+            bool spawnReady = player != null && player.HasServerPosition &&
+                robot != null && robot.IsVisualsLoaded &&
+                _playerStats != null && _playerStats.IsReady;
+            _loadProgress.Report(
+                !assetsReady ? WorldLoadPhase.WorldManifest :
+                !spawnReady ? WorldLoadPhase.SpawnSync :
+                WorldLoadPhase.TerrainMesh);
 
             if (player == null || !player.HasServerPosition ||
                 robot == null || !robot.IsVisualsLoaded ||
@@ -241,6 +239,9 @@ namespace Kern.Game.Session
             _worldLoadPending = false;
             _worldLoadPublished = true;
             IsWorldLoaded = true;
+            // Мир показан (ассеты, позиция, террейн, интерфейс готовы): до этого пакета сервер держит робота скрытым и
+            // неуязвимым. Здесь, а не в старте сцены: после реконнекта внутри игры сцена не перезапускается, а мир входит заново
+            _connection.Send(new ClientPacket((uint)DateTimeOffset.UtcNow.Ticks, new ClientReadyPacket()));
             Debug.Log($"[Probe] WorldLoaded {UnityEngine.Time.realtimeSinceStartup:F3}");
             SetState(GameState.InGame);
             int robotCount = _robotService?.RobotCount ?? -1;

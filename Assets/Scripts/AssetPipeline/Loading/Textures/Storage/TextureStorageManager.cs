@@ -22,7 +22,7 @@ namespace Kern.AssetPipeline.Loading
         // Декодирование и копия в RGBA32 идут на главном потоке: маркер
         // нужен, чтобы провис кадра на приезде текстур был виден в FrameStall.
         private static readonly Unity.Profiling.ProfilerMarker s_decodeMarker = new("Kern.Textures.Decode");
-        private static readonly string[] s_supportedExtensions = [".png", ".jpg", ".jpeg", ".exr"];
+        private static readonly string[] s_supportedExtensions = [".png"];
 
         private int _lastDecodeFrame = -1;
 
@@ -349,7 +349,7 @@ namespace Kern.AssetPipeline.Loading
                 {
                     throw new InvalidDataException(
                         $"Unrendered texture '{normalized}' has unsupported format " +
-                        $"'{Path.GetExtension(normalized)}'; expected PNG, JPEG or EXR.");
+                        $"'{Path.GetExtension(normalized)}'; expected PNG.");
                 }
 
                 if (_rawBytesCache.TryGetValue(normalized, out byte[]? cachedBytes))

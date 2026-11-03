@@ -24,17 +24,13 @@
 .wl-chat { position: absolute; height: var(--ctl-s); translate: -6px -100%; border-style: solid; border-width: 7px 12px 22px 13px; border-image: url("../img/ui/bubble.png") 7 12 22 13 fill / 7px 12px 22px 13px; opacity: .62; }
 .wl-chat span { display: block; height: 18px; max-width: 360px; margin: -7px -9px 0 -10px; padding: 0 3px; line-height: 18px; color: var(--on-signal); font-size: var(--t-5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* ── Стрелки у края экрана ── */
+/* ── Кольцо вокруг игрока и значки целей в кадре ── */
 .edge-arrows { position: absolute; inset: 0; pointer-events: none; }
-.edge-arrow { position: absolute; width: 30px; height: 30px; translate: -50% -50%; }
-.edge-arrow > span { position: absolute; }
-.edge-arrow--r > span { right: 100%; top: 50%; translate: 0 -50%; margin: 0 var(--sp-1) 0 0; }
-.edge-arrow--l > span { left: 100%; top: 50%; translate: 0 -50%; margin: 0 0 0 var(--sp-1); }
-.edge-arrow--t > span { top: 100%; left: 50%; translate: -50% 0; }
-.edge-arrow--b > span { bottom: 100%; left: 50%; translate: -50% 0; }
-.edge-arrow i { width: 30px; height: 30px; display: grid; place-items: center; rotate: var(--a); }
-.edge-arrow i::before { content: ""; width: 0; height: 0; border-left: 16px solid var(--c); border-top: 10px solid transparent; border-bottom: 10px solid transparent; filter: var(--shadow-drop); }
-.edge-arrow span, .edge-pin span { margin-top: var(--sp-1); padding: 1px var(--sp-3); border-radius: var(--r-s); background: var(--tag); color: var(--c); font-size: var(--t-3); font-weight: var(--fw-semi); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.marker-ring { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; fill: none; stroke: none; }
+.marker-ring .ring-glow { fill: var(--c); filter: drop-shadow(0 0 7px var(--c)) drop-shadow(0 0 2px var(--c)); }
+.marker-ring .ring-core { fill: color-mix(in srgb, var(--c) 35%, var(--white)); }
+.marker-ring .ring-t { fill: var(--c); stroke: rgb(var(--rgb-black) / .75); stroke-width: 3; paint-order: stroke; stroke-linejoin: round; font: var(--fw-semi) 10px/1 var(--font-mono); letter-spacing: .06em; font-variant-numeric: tabular-nums; }
+.edge-pin span { margin-top: var(--sp-1); padding: 1px var(--sp-3); border-radius: var(--r-s); background: var(--tag); color: var(--c); font-size: var(--t-3); font-weight: var(--fw-semi); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .edge-pin { position: absolute; translate: -50% -100%; display: flex; flex-direction: column; align-items: center; }
 .edge-pin::after { content: ""; width: 0; height: 0; border-top: 9px solid var(--c); border-left: 6px solid transparent; border-right: 6px solid transparent; }
 

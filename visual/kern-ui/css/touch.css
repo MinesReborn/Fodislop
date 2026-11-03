@@ -65,23 +65,26 @@
 .frame.compact .player-head { height: 18px; }
 .frame.compact .nick { font-size: var(--t-small); flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .frame.compact .hp { gap: var(--sp-3); }
-.frame.compact .hp .meter { height: 10px; border-radius: var(--r-s); }
-.frame.compact .hp-value { line-height: 16px; font-size: var(--t-small); min-width: 0; }
-.frame.compact .wallet { gap: 0; }
-.frame.compact .wallet dt { font-size: var(--t-3); }
+.frame.compact .hp-dots { min-width: 90px; gap: 1px; }
+.frame.compact :is(.hp-value, .cargo-head strong) b { font-size: 18px; }
+.frame.compact .wallet { gap: 2px; }
 .frame.compact .wallet dd { font-size: var(--t-small); line-height: 16px; }
-.frame.compact .geo { grid-column: 1 / 4; margin-top: var(--sp-1); padding-top: 3px; font-size: var(--t-small); line-height: 14px; }
-.frame.compact .geo svg { width: 14px; height: 14px; }
-.frame.compact .geo img { width: 14px; height: 14px; }
+.frame.compact .geo { grid-column: 1 / 4; margin-top: var(--sp-1); padding-top: 4px; }
+.frame.compact .geo-cells { height: 6px; }
+.frame.compact .geo-count { font-size: var(--t-small); }
+.frame.compact .geo-last { margin-top: 3px; }
 
 /* Кнопка бокса — справа на две строки: шапка «Груз» не растягивается до 44 dp, кристаллы идут сразу под ней */
-.frame.compact .cargo { width: var(--pcol, 100%); display: grid; grid-template-columns: auto auto 1fr auto; grid-template-rows: auto 1fr; align-items: center; column-gap: var(--sp-3); row-gap: var(--sp-1); padding: var(--sp-3) 0 var(--sp-3) var(--sp-5); }
+.frame.compact .cargo { width: var(--pcol, 100%); display: grid; grid-template-columns: auto auto 1fr auto; grid-template-rows: auto auto 1fr; align-items: center; column-gap: var(--sp-3); row-gap: var(--sp-1); padding: var(--sp-3) 0 var(--sp-3) var(--sp-5); }
 .frame.compact .cargo-head { display: contents; }
-.frame.compact .cargo-head span, .frame.compact .cargo-head strong { font-size: var(--t-small); }
-.frame.compact .cargo-head .icon-btn { grid-column: 4; grid-row: 1 / span 2; align-self: start; margin: -6px 0 0; }
-.frame.compact .cargo .meter { grid-column: 3; grid-row: 1; margin: 0; }
-.frame.compact .crystals { grid-column: 1 / 4; grid-row: 2; align-self: start; margin: 0; gap: 0; }
-.frame.compact .crystals li { font-size: var(--t-small); line-height: 16px; white-space: nowrap; }
+
+.frame.compact .cargo-head .icon-btn { grid-column: 4; grid-row: 1 / span 3; align-self: start; margin: -6px 0 0; }
+/* Полоса груза — в строке шапки, шкала 0/50/100 — сразу под ней */
+.frame.compact .cargo-cells { grid-column: 3; grid-row: 1; align-self: end; height: 8px; gap: 1px; }
+.frame.compact .cargo-scale { grid-column: 3; grid-row: 2; align-self: start; margin: 0; font-size: 6px; }
+.frame.compact .crystals { grid-column: 1 / 4; grid-row: 3; align-self: start; margin: 0; grid-template-columns: 14px minmax(30px, 1fr) auto; row-gap: 0; column-gap: var(--sp-3); }
+.frame.compact .crystals li { line-height: 16px; }
+.frame.compact .crystals li > span { font-size: var(--t-small); }
 .frame.compact .crystals img { width: 14px; height: 14px; }
 .frame.size-m .crystals li { line-height: 20px; }
 .frame.size-m .crystals img { width: 16px; height: 16px; }
@@ -109,7 +112,7 @@
 .frame.size-s .chat-peek li:first-child:nth-last-child(3) { display: none; }
 .frame.size-m .chat-peek li { line-height: 15px; }
 .frame.compact .mission { position: absolute; top: calc(var(--band-t) + var(--peek-h) + 6px); left: var(--band-l); width: calc(min(460px, var(--band-w)) * .52); min-width: 0; padding: 0 var(--sp-5) var(--sp-2); }
-.frame.compact .mission .meter { margin: 0 -10px var(--sp-2); }
+.frame.compact .mission-cells { margin: 0 -10px var(--sp-2); }
 .frame.compact .mission-title { font-size: var(--t-body); line-height: 16px; }
 .frame.compact .mission-title, .frame.compact .mission-text { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow-wrap: anywhere; }
 .frame.compact .mission-text { -webkit-line-clamp: 2; }
@@ -316,6 +319,8 @@
 .frame.compact .descent .menu-title { font-size: var(--t-14); }
 .frame.compact .descent-explain { font-size: var(--t-5); min-height: 0; }
 .frame.compact .descent { gap: var(--sp-4); }
+/* Столбец прокручивается — строки не сжимаются в ноль (подпись налезала на полосу) */
+.frame.compact .descent > * { flex: none; }
 .frame.compact .phases { font-size: var(--t-4); }
 .frame.compact .descent .btn--wide { width: 200px; margin-top: 0; }
 .frame.compact .menu-rail { right: calc(var(--sr) + 24px); top: calc(56px + var(--st)); bottom: calc(56px + var(--sb)); transform: none; justify-content: center; gap: var(--sp-3); }
@@ -345,9 +350,7 @@
 .frame.size-s .menu-rail .rail-btn { width: 110px; padding: 0 7px; gap: var(--sp-3); }
 .frame.size-s .menu-rail .control-label { font-size: var(--t-3); }
 .frame.size-s .menu-rail .rail-btn img { width: 18px; height: 18px; }
-.frame.size-s .menu-rail #railHealth { grid-column: 1; grid-row: 1; }
-.frame.size-s .menu-rail #railHealth .control-label { white-space: normal; }
-.frame.size-s .menu-rail [title="Выход из игры"] { grid-column: 1; grid-row: 2; }
+.frame.size-s .menu-rail [title="Выход из игры"] { grid-column: 1; grid-row: 1; }
 .frame.size-s .menu-rail [title="Discord"] { grid-column: 2; grid-row: 1; }
 .frame.size-s .menu-rail [title="Telegram"] { grid-column: 2; grid-row: 2; }
 .frame.size-s .menu-rail [title="ВКонтакте"] { grid-column: 2; grid-row: 3; }
@@ -384,3 +387,5 @@
 .pause #pauseExit { margin-top: var(--sp-2); }
 /* Окно предметов на весь экран — ячеек в ряд сколько влезет */
 .frame.compact .inv-window-grid { grid-template-columns: repeat(auto-fill, 56px); }
+/* Текст миссии на узкой полосе: перенос по слогам, а не посреди буквы — слово рвётся только если не влезает и по слогам */
+.frame.compact .mission-text { overflow-wrap: break-word; hyphens: auto; }

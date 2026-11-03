@@ -27,6 +27,8 @@ public sealed class RobotAssetLoader
         _destroyToken = destroyToken;
     }
 
+    public static string ClanPath(byte clanId) => $"Visual/Clan/{clanId}.png";
+
     public void Cancel()
     {
         _cts?.Cancel();
@@ -157,7 +159,7 @@ public sealed class RobotAssetLoader
             return;
         }
 
-        string clanPath = $"Visual/Clan/{clanId}";
+        string clanPath = ClanPath(clanId);
         Texture2D? clanTexture = await TryLoadOptionalTextureAsync(_assetLoader, clanPath, token);
         if (token.IsCancellationRequested || clanTexture == null)
         {

@@ -13,6 +13,7 @@ using Kern.Core.Interfaces.Diagnostics;
 using UnityEngine;
 
 using Kern.Diagnostics.Frames;
+using MinesServer.Networking.Server.Packets.Connection;
 
 namespace Kern.Infrastructure.Audio;
 public sealed class FmodAudioBackend
@@ -25,7 +26,8 @@ public sealed class FmodAudioBackend
     private bool _degraded;
     private FMOD.Studio.EventDescription _digEventDescription;
     private bool _digSamplesRequested;
-    private readonly List<FMOD.Studio.Bank> _persistentBanks = new();
+    private readonly Dictionary<string, LoadedBank> _persistentBanks = new(StringComparer.Ordinal);
+    private bool _ready;
 
     private const string MasterBusPath = "bus:/";
     private const string DigEventPath = "event:/sfx/bz";
@@ -34,6 +36,9 @@ public sealed class FmodAudioBackend
     private static readonly FMOD.VECTOR s_upVector = new() { x = 0f, y = 1f, z = 0f };
 
     public bool IsDegraded => _degraded;
+
+    /// <summary>Банки загружены и шины сопоставлены: дальше набор банков можно сверять на лету.</summary>
+    public bool IsReady => _ready;
 
     public async UniTask WaitUntilReadyAsync(
         AudioSystem system,
@@ -80,16 +85,13 @@ public sealed class FmodAudioBackend
             cancellationToken.ThrowIfCancellationRequested();
             if (FMODUnity.RuntimeManager.HaveAllBanksLoaded)
             {
-                if (!audioBankManifest.TryGetBankFilenames(out IReadOnlyList<string> bankFilenames))
+                if (!audioBankManifest.TryGetBanks(out IReadOnlyList<AssetsDefinitionPacket> banks))
                 {
                     await UniTask.Yield(cancellationToken);
                     continue;
                 }
 
-                if (_persistentBanks.Count == 0)
-                {
-                    await LoadPersistentBanksAsync(assetLoader, bankFilenames, cancellationToken);
-                }
+                await SyncPersistentBanksAsync(assetLoader, banks, cancellationToken);
 
                 RequestDigSamples();
                 FMOD.RESULT result = _digEventDescription.getSampleLoadingState(out FMOD.Studio.LOADING_STATE state);
@@ -102,6 +104,7 @@ public sealed class FmodAudioBackend
                     !FMODUnity.RuntimeManager.AnySampleDataLoading())
                 {
                     MapBuses(system);
+                    _ready = true;
                     return;
                 }
             }
@@ -114,52 +117,123 @@ public sealed class FmodAudioBackend
             "[FmodAudioBackend] Банки FMOD не догрузились за отведённое время; игра идёт без звука.");
     }
 
-    private async UniTask LoadPersistentBanksAsync(
+    /// <summary>
+    /// Сервер сменил набор банков посреди игры: выгружает исчезнувшие и изменившиеся, загружает новые и заново
+    /// привязывает события и шины, потому что описания из прежних банков больше не действительны.
+    /// </summary>
+    public async UniTask RefreshBanksAsync(
+        AudioSystem system,
         IAssetLoader assetLoader,
-        IReadOnlyList<string> registeredBankFilenames,
+        IAudioBankManifestState audioBankManifest,
         CancellationToken cancellationToken)
     {
-        string[] bankFilenames = registeredBankFilenames
-            .OrderBy(filename => filename.EndsWith(".strings.bank", StringComparison.Ordinal) ? 0 : 1)
-            .ThenBy(filename => filename, StringComparer.Ordinal)
+        if (!_ready || !audioBankManifest.TryGetBanks(out IReadOnlyList<AssetsDefinitionPacket> banks))
+        {
+            return;
+        }
+
+        if (!await SyncPersistentBanksAsync(assetLoader, banks, cancellationToken))
+        {
+            return;
+        }
+
+        _digSamplesRequested = false;
+        RequestDigSamples();
+        _busesMapped = false;
+        _buses.Clear();
+        MapBuses(system);
+    }
+
+    // Приводит загруженные банки к набору сервера. Возвращает true, если что-то изменилось
+    private async UniTask<bool> SyncPersistentBanksAsync(
+        IAssetLoader assetLoader,
+        IReadOnlyList<AssetsDefinitionPacket> registeredBanks,
+        CancellationToken cancellationToken)
+    {
+        AssetsDefinitionPacket[] banks = registeredBanks
+            .OrderBy(bank => bank.Filename.EndsWith(".strings.bank", StringComparison.Ordinal) ? 0 : 1)
+            .ThenBy(bank => bank.Filename, StringComparer.Ordinal)
             .ToArray();
-        if (bankFilenames.Length == 0)
+        if (banks.Length == 0)
         {
             throw new FileNotFoundException(
                 "No FMOD banks are registered in the WorldInit asset manifest.");
         }
 
-        var persistentPaths = new List<(string BankName, string Path)>(bankFilenames.Length);
-        foreach (string filename in bankFilenames)
+        var desired = new HashSet<string>(StringComparer.Ordinal);
+        foreach (AssetsDefinitionPacket bank in banks)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            string path = await assetLoader.GetAssetPathAsync(filename, cancellationToken);
-            string bankName = Path.GetFileNameWithoutExtension(filename);
-            persistentPaths.Add((bankName, path));
+            desired.Add(bank.Filename);
         }
 
-        foreach ((string bankName, _) in persistentPaths)
+        bool changed = false;
+        var stale = new List<string>();
+        foreach (KeyValuePair<string, LoadedBank> loaded in _persistentBanks)
         {
-            FMODUnity.RuntimeManager.UnloadBank(bankName);
+            AssetsDefinitionPacket? wanted = null;
+            foreach (AssetsDefinitionPacket bank in banks)
+            {
+                if (string.Equals(bank.Filename, loaded.Key, StringComparison.Ordinal))
+                {
+                    wanted = bank;
+                    break;
+                }
+            }
+
+            if (wanted is not { } match ||
+                !string.Equals(match.ETag, loaded.Value.ETag, StringComparison.OrdinalIgnoreCase))
+            {
+                stale.Add(loaded.Key);
+            }
+        }
+
+        // Файлы новых и изменившихся банков берутся до выгрузки старых: сбой загрузки не должен оставить звук без банков
+        var toLoad = new List<(AssetsDefinitionPacket Bank, string Path)>();
+        foreach (AssetsDefinitionPacket bank in banks)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (_persistentBanks.ContainsKey(bank.Filename) && !stale.Contains(bank.Filename))
+            {
+                continue;
+            }
+
+            string path = await assetLoader.GetAssetPathAsync(bank.Filename, cancellationToken);
+            toLoad.Add((bank, path));
+        }
+
+        foreach (string filename in stale)
+        {
+            if (_persistentBanks.Remove(filename, out LoadedBank unloaded) && unloaded.Bank.isValid())
+            {
+                unloaded.Bank.unload();
+            }
+
+            changed = true;
         }
 
         FMOD.Studio.System studioSystem = FMODUnity.RuntimeManager.StudioSystem;
-        foreach ((string bankName, string path) in persistentPaths)
+        foreach ((AssetsDefinitionPacket bank, string path) in toLoad)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            string bankName = Path.GetFileNameWithoutExtension(bank.Filename);
+
+            // Банк с этим именем мог загрузить сам FMOD Unity при старте
+            FMODUnity.RuntimeManager.UnloadBank(bankName);
             FMOD.RESULT result = studioSystem.loadBankFile(
                 path,
                 FMOD.Studio.LOAD_BANK_FLAGS.NORMAL,
-                out FMOD.Studio.Bank bank);
+                out FMOD.Studio.Bank loadedBank);
             if (result != FMOD.RESULT.OK)
             {
-                UnloadPersistentBanks();
                 throw new InvalidOperationException(
                     $"Could not load cached FMOD bank '{bankName}' at '{path}': {result}.");
             }
 
-            _persistentBanks.Add(bank);
+            _persistentBanks[bank.Filename] = new LoadedBank(bank.ETag, loadedBank);
+            changed = true;
         }
+
+        return changed;
     }
 
     private void UnloadPersistentBanks()
@@ -170,11 +244,11 @@ public sealed class FmodAudioBackend
             return;
         }
 
-        for (int index = _persistentBanks.Count - 1; index >= 0; index--)
+        foreach (LoadedBank loaded in _persistentBanks.Values)
         {
-            if (_persistentBanks[index].isValid())
+            if (loaded.Bank.isValid())
             {
-                _persistentBanks[index].unload();
+                loaded.Bank.unload();
             }
         }
 
@@ -427,5 +501,18 @@ public sealed class FmodAudioBackend
         {
             FrameEventLog.Record($"FMOD {operation}: {eventPath} {milliseconds:F1} мс");
         }
+    }
+
+    private readonly struct LoadedBank
+    {
+        public LoadedBank(string eTag, FMOD.Studio.Bank bank)
+        {
+            ETag = eTag;
+            Bank = bank;
+        }
+
+        public string ETag { get; }
+
+        public FMOD.Studio.Bank Bank { get; }
     }
 }

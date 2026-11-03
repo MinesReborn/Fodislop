@@ -2,29 +2,38 @@
 <meta charset="utf-8">
 <title>overflow: running</title>
 <!-- Текст не выходит за свою коробку: на каждом экране и устройстве стенда ищет
-     элементы, чей текст шире или выше самого элемента. Итог — в <title>. -->
-<pre id="log"></pre>
+     элементы, чей текст шире или выше самого элемента. Итог — в <title>.
+     Игра грузится один раз; каждая сцена — kernScene.reset() и kernScene.apply(параметры): те же обработчики, что при загрузке по адресу.
+     ?lang=en|zh — один язык; ?lang=all — ru, en, zh за один проход; ?mode=reload — прежний способ (загрузка на каждое устройство),
+     чтобы сверить: число проверенных текстов по каждой паре экран×устройство должно совпасть (#counts) -->
+<pre id="log"></pre><pre id="counts" hidden></pre>
 <script>
-const DEVICES = ['se', 'promax', 'pixel8', 'ipadmini', 'ipadpro', 'foldin', 'd768', 'd800', 'd1080', 'd1440', 'd219', 'd4k150'];
-const SCREENS = ['auth', 'auth&auth=register&autherr=1', 'onboarding&onbstep=0', 'onboarding&onbstep=1', 'onboarding&onbstep=2', 'menu', 'game', 'game&state=busy', 'game&state=busy&chat=1', 'game&settings=graphics', 'game&settings=audio', 'game&settings=interface', 'game&settings=controls', 'game&skills=1', 'game&pause=1', 'game&inv=1',
+const DEVICES_ALL = ['se', 'promax', 'pixel8', 'ipadmini', 'ipadpro', 'foldin', 'd768', 'd800', 'd1080', 'd1440', 'd219', 'd4k150'];
+const SCREENS_ALL = ['auth', 'auth&auth=register&autherr=1', 'onboarding&onbstep=0', 'onboarding&onbstep=1', 'onboarding&onbstep=2', 'menu', 'game', 'game&state=busy', 'game&state=busy&chat=1', 'game&settings=graphics', 'game&settings=audio', 'game&settings=interface', 'game&settings=controls', 'game&skills=1', 'game&pause=1', 'game&inv=1',
   'game&prog=1', 'game&prog=debug', 'game&prog=list', 'game&event=kicked', 'game&event=modal', 'game&event=link', 'game&map=1&mark=1'];
-const out = [];
-// ?lang=en|zh — та же проверка на другом языке
-const LANG = new URLSearchParams(location.search).get('lang');
+// ?screens=…,…&devices=…,… — часть набора (для разбора и сверки)
+const pick = (all, v) => v ? all.filter(x => v.split(',').includes(x)) : all;
+const DEVICES = pick(DEVICES_ALL, new URLSearchParams(location.search).get('devices')), SCREENS = pick(SCREENS_ALL, new URLSearchParams(location.search).get('screens'));
+const out = [], counts = {};
+const q = new URLSearchParams(location.search);
+const LANG = q.get('lang'), LANGS = LANG === 'all' ? ['ru', 'en', 'zh'] : [LANG || ''], RELOAD = q.get('mode') === 'reload';
 const wait = ms => new Promise(r => setTimeout(r, ms));
+const frames = w => new Promise(r => w.requestAnimationFrame(() => w.requestAnimationFrame(r)));
+const ready = async w => { await w.document.fonts.ready; await w.kernWorld?.ready; await frames(w); await wait(450); await frames(w); };
 const load = src => new Promise(res => {
   const f = document.createElement('iframe');
   f.style.cssText = 'width:1800px;height:1400px;border:0;position:absolute;left:-9999px';
   f.onload = () => res(f); f.src = src; document.body.appendChild(f);
 });
 function scan(d, w) {
-  const bad = [];
+  const bad = []; let n = 0;
   for (const el of d.querySelectorAll('#frame *')) {
     if (!el.getClientRects().length || el.closest('svg, canvas, [hidden], .is-off')) continue;
     const cs = w.getComputedStyle(el);
     if (cs.visibility === 'hidden' || cs.display === 'contents') continue;
     const own = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
     if (!own) continue;
+    n++;
     const r = el.getBoundingClientRect();
     const range = d.createRange(); range.selectNodeContents(el);
     const t = range.getBoundingClientRect();
@@ -38,21 +47,35 @@ function scan(d, w) {
     }
     if (!box) continue;
     const over = Math.max(box.left - t.left, t.right - box.right, box.top - t.top, t.bottom - box.bottom);
-    const clipped = false;   // многоточие и построчная обрезка — задуманы
-    if (over > 1.5 || clipped) bad.push(`${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''}.${[...el.classList].join('.')} «${el.textContent.trim().slice(0, 30)}» +${over.toFixed(1)}${clipped ? ' обрезан' : ''}`);
+    if (over > 1.5) bad.push(`${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''}.${[...el.classList].join('.')} «${el.textContent.trim().slice(0, 30)}» +${over.toFixed(1)}`);
   }
-  return bad;
+  return { bad, n };
 }
 (async () => {
   let fails = 0;
-  for (const s of SCREENS) for (const dev of DEVICES) {
-    const f = await load(`../index.html?screen=${s}&device=${dev}${LANG ? '&lang=' + LANG : ''}`);
-    await wait(LANG ? 2200 : 1600);
-    const bad = [...new Set(scan(f.contentDocument, f.contentWindow))];
-    if (bad.length) { fails += bad.length; out.push(`FAIL ${s} ${dev}` + bad.map(b => '\n     ' + b).join('')); }
-    f.remove();
+  const check = (f, s, dev, lang) => {
+    const { bad, n } = scan(f.contentDocument, f.contentWindow), uniq = [...new Set(bad)];
+    counts[`${lang} ${s} ${dev}`] = n;
+    if (uniq.length) { fails += uniq.length; out.push(`FAIL ${lang} ${s} ${dev}` + uniq.map(b => '\n     ' + b).join('')); }
+  };
+  const qs = (s, dev, lang) => `screen=${s}&device=${dev}${lang ? '&lang=' + lang : ''}&still=1`;
+  if (RELOAD) {
+    for (const s of SCREENS) for (const lang of LANGS) for (const dev of DEVICES) {
+      const f = await load(`../index.html?${qs(s, dev, lang)}`); await ready(f.contentWindow); check(f, s, dev, lang); f.remove();
+    }
+  } else {
+    // Игра грузится один раз; сцена — сброс и те же обработчики параметров, что при загрузке (js/scene.js)
+    const f = await load('../index.html?still=1'), w = f.contentWindow;
+    await ready(w);
+    // Снаружи — устройство и язык: они меняются редко, сцена — внутри
+    let k = 0;
+    for (const dev of DEVICES) for (const lang of LANGS) for (const s of SCREENS) {
+      w.kernScene.reset(); w.kernScene.apply(qs(s, dev, lang)); check(f, s, dev, lang);
+      if (++k % SCREENS.length === 0) { document.title = `overflow: … ${k}/${DEVICES.length * LANGS.length * SCREENS.length}`; await wait(0); }
+    }
   }
   document.getElementById('log').textContent = out.join('\n');
+  document.getElementById('counts').textContent = JSON.stringify(counts);
   document.title = (fails ? `overflow: FAIL ${fails}` : 'overflow: ok') + (LANG ? ' ' + LANG : '');
 })();
 </script>

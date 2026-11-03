@@ -31,8 +31,14 @@ namespace Kern.World
         public void LoadDecals(
             IReadOnlyDictionary<string, byte[]> worldAssetBytes,
             IAsyncOperationSupervisor operations,
-            Action notifyTextureLoaded) =>
-            _decalLoader.Load(worldAssetBytes, TerrainDecalCatalog.GetTextureNames(), operations, notifyTextureLoaded);
+            Action notifyTextureLoaded,
+            bool keepCurrentUntilReady = false) =>
+            _decalLoader.Load(
+                worldAssetBytes,
+                TerrainDecalCatalog.GetTextureNames(),
+                operations,
+                notifyTextureLoaded,
+                keepCurrentUntilReady);
 
         public void ClearDecals() => _decalLoader.Clear();
 

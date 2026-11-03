@@ -16,10 +16,8 @@ public sealed class DummyResponderDecompositionContractTests
 
         Assert.That(connection, Does.Contain("_windowResponder.Handle("));
         Assert.That(connection, Does.Contain("elementClick"));
-        Assert.That(connection, Does.Not.Contain("packet.WindowTag == \"daily_bonus\""));
         Assert.That(connection, Does.Not.Contain("packet.WindowTag == \"teleport\""));
         Assert.That(connection, Does.Not.Contain("packet.WindowTag == \"missions\""));
-        Assert.That(responder, Does.Contain("case \"daily_bonus\":"));
         Assert.That(responder, Does.Contain("case \"teleport\":"));
         Assert.That(responder, Does.Contain("case \"missions\":"));
     }

@@ -40,7 +40,7 @@ using UnityEngine;
 using VContainer;
 
 namespace Kern.Networking.Offline;
-public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegionRequester
+public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegionRequester, Kern.Core.Interfaces.ITransportTraffic
 {
     private readonly ITextureStorageService _textureStorage;
     private readonly IRuntimeAssetPaths _assetPaths;
@@ -176,7 +176,6 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
         _windowResponder = new DummyWindowResponder(
             SendPacket,
             _buffManager,
-            _inventoryResponder,
             _teleportManager,
             _clanManager,
             _missionRunner,
@@ -361,8 +360,14 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
         OnReceived?.Invoke(new ServerPacket(new MinesServer.Networking.Server.Packets.Connection.ReconnectPacket(reason)));
     }
 
+    // Как у настоящего транспорта: считаем «принятые» байты, по ним строится прогресс скачивания ресурсов
+    private long _receivedBytes;
+
+    public long ReceivedBytes => Interlocked.Read(ref _receivedBytes);
+
     private void SendPacket(ServerPacket packet)
     {
+        Interlocked.Add(ref _receivedBytes, packet.Size);
         OnReceived?.Invoke(packet);
     }
 
@@ -380,6 +385,9 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
             case ClientHelloPacket clientHello:
                 DummyHelloResponder.Handle(clientHello, _scenario, _session, _authSession,
                     _operations, SendPacket, InitWorldAsync);
+                break;
+            case ClientReadyPacket:
+                _worldStartup.OnClientReady();
                 break;
             case RuntimeAssetRequestPacket runtimeAssets:
                 _operations.Run(

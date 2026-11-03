@@ -22,7 +22,7 @@ namespace Kern.Networking.Connection
     /// События приходят с фонового потока — потребитель обязан маршалить сам
     /// (ConnectionManager уже ставит пакеты в ConcurrentQueue).
     /// </summary>
-    public sealed class ManagedTcpConnection : IServerConnection
+    public sealed class ManagedTcpConnection : IServerConnection, Kern.Core.Interfaces.ITransportTraffic
     {
         private const int ConnectTimeoutMs = 5000;
         private const int ReadBufferSize = 65536;
@@ -53,6 +53,10 @@ namespace Kern.Networking.Connection
         public event Action<Exception>? OnError;
 
         public int DecodeErrorCount => Volatile.Read(ref _decodeErrorCount);
+
+        private long _receivedBytes;
+
+        public long ReceivedBytes => Interlocked.Read(ref _receivedBytes);
 
         public ManagedTcpConnection(IPAddress address, int port)
         {
@@ -171,6 +175,7 @@ namespace Kern.Networking.Connection
                     break; // сервер закрыл соединение
                 }
 
+                Interlocked.Add(ref _receivedBytes, read);
                 _buffer.Put(chunk, read);
                 while (_buffer.TryTake(out var frame))
                 {

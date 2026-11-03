@@ -32,9 +32,9 @@ public sealed class AnimationContainerDecoderTests
         Assert.That(AnimationContainerDecoder.DetectType(new byte[] { 0x89, 0x50 }), Is.EqualTo(AnimationContainerDecoder.ContainerType.None));
     }
 
-    [TestCase("Visual/bz.png", 16, 480, 16, 32, 15, 30f)]
-    [TestCase("Visual/death.png", 64, 2496, 64, 64, 39, 40f)]
-    [TestCase("Visual/destroy.png", 1, 1, 1, 1, 1, 0f)]
+    [TestCase("Visual/Effects/bz.png", 16, 480, 16, 32, 15, 30f)]
+    [TestCase("Visual/Effects/death.png", 64, 2496, 64, 64, 39, 40f)]
+    [TestCase("Visual/Effects/destroy.png", 1, 1, 1, 1, 1, 0f)]
     public void TryGetAnimationConfig_KnownAnimations_ReturnsExpectedValues(
         string filename,
         int width,
@@ -186,7 +186,7 @@ public sealed class AnimationContainerDecoderTests
         }
 
         byte[] bytes = File.ReadAllBytes(visualEffectPath);
-        var result = AssetCacheDecoder.DecodeAnimationSprites(bytes, "Visual/bz");
+        var result = AssetCacheDecoder.DecodeAnimationSprites(bytes, "Visual/Effects/bz");
 
         Assert.That(result.Sprites, Is.Not.Null);
         Assert.That(result.Sprites.Length, Is.EqualTo(15));
@@ -205,7 +205,7 @@ public sealed class AnimationContainerDecoderTests
     {
         string path = Path.Combine(Application.dataPath, "Textures/Visual/bz/bz.png");
         Assert.That(File.Exists(path), Is.True);
-        var result = AssetCacheDecoder.DecodeTexture(File.ReadAllBytes(path), "Visual/bz");
+        var result = AssetCacheDecoder.DecodeTexture(File.ReadAllBytes(path), "Visual/Effects/bz");
         try
         {
             Assert.That(result.FrameEmission.Length, Is.EqualTo(15));

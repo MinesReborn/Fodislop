@@ -1,5 +1,7 @@
 #nullable enable
 
+using System;
+using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -13,6 +15,17 @@ public interface IAssetLoader
     int QueuedAssetCount { get; }
 
     bool IsKnownMissing(string filename);
+
+    /// <summary>
+    /// Файлы, которые сервер заменил посреди игры: тот, кто держит их картинки, перезагружает свои.
+    /// </summary>
+    event Action<IReadOnlyCollection<string>>? AssetsChanged;
+
+    /// <summary>
+    /// Сервер заменил эти файлы: прежние копии из памяти отбрасываются, и следующее обращение берёт новые из кэша на
+    /// диске. Потом подписчики <see cref="AssetsChanged"/> перезагружают то, что уже показывают.
+    /// </summary>
+    void ReplaceAssets(IReadOnlyCollection<string> filenames);
 
     UniTask<byte[]?> GetAssetBytesAsync(
         string filename,

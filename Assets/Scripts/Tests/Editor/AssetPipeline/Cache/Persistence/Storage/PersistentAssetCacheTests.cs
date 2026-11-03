@@ -51,7 +51,7 @@ public sealed class PersistentAssetCacheTests
     }
 
     [Test]
-    public void ETag_IsCalculatedFromCurrentPayload()
+    public void ExternallyModifiedPayload_IsRejectedAndDropped()
     {
         var cache = new PersistentAssetCache(_cachePath);
         cache.SaveAsset("Cells/117.png", new byte[] { 1, 2, 3, 4 });
@@ -60,9 +60,95 @@ public sealed class PersistentAssetCacheTests
 
         byte[]? payload = cache.GetAsset("Cells/117.png");
 
-        Assert.That(payload, Is.EqualTo(new byte[] { 4, 3, 2, 1 }));
-        Assert.That(cache.GetETag("Cells/117.png"), Is.EqualTo(ETagCalculator.Calculate(payload)));
-        Assert.That(File.Exists(payloadPath), Is.True);
+        Assert.That(payload, Is.Null);
+        Assert.That(File.Exists(payloadPath), Is.False);
+        Assert.That(cache.GetETag("Cells/117.png"), Is.Null);
+        Assert.That(cache.GetRecordedETag("Cells/117.png"), Is.Null);
+    }
+
+    [Test]
+    public void AdoptedPayload_IsVerifiedOnLaterReads()
+    {
+        var cache = new PersistentAssetCache(_cachePath);
+        string payloadPath = cache.GetAssetPath("legacy.bin");
+        Directory.CreateDirectory(Path.GetDirectoryName(payloadPath)!);
+        File.WriteAllBytes(payloadPath, new byte[] { 1, 2, 3 });
+        Assert.That(cache.GetAsset("legacy.bin"), Is.EqualTo(new byte[] { 1, 2, 3 }));
+
+        File.WriteAllBytes(payloadPath, new byte[] { 9, 9, 9 });
+
+        Assert.That(cache.GetAsset("legacy.bin"), Is.Null);
+    }
+
+    [Test]
+    public void Manifest_SurvivesRestartAndStillDetectsCorruption()
+    {
+        var cache = new PersistentAssetCache(_cachePath);
+        byte[] payload = new byte[] { 1, 2, 3, 4 };
+        cache.SaveAsset("Cells/5.png", payload);
+        string payloadPath = cache.GetAssetPath("Cells/5.png");
+
+        var restartedCache = new PersistentAssetCache(_cachePath);
+        Assert.That(restartedCache.GetRecordedETag("Cells/5.png"), Is.EqualTo(ETagCalculator.Calculate(payload)));
+        File.WriteAllBytes(payloadPath, new byte[] { 1, 2, 3, 5 });
+
+        Assert.That(restartedCache.GetAsset("Cells/5.png"), Is.Null);
+    }
+
+    [Test]
+    public void SystemFiles_SurviveRetainOnlyAndBrokenManifestCleanup()
+    {
+        var cache = new PersistentAssetCache(_cachePath);
+        cache.SaveAsset("Visual/a.png", new byte[] { 1 });
+        string rootJunk = Path.Combine(_cachePath, ".DS_Store");
+        string folderJunk = Path.Combine(Path.GetDirectoryName(cache.GetAssetPath("Visual/a.png"))!, ".DS_Store");
+        File.WriteAllBytes(rootJunk, new byte[] { 9 });
+        File.WriteAllBytes(folderJunk, new byte[] { 9 });
+
+        cache.RetainOnly(new string[0]);
+
+        Assert.That(cache.HasAsset("Visual/a.png"), Is.False);
+        Assert.That(File.Exists(rootJunk), Is.True);
+        Assert.That(File.Exists(folderJunk), Is.True);
+
+        File.WriteAllText(Path.Combine(_cachePath, "manifest.json"), "{ not json");
+        _ = new PersistentAssetCache(_cachePath);
+
+        Assert.That(File.Exists(rootJunk), Is.True);
+        Assert.That(File.Exists(folderJunk), Is.True);
+    }
+
+    [Test]
+    public void BrokenManifest_ClearsCacheInsteadOfAdoptingUnverifiableFiles()
+    {
+        var cache = new PersistentAssetCache(_cachePath);
+        cache.SaveAsset("Cells/5.png", new byte[] { 1, 2, 3, 4 });
+        string payloadPath = cache.GetAssetPath("Cells/5.png");
+        File.WriteAllText(Path.Combine(_cachePath, "manifest.json"), "{ not json");
+
+        var restartedCache = new PersistentAssetCache(_cachePath);
+
+        Assert.That(File.Exists(payloadPath), Is.False);
+        Assert.That(restartedCache.GetAsset("Cells/5.png"), Is.Null);
+        Assert.That(restartedCache.HasAsset("Cells/5.png"), Is.False);
+    }
+
+    [Test]
+    public void RetainOnly_KeepsManifestFilesAndDeletesTheRest()
+    {
+        var cache = new PersistentAssetCache(_cachePath);
+        cache.SaveAsset("a.png", new byte[] { 1 });
+        cache.SaveAsset("b.png", new byte[] { 2 });
+        string unknownPath = cache.GetAssetPath("unknown.png");
+        File.WriteAllBytes(unknownPath, new byte[] { 4 });
+
+        int removed = cache.RetainOnly(new[] { "a.png" });
+
+        Assert.That(removed, Is.EqualTo(2));
+        Assert.That(cache.HasAsset("a.png"), Is.True);
+        Assert.That(cache.HasAsset("b.png"), Is.False);
+        Assert.That(File.Exists(unknownPath), Is.False);
+        Assert.That(cache.GetRecordedETag("b.png"), Is.Null);
     }
 
     [Test]
