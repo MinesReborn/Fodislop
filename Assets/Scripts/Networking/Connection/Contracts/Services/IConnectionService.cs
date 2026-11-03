@@ -20,6 +20,11 @@ public interface ITransportTraffic
     long ReceivedBytes { get; }
 }
 
+public interface IAssetTransferProgress
+{
+    long ReceivedAssetBytes { get; }
+}
+
 public interface IConnectionService
 {
     // Принятые текущим транспортом байты; у нового транспорта счёт идёт с нуля. 0 — транспорт счёт не ведёт

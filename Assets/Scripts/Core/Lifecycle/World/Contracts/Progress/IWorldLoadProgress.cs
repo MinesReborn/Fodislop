@@ -1,5 +1,7 @@
 #nullable enable
 
+using System;
+
 namespace Kern.Core.Interfaces;
 public enum WorldLoadPhase
 {
@@ -18,6 +20,10 @@ public readonly record struct AssetSyncProgress(int FilesChecked, int FilesTotal
 
 public interface IWorldLoadProgress
 {
+    event Action<WorldLoadPhase>? PhaseChanged;
+
+    event Action<Exception>? Failed;
+
     WorldLoadPhase CurrentPhase { get; }
 
     // Синхронизация ресурсов мира: сначала проверка кэша (файлов проверено из скольких), потом скачивание того, чего нет
@@ -25,6 +31,8 @@ public interface IWorldLoadProgress
     AssetSyncProgress AssetSync { get; }
 
     void Report(WorldLoadPhase phase);
+
+    void ReportFailure(Exception exception);
 
     void ReportAssetCheck(int filesChecked, int filesTotal);
 

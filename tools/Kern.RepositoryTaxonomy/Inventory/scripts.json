@@ -4544,7 +4544,7 @@
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Contracts/OfflineScenarioSettings.cs",
-    "path": "Assets/Scripts/Networking/Connection/Contracts/Scenarios/OfflineScenarioSettings.cs",
+    "path": "Assets/Scripts/Networking/Connection/Contracts/Scenarios/DummyScenarioSettings.cs",
     "meta_sha256": "386cb4b1f885922d1cc58fecdd88748af15d376b3e1a3518d5e80c8fba992f2a",
     "guid": "77ae65c93a514e328e7fe80b6e29dc48",
     "assembly_before": "Kern.Contracts"

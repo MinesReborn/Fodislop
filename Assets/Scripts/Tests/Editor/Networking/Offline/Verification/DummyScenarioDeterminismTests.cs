@@ -49,11 +49,11 @@ public sealed class DummyScenarioDeterminismTests
         }
     }
 
-    [TestCase(OfflineScenario.RejectAuthentication)]
-    [TestCase(OfflineScenario.DisconnectDuringHandshake)]
-    [TestCase(OfflineScenario.HandshakeTimeout)]
-    [TestCase(OfflineScenario.WorldInitializationTimeout)]
-    public void HandshakeScenario_RepeatsExactlyForSameSeed(OfflineScenario scenario)
+    [TestCase(DummyScenario.RejectAuthentication)]
+    [TestCase(DummyScenario.DisconnectDuringHandshake)]
+    [TestCase(DummyScenario.HandshakeTimeout)]
+    [TestCase(DummyScenario.WorldInitializationTimeout)]
+    public void HandshakeScenario_RepeatsExactlyForSameSeed(DummyScenario scenario)
     {
         List<string> first = RunHandshake(scenario, Seed, "first");
         List<string> second = RunHandshake(scenario, Seed, "second");
@@ -65,7 +65,7 @@ public sealed class DummyScenarioDeterminismTests
     [Test]
     public void WorldInitializationTimeout_IssuesTokenAndStaysConnected()
     {
-        List<string> log = RunHandshake(OfflineScenario.WorldInitializationTimeout, Seed, "timeout");
+        List<string> log = RunHandshake(DummyScenario.WorldInitializationTimeout, Seed, "timeout");
 
         Assert.That(log, Is.EqualTo(new[]
         {
@@ -80,7 +80,7 @@ public sealed class DummyScenarioDeterminismTests
     [Test]
     public void DisconnectDuringHandshake_NeverReportsConnected()
     {
-        List<string> log = RunHandshake(OfflineScenario.DisconnectDuringHandshake, Seed, "drop");
+        List<string> log = RunHandshake(DummyScenario.DisconnectDuringHandshake, Seed, "drop");
 
         Assert.That(log, Does.Not.Contain("0 connected"));
         Assert.That(log.Take(3), Is.EqualTo(new[] { "0 connecting", "0 disconnecting", "0 disconnected" }));
@@ -161,7 +161,7 @@ public sealed class DummyScenarioDeterminismTests
         clock.Advance(1000);
     }
 
-    private List<string> RunHandshake(OfflineScenario scenario, int seed, string runName)
+    private List<string> RunHandshake(DummyScenario scenario, int seed, string runName)
     {
         var clock = new VirtualDummyClock(seed);
         var log = new List<string>();
@@ -198,7 +198,7 @@ public sealed class DummyScenarioDeterminismTests
     {
         var clock = new VirtualDummyClock(seed);
         using var operations = new AsyncOperationSupervisor();
-        var connection = CreateConnection(clock, operations, OfflineScenario.WorldInitializationTimeout, runName);
+        var connection = CreateConnection(clock, operations, DummyScenario.WorldInitializationTimeout, runName);
         string? token = null;
         connection.OnReceived += packet =>
         {
@@ -253,14 +253,14 @@ public sealed class DummyScenarioDeterminismTests
     private DummyConnection CreateConnection(
         VirtualDummyClock clock,
         IAsyncOperationSupervisor operations,
-        OfflineScenario scenario,
+        DummyScenario scenario,
         string runName) =>
         new(
             new NoTextures(),
             new NoItems(),
             operations,
             new RuntimeDebugSettings(),
-            new OfflineScenarioSettings { Scenario = scenario },
+            new DummyScenarioSettings { Scenario = scenario },
             new UnavailableDummyWorldMapSource(),
             new DummyTokenStore(Path.Combine(_tokenDirectory, runName + ".json")),
             clock,

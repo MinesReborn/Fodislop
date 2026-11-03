@@ -19,8 +19,7 @@
          ни регистрации — ClientHelloPacket несёт только токен из
          PlayerPrefs, а сервер отвечает AuthTokenPacket. Поля пароля и
          вкладка регистрации здесь — заглушки по макету; рабочие пути
-         это «Войти» (обычное подключение), «Войти через VK» (VK ID
-         device-flow) и «Офлайн режим (Dummy)».
+         это «Войти» (обычное подключение) и «Офлайн режим (Dummy)».
          ═══════════════════════════════════════════════════════ -->
     <ui:VisualElement name="AuthOverlay" class="auth-overlay">
      <!-- Тень — отдельный элемент, а не filter. Любой filter заставляет
@@ -101,7 +100,6 @@
 
             <ui:Button name="AuthSubmitButton" class="auth-submit" text="gateway.auth.submit" />
 
-            <!-- VK ID: device-flow без редиректа. Текст и доступность ведёт AuthGate. -->
             <ui:VisualElement name="AuthVkSeparator" class="auth-vk-sep">
                 <ui:VisualElement class="auth-vk-sep-line" />
                 <ui:Label class="auth-vk-sep-label" text="gateway.auth.vk_or" />

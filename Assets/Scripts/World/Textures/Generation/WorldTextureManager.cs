@@ -175,9 +175,14 @@ namespace Kern.World
                                 }
                             });
                     }
-                    catch
+                    catch (Exception exception)
                     {
                         sync.TrySetResult();
+                        if (generation == _worldAssetLoadGeneration && !linkedCancellation.IsCancellationRequested)
+                        {
+                            _loadProgress.ReportFailure(exception);
+                        }
+
                         throw;
                     }
 

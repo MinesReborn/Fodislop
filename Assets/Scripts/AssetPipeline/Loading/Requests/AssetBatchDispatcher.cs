@@ -23,6 +23,31 @@ using static ETagCalculator;
 
 public sealed class AssetBatchDispatcher : IDisposable
 {
+    internal static async UniTask ExtendTimeoutWhileAssetsArriveAsync(
+        IAssetTransferProgress progress,
+        CancellationTokenSource timeout,
+        int timeoutSeconds,
+        CancellationToken cancellationToken)
+    {
+        long previous = progress.ReceivedAssetBytes;
+        try
+        {
+            while (true)
+            {
+                await UniTask.Delay(250, ignoreTimeScale: true, cancellationToken: cancellationToken);
+                long current = progress.ReceivedAssetBytes;
+                if (current != previous)
+                {
+                    previous = current;
+                    timeout.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+    }
+
     private readonly ConcurrentDictionary<string, TaskCompletionSource<byte[]>> _pendingRequests = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<RuntimeAssetEntryPacket> _requestQueue = new();
     private readonly ConcurrentDictionary<string, byte> _missingAssets = new(StringComparer.Ordinal);

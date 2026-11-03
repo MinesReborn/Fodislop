@@ -335,7 +335,8 @@ public sealed class ServerVisualEvent : IServerWorldEffect
                 return;
             }
 
-            var filename = VisualEffectAssetLoader.GetServerAssetName(_effectType.ToString());
+            var filename = _mapManager.ResolveAssetName(
+                VisualEffectAssetLoader.GetServerAssetName(_effectType.ToString()));
             if (await TryLoadNamedVisualAsync(filename, token))
             {
                 return;

@@ -152,7 +152,7 @@ assets (menu UI, item icons, surface scene) are not part of the manifest.
 must not contain UI, scene managers, or player state. Packet logic belongs in
 `Networking/Processors/*` and updates models, gateways, and domain services.
 
-`DummyConnection` is the offline transport. `IOfflineScenarioSettings` selects
+`DummyConnection` is the dummy transport. `IDummyScenarioSettings` selects
 one deterministic negative scenario for the lifetime: authentication rejection,
 disconnect during handshake, handshake timeout, or world-init timeout.
 

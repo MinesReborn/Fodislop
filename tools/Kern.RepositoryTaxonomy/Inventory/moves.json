@@ -473,7 +473,7 @@
   "Assets/Scripts/Networking/Connection/NetworkStatusEndpoint.cs": "Assets/Scripts/Networking/Status/Endpoint/NetworkStatusEndpoint.cs",
   "Assets/Scripts/Networking/Models/NetworkStatusModel.cs": "Assets/Scripts/Networking/Status/State/NetworkStatusModel.cs",
   "Assets/Scripts/Networking/Connection/WorldEntryPreparation.cs": "Assets/Scripts/Networking/WorldEntry/Preparation/WorldEntryPreparation.cs",
-  "Assets/Scripts/Networking/Connection/Contracts/OfflineScenarioSettings.cs": "Assets/Scripts/Networking/Connection/Contracts/Scenarios/OfflineScenarioSettings.cs",
+  "Assets/Scripts/Networking/Connection/Contracts/OfflineScenarioSettings.cs": "Assets/Scripts/Networking/Connection/Contracts/Scenarios/DummyScenarioSettings.cs",
   "Assets/Scripts/Networking/Core/NetworkService.cs": "Assets/Scripts/Networking/Processing/Dispatch/NetworkService.cs",
   "Assets/Scripts/Networking/Core/PacketHandler.cs": "Assets/Scripts/Networking/Processing/Dispatch/PacketHandler.cs",
   "Assets/Scripts/Networking/Processors/IPacketProcessor.cs": "Assets/Scripts/Networking/Processing/Dispatch/IPacketProcessor.cs",

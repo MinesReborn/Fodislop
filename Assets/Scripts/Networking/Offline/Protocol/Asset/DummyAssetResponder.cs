@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.IO;
 using Cysharp.Threading.Tasks;
 using Kern.AssetPipeline.Cache;
 using Kern.AssetPipeline.Loading;
@@ -23,7 +24,7 @@ internal static class DummyAssetResponder
         {
             byte[]? data = AssetBatchDispatcher.IsAudioBank(asset.Filename)
                 ? await assetPaths.GetAudioBankBytesAsync(asset.Filename)
-                : await textureStorage.GetTextureData(asset.Filename);
+                : await textureStorage.GetTextureData(ResolveTextureName(asset.Filename, assetPaths));
             RuntimeAssetPacket response = data != null
                 ? new RuntimeAssetPacket(
                     asset.Filename,
@@ -32,5 +33,33 @@ internal static class DummyAssetResponder
                 : new RuntimeAssetPacket(asset.Filename, string.Empty, Array.Empty<byte>());
             sendPacket(new ServerPacket(response));
         }
+    }
+
+    private static string ResolveTextureName(string name, IRuntimeAssetPaths assetPaths)
+    {
+        if (name.Contains('/'))
+        {
+            return name;
+        }
+
+        bool hasExtension = Path.HasExtension(name);
+        string? match = null;
+        foreach (string path in assetPaths.GetDummyWorldTextureFilenames())
+        {
+            string candidate = hasExtension ? Path.GetFileName(path) : Path.GetFileNameWithoutExtension(path);
+            if (!string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (match != null)
+            {
+                throw new InvalidOperationException($"Dummy asset name '{name}' is ambiguous: '{match}' and '{path}'.");
+            }
+
+            match = path;
+        }
+
+        return match ?? name;
     }
 }

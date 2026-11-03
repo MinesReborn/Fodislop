@@ -74,9 +74,7 @@ internal static class BootstrapServiceRegistration
                 .As<IWorldEntryPreparation>();
             builder.Register<GameTokenStore>(Lifetime.Singleton).As<IGameTokenStore>();
             builder.Register<RuntimeDebugSettings>(Lifetime.Singleton).As<IRuntimeDebugSettings>();
-            builder.Register<OfflineScenarioSettings>(Lifetime.Singleton).As<IOfflineScenarioSettings>();
-            builder.Register<VKIdentityProvider>(Lifetime.Singleton);
-            builder.Register<AuthenticationService>(Lifetime.Singleton).As<IAuthenticationService>();
+            builder.Register<DummyScenarioSettings>(Lifetime.Singleton).As<IDummyScenarioSettings>();
 
             // Application-tier session state: NetworkService (Bootstrap) and
             // Game-tier processors both resolve the same local-player state.

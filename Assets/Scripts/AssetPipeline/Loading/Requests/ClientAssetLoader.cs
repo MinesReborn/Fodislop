@@ -364,6 +364,17 @@ namespace Kern.AssetPipeline.Loading
                 string? etag = await _persistentCache.GetETagAsync(filename);
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+                using var progressWatch = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
+                if (connectionService is IAssetTransferProgress transferProgress)
+                {
+                    CancellationToken watchToken = progressWatch.Token;
+                    _operations.Run("asset_transfer_progress", async supervisorToken =>
+                    {
+                        using var linked = CancellationTokenSource.CreateLinkedTokenSource(watchToken, supervisorToken);
+                        await AssetBatchDispatcher.ExtendTimeoutWhileAssetsArriveAsync(
+                            transferProgress, cts, timeoutSeconds, linked.Token);
+                    });
+                }
 
                 try
                 {
@@ -398,6 +409,10 @@ namespace Kern.AssetPipeline.Loading
                     {
                         Debug.LogWarning($"[ClientAssetLoader] Error fetching asset {filename}: {ex.Message}");
                     }
+                }
+                finally
+                {
+                    progressWatch.Cancel();
                 }
             }
 

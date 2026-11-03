@@ -20,6 +20,7 @@ public sealed class MapCellConfigCatalog
     private readonly Dictionary<CellType, int> _cellToTileGroup = new();
     private readonly Dictionary<CellType, ushort> _cellMoveSpeeds = new();
     private readonly Dictionary<string, AssetsDefinitionPacket> _assetsByName = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string?> _assetNamesByShortName = new(StringComparer.OrdinalIgnoreCase);
 
     public void LoadConfigurations(
         CellConfigurationPacket[]? configurations,
@@ -74,9 +75,15 @@ public sealed class MapCellConfigCatalog
 
         _cellConfigurations = configurations;
         _assetsByName.Clear();
+        _assetNamesByShortName.Clear();
         foreach (AssetsDefinitionPacket asset in assetsByName.Values)
         {
             _assetsByName.Add(asset.Filename, asset);
+            string shortName = Path.GetFileNameWithoutExtension(asset.Filename);
+            if (!_assetNamesByShortName.TryAdd(shortName, asset.Filename))
+            {
+                _assetNamesByShortName[shortName] = null;
+            }
         }
 
         TerrainDecalCatalog.Configure(decalTextureNames);
@@ -108,6 +115,17 @@ public sealed class MapCellConfigCatalog
         }
 
         return _assetsByName.TryGetValue(filename, out definition);
+    }
+
+    public string ResolveAssetName(string shortName)
+    {
+        if (!_assetNamesByShortName.TryGetValue(shortName, out string? filename))
+        {
+            return shortName;
+        }
+
+        return filename ?? throw new InvalidDataException(
+            $"World asset name '{shortName}' is ambiguous in the server manifest.");
     }
 
     public bool TryGetAudioBanks(out IReadOnlyList<AssetsDefinitionPacket> banks)

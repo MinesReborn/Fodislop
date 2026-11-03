@@ -48,7 +48,7 @@ namespace Kern.UI.Gateway
         [Inject]
         private IAsyncOperationSupervisor _operations = null!;
         [Inject]
-        private IAuthenticationService _authentication = null!;
+        private IGameTokenStore _tokens = null!;
 
         private void OnEnable()
         {
@@ -127,10 +127,8 @@ namespace Kern.UI.Gateway
             _authGate = AuthGate.TryCreate(
                 _root,
                 _clientConfig,
-                _authentication,
-                _operations,
-                _loc,
-                ClientMarketPolicy.IsVkAvailable);
+                _tokens,
+                _loc);
             if (_authGate == null)
             {
                 Debug.LogWarning("[Gateway] Ворота входа не собрались — сразу уходим в меню.");
@@ -181,7 +179,6 @@ namespace Kern.UI.Gateway
             if (_authGate != null)
             {
                 _authGate.Passed -= OnAuthPassed;
-                _authGate.Dispose();
             }
 
             if (_loc != null)

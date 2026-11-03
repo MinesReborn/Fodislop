@@ -60,6 +60,12 @@ public static class AnimationContainerDecoder
             if (!string.IsNullOrWhiteSpace(layout.Name))
             {
                 layouts[layout.Name] = layout;
+                string name = Path.GetFileNameWithoutExtension(layout.Name);
+                if (!string.Equals(name, layout.Name, StringComparison.Ordinal) &&
+                    !layouts.TryAdd(name, layout))
+                {
+                    throw new InvalidDataException($"Animation frame layout name '{name}' is ambiguous.");
+                }
             }
         }
 

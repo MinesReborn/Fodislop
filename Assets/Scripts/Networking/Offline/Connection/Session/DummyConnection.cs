@@ -62,7 +62,7 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
         IItemCatalog itemCatalog,
         IAsyncOperationSupervisor operations,
         IRuntimeDebugSettings debugSettings,
-        IOfflineScenarioSettings scenarioSettings,
+        IDummyScenarioSettings scenarioSettings,
         DummyWorldMapSource worldMaps,
         IDummyClock clock,
         IRuntimeAssetPaths assetPaths)
@@ -84,7 +84,7 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
         IItemCatalog itemCatalog,
         IAsyncOperationSupervisor operations,
         IRuntimeDebugSettings debugSettings,
-        IOfflineScenarioSettings scenarioSettings,
+        IDummyScenarioSettings scenarioSettings,
         IDummyWorldMapSource worldMaps,
         DummyTokenStore tokenStore,
         IDummyClock clock,

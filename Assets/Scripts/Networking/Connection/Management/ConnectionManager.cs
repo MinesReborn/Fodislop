@@ -25,7 +25,7 @@ using Kern.Networking.Offline;
 
 namespace Kern.Networking.Connection
 {
-    public class ConnectionManager : MonoBehaviour, IConnectionService, IWorldRegionRequester
+    public class ConnectionManager : MonoBehaviour, IConnectionService, IWorldRegionRequester, IAssetTransferProgress
     {
 
         public IServerConnection? Connection { get; private set; }
@@ -183,6 +183,8 @@ namespace Kern.Networking.Connection
         }
 
         public long ReceivedBytes => Connection is ITransportTraffic traffic ? traffic.ReceivedBytes : 0;
+
+        public long ReceivedAssetBytes => Connection is IAssetTransferProgress progress ? progress.ReceivedAssetBytes : 0;
 
         public void HoldInboundPackets()
         {

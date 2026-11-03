@@ -318,6 +318,8 @@ namespace Kern.World
         public bool TryGetAssetDefinition(string? filename, out AssetsDefinitionPacket definition) =>
             _cellCatalog.TryGetAssetDefinition(filename, out definition);
 
+        public string ResolveAssetName(string shortName) => _cellCatalog.ResolveAssetName(shortName);
+
         public bool TryGetAudioBanks(out IReadOnlyList<AssetsDefinitionPacket> banks) =>
             _cellCatalog.TryGetAudioBanks(out banks);
 

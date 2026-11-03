@@ -1,8 +1,6 @@
 #nullable enable
 
 using System;
-using System.Threading;
-using Cysharp.Threading.Tasks;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Core.Localization;
@@ -26,15 +24,8 @@ public sealed class AuthGate
     private readonly Toggle _autoLogin;
     private readonly Label _hint;
     private readonly IClientConfigManager _clientConfig;
-    private readonly IAuthenticationService _authentication;
-    private readonly IAsyncOperationSupervisor _operations;
+    private readonly IGameTokenStore _tokens;
     private readonly ILocalizationService? _loc;
-
-    private Button? _vkButton;
-    private Label? _vkLabel;
-    private bool _vkBusy;
-    private int _loginGeneration;
-    private bool _disposed;
 
     public event Action? Passed;
 
@@ -47,8 +38,7 @@ public sealed class AuthGate
         Toggle autoLogin,
         Label hint,
         IClientConfigManager clientConfig,
-        IAuthenticationService authentication,
-        IAsyncOperationSupervisor operations,
+        IGameTokenStore tokens,
         ILocalizationService? loc)
     {
         _loginForm = loginForm;
@@ -59,8 +49,7 @@ public sealed class AuthGate
         _autoLogin = autoLogin;
         _hint = hint;
         _clientConfig = clientConfig;
-        _authentication = authentication;
-        _operations = operations;
+        _tokens = tokens;
         _loc = loc;
     }
 
@@ -74,18 +63,11 @@ public sealed class AuthGate
         return _loc != null ? _loc.Get(key, arg0, arg1) : fallback;
     }
 
-    private string L(string key, string fallback, object arg0)
-    {
-        return _loc != null ? _loc.Get(key, arg0) : fallback;
-    }
-
     public static AuthGate? TryCreate(
         VisualElement tree,
         IClientConfigManager clientConfig,
-        IAuthenticationService authentication,
-        IAsyncOperationSupervisor operations,
-        ILocalizationService? loc,
-        bool isVkAvailable)
+        IGameTokenStore tokens,
+        ILocalizationService? loc)
     {
         var loginForm = tree.Q<VisualElement>("AuthLoginForm");
         var registerForm = tree.Q<VisualElement>("AuthRegisterForm");
@@ -112,19 +94,33 @@ public sealed class AuthGate
             autoLogin,
             hint,
             clientConfig,
-            authentication,
-            operations,
+            tokens,
             loc);
-        gate.Bind(tree, isVkAvailable);
+        gate.Bind(tree);
         return gate;
     }
 
-    private void Bind(VisualElement tree, bool isVkAvailable)
+    private void Bind(VisualElement tree)
     {
         _tabLogin.clicked += () => SelectTab(register: false);
         _tabRegister.clicked += () => SelectTab(register: true);
 
         tree.Q<Button>("AuthSubmitButton")!.clicked += Submit;
+
+        var vkButton = tree.Q<Button>("AuthVkButton");
+        var vkSeparator = tree.Q<VisualElement>("AuthVkSeparator");
+        if (vkButton != null)
+        {
+            if (Kern.Core.Platform.ClientMarketPolicy.IsVkAvailable)
+            {
+                vkButton.clicked += Submit;
+            }
+            else
+            {
+                vkButton.AddToClassList("is-hidden");
+                vkSeparator?.AddToClassList("is-hidden");
+            }
+        }
 
         var offline = tree.Q<Button>("AuthOfflineButton");
         if (offline != null)
@@ -140,112 +136,13 @@ public sealed class AuthGate
                 warn: true);
         }
 
-        _vkButton = tree.Q<Button>("AuthVkButton");
-        _vkLabel = tree.Q<Label>("AuthVkLabel");
-        VisualElement? vkSeparator = tree.Q<VisualElement>("AuthVkSeparator");
-        if (_vkButton != null)
-        {
-            if (isVkAvailable)
-            {
-                _vkButton.clicked += StartVKLogin;
-                if (_vkLabel != null && _authentication.HasVKSession)
-                {
-                    _vkLabel.text = L("gateway.auth.vk_continue", "Продолжить как {0} (VK)", _authentication.VKDisplayName);
-                }
-            }
-            else
-            {
-                _vkButton.AddToClassList("is-hidden");
-                vkSeparator?.AddToClassList("is-hidden");
-            }
-        }
-
         _login.SetValueWithoutNotify(GenerateCallsign());
         _autoLogin.SetValueWithoutNotify(_clientConfig.Config.Interface.AutoLogin);
     }
 
-    private void StartVKLogin()
-    {
-        if (_disposed || _vkBusy)
-        {
-            return;
-        }
-
-        int loginGeneration = ++_loginGeneration;
-        _vkBusy = true;
-        _vkButton?.SetEnabled(false);
-        ShowHint(
-            L("gateway.auth.vk_started", "VK: откройте ссылку подтверждения в браузере…"),
-            warn: false);
-
-        _operations.Run("gateway_vk_login", token => CompleteVKLoginAsync(loginGeneration, token));
-    }
-
-    private async UniTask CompleteVKLoginAsync(int loginGeneration, CancellationToken cancellationToken)
-    {
-        AuthenticationResult result;
-        try
-        {
-            result = await _authentication.LoginWithVKAsync();
-            cancellationToken.ThrowIfCancellationRequested();
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            return;
-        }
-        catch (Exception e)
-        {
-            if (!IsCurrentLogin(loginGeneration))
-            {
-                return;
-            }
-
-            Debug.LogError($"[AuthGate] VK login failed: {e}");
-            _vkBusy = false;
-            _vkButton?.SetEnabled(true);
-            ShowHint(L("gateway.auth.vk_fail", "Ошибка VK: {0}", e.Message), warn: true);
-            return;
-        }
-
-        if (!IsCurrentLogin(loginGeneration))
-        {
-            return;
-        }
-
-        _vkBusy = false;
-        _vkButton?.SetEnabled(true);
-        if (result.Success)
-        {
-            ShowHint(
-                L("gateway.auth.vk_success", "Вход через VK: {0}", result.DisplayName),
-                warn: false);
-            _login.SetValueWithoutNotify(result.DisplayName);
-
-            Pass();
-            return;
-        }
-
-        string message = _loc != null && _loc.HasKey(result.Error)
-            ? _loc.Get(result.Error)
-            : result.Error;
-        ShowHint(message, warn: true);
-    }
-
-    public void Dispose()
-    {
-        _disposed = true;
-        _loginGeneration++;
-        _vkBusy = false;
-        _vkButton = null;
-        _vkLabel = null;
-    }
-
-    private bool IsCurrentLogin(int loginGeneration) =>
-        !_disposed && loginGeneration == _loginGeneration;
-
     public void Show()
     {
-        if (!GatewayDevFlags.ForceGates && _authentication.HasStoredCredentials && _autoLogin.value)
+        if (!GatewayDevFlags.ForceGates && _tokens.HasToken && _autoLogin.value)
         {
             Pass();
             return;
