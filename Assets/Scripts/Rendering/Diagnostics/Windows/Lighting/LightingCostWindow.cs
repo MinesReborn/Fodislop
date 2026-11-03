@@ -256,16 +256,7 @@ public sealed class LightingCostWindow : ToolWindow
         }
         GUILayout.Label("Сравнивай режимы на одной сцене при одинаковых настройках и источниках света.", MutedLabelStyle);
 
-        bool batchDynamicLights = GUILayout.Toggle(
-            LightingQualityTuningController.BatchDynamicLights,
-            "Батчить несколько фонарей",
-            ToolTheme.SegmentedButton);
-        if (batchDynamicLights != LightingQualityTuningController.BatchDynamicLights)
-        {
-            LightingQualityTuningController.SetBatchDynamicLights(batchDynamicLights);
-        }
-        GUILayout.Label("Группирует совместимые compute dispatch’и; результат должен совпадать с серийным путём.",
-            MutedLabelStyle);
+        GUILayout.Label("Батчинг нескольких фонарей включён постоянно.", MutedLabelStyle);
         bool acceleratedTransport = LightingQualityTuningController.DynamicTransportMode ==
             DynamicLightingTransportMode.AcceleratedUniformRegions;
         bool sdfTransport = LightingQualityTuningController.DynamicTransportMode ==

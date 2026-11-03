@@ -48,7 +48,7 @@ public sealed class TerrainDecalCatalogTests
         DirectoryInfo? root = FindProjectRoot();
         Assert.That(root, Is.Not.Null, "Project root was not found.");
         using JsonDocument catalog = JsonDocument.Parse(File.ReadAllText(
-            Path.Combine(root!.FullName, "Assets/Settings/Build/Textures/TextureStagingCatalog.json")));
+            Path.Combine(root!.FullName, "Assets/Settings/Build/Textures/TextureDeliveryCatalog.json")));
         foreach (string name in TerrainDecalCatalog.GetTextureNames())
         {
             JsonElement[] entries = catalog.RootElement.GetProperty("Entries").EnumerateArray()
@@ -84,7 +84,7 @@ public sealed class TerrainDecalCatalogTests
             placedCount += first > 0 ? 1 : 0;
         }
 
-        Assert.That(placedCount, Is.InRange(SampleSize * 20 / 100, SampleSize * 30 / 100));
+        Assert.That(placedCount, Is.InRange(SampleSize * 18 / 100, SampleSize * 22 / 100));
     }
 
     [Test]
@@ -126,7 +126,7 @@ public sealed class TerrainDecalCatalogTests
     private static DirectoryInfo? FindProjectRoot()
     {
         DirectoryInfo? root = new DirectoryInfo(AppContext.BaseDirectory);
-        while (root != null && !File.Exists(Path.Combine(root.FullName, "Assets/Settings/Build/Textures/TextureStagingCatalog.json")))
+        while (root != null && !File.Exists(Path.Combine(root.FullName, "Assets/Settings/Build/Textures/TextureDeliveryCatalog.json")))
         {
             root = root.Parent;
         }

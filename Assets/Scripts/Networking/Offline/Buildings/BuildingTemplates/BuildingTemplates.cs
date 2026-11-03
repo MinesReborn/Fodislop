@@ -29,4 +29,11 @@ public static class BuildingTemplates
         BuildingType.Science => 6,
         _ => 2,
     };
+
+    public static int GetSpritePlacementOffsetY(BuildingType type) => type switch
+    {
+        BuildingType.Resp => 1,
+        BuildingType.Up => -1,
+        _ => 0,
+    };
 }

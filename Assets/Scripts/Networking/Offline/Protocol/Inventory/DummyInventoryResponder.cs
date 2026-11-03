@@ -131,24 +131,28 @@ internal sealed class DummyInventoryResponder
         };
 
         long anchorXValue = playerX + (offsetX * distance);
-        long anchorYValue = playerY + (offsetY * distance);
+        long cellAnchorYValue = playerY + (offsetY * distance);
+        long spriteAnchorYValue = cellAnchorYValue +
+            BuildingTemplates.GetSpritePlacementOffsetY(buildingType);
         if (anchorXValue is < 0 or > ushort.MaxValue ||
-            anchorYValue is < 0 or > ushort.MaxValue)
+            cellAnchorYValue is < 0 or > ushort.MaxValue ||
+            spriteAnchorYValue is < 0 or > ushort.MaxValue)
         {
             return;
         }
 
         var anchorX = (ushort)anchorXValue;
-        var anchorY = (ushort)anchorYValue;
+        var cellAnchorY = (ushort)cellAnchorYValue;
+        var spriteAnchorY = (ushort)spriteAnchorYValue;
         List<IHBPacket> placementPackets = new()
         {
-            new BuildingPacket(anchorX, anchorY, buildingType, 0, 0),
+            new BuildingPacket(anchorX, spriteAnchorY, buildingType, 0, 0),
         };
-        PlaceBuildingCells(placementPackets, anchorX, anchorY, buildingType);
+        PlaceBuildingCells(placementPackets, anchorX, cellAnchorY, buildingType);
         _sendPacket(new ServerPacket(new HBPacket(placementPackets)));
         if (buildingType == BuildingType.Teleport)
         {
-            _teleportPositions.Add((anchorX, anchorY));
+            _teleportPositions.Add((anchorX, spriteAnchorY));
         }
 
         DummyItemInfo.ConsumeItem(Items, selectedType, 1);

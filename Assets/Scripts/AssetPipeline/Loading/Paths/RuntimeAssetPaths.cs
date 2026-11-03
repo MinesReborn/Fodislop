@@ -14,20 +14,21 @@ namespace Kern.AssetPipeline.Loading;
 
 public sealed class RuntimeAssetPaths : IRuntimeAssetPaths
 {
-    private const string TexturesFolderName = "Textures";
-    private const string TextureManifestFilename = "Textures.manifest";
+    private const string EmbeddedTexturesFolderName = "EmbeddedTextures";
+    private const string EmbeddedTextureManifestFilename = "EmbeddedTextures.manifest";
+    private const string DummyWorldTexturesFolderName = "DummyWorldTextures";
+    private const string DummyWorldTextureManifestFilename = "DummyWorldTextures.manifest";
     private const string AudioFolderName = "Audio";
     private const string AudioManifestFilename = "Audio.manifest";
     private readonly string? _textureRootOverride;
 #if UNITY_EDITOR
-    private readonly Lazy<IReadOnlyDictionary<string, string>> _authoredTextures = new(() =>
-        AuthoredTextureCatalog.Read(Path.Combine(
-            Application.dataPath,
-            AuthoredTextureCatalog.AssetPath.Substring("Assets/".Length))));
+    private readonly Lazy<TextureDeliveryCatalogData> _textureDeliveryCatalog = new(() =>
+        TextureDeliveryCatalog.Read(GetTextureDeliveryCatalogPath()));
 #endif
     private IReadOnlyDictionary<string, byte[]> _textureBytes =
         new Dictionary<string, byte[]>(StringComparer.Ordinal);
-    private IReadOnlyList<string> _textureFilenames = Array.Empty<string>();
+    private IReadOnlyList<string> _embeddedTextureFilenames = Array.Empty<string>();
+    private IReadOnlyList<string> _dummyWorldTextureFilenames = Array.Empty<string>();
     private IReadOnlyList<string> _audioBankFilenames = Array.Empty<string>();
     private readonly SemaphoreSlim _ensureReadyGate = new(1, 1);
     private bool _isReady;
@@ -64,66 +65,142 @@ public sealed class RuntimeAssetPaths : IRuntimeAssetPaths
     private async UniTask LoadAssetsAsync()
     {
         Dictionary<string, byte[]> loadedTextures = new(StringComparer.Ordinal);
-        List<string> filenames;
+        IReadOnlyList<string> embeddedFilenames;
+        IReadOnlyList<string> dummyWorldFilenames;
 
         if (_textureRootOverride != null)
         {
-            filenames = Directory.EnumerateFiles(
+            string[] filenames = Directory.EnumerateFiles(
                     _textureRootOverride,
                     "*",
                     SearchOption.AllDirectories)
                 .Select(path => Path.GetRelativePath(_textureRootOverride, path).Replace('\\', '/'))
-                .ToList();
+                .OrderBy(path => path, StringComparer.Ordinal)
+                .ToArray();
             await LoadFilesAsync(
                 filenames,
                 filename => Path.Combine(
                     _textureRootOverride,
                     filename.Replace('/', Path.DirectorySeparatorChar)),
                 loadedTextures);
+            embeddedFilenames = filenames;
+            dummyWorldFilenames = Array.Empty<string>();
         }
 #if UNITY_EDITOR
         else
         {
-            IReadOnlyDictionary<string, string> sourceByPublished = _authoredTextures.Value
-                .ToDictionary(entry => entry.Value, entry => entry.Key, StringComparer.Ordinal);
-            filenames = sourceByPublished.Keys.ToList();
-            await LoadFilesAsync(
-                filenames,
-                filename => Path.Combine(
-                    Application.dataPath,
-                    TexturesFolderName,
-                    sourceByPublished[filename].Replace('/', Path.DirectorySeparatorChar)),
+            string source = Path.Combine(Application.dataPath, "Textures");
+            embeddedFilenames = await LoadTextureGroupFromEditorAsync(
+                source,
+                _textureDeliveryCatalog.Value.Embedded,
+                loadedTextures);
+            dummyWorldFilenames = await LoadTextureGroupFromEditorAsync(
+                source,
+                _textureDeliveryCatalog.Value.DummyWorld,
                 loadedTextures);
         }
 #else
         else
         {
-            string[] manifestLines = await ReadStreamingTextAsync(TextureManifestFilename);
-            filenames = manifestLines
-                .Select(line => line.Trim())
-                .Where(line => line.Length > 0)
-                .Select(ValidateRelativePath)
-                .Distinct(StringComparer.Ordinal)
-                .ToList();
-
-            filenames.Sort(StringComparer.Ordinal);
-            foreach (string filename in filenames)
-            {
-                loadedTextures.Add(filename, await ReadStreamingBytesAsync($"{TexturesFolderName}/{filename}"));
-            }
+            embeddedFilenames = await LoadStreamingTextureGroupAsync(
+                EmbeddedTextureManifestFilename,
+                EmbeddedTexturesFolderName,
+                loadedTextures);
+            dummyWorldFilenames = await LoadStreamingTextureGroupAsync(
+                DummyWorldTextureManifestFilename,
+                DummyWorldTexturesFolderName,
+                loadedTextures);
         }
 #endif
 
-        if (loadedTextures.Count == 0)
+        if (embeddedFilenames.Count == 0 && dummyWorldFilenames.Count == 0)
         {
             throw new InvalidDataException("The runtime texture manifest contains no textures.");
         }
 
+        var allFilenames = new HashSet<string>(embeddedFilenames, StringComparer.OrdinalIgnoreCase);
+        foreach (string filename in dummyWorldFilenames)
+        {
+            if (!allFilenames.Add(filename))
+            {
+                throw new InvalidDataException(
+                    $"Texture path '{filename}' appears in both local texture groups.");
+            }
+        }
+
         _textureBytes = AddExtensionlessAliases(loadedTextures);
-        _textureFilenames = filenames.AsReadOnly();
+        _embeddedTextureFilenames = embeddedFilenames;
+        _dummyWorldTextureFilenames = dummyWorldFilenames;
     }
 
-    public IReadOnlyList<string> GetTextureFilenames() => _textureFilenames;
+    public IReadOnlyList<string> GetEmbeddedTextureFilenames() => _embeddedTextureFilenames;
+
+    public IReadOnlyList<string> GetDummyWorldTextureFilenames() => _dummyWorldTextureFilenames;
+
+#if UNITY_EDITOR
+    private static string GetTextureDeliveryCatalogPath() => Path.Combine(
+        Application.dataPath,
+        TextureDeliveryCatalog.AssetPath.Substring("Assets/".Length));
+
+    private static async UniTask<IReadOnlyList<string>> LoadTextureGroupFromEditorAsync(
+        string source,
+        IReadOnlyDictionary<string, string> sourceToPublished,
+        Dictionary<string, byte[]> loadedTextures)
+    {
+        IReadOnlyDictionary<string, string> sourceByPublished = sourceToPublished
+            .ToDictionary(entry => entry.Value, entry => entry.Key, StringComparer.Ordinal);
+        string[] filenames = sourceByPublished.Keys
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+        await LoadFilesAsync(
+            filenames,
+            filename => Path.Combine(
+                source,
+                sourceByPublished[filename].Replace('/', Path.DirectorySeparatorChar)),
+            loadedTextures);
+        return filenames;
+    }
+#endif
+
+    private static async UniTask<IReadOnlyList<string>> LoadStreamingTextureGroupAsync(
+        string manifestFilename,
+        string folderName,
+        Dictionary<string, byte[]> loadedTextures)
+    {
+        string[] manifestLines = await ReadStreamingTextAsync(manifestFilename);
+        var filenameSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var filenames = new List<string>(manifestLines.Length);
+        foreach (string line in manifestLines)
+        {
+            string relativePath = line.Trim();
+            if (relativePath.Length == 0)
+            {
+                continue;
+            }
+
+            string filename = ValidateRelativePath(relativePath);
+            if (!filenameSet.Add(filename))
+            {
+                throw new InvalidDataException(
+                    $"Runtime texture manifest '{manifestFilename}' contains duplicate path '{filename}'.");
+            }
+
+            filenames.Add(filename);
+        }
+
+        filenames.Sort(StringComparer.Ordinal);
+        foreach (string filename in filenames)
+        {
+            byte[] bytes = await ReadStreamingBytesAsync($"{folderName}/{filename}");
+            if (!loadedTextures.TryAdd(filename, bytes))
+            {
+                throw new InvalidDataException(
+                    $"Texture path '{filename}' appears in more than one runtime texture manifest.");
+            }
+        }
+
+        return filenames;
+    }
 
     public async UniTask<IReadOnlyList<string>> GetAudioBankFilenamesAsync()
     {
@@ -218,6 +295,7 @@ public sealed class RuntimeAssetPaths : IRuntimeAssetPaths
         Dictionary<string, byte[]> textures)
     {
         var withAliases = new Dictionary<string, byte[]>(textures, StringComparer.Ordinal);
+        var usedPaths = new HashSet<string>(textures.Keys, StringComparer.OrdinalIgnoreCase);
         foreach (KeyValuePair<string, byte[]> texture in textures.OrderBy(
                      pair => pair.Key,
                      StringComparer.Ordinal))
@@ -225,7 +303,12 @@ public sealed class RuntimeAssetPaths : IRuntimeAssetPaths
             string extension = Path.GetExtension(texture.Key);
             if (extension.Length > 0)
             {
-                withAliases.TryAdd(texture.Key[..^extension.Length], texture.Value);
+                string alias = texture.Key[..^extension.Length];
+                if (!usedPaths.Add(alias) || !withAliases.TryAdd(alias, texture.Value))
+                {
+                    throw new InvalidDataException(
+                        $"Runtime textures share the extensionless alias '{alias}'.");
+                }
             }
         }
 

@@ -272,6 +272,17 @@ public sealed class AssetBatchDispatcher : IDisposable
                         $"Asset '{filename}' is not cached and server returned empty contents.");
                 }
 
+                string? cachedETag = Calculate(cachedAsset);
+                if (!string.Equals(
+                    cachedETag,
+                    assetPacket.ETag,
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidDataException(
+                        $"Server returned an empty response for '{filename}', but the cached asset " +
+                        $"does not match ETag '{assetPacket.ETag}'.");
+                }
+
                 tcs.TrySetResult(cachedAsset);
                 return;
             }
@@ -285,6 +296,14 @@ public sealed class AssetBatchDispatcher : IDisposable
             string etag = Calculate(contents) ??
                 throw new InvalidDataException(
                     $"Asset '{filename}' produced no ETag after download.");
+            if (!string.IsNullOrEmpty(assetPacket.ETag) &&
+                !string.Equals(etag, assetPacket.ETag, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException(
+                    $"Server returned asset '{filename}' with ETag '{assetPacket.ETag}', " +
+                    $"but its contents produce ETag '{etag}'.");
+            }
+
             cancellationToken.ThrowIfCancellationRequested();
             await persistentCache.SaveAssetAsync(filename, contents);
             cancellationToken.ThrowIfCancellationRequested();

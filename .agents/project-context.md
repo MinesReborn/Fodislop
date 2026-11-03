@@ -130,7 +130,9 @@ Physical ownership and asmdefs are listed in `repository-map.md`. Contracts
 are module-local neutral APIs with asmrefs to `Kern.Contracts`; diagnostics
 implementation lives in `Kern.Diagnostics`, not in the contract assembly.
 Authoring texture categories are independent of published identities: the
-texture staging catalog and RuntimeAssetPaths bridge those names explicitly.
+texture delivery catalog maps them explicitly and separates client-embedded
+textures from the local DummyWorld asset set. Online world assets still come
+from the server manifest.
 
 ### Networking and caching
 

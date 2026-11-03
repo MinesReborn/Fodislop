@@ -161,7 +161,7 @@ static const uint KERN_TERRAIN_TILE_TRANSFORM_MASK = 0xE0u;
 static const uint KERN_TERRAIN_WALL_BASE_COLUMN = 8u;
 
 // ─── ФИКСИРОВАННАЯ ЧАСТОТА РАЗМЕЩЕНИЯ ДЕКАЛИ ────────────────────────────
-static const uint KERN_TERRAIN_DECAL_PLACEMENT_PERCENT = 25u;
+static const uint KERN_TERRAIN_DECAL_PLACEMENT_PERCENT = 20u;
 
 // ─── ДЕКАЛЬ КЛЕТКИ: код в вершине, 0 — нет декали ────────────────────────
 //

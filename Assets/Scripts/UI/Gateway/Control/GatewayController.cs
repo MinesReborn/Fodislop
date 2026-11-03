@@ -6,6 +6,7 @@ using Cysharp.Threading.Tasks;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Core.Localization;
+using Kern.Core.Platform;
 using UnityEngine;
 using UnityEngine.UIElements;
 using VContainer;
@@ -128,7 +129,8 @@ namespace Kern.UI.Gateway
                 _clientConfig,
                 _authentication,
                 _operations,
-                _loc);
+                _loc,
+                ClientMarketPolicy.IsVkAvailable);
             if (_authGate == null)
             {
                 Debug.LogWarning("[Gateway] Ворота входа не собрались — сразу уходим в меню.");

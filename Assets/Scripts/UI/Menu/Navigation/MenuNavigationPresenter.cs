@@ -34,7 +34,8 @@ public sealed class MenuNavigationPresenter
         MenuModalManager modalManager,
         Action onPlayClicked,
         Action onCancelDescent,
-        ILocalizationService? loc)
+        ILocalizationService? loc,
+        bool isVkAvailable)
     {
         _routeOrbit = tree.Q<VisualElement>("MainMenuRouteOrbit");
         _routeDescent = tree.Q<VisualElement>("MainMenuRouteDescent");
@@ -103,7 +104,14 @@ public sealed class MenuNavigationPresenter
 
         if (_sideVKButton != null)
         {
-            _sideVKButton.clicked += OpenVK;
+            if (isVkAvailable)
+            {
+                _sideVKButton.clicked += OpenVK;
+            }
+            else
+            {
+                _sideVKButton.AddToClassList("is-hidden");
+            }
         }
 
         if (_sideExitButton != null)

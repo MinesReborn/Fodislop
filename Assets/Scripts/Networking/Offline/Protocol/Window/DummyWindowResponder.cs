@@ -60,6 +60,13 @@ internal sealed class DummyWindowResponder
             case "open_url_test":
                 _sendPacket(DummyWindowBuilder.BuildOpenUrlPacket("https://vk.ru/mines4reborn"));
                 break;
+            case "donate":
+                _sendPacket(new ServerPacket(new ModalWindowPacket(
+                    "Донат недоступен",
+                    "Пополнение баланса доступно только при подключении к серверу.",
+                    "Понятно",
+                    string.Empty)));
+                break;
             case "toggle_block_spawner":
                 _blockSpawner.Enabled = !_blockSpawner.Enabled;
                 Debug.Log($"[DummyWindowResponder] Спавнер блоков: {(_blockSpawner.Enabled ? "включён" : "выключен")}.");

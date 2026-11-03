@@ -102,7 +102,7 @@
             <ui:Button name="AuthSubmitButton" class="auth-submit" text="gateway.auth.submit" />
 
             <!-- VK ID: device-flow без редиректа. Текст и доступность ведёт AuthGate. -->
-            <ui:VisualElement class="auth-vk-sep">
+            <ui:VisualElement name="AuthVkSeparator" class="auth-vk-sep">
                 <ui:VisualElement class="auth-vk-sep-line" />
                 <ui:Label class="auth-vk-sep-label" text="gateway.auth.vk_or" />
                 <ui:VisualElement class="auth-vk-sep-line" />

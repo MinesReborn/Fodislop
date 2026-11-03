@@ -19,7 +19,9 @@ public sealed class ItemRegistryTests
     {
         public UniTask EnsureReadyAsync() => UniTask.CompletedTask;
 
-        public IReadOnlyList<string> GetTextureFilenames() => Array.Empty<string>();
+        public IReadOnlyList<string> GetEmbeddedTextureFilenames() => Array.Empty<string>();
+
+        public IReadOnlyList<string> GetDummyWorldTextureFilenames() => Array.Empty<string>();
 
         public byte[]? GetTextureBytes(string relativePath) => null;
 

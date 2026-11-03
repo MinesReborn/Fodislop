@@ -15,6 +15,7 @@ using Stopwatch = System.Diagnostics.Stopwatch;
 
 using Kern.Networking.Gateways;
 using Kern.Networking.Status;
+using Kern.Core.Platform;
 using Kern.UI.Localization;
 using Kern.UI.Screens;
 
@@ -252,7 +253,8 @@ namespace Kern.UI.Menu
                 _modalManager,
                 _worldEntry.OnPlayButtonClicked,
                 _worldEntry.CancelDescent,
-                _loc);
+                _loc,
+                ClientMarketPolicy.IsVkAvailable);
 
             _loaderPanel.Reset();
         }

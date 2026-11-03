@@ -63,7 +63,7 @@ internal sealed class DummyClanManager
                 {
                     new ImagePacket
                     {
-                        URI = $"clan/{clan.Id}.png",
+                        URI = $"Visual/Clan/{clan.Id}.png",
                         Width = 16,
                         Height = 16,
                         AttachedProperties = new[] { new StringPairPacket("DockPanel.Dock", "Left") },

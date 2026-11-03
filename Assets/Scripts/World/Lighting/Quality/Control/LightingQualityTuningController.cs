@@ -17,7 +17,7 @@ public static class LightingQualityTuningController
     public static LightingQualityTuning Current { get; private set; } = LightingConfigHolder.DefaultQuality;
     public static ulong Revision { get; private set; }
     public static DynamicLightingTransportMode DynamicTransportMode { get; private set; }
-    public static bool BatchDynamicLights { get; private set; }
+    public static bool BatchDynamicLights { get; private set; } = true;
     public static ulong DynamicExecutionModeRevision { get; private set; }
     public static ulong AppliedDynamicExecutionModeRevision { get; private set; }
     public static bool IsDynamicExecutionModeApplied =>
@@ -67,12 +67,12 @@ public static class LightingQualityTuningController
 
     public static void SetBatchDynamicLights(bool enabled)
     {
-        if (enabled == BatchDynamicLights)
+        if (!enabled || BatchDynamicLights)
         {
             return;
         }
 
-        BatchDynamicLights = enabled;
+        BatchDynamicLights = true;
         DynamicExecutionModeRevision = checked(DynamicExecutionModeRevision + 1);
     }
 

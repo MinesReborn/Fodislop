@@ -75,10 +75,11 @@ reference game assemblies, use reflection, or modify camera components or assets
 - `Assets/Textures/` contains authored, directly referenced/imported art. Group
   by stable domain (cells, items, UI, VFX, etc.). Numeric or legacy names that
   are identifiers must be mapped/documented rather than renamed for aesthetics.
-  `Assets/Settings/Build/Textures/TextureStagingCatalog.json` maps categorized
-  authoring paths to stable published/server names rooted at `Visual/`.
-  RuntimeAssetPaths uses the same catalog in the Editor; TextureStagingWriter
-  exports those identities. Audio bank names use the separate `Audio/` root.
+  `Assets/Settings/Build/Textures/TextureDeliveryCatalog.json` maps authoring
+  paths to stable published names and marks each texture `Embedded` or
+  `DummyWorld`. The build stages these groups separately; online world assets
+  still come from the server manifest. Audio banks use the separate `Audio/`
+  pipeline.
 - `Assets/StreamingAssets/` is for files that must remain directly addressable
   in the built player. It is not a second general-purpose Resources directory.
 - Always move Unity assets with their `.meta` files. Do not hand-edit scenes,

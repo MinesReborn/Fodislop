@@ -84,7 +84,8 @@ public sealed class AuthGate
         IClientConfigManager clientConfig,
         IAuthenticationService authentication,
         IAsyncOperationSupervisor operations,
-        ILocalizationService? loc)
+        ILocalizationService? loc,
+        bool isVkAvailable)
     {
         var loginForm = tree.Q<VisualElement>("AuthLoginForm");
         var registerForm = tree.Q<VisualElement>("AuthRegisterForm");
@@ -114,11 +115,11 @@ public sealed class AuthGate
             authentication,
             operations,
             loc);
-        gate.Bind(tree);
+        gate.Bind(tree, isVkAvailable);
         return gate;
     }
 
-    private void Bind(VisualElement tree)
+    private void Bind(VisualElement tree, bool isVkAvailable)
     {
         _tabLogin.clicked += () => SelectTab(register: false);
         _tabRegister.clicked += () => SelectTab(register: true);
@@ -141,12 +142,24 @@ public sealed class AuthGate
 
         _vkButton = tree.Q<Button>("AuthVkButton");
         _vkLabel = tree.Q<Label>("AuthVkLabel");
+        VisualElement? vkSeparator = tree.Q<VisualElement>("AuthVkSeparator");
         if (_vkButton != null)
         {
-            _vkButton.clicked += StartVKLogin;
-            if (_vkLabel != null && _authentication.HasVKSession)
+            if (isVkAvailable)
             {
-                _vkLabel.text = L("gateway.auth.vk_continue", "Продолжить как {0} (VK)", _authentication.VKDisplayName);
+                _vkButton.clicked += StartVKLogin;
+                if (_vkLabel != null && _authentication.HasVKSession)
+                {
+                    _vkLabel.text = L(
+                        "gateway.auth.vk_continue",
+                        "Продолжить как {0} (VK)",
+                        _authentication.VKDisplayName);
+                }
+            }
+            else
+            {
+                _vkButton.AddToClassList("is-hidden");
+                vkSeparator?.AddToClassList("is-hidden");
             }
         }
 

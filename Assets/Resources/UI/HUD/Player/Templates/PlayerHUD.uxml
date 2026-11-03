@@ -39,7 +39,7 @@
             <ui:Label name="CreditsLabel" class="hud-credits" text="---" />
             <ui:Label name="GeologyLabel" class="hud-stat"  text="" />
 
-            <ui:Button name="DonateButton" class="hud-donate-button" text="💰" tooltip="hud.tooltip.donate" picking-mode="Position" />
+            <ui:Button name="DonateButton" class="hud-donate-button" text="$" tooltip="hud.tooltip.donate" picking-mode="Position" />
 
             <ui:VisualElement name="BasketSeparator" class="hud-separator" />
 

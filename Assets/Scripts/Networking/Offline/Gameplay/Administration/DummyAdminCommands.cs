@@ -20,20 +20,31 @@ internal sealed class DummyAdminCommands
     private readonly DummyPlayerSimulationState _playerState;
     private readonly DummyWorldSimulationState _worldState;
     private readonly IDummyClock _clock;
+    private readonly IAsyncOperationSupervisor _operations;
+    private readonly Func<int> _getLifecycleVersion;
+    private readonly Func<int, bool> _loopAlive;
     private readonly ushort _playerBotId;
     private bool _unloadedView;
+    private int _staticBotsStartedLifecycleVersion;
+    private int _circularBotsStartedLifecycleVersion;
     internal DummyAdminCommands(
     Action<ServerPacket> sendPacket,
     DummyPlayerSimulationState playerState,
     DummyWorldSimulationState worldState,
     IDummyClock clock,
-    ushort playerBotId)
+    ushort playerBotId,
+    IAsyncOperationSupervisor operations,
+    Func<int> getLifecycleVersion,
+    Func<int, bool> loopAlive)
     {
         _sendPacket = sendPacket;
         _playerState = playerState;
         _worldState = worldState;
         _clock = clock;
         _playerBotId = playerBotId;
+        _operations = operations;
+        _getLifecycleVersion = getLifecycleVersion;
+        _loopAlive = loopAlive;
     }
 
     private const string CommandPrefix = "/";
@@ -86,6 +97,12 @@ internal sealed class DummyAdminCommands
             case "unloaded":
                 ToggleUnloadedView();
                 return true;
+            case "bots-static":
+                SpawnStaticBots();
+                return true;
+            case "bots-circle":
+                StartCircularBots();
+                return true;
             default:
                 Reply($"Неизвестная команда «{parts[0]}». Список — /help");
                 return true;
@@ -103,6 +120,55 @@ internal sealed class DummyAdminCommands
             $"/fill [тип] — заполнить область {FillWidth}x{FillHeight} вокруг робота " +
             $"(без аргумента — {DefaultFillCell})");
         Reply("/unloaded — включить/выключить отображение всех клеток как Unloaded");
+        Reply("/bots-static — создать 100 неподвижных роботов вокруг игрока");
+        Reply("/bots-circle — создать 100 роботов, движущихся по кругу вокруг игрока");
+    }
+
+    private void SpawnStaticBots()
+    {
+        int lifecycleVersion = _getLifecycleVersion();
+        if (_staticBotsStartedLifecycleVersion == lifecycleVersion)
+        {
+            Reply("Неподвижные роботы уже созданы в этой сессии.");
+            return;
+        }
+
+        _operations.Run(
+            "dummy_command_static_bots",
+            cancellationToken => DummyBotRunner.RunStaticBotsAround(
+                lifecycleVersion,
+                100,
+                _playerState.X,
+                _playerState.Y,
+                _clock,
+                _sendPacket,
+                _loopAlive,
+                cancellationToken));
+        _staticBotsStartedLifecycleVersion = lifecycleVersion;
+        Reply("Созданы 100 неподвижных роботов вокруг игрока.");
+    }
+
+    private void StartCircularBots()
+    {
+        int lifecycleVersion = _getLifecycleVersion();
+        if (_circularBotsStartedLifecycleVersion == lifecycleVersion)
+        {
+            Reply("Круговые роботы уже созданы в этой сессии.");
+            return;
+        }
+
+        _operations.Run(
+            "dummy_command_circle_bots",
+            cancellationToken => DummyBotRunner.RunCircularBotsAround(
+                lifecycleVersion,
+                _playerState.X,
+                _playerState.Y,
+                _clock,
+                _sendPacket,
+                _loopAlive,
+                cancellationToken));
+        _circularBotsStartedLifecycleVersion = lifecycleVersion;
+        Reply("Созданы 100 роботов, движущихся по кругу вокруг игрока.");
     }
 
     private void PlayVisualEffect(string[] parts)

@@ -456,8 +456,8 @@
 }
 
 .hud-panel .hud-donate-button {
-    width: 15px;
-    height: 15px;
+    width: 24px;
+    height: 24px;
     flex-shrink: 0;
     padding: 0;
     margin-left: var(--space-2);

@@ -84,7 +84,7 @@ namespace Kern.AssetPipeline.Loading
             }
         }
 
-        /// <param name="filename">The texture filename (e.g. "cells/Rock.png", "clan/4.png").</param>
+        /// <param name="filename">The published texture path (e.g. "Visual/Cells/Rock.png", "Visual/Clan/4.png").</param>
         /// <returns>Loaded Texture2D.</returns>
         public async UniTask<Texture2D?> GetTextureAsync(
             string filename,

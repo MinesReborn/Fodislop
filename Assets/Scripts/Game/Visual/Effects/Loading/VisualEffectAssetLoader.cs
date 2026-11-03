@@ -33,9 +33,21 @@ internal sealed class VisualEffectAssetLoader
         _assetLoader = assetLoader ?? throw new ArgumentNullException(nameof(assetLoader));
     }
 
+    public static string GetPublishedAssetPath(string visualEffectName)
+    {
+        if (string.IsNullOrWhiteSpace(visualEffectName))
+        {
+            throw new ArgumentException("Visual effect name must not be empty.", nameof(visualEffectName));
+        }
+
+        string normalizedName = visualEffectName.ToLowerInvariant();
+        string directory = normalizedName is "bz" or "death" ? "Effects/" : string.Empty;
+        return $"Visual/{directory}{normalizedName}.png";
+    }
+
     public async UniTask<LoadedVisualEffect> LoadAsync(string visualEffectName, CancellationToken token)
     {
-        string filename = $"Visual/{visualEffectName.ToLowerInvariant()}.png";
+        string filename = GetPublishedAssetPath(visualEffectName);
         try
         {
             AnimatedSpriteData animData = await _assetLoader.GetAnimatedSpritesAsync(filename, token);

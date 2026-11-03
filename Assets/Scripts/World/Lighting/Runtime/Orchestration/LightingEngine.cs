@@ -51,7 +51,7 @@ namespace Kern.World.Lighting
             LightingComputeBinder.DiagnosticBatchedDynamicLights = false;
             LightingQualityTuningController.Apply(LightingConfigHolder.DefaultQuality);
             LightingQualityTuningController.SetDynamicTransportMode(DynamicLightingTransportMode.ExactDda);
-            LightingQualityTuningController.SetBatchDynamicLights(false);
+            LightingQualityTuningController.SetBatchDynamicLights(true);
             LightingQualityTuningController.MarkDynamicExecutionModeApplied(
                 LightingQualityTuningController.DynamicExecutionModeRevision);
             LightingComputeBinder.DiagnosticVectorPolarReference = false;

@@ -39,6 +39,7 @@ internal static class RobotMetadataPresentation
         RobotVisuals visuals,
         RobotNameplate nameplate,
         Transform transform,
+        Action<Texture2D?> applyTailTexture,
         Action skinCompleted)
     {
         loader.LoadMetadataAssets(skinPath, tailPath, clanId, isLocalPlayer,
@@ -55,14 +56,7 @@ internal static class RobotMetadataPresentation
             },
             onTailLoaded: tailTexture =>
             {
-                if (tailTexture != null)
-                {
-                    visuals.CreateTentacles(tailTexture, transform.position);
-                }
-                else
-                {
-                    visuals.ClearTentacles();
-                }
+                applyTailTexture(tailTexture);
             },
             onClanLoaded: clanSprite =>
             {

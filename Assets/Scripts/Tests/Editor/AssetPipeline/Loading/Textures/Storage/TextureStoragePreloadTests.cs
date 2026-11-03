@@ -132,10 +132,12 @@ public class TextureStoragePreloadTests
 
         public UniTask EnsureReadyAsync() => UniTask.CompletedTask;
 
-        public IReadOnlyList<string> GetTextureFilenames() => Directory
+        public IReadOnlyList<string> GetEmbeddedTextureFilenames() => Directory
             .EnumerateFiles(_rootDir, "*", SearchOption.AllDirectories)
             .Select(path => Path.GetRelativePath(_rootDir, path).Replace('\\', '/'))
             .ToArray();
+
+        public IReadOnlyList<string> GetDummyWorldTextureFilenames() => Array.Empty<string>();
 
         public byte[]? GetTextureBytes(string relativePath)
         {

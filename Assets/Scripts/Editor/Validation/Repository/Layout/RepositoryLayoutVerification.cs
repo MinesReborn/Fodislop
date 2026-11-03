@@ -25,7 +25,7 @@ public static class RepositoryLayoutVerification
         AssetDatabase.SaveAssets();
 
         int textures = 0;
-        foreach (var entry in AuthoredTextureCatalog.Read(Path.Combine(root, AuthoredTextureCatalog.AssetPath)))
+        foreach (var entry in TextureDeliveryCatalog.Read(Path.Combine(root, TextureDeliveryCatalog.AssetPath)).All)
         {
             string expected = Path.GetFullPath(Path.Combine(Application.dataPath, "Textures", entry.Key));
             if (!File.Exists(expected))

@@ -25,7 +25,8 @@ public sealed class PublishedTextureSourceIndexTests
     [Test]
     public void ProductionCatalogReferencesExistingAuthoredSources()
     {
-        foreach (KeyValuePair<string, string> entry in AuthoredTextureCatalog.Read(AuthoredTextureCatalog.AssetPath))
+        foreach (KeyValuePair<string, string> entry in
+                 TextureDeliveryCatalog.Read(TextureDeliveryCatalog.AssetPath).All)
         {
             string path = Path.Combine(
                 Application.dataPath,

@@ -383,7 +383,7 @@ internal sealed class TerrainCellOracle
         hash ^= unchecked(decalTextureIndex * 2246822519u);
         hash = unchecked((hash ^ (hash >> 13)) * 1274126177u);
         hash ^= hash >> 16;
-        if (hash % 100u >= 25u)
+        if (hash % 100u >= 20u)
         {
             return 0f;
         }

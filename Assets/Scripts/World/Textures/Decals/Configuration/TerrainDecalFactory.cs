@@ -12,7 +12,7 @@ internal static class TerrainDecalFactory
     public const int VariantRows = 1;
     public const int TileWidth = 32;
     public const int TileHeight = 32;
-    public const byte PlacementPercent = 25;
+    public const byte PlacementPercent = 20;
     public const byte PlacementOffset = 32;
     public const float Strength = 1f;
 

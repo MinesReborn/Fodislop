@@ -131,6 +131,12 @@ namespace Kern.Game.Rendering
         public bool TryGetVisibleRect(Camera? camera, out Rect visibleRect) =>
             TryGetCameraRect(camera, _prefetchMargin, out visibleRect);
 
+        public bool TryGetCachedVisibleRect(out Rect visibleRect)
+        {
+            visibleRect = _cachedVisibleRect;
+            return _hasCachedVisibleRect;
+        }
+
         private static bool TryGetCameraRect(Camera? camera, float margin, out Rect visibleRect)
         {
             if (camera == null)

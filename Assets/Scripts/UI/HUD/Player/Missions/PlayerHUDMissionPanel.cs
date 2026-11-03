@@ -16,8 +16,6 @@ namespace Kern.UI.HUD;
 
 public sealed class PlayerHUDMissionPanel
 {
-    private static readonly TimeZoneInfo MoscowTimeZone =
-        TimeZoneInfo.FindSystemTimeZoneById("Russian Standard Time");
     private const int MissionResetHour = 18;
     private const string TimerMacro = "%T%";
 
@@ -213,11 +211,14 @@ public sealed class PlayerHUDMissionPanel
 
     private static string FormatTimeUntilReset()
     {
-        DateTime mskNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, MoscowTimeZone);
-        DateTime nextReset = mskNow.Hour < MissionResetHour
-            ? new DateTime(mskNow.Year, mskNow.Month, mskNow.Day, MissionResetHour, 0, 0)
-            : new DateTime(mskNow.Year, mskNow.Month, mskNow.Day, MissionResetHour, 0, 0).AddDays(1);
-        TimeSpan remaining = nextReset - mskNow;
+        DateTime localNow = DateTime.Now;
+        DateTime nextReset = localNow.Date.AddHours(MissionResetHour);
+        if (localNow >= nextReset)
+        {
+            nextReset = nextReset.AddDays(1);
+        }
+
+        TimeSpan remaining = nextReset - localNow;
         return $"{remaining.Hours} ч. {remaining.Minutes} мин.";
     }
 

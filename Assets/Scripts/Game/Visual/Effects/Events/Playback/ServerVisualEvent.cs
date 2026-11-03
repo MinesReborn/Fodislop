@@ -23,6 +23,7 @@ using Kern.Game.Entities.Robots;
 using Kern.Game.Visual.Effects.Events.Parameters;
 using Kern.Game.Rendering;
 using Kern.Game.Visual.Effects.Crystals;
+using Kern.Game.Visual.Effects.Loading;
 using Kern.Game.Visual.Effects.Pooling;
 using Kern.Game.Visual.Effects.Sprites;
 
@@ -334,7 +335,7 @@ public sealed class ServerVisualEvent : IServerWorldEffect
                 return;
             }
 
-            var filename = $"Visual/{_effectType.ToString().ToLowerInvariant()}.png";
+            var filename = VisualEffectAssetLoader.GetPublishedAssetPath(_effectType.ToString());
             if (await TryLoadNamedVisualAsync(filename, token))
             {
                 return;

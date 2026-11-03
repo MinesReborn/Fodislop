@@ -53,6 +53,8 @@ namespace Kern.Game.Rendering
 
         private readonly List<Tentacle> _tentacles = new();
         private readonly List<SpriteHandle> _sprites = new();
+        private readonly HashSet<SpriteHandle> _visibleSpriteHandles = new();
+        private readonly HashSet<SpriteHandle> _currentVisibleSpriteHandles = new();
         private readonly Dictionary<string, Sprite> _ownedSpritesByKey = new(StringComparer.Ordinal);
         private readonly SpatialShardGrid<SpriteHandle> _spatialGrid = new();
         private readonly WorldEntityVisibility _visibility;
@@ -234,16 +236,40 @@ namespace Kern.Game.Rendering
             _lightingEmitter.UpdateRevision();
 
             Camera? camera = _gameplayCamera?.Camera;
-            if (_visibility.UpdateCameraState(camera))
+            bool cameraCoverageInvalidated = _visibility.UpdateCameraState(camera);
+            if (cameraCoverageInvalidated)
             {
                 _geometryDirty = true;
             }
 
-            if (!_geometryDirty)
+            bool hasCamera;
+            Rect visibleRect;
+            if (camera != null &&
+                !cameraCoverageInvalidated &&
+                _visibility.TryGetCachedVisibleRect(out visibleRect))
             {
-                for (int i = 0; i < _sprites.Count; i++)
+                hasCamera = true;
+            }
+            else
+            {
+                hasCamera = _visibility.TryGetVisibleRect(camera, out visibleRect);
+            }
+
+            _visibility.Collect(_sprites, hasCamera, visibleRect, OVERLAY_BATCH_SORTING_ORDER, TENTACLE_SORTING_ORDER);
+            _currentVisibleSpriteHandles.Clear();
+            AddVisibleHandles(_visibility.UnderTentacles, _currentVisibleSpriteHandles);
+            AddVisibleHandles(_visibility.OverTentacles, _currentVisibleSpriteHandles);
+            AddVisibleHandles(_visibility.Overlay, _currentVisibleSpriteHandles);
+
+            if (_currentVisibleSpriteHandles.Count != _visibleSpriteHandles.Count)
+            {
+                _geometryDirty = true;
+            }
+            else
+            {
+                foreach (SpriteHandle handle in _currentVisibleSpriteHandles)
                 {
-                    if (_sprites[i].HasChanged())
+                    if (!_visibleSpriteHandles.Contains(handle) || handle.HasChanged())
                     {
                         _geometryDirty = true;
                         break;
@@ -256,8 +282,6 @@ namespace Kern.Game.Rendering
                 return;
             }
 
-            bool hasCamera = _visibility.TryGetVisibleRect(camera, out Rect visibleRect);
-            _visibility.Collect(_sprites, hasCamera, visibleRect, OVERLAY_BATCH_SORTING_ORDER, TENTACLE_SORTING_ORDER);
             RebuildMesh(hasCamera, visibleRect);
             _overlayBatch?.Rebuild(_visibility.Overlay, GetAtlasRect, _mesh.bounds);
 
@@ -266,7 +290,23 @@ namespace Kern.Game.Rendering
                 _sprites[i].CaptureState();
             }
 
+            _visibleSpriteHandles.Clear();
+            foreach (SpriteHandle handle in _currentVisibleSpriteHandles)
+            {
+                _visibleSpriteHandles.Add(handle);
+            }
+
             _geometryDirty = false;
+        }
+
+        private static void AddVisibleHandles(
+            IReadOnlyList<SpriteHandle> source,
+            HashSet<SpriteHandle> destination)
+        {
+            for (int i = 0; i < source.Count; i++)
+            {
+                destination.Add(source[i]);
+            }
         }
 
         private void EnsureRenderer()

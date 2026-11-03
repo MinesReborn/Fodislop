@@ -2053,6 +2053,25 @@
                         "nonfilteringSamplerBindings": 0
                     },
                     {
+                        "vertexLayout": 16749557379734561253,
+                        "renderPass": 4524451620886802199,
+                        "renderState": 2874810695172648804,
+                        "subPassIndex": 0,
+                        "topology": 0,
+                        "forceCullMode": -1,
+                        "shadingRateCombinerPrimitive": 0,
+                        "shadingRateCombinerFragment": 0,
+                        "baseShadingRate": 0,
+                        "depthBias": 0.0,
+                        "slopeDepthBias": 0.0,
+                        "userBackface": false,
+                        "appBackface": false,
+                        "wireframe": false,
+                        "invertProjectionMatrix": true,
+                        "unfilterableTextureBindings": 0,
+                        "nonfilteringSamplerBindings": 0
+                    },
+                    {
                         "vertexLayout": 9346122305125408839,
                         "renderPass": 15945554207292896147,
                         "renderState": 2874810695172648804,

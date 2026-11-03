@@ -32,7 +32,7 @@ public static class TerrainCellFormat
 
     public const int TypeGlowShift = 16;
 
-    public const uint DecalPlacementPercent = 25u;
+    public const uint DecalPlacementPercent = 20u;
 
     // Код декали клетки.
     public const uint DecalVariants = 16u;

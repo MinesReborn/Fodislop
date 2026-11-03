@@ -138,7 +138,7 @@ def main() -> int:
     selected = set(args.cell) if args.cell else set(cells)
     if unknown := selected - cells.keys():
         raise ValueError(f"Неизвестные клетки: {', '.join(sorted(unknown))}")
-    index = texture_index(root / "Assets/Settings/Build/Textures/TextureStagingCatalog.json")
+    index = texture_index(root / "Assets/Settings/Build/Textures/TextureDeliveryCatalog.json")
     cache = {}
     changes = {}
     for name, cell in cells.items():

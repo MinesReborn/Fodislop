@@ -55,9 +55,11 @@ def main():
             guids[guid] = str(meta.relative_to(root))
     counts["guids"] = len(guids)
 
-    catalog_path = root / "Assets/Settings/Build/Textures/TextureStagingCatalog.json"
+    catalog_path = root / "Assets/Settings/Build/Textures/TextureDeliveryCatalog.json"
     sources, published = set(), set()
     for entry in json.loads(catalog_path.read_text())["Entries"]:
+        require(entry.get("Delivery") in {"Embedded", "DummyWorld"},
+                f"Invalid texture delivery category: {entry.get('Source')} -> {entry.get('Delivery')}")
         for key, identities in (("Source", sources), ("Published", published)):
             value = entry[key]
             require(bool(value) and not value.startswith("/") and "\\" not in value and

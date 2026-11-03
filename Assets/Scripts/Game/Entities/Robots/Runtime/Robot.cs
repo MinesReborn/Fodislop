@@ -69,6 +69,7 @@ namespace Kern.Game.Entities.Robots
         private IRuntimeDebugSettings _debugSettings = null!;
 
         private RobotLighting _lighting = null!;
+        private bool _hasTailBudgetSlot;
         private RobotVisuals _visuals = null!;
         private readonly RobotNameplate _nameplate = new();
 
@@ -363,6 +364,13 @@ namespace Kern.Game.Entities.Robots
         public void Initialize(uint botId)
         {
             TryInitializeDynamicLightSettings();
+            if (_botId != botId && _hasTailBudgetSlot)
+            {
+                _robotManager.ReleaseTailSlot(_botId);
+                _hasTailBudgetSlot = false;
+                _visuals.ClearTentacles();
+            }
+
             _botId = botId;
             _robotManager.RegisterRobot(this);
 
@@ -465,8 +473,47 @@ namespace Kern.Game.Entities.Robots
                 }
 
                 RobotMetadataPresentation.Load(AssetLoader, _skinPath, _tailPath, _clanId,
-                    IsLocalPlayer, _visuals, _nameplate, transform, () => _visualsLoadCompleted = true);
+                    IsLocalPlayer,
+                    _visuals,
+                    _nameplate,
+                    transform,
+                    ApplyTailTexture,
+                    () => _visualsLoadCompleted = true);
             }
+        }
+
+        private void ApplyTailTexture(Texture2D? tailTexture)
+        {
+            if (tailTexture == null)
+            {
+                _visuals.ClearTentacles();
+                if (_hasTailBudgetSlot)
+                {
+                    _robotManager.ReleaseTailSlot(_botId);
+                    _hasTailBudgetSlot = false;
+                }
+
+                return;
+            }
+
+            if (!_hasTailBudgetSlot && _robotManager != null)
+            {
+                if (!_robotManager.TryReserveTailSlot(_botId, prioritize: IsLocalPlayer))
+                {
+                    _visuals.ClearTentacles();
+                    return;
+                }
+
+                _hasTailBudgetSlot = true;
+            }
+
+            _visuals.CreateTentacles(tailTexture, transform.position);
+        }
+
+        internal void ReleaseTailSlotFromManager()
+        {
+            _hasTailBudgetSlot = false;
+            _visuals.ClearTentacles();
         }
 
 #if UNITY_EDITOR
@@ -518,6 +565,12 @@ namespace Kern.Game.Entities.Robots
             }
 
             _assetLoaderHelper?.Cancel();
+            if (_hasTailBudgetSlot && _robotManager != null)
+            {
+                _robotManager.ReleaseTailSlot(_botId);
+                _hasTailBudgetSlot = false;
+            }
+
             _robotService?.UnregisterRobot(_botId);
             _nameplate.Destroy();
             _visuals?.Destroy();

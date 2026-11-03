@@ -139,7 +139,15 @@ public class DummyConnection : IServerConnection, IOfflineConnection, IWorldRegi
             operations,
             clock);
         _chatResponder = new DummyChatResponder(SendPacket, clock);
-        _adminCommands = new DummyAdminCommands(SendPacket, _playerState, _worldState, clock, _mockBotId);
+        _adminCommands = new DummyAdminCommands(
+            SendPacket,
+            _playerState,
+            _worldState,
+            clock,
+            _mockBotId,
+            operations,
+            () => _session.LifecycleVersion,
+            _session.IsAlive);
         _clanManager = new DummyClanManager(SendPacket);
         _pathFinder = new DummyPathFinder(SendPacket, _worldState.GetCellConfig);
         _movementResponder = new DummyMovementResponder(

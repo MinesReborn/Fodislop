@@ -353,7 +353,7 @@ internal sealed class DummyWorldStartupResponder
 
     private IReadOnlyList<string> GetAvailableTextures()
     {
-        return _assetPaths.GetTextureFilenames()
+        return _assetPaths.GetDummyWorldTextureFilenames()
             .Where(AssetBatchDispatcher.IsTextureFile)
             .ToArray();
     }

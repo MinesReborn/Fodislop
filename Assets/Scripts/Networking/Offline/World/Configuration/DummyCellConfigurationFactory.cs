@@ -69,7 +69,7 @@ internal static class DummyCellConfigurationFactory
         var assets = new Dictionary<string, AssetsDefinitionPacket>(StringComparer.Ordinal);
         var audioAssets = new List<AssetsDefinitionPacket>();
 
-        IReadOnlyList<string> textureFilenames = assetPaths.GetTextureFilenames();
+        IReadOnlyList<string> textureFilenames = assetPaths.GetDummyWorldTextureFilenames();
         if (textureFilenames.Count == 0)
         {
             throw new InvalidOperationException(
