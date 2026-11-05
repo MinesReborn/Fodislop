@@ -1,8 +1,8 @@
 # Цвета общего слоя вне палитры
 
 ФАЙЛ МАШИННЫЙ. Правки будут затёрты.
-Генератор: `dotnet run --project tools/Kern.DesignSystem -- report-off-palette`.
-Потолки этих чисел держит `Debt`-бюджетами в правилах `tools/Kern.ArchitectureLinter`.
+Генератор: `dotnet run --project tools/generators/Kern.DesignSystem -- report-off-palette`.
+Потолки этих чисел держит `Debt`-бюджетами в правилах `tools/architecture/Kern.ArchitectureLinter`.
 
 ## Что это
 

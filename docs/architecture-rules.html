@@ -23,15 +23,15 @@
 <body>
   <h1>Kern architecture rules</h1>
   <p>The project currently uses two complementary linters. The C# runner in
-    <code>tools/Kern.ArchitectureLinter</code> owns migrated source and IL contracts.
+    <code>tools/architecture/Kern.ArchitectureLinter</code> owns migrated source and IL contracts.
     <code>scripts/check-architecture.js</code> still owns non-migrated scene, design-system,
     localization, and debt-budget checks. Neither runner is described as a full replacement
     until the remaining checks have actually moved.</p>
 
   <h2>Running</h2>
-  <pre><code>dotnet run --project tools/Kern.ArchitectureLinter -- -p .
-dotnet run --project tools/Kern.ArchitectureLinter -- -p . --rule KERN-DISPLAY-TRANSFORM
-dotnet run --project tools/Kern.ArchitectureLinter -- -p . \
+  <pre><code>dotnet run --project tools/architecture/Kern.ArchitectureLinter -- -p .
+dotnet run --project tools/architecture/Kern.ArchitectureLinter -- -p . --rule KERN-DISPLAY-TRANSFORM
+dotnet run --project tools/architecture/Kern.ArchitectureLinter -- -p . \
   --rule KERN-DISPLAY-TRANSFORM --rule KERN-POSTPROCESS-RUNTIME</code></pre>
   <p><code>--rule</code> is repeatable and rejects unknown IDs. With no selector, every discovered
     rule runs. Source-only selections do not load compiled assemblies. IL selections discover

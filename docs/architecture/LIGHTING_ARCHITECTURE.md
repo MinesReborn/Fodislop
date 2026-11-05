@@ -73,7 +73,7 @@ change/frame publication, generation-scoped frame snapshots, Lighting-owned
 LateUpdate tick, success-only acknowledgements и output publication. Terrain protocol
 sequence/pending-reset ownership вынесено в `TerrainLightingFramePublisher`; оно не
 меняет очередь и порядок Terrain commit/plan/process. `dotnet test
-tools/Kern.WorldLightingExchangeTests/Kern.WorldLightingExchangeTests.csproj
+tools/tests/Kern.WorldLightingExchangeTests/Kern.WorldLightingExchangeTests.csproj
 --no-restore` прошёл: 21 tests. Production Unity compile/PlayMode проверки frame
 order, teleport presentation, GPU output rect и material binding не запускались,
 поэтому acceptance Gate C остаётся pending.
@@ -387,9 +387,20 @@ bounding draw across separated supports.
 Contributors receive the borrowed
 `LightingAmbientOcclusionContext.RasterRect` and must preserve existing contents.
 A dirty field before region activation, an unjournaled revision, contributor
-change, entering the mode, resource recreation or region movement requires a full
-rebuild. Activation's own `FieldDirty` does not disable regional updates.
-The Classic AO-only updater and full lighting coordinator use the same policy.
+change, entering the mode, resource recreation or a region movement without a
+reusable static-atlas overlap requires a full rebuild. Activation's own
+`FieldDirty` does not disable regional updates.
+
+A region reanchor that reuses the static-atlas overlap now also reuses the AO
+field: `LightingResourceManager.RecordAmbientOcclusionScroll` copies the
+retained target through a same-format scratch target (`CommandBuffer.CopyTexture`,
+memory-row origin from `LightingFieldOrientation`), the coordinator records the
+bands that entered the region as active invalidations, and only those bands plus
+the three-cell support halo are cleared and redrawn. The same conditions gate it
+as the atlas scroll: unchanged resource dimensions, staged revision equal to the
+committed terrain revision, no contributor change and a field that was not dirty
+before activation. The Classic AO-only updater still rebuilds the whole field on
+region movement.
 `GeometryLightingSolver` owns the field; a stable frame reuses the published field. `LightingPresentation`
 publishes the field and world mapping. The
 visible terrain fragment in `Terrain.shader` samples mip zero at

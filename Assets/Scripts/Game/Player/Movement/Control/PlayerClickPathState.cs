@@ -33,6 +33,11 @@ internal sealed class PlayerClickPathState
         ISceneObjectFactory sceneObjects,
         Transform owner)
     {
+        if (mapDataProvider == null)
+        {
+            return false;
+        }
+
         if (!ClickPathRequestHandler.TryFindPath(
                 target,
                 movementLocked,

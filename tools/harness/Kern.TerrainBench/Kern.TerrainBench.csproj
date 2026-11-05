@@ -1,0 +1,69 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <Optimize>true</Optimize>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <TieredPGO>true</TieredPGO>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <!-- Стиль проверяется в Unity и линтером; здесь чужие файлы игры собираются только ради замеров. -->
+    <RunAnalyzers>false</RunAnalyzers>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <ScriptAssemblies>../../../Library/ScriptAssemblies</ScriptAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Данные сервера: Unity собирает их сам, ссылаются только на mscorlib. -->
+    <Reference Include="MinesServer.Data">
+      <HintPath Condition="Exists('$(ScriptAssemblies)/MinesServer.Data.dll')">$(ScriptAssemblies)/MinesServer.Data.dll</HintPath>
+      <HintPath Condition="!Exists('$(ScriptAssemblies)/MinesServer.Data.dll')">../../lib/MinesServer.Data.dll</HintPath>
+    </Reference>
+    <Reference Include="MinesServer.Networking">
+      <HintPath Condition="Exists('$(ScriptAssemblies)/MinesServer.Networking.dll')">$(ScriptAssemblies)/MinesServer.Networking.dll</HintPath>
+      <HintPath Condition="!Exists('$(ScriptAssemblies)/MinesServer.Networking.dll')">../../lib/MinesServer.Networking.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Настоящие файлы игры, без копий: бенчмарк меряет тот же код. -->
+    <Compile Include="../../../Assets/Scripts/World/Coordinates/Contracts/Grid/WorldGridDefaults.cs" Link="Game/WorldGridDefaults.cs" />
+    <Compile Include="../../../Assets/Scripts/Core/Configuration/Contracts/Settings/Terrain/TerrainSettings.cs" Link="Game/TerrainSettings.cs" />
+    <Compile Include="../../../Assets/Scripts/Core/Configuration/Contracts/Schema/SettingAttributes.cs" Link="Game/SettingAttributes.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Terrain/Contracts/Appearance/TerrainConfigHolder.cs" Link="Game/TerrainConfigHolder.cs" />
+    <Compile Include="../../../Assets/Scripts/Game/Rendering/Entities/Contracts/Coverage/WorldRenderConfigHolder.cs" Link="Game/WorldRenderConfigHolder.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Lighting/Quality/Contracts/LightingQualityTuning.cs" Link="Game/LightingQualityTuning.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Coordinates/Conversion/WorldCoordinateConverter.cs" Link="Game/WorldCoordinateConverter.cs" />
+    <!-- Старый формат вершины — точка отсчёта для сравнения с буфером клеток. -->
+    <Compile Include="../../../Assets/Scripts/Tests/Editor/World/Terrain/Reference/Vertices/TerrainVertex.cs" Link="Reference/TerrainVertex.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Terrain/GPU/Cells/TerrainCellData.cs" Link="Game/TerrainCellData.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Terrain/GPU/Cells/TerrainCellFormat.cs" Link="Game/TerrainCellFormat.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Terrain/Build/Cells/TerrainCellTypeSet.cs" Link="Game/TerrainCellTypeSet.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Terrain/Build/Changes/TerrainDirtyRegion.cs" Link="Game/TerrainDirtyRegion.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Terrain/Cache/Invalidation/DirtyRectSet.cs" Link="Game/DirtyRectSet.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Terrain/Cache/Cells/TerrainCellRegion.cs" Link="Game/TerrainCellRegion.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Terrain/Cache/Scrolling/TerrainRingGrid.cs" Link="Game/TerrainRingGrid.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Terrain/Cache/Scrolling/TerrainScrollBands.cs" Link="Game/TerrainScrollBands.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Terrain/Cache/Residency/TerrainResidencyProbe.cs" Link="Game/TerrainResidencyProbe.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Terrain/Planning/Window/TerrainWindowAdvance.cs" Link="Game/TerrainWindowAdvance.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Terrain/Cache/Cells/TerrainMetadata.cs" Link="Game/TerrainMetadata.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Terrain/Cache/Cells/TerrainCellDataSource.cs" Link="Game/TerrainCellDataSource.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Spatial/Contracts/ISpatialIndex.cs" Link="Game/ISpatialIndex.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Spatial/Indexing/SpatialShardGrid.cs" Link="Game/SpatialShardGrid.cs" />
+    <!-- Маски и искажение читают TerrainCellCache: его заменяет Game/BenchTerrainCellCache.cs. -->
+    <Compile Include="../../../Assets/Scripts/World/Terrain/Autotiling/Encoding/TileBitmaskConverter.cs" Link="Game/TileBitmaskConverter.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Terrain/Build/Geometry/TerrainVertexDistortionCalculator.cs" Link="Game/TerrainVertexDistortionCalculator.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Rendering/Contracts/Grid/RenderingConstants.cs" Link="Game/RenderingConstants.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Cells/Contracts/BlockDefinition.cs" Link="Game/BlockDefinition.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Cells/Contracts/IBlockRegistry.cs" Link="Game/IBlockRegistry.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Cells/Contracts/CellVisualProtocol.cs" Link="Game/CellVisualProtocolContracts.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Cells/Palette/MapBlockColors.cs" Link="Game/MapBlockColors.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Cells/Registry/BlockRegistry.cs" Link="Game/BlockRegistry.cs" />
+    <Compile Include="../../../Assets/Scripts/World/Cells/Registry/MapCellConfigCatalog.cs" Link="Game/MapCellConfigCatalog.cs" />
+    <!-- Каталоги типов: FillQuad опрашивает их на каждый квад. -->
+  </ItemGroup>
+</Project>

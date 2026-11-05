@@ -29,7 +29,7 @@
 .frame.size-m {
   --tt: 52px; --pad: 168px; --mm: 150px; --col: 240px;
   --dig: 100px; --act: 64px; --peek-h: 52px;
-  --t-small: var(--t-4); --t-body: var(--t-6); --t-strong: var(--t-8); --t-title: var(--t-12);
+  --t-small: var(--t-4); --t-body: var(--t-6); --t-strong: var(--t-8); --t-title: var(--t-11);
 }
 /* Сенсорный ввод на большом экране (iPad Pro, сенсорный ноутбук): размеры пальцевых целей */
 .frame.in-touch:not(.compact) { --tt: 52px; --pad: 168px; --dig: 100px; --act: 64px; --edge: 12px; }
@@ -53,7 +53,7 @@
 .frame.compact .sysbar { display: none; }
 .frame.compact .icon-btn { width: var(--tt); height: var(--tt); }
 
-.tbtn { height: var(--tt); min-width: var(--tt); padding: 0 var(--sp-6); display: grid; place-items: center; border-radius: var(--radius); background: var(--graphite);
+.tbtn { height: var(--tt); min-width: var(--tt); padding: 0 var(--sp-6); display: grid; place-items: center; background: var(--graphite);
   border: 1px solid var(--seam); color: var(--bone); font-weight: var(--fw-semi); font-size: var(--t-body); white-space: nowrap; }
 .tbtn svg { width: 18px; height: 18px; }
 .tbtn[aria-pressed="true"] { border-color: var(--signal); background: var(--signal-pressed); color: var(--signal); }
@@ -66,13 +66,13 @@
 .frame.compact .nick { font-size: var(--t-small); flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .frame.compact .hp { gap: var(--sp-3); }
 .frame.compact .hp-dots { min-width: 90px; gap: 1px; }
-.frame.compact :is(.hp-value, .cargo-head strong) b { font-size: 18px; }
-.frame.compact .wallet { gap: 2px; }
+.frame.compact :is(.hp-value, .cargo-head strong) b { font-size: var(--t-10); }
+.frame.compact .wallet { gap: var(--sp-1); }
 .frame.compact .wallet dd { font-size: var(--t-small); line-height: 16px; }
-.frame.compact .geo { grid-column: 1 / 4; margin-top: var(--sp-1); padding-top: 4px; }
+.frame.compact .geo { grid-column: 1 / 4; margin-top: var(--sp-1); padding-top: var(--sp-2); }
 .frame.compact .geo-cells { height: 6px; }
 .frame.compact .geo-count { font-size: var(--t-small); }
-.frame.compact .geo-last { margin-top: 3px; }
+.frame.compact .geo-last { margin-top: var(--sp-2); }
 
 /* Кнопка бокса — справа на две строки: шапка «Груз» не растягивается до 44 dp, кристаллы идут сразу под ней */
 .frame.compact .cargo { width: var(--pcol, 100%); display: grid; grid-template-columns: auto auto 1fr auto; grid-template-rows: auto auto 1fr; align-items: center; column-gap: var(--sp-3); row-gap: var(--sp-1); padding: var(--sp-3) 0 var(--sp-3) var(--sp-5); }
@@ -97,14 +97,14 @@
 .frame.compact .touch-sys span { font-size: var(--t-2); line-height: 12px; letter-spacing: -.1px; color: var(--mist); }
 .frame.compact .touch-sys svg { width: 17px; height: 17px; }
 /* Игровые функции с ПК-ряда — в этом же блоке и с той же подложкой */
-.frame.compact .touch-sys .icon-btn { background: var(--graphite); border: 1px solid var(--seam); border-radius: var(--radius); color: var(--bone); place-items: center; align-content: center; }
+.frame.compact .touch-sys .icon-btn { background: var(--graphite); border: 1px solid var(--seam); color: var(--bone); place-items: center; align-content: center; }
 .frame.compact .bonus { position: static; }
 
 /* ── Верхняя полоса между ними: состояние, строки чата, миссия и состояния ── */
 .frame.compact .status-bar { top: var(--edge); font-size: var(--t-3); padding: 0 var(--sp-4); line-height: 16px;
   left: calc(var(--band-l) + var(--band-w) / 2); max-width: var(--band-w); overflow: hidden; }
 .frame.compact .chat-peek { position: absolute; left: var(--band-l); top: var(--band-t); bottom: auto; width: min(460px, var(--band-w)); max-width: none; height: var(--peek-h);
-  padding: 3px var(--sp-4); gap: var(--sp-4); align-items: flex-start; overflow: hidden; }
+  padding: var(--sp-2) var(--sp-4); gap: var(--sp-4); align-items: flex-start; overflow: hidden; }
 .frame.compact .hud[data-chat="2"] .chat-peek { display: flex; }
 .frame.compact .chat-peek ol { min-width: 0; gap: 0; }
 .frame.compact .chat-peek li { font-size: var(--t-small); line-height: 18px; max-width: none; }
@@ -171,7 +171,7 @@
 .act-arc .tbtn--dig { position: absolute; right: 0; bottom: 0; width: var(--dig); height: var(--dig); border-radius: var(--r-round); padding: 0; font-size: var(--t-strong);
   background: var(--signal); border-color: var(--signal); color: var(--on-signal); box-shadow: var(--shadow-float); }
 .act-arc > :is(.act, #autodig) { position: absolute; left: 0; top: 0; width: var(--tt); height: var(--tt); min-width: 0;
-  margin: 0; padding: 0; border-radius: var(--radius);
+  margin: 0; padding: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-1);
   background: var(--graphite); border: 1px solid var(--seam-strong); color: var(--bone); box-shadow: var(--shadow-float);
 }
@@ -180,7 +180,7 @@
 .act-arc #touchHeal { left: 0; }
 .act-arc #touchGeo { left: calc(var(--tt) + 6px); top: calc(var(--tt) + 8px); }
 .act-arc #autodig :is(.lbl, .dot, kbd) { display: none; }
-.act-arc :is(.ico-only, img) { display: block; width: 20px; height: 20px; flex: none; image-rendering: pixelated; border-radius: var(--r-xs); }
+.act-arc :is(.ico-only, img) { display: block; width: 20px; height: 20px; flex: none; image-rendering: pixelated; }
 .frame.in-touch:not(.size-s) .act-arc :is(.ico-only, img) { width: 26px; height: 26px; }
 .frame.in-touch .cap { display: block; font-size: var(--t-3); line-height: 12px; font-weight: var(--fw-semi); color: var(--mist); }
 .frame.in-touch #touchGeo .cap { font-size: var(--t-2); }
@@ -193,7 +193,7 @@
 .build-fan[hidden] { display: none; }
 .build-fan .build { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-1); width: var(--act); height: var(--act); padding: 0;
   box-shadow: inset 0 -3px 0 var(--c); }
-.build-fan img { width: 22px; height: 22px; image-rendering: pixelated; border-radius: var(--r-xs); }
+.build-fan img { width: 22px; height: 22px; image-rendering: pixelated; }
 .build-fan kbd { display: none; }
 
 /* HUD — в безопасной области при любом размере (у мониторов она нулевая) */
@@ -222,7 +222,7 @@
    Вкладки и закрытие — шапкой, под ними поле ввода, ниже лента: новые сверху. */
 .frame.compact .hud[data-chat="1"] .chat-column { display: flex; }
 .frame.compact .chat-column { z-index: var(--z-chat); flex-direction: column; left: var(--band-l); right: auto; top: var(--band-t); bottom: auto; width: min(460px, var(--band-w));
-  height: min(300px, calc(100% - var(--band-t) - 128px)); border: 1px solid var(--seam); border-radius: var(--radius); }
+  height: min(300px, calc(100% - var(--band-t) - 128px)); border: 1px solid var(--seam); }
 /* Телефон: сетка навыков стоит под полосой чата — чат заканчивается над её верхним рядом */
 .frame.size-s { --skill-rows: 1; }
 .frame.size-s:has(.mini-skill:nth-child(5)) { --skill-rows: 2; }
@@ -235,15 +235,15 @@
 .frame.compact .chat-tab.is-on { color: var(--signal); }
 .frame.compact .chat-tab:focus-visible { outline-offset: -4px; }
 .frame.compact .chat-form { order: 2; flex: none; padding: 0; border-top: 0; border-bottom: 1px solid var(--seam); display: flex; align-items: center; }
-.frame.compact .chat-input { flex: 1; min-width: 0; height: var(--tt); margin: 0; border: 0; border-radius: 0; background: var(--well); text-overflow: ellipsis; }
+.frame.compact .chat-input { flex: 1; min-width: 0; height: var(--tt); margin: 0; border: 0; background: var(--well); text-overflow: ellipsis; }
 .frame.compact .chat-send { flex: none; color: var(--signal); }
 .frame.compact .chat-log { order: 3; flex: 1; min-height: 0; flex-direction: column-reverse; justify-content: flex-end; padding: var(--sp-3) var(--sp-5); gap: var(--sp-2); }
 .frame.compact .chat-log li { line-height: 1.35; }
 
 /* «Сказать» и подсказка предмета — на месте строк чата */
 .frame.compact .say:not([hidden]) { position: absolute; z-index: var(--z-chat); top: var(--band-t); left: var(--band-l); width: min(460px, var(--band-w)); display: flex; gap: var(--sp-2); padding: 0; pointer-events: auto; }
-.frame.compact .say .chat-input { height: var(--tt); margin: 0; border-width: 1px; border-radius: var(--r-s); }
-.frame.compact .say .icon-btn { flex: none; background: var(--graphite); border: 1px solid var(--seam); border-radius: var(--radius); }
+.frame.compact .say .chat-input { height: var(--tt); margin: 0; border-width: 1px; }
+.frame.compact .say .icon-btn { flex: none; background: var(--graphite); border: 1px solid var(--seam); }
 .frame.compact .item-hint { z-index: var(--z-float); top: var(--band-t); left: var(--band-l); transform: none; max-width: var(--band-w); font-size: var(--t-small); white-space: normal; }
 
 /* ── Окна: во всю безопасную область ───────────────────────── */
@@ -260,9 +260,8 @@
 .frame.size-s .skills { width: 100%; height: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); min-width: 0; overflow: hidden; }
 .frame.size-s .skills-body { display: contents; }
 .frame.size-s .robot { --s: 1.15; --pad: 12px; grid-column: 1; grid-row: 1 / span 2; align-self: center; }
-.frame.size-s .skills-head { grid-column: 2; grid-row: 1; flex-wrap: wrap; gap: 0 var(--sp-4); padding: 0 0 var(--sp-2) var(--sp-6); border-left: 1px solid var(--seam); }
-.frame.size-s .skills-head .icon-btn { margin-left: auto; }
-.frame.size-s .skills-slots { order: 3; flex-basis: 100%; margin: 0; }
+/* Шапка — одной строкой, как на мониторе: заголовок, плашка слотов, крестик; поля со всех сторон — крестик не попадает под срез угла */
+.frame.size-s .skills-head { grid-column: 2; grid-row: 1; gap: var(--sp-4); padding: var(--sp-4) var(--sp-4) var(--sp-4) var(--sp-6); border-left: 1px solid var(--seam); }
 .frame.size-s .skill-info { grid-column: 2; grid-row: 2; }
 .frame.size-s .skill-tools { flex-wrap: wrap; gap: var(--sp-2); }
 .frame.size-s .skill-tools .btn--primary { flex-basis: 100%; }
@@ -278,14 +277,14 @@
 .frame.compact .btn--big { height: var(--ctl-xl); font-size: var(--t-strong); }
 
 /* Вход: две колонки — бренд слева, действия справа */
-.frame.compact .gate { width: min(820px, var(--free-w)); max-height: var(--free-h); padding: var(--sp-10) 28px; display: grid; grid-template-columns: 34% 1fr; column-gap: var(--sp-12); row-gap: var(--sp-5); align-content: center; }
+.frame.compact .gate { width: min(820px, var(--free-w)); max-height: var(--free-h); padding: var(--sp-10) var(--sp-14); display: grid; grid-template-columns: 34% 1fr; column-gap: var(--sp-12); row-gap: var(--sp-5); align-content: center; }
 .frame.compact .gate > :not(.brand) { grid-column: 2; }
 .frame.compact .gate .brand { grid-column: 1; grid-row: 1 / span 4; margin: 0; padding-right: var(--sp-12); border-right: 1px solid var(--seam); align-self: stretch; justify-content: center; }
 .frame.compact .auth-form { gap: var(--sp-4); }
 /* На телефоне под полем места нет: ошибка — справа в строке поля */
 .frame.compact .fld-err { top: 50%; left: auto; right: 14px; transform: translateY(-50%); pointer-events: none; }
 .frame.compact .fld .check + .fld-err { right: 0; }
-.frame.compact .brand--stacked .wordmark { font-size: var(--t-15); }
+.frame.compact .brand--stacked .wordmark { font-size: var(--t-14); }
 
 /* Онбординг: карточка во весь экран, середина листается */
 .frame.compact .onb { width: min(820px, var(--free-w)); max-height: var(--free-h); }
@@ -302,12 +301,12 @@
 /* Меню: шапка и подвал по 52, колонка слева (листается, если не влезла), иконки справа */
 .frame.compact .menu-top { height: 52px; padding: 0 calc(var(--sr) + var(--sp-12)) 0 calc(var(--sl) + var(--sp-12)); }
 .frame.compact .menu-top img { width: var(--ctl-xs); height: var(--ctl-xs); }
-.frame.compact .menu-top .wordmark { font-size: var(--t-12); }
+.frame.compact .menu-top .wordmark { font-size: var(--t-11); }
 .frame.compact .menu-main { left: calc(var(--sl) + 32px); top: calc(52px + var(--st)); bottom: calc(52px + var(--sb)); transform: none; width: min(56%, 460px);
   justify-content: safe center; gap: var(--sp-5); overflow-y: auto; padding: var(--sp-4) 0; }
 .frame.size-m .menu-main { width: min(52%, 580px); gap: var(--sp-8); }
-.frame.compact .menu-title { font-size: var(--t-13); }
-.frame.size-m .menu-title { font-size: var(--t-16); }
+.frame.compact .menu-title { font-size: var(--t-12); }
+.frame.size-m .menu-title { font-size: var(--t-15); }
 .frame.compact .menu-lead { font-size: var(--t-5); }
 .frame.size-m .menu-lead { font-size: var(--t-body); }
 .frame.compact .menu-actions, .frame.compact .descent-progress, .frame.compact .phases { width: 100%; margin-top: 0; }
@@ -316,7 +315,7 @@
 .frame.compact .phases { gap: var(--sp-1); font-size: var(--t-small); }
 .frame.size-m .phases { gap: var(--sp-4); font-size: var(--t-body); }
 .frame.compact .descent-progress { gap: var(--sp-2); }
-.frame.compact .descent .menu-title { font-size: var(--t-14); }
+.frame.compact .descent .menu-title { font-size: var(--t-13); }
 .frame.compact .descent-explain { font-size: var(--t-5); min-height: 0; }
 .frame.compact .descent { gap: var(--sp-4); }
 /* Столбец прокручивается — строки не сжимаются в ноль (подпись налезала на полосу) */
@@ -331,6 +330,8 @@
 .frame.compact .rail-sep { margin: 0 var(--sp-4); flex: none; }
 .frame.compact .menu-foot { left: var(--sl); right: var(--sr); bottom: var(--sb); height: 52px; padding: 0 var(--sp-12); gap: var(--sp-8); font-size: var(--t-2); }
 .frame.compact .menu-meta { gap: var(--sp-3); }
+/* Новость на телефоне — в две строки: места под одну строку рядом с метками нет, а обрезанный заголовок теряет смысл */
+.frame.compact .menu-news span { white-space: normal; line-height: 1.3; }
 /* Телефон: иконка навыка — в строку с названием, чтобы кнопки поместились без прокрутки */
 .frame.size-s .skill-info { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-content: start; column-gap: var(--sp-4); }
 .frame.size-s .skill-info > :not(.big, h3) { grid-column: 1 / -1; }
@@ -347,7 +348,7 @@
 .frame.size-s .menu-main { width: calc(100% - var(--sl) - var(--sr) - 306px); }
 .frame.size-s .menu-rail { display: grid; grid-template-columns: repeat(2, 110px); grid-template-rows: repeat(3, var(--tt)); gap: var(--sp-4); align-content: center; }
 .frame.size-s .menu-rail .rail-sep { display: none; }
-.frame.size-s .menu-rail .rail-btn { width: 110px; padding: 0 7px; gap: var(--sp-3); }
+.frame.size-s .menu-rail .rail-btn { width: 110px; padding: 0 var(--sp-4); gap: var(--sp-3); }
 .frame.size-s .menu-rail .control-label { font-size: var(--t-3); }
 .frame.size-s .menu-rail .rail-btn img { width: 18px; height: 18px; }
 .frame.size-s .menu-rail [title="Выход из игры"] { grid-column: 1; grid-row: 1; }
@@ -366,7 +367,7 @@
 .pause-sys { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-3); }
 .pause-sys:empty { display: none; }
 .pause-sys button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-2); width: auto; height: var(--ctl-xxl);
-  border: 1px solid var(--seam); border-radius: var(--radius); background: var(--plate); color: var(--bone); font-size: var(--t-small); font-weight: var(--fw-normal); }
+  border: 1px solid var(--seam); background: var(--plate); color: var(--bone); font-size: var(--t-small); font-weight: var(--fw-normal); }
 .pause-sys button::after { content: attr(title); }
 .pause-sys .control-label { display: none; }
 .pause-sys .tbtn { padding: 0; }

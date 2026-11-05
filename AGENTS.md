@@ -55,7 +55,7 @@ Misc, Support, or Managers. Split unrelated operations and name their owners.
 Keep neutral contracts beside their domain with the correct asmref; folder
 hierarchy does not replace assembly boundaries. Move Unity files with their
 metadata and migrate resource keys, namespace strings and tool paths together.
-See `.agents/repository-map.md` and `tools/Kern.RepositoryTaxonomy/Inventory/`.
+See `.agents/repository-map.md` and `tools/architecture/Kern.RepositoryTaxonomy/Inventory/`.
 
 Do not use C# `partial` types. Split responsibilities into separate types and
 files with explicit ownership instead of dividing one type across files.

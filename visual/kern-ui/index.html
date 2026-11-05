@@ -4,8 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Project Kern — интерфейс игры</title>
-<script>document.documentElement.setAttribute('data-kern-booting', '');</script>
+<script>document.documentElement.setAttribute('data-kern-booting', '');
+// ?embed=1 — только кадр, без панели стенда: врезки бренд-книги (kern-brand/book)
+if (new URLSearchParams(location.search).get('embed')) document.documentElement.classList.add('embed');</script>
 <style>html[data-kern-booting] .frame { visibility: hidden; }</style>
+<link rel="stylesheet" href="css/reset.css">
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/stand.css">
 <link rel="stylesheet" href="css/hud.css">
@@ -18,6 +21,7 @@
 <link rel="stylesheet" href="css/micro.css">
 <link rel="stylesheet" href="css/srvgui.css">
 <link rel="stylesheet" href="css/systems.css">
+<link rel="stylesheet" href="css/motion.css">
 </head>
 <body>
 
@@ -189,8 +193,8 @@
             </article>
             <article class="panel mission" id="mission" hidden>
               <div class="mission-cells"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-              <p class="mission-title" data-srv>Тестовая миссия</p>
-              <p class="mission-text" data-srv title="Проверка центрального информационного кольца">Проверка центрального информационного кольца</p>
+              <p class="mission-title" data-srv>Первая добыча</p>
+              <p class="mission-text" data-srv title="Накопай 10 синих кристаллов">Накопай 10 синих кристаллов</p>
               <span class="mission-progress">3 / 10</span>
             </article>
           </div>
@@ -606,7 +610,7 @@
     <div class="panel gate">
       <header class="brand brand--stacked">
         <img src="img/brand/mark.svg" alt="" width="56" height="56">
-        <div><b class="wordmark">Project Kern</b><span class="brand-sub">Экспедиция в недра планеты</span></div>
+        <div><b class="wordmark">Project Kern</b><span class="brand-sub">Добыча · кланы · программирование</span></div>
       </header>
       <div class="seg seg--auth" id="authTabs" role="radiogroup" aria-label="Вход или регистрация">
         <button type="button" role="radio" aria-checked="true" data-tab="login">Вход</button>
@@ -689,12 +693,12 @@
    <!-- ════ Главное меню и спуск (MainMenu.uxml) ════ -->
    <section class="screen screen--space screen--menu" data-screen="menu">
     <header class="menu-top">
-      <div class="brand"><img src="img/brand/mark.svg" alt="" width="36" height="36"><b class="wordmark">Project Kern</b><span class="brand-sub">Экспедиция в недра планеты</span></div>
+      <div class="brand"><img src="img/brand/mark.svg" alt="" width="36" height="36"><b class="wordmark">Project Kern</b><span class="brand-sub">Добыча · кланы · программирование</span></div>
     </header>
 
     <div class="menu-main" id="menuMain">
       <h1 class="menu-title">Мир ждёт под поверхностью.</h1>
-      <p class="menu-lead">Спускайся на неизведанные глубины. Бури породу, автоматизируй дронов, создавай кластеры и выживай в бесконечной шахте.</p>
+      <p class="menu-lead">Копай породу и собирай кристаллы шести цветов. Пиши программы своему роботу, вступай в клан и держи с ним территорию.</p>
       <div class="menu-actions">
         <button type="button" class="btn btn--primary btn--hero" id="descendBtn">Играть</button>
         <!-- Обязательное обновление стоит на месте кнопки спуска (OutdatedClientPacket) -->
@@ -726,7 +730,7 @@
       <button type="button" class="rail-btn" title="Выход из игры"><img src="img/ui/mm_icon_exit.png" alt=""></button>
     </nav>
     <footer class="menu-foot" aria-label="Информация о сборке">
-      <button type="button" class="menu-news" id="menuNews"><small>Новое</small><span>0.9.0 — поезда на рельсах, переработанные клановые войны</span></button>
+      <button type="button" class="menu-news" id="menuNews"><small>Новое</small><span>0.9.0 — клановые ворота и новые команды программатора</span></button>
       <span class="menu-meta menu-online"><i></i><small>В сети</small><b>1 284</b></span>
       <span class="menu-meta"><small>Версия</small><b id="versionLabel">0.8.14</b></span>
       <span class="menu-meta"><small>Сборка</small><code id="buildHash">fb8e0225</code><i class="idcode" id="buildBars" aria-hidden="true"></i></span>
@@ -740,7 +744,7 @@
         <div class="upd-box upd-hero"><b>v0.9.0 — Deep Subsurface Expansion</b><small>Без него подключиться к серверу нельзя</small></div>
         <div class="upd-box">
           <small>Список изменений</small>
-          <ul class="upd-list"><li>Новое освещение и тени в пещерах</li><li>Расширенный программатор для дронов</li><li>Новые слои пород</li><li>Игра загружается быстрее</li></ul>
+          <ul class="upd-list"><li>Новое освещение и тени в пещерах</li><li>Новые команды программатора</li><li>Новые слои пород</li><li>Игра загружается быстрее</li></ul>
         </div>
         <div class="upd-box" id="updProgress" hidden>
           <div class="meter meter--wide"><i id="updFill"></i></div>
@@ -974,6 +978,7 @@
   </defs>
 </svg>
 
+<script src="js/motion.js"></script>
 <script src="js/scene.js"></script>
 <script src="js/world.js"></script>
 <script src="js/hud.js"></script>

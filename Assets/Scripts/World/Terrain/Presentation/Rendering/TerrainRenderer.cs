@@ -85,8 +85,13 @@ namespace Kern.World.Terrain
         private readonly TerrainCameraFrameState _cameraFrame = new();
         private TerrainSubscriptions? _subscriptions;
 
+        private const float TerrainHiddenReportDelaySeconds = 0.5f;
+        private const float TerrainHiddenReportIntervalSeconds = 2f;
+
         private RectInt _lightingViewport;
         private bool _fatalBuildError;
+        private float _terrainHiddenSince = -1f;
+        private float _nextTerrainHiddenLogTime;
         private TerrainLightingFramePublisher? _lightingFramePublisher;
         private readonly List<RectInt> _publishedChangedRegions = new();
 
@@ -268,6 +273,8 @@ namespace Kern.World.Terrain
             {
                 _telemetry.TerrainGPUUploadTimeMs = uploadMs;
             }
+
+            ReportHiddenTerrain();
 
             long planStart = TerrainStallReport.Begin();
             Vector3 focusPosition = holdingView
@@ -469,6 +476,47 @@ namespace Kern.World.Terrain
             Diagnostics.Mark(1 << 3, $"[TerrainDiag] camera ok: {_cameraFrame.Camera!.name} at {_cameraFrame.Camera.transform.position}");
             return true;
         }
+        // Пропавший террейн не обязан бросать исключение: публикацию могли
+        // снять штатным путём, а следующая сборка - ждать данных или
+        // отменяться. Пока сетка не вернулась, раз в пару секунд пишем, что
+        // именно её держит, иначе чёрный экран не оставляет следов.
+        private void ReportHiddenTerrain()
+        {
+            if (_window.CellsCommitted)
+            {
+                _terrainHiddenSince = -1f;
+                return;
+            }
+
+            if (!_window.IsInitialized)
+            {
+                return;
+            }
+
+            float now = Time.unscaledTime;
+            if (_terrainHiddenSince < 0f)
+            {
+                _terrainHiddenSince = now;
+                return;
+            }
+
+            if (now - _terrainHiddenSince < TerrainHiddenReportDelaySeconds ||
+                now < _nextTerrainHiddenLogTime)
+            {
+                return;
+            }
+
+            _nextTerrainHiddenLogTime = now + TerrainHiddenReportIntervalSeconds;
+            int atlases = _textureService != null ? _textureService.GetAllAtlases().Count : -1;
+            Debug.LogWarning(
+                $"[TerrainRenderer] Terrain hidden for {now - _terrainHiddenSince:F1}s: " +
+                $"state={_window.BuildState}, inFlight={_window.HasCPUBuildInFlight}, " +
+                $"needsRefresh={_window.NeedsRefresh}, " +
+                $"pendingTextures={_window.PendingTextureCellTypes.Count}, " +
+                $"atlases={atlases}, withdrawn={_window.LastWithdrawalReason ?? "-"}, " +
+                $"hasOrigin={_window.HasOrigin}, storageReady={_storage?.IsReady ?? false}.");
+        }
+
         private void BeginTerrainWorldGeneration() => WorldChanges.BeginWorldGeneration();
 
         private void PublishTerrainFrameDemand(TerrainFramePlan framePlan, bool holdingView) =>

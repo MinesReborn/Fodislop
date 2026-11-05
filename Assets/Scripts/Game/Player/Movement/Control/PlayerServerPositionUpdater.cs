@@ -41,11 +41,17 @@ internal sealed class PlayerServerPositionUpdater
             }
 
             context.AwaitingMoveConfirmation = false;
-            if (shouldSnap || teleport || (context.HasServerPosition && oldPos != position))
+            if (shouldSnap || teleport)
             {
-                // Сервер поставил робота не туда, куда клиент шагнул сам:
-                // змейка и обход продолжаются уже от новой клетки.
+                // Робота перенесло на другую клетку: прошлая змейка и обход
+                // к новой позиции отношения не имеют.
                 PlayerStepSelector.Reset(context.StepState);
+            }
+            else if (context.HasServerPosition && oldPos != position)
+            {
+                // Соседняя клетка вместо предсказанной: обход пересчитываем,
+                // но фазу змейки сохраняем, чтобы коррекция не повторяла ось.
+                PlayerStepSelector.Resync(context.StepState);
             }
 
             context.Position = position;

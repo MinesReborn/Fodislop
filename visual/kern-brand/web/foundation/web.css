@@ -1,0 +1,143 @@
+/* Project Kern — веб-слой. Стоит поверх токенов игры (visual/kern-ui/css/tokens.css): палитра, шрифты, шкалы —
+   оттуда, своих цветов здесь нет. Добавлено только то, чего в кадре 1080 нет: ширина страницы, поля, крупные кегли.
+   На нём стоят бренд-книга, дизайн-код и страница загрузки; будущие лендинг и новости — на нём же.
+
+   Правила те же, что в игре: прямые углы, линия 1 px, срез правого верхнего угла у панели и главной кнопки,
+   оранжевый — только главное действие и тревога, выбранное — кость. Декор только с данными. */
+
+:root {
+  color-scheme: dark;
+  /* Страница */
+  --w-max: 1200px;                       /* ширина колонки содержимого */
+  --w-gutter: 32px;                      /* поле страницы; на телефоне — 16 */
+  --w-section: 72px;                     /* шаг между разделами */
+  /* Крупные кегли веба: шкала игры кончается на 60 px */
+  --w-display: clamp(44px, 7.2vw, 104px);
+  --w-h1: clamp(34px, 4.6vw, 60px);
+  --w-h2: clamp(24px, 2.6vw, 34px);
+  --w-lead: clamp(17px, 1.5vw, 20px);
+}
+@media (max-width: 720px) { :root { --w-gutter: 16px; --w-section: 48px; } }
+
+/* Сброс браузера — общий с игрой: kern-ui/css/reset.css, подключается первым */
+html { background: var(--void); -webkit-text-size-adjust: 100%; }
+body { min-height: 100vh; background: var(--dots), var(--void); color: var(--bone); font: var(--fw-normal) var(--t-8)/1.55 var(--font-text);
+  font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+img, svg, canvas { display: block; max-width: 100%; }
+::selection { background: var(--bone); color: var(--void); }
+:focus-visible { outline: 1px solid var(--bone); outline-offset: 3px; }
+
+/* ── Колонка и разделы ── */
+.w-page { width: 100%; max-width: calc(var(--w-max) + 2 * var(--w-gutter)); margin: 0 auto; padding: 0 var(--w-gutter); }
+.w-section { padding: var(--w-section) 0; border-top: 1px solid var(--seam); }
+.w-grid { display: grid; gap: var(--sp-8); }
+.w-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.w-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.w-grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 960px) { .w-grid--3, .w-grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 620px) { .w-grid--2, .w-grid--3, .w-grid--4 { grid-template-columns: minmax(0, 1fr); } }
+
+/* ── Шапка: знак, название обычным начертанием, разделы моно капсом ── */
+.w-top { position: sticky; top: 0; z-index: 10; background: rgb(var(--rgb-void) / .92); backdrop-filter: none; border-bottom: 1px solid var(--seam); }
+.w-top::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 3px; background: var(--hatch); pointer-events: none; }
+.w-top .w-page { display: flex; align-items: center; gap: var(--sp-12); height: 64px; }
+.w-brand { display: flex; align-items: center; gap: var(--sp-6); color: var(--bone); text-decoration: none; flex: none; }
+.w-brand img { width: 30px; height: 30px; }
+.w-brand b { font: var(--fw-bold) 20px/1 var(--font-display); letter-spacing: .02em; }
+.w-nav { display: flex; gap: var(--sp-12); margin-left: auto; overflow-x: auto; scrollbar-width: none; }
+.w-nav a { font: var(--fw-semi) var(--t-3)/1 var(--font-mono); letter-spacing: var(--ls-caps-wide); text-transform: uppercase; color: var(--ash); text-decoration: none;
+  padding: var(--sp-5) 0; white-space: nowrap; border-bottom: 2px solid transparent; }
+.w-nav a:hover { color: var(--bone); }
+.w-nav a[aria-current="page"] { color: var(--bone); border-bottom-color: var(--bone); }
+/* Телефон: шапка в две строки — название сверху, разделы лентой с прокруткой; край ленты гаснет, чтобы было видно, что она продолжается */
+@media (max-width: 720px) {
+  .w-top .w-page { height: auto; flex-wrap: wrap; gap: 0; padding-top: 10px; }
+  .w-brand b { font-size: 17px; }
+  .w-nav { flex-basis: 100%; margin-left: calc(-1 * var(--w-gutter)); margin-right: calc(-1 * var(--w-gutter)); padding: 0 var(--w-gutter); gap: var(--sp-10);
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent); }
+  .w-nav a { padding: 12px 0 10px; }
+}
+
+/* ── Типографика ── */
+.w-display { font: var(--fw-heavy) var(--w-display)/.94 var(--font-display); letter-spacing: -.01em; }
+.w-h1 { font: var(--fw-heavy) var(--w-h1)/1 var(--font-display); }
+.w-h2 { font: var(--fw-bold) var(--w-h2)/1.1 var(--font-display); }
+.w-h3 { font: var(--fw-bold) var(--t-10)/1.2 var(--font-display); }
+.w-lead { font-size: var(--w-lead); line-height: 1.5; color: var(--mist); max-width: 62ch; }
+.w-text { color: var(--mist); max-width: 68ch; }
+.w-text b, .w-lead b { color: var(--bone); font-weight: var(--fw-bold); }
+.w-small { font-size: var(--t-5); color: var(--ash); }
+.w-mono { font-family: var(--font-mono); letter-spacing: var(--ls-mono); }
+/* Строка-шапка листа: моно капсом через «//», пунктир до края — как подписи разделов в окнах игры */
+.w-kicker { display: flex; align-items: center; gap: var(--sp-6); font: var(--fw-semi) var(--t-3)/1 var(--font-mono); letter-spacing: var(--ls-caps-wide);
+  text-transform: uppercase; color: var(--ash); }
+.w-kicker::after { content: ""; flex: 1; height: 1px; background: repeating-linear-gradient(90deg, var(--seam-strong) 0 1px, transparent 1px 3px); }
+.w-kicker b { color: var(--bone); font-weight: var(--fw-semi); white-space: nowrap; }
+/* На телефоне строка-шапка переносится обычным текстом, пунктир не нужен */
+@media (max-width: 620px) { .w-kicker { display: block; line-height: 1.6; } .w-kicker::after { content: none; } }
+/* Инверсная табличка: главное число или метка блока */
+.w-plate { flex: none; white-space: nowrap; display: inline-flex; align-items: center; height: 20px; padding: 0 10px 0 7px; background: var(--bone); color: var(--void);
+  font: var(--fw-bold) var(--t-3)/1 var(--font-mono); letter-spacing: var(--ls-caps-wide); text-transform: uppercase;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%); }
+/* Число с единицей: крупная цифра, единица мелко сверху */
+.w-num { display: inline-flex; align-items: flex-start; gap: 3px; font: var(--fw-bold) 40px/1 var(--font-display); color: var(--bone); }
+.w-num small { font: var(--fw-semi) var(--t-2)/1 var(--font-mono); letter-spacing: var(--ls-caps); color: var(--ash); text-transform: uppercase; padding-top: 3px; }
+
+/* ── Ссылка ── */
+.w-link { color: var(--bone); text-decoration: underline; text-decoration-color: var(--seam-strong); text-underline-offset: 4px; }
+.w-link:hover { text-decoration-color: var(--signal); }
+
+/* ── Панель — одна форма с игрой: базальт, рамка 1 px, срез правого верхнего угла, уголки по трём углам ── */
+.w-panel { --notch-edge: var(--seam); --tick: 10px; --tick-c: rgb(var(--rgb-bone) / .7); position: relative; padding: var(--sp-12); border: 1px solid var(--notch-edge);
+  background: var(--ticks), linear-gradient(225deg, transparent calc(var(--notch) * .7071 - 1px), var(--notch-edge) calc(var(--notch) * .7071 - 1px) calc(var(--notch) * .7071 + 1px), transparent calc(var(--notch) * .7071 + 1px)) border-box,
+    var(--grain) padding-box, var(--graphite) padding-box;
+  background-origin: border-box; clip-path: var(--notch-clip); box-shadow: var(--shadow-panel); }
+.w-panel--well { background: var(--ticks), var(--well); }
+@media (max-width: 620px) { .w-panel { padding: var(--sp-8); } }
+
+/* ── Клавиши: плоские, рамка 1 px; главная — сигнал со срезом угла ── */
+.w-btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-5); height: var(--ctl-xl); padding: 0 var(--sp-12); border: 1px solid var(--seam-strong);
+  background: var(--plate); color: var(--bone); font: var(--fw-semi) var(--t-8)/1 var(--font-text); text-decoration: none; cursor: pointer; white-space: nowrap; }
+.w-btn:hover { border-color: var(--ash); background: var(--plate-hover); }
+.w-btn:active { background: var(--well); }
+.w-btn svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
+.w-btn--primary { border-color: var(--signal); background: var(--signal); color: var(--on-signal); font-weight: var(--fw-bold); clip-path: var(--notch-btn-clip); }
+.w-btn--primary:hover { border-color: var(--signal-hover); background: var(--signal-hover); }
+.w-btn--primary:active { background: var(--signal); }
+.w-btn--ghost { border-color: transparent; background: transparent; }
+.w-btn--ghost:hover { border-color: var(--seam); background: var(--plate); }
+.w-btn[aria-disabled="true"] { opacity: .45; pointer-events: none; }
+/* Ожидание: действия ещё нет (ссылка появится позже) — пунктирная рамка, а не полупрозрачная кнопка, которая выглядит сломанной */
+.w-btn--pending { border-style: dashed; border-color: var(--seam-strong); background: transparent; color: var(--ash); font-weight: var(--fw-semi); cursor: default; clip-path: none; }
+.w-btn--pending:hover { border-color: var(--seam-strong); background: transparent; }
+.w-key { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border: 1px solid var(--seam-strong); border-bottom-width: 2px; background: var(--plate);
+  font: var(--fw-semi) var(--t-3)/1 var(--font-mono); color: var(--ash); }
+
+/* ── Лист: подпись ···· значение ── */
+.w-rows { display: grid; }
+.w-row { display: flex; align-items: baseline; gap: var(--sp-5); padding: var(--sp-4) 0; border-bottom: 1px dashed var(--seam); font-size: var(--t-6); }
+.w-row > span { color: var(--ash); }
+.w-row > i { flex: 1; min-width: 16px; height: 1px; align-self: center; background: repeating-linear-gradient(90deg, var(--seam-strong) 0 1px, transparent 1px 4px); }
+.w-row > b { font: var(--fw-semi) var(--t-6)/1.3 var(--font-mono); color: var(--bone); text-align: right; overflow-wrap: anywhere; }
+
+/* ── Код ── */
+.w-code { display: block; padding: var(--sp-8); background: var(--well); border: 1px solid var(--seam); box-shadow: var(--press); overflow-x: auto;
+  font: var(--fw-normal) var(--t-5)/1.6 var(--font-mono); color: var(--mist); white-space: pre; }
+code { font-family: var(--font-mono); font-size: .92em; color: var(--bone); overflow-wrap: anywhere; }
+
+/* ── Таблица ── */
+.w-table-wrap { overflow-x: auto; border: 1px solid var(--seam); }
+.w-table { width: 100%; border-collapse: collapse; font-size: var(--t-5); }
+.w-table th { position: sticky; top: 0; text-align: left; padding: var(--sp-5) var(--sp-6); background: var(--well); border-bottom: 1px solid var(--seam-strong);
+  font: var(--fw-semi) var(--t-2)/1.2 var(--font-mono); letter-spacing: var(--ls-caps-wide); text-transform: uppercase; color: var(--ash); white-space: nowrap; }
+.w-table td { padding: var(--sp-5) var(--sp-6); border-bottom: 1px solid var(--seam); vertical-align: top; color: var(--mist); }
+.w-table td:first-child { color: var(--bone); white-space: nowrap; }
+.w-table tr:last-child td { border-bottom: 0; }
+
+/* ── Подвал ── */
+.w-foot { margin-top: var(--w-section); border-top: 1px solid var(--seam); background: var(--hatch) left top / 100% 3px no-repeat; }
+.w-foot .w-page { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8) var(--sp-12); padding-top: calc(2 * var(--sp-8)); padding-bottom: 48px;
+  font: var(--fw-semi) var(--t-3)/1.4 var(--font-mono); letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--dim); }
+.w-foot a { color: var(--ash); text-decoration: none; }
+.w-foot a:hover { color: var(--bone); }
+.w-foot .w-sp { flex: 1; }

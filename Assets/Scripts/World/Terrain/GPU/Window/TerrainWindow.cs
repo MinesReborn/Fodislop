@@ -74,6 +74,8 @@ public sealed class TerrainWindow
 
     public bool CellsCommitted => _publishedView.CellsCommitted;
 
+    public string? LastWithdrawalReason => _publishedView.LastWithdrawalReason;
+
     public ulong PublishedContentRevision => _publishedView.PublishedContentRevision;
 
     public bool NeedsRefresh
@@ -129,7 +131,7 @@ public sealed class TerrainWindow
             return;
         }
 
-        _publishedView.WithdrawPublication(_driver);
+        WithdrawPublication($"window resized to {size.x}x{size.y}");
         _heldCompletion = null;
         _publishedView.ApplyDimensions(size, _driver);
         _changes.ClearDirty();
@@ -184,7 +186,7 @@ public sealed class TerrainWindow
         NeedsRefresh = true;
         _changes.ClearWorldChanges();
         _changes.ClearChangedRegions();
-        WithdrawPublication();
+        WithdrawPublication("world generation changed");
     }
 
     public void RequestDistortion(bool enabled)
@@ -406,7 +408,7 @@ public sealed class TerrainWindow
             // Атласы пропали между постановкой и публикацией (сброс набора
             // текстур): тексели ссылаются на них, публиковать нельзя.
             NeedsRefresh = true;
-            WithdrawPublication();
+            WithdrawPublication("atlases or materials unavailable after the build");
             BuildState = TerrainBuildState.WaitingForData;
             return true;
         }
@@ -465,10 +467,8 @@ public sealed class TerrainWindow
         return true;
     }
 
-    private void WithdrawPublication()
-    {
-        _publishedView.WithdrawPublication(_driver);
-    }
+    private void WithdrawPublication(string reason) =>
+        _publishedView.WithdrawPublication(_driver, reason);
 
     private void ObservePreparationLatency(float observedSeconds)
     {

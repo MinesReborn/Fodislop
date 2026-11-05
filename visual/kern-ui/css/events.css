@@ -5,37 +5,37 @@
 .net, .srv-modal { align-items: center; text-align: center; width: 400px; }
 .net-ico { width: var(--ctl-l); height: var(--ctl-l); color: var(--ash); stroke-width: 1.5; }
 .net .dialog-actions, .srv-modal .dialog-actions { align-self: stretch; justify-content: center; }
-.net-reason { padding: var(--sp-4) var(--sp-6); border-radius: var(--radius); background: var(--well); color: var(--bone) !important; font-size: var(--t-small); }
+.net-reason { padding: var(--sp-4) var(--sp-6); background: var(--well); color: var(--bone) !important; font-size: var(--t-small); }
 
 /* ── Сообщение сервера: картинка, заголовок, текст, одна кнопка ── */
 .srv-modal-icon { width: var(--ctl-xxl); height: var(--ctl-xxl); image-rendering: pixelated; }
 .srv-modal p { line-height: 1.5; }
 
 /* ── Ссылка: адрес целиком, домен выделен — видно, куда ведёт ── */
-.link-url { display: flex; align-items: flex-start; gap: var(--sp-5); padding: var(--sp-5) var(--sp-6); border-radius: var(--radius); background: var(--well); border: 1px solid var(--seam); color: var(--ash) !important; font-size: var(--t-small); overflow-wrap: anywhere; }
+.link-url { display: flex; align-items: flex-start; gap: var(--sp-5); padding: var(--sp-5) var(--sp-6); background: var(--well); border: 1px solid var(--seam); color: var(--ash) !important; font-size: var(--t-small); overflow-wrap: anywhere; }
 .link-url svg { flex: none; width: 16px; height: 16px; margin-top: 1px; }
 .link-url b { color: var(--bone); }
 
 /* ── Подписи у роботов (WorldLabels.uss): ник — верхним левым углом в правый верхний угол клетки ── */
 .world-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.wl-name { position: absolute; display: flex; align-items: center; gap: 3px; color: var(--bone); font-size: var(--t-5); font-weight: var(--fw-semi); white-space: nowrap; text-shadow: var(--shadow-text); }
+.wl-name { position: absolute; display: flex; align-items: center; gap: var(--sp-2); color: var(--bone); font-size: var(--t-5); font-weight: var(--fw-semi); white-space: nowrap; text-shadow: var(--shadow-text); }
 .wl-name img { width: 11px; height: 11px; image-rendering: pixelated; }
 /* Облако — спрайт LocalChatBubble 9-slice (сверху 7, справа 12, снизу 22, слева 13), белый тон с альфой .62; хвост слева внизу */
 .wl-chat { position: absolute; height: var(--ctl-s); translate: -6px -100%; border-style: solid; border-width: 7px 12px 22px 13px; border-image: url("../img/ui/bubble.png") 7 12 22 13 fill / 7px 12px 22px 13px; opacity: .62; }
-.wl-chat span { display: block; height: 18px; max-width: 360px; margin: -7px -9px 0 -10px; padding: 0 3px; line-height: 18px; color: var(--on-signal); font-size: var(--t-5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wl-chat span { display: block; height: 18px; max-width: 360px; margin: -7px -9px 0 -10px; padding: 0 var(--sp-2); line-height: 18px; color: var(--on-signal); font-size: var(--t-5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ── Кольцо вокруг игрока и значки целей в кадре ── */
 .edge-arrows { position: absolute; inset: 0; pointer-events: none; }
 .marker-ring { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; fill: none; stroke: none; }
 .marker-ring .ring-glow { fill: var(--c); filter: drop-shadow(0 0 7px var(--c)) drop-shadow(0 0 2px var(--c)); }
 .marker-ring .ring-core { fill: color-mix(in srgb, var(--c) 35%, var(--white)); }
-.marker-ring .ring-t { fill: var(--c); stroke: rgb(var(--rgb-black) / .75); stroke-width: 3; paint-order: stroke; stroke-linejoin: round; font: var(--fw-semi) 10px/1 var(--font-mono); letter-spacing: .06em; font-variant-numeric: tabular-nums; }
-.edge-pin span { margin-top: var(--sp-1); padding: 1px var(--sp-3); border-radius: var(--r-s); background: var(--tag); color: var(--c); font-size: var(--t-3); font-weight: var(--fw-semi); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.marker-ring .ring-t { fill: var(--c); stroke: rgb(var(--rgb-black) / .75); stroke-width: 3; paint-order: stroke; stroke-linejoin: round; font: var(--fw-semi) var(--t-2)/1 var(--font-mono); letter-spacing: .06em; font-variant-numeric: tabular-nums; }
+.edge-pin span { margin-top: var(--sp-1); padding: 1px var(--sp-3); background: var(--tag); color: var(--c); font-size: var(--t-3); font-weight: var(--fw-semi); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .edge-pin { position: absolute; translate: -50% -100%; display: flex; flex-direction: column; align-items: center; }
 .edge-pin::after { content: ""; width: 0; height: 0; border-top: 9px solid var(--c); border-left: 6px solid transparent; border-right: 6px solid transparent; }
 
 /* ── Своя метка на карте ── */
-.pin-dot--mark { background: var(--mark-own); border-radius: var(--r-xs) var(--r-round) var(--r-round) var(--r-round); }
+.pin-dot--mark { background: var(--mark-own); border-radius: 0 var(--r-round) var(--r-round) var(--r-round); }
 .map-view.is-marking { cursor: crosshair; }
 .map-tools .icon-btn[aria-pressed="true"] { color: var(--signal); border-color: var(--signal); }
 .map-tools .icon-btn[aria-pressed="true"]::after { content: none; }
@@ -53,11 +53,11 @@
 .chat-head #chatListBtn .badge { top: 0; right: 0; }
 .chat-list { position: absolute; z-index: 2; left: 0; right: 0; top: var(--chat-head, 44px); bottom: 0; list-style: none; overflow-y: auto; padding: var(--sp-4); background: var(--graphite-solid); display: flex; flex-direction: column; gap: var(--sp-1); }
 .chat-list[hidden] { display: none; }
-.chat-list button { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-1) var(--sp-4); padding: var(--sp-4) var(--sp-5); border-radius: var(--r-s); text-align: left; }
+.chat-list button { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-1) var(--sp-4); padding: var(--sp-4) var(--sp-5); text-align: left; }
 .chat-list button:hover { background: var(--plate-hover); }
 .chat-list button.is-on { background: var(--signal-soft); }
 .chat-list b { font-weight: var(--fw-semi); color: var(--bone); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chat-list i { font-style: normal; min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--r-pill); background: var(--danger); color: var(--white); font: var(--fw-bold) var(--t-3)/18px var(--font); text-align: center; }
+.chat-list i { font-style: normal; min-width: 18px; height: 18px; padding: 0 var(--sp-3); background: var(--danger); color: var(--white); font: var(--fw-bold) var(--t-3)/var(--t-10) var(--font); text-align: center; }
 .chat-list span { grid-column: 1 / -1; color: var(--ash); font-size: var(--t-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Счётчик на вкладке — в углу, на месте, которое у вкладки есть всегда: появился или пропал — вкладки не сдвигаются */
 .chat-tabs { gap: var(--sp-1); }

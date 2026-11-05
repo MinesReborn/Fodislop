@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>… Витрины магазинов</title>
+<link rel="icon" href="../../marks/svg/mark-small.svg">
+<link rel="stylesheet" href="../../../kern-ui/css/reset.css">
+<link rel="stylesheet" href="../../../kern-ui/css/tokens.css">
+<link rel="stylesheet" href="../../web/foundation/web.css">
+<link rel="stylesheet" href="../../art/compose/compose.css">
+<!-- Графика витрин: Steam, itch.io, Google Play, App Store. Фон — разрез шахты из настоящих клеток (art/scene/scene.js),
+     скриншоты — снимки стенда visual/kern-ui (export/tools/export.mjs снимает их первым шагом в export/renders/screens/).
+     Подписи и тексты карточек — store-copy.js.
+     Размеры сверены 04.11.2026: Steam — partner.steamgames.com/doc/store/assets (header 920×430, small 462×174, library 600×900,
+     hero 3840×1240, logo 1280 по ширине и/или 720 по высоте, иконка 184×184, событие 800×450; main 1232×706, vertical 748×896, фон 1438×810 — по
+     сторонним справочникам); Google Play — feature 1024×500 без прозрачности, скриншоты до 2:1; App Store — iPhone 6.9″ 2868×1320, iPad 13″ 2752×2064
+     в альбоме; itch.io — обложка 630×500. -->
+<style>
+  .s-copy { display: grid; gap: 16px; }
+  .s-copy pre { white-space: pre-wrap; }
+  .s-missing { position: absolute; inset: 0; display: grid; place-items: center; padding: 8%; text-align: center; background: var(--hatch), var(--well);
+    font: var(--fw-semi) calc(var(--u) * 2) / 1.4 var(--font-mono); color: var(--ash); letter-spacing: .08em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<header class="w-top"><div class="w-page">
+  <a class="w-brand" href="../../book/pages/index.html"><img src="../../../kern-ui/img/brand/mark.svg" alt=""><b>Project Kern</b></a>
+  <nav class="w-nav"><a href="../../book/pages/index.html">Бренд</a><a href="../../book/pages/design-code.html">Дизайн-код</a><a href="../icons/index.html">Иконки</a><a href="index.html" aria-current="page">Магазины</a><a href="../download/index.html">Загрузка</a><a href="../../social/templates/index.html">Соцсети</a></nav>
+</div></header>
+<main class="w-page" data-gallery>
+  <section style="padding-top:64px">
+    <p class="w-kicker"><b>Выпуск</b> // витрины</p>
+    <h1 class="w-h1" style="margin-top:20px">Витрины магазинов</h1>
+    <p class="w-lead" style="margin-top:16px">Обложки строятся из разреза шахты — настоящих клеток игры, а не рисунка «по мотивам». Скриншоты — снимки макета интерфейса на компьютере, телефоне и планшете. Подпись на скриншоте — одна мысль, две строки.</p>
+  </section>
+  <section class="w-section" style="margin-top:48px">
+    <p class="w-kicker"><b>Тексты карточек</b> // store-copy.js</p>
+    <div class="w-grid w-grid--2" style="margin-top:24px" id="copy"></div>
+  </section>
+</main>
+<footer class="w-foot"><div class="w-page"><span>Project Kern</span><span class="w-sp"></span><span>visual/kern-brand/distribution/stores</span></div></footer>
+
+<script src="store-copy.js"></script>
+<script src="../../art/scene/scene.js"></script>
+<script src="../../art/compose/compose.js"></script>
+<script>
+(async () => {
+const COPY = window.KERN_STORE_COPY;
+const C = KernCompose, SHOTS = new URL('../../export/renders/screens/', location.href).href;
+const SCENES = ['mining', 'prog', 'clan', 'market', 'skills', 'map'];
+
+// Ключевой кадр — общий (art/compose/compose.js); слоган и строка тем — из store-copy.js
+const keyArt = (root, a, o = {}) => C.keyArt(root, a, { slogan: COPY[o.lang || 'ru'].slogan, kickerText: o.lang === 'en' ? 'Mining <s>//</s> Clans <s>//</s> Programming' : 'Добыча <s>//</s> Кланы <s>//</s> Программирование', ...o });
+
+// ── Скриншот с подписью: подпись сверху, снимок — целиком, без обрезки интерфейса ──
+function captioned(root, a, scene, device, lang) {
+  const [title, sub] = COPY[lang].captions[scene];
+  const capH = a.h * (a.w / a.h > 1.6 ? .2 : .16), pad = a.w * .045;
+  const src = `${SHOTS}${device}/${lang}/${scene}.png`;
+  const ratio = { pc: 16 / 9, phone: 973 / 449, tablet: 1668 / 1251 }[device];
+  let sw = a.w - 2 * pad, sh = sw / ratio;
+  const free = a.h - capH - pad;
+  if (sh > free) { sh = free; sw = sh * ratio; }
+  root.innerHTML = `<div class="k-dots"></div>
+    <div style="left:${pad}px;right:${pad}px;top:0;height:${capH}px;display:flex;align-items:center;gap:${a.w * .02}px">
+      <img src="${C.MARK}" style="width:${capH * .38}px;height:${capH * .38}px;flex:none" alt="">
+      <div style="display:flex;flex-direction:column;gap:${capH * .06}px;min-width:0">
+        <b style="font:700 ${capH * .3}px/1 var(--font-display);color:var(--bone);white-space:nowrap">${title}</b>
+        <span style="font:400 ${capH * .16}px/1.2 var(--font-text);color:var(--mist);white-space:nowrap">${sub}</span>
+      </div>
+    </div>
+    <div class="k-shot" style="left:${(a.w - sw) / 2}px;top:${capH}px;width:${sw}px;height:${sh}px"><img src="${src}" alt=""></div>
+    <div class="k-hatch" style="top:${capH - a.h * .012}px;left:${pad}px;right:${pad}px"></div>`;
+  const img = root.querySelector('.k-shot img');
+  img.onerror = () => img.replaceWith(Object.assign(document.createElement('div'), { className: 's-missing', textContent: `снимок ${device}/${lang}/${scene} — node export/tools/export.mjs screens` }));
+}
+
+const A = [];
+const add = (group, id, label, w, h, out, render, o = {}) => A.push({ group, id, label, w, h, out, render, ...o });
+// Steam
+add('Steam', 'steam-header', 'Header capsule', 920, 430, 'stores/steam/header_capsule.png', (r, a) => keyArt(r, a, {}));
+add('Steam', 'steam-small', 'Small capsule', 462, 174, 'stores/steam/small_capsule.png', (r, a) => keyArt(r, a, { slogan: false, lock: 50, width: .9 }), { note: 'в списках — только знак и название' });
+add('Steam', 'steam-main', 'Main capsule', 1232, 706, 'stores/steam/main_capsule.png', (r, a) => keyArt(r, a, { kicker: true }));
+add('Steam', 'steam-vertical', 'Vertical capsule', 748, 896, 'stores/steam/vertical_capsule.png', (r, a) => keyArt(r, a, { kicker: true, fs: 10.5 }));
+add('Steam', 'steam-library', 'Library capsule', 600, 900, 'stores/steam/library_capsule.png', (r, a) => keyArt(r, a, { fs: 11 }));
+add('Steam', 'steam-hero', 'Library hero', 3840, 1240, 'stores/steam/library_hero.png', (r, a) => keyArt(r, a, { text: false, ticks: false, scrim: 'opacity:.55' }), { note: 'без текста: Steam кладёт поверх логотип' });
+add('Steam', 'steam-logo', 'Library logo', 1280, 720, 'stores/steam/library_logo.png', (r, a) => { r.innerHTML = `<div style="inset:0;display:grid;place-items:center">${C.lockup(150)}</div>`; }, { alpha: true });
+add('Steam', 'steam-icon', 'App icon', 184, 184, 'stores/steam/app_icon_184.png', (r) => { r.innerHTML = `<img src="${C.MARKS}app-icon.svg" style="inset:0;width:100%;height:100%">`; }, { note: 'иконка в библиотеке и списках; JPG — переложить при загрузке' });
+add('Steam', 'steam-event', 'Event cover', 800, 450, 'stores/steam/event_cover.png', (r, a) => keyArt(r, a, {}), { note: 'обложка событий и новостей' });
+add('Steam', 'steam-bg', 'Page background', 1438, 810, 'stores/steam/page_background.png', (r, a) => keyArt(r, a, { text: false, ticks: false, depth: 120, scrim: 'opacity:.9' }), { note: 'приглушён: поверх идёт текст страницы' });
+// itch.io
+add('itch.io', 'itch-cover', 'Cover image', 630, 500, 'stores/itch/cover.png', (r, a) => keyArt(r, a, { width: .88 }));
+// Google Play
+add('Google Play', 'play-feature', 'Feature graphic', 1024, 500, 'stores/google-play/feature_graphic.png', (r, a) => keyArt(r, a, {}), { note: 'без рамки устройства и призывов к действию' });
+for (const lang of ['ru', 'en']) SCENES.forEach((s, i) => add(`Google Play — скриншоты ${lang}`, `play-shot-${lang}-${s}`, `${i + 1}. ${COPY[lang].captions[s][0]}`, 1920, 1080,
+  `stores/google-play/${lang}/screenshot-${i + 1}-${s}.png`, (r, a) => captioned(r, a, s, 'pc', lang)));
+// App Store — альбомные: игра на телефоне и планшете только в альбоме
+for (const lang of ['ru', 'en']) SCENES.forEach((s, i) => add(`App Store — iPhone 6.9″ ${lang}`, `ios-phone-${lang}-${s}`, `${i + 1}. ${COPY[lang].captions[s][0]}`, 2868, 1320,
+  `stores/app-store/${lang}/iphone-69-${i + 1}-${s}.png`, (r, a) => captioned(r, a, s, 'phone', lang)));
+for (const lang of ['ru', 'en']) SCENES.forEach((s, i) => add(`App Store — iPad 13″ ${lang}`, `ios-ipad-${lang}-${s}`, `${i + 1}. ${COPY[lang].captions[s][0]}`, 2752, 2064,
+  `stores/app-store/${lang}/ipad-13-${i + 1}-${s}.png`, (r, a) => captioned(r, a, s, 'tablet', lang)));
+
+// Снимки стенда, которые нужны витринам: export.mjs читает этот список
+window.KERN_SCREENS = { scenes: { mining: 'state=busy&mark=1', prog: 'prog=1', clan: 'clan=1', market: 'srvwin=market', skills: 'skills=1', map: 'map=1&mark=1' },
+  devices: { pc: '', phone: 'device=promax', tablet: 'device=ipadpro' }, langs: ['ru', 'en'] };
+
+if (!C.asset) {
+  const lim = COPY.limits;
+  const row = (k, v, max) => `<div class="w-row"><span>${k}</span><i></i><b>${v.length}${max ? ' / ' + max : ''}</b></div>`;
+  document.getElementById('copy').innerHTML = ['ru', 'en'].map(l => { const c = COPY[l]; return `<div class="w-panel s-copy">
+    <p class="w-plate">${l}</p>
+    <p class="w-h3">${c.playShort}</p>
+    <div class="w-rows">${row('Google Play, кратко', c.playShort, lim.playShort)}${row('App Store, подзаголовок', c.appSubtitle, lim.appSubtitle)}${row('App Store, промо', c.appPromo, lim.appPromo)}${row('Ключевые слова', c.appKeywords, lim.appKeywords)}${row('Steam, кратко', c.steamShort, lim.steamShort)}${row('Полное описание', c.full.join('\n\n'), lim.playFull)}</div>
+    <pre class="w-code">${c.full.join('\n\n')}</pre></div>`; }).join('');
+}
+await C.run(A, (root, a) => a.render(root, a));
+})();
+</script>
+</body>
+</html>

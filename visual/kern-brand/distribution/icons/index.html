@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>… Иконки приложения</title>
+<link rel="icon" href="../../marks/svg/mark-small.svg">
+<link rel="stylesheet" href="../../../kern-ui/css/reset.css">
+<link rel="stylesheet" href="../../../kern-ui/css/tokens.css">
+<link rel="stylesheet" href="../../web/foundation/web.css">
+<link rel="stylesheet" href="../../art/compose/compose.css">
+<!-- Иконки Project Kern для всех платформ. Каждая — из знака (kern-ui/img/brand/mark.svg) и его малого варианта (marks/svg/mark-small.svg):
+     до 32 px включительно — малый знак, крупнее — полный. Форма:
+       iOS, Google Play — квадрат во весь размер без прозрачности, скругление накладывает магазин;
+       Android — адаптивная иконка (передний план, фон, одноцветная), 108 dp, знак внутри безопасного круга 66 dp; запасные квадратная и круглая;
+       macOS — скруглённый квадрат по сетке Apple (824 из 1024, радиус 185) с тенью, вокруг — прозрачно;
+       Windows и Linux — пластина со срезом правого верхнего угла, как панели игры: форма бренда, а не чужого магазина;
+         до 24 px пластины нет — только малый знак во всю иконку.
+     Экспорт и упаковка (.icns, .ico, mipmap, hicolor) — export/tools/export.mjs.
+     Размеры и требования сверены 04.11.2026: Apple — Human Interface Guidelines, App icons (1024, без альфы; сетка macOS 824/1024);
+     Google Play — help «Graphic assets» (512, 32-бит PNG); Android — developer.android.com, Adaptive icons (108 dp, безопасный круг 66 dp, monochrome с 13);
+     Windows — learn.microsoft.com, App icon construction (слои ICO 16…256); Linux — freedesktop Icon Theme Specification (hicolor). -->
+</head>
+<body>
+<header class="w-top"><div class="w-page">
+  <a class="w-brand" href="../../book/pages/index.html"><img src="../../../kern-ui/img/brand/mark.svg" alt=""><b>Project Kern</b></a>
+  <nav class="w-nav"><a href="../../book/pages/index.html">Бренд</a><a href="../../book/pages/design-code.html">Дизайн-код</a><a href="index.html" aria-current="page">Иконки</a><a href="../stores/index.html">Магазины</a><a href="../download/index.html">Загрузка</a><a href="../../social/templates/index.html">Соцсети</a></nav>
+</div></header>
+<main class="w-page" data-gallery>
+  <section style="padding-top:64px">
+    <p class="w-kicker"><b>Выпуск</b> // иконки</p>
+    <h1 class="w-h1" style="margin-top:20px">Иконки приложения</h1>
+    <p class="w-lead" style="margin-top:16px">Один знак на шести платформах. Форма у каждой своя: магазины Apple и Google скругляют иконку сами, Android режет адаптивную по маске устройства, на компьютере остаётся пластина со срезом угла — та же, что у панелей в игре.</p>
+  </section>
+</main>
+<footer class="w-foot"><div class="w-page"><span>Project Kern</span><span class="w-sp"></span><span>visual/kern-brand/distribution/icons</span></div></footer>
+
+<script src="../../art/compose/compose.js"></script>
+<script>
+const { MARK, MARKS } = KernCompose;
+const SMALL = MARKS + 'mark-small.svg', MONO = MARKS + 'mark-mono-light.svg', MASTER = MARKS + 'app-icon.svg', FIELD = MARKS + 'app-icon-field.svg';
+const mark = s => s <= 32 ? SMALL : MARK;
+
+// Пластина со срезом: срез — 1/8 стороны (на панели игры 10 из 80); поле вокруг — 1/16, чтобы иконка стояла рядом с соседями
+const plate = (s) => {
+  // До 24 px пластина съедает знак (поле 1 px, знак 11 из 16) — в панели задач читается сам знак: малый, во всю иконку
+  if (s <= 24) return `<img src="${SMALL}" style="position:absolute;inset:0;width:100%;height:100%">`;
+  const m = Math.max(1, Math.round(s / 16)), w = s - 2 * m, n = Math.max(2, Math.round(w / 8)), line = Math.max(1, Math.round(s / 128));
+  const k = s <= 32 ? .8 : .72;    // доля знака от пластины
+  const mk = Math.round(w * k), mo = m + Math.round((w - mk) / 2);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" style="position:absolute;inset:0">
+    <defs><radialGradient id="g${s}" cx=".5" cy=".4" r=".8"><stop offset="0" stop-color="#1a1825"/><stop offset="1" stop-color="#0a090f"/></radialGradient></defs>
+    <path d="M${m} ${m}H${s - m - n}L${s - m} ${m + n}V${s - m}H${m}Z" fill="url(#g${s})" stroke="#4a4668" stroke-width="${line}" stroke-linejoin="miter"/>
+    <image href="${mark(s)}" x="${mo}" y="${mo}" width="${mk}" height="${mk}"/>
+  </svg>`;
+};
+// Сетка macOS: тело 824 из 1024 со сдвигом 100, радиус 185.4; тень вниз — как у системных иконок
+const mac = (s) => {
+  const k = s / 1024, body = 824 * k, o = 100 * k, r = 185.4 * k, mk = body * (s <= 32 ? .78 : .62);
+  return `<div style="position:absolute;left:${o}px;top:${o}px;width:${body}px;height:${body}px;border-radius:${r}px;overflow:hidden;
+      box-shadow:0 ${10 * k}px ${20 * k}px rgb(0 0 0 / .32);background:url('${FIELD}') center / cover no-repeat, #111018"></div>
+    <img src="${mark(s)}" style="position:absolute;left:${(s - mk) / 2}px;top:${o + (body - mk) / 2}px;width:${mk}px;height:${mk}px">`;
+};
+// Адаптивная Android: 108 dp, безопасный круг 66 dp — знак вписан в него с запасом (≈ 58 dp)
+const adaptive = (s, layer) => {
+  const mk = s * 58 / 108, o = (s - mk) / 2;
+  if (layer === 'bg') return `<img src="${FIELD}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
+    <div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 42%, transparent 0 30%, rgb(10 9 15 / .55) 70%)"></div>`;
+  return `<img src="${layer === 'mono' ? MONO : MARK}" style="position:absolute;left:${o}px;top:${o}px;width:${mk}px;height:${mk}px">`;
+};
+// Запасные иконки Android (до 8.0): квадратная — пластина, круглая — круг
+const legacy = (s, round) => round
+  ? `<div style="position:absolute;inset:${s / 24}px;border-radius:50%;overflow:hidden;background:url('${FIELD}') center / cover;box-shadow:inset 0 0 0 ${Math.max(1, s / 96)}px #4a4668"></div>
+     <img src="${mark(s)}" style="position:absolute;left:${s * .22}px;top:${s * .22}px;width:${s * .56}px;height:${s * .56}px">`
+  : plate(s);
+
+const ASSETS = [];
+const add = (group, id, label, w, out, o = {}) => ASSETS.push({ group, id, label, w, h: o.h ?? w, out, ...o });
+// Лист размеров: те же иконки в натуральную величину в ряд — как их увидят в системе. Только галерея, не экспорт
+// Ширина листа — по содержимому: в натуральную величину он не масштабируется, на узком экране прокручивается
+const sheet = (group, id, items, h, note) => ASSETS.push({ group, id, label: 'Все размеры', w: items.reduce((w, [n]) => w + Math.max(n, 24) + 32, 56 - 32), h, out: null, sheet: true, wide: true, kind: 'sheet', items, note });
+
+// iOS и магазины
+add('App Store и Google Play', 'ios-1024', 'iOS, App Store', 1024, 'icons/ios/AppIcon-1024.png', { kind: 'square', note: 'без прозрачности: Apple отклоняет иконку с альфа-каналом; скругление накладывает система' });
+add('App Store и Google Play', 'play-512', 'Google Play', 512, 'icons/android/play-store-512.png', { kind: 'square', note: '32-бит PNG; магазин сам скругляет и кладёт тень' });
+
+// Android: адаптивная — слои 108 dp в каждой плотности; в галерее — xxxhdpi и вид под масками устройств
+const DPI = [['mdpi', 1], ['hdpi', 1.5], ['xhdpi', 2], ['xxhdpi', 3], ['xxxhdpi', 4]];
+[['fg', 'foreground', 'передний план'], ['bg', 'background', 'фон'], ['mono', 'monochrome', 'одноцветная']].forEach(([l, file, name]) =>
+  DPI.forEach(([d, k]) => add('Android — адаптивная', `android-${l}-${d}`, `Слой: ${name}`, 108 * k,
+    `icons/android/res/mipmap-${d}/ic_launcher_${file}.png`, { kind: 'adaptive', layer: l, alpha: l !== 'bg', gallery: d === 'xxxhdpi',
+      note: l === 'fg' ? 'пунктир — безопасный круг 66 dp' : l === 'mono' ? 'тематические иконки Android 13+' : '' })));
+ASSETS.push({ group: 'Android — адаптивная', id: 'android-masks', label: 'Под масками устройств', w: 4 * 168 + 3 * 56 + 56, h: 260, out: null, sheet: true, wide: true, kind: 'masks',
+  note: 'круг, скруглённый квадрат, «капля», тематическая — слои складывает система' });
+// Android: запасные иконки до 8.0
+[['mdpi', 48], ['hdpi', 72], ['xhdpi', 96], ['xxhdpi', 144], ['xxxhdpi', 192]].forEach(([d, s]) => {
+  add('Android — запасные', `android-${d}`, 'ic_launcher', s, `icons/android/res/mipmap-${d}/ic_launcher.png`, { kind: 'plate', alpha: true, gallery: false });
+  add('Android — запасные', `android-${d}-round`, 'ic_launcher_round', s, `icons/android/res/mipmap-${d}/ic_launcher_round.png`, { kind: 'round', alpha: true, gallery: false });
+});
+sheet('Android — запасные', 'android-sheet', [[48, 'plate'], [72, 'plate'], [96, 'plate'], [144, 'plate'], [192, 'plate']], 260, 'до Android 8.0, квадратная: mdpi…xxxhdpi');
+sheet('Android — запасные', 'android-sheet-round', [[48, 'round'], [72, 'round'], [96, 'round'], [144, 'round'], [192, 'round']], 260, 'до Android 8.0, круглая: mdpi…xxxhdpi');
+
+// macOS: набор iconset (16…1024, включая @2x)
+[16, 32, 64, 128, 256, 512, 1024].forEach(s => add('macOS', `mac-${s}`, `macOS ${s}`, s, `icons/macos/${s}.png`, { kind: 'mac', alpha: true, gallery: false }));
+sheet('macOS', 'mac-sheet', [16, 32, 64, 128, 256].map(s => [s, 'mac']), 320, 'сетка Apple: тело 824 из 1024, радиус 185, тень вниз; до 32 px — малый знак');
+// Windows: слои .ico
+[16, 24, 32, 48, 64, 128, 256].forEach(s => add('Windows', `win-${s}`, `Windows ${s}`, s, `icons/windows/${s}.png`, { kind: 'plate', alpha: true, gallery: false }));
+sheet('Windows', 'win-sheet', [16, 24, 32, 48, 64, 128, 256].map(s => [s, 'plate']), 320, 'пластина со срезом угла — форма панелей игры; слои одного .ico');
+// Linux: hicolor
+[16, 22, 24, 32, 48, 64, 128, 256, 512].forEach(s => add('Linux', `linux-${s}`, `Linux ${s}`, s, `icons/linux/hicolor/${s}x${s}/apps/project-kern.png`, { kind: 'plate', alpha: true, gallery: false }));
+sheet('Linux', 'linux-sheet', [16, 22, 24, 32, 48, 64, 128, 256].map(s => [s, 'plate']), 320, 'hicolor: apps/project-kern.png, плюс ярлык project-kern.desktop');
+// Веб
+[16, 32, 180, 192, 512].forEach(s => add('Веб', `web-${s}`, s === 180 ? 'apple-touch-icon' : `favicon ${s}`, s, `icons/web/${s === 180 ? 'apple-touch-icon' : 'favicon-' + s}.png`,
+  { kind: s === 180 ? 'square' : 'plate', alpha: s !== 180, gallery: false }));
+sheet('Веб', 'web-sheet', [[16, 'plate'], [32, 'plate'], [180, 'square'], [192, 'plate']], 260, 'favicon 16 и 32, apple-touch-icon 180, иконка приложения 192 и 512');
+
+// В системе: иконка среди соседей, в натуральную величину. Соседи — нейтральные заглушки, не чужие значки
+const CTX_NOTE = 'предложение: пластина со срезом для Windows и Linux и малый знак до 32 px ждут решения';
+ASSETS.push({ group: 'В системе', id: 'ctx-marks', label: 'Знак в малых размерах', w: 1080, h: 250, out: null, sheet: true, wide: true, kind: 'ctx-marks',
+  note: 'на базальте: полный знак сверху, малый снизу; на светлом — одноцветный; малый ставится до 32 px включительно — ниже 40 px у полного сливается внутренняя грань' });
+ASSETS.push({ group: 'В системе', id: 'ctx-taskbar', label: 'Панель задач Windows, Linux', w: 1080, h: 236, out: null, sheet: true, wide: true, kind: 'ctx-taskbar', note: '16, 24 и 32 px на тёмной и светлой панели. ' + CTX_NOTE });
+ASSETS.push({ group: 'В системе', id: 'ctx-dock', label: 'Док macOS', w: 1080, h: 150, out: null, sheet: true, wide: true, kind: 'ctx-dock', note: '64 px — размер дока по умолчанию; тень и сетка Apple' });
+ASSETS.push({ group: 'В системе', id: 'ctx-launcher', label: 'Лаунчер Android', w: 1080, h: 300, out: null, sheet: true, wide: true, kind: 'ctx-launcher', note: 'круглая маска, 56 px, на светлых и тёмных обоях' });
+
+// Заглушка соседа: нейтральная фигура без значка
+const dummy = (s, r, light) => `<div style="width:${s}px;height:${s}px;border-radius:${r};background:${light ? '#c9c6d6' : '#3a3848'};flex:none"></div>`;
+const at = (s, html) => `<div style="position:relative;width:${s}px;height:${s}px;flex:none">${html}</div>`;
+const roundIcon = s => `<div style="position:relative;width:${s}px;height:${s}px;border-radius:50%;overflow:hidden;flex:none">
+  <div style="position:absolute;left:${-s / 4}px;top:${-s / 4}px;width:${s * 1.5}px;height:${s * 1.5}px">${adaptive(s * 1.5, 'bg') + adaptive(s * 1.5, 'fg')}</div></div>`;
+function context(kind) {
+  const cap = t => `<span style="font:600 11px/1 var(--font-mono);color:var(--dim)">${t}</span>`;
+  if (kind === 'ctx-marks') {
+    const row = (bg, light) => `<div style="display:flex;align-items:flex-end;gap:28px;padding:16px 20px;background:${bg}">${[16, 20, 24, 32, 40, 48, 64].map(n =>
+      `<div style="display:flex;flex-direction:column;align-items:center;gap:8px"><img src="${light ? MARKS + 'mark-mono-dark.svg' : MARK}" width="${n}" height="${n}">
+       <img src="${light ? MARKS + 'mark-mono-dark.svg' : SMALL}" width="${n}" height="${n}" style="${light ? 'display:none' : ''}">${cap(n)}</div>`).join('')}</div>`;
+    return `<div style="inset:0;display:grid;grid-template-columns:1fr 1fr">${row('var(--void)')}${`<div style="display:flex;align-items:flex-end;gap:28px;padding:16px 20px;background:#e9e7f1">${[16, 20, 24, 32, 40, 48, 64].map(n =>
+      `<div style="display:flex;flex-direction:column;align-items:center;gap:8px"><img src="${MARKS}mark-mono-dark.svg" width="${n}" height="${n}"><span style="font:600 11px/1 var(--font-mono);color:#6b6880">${n}</span></div>`).join('')}</div>`}</div>`;
+  }
+  if (kind === 'ctx-taskbar') {
+    const bar = (s, light) => `<div style="display:flex;align-items:center;gap:${Math.round(s * .9)}px;height:${s + 16}px;padding:0 14px;background:${light ? '#eceaf2' : '#1d1c24'};border-top:1px solid ${light ? '#d4d1de' : '#2c2a36'}">
+      ${dummy(s, '3px', light)}${dummy(s, '3px', light)}${at(s, plate(s))}${dummy(s, '3px', light)}${dummy(s, '50%', light)}</div>`;
+    return `<div style="inset:0;display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:20px;align-content:center">${[16, 24, 32].map(s =>
+      `${bar(s, false)}${bar(s, true)}`).join('')}</div>`;
+  }
+  if (kind === 'ctx-dock') {
+    const sq = `<div style="width:64px;height:64px;flex:none;position:relative"><div style="position:absolute;left:6px;top:6px;width:52px;height:52px;border-radius:12px;background:#d8d5e2"></div></div>`;
+    const dock = light => `<div style="display:flex;gap:6px;padding:6px 10px;border-radius:22px;background:${light ? 'rgb(246 245 250 / .7)' : 'rgb(40 38 52 / .7)'};border:1px solid ${light ? 'rgb(255 255 255 / .8)' : 'rgb(255 255 255 / .12)'}">${sq}${sq}${at(64, mac(64))}${sq}</div>`;
+    return `<div style="inset:0;display:flex;align-items:center;justify-content:space-around;background:linear-gradient(90deg,#2a2d5a,#14131c 49.9%,#cfd3e6 50%,#f1eef6)">${dock(false)}${dock(true)}</div>`;
+  }
+  if (kind === 'ctx-launcher') {
+    const grid = (wall, light) => `<div style="display:grid;grid-template-columns:repeat(4,56px);gap:22px 26px;padding:28px 30px;background:${wall};border-radius:0">
+      ${[0, 1, 2, 3, 4, 5, 6, 7].map(i => `<div style="display:flex;flex-direction:column;align-items:center;gap:6px">${i === 5 ? roundIcon(56) : dummy(56, '50%', !light)}
+        <span style="font:500 11px/1 var(--font-text);color:${light ? '#1d1c24' : '#f1eef6'};white-space:nowrap;${light ? '' : 'text-shadow:0 1px 2px rgb(0 0 0 / .6)'}">${i === 5 ? 'Project Kern' : '&nbsp;'}</span></div>`).join('')}</div>`;
+    return `<div style="inset:0;display:flex;justify-content:space-around;align-items:center">${grid('linear-gradient(160deg,#283a6b,#0f1424)', false)}${grid('linear-gradient(160deg,#f3e9dd,#d9dff0)', true)}</div>`;
+  }
+}
+
+const draw = (kind, s, layer) => kind === 'square' ? `<img src="${MASTER}" style="position:absolute;inset:0;width:100%;height:100%">`
+  : kind === 'plate' ? plate(s) : kind === 'mac' ? mac(s) : kind === 'round' ? legacy(s, true) : adaptive(s, layer);
+
+KernCompose.run(ASSETS, async (root, a) => {
+  const s = a.w;
+  if (a.kind.startsWith('ctx-')) root.innerHTML = context(a.kind);
+  else if (a.kind === 'sheet') {
+    root.innerHTML = `<div class="k-sheet">${a.items.map(([n, k]) => `<figure><div style="width:${n}px;height:${n}px">${draw(k, n)}</div><figcaption>${n}</figcaption></figure>`).join('')}</div>`;
+  } else if (a.kind === 'masks') {
+    // Слои фона и переднего плана под масками: видимая часть — 72 из 108 dp, вокруг — запас под параллакс
+    const n = 168, cut = n * 18 / 72, full = n * 108 / 72;
+    const layers = mono => `<div style="position:absolute;left:${-cut}px;top:${-cut}px;width:${full}px;height:${full}px">${mono ? '<div style="position:absolute;inset:0;background:#2a2838"></div>' + adaptive(full, 'mono') : adaptive(full, 'bg') + adaptive(full, 'fg')}</div>`;
+    const masks = [['50%', 'круг'], ['22%', 'скруглённый квадрат'], ['50% 50% 50% 12%', 'капля'], ['50%', 'тематическая', true]];
+    root.innerHTML = `<div class="k-sheet" style="align-items:center;justify-content:center;gap:56px">${masks.map(([r, name, mono]) =>
+      `<figure><div style="width:${n}px;height:${n}px;border-radius:${r};overflow:hidden">${layers(mono)}</div><figcaption>${name}</figcaption></figure>`).join('')}</div>`;
+  } else {
+    root.innerHTML = draw(a.kind, s, a.layer);
+    // В галерее — безопасный круг 66 dp
+    if (a.kind === 'adaptive' && !KernCompose.asset && a.layer !== 'bg') root.insertAdjacentHTML('beforeend', `<div class="k-safe" style="left:${s * 21 / 108}px;top:${s * 21 / 108}px;width:${s * 66 / 108}px;height:${s * 66 / 108}px;border-radius:50%"></div>`);
+  }
+});
+</script>
+</body>
+</html>

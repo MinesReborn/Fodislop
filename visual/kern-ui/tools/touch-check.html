@@ -1,7 +1,8 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>touch: running</title>
-<!-- Инварианты Touch.uss на каждом устройстве стенда: цель не меньше 44 dp, всё
+<!-- ?hide=<селектор> — проверка проверки: прячет элемент на таче, итог обязан быть FAIL «пропало».
+     Инварианты Touch.uss на каждом устройстве стенда: цель не меньше 44 dp, всё
      интерактивное внутри безопасной области, цели не перекрываются, робот в центре
      открыт, текст не вылезает из коробки. Итог — в <title>, подробности — в <pre>. -->
 <pre id="log"></pre>
@@ -26,7 +27,14 @@ function visibleKeys(d, w) {
   const keys = new Set(), seen = {};
   for (const el of d.querySelectorAll('#hud *, #pauseSys *')) {
     if ((el.closest('.touch-only, .chat-column, .say, .sys-sep') && !el.closest('[data-relocated]')) || el.matches('.tbtn:not([data-relocated]), svg, svg *, use, .ico-only, .cap, .pg, .pg *, .pad-cluster, .pad-cluster *')) continue;   // значки и ромб пада — только в режиме геймпада
-    const base = el.id ? '#' + el.id : el.title ? `[${el.title}]` : el.className && typeof el.className === 'string' ? '.' + el.className.split(' ')[0] : el.tagName.toLowerCase();
+    // Ключ безымянного элемента — вместе с классом родителя: на таче блоки переносятся (data-relocated) и порядок в документе меняется,
+    // а сквозной номер по всему HUD сдвигался — ячейки груза на мониторе сверялись с ячейками миссии на телефоне
+    // свой класс — без классов состояния (is-*, on), иначе «.panel» программатора и «.panel» миникарты считались одним рядом
+    const cls = typeof el.className === 'string' ? el.className.split(' ').filter(c => c && c !== 'on' && !c.startsWith('is-')) : [];
+    const own = cls.length ? '.' + cls.join('.') : el.tagName.toLowerCase();
+    // Родитель — только у элемента без своего класса (ячейка, полоска): у панели с классом родитель меняется при переносе (data-relocated)
+    const parent = el.parentElement, up = !cls.length && parent?.className && typeof parent.className === 'string' ? '.' + parent.className.split(' ')[0] + '>' : '';
+    const base = el.id ? '#' + el.id : el.title ? `[${el.title}]` : up + own;
     const n = seen[base] = (seen[base] || 0) + 1;
     const shown = el.getClientRects().length && w.getComputedStyle(el).visibility !== 'hidden';
     const contents = w.getComputedStyle(el).display === 'contents';
@@ -110,6 +118,9 @@ function check(f, name, mouse) {
     }
     const f = await load(`../index.html?screen=game&device=${dev}${q}`);
     f.contentDocument.head.insertAdjacentHTML('beforeend', '<style>*, *::before, *::after { transition: none !important; }</style>');   // мерить конечную раскладку, а не середину перехода
+    // ?hide=<селектор> — проверка самой проверки: на таче прячет элемент, который есть на мониторе; прогон обязан упасть с «пропало»
+    const HIDE = new URLSearchParams(location.search).get('hide');
+    if (HIDE && !MOUSE(dev)) f.contentDocument.head.insertAdjacentHTML('beforeend', `<style>${HIDE} { display: none !important; }</style>`);
     await wait(1000);
     check(f, `${dev} ${n}`, MOUSE(dev));
     if (!MOUSE(dev) && n === 'calm') {

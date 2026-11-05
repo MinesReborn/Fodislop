@@ -85,7 +85,6 @@ public sealed class ServerVisualEvent : IServerWorldEffect
     private readonly IWorldLabels? _worldLabels;
     private Sprite? _flightSprite;
     private GameObject? _sourceCollectionSpriteObject;
-    private GameObject? _sourceCollectionCanvasObject;
     private bool _ownedStaticSpriteShared;
     private bool _flightSpriteShared;
     private int _currentFrame;
@@ -560,28 +559,15 @@ public sealed class ServerVisualEvent : IServerWorldEffect
         await CreateCrystalDigitsAsync(token);
     }
 
-    // SourceMineralAtlas recreates the original Canvas and TMP hierarchy.
-    // CurrentAssets keeps the existing project world-label presentation.
+    // The counter is always the project's UI Toolkit world label; the crystal
+    // variant selects only the flying sprite. A per-effect Canvas/TMP paid its
+    // first font/shader initialization inside gameplay and blocked the render
+    // thread for about a second.
     private UniTask CreateCrystalDigitsAsync(CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         if (_parsedParams.CrystalCount < 2)
         {
-            return UniTask.CompletedTask;
-        }
-
-        if (_crystalCollectionVariant == CrystalCollectionVisualVariant.SourceMineralAtlas)
-        {
-            if (_gameObject == null)
-            {
-                throw new InvalidOperationException("Source crystal collection requires its world root.");
-            }
-
-            string count = _parsedParams.CrystalCount.ToString(CultureInfo.InvariantCulture);
-            _sourceCollectionCanvasObject = CreateSourceCollectionCounter(
-                _sceneObjects,
-                _gameObject.transform,
-                count);
             return UniTask.CompletedTask;
         }
 
@@ -600,6 +586,8 @@ public sealed class ServerVisualEvent : IServerWorldEffect
         return UniTask.CompletedTask;
     }
 
+    // Reference implementation for the crystal pixel-parity PlayMode harness;
+    // runtime crystal counters use IWorldLabels instead.
     internal static GameObject CreateSourceCollectionCounter(
         ISceneObjectFactory sceneObjects,
         Transform parent,
@@ -1190,11 +1178,6 @@ public sealed class ServerVisualEvent : IServerWorldEffect
         {
             UnityEngine.Object.Destroy(_sourceCollectionSpriteObject);
             _sourceCollectionSpriteObject = null;
-        }
-        if (_sourceCollectionCanvasObject != null)
-        {
-            UnityEngine.Object.Destroy(_sourceCollectionCanvasObject);
-            _sourceCollectionCanvasObject = null;
         }
         if (_slotReleased)
         {

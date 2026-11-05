@@ -110,7 +110,7 @@ adapters belong to Infrastructure; generic diagnostics do not belong to World
 or Contracts. Composition roots own wiring rather than implementation.
 
 The architecture linter enforces source placement and assembly ownership.
-`python3 tools/Kern.RepositoryTaxonomy/Validation/validate.py` checks the move
+`python3 tools/architecture/Kern.RepositoryTaxonomy/Validation/validate.py` checks the move
 inventory, original script metadata, asset GUIDs/bytes, catalog completeness,
 UI references and project shader includes. Inventories live beside that tool.
 

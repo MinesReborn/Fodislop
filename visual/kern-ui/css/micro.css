@@ -11,7 +11,7 @@ body, .frame { font-family: var(--font-text); }
     .descent-meta, .upd-meta b, .calib-slider output, .range output, .badge, .chat-list i, .pm-thread i, .geo, .prog-foot kbd, .toggle kbd,
     .keycap, .menu-meta code, .menu-meta b, .skills-slots, .prog-state, .slot .lvl, .pin span, .stand-res) {
   font-family: var(--font-mono); letter-spacing: var(--ls-mono); }
-/* Ник, заголовки окон и экранов, марка — Tektur */
+/* Ник, заголовки окон и экранов, марка — Exo 2 */
 :is(.nick, .wordmark, .menu-title, .boot-title, .onb-head h2, .settings-head h2, .srv-head h2, .skills-head h2, .inv-window-head h2,
     .dialog h2, .calib-foot h2, .clan-name, .profile-nick, .mission-title) { font-family: var(--font-display); font-weight: var(--fw-bold); letter-spacing: .02em; }
 /* Микроподписи разделов — моно, заглавными, вразрядку */
@@ -23,18 +23,20 @@ svg { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 
 /* ── Панель — одна форма везде (HUD, окна клиента, окна сервера): базальт, волосяная рамка, срез правого верхнего угла,
    линия среза рисуется в рамке (border-box), без меток совмещения. Декор без данных не ставится: индексы и штрихкоды, которые ничего не значат, убраны ── */
-.panel { --notch-edge: var(--seam); border-radius: 0; border-color: var(--notch-edge);
-  background: linear-gradient(225deg, transparent calc(var(--notch) * .7071 - 1px), var(--notch-edge) calc(var(--notch) * .7071 - 1px) calc(var(--notch) * .7071 + 1px), transparent calc(var(--notch) * .7071 + 1px)) border-box, var(--grain) padding-box, var(--graphite) padding-box;
+.panel { --notch-edge: var(--seam); border-color: var(--notch-edge);
+  /* Диагональ среза той же линией, что рамка; полоса заходит за линию среза, чтобы обрезка оставила ровно 1 px без размытой кромки */
+  --notch-line: linear-gradient(225deg, transparent calc(var(--notch) * .7071 - 1px), var(--notch-edge) calc(var(--notch) * .7071 - 1px) calc(var(--notch) * .7071 + 1px), transparent calc(var(--notch) * .7071 + 1px));
+  background: var(--notch-line) border-box, var(--grain) padding-box, var(--graphite) padding-box;
   clip-path: var(--notch-clip); box-shadow: var(--shadow-panel); }
 .hud .panel { box-shadow: var(--shadow-panel); }
 :is(.dialog, .srv-window, .settings, .skills, .inv-window) { position: relative; }
 
-/* ── Шапка окна: заголовок Tektur заглавными, штриховка вдоль нижней линии ── */
+/* ── Шапка окна: заголовок Exo 2 заглавными, штриховка вдоль нижней линии ── */
 :is(.srv-head h2, .skills-head h2, .settings-head h2, .inv-window-head h2, .dialog > h2, .dialog > header h2) {
   display: flex; align-items: center; gap: var(--sp-5); text-transform: uppercase; letter-spacing: var(--ls-caps); }
 
 /* ── Кнопки: прямые, волосяная рамка; основная — сигнал бура со срезом угла ── */
-.btn { border-radius: 0; border-color: var(--seam-strong); background: var(--plate); font-weight: var(--fw-semi); letter-spacing: .01em; }
+.btn { border-color: var(--seam-strong); background: var(--plate); font-weight: var(--fw-semi); letter-spacing: .01em; }
 .btn:hover { border-color: var(--ash); background: var(--plate-hover); }
 .btn--primary, .btn--update { clip-path: var(--notch-btn-clip); font-weight: var(--fw-bold); }
 .btn--primary { background: var(--signal); border-color: var(--signal); color: var(--on-signal); }
@@ -45,7 +47,7 @@ svg { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 .icon-btn { border-radius: 0; }
 
 /* ── Шкалы: пустое штрихуется, заполненное делится рисками ── */
-.meter { border-radius: 0; background: var(--hatch), var(--well); }
+.meter { background: var(--hatch), var(--well); }
 .meter--cargo::after, .meter--wide::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background: repeating-linear-gradient(90deg, transparent 0 calc(5% - 1px), rgb(var(--rgb-well) / .7) calc(5% - 1px) 5%); }
 
@@ -55,7 +57,7 @@ svg { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 .map-places button, .upd-box, .net-reason, .link-url, .rail-btn, .chat-peek, .item-hint, .status-bar, .diag, .coords, .pin span, .map-scale { border-radius: 0; }
 .toggle .dot, .toggle .dot::after, .switch::after { border-radius: 0; }
 .toggle[aria-pressed="true"] { border-color: var(--signal-line); background: var(--graphite); }
-.seg { padding: 2px; gap: 2px; }
+.seg { padding: var(--sp-1); gap: var(--sp-1); }
 
 /* ── Поля ввода: углубление, при фокусе — сигнальная риска слева ── */
 .input, .chat-input { background: var(--well); border-color: var(--seam-strong); box-shadow: var(--press); }
@@ -65,20 +67,20 @@ svg { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 /* ── Левая колонка ── */
 .pid span { border-color: var(--seam-strong); background: var(--well); color: var(--mist); }
 /* Клан и номер — две плашки одной высоты в рамке; рамка клана рисуется по центру кнопки — зона касания больше рамки */
-.clan-btn { position: relative; border-radius: 0; border-color: transparent; }
+.clan-btn { position: relative; border-color: transparent; }
 .clan-btn::before { content: ""; position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; translate: -50% -50%; border: 1px solid var(--seam-strong); pointer-events: none; }
 .frame.compact .clan-btn::before { width: 18px; height: 18px; }
 .clan-btn:hover { border-color: transparent; }
 .clan-btn:hover::before { border-color: var(--ash); }
 .frame:not(.in-touch, .compact) .clan-btn { width: 22px; height: 22px; padding: 0; margin: 0; border: 0; }
-.frame:not(.compact) .pid span { height: 22px; line-height: 20px; font-size: 11px; }
+.frame:not(.compact) .pid span { height: 22px; line-height: 20px; font-size: var(--t-3); }
 .clan-btn img { width: 13px; height: 13px; }
 .states li { border-left-width: 2px; background: linear-gradient(90deg, color-mix(in srgb, var(--c) 14%, transparent), transparent 60%), var(--graphite); }
-.prog-name { border-radius: 0; background: var(--signal-wash); border: 1px solid var(--signal-line); padding: 0 var(--sp-3); font-family: var(--font-mono); }
+.prog-name { background: var(--signal-wash); border: 1px solid var(--signal-line); padding: 0 var(--sp-3); font-family: var(--font-mono); }
 .coords { background: var(--tag); border: 1px solid var(--seam); color: var(--bone); }
 
 /* ── Правый верх: плитки кнопок с порядковым индексом ── */
-.frame:not(.compact) :is(.sysbuttons .icon-btn, .sysbar .bonus) { border-radius: 0; background: var(--graphite); position: relative; }
+.frame:not(.compact) :is(.sysbuttons .icon-btn, .sysbar .bonus) { background: var(--graphite); position: relative; }
 .frame:not(.compact) .sysbar .bonus { border-color: var(--signal-line); background: var(--hatch-signal) right top / 10px 10px no-repeat, var(--graphite); }
 .frame:not(.compact) :is(.sysbuttons .icon-btn, .sysbar .bonus):hover { border-color: var(--ash); }
 .frame:not(.compact) .sys-sep { width: 1px; background: repeating-linear-gradient(transparent 0 2px, var(--seam-strong) 2px 4px); }
@@ -87,14 +89,14 @@ svg { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 /* ── Инвентарь: ячейки с номером слота ── */
 .inv-slots { counter-reset: slot; }
 .inv-slots li { counter-increment: slot; background: var(--graphite); }
-.inv-slots li::before { content: counter(slot, decimal-leading-zero); position: absolute; left: 4px; top: 2px; font: var(--fw-semi) var(--t-0)/8px var(--font-mono); color: var(--dim); }
+.inv-slots li::before { content: counter(slot, decimal-leading-zero); position: absolute; left: 4px; top: 2px; font: var(--fw-semi) var(--t-0)/var(--t-0) var(--font-mono); color: var(--dim); }
 .inv-slots li.is-on, .inv-cell.is-on { border-color: var(--signal); box-shadow: inset 0 0 0 1px var(--signal); background: var(--hatch-signal), var(--graphite); }
-.inv-expand { border-radius: 0; background: var(--hatch), var(--graphite); }
+.inv-expand { background: var(--hatch), var(--graphite); }
 .inv-cell { background: var(--well); box-shadow: var(--press); }
 
 /* ── Навыки ── */
-.mini-skill .bar { border-radius: 0; width: 3px; }
-.slot .lvl { border-radius: 0; font-weight: var(--fw-bold); }
+.mini-skill .bar { width: 3px; }
+.slot .lvl { font-weight: var(--fw-bold); }
 .slot .ready { border-radius: 0; }
 .robot-art { background: var(--seam-strong); }
 
@@ -104,7 +106,7 @@ svg { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 .chat-head { background: var(--hatch) left bottom / 100% 3px no-repeat; }
 .chat-tab.is-on::after { height: 2px; }
 .chat-log time { color: var(--dim); }
-.badge, .chat-list i, .pm-thread i { border-radius: 0; font-family: var(--font-mono); }
+.badge, .chat-list i, .pm-thread i { font-family: var(--font-mono); }
 
 /* ── Окна ── */
 .dialog-layer { background: var(--dots), var(--scrim); }
@@ -130,7 +132,7 @@ svg { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 .prog-cell { background: var(--well); box-shadow: var(--press); }
 .prog-cell:hover { background: var(--plate); }
 .prog-op { background: var(--plate); }
-.prog-list { border-radius: 0; background: var(--graphite-solid); }
+.prog-list { background: var(--graphite-solid); }
 .prog-go.is-stop { clip-path: var(--notch-btn-clip); }
 
 /* ── Карта ── */
@@ -151,27 +153,27 @@ svg { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 .rail-btn:hover { translate: none; border-color: var(--ash); }
 .boot-logo, .brand img { image-rendering: auto; }
 .boot-phase { font-family: var(--font-mono); font-size: var(--t-4); letter-spacing: var(--ls-mono); color: var(--ash); }
-.steps li { border-radius: 0; font-family: var(--font-mono); font-size: var(--t-3); }
+.steps li { font-family: var(--font-mono); font-size: var(--t-3); }
 .steps li::before { content: counter(step, decimal-leading-zero) " · "; }
 .steps li.is-on { background: var(--signal-wash); }
 .phases li::before { border-radius: 0; }
 .phases li.is-on::before { box-shadow: none; outline: 1px solid var(--signal-line); outline-offset: 2px; }
 .descent-tip { border-left-width: 2px; background: linear-gradient(90deg, var(--signal-wash), transparent 70%); padding-block: var(--sp-2); }
-.calib-steps li { border-radius: 0; font-family: var(--font-mono); }
+.calib-steps li { font-family: var(--font-mono); }
 .calib-logo { -webkit-mask-image: url(../img/brand/mark.svg); mask-image: url(../img/brand/mark.svg); }
 
 /* ── Тач и пад ── */
 .tbtn { background: var(--graphite); }
-.frame.compact .touch-sys .icon-btn { border-radius: 0; background: var(--graphite); }
+.frame.compact .touch-sys .icon-btn { background: var(--graphite); }
 .act-arc :is(.act, #autodig, .build, .fast-move) { border-radius: 0; }
-.pg { border-radius: var(--r-s); font-family: var(--font-mono); }
-.pad-bar { border-radius: 0; background: var(--float); }
+.pg { font-family: var(--font-mono); }
+.pad-bar { background: var(--float); }
 .pd:not(.pd-rt) { background: var(--float); }
 
 /* ── Прокрутка: тонкая прямая полоса ── */
 .frame ::-webkit-scrollbar { width: 6px; height: 6px; }
-.frame ::-webkit-scrollbar-track { border-radius: 0; background: var(--scroll-track); }
-.frame ::-webkit-scrollbar-thumb { border: 0; border-radius: 0; background: var(--scroll-thumb); }
+.frame ::-webkit-scrollbar-track { background: var(--scroll-track); }
+.frame ::-webkit-scrollbar-thumb { border: 0; background: var(--scroll-thumb); }
 
 /* ── Стенд ── */
 .stand-seg, .stand-pick select, .stand-act, .stand-seg button { border-radius: 0; }
@@ -209,8 +211,8 @@ svg { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 .frame.in-touch :is(.act, #autodig, .build, .fast-move)[aria-pressed="true"] .cap { color: var(--bone); }
 .pd.is-on { border-color: var(--bone); color: var(--bone); }
 :is(.clan-board li.is-pin, .profile-ach li.is-done) { border-color: var(--seam-strong); background: var(--hatch) right top / 14px 14px no-repeat, var(--plate); }
-/* Заголовки окон клиента — тем же Tektur капсом, что заголовки окон зданий, но без значка — на ступень мельче */
-:is(.srv-head h2, .skills-head h2, .settings-head h2, .inv-window-head h2, .dialog > h2, .dialog > header h2) { font-size: 22px; line-height: 1; letter-spacing: .04em; }
+/* Заголовки окон клиента — тем же Exo 2 капсом, что заголовки окон зданий, но без значка — на ступень мельче */
+:is(.srv-head h2, .skills-head h2, .settings-head h2, .inv-window-head h2, .dialog > h2, .dialog > header h2) { font-size: var(--t-12); line-height: 1; letter-spacing: .04em; }
 /* Ранг в клане, уровень профиля и кредиты казны — данные, а не действие: без сигнала */
 .clan-list .role { color: var(--bone); }
 .profile-level b { color: var(--bone); }
@@ -219,9 +221,25 @@ svg { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 /* Флажки — тоже выбор: кость */
 .check input, input[type="checkbox"] { accent-color: var(--bone); }
 /* Ползунки громкости и калибровки — заполненное туманом, как ползунки окон зданий */
-:is(.range, .calib-slider) input { accent-color: var(--mist); }
+/* Ползунок — один компонент на настройки, обучение, калибровку и окна сервера (раньше в настройках стоял системный слайдер браузера,
+   перекрашенный accent-color: в UI Toolkit такого нет, а в Safari и Firefox он выглядит по-разному).
+   Вдавленная дорожка со штриховкой, заполнено — туман, бегунок — риска с перекладиной; под дорожкой — четверти.
+   --f — доля хода 0..1, ставит скрипт (srvgui.js, screens.js, calibration.js); Firefox заливает сам (::-moz-range-progress) */
+:is(.pk-slider, :where(.range, .calib-slider) input) { --f: .5; --thumb: 8px; appearance: none; min-width: 0; height: 22px; margin: 0; cursor: pointer;
+  background: repeating-linear-gradient(90deg, rgb(var(--rgb-bone) / .3) 0 1px, transparent 1px calc(25% - .25px)) left calc(var(--thumb) / 2) top calc(50% + 6px) / calc(100% - var(--thumb)) 3px no-repeat; }
+:is(.pk-slider, :where(.range, .calib-slider) input)::-webkit-slider-runnable-track { height: 6px; background: linear-gradient(90deg, var(--mist) calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--f)), transparent 0),
+  repeating-linear-gradient(90deg, rgb(var(--rgb-bone) / .1) 0 1px, transparent 1px 4px), var(--well); box-shadow: inset 1px 1px 0 rgb(var(--rgb-black) / .75); }
+:is(.pk-slider, :where(.range, .calib-slider) input)::-webkit-slider-thumb { appearance: none; width: var(--thumb); height: 14px; margin-top: -4px; background: var(--bone);
+  clip-path: polygon(0 0, 100% 0, 100% 3px, calc(50% + 1px) 3px, calc(50% + 1px) 100%, calc(50% - 1px) 100%, calc(50% - 1px) 3px, 0 3px); }
+:is(.pk-slider, :where(.range, .calib-slider) input):disabled { --thumb: 0px; cursor: default; }   /* без бегунка ход равен всей дорожке — заливка и четверти считаются от нулевой ширины бегунка */
+:is(.pk-slider, :where(.range, .calib-slider) input):disabled::-webkit-slider-thumb { width: 0; }
+:is(.pk-slider, :where(.range, .calib-slider) input)::-moz-range-track { height: 6px; background: repeating-linear-gradient(90deg, rgb(var(--rgb-bone) / .1) 0 1px, transparent 1px 4px), var(--well); box-shadow: inset 1px 1px 0 rgb(var(--rgb-black) / .75); border: 0; }
+:is(.pk-slider, :where(.range, .calib-slider) input)::-moz-range-progress { height: 6px; background: var(--mist); }
+:is(.pk-slider, :where(.range, .calib-slider) input)::-moz-range-thumb { width: var(--thumb); height: 14px; border: 0; border-radius: 0; background: var(--bone);
+  clip-path: polygon(0 0, 100% 0, 100% 3px, calc(50% + 1px) 3px, calc(50% + 1px) 100%, calc(50% - 1px) 100%, calc(50% - 1px) 3px, 0 3px); }
+:is(.pk-slider, :where(.range, .calib-slider) input):focus-visible { outline: 1px solid var(--bone); outline-offset: 2px; }
 /* Миссия: прогресс — ячейки (одна на шаг, до 10), счёт — кость; оранжевый не нужен: это данные, а не действие */
-.mission-cells { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; height: 4px; margin: 0 -14px var(--sp-5); }
+.mission-cells { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(10, 1fr); gap: var(--sp-1); height: 4px; margin: 0 -14px var(--sp-5); }
 .mission-cells i { background: var(--well); }
 .mission-cells i.on { background: var(--bone); }
 .mission-progress { color: var(--bone); }

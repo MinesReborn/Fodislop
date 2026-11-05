@@ -38,9 +38,12 @@ public readonly record struct TerrainFrameTimings(
 /// после перезапуска сцены его уже не снять.
 public sealed class TerrainFrameDiagnostics : IDisposable
 {
+    private const float NotReadyLogIntervalSeconds = 1f;
+
     private readonly TerrainWindow _window;
     private readonly TerrainDiagnosticLog _log = new();
     private readonly TerrainStallReport _stall = new();
+    private float _nextNotReadyLogTime;
 
     public TerrainFrameDiagnostics(TerrainWindow window)
     {
@@ -103,17 +106,48 @@ public sealed class TerrainFrameDiagnostics : IDisposable
     {
         if (failure == null)
         {
-            _log.Once(1 << 6, "[TerrainDiag] BAIL: build sources not ready");
+            // "Ещё нечем" не должно значить "навсегда молча". Состояние
+            // Error без исключения - это упавшая сборка, а не ожидание:
+            // раньше оба случая схлопывались в одну отметку Once и после
+            // первого раза чёрный экран ничего не писал.
+            if (_window.BuildState == TerrainBuildState.Error)
+            {
+                Debug.LogError(
+                    "[TerrainRenderer] Build failed without an exception. " +
+                    DescribeState(origin, mapManager, textureService, storage));
+                return true;
+            }
+
+            float now = Time.realtimeSinceStartup;
+            if (now >= _nextNotReadyLogTime)
+            {
+                _nextNotReadyLogTime = now + NotReadyLogIntervalSeconds;
+                Debug.LogWarning(
+                    "[TerrainRenderer] Terrain has no build sources yet. " +
+                    DescribeState(origin, mapManager, textureService, storage));
+            }
+
             return false;
         }
 
         Debug.LogException(new InvalidOperationException(
-            $"[TerrainRenderer] Build failed: grid={origin} " +
-            $"size={_window.Width}x{_window.Height}, world=" +
-            $"{mapManager?.WorldWidth ?? 0}x{mapManager?.WorldHeight ?? 0}, " +
-            $"atlases={textureService?.GetAllAtlases().Count ?? 0}, " +
-            $"storageReady={storage?.IsReady ?? false}.",
+            "[TerrainRenderer] Build failed: " +
+            DescribeState(origin, mapManager, textureService, storage),
             failure));
         return true;
     }
+
+    private string DescribeState(
+        Vector2Int origin,
+        MapManager? mapManager,
+        ITextureService? textureService,
+        IWorldDataStorage? storage) =>
+        $"state={_window.BuildState}, committed={_window.CellsCommitted}, " +
+        $"inFlight={_window.HasCPUBuildInFlight}, needsRefresh={_window.NeedsRefresh}, " +
+        $"pendingTextures={_window.PendingTextureCellTypes.Count}, " +
+        $"atlases={textureService?.GetAllAtlases().Count ?? 0}, " +
+        $"withdrawn={_window.LastWithdrawalReason ?? "-"}, " +
+        $"grid={origin}, size={_window.Width}x{_window.Height}, " +
+        $"world={mapManager?.WorldWidth ?? 0}x{mapManager?.WorldHeight ?? 0}, " +
+        $"storageReady={storage?.IsReady ?? false}";
 }

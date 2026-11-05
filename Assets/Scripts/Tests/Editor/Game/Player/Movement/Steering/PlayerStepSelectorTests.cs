@@ -85,6 +85,26 @@ public class PlayerStepSelectorTests
     }
 
     [Test]
+    public void Diagonal_ServerCorrection_KeepsTheZigzagPhase()
+    {
+        var world = new GridWorld(
+            ".......",
+            ".......",
+            "...@...");
+        var state = new PlayerStepSelectorState();
+
+        Vector2Int first = world.SelectHeld(state, Diagonal(Up, Left), autoDig: false, assist: true);
+        Assert.That(first, Is.EqualTo(Up));
+        PlayerStepSelector.NoteStep(state, first);
+
+        // Соседняя коррекция сервера не должна начинать змейку с Primary заново.
+        PlayerStepSelector.Resync(state);
+
+        Vector2Int second = world.SelectHeld(state, Diagonal(Up, Left), autoDig: false, assist: true);
+        Assert.That(second, Is.EqualTo(Left));
+    }
+
+    [Test]
     public void Diagonal_WallAbove_SlidesAlongIt()
     {
         var world = new GridWorld(

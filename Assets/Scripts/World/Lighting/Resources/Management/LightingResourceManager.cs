@@ -124,6 +124,49 @@ internal sealed class LightingResourceManager
     public ComputeBuffer? DynamicDistanceSeedsA => _dynamicDistance.SeedsA;
     public ComputeBuffer? DynamicDistanceSeedsB => _dynamicDistance.SeedsB;
     public RenderTexture? AmbientOcclusionField => _ambientOcclusion.Field;
+    public bool HasAmbientOcclusionField => _ambientOcclusion.Field != null;
+
+    /// <summary>
+    /// Переносит уже посчитанное AO-поле на новое начало светового региона.
+    /// Перекрытие снимается в буфер и возвращается со сдвигом; полоса,
+    /// вошедшая в регион, затем пересчитывается как обычная региональная
+    /// инвалидация, вместо полной очистки всего поля.
+    /// </summary>
+    public void RecordAmbientOcclusionScroll(CommandBuffer commandBuffer, Vector2Int regionDelta)
+    {
+        RenderTexture field = _ambientOcclusion.Field ??
+            throw new InvalidOperationException("Ambient occlusion field is not allocated.");
+        int scale = LightingConfigHolder.AmbientOcclusionPixelsPerCell;
+        int shiftX = -regionDelta.x * scale;
+        int shiftY = (Kern.Core.Interfaces.WorldLighting.LightingFieldOrientation.RowsTopDown
+            ? regionDelta.y
+            : -regionDelta.y) * scale;
+        if (shiftX == 0 && shiftY == 0)
+        {
+            return;
+        }
+
+        RenderTexture scratch = _ambientOcclusion.EnsureShiftScratch(field.width, field.height);
+        commandBuffer.CopyTexture(field, 0, 0, scratch, 0, 0);
+        int sourceX0 = Mathf.Max(0, -shiftX);
+        int sourceX1 = Mathf.Min(field.width, field.width - shiftX);
+        int sourceY0 = Mathf.Max(0, -shiftY);
+        int sourceY1 = Mathf.Min(field.height, field.height - shiftY);
+        int copyWidth = sourceX1 - sourceX0;
+        int copyHeight = sourceY1 - sourceY0;
+        if (copyWidth <= 0 || copyHeight <= 0)
+        {
+            return;
+        }
+
+        commandBuffer.CopyTexture(
+            scratch, 0, 0,
+            sourceX0, sourceY0, copyWidth, copyHeight,
+            field, 0, 0,
+            sourceX0 + shiftX, sourceY0 + shiftY);
+        Kern.Diagnostics.Frames.FrameEventLog.Record(
+            $"AO: перенос {field.width}×{field.height}, сдвиг {regionDelta.x},{regionDelta.y} клеток");
+    }
 
     public bool GeometryCachesValid { get; set; }
     public int CellGridWidth { get; private set; }

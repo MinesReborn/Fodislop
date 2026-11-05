@@ -36,16 +36,20 @@
   // SetHP: цвет числа и полосы по доле
   const hpTone = f => `rgb(${Math.round(Math.sqrt(Math.sqrt(1 - f)) * 255)},${Math.round(Math.sqrt(Math.sqrt(f)) * 255)},${Math.round(f * (1 - f) * 255)})`;
 
+  let hpWas = 1, cargoWas = 0;   // прошлые значения — тревога только при пересечении порога вниз/вверх
   function renderPlayer() {
     const f = Math.max(0, Math.min(1, state.hp / state.maxHp));
     // Точка — 5%: живой робот — хотя бы одна точка, раненый — никогда не все 20
     const on = f <= 0 ? 0 : f >= 1 ? 20 : Math.min(19, Math.max(1, Math.round(f * 20)));
     $('hpDots').style.setProperty('--c', hpTone(f));
-    $('hpDots').innerHTML = Array.from({ length: 20 }, (_, i) => `<i${i < on ? ' class="on"' : ''}></i>`).join('');
-    $('hpValue').firstElementChild.textContent = state.hp;
+    // Движение «Квант» (js/motion.js): точки гаснут и загораются по одной, числа досчитываются, порог 25 % — тревога
+    window.kernQuant($('hpDots'), 20, on);
+    window.kernCount($('hpValue').firstElementChild, state.hp);
     $('hpValue').style.color = hpTone(f);
-    $('money').innerHTML = cut(state.money);
-    $('creds').innerHTML = cut(state.creds);
+    if (f < .25 && hpWas >= .25) window.kernFlash($('hpValue'));
+    hpWas = f;
+    window.kernCount($('money'), state.money, cut);
+    window.kernCount($('creds'), state.creds, cut);
   }
   // Включает и выключает режим; обычные значения запоминаются и возвращаются как были
   window.kernHudRich = level => {
@@ -62,19 +66,23 @@
     const values = CRYSTALS.map(([k]) => state.basket[k]);
     const percent = Math.round(Math.max(...values) * 100 / state.capacity);
     const [text, bar] = cargoTone(percent);
-    $('cargoPercent').firstElementChild.textContent = percent;
+    window.kernCount($('cargoPercent').firstElementChild, percent);
+    // Новый порог груза (100 / 115 / 200 %) — тревога: две вспышки числа и полосы
+    const band = p => p < 100 ? 0 : p < 115 ? 1 : p < 200 ? 2 : 3;
+    if (band(percent) > band(cargoWas)) { window.kernFlash($('cargoPercent')); window.kernFlash($('cargoCells')); }
+    cargoWas = percent;
     $('cargoPercent').style.color = text;
     // Ячейка — 5%; непустой груз — хотя бы одна ячейка, даже если процент округлился до 0. Перегруз — полная полоса цвета порога
     const lit = Math.min(20, Math.ceil(Math.max(...values) * 100 / state.capacity / 5));
     $('cargoCells').style.setProperty('--bar', bar);
-    $('cargoCells').innerHTML = Array.from({ length: 20 }, (_, i) => `<i${i < lit ? ' class="on"' : ''}></i>`).join('');
+    window.kernQuant($('cargoCells'), 20, lit);
     // Между иконкой и числом — доля лимита этого кристалла (лимит у каждого типа свой), до 100%; непустой — не уже 2 px
     $('crystals').innerHTML = CRYSTALS.filter(([k]) => state.basket[k] > 0)
       .map(([k, f]) => `<li style="color:var(--cry-${k})"><img src="img/crystals/${f}.png" alt=""><i class="share"><i style="width:max(2px, ${Math.min(100, state.basket[k] / state.capacity * 100).toFixed(1)}%)"></i></i><span>${cut(state.basket[k])}</span></li>`).join('');
     // Геология: ячейка — блок (до 20 ячеек, больше — доля на 20)
     const [gN, gMax] = state.geo, gCells = Math.min(gMax, 20), gLit = gN ? Math.max(1, Math.round(gN / gMax * gCells)) : 0;
     $('geoCells').style.gridTemplateColumns = `repeat(${gCells}, 1fr)`;
-    $('geoCells').innerHTML = Array.from({ length: gCells }, (_, i) => `<i${i < gLit ? ' class="on"' : ''}></i>`).join('');
+    window.kernQuant($('geoCells'), gCells, gLit);
     $('geoCount').textContent = `${gN}/${gMax}`;
     $('cargo').hidden = values.every(v => v === 0);   // пустая корзина — панели нет
   }
@@ -635,7 +643,7 @@
   // ── Клан — по знаку клана ──
   const MEMBERS = [['DVM_LEADER', 'Глава', 92, 1], ['ШАХТЁР-102', 'Заместитель', 61, 1], ['ШАХТЁР-774', 'Участник', 47, 1], ['ГЛУБИНА', 'Участник', 55, 1],
     ['ROCKBOT', 'Участник', 38, 1], ['KOPATEL_9', 'Участник', 44, 1], ['ЖЕЛЕЗО', 'Участник', 29, 1], ['SANDMAN', 'Участник', 51, 0], ['МИНЁР', 'Новичок', 12, 0],
-    ['BLUE_HUNTER', 'Участник', 33, 0], ['ДРОН-7', 'Участник', 40, 0], ['ORE_KING', 'Участник', 66, 0]];
+    ['BLUE_HUNTER', 'Участник', 33, 0], ['КРОТ-7', 'Участник', 40, 0], ['ORE_KING', 'Участник', 66, 0]];
   const BANK = [['+ $120 000', 'ШАХТЁР-102 · взнос', 'сегодня 18:40'], ['− $45 000', 'Постройка: Рынок', 'сегодня 14:02'], ['+ $80 500', 'Налог с добычи', 'вчера'], ['+ ₢ 2 000', 'DVM_LEADER · взнос', 'вчера'], ['− $210 000', 'Постройка: Пушка', '24.10']];
   $('clanMembers').innerHTML = MEMBERS.map(([n, r, l, on]) => `<li class="${on ? 'is-online' : ''}"><i></i>${nickLink(n, 'var(--bone)')}<em class="${r === 'Участник' || r === 'Новичок' ? '' : 'role'}">${r}</em><em>ур.${l}</em></li>`).join('');
   $('clanBank').innerHTML = BANK.map(([v, w, t]) => `<li><i></i><b>${w}</b><em class="${v[0] === '+' ? 'plus' : 'minus'}">${v}</em><em>${t}</em></li>`).join('');
@@ -695,7 +703,7 @@
   const MAIL = [
     { from: 'Сервер', title: 'Награда за неделю', time: 'сегодня 09:00', unread: true, text: 'Спасибо, что играете! За активность на этой неделе вам начислена награда.', gift: ['img/items/upgradeBooster.png', 'Прокачка x3 · 1 шт.'] },
     { from: 'DVM_LEADER', title: 'Сбор у Рынка', time: 'вчера 21:14', unread: true, text: 'В субботу в 20:00 собираемся у клановского Рынка на 1200:840. Берите синие кристаллы — будем строить пушку.' },
-    { from: 'Сервер', title: 'Обновление 0.9.0', time: '24.10', text: 'Вышло обновление 0.9.0: поезда на рельсах и переработанные клановые войны. Подробности — в Discord.' },
+    { from: 'Сервер', title: 'Обновление 0.9.0', time: '24.10', text: 'Вышло обновление 0.9.0: клановые ворота и новые команды программатора. Подробности — в Discord.' },
     { from: 'ШАХТЁР-102', title: 'Перевод', time: '22.10', text: 'Держи на ремонт, вернёшь когда сможешь.', gift: ['img/crystals/green.png', '$25 000'], taken: true },
   ];
   let mailSel = 0;

@@ -11,7 +11,9 @@ namespace Kern.World.Terrain;
 internal readonly record struct TerrainVolumeEdge(int X, int Y, Vector2 Start, Vector2 End);
 
 // Main-thread committed topology. Never reads the worker's mutable buffers
-// between publications. Camera movement does not build or mutate these edges.
+// between publications. Camera movement shifts already-built edges and
+// rebuilds only the band that entered the window; a resize, a type-shape
+// change or distortion still rebuilds everything.
 internal sealed class TerrainVolumeTopology
 {
     private static readonly Vector2[] s_corners = { new(0, 0), new(1, 0), new(1, 1), new(0, 1) };
@@ -38,12 +40,17 @@ internal sealed class TerrainVolumeTopology
 
     public void Publish(TerrainCellBuffers buffers, Vector2Int origin, int width, int height, bool distortion)
     {
-        if (!CaptureShapeChanges(buffers, origin, width, height, distortion))
+        int scrollX = origin.x - _snapshotOrigin.x;
+        int scrollY = origin.y - _snapshotOrigin.y;
+        bool scrolled = CanScroll(scrollX, scrollY, width, height, distortion) &&
+            ShiftForScroll(scrollX, scrollY, width, height, distortion);
+
+        if (!CaptureShapeChanges(buffers, origin, width, height, distortion, scrolled))
         {
             return;
         }
         bool edgesChanged = !_hasSnapshot || origin != _snapshotOrigin ||
-            width != _snapshotWidth || height != _snapshotHeight;
+            width != _snapshotWidth || height != _snapshotHeight || scrolled;
         _hasSnapshot = false;
         long started = System.Diagnostics.Stopwatch.GetTimestamp();
         int cellCount = checked(width * height);
@@ -55,6 +62,12 @@ internal sealed class TerrainVolumeTopology
         if (_nodes.Length != stride * (height + 1))
         {
             _nodes = new Vector2[stride * (height + 1)];
+        }
+        if (scrolled)
+        {
+            // Вошедшая полоса не имеет перенесённых рёбер: её клетки и их
+            // соседи пересчитываются целиком, остальное остаётся на месте.
+            MarkEnteringCellsDirty(scrollX, scrollY, width, height);
         }
         if (distortion)
         {
@@ -143,7 +156,11 @@ internal sealed class TerrainVolumeTopology
             _edges.Clear();
             for (int i = 0; i < _edgesByCell.Length; i++)
             {
-                _edges.AddRange(_edgesByCell[i]);
+                TerrainVolumeEdge[]? cellEdges = _edgesByCell[i];
+                if (cellEdges != null)
+                {
+                    _edges.AddRange(cellEdges);
+                }
             }
             Version++;
         }
@@ -183,15 +200,22 @@ internal sealed class TerrainVolumeTopology
         return true;
     }
 
-    private bool CaptureShapeChanges(TerrainCellBuffers buffers, Vector2Int origin, int width, int height, bool distortion)
+    private bool CaptureShapeChanges(
+        TerrainCellBuffers buffers,
+        Vector2Int origin,
+        int width,
+        int height,
+        bool distortion,
+        bool scrolled)
     {
-        bool changed = !_hasSnapshot || origin != _snapshotOrigin || width != _snapshotWidth ||
-            height != _snapshotHeight || distortion != _snapshotDistortion;
+        bool originChanged = origin != _snapshotOrigin;
+        bool layoutChanged = !_hasSnapshot || width != _snapshotWidth || height != _snapshotHeight ||
+            distortion != _snapshotDistortion;
         int cellCount = checked(width * height);
         if (_dirtyCells.Length != cellCount)
         {
             _dirtyCells = new bool[cellCount];
-            changed = true;
+            layoutChanged = true;
         }
         else
         {
@@ -201,7 +225,7 @@ internal sealed class TerrainVolumeTopology
         if (_snapshotCells.Length != count)
         {
             _snapshotCells = new byte[count];
-            changed = true;
+            layoutChanged = true;
         }
         bool typeShapesChanged = false;
         for (int type = 0; type < 256; type++)
@@ -211,7 +235,10 @@ internal sealed class TerrainVolumeTopology
             typeShapesChanged |= _snapshotLooks[type] != shape;
             _snapshotLooks[type] = shape;
         }
-        bool fullRefresh = changed || typeShapesChanged;
+        // При сдвиге окна рёбра и снимок уже перенесены: смена origin сама по
+        // себе полный пересчёт больше не требует.
+        bool fullRefresh = layoutChanged || typeShapesChanged || (originChanged && !scrolled);
+        bool changed = layoutChanged || typeShapesChanged || originChanged;
         int index = 0;
         for (int y = -1; y <= height; y++)
         {
@@ -241,12 +268,142 @@ internal sealed class TerrainVolumeTopology
                 _snapshotCells[index++] = type;
             }
         }
-        changed |= typeShapesChanged;
         if (fullRefresh)
         {
             Array.Fill(_dirtyCells, true);
         }
         return changed;
+    }
+
+    private bool CanScroll(int dx, int dy, int width, int height, bool distortion) =>
+        _hasSnapshot &&
+        distortion == _snapshotDistortion &&
+        width == _snapshotWidth &&
+        height == _snapshotHeight &&
+        (dx != 0 || dy != 0) &&
+        Math.Abs(dx) < width &&
+        Math.Abs(dy) < height &&
+        _edgesByCell.Length == width * height &&
+        _snapshotCells.Length == (width + 2) * (height + 2) &&
+        (!distortion || _nodes.Length == (width + 1) * (height + 1));
+
+    // Переносит уже посчитанные рёбра и снимок клеток на новое начало окна.
+    // Локальная координата клетки — это world - origin, поэтому при сдвиге
+    // origin на (dx, dy) координаты рёбер уменьшаются на ту же величину.
+    private bool ShiftForScroll(int dx, int dy, int width, int height, bool distortion)
+    {
+        int cellCount = width * height;
+        var shiftedEdges = new TerrainVolumeEdge[cellCount][];
+        for (int y = 0; y < height; y++)
+        {
+            int sourceY = y + dy;
+            if (sourceY < 0 || sourceY >= height)
+            {
+                continue;
+            }
+            for (int x = 0; x < width; x++)
+            {
+                int sourceX = x + dx;
+                if (sourceX < 0 || sourceX >= width)
+                {
+                    continue;
+                }
+                TerrainVolumeEdge[]? source = _edgesByCell[(sourceY * width) + sourceX];
+                if (source == null || source.Length == 0)
+                {
+                    shiftedEdges[(y * width) + x] = Array.Empty<TerrainVolumeEdge>();
+                    continue;
+                }
+                var copy = new TerrainVolumeEdge[source.Length];
+                for (int i = 0; i < source.Length; i++)
+                {
+                    TerrainVolumeEdge edge = source[i];
+                    copy[i] = new TerrainVolumeEdge(edge.X - dx, edge.Y - dy, edge.Start, edge.End);
+                }
+                shiftedEdges[(y * width) + x] = copy;
+            }
+        }
+        int stride = width + 2;
+        var shiftedSnapshot = new byte[_snapshotCells.Length];
+        Array.Fill(shiftedSnapshot, (byte)0xFF);
+        for (int y = -1; y <= height; y++)
+        {
+            int sourceY = y + dy;
+            if (sourceY < -1 || sourceY > height)
+            {
+                continue;
+            }
+            for (int x = -1; x <= width; x++)
+            {
+                int sourceX = x + dx;
+                if (sourceX < -1 || sourceX > width)
+                {
+                    continue;
+                }
+                shiftedSnapshot[((y + 1) * stride) + x + 1] =
+                    _snapshotCells[((sourceY + 1) * stride) + sourceX + 1];
+            }
+        }
+        if (distortion)
+        {
+            // Смещения узлов зависят от четырёх клеток вокруг узла и едут
+            // вместе с содержимым. Переносим их на новые локальные адреса;
+            // узлы вошедшей полосы досчитает обычный проход по dirty-клеткам.
+            int nodeStride = width + 1;
+            var shiftedNodes = new Vector2[_nodes.Length];
+            for (int y = 0; y <= height; y++)
+            {
+                int sourceY = y + dy;
+                if (sourceY < 0 || sourceY > height)
+                {
+                    continue;
+                }
+                for (int x = 0; x <= width; x++)
+                {
+                    int sourceX = x + dx;
+                    if (sourceX < 0 || sourceX > width)
+                    {
+                        continue;
+                    }
+                    shiftedNodes[(y * nodeStride) + x] = _nodes[(sourceY * nodeStride) + sourceX];
+                }
+            }
+            _nodes = shiftedNodes;
+        }
+        _edgesByCell = shiftedEdges;
+        _snapshotCells = shiftedSnapshot;
+        return true;
+    }
+
+    private void MarkEnteringCellsDirty(int dx, int dy, int width, int height)
+    {
+        if (dx != 0)
+        {
+            int x0 = dx > 0 ? width - dx : 0;
+            int x1 = dx > 0 ? width - 1 : -dx - 1;
+            MarkDirtyRect(x0 - 1, 0, x1 + 1, height - 1, width, height);
+        }
+        if (dy != 0)
+        {
+            int y0 = dy > 0 ? height - dy : 0;
+            int y1 = dy > 0 ? height - 1 : -dy - 1;
+            MarkDirtyRect(0, y0 - 1, width - 1, y1 + 1, width, height);
+        }
+    }
+
+    private void MarkDirtyRect(int x0, int y0, int x1, int y1, int width, int height)
+    {
+        x0 = Math.Max(0, x0);
+        y0 = Math.Max(0, y0);
+        x1 = Math.Min(width - 1, x1);
+        y1 = Math.Min(height - 1, y1);
+        for (int y = y0; y <= y1; y++)
+        {
+            for (int x = x0; x <= x1; x++)
+            {
+                _dirtyCells[(y * width) + x] = true;
+            }
+        }
     }
 
     private static bool Solid(TerrainCellBuffers buffers, int x, int y) =>

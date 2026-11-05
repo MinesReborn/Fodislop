@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>… Соцсети</title>
+<link rel="icon" href="../../marks/svg/mark-small.svg">
+<link rel="stylesheet" href="../../../kern-ui/css/reset.css">
+<link rel="stylesheet" href="../../../kern-ui/css/tokens.css">
+<link rel="stylesheet" href="../../web/foundation/web.css">
+<link rel="stylesheet" href="../../art/compose/compose.css">
+<!-- Шаблоны соцсетей Project Kern: аватар, обложки площадок, пост, сторис, картинка ссылки. Тот же ключевой кадр, что у витрин
+     (art/compose/compose.js: keyArt), раскладка — по безопасной зоне площадки: её пунктир виден в галерее и не попадает в экспорт.
+     Пост и сторис — шаблоны: заголовок и подпись меняются параметрами адреса ?asset=post&title=…&text=…
+     Размеры и зоны сверены 04.11.2026: VK — справка vk.ru/faq18266 (1920×768, на телефоне центр ~1280×350);
+     YouTube — 2560×1440, зона 1546×423 по центру; Discord — support.discord.com (баннер от 960×540, 16:9; заставка 1920×1080). -->
+</head>
+<body>
+<header class="w-top"><div class="w-page">
+  <a class="w-brand" href="../../book/pages/index.html"><img src="../../../kern-ui/img/brand/mark.svg" alt=""><b>Project Kern</b></a>
+  <nav class="w-nav"><a href="../../book/pages/index.html">Бренд</a><a href="../../book/pages/design-code.html">Дизайн-код</a><a href="../../distribution/icons/index.html">Иконки</a><a href="../../distribution/stores/index.html">Магазины</a><a href="../../distribution/download/index.html">Загрузка</a><a href="index.html" aria-current="page">Соцсети</a></nav>
+</div></header>
+<main class="w-page" data-gallery>
+  <section style="padding-top:64px">
+    <p class="w-kicker"><b>Каналы</b> // соцсети</p>
+    <h1 class="w-h1" style="margin-top:20px">Соцсети</h1>
+    <p class="w-lead" style="margin-top:16px">Аватар — знак на базальте: он же иконка приложения, игрок узнаёт его в ленте и на телефоне. Обложки — разрез шахты с названием в безопасной зоне площадки. Пост и сторис — шаблоны под новость: заголовок, подпись, номер версии.</p>
+  </section>
+</main>
+<footer class="w-foot"><div class="w-page"><span>Project Kern</span><span class="w-sp"></span><span>visual/kern-brand/social/templates</span></div></footer>
+
+<script src="../../distribution/stores/store-copy.js"></script>
+<script src="../../art/scene/scene.js"></script>
+<script src="../../art/compose/compose.js"></script>
+<script>
+(async () => {
+const C = KernCompose, q = new URLSearchParams(location.search);
+const COPY = window.KERN_STORE_COPY;
+const RU = { slogan: COPY.ru.slogan, kickerText: 'Добыча <s>//</s> Кланы <s>//</s> Программирование' };
+const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+
+// Безопасная зона: x, y, w, h — в пикселях кадра. Текст кладётся внутрь неё
+const safe = (root, z) => root.insertAdjacentHTML('beforeend', `<div class="k-safe" style="left:${z[0]}px;top:${z[1]}px;width:${z[2]}px;height:${z[3]}px"></div>`);
+async function cover(root, a, z, o = {}) {
+  const [x, y, w, h] = z;
+  const lock = Math.round(Math.min(h * (o.k ?? .2), w * .12));   // название шириной ≈ 7.8 кегля — не шире зоны
+  const box = document.createElement('div');
+  box.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:${lock * .36}px`;
+  box.innerHTML = `${C.lockup(lock)}${o.slogan === false ? '' : `<p class="k-sub" style="font-size:${Math.round(lock * .44)}px;padding-left:${lock * 1.5}px">${RU.slogan}</p>`}`;
+  root.append(box);
+  // Игровой момент правее текста, внутри безопасной зоны по высоте: на телефоне видна только зона, робот должен попасть в неё
+  const { right } = C.textExtent(box), cell = C.momentCell(h, 6);   // клетка — шестая часть зоны: на телефоне обложка видна только в зоне, сцена должна читаться
+  await C.scene(root, { moment: true, cell, seed: o.seed ?? 11, depth: o.depth ?? 84, fx: Math.min(x + w - cell * 3, right + cell * 7.5) / a.w, fy: (y + h * .72) / a.h });
+  C.scrim(root, `linear-gradient(90deg, rgb(var(--rgb-void) / .96) 0, rgb(var(--rgb-void) / .9) ${right}px, rgb(var(--rgb-void) / .15) ${right + cell * 1.5}px, rgb(var(--rgb-void) / .1) 100%)`);
+  if (!C.asset) safe(root, z);
+}
+// Новость: заголовок, подпись, плашка версии — для поста и сторис
+async function news(root, a) {
+  const title = esc(q.get('title') || 'Обновление 0.9.0'), text = esc(q.get('text') || 'Новые постройки для кланов и команды программатора.'), tag = esc(q.get('tag') || 'Новое');
+  const tall = a.h > a.w;
+  await C.scene(root, { moment: true, cell: C.momentCell(a.w, tall ? 16 : 22), seed: 5, depth: 90, fx: .55, fy: tall ? .45 : .5 });
+  root.insertAdjacentHTML('beforeend', `<div class="k-scrim" style="--dir:0deg"></div><div class="k-ticks"></div>
+    <div style="left:calc(var(--u) * 8);top:calc(var(--u) * ${tall ? 26 : 8})">${C.lockup(a.w * .045)}</div>
+    <div style="left:calc(var(--u) * 8);right:calc(var(--u) * 8);bottom:calc(var(--u) * ${tall ? 28 : 9});display:flex;flex-direction:column;gap:calc(var(--u) * 3)">
+      <span class="w-plate" style="align-self:flex-start;height:calc(var(--u) * 4.4);padding:0 calc(var(--u) * 2.2) 0 calc(var(--u) * 1.6);font-size:calc(var(--u) * 2.2)">${tag}</span>
+      <p class="k-slogan" style="--fs:${tall ? 11 : 9.5}">${title}</p>
+      <p class="k-lead" style="--ls:${tall ? 4.2 : 3.6}">${text}</p>
+    </div>`);
+}
+
+const A = [];
+const add = (group, id, label, w, h, out, render, o = {}) => A.push({ group, id, label, w, h, out, render, ...o });
+add('Аватар', 'avatar', 'Аватар (все площадки)', 1024, 1024, 'social/avatar-1024.png', r => { r.innerHTML = `<img src="${C.MARKS}app-icon.svg" style="inset:0;width:100%;height:100%">`; if (!C.asset) { safe(r, [0, 0, 1024, 1024]); r.lastElementChild.style.borderRadius = '50%'; } },
+  { note: 'знак внутри круга: площадки режут аватар по кругу' });
+add('Discord', 'discord-banner', 'Баннер сервера', 960, 540, 'social/discord/server-banner.png', (r, a) => cover(r, a, [56, 120, 848, 300], { k: .2 }), { note: 'в списке каналов показывается узкой полосой — текст крупный' });
+add('Discord', 'discord-splash', 'Заставка приглашения', 1920, 1080, 'social/discord/invite-splash.png', (r, a) => C.keyArt(r, a, { ...RU, kicker: true }));
+add('Telegram', 'tg-post', 'Картинка поста', 1280, 720, 'social/telegram/post-cover.png', (r, a) => C.keyArt(r, a, { ...RU, kicker: true }));
+add('ВКонтакте', 'vk-cover', 'Обложка сообщества', 1920, 768, 'social/vk/cover.png', (r, a) => cover(r, a, [320, 200, 1280, 368], { k: .3 }),
+  { note: 'на телефоне видна середина ~1280×350, сверху и снизу её закрывают название и кнопки' });
+add('YouTube', 'yt-banner', 'Шапка канала', 2560, 1440, 'social/youtube/banner.png', (r, a) => cover(r, a, [507, 508, 1546, 423], { k: .26 }),
+  { note: 'безопасная зона на всех устройствах — 1546×423 по центру' });
+add('X', 'x-header', 'Шапка профиля', 1500, 500, 'social/x/header.png', (r, a) => cover(r, a, [520, 90, 900, 300], { k: .22 }),
+  { note: 'слева внизу аватар перекрывает шапку — текст правее' });
+add('Пост и сторис', 'post', 'Пост 1:1', 1080, 1080, 'social/post-1080.png', news, { note: '?asset=post&title=…&text=…&tag=…' });
+add('Пост и сторис', 'story', 'Сторис 9:16', 1080, 1920, 'social/story-1080x1920.png', news, { note: 'верх и низ по 250 px заняты интерфейсом площадки' });
+add('Ссылка', 'og', 'Картинка ссылки (Open Graph)', 1200, 630, 'social/og-image-1200x630.png', (r, a) => C.keyArt(r, a, { ...RU }));
+
+await C.run(A, (root, a) => a.render(root, a));
+})();
+</script>
+</body>
+</html>

@@ -24,7 +24,29 @@ internal sealed class LightingAmbientOcclusionResources
             "_LightingAmbientOcclusionField", useMipMap: false);
     }
 
-    internal void ReleaseField() => LightingTexturePool.ReleaseTexture(ref _ambientOcclusionField);
+    internal void ReleaseField()
+    {
+        LightingTexturePool.ReleaseTexture(ref _ambientOcclusionField);
+        LightingTexturePool.ReleaseTexture(ref _shiftScratch);
+    }
+
+    /// <summary>
+    /// Буфер для переноса AO-поля при переякоривании светового региона.
+    /// Копирование внутри одной текстуры запрещено, поэтому перекрытие
+    /// снимается в этот буфер и возвращается уже со сдвигом.
+    /// </summary>
+    internal RenderTexture EnsureShiftScratch(int width, int height)
+    {
+        if (_shiftScratch == null || _shiftScratch.width != width || _shiftScratch.height != height)
+        {
+            LightingTexturePool.ReleaseTexture(ref _shiftScratch);
+            _shiftScratch = LightingTexturePool.CreateTexture(width, height,
+                RenderTextureFormat.R8, randomWrite: false, FilterMode.Point,
+                "_LightingAmbientOcclusionShift", useMipMap: false);
+        }
+
+        return _shiftScratch;
+    }
 
     internal void ReleaseMaterial()
     {
@@ -36,6 +58,7 @@ internal sealed class LightingAmbientOcclusionResources
     }
 
     internal RenderTexture? _ambientOcclusionField;
+    private RenderTexture? _shiftScratch;
     internal Material? _ambientOcclusionClearMaterial;
     public Material AmbientOcclusionClearMaterial => _ambientOcclusionClearMaterial ??
         throw new InvalidOperationException("AO rectangle clear material has not been initialized.");

@@ -113,7 +113,9 @@
   $('onbNext').onclick = () => step === 2 ? finish() : (step++, renderStep());
   $('onbPrev').onclick = () => { if (step > 0) { step--; renderStep(); } };
   $('onbSkip').onclick = finish;
-  $('onbVolume').oninput = e => { $('onbVolumeOut').textContent = e.target.value + '%'; };
+  const onbFill = r => r.style.setProperty('--f', (r.value - r.min) / (r.max - r.min));   // доля хода — заливка дорожки (micro.css)
+  onbFill($('onbVolume'));
+  $('onbVolume').oninput = e => { $('onbVolumeOut').textContent = e.target.value + '%'; onbFill(e.target); };
 
   // ── Меню: обновление вместо спуска, выбор сервера ──
   let outdated = false;
@@ -301,15 +303,15 @@
   let selected = -1, extraSlots = 0;
   // Робот со слотами — одна отрисовка для окна UP и профиля
   function paintRobot(robot, amount, sel, onPick, slotMap = slots, set = skills) {
-    const cs = getComputedStyle(robot);
-    const s = parseFloat(cs.getPropertyValue('--s')), pad = parseFloat(cs.getPropertyValue('--pad'));
     robot.querySelectorAll('.slot').forEach(n => n.remove());
     for (let i = amount - 1; i >= 0; i--) {                     // как PopupManager: первый рисуется поверх
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'slot';
-      b.style.left = `${pad + SLOT_POS[2 * i] * s}px`;
-      b.style.top = `${pad + SLOT_POS[2 * i + 1] * s}px`;
+      // Позиция — от --s и --pad самого робота, а не числом на момент отрисовки: раскладка (телефон, профиль) меняет масштаб
+      // после отрисовки, и слоты, посчитанные по десктопному --s, уезжали за робота на колонку описания
+      b.style.left = `calc(var(--pad) + ${SLOT_POS[2 * i]}px * var(--s))`;
+      b.style.top = `calc(var(--pad) + ${SLOT_POS[2 * i + 1]}px * var(--s))`;
       const code = slotMap[i];
       if (code) {
         const k = set[code];

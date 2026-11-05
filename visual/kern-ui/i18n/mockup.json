@@ -1180,10 +1180,6 @@
   "The world awaits below the surface.",
   "世界在地表之下等待。"
  ],
- "Экспедиция в недра планеты": [
-  "An expedition into the planet's depths",
-  "深入星球内部的探险"
- ],
  "Версия": [
   "Version",
   "版本"
@@ -1367,5 +1363,13 @@
  "Повторная попытка {0}…": [
   "Retry {0}…",
   "正在进行第 {0} 次重试…"
+ ],
+ "Добыча · кланы · программирование": [
+  "Mining · clans · programming",
+  "采矿 · 氏族 · 编程"
+ ],
+ "Копай породу и собирай кристаллы шести цветов. Пиши программы своему роботу, вступай в клан и держи с ним территорию.": [
+  "Dig through rock and collect crystals of six colors. Write programs for your robot, join a clan and hold your territory together.",
+  "挖掘岩石，收集六种颜色的水晶。为你的机器人编写程序，加入氏族，一起守住领地。"
  ]
 }

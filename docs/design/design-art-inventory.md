@@ -3,7 +3,7 @@
 Файл машинный: правки затираются. Пересобрать:
 
 ```
-dotnet run --project tools/Kern.DesignSystem -- inventory-art
+dotnet run --project tools/generators/Kern.DesignSystem -- inventory-art
 ```
 
 Всего PNG: **324** в 20 семействах. Текстовых ассетов прочитано: 1056.

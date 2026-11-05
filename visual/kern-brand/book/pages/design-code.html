@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Дизайн-код Project Kern</title>
+<meta name="description" content="Дизайн-код интерфейса Project Kern: принципы, токены, компоненты, состояния, адаптация, перенос в Unity UI Toolkit и проверки.">
+<link rel="icon" href="../../marks/svg/mark-small.svg">
+<link rel="stylesheet" href="../../../kern-ui/css/reset.css">
+<link rel="stylesheet" href="../../../kern-ui/css/tokens.css">
+<link rel="stylesheet" href="../../web/foundation/web.css">
+<link rel="stylesheet" href="../styles/book.css">
+<!-- Дизайн-код интерфейса. Источник истины — макет visual/kern-ui: токены (css/tokens.css), форма (css/micro.css),
+     четыре системы (css/systems.css). Таблицы токенов строятся из tokens/export/tokens.json — производной tokens.css. -->
+</head>
+<body>
+<header class="w-top"><div class="w-page">
+  <a class="w-brand" href="index.html"><img src="../../../kern-ui/img/brand/mark.svg" alt=""><b>Project Kern</b></a>
+  <nav class="w-nav"><a href="index.html">Бренд</a><a href="design-code.html" aria-current="page">Дизайн-код</a><a href="../../distribution/icons/index.html">Иконки</a><a href="../../distribution/stores/index.html">Магазины</a><a href="../../distribution/download/index.html">Загрузка</a><a href="../../social/templates/index.html">Соцсети</a></nav>
+</div></header>
+
+<main class="w-page">
+  <section class="b-cover" style="grid-template-columns:1fr">
+    <div>
+      <p class="w-kicker"><b>Дизайн-код</b> // интерфейс игры</p>
+      <h1 class="w-display">Одна форма,<br>один сигнал.</h1>
+      <p class="w-lead">Правила интерфейса Project Kern перед переносом в игру. Всё, что здесь записано, уже работает в макете <code>visual/kern-ui</code>: числа взяты из его CSS, а не пересказаны.</p>
+    </div>
+  </section>
+  <nav class="b-toc" aria-label="Разделы">
+    <a href="#rules"><span>01</span>Принципы</a><a href="#tokens"><span>02</span>Токены</a><a href="#components"><span>03</span>Компоненты</a><a href="#states"><span>04</span>Состояния</a>
+    <a href="#motion"><span>05</span>Движение</a><a href="#adapt"><span>06</span>Адаптация</a><a href="#uss"><span>07</span>Перенос в USS</a><a href="#checks"><span>08</span>Проверки</a>
+  </nav>
+
+  <!-- 01 -->
+  <section class="b-sec" id="rules">
+    <header><span class="b-n">01</span><h2>Принципы</h2><p>двенадцать правил</p></header>
+    <div class="b-body">
+      <ol class="b-rules">
+        <li data-n="01"><span><b>Кадр 1920×1080, масштаб по высоте.</b> Все размеры заданы для эталонного кадра; на устройстве кадр масштабируется целиком (Kern PanelSettings).</span></li>
+        <li data-n="02"><span><b>Вид решает автор информации</b> — Робот, Руки, Дело, Сеть. Один и тот же список выглядит по-разному, если его прислал сервер или записал игрок.</span></li>
+        <li data-n="03"><span><b>Одна форма панели везде:</b> базальт, рамка 1 px, срез правого верхнего угла 10 px, уголки по трём углам. Окна клиента и сервера не различаются формой.</span></li>
+        <li data-n="04"><span><b>Оранжевый — только главное действие и тревога.</b> Одно главное действие на окно. Выбранное, включённое, текущая вкладка — кость.</span></li>
+        <li data-n="05"><span><b>Прямые углы.</b> Все скругления — 0. Круг остаётся только у круглого по смыслу: навык, стик, кнопки геймпада.</span></li>
+        <li data-n="06"><span><b>Глубина — линией, а не размытием.</b> Тень — смещённая отбивка или линия по верху; размытых теней и стекла нет.</span></li>
+        <li data-n="07"><span><b>Три шрифтовые роли, не смешиваются:</b> заголовки и ник — Exo&nbsp;2, Onest — текст, JetBrains Mono — числа, координаты, метки.</span></li>
+        <li data-n="08"><span><b>Шкалы фиксированы.</b> Кегли <code>--t-0…17</code>, шаг 2 px (<code>--sp-N</code> = N шагов), размеры элементов <code>--ctl-*</code>. Значения вне шкал — только с причиной в комментарии.</span></li>
+        <li data-n="09"><span><b>Цвета-литералы — только в токенах.</b> В компонентах — смысловые токены; прозрачность — через канал палитры: <code>rgb(var(--rgb-well) / .45)</code>.</span></li>
+        <li data-n="10"><span><b>Декор — только с данными или причиной из игры.</b> Без слов в декоре: перевод и проверка переполнения ломаются.</span></li>
+        <li data-n="11"><span><b>Ничего не пропадает.</b> Телефон получает тот же состав, что монитор, — перекладкой: в меню ☰, иконкой с подсказкой, двумя строками чата.</span></li>
+        <li data-n="12"><span><b>Данные не двигают соседей.</b> Числа от 100 000 сокращаются (K, KK…), клавиши не сжимаются по тексту, колонка одной ширины <code>--col: 264px</code>.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- 02 -->
+  <section class="b-sec" id="tokens">
+    <header><span class="b-n">02</span><h2>Токены</h2><p>tokens.css → tokens.json → USS</p></header>
+    <div class="b-body">
+      <p class="w-text">Единственный источник — <code>visual/kern-ui/css/tokens.css</code>, три слоя: палитра каналами <code>--rgb-*</code>, смысловые токены, шкалы. Производные — <code>tokens/export/tokens.json</code> (формат W3C Design Tokens) и <code>tokens.uss</code> (как тема ляжет в Unity). Колонка «В игру» — что с токеном будет при переносе.</p>
+      <code class="w-code"># пересобрать производные
+node visual/kern-brand/tokens/export/build-tokens.mjs
+# сверить: выход 1, если производные разошлись с tokens.css
+node visual/kern-brand/tokens/export/build-tokens.mjs --check</code>
+      <div id="tokenTables"></div>
+    </div>
+  </section>
+
+  <!-- 03 -->
+  <section class="b-sec" id="components">
+    <header><span class="b-n">03</span><h2>Компоненты</h2><p>размеры из css макета</p></header>
+    <div class="b-body">
+      <div class="b-spec"><div class="b-demo b-live" style="min-height:160px"><iframe src="../../../kern-ui/specimen.html?c=panel" title="Панель — образец из макета" loading="lazy"></iframe></div><div>
+        <h4>Панель</h4><p class="w-small">Корпус любого окна и блока HUD. В HUD фон полупрозрачный (<code>--hud-a</code>).</p>
+        <div class="w-rows"><div class="w-row"><span>Фон</span><i></i><b>--graphite + --grain</b></div><div class="w-row"><span>Рамка</span><i></i><b>1px --seam</b></div>
+        <div class="w-row"><span>Срез</span><i></i><b>--notch 10px, clip-path</b></div><div class="w-row"><span>Уголки</span><i></i><b>окна 16 / 2px, HUD 10 / 2px</b></div>
+        <div class="w-row"><span>Отсвет</span><i></i><b>--shadow-panel</b></div><div class="w-row"><span>Источник</span><i></i><b>micro.css .panel</b></div></div></div></div>
+
+      <div class="b-spec"><div class="b-demo b-live" style="min-height:120px"><iframe src="../../../kern-ui/specimen.html?c=btn" title="Клавиша — образец из макета" loading="lazy"></iframe></div><div>
+        <h4>Клавиша</h4><p class="w-small">Система «Руки». Плоская: поле и рамка, без света и тени. Главная — сигнал со срезом 8 px.</p>
+        <div class="w-rows"><div class="w-row"><span>Высота</span><i></i><b>--row 36 · тач --hit 44</b></div><div class="w-row"><span>Поля</span><i></i><b>0 --sp-8</b></div>
+        <div class="w-row"><span>Обычная</span><i></i><b>--plate, 1px --seam-strong</b></div><div class="w-row"><span>Главная</span><i></i><b>--signal / --on-signal, 600</b></div>
+        <div class="w-row"><span>Призрак</span><i></i><b>без рамки, наведение --plate</b></div><div class="w-row"><span>Источник</span><i></i><b>hud.css .btn, micro.css</b></div></div></div></div>
+
+      <div class="b-spec"><div class="b-demo b-live" style="min-height:120px"><iframe src="../../../kern-ui/specimen.html?c=keycap" title="Колпачок — образец из макета" loading="lazy"></iframe></div><div>
+        <h4>Колпачок</h4><p class="w-small">Горячая клавиша: рамка с утолщённым низом, моно. В настройках управления — сама клавиша.</p>
+        <div class="w-rows"><div class="w-row"><span>Настройки</span><i></i><b>120 × 36, низ 3px</b></div><div class="w-row"><span>На кнопке</span><i></i><b>моно 9px, низ 2px</b></div>
+        <div class="w-row"><span>Источник</span><i></i><b>systems.css .keycap</b></div></div></div></div>
+
+      <div class="b-spec"><div class="b-demo b-live" style="min-height:140px"><iframe src="../../../kern-ui/specimen.html?c=input" title="Поле ввода — образец из макета" loading="lazy"></iframe></div><div>
+        <h4>Поле ввода</h4><p class="w-small">Углубление: тёмное поле и тень по верху. Фокус — сигнальная риска слева.</p>
+        <div class="w-rows"><div class="w-row"><span>Высота</span><i></i><b>--hit 44 · чат --ctl-l 40</b></div><div class="w-row"><span>Фон</span><i></i><b>--well, --press</b></div>
+        <div class="w-row"><span>Фокус</span><i></i><b>рамка --signal, inset 2px</b></div><div class="w-row"><span>Подсказка</span><i></i><b>--smoke</b></div><div class="w-row"><span>Источник</span><i></i><b>micro.css .input</b></div></div></div></div>
+
+      <div class="b-spec"><div class="b-demo b-live" style="min-height:128px"><iframe src="../../../kern-ui/specimen.html?c=toggle" title="Переключатель — образец из макета" loading="lazy"></iframe></div><div>
+        <h4>Переключатель</h4><p class="w-small">Прямоугольная дорожка, квадратный бегунок. Включённое — рамка сигнала и корпус вместо поля.</p>
+        <div class="w-rows"><div class="w-row"><span>Дорожка</span><i></i><b>24 × 14</b></div><div class="w-row"><span>Бегунок</span><i></i><b>8 × 8</b></div>
+        <div class="w-row"><span>Включён</span><i></i><b>--signal-line, --graphite</b></div><div class="w-row"><span>Источник</span><i></i><b>hud.css .toggle</b></div></div></div></div>
+
+      <div class="b-spec"><div class="b-demo b-live" style="min-height:190px"><iframe src="../../../kern-ui/specimen.html?c=meters" title="Шкалы — образец из макета" loading="lazy"></iframe></div><div>
+        <h4>Шкалы</h4><p class="w-small">Система «Робот»: квант. Пустое штрихуется, заполненное делится рисками по 5 %.</p>
+        <div class="w-rows"><div class="w-row"><span>Шкала</span><i></i><b>6px, --hatch, риски 5 %</b></div><div class="w-row"><span>Груз</span><i></i><b>20 ячеек, черта 100 %</b></div>
+        <div class="w-row"><span>Пороги груза</span><i></i><b>50 / 100 / 115 / 200 %</b></div><div class="w-row"><span>Прочность</span><i></i><b>20 точек</b></div><div class="w-row"><span>Источник</span><i></i><b>micro.css .meter, hud.css</b></div></div></div></div>
+
+      <div class="b-spec"><div class="b-demo b-live" style="min-height:84px"><iframe src="../../../kern-ui/specimen.html?c=tabs" title="Лист — образец из макета" loading="lazy"></iframe></div><div>
+        <h4>Лист</h4><p class="w-small">Система «Дело»: записи игрока. Вкладки — подпись с чертой, строки — подпись ···· значение.</p>
+        <div class="w-rows"><div class="w-row"><span>Вкладка</span><i></i><b>32px, черта 2px --bone</b></div><div class="w-row"><span>Шапка окна</span><i></i><b>52px, Exo&nbsp;2 капсом</b></div>
+        <div class="w-row"><span>Табличка раздела</span><i></i><b>14px, моно 8px, скос 4px</b></div><div class="w-row"><span>Источник</span><i></i><b>systems.css ДЕЛО</b></div></div></div></div>
+
+      <div class="b-spec"><div class="b-demo b-live" style="min-height:290px"><iframe src="../../../kern-ui/specimen.html?c=net" title="Передача — образец из макета" loading="lazy"></iframe></div><div>
+        <h4>Передача</h4><p class="w-small">Система «Сеть»: от сервера и игроков. Строка источника сверху, время моно, текст — как прислали.</p>
+        <div class="w-rows"><div class="w-row"><span>Строка источника</span><i></i><b>22px, моно 7px, .14em</b></div><div class="w-row"><span>Время в чате</span><i></i><b>моно, --dim</b></div>
+        <div class="w-row"><span>Источник</span><i></i><b>systems.css СЕТЬ, srvgui.css</b></div></div></div></div>
+    </div>
+  </section>
+
+  <!-- 04 -->
+  <section class="b-sec" id="states">
+    <header><span class="b-n">04</span><h2>Состояния</h2><p>одна матрица для всех</p></header>
+    <div class="b-body">
+      <div class="w-table-wrap"><table class="w-table">
+        <thead><tr><th>Состояние</th><th>Клавиша</th><th>Главная</th><th>Поле</th><th>Вкладка, вариант</th></tr></thead>
+        <tbody>
+          <tr><td>Обычное</td><td>--plate, рамка --seam-strong</td><td>--signal</td><td>--well, --press</td><td>--ash</td></tr>
+          <tr><td>Наведение</td><td>--plate-hover, рамка --ash</td><td>--signal-hover</td><td>—</td><td>--bone</td></tr>
+          <tr><td>Нажато</td><td>--well</td><td>--signal</td><td>—</td><td>—</td></tr>
+          <tr><td>Выбрано</td><td>inset 1px --bone</td><td>—</td><td>—</td><td>черта 2px --bone</td></tr>
+          <tr><td>Фокус (клавиатура, пад)</td><td colspan="4">outline 1px --bone, отступ 2px — где игрок сейчас, а не главное действие</td></tr>
+          <tr><td>Недоступно</td><td colspan="4">opacity .45, без реакции; сигнал с недоступного снимается</td></tr>
+          <tr><td>Тревога</td><td colspan="4">--signal / --danger: перегруз по порогам груза, обрыв связи, непрочитанное</td></tr>
+        </tbody></table></div>
+      <p class="w-small">Как состояния сменяют друг друга во времени — раздел <a class="w-link" href="#motion">«Движение»</a>.</p>
+    </div>
+  </section>
+
+  <!-- 05 -->
+  <section class="b-sec" id="motion">
+    <header><span class="b-n">05</span><h2>Движение</h2><p>квант: показания, а не эффекты</p></header>
+    <div class="b-body">
+      <p class="w-text">Интерфейс меняется так, как меняются показания датчика робота: ступенями данных, быстро, без пружин и отскоков. Двигается только то, что сообщает изменение, — декоративного движения нет. Правила — <code>kern-ui/css/motion.css</code>, ступенчатые данные — <code>kern-ui/js/motion.js</code>.</p>
+      <div class="b-spec"><div class="b-demo b-live" style="min-height:330px"><iframe src="../../../kern-ui/specimen.html?c=motion" title="Движение — образец из макета" loading="lazy"></iframe></div><div>
+        <h4>Образец</h4><p class="w-small">Настоящий груз, прочность и окно макета. Кнопки проигрывают правила: ячейки загораются по одной, число досчитывается, переход порога 100 % — две вспышки, окно разворачивается из линии рамки.</p>
+        <div class="w-rows"><div class="w-row"><span>Источник</span><i></i><b>specimen.html?c=motion</b></div></div></div></div>
+
+      <h3>Принципы</h3>
+      <ol class="b-rules">
+        <li data-n="01"><span><b>Движение несёт данные.</b> Шкала, число, состояние, появление окна. Фон, рамки, микрографика и мир под HUD интерфейсом не двигаются.</span></li>
+        <li data-n="02"><span><b>Квант, а не плавность.</b> Ячейки и точки меняются по одной с шагом <code>--step</code> 20 мс; число досчитывается за <code>--count</code> 250 мс. Сколько изменилось — видно по тому, сколько ступеней прошло.</span></li>
+        <li data-n="03"><span><b>Быстро.</b> Отклик 80 мс, окно 120 мс, экран 200 мс. Ничего не задерживает игрока: управление доступно с первого кадра, анимация его не блокирует.</span></li>
+        <li data-n="04"><span><b>Одна кривая — <code>ease-out</code>.</b> Без <code>back</code>, <code>elastic</code>, <code>bounce</code>: у робота нет пружин. Перескок (бегунок, ячейка) — линейный.</span></li>
+        <li data-n="05"><span><b>Нажатие — тоном в том же кадре.</b> Без сдвига и масштаба: клавиша темнеет мгновенно, наведение — за 80 мс.</span></li>
+        <li data-n="06"><span><b>Тревога — две вспышки и ровный цвет.</b> Повторяется только при новом событии, никогда по кругу: мигающее без конца перестают замечать.</span></li>
+        <li data-n="07"><span><b>Фокус перескакивает.</b> Рамка фокуса (клавиатура, пад) не едет между элементами — она сразу там, где игрок.</span></li>
+        <li data-n="08"><span><b>Движение можно выключить.</b> Настройка «уменьшить движение» обнуляет все времена: те же состояния, без переходов, тревога — ровный цвет без вспышек.</span></li>
+      </ol>
+
+      <h3>Каталог: что двигается и как</h3>
+      <div class="w-table-wrap"><table class="w-table">
+        <thead><tr><th>Событие</th><th>Что меняется</th><th>Как</th><th>Время</th></tr></thead>
+        <tbody>
+          <tr><td>Наведение</td><td>фон, рамка, текст клавиши</td><td>цвет, <code>ease-out</code></td><td>80 мс</td></tr>
+          <tr><td>Нажатие</td><td>фон клавиши</td><td>тон сразу, без сдвига</td><td>0</td></tr>
+          <tr><td>Переключатель</td><td>бегунок, цвет дорожки</td><td>перескок, линейно</td><td>80 мс</td></tr>
+          <tr><td>Окно открылось</td><td>затемнение · корпус · содержимое</td><td>затемнение проявляется; корпус из линии рамки в полную высоту (<code>scale 1 .02 → 1 1</code>); содержимое проявляется после</td><td>120 + 80 мс</td></tr>
+          <tr><td>Окно закрылось</td><td>корпус, затемнение</td><td>обратно в линию, быстрее открытия. В макете окно закрывается сразу: закрытие с переходом ставит код окна в игре (см. перенос)</td><td>80 мс</td></tr>
+          <tr><td>Смена экрана</td><td>экран целиком</td><td>через базальт</td><td>200 мс</td></tr>
+          <tr><td>Чат открылся</td><td>HUD</td><td>сдвиг на ширину колонки чата</td><td>200 мс</td></tr>
+          <tr><td>Груз, прочность, геология</td><td>ячейки, точки</td><td>по одной от края к новому значению; убыль — от нового значения обратно; быстрые изменения подряд идут одним фронтом</td><td>20 мс × ступень</td></tr>
+          <tr><td>Деньги, кредиты, проценты, прочность</td><td>число</td><td>досчёт до нового значения</td><td>250 мс</td></tr>
+          <tr><td>Груз перешёл порог 100 / 115 / 200 %</td><td>число и полоса груза</td><td>две вспышки и цвет порога</td><td>2 × 240 мс</td></tr>
+          <tr><td>Прочность ниже 25 %</td><td>число прочности</td><td>две вспышки</td><td>2 × 240 мс</td></tr>
+          <tr><td>Полосы: загрузка, уровень, мини-навык</td><td>заливка</td><td>короткий линейный доезд — ступени задают сами данные</td><td>80 мс</td></tr>
+          <tr><td>Фокус клавиатуры и пада</td><td>рамка фокуса</td><td>перескок</td><td>0</td></tr>
+          <tr><td>Выбранный навык (окно UP)</td><td>навык и плашка</td><td>мерцание яркостью с периодом Legacy 0.419 с — копия Legacy, не правило бренда</td><td>по кругу</td></tr>
+        </tbody></table></div>
+      <p class="w-small">Не двигаются: фон экранов и точечная сетка, рамки и уголки, мир под HUD (он движется сам — это игра), текст сообщений чата и сервера: строка появляется сразу.</p>
+
+      <h3>Перенос в Unity 6.7</h3>
+      <p class="w-small" style="margin-bottom:12px">Проверено по сборке редактора <code>6000.7.0b4</code> (UnityEngine.UIElementsModule) и по руководству 6.7: <a class="w-link" href="https://docs.unity.com/en-us/engine/6000.7/manual/uitoolkits/uielements/uie-uss/properties/uie-transitions">USS transitions</a>, <a class="w-link" href="https://docs.unity.com/en-us/engine/6000.7/manual/uitoolkits/uielements/uie-uss/properties/reference">справочник свойств</a>, <a class="w-link" href="https://docs.unity.com/en-us/engine/6000.7/manual/uitoolkits/uielements/uie-uss/uss-filter">фильтры</a>.</p>
+      <div class="w-table-wrap"><table class="w-table b-port"><colgroup><col style="width:26%"><col style="width:28%"><col></colgroup>
+        <thead><tr><th>В макете</th><th>В игре</th><th>Как</th></tr></thead>
+        <tbody>
+          <tr><td>Отклик: <code>transition</code> цвета</td><td>USS transition</td><td>1:1. Цвет, фон, рамка, <code>opacity</code> — быстрый путь: геометрия не пересобирается</td></tr>
+          <tr><td>Окно: <code>scale</code> + <code>opacity</code></td><td>USS transition</td><td>Класс <code>is-entering</code> снимается на следующем кадре (переход начинается только после первого кадра). <code>scale</code>, <code>translate</code> — без пересчёта раскладки; ширину и высоту не анимировать</td></tr>
+          <tr><td>Закрытие окна</td><td>класс + <code>TransitionEndEvent</code></td><td>Класс закрытия, по концу перехода — <code>display: none</code>: <code>display</code> не анимируется</td></tr>
+          <tr><td>Квант: задержка <code>--qd</code> у каждой ячейки</td><td><code>style.transitionDelay</code></td><td>Задержку ставит код шкалы, как <code>kernQuant</code>. <code>steps()</code> в USS нет — ступени даёт сама ячейка, а не кривая</td></tr>
+          <tr><td>Досчёт числа</td><td><code>schedule.Execute(…).Every(16)</code></td><td>Как <code>kernCount</code>: значение по времени до <code>--count</code>, текст — каждый кадр</td></tr>
+          <tr><td>Тревога: <code>@keyframes</code>, 2 повтора</td><td><code>animation-name</code> + <code>UIAnimationClip</code></td><td>В 6.7 есть <code>animation-name</code>, <code>animation-duration</code>, <code>animation-iteration-count: 2</code>, <code>animation-direction</code>, <code>animation-play-state</code>; источник — ассет <code>UIAnimationClip</code>. Руководства по созданию клипов в бете нет — запасной путь: два переключения класса через <code>schedule</code></td></tr>
+          <tr><td>Вспышка: <code>opacity</code> .25 ↔ 1</td><td>USS <code>opacity</code></td><td>1:1, быстрый путь. <code>filter</code> для вспышки не берётся: он рисует поддерево в текстуру, а <code>brightness()</code> в списке фильтров 6.7 нет</td></tr>
+          <tr><td>Кривая <code>ease-out</code></td><td><code>transition-timing-function: ease-out</code></td><td>1:1; <code>ease-out-back</code>, <code>-elastic</code>, <code>-bounce</code> в 6.7 есть, но брендом запрещены</td></tr>
+          <tr><td>Выключенное движение</td><td>класс на корне панели</td><td>Переменные времени USS в 0 и снятые <code>animation-name</code> — та же схема, что <code>:root.motion-off</code></td></tr>
+          <tr><td>—</td><td><code>backdrop-filter</code></td><td>Не используется: только URP и экранные панели, переходы не поддерживаются</td></tr>
+        </tbody></table></div>
+    </div>
+  </section>
+
+  <!-- 06 -->
+  <section class="b-sec" id="adapt">
+    <header><span class="b-n">06</span><h2>Адаптация</h2><p>сначала размер, потом ввод</p></header>
+    <div class="b-body">
+      <p class="w-text">Сначала размер вьюпорта решает раскладку, затем ввод — величину целей и подсказки. Ничего не пропадает: только перекладка.</p>
+      <div class="w-table-wrap"><table class="w-table">
+        <thead><tr><th>Размер</th><th>Условие (dp)</th><th>Что меняется</th></tr></thead>
+        <tbody>
+          <tr><td>S</td><td>высота &lt; 500</td><td>Телефон в альбоме: системные кнопки — в меню ☰, программатор, автокопание, геология, лечение — иконками с подсказкой, чат — две строки. Окна — во всю безопасную область.</td></tr>
+          <tr><td>M</td><td>высота &lt; 760 или ширина &lt; 1100</td><td>Компактная раскладка: роли кеглей сдвигаются вниз по шкале (<code>touch.css</code>).</td></tr>
+          <tr><td>L</td><td>остальное</td><td>Эталон 1920×1080.</td></tr>
+          <tr><td>XL</td><td>ширина ≥ 2400</td><td>Широкие мониторы (2K, 4K, 21:9): состав и раскладка эталона, кадр масштабируется по высоте.</td></tr>
+        </tbody></table></div>
+      <div class="w-table-wrap"><table class="w-table">
+        <thead><tr><th>Ввод</th><th>Цель</th><th>Подсказки</th></tr></thead>
+        <tbody>
+          <tr><td>Мышь</td><td>--row 36</td><td>Горячая клавиша на кнопке, подсказка по наведению</td></tr>
+          <tr><td>Тач</td><td>--hit 44 и больше</td><td>Без наведения: подпись видна сразу; цели не перекрываются, всё внутри безопасной области</td></tr>
+          <tr><td>Геймпад</td><td>--row 36</td><td>Строка подсказок снизу; фокус сразу на главной кнопке экрана; значки — цветами производителя</td></tr>
+        </tbody></table></div>
+    </div>
+  </section>
+
+  <!-- 07 -->
+  <section class="b-sec" id="uss">
+    <header><span class="b-n">07</span><h2>Перенос в USS</h2><p>css макета → ui toolkit</p></header>
+    <div class="b-body">
+      <p class="w-text">UI Toolkit принимает не всё, что умеет браузер. Таблица — как каждое средство макета переносится в игру. Цвета и размеры идут переменными 1:1, узоры и формы — текстурами и векторными картинками.</p>
+      <div class="w-table-wrap"><table class="w-table">
+        <thead><tr><th>В макете</th><th>В игре</th><th>Как</th></tr></thead>
+        <tbody>
+          <tr><td>Цвет, размер, кегль, время</td><td>Переменная USS</td><td>1:1 из <code>tokens.uss</code>; полупрозрачные — уже собранными <code>rgba()</code></td></tr>
+          <tr><td><code>rgb(var(--rgb-*) / a)</code></td><td>Готовый цвет</td><td>В USS нет подстановки канала: каждая прозрачность — свой токен</td></tr>
+          <tr><td>Срез угла <code>clip-path</code></td><td>VectorImage или 9-slice</td><td>Рамка панели со срезом — 9-slice спрайт; срез главной кнопки — тот же спрайт меньшего размера</td></tr>
+          <tr><td>Уголки <code>--ticks</code>, штриховка <code>--hatch</code>, точки <code>--dots</code></td><td>Текстура</td><td>Уголки — в 9-slice рамки; штриховка и точки — повторяемая текстура фона (background-repeat)</td></tr>
+          <tr><td>Зерно <code>--grain</code></td><td>Текстура</td><td>Статичный шум 160×160, повторяется</td></tr>
+          <tr><td><code>box-shadow</code></td><td>Граница или подложка</td><td>Отсвет сверху — border-top; отбивка окна — элемент-подложка со смещением 6/6 px</td></tr>
+          <tr><td>Сброс браузера, <code>reset.css</code></td><td>не переносится</td><td>в UI Toolkit стилей браузера нет; сброс держит макет на том же «голом» основании, что и игра</td></tr>
+          <tr><td>Шрифты, <code>ascent-override</code></td><td>FontAsset (SDF)</td><td>Exo&nbsp;2, Onest, JetBrains Mono; коробка строки 1.2 кегля — в метриках ассета; CJK — fallback</td></tr>
+          <tr><td>Слои <code>--z-*</code></td><td>Порядок в дереве</td><td>Порядок элементов и sortingOrder панелей</td></tr>
+          <tr><td>Медиазапросы S/M/L/XL</td><td>Класс на корне</td><td>Классы <code>size-s…xl</code>, <code>in-touch</code>, <code>in-pad</code> ставит код по размеру и вводу</td></tr>
+          <tr><td><code>:hover</code>, <code>:active</code>, <code>:focus</code>, <code>:disabled</code></td><td>Псевдоклассы USS</td><td>Есть в USS 1:1; <code>:focus-visible</code> — <code>:focus</code> + класс ввода</td></tr>
+        </tbody></table></div>
+      <h3>Порядок переноса</h3>
+      <ol class="b-rules">
+        <li data-n="01"><span>Перенацелить генератор <code>tools/Kern.DesignSystem</code> (<code>Paths/Repository/DesignSystemPaths.cs</code>) с удалённого <code>visual/kern-ui-lab</code> на <code>visual/kern-ui</code> и сверить его вывод с <code>tokens.uss</code>.</span></li>
+        <li data-n="02"><span>Собрать FontAsset для Exo&nbsp;2, Onest, JetBrains Mono (лицензии OFL лежат в <code>kern-ui/fonts</code>).</span></li>
+        <li data-n="03"><span>Нарисовать 9-slice: рамка панели со срезом и уголками (окна и HUD), главная кнопка, табличка раздела.</span></li>
+        <li data-n="04"><span>Перенести компоненты по системам: Руки → Дело → Сеть → Робот; после каждой — сверка с макетом снимком.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- 08 -->
+  <section class="b-sec" id="checks">
+    <header><span class="b-n">08</span><h2>Проверки</h2><p>храповик вида</p></header>
+    <div class="b-body">
+      <p class="w-text">Проверки макета — страницы в <code>visual/kern-ui/tools</code>, запуск: <code>node tools/run-audit.mjs tools/&lt;имя&gt;.html</code> при поднятом <code>python3 -m http.server 8765</code> из <code>games/</code>. Итог — в заголовке страницы: ok или FAIL с числом.</p>
+      <div class="w-table-wrap"><table class="w-table">
+        <thead><tr><th>Проверка</th><th>Что держит</th></tr></thead>
+        <tbody>
+          <tr><td>design-audit</td><td>Нарушения дизайн-кода: скругления, оранжевый не у действия, чужой шрифт, размытая тень, кегль меньше 7 px; забытые элементы старого вида</td></tr>
+          <tr><td>overflow-check</td><td>Текст не вылезает из коробки на всех устройствах и языках</td></tr>
+          <tr><td>lang-check</td><td>Переводы: все строки на месте</td></tr>
+          <tr><td>touch-check</td><td>Тач: цель ≥ 44 dp, всё в безопасной области, цели не перекрываются, ничего не пропало против монитора</td></tr>
+          <tr><td>pad-check</td><td>Геймпад: фокус на главной кнопке, переходы, закрытие окон</td></tr>
+          <tr><td>net-check</td><td>Обрыв связи: шаги переподключения 1, 2, 4, 8, 16, 30 с</td></tr>
+          <tr><td>leftcol-check</td><td>Левая колонка одной ширины и зазор до автокопания</td></tr>
+          <tr><td>style-snap + style-diff.py</td><td>Отпечаток вычисленных стилей: правка токенов не меняет вид без списка намеренных изменений</td></tr>
+          <tr><td>build-tokens.mjs --check</td><td>Производные токенов совпадают с tokens.css</td></tr>
+        </tbody></table></div>
+    </div>
+  </section>
+</main>
+
+<footer class="w-foot"><div class="w-page"><span>Project Kern</span><span>Дизайн-код</span><span class="w-sp"></span><span>visual/kern-brand/book/pages/design-code.html</span></div></footer>
+
+<script src="../../tokens/export/tokens.js"></script>
+<script>
+(async () => {
+  // Таблицы токенов — из производной tokens.json: номер группы, имя, значение, назначение, перенос
+  const T = window.KERN_TOKENS;
+  const NAMES = { palette: 'Палитра — каналы', color: 'Цвета интерфейса', font: 'Шрифты', size: 'Размеры и шкалы', shadow: 'Тени', micrographics: 'Микрографика', layer: 'Слои', motion: 'Время', data: 'Данные', stand: 'Стенд' };
+  const TO = { uss: 'USS', data: 'данные', none: 'нет', asset: 'ассет', border: 'граница', texture: 'текстура', hierarchy: 'дерево' };
+  const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+  const show = (v, t) => Array.isArray(v) ? v[0] : t === 'other' && String(v).length > 60 ? String(v).slice(0, 57) + '…' : v;
+  // Группы — раскрываемыми блоками: интерфейсные открыты, данные и стенд свёрнуты (их в игру переносят не темой)
+  const OPEN = ['color', 'size', 'font'];
+  const toCount = items => Object.values(items).filter(t => t.$extensions['kern.transfer'] === 'uss').length;
+  document.getElementById('tokenTables').innerHTML = Object.entries(T).filter(([k]) => !k.startsWith('$')).map(([g, items]) => `
+    <details class="b-tokgroup"${OPEN.includes(g) ? ' open' : ''}><summary>${NAMES[g] || g}<small>${Object.keys(items).length} · в USS ${toCount(items)}</small></summary>
+    <div class="w-table-wrap"><table class="w-table b-tok"><colgroup><col class="c-name"><col class="c-val"><col><col class="c-to"></colgroup><thead><tr><th>Токен</th><th>Значение</th><th>Назначение</th><th>В игру</th></tr></thead><tbody>
+    ${Object.entries(items).map(([n, t], i, all) => { const css = t.$extensions['kern.css'], to = t.$extensions['kern.transfer'], blk = t.$extensions['kern.block'];
+      // Заголовок группы из исходника — строкой над первым токеном группы, а не в каждой строке
+      const head = blk && blk !== all[i - 1]?.[1].$extensions['kern.block'] ? `<tr><td colspan="4" style="color:var(--ash);background:var(--well);white-space:normal">${esc(blk)}</td></tr>` : '';
+      return head + `<tr><td>${t.$type === 'color' ? `<i style="--c:${t.$value}"></i>` : ''}${css}</td><td>${esc(show(t.$value, t.$type))}</td><td>${esc(t.$description || '').replace(/--[\w-]+/g, m => `<span style="white-space:nowrap">${m}</span>`)}</td>
+        <td><span class="to${to === 'uss' ? ' to--uss' : ''}" title="${esc(t.$extensions['kern.how'] || '1:1')}">${TO[to] || to}</span></td></tr>`; }).join('')}
+    </tbody></table></div></details>`).join('');
+})();
+</script>
+<script>
+// Образцы из макета (kern-ui/specimen.html) сообщают свою высоту — врезка растёт под содержимое и не режет его
+addEventListener('message', e => {
+  const d = e.data; if (!d || !d.kernSpecimen) return;
+  for (const f of document.querySelectorAll('iframe')) if (f.contentWindow === e.source) {
+    const box = f.closest('.b-live');
+    if (box) { box.dataset.min ||= parseFloat(box.style.minHeight) || 0; box.style.minHeight = Math.max(+box.dataset.min, d.height) + 'px'; }
+    else f.style.height = d.height + 'px';
+  }
+});
+// Таблицы на телефоне складываются в карточки: каждой ячейке — подпись её столбца
+for (const t of document.querySelectorAll('.w-table:not(.b-tok)')) {
+  const h = [...t.querySelectorAll('thead th')].map(th => th.textContent.trim());
+  for (const tr of t.tBodies[0]?.rows ?? []) [...tr.cells].forEach((td, i) => { if (h[i]) td.dataset.h = h[i]; });
+}
+</script>
+</body>
+</html>

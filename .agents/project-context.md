@@ -316,7 +316,7 @@ preserving required per-frame updates.
 
 Runtime configuration is checked by `ClientConfigValidator`; the current schema
 is `ClientConfig.CurrentSchemaVersion` (49). Reflection-based settings checks
-live inside `tools/Kern.ArchitectureLinter/SettingsProbe`, exposed by rule
+live inside `tools/architecture/Kern.ArchitectureLinter/SettingsProbe`, exposed by rule
 `KERN-SETTINGS-PROBE`, not a separate `Kern.SettingsProbe` project. They compile
 only when `UnityManagedPath` enables `KERN_SETTINGS_PROBE` in the linter csproj;
 without that define the rule returns no findings without running the probe.

@@ -6,11 +6,8 @@
 
 ## Состав
 
-- `kern-ui-lab/` — статический browser UI lab;
-- `kern-ui-lab/css/` — токены, базовые компоненты и экраны;
-- `kern-ui-lab/i18n/` — локализованные строки lab;
-- `kern-ui-lab/tools/` — inventory, fit, cascade и asset-generation scripts;
-- `kern-ui-lab/tools/derived/` — производные данные, генерируемые из lab.
+- `kern-ui/` — статический browser UI lab.
+- `kern-brand/` — бренд-книга и дизайн-код (`book/pages/`), токены для переноса (`tokens/export/`), иконки, витрины магазинов и страница загрузки (`distribution/`), соцсети (`social/`); файлы — `node kern-brand/export/tools/export.mjs`.
 
 ## Граница production
 

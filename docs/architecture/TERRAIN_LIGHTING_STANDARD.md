@@ -563,7 +563,7 @@ order. The runtime scan has no `TerrainRenderer → LightingEngine` references.
 ### Gate D — remove transitional wiring and lock the boundary
 
 Delete the old direct injection/call paths and update dependency documentation.
-Add a rule to `tools/Kern.ArchitectureLinter` that rejects every forbidden
+Add a rule to `tools/architecture/Kern.ArchitectureLinter` that rejects every forbidden
 cross-domain dependency in the source/assembly boundary, including aliases and
 fully qualified references; register that rule in the default linter run.
 
@@ -620,12 +620,12 @@ Migration evidence as of 2026-09-24:
   evidence; Unity production-path proof remains pending for Gate C.
 
 Commands and results: `dotnet test
-tools/Kern.WorldLightingExchangeTests/Kern.WorldLightingExchangeTests.csproj
+tools/tests/Kern.WorldLightingExchangeTests/Kern.WorldLightingExchangeTests.csproj
 --no-restore` passed 21/21; `dotnet test
-tools/Kern.ArchitectureLinter.Tests/Kern.ArchitectureLinter.Tests.csproj
+tools/architecture/Kern.ArchitectureLinter.Tests/Kern.ArchitectureLinter.Tests.csproj
 --no-restore` passed 10/10; the selected boundary rule and scoped source scans
 passed with zero cross-domain references. `dotnet run --project
-tools/Kern.ArchitectureLinter/Kern.ArchitectureLinter.csproj --
+tools/architecture/Kern.ArchitectureLinter/Kern.ArchitectureLinter.csproj --
 --project-root .` discovered 54 rules and exited 0 with 15 warnings.
 `dotnet build Kern.Runtime.csproj --no-restore` did not reach C# compilation:
 it failed on `CS0006` because generated Unity 6000.5 source-generator/analyzer

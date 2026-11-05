@@ -1,4 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="#d8d5ee" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter">
-  <!-- 6 · Робот-оператор: корпус, бур вниз, глаз-сигнал -->
-  <path d="M14 10h36v26H14z"/><path d="M24 36v8l8 12 8-12v-8"/><path d="M8 18v10M56 18v10"/><rect x="36" y="17" width="8" height="8" fill="#ff5a1f" stroke="none"/>
-</svg>

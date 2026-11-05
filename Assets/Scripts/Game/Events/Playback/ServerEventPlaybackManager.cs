@@ -46,6 +46,7 @@ namespace Kern.Game.Events.Playback
         private readonly Dictionary<(global::MinesServer.Data.AudioEventType Event, ushort Bot, ushort X, ushort Y), float> _lastAudioEventTimes = new();
         private readonly Dictionary<ushort, SpriteAnimationWorldEffect> _healingEffects = new();
         private SpriteAnimationWorldEffect? _heldHealEffect;
+        private readonly Queue<VisualPacket> _pendingVisualPackets = new();
         [Inject]
         private IWorldLabels _worldLabels = null!;
         [Inject]
@@ -164,6 +165,9 @@ namespace Kern.Game.Events.Playback
         public void PlayEffect(global::MinesServer.Data.VisualEffect effectType, ushort x, ushort y, ushort targetBotId = 0, int param = 0) =>
             PlayEffect(new VisualPacket(effectType, targetBotId, x, y, Array.Empty<MinesServer.Networking.Contracts.Packets.StringPairPacket>()));
 
+        // Packet handlers run inside NetworkService's synchronous drain. Effect
+        // construction can initialize fonts, shaders, textures and UI, so the
+        // handler only records the intent; Update builds it on the main loop.
         public void PlayEffect(VisualPacket packet)
         {
             if (!_presentationState.IsStable)
@@ -171,6 +175,11 @@ namespace Kern.Game.Events.Playback
                 return;
             }
 
+            _pendingVisualPackets.Enqueue(packet);
+        }
+
+        private void CreateVisualEffect(VisualPacket packet)
+        {
             if (packet.EffectType == global::MinesServer.Data.VisualEffect.Crystal)
             {
                 // Preserve the existing crystal flight/digits; the source flash
@@ -443,8 +452,36 @@ namespace Kern.Game.Events.Playback
             _audioSystem?.StopBus(AudioBusType.Music, 0.2f);
         }
 
+        private void DrainPendingVisualEffects()
+        {
+            if (_pendingVisualPackets.Count == 0)
+            {
+                return;
+            }
+
+            if (!_presentationState.IsStable)
+            {
+                _pendingVisualPackets.Clear();
+                return;
+            }
+
+            while (_pendingVisualPackets.Count > 0)
+            {
+                VisualPacket packet = _pendingVisualPackets.Dequeue();
+                try
+                {
+                    CreateVisualEffect(packet);
+                }
+                catch (Exception exception)
+                {
+                    Debug.LogError($"{TAG} Failed to create visual effect {packet.EffectType}: {exception}");
+                }
+            }
+        }
+
         protected void Update()
         {
+            DrainPendingVisualEffects();
             if (!_presentationState.IsStable || _activeEffects.Count == 0)
             {
                 return;

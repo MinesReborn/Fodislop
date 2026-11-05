@@ -102,13 +102,18 @@ public static class PlayerStepSelector
         state.HasCachedStep = false;
     }
 
-    // Сервер переставил робота (телепорт, коррекция, новый вход): прошлые
-    // шаги и обход к новой клетке отношения не имеют.
+    // Сервер переставил робота (телепорт, новый вход): прошлые шаги и обход
+    // к новой клетке отношения не имеют.
     public static void Reset(PlayerStepSelectorState state)
     {
         Release(state);
         state.LastStep = Vector2Int.zero;
     }
+
+    // Сервер поправил клетку на соседнюю (отказ шага, догоняющий снимок).
+    // Обход сбрасываем, но фазу змейки сохраняем: иначе следующая диагональ
+    // снова начинается с Primary и идёт ВВЕРХ-ВВЕРХ-ВЛЕВО вместо ВВЕРХ-ВЛЕВО.
+    public static void Resync(PlayerStepSelectorState state) => Release(state);
 
     private static Vector2Int SelectStraight(
         PlayerStepSelectorState state,

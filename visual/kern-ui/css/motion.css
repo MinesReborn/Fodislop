@@ -1,0 +1,49 @@
+/* ══ Движение «Квант» ══
+   Интерфейс меняется так, как меняются показания датчика робота: ступенями данных, быстро, без пружин и отскоков.
+   Двигается только то, что сообщает изменение. Декоративного движения нет: фон, рамки, микрографика стоят.
+   Времена — токены tokens.css (--dur-fast, --dur, --dur-slow, --step, --count, --flash); при выключенном движении все 0.
+   Каждое правило переносится в Unity 6.7 UI Toolkit — таблица в kern-brand/book/pages/design-code.html#motion.
+   Подключается последним: только переходы и анимации, вида не меняет. */
+
+/* ── 1. Отклик: наведение и нажатие — тоном, без сдвига и масштаба ── */
+:is(.btn, .icon-btn, .pk-btn, .toggle, .prog-open, .tbtn, .rail-btn, .menu-rail button, .inv-expand, .prog-op, .prog-pick,
+    .seg button, .chat-tab, .keycap, .input, .chat-input, .slot, .inv-cell, .prog-cell) {
+  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease); }
+/* Нажатие — мгновенно: палец должен видеть, что попал, в том же кадре */
+:is(.btn, .icon-btn, .pk-btn, .toggle, .tbtn, .rail-btn, .prog-cell):active { transition-duration: 0s; }
+
+/* Переключатель: бегунок перескакивает, а не едет */
+.toggle .dot::after, .switch::after { transition: left var(--dur-fast) linear, background-color var(--dur-fast) linear; }
+
+/* ── 2. Окно: линия рамки разворачивается в окно, потом проявляется содержимое ── */
+/* Затемнение — плавно; корпус — по вертикали из линии в полную высоту (scale — быстрый путь UI Toolkit, без пересчёта раскладки) */
+.dialog-layer { transition: opacity var(--dur) var(--ease); }
+.dialog-layer > :is(.dialog, .panel) { transition: scale var(--dur) var(--ease); transform-origin: center; }
+.dialog-layer > :is(.dialog, .panel) > * { transition: opacity var(--dur-fast) linear var(--dur); }
+.dialog-layer.is-entering { opacity: 0; }
+.dialog-layer.is-entering > :is(.dialog, .panel) { scale: 1 .02; }
+.dialog-layer.is-entering > :is(.dialog, .panel) > * { opacity: 0; transition-delay: 0s; }
+
+/* ── 3. Экран: смена через базальт ── */
+.screen { transition: opacity var(--dur-slow) var(--ease); }
+.screen.is-entering { opacity: 0; }
+.hud-body { transition: translate var(--dur-slow) var(--ease); }
+
+/* ── 4. Квант: ячейки и точки загораются по одной, шаг --step; задержку каждой ставит kernQuant (js/motion.js) ── */
+:is(.cargo-cells, .geo-cells, .mission-cells) > i, .hp-dots > i {
+  transition: background-color 0s linear var(--qd, 0s), border-color 0s linear var(--qd, 0s), box-shadow 0s linear var(--qd, 0s); }
+
+/* Сплошные полосы (загрузка, уровень, мини-навык) — короткий линейный доезд: ступени задают сами данные */
+.meter > :is(i, b) { transition: width var(--dur-fast) linear; }
+.mini-skill .bar i { transition: height var(--dur-fast) linear; }
+
+/* ── 5. Тревога: две вспышки и ровный цвет. Повторяется только при новом событии, не по кругу ── */
+/* Вспышка — прозрачностью: быстрый путь UI Toolkit (без пересборки геометрии), переносится 1:1; brightness() в фильтрах 6.7 нет */
+@keyframes kern-flash { 0%, 49.9% { opacity: .25; } 50%, 100% { opacity: 1; } }
+.is-flash { animation: kern-flash calc(var(--flash) * 2) linear 2; }
+.is-flash-outline { animation: kern-flash-outline calc(var(--flash) * 2) linear 2; }
+@keyframes kern-flash-outline { 0%, 49.9% { outline: 1px solid var(--signal); outline-offset: 1px; } 50%, 100% { outline: 0 none; } }
+
+/* ── 6. Движение выключено ── */
+:root.motion-off *, :root.motion-off *::before, :root.motion-off *::after { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; } }

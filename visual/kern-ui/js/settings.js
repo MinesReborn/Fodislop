@@ -22,7 +22,9 @@
   });
 
   // Ползунки: число рядом
-  dlg.querySelectorAll('.range input').forEach(r => r.oninput = () => { r.nextElementSibling.textContent = r.value + '%'; });
+  // --f — доля хода для заливки дорожки (micro.css, ползунок)
+  const fill = r => r.style.setProperty('--f', (r.value - r.min) / (r.max - r.min));
+  dlg.querySelectorAll('.range input').forEach(r => { fill(r); r.oninput = () => { r.nextElementSibling.textContent = r.value + '%'; fill(r); }; });
 
   // Переназначение клавиш: нажать на клавишу — «Нажмите клавишу…», Esc — отмена
   let listening = null;

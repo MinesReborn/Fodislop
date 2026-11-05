@@ -93,10 +93,12 @@ internal sealed class PlayerMovementActionExecutor
                 PlayerStepSelector.Release(context.StepState);
             }
 
-            // MovePacket carries coordinates but no direction. Rotate only when
-            // a step in a new direction is committed; rotating on raw input can
-            // turn the robot even when the movement cooldown prevents a step.
-            // Shift remains an explicit rotate-in-place action.
+            // Поворот шлём только как явное действие на месте (Shift, грань
+            // мира, сплошная клетка). Сам шаг направления не требует: клетка
+            // в MovePacket задаёт его, и сервер выводит из неё ориентацию.
+            // Отдельный RotatePacket в паре с шагом сервер подтверждает
+            // снимком позиции ДО шага; клиент принимал его за коррекцию и
+            // сбрасывал фазу диагональной змейки - получалось ВВЕРХ-ВВЕРХ-ВЛЕВО.
             if (direction != Vector2Int.zero && context.Input.IsShiftPressed && !context.AwaitingMoveConfirmation)
             {
                 TryRotate(context, direction);
@@ -105,7 +107,8 @@ internal sealed class PlayerMovementActionExecutor
             // Поворот к грани мира не должен ждать кулдауна шага или бура:
             // шага за границу всё равно не будет, но робот обязан смотреть
             // на видимую WorldEdge-клетку.
-            if (direction != Vector2Int.zero && context.MapDataProvider != null &&
+            if (direction != Vector2Int.zero && !context.AwaitingMoveConfirmation &&
+                context.MapDataProvider != null &&
                 !PlayerMovementValidator.IsWithinWorldBounds(
                     context.Position + PlayerDirectionMapping.MovementToDeltaServer(direction),
                     context.MapDataProvider.WorldWidth,
@@ -216,7 +219,6 @@ internal sealed class PlayerMovementActionExecutor
                     context.NextMoveTime = Time.time + cooldown;
                     context.LastSentDirection = packetDirection;
                     context.Robot.TargetAngle = PlayerDirectionMapping.DirectionToAngle(direction);
-                    TryRotate(context, direction);
                     context.AwaitingMoveConfirmation = true;
                     PlayerStepSelector.NoteStep(context.StepState, direction);
                     context.NetworkService?.SendAction(new MovePacket((ushort)targetPosition.x, (ushort)targetPosition.y));
@@ -241,7 +243,6 @@ internal sealed class PlayerMovementActionExecutor
                 context.PublishPlayerMoved(oldPos, context.Position);
                 context.NextMoveTime = Time.time + cooldown;
                 context.LastSentDirection = packetDirection;
-                TryRotate(context, direction);
                 context.AwaitingMoveConfirmation = true;
                 PlayerStepSelector.NoteStep(context.StepState, direction);
                 context.NetworkService?.SendAction(new MovePacket(targetServerX, targetServerY));

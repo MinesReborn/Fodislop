@@ -152,9 +152,9 @@ PvP (клавиша L, атака игрока на игрока, урон ме�
 
 | Критерии | Что существует | Что это не подтверждает |
 |---|---|---|
-| Инварианты исходников | `dotnet run --project tools/Kern.ArchitectureLinter -- --project-root . --source-only --fail-on Error`; доступные правила определяются каталогом линтера | Игровые сценарии, поведение публичного сервера и assembly-only правила |
+| Инварианты исходников | `dotnet run --project tools/architecture/Kern.ArchitectureLinter -- --project-root . --source-only --fail-on Error`; доступные правила определяются каталогом линтера | Игровые сценарии, поведение публичного сервера и assembly-only правила |
 | Конфигурация/миграции (SET-01) | `ClientConfigValidator`, Editor tests конфигурации; `KERN-SETTINGS-PROBE` внутри линтера | Probe компилируется только с `UnityManagedPath`/`KERN_SETTINGS_PROBE`; без define правило возвращает пустой результат без проверки |
-| UI и локализация | `KERN-LOCALIZATION`, `KERN-HARDCODED-TEXT`, другие правила UI; `tools/Kern.DisplayTests` | Визуальный результат, взаимодействие в Unity и соответствие всех экранов |
+| UI и локализация | `KERN-LOCALIZATION`, `KERN-HARDCODED-TEXT`, другие правила UI; `tools/tests/Kern.DisplayTests` | Визуальный результат, взаимодействие в Unity и соответствие всех экранов |
 | Сцены/переходы (REC, EDGE) | Unity EditMode/PlayMode tests в `Assets/Scripts/Tests`; standalone `TerrainTests` проверяет terrain-логику | Standalone terrain-тесты не исполняют переходы Unity-сцен |
 | Билд (EDGE-01, PERF) | BuildSceneOrder, ProductionSceneContractValidator, UnityRenderLayerValidator; UnityVersionGate при загрузке Editor | Готовый player-артефакт, performance и публичный endpoint; release-валидатора dummy/localhost сейчас нет |
 | Windows x64 + macOS ARM64 | Методы `BuildScript.BuildWindows` / `BuildMacOS` | CI-джобов `windows-player` / `macos-player` нет; артефакты требуют отдельно запрошенной сборки |

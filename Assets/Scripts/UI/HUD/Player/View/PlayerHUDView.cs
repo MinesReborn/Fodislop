@@ -98,8 +98,6 @@ namespace Kern.UI.HUD
         [Inject]
         private IProgrammatorTextureCatalog _programmatorTextures = null!;
         [Inject]
-        private IClientConfigManager _clientConfig = null!;
-        [Inject]
         private PlayerInputHandler _playerInput = null!;
 
         [Inject]

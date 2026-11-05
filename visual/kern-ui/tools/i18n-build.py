@@ -66,7 +66,7 @@ for k, (e, z) in mock.items():
 # Строки, которые макет показывает, а перевода нет ни там, ни там
 rx_all = [pattern(t[0]) for t in tpl]
 missing = sorted(s for s in shown if s not in {digits(k) for k in exact} and not any(r.match(s) for r in rx_all))
-(ui / 'i18n/untranslated.json').write_text(json.dumps(missing, ensure_ascii=False, indent=0), 'utf-8')
+(ui / 'i18n/untranslated.json').write_text(json.dumps(missing, ensure_ascii=False, indent=0) + '\n', 'utf-8')
 (ui / 'js/i18n-data.js').write_text('// Создано tools/i18n-build.py из словаря игры и i18n/mockup.json — не править руками\nwindow.I18N = '
                                     + json.dumps({'exact': exact, 'tpl': tpl, 'keys': keys}, ensure_ascii=False, separators=(',', ':')) + ';\n', 'utf-8')
 print(f'из словаря игры {used_game}, из макета {len(mock) - len(dupes)}, совпало с игрой {len(dupes)}, без перевода {len(missing)}')

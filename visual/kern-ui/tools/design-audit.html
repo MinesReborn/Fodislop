@@ -23,6 +23,8 @@ const SCENES_ALL = [
   'screen=boot', 'screen=auth', 'screen=auth&forgot=1', 'screen=auth&autherr=1', 'screen=auth&auth=register', 'screen=auth&auth=register&autherr=1',
   'screen=onboarding', 'screen=onboarding&onbstep=1', 'screen=onboarding&onbstep=2', 'screen=menu', 'screen=menu&update=1', 'screen=menu&skills=2',
   'screen=menu&updwin=1', 'screen=menu&health=1', 'screen=descent',
+  // Образцы компонентов дизайн-кода (specimen.html) — те же правила, что у игры; проверяются один раз, без устройства
+  ...['panel', 'btn', 'keycap', 'input', 'toggle', 'meters', 'tabs', 'net'].map(c => 'specimen=' + c),
 ];
 const DEVICES_ALL = ['device=d1080', 'device=d768', 'device=d1440&input=ps', 'device=promax&input=touch', 'device=ipadpro&input=touch', 'device=tv&input=xbox', 'device=tv&input=xbox&padhud=1'];
 // ?scene=…&dev=… — один экран для разбора
@@ -31,7 +33,7 @@ const DEVICES = new URLSearchParams(location.search).get('dev') ? [new URLSearch
 const NEW = /\/(micro|systems|srvgui)\.css$/;
 // Оранжевый разрешён: главное действие, тревога, непрочитанное, новое, ссылка, фокус поля ввода, бонус, стенд
 const SIGNAL_OK = '.btn--primary, .is-primary, .btn--signal, .bonus, .badge, .chat-badge, .is-unread, .is-unread *, .link, .menu-news small, .chat-input, .input, .tbtn--dig, #touchDig, .dig, .prog-run, .act--dig, .mission-progress, .online em, .brand img, .wordmark, .pd-rt, .pd-rt *, .mark-dot, .keycap.is-listening, [class*="pad-"] , .is-running';
-const FONTS = /Tektur|Onest|JetBrains Mono|PingFang|Hiragino|Noto Sans SC|Microsoft YaHei|system-ui|monospace|sans-serif/;
+const FONTS = /Exo 2|Onest|JetBrains Mono|PingFang|Hiragino|Noto Sans SC|Microsoft YaHei|system-ui|monospace|sans-serif/;
 const q = new URLSearchParams(location.search), only = q.get('only'), why = q.get('why');   // ?why=селектор — какие правила рисуют элемент
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const load = src => new Promise(r => { const f = document.createElement('iframe'); f.style.cssText = 'border:0;width:1920px;height:1080px;position:absolute;left:-3000px'; f.onload = () => r(f); f.src = src; document.body.append(f); });
@@ -94,7 +96,7 @@ const norm = s => s.split(/\s+/).join(' ').trim();
   const settle = async f => { const w = f.contentWindow;
     if (WAIT) return wait(WAIT);
     await w.document.fonts.ready; await w.kernWorld?.ready; await frames(w); await wait(450); await frames(w); };
-  const jobs = DEVICES.flatMap(dev => SCENES.map(sc => [dev, sc]));
+  const jobs = DEVICES.flatMap((dev, i) => SCENES.filter(sc => !sc.startsWith('specimen=') || i === 0).map(sc => [dev, sc]));
   // ?mode=reload — прежний способ (загрузка игры на каждую сцену), для сверки по #counts; иначе игра грузится один раз,
   // сцена — kernScene.reset() и apply(параметры) теми же обработчиками, что при загрузке по адресу
   const RELOAD = q.get('mode') === 'reload';
@@ -110,7 +112,8 @@ const norm = s => s.split(/\s+/).join(' ').trim();
   const run = async ([dev, sc]) => {
     const [addr, clicks] = sc.split('|');
     let f, rules;
-    if (RELOAD) { f = await load(`../index.html?${addr}&${dev}&still=1`); await settle(f); rules = prepare(f.contentDocument, f.contentWindow); }
+    if (sc.startsWith('specimen=')) { f = await load(`../specimen.html?c=${sc.slice(9)}`); await settle(f); rules = prepare(f.contentDocument, f.contentWindow); }
+    else if (RELOAD) { f = await load(`../index.html?${addr}&${dev}&still=1`); await settle(f); rules = prepare(f.contentDocument, f.contentWindow); }
     else {
       // Игра грузится заново на каждое устройство (ввод и подсказки геймпада живут на устройстве), сцены устройства — на месте
       if (oneDev !== dev) { one?.remove(); one = await load(`../index.html?${dev}&still=1`); await settle(one); oneRules = prepare(one.contentDocument, one.contentWindow); oneDev = dev; }
@@ -202,7 +205,7 @@ const norm = s => s.split(/\s+/).join(' ').trim();
         add(broken, `${key(el)}  капс в строке «${t.textContent.trim().slice(0, 24)}»`, where);
     }
     counts[`${dev} ${sc}`] = n;
-    if (RELOAD) f.remove();
+    if (RELOAD || sc.startsWith('specimen=')) f.remove();
   };
   const queue = [...jobs];
   if (RELOAD) await Promise.all(Array.from({ length: POOL }, async () => { while (queue.length) await run(queue.shift()); }));
