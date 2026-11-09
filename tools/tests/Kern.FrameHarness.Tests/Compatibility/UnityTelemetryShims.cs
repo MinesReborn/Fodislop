@@ -16,6 +16,7 @@ namespace Unity.Profiling
     public struct ProfilerRecorder : System.IDisposable
     {
         public bool Valid { get; }
+        public int Count { get; }
         public long LastValue { get; }
         public static ProfilerRecorder StartNew(ProfilerCategory category, string name) => default;
         public void Dispose() { }

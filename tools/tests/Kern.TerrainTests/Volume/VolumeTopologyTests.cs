@@ -102,7 +102,7 @@ public sealed class VolumeTopologyTests
             {
                 double dx = (x + .5) / 32 - .5;
                 double dy = (y + .5) / 32 - .5;
-                if (dx * dx + dy * dy <= .51 * .51 || Math.Abs(Math.Abs(dx) - Math.Abs(dy)) >= .4)
+                if (dx * dx + dy * dy <= .5 * .5 || Math.Abs(Math.Abs(dx) - Math.Abs(dy)) >= .4)
                 {
                     pixels++;
                 }

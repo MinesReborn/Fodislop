@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Linq;
 using Kern.World.Terrain;
 using NUnit.Framework;
 using UnityEngine;
@@ -17,20 +18,21 @@ public sealed class VolumeMeshTests
         topology.Publish(buffers, Vector2Int.zero, 8, 8, false);
         using var volume = new TerrainVolumeMesh();
         volume.EnsureSize(4, 4, 1, 8, 8, topology);
-        Mesh mesh = volume.Mesh!;
+        Mesh mesh = volume.BlockMesh!;
         var oldVertices = (TerrainVolumeVertex[])mesh.Vertices.Clone();
         int indexUploads = mesh.IndexUploadCount;
         buffers.Set(2, 2, 2);
         buffers.Set(3, 2, 1);
         topology.Publish(buffers, Vector2Int.zero, 8, 8, false);
         volume.EnsureSize(4, 4, 1, 8, 8, topology);
-        Assert.That(mesh.LastUploadDestination, Is.EqualTo(4 * 4 * 4));
+        Assert.That(mesh.LastUploadDestination, Is.Zero);
         Assert.That(mesh.LastUploadCount, Is.EqualTo(4 * 4));
         Assert.That(mesh.IndexUploadCount, Is.EqualTo(indexUploads));
         var vertices = (TerrainVolumeVertex[])mesh.Vertices;
-        Assert.That(vertices[0].Address, Is.EqualTo(oldVertices[0].Address));
-        Assert.That(vertices[vertices.Length - 1].Address, Is.EqualTo(oldVertices[oldVertices.Length - 1].Address));
-        Assert.That(vertices[4 * 4 * 4].Address, Is.Not.EqualTo(oldVertices[4 * 4 * 4].Address));
+        Assert.That(Enumerable.Range(0, 4 * 4).Any(index =>
+            vertices[index].Address != oldVertices[index].Address), Is.True);
+        Assert.That(vertices.Skip(4 * 4).Select(vertex => vertex.Address),
+            Is.EqualTo(oldVertices.Skip(4 * 4).Select(vertex => vertex.Address)));
     }
 
     [Test]
@@ -43,15 +45,15 @@ public sealed class VolumeMeshTests
         topology.Publish(buffers, Vector2Int.zero, 8, 8, false);
         using var volume = new TerrainVolumeMesh();
         volume.EnsureSize(4, 4, 1, 8, 8, topology);
-        Mesh mesh = volume.Mesh!;
+        Mesh mesh = volume.BlockMesh!;
         Assert.That(Marshal.SizeOf<TerrainVolumeVertex>(), Is.EqualTo(16));
         Assert.That(volume.WallQuadCount, Is.EqualTo(4));
-        Assert.That(mesh.vertexCount, Is.EqualTo(16 * 8 + 4 * 4));
-        Assert.That(mesh.GetSubMesh(0).indexCount, Is.EqualTo(16 * 6));
-        Assert.That(mesh.GetSubMesh(1).indexCount, Is.EqualTo(4 * 6));
-        Assert.That(mesh.GetSubMesh(2).indexStart, Is.EqualTo(16 * 6 + 4 * 6));
+        Assert.That(mesh.vertexCount, Is.EqualTo(16 * 4 + 4 * 4));
+        Assert.That(mesh.GetSubMesh(0).indexCount, Is.EqualTo(4 * 6));
+        Assert.That(mesh.GetSubMesh(1).indexStart, Is.EqualTo(4 * 6));
+        Assert.That(volume.Mesh!.vertexCount, Is.EqualTo(16 * 4));
         var vertices = (TerrainVolumeVertex[])mesh.Vertices;
-        int wallStart = 16 * 4;
+        int wallStart = 0;
         for (int quad = 0; quad < 4; quad++)
         {
             for (int corner = 0; corner < 4; corner++)
@@ -80,8 +82,8 @@ public sealed class VolumeMeshTests
         Assert.That(volume.WallQuadCount, Is.EqualTo(10));
         volume.Dispose();
         volume.EnsureSize(4, 4, 1, 8, 8, topology);
-        Assert.That(volume.Mesh, Is.Not.SameAs(mesh));
-        Assert.That(volume.Mesh!.Indices.Length, Is.GreaterThan(0));
+        Assert.That(volume.BlockMesh, Is.Not.SameAs(mesh));
+        Assert.That(volume.BlockMesh!.Indices.Length, Is.GreaterThan(0));
     }
     [Test]
     public void PositionOnlyPackingHasIndependentKnownValuesIncludingNegativeContourCoordinates()
